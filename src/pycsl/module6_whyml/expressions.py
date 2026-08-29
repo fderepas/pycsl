@@ -9346,6 +9346,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if isinstance(_rc, dict) and _rc.get("type") == "String":
                     parts.append(f"(PVStr {bound[f]})")
                     continue
+                # THE BOOLEAN LITERAL (relaunch #13, `atom`'s `True`/`False` arms): the
+                # certified `pyconst_val` has a DEDICATED `PVBool bool` arm, so a Python
+                # `True` is `(PVBool true)` — NOT the int-encoded `PVInt 1` the leaf
+                # `IrBoolC` convention uses. Reading it back through `pvbool_of` is exact.
+                if isinstance(_rc, dict) and _rc.get("type") == "Bool":
+                    parts.append("(PVBool true)" if _rc.get("value") else "(PVBool false)")
+                    continue
+                # THE ELLIPSIS LITERAL (relaunch #13, `atom`'s `...` arm): Module5 lowers
+                # `...` to the integer ZERO, so the ONLY thing that tells it apart from a
+                # literal `0` is the ADDITIVE `py_ellipsis` marker key `_py_expr_constant`
+                # attaches. Mapped to the certificate's `PVEllipsis` singleton — the model
+                # therefore does NOT claim `... == 0`, which the bare Number arm would.
+                if (isinstance(_rc, dict) and _rc.get("type") == "Number"
+                        and _rc.get("py_ellipsis")):
+                    parts.append("PVEllipsis")
+                    continue
                 # NOTE (relaunch #12): the `PVBool` and `PVEllipsis` arms were BUILT
                 # AND MEASURED WORKING for `atom` (`value=True` -> `(PVBool true)`, not
                 # `PVInt 1`; `value=...` -> `PVEllipsis`, read off an additive

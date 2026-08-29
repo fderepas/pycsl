@@ -806,7 +806,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                          for b in expr.value],
             }
         if expr.value is ...:
-            return {"type": "Number", "value": 0}
+            return {"type": "Number", "value": 0, "py_ellipsis": True}
         if isinstance(expr.value, complex):
             return {"type": "Number", "value": int(expr.value.real)}
         return {"type": "Number", "value": expr.value}

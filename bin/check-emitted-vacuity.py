@@ -179,13 +179,22 @@ def emitted_functions(mlw_text):
     (`let function is_pdict (v: pyval) : bool = match v with ...`) are handled — reading the
     body from the NEXT line instead reports every such definition as ignoring its parameter.
     `val` declarations are skipped: they are the trusted stubs, which have no body by design.
+
+    GATE BLIND SPOT REPAIRED (relaunch #13): the head regex used to match only `  let ...`,
+    so every CONTINUATION member of a mutual-recursion group (`  with <name> ...`) was
+    invisible to this probe — 531 of the 3839 emitted functions, 14% of the surface. It was
+    found the way false greens usually are: converting `atom` moved `_parser___dict_rest`
+    from being a `let rec` HEAD into a `with` continuation, and the probe promptly reported
+    its long-KNOWN `t` erasure as "no longer erased" — an artifact of the parser, not a
+    repair. Widening the head AND the stop pattern to accept `with` re-detects it and finds
+    NO NEW erasure anywhere else, so this is a pure tightening.
     """
     lines = mlw_text.split("\n")
     out = {}
     i = 0
-    stop = re.compile(r"  (let|val|end\b|type |exception |predicate |function |axiom |lemma |clone |use )")
+    stop = re.compile(r"  (let|with|val|end\b|type |exception |predicate |function |axiom |lemma |clone |use )")
     while i < len(lines):
-        m = re.match(r"  let (?:rec |function |ghost )*(\w+)\b", lines[i])
+        m = re.match(r"  (?:let|with) (?:rec |function |ghost )*(\w+)\b", lines[i])
         if not m:
             i += 1
             continue

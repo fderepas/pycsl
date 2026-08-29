@@ -1163,7 +1163,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # the corpus byte-diff is 0 BY CONSTRUCTION) that lets the `Constant.value`
             # payload slot emit the certified `PVEllipsis` arm instead of `PVInt 0`. It was
             # reverted with the `atom` spike that was its only consumer.
-            return {"type": "Number", "value": 0}
+            # `py_ellipsis` is an ADDITIVE marker key: every existing consumer of a
+            # "Number" node reads only `type` and `value`, so the corpus byte-diff is 0
+            # BY CONSTRUCTION. It is the ONLY thing that can tell `...` apart from a
+            # literal `0` downstream, and the `Constant.value` `pyconst_val` payload slot
+            # uses it to emit the certified `PVEllipsis` arm instead of `PVInt 0`.
+            return {"type": "Number", "value": 0, "py_ellipsis": True}
         if isinstance(expr.value, complex):
             return {"type": "Number", "value": int(expr.value.real)}
         return {"type": "Number", "value": expr.value}
