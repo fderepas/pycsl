@@ -720,12 +720,41 @@ class _Parser:
                 cause = self.test()
         return self._fin(_N("Raise")(exc=exc, cause=cause), t)
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PYTHON-AST NODE CTOR FAMILY: CONVERTED (relaunch #14) — the SECOND of the two
+    # remaining `_set_ctx`-blocked stubs, and the first whose blocked site was a LOOP
+    # VARIABLE rather than a plain local. The live body used to write
+    # `for tg in targets: _set_ctx(tg, _N("Del")())`; with the relaunch-#13 RETURN
+    # INTERFACE that shape is unusable, because rebinding a loop variable does NOT
+    # propagate into the list. The live source therefore now walks the list by INDEX and
+    # accumulates the rewritten targets into a fresh list — runtime-identical (`_set_ctx`
+    # mutates in place and hands back the very object it was passed, so both the elements
+    # and their order are the same objects in the same positions; only the identity of the
+    # list OBJECT differs, and nothing reads it), which the corpus byte-diff of 0/813
+    # confirms. A NEW `_PYAST_IRNODE_CTORS` entry `IrPyDelete irlist` carries the ONE
+    # total child list, and the seq accumulator crosses into it through the existing
+    # `seq_to_irlist` bridge — no element erased.
+    # NO GROUP VARIANT: the only in-group edge out of here goes to `exprlist`, which is
+    # NOT a member of any `let rec` group (nothing in the expression group calls back into
+    # a statement), and `del_stmt`'s own caller `small_stmt` is still `\trusted`, i.e. an
+    # abstract `val` with no call edge. This method is a plain `let`.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def del_stmt(self):
-        pass
+    def del_stmt(self) -> "ExprIR":
+        t = self.advance()
+        raw = self.exprlist()
+        n = len(raw)
+        targets = []
+        k = 0
+        #@ ghost i30 = self.i
+        #@ loop invariant 0 <= k and k <= n
+        #@ loop invariant self.i == i30
+        #@ loop variant n - k
+        while k < n:
+            targets.append(_set_ctx(raw[k], _N("Del")()))
+            k += 1
+        return self._fin(_N("Delete")(targets=targets), t)
 
     # `_fin` RECOGNIZER vein, increment 5: CONVERTED. Verbatim body port of the LIVE
     # `assert_stmt`, including its PEP-526 `Optional["ExprIR"]` local annotation (inert at

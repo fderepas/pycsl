@@ -892,9 +892,13 @@ class _Parser:
 
     def del_stmt(self):
         t = self.advance()
-        targets = self.exprlist()
-        for tg in targets:
-            _set_ctx(tg, _N("Del")())
+        raw = self.exprlist()
+        n = len(raw)
+        targets = []
+        k = 0
+        while k < n:
+            targets.append(_set_ctx(raw[k], _N("Del")()))
+            k += 1
         return self._fin(_N("Delete")(targets=targets), t)
 
     def assert_stmt(self):

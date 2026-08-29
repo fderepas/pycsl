@@ -333,6 +333,11 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # `"NamedExpr"` kind_of TAG, which is sound and precedented (IrCall/IrCallN,
     # IrSliceN/IrSlice, IrStarred/IrPyStarred).
     "NamedExpr": ("IrPyNamedExpr", [("target", "emit_ir"), ("value", "emit_ir")]),
+    # `Delete(targets)` — `_NODE_SPEC['Delete'] == ('stmt', ('targets',), None)`, ONE
+    # total child LIST (no `_OPTIONAL_FIELDS` entry): the `del a, b[0], c.d` target
+    # expressions, each rewritten to `Del` context by `_set_ctx`. An ordinary `irlist`,
+    # like every other variadic child list in the family.
+    "Delete": ("IrPyDelete", [("targets", "irlist")]),
     # `MatchAs(pattern, name)` — `_NODE_SPEC['MatchAs'] == ('pattern', ('pattern',
     # 'name'), None)`. BOTH fields are in `_OPTIONAL_FIELDS['MatchAs']` (a bare `_`
     # wildcard carries neither), but the `as`-pattern construction this arm serves
