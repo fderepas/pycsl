@@ -1364,6 +1364,33 @@ class _Parser:
     # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted; clauses backed by the
     # live body, which moves the cursor only through advance/accept_*/expect_* and its
     # sub-parsers.
+    # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted; clauses backed by the
+    # live body, which moves the cursor only through advance/accept_*/expect_* and its
+    # sub-parsers.
+    # CERTIFIED-BOUNDARY [THREE NAMED GAPS], relaunch #12 — re-diagnosed. The recorded
+    # reason was [MODEL]: "needs the parser's own number/constant classification". That is
+    # now BUILT (the certified `pyconst_val` slot + `_parse_number`'s `-> "PyConstVal"`
+    # interface, which converted the sibling `_pattern_number` in the same increment) and
+    # it is NOT what blocks this method. Ported and MEASURED, the emitted body declines for
+    # THREE separate reasons, each small and each named:
+    #   (1) `MatchValue(value=…)` has no `_PYAST_IRNODE_CTORS` entry — every one of the
+    #       three arms that build it falls to the `matchValue_0 ()` facade. `_NODE_SPEC`
+    #       gives it ONE total child, so the arm is `IrPyMatchValue emit_ir`.
+    #   (2) `MatchSingleton(value=…)` likewise falls to `matchSingleton_0 ()`. Its slot is
+    #       EXACTLY the `pyconst_val` this increment built — the ASDL `constant` is only
+    #       ever `None`/`True`/`False` here — but the value arrives through a STRING-KEYED
+    #       DICT LITERAL indexed by a local (`{"None": None, "True": True,
+    #       "False": False}[s]`), so it also needs the const-dict lowering extended from a
+    #       MODULE-level table to an inline literal.
+    #   (3) `s = t.string` is INT-ERASED in this body — emitted `let s = ref 0` with the
+    #       membership test lowered to HASH equality (`!s = 1922383146`), the erasure
+    #       lesson (bi) §2 warns about — even though the very same `s = t.string` in `atom`
+    #       classifies as a string local. The difference is the TUPLE MEMBERSHIP
+    #       `s in ("None", "True", "False")`: it is what makes the string classifier bail.
+    #       That is the capability to name: a local tested by tuple membership against
+    #       STRING literals is a STRING local.
+    # Gap (3) is a real WRONG-VALUE erasure (two distinct names can collide on a hash) and
+    # is worth fixing on its own account, not just to unblock this method.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -1372,12 +1399,38 @@ class _Parser:
     def closed_pattern(self) -> "ExprIR":
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # LITERAL-VALUE MODEL, relaunch #12: CONVERTED — the FIRST consumer of the certified
+    # `pyconst_val` slot, and the [MODEL] boundary recorded against the `Constant` NUMBER
+    # arm is broken here. Verbatim body port of the LIVE `_pattern_number`.
+    # `_N("Constant")(value=_parse_number(ntok.string), kind=None)` now lowers to
+    # `IrPyConstant (_parse_number …) PVNone`-shaped payload: the value is the REAL result
+    # of the parser's own number lexer, carried as the certified union, instead of the
+    # decline-to-facade the two-arm `irconst` forced.
+    # `sign` is a PLAIN string local and that is FAITHFUL here, deliberately NOT an
+    # `iropt_str` carrier: it is only ever "-", "+" or `None`, so the I-B `x = None -> ""`
+    # sentinel is distinguishable from every value the body can produce, and the two
+    # `sign == …` tests read it directly. (Contrast `debug_text` in `_fstring_replacement`,
+    # where `_slice` can legitimately return the EMPTY string and the sentinel therefore
+    # LIES — lesson (bl). The rule is about the value set, not the type.)
+    # `self.error(...)` is `-> "NoReturn"`, so the reject path's continuation is
+    # unreachable and the `ntok` read below it is guarded.
+    # No CURSOR NON-REGRESSION clause: the live body's `self.advance()` calls make the
+    # `>=` chain trivially true, but nothing consumes it yet — demand-first.
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _pattern_number(self):
-        pass
+    def _pattern_number(self) -> "ExprIR":
+        t = self.cur()
+        sign = self.advance().string if self.at_op("-", "+") else None
+        if self.cur().type != _tokenize.NUMBER:
+            self.error("expected a number literal in pattern")
+        ntok = self.advance()
+        val = self._fin(_N("Constant")(value=_parse_number(ntok.string), kind=None), ntok)
+        if sign == "-":
+            return self._fin(_N("UnaryOp")(op=_N("USub")(), operand=val), t)
+        if sign == "+":
+            return self._fin(_N("UnaryOp")(op=_N("UAdd")(), operand=val), t)
+        return val
 
     # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
     # `_dotted_value`. Builds a real `IrPyName` and then folds `IrPyAttribute` over the
@@ -2662,6 +2715,39 @@ class _Parser:
     # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted; clauses backed by the
     # live body, which moves the cursor only through advance/accept_*/expect_* and its
     # sub-parsers.
+    # CERTIFIED-BOUNDARY [NO-ADVANCE VARIANT CYCLE], relaunch #12. The body was ported and
+    # MEASURED, and EVERY VALUE PIECE WORKS: the four literal arms all lower faithfully on
+    # the certified `pyconst_val` slot — a NUMBER to `_parse_number t._tok_string`, `None`
+    # to `PVNone`, `True`/`False` to `PVBool true/false` (not `PVInt 1`), `...` to
+    # `PVEllipsis` — and the `Name`, `strings`, `yield_expr`, `atom_paren`, `atom_list` and
+    # `atom_brace` arms all resolve. The ONLY thing that blocks it is TERMINATION.
+    # Converting `atom` removes the abstract `val` that today CUTS the expression
+    # `let rec` group, and eight more methods fall in with it: `testlist`, `yield_expr`,
+    # `atom_paren`, `atom_list`, `atom_brace`, `_dict_rest`, `test_or_star` and `atom`
+    # itself — 19 members become 28. The phase-offset scheme (lesson (bh)) needs the
+    # NO-ADVANCE edges to form a DAG, and here they form a CYCLE:
+    #     atom -> yield_expr -> testlist -> test -> or_test -> and_test -> not_test ->
+    #     comparison -> expr -> _binop -> factor -> power -> await_expr ->
+    #     unary_postfix -> atom
+    # No assignment of strictly decreasing offsets exists around a cycle, so this is not a
+    # matter of picking better depths — it was MEASURED as `All functions in a recursive
+    # definition must use the same well-founded order`, and the first-cut depths were
+    # already impossible (`unary_postfix` at 1 forces `atom` <= 0, and `atom` then forces
+    # its four callees BELOW 0).
+    # REOPENING CAPABILITY, named precisely and NOT requiring any new TCB: break the cycle
+    # by making the LEADING `advance` of `yield_expr` / `atom_paren` / `atom_list` /
+    # `atom_brace` / `_dict_rest` PROVABLY STRICT. Each of them opens by consuming a token
+    # its CALLER has just tested, so the evidence exists — it is simply in the wrong
+    # function. A token-kind PRECONDITION on the callee
+    # (`#@ requires self.toks[self.i].type == _tokenize.OP`, or `== NAME` for
+    # `yield_expr`) is DISCHARGEABLE at every call site from the `ensures \result != False
+    # ==> self.toks[self.i].type == …` clauses `at_op` / `at_kw` ALREADY export, and inside
+    # the callee it composes with the EOF-SENTINEL class invariant (the last token is
+    # ENDMARKER) exactly as `_name_str`'s strictness proof does. That turns each method's
+    # first `advance` into a full cursor drop, which PAYS its outgoing edges and cuts the
+    # cycle above at `yield_expr -> testlist`, `atom_paren -> comp_for`, and so on.
+    # A precondition is a PROOF OBLIGATION at the call site, not an assumption — so this
+    # reopening adds no `\trusted` surface and no axiom.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -3179,11 +3265,24 @@ def _merge_str_constants(values: List["ExprIR"], drop_empty: bool = True) -> "Li
 def _set_ctx(node, ctx):
     pass
 
+# RETURN INTERFACE (relaunch #12) — the LITERAL VALUE. STAYS `\trusted` (count-neutral):
+# the body is Python number lexing (`int(s, 0)`, `float`, `complex`), which the model has no
+# business reproducing. What the interface DOES say is the whole of what its callers need:
+# `_parse_number` is a pure TOTAL FUNCTION of the token text whose result is a Python
+# CONSTANT VALUE. `-> "PyConstVal"` resolves to the CERTIFIED `pyconst_val` union (the
+# axiom-free Phase2c_PyConstVal.v / PyConstVal.lean abstraction map, total over py-scalars),
+# so the emitted `val` is an UNINTERPRETED `string -> pyconst_val`. That is the honest
+# abstraction and it is what the number-literal sites were missing: equal token texts give
+# equal values, and the model asserts NOTHING else in either direction — it never claims two
+# literals are equal, and never claims they differ. Before this the emitted `val` was
+# `(s: int) : unit` — the argument int-ERASED and the result thrown away — so every
+# `Constant(value=_parse_number(...))` construction declined fail-closed and `atom`,
+# `_pattern_number` and `closed_pattern` sat on a recorded [MODEL] boundary.
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _parse_number(s):
+def _parse_number(s: str) -> "PyConstVal":
     pass
 
 _SIMPLE_ESCAPES = {'\n': '', '\\': '\\', "'": "'", '"': '"', 'a': '\x07', 'b': '\x08', 'f': '\x0c', 'n': '\n', 'r': '\r', 't': '\t', 'v': '\x0b'}

@@ -269,7 +269,7 @@ _PYAST_IRNODE_CTORS: Dict[str, Tuple[str, List[Tuple[str, str]]]] = {
     # other value expression makes the construction DECLINE (fail-closed), which is what
     # keeps the number-literal sites (`_parse_number` -> int|float|complex) on their
     # recorded [MODEL] boundary instead of silently mis-modelling them.
-    "Constant": ("IrPyConstant", [("value", "irconst"), ("kind", "iropt_str")]),
+    "Constant": ("IrPyConstant", [("value", "pyconst_val"), ("kind", "iropt_str")]),
     # `JoinedStr(values)` — `_NODE_SPEC['JoinedStr'] == ('expr', ('values',), None)`, ONE
     # total child list: the alternating Constant / FormattedValue parts of an f-string.
     # An ordinary `irlist`, like every other variadic child list in the family.

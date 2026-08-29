@@ -2252,6 +2252,17 @@ class FunctionEmissionMixin:
         # dispatcher's `val` signature to type-check as `emit_ir -> emit_ir`. Only
         # reachable when `ann` carries one of the 4 recognized IR-node tags — no
         # corpus function outside a @mutable_state mirror uses them (byte-identical).
+        elif ann == "PyConstVal" and return_type in ("int", "unit"):
+            # LITERAL-VALUE MODEL (relaunch #12): the RETURN INTERFACE that makes a Python
+            # literal VALUE modellable. `_parse_number(s)` is a pure total function of the
+            # token text returning an int, a float or a complex; declared `-> "PyConstVal"`
+            # its emitted `val` is an UNINTERPRETED `string -> pyconst_val`, the honest
+            # abstraction (equal texts give equal values; nothing else claimed in either
+            # direction). `"unit"` is the case that matters: the only such helper is a
+            # `\trusted` stub whose placeholder body is a bare `pass`, so its DECLARED
+            # annotation is the sole authority on what it returns. The tag names a type no
+            # corpus program mentions, so every corpus file is byte-identical.
+            return_type = "pyconst_val"
         elif (ann in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR")
                 and return_type in ("int", "unit")):
             # NODE-CTOR (self-tcb-reduction): `"unit"` covers a still-`\trusted` mirror

@@ -1151,6 +1151,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                          for b in expr.value],
             }
         if expr.value is ...:
+            # FLAGGED, NOT REPAIRED (relaunch #12): the `...` literal has NO IR node of its
+            # own and lowers to the integer ZERO — a silent WRONG-VALUE erasure, the same
+            # class as the `p.x = v` no-op and the dropped chained-assignment target. It is
+            # left alone deliberately: giving `...` a real node type would make every
+            # existing consumer meet an unknown IR kind, turning a silent 0 into a hard
+            # compile error for any program that writes `...` in an expression — a
+            # user-visible behaviour change outside this campaign's mandate. The
+            # zero-blast-radius repair was BUILT AND MEASURED: an ADDITIVE `py_ellipsis`
+            # marker key (no existing consumer reads anything but `type` and `value`, so
+            # the corpus byte-diff is 0 BY CONSTRUCTION) that lets the `Constant.value`
+            # payload slot emit the certified `PVEllipsis` arm instead of `PVInt 0`. It was
+            # reverted with the `atom` spike that was its only consumer.
             return {"type": "Number", "value": 0}
         if isinstance(expr.value, complex):
             return {"type": "Number", "value": int(expr.value.real)}

@@ -9092,6 +9092,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _rt = (getattr(self, "_module_method_return_types", {}) or {}).get(_key)
         return _rt == "array emit_ir"
 
+    def _call_returns_pyconst_val(self, fn: str) -> bool:
+        """LITERAL-VALUE MODEL (relaunch #12): does the callee `fn` declare a return type
+        that emits as `pyconst_val` — i.e. is its result a real Python LITERAL VALUE the
+        `Constant.value` slot may carry? This is the gate on `_parse_number`, whose
+        `-> "PyConstVal"` interface is the ONLY thing that makes the number-literal sites
+        modellable at all. Resolved from the module's own return-type map (self-calls are
+        class-prefix mangled the way `_irlist_call_returns_emit_ir_array` does it), so a
+        helper whose interface is int-erased or differently typed answers False and the
+        construction DECLINES fail-closed."""
+        if not isinstance(fn, str) or not fn:
+            return False
+        _key = fn
+        if fn.startswith("self."):
+            _cls = getattr(self, "_current_self_type", None)
+            _tail = fn[len("self."):]
+            _key = f"{_cls}__{_tail}" if _cls else _tail
+        _rt = (getattr(self, "_module_method_return_types", {}) or {}).get(_key)
+        return _rt == "pyconst_val"
+
     def _call_irnode_constructor(self, args: List[str], func_name: str,
                                  kwargs_map: Optional[Dict[str, str]] = None,
                                  none_arg_indices: Optional[Set[int]] = None,
@@ -9310,24 +9329,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     parts.append(f"(IrSSome {bound[f]})")
                     continue
                 return None
-            if _irlist_slots.get(f) == "irconst":
-                # LITERAL-VALUE CARRIER (relaunch #11): the `Constant.value` slot. An
-                # EXPLICIT `None` actual is `ICNone` (the Python literal `None`, faithfully
-                # NOT a string); a STRING-typed actual — a string literal, or a local/param
-                # the file's string classification proved carries a `string` — is
-                # `(ICStr v)`. ANY OTHER shape (a number, a bytes join, an unclassified
-                # local) DECLINES the whole construction, fail-closed: `irconst` has no arm
-                # for it, and inventing one would model the literal as something it is not.
+            if _irlist_slots.get(f) == "pyconst_val":
+                # LITERAL-VALUE MODEL (relaunch #12): the `Constant.value` slot, now typed
+                # with the CERTIFIED `pyconst_val` union rather than the bespoke two-arm
+                # `irconst` it replaced (see preamble.py at the type's declaration). Each
+                # shape maps to the arm the Rocq/Lean certificate pins it to, and ANY OTHER
+                # shape DECLINES the whole construction, fail-closed: an unmodelled literal
+                # is never mis-typed into some other arm.
                 if f in none_fields:
-                    parts.append("ICNone")
+                    parts.append("PVNone")
                     continue
                 _rc = (raw_kwargs or {}).get(f)
                 if isinstance(_rc, dict) and _rc.get("type") == "None":
-                    parts.append("ICNone")
+                    parts.append("PVNone")
                     continue
                 if isinstance(_rc, dict) and _rc.get("type") == "String":
-                    parts.append(f"(ICStr {bound[f]})")
+                    parts.append(f"(PVStr {bound[f]})")
                     continue
+                # NOTE (relaunch #12): the `PVBool` and `PVEllipsis` arms were BUILT
+                # AND MEASURED WORKING for `atom` (`value=True` -> `(PVBool true)`, not
+                # `PVInt 1`; `value=...` -> `PVEllipsis`, read off an additive
+                # `py_ellipsis` marker in `_py_expr_constant`, which is the ONLY thing
+                # that can tell `...` apart from a literal `0` because Module5 lowers it
+                # to the integer ZERO). Both were REVERTED WITH the `atom` spike — the
+                # blocker there is TERMINATION, not value modelling (see the
+                # [NO-ADVANCE VARIANT CYCLE] boundary on `atom`), and dead capability is
+                # not left behind (lessons (az)/(bd)). They come back with `atom`.
                 if isinstance(_rc, dict) and _rc.get("type") == "Var":
                     _cn = str(_rc.get("name"))
                     # OPTIONAL-STRING CARRIER (relaunch #11): the actual is an `iropt_str`
@@ -9337,13 +9364,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # `iropt_str_val`; its `IrSNone` arm is the `""` default and is
                     # unreachable at this site.
                     if _cn in getattr(self, "_iropt_str_local_vars", set()):
-                        parts.append(f"(ICStr (iropt_str_val !{whyml_ident(_cn)}))")
+                        parts.append(f"(PVStr (iropt_str_val !{whyml_ident(_cn)}))")
                         continue
                     if (_cn in getattr(self, "_string_local_vars", set())
                             or getattr(self, "_current_symbol_table", {}).get(_cn)
                             in ("str", "string")):
-                        parts.append(f"(ICStr {bound[f]})")
+                        parts.append(f"(PVStr {bound[f]})")
                         continue
+                if (isinstance(_rc, dict) and _rc.get("type") == "Call"
+                        and isinstance(_rc.get("func"), str)
+                        and self._call_returns_pyconst_val(_rc["func"])):
+                    # THE NUMBER LITERAL (relaunch #12): `value=_parse_number(tok.string)`.
+                    # `_parse_number` is a PURE TOTAL FUNCTION of the token text that
+                    # returns an int, a float or a complex — three shapes the retired
+                    # two-arm `irconst` could not express at all, which is why the number
+                    # sites (`atom`, `_pattern_number`, `closed_pattern`) sat on a recorded
+                    # [MODEL] boundary. Its declared `-> "PyConstVal"` interface makes the
+                    # emitted `val` an UNINTERPRETED `string -> pyconst_val`, which is the
+                    # honest abstraction: equal token texts give equal values, and nothing
+                    # else is claimed in EITHER direction — the model never asserts two
+                    # literals are equal, and never asserts they differ. No axiom.
+                    parts.append(bound[f])
+                    continue
                 return None
             if _irlist_slots.get(f) == "seq string":
                 # A STRING-LIST child (`Compare.ops` is `cmpop*`, a list of 0-FIELD

@@ -871,6 +871,23 @@ class Module6_WhyMLTranspiler(
             if (_f.get("return_annotation") == "list"
                     and _f.get("return_value_type") == "emit_ir"):
                 self._module_method_return_types[_f["name"]] = "array emit_ir"
+        # LITERAL-VALUE MODEL (relaunch #12): a module-level helper declared
+        # `-> "PyConstVal"` returns a Python CONSTANT VALUE, and its CALL SITES must see
+        # that. `_parse_number` is the only such helper: it is a `\trusted` stub, so
+        # `_build_method_return_type_map` computed its return from a `pass` body ("unit")
+        # and every `Constant(value=_parse_number(...))` construction declined to a facade.
+        # Placed here rather than in the map builder for the SAME reason as the
+        # `array emit_ir` sibling above (lesson (vv)): that builder's mirror is UN-TRUSTED
+        # and converted, so editing it obliges a whole-file re-proof of
+        # `module6_whyml/functions.py`, while `transpile`'s mirror is `\trusted` and this
+        # post-pass costs nothing. Keyed on the literal annotation tag, which no corpus
+        # program uses -> corpus byte-inert. Lesson (am), AGAIN: the DECLARATION side
+        # (`functions._compute_return_type`) and the CALL-SITE side (this map) are TWO
+        # producers, and patching only the first left the emitted `val` correctly typed
+        # `pyconst_val` while its call site still read `unit`.
+        for _f in funcs_for_maps:
+            if _f.get("return_annotation") == "PyConstVal":
+                self._module_method_return_types[_f["name"]] = "pyconst_val"
         # self-tcb-reduction (_err-divergence): callee IR-names declared `-> NoReturn`
         # (is_noreturn, Module5 NR1). A `self.<m>(...)` call to one of these is modelled at
         # the call site (`_handle_dotted_call`) as making the continuation UNREACHABLE — the
@@ -1135,6 +1152,23 @@ class Module6_WhyMLTranspiler(
                for m in ind.get("members", [])})
         funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
         self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
+        # LITERAL-VALUE MODEL (relaunch #12): a module-level helper declared
+        # `-> "PyConstVal"` returns a Python CONSTANT VALUE, and its CALL SITES must see
+        # that. `_parse_number` is the only such helper: it is a `\trusted` stub, so
+        # `_build_method_return_type_map` computed its return from a `pass` body ("unit")
+        # and every `Constant(value=_parse_number(...))` construction declined to a facade.
+        # Placed here rather than in the map builder for the SAME reason as the
+        # `array emit_ir` sibling above (lesson (vv)): that builder's mirror is UN-TRUSTED
+        # and converted, so editing it obliges a whole-file re-proof of
+        # `module6_whyml/functions.py`, while `transpile`'s mirror is `\trusted` and this
+        # post-pass costs nothing. Keyed on the literal annotation tag, which no corpus
+        # program uses -> corpus byte-inert. Lesson (am), AGAIN: the DECLARATION side
+        # (`functions._compute_return_type`) and the CALL-SITE side (this map) are TWO
+        # producers, and patching only the first left the emitted `val` correctly typed
+        # `pyconst_val` while its call site still read `unit`.
+        for _f in funcs_for_maps:
+            if _f.get("return_annotation") == "PyConstVal":
+                self._module_method_return_types[_f["name"]] = "pyconst_val"
         # self-tcb-reduction (_err-divergence): callee IR-names declared `-> NoReturn`
         # (is_noreturn, Module5 NR1). A `self.<m>(...)` call to one of these is modelled at
         # the call site (`_handle_dotted_call`) as making the continuation UNREACHABLE — the

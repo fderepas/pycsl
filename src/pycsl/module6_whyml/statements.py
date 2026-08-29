@@ -1149,7 +1149,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                 continue
                             if _slots.get(_a) == "iropt_ir":
                                 _slotted.add(_val["name"])
-                            elif _slots.get(_a) == "irconst":
+                            elif _slots.get(_a) == "pyconst_val":
                                 _cslotted.add(_val["name"])
                 # SECOND ADMISSION ROUTE (relaunch #12): a local whose PRESENCE IS
                 # TESTED — `if default is not None:` — see the class comment below.

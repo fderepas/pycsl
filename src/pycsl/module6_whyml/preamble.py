@@ -4834,6 +4834,31 @@ class PreambleEmissionMixin:
                 "  type keyword_list = KWNil | KWCons keyword keyword_list",
                 "",
             ]) if self._uses_call_kw() else []),
+            # LITERAL-VALUE MODEL (relaunch #12): `Constant.value` is the one Python-AST
+            # child that is neither a node nor a string — the class models EVERY literal.
+            # Relaunch #11 gave it a BESPOKE two-arm `irconst`; a CENSUS (lesson (p)) found
+            # that the model it needs ALREADY EXISTS and is CERTIFIED: `pyconst_val`, the
+            # discriminated union of the Python constant scalar kinds, co-landed with the
+            # AXIOM-FREE Rocq+Lean certificate (Phase2c_PyConstVal.v / PyConstVal.lean)
+            # that pins the abstraction map py-scalar -> pyconst_val as TOTAL and
+            # injective-per-kind. So `irconst` is RETIRED and the slot carries
+            # `pyconst_val`: a string literal is `PVStr`, a bare `None` is `PVNone`, and a
+            # NUMBER is whatever `_parse_number` returns — int, float or complex, all three
+            # of which the certified union has an arm for, which is exactly what the
+            # bespoke two-arm carrier could not express.
+            # DECLARED HERE, BEFORE the emit_ir sum, because `IrPyConstant` carries it: the
+            # type is STANDALONE and MONOMORPHIC (no emit_ir payload), so it needs no `with`
+            # and adds nothing to emit_ir's size induction — the `_uses_call_kw` kwval /
+            # keyword_list precedent directly above. Only the TYPE is emitted (demand-first:
+            # no site in this file reads a literal back, so no `is_pv*` / `pv*_of` yet);
+            # the Module5 mirror keeps declaring the full block after the sum, and the two
+            # placements are mutually exclusive so nothing is declared twice.
+            *(([
+                "  type pyconst_val = PVNone | PVBool bool | PVInt int | PVStr string"
+                " | PVBytes (seq int) | PVComplex real | PVEllipsis",
+                "",
+            ]) if (self._uses_pyast_parser()
+                   and not self._uses_pyconst_val()) else []),
             "  type emit_ir = IrVar string | IrAttr emit_ir string | IrStr string"
             " | IrNum int | IrNumF real | IrBoolC int | IrRaw string | IrOther string"
             " | IrCall string emit_ir int | IrSub emit_ir emit_ir"
@@ -5085,16 +5110,13 @@ class PreambleEmissionMixin:
             # parser file -> every other emit_ir theory in the tree is byte-identical.
             + ("  with iroptlist = IONil | IOCons iropt_ir iroptlist"
                if self._uses_pyast_parser() else "")
-            # LITERAL-VALUE CARRIER (relaunch #11): `Constant.value` is the one Python-AST
-            # child that is neither a node nor a string — the class models EVERY literal.
-            # `irconst` names the literal's SHAPE so a string literal cannot be confused
-            # with a number or with `None`. It carries only the shapes the converted sites
-            # actually build; a value expression of any other shape makes the construction
-            # DECLINE, so an unmodelled literal is never mis-typed into a `string` slot.
-            # Childless for the `size` measure (no emit_ir payload) -> no size arm, no
-            # decrease lemma. Gated on the pure_ast parser file, like `iroptlist`.
-            + ("  with irconst = ICStr string | ICNone"
-               if self._uses_pyast_parser() else ""),
+            # LITERAL-VALUE MODEL (relaunch #12): the bespoke `irconst` carrier that used
+            # to close this group is RETIRED — `IrPyConstant`'s value slot now carries the
+            # CERTIFIED `pyconst_val`, declared STANDALONE above the sum (see the note at
+            # its declaration). It has no emit_ir payload, so it stays out of the `size`
+            # induction exactly as `irconst` did, and it gains five arms the two-arm
+            # carrier never had.
+            ,
             "",
             "  (* _py_expr fixed-child batch mini-M1: IrStarred carries the single"
             " emit_ir child (`_py_expr_starred`'s `value` field) — a GENERIC"
