@@ -7305,18 +7305,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # results and different receivers may differ. Restricted to the argument-less `is*`
         # family — `startswith`/`endswith` already have their own receiver-carrying
         # `str_startswith_op` path above, and leaving them alone keeps this change small.
-        # THE GATE, and what it costs: `_uses_pyast_parser` confines the repair to the ONE
-        # mirror this increment converts, so the corpus and every other mirror stay
-        # byte-identical. MEASURED without the gate: exactly TWO other emissions move, and
-        # both move in the same direction — `module6_whyml/statements.py`'s
-        # `src.isidentifier(...)` and corpus driver `0447`'s `s.islower()`, the latter going
-        # from `val s_islower_0 () : int` + `(s_islower_0 ())` to `(py_islower_op s)`. Those
-        # are the SAME defect and the SAME repair; they are left for a dedicated increment
-        # because a corpus emission change is not inert and owes that driver its own
-        # re-proof. FLAGGED, not hidden.
+        # UN-GATED (relaunch #14, the increment after the one that introduced it). The
+        # repair first landed gated on `_uses_pyast_parser`, because it is the ONE case in
+        # this campaign where the honest fix is NOT corpus-byte-inert. The blast radius was
+        # measured exactly, and it is two sites, both moving the same way:
+        #   * `module6_whyml/statements.py`'s `src.isidentifier(...)`;
+        #   * corpus driver `0447`, whose `s.islower()` goes from an argument-less
+        #     `val s_islower_0 () : int` + `(s_islower_0 ())` to `(py_islower_op s)`.
+        # 0447 is the reference driver FOR THIS FEATURE ("string predicate methods are
+        # modeled as uninterpreted 0/1-valued ops"), and its own contract
+        # `ensures \result == 0 or \result == 1` is exactly what the repair preserves —
+        # the postcondition is about 0/1-ness, which the receiver-carrying op still gives,
+        # and nothing in the driver claims anything about WHICH strings are lowercase. Both
+        # files are RE-PROVED in this increment, which is the price of a non-inert change
+        # and the reason it got its own.
         _IS_PREDS = ("islower", "isupper", "isalpha", "isdigit", "isspace",
                      "istitle", "isalnum", "isnumeric", "isdecimal", "isidentifier")
-        if self._uses_pyast_parser() and "." in func_name and not args:
+        if "." in func_name and not args:
             _rhead, _rtail = func_name.rsplit(".", 1)
             if (_rtail in _IS_PREDS and "." not in _rhead
                     and (_rhead in (local_refs or set())
