@@ -1367,30 +1367,38 @@ class _Parser:
     # RETURN INTERFACE + CURSOR NON-REGRESSION. STAYS \trusted; clauses backed by the
     # live body, which moves the cursor only through advance/accept_*/expect_* and its
     # sub-parsers.
-    # CERTIFIED-BOUNDARY [THREE NAMED GAPS], relaunch #12 — re-diagnosed. The recorded
-    # reason was [MODEL]: "needs the parser's own number/constant classification". That is
-    # now BUILT (the certified `pyconst_val` slot + `_parse_number`'s `-> "PyConstVal"`
-    # interface, which converted the sibling `_pattern_number` in the same increment) and
-    # it is NOT what blocks this method. Ported and MEASURED, the emitted body declines for
-    # THREE separate reasons, each small and each named:
-    #   (1) `MatchValue(value=…)` has no `_PYAST_IRNODE_CTORS` entry — every one of the
-    #       three arms that build it falls to the `matchValue_0 ()` facade. `_NODE_SPEC`
-    #       gives it ONE total child, so the arm is `IrPyMatchValue emit_ir`.
-    #   (2) `MatchSingleton(value=…)` likewise falls to `matchSingleton_0 ()`. Its slot is
-    #       EXACTLY the `pyconst_val` this increment built — the ASDL `constant` is only
-    #       ever `None`/`True`/`False` here — but the value arrives through a STRING-KEYED
+    # CERTIFIED-BOUNDARY [FOUR NAMED GAPS], relaunch #12 — RE-DIAGNOSED TWICE, and the
+    # second pass matters because the FIRST re-diagnosis was itself wrong.
+    # The originally recorded reason was [MODEL]: "needs the parser's own number/constant
+    # classification". That is now BUILT (the certified `pyconst_val` slot +
+    # `_parse_number`'s `-> "PyConstVal"` interface, which converted the sibling
+    # `_pattern_number` in the same increment) and it is NOT what blocks this method.
+    # Ported and MEASURED on the 1-second oracle, then BISECTED:
+    #   (1) `MatchValue(value=…)` had no `_PYAST_IRNODE_CTORS` entry — all three arms that
+    #       build it fell to the `matchValue_0 ()` facade. BUILT AND MEASURED WORKING as
+    #       `IrPyMatchValue emit_ir` (emitted `IrPyMatchValue (_parser___pattern_number
+    #       self)`), then reverted with the spike.
+    #   (2) `MatchAs`'s slots were `emit_ir`/`string`, so the bare-wildcard construction
+    #       `_N("MatchAs")(pattern=None, name=None)` DECLINED — exactly the reopening
+    #       capability the ctor table's own note recorded. `iropt_ir`/`iropt_str` is the
+    #       fix; BUILT AND MEASURED, then reverted with the spike.
+    #   (3) `MatchSingleton(value=…)` still falls to `matchSingleton_0 ()` even WITH a
+    #       `pyconst_val` slot, because the value arrives through an INLINE STRING-KEYED
     #       DICT LITERAL indexed by a local (`{"None": None, "True": True,
-    #       "False": False}[s]`), so it also needs the const-dict lowering extended from a
-    #       MODULE-level table to an inline literal.
-    #   (3) `s = t.string` is INT-ERASED in this body — emitted `let s = ref 0` with the
-    #       membership test lowered to HASH equality (`!s = 1922383146`), the erasure
-    #       lesson (bi) §2 warns about — even though the very same `s = t.string` in `atom`
-    #       classifies as a string local. The difference is the TUPLE MEMBERSHIP
-    #       `s in ("None", "True", "False")`: it is what makes the string classifier bail.
-    #       That is the capability to name: a local tested by tuple membership against
-    #       STRING literals is a STRING local.
-    # Gap (3) is a real WRONG-VALUE erasure (two distinct names can collide on a hash) and
-    # is worth fixing on its own account, not just to unblock this method.
+    #       "False": False}[s]`). The const-dict lowering exists only for a MODULE-LEVEL
+    #       table; extending it to an inline literal is the named capability.
+    #   (4) `s = t.string` is INT-ERASED in THIS body — `let s = ref 0`, membership
+    #       lowered to HASH equality (`!s = 1922383146`) and the f-string to
+    #       `int_to_string !s`, while `seq_mem_str !s` is applied to the same int. A real
+    #       WRONG-VALUE erasure (two names can collide on a hash), and inconsistent besides.
+    #       WHAT IT IS NOT, measured by bisection so the next worker does not repeat it:
+    #       NOT the tuple membership `s in ("None","True","False")` — that lowers to
+    #       `str_eq_op` disjuncts and keeps `s` a `ref ""`; NOT the dict-literal index on
+    #       its own — a two-line body with both still keeps `s` a string; NOT `MatchAs`.
+    #       It appears only in the FULL body, so it is a JOIN over several uses, and the
+    #       capability to name is a string-classification that is not defeated by one
+    #       int-modelled use of a local that every other use treats as a string.
+    # Gap (4) is worth fixing on its own account, not just to unblock this method.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
