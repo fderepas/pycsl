@@ -968,12 +968,22 @@ class _Parser:
         #@ assert self.i > \old(self.i)
         return self._fin(_N("ImportFrom")(module=module, names=names, level=level), t)
 
+    # CURSOR NON-REGRESSION (relaunch #14). Added with `small_stmt`'s strictness chain:
+    # `import_from` calls this in two of its three `names` arms, and without a
+    # monotonicity clause the model lets the cursor DECREASE across it, which is what
+    # broke the staged `#@ assert self.i > \old(self.i)` at the end of that body. PROVED
+    # here, not assumed — the body's only cursor moves are `_import_as_name` (monotone)
+    # and `accept_op` (monotone), with lesson (xx)'s ghost snapshot carrying the direction
+    # across the loop.
     #@ requires True
     #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     def _import_as_names(self) -> "List[ExprIR]":
         names = [self._import_as_name()]
+        #@ ghost i43 = self.i
         #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i43
         #@ loop variant \length(self.toks) - self.i
         while self.accept_op(","):
             if self.at_op(")"):
