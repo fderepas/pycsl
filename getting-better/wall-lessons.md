@@ -4290,3 +4290,38 @@ triage is a finding about your triage, not about the target.**
 in ~15 minutes**, while `frontend/pure_ast.py` takes **2798 goals in ~55 minutes** and
 `module6_whyml/stmt_control_flow.py` **1846 in ~45**. Budget from the measured number, and
 measure a file the first time you touch it.
+
+
+## Lesson (bv) — when the reference driver for a feature is the file your repair moves, read its CONTRACT first
+
+This campaign has now spent corpus byte-inertness exactly TWICE, and both times for the same
+reason and with the same justification, which makes it a pattern rather than an exception.
+
+**1. THE HONEST FIX TO A RECEIVER-ERASING OP CANNOT BE INERT AT THE DRIVER THAT EXERCISES
+THAT OP.** Relaunch #14's `is*` repair moved corpus **0447**; relaunch #15's `isinstance`
+repair moved corpus **0603**. In each case the file that moved was the ONE reference driver
+written to certify the very construct being repaired — which is not bad luck, it is what a
+reference corpus is FOR.
+
+**2. THE CONTRACT DECIDES, AND IN BOTH CASES IT WAS ABOUT SHAPE, NOT VALUE.** 0447 says
+`ensures \result == 0 or \result == 1`; 0603 says `ensures ((result = 1) || (result = 0))`.
+An uninterpreted predicate never claimed anything but 0/1-ness, so a receiver-carrying
+uninterpreted predicate preserves exactly what the driver certifies. **Read the moved
+driver's contract BEFORE deciding whether the repair is compatible with it: if the contract
+is about the SHAPE of the result rather than its VALUE, the repair is compatible with the
+thing the driver was written to prove.** If it were about the value, the repair would be a
+semantic change and would owe a re-specification instead.
+
+**3. MAKE THE OP MONOMORPHIC BY NAMING.** `isinstance_op (x: int) (t: int)` could not carry a
+RECORD receiver, and that single fact is what had kept the erasure in place. Putting the
+receiver's Why3 type into the op NAME — `py_isinstance_Box_box_op (x: box) : bool` — makes
+the family monomorphic by construction, so one name can never acquire two meanings. **Do not
+half-fix such an op by passing the receiver where it happens to type-check and `0` elsewhere.**
+
+**4. A FAIL-CLOSED RECEIVER-TYPE ORACLE IS WORTH MORE THAN A COMPLETE ONE.** The repair
+admits exactly two receiver shapes and declines everything else back to the historical
+constant. That is why it landed the same day with a two-file blast radius instead of chasing
+every shape at once, and it leaves the widening as a sequence of independent, individually
+measurable steps. Naming a type WRONG is loud (an ill-typed application); naming it for a
+shape whose lowering is not a simple value would be a well-typed op over the wrong term,
+which is not.

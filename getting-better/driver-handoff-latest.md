@@ -7,8 +7,9 @@
   are one boilerplate module-docstring line repeated across 25 mirror files, so every
   historical absolute figure (the famous "687") is overstated by that 25.
   **Window #2 delta so far: markers 530 -> 502, grep 555 -> 527.**
-  **This session (#15): 503 -> 502, ONE conversion — plus the big move of the session,
-  which was on the OTHER metric.**
+  **This session (#15): 503 -> 502, ONE conversion — plus the big moves of the session,
+  which were on the OTHER metrics: the shadowed-selfcall ratchet 27 -> 15 (sites 177 -> 154)
+  and the mirror-wide input-blind `isinstance_op 0 0` count 26 -> 24.**
 - **`bin/check-shadowed-selfcalls.py`: 15 CONVERTED methods / 154 bypassing call sites,
   ratchet 15** (was 27 / 177 at session start). Needs
   `TMPDIR=/home/fabrice/git/pycsl/scratchpad`; takes ~2 min; give Bash an explicit timeout.
@@ -28,14 +29,15 @@
 - Fidelity at the standing baseline **2 DIVERGED** (`_handle_var_expr`, `_handle_for_stmt`).
   Field parity 335 / 7 known drift / 0 NEW. check-untrusted-emitted **808 / 791 / 0 / 0**.
   emitted-vacuity `--emit`: no NEW erasure, **8 known**, 0 input-blind.
-  Corpus byte-diff **0 over 813/813** against HEAD. `bin/self-annotate-mirror-check.sh`
+  Corpus byte-diff **0 over 813/813** against HEAD (it was 1 of 813 BY DESIGN during
+  increment 5 — driver 0603, which was re-proved; re-baseline against the CURRENT HEAD). `bin/self-annotate-mirror-check.sh`
   output byte-identical to the session-start HEAD baseline (3 mirrors drifted, exit 1 — that
   IS the baseline).
 - Tree clean apart from the pre-existing user/build dirt (`session.txt`, untracked
   `scratchpad/`, `prompt`, `prompt.txt`). Leave it alone.
   `getting-better/.driver-deadline` intact (Sep 1 08:24 UTC). Commits unpushed by design.
 
-## WHAT THIS SESSION LANDED (four gated increments)
+## WHAT THIS SESSION LANDED (five gated increments)
 
 1. **`Module5_IREmitter._py_stmt_raise` CONVERTED (503 -> 502)** — the CERTIFIED-BOUNDARY
    **[OPTIONAL NODE FIELD NOT UNWRAPPED] is BROKEN**, and all five recorded gaps fell.
@@ -67,6 +69,21 @@
    `-> NoReturn` `error` is `\trusted`, so the arm fires on a callee with no emitted
    definition to order: `unbound function or predicate symbol '_parser__error'`). Requiring
    the explicit `#@ sibling_concrete` marker is what let all eight land green.
+
+5. **The RECEIVER-CARRYING `isinstance` — the SECOND deliberately NON-INERT change of this
+   campaign.** `expressions._handle_isinstance`'s fallback, when `_tag_of_type(<class>)`
+   yields no tag, was `(isinstance_op 0 0)` — BOTH arguments erased, so the test was
+   independent of the value AND of the class. It now emits a per-(class, receiver-type)
+   uninterpreted predicate APPLIED TO THE RECEIVER,
+   `val py_isinstance_<Cls>_<ty>_op (x: <ty>) : bool`. **Monomorphic by construction** — the
+   receiver's Why3 type is part of the op NAME, which is the design question the census had
+   flagged. Two receiver shapes admitted (a plain `Var` whose symtype is a known RECORD or a
+   scalar `_symtype_to_whyml` resolves; and a RECORD-FIELD read), everything else DECLINES to
+   the historical constant. `_csl_proj`'s `if not isinstance(node.index, CSLNumber): raise
+   PyCSLSemanticError` now READS ITS INPUT, and `val isinstance_op` is gone from
+   `Module5_IREmitter` entirely. Blast radius measured first and it is 2 mirrors + **corpus
+   0603**, the reference driver for this very feature, re-proved in 1 s. Mirror-wide
+   input-blind `isinstance_op 0 0`: **26 -> 24**.
 
 ## TWO CERTIFIED-BOUNDARIES RECORDED THIS SESSION (measured, spikes reverted)
 
@@ -121,8 +138,13 @@
    real recursion needing a structural variant (lesson (bi)). Everything else in the residue
    is co-blocked by the value-model frontier (see above), so this is now the ONLY large
    shadowed lever left.
-4. **THE `isinstance_op 0 0` FACADE — CENSUSED THIS SESSION, NOT BUILT, and it is the
-   best-specified item on this list.** ONE producer (`expressions.py:~8383`: when
+4. **THE `isinstance_op 0 0` FACADE — HALF BUILT THIS SESSION (26 -> 24); the WIDENING is
+   what is left, and the machinery is now in place.** `expressions._isinstance_recv_whyml_type`
+   and `_isinstance_recv_field_whyml_type` name the receiver's Why3 type for a plain `Var`
+   and a RECORD-FIELD read; **the 24 remaining sites have receivers those two decline — loop
+   variables, call results, subscripts.** Widen by adding a shape at a time and re-measuring;
+   each new shape is fail-closed (return None and the historical constant stands). The
+   original census, still accurate for the residue: ONE producer (`expressions.py:~8383`: when
    `_tag_of_type(<class>)` yields no tag, the term is `(isinstance_op 0 0)` with BOTH
    arguments erased, so the test is independent of the value AND of the class). **26 sites**,
    by enclosing emitted function: `Module3_Weaver` 4 (`_target_dotted_path` 3, `_const_int`
