@@ -254,13 +254,23 @@
    to the 137-site shadowed residue that does not spend an axiom. Large, and it touches the
    Rocq/Lean certificate; but the SCC-keyword half is already built and byte-inert (patch
    in scratchpad), so the redesign is the whole remaining cost.
-4. **A sound object-state model for `setattr`** — the single highest-leverage item left,
-   and it now has THREE separate consumers measured this session: it unblocks
-   `_desugar_for` immediately (already proven green under the unsound version); it unblocks
-   every `visit_*`/`_attach_*` mutator the census declined (a large family across
-   Module3_Weaver and Module5_IREmitter); and it is what would make the FRAME claims of the
-   11 already-banked setattr-ing conversions true of the source rather than only of the
-   model. Nothing else on this list buys three planes at once.
+4. **EXTEND THE TYPED-RECORD AST MODEL to the node classes the mutators touch — the single
+   highest-leverage item left, with THREE measured consumers and a REFUTED cheaper
+   alternative.** Consumers: it unblocks `_desugar_for` (already proven green under the
+   unsound projector-purity version); it unblocks every `visit_*`/`_attach_*` mutator the
+   census declined (a large family across Module3_Weaver and Module5_IREmitter); and it makes
+   the FRAME claims of the 11 already-banked setattr-ing conversions true of the SOURCE and
+   not only of the model. **DO NOT reach for a global attribute store — it was spiked
+   directly on the emitted `.mlw` and is structurally impossible in Why3**: a `ref (map …)`
+   store is inherently GHOST (`map.Map` is a logic type) so attribute values cannot flow into
+   the non-ghost computation the bodies do with them, and an `array int` store makes
+   `get_<attr>` non-pure ("depends on external variables, cannot be used as pure") and
+   therefore illegal in EVERY contract clause. The horns are exclusive and exhaustive. The
+   emitter ALREADY has the right machinery — `py_with_node` / `py_match_node` /
+   `py_ghost_node` in the Module5 handler family, where `node.<attr>` is a native mutable
+   field and the frame is a native `writes { node.<field> }`. And the cost is favourable:
+   the corpus uses `setattr` in **0 of 814** files, declares exactly **1** `get_<attr>`
+   projector, and only **2** contract clauses mirror-wide mention one — a MIRROR-ONLY build.
 5. `pure_ast`'s residue is now CENSUSED and is the `_Unparser` family plus generators plus
    dunders. Do not re-probe it without a new capability.
 
