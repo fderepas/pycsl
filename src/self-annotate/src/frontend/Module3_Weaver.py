@@ -16,6 +16,25 @@ class PyCSLWeaver(ast.NodeVisitor):
     def __init__(self, contracts_map: Dict[int, List[CSLNode]]) -> None:
         self.contracts_map = contracts_map
 
+    # MEASURED HONESTY GAP (relaunch #17), recorded here because this method is its
+    # WORST instance. This method is CONVERTED and PROVEN — and its emitted body is
+    # THIRTY-ONE applications of `setattr_3 node <hashed-attr-name> 0`, every one of them
+    # a NO-OP in the model (lesson (bq)). So `#@ assigns \nothing` is TRUE OF THE MODEL
+    # and FALSE OF THE SOURCE: in Python this mutates its argument's 31 attributes.
+    # A mirror-wide census of `setattr*` inside CONVERTED (`let`) bodies found ELEVEN such
+    # methods across FOUR mirrors — `PyCSLWeaver._init_function_csl_fields` (31, no
+    # `writes`), `_Parser._fin_pos` (4, `writes {  }`), `_Unparser.block`/`visit`/
+    # `visit_Module`/`visit_Try`/`visit_TryStar` (1-2 each, no `writes`),
+    # `FunctionEmissionMixin._refine_tuple_return_type` (4) and `_build_param_list` (2),
+    # and `StatementEmissionMixin._handle_fieldassign_stmt`/`_handle_fieldaugassign_stmt`
+    # (2 each, which DO declare a large `writes` set — so their frame is real, just not
+    # for the setattr'd attribute). Eight of the eleven declare NO `writes` at all.
+    # THIS IS NOT AN ARGUMENT TO REVERT THEM: each body is otherwise faithful and the
+    # frame claim is the ONLY part that overstates. It is a standing, quantified
+    # limitation of the frame plane, and the SAME missing capability the
+    # `_desugar_for` decline names: a real object-state model relating `setattr` to the
+    # `get_<attr>` projectors. Until that exists, an `assigns \nothing` on a method that
+    # setattrs is a MODEL statement, not a source guarantee — read it that way.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
