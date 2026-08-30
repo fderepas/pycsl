@@ -46,26 +46,53 @@ class IRCrossCheckResult:
             return False
         return all(c == canons[0] for c in canons)
 
-    # CERTIFIED-BOUNDARY (relaunch #16), RE-MEASURED TWICE IN ONE SESSION and now at its
-    # real cause — **[DEGENERATE SYNTHESIZED UNION]**. Two earlier readings were both
-    # BROKEN on the way here and both are gone: the dict literal now lowers to a real
-    # `map_update_some` chain, and the nested `def cmp(a: Optional[Term], b:
-    # Optional[Term])` now gets ONE union type for both parameters (`dedup=True` at the
-    # param seam) instead of `_union_cmp_6` / `_union_cmp_7`, so `a == b` is no longer an
-    # L3-tc type error. What remains is not a typing problem at all.
-    # `Term` is an OPAQUE MARKER CLASS (`class Term: pass`), so the `Optional[Term]` union
-    # drops its payload arm and collapses to `type _union_cmp_6 = Arm_6_None` — a type with
-    # exactly ONE inhabitant. Therefore `a is None` lowers to a test that is ALWAYS TRUE
-    # (lesson (bl): a guard lowering to a literal signals a modelled-away optional), the
-    # else-branch is unreachable, and the converted `cmp` would return `None` on every
-    # path. The `let` would then CLAIM that all three `pairwise` values are `None` — a
-    # positive FALSE statement, where the `val` it replaces is an unconstrained havoc that
-    # claims nothing. DECLINED under lesson (ca): a conversion must not trade a havoc for a
-    # wrong definite value.
-    # REOPENING CAPABILITY: give a synthesized `Optional[X]` union a `Some` arm carrying an
-    # OPAQUE payload when `X` is an unmodelled class, instead of dropping the arm. That
-    # makes the presence test real and the else-branch reachable; `a == b` would then be an
-    # honest uninterpreted equality on the opaque payload.
+    # CERTIFIED-BOUNDARY, RE-MEASURED A FOURTH TIME (relaunch #17) — and the RECORDED
+    # REOPENING CAPABILITY WAS WRONG. The relaunch-#16 record said the cause was a
+    # [DEGENERATE SYNTHESIZED UNION] because "`Term` is an OPAQUE MARKER CLASS", and named
+    # the fix as "give the `Some` arm an OPAQUE payload". That capability was built and
+    # landed this session (it is right, and it fixed four other files) — but it is the
+    # WRONG FIX HERE, and the premise it rested on is FALSE FOR THIS FILE. Read from disk:
+    # `Term` is NOT opaque in `crosscheck_ir.mlw`. It is a CERTIFIED 9-constructor Why3
+    # inductive `type term` with a structural `let rec term_eq`, and the `Optional[Term]`
+    # canon FIELDS already lower to the faithful `option term` (Module5
+    # `_M5_OPTION_FIELD_ALLOWLIST` -> value_type "opaque_term" -> preamble `option term`
+    # when `_term_adt_spec` is present). The sibling methods `all_agree` and
+    # `provers_agree` ALREADY compare canons with `term_eq a b`. Converting `pairwise`
+    # onto an opaque `Arm_6_0 int` payload would therefore be a FAITHFULNESS REGRESSION
+    # RELATIVE TO ITS OWN SIBLINGS: an int-erased equality standing where a certified
+    # structural one already exists. (Lesson: verify the MODELLING premise against the
+    # emitted `.mlw`, not only the gate premise — a recorded reopening capability can be
+    # precisely wrong.)
+    #
+    # THE FAITHFUL ROUTE WAS SPIKED AND WORKS, and the blocker is TWO LEVELS FURTHER IN.
+    # Spike (measured on the type-checker, ~15 lines, kept at
+    # `scratchpad/w2/opt_term_param.spike.patch`, reverted): route `Optional[Term]` at the
+    # PARAMETER seam through the same `opaque_term` -> `option term` path the FIELD seam
+    # already takes, add the `option`-presence `is None` branch for such a param, and
+    # lower `a == b` on two of them to `(match a, b with Some x, Some y -> term_eq x y |
+    # _, _ -> false end)` at the INT type the union arm expects (lesson (bx): produce the
+    # lowering at the type the CONSUMER expects — this also SUBSUMES the "bool->int
+    # union-arm return wrap" the previous handoff predicted as a separate capability).
+    # With that, `cmp` emits FULLY FAITHFULLY: a real two-inhabitant presence test and a
+    # real `term_eq`. TWO gaps remain, and both are real:
+    #   (1) THE LIFTED NESTED `def`. `cmp(...)` does not resolve to the hoisted
+    #       `ircrosscheckresult__cmp` — it lowers to an abstract `cmp_2` op with
+    #       int-coerced arguments. This codebase has NO generic route for calling a
+    #       lifted nested def: every nested-def shape it supports is handled by a
+    #       BESPOKE outer+lifted recognizer pair in `generic_fold.py`.
+    #   (2) `Dict[str, Optional[bool]]` IS NOT EXPRESSIBLE. The dict model already spends
+    #       `option` on KEY PRESENCE (`map <k> (option <v>)`), so a Python `None` VALUE is
+    #       indistinguishable from an ABSENT KEY. A converted `pairwise` would claim
+    #       `Map.get m "rocq==lean" = None` — "there is no such key" — for exactly the case
+    #       Python represents as "key present, value None". That is lesson (ca)'s trade of
+    #       a havoc for a wrong definite value, in the other direction.
+    # DEMAND is also nil: the only reader of `.pairwise` is `diagnostic()`, itself
+    # `\trusted`.
+    # REOPENING CAPABILITY (corrected, all three needed): (a) the `Optional[Term]` PARAM
+    # route [SPIKED, works]; (b) generic lifted-nested-def call resolution, or a bespoke
+    # `recognize_crosscheck_pairwise` group beside the existing `recognize_crosscheck_*`
+    # family; (c) a dict value model that distinguishes an ABSENT key from a present
+    # `None` value.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
