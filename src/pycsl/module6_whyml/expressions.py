@@ -8441,6 +8441,45 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # constant) whenever the type cannot be named, so it is fail-closed.
             _rt = (self._isinstance_recv_whyml_type(_a0)
                    or self._isinstance_recv_field_whyml_type(_a0))
+            # RECEIVER-CARRYING isinstance, widening 3 (relaunch #16): an EMIT_IR-VALUED
+            # receiver. The three shapes that remained after the previous window's
+            # widenings were an ATTRIBUTE read (`value.operand`, `node.value`), a
+            # SUBSCRIPT (`node.body[0]`, `call.args[0]`, `body_stmts[-1]`) and a CALL
+            # result (`getattr(call, "func", None)`) — and what they have in common is not
+            # their shape at all: each lowers to a term of the `emit_ir` ADT. So instead of
+            # three shape rules, ONE type rule: ask `_is_emit_ir_expr`, the predicate this
+            # same handler already uses for its `is_unaryop` arm. Fail-closed (a non-node
+            # receiver, e.g. the STRING `value.op`, is not an emit_ir expression and keeps
+            # the historical constant) and LOUD if wrong (an ill-typed application).
+            if not _rt and self._is_emit_ir_expr(_a0):
+                _rt = "emit_ir"
+            # RECEIVER-CARRYING isinstance, widening 5 (relaunch #16): read the type OFF
+            # THE LOWERING instead of guessing it from the shape. The last residual
+            # receivers (`value.operand`, `node.value`, `call.args[0]`,
+            # `getattr(call, "func", None)`) all lower to an application of an abstract op
+            # this emission has ALREADY declared — `val get_operand (x: int) : int` — so
+            # the op's own declared return type IS the receiver's Why3 type. That is
+            # evidence, not inference: if the head symbol is not a declared abstract op,
+            # or its decl carries an `ensures` continuation we cannot parse simply, the
+            # rule declines. The trial lowering is rolled back on decline so a DECLINED
+            # site leaves no dangling op in the theory (the `_try_emit_any_all_fold`
+            # device).
+            if not _rt and isinstance(_a0, dict) and _a0.get("type") in (
+                    "Attribute", "FieldGet", "Subscript", "Call"):
+                _ops_snap0 = dict(getattr(self, "_abstract_ops", {}) or {})
+                _trial = self._expr_to_whyml(_a0, local_refs or set(),
+                                             getattr(self, "_in_spec", False), None)
+                _head = _trial.strip().lstrip("(").split()[0] if _trial.strip() else ""
+                _decl = (getattr(self, "_abstract_ops", {}) or {}).get(_head, "")
+                _first = _decl.split("\n")[0].rstrip()
+                if _head and _first.startswith("val ") and ") : " in _first:
+                    _cand = _first.rsplit(") : ", 1)[1].strip()
+                    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*( [A-Za-z_][A-Za-z0-9_]*)?",
+                                    _cand or ""):
+                        _rt = _cand
+                if not _rt:
+                    self._abstract_ops.clear()
+                    self._abstract_ops.update(_ops_snap0)
             # RECEIVER-CARRYING isinstance, widening 1 (relaunch #15): the CLASS argument is
             # usually written DOTTED (`isinstance(node, ast.Expr)`), so `args_ir[1]["name"]`
             # is None and the class could not even be NAMED — measured as 11 of the 24
@@ -8452,6 +8491,37 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if (isinstance(_co, dict) and _co.get("type") == "Var"
                         and isinstance(_a1.get("attr"), str)):
                     _cn = _a1["attr"]
+            # RECEIVER-CARRYING isinstance, widening 4 (relaunch #16): the TUPLE-OF-CLASSES
+            # form `isinstance(node, (AsyncFunctionDef, FunctionDef, ClassDef, Module))`.
+            # Python defines it as the DISJUNCTION over the tuple, so lower it as one —
+            # each disjunct is the same per-(class, receiver-type) uninterpreted op the
+            # single-class form emits, applied to the SAME receiver. Nothing new is
+            # claimed: the disjunction of uninterpreted predicates is exactly as
+            # uninterpreted as one of them, and it is a faithful reading of the semantics.
+            # Declines whole if ANY element fails to name a class.
+            _cls_names: List[str] = []
+            if (not _cn and isinstance(_a1, dict)
+                    and _a1.get("type") in ("Tuple", "MkTuple", "ArrayLit", "SetLit")):
+                for _el in (_a1.get("elts") or []):
+                    if isinstance(_el, dict) and _el.get("type") == "Var" \
+                            and isinstance(_el.get("name"), str):
+                        _cls_names.append(_el["name"])
+                    elif (isinstance(_el, dict) and _el.get("type") == "Attribute"
+                          and isinstance(_el.get("attr"), str)):
+                        _cls_names.append(_el["attr"])
+                    else:
+                        _cls_names = []
+                        break
+            if _rt and _cls_names:
+                _rw = self._expr_to_whyml(_a0, local_refs or set(),
+                                          getattr(self, "_in_spec", False), None)
+                _disj = []
+                for _c1 in _cls_names:
+                    _opn1 = ("py_isinstance_" + re.sub(r"[^A-Za-z0-9_]", "_", _c1)
+                             + "_" + re.sub(r"[^A-Za-z0-9_]", "_", _rt) + "_op")
+                    self._add_abstract_op(f"val {_opn1} (x: {_rt}) : bool")
+                    _disj.append(f"({_opn1} {_rw})")
+                return "(" + " || ".join(_disj) + ")"
             if _rt and isinstance(_cn, str) and _cn:
                 _opn = ("py_isinstance_" + re.sub(r"[^A-Za-z0-9_]", "_", _cn)
                         + "_" + re.sub(r"[^A-Za-z0-9_]", "_", _rt) + "_op")
