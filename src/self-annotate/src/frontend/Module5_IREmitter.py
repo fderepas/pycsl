@@ -2261,6 +2261,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return False
 
     _UNION_ARM_TAGS = {'int', 'bool', 'str', 'bytes', 'float', 'list', 'dict', 'set'}
+
+    # Bare (unsubscripted) `typing` / ABC aliases that are capitalized but are
+    # NOT classes carrying an opaque value. They keep the historical `Any`
+    # (dropped) lowering — a bare `List` arm has no element type to carry.
+    _TYPING_ALIAS_ARMS = {
+        "Any", "Optional", "Union", "List", "Dict", "Set", "FrozenSet", "Tuple",
+        "Callable", "Iterable", "Iterator", "Sequence", "Mapping",
+        "MutableMapping", "MutableSequence", "MutableSet", "AbstractSet",
+        "Collection", "Container", "Reversible", "Sized", "Hashable",
+        "Generator", "Awaitable", "Coroutine", "AsyncIterable", "AsyncIterator",
+        "Deque", "DefaultDict", "OrderedDict", "Counter", "ChainMap",
+        "Text", "AnyStr", "Type", "NoReturn", "Never", "Self", "Literal",
+        "Final", "ClassVar", "Annotated", "TypeVar", "Generic", "Protocol",
+        "NamedTuple", "TypedDict", "Bytes", "ByteArray", "Ellipsis", "None",
+    }
     # value-model campaign increment 8 (is_none-conjunction recognizer + banked string-return
     # wrapping): `elt` retyped `"ExprIR"`; `isinstance(elt, ast.Constant) and elt.value is None`
     # -> `(is_none elt)` (the faithful IrNone discriminant — a None literal lowers to IrNone;
@@ -2295,6 +2310,25 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # falls back to `Any` (dropped, GT1) as before.
             if any(td.get("kind") == "record" and td.get("name") == elt.id
                    for td in self.program_ir.get("type_decls", [])):
+                return elt.id
+            # relaunch #17 capability: THE OPAQUE `Some`-ARM PAYLOAD.
+            # A CLASS-shaped arm that has no WhyML record type is still a REAL
+            # arm — the value it carries is opaque, but its PRESENCE is not.
+            # Dropping it (the old `return "Any"`) collapsed `Optional[X]` to
+            # the single-inhabitant `type _union_… = Arm_i_None`, which makes
+            # every `x is None` guard lower to a literal `true` (lesson (bl))
+            # and every `Optional[X]` PARAMETER declare that the argument is
+            # ALWAYS absent — a positive FALSE claim. Emitting the arm with the
+            # class name as its payload tag makes Module6 resolve it through
+            # `_record_payload_types.get(t, "int")`: to the record's WhyML type
+            # when one exists, else to the OPAQUE `int` default. An opaque int
+            # payload claims nothing about the value (lesson (ca): a decline
+            # that lands on a havoc is fine; one that lands on a CONSTANT is an
+            # assertion) while restoring the two-inhabitant presence test.
+            # Gated on a leading CAPITAL (Python class-naming convention) minus
+            # the bare `typing` aliases, so a lowercase/unknown arm still
+            # degrades to `Any` exactly as before.
+            if elt.id[:1].isupper() and elt.id not in self._TYPING_ALIAS_ARMS:
                 return elt.id
             return "Any"
         # self-tcb-reduction giants (generic class-body lowering): an `ast.<expr-node>`
