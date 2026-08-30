@@ -4467,3 +4467,56 @@ value your body can produce. If the body's declines are constants where the `val
 havoc, record the boundary and name the capability that would make the body honest — here,
 lowering a string-keyed dict literal to the `map_update_some` chain, whose blast radius is
 every `(const (None: option int))` decline in the corpus and so owes its own increment.
+
+---
+
+## (cb) A BOUNDARY RECORDED WITH A NAMED, PRICED CAPABILITY IS A WORK ITEM, NOT A WALL
+
+`crosscheck.pairwise` was recorded as a CERTIFIED-BOUNDARY at 14:00 and CONVERTED at 17:00,
+in the same session, by the very capability its own record named. The capability cost two
+small emitter changes and its measured corpus byte-diff was zero. Nothing was learned in
+between that was not already written down — the record simply had to be read as a task.
+
+So the value of a boundary record is almost entirely in **how precisely it prices the
+reopening capability**. "Needs a better value model" is a wall. "Lower a string-keyed dict
+literal to the `map_update_some` chain; that op is already declared with `ensures result =
+Map.set m k (Some v)` so no axiom is involved; blast radius is every `(const (None: option
+int))` decline in the corpus emission, so measure it first" is a work item with a plan, an
+oracle and a cost. Write the second kind. The reader who acts on it may be you, an hour
+later, and by then you will not remember the shape of the thing.
+
+Corollary for the same session: after landing a capability, **re-read the boundaries you
+recorded before it**. Three of this session's six increments broke a boundary that had been
+recorded by an earlier increment of the same session or the one before it.
+
+## (cc) WHEN A WALL MOVES TWICE, EACH READING WAS A REAL SUB-WALL
+
+`crosscheck_ir.pairwise` was recorded three times in one session:
+
+1. **[DICT-LITERAL RETURN DECLINES TO THE EMPTY MAP]** — true, and broken by increment 5.
+2. **[SYNTHESIZED-UNION IDENTITY]** — true (two `Optional[Term]` parameters got two distinct
+   nominal union types, so `a == b` was ill-typed), and broken by increment 6.
+3. **[DEGENERATE SYNTHESIZED UNION]** — `Term` is an opaque marker class, so the union drops
+   its payload arm and has exactly ONE inhabitant; the presence guard lowers to a literal
+   `true` (lesson (bl)), the else-branch is unreachable, and a converted `cmp` would return
+   `None` on every path.
+
+None of the three readings was wrong. Each was the FIRST thing in the way, and removing it
+exposed the next. That is the normal shape of a stack of independent defects, and it has two
+practical consequences.
+
+**Record the wall you MEASURED, not the wall you suspect is behind it.** A record that
+speculates about the deepest cause is unfalsifiable and discourages the cheap fix that would
+have exposed the real one. Each of these three records was cheap to make and each named a
+capability that turned out to be independently worth building — capability 1 converted the
+TWIN (`crosscheck.pairwise`), capability 2 is a general typing fix that moved two other
+mirrors.
+
+**And re-run the spike after every capability, rather than reasoning about whether it is
+enough.** The second and third readings each took about ten minutes to obtain, because the
+type-checker answers in ten seconds (lesson (by)) — far cheaper than arguing from the source
+about what the emitter would do.
+
+The stopping rule stays lesson (ca): stop when the next thing in the way is that the
+converted body would CLAIM something false. That is a soundness boundary, not a cost one,
+and it is where a decline is the right answer no matter how much budget is left.
