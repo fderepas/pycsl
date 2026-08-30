@@ -8394,8 +8394,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # constant) whenever the type cannot be named, so it is fail-closed.
             _rt = (self._isinstance_recv_whyml_type(_a0)
                    or self._isinstance_recv_field_whyml_type(_a0))
-            if _rt and isinstance(t_name, str) and t_name:
-                _opn = ("py_isinstance_" + re.sub(r"[^A-Za-z0-9_]", "_", t_name)
+            # RECEIVER-CARRYING isinstance, widening 1 (relaunch #15): the CLASS argument is
+            # usually written DOTTED (`isinstance(node, ast.Expr)`), so `args_ir[1]["name"]`
+            # is None and the class could not even be NAMED — measured as 11 of the 24
+            # residual sites. A dotted `<mod>.<Cls>` names the class exactly as a bare one
+            # does; take the ATTRIBUTE.
+            _cn = t_name
+            if not _cn and isinstance(_a1, dict) and _a1.get("type") == "Attribute":
+                _co = _a1.get("object") or {}
+                if (isinstance(_co, dict) and _co.get("type") == "Var"
+                        and isinstance(_a1.get("attr"), str)):
+                    _cn = _a1["attr"]
+            if _rt and isinstance(_cn, str) and _cn:
+                _opn = ("py_isinstance_" + re.sub(r"[^A-Za-z0-9_]", "_", _cn)
                         + "_" + re.sub(r"[^A-Za-z0-9_]", "_", _rt) + "_op")
                 self._add_abstract_op(f"val {_opn} (x: {_rt}) : bool")
                 _rw = self._expr_to_whyml(_a0, local_refs or set(),
@@ -11766,8 +11777,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not isinstance(_nm, str):
             return None
         _st = getattr(self, "_current_symbol_table", {}).get(_nm)
-        if not isinstance(_st, str) or _st in ("", "Any"):
-            return None
+        if not isinstance(_st, str) or _st in ("", "Any", "object"):
+            # RECEIVER-CARRYING isinstance, widening 2 (relaunch #15): an UNTYPED receiver
+            # (`symtype` absent / `Any` / `object`) is the INT default — measured as the
+            # other blocker on the residual sites. But "untyped in the symbol table" is not
+            # "int in the emission": a dozen inference passes retype a local to string /
+            # array / seq / emit_ir / a union carrier / a record / pyval AFTER the symbol
+            # table is built, and each of those sets is exactly what decides the local's
+            # DECLARATION. So admit the int default only when the name is in NONE of them.
+            # This is fail-closed by EXCLUSION rather than by inclusion, which is weaker —
+            # but the failure mode is LOUD: naming the type wrong produces an ill-typed
+            # application that L3-tc rejects on the 2-second oracle, never a well-typed op
+            # over the wrong term.
+            for _setname in ("_string_local_vars", "_array_locals", "_seq_locals",
+                             "_emit_ir_local_vars", "_iropt_ir_local_vars",
+                             "_iropt_str_local_vars", "_optional_union_locals",
+                             "_pyval_locals", "_record_locals", "_lambda_locals",
+                             "_mutated_collection_params", "_inline_array_temps",
+                             "_hvalmap_local_vars", "_term_local_vars",
+                             "_pyast_stmt_locals", "_tparam_locals", "_shared_var_names",
+                             "_module_constants", "_quant_scalar_binders"):
+                if _nm in (getattr(self, _setname, None) or set()):
+                    return None
+            for _mapname in ("_array_elem_types", "_seq_value_types", "_dict_value_types",
+                             "_dict_key_types", "_tuple_var_slot_types", "_todict_aliases"):
+                if _nm in (getattr(self, _mapname, None) or {}):
+                    return None
+            return "int"
         _rt = getattr(self, "_record_types", {}).get(_st)
         if _rt and _rt.get("whyml_name"):
             return str(_rt["whyml_name"])
