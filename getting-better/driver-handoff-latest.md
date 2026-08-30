@@ -36,6 +36,18 @@
   `frontend/exec_splice` **45**, `proof2why3/crosscheck_ir` **41**, `audit_proof` **40**,
   `audit_proof_reverify` **11**, `proof2why3/sertop` **11**,
   `module6_whyml/struct_format` **5**, `proof2why3/crosscheck` **2**. Corpus driver 1–11 s.
+- **FULL REFERENCE SUITE, run end-to-end on the final tree AND on the session-start commit:
+  `Results: 3010/3112 passed` BOTH TIMES, and the 102 failing names are IDENTICAL (the diff
+  of the two failure lists is EMPTY).** Zero regressions from this session. TWO PRE-EXISTING
+  BASELINES, now measured so nobody mistakes them for their own damage: (1)
+  `bin/run-reference-tests.sh` ABORTS on its leading IR-conformance gate with **40 MISMATCH**
+  (`only-derived=['param_ast_node_types','set_value_types']` — the front-end emits two IR keys
+  the goldens predate; verified identical at the session-start commit). Run it with
+  `PYCSL_SKIP_CONFORMANCE_CHECK=1`; the goldens need an IR_VERSION-gated refresh that is
+  nobody's current work item. (2) The suite's standing **102/3112** failures — 23 in
+  pycsl-reference (0211-0220, 0226, 0484, 0540, 0700, 0701, 0714, 0766, 0932, 0938, 0943,
+  0944, 0948, 0949) and 79 in python-reference. `run-reference-tests.sh` line 176 also emits a
+  cosmetic `[[: value too great for base` for every non-numeric corpus name.
 - Tree clean apart from the pre-existing user/build dirt (`session.txt`, untracked
   `scratchpad/`, `prompt`, `prompt.txt`, `style.css` — the last dated Aug 26, leave it).
   `getting-better/.driver-deadline` intact. Commits unpushed by design.
