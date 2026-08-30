@@ -6992,6 +6992,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # where `decode_1` becomes `decode_2` and a real `subscript_get` appears).
             _rcv = expr.get("receiver")
             if _rcv is not None and "." not in str(func_name):
+                # Lowering the receiver REGISTERS abstract ops as a side effect, so
+                # snapshot and restore them when the receiver is then discarded —
+                # otherwise a declined receiver leaves DEAD `val` declarations in the
+                # emitted file (measured: two of them in corpus 0425). Same
+                # snapshot/restore discipline the isinstance receiver widening uses.
+                _ops_snap_rcv = dict(getattr(self, "_abstract_ops", {}) or {})
                 _rw = self._expr_to_whyml(_rcv, local_refs or set(),
                                           getattr(self, "_in_spec", False), None)
                 _rw = self._coerce_to_int(_rw)
@@ -7000,8 +7006,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # a term this int-model op can take; keep the historical receiver-less
                 # form rather than emit a syntax error (measured: `{  }` as an argument is
                 # a Why3 SYNTAX error, which is loud but useless).
-                if not str(_rw).lstrip().startswith("{"):
+                # Also fail-closed on a COLLECTION-shaped receiver. `_coerce_to_int`
+                # collapses a bare `(Array.make …)` but not the let-bound array-literal
+                # form `(let _alit = Array.make 1 (0) in _alit)`, and passing that where
+                # the int-model op expects `int` is an L3-tc type error — which the
+                # CORPUS byte-diff sweep cannot see, because `bin/byte-diff-sweep.sh`
+                # runs with `--no-typecheck` (measured on corpus 0425: byte-diff clean,
+                # proof red). Only a SIMPLE receiver term is carried.
+                _bad = ("{", "(let ")
+                if (not str(_rw).lstrip().startswith(_bad)
+                        and "Array." not in str(_rw)
+                        and "Seq." not in str(_rw)
+                        and "match " not in str(_rw)):
                     coerced_args = [_rw] + coerced_args
+                else:
+                    self._abstract_ops.clear()
+                    self._abstract_ops.update(_ops_snap_rcv)
             n = len(coerced_args)
             arity_fn = f"{safe_fn}_{n}"
             if n == 0:
