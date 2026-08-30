@@ -31,10 +31,40 @@ class PyCSLWeaver(ast.NodeVisitor):
     # for the setattr'd attribute). Eight of the eleven declare NO `writes` at all.
     # THIS IS NOT AN ARGUMENT TO REVERT THEM: each body is otherwise faithful and the
     # frame claim is the ONLY part that overstates. It is a standing, quantified
-    # limitation of the frame plane, and the SAME missing capability the
-    # `_desugar_for` decline names: a real object-state model relating `setattr` to the
-    # `get_<attr>` projectors. Until that exists, an `assigns \nothing` on a method that
-    # setattrs is a MODEL statement, not a source guarantee — read it that way.
+    # limitation of the frame plane. Until it is closed, an `assigns \nothing` on a
+    # method that setattrs is a MODEL statement, not a source guarantee.
+    #
+    # AND THE OBVIOUS FIX — "a global attribute store relating `setattr` to the
+    # `get_<attr>` projectors" — WAS SPIKED DIRECTLY ON THE EMITTED `.mlw` AND IS
+    # STRUCTURALLY IMPOSSIBLE IN WHY3 AS STATED. Three shapes were tried against
+    # `why3 prove --type-only` (seconds each; the last is kept at
+    # `scratchpad/w2/attr_store_spike.mlw`):
+    #   (a) `val _attr_store : ref (map (int,int) int)` + `setattr` assigning into it —
+    #       "This expression makes a ghost modification in the non-ghost variable
+    #       _attr_store". `map.Map` is a LOGIC type, so a program ref holding one is
+    #       inherently ghost, and ghost attribute values cannot flow into the non-ghost
+    #       computation the emitted bodies actually do with them.
+    #   (b) the same with a concrete `let _attr_store = ref (Const.const 0)` — identical
+    #       ghostness error, for the identical reason.
+    #   (c) `val _attr_store : array int` (a PROGRAM value) with
+    #       `let function get_<attr> x = _attr_store[_attr_slot x k]` — "This function
+    #       depends on external variables, it cannot be used as pure".
+    # The two horns are exclusive and exhaustive: EITHER `get_<attr>` stays PURE and is
+    # usable in `ensures` (the status quo, so `setattr` must be a no-op and the frame
+    # claim overstates), OR the store is real and `get_<attr>` becomes state-dependent,
+    # hence illegal in ANY contract clause — which would break the two clauses that
+    # already mention one (measured: exactly 2 mirror-wide, both `get_value`) and would
+    # mean no contract could ever again mention an attribute value.
+    # THE REAL CAPABILITY IS THEREFORE NOT A STORE. It is to MODEL THESE AST NODES AS
+    # RECORDS instead of opaque ints — exactly the machinery the emitter ALREADY has and
+    # already uses for `py_with_node` / `py_match_node` / `py_ghost_node` in the Module5
+    # handler family, where `node.<attr>` is a native mutable field and the frame is a
+    # native `writes { node.<field> }`. Extending that typed-record AST model to the
+    # classes these mutators touch closes the frame gap BY CONSTRUCTION, with no store,
+    # no ghostness, and no loss of spec usability. Cost note in its favour: the corpus
+    # uses `setattr` in ZERO of 814 files and declares exactly ONE `get_<attr>`
+    # projector, so this whole area is very nearly CORPUS-INERT — it is a mirror-only
+    # build.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
