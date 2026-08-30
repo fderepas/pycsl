@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import dataclasses
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -8380,6 +8381,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         t_name = args_ir[1].get("name") if isinstance(args_ir[1], dict) else None
         t_tag = self._tag_of_type(t_name)
         if not t_tag:
+            # RECEIVER-CARRYING isinstance (relaunch #15): `(isinstance_op 0 0)` erases BOTH
+            # arguments, so the test is independent of the value AND of the class — the
+            # facade lesson (bt) §2 names, and the same defect as the argument-less
+            # `ch_isalpha_0 ()` the previous window repaired. When the receiver's Why3 type
+            # can be named, emit a per-(class, receiver-type) uninterpreted predicate applied
+            # to the RECEIVER instead. Still uninterpreted — nothing is claimed about which
+            # values are instances — but equal receivers give equal results and different
+            # receivers may differ, which is the entire content of the test the code
+            # branches on. Monomorphic by construction: the receiver type is part of the op
+            # NAME, so one name never has two meanings. Declines (keeping the historical
+            # constant) whenever the type cannot be named, so it is fail-closed.
+            _rt = (self._isinstance_recv_whyml_type(_a0)
+                   or self._isinstance_recv_field_whyml_type(_a0))
+            if _rt and isinstance(t_name, str) and t_name:
+                _opn = ("py_isinstance_" + re.sub(r"[^A-Za-z0-9_]", "_", t_name)
+                        + "_" + re.sub(r"[^A-Za-z0-9_]", "_", _rt) + "_op")
+                self._add_abstract_op(f"val {_opn} (x: {_rt}) : bool")
+                _rw = self._expr_to_whyml(_a0, local_refs or set(),
+                                          getattr(self, "_in_spec", False), None)
+                return f"({_opn} {_rw})"
             self._add_abstract_op("val isinstance_op (x: int) (t: int) : bool")
             return "(isinstance_op 0 0)"
         self._emit_metatype_tags()
@@ -11728,6 +11749,59 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if some_ctor is None:
             return None
         return f"(match {operand} with {some_ctor} _v -> Some _v | _ -> None end)"
+
+    def _isinstance_recv_whyml_type(self, a0: Any) -> Optional[str]:
+        """RECEIVER-CARRYING isinstance (relaunch #15): the Why3 type of an `isinstance`
+        RECEIVER when it can be named CONFIDENTLY, else None (the caller then keeps the
+        historical constant, so this is fail-closed). Two shapes only — a plain local/param
+        `Var` whose symbol-table type is a known RECORD class (-> that record's `whyml_name`)
+        or a scalar tag `_symtype_to_whyml` resolves (`int`/`string`/`real`/`emit_ir`/
+        `array int`), and nothing else. Deliberately narrow: naming the type WRONG would
+        produce an ill-typed application, which is loud, but naming it for a shape whose
+        lowering is not a simple value would produce a well-typed op over the wrong term,
+        which is not."""
+        if not (isinstance(a0, dict) and a0.get("type") == "Var"):
+            return None
+        _nm = a0.get("name")
+        if not isinstance(_nm, str):
+            return None
+        _st = getattr(self, "_current_symbol_table", {}).get(_nm)
+        if not isinstance(_st, str) or _st in ("", "Any"):
+            return None
+        _rt = getattr(self, "_record_types", {}).get(_st)
+        if _rt and _rt.get("whyml_name"):
+            return str(_rt["whyml_name"])
+        if _st in getattr(self, "_variant_types", {}):
+            return None   # a union carrier: the read PROJECTS, so the type is not the local's
+        return self._symtype_to_whyml(_st)
+
+    def _isinstance_recv_field_whyml_type(self, a0: Any) -> Optional[str]:
+        """RECEIVER-CARRYING isinstance (relaunch #15), the RECORD-FIELD shape:
+        `isinstance(node.index, CSLNumber)` where `node` is a record param. Returns the
+        field's Why3 type, or None. Declines an `option`/collection field (its read is not
+        a plain value of the field's element type) and a field whose declared type is
+        itself a record the file does not know."""
+        if not (isinstance(a0, dict) and a0.get("type") in ("Attribute", "FieldGet")):
+            return None
+        _o = a0.get("object", {})
+        if not (isinstance(_o, dict) and _o.get("type") == "Var"):
+            return None
+        _rec = getattr(self, "_current_symbol_table", {}).get(_o.get("name", ""))
+        _rt = getattr(self, "_record_types", {}).get(_rec)
+        if not _rt:
+            return None
+        _f = a0.get("attr") or a0.get("field")
+        if _f in (_rt.get("field_value_types", {}) or {}):
+            return None      # a COLLECTION field: the element type is not the read's type
+        _ft = (_rt.get("field_types", {}) or {}).get(_f)
+        if not isinstance(_ft, str) or _ft in ("", "option"):
+            return None
+        _frt = getattr(self, "_record_types", {}).get(_ft)
+        if _frt and _frt.get("whyml_name"):
+            return str(_frt["whyml_name"])
+        if _ft in getattr(self, "_variant_types", {}):
+            return None
+        return self._symtype_to_whyml(_ft)
 
     def _union_read_iropt_ir_projection(self, symtype: Any,
                                         operand: str) -> Optional[str]:
