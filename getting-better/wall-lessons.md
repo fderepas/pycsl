@@ -4325,3 +4325,92 @@ every shape at once, and it leaves the widening as a sequence of independent, in
 measurable steps. Naming a type WRONG is loud (an ill-typed application); naming it for a
 shape whose lowering is not a simple value would be a well-typed op over the wrong term,
 which is not.
+
+---
+
+## (bw) A CONVERSION'S REAL BLOCKER MAY BE THE TERMINATION LADDER, NOT THE VALUE MODEL — and a rank ladder has a CAPACITY
+
+`pure_ast.strings` had been recorded as a value-model wall, **[HETEROGENEOUS TUPLE ELEMENT
+TYPE]**: a `parts` seq of 4-tuples that collapses to a hash constant, three consumers each
+needing their own capability. All of that was true, and all of it turned out to be
+DECLINABLE — every one of those consumers is allowed to lower to an opaque value, because
+the contract that mattered (`assigns self.i` plus strict cursor progress) is about the
+CURSOR, not about the node. What actually stopped the conversion was somewhere else
+entirely, and no census of the value model could have found it.
+
+**1. CONVERTING A STUB CAN MERGE TWO SCCs.** A `\trusted` stub is emitted as a `val`, and a
+`val` CUTS the call graph. `strings` sat exactly on the edge `atom -> strings -> _fstring`,
+so while it was trusted the f-string family was its own two-member `let rec` group with its
+own private variant measure (multiplier 2) and `_fstring` / `testlist_for_fstring` needed no
+variant at all. Converting it closed the cycle
+`atom -> strings -> _fstring -> _fstring_replacement -> testlist_for_fstring ->
+namedexpr_test -> ... -> atom` and merged the whole f-string family into the expression
+group's SCC. **Before converting a stub, ask which cycles its `val` is currently cutting**;
+every member of the newly merged SCC needs a variant on the SAME measure, and the ones that
+had a private measure must be lifted onto the group's.
+
+**2. A RANK LADDER HAS A CAPACITY, AND IT CAN BE FULL.** The measure
+`16 * (\length(self.toks) - self.i) + <offset>` encodes a lexicographic order in one integer:
+the cursor drop pays 16 units, so an edge that does NOT advance must be paid by a strictly
+smaller offset. That gives exactly 16 slots. `atom` sat at offset 1 with only offset 0
+beneath it — and `strings`, `_fstring` and `_fstring_replacement` all needed slots BELOW it,
+because each reaches the next without advancing. **[VARIANT-RANK LADDER EXHAUSTION].** The
+fix is to rescale: multiplier 16 -> 64, every offset x4, which preserves every existing
+ordering relation exactly and opens three fresh slots under every old one. **The rescale is a
+MIRROR-SOURCE-ONLY change: it touches no emitter code, so its corpus blast radius is
+provably zero.** That makes it much cheaper than it looks — 32 annotation lines and one
+whole-file re-proof.
+
+**3. THE PRECONDITION IS THE OTHER HALF OF THE LADDER.** An offset drop only pays an edge if
+the cursor really moved, and `advance` increments only when it is not already at the last
+token. The `atom_paren` precedent — a TOKEN-KIND precondition (`self.toks[self.i].type ==
+_tokenize.OP`) composed with the EOF-SENTINEL class invariant — is what turns a leading
+`advance` into a PROVABLY strict one, and it discharges at each call site from `at_op`'s /
+`cur`'s existing postconditions, so it costs no `\trusted` surface. **The single unproven
+goal of the first full battery was exactly one such edge** (`_fstring_replacement ->
+testlist_for_fstring`), and the repair was one precondition line, not a modelling change.
+Budget for it: a whole-file battery that comes back with ONE unproven variant-decrease goal
+is a near-miss, not a refutation.
+
+**4. STRICT PROGRESS NEEDS A PRECONDITION, ALWAYS.** `ensures self.i > \old(self.i)` on a
+method whose body is a `while` loop is FALSE under `requires True` — the guard may be false
+on entry. The invariant that carries it is the disjunction "either the cursor has already
+moved, or it is still on the token the precondition named": established by the precondition,
+preserved by each arm's strict advance, and at loop EXIT the false guard refutes the second
+disjunct.
+
+## (bx) A DECLINE HAS A TYPE
+
+Three of the five emitter capabilities this increment needed were not new modelling at all —
+they were DECLINES that were already correct but were emitted at the WRONG TYPE, and each
+one looked exactly like a modelling wall until it was read.
+
+- A declined PYTHON-AST NODE CTOR FAMILY construction fell through to the generic
+  `val <cls>_0 () : int`. The decline is right; `int` is not. Assigning it to the `emit_ir`
+  local it is about to become is an L3-tc error, and the method cannot be converted.
+- A `.extend` whose actual is an opaque INT read applied the `array -> seq` `snapshot`
+  bridge to an `int`.
+- An unhandled for-loop tuple target emitted the component names as FREE VARIABLES.
+
+**When a decline must produce a value, produce it at the type the CONSUMER expects, and
+produce it NONDETERMINISTICALLY.** `val f () : emit_ir` and `any int` are HAVOCs — Why3 must
+prove the body for every value — whereas `IrOther "<cls>"` or a literal `0` would CLAIM that
+two declined constructions are EQUAL, which is the input-blind-constant defect family in a
+new costume. For a mutation, havoc the target (`values := any (seq emit_ir)`); a silent
+no-op would claim it unchanged, which is lesson (ac)'s facade.
+
+**And bind only what is READ.** The fail-closed tuple-target binding was restricted to
+components the emitted body actually mentions — without that restriction one corpus file
+(0886, whose `for k, v in d.items()` uses neither) picked up two dead `let`s and the corpus
+byte-diff was 1 of 813 instead of 0. A fail-closed repair that fires where there was nothing
+to repair is not inert.
+
+## (by) ITERATE THE TYPE-CHECKER, NOT THE PROVER
+
+Five of the six blockers in this increment were found in ~10 seconds each by re-emitting with
+`--no-proof` and reading the FIRST L3-tc error, fixing it, and re-emitting. The whole-file
+proof (55 min) was run TWICE, at the end. **The type-checker is the cheap oracle and it is
+almost completely faithful about what is missing**; spend proof minutes only once L3-tc is
+green. The corollary is that a spike should be priced by "how many L3-tc errors deep is
+this", which is a question you can answer in a few minutes — this one was six deep and every
+one of the six was small.
