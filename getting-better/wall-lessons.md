@@ -4414,3 +4414,56 @@ almost completely faithful about what is missing**; spend proof minutes only onc
 green. The corollary is that a spike should be priced by "how many L3-tc errors deep is
 this", which is a question you can answer in a few minutes — this one was six deep and every
 one of the six was small.
+
+---
+
+## (bz) VERIFY THE HANDOFF'S GATE CLAIM AGAINST DISK
+
+The recorded boundary for `@property` said: *"corpus driver
+`0962_crosscheck_selfstate_registry_skipped.py` exists to PIN the skip"*, and on that basis
+the capability was scoped as a LANGUAGE-SURFACE project owing the full
+`pycsl-audit-pycsl-language` gate, five normative doc surfaces and a re-specification of a
+reference driver. It sat parked for two sessions.
+
+`0962` contains no `@property` decorator. It is a plain 0-argument method that MODELS a
+property-derived one, and its own docstring says exactly that. A grep for `@property` over
+all 894 corpus files finds it in ONE docstring and in ZERO decorators — so un-skipping the
+decorator is corpus-inert BY CONSTRUCTION, which the byte-diff then confirmed (0 of 813).
+The whole "language-surface project" was two small emitter changes, one doc row and one new
+positive-witness driver, and it retired five markers' worth of blockage.
+
+**A recorded boundary is evidence about the PAST, and its GATE CLAIM is the part most likely
+to be stale or wrong.** Before scoping a wall from its record: (1) open the corpus driver the
+record names and read it; (2) grep the corpus for the construct itself, not for the driver;
+(3) only then decide how big the increment is. The capability itself was described correctly
+— "emit the getter as a nullary method and route `self.<prop>` reads to it" — it was the
+COST that was wrong, and cost is what decides whether an item gets worked at all.
+
+Corollary, and it is the same shape as lesson (bu)'s "a SKIP in your own triage is a finding
+about your triage": when a record explains why something is expensive, the explanation is the
+first thing to check, because nobody re-checks the reasons behind a decision they inherited.
+
+## (ca) A CONVERSION CAN MAKE THE MODEL WORSE
+
+`crosscheck.pairwise` ported cleanly, type-checked, and proved. It was still declined.
+
+A `\trusted` stub emits `val f (self: t) : map int (option int)` — Why3 HAVOCs a `val`
+application, so the model asserts NOTHING about the returned map. The converted body's dict
+literal declines to `(const (None: option int))` — the EMPTY map. The `let` therefore CLAIMS
+that a method returning a three-key dict returns no keys at all: a positive, false statement
+where there had been no statement. **The count would have gone down and the model would have
+become less true.**
+
+So the acceptance test for a conversion is not "does it prove" and not even "is the body
+faithful". It is: **does the `let` claim anything the `val` did not, and is everything it
+claims true?** A decline inside a converted body is fine when it lands on a HAVOC (`any int`,
+a fresh nullary `val`) and dangerous when it lands on a CONSTANT — `const None`, `0`,
+`IrOther "K"` — because a constant is an assertion. That is the same distinction lesson (bx)
+draws for the type of a decline, seen from the other side: (bx) says a decline must have the
+right TYPE, (ca) says it must have the right STRENGTH.
+
+Practical rule: before converting, look at the `val` you are deleting and at the weakest
+value your body can produce. If the body's declines are constants where the `val` was a
+havoc, record the boundary and name the capability that would make the body honest — here,
+lowering a string-keyed dict literal to the `map_update_some` chain, whose blast radius is
+every `(const (None: option int))` decline in the corpus and so owes its own increment.
