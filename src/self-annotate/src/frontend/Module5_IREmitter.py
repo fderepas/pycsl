@@ -76,6 +76,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # are derived FROM THIS TABLE in source order. Unlike `_py_expr_to_ir` the default arm
     # is the source's own RAISE, not a fallback node — so the emitted body proves that an
     # unsupported CSL node cannot silently produce an IR node.
+    # CERTIFIED-BOUNDARY (relaunch #17), and it is a DIFFERENT wall from its sibling
+    # `_py_expr_to_ir`. With `#@ sibling_concrete` this dispatcher's SCC does not even
+    # reach the termination question: it fails L3-tc outright with `this expression
+    # produces an unlisted write effect`. Members of one WhyML `let rec … with` group
+    # must agree on their EFFECT SUMMARY, and the CSL handlers do not — one of them
+    # writes state that another member's `writes` clause does not list.
+    # REOPENING CAPABILITY: a group-wide effect summary (the union of the members'
+    # writes/raises, emitted on every member of a mutually-recursive group), ON TOP OF
+    # the common structural variant `_py_expr_to_ir` needs. 92 shadowed call sites ride
+    # on this one — the single largest item left on the shadowed metric.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -740,6 +750,43 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # derived FROM THIS TABLE in source order. What was assumed before: the table AND the
     # dispatch AND the result. What is assumed now: only `pyx_view`, the uninterpreted
     # node view, pinned to the node's runtime class by the concrete `pyx_kind_of` law.
+    # CERTIFIED-BOUNDARY, RE-CLASSIFIED (relaunch #17) — and the recorded cause
+    # [L2 TYPE UNIFICATION] IS WRONG. Marking this dispatcher `#@ sibling_concrete`
+    # type-checks perfectly once ONE emitter defect is repaired; what actually stops it
+    # is TERMINATION.
+    #   WHAT WAS BROKEN AND IS NOW UNDERSTOOD. The historical symptom was `unbound
+    #   function or predicate symbol 'pycsltojsonemitter___py_expr_to_ir'`, which reads
+    #   like an ordering bug. It is not. INSTRUMENTED `compute_sccs`: the marker DOES
+    #   merge the dispatcher with its 19 handlers into ONE 20-member SCC (the handlers'
+    #   concrete `self._py_expr_to_ir(...)` edges plus the `uses` edges
+    #   `_inject_pyx_dispatch_uses` injects), and `_emit_function` DOES chain a
+    #   multi-member SCC with `let rec … with`. But NINE of those 20 members are emitted
+    #   by BESPOKE group-emitters in `functions.py` (`_emit_pyx_dispatcher_bespoke`,
+    #   `_emit_py_expr_boolop_bespoke`, the comp/lambda/dict/compare family), and every
+    #   one of them HARD-CODES its opening keyword as `let`. They break the `with` chain
+    #   FROM THE INSIDE, so members after the break cannot see members before it. This is
+    #   lesson (am) once more — a SYNTHESIZED body is a second producer, and here it is a
+    #   second producer of the GROUP KEYWORD. A single post-process in `_emit_function`
+    #   (rewrite a bespoke block's opening keyword from the SCC position) fixes all nine.
+    #   SPIKE MEASURED (patch kept at `scratchpad/w2/l2_dispatcher_scc.spike.patch`,
+    #   proof log at `scratchpad/w2/l2_dispatcher_scc.proof.log`, both REVERTED):
+    #   L3-tc PASSES, shadowed sites 153 -> 125 (28 of this method's 45 call sites become
+    #   concrete applications of the proven body), corpus byte-diff 0 of 814, mirrors 2 of
+    #   52 (this file, plus a pure RELOCATION of one `val` in `pycsl.py`), TC_FAIL 0.
+    #   WHAT ACTUALLY STOPS IT. The 20-member mutual recursion has NO COMMON VARIANT, so
+    #   Why3 raises 43 `termination` variant-decrease obligations. Whole-file proof:
+    #   1198 Valid / 86 TIMEOUT (30 s, ~35M steps each) — the 43 terminations plus their
+    #   collateral. This is the [VARIANT-RANK LADDER] shape that lesson (bw) broke for
+    #   `pure_ast.strings`, one level harder: the dispatcher's parameter is `emit_ir`
+    #   while each handler's is a distinct payload RECORD, so the measure cannot simply
+    #   be shared.
+    # REOPENING CAPABILITY: a common structural measure for the dispatcher SCC —
+    # `variant { size expr }` on the dispatcher plus a per-payload `size_<T>` on each
+    # handler, with the certified law `size_<T> (payload_of e) < size e` linking a
+    # payload record to the node it was viewed from. `size` over `emit_ir` ALREADY exists
+    # and is proven in this very file (`size'vc`, `size_stmt'vc`); the missing pieces are
+    # the per-payload size laws and emitting a `variant` clause on bespoke group members.
+    # (`_csl_to_ir` does not even reach this point — see its own note.)
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
