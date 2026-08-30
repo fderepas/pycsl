@@ -74,7 +74,7 @@ class PyCSLWeaver(ast.NodeVisitor):
     # the fastest iteration loop available for it.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns node
     @staticmethod
     def _init_function_csl_fields(node: ast.FunctionDef) -> None:
         """Initialize the custom PyCSL fields on a function-def AST node.

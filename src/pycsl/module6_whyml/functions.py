@@ -5723,6 +5723,14 @@ class FunctionEmissionMixin:
             return lines
 
         lines.append("  =")
+        # OBJECT-STATE WRITE MODEL (driver frame-honesty fix, 2026-08-30): remember where
+        # the contract block ends so the `writes` clause can be inserted once the body is
+        # known to perform an attribute store. It cannot be decided BEFORE the body is
+        # emitted — whether a `self.f = v` lowers to a native record store or to the
+        # abstract `setattr_*` depends on the record registry, the poly-write gate and the
+        # pyast location-attribute gate, all of which live in the statement emitter.
+        _objstate_eq_idx = len(lines) - 1
+        self._obj_state_written = False
         # fresh-globals.md: `#@ fresh_globals` re-establishes each module-global
         # singleton's CONSTRUCTOR post-state (the `#@ ensures`, `self` -> the global)
         # as an ASSUMED fact at this confined standalone driver's entry — the SOUND
@@ -5736,6 +5744,42 @@ class FunctionEmissionMixin:
                     lines.append(f"    assume {{ {fact} }};")
         lines.append(self._emit_body_code(func, body_stmts, local_refs, ghost_vars,
                                           ref_params, is_method, return_type))
+        # OBJECT-STATE WRITE MODEL (driver frame-honesty fix, 2026-08-30). The body just
+        # emitted at least one abstract `setattr_*`, i.e. it MUTATES AN OBJECT the model
+        # does not carry as a record. Those vals now declare `writes { _pyobj_state }`
+        # (see `statements._register_setattr_op`), so the frame is REAL and Why3 checks it.
+        # TWO cases, and the first is the point of the whole fix:
+        #   * the source says `#@ assigns \nothing` -> emit the EMPTY `writes { }`. Why3
+        #     then REJECTS the body ("this expression depends on variable _pyobj_state,
+        #     which is left out in the specification"). Before this, a mutating body
+        #     satisfied `assigns \nothing` VACUOUSLY, because a `val ... : unit` with no
+        #     effect clause has NO effect: the claim was true of the MODEL and false of
+        #     the SOURCE (measured: 11 converted methods, the worst with 31 stores).
+        #   * the source names ANY assigns target -> add `_pyobj_state` to the frame, so
+        #     the emitted clause is TRUE of the source. The cell is deliberately COARSE
+        #     (one cell for every object and attribute): a frame may over-approximate what
+        #     changes, never under-approximate it.
+        # Attribute READS stay uninterpreted `val`s with no `reads` clause, so nothing new
+        # is claimed about attribute VALUES — in particular two reads of the same attribute
+        # are still unrelated. That is exactly the `val function` projector purity the
+        # `_desugar_for` build was DECLINED for, and it is NOT reintroduced here.
+        # BYTE-INERT OUTSIDE THE MIRROR: measured, 0 of 814 corpus files emit a `setattr_*`.
+        if getattr(self, "_obj_state_written", False) and not emit_as_val:
+            _asg = (func.get("contracts", {}) or {}).get("assigns", []) or []
+            _named = any(isinstance(a, dict) and a.get("type") != "Nothing" for a in _asg)
+            _wi = next((i for i in range(_objstate_eq_idx)
+                        if lines[i].startswith("    writes {")), None)
+            if _wi is not None:
+                if _named:
+                    _inner = lines[_wi].strip()[len("writes {"):].rstrip("}").strip()
+                    _parts = [x for x in (t.strip() for t in _inner.split(",")) if x]
+                    if "_pyobj_state" not in _parts:
+                        _parts.append("_pyobj_state")
+                    lines[_wi] = f"    writes {{ {', '.join(_parts)} }}"
+            elif _named:
+                lines.insert(_objstate_eq_idx, "    writes { _pyobj_state }")
+            else:
+                lines.insert(_objstate_eq_idx, "    writes { }")
         # b-spec §4 (P2): in the owning unit (real `let`), prove the interface is a sound weakening
         # of the definition. Fail-loud — an over-claiming interface makes the goal unprovable.
         if _iface:

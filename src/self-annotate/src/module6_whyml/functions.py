@@ -126,7 +126,7 @@ class FunctionEmissionMixin:
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._current_self_type
     def _build_param_list(self, func: Dict[str, PyVal], local_refs: Set[str], ghost_vars: Set[str]) -> Tuple[Set[str], str]:
         """Compute WhyML parameter string. Returns (ref_params, args_str).
         Mutates self._current_self_type."""
@@ -324,7 +324,7 @@ class FunctionEmissionMixin:
     #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._current_emitting_func, self._current_self_type, self._current_symbol_table, self._tuple_emit_ir_slot_locals
     def _refine_tuple_return_type(self, func: Dict[str, PyVal], body_stmts: List[int], return_type: str) -> str:
         """Refine a homogeneous `(int, int, …)` tuple return type into per-slot
         types (e.g. `(int, array int)` for `_unpack_direntry`'s `(inode, name_bytes)`).

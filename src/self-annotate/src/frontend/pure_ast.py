@@ -3236,7 +3236,7 @@ class _Parser:
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns node
     def _fin_pos(self, node, start_tok, end_tok):
         node.lineno = start_tok.start[0]; node.col_offset = start_tok.start[1]
         node.end_lineno = end_tok.end[0]; node.end_col_offset = end_tok.end[1]
@@ -4259,7 +4259,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._indent
     @_contextmanager
     def block(self, *, extra=None):
         self.write(":")
@@ -4336,7 +4336,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit(self, node):
         self._source = []
         self.traverse(node)
@@ -4351,7 +4351,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._type_ignores
     def visit_Module(self, node):
         self._type_ignores = {
             ignore.lineno: f"ignore{ignore.tag}"
@@ -4543,7 +4543,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_try_star
     def visit_Try(self, node):
         prev_in_try_star = self._in_try_star
         try:
@@ -4554,7 +4554,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._in_try_star
     def visit_TryStar(self, node):
         prev_in_try_star = self._in_try_star
         try:

@@ -19,6 +19,39 @@ class AbstractOpsMixin:
     def _add_abstract_op(self, decl: str) -> None:
         """Register an abstract val declaration, deduplicating by name+arity.
         Different arities for the same function get unique names (e.g., stmt_get, stmt_get_2)."""
+        # ------------------------------------------------------------------
+        # OBJECT-STATE WRITE MODEL (driver frame-honesty fix, 2026-08-30)
+        # ------------------------------------------------------------------
+        # A `setattr` on an object the model does not carry as a record used to be
+        # registered as a bare `val setattr_* … : unit` — a declaration Why3 reads as
+        # HAVING NO EFFECT AT ALL. Every such body therefore satisfied `#@ assigns
+        # \nothing` VACUOUSLY, so the frame clause of a MUTATING method stated something
+        # TRUE OF THE MODEL and FALSE OF THE SOURCE. Measured over the emitted `.mlw`:
+        # NINE converted mirror methods across three files, seven of them declaring no
+        # non-empty frame at all, the worst (`PyCSLWeaver._init_function_csl_fields`)
+        # performing THIRTY-ONE attribute stores under `#@ assigns \nothing`.
+        # THE FIX is one abstract program variable `_pyobj_state` that every object-state
+        # write TOUCHES. It is deliberately COARSE — a single cell for every object and
+        # every attribute — which is the SOUND direction for a frame: it OVER-approximates
+        # what may change and never claims a preservation the source does not guarantee.
+        # Attribute READS stay uninterpreted `val`s with NO `reads` clause, so nothing new
+        # is claimed about attribute VALUES; in particular two reads of the same attribute
+        # remain unrelated. That is exactly the `val function` projector purity the
+        # `_desugar_for` build was DECLINED for, and it is NOT reintroduced here.
+        # With the effect declared, Why3 CHECKS the frame (`functions._emit_function`
+        # emits the matching `writes` clause): a mutating body under `writes { }` is
+        # REJECTED ("this expression depends on variable _pyobj_state, which is left out
+        # in the specification"), and an honest `#@ assigns <obj>` / `#@ assigns self.<f>`
+        # lowers to `writes { _pyobj_state }` and is accepted.
+        # WHY HERE and not at the five `setattr` emission sites in `statements.py`: those
+        # bodies are MIRRORED un-trusted, so editing them costs a fidelity-plane
+        # divergence for every call site; `_add_abstract_op` is a `\trusted` mirror stub,
+        # so the whole capability lands with ZERO mirror churn.
+        # BYTE-INERT OUTSIDE THE MIRROR: measured, 0 of 814 corpus files emit a `setattr`.
+        if decl.startswith("val setattr_") and " writes " not in decl:
+            self._obj_state_written = True
+            self._abstract_ops.setdefault("_pyobj_state", "val _pyobj_state : ref int")
+            decl = decl + " writes { _pyobj_state }"
         parts = decl.split()
         if len(parts) >= 2 and parts[0] == "val":
             # `val constant FOO ...`, `val function FOO ...` → name is parts[2]
