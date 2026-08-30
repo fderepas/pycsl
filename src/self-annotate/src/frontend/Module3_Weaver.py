@@ -111,11 +111,29 @@ class PyCSLWeaver(ast.NodeVisitor):
     # on an empty body, and the real nested range/clauses expansion) — ONLY termination
     # blocks it. Unlike its `visit_*` siblings it also RETURNS its result instead of
     # mutating node attributes, so it does not hit lesson (bq) at all.
-    # REOPENING CAPABILITY: declare the collection-length and attribute projectors as
-    # LOGIC symbols (`val function iter_length` / `val function get_<attr>`) so a loop
-    # over an opaque attribute can carry a variant term at all. That is a preamble-wide
-    # declaration change with its own corpus blast radius, and it unblocks EVERY
-    # `for`-over-opaque-iterable loop in the non-@mutable_state mirrors, not just this one.
+    # THE REOPENING CAPABILITY WAS THEN BUILT, MEASURED END-TO-END, AND DECLINED FOR A
+    # SOUNDNESS PRICE — not for cost. The full chain is FOUR steps and it WORKS: declare
+    # `val function iter_length` and `val function get_<attr>`; admit `iter_length` and
+    # RANGE loops to the auto-variant gate; and suppress the `0 <= !idx` invariant for a
+    # RANGE loop (its index starts at `start`, which need not be >= 0 — measured as
+    # `Sub-goal loop invariant init`). With all four, `_desugar_for` CONVERTS and the
+    # whole file proves **270 / 270 Valid, 0 non-Valid** (patch kept at
+    # `scratchpad/w2/opaque_iterable_variant.spike.patch`, proof log at
+    # `scratchpad/w2/opaque_iterable_variant.proof.log`; corpus blast radius measured at
+    # 6 of 814, mirrors 8 of 52, TC_FAIL 0 — all affordable). BOTH REVERTED.
+    # WHY IT WAS DECLINED: `val function get_<attr>` asserts that ATTRIBUTE READS ARE
+    # DETERMINISTIC. A program `val f (x: int) : int` gives no relation between two
+    # applications; a `val function` says they are EQUAL. That is true of Python for an
+    # UNMUTATED object — but this model already treats `setattr` as a NO-OP (lesson (bq)),
+    # so with pure projectors a mutate-then-read body could PROVE `node.x ==
+    # \old(node.x)` immediately after `node.x = 1`, which is FALSE. The assumption is
+    # GLOBAL (every getattr projector in every emitted file) and its consumer here is ONE
+    # marker. Declined under lesson (ca): a conversion must not buy a marker with a model
+    # that claims something false. THE TWO SOUND HALVES ARE SEPARABLE and are available
+    # whenever a consumer appears: `iter_length` purity (a length query on a collection
+    # VALUE, not on mutable object state) and the range-loop variant.
+    # WHAT WOULD MAKE IT SOUND: relate `setattr` to the projectors (a real object-state
+    # model), or emit the projectors as pure ONLY in a file with no `setattr` at all.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
