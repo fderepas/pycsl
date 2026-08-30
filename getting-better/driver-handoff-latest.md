@@ -265,12 +265,16 @@
    store is inherently GHOST (`map.Map` is a logic type) so attribute values cannot flow into
    the non-ghost computation the bodies do with them, and an `array int` store makes
    `get_<attr>` non-pure ("depends on external variables, cannot be used as pure") and
-   therefore illegal in EVERY contract clause. The horns are exclusive and exhaustive. The
-   emitter ALREADY has the right machinery — `py_with_node` / `py_match_node` /
-   `py_ghost_node` in the Module5 handler family, where `node.<attr>` is a native mutable
-   field and the frame is a native `writes { node.<field> }`. And the cost is favourable:
+   therefore illegal in EVERY contract clause. The horns are exclusive and exhaustive. BE PRECISE ABOUT WHAT ALREADY EXISTS (checked against the emitted `.mlw`,
+   not assumed): `py_with_node` / `py_match_node` / `py_ghost_node` are NOT records — they
+   are ABSTRACT types with pure `val` projectors, and they carry the SAME frame problem.
+   What already exists is the `@dataclass` RECORD model WITH MUTABLE FIELDS (`type app =
+   { mutable head: string; mutable args: list term }`, `type _tok = { … }`). The build is
+   to route the AST node classes onto THAT model rather than onto the typed-opaque one.
+   And the cost is favourable:
    the corpus uses `setattr` in **0 of 814** files, declares exactly **1** `get_<attr>`
    projector, and only **2** contract clauses mirror-wide mention one — a MIRROR-ONLY build.
+   `frontend/Module3_Weaver` proves in ~8 minutes, the fastest iteration loop available for it.
 5. `pure_ast`'s residue is now CENSUSED and is the `_Unparser` family plus generators plus
    dunders. Do not re-probe it without a new capability.
 

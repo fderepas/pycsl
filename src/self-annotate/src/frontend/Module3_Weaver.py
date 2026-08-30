@@ -55,16 +55,23 @@ class PyCSLWeaver(ast.NodeVisitor):
     # hence illegal in ANY contract clause — which would break the two clauses that
     # already mention one (measured: exactly 2 mirror-wide, both `get_value`) and would
     # mean no contract could ever again mention an attribute value.
-    # THE REAL CAPABILITY IS THEREFORE NOT A STORE. It is to MODEL THESE AST NODES AS
-    # RECORDS instead of opaque ints — exactly the machinery the emitter ALREADY has and
-    # already uses for `py_with_node` / `py_match_node` / `py_ghost_node` in the Module5
-    # handler family, where `node.<attr>` is a native mutable field and the frame is a
-    # native `writes { node.<field> }`. Extending that typed-record AST model to the
-    # classes these mutators touch closes the frame gap BY CONSTRUCTION, with no store,
-    # no ghostness, and no loss of spec usability. Cost note in its favour: the corpus
-    # uses `setattr` in ZERO of 814 files and declares exactly ONE `get_<attr>`
-    # projector, so this whole area is very nearly CORPUS-INERT — it is a mirror-only
-    # build.
+    # THE REAL CAPABILITY IS THEREFORE NOT A STORE. It is to model these AST nodes as
+    # WHY3 RECORDS WITH MUTABLE FIELDS, so `node.<attr>` is a native field access and the
+    # frame is a native `writes { node.<field> }` — closing the gap BY CONSTRUCTION, with
+    # no store, no ghostness, and no loss of spec usability.
+    # AND BE PRECISE ABOUT WHAT ALREADY EXISTS — checked against the emitted `.mlw`, not
+    # assumed. The Module5 handler family's `py_with_node` / `py_match_node` /
+    # `py_ghost_node` are NOT records: they are `type py_with_node` — ABSTRACT types with
+    # pure `val` PROJECTORS (`with_body_ast`, `csl_mutex_ast`). They carry the same frame
+    # problem this note describes, because a `setattr` on an abstract type is still a
+    # no-op. What DOES already exist is the `@dataclass` RECORD model with mutable fields
+    # (`type app = { mutable head: string; mutable args: list term }` in `proof2why3/ir`,
+    # `type _tok = { py_type: string; … }` in `Module2_Parser`). THE BUILD IS TO ROUTE THE
+    # AST NODE CLASSES ONTO THAT RECORD MODEL rather than onto the typed-opaque one.
+    # Cost note in its favour: the corpus uses `setattr` in ZERO of 814 files and declares
+    # exactly ONE `get_<attr>` projector, so this whole area is very nearly CORPUS-INERT —
+    # a mirror-only build. And `frontend/Module3_Weaver` proves in ~8 minutes, which is
+    # the fastest iteration loop available for it.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
