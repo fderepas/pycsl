@@ -46,13 +46,22 @@ class IRCrossCheckResult:
             return False
         return all(c == canons[0] for c in canons)
 
-    # CERTIFIED-BOUNDARY (relaunch #16) — [DICT-LITERAL RETURN DECLINES TO THE EMPTY MAP],
-    # co-blocked with `crosscheck.pairwise` (see the full record there). `@property`
-    # support EMITS this getter now, so the old [UNEMITTABLE @property] boundary is gone,
-    # but converting it would replace an unconstrained (havoc) `val` with a definite EMPTY
-    # map — a positive FALSE claim. This twin additionally carries a NESTED `def cmp(a, b)`
-    # and `Optional[bool]` values, so it needs the dict-literal capability AND a nested-def
-    # lowering.
+    # CERTIFIED-BOUNDARY (relaunch #16), RE-MEASURED AND SHARPENED — the recorded
+    # [DICT-LITERAL RETURN DECLINES TO THE EMPTY MAP] no longer applies (that capability
+    # was built in this same session and the dict literal here now lowers to a real
+    # `map_update_some` chain over `cmp`). The twin `crosscheck.pairwise` CONVERTED on it.
+    # What blocks THIS one is a different and newly measured wall:
+    # **[SYNTHESIZED-UNION IDENTITY]**. The nested `def cmp(a: Optional[Term], b:
+    # Optional[Term])` is lifted to a method, and each `Optional[Term]` PARAMETER gets its
+    # OWN synthesized union type — `a: _union_cmp_6`, `b: _union_cmp_7` — so the body's
+    # `return a == b` is `Arm_6 = Arm_7`, an L3-tc type error. Two occurrences of the SAME
+    # annotation must resolve to the SAME type. Worse, both unions are DEGENERATE
+    # (`type _union_cmp_6 = Arm_6_None`): the `Term` payload arm is dropped entirely
+    # because `Term` is an opaque marker class here, so even with one shared type the
+    # parameters would carry no value and `a == b` would be contentless.
+    # REOPENING CAPABILITY: intern synthesized `Optional[X]` unions BY ANNOTATION within a
+    # function (one type per distinct annotation, not one per occurrence), and give the
+    # `Some` arm the opaque payload rather than dropping it.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True

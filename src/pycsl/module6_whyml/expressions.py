@@ -7862,6 +7862,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     and (arg_ir.get("name") in getattr(self, "_inline_array_temps", set())
                          or arg_ir.get("name") in getattr(self, "_array_elem_types", {}))):
                 return f"(if Array.length {args[0]} <> 0 then 1 else 0)"
+            # relaunch #16: `bool(<string>)` is Python STRING-truthiness — a string is
+            # falsy iff it is EMPTY — so it lowers to `(if str_eq_op s "" then 0 else 1)`,
+            # the FAITHFUL test, not the `bool_conv (x: int) : int` stub (which mistypes a
+            # string argument outright: an L3-tc error, which is how this was found).
+            # Gated on `_is_string_expr` -> every non-string `bool()` is byte-identical.
+            if func_name == "bool" and self._is_string_expr(arg_ir):
+                self._add_abstract_op(
+                    "val str_eq_op (a: string) (b: string) : bool\n"
+                    "    ensures { result <-> (a = b) }")
+                return f'(if str_eq_op {args[0]} "" then 0 else 1)'
             wf = whyml_ident(func_name)
             self._add_abstract_op(f"val {wf}_conv (x: int) : int")
             return f"({wf}_conv {args[0]})"
@@ -14381,10 +14391,47 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             irnode = self._lower_irnode_construction(expr, local_refs, invariant_ctx, subst)
             if irnode is not None:
                 return irnode
-            # Body dict literal: empty `map int (option int)`. Non-empty
-            # dict literals would need element-by-element `Map.set` but
-            # are currently uncommon enough to fall through to empty.
-            # TODO: handle `{k1: v1, k2: v2}` by chaining Map.set.
+            # NON-EMPTY DICT LITERAL (relaunch #16), retiring the TODO that stood here.
+            # Falling through to `(const (None: option int))` made the emission CLAIM that
+            # a literal with keys is the EMPTY map — a positive FALSE statement, and the
+            # exact reason `crosscheck.pairwise` was declined rather than converted
+            # (lesson (ca): a conversion must not trade a havoc for a wrong definite
+            # value). `map_update_some` is already declared with
+            # `ensures result = Map.set m k v`, so the chain is the faithful lowering and
+            # needs no axiom. TRIPLE-GATED and fail-closed: only when the literal HAS keys,
+            # only when the enclosing function's return type is a `map <K> (option <V>)`
+            # this can name, and only when every key and value coerces to the declared
+            # slot type. An EMPTY literal is untouched, so every existing `d = {}` site is
+            # byte-identical.
+            _dl_keys = expr.get("keys") or []
+            _dl_vals = expr.get("values") or []
+            _frt0 = str(getattr(self, "_func_return_type", "") or "")
+            _mm = re.fullmatch(r"map\s+(\S+)\s+\(option\s+(\S+)\)", _frt0.strip())
+            if _dl_keys and len(_dl_keys) == len(_dl_vals) and _mm:
+                _kt0, _vt0 = _mm.group(1), _mm.group(2)
+                if _kt0 in ("int", "string") and _vt0 in ("int", "string"):
+                    _acc = f"(const (None: option {_vt0}))"
+                    _ok = True
+                    for _kk, _vv in zip(_dl_keys, _dl_vals):
+                        _kw2 = self._expr_to_whyml(_kk, local_refs, invariant_ctx, subst)
+                        _vw2 = self._expr_to_whyml(_vv, local_refs, invariant_ctx, subst)
+                        if _kt0 == "int":
+                            _kw2 = self._coerce_to_int(_kw2)
+                        elif not self._is_string_expr(_kk):
+                            _ok = False
+                            break
+                        if _vt0 == "int":
+                            _vw2 = self._coerce_to_int(_vw2)
+                        elif not self._is_string_expr(_vv):
+                            _ok = False
+                            break
+                        _acc = f"(map_update_some {_acc} {_kw2} {_vw2})"
+                    if _ok:
+                        self._add_abstract_op(
+                            "val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v)"
+                            " : map 'k (option 'v)\n"
+                            "    ensures { result = Map.set m k (Some v) }")
+                        return _acc
             return "(const (None: option int))"
         if isinstance(node, ListCompExpr):
             # pyconst_val bytes content-comprehension (self-tcb-reduction M5, B-bucket):

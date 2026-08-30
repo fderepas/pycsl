@@ -35,28 +35,25 @@ class CrossCheckResult:
             return False
         return all(n == present[0] for n in present)
 
-    # CERTIFIED-BOUNDARY (relaunch #16) — [DICT-LITERAL RETURN DECLINES TO THE EMPTY MAP].
-    # `@property` support now EMITS this getter (the old [UNEMITTABLE @property] boundary
-    # is gone), and the body ports and type-checks. It is NOT converted anyway, because
-    # converting it would make the model STRICTLY WORSE: a `map`-returning dict LITERAL
-    # declines to `(const (None: option int))` — the EMPTY map — so the `let` would CLAIM
-    # that `pairwise` has no keys, a positive FALSE statement, where the `val` it replaces
-    # is an unconstrained (havoc) map that claims nothing. A conversion that trades a havoc
-    # for a wrong definite value is a faithfulness REGRESSION, not count progress.
-    # REOPENING CAPABILITY: lower a string-keyed dict literal to the `map_update_some`
-    # chain (`map_update_some (… (const None) "k1" v1 …) "k3" v3`) — `map_update_some` is
-    # already declared with `ensures result = Map.set m k v`, so no axiom is involved. Its
-    # blast radius is CORPUS-WIDE (every `(const (None: option int))` decline in an 813-file
-    # emission), so it owes its own gated increment and its own byte-diff measurement.
-    # The twin `crosscheck_ir.pairwise` is co-blocked, and additionally carries a NESTED
-    # `def cmp(...)` and `Optional[bool]` values.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # CONVERTED (relaunch #16). The [DICT-LITERAL RETURN DECLINES TO THE EMPTY MAP]
+    # boundary recorded EARLIER IN THIS SAME SESSION is broken by its own named reopening
+    # capability: a non-empty dict literal in a `map`-returning function now lowers to the
+    # `map_update_some` chain (`ensures result = Map.set m k (Some v)`, already declared —
+    # no axiom), so the emitted body states the THREE real bindings instead of claiming the
+    # map is empty. Verbatim body port of the LIVE `pairwise`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @property
-    def pairwise(self) -> int:
-        return {}
+    def pairwise(self) -> Dict[str, bool]:
+        return {
+            "rocq==lean":     bool(self.rocq_norm) and bool(self.lean_norm)
+                              and self.rocq_norm == self.lean_norm,
+            "rocq==registry": bool(self.rocq_norm) and bool(self.registry_norm)
+                              and self.rocq_norm == self.registry_norm,
+            "lean==registry": bool(self.lean_norm) and bool(self.registry_norm)
+                              and self.lean_norm == self.registry_norm,
+        }
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
