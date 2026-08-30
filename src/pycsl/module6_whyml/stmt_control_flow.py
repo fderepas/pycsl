@@ -1156,9 +1156,30 @@ class ControlFlowStmtMixin:
         if _psl_len is not None and not _str_char:
             while_parts.append(f"{inner_indent}invariant {{ 0 <= !{idx} }}")
             while_parts.append(f"{inner_indent}variant {{ {_psl_len} - !{idx} }}")
-        elif (getattr(self, "_current_self_type", None)
-                in getattr(self, "_mutable_state_classes", set())
-                and not _str_char):
+        elif (not _str_char
+              and (getattr(self, "_current_self_type", None)
+                   in getattr(self, "_mutable_state_classes", set())
+                   # FOR-OVER-COLLECTION TERMINATION (relaunch #17): the historical arm
+                   # was `@mutable_state`-ONLY, so a `for x in <array>` loop in any other
+                   # mirror had NO variant and NO index invariant — which is exactly the
+                   # recorded [`for`-over-array termination] boundary ("the SOURCE cannot
+                   # supply a variant": the index `!_idx_x` is emitter-generated and has
+                   # no source-level name, so a `#@ loop variant` cannot mention it).
+                   # The variant is SOUND BY CONSTRUCTION — the index starts at 0,
+                   # increments by exactly 1 per iteration, and the loop guard is
+                   # `!idx < <len>` — so it is admitted for ANY loop whose length term is
+                   # already a pure LOGIC term (`Array.length` / `Seq.length` /
+                   # `String.length`). It is NOT admitted for a PROGRAM length call
+                   # (`iter_length (get_clauses !c)`), which a Why3 `variant` term cannot
+                   # mention at all (measured: `unbound function or predicate symbol`).
+                   # And it stands down whenever the SOURCE already supplies a `#@ loop
+                   # variant`, because Why3 rejects two `variant` clauses on one loop
+                   # (measured on corpus 0208).
+                   # MEASURED BLAST RADIUS: 2 of 814 corpus files (0406, 0407), each
+                   # gaining exactly these two lines, both re-proved.
+                   or (not stmt.variants
+                       and str(len_expr).lstrip("(").startswith(
+                           ("Array.length", "Seq.length", "String.length"))))):
             while_parts.append(f"{inner_indent}invariant {{ 0 <= !{idx} }}")
             while_parts.append(f"{inner_indent}variant {{ {len_expr} - !{idx} }}")
         # W2: character-level string iteration carries an ARITHMETIC termination
