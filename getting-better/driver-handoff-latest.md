@@ -2,13 +2,13 @@
 
 ## State, verified from the surface at end of session
 
-- **Count: MARKERS 497 · grep-substring 522 · offset 25 · unattached 0.** Quote BOTH.
+- **Count: MARKERS 496 · grep-substring 521 · offset 25 · unattached 0.** Quote BOTH.
   From **`bin/count-trusted-directives.py`**, never a hand-rolled grep — 25 of the grep hits
   are one boilerplate module-docstring line repeated across 25 mirror files, so every
   historical absolute figure (the famous "687") is overstated by that 25.
-  **Window #2 delta so far: markers 530 -> 497, grep 555 -> 522.**
-  **This session (#16): 502 -> 497, FIVE conversions across three increments, plus a
-  fourth increment that is pure faithfulness.**
+  **Window #2 delta so far: markers 530 -> 496, grep 555 -> 521.**
+  **This session (#16): 502 -> 496, SIX conversions across four increments, plus TWO
+  increments that are pure faithfulness/capability.**
 - **`bin/check-shadowed-selfcalls.py`: 15 CONVERTED methods / 154 bypassing call sites,
   ratchet 15** — UNCHANGED this session. Needs `TMPDIR=/home/fabrice/git/pycsl/scratchpad`;
   ~2 min; give Bash an explicit timeout. 137 of the 154 are the TWO recorded L2 dispatchers.
@@ -16,7 +16,7 @@
   `exec_splice._is_constant_exec`'s `getattr(call, "func", None)` CALL result.
 - Ledger **3**, untouched. Emitted axioms: **0**. Literal-guard grep: **0**.
 - Fidelity at the standing baseline **2 DIVERGED** (`_handle_var_expr`, `_handle_for_stmt`).
-  Field parity 335 / 7 known drift / 0 NEW. check-untrusted-emitted **812 / 796 / 0 / 0**.
+  Field parity 335 / 7 known drift / 0 NEW. check-untrusted-emitted **813 / 797 / 0 / 0**.
   emitted-vacuity `--emit`: no NEW erasure, **8 known**, 0 input-blind.
   **Corpus byte-diff 0 over 814/814** — note the corpus is now **814**, not 813: this
   session added `0967_property_getter_supported.py`. `bin/self-annotate-mirror-check.sh`
@@ -37,7 +37,7 @@
   `scratchpad/`, `prompt`, `prompt.txt`). Leave it alone.
   `getting-better/.driver-deadline` intact (Sep 1 08:24 UTC). Commits unpushed by design.
 
-## WHAT THIS SESSION LANDED (four gated increments)
+## WHAT THIS SESSION LANDED (six gated increments)
 
 1. **`frontend/pure_ast.strings` CONVERTED (502 -> 501)** — the CERTIFIED-BOUNDARY
    **[HETEROGENEOUS TUPLE ELEMENT TYPE] is BROKEN**, and with it a SECOND, sharper wall the
@@ -91,10 +91,39 @@
    application of an abstract op the SAME emission already declared, so **the op's declared
    return type IS the receiver's Why3 type** — evidence rather than inference.
 
+5. **`proof2why3/crosscheck.pairwise` CONVERTED (497 -> 496)** — the
+   [DICT-LITERAL RETURN DECLINES TO THE EMPTY MAP] boundary recorded EARLIER IN THIS SAME
+   SESSION, broken by its own named reopening capability (lesson (cb)). A non-empty dict
+   literal in a `map <K> (option <V>)`-returning function lowers to the `map_update_some`
+   CHAIN instead of `(const (None: option int))`; the op was already declared with
+   `ensures result = Map.set m k (Some v)`, so NO axiom. Retires a standing `TODO` in
+   `expressions.py`. Triple-gated: the literal must HAVE keys (every `d = {}` byte-identical),
+   the return type must be a nameable `map`, every key/value must coerce. A second capability
+   fell out of the L3-tc iteration: **`bool(<string>)` was lowering to `bool_conv (x: int)`
+   applied to a STRING** — now the faithful `(if str_eq_op s "" then 0 else 1)`.
+6. **UNION IDENTITY AT THE PARAM SEAM — a capability increment, count unchanged.**
+   `dedup=True` at the parameter-annotation seam, so two parameters of one function with the
+   structurally identical `Optional[τ]` share ONE synthesized union type (Why3 sum types are
+   NOMINAL). The mechanism already existed — `tool-feature-5` applies it at the LOCAL and
+   RETURN seams for exactly this reason; only the param seam was left per-site. The FIELD
+   seam stays per-site deliberately. 2 mirrors moved (`audit_proof`,
+   `module6_whyml/expressions`), both re-proved; corpus byte-diff 0 of 814.
+
 ## CERTIFIED-BOUNDARIES RECORDED THIS SESSION
 
-- **`crosscheck.pairwise` + `crosscheck_ir.pairwise` — [DICT-LITERAL RETURN DECLINES TO THE
-  EMPTY MAP].** Both now EMIT (the `@property` boundary is gone) and both bodies port and
+- **`crosscheck_ir.pairwise` — [DEGENERATE SYNTHESIZED UNION].** RE-MEASURED THREE TIMES
+  in one session, and the first two readings were both BROKEN on the way here (lesson (cc)).
+  It is no longer a dict-literal wall (increment 5) and no longer a union-IDENTITY wall
+  (increment 6). The real cause: `Term` is an OPAQUE MARKER CLASS (`class Term: pass`), so
+  the `Optional[Term]` union DROPS its payload arm and collapses to
+  `type _union_cmp_6 = Arm_6_None` — ONE inhabitant. `a is None` therefore lowers to a test
+  that is ALWAYS TRUE (lesson (bl)), the else-branch is unreachable, and the converted `cmp`
+  would return `None` on every path — the `let` would CLAIM all three `pairwise` values are
+  `None`. DECLINED under lesson (ca). REOPENING CAPABILITY: give a synthesized `Optional[X]`
+  union a `Some` arm carrying an OPAQUE payload when `X` is an unmodelled class, instead of
+  dropping the arm. **This is now the top of the ladder.**
+- *(HISTORICAL, both BROKEN this session)* `crosscheck.pairwise`'s
+  [DICT-LITERAL RETURN DECLINES TO THE EMPTY MAP] Both now EMIT (the `@property` boundary is gone) and both bodies port and
   type-check — and both were DECLINED ANYWAY. A `map`-returning dict LITERAL declines to
   `(const (None: option int))`, so the `let` would CLAIM the property has no keys: a positive
   FALSE statement, where the `val` it replaces is an unconstrained havoc that claims nothing.
@@ -110,13 +139,16 @@
 
 ## Pick up here — in this order
 
-1. **THE DICT-LITERAL -> `map_update_some` CHAIN.** Two markers directly
-   (`crosscheck.pairwise`, `crosscheck_ir.pairwise` — the latter also needs a nested-def
-   lowering), and it retires a whole class of "the `let` claims the map is empty" facades.
-   **MEASURE FIRST**: count `(const (None: option int))` in the 814-file corpus emission and
-   in the 52 mirrors; if the blast radius is large, gate it (e.g. on the dict literal being
-   the RETURNED expression of a `map`-returning function) and re-measure. This is the
-   highest-value named item left that is not a recorded fundamental wall.
+1. **THE OPAQUE `Some`-ARM PAYLOAD for a synthesized `Optional[X]` union.** One marker
+   directly (`crosscheck_ir.pairwise`) and it removes a whole class of modelled-away
+   optionals — a union that drops its payload arm makes every `x is None` guard a literal
+   `true` (lesson (bl)), which is a positive false claim wherever such a union is a
+   parameter. The two cheaper walls in front of it were both broken this session, so the
+   spike is now three lines from a verdict: give `_normalize_union_annotation`'s
+   `lowered` list a `Some` arm with an opaque payload when the arm tag is an unmodelled
+   class instead of dropping it as `Any` (see the `any_dropped` / GT1 path at
+   `Module5_IREmitter.py:~3710`), and MEASURE — this one has a real corpus blast radius,
+   unlike the last three capabilities.
 2. **The remaining half of `@property`: route a `self.<prop>` READ.**
    `_handle_attribute_expr` is the NON-self path (its own docstring says so), so the
    `self.` receiver goes elsewhere and is NOT yet routed. Concretely: the mirror models
