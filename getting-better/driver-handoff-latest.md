@@ -139,7 +139,29 @@
 
 ## Pick up here — in this order
 
-1. **THE OPAQUE `Some`-ARM PAYLOAD for a synthesized `Optional[X]` union.** One marker
+1. **THE OPAQUE `Some`-ARM PAYLOAD for a synthesized `Optional[X]` union — SPIKED,
+   MEASURED AND PRICED THIS SESSION, then reverted for lack of a live consumer.**
+   THE EDIT IS THREE LINES: in `Module5_IREmitter._union_arm_tag` (~3538) a CLASS-shaped
+   `ast.Name` arm with no record `type_decl` returns `"Any"` and is DROPPED; return
+   `elt.id` instead (gate on a leading capital + a typing-alias exclusion set). Module 6
+   resolves an unknown payload tag to the `int` default, so NO Module 6 change is needed.
+   **MEASURED BLAST RADIUS: corpus 4 of 814** (`0962`–`0965`, and in each the diff is
+   exactly three DEAD type declarations becoming inhabited — nothing those drivers prove
+   changes), **mirrors 4 of 52 with TC_FAIL 0** (`audit_proof`, `Module2_Parser`,
+   `crosscheck_ir`, `sertop`), PLUS a mirror sync of `_union_arm_tag` itself which drags
+   `Module5_IREmitter` (1133 goals, ~60 min) into the battery.
+   **IT DOES NOT FINISH `crosscheck_ir.pairwise` ON ITS OWN** — measured: with it, the
+   union identity is fixed and the presence test becomes real, and the NEXT L3-tc error is
+   `Arm_7_0 (a = b)`, a Why3 `bool` where the `Optional[bool]` arm's payload is `int` (a
+   bool->int coercion missing at the union-arm RETURN wrap), with a program-level ADT
+   equality question behind that. So take it WITH the bool->int wrap, or take it for its
+   own sake: at least one degenerate union is LIVE — `audit_proof`'s
+   `val audit_rocq (…) (proofs_dir: _union_audit_rocq_1) …` is an `Optional[Path]`
+   PARAMETER whose type today has ONE inhabitant, i.e. the signature says the argument is
+   always absent. It is a deliberate NON-INERT increment; say so plainly and re-prove the
+   four corpus drivers.
+
+   *(original note, still accurate)* **THE OPAQUE `Some`-ARM PAYLOAD.** One marker
    directly (`crosscheck_ir.pairwise`) and it removes a whole class of modelled-away
    optionals — a union that drops its payload arm makes every `x is None` guard a literal
    `true` (lesson (bl)), which is a positive false claim wherever such a union is a
