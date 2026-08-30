@@ -1320,7 +1320,7 @@ class FunctionEmissionMixin:
         # literal. `ir_resolve` only records a shape whose every slot is in its CLOSED
         # per-slot table, so an unrecognised annotation still arrives here as `None` and
         # int-erases exactly as before. Still gated on `_uses_pyast_parser()`.
-        _rtw = func.get("return_tuple_whyml")
+        _rtw = func.get("return_tuple_whyml", "")
         if _rtw and self._uses_pyast_parser():
             return _rtw
         if not (return_type.startswith("(") and "," in return_type):

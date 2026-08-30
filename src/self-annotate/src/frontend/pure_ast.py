@@ -3764,7 +3764,17 @@ class _Parser:
     # callee having only READ the `{` (`at_op` is a test, the consuming `advance` happens
     # HERE), so that edge is paid by the offset drop 1 -> 0; the return edge rises and is
     # paid by the unconditional strict `advance()` this body performs after `at_op(":")`.
-    #@ requires True
+    # TOKEN-KIND PRECONDITION (relaunch #16), the `atom_paren` precedent. Once `strings`
+    # is converted this member joins the BIG expression SCC, and the edge to
+    # `testlist_for_fstring` is then a real variant obligation that must be paid by the
+    # LEADING `advance` over the `{` — which is strict only if the cursor is not already
+    # at the last token. Composed with the EOF-SENTINEL class invariant (ENDMARKER is not
+    # an OP) the precondition rules that out. DISCHARGED at BOTH call sites (`_fstring`
+    # and `_fstring_format_spec`, each under `elif self.at_op("{")`) from `at_op`'s
+    # existing `ensures \result != False ==> self.toks[self.i].type == _tokenize.OP` —
+    # a proof obligation, not an assumption. The `:`-advance that already paid the edge
+    # to `_fstring_format_spec` needed exactly this argument one call deeper.
+    #@ requires self.toks[self.i].type == _tokenize.OP
     #@ ensures True
     #@ ensures self.i > \old(self.i)
     #@ \variant 64 * (\length(self.toks) - self.i) + 1
