@@ -1346,6 +1346,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #       `.value` disambiguation (self-field IrAttr object vs subscript IrSub array) is the
     #       unified `avalue_of` projector, scoped to this handler.
     # isinstance_op = 0. Verbatim body port of the LIVE `_py_stmt_augassign`.
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns ir_stmts
@@ -1384,6 +1385,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # `_PURE_AST_FIELD_TABLE` (ir_resolve.py) types the `ast.Return` param as the `Return`
     # record with `value : option emit_ir`, and `SReturn` is retyped `SReturn iropt_ir`
     # (preamble.py stmt_ir theory). Verbatim body port of the LIVE `_py_stmt_return`.
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns ir_stmts
@@ -1399,6 +1401,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # never erased to 0), with a REAL `stmt_list` sub-body (seq_to_sl of the
     # dispatcher's seq, never SLNil-erased). Verbatim body port of the LIVE
     # `_py_stmt_while`.
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns ir_stmts
@@ -1414,6 +1417,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # never erased to 0), with a REAL `stmt_list` sub-body (seq_to_sl of the
     # dispatcher's seq, never SLNil-erased). Verbatim body port of the LIVE
     # `_py_stmt_for`.
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns ir_stmts
@@ -1424,6 +1428,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # `SIf (py_expr_to_ir stmt.test) (seq_to_sl (py_stmts_to_ir stmt.body))
     # (seq_to_sl (py_stmts_to_ir stmt.orelse))` value `_process_if` returns onto
     # the `ref (seq stmt_ir)` param. Verbatim body port of the LIVE `_py_stmt_if`.
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns ir_stmts
@@ -1459,6 +1464,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # is_str, and `stmt.msg.value` projects via `value_of`, `IrStr v -> v`), tag-preserving
     # (SAssert, never erased to 0). isinstance_op = 0. Verbatim body port of the LIVE
     # `_py_stmt_assert`.
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns ir_stmts
@@ -1468,6 +1474,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             ir_node["msg"] = stmt.msg.value
         ir_stmts.append(ir_node)
 
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns ir_stmts
@@ -1502,6 +1509,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # emit_ir` ctor, target name projected via `name_of`, RHS via the option-unwrapped
     # dispatcher, tag-preserving (SAssign, never erased to 0). isinstance_op = 0. Verbatim
     # body port of the LIVE `_py_stmt_annassign`.
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns ir_stmts
@@ -1520,6 +1528,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # `.append({"stmt":"Expr","value":self._py_expr_to_ir(stmt.value)})` snocs `SExpr
     # (py_expr_to_ir stmt.value)` onto the ref, tag-preserving (SExpr, never erased to 0).
     # isinstance_op = 0. Verbatim body port of the LIVE `_py_stmt_expr`.
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns ir_stmts
@@ -1726,6 +1735,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # `seq_to_sl`. The `line`/`invariants`/`variants` keys are DROPPED (SWhile carries
     # test+body only), so their dict values (`getattr`/`_csl_list_to_ir`) are never
     # lowered. Verbatim body port of the LIVE `_process_while`.
+    #@ \diverges
     #@ sibling_concrete
     #@ requires True
     #@ ensures True
@@ -1761,6 +1771,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # precedent of keeping just the emitter-model-relevant children). SFor is ALREADY
     # in the certified stmt_ir ADT (Phase2d_StmtIR.v / StmtIR.lean) and the theory — no
     # new ctor. Verbatim body port of the LIVE `_process_for`.
+    #@ \diverges
     #@ sibling_concrete
     #@ requires True
     #@ ensures True
@@ -1795,6 +1806,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # (seq_to_sl (py_stmts_to_ir node.body)) (seq_to_sl (py_stmts_to_ir node.orelse))`
     # — BOTH the body AND the orelse sub-lists materialized to `stmt_list`. Verbatim
     # body port of the LIVE `_process_if`.
+    #@ \diverges
     #@ sibling_concrete
     #@ requires True
     #@ ensures True

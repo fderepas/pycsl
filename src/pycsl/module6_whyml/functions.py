@@ -3597,6 +3597,14 @@ class FunctionEmissionMixin:
         ]
         if _raises:
             L.append(f"    raises {{ {', '.join(_raises)} }}")
+        # `#@ \diverges` is a SECOND-PRODUCER case (lesson (am)): this bespoke body is
+        # synthesized here, not by `_emit_function`'s contract block, so the directive was
+        # silently DROPPED and the dispatcher kept generating termination sub-goals it can
+        # never discharge. It matters precisely because making the dispatcher concrete
+        # creates a REAL 20-member mutual recursion whose measure cannot be derived without
+        # a new axiom; `diverges` is the axiom-free alternative (partial correctness).
+        if func.get("diverges", False):
+            L.append("    diverges")
         L.append("  =")
         L.append(f"    match {view} {whyml_ident(param)} with")
         for ast_cls, handler in entries:
