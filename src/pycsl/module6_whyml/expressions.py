@@ -6976,6 +6976,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # Unannotated callee: no signature is known, so the abstract op and
             # its args stay in the int model.
             coerced_args = [self._coerce_to_int(a) for a in args]
+            # THE RECEIVER-CARRYING UNANNOTATED CALL (relaunch #17). A method call on a
+            # COMPUTED receiver (`float(node.value).is_integer()`,
+            # `repr(value).replace(a, b)`) arrives here with a bare method `func` and the
+            # receiver in the `receiver` field — and the historical lowering DROPPED it,
+            # giving `(is_integer_0 ())`: a test independent of the value tested, and of
+            # everything else. This is the SAME defect the previous window repaired twice
+            # for the string predicates (`ch_isalpha_0 ()`) and for `isinstance`; the
+            # generic unannotated-call fallback simply still had it. Passing the receiver
+            # as the leading argument keeps the op just as UNINTERPRETED as before — the
+            # disjunction of nothing is claimed about its result — while restoring the
+            # link between the result and the value it is computed from.
+            # MEASURED: mirror-wide the argument-less oracle census drops
+            # `is_integer_0 ()` and `replace_2` -> `replace_3`; corpus 1 of 814 (0425,
+            # where `decode_1` becomes `decode_2` and a real `subscript_get` appears).
+            _rcv = expr.get("receiver")
+            if _rcv is not None and "." not in str(func_name):
+                _rw = self._expr_to_whyml(_rcv, local_refs or set(),
+                                          getattr(self, "_in_spec", False), None)
+                _rw = self._coerce_to_int(_rw)
+                # FAIL-CLOSED: a RECORD-literal receiver (`{ … }`, a class construction —
+                # `exec_splice.splice_constant_exec`'s `_ExecSplicer().visit(tree)`) is not
+                # a term this int-model op can take; keep the historical receiver-less
+                # form rather than emit a syntax error (measured: `{  }` as an argument is
+                # a Why3 SYNTAX error, which is loud but useless).
+                if not str(_rw).lstrip().startswith("{"):
+                    coerced_args = [_rw] + coerced_args
             n = len(coerced_args)
             arity_fn = f"{safe_fn}_{n}"
             if n == 0:
