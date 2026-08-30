@@ -50,7 +50,15 @@
   cosmetic `[[: value too great for base` for every non-numeric corpus name.
 - Tree clean apart from the pre-existing user/build dirt (`session.txt`, untracked
   `scratchpad/`, `prompt`, `prompt.txt`, `style.css` — the last dated Aug 26, leave it).
-  `getting-better/.driver-deadline` intact. Commits unpushed by design.
+  `getting-better/.driver-deadline` intact (Sep 1 08:24 UTC, untouched).
+- **NOTE, observed not caused: THE BRANCH HAS BEEN PUSHED TO `origin` BY SOMETHING OUTSIDE
+  THIS WORKER.** `git reflog show origin/ghost-assign-bc6` carries a run of `update by push`
+  entries, the most recent landing on `4a4f0e66` (a commit of THIS session, ~1 h before its
+  end). This worker never ran `git push` — the gate was honoured. At end of session only the
+  last FOUR commits are local-only (`5d546c2d`, `274caa87`, `6bed3044`, `3e4bdc62`). The
+  previous handoff's line "commits unpushed by design" is therefore NO LONGER TRUE of the
+  repository; whoever owns the outer supervisor should confirm that push is intended, and a
+  future worker should not be surprised to find `@{u}..HEAD` small.
 
 ## WHAT THIS SESSION LANDED (seven gated increments)
 
