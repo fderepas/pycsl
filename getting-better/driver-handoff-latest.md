@@ -7,9 +7,9 @@
   are one boilerplate module-docstring line repeated across 25 mirror files, so every
   historical absolute figure (the famous "687") is overstated by that 25.
   **Window #2 delta so far: markers 530 -> 492, grep 555 -> 517.**
-  **This session (#17): 496 -> 492, FOUR conversions across SIX gated increments (two of
-  the six are pure capability/faithfulness), plus FIVE certified-boundary records, plus a
-  COMPREHENSIVE cheap-win census.**
+  **This session (#17): 496 -> 492, FOUR conversions across SEVEN gated increments (three
+  of the seven are pure capability/faithfulness), plus FIVE certified-boundary records,
+  plus a COMPREHENSIVE cheap-win census.**
 - **`bin/check-shadowed-selfcalls.py`: 14 CONVERTED methods / 153 bypassing call sites,
   ratchet 14** (was 15/154; the ratchet constant in the script is now 14). Needs
   `TMPDIR=/home/fabrice/git/pycsl/scratchpad`; ~2 min; give Bash an explicit timeout.
@@ -40,7 +40,7 @@
   `scratchpad/`, `prompt`, `prompt.txt`, `style.css` — the last dated Aug 26, leave it).
   `getting-better/.driver-deadline` intact. Commits unpushed by design.
 
-## WHAT THIS SESSION LANDED (six gated increments)
+## WHAT THIS SESSION LANDED (seven gated increments)
 
 1. **THE OPAQUE `Some`-ARM PAYLOAD — a FAITHFULNESS increment, count unchanged.**
    A CLASS-shaped `Optional[X]` arm with no WhyML record type is no longer DROPPED as
@@ -95,6 +95,22 @@
    otherwise). The @mutable_state arm is preserved verbatim beside it — dropping it silently
    removed variants from Module5_IREmitter, caught by the sweep. Corpus 2 of 814, both
    re-proved. Module2_Parser **720/720**.
+7. **THE RECEIVER-CARRYING UNANNOTATED CALL — a faithfulness increment, corpus-INERT.**
+   The generic unannotated-call fallback still DROPPED a COMPUTED receiver, so
+   `float(node.value).is_integer()` lowered to `(is_integer_0 ())` — a test independent of
+   the value tested AND of everything else. Same defect the previous window repaired twice
+   (`ch_isalpha_0 ()`, `isinstance_op 0 0`); only the generic fallback still had it. Now
+   `is_integer_1 (py_float_1 (get_value node))`, and pure_ast's chained
+   `repr(value).replace(a,b)` goes `replace_2` -> `replace_3 (repr_conv value) …`. The op
+   stays EXACTLY as uninterpreted — what is restored is the LINK to the value. THREE
+   fail-closed refinements, each found by measuring after the previous cut looked clean:
+   a RECORD-literal receiver is a Why3 SYNTAX error as an argument; a COLLECTION-shaped
+   receiver is an L3-tc TYPE error (`_coerce_to_int` collapses a bare `(Array.make …)` but
+   NOT the let-bound array-literal form); and lowering a receiver REGISTERS abstract ops as
+   a side effect, so a DECLINED receiver left DEAD `val` declarations behind — snapshot and
+   restore `_abstract_ops`. Module3_Weaver **259/259**, pure_ast **2857/2857**, corpus 0 of 814.
+   The mirror-wide ARGUMENT-LESS ORACLE census is now 22 applications over 6 names, and
+   every survivor is a genuinely 0-argument method or the dotted `x.next()` form.
 
 ## CERTIFIED-BOUNDARIES RECORDED THIS SESSION (all with a PRICED reopening capability)
 
@@ -228,6 +244,11 @@
    A SECOND proof runner for a worktree is at `…/scratchpad/spikeprove.sh` (its own TMPDIR)
    — running one battery in the main tree and one in the spike worktree concurrently works
    and roughly halves the wall clock, at some per-proof slowdown.
+8b. **`bin/byte-diff-sweep.sh` RUNS WITH `--no-typecheck`.** A corpus byte-diff of 0 is
+    therefore NOT evidence that the corpus still TYPE-CHECKS. Measured this session: a
+    receiver widening left corpus 0425 byte-clean and proof-RED. After any emitter change,
+    PROVE at least the corpus files the sweep flags — and if the sweep flags none but the
+    change could retype an operand, spot-prove one file that exercises it.
 9. **`scratchpad/w2/sweep.sh <repo-root> <outdir>`** emits all 52 mirrors WITH L3-tc in ~35 s;
    **`keepsweep.sh`** keeps the `.mlw`. `bin/byte-diff-sweep.sh <out>` does the 814 corpus
    files in ~32 s and needs a `.venv` — in a worktree, `ln -sfn …/pycsl/.venv .venv` first.
