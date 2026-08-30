@@ -2730,6 +2730,7 @@ specified in `test-suite/annotations.md`:
 | F-string expressions | `_handle_fstring_expr` | Hashed to integer |
 | `with` statement | `_handle_with_stmt` | Context manager protocol |
 | `delete` statement | `_handle_delete_stmt` | Variable deletion |
+| `@property` getter | `Module5_IREmitter._should_skip_method` | Emitted as an ordinary nullary method `<class>__<name> (self: <class>)`; the decorator itself carries no semantics, so the getter is translated exactly like a plain 0-argument method and its `#@` contract is discharged the same way |
 
 ### §T.11.3  Missing Translations
 
@@ -2738,7 +2739,7 @@ The following constructs appear in Python but have no translation:
 | Construct | Status | Workaround |
 |-----------|--------|------------|
 | `class` inheritance | Not supported | Flatten class hierarchy |
-| `@property`, `@staticmethod` | Not supported | Use plain methods |
+| `@staticmethod` | Not supported | Use plain methods |
 | `*args`, `**kwargs` | Not supported | Use explicit parameters |
 | `yield` / generators | Not supported | Use explicit loops |
 | `async` / `await` | Not supported | Use concurrent model |

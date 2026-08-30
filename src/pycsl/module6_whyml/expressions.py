@@ -11394,6 +11394,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         obj_ir = expr.get("object", {})
         attr = expr.get("attr", "unknown")
+        # `@property` SUPPORT (relaunch #16), the READ half. A decorated getter is now
+        # EMITTED as an ordinary nullary method (`let box__area (self: box) : int`), so a
+        # `<recv>.<prop>` read must be the APPLICATION `(box__area <recv>)` — otherwise
+        # the getter is a definition nothing can reach and the read stays the bare,
+        # unbound field symbol (`unbound function or predicate symbol 'area'`). The
+        # receiver's class comes from the same three maps every other record-receiver
+        # rule uses. `_property_getters` is empty for every program that declares no
+        # `@property` -> corpus byte-inert (measured 0 of 813).
+        _pg = getattr(self, "_property_getters", None)
+        if _pg and isinstance(obj_ir, dict) and obj_ir.get("type") == "Var":
+            _pgo = obj_ir.get("name")
+            _pgc = None
+            if _pgo == "self":
+                _pgc = getattr(self, "_current_self_type", None)
+            else:
+                _pgc = (getattr(self, "_record_param_classes", {}).get(_pgo)
+                        or (self._record_types.get(
+                                getattr(self, "_current_record_var_classes", {}).get(_pgo)
+                                or "", {}) or {}).get("whyml_name")
+                        or (self._record_types.get(
+                                getattr(self, "_module_global_classes", {}).get(_pgo)
+                                or "", {}) or {}).get("whyml_name"))
+            _pgfn = _pg.get((_pgc, attr)) if _pgc else None
+            if _pgfn:
+                _pgr = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
+                return f"({_pgfn} {_pgr})"
         # 07-0903 W2: `\result.<field>` — field access on a record-returning function's
         # result. The WhyML result is the record value; emit `result.<field_label>`.
         if isinstance(obj_ir, dict) and obj_ir.get("type") == "Result":

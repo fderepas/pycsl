@@ -805,6 +805,20 @@ class Module6_WhyMLTranspiler(
         self._emit_opaque_class_aliases(functions, out, declared_types)
 
         self._module_func_names = {whyml_ident(func["name"]) for func in functions}
+        # `@property` SUPPORT (relaunch #16): `(class whyml_name, property name) ->
+        # emitted nullary method`, so `_handle_attribute_expr` can route a
+        # `<recv>.<prop>` READ to the getter Module 5 now emits. Empty unless some
+        # method carries `is_property` -> byte-inert for every property-free program.
+        self._property_getters = {}
+        for func in functions:
+            if not func.get("is_property"):
+                continue
+            _st = func.get("self_type")
+            if not _st:
+                continue
+            _nm = str(func.get("name", ""))
+            _prop = _nm.split("__")[-1] if "__" in _nm else _nm
+            self._property_getters[(whyml_ident(_st.lower()), _prop)] = whyml_ident(_nm)
         # allocator-frame plan §2.7: methods that OPTED IN to concrete sibling-calls via
         # `#@ sibling_concrete`. A `self.<m>()` call to one of these lowers to a CONCRETE
         # call (the callee's real contract + type-invariant guarantee reaches the caller);
@@ -1143,6 +1157,20 @@ class Module6_WhyMLTranspiler(
         global to the program (a cross-module call still needs the callee's propagated
         contract), so they are computed ONCE here and reused for every emitted module."""
         self._module_func_names = {whyml_ident(func["name"]) for func in functions}
+        # `@property` SUPPORT (relaunch #16): `(class whyml_name, property name) ->
+        # emitted nullary method`, so `_handle_attribute_expr` can route a
+        # `<recv>.<prop>` READ to the getter Module 5 now emits. Empty unless some
+        # method carries `is_property` -> byte-inert for every property-free program.
+        self._property_getters = {}
+        for func in functions:
+            if not func.get("is_property"):
+                continue
+            _st = func.get("self_type")
+            if not _st:
+                continue
+            _nm = str(func.get("name", ""))
+            _prop = _nm.split("__")[-1] if "__" in _nm else _nm
+            self._property_getters[(whyml_ident(_st.lower()), _prop)] = whyml_ident(_nm)
         self._sibling_concrete_methods = {whyml_ident(func["name"]) for func in functions
                                           if func.get("sibling_concrete")}
         self._composed_provider_methods = set(self.ir.get("composed_provider_methods", []))

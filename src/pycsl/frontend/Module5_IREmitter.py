@@ -5520,6 +5520,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 self._pending_overloads.setdefault(node.name, []).extend(guarded)
             return
         func_ir = self._build_function_ir(node)
+        # `@property` SUPPORT (relaunch #16): flag a decorated getter so Module 6 can
+        # route a `<recv>.<name>` READ to the emitted nullary method rather than to an
+        # unbound bare symbol. Emitting the getter without this makes it a definition
+        # nothing can reach; the two halves are one capability. Absent for every
+        # undecorated method -> byte-identical wherever no `@property` is declared.
+        if any(isinstance(d, ast.Name) and d.id == 'property'
+               for d in node.decorator_list):
+            func_ir["is_property"] = True
         # typing-engagement ty2 / 31-1700-typing-spec-7 §1.3 step 3: attach the
         # collected guarded postconditions to the implementation's ensures (O6).
         # Appended AFTER `_build_function_ir` (which already merged user-written
