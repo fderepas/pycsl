@@ -35,6 +35,21 @@ class CrossCheckResult:
             return False
         return all(n == present[0] for n in present)
 
+    # CERTIFIED-BOUNDARY (relaunch #16) — [DICT-LITERAL RETURN DECLINES TO THE EMPTY MAP].
+    # `@property` support now EMITS this getter (the old [UNEMITTABLE @property] boundary
+    # is gone), and the body ports and type-checks. It is NOT converted anyway, because
+    # converting it would make the model STRICTLY WORSE: a `map`-returning dict LITERAL
+    # declines to `(const (None: option int))` — the EMPTY map — so the `let` would CLAIM
+    # that `pairwise` has no keys, a positive FALSE statement, where the `val` it replaces
+    # is an unconstrained (havoc) map that claims nothing. A conversion that trades a havoc
+    # for a wrong definite value is a faithfulness REGRESSION, not count progress.
+    # REOPENING CAPABILITY: lower a string-keyed dict literal to the `map_update_some`
+    # chain (`map_update_some (… (const None) "k1" v1 …) "k3" v3`) — `map_update_some` is
+    # already declared with `ensures result = Map.set m k v`, so no axiom is involved. Its
+    # blast radius is CORPUS-WIDE (every `(const (None: option int))` decline in an 813-file
+    # emission), so it owes its own gated increment and its own byte-diff measurement.
+    # The twin `crosscheck_ir.pairwise` is co-blocked, and additionally carries a NESTED
+    # `def cmp(...)` and `Optional[bool]` values.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True

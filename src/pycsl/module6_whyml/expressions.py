@@ -5024,6 +5024,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _ob = _ob.get("name")
             if _fn in _raf and _ob == "self":
                 return f"(Array.length {args[0]})"
+        # relaunch #16: `len(self.<f>)` where `<f>` is a STRING-ELEMENT list field
+        # (`array string`, e.g. `StructFormat.slots`) is the ARRAY length — the opaque
+        # `iter_length : int -> int` fallback mistypes against it. Same shape as the
+        # W8/W1 `_record_array_fields` branch above; `_str_array_record_fields` is
+        # populated only for such a field -> corpus byte-inert.
+        _sarf = getattr(self, "_str_array_record_fields", None)
+        if _sarf and atype in ("FieldGet", "Attribute"):
+            _sfn = arg_ir.get("field") or arg_ir.get("attr")
+            _sob = arg_ir.get("object") or arg_ir.get("value")
+            if isinstance(_sob, dict):
+                _sob = _sob.get("name")
+            if _sfn in _sarf and _sob == "self":
+                return f"(Array.length {args[0]})"
         _a2d = getattr(self, "_array2d_params", set())
         if atype == "Var" and arg_ir.get("name") in _a2d:
             return f"({arg_ir['name']}.rows)"

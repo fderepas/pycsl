@@ -46,6 +46,13 @@ class IRCrossCheckResult:
             return False
         return all(c == canons[0] for c in canons)
 
+    # CERTIFIED-BOUNDARY (relaunch #16) — [DICT-LITERAL RETURN DECLINES TO THE EMPTY MAP],
+    # co-blocked with `crosscheck.pairwise` (see the full record there). `@property`
+    # support EMITS this getter now, so the old [UNEMITTABLE @property] boundary is gone,
+    # but converting it would replace an unconstrained (havoc) `val` with a definite EMPTY
+    # map — a positive FALSE claim. This twin additionally carries a NESTED `def cmp(a, b)`
+    # and `Optional[bool]` values, so it needs the dict-literal capability AND a nested-def
+    # lowering.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True

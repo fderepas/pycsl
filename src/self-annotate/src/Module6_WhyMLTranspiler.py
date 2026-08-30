@@ -151,7 +151,6 @@ class Module6_WhyMLTranspiler(
         self._module_func_param_names: Dict[str, List[str]] = {}
 
     @property
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

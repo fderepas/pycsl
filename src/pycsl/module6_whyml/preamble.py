@@ -1840,6 +1840,17 @@ class PreambleEmissionMixin:
                 # array emit_ir`) → needs Array. Byte-inert (`_uses_tparam` False
                 # for the whole corpus).
                 or self._uses_tparam()
+                # relaunch #16: a STRING-ELEMENT LIST FIELD (`StructFormat.slots:
+                # List[str]`) lowers to `array string` in the record type decl, which is
+                # emitted whether or not any BODY uses an array op — so the `use
+                # array.Array` must be pulled from the FIELD, not only from the bodies.
+                # Without it the record decl itself is `unbound type symbol 'array'`.
+                # Exactly the condition the field-type branch uses -> corpus byte-inert
+                # (measured 0 of 813; no reference program declares such a field).
+                or any(_fd.get("type") in ("list", "tuple")
+                       and _fd.get("value_type") == "string"
+                       for _td in (self.ir.get("type_decls", []) or [])
+                       for _fd in (_td.get("fields", []) or []))
             )
         else:
             needs_array = False
@@ -2032,7 +2043,16 @@ class PreambleEmissionMixin:
           or any(f.get("vararg_str_param") for f in functions) \
           or bool(getattr(self, "_module_str_list_constants", None)) \
           or any(self._body_uses_str_literal_for(body) for body in all_bodies) \
-          or self._uses_stmt_ir()
+          or self._uses_stmt_ir() \
+          or any(_fd.get("type") in ("list", "tuple")
+                 and _fd.get("value_type") == "string"
+                 for _td in (self.ir.get("type_decls", []) or [])
+                 for _fd in (_td.get("fields", []) or []))
+        # ^ relaunch #16: a STRING-ELEMENT LIST FIELD is `array string` — or, on a record
+        #   PINNED as a list ELEMENT (Why3 forbids a mutable field inside `array`),
+        #   `seq string`. Either way the record decl itself needs the theory in scope, and
+        #   the decl is emitted whether or not any BODY touches a seq. Same condition as
+        #   the field-type branch and the `needs_array` disjunct -> corpus byte-inert.
         # ^ faithful for-over-literal (self-tcb-reduction): a `for k in ("body", "orelse")`
         #   / `for p in <str-literal local>` loop materialises a `seq string` (Seq.cons/get/
         #   length), so `use seq.Seq` must be present. Scoped to the SAME all-string-literal
@@ -8574,8 +8594,17 @@ class PreambleEmissionMixin:
                             self._pyval_seq_fields.add(f["name"])
                             self._pyval_seq_append_targets.add(
                                 ("self." + f["name"]).replace(".", "_"))
+                        # i-feel-good.md I-E, WIDENED (relaunch #16): a `List[str]` field is
+                        # `array string` in EVERY module, not only a @mutable_state /
+                        # IR-node one. The narrower gate left `StructFormat.slots`
+                        # (`List[str]`, the per-slot WhyML TYPE NAMES) as `array int`, so
+                        # `_short_type(self.slots[0])` was an int applied to a `string`
+                        # parameter — an L3-tc error that blocked the whole class. Measured
+                        # CORPUS-INERT (0 of 813): no reference program declares a
+                        # string-element list FIELD. `emit_ir` keeps its original gate.
                         elif (f.get("value_type") in ("string", "emit_ir")
-                                and (getattr(self, "_mutable_state_classes", None)
+                                and (f.get("value_type") == "string"
+                                     or getattr(self, "_mutable_state_classes", None)
                                      or getattr(self, "_uses_ir_node_param", False))):
                             if td.get("name") in getattr(
                                     self, "_list_element_record_types", set()):
@@ -8595,6 +8624,16 @@ class PreambleEmissionMixin:
                                 ftype = f"seq {f.get('value_type')}"
                             else:
                                 ftype = f"array {f.get('value_type')}"
+                                if f.get("value_type") == "string":
+                                    # relaunch #16: remember the STRING-ELEMENT list
+                                    # fields so `len(self.<f>)` lowers to `Array.length`
+                                    # and an element read is a `string`, instead of the
+                                    # opaque `iter_length : int -> int` (which mistypes
+                                    # against `array string`). Empty for every file with
+                                    # no such field -> corpus byte-inert.
+                                    if not hasattr(self, "_str_array_record_fields"):
+                                        self._str_array_record_fields = set()
+                                    self._str_array_record_fields.add(f["name"])
                         elif (f.get("value_type") in self._record_types
                                 and (getattr(self, "_mutable_state_classes", None)
                                      or getattr(self, "_uses_ir_node_param", False))):

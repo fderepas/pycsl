@@ -2774,19 +2774,18 @@ class FunctionEmissionMixin:
                     return False
                 if node.name.startswith('__') and node.name.endswith('__'):
                     return True
-                if any(isinstance(d, ast.Name) and d.id == 'property'
-                       for d in node.decorator_list):
-                    return True
                 return False
 
         The dunder test lowers to the FAITHFUL `str_startswith_op`/`str_endswith_op`
         (substring-based ensures) over `func_name_ast node` — the accessor APPLIED TO the
-        node, NOT a node-free hashed stub. The `@property` decorator existence test lowers
-        to the CONCRETE `decorator_has_name_prog "property" (func_decorator_list_ast node)`
-        fold (a decorator matches iff it is a Name whose head name = "property", reusing
-        is_var/name_of). `self._current_class` truthiness -> the opaque `m5_current_class_
-        present` abstract reader (a sound abstraction of genuine instance state, like
-        symtab_mem). isinstance_op = 0, `assigns \nothing` (pure bool). Corpus-inert."""
+        node, NOT a node-free hashed stub. `self._current_class` truthiness -> the opaque
+        `m5_current_class_present` abstract reader (a sound abstraction of genuine instance
+        state, like symtab_mem). `assigns \nothing` (pure bool). Corpus-inert.
+
+        `@property` SUPPORT (relaunch #16): the decorator-existence disjunct is GONE from
+        BOTH producers — the live/mirror source AND this synthesized body (lesson (am):
+        a SYNTHESIZED body is a second producer, and editing only the source leaves the
+        emitted theory silently stating the OLD behaviour)."""
         name = whyml_ident(func["name"])
         cls = whyml_ident(func["self_type"].lower())
         self._add_abstract_op(
@@ -2810,8 +2809,6 @@ class FunctionEmissionMixin:
             "    if not m5_current_class_present then false",
             "    else if (str_startswith_op (func_name_ast node) \"__\" = 1)"
             " && (str_endswith_op (func_name_ast node) \"__\" = 1) then true",
-            "    else if decorator_has_name_prog \"property\""
-            " (func_decorator_list_ast node) then true",
             "    else false",
         ]
 

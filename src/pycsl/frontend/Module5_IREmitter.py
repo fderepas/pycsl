@@ -3477,9 +3477,6 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return False
         if node.name.startswith('__') and node.name.endswith('__'):
             return True
-        if any(isinstance(d, ast.Name) and d.id == 'property'
-               for d in node.decorator_list):
-            return True
         return False
 
     # --- refactor.md B-final wedge: Module5 builds the IR symbol_table itself ---
