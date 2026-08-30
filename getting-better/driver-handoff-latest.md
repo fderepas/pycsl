@@ -192,6 +192,22 @@
   34 of 34.** The prober is at `scratchpad/w2/probe_all.py` (and `show_conv.py` prints one
   converted body); re-run it after any capability lands.
 
+- **A MEASURED HONESTY GAP IN ALREADY-BANKED CONVERSIONS — the FRAME plane, quantified for
+  the first time.** A mirror-wide census of `setattr*` INSIDE CONVERTED (`let`) bodies found
+  **11 methods across 4 mirrors** whose emitted body performs a mutation the model DISCARDS
+  (lesson (bq)), and **8 of the 11 declare NO `writes` at all**. Worst:
+  `PyCSLWeaver._init_function_csl_fields` — CONVERTED, PROVEN, and its body is **31**
+  applications of `setattr_3 node <hashed-attr> 0` under `#@ assigns \nothing`, a frame claim
+  TRUE OF THE MODEL and FALSE OF THE SOURCE. Also `_Parser._fin_pos` (4),
+  `_Unparser.block/visit/visit_Module/visit_Try/visit_TryStar` (1-2 each),
+  `FunctionEmissionMixin._refine_tuple_return_type` (4) / `_build_param_list` (2), and
+  `StatementEmissionMixin._handle_fieldassign_stmt`/`_handle_fieldaugassign_stmt` (2 each —
+  these DO declare a large `writes` set, so their frame is real, just not for the setattr'd
+  attribute). NOT an argument to revert them: the bodies are otherwise faithful and only the
+  FRAME claim overstates. It is the SAME missing capability the `_desugar_for` decline names.
+  **Until an object-state model exists, an `assigns \nothing` on a method that setattrs is a
+  MODEL statement, not a source guarantee — read every one that way.**
+
 ## RECORDED BOUNDARIES CARRIED FORWARD — do not re-grind without the named capability
 
 - The five above.
@@ -230,9 +246,13 @@
    to the 137-site shadowed residue that does not spend an axiom. Large, and it touches the
    Rocq/Lean certificate; but the SCC-keyword half is already built and byte-inert (patch
    in scratchpad), so the redesign is the whole remaining cost.
-4. **A sound object-state model for `setattr`** — it unblocks `_desugar_for` immediately
-   (already proven green under the unsound version) and every `visit_*`/`_attach_*` mutator
-   the census declined, which is a large family across Module3_Weaver and Module5_IREmitter.
+4. **A sound object-state model for `setattr`** — the single highest-leverage item left,
+   and it now has THREE separate consumers measured this session: it unblocks
+   `_desugar_for` immediately (already proven green under the unsound version); it unblocks
+   every `visit_*`/`_attach_*` mutator the census declined (a large family across
+   Module3_Weaver and Module5_IREmitter); and it is what would make the FRAME claims of the
+   11 already-banked setattr-ing conversions true of the source rather than only of the
+   model. Nothing else on this list buys three planes at once.
 5. `pure_ast`'s residue is now CENSUSED and is the `_Unparser` family plus generators plus
    dunders. Do not re-probe it without a new capability.
 
