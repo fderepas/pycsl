@@ -59,12 +59,102 @@ class PreambleEmissionMixin:
     def _emit_preamble_exceptions(self, needs: int) -> List[str]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PREAMBLE-HELPER BLOCK (self-tcb-reduction, relaunch #17): CONVERTED, and
+    # FULLY FAITHFUL. Found by the comprehensive cheap-win census — the ONE stub
+    # of ~230 whose ported body lowers with NOTHING erased. The `val` it replaces
+    # was `val …_emit_preamble_helpers (self) (needs: int) : array string`, with
+    # the whole `needs` dictionary collapsed to an int, so every gate this method
+    # tests was invisible to the model and the returned helper block was an
+    # unconstrained array. The emitted body reads `needs` as a real
+    # `map string (option int)` with NATIVE STRING KEYS (`Map.get needs
+    # "needs_sum"`), and every emitted preamble LINE is the real string literal
+    # snoc'd onto a real `seq string`, materialized to `array string` — measured:
+    # ZERO `str_hash_op` / argument-less oracle / `getattr_*` occurrences in the
+    # whole body. The signature also gains the live `needs: Dict[str, Any]`
+    # (the stub carried `needs: int`), so the mirror-check signature parity is
+    # tighter than before. Verbatim body port of the LIVE `_emit_preamble_helpers`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _emit_preamble_helpers(self, needs: int) -> List[str]:
-        return []
+    def _emit_preamble_helpers(self, needs: Dict[str, Any]) -> List[str]:
+        """Phase C: emit helper lemmas, pycsl_sum, pycsl_div, pycsl_mod function bodies."""
+        out: List[str] = []
+        # crosscheck_ir.py self-state carrier (class-variant-impl.md §OUTCOME-CC):
+        # the string-empty test `not self.<strfield>` lowers to the abstract
+        # `val pystr_eq` (result no VC constrains -> NOT an axiom, ledger 3; the
+        # term-carrier precedent). Gated on the self-state recognizer; never
+        # double-declared (pydict/term declare their own, and this file has
+        # neither). Corpus/other-mirror byte-inert (needs_selfstate_streq False).
+        if ((needs.get("needs_selfstate_streq")
+                or needs.get("needs_crosscheck_str_agree"))
+                and not needs.get("needs_pydict")
+                and not needs.get("needs_term_streq")):
+            out.append("")
+            out.append("  (* crosscheck self-state string-empty guard"
+                       " (result VC-free; ledger 3) *)")
+            out.append("  val pystr_eq (a b: string) : bool")
+        if needs.get("needs_list_ghost"):
+            # axiom mem_head: base case of mem — makes \mem(x, \cons(x, l)) proofs tractable
+            # without recursive unfolding. This is the head-match case of mem's definition,
+            # so it is mathematically sound to assume it as an axiom.
+            out.append("")
+            out.append("  axiom mem_head : forall x: int, l: list int. mem x (Cons x l)")
+        if needs["needs_sum"]:
+            out.append("")
+            out.append("  let rec function pycsl_sum (a: array int) (lo hi: int) : int")
+            out.append("    requires { 0 <= lo }")
+            out.append("    requires { hi <= Array.length a }")
+            out.append("    variant { hi - lo }")
+            out.append("  = if lo >= hi then 0 else a[lo] + pycsl_sum a (lo + 1) hi")
+            out.append("")
+            out.append("  let rec lemma pycsl_sum_snoc (a: array int) (lo hi: int) : unit")
+            out.append("    requires { 0 <= lo <= hi <= Array.length a }")
+            out.append("    variant { hi - lo }")
+            out.append("    ensures { hi > lo -> pycsl_sum a lo hi = pycsl_sum a lo (hi - 1) + a[hi - 1] }")
+            out.append("  = if lo < hi - 1 then pycsl_sum_snoc a (lo + 1) hi")
+        if needs["needs_set_card"]:
+            out.append("")
+            out.append("  let rec function set_card (s: map int bool) (lo hi: int) : int")
+            out.append("    requires { lo <= hi }")
+            out.append("    variant { hi - lo }")
+            out.append("  = if lo >= hi then 0")
+            out.append("    else (if Map.get s lo then 1 else 0) + set_card s (lo + 1) hi")
+            out.append("")
+            out.append("  let rec lemma set_card_add_hi (s: map int bool) (lo hi: int) : unit")
+            out.append("    requires { lo <= hi }")
+            out.append("    variant { hi - lo }")
+            out.append("    ensures { set_card (Map.set s hi true) lo (hi + 1) = set_card s lo hi + 1 }")
+            out.append("  = if lo < hi then set_card_add_hi s (lo + 1) hi")
+        if needs["needs_divmod"]:
+            out.append("")
+            # WL-01 FIX: Python `//` is FLOORED division (rounds toward -inf) and `%`
+            # has the sign of the DIVISOR. Why3's int.EuclideanDivision `div`/`mod` use a
+            # NON-NEGATIVE remainder, which AGREES with Python when y > 0 but DIVERGES
+            # when y < 0 (e.g. (-7)//(-2): Euclidean 4, Python 3). We recover Python's
+            # floored semantics by a sign-of-divisor correction: for a negative divisor
+            # with a non-zero remainder, floordiv = div - 1 and floormod = mod + y. This
+            # keeps the positive-divisor case byte-for-byte equal to Euclidean.
+            if "ZeroDivisionError" in needs["user_exceptions"]:
+                out.append("  let pycsl_div (x: int) (y: int) : int")
+                out.append("    raises { ZeroDivisionError -> y = 0 }")
+                out.append("    ensures { y <> 0 /\\ result = (if mod x y <> 0 && y < 0 then div x y - 1 else div x y) }")
+                out.append("  = if y = 0 then raise ZeroDivisionError else (if mod x y <> 0 && y < 0 then div x y - 1 else div x y)")
+                out.append("")
+                out.append("  let pycsl_mod (x: int) (y: int) : int")
+                out.append("    raises { ZeroDivisionError -> y = 0 }")
+                out.append("    ensures { y <> 0 /\\ result = (if mod x y <> 0 && y < 0 then mod x y + y else mod x y) }")
+                out.append("  = if y = 0 then raise ZeroDivisionError else (if mod x y <> 0 && y < 0 then mod x y + y else mod x y)")
+            else:
+                out.append("  let pycsl_div (x: int) (y: int) : int")
+                out.append("    requires { [@expl:division by zero] y <> 0 }")
+                out.append("    ensures { result = (if mod x y <> 0 && y < 0 then div x y - 1 else div x y) }")
+                out.append("  = if mod x y <> 0 && y < 0 then div x y - 1 else div x y")
+                out.append("")
+                out.append("  let pycsl_mod (x: int) (y: int) : int")
+                out.append("    requires { [@expl:modulo by zero] y <> 0 }")
+                out.append("    ensures { result = (if mod x y <> 0 && y < 0 then mod x y + y else mod x y) }")
+                out.append("  = if mod x y <> 0 && y < 0 then mod x y + y else mod x y")
+        return out
 
     #@ requires True
     #@ ensures True
