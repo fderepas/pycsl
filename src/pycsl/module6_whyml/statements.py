@@ -3657,6 +3657,51 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         find_assigns(body_stmts)
         return out - set(self._formal_params)
 
+    def _collect_str_array_field_elem_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """relaunch #16 (`struct_format.slot_id`): a local bound to an ELEMENT of a
+        STRING-ELEMENT list self-field — `run_type = self.slots[0]`, or the target of
+        `for t in self.slots[1:]` — is a `string` local, not the default `ref 0`. Without
+        this the element read (a real `string` out of `array string`) is assigned to an
+        int ref and every downstream `_short_type(run_type)` applies a `string`-parameter
+        function to an int. `_str_array_record_fields` is populated only for such a field
+        -> empty, hence byte-inert, for the whole corpus and every mirror without one."""
+        _sarf = getattr(self, "_str_array_record_fields", None)
+        if not _sarf:
+            return set()
+        out: Set[str] = set()
+
+        def _is_str_field_read(v: Any) -> bool:
+            """True for `self.<f>` and for any slice of it, with <f> a string-list field."""
+            if not isinstance(v, dict):
+                return False
+            if v.get("type") in ("FieldGet", "Attribute"):
+                _f = v.get("field") or v.get("attr")
+                _o = v.get("object") or v.get("value")
+                if isinstance(_o, dict):
+                    _o = _o.get("name")
+                return _f in _sarf and _o == "self"
+            if v.get("type") == "SliceAccess":
+                return _is_str_field_read(v.get("value"))
+            return False
+
+        def scan(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") == "Assign" and isinstance(n.get("target"), str):
+                    _v = n.get("value")
+                    if (isinstance(_v, dict) and _v.get("type") == "Subscript"
+                            and _is_str_field_read(_v.get("value"))):
+                        out.add(n["target"])
+                if n.get("stmt") == "For" and isinstance(n.get("target"), str) \
+                        and _is_str_field_read(n.get("iter")):
+                    out.add(n["target"])
+                for x in n.values():
+                    scan(x)
+            elif isinstance(n, list):
+                for x in n:
+                    scan(x)
+        scan(body_stmts)
+        return out - set(self._formal_params)
+
     def _collect_refine_str_get_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """cap1 (self-tcb-reduction `_refine_tuple_return_type`): a local assigned
         `<func>.get("<key>", "<str-literal>")` on the `Dict[str, PyVal]` func param (hval
@@ -5083,6 +5128,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # cap1 (self-tcb-reduction `_refine_tuple_return_type`): `_nm`/`_nm2` from
         # `func.get("name", "")` (hval func param, string default) are string locals.
         string_vars |= self._collect_refine_str_get_locals(body_stmts)
+        # relaunch #16: elements of a STRING-ELEMENT list self-field (`run_type =
+        # self.slots[0]`, `for t in self.slots[1:]`) are `string` locals.
+        string_vars |= self._collect_str_array_field_elem_locals(body_stmts)
         self._string_local_vars = string_vars   # so _mark_string_seq_locals sees items-keys
         self._mark_string_seq_locals(body_stmts)
         string_vars |= self._collect_enum_str_elem_locals(body_stmts)

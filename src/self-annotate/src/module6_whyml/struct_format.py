@@ -29,12 +29,23 @@ class StructFormat:
     def arity(self) -> int:
         return len(self.slots)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def slot_id(self) -> str:
-        return ""
+        if not self.slots:
+            return "empty"
+        out: List[str] = []
+        run_type = self.slots[0]
+        run_count = 1
+        for t in self.slots[1:]:
+            if t == run_type:
+                run_count += 1
+            else:
+                out.append(_short_type(run_type) + str(run_count))
+                run_type, run_count = t, 1
+        out.append(_short_type(run_type) + str(run_count))
+        return "".join(out)
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

@@ -344,6 +344,38 @@ class ControlFlowStmtMixin:
         self._for_iter_materialize = None
         self._for_target_is_pyval = False
         self._for_items_hval_map = None
+        # relaunch #16 (`struct_format.slot_id`): `for t in self.<f>[k:]` where `<f>` is a
+        # STRING-ELEMENT list self-field (`array string`). This is the FAITHFUL lowering,
+        # not a decline: iterating `xs[k:]` visits exactly `xs[k]`, `xs[k+1]`, …, so the
+        # bound is `Array.length <f> - k` and the element is `<f>[!idx + k]` — the REAL
+        # array read, with a real `string` per iteration. Without it the whole slice
+        # erased to the opaque `iter_length 0` / `iter_get 0 !idx`, an int-typed oracle
+        # that both mistypes against the string element AND makes the loop contentless.
+        # Restricted to a constant NON-NEGATIVE lower bound with no upper and no step, and
+        # gated on `_str_array_record_fields` -> corpus byte-inert.
+        _sarf0 = getattr(self, "_str_array_record_fields", None)
+        if _sarf0 and iter_ir.get("type") == "SliceAccess":
+            _sl = iter_ir.get("slice") or {}
+            _base = iter_ir.get("value") or {}
+            _bf = (_base.get("field") or _base.get("attr")
+                   if isinstance(_base, dict) else None)
+            _bo = _base.get("object") or _base.get("value") if isinstance(_base, dict) else None
+            if isinstance(_bo, dict):
+                _bo = _bo.get("name")
+            _lo = _sl.get("lower") if isinstance(_sl, dict) else None
+            # an OMITTED bound is the IR node `{"type": "None"}` (a truthy dict), not a
+            # Python None — testing truthiness alone would admit `xs[1:3]`, whose bound is
+            # NOT `Array.length - 1`. Fail-closed on both.
+            def _absent(_b: Any) -> bool:
+                return _b is None or (isinstance(_b, dict) and _b.get("type") == "None")
+            if (_bf in _sarf0 and _bo == "self"
+                    and _absent(_sl.get("upper")) and _absent(_sl.get("step"))
+                    and isinstance(_lo, dict) and _lo.get("type") == "Number"
+                    and isinstance(_lo.get("value"), int) and _lo["value"] >= 0):
+                _k = _lo["value"]
+                _fw = self._expr_to_whyml(_base, local_refs)
+                return (f"((Array.length {_fw}) - {_k})",
+                        f"{_fw}[!{idx} + {_k}]", False)
         # hval-retype (self-tcb-reduction Tier-5): `for info in <pyval-field>.values()`
         # (the `_field_type_for`/`_field_type_of` record-registry scan over
         # `self._record_types.values()`, retyped to `map string (option hval)`) iterates
