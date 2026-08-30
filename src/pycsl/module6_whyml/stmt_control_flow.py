@@ -344,6 +344,7 @@ class ControlFlowStmtMixin:
         self._for_iter_materialize = None
         self._for_target_is_pyval = False
         self._for_items_hval_map = None
+        self._str_slice_loop_len = None
         # relaunch #16 (`struct_format.slot_id`): `for t in self.<f>[k:]` where `<f>` is a
         # STRING-ELEMENT list self-field (`array string`). This is the FAITHFUL lowering,
         # not a decline: iterating `xs[k:]` visits exactly `xs[k]`, `xs[k+1]`, …, so the
@@ -374,6 +375,11 @@ class ControlFlowStmtMixin:
                     and isinstance(_lo.get("value"), int) and _lo["value"] >= 0):
                 _k = _lo["value"]
                 _fw = self._expr_to_whyml(_base, local_refs)
+                # The loop this lowering creates must carry its OWN measure: the class is
+                # not @mutable_state, so nothing else would supply one, and the element
+                # read `<f>[!idx + k]` also owes an in-bounds VC. `0 <= !idx` plus the
+                # loop guard `!idx < Array.length <f> - k` discharge both.
+                self._str_slice_loop_len = f"((Array.length {_fw}) - {_k})"
                 return (f"((Array.length {_fw}) - {_k})",
                         f"{_fw}[!{idx} + {_k}]", False)
         # hval-retype (self-tcb-reduction Tier-5): `for info in <pyval-field>.values()`
@@ -1142,6 +1148,11 @@ class ControlFlowStmtMixin:
         # is not @mutable_state, so without this the loop would have no variant.
         # Gated on `_pyast_loop_variant_len` (set only for the psl loop) -> inert elsewhere.
         _psl_len = getattr(self, "_pyast_loop_variant_len", None)
+        # relaunch #16: the string-array SLICE loop supplies its own bound (see
+        # `_classify_iterable`). Its flag is set/reset in that method, so it is None for
+        # every other loop -> byte-inert.
+        if _psl_len is None:
+            _psl_len = getattr(self, "_str_slice_loop_len", None)
         if _psl_len is not None and not _str_char:
             while_parts.append(f"{inner_indent}invariant {{ 0 <= !{idx} }}")
             while_parts.append(f"{inner_indent}variant {{ {_psl_len} - !{idx} }}")
