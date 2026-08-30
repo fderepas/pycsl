@@ -7,8 +7,8 @@
   are one boilerplate module-docstring line repeated across 25 mirror files, so every
   historical absolute figure (the famous "687") is overstated by that 25.
   **Window #2 delta so far: markers 530 -> 496, grep 555 -> 521.**
-  **This session (#16): 502 -> 496, SIX conversions across four increments, plus TWO
-  increments that are pure faithfulness/capability.**
+  **This session (#16): 502 -> 496, SIX conversions across four increments, plus THREE
+  increments that are pure faithfulness/capability, plus one spike measured and reverted.**
 - **`bin/check-shadowed-selfcalls.py`: 15 CONVERTED methods / 154 bypassing call sites,
   ratchet 15** — UNCHANGED this session. Needs `TMPDIR=/home/fabrice/git/pycsl/scratchpad`;
   ~2 min; give Bash an explicit timeout. 137 of the 154 are the TWO recorded L2 dispatchers.
@@ -27,7 +27,7 @@
   `frontend/Module5_IREmitter` **1133**, ~60 min.
   `frontend/ir_resolve` **792**. `frontend/__init__` **683**.
   `module6_whyml/statements` **912**, ~30 min. `module6_whyml/stmt_control_flow` **1846**, ~45 min.
-  `module6_whyml/expressions` **1050**, ~15 min. `module6_whyml/functions` **1185**.
+  `module6_whyml/expressions` **1068** (was 1050), ~15 min. `module6_whyml/functions` **1185**.
   `Module6_WhyMLTranspiler` **706**. `src/self-annotate/src/pycsl.py` **731**, ~20 min.
   `frontend/exec_splice` **45**, `proof2why3/crosscheck_ir` **41**, `audit_proof` **40**,
   `audit_proof_reverify` **11**, `module6_whyml/struct_format` **5**, `crosscheck` **2**,
@@ -37,7 +37,7 @@
   `scratchpad/`, `prompt`, `prompt.txt`). Leave it alone.
   `getting-better/.driver-deadline` intact (Sep 1 08:24 UTC). Commits unpushed by design.
 
-## WHAT THIS SESSION LANDED (six gated increments)
+## WHAT THIS SESSION LANDED (seven gated increments)
 
 1. **`frontend/pure_ast.strings` CONVERTED (502 -> 501)** — the CERTIFIED-BOUNDARY
    **[HETEROGENEOUS TUPLE ELEMENT TYPE] is BROKEN**, and with it a SECOND, sharper wall the
@@ -109,6 +109,17 @@
    seam stays per-site deliberately. 2 mirrors moved (`audit_proof`,
    `module6_whyml/expressions`), both re-proved; corpus byte-diff 0 of 814.
 
+7. **`@property` SUPPORT COMPLETED — the SELF-RECEIVER READ. Count unchanged.**
+   A `self.<prop>` read takes a DIFFERENT emitter path (`_handle_field_get_expr`, not
+   `_handle_attribute_expr`) and was still projecting a RECORD FIELD of the same name, so a
+   proven getter could sit beside an unconstrained mutable field nothing relates to it
+   (`Module6_WhyMLTranspiler._heap_var` is exactly that shape). INSTRUMENTED rather than
+   assumed: the key was right and other self-field reads reach the handler, but NO CONVERTED
+   body in the defining module reads `_heap_var` today, so the routing is currently LATENT
+   (0 mirrors, 0 corpus files move). PINNED anyway by extending corpus driver **0967** with
+   `Box.double_area()` — `return self.area + self.area` under
+   `ensures \result == 2 * (self.w * self.h)` — which fails without the rule and PROVES with it.
+
 ## CERTIFIED-BOUNDARIES RECORDED THIS SESSION
 
 - **`crosscheck_ir.pairwise` — [DEGENERATE SYNTHESIZED UNION].** RE-MEASURED THREE TIMES
@@ -171,15 +182,12 @@
    class instead of dropping it as `Any` (see the `any_dropped` / GT1 path at
    `Module5_IREmitter.py:~3710`), and MEASURE — this one has a real corpus blast radius,
    unlike the last three capabilities.
-2. **The remaining half of `@property`: route a `self.<prop>` READ.**
-   `_handle_attribute_expr` is the NON-self path (its own docstring says so), so the
-   `self.` receiver goes elsewhere and is NOT yet routed. Concretely: the mirror models
-   `Module6_WhyMLTranspiler._heap_var` as a MUTABLE STRING RECORD FIELD, so `self._heap_var`
-   still projects that field while the newly proven getter sits beside it unused — two
-   symbols for one thing. Blast radius: `_heap_var` is a field on FOUR mirrors
-   (Module6_WhyMLTranspiler + the expressions/statements/stmt_control_flow mixins), but the
-   `_property_getters` map is per-module so only the module that DEFINES the getter can
-   route. Expect 1 mirror to move, ~20 min to re-prove.
+2. **DONE this session (increment 7)** — the `self.<prop>` read is routed. What is left
+   in this area is a MEASUREMENT, not a build: `Module6_WhyMLTranspiler._heap_var` is now
+   BOTH a proven getter and a mutable record field, and no converted body reads it yet. When
+   a reader of it gets converted, check that it takes the getter. The four mixin mirrors
+   (`expressions`/`statements`/`stmt_control_flow`) each carry their OWN `_heap_var` FIELD
+   and no getter, so their reads legitimately stay field reads.
 3. **The two Module5 dispatchers — 137 of the 154 remaining shadowed sites**
    (`_csl_to_ir` 92, `_py_expr_to_ir` 45). Already CONVERTED, so this is a SHADOWED-metric
    item. The recorded L2 TYPE-UNIFICATION wall; marking them `#@ sibling_concrete` makes them
@@ -265,6 +273,11 @@
     `python3 -c "print('…' in open(f).read())"` to verify that file's content.
 14. **A `#@`-block heredoc in a Bash `-m` commit message gets MANGLED by backtick command
     substitution.** Write long commit messages to a file and use `git commit -F`.
+15. **Check `ps -eo cmd | grep -c '[p]ycsl.py'` BEFORE launching a battery, not after.** A
+    `nohup … &` has not created its RESULTS file by the time the wait loop first checks, so
+    "no RESULTS yet" reads as "nothing running" and invites a second launch on the SAME
+    mirror with the same TMPDIR. It happened once this session; both were killed, one
+    relaunched, and the tree verified clean before continuing.
 
 ## Method notes this session paid for (full text in wall-lessons.md, (bw)-(ca))
 
