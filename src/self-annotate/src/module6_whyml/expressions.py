@@ -1077,6 +1077,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return self._field_label(self._emit_record_ctx, expr['field'])
         obj = expr['object']
         field = expr['field']
+        # `@property` SUPPORT, the SELF-RECEIVER READ half (relaunch #16). The non-self
+        # path (`_handle_attribute_expr`) already routes `<recv>.<prop>` to the emitted
+        # nullary getter; `self.<prop>` arrives HERE instead, and without this it projects
+        # a RECORD FIELD of the same name — so the proven getter sits beside an
+        # unconstrained mutable field that nothing relates to it (`_heap_var` is exactly
+        # that shape). `_property_getters` is keyed by (class whyml_name, property name)
+        # and built ONLY from methods Module 5 flagged `is_property`, so it is empty for
+        # every property-free module -> corpus byte-inert.
+        _pg2 = getattr(self, "_property_getters", None)
+        if _pg2 and obj == "self":
+            _pgfn2 = _pg2.get((getattr(self, "_current_self_type", None), field))
+            if _pgfn2:
+                return f"({_pgfn2} self)"
         # self-tcb-reduction FunctionEmissionMixin WRITER class (`_build_param_list`):
         # the opaque-int self-field READS this signature builder makes — the symbol table
         # and the three source-ordered param sequences — are typed collections, NOT the

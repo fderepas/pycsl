@@ -38,9 +38,30 @@ class Box:
         return self.w * self.h
 
 
+    # SELF-RECEIVER read of a `@property` (relaunch #16, the other half of the READ
+    # capability): `self.area` inside a sibling method must ALSO route to the getter.
+    # `self.<attr>` takes a DIFFERENT emitter path from `<recv>.<attr>`
+    # (`_handle_field_get_expr` rather than `_handle_attribute_expr`), so it needs its
+    # own rule and its own witness — without the rule this projects a record FIELD named
+    # `area`, which does not exist, and the postcondition below is unprovable.
+    #@ requires self.w >= 0 and self.h >= 0
+    #@ ensures \result == 2 * (self.w * self.h)
+    #@ assigns \nothing
+    def double_area(self) -> int:
+        return self.area + self.area
+
+
 #@ requires True
 #@ ensures \result == 12
 #@ assigns \nothing
 def main() -> int:
     b = Box(w=3, h=4)
     return b.area
+
+
+#@ requires True
+#@ ensures \result == 24
+#@ assigns \nothing
+def main_self() -> int:
+    b = Box(w=3, h=4)
+    return b.double_area()
