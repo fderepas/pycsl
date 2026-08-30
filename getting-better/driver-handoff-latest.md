@@ -121,13 +121,37 @@
    real recursion needing a structural variant (lesson (bi)). Everything else in the residue
    is co-blocked by the value-model frontier (see above), so this is now the ONLY large
    shadowed lever left.
-4. **A CENSUS WORTH REDOING, because it is cheap and it paid twice this session:** grep the
-   emitted mirrors for input-blind constructs. At HEAD there are **26 `isinstance_op 0 0`
-   sites** across 7 mirrors (`pure_ast` 10, `Module3_Weaver` 4, `proof2why3/sertop` 3,
-   `module_collect` 2, `exec_splice` 1, `statements` 1, `Module5_IREmitter` 1). Each is a
-   guard in an ALREADY-CONVERTED function that does not read its input. Fixing them is a
-   FAITHFULNESS increment, not a count one — relaunch #14's increment 6 and this session's
-   `nargs_of` repair were both exactly that, and both were worth their own increment.
+4. **THE `isinstance_op 0 0` FACADE — CENSUSED THIS SESSION, NOT BUILT, and it is the
+   best-specified item on this list.** ONE producer (`expressions.py:~8383`: when
+   `_tag_of_type(<class>)` yields no tag, the term is `(isinstance_op 0 0)` with BOTH
+   arguments erased, so the test is independent of the value AND of the class). **26 sites**,
+   by enclosing emitted function: `Module3_Weaver` 4 (`_target_dotted_path` 3, `_const_int`
+   1); `pure_ast` 10 (`_get_raw_docstring` 3, `get_docstring` 3, `_write_constant` 1,
+   `_is_non_empty_tuple` 1, `visit_Attribute` 1, `visit_Constant` 1); `module_collect` 4;
+   `proof2why3/sertop` 3; `exec_splice` 3; `Module5_IREmitter` 1 (`_csl_proj`);
+   `statements` 1 (`_handle_critical_section_stmt`). This is a FAITHFULNESS increment, not a
+   count one — the same class as relaunch #14's `ch_isalpha_0 ()` and this session's
+   `nargs_of` repair, both of which were worth their own increment.
+   **THE CORPUS BLAST RADIUS IS ALREADY MEASURED AND IT IS EXACTLY ONE FILE: 0603**, the
+   reference driver for "isinstance on a class-typed value", whose contract is
+   `ensures ((result = 1) || (result = 0))` — 0/1-ness, precisely what a receiver-carrying
+   repair preserves. Same situation and same justification as relaunch #14's `is*` repair
+   and its driver 0447, so the precedent for a deliberate NON-INERT increment stands.
+   **ANSWER THIS DESIGN QUESTION FIRST — it is what stopped the build today:**
+   `isinstance_op` is MONOMORPHIC (`x: int`) and the receivers are not all ints (0603's
+   `isinstance(x, Box)` has a RECORD receiver; `_csl_proj`'s `node.index` is an int hash).
+   The honest op is therefore per-(class, receiver-type) — `val isinstance_Box_op (x: box)
+   : bool` — and the emitter must be able to name the receiver's Why3 type at the call site.
+   **Do NOT half-fix it** by passing the receiver where it happens to be an int and `0`
+   elsewhere: that leaves one op name with two meanings. A CORPUS-INERT STAGING exists if you
+   want the faithfulness gain before settling the type question — gate on `_uses_stmt_ir()` /
+   `_uses_pyast_parser()`, which covers `_csl_proj` and `_handle_critical_section_stmt` and
+   leaves 0603 byte-identical, exactly how relaunch #14 staged its increment 5 before
+   un-gating it.
+5. **`module6_whyml/struct_format.slot_id`** — a run-length encoder over `self.slots`; it
+   needs the `array string` record field and the `use array.Array` preamble scan FIRST (both
+   spiked and measured this session, see the boundary above), and unlike `arity` it is a
+   PLAIN METHOD, so it is NOT blocked on `@property` support.
 
 ## RECORDED BOUNDARIES — do not re-grind without the named capability
 
