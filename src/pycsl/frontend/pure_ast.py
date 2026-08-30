@@ -2541,7 +2541,7 @@ def dump(node, annotate_fields=True, include_attributes=False, *, indent=None):
 # get_source_segment
 # ---------------------------------------------------------------------------
 
-def _splitlines_no_ff(source):
+def _splitlines_no_ff(source: str) -> "List[str]":
     """Split a string into lines ignoring form feed and other chars (\\n only)."""
     idx = 0
     lines = []

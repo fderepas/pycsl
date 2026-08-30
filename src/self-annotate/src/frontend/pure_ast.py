@@ -4074,12 +4074,44 @@ def increment_lineno(node, n=1):
 def dump(node, annotate_fields=True, include_attributes=False, *, indent=None):
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
+# pure_ast string-helper vein (self-tcb-reduction, relaunch #17): CONVERTED, and
+# FULLY FAITHFUL. The abstract `val` it replaces was `val _splitlines_no_ff
+# (source: int) : unit` — BOTH the string input and the list RESULT erased, an
+# input-blind havoc. The emitted body reads the real string (`str_sub_op source
+# !idx 1`), accumulates real strings (`str_concat_op`), grows a real `seq string`
+# (`Seq.snoc`) and returns it through the `materialize_str` seq->array bridge; the
+# `while` carries its OWN invariant + variant, so termination is a discharged
+# obligation, not an assumption. What unlocked it was NOT a value model: the
+# QUOTED return spelling `-> "List[str]"` (the only spelling legal in `pure_ast`
+# — lesson (ss): it has no `typing` import) was invisible to Module5, so the
+# return collapsed to `unit`. `ir_resolve` now records `list` + element `string`
+# for it, the string twin of the `-> "List[ExprIR]"` route. The live signature
+# gained `(source: str) -> "List[str]"` (runtime-inert — a string return
+# annotation is never evaluated; the mirror-check gate requires the two to agree).
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _splitlines_no_ff(source):
-    pass
+def _splitlines_no_ff(source: str) -> "List[str]":
+    idx = 0
+    lines = []
+    next_line = ''
+    #@ loop invariant 0 <= idx and idx <= len(source)
+    #@ loop variant len(source) - idx
+    while idx < len(source):
+        c = source[idx]
+        next_line += c
+        idx += 1
+        if c == '\r' and idx < len(source) and source[idx] == '\n':
+            next_line += '\n'
+            idx += 1
+            lines.append(next_line)
+            next_line = ''
+        elif c in '\r\n':
+            lines.append(next_line)
+            next_line = ''
+    if next_line:
+        lines.append(next_line)
+    return lines
 
 # pure_ast string-helper vein (self-tcb-reduction, relaunch #4): CONVERTED. Verbatim
 # body port of the LIVE `_pad_whitespace`. The `for c in source` lowers to the indexed

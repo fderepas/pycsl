@@ -1327,6 +1327,22 @@ def _resolve_same_file_node_spec_records(validated_ast: Any,
                 if (isinstance(_sl, _ast.Name)
                         and _sl.id in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR")):
                     _le_ir = "emit_ir"
+                # relaunch #17: the STRING-ELEMENT twin. `-> "List[str]"` in the
+                # QUOTED spelling — the only spelling `pure_ast.py` may use (it has
+                # no `typing` import, and lesson (ss) records that ADDING one silently
+                # replaces the `List`/`Tuple` AST node classes this module installs
+                # into its own globals). Module5 sees an unrecognised string Constant,
+                # so `_splitlines_no_ff` emitted as `val … (source: int) : unit` — BOTH
+                # the string input and the list RESULT erased. Recording `list` +
+                # element `string` routes it through Module6's existing
+                # `return_value_type == "string" -> array string` branch and the
+                # `materialize_str` seq->array bridge, exactly as the BARE `-> List[str]`
+                # form already does for the corpus. Byte-inert by construction: a census
+                # of the whole repo (src/pycsl, the 52 mirrors, all 814 corpus drivers)
+                # found ZERO pre-existing `-> "List[str]"` annotations — the corpus uses
+                # the bare form, which never reached this branch.
+                elif isinstance(_sl, _ast.Name) and _sl.id == "str":
+                    _le_ir = "string"
         # PYTHON-AST NODE CTOR FAMILY: `-> "Tuple[List[ExprIR], List[ExprIR]]"` — the
         # `_call_args` return interface (`args = []; keywords = []; … return args,
         # keywords`). Module5 sees only an unrecognised string Constant, so the return
