@@ -1741,10 +1741,22 @@ class Module2_Parser:
     def parse_contract(self, contract_str: str, line_number: int) -> CSLNode:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # CONTRACT-LIST LOOP (self-tcb-reduction, relaunch #17): CONVERTED, and FAITHFUL
+    # at its own level. The `val` it replaces returned an UNCONSTRAINED `array int` for
+    # a real `array string` input. The emitted `let` iterates the REAL `raw_contracts`
+    # array, applies the sibling `module2_parser__parse_contract self <str> <line>`
+    # with BOTH arguments carried (not a receiver-less oracle), snocs each result onto
+    # a real `seq` and materializes it. The element type stays `int` because a parsed
+    # CSLNode is not modelled — that is HONEST OPACITY, not erasure: nothing is claimed
+    # about the nodes, only that there is exactly one per input string, in order.
+    # `parse_contract` itself stays trusted (its own body is a facade — measured).
+    # Verbatim body port of the LIVE `parse_node_contracts`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def parse_node_contracts(self, raw_contracts: List[str], line_number: int) -> List[CSLNode]:
-        return []
+        parsed_nodes = []
+        for contract_str in raw_contracts:
+            parsed_nodes.append(self.parse_contract(contract_str, line_number))
+        return parsed_nodes
 

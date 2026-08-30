@@ -92,13 +92,43 @@ class PyCSLWeaver(ast.NodeVisitor):
     def _subst_var(node: Any, var: str, m: int) -> Any:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # `#@ for VAR in range(lo,hi)` EXPANSION (self-tcb-reduction, relaunch #17):
+    # CONVERTED, and FAITHFUL at its own level. The `val` it replaces returned an
+    # UNCONSTRAINED array. The emitted `let` walks the REAL `contracts` array, tests
+    # each element with the RECEIVER-CARRYING `py_isinstance_ForExpand_int_op !c`,
+    # reads the real bounds through the CONCRETE sibling application
+    # `pyCSLWeaver__const_int_2 (get_lo !c) (get_var !c)`, raises the real
+    # `PyCSLSemanticError` on an empty body, and runs the REAL nested
+    # `for m in range(lo, hi)` / `for clause in c.clauses` expansion. Contract objects
+    # stay `int`-opaque — honest opacity, not erasure: the STRUCTURE of the expansion
+    # (which elements pass through, how many copies each ForExpand produces) is
+    # modelled exactly. Unlike its `visit_*` siblings this method RETURNS its result
+    # instead of mutating node attributes, which is precisely why it converts and they
+    # do not (a returnless mutator is modelled as a NO-OP — lesson (bq)).
+    # Verbatim body port of the LIVE `_desugar_for`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _desugar_for(contracts: List[Any]) -> List[Any]:
-        return []
+        """Expand each `ForExpand` (`#@ for VAR in range(lo,hi):`) into ground
+        requires/ensures: for each m in [lo, hi) (upper-exclusive), each body
+        clause with VAR substituted by the literal m. Meaning-preserving — the
+        output is exactly the hand-written clause sequence (sugar-for-spec.md §4)."""
+        out: List[Any] = []
+        for c in contracts:
+            if not isinstance(c, ForExpand):
+                out.append(c)
+                continue
+            lo = PyCSLWeaver._const_int(c.lo, c.var)
+            hi = PyCSLWeaver._const_int(c.hi, c.var)
+            if not c.clauses:
+                raise PyCSLSemanticError(
+                    f"`for {c.var} in range(...)`: empty body", stage="Module3")
+            for m in range(lo, hi):
+                for clause in c.clauses:
+                    out.append(PyCSLWeaver._subst_var(clause, c.var, m))
+        return out
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
