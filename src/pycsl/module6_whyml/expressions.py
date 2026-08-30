@@ -8551,6 +8551,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     else:
                         _cls_names = []
                         break
+            # TERM CARRIER, MODULE-LEVEL (relaunch #17): `isinstance(<Term-typed x>,
+            # <term ctor(s)>)` is the REAL constructor discriminant over the certified
+            # `term` inductive — `(match x with Unsupported _ _ -> true | _ -> false end)`
+            # — not the uninterpreted `py_isinstance_<C>_int_op` the fallback would emit.
+            # This is the generic-path counterpart of what the bespoke term recognizers
+            # already do inside their own `match`; without it a converted `Term -> Term`
+            # body tests the ADT through an oracle no VC relates to the value.
+            # Triple-gated: the certified inductive present, the receiver a plain Var
+            # whose symbol-table type is `Term`, and EVERY named class a real constructor
+            # of that inductive — otherwise the historical lowering, byte-identically.
+            _tspec = getattr(self, "_term_adt_spec", None)
+            if _tspec and isinstance(_a0, dict) and _a0.get("type") == "Var":
+                _tct = _tspec.get("ctors", {})
+                _tnames = _cls_names or ([_cn] if isinstance(_cn, str) and _cn else [])
+                _tst = (getattr(self, "_current_symbol_table", {}) or {}).get(
+                    _a0.get("name"))
+                if (_tst == "Term" and _tnames
+                        and all(_c in _tct for _c in _tnames)):
+                    _trw = self._expr_to_whyml(_a0, local_refs or set(),
+                                               getattr(self, "_in_spec", False), None)
+                    _tarms = " | ".join(
+                        _c + "".join(" _" for _ in _tct[_c]) + " -> true"
+                        for _c in _tnames)
+                    return f"(match {_trw} with {_tarms} | _ -> false end)"
             if _rt and _cls_names:
                 _rw = self._expr_to_whyml(_a0, local_refs or set(),
                                           getattr(self, "_in_spec", False), None)

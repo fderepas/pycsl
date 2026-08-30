@@ -3880,7 +3880,12 @@ class PreambleEmissionMixin:
         # mistake surfaced at L3-tc instead of becoming a silent facade.
         _ms_cls = getattr(self, "_mutable_state_classes", set())
         if any(f.get("return_annotation") == "Term"
-               and (f.get("self_type") or "").lower() in _ms_cls
+               and ((f.get("self_type") or "").lower() in _ms_cls
+                    # TERM CARRIER, MODULE-LEVEL (relaunch #17): a MODULE-LEVEL
+                    # `-> Term` function has no `self_type` at all, so the
+                    # class-membership gate excluded it and its early return raised an
+                    # UNDECLARED `Return_term`.
+                    or not f.get("self_type"))
                and (IRScanner.has_in_loop_return(f.get("body", []))
                     or IRScanner.has_early_return(f.get("body", [])))
                for f in self.ir.get("functions", [])):

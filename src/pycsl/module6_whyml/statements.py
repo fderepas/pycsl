@@ -4541,6 +4541,37 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _walk(body_stmts)
         return found.pop() if len(found) == 1 else None
 
+    def _module_term_bound_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """TERM CARRIER, MODULE-LEVEL (relaunch #17): the module-level twin of
+        `_term_bound_locals`. Locals of a MODULE-LEVEL function bound from a `-> Term`
+        call, which are `term`-typed and so must NOT pre-declare `ref 0`.
+        DELIBERATELY A SEPARATE WALKER rather than a gate widening on
+        `_sibling_ret_ann_locals`: that helper ALSO serves the `_union_*` (Optional)
+        locals and is shared with every method, so widening its gate is cross-cutting
+        (lesson (bn)) — measured, it moved 3 corpus files."""
+        if not getattr(self, "_term_adt_spec", None):
+            return set()
+        ann = getattr(self, "_module_method_return_annotations", {}) or {}
+        out: Set[str] = set()
+
+        def _walk(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") == "Assign" and isinstance(n.get("target"), str):
+                    v = n.get("value")
+                    if isinstance(v, dict) and v.get("type") == "Call":
+                        fn = v.get("func", "") or ""
+                        if (isinstance(fn, str) and "." not in fn
+                                and ann.get(fn) == "Term"):
+                            out.add(n["target"])
+                for x in n.values():
+                    _walk(x)
+            elif isinstance(n, list):
+                for x in n:
+                    _walk(x)
+
+        _walk(body_stmts)
+        return out
+
     def _term_bound_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """Locals bound from a `-> Term` sibling call — `term`-typed, so they must NOT
         pre-declare `ref 0`. Additionally gated on the certified inductive being emitted."""
@@ -5890,6 +5921,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                and v not in _optstr_predecl}
             pre_decl_vars |= _optmap_predecl
 
+        # TERM CARRIER, MODULE-LEVEL (relaunch #17): the pre-declaration twin of the
+        # `_ms_body` term locals, for a MODULE-LEVEL `-> Term` function
+        # (`canonical.canonicalize`'s `out`). Placed AFTER the whole `if _ms_body:`
+        # block, never inside it: an `elif` spliced into the middle of that block
+        # silently TERMINATES it, so every pre-decl below the splice point starts
+        # running unconditionally — measured as 3 changed corpus files and 6 TC_FAIL
+        # mirrors before the mistake was found.
+        if (not is_method and getattr(self, "_term_adt_spec", None)
+                and func.get("return_annotation") == "Term"):
+            _mterm = {v for v in self._module_term_bound_locals(body_stmts)
+                      if v in local_refs and v not in ghost_vars
+                      and v not in ref_params and v not in self._formal_params
+                      and v not in _uput
+                      and v not in struct_array_targets
+                      and v not in struct_pack_targets}
+            pre_decl_vars |= _mterm
+            _term_predecl |= _mterm
         # self-tcb-reduction WRITER class (`_build_param_list`): the symbol table, the two
         # array-param sequences, and the set-comprehension result are `seq string` locals —
         # pre-declared `ref (Seq.empty: seq string)`, never the int `ref 0` (which would

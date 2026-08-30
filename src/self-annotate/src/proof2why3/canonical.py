@@ -121,10 +121,34 @@ def _normalize_type_string(ty: str) -> str:
 def _iff_app_to_binop(t: Term) -> Term:
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
+# TERM CARRIER, MODULE-LEVEL (self-tcb-reduction, relaunch #17): CONVERTED, and FULLY
+# FAITHFUL. Verbatim body port of the LIVE `canonicalize`. The `val` it replaces was
+# `val canonicalize (t: int) : int` — BOTH ends erased — even though this file already
+# carries the certified 9-constructor `term` inductive and proves `_flip_comparisons`
+# and `alpha_normalize` over it. What blocked it was not the value model: the `-> Term`
+# type carrier existed but was TRIPLE-gated, and one of its gates was `@mutable_state`
+# CLASS membership, which a plain module-level function can never satisfy. The emitted
+# body is now `let canonicalize (t: term) : term`, the guard is the REAL constructor
+# discriminant `(match t with Unsupported _ _ -> true | _ -> false end)`, and every
+# pipeline step is a real application over `term`. Nothing is erased.
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def canonicalize(t: Term) -> Term:
-    return None
+    """Apply the full canonicalization pipeline to a Term.
+
+    Idempotent: a second call returns the same Term."""
+    if isinstance(t, Unsupported):
+        return t
+    out = t
+    out = _expand_nat_to_int(out)
+    out = _flatten_foralls(out)
+    out = _flip_comparisons(out)
+    out = _dedup_arrow_chain(out)
+    out = _ac_normalize(out)
+    out = _sort_arrow_hypotheses(out)
+    out = _iff_app_to_binop(out)
+    out = _normalize_names(out)
+    out = alpha_normalize(out)
+    return out
 

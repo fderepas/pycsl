@@ -231,6 +231,14 @@ class FunctionEmissionMixin:
                 return f"({safe}: option {_wn})"
             # Unknown record — fall through to the int collapse (never fires for a
             # declared record; keeps the branch total).
+        if symtype == "Term" and getattr(self, "_term_adt_spec", None):
+            # TERM CARRIER, MODULE-LEVEL (relaunch #17): a `Term`-annotated PARAM is the
+            # certified `term` inductive, not the erased `int`. The return-side carrier
+            # already existed but was gated to `@mutable_state` METHODS; the param side
+            # had no carrier at all, so a plain `def f(t: Term) -> Term` took `int` on
+            # both ends and every `isinstance(t, <ctor>)` in it fell to an uninterpreted
+            # op. Gated on the inductive actually being emitted in this file.
+            return f"({safe}: term)"
         if symtype in self._variant_types:
             # sum-types: a `#@ datatype`-typed param is its Why3 variant type.
             return f"({safe}: {self._variant_types[symtype]['whyml_name']})"
@@ -2119,6 +2127,16 @@ class FunctionEmissionMixin:
                 and func.get("return_annotation") == "Term"
                 and getattr(self, "_current_self_type", None)
                 in getattr(self, "_mutable_state_classes", set())):
+            return "term"
+        # TERM CARRIER, MODULE-LEVEL (relaunch #17): the same override for a
+        # MODULE-LEVEL function. The existing branch above is TRIPLE-gated, and one of
+        # its gates is `@mutable_state` class membership — which a plain module function
+        # can never satisfy, so `proof2why3/canonical`'s whole `Term -> Term` pipeline
+        # was int-erased for that reason alone. Still gated on `_term_adt_spec`, so a
+        # file without the certified inductive is byte-identical.
+        if (getattr(self, "_term_adt_spec", None)
+                and func.get("return_annotation") == "Term"
+                and not func.get("self_type")):
             return "term"
         # dict-literal emit_ir construction: a method that RETURNS a constructed IR node
         # (`node = {"type":"Var",…}; … return node`) is `emit_ir`, not the `map int (option int)`
