@@ -786,6 +786,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # payload record to the node it was viewed from. `size` over `emit_ir` ALREADY exists
     # and is proven in this very file (`size'vc`, `size_stmt'vc`); the missing pieces are
     # the per-payload size laws and emitting a `variant` clause on bespoke group members.
+    #   AND THAT MEASURE CANNOT BE DERIVED — checked against the emitted `.mlw`. The
+    #   dispatch goes through `val function pyx_view (e: emit_ir) : pyast_expr`, an
+    #   UNINTERPRETED view whose ONLY law is `pyx_kind_of result = pyx_type_name_of e`
+    #   (a KIND law, not a size law), over a datatype the preamble itself documents as
+    #   "NOT recursive at this stage — the arms carry the handler param types verbatim".
+    #   So there is no structural relation between a handler's payload record and the
+    #   node it was viewed from, and `size_<T> (payload_of e) < size e` would have to be
+    #   a NEW AXIOM. That would take the ledger past 3, which makes this route a
+    #   CORRECTNESS/SOUNDNESS boundary under the §A.3 two-way test, not a cost/scale one.
+    #   THE CAPABILITY THAT ACTUALLY REOPENS IT is therefore not "write the laws" but
+    #   "make `pyx_view` STRUCTURAL": a recursive `pyast_expr` that is a defined
+    #   projection of `emit_ir`, so the size law holds BY CONSTRUCTION and no axiom is
+    #   spent. That is an ADT redesign of the input-side view, co-landing with its
+    #   Rocq/Lean certificate (Phase2l_PyAstExpr.v / PyAstExpr.lean).
     # (`_csl_to_ir` does not even reach this point — see its own note.)
     #@ requires True
     #@ ensures True
