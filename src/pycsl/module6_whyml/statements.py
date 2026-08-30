@@ -2450,9 +2450,25 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 _xarr = func.rsplit(".", 1)[0].replace(".", "_")
                 _xsafe = whyml_ident(_xarr)
                 _xarg = self._expr_to_whyml(val["args"][0], local_refs)
-                self._seq_snapshot_op()
-                code = (f"{indent}{_xsafe} := Seq.(++) !{_xsafe} "
-                        f"(snapshot {_xarg})")
+                # TYPED DECLINE (relaunch #16). The `snapshot` bridge needs an
+                # `array emit_ir` actual. When the extended value is an OPAQUE INT read
+                # (`payload.values` where `payload` is a fail-closed nondeterministic
+                # loop-tuple component), `snapshot` is applied to an `int` — an L3-tc
+                # error that blocks the whole method. HAVOC the accumulator instead:
+                # `values := any (seq emit_ir)` says "the list becomes SOME list", the
+                # sound over-approximation. Emphatically NOT a silent no-op, which would
+                # CLAIM the accumulator unchanged — the erasure lesson (ac) names.
+                # Fires only when the actual's head symbol is a registered abstract op
+                # declared `: int`, so every existing (array-returning) extend is
+                # byte-identical.
+                _xhead = _xarg.strip().lstrip("(").split()[0] if _xarg.strip() else ""
+                _xdecl = (getattr(self, "_abstract_ops", {}) or {}).get(_xhead, "")
+                if _xdecl.rstrip().endswith(": int"):
+                    code = f"{indent}{_xsafe} := any (seq emit_ir)"
+                else:
+                    self._seq_snapshot_op()
+                    code = (f"{indent}{_xsafe} := Seq.(++) !{_xsafe} "
+                            f"(snapshot {_xarg})")
             elif (func.endswith((".add", ".discard", ".remove"))
                   and self._value_semantic):
                 # Body-level set/dict method calls. Sets and dicts share

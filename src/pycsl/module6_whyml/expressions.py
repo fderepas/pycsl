@@ -6829,6 +6829,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _n, local_refs, invariant_ctx, subst)))
         if adt is not None:
             return adt
+        # TYPED DECLINE (relaunch #16). A PYTHON-AST NODE CTOR FAMILY construction that
+        # DECLINES (an unmodellable payload slot) previously fell through to the generic
+        # unknown-call fallback, whose `val <cls>_0 () : int` is INT-typed — so assigning
+        # it to the emit_ir local it is about to become (`n = _N("Constant")(value=…)`,
+        # `n` returned as `-> "ExprIR"`) is an L3-tc type error and the whole method
+        # cannot be converted. The decline itself is right; only its TYPE was wrong.
+        # A fresh nullary `val … : emit_ir` is the honest form: Why3 HAVOCs a `val`
+        # application, so two declined constructions are NOT claimed equal (which is why
+        # this is not `(IrOther "<cls>")` — that literal would assert an equality the
+        # source does not license, the input-blind-constant defect family).
+        # Gated on `_uses_pyast_parser()` + membership of the ctor family + the
+        # KEYWORD-ONLY `_N(K)(field=…)` construction shape, and it uses a name no other
+        # path mints, so every existing emission (including the positional
+        # `py_constant_1 args` site in this same file) is byte-identical.
+        if (self._uses_pyast_parser() and not args and (expr.get("keywords") or [])):
+            from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYC6
+            if func_name in _PYC6:
+                _dn = whyml_ident("pyast_opaque_" + func_name.lower())
+                self._add_abstract_op(f"val {_dn} () : emit_ir")
+                return f"({_dn} ())"
         # TERM CARRIER (L13): a term-ADT arm class construction lowers to the certified
         # inductive's constructor, not to the mutable int-erased dataclass record. Tried
         # BEFORE `_call_record_constructor` (which would otherwise win and emit the
@@ -7234,6 +7254,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             init, upd = "true", f"if not ({p_i}) then _fr := false"
         # Name from the SPEC, so two identical folds share one definition.
         name = f"_{func_name}_fold_{stable_hash(spec) % 100000}"
+        # ORDERING FLOOR (relaunch #16). The abstract-op block is emitted in ONE
+        # alphabetically sorted pass, so a `let function` fold whose body applies an
+        # abstract `val` that sorts AFTER it is emitted BEFORE that `val` is declared —
+        # Why3 rejects with `unbound function or predicate symbol`. The sibling
+        # `_try_emit_refine_str_fold` records the same constraint ("cannot be declared
+        # before a `let function` abstract op in the alphabetical block"). DECLINE rather
+        # than emit an ill-ordered definition: the caller falls back to the historical
+        # `any_1`/`all_1` oracle, exactly as it does today for every other bail here.
+        # BYTE-INERT BY CONSTRUCTION: a file that would trip this check does not
+        # type-check today, so no currently-green emission can change.
+        _fold_text = f"{spec} {p_i} {p_k}"
+        for _op_name in self._abstract_ops:
+            if _op_name > name and re.search(r"\b" + re.escape(_op_name) + r"\b", _fold_text):
+                return None
         self._add_abstract_op(
             f"let function {name} (a: array int) : bool\n"
             f"    ensures {{ result <-> ({spec}) }}\n"

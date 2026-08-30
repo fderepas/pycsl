@@ -1174,7 +1174,7 @@ class _Parser:
     # `_comp_target` sits at 9 and `expr_or_star` at 8, both ABOVE `expr` (7) and BELOW
     # `comp_for` (12) — whose edge into `_comp_target` is a DROP and needs no payment.
     # This member is at depth 8. Full assignment recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 8
+    #@ \variant 64 * (\length(self.toks) - self.i) + 32
     #@ assigns self.i
     def expr_or_star(self) -> "ExprIR":
         if self.at_op("*"):
@@ -1197,7 +1197,7 @@ class _Parser:
     # `at_op("*")` + the EOF-sentinel invariant make strict. Every in-edge to this member
     # comes from `atom_paren`/`atom_list`/`atom_brace` (all depth 0) AFTER their leading
     # bracket `advance`, a full 16-unit drop that pays the 14-unit rise.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 14
+    #@ \variant 64 * (\length(self.toks) - self.i) + 56
     #@ assigns self.i
     def test_or_star(self) -> "ExprIR":
         if self.at_op("*"):
@@ -1221,7 +1221,7 @@ class _Parser:
     # (12), the only member it reaches WITHOUT advancing (`first = self.test()` is the
     # first thing the body does). Its own callers reach it only after a strict advance
     # (`yield_expr`), so the 13-unit rise is paid by the full 16-unit cursor drop.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 13
+    #@ \variant 64 * (\length(self.toks) - self.i) + 52
     #@ assigns self.i
     def testlist(self) -> "ExprIR":
         t = self.cur()
@@ -2273,7 +2273,7 @@ class _Parser:
     # (see the reasoning there). This method emits as a SINGLETON `let rec`, so it carries
     # no decrease obligation today; the offset is written to the group's rule anyway so a
     # later merge cannot silently invert it.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 10
+    #@ \variant 64 * (\length(self.toks) - self.i) + 40
     #@ assigns self.i
     def parse_parameters(self, close: str) -> "ExprIR":
         posonly = []; args = []; defaults = []
@@ -2389,7 +2389,7 @@ class _Parser:
     # is paid: every path to `self.test()` passes `a = self._lambda_arg()` first, whose
     # STRICT `self.i > \old(self.i)` (proved, not assumed) composes with the loop
     # invariant `self.i >= i0` to give the cursor term a full drop of 16.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 10
+    #@ \variant 64 * (\length(self.toks) - self.i) + 40
     #@ assigns self.i
     def lambda_parameters(self) -> "ExprIR":
         posonly = []; args = []; defaults = []
@@ -2469,7 +2469,7 @@ class _Parser:
     # 16-unit cursor drop: `atom_paren` (0) reaches it only after the strict `(` advance
     # its token-kind precondition licenses. Maximum rise into the group is 14 < 16, so the
     # multiplier is unchanged. Full assignment recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 13
+    #@ \variant 64 * (\length(self.toks) - self.i) + 52
     #@ assigns self.i
     def namedexpr_test(self) -> "ExprIR":
         t = self.cur()
@@ -2501,7 +2501,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 11. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 12
+    #@ \variant 64 * (\length(self.toks) - self.i) + 48
     #@ assigns self.i
     def test(self) -> "ExprIR":
         if self.at_kw("lambda"):
@@ -2527,7 +2527,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 10. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 11
+    #@ \variant 64 * (\length(self.toks) - self.i) + 44
     #@ assigns self.i
     def lambdef(self) -> "ExprIR":
         t = self.advance()  # 'lambda'
@@ -2560,7 +2560,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 10. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 11
+    #@ \variant 64 * (\length(self.toks) - self.i) + 44
     #@ assigns self.i
     def or_test(self) -> "ExprIR":
         t = self.cur()
@@ -2588,7 +2588,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 9. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 10
+    #@ \variant 64 * (\length(self.toks) - self.i) + 40
     #@ assigns self.i
     def and_test(self) -> "ExprIR":
         t = self.cur()
@@ -2620,7 +2620,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 8. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 9
+    #@ \variant 64 * (\length(self.toks) - self.i) + 36
     #@ assigns self.i
     def not_test(self) -> "ExprIR":
         if self.at_kw("not"):
@@ -2644,7 +2644,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 7. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 8
+    #@ \variant 64 * (\length(self.toks) - self.i) + 32
     #@ assigns self.i
     def comparison(self) -> "ExprIR":
         t = self.cur()
@@ -2692,7 +2692,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 6. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 7
+    #@ \variant 64 * (\length(self.toks) - self.i) + 28
     #@ assigns self.i
     def expr(self) -> "ExprIR":
         return self._binop(0)
@@ -2742,7 +2742,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 5. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 6
+    #@ \variant 64 * (\length(self.toks) - self.i) + 24
     #@ assigns self.i
     def _binop(self, min_prec) -> "ExprIR":
         t = self.cur()
@@ -2776,7 +2776,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 4. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 5
+    #@ \variant 64 * (\length(self.toks) - self.i) + 20
     #@ assigns self.i
     def factor(self) -> "ExprIR":
         if self.cur().type == _tokenize.OP and self.cur().string in _UNARY:
@@ -2807,7 +2807,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 3. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 4
+    #@ \variant 64 * (\length(self.toks) - self.i) + 16
     #@ assigns self.i
     def power(self) -> "ExprIR":
         t = self.cur()
@@ -2838,7 +2838,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 2. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 3
+    #@ \variant 64 * (\length(self.toks) - self.i) + 12
     #@ assigns self.i
     def await_expr(self) -> "ExprIR":
         if self.at_kw("await"):
@@ -2860,7 +2860,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 1. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 2
+    #@ \variant 64 * (\length(self.toks) - self.i) + 8
     #@ assigns self.i
     def unary_postfix(self) -> "ExprIR":
         atom = self.atom()
@@ -2879,7 +2879,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 0. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 0
+    #@ \variant 64 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def trailers(self, atom: "ExprIR") -> "ExprIR":
         start_line = atom.lineno; start_col = atom.col_offset
@@ -2929,7 +2929,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 14. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 15
+    #@ \variant 64 * (\length(self.toks) - self.i) + 60
     #@ assigns self.i
     def _subscript(self) -> "ExprIR":
         t = self.cur()
@@ -2996,7 +2996,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 13. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 14
+    #@ \variant 64 * (\length(self.toks) - self.i) + 56
     #@ assigns self.i
     def _subscript_item(self) -> "ExprIR":
         t = self.cur()
@@ -3026,7 +3026,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 12. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 13
+    #@ \variant 64 * (\length(self.toks) - self.i) + 52
     #@ assigns self.i
     def test_or_star_slice(self) -> "ExprIR":
         if self.at_op("*"):
@@ -3065,7 +3065,7 @@ class _Parser:
     # `comp_for` 12) stay below. Both in-edges are paid by a full 16-unit drop (`trailers`
     # after the `(` advance; `classdef` is outside the group). The full depth assignment
     # is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 14
+    #@ \variant 64 * (\length(self.toks) - self.i) + 56
     #@ assigns self.i
     def _call_args(self, close: str) -> "Tuple[List[ExprIR], List[ExprIR]]":
         args = []; keywords = []
@@ -3136,7 +3136,7 @@ class _Parser:
     # form at multiplier 16; this member sits at depth 1, strictly above the four callees
     # it reaches WITHOUT advancing (all at depth 0) and strictly below `unary_postfix`
     # (depth 2), which reaches it without advancing. Full assignment recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 1
+    #@ \variant 64 * (\length(self.toks) - self.i) + 4
     #@ assigns self.i
     def atom(self) -> "ExprIR":
         t = self.cur()
@@ -3189,7 +3189,7 @@ class _Parser:
     # GROUP VARIANT: member of the expression `let rec ... with ...` group at multiplier
     # 16, depth 0 — the leading `advance` is provably strict (see the precondition), so
     # every out-edge is paid by the cursor drop and this member needs no offset headroom.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 0
+    #@ \variant 64 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def atom_paren(self) -> "ExprIR":
         t = self.advance()  # '('
@@ -3264,7 +3264,7 @@ class _Parser:
     # GROUP VARIANT: member of the expression `let rec ... with ...` group at multiplier
     # 16, depth 0 — the leading `advance` is provably strict (see the precondition), so
     # every out-edge is paid by the cursor drop and this member needs no offset headroom.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 0
+    #@ \variant 64 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def atom_list(self) -> "ExprIR":
         t = self.advance()  # '['
@@ -3304,7 +3304,7 @@ class _Parser:
     # GROUP VARIANT: member of the expression `let rec ... with ...` group at multiplier
     # 16, depth 0 — the leading `advance` is provably strict (see the precondition), so
     # every out-edge is paid by the cursor drop and this member needs no offset headroom.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 0
+    #@ \variant 64 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def atom_brace(self) -> "ExprIR":
         t = self.advance()  # '{'
@@ -3378,7 +3378,7 @@ class _Parser:
     # GROUP VARIANT: member of the expression `let rec ... with ...` group at multiplier
     # 16, depth 0 — the leading `advance` is provably strict (see the precondition), so
     # every out-edge is paid by the cursor drop and this member needs no offset headroom.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 0
+    #@ \variant 64 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def _dict_rest(self, t: _Tok, first_key) -> "ExprIR":
         self.advance()  # '**'
@@ -3418,7 +3418,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 11. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 12
+    #@ \variant 64 * (\length(self.toks) - self.i) + 48
     #@ assigns self.i
     def comp_for(self) -> "List[ExprIR]":
         gens = []
@@ -3473,7 +3473,7 @@ class _Parser:
     # cursor-advancing cycle edges leave `trailers` (the `(` before `_call_args`, the
     # `[` before `_subscript`), so every other hop is paid by a smaller offset; this
     # member sits at depth 11. The full depth assignment is recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 12
+    #@ \variant 64 * (\length(self.toks) - self.i) + 48
     #@ assigns self.i
     def or_test_no_cond(self) -> "ExprIR":
         # comprehension 'if' uses or_test (no ternary, no walrus per grammar uses test_nocond)
@@ -3497,7 +3497,7 @@ class _Parser:
     # `_comp_target` sits at 9 and `expr_or_star` at 8, both ABOVE `expr` (7) and BELOW
     # `comp_for` (12) — whose edge into `_comp_target` is a DROP and needs no payment.
     # This member is at depth 9. Full assignment recorded on `_binop`.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 9
+    #@ \variant 64 * (\length(self.toks) - self.i) + 36
     #@ assigns self.i
     def _comp_target(self) -> "ExprIR":
         elts = [self.expr_or_star()]
@@ -3541,7 +3541,7 @@ class _Parser:
     # GROUP VARIANT: member of the expression `let rec ... with ...` group at multiplier
     # 16, depth 0 — the leading `advance` is provably strict (see the precondition), so
     # every out-edge is paid by the cursor drop and this member needs no offset headroom.
-    #@ \variant 16 * (\length(self.toks) - self.i) + 0
+    #@ \variant 64 * (\length(self.toks) - self.i) + 0
     #@ assigns self.i
     def yield_expr(self) -> "ExprIR":
         t = self.advance()  # 'yield'
@@ -3612,14 +3612,77 @@ class _Parser:
     # depends on. Reopening — i.e. discharging this instead of assuming it — is the recorded
     # `strings` [HETEROGENEOUS TUPLE ELEMENT TYPE] boundary; the clause costs nothing extra
     # against that, because converting the body would prove it outright.
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
+    # CONVERTED (relaunch #16). Verbatim body port of the LIVE `strings`, and with it the
+    # TWO trusted cursor clauses this stub used to ASSUME (`self.i >= \old(self.i)` from
+    # relaunch #13 and the STRICT `self.i > \old(self.i)` from relaunch #14) become PROOF
+    # OBLIGATIONS — the conversion is net-NEGATIVE on the TCB as well as on the count.
+    # TOKEN-KIND PRECONDITION (the `atom_paren` precedent): strict progress is FALSE
+    # without it — under `requires True` the `while` guard may be false on entry and the
+    # body returns with the cursor untouched. Both call sites (`atom`'s STRING/FSTRING
+    # arm and `closed_pattern`'s literal-pattern arm) test exactly this through
+    # `self.cur().type`, and `cur`'s `ensures \result == self.toks[self.i]` carries the
+    # test onto `self.toks[self.i]`, so the obligation discharges at each site with no new
+    # `\trusted` surface and no axiom.
+    # GROUP VARIANT: offset 3, one below `atom` (4), which reaches this callee WITHOUT
+    # advancing; the f-string arm reaches `_fstring` (2) the same way. The whole
+    # expression ladder was rescaled from multiplier 16 to 64 (offsets x4) in this
+    # increment PRECISELY to open the three slots 3/2/1 that `strings`, `_fstring` and
+    # `_fstring_replacement` need below `atom` — at multiplier 16 `atom` sat at offset 1
+    # with only offset 0 beneath it, which is the [VARIANT-RANK LADDER EXHAUSTION] this
+    # conversion had to break.
+    # THE STRICT-PROGRESS ARGUMENT, in the loop invariant: either the cursor has already
+    # moved, or it is still on the string token the precondition named. The guard is true
+    # on entry (second disjunct), each arm advances (the STRING arm through `advance`, the
+    # f-string arm through `_fstring`'s own strict clause), and at loop exit the guard is
+    # FALSE, which refutes the second disjunct — leaving strict progress.
+    #@ requires self.toks[self.i].type == _tokenize.STRING or self.toks[self.i].type == _tokenize.FSTRING_START
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
     #@ ensures self.i > \old(self.i)
+    #@ \variant 64 * (\length(self.toks) - self.i) + 3
     #@ assigns self.i
     def strings(self) -> "ExprIR":
-        pass
+        t = self.cur()
+        parts = []
+        has_f = False
+        kinds = set()
+        #@ ghost i97 = self.i
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.i >= i97
+        #@ loop invariant self.i > i97 or self.toks[self.i].type == _tokenize.STRING or self.toks[self.i].type == _tokenize.FSTRING_START
+        #@ loop variant \length(self.toks) - self.i
+        while self.cur().type in (_tokenize.STRING, _tokenize.FSTRING_START):
+            if self.cur().type == _tokenize.STRING:
+                tok = self.advance()
+                val, kind, is_bytes = _decode_string(tok.string)
+                parts.append(("bytes" if is_bytes else "str", val, kind, tok))
+                if kind:
+                    kinds.add(kind)
+            else:
+                js = self._fstring()
+                parts.append(("joined", js, None, None))
+                has_f = True
+        last = self.toks[self.i - 1]
+        if not has_f:
+            if all(p[0] == "bytes" for p in parts):
+                value = b"".join(p[1] for p in parts)
+            else:
+                value = "".join(p[1] for p in parts)
+            kind = "u" if "u" in kinds else None
+            n = _N("Constant")(value=value, kind=kind)
+            return self._fin_pos(n, t, last)
+        values = []
+        for kind_tag, payload, _k, ptok in parts:
+            if kind_tag == "joined":
+                values.extend(payload.values)
+            else:
+                c = _N("Constant")(value=payload, kind=None)
+                c.lineno = ptok.start[0]; c.col_offset = ptok.start[1]
+                c.end_lineno = ptok.end[0]; c.end_col_offset = ptok.end[1]
+                values.append(c)
+        values = _merge_str_constants(values)
+        n = _N("JoinedStr")(values=values)
+        return self._fin_pos(n, t, last)
 
     # PYTHON-AST NODE CTOR FAMILY: CONVERTED (relaunch #11). Verbatim body port of the
     # LIVE `_fstring`. Two NEW family arms carry it: `IrPyConstant irconst iropt_str` (the
@@ -3633,9 +3696,20 @@ class _Parser:
     # true of the live body, which ends in `expect_op("}")`, itself unconditionally strict.
     # The FSTRING_MIDDLE arm advances over a token that is not the ENDMARKER sentinel, so
     # `advance` is strict there too, and the `else` arm is `self.error(...)`, a `NoReturn`.
-    #@ requires True
+    # TOKEN-KIND PRECONDITION + STRICT PROGRESS (relaunch #16), the `atom_paren`
+    # precedent. The body opens with `start = self.advance()` on the FSTRING_START its
+    # sole caller (`strings`) has just tested; composed with the EOF-SENTINEL class
+    # invariant (the last token is ENDMARKER, which is not an FSTRING_START) that rules
+    # out the last index, so the leading `advance` provably INCREMENTS. DISCHARGED at the
+    # call site from `cur`'s `ensures \result == self.toks[self.i]` plus the loop guard —
+    # a proof obligation, not an assumption: zero new `\trusted` surface, no axiom.
+    # GROUP VARIANT: offset 2, between `strings` (3, which reaches this callee WITHOUT
+    # advancing) and `_fstring_replacement` (1, which this body reaches the same way).
+    #@ requires self.toks[self.i].type == _tokenize.FSTRING_START
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i > \old(self.i)
+    #@ \variant 64 * (\length(self.toks) - self.i) + 2
     #@ assigns self.i
     def _fstring(self) -> "ExprIR":
         start = self.advance()  # FSTRING_START
@@ -3693,7 +3767,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i > \old(self.i)
-    #@ \variant 2 * (\length(self.toks) - self.i) + 0
+    #@ \variant 64 * (\length(self.toks) - self.i) + 1
     #@ assigns self.i
     def _fstring_replacement(self, is_raw=False) -> "List[ExprIR]":
         lb = self.advance()  # '{'
@@ -3731,9 +3805,16 @@ class _Parser:
 
     # PYTHON-AST NODE CTOR FAMILY: CONVERTED. Verbatim body port of the LIVE
     # `testlist_for_fstring`.
+    # GROUP VARIANT (relaunch #16): converting `strings` CLOSES the cycle
+    # `atom -> strings -> _fstring -> _fstring_replacement -> testlist_for_fstring ->
+    # namedexpr_test -> ... -> atom`, so this member joins the expression group's SCC and
+    # needs the group measure. Offset 53 = one above `namedexpr_test`'s 52, which it
+    # reaches WITHOUT advancing; its own caller `_fstring_replacement` has already
+    # consumed the `{`, so the 64-unit cursor drop pays the rise back down to it.
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
+    #@ \variant 64 * (\length(self.toks) - self.i) + 53
     #@ assigns self.i
     def testlist_for_fstring(self) -> "ExprIR":
         t = self.cur()
@@ -3765,7 +3846,7 @@ class _Parser:
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
-    #@ \variant 2 * (\length(self.toks) - self.i) + 1
+    #@ \variant 64 * (\length(self.toks) - self.i) + 3
     #@ assigns self.i
     def _fstring_format_spec(self, is_raw=False) -> "ExprIR":
         t = self.cur()
@@ -3891,7 +3972,7 @@ _SIMPLE_ESCAPES = {'\n': '', '\\': '\\', "'": "'", '"': '"', 'a': '\x07', 'b': '
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _decode_string(tok):
+def _decode_string(tok: str) -> "Tuple[PyConstVal, str, bool]":
     pass
 
 #@ \trusted reviewer: pycsl-self-annotate

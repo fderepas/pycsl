@@ -1350,6 +1350,18 @@ def _resolve_same_file_node_spec_records(validated_ast: Any,
                 if isinstance(_ts, getattr(_ast, "Index", ())):
                     _ts = _ts.value
                 _slots = list(_ts.elts) if isinstance(_ts, _ast.Tuple) else []
+                # PER-SLOT SCALAR TABLE (relaunch #16). A `\trusted` stub's `pass` body
+                # gives `find_return_type -> "unit"`, so its DECLARED annotation is the
+                # only authority on the tuple's slot types. Previously ONLY the
+                # `Tuple[List[ExprIR], List[ExprIR]]` shape was recorded; a stub whose
+                # slots are scalars (`_decode_string -> Tuple[PyConstVal, str, bool]`)
+                # emitted `: unit` and every unpack site was an L3-tc pattern-arity error.
+                # The table is CLOSED and every unrecognised slot still breaks out to the
+                # historical int-erased form, so this is a pure widening.
+                _SLOT_WHYML = {"PyConstVal": "pyconst_val", "str": "string",
+                               "bool": "int", "int": "int",
+                               "ExprIR": "emit_ir", "StmtIR": "emit_ir",
+                               "IRNode": "emit_ir", "ContractExprIR": "emit_ir"}
                 _wh = []
                 for _sl2 in _slots:
                     if (isinstance(_sl2, _ast.Subscript)
@@ -1363,14 +1375,15 @@ def _resolve_same_file_node_spec_records(validated_ast: Any,
                                                "ContractExprIR")):
                             _wh.append("seq emit_ir")
                             continue
+                    if isinstance(_sl2, _ast.Name) and _sl2.id in _SLOT_WHYML:
+                        _wh.append(_SLOT_WHYML[_sl2.id])
+                        continue
                     _wh = []
                     break
-                # EXACTLY the two-list shape Module6's `_refine_tuple_return_type`
-                # honours (it compares against that literal and returns it). A wider
-                # arity would be recorded here and then silently declined there, so
-                # keep the two sides in exact agreement — fail-closed, int-erased as
-                # before, for any other tuple shape.
-                if len(_wh) == 2:
+                # Module6's `_refine_tuple_return_type` honours exactly what is recorded
+                # here (it returns the string verbatim), so the two sides stay in exact
+                # agreement — fail-closed, int-erased as before, for any other slot shape.
+                if len(_wh) >= 2 and len(_wh) == len(_slots):
                     _tup_ir = "(" + ", ".join(_wh) + ")"
         if _tup_ir is not None:
             fi = func_by_name.get(node.name)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from module6_whyml.identifiers import whyml_ident, safe_exc_name
@@ -1238,6 +1239,32 @@ class ControlFlowStmtMixin:
             # binds an IMMUTABLE `hval` (`let info = <elem>`, no `ref`) so the body's
             # K7 `match info with HMap ...` projection matches an `hval` (not a `ref hval`).
             # Gated on `_for_target_is_pyval` (set by `_classify_iterable`) -> inert.
+            # FAIL-CLOSED TUPLE TARGET (relaunch #16). Module5 collapses a tuple loop
+            # target to the single `_for_target` and records the component names in
+            # `tuple_targets`; every SPECIALIZED binder above (enumerate / .items() /
+            # zip / string-char) consumes them. When none fires, the components were
+            # simply NOT BOUND — and the body still refers to them, so the emission
+            # named FREE VARIABLES (`unbound function or predicate symbol 'kind_tag'`).
+            # Bind each one to a NONDETERMINISTIC `any int` instead: Why3 must then prove
+            # the body for EVERY value, which is the sound over-approximation (a `0`
+            # literal would be the input-blind-constant defect). Immutable `let`, matching
+            # the bare (non-deref) reads the body already emits for these names.
+            # BYTE-INERT BY CONSTRUCTION: an unhandled tuple target does not type-check
+            # today, so no currently-green emission can reach this branch.
+            if tuple_targets:
+                _ftl = [f"{bind_indent}let {safe_target} = ref ({elem_expr}) in"]
+                for _tn in tuple_targets:
+                    if not _tn or _tn == "_":
+                        continue
+                    _tw = whyml_ident(_tn)
+                    # Bind ONLY a component the emitted body actually READS. A loop
+                    # whose tuple targets are unused (corpus 0886's `for k, v in
+                    # d.items(): total = total + 1`) has nothing unbound to repair, and a
+                    # dead `let` there would be a gratuitous byte-diff — this keeps the
+                    # whole corpus byte-identical, 0 of 813.
+                    if re.search(r"\b" + re.escape(_tw) + r"\b", inner_body):
+                        _ftl.append(f"{bind_indent}let {_tw} = any int in")
+                return _ftl
             if getattr(self, "_for_target_is_pyval", False):
                 return [f"{bind_indent}let {safe_target} = ({elem_expr}) in"]
             return [f"{bind_indent}let {safe_target} = ref ({elem_expr}) in"]

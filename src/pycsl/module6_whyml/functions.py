@@ -1316,9 +1316,13 @@ class FunctionEmissionMixin:
         # ONE refinement serves BOTH return-type producers (lesson (am), two producers):
         # `_compute_return_type` (the stub's own `val`) and `_build_method_return_type_map`
         # (the `self.<m>(...)` call site) each call this method on their raw type.
-        if (func.get("return_tuple_whyml") == "(seq emit_ir, seq emit_ir)"
-                and self._uses_pyast_parser()):
-            return "(seq emit_ir, seq emit_ir)"
+        # relaunch #16: honour whatever `ir_resolve` recorded, not just the two-node-list
+        # literal. `ir_resolve` only records a shape whose every slot is in its CLOSED
+        # per-slot table, so an unrecognised annotation still arrives here as `None` and
+        # int-erases exactly as before. Still gated on `_uses_pyast_parser()`.
+        _rtw = func.get("return_tuple_whyml")
+        if _rtw and self._uses_pyast_parser():
+            return _rtw
         if not (return_type.startswith("(") and "," in return_type):
             return return_type
         elts = self._first_tuple_return_elts(body_stmts)
