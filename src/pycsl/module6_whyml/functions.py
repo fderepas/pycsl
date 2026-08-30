@@ -3784,6 +3784,30 @@ class FunctionEmissionMixin:
         return out
 
     def _emit_function(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
+        """Emit one WhyML let/val function block. Returns the list of output lines.
+
+        THE SCC GROUP KEYWORD IS FIXED UP HERE, AFTER the block is built, because NINE
+        of the group emitters this method delegates to are BESPOKE and HARD-CODE their
+        opening keyword as `let` (lesson (am): a SYNTHESIZED body is a SECOND PRODUCER of
+        the group keyword). A member emitted with a bare `let` BREAKS the enclosing
+        `let rec ... with ...` chain FROM THE INSIDE, and every later member of the SCC
+        then falls out of scope for every earlier one — the historical
+        `unbound function or predicate symbol` symptom that made the two L2 dispatchers
+        look like a TYPE-UNIFICATION wall when they are not one. Rewriting the opening
+        keyword from the member's POSITION IN ITS SCC repairs all nine at once; a
+        single-member SCC is untouched, so emission is byte-identical wherever no
+        multi-member group exists."""
+        lines = self._emit_function_block(func, scc_info)
+        _, _pos, _size = scc_info.get(func["name"], (0, 0, 1))
+        if _size > 1 and lines:
+            _n = whyml_ident(func["name"])
+            _head = f"  let {_n} "
+            if lines[0].startswith(_head):
+                _kw = "  with " if _pos > 0 else "  let rec "
+                lines[0] = _kw + _n + " " + lines[0][len(_head):]
+        return lines
+
+    def _emit_function_block(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
         """Emit one WhyML let/val function block. Returns the list of output lines."""
         name = whyml_ident(func["name"])
         # PB-TRIO FUSION (preamble/generic_fold): the `{_pb_stmt,_pb_body,

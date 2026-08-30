@@ -801,6 +801,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #   spent. That is an ADT redesign of the input-side view, co-landing with its
     #   Rocq/Lean certificate (Phase2l_PyAstExpr.v / PyAstExpr.lean).
     # (`_csl_to_ir` does not even reach this point — see its own note.)
+    #@ \diverges
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -878,6 +880,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # the opaque `Any`->int fallback to the structurally-harvested `UnaryOp`
     # record. Verbatim body port of the LIVE `_py_expr_unaryop`
     # (Module5_IREmitter.py:1017).
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -890,6 +893,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # from the opaque `Any`->int fallback to the structurally-harvested `binop`
     # record (piece 1/2/3 — see ir_resolve.py). Verbatim body port of the LIVE
     # `_py_expr_binop` (Module5_IREmitter.py:1021).
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -979,6 +983,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # the two arms build DISTINCT real ctors — `IrSliceAccess value slice_ir`
     # (`_IRNODE_CTORS["SliceAccess"]`) vs `IrSub value slice_ir` (`_IRNODE_CTORS["Subscript"]`),
     # ZERO isinstance_op. Verbatim body port of the LIVE (output-side) `_py_expr_subscript`.
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -1017,6 +1022,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # `obj_ir = self._py_expr_to_ir(expr.value)` local to a `ref (IrOther "")` emit_ir
     # sentinel (statements.py `_collect_emit_ir_result_locals` emit_ir-returning-call
     # recognizer). Returns pre-existing IrFieldGet / IrAttr ctors — NO new theory ctor.
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -1118,6 +1124,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # (Module5_IREmitter.py:1153) — 3 emit_ir children reuse the GENERIC
     # `IrTer3` ctor (module6_whyml/expressions.py `_IRNODE_CTORS["IfExpr"]`),
     # NO new emit_ir theory constructor.
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -1132,6 +1139,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # record. Verbatim body port of the LIVE `_py_expr_starred`
     # (Module5_IREmitter.py:1158) — 1 emit_ir child, new `IrStarred` ctor
     # (module6_whyml/preamble.py `_emit_exprir_theory`).
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -1147,6 +1155,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # `(is_var expr.target)` and `expr.target.id` to `(name_of expr.target)`; the
     # `target_name` string ternary + the new `IrNamedExpr` ctor complete it — NO
     # facade, NO isinstance_op.
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -1183,6 +1192,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # the new `IrSliceN iropt_ir iropt_ir iropt_ir` ctor (preamble.py
     # `_emit_exprir_theory`) carrying ALL THREE bounds. Verbatim body port of the LIVE
     # `_py_expr_slice` (Module5_IREmitter.py:1171).
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
