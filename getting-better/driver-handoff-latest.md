@@ -9,7 +9,7 @@
   **Window #2 delta so far: markers 530 -> 502, grep 555 -> 527.**
   **This session (#15): 503 -> 502, ONE conversion — plus the big moves of the session,
   which were on the OTHER metrics: the shadowed-selfcall ratchet 27 -> 15 (sites 177 -> 154)
-  and the mirror-wide input-blind `isinstance_op 0 0` count 26 -> 24.**
+  and the mirror-wide input-blind `isinstance_op 0 0` count 26 -> 10.**
 - **`bin/check-shadowed-selfcalls.py`: 15 CONVERTED methods / 154 bypassing call sites,
   ratchet 15** (was 27 / 177 at session start). Needs
   `TMPDIR=/home/fabrice/git/pycsl/scratchpad`; takes ~2 min; give Bash an explicit timeout.
@@ -37,7 +37,7 @@
   `scratchpad/`, `prompt`, `prompt.txt`). Leave it alone.
   `getting-better/.driver-deadline` intact (Sep 1 08:24 UTC). Commits unpushed by design.
 
-## WHAT THIS SESSION LANDED (five gated increments)
+## WHAT THIS SESSION LANDED (six gated increments)
 
 1. **`Module5_IREmitter._py_stmt_raise` CONVERTED (503 -> 502)** — the CERTIFIED-BOUNDARY
    **[OPTIONAL NODE FIELD NOT UNWRAPPED] is BROKEN**, and all five recorded gaps fell.
@@ -84,6 +84,19 @@
    `Module5_IREmitter` entirely. Blast radius measured first and it is 2 mirrors + **corpus
    0603**, the reference driver for this very feature, re-proved in 1 s. Mirror-wide
    input-blind `isinstance_op 0 0`: **26 -> 24**.
+6. **The isinstance receiver oracle WIDENED — input-blind `isinstance_op 0 0` 24 -> 10, and
+   this one is CORPUS-INERT (0 of 813).** The residue was diagnosed by INSTRUMENTING THE
+   DECLINE (lesson (bp)) — a one-line stderr print at the fallback, run over all 52 mirrors,
+   printing the enclosing function, the class name and the receiver SHAPE — and it named two
+   blockers the census had not guessed. **(a) `cls=None` on ELEVEN of the 24**: the class is
+   written DOTTED (`isinstance(node, ast.Expr)`), so `args_ir[1]["name"]` is None and the
+   class could not even be NAMED; take the ATTRIBUTE. **(b) `symtype=Any` on most of the
+   rest**: an untyped receiver lowers to the INT default — but "untyped in the symbol table"
+   is NOT "int in the emission", because a dozen inference passes retype a local AFTER the
+   symbol table is built. Admit the int default only when the name is in NONE of them
+   (nineteen sets, six maps). That is fail-closed by EXCLUSION rather than inclusion, which
+   is weaker, and acceptable HERE only because the failure mode is LOUD: a wrong type is an
+   ill-typed application L3-tc rejects in 35 s on the sweep.
 
 ## TWO CERTIFIED-BOUNDARIES RECORDED THIS SESSION (measured, spikes reverted)
 
@@ -138,13 +151,16 @@
    real recursion needing a structural variant (lesson (bi)). Everything else in the residue
    is co-blocked by the value-model frontier (see above), so this is now the ONLY large
    shadowed lever left.
-4. **THE `isinstance_op 0 0` FACADE — HALF BUILT THIS SESSION (26 -> 24); the WIDENING is
-   what is left, and the machinery is now in place.** `expressions._isinstance_recv_whyml_type`
-   and `_isinstance_recv_field_whyml_type` name the receiver's Why3 type for a plain `Var`
-   and a RECORD-FIELD read; **the 24 remaining sites have receivers those two decline — loop
-   variables, call results, subscripts.** Widen by adding a shape at a time and re-measuring;
-   each new shape is fail-closed (return None and the historical constant stands). The
-   original census, still accurate for the residue: ONE producer (`expressions.py:~8383`: when
+4. **THE `isinstance_op 0 0` FACADE — TAKEN FROM 26 TO 10 THIS SESSION; the last TEN are
+   three receiver SHAPES and the machinery is in place for each.**
+   `expressions._isinstance_recv_whyml_type` / `_isinstance_recv_field_whyml_type` name the
+   receiver's Why3 type for a plain `Var` (typed, untyped-by-exclusion, or a known record)
+   and a RECORD-FIELD read. **The ten that remain decline on the receiver SHAPE: an Attribute
+   read (`value.value`), a Subscript (`node.body[0]`), and a Call result.** Add one shape at
+   a time and re-measure; each is fail-closed (return None and the historical constant
+   stands), each is independently provable, and the diagnostic that finds them is a one-line
+   stderr print at the isinstance fallback in `expressions.py` — re-add it in a minute rather
+   than guessing. The original per-function census, still accurate for the residue: ONE producer (`expressions.py:~8383`: when
    `_tag_of_type(<class>)` yields no tag, the term is `(isinstance_op 0 0)` with BOTH
    arguments erased, so the test is independent of the value AND of the class). **26 sites**,
    by enclosing emitted function: `Module3_Weaver` 4 (`_target_dotted_path` 3, `_const_int`
