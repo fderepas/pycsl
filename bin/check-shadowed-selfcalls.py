@@ -39,7 +39,7 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
-BASELINE = 15          # 55 at first measurement, 50 after the `array <t>` concrete-
+BASELINE = 14          # 55 at first measurement, 50 after the `array <t>` concrete-
                        # sibling capability landed (relaunch #9), 43 after the first
                        # `#@ sibling_concrete` marker wave (relaunch #10: `_deref` and its
                        # 28 call sites, `_rhs_yields_array`, and five ExpressionEmissionMixin
@@ -72,7 +72,17 @@ BASELINE = 15          # 55 at first measurement, 50 after the `array <t>` concr
                        # `\trusted` — so the marker is required. Eight methods:
                        # `_array_coerce_arg`, `_is_null_byte_lit` (both `@staticmethod`,
                        # which an earlier triage regex had skipped), `_materialize_bridge` /
-                       # `_materialize_str_bridge` x2, and the three `_Unparser` writers)
+                       # `_materialize_str_bridge` x2, and the three `_Unparser` writers),
+                       # 14 after wave 8 (relaunch #17: the MAP-KEY MODEL SPLIT —
+                       # `map <k> <v>` admitted to the same OPT-IN allowlist, plus a
+                       # PER-CALLEE StrSet retype of `_build_method_return_type_map`.
+                       # `_module_binding_names` is a CONVERTED `-> Set[str]` method the
+                       # set-union catamorphism emits as the faithful `map string bool`,
+                       # while that map recorded the generic `map int (option int)` — so
+                       # `name in self._module_binding_names()` int-HASHED its key against
+                       # an unconstrained int-keyed map. This is backlog 1b(A)'s rejected
+                       # GLOBAL `Set[str]` retype, made safe by using the marker as the
+                       # PER-CONSUMER gate that attempt lacked)
                        # — a RATCHET, only lower it
 MIRROR_COUNT = 52      # mirrors that emit a .mlw; a smaller population is NOT a pass
 

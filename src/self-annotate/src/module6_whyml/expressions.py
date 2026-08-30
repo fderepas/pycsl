@@ -1440,6 +1440,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                      else "")
             return f"(Array.length {deref}{var})"
         return f"{node.var}_len"
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

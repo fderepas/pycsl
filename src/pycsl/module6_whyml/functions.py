@@ -5915,6 +5915,26 @@ class FunctionEmissionMixin:
                 # string`, so a `self.<m>(...)` call site abstracts as `array string`.
                 if func.get("return_value_type") == "string":
                     ret = "array string"
+            elif (ann in ("set", "frozenset") and ret == "int"
+                  and not func.get("trusted")
+                  and whyml_ident(str(func.get("name", "")))
+                  in getattr(self, "_sibling_concrete_methods", set())):
+                # MAP-KEY MODEL SPLIT (relaunch #17): a CONVERTED `-> Set[str]` method is
+                # emitted by the set-union catamorphism as the FAITHFUL StrSet `map string
+                # bool`, but this map recorded the generic `map int (option int)` for it —
+                # so every `self.<m>()` call site int-HASHED its key (`Map.get
+                # (self__module_binding_names_0 ()) (str_hash_op !name)`) against an
+                # UNCONSTRAINED int-keyed map that has nothing to do with the proven body.
+                # The conversion bought its caller nothing and the guard was a hash facade.
+                # This is backlog item 1b(A)'s `Set[str]` retype — the one whose ATTEMPT #1
+                # was REJECTED because it was GLOBAL and cascaded into every verified caller
+                # written against the old int type. Here it is PER-CALLEE, gated on the
+                # opt-in `#@ sibling_concrete` marker, which is exactly the per-consumer
+                # gate that attempt lacked: an unmarked `-> Set[T]` method keeps the
+                # historical `map int (option int)` byte-identically, and `dict` is left
+                # alone entirely. Fail-closed — if the callee's emitted `let` is NOT the
+                # StrSet shape, the call site is an L3-tc type error, not a silent erasure.
+                ret = "map string bool"
             elif ann in ("set", "dict", "frozenset") and ret == "int":
                 # Functions annotated `-> Set[T]` / `-> Dict[K, V]` are
                 # auto-trusted via `_should_auto_trust_map_return`; their

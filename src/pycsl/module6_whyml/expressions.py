@@ -1267,6 +1267,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"(not {joined})" if negate else joined
         # Body-local dict OR set/dict-typed parameter OR self.<dict-field>
         rhs_is_map = False
+        # MAP-KEY MODEL SPLIT (relaunch #17): set when the RHS is a `self.<m>()` call whose
+        # concrete callee returns the faithful StrSet `map string bool` (see below).
+        _strset_recv = False
         if rhs.get("type") == "Var":
             rname = rhs.get("name", "")
             if rname in self._dict_locals:
@@ -1312,9 +1315,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if isinstance(_fn, str) and _fn.startswith("self."):
                 _cls = getattr(self, "_current_self_type", None)
                 _key = f"{_cls}__{_fn[len('self.'):]}" if _cls else _fn
-                if getattr(self, "_module_method_return_types", {}).get(_key) in (
-                        "map int (option int)", "set", "dict", "frozenset"):
+                _mrt = getattr(self, "_module_method_return_types", {}).get(_key)
+                if _mrt in ("map int (option int)", "set", "dict", "frozenset"):
                     rhs_is_map = True
+                elif _mrt == "map string bool":
+                    # MAP-KEY MODEL SPLIT (relaunch #17): the callee is a `#@
+                    # sibling_concrete` `-> Set[str]` method retyped to the faithful StrSet
+                    # (`functions._build_method_return_type_map`). Membership against it is
+                    # the NATIVE string lookup, not the int-hashed option match.
+                    rhs_is_map = True
+                    _strset_recv = True
         # nested-map.md: `k in self._nested_dict.get(k1, {})` — `.get` on a NESTED-dict field
         # returns the INNER map (its value_type is `map …`), so membership hashes the key into
         # it. The lowered `right` is already the inner-map match-expr. @mutable_state.
@@ -1325,6 +1335,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _nu = self._self_field_dict_nu(_recv) if _recv.startswith("self.") else None
                 if isinstance(_nu, str) and _nu.startswith(("map ", "seq ", "array ")):
                     rhs_is_map = True
+        if rhs_is_map and _strset_recv:
+            # MAP-KEY MODEL SPLIT (relaunch #17): the receiver is the faithful StrSet
+            # `map string bool` (present = true), so membership is the RAW native-string
+            # lookup `Map.get m k : bool` — NOT the `option` match below, and NOT
+            # `str_hash_op`. This is the read side of `set_add acc s`, which the emitted
+            # catamorphism already writes with the raw string. A non-string key here is an
+            # L3-tc type error (fail-closed), never a silent hash.
+            return (f"(not (Map.get ({right}) ({left})))" if negate
+                    else f"(Map.get ({right}) ({left}))")
         if rhs_is_map:
             # todict-reflection-plan.md R3: a STRING key into a `Set[str]`/`dict[str,_]`
             # (an int-keyed map) is hashed with `str_hash_op` — the read-side analogue of
@@ -5704,6 +5723,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                      # `scc.find_self_method_calls` supplies the callee-before-caller
                      # ordering edge.
                      or (isinstance(ret_type, str) and ret_type.startswith("array "))
+                     # A MAP-RETURNING SIBLING is the same case once more, and it was the
+                     # FIFTH silent floor in this allowlist. A `#@ sibling_concrete`
+                     # `-> Set[str]` callee is emitted as the faithful `map string bool`;
+                     # without this arm its CONVERSION is shadowed by the receiver-less
+                     # `val self__<m>_0 () : map int (option int)`, whose result is
+                     # unconstrained AND int-keyed. OPT-IN ONLY (the marker), so an
+                     # unmarked map-returning callee is byte-identical.
+                     or (isinstance(ret_type, str) and ret_type.startswith("map ")
+                         and _concrete in getattr(
+                             self, "_sibling_concrete_methods", set()))
                      # A TUPLE-RETURNING SIBLING is the same case again. `_call_args`
                      # returns `(seq emit_ir, seq emit_ir)` — the pair of node lists — and
                      # without this arm its CONVERSION is immediately shadowed: the `let`
