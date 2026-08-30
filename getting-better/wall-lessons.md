@@ -4211,3 +4211,82 @@ session: `#@ loop invariant 0 <= k and k <= n` where `n = len(raw) - 1` needs
 **17.2M steps to a Timeout** instead of failing fast. `0 <= k` was the whole of what the loop
 needed. **A loop invariant that is TRUE but unsupported by the code before it is not a
 harmless extra; it is a timeout generator.**
+
+
+## Lesson (bt) — the capability the refutation names has a PLACE, and putting it one step earlier is what keeps it from breaking its neighbour
+
+**1. THE UNWRAP BELONGS AT THE BINDING, NOT AT THE READ.** `_py_stmt_raise`'s recorded
+refutation named ONE capability — "an OPTIONAL `emit_ir` record field, guarded non-None,
+must project THROUGH the option" — and it was right that this subsumed three of its five
+gaps. But the obvious placement, unwrapping every `OptExprIR` field READ, breaks the
+`x is None` presence guard, which reads the SAME field RAW to build
+`(match <field> with None -> true | Some _ -> false end)`; unwrapping there nests a match
+inside a match. Binding `exc = stmt.exc` in the LIVE body (runtime-identical) and unwrapping
+ONCE at the assignment gives every downstream projection a bare `emit_ir` while leaving the
+guard's raw read untouched. **When a capability has two possible homes, prefer the one the
+existing recognizers do not already read.**
+
+**2. AN OPAQUE `val`'s LENGTH IS NOT A LENGTH.** `if exc.args:` had been lowering to
+`Array.length (args_of !exc) <> 0`, and `args_of` is `val args_of (e: emit_ir) : array
+emit_ir` — an UNINTERPRETED array. Its `Array.length` is unconstrained, so the guard said
+nothing whatever about whether the call had arguments, while type-checking and reading
+plausibly. The faithful term was already in the theory: `nargs_of` (`IrCall _ _ n -> n`).
+This is the same class of defect as relaunch #14's argument-less `ch_isalpha_0 ()` —
+**a projection that is severed from the value it claims to test.** Grep for
+`Array.length (<opaque val> …)` the way (bl) says to grep for `if true then`.
+
+**3. REUSE A CERTIFIED PRECEDENT INSTEAD OF RE-LITIGATING IT.** `isinstance(exc.func,
+ast.Name)` lowers to `is_call !exc`, which reads like a duplicated conjunct and looks wrong.
+It is the identical idiom already CONVERTED and accepted at HEAD in `_collect_typevar_bounds`
+(`if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Name)`), because the
+emit_ir model's `IrCall f a n` carries the callee as a NAME STRING — so "is a Call" and "its
+func is a Name" ARE the same predicate in the model. Finding that precedent cost one grep
+and saved the increment. **Before arguing about a suspicious lowering, grep the emitted
+theory for the same shape somewhere already gated.**
+
+
+## Lesson (bu) — the concrete-route RETURN-TYPE allowlist is a recurring silent floor, and a SYNTHESIZED body is a second producer of every call it contains
+
+The shadowed-selfcall ratchet went 27 -> 15 in one session with no new proof obligations
+beyond re-proving five mirrors, and every step of it came from the same two blind spots.
+
+**1. EVERY NEW RETURN TYPE IS BORN SHADOWED.** `expressions._handle_dotted_call` decides
+between the concrete sibling application and the receiver-less abstract avatar partly on an
+ALLOWLIST of return types. That allowlist has now been the binding constraint FOUR times —
+`array <t>` (relaunch #9), the tuple return, `_union_*`, and this session's `stmt_ir` and
+`unit`. Each time, a CONVERTED and PROVEN method's callers silently kept the unconstrained
+avatar: `_process_for`/`_process_if`/`_process_while` are `-> stmt_ir` node builders whose
+only call site is `ir_stmts.append(self._process_<k>(stmt))`, so **the sub-body list of every
+emitted For/If/While node was an arbitrary `stmt_ir`.** *When a new certified ADT enters the
+emitted vocabulary, add it to that allowlist in the same increment.*
+
+**2. THE VOID SIBLING IS THE WORST CASE, AND IT MUST BE OPT-IN.** A void method's avatar is
+`val self__<m>_0 () : unit` with NO `writes` clause — lesson (bq)'s confidently-FALSE NO-OP.
+So a converted void helper's caller saw nothing it does. But admitting `unit` on the SHARED
+`_record_array_fields` proxy the other arms use BREAKS `pure_ast` outright — `_Parser` passes
+that proxy and its `-> NoReturn` `error` is `\trusted`, so the arm fires on a callee with no
+emitted definition to order before its caller: `unbound function or predicate symbol
+'_parser__error'`. **Requiring the explicit `#@ sibling_concrete` marker makes the arm
+per-callee and fail-closed**, and that is what let eight methods land with pure_ast green.
+
+**3. A SYNTHESIZED BODY IS A SECOND PRODUCER (lesson (am), in a new place).** Marking
+`_py_op_to_str` took it from 6 bypassing sites to 1, and the survivor was not a source line
+the generic route could ever reach: `_py_expr_compare`'s whole body is synthesized by
+`functions.py::_emit_py_expr_compare_bespoke`, which had `self__py_op_to_str_1` HARD-CODED in
+its string template. A synthesized body never passes through `_handle_dotted_call`, so it
+never consults `_sibling_concrete_methods` — and because the ratchet counts METHODS, one
+hard-coded avatar in one template kept the whole method shadowed while five real call sites
+were already concrete. **When a marked callee goes concrete at most of its sites, grep the
+EMITTER for the avatar name before concluding the residue is a type gap.**
+
+**4. A TRIAGE INSTRUMENT'S REGEX IS PART OF THE RESULT.** The first pass reported 4 candidates
+as "no annotation block found". They were `@staticmethod`s: the `#@` block sits above the
+DECORATOR, not above the `def`. Two of the four (`_array_coerce_arg`, `_is_null_byte_lit`)
+converted immediately once the regex allowed decorator lines between. **A "SKIP" in your own
+triage is a finding about your triage, not about the target.**
+
+**5. PROOF COST IS NOT PROPORTIONAL TO SOURCE SIZE.** Measured this session:
+`module6_whyml/expressions.py` — the biggest source file in the mirror — proves **1050 goals
+in ~15 minutes**, while `frontend/pure_ast.py` takes **2798 goals in ~55 minutes** and
+`module6_whyml/stmt_control_flow.py` **1846 in ~45**. Budget from the measured number, and
+measure a file the first time you touch it.
