@@ -46,22 +46,26 @@ class IRCrossCheckResult:
             return False
         return all(c == canons[0] for c in canons)
 
-    # CERTIFIED-BOUNDARY (relaunch #16), RE-MEASURED AND SHARPENED — the recorded
-    # [DICT-LITERAL RETURN DECLINES TO THE EMPTY MAP] no longer applies (that capability
-    # was built in this same session and the dict literal here now lowers to a real
-    # `map_update_some` chain over `cmp`). The twin `crosscheck.pairwise` CONVERTED on it.
-    # What blocks THIS one is a different and newly measured wall:
-    # **[SYNTHESIZED-UNION IDENTITY]**. The nested `def cmp(a: Optional[Term], b:
-    # Optional[Term])` is lifted to a method, and each `Optional[Term]` PARAMETER gets its
-    # OWN synthesized union type — `a: _union_cmp_6`, `b: _union_cmp_7` — so the body's
-    # `return a == b` is `Arm_6 = Arm_7`, an L3-tc type error. Two occurrences of the SAME
-    # annotation must resolve to the SAME type. Worse, both unions are DEGENERATE
-    # (`type _union_cmp_6 = Arm_6_None`): the `Term` payload arm is dropped entirely
-    # because `Term` is an opaque marker class here, so even with one shared type the
-    # parameters would carry no value and `a == b` would be contentless.
-    # REOPENING CAPABILITY: intern synthesized `Optional[X]` unions BY ANNOTATION within a
-    # function (one type per distinct annotation, not one per occurrence), and give the
-    # `Some` arm the opaque payload rather than dropping it.
+    # CERTIFIED-BOUNDARY (relaunch #16), RE-MEASURED TWICE IN ONE SESSION and now at its
+    # real cause — **[DEGENERATE SYNTHESIZED UNION]**. Two earlier readings were both
+    # BROKEN on the way here and both are gone: the dict literal now lowers to a real
+    # `map_update_some` chain, and the nested `def cmp(a: Optional[Term], b:
+    # Optional[Term])` now gets ONE union type for both parameters (`dedup=True` at the
+    # param seam) instead of `_union_cmp_6` / `_union_cmp_7`, so `a == b` is no longer an
+    # L3-tc type error. What remains is not a typing problem at all.
+    # `Term` is an OPAQUE MARKER CLASS (`class Term: pass`), so the `Optional[Term]` union
+    # drops its payload arm and collapses to `type _union_cmp_6 = Arm_6_None` — a type with
+    # exactly ONE inhabitant. Therefore `a is None` lowers to a test that is ALWAYS TRUE
+    # (lesson (bl): a guard lowering to a literal signals a modelled-away optional), the
+    # else-branch is unreachable, and the converted `cmp` would return `None` on every
+    # path. The `let` would then CLAIM that all three `pairwise` values are `None` — a
+    # positive FALSE statement, where the `val` it replaces is an unconstrained havoc that
+    # claims nothing. DECLINED under lesson (ca): a conversion must not trade a havoc for a
+    # wrong definite value.
+    # REOPENING CAPABILITY: give a synthesized `Optional[X]` union a `Some` arm carrying an
+    # OPAQUE payload when `X` is an unmodelled class, instead of dropping the arm. That
+    # makes the presence test real and the else-branch reachable; `a == b` would then be an
+    # honest uninterpreted equality on the opaque payload.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True

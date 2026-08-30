@@ -4636,7 +4636,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 if (isinstance(_inner, ast.Subscript) and isinstance(_inner.value, ast.Name)
                         and _inner.value.id in ("Dict", "dict")):
                     _eff_ann = _inner
-            arg_type = (self._m5_get_type_name(_eff_ann, _scope_name, arg.arg)
+            # UNION IDENTITY AT THE PARAM SEAM (relaunch #16). `dedup=True` makes two
+            # PARAMETERS of one function that carry the STRUCTURALLY IDENTICAL
+            # `Optional[τ]` annotation share ONE synthesized union type. Why3 sum types
+            # are NOMINAL, so without it `def cmp(a: Optional[Term], b: Optional[Term])`
+            # gives `a: _union_cmp_6`, `b: _union_cmp_7` and the body's `return a == b`
+            # is an L3-tc type error — the [SYNTHESIZED-UNION IDENTITY] wall. This is the
+            # SAME mechanism `tool-feature-5` already applies at the local-declaration and
+            # return seams for exactly the same reason; only the FIELD seam is deliberately
+            # left per-site (record slots keep distinct types).
+            arg_type = (self._m5_get_type_name(_eff_ann, _scope_name, arg.arg, dedup=True)
                         if _eff_ann else "Any")
             # self-tcb-reduction T1.a: an IR-node-typed PARAM (`node: "ExprIR"`, `stmt: "StmtIR"`)
             # is `emit_ir` — so the `_handle_*_expr` handlers reflect on it (`name_of node`).
