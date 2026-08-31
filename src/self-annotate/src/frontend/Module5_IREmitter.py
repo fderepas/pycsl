@@ -469,10 +469,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # dispatcher, FABLE condition 2). The return builds the new `IrCallN string irlist` ctor
     # (expressions.py `_IRNODE_CTORS["Call"]` + preamble.py `_emit_exprir_theory`). Verbatim
     # body port of the LIVE `_csl_call_expr` (Module5_IREmitter.py:667).
+    #@ \diverges
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
     #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_call_expr(self, node: CallExpr) -> Dict[str, Any]:
         return {"type": "Call", "func": node.func,
                 "args": [self._csl_to_ir(a) for a in node.args]}
@@ -572,10 +575,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # (expressions.py `_IRNODE_CTORS["MkTuple"]` + preamble.py `_emit_exprir_theory`).
     # The content law pins map STRUCTURE (per-index deterministic function of source), NOT
     # dispatcher value-semantics — honest labeling per FABLE condition 3.
+    #@ \diverges
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
     #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_mktuple(self, node: MkTupleExpr) -> Dict[str, Any]:
         return {"type": "MkTuple", "elts": [self._csl_to_ir(e) for e in node.elts]}
 

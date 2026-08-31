@@ -13313,6 +13313,73 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return False
         return True
 
+    def _faithful_content_comp(self, disp: str, srca: str) -> Optional[str]:
+        """The FAITHFUL lowering of `[self.<disp>(t) for t in <array emit_ir>]`: a LOCAL
+        `let rec` that performs the per-element call in sequence and returns the `irlist`
+        it builds, instead of an abstract `list_content_comp_N` whose per-element call is
+        GONE. Returns the WhyML expression, or None to fall through.
+
+        WHY IT MATTERS BEYOND FAITHFULNESS. The abstract op is EFFECT-FREE, so a body that
+        really mutates emitter state through the dispatcher emits as a body that writes
+        nothing -- and Why3, which demands an EXACT effect summary, then rejects the honest
+        `#@ assigns` the source deserves. That disagreement between the IR-level analysis
+        and the emitted body is the recorded blocker under the `_csl_to_ir` boundary. With
+        the call actually performed, the two agree.
+
+        FAILS CLOSED on every axis: no current class, no resolvable dispatcher method, a
+        dispatcher that is not `#@ sibling_concrete` (so its concrete symbol is not in
+        scope), or a `@mutable_state` class whose written fields are not modelled -- all
+        return None and the caller keeps the length-only oracle."""
+        cls = getattr(self, "_current_self_type", None)
+        if not cls:
+            return None
+        _clsl = str(cls).lower()
+        raw = None
+        for f in (self.ir.get("functions") or []):
+            if f.get("kind") != "method":
+                continue
+            if str(f.get("self_type") or "").lower() != _clsl:
+                continue
+            nm = str(f.get("name", ""))
+            if nm == disp or nm.endswith("_" + disp) or nm.endswith(disp):
+                raw = nm
+                break
+        if raw is None:
+            return None
+        # `func["name"]` in the IR is ALREADY the qualified `<Class>__<method>` spelling --
+        # the same string `_emit_function` turns into the emitted symbol and the same key
+        # `_sibling_concrete_methods` / `_module_method_writes` use. Re-prefixing it with
+        # the class would double-qualify and the gate would silently never fire.
+        concrete = whyml_ident(raw)
+        if concrete not in getattr(self, "_sibling_concrete_methods", set()):
+            return None
+        # The loop inherits the dispatcher's declared frame, filtered to the labels the
+        # record actually emits -- the same filter `_emit_function` applies, so the two
+        # producers of a `writes` clause cannot drift (lesson (am)).
+        _wf = (getattr(self, "_module_method_writes", {}) or {}).get(raw, []) or []
+        _wl = [self._field_label(cls, _f) for _f in _wf]
+        _lbls = getattr(self, "_emitted_record_field_labels", {}).get(cls)
+        if _lbls is not None:
+            _wl = [l for l in _wl if l in _lbls]
+        n = getattr(self, "_comp_content_counter", 0)
+        self._comp_content_counter = n + 1
+        cc = f"_cc_{n}"
+        sv = f"_csrc_{n}"
+        _w = (f"\n      writes   {{ {', '.join('self.' + l for l in _wl)} }}") if _wl else ""
+        return (
+            f"(let {sv} = {srca} in\n"
+            f"    let rec {cc} (_ci: int) : irlist\n"
+            f"      requires {{ 0 <= _ci <= Array.length {sv} }}\n"
+            f"      ensures  {{ irlen result = Array.length {sv} - _ci }}\n"
+            f"      variant  {{ Array.length {sv} - _ci }}"
+            f"{_w}\n"
+            f"    = if _ci >= Array.length {sv} then ILNil\n"
+            f"      else let _celt = {sv}[_ci] in\n"
+            f"           let _ch = ({concrete} self _celt) in\n"
+            f"           let _ct = {cc} (_ci + 1) in\n"
+            f"           ILCons _ch _ct\n"
+            f"    in {cc} 0)")
+
     def _variadic_content_comp(self, g: Dict[str, Any], target: str, elt: Any,
                                src_ir: Any, local_refs: Set[str], invariant_ctx: bool,
                                subst: Optional[Dict[str, str]]) -> Optional[str]:
@@ -13349,6 +13416,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _content_ok = self._disp_state_independent(disp)
         srcw = self._expr_to_whyml(src_ir, local_refs or set(), invariant_ctx, subst)
         srca = self._array_coerce_arg(srcw)
+        # FAITHFUL LOWERING (relaunch #19): when the dispatcher IS state-dependent, the
+        # honest thing is not a weaker LAW over an oracle but no oracle at all -- PERFORM
+        # the call, in order, threading the emitter state. A LOCAL `let rec` inside the
+        # body does exactly that and needs NO new group member: a group member's body has
+        # its `let rec ... with ...` siblings in scope, so the loop can call the concrete
+        # dispatcher directly (spike: scratchpad/w3/spike_local.mlw, Alt-Ergo Valid,
+        # including the honest `writes` propagation). This is what makes the IR-level
+        # effect analysis and the emitted body AGREE -- the recorded blocker under the
+        # `_csl_to_ir` boundary. Fails closed to the length-only oracle below.
+        if not _content_ok:
+            _faithful = self._faithful_content_comp(disp, srca)
+            if _faithful is not None:
+                return _faithful
         # FABLE §6 condition 2: ONE shared symbol per DISPATCHER, reused across every site
         # (dedup by name in `_add_abstract_op`). Restores the get_x-style cross-site
         # observability the projection precedent has.
