@@ -61,8 +61,30 @@ with its own two ratchets.  First measurement: 567 converted methods declare
 `proof2why3/parser.py::_Parser.__init__` (2 fields, direct; a constructor, so it belongs to
 the constructor bucket the trusted plane also bottoms out in).
 
-RATCHET.  The counts may go down, never up.  Lower them deliberately when a stub is
-converted or its `#@ assigns` is corrected.
+TABLE-AWARE DISPATCH (added 2026-08-31, relaunch #19) -- WHY THE NUMBERS WENT UP.
+The call-graph walk resolved `self.<m>(...)` by attribute name only, so it could not see a
+DISPATCHER: `handler = self._TABLE.get(type(node))` followed by `getattr(self, handler)(x)`
+names its callee through a class-level dict literal.  That is precisely how the emitter's
+`_csl_to_ir` / `_py_expr_to_ir` reach their handlers, so the analysis was blind to the
+methods whose frames matter most.  Handler tables are now collected (class- and
+module-level `NAME = {K: "method", ...}`) and an edge is added to every method a table
+names -- but ONLY from a body that also performs a `getattr(self, ...)` call, so a body
+that merely TESTS membership in a table contributes nothing.  Measured: every table edge in
+the tree comes from a genuine dispatcher (tightening the rule changed no count).
+
+The ratchets were RAISED to the new measurements -- 3/73 -> 6/76 trusted, 2/69 -> 63/130
+converted.  That is a MEASUREMENT improvement, not a tree regression: the same tree was
+always this dishonest, the gate could not see it.  The three NEW trusted model-visible
+offenders (`_get_mutex_invariant_ir`, `_csl_list_to_ir`, `_py_stmts_to_ir`) and 60 of the
+new converted ones are ONE fact: the whole `_csl_*` handler family declares
+`#@ assigns \\nothing` while reaching `_csl_in`, which writes `self._fresh_var_counter` --
+and `_csl_in`'s OWN mirror declares that write honestly.  This is the same `unlisted write
+effect` the `_csl_to_ir` CERTIFIED-BOUNDARY already names as the first of its three
+blockers; the gate now MEASURES it instead of only recording it in prose.
+
+RATCHET.  The counts may go down, never up -- EXCEPT when the analysis itself gets sharper,
+which must be stated in this docstring with what it newly sees, as the paragraph above does.
+Lower them deliberately when a stub is converted or its `#@ assigns` is corrected.
 """
 import argparse
 import ast
@@ -70,17 +92,47 @@ import collections
 import os
 import sys
 
-RATCHET = 3           # MODEL-VISIBLE offenders: `@mutable_state` class AND a modelled field
-TOTAL_RATCHET = 73    # every offender, including opaque-self classes
-CONVERTED_RATCHET = 2        # the CONVERTED surface, model-visible (see the note below)
-CONVERTED_TOTAL_RATCHET = 69 # the CONVERTED surface, every offender
+RATCHET = 6           # MODEL-VISIBLE offenders: `@mutable_state` class AND a modelled field
+TOTAL_RATCHET = 76    # every offender, including opaque-self classes
+CONVERTED_RATCHET = 63        # the CONVERTED surface, model-visible (see the note below)
+CONVERTED_TOTAL_RATCHET = 130 # the CONVERTED surface, every offender
 LIVE_ROOT = "src/pycsl"
 MIRROR_ROOT = "src/self-annotate/src"
 
 
+def _string_dict_tables(node):
+    """Class- or module-level `NAME = {K: "method_name", ...}` handler tables.
+
+    Returns {table_name: [method_name, ...]}.  A DISPATCHER resolves its callee through
+    such a table plus `getattr(self, handler_name)`, which no attribute-based call-graph
+    walk can see -- so without this the analysis silently misses exactly the methods that
+    matter most.  Values may be plain string constants or `X.attr` spellings."""
+    out = {}
+    for member in node.body:
+        if not isinstance(member, (ast.Assign, ast.AnnAssign)):
+            continue
+        val = member.value
+        if not isinstance(val, ast.Dict):
+            continue
+        names = []
+        for v in val.values:
+            if isinstance(v, ast.Constant) and isinstance(v.value, str):
+                names.append(v.value)
+            elif isinstance(v, ast.Attribute):
+                names.append(v.attr)
+        if not names:
+            continue
+        tgts = member.targets if isinstance(member, ast.Assign) else [member.target]
+        for tgt in tgts:
+            if isinstance(tgt, ast.Name):
+                out[tgt.id] = names
+    return out
+
+
 def _parse_tree(root):
-    """(classes, bases, funcs) over every .py under `root`."""
+    """(classes, bases, funcs, tables) over every .py under `root`."""
     classes, funcs = {}, {}
+    tables = {}
     bases = collections.defaultdict(set)
     for dirpath, _dirs, files in os.walk(root):
         if "__pycache__" in dirpath:
@@ -93,10 +145,12 @@ def _parse_tree(root):
                 tree = ast.parse(open(path).read())
             except (OSError, SyntaxError):
                 continue
+            tables.update(_string_dict_tables(tree))
             for node in tree.body:
                 if isinstance(node, ast.FunctionDef):
                     funcs[(path, "", node.name)] = node
                 elif isinstance(node, ast.ClassDef):
+                    tables.update(_string_dict_tables(node))
                     classes[node.name] = path
                     for base in node.bases:
                         if isinstance(base, ast.Name):
@@ -106,7 +160,7 @@ def _parse_tree(root):
                     for member in node.body:
                         if isinstance(member, ast.FunctionDef):
                             funcs[(path, node.name, member.name)] = member
-    return classes, bases, funcs
+    return classes, bases, funcs, tables
 
 
 def _transitive_bases(cls, bases, seen=None):
@@ -121,7 +175,7 @@ def _transitive_bases(cls, bases, seen=None):
     return out
 
 
-def _self_write_fixpoint(classes, bases, funcs):
+def _self_write_fixpoint(classes, bases, funcs, tables=None):
     tbases = {c: _transitive_bases(c, bases) for c in classes}
     descendants = collections.defaultdict(set)
     for cls in classes:
@@ -155,6 +209,27 @@ def _self_write_fixpoint(classes, bases, funcs):
                 edges.add(("self", target.attr))
             elif isinstance(target, ast.Name):
                 edges.add(("mod", target.id))
+        # TABLE-AWARE DISPATCH.  `handler = self._TABLE.get(type(x))` followed by
+        # `getattr(self, handler)(...)` is invisible to the attribute walk above, and it is
+        # exactly how the emitter's DISPATCHERS call their handlers -- the methods whose
+        # frames matter most.  An edge is added to every method a table names ONLY when the
+        # body ALSO performs a `getattr(self, ...)` call, which is the dispatch idiom; a
+        # body that merely TESTS membership in a table gets no edges.
+        _dyn_self = any(
+            isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+            and n.func.id == "getattr" and n.args
+            and isinstance(n.args[0], ast.Name) and n.args[0].id == "self"
+            for n in ast.walk(fn))
+        if _dyn_self:
+            for n in ast.walk(fn):
+                tname = None
+                if isinstance(n, ast.Attribute) and n.attr in (tables or {}):
+                    tname = n.attr
+                elif isinstance(n, ast.Name) and n.id in (tables or {}):
+                    tname = n.id
+                if tname:
+                    for m in tables[tname]:
+                        edges.add(("self", m))
         calls[key] = edges
 
     def targets(key, kind, name):
@@ -300,8 +375,8 @@ def main():
                     default=CONVERTED_TOTAL_RATCHET)
     args = ap.parse_args()
 
-    classes, bases, funcs = _parse_tree(LIVE_ROOT)
-    direct, trans = _self_write_fixpoint(classes, bases, funcs)
+    classes, bases, funcs, tables = _parse_tree(LIVE_ROOT)
+    direct, trans = _self_write_fixpoint(classes, bases, funcs, tables)
 
     ms_classes = _mutable_state_classes(MIRROR_ROOT)
     modelled = _mirror_modelled_fields(MIRROR_ROOT)
