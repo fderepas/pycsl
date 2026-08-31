@@ -13252,6 +13252,67 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return getattr(self, "_array_elem_types", {}).get(src_ir.get("name")) == "emit_ir"
         return False
 
+    def _disp_state_independent(self, disp: str) -> bool:
+        """True iff the dispatcher `disp` and EVERY handler its certified table names
+        declare an EMPTY frame — the precondition the variadic content law needs and did
+        not check.
+
+        THE LAW SAYS `irnth i result = <sym> src[i]` FOR A PURE `val function <sym>`, i.e.
+        the mapped element is a DETERMINISTIC FUNCTION OF THE SOURCE ELEMENT ALONE.  That is
+        FALSE the moment the dispatcher can mutate emitter state, because then the result at
+        position `i` also depends on the state reached at `i`, and two STRUCTURALLY EQUAL
+        source elements map to DIFFERENT results — which the law forces to be equal.
+
+        MEASURED, and this is not hypothetical: `_csl_to_ir` dispatches (through
+        `_CSL_HANDLERS` + `getattr`) to `_csl_in`, whose mirror HONESTLY declares
+        `#@ assigns self._fresh_var_counter` because it allocates fresh binder names via
+        `_fresh_var`, so `[self._csl_to_ir(e) for e in node.elts]` over two identical
+        `x in d.values()` elements really does produce two DIFFERENT IR nodes.  The emitted
+        `val function emit_ir_disp__csl_to_ir` claimed otherwise.  `_py_expr_to_ir`'s whole
+        handler family declares `assigns \nothing`, so ITS law stands and is unaffected.
+
+        Everything here FAILS CLOSED: no dispatcher function, no certified table, or an
+        unresolvable handler all return False and the caller falls through to the weaker —
+        but honest — lowering.  The check reads only `_module_method_writes`, i.e. the same
+        `#@ assigns` the callee's own boundary `val` is emitted from, so the law can never
+        disagree with the frames it rests on; and a false `assigns \nothing` on one of those
+        handlers is exactly what `bin/check-trusted-frame-honesty.py` polices.
+        """
+        cls = getattr(self, "_current_self_type", None)
+        mw = getattr(self, "_module_method_writes", {}) or {}
+        # `_current_self_type` is the LOWERCASED whyml record name; the IR carries the raw
+        # Python class name. Compare case-insensitively — matching them directly finds
+        # nothing and the gate then fails closed on EVERY dispatcher, silently dropping the
+        # sound `_py_expr_to_ir` law along with the unsound one (measured).
+        _clsl = str(cls or "").lower()
+        funcs = [f for f in (self.ir.get("functions") or [])
+                 if f.get("kind") == "method"
+                 and str(f.get("self_type") or "").lower() == _clsl]
+
+        def _resolve(name):
+            for f in funcs:
+                nm = str(f.get("name", ""))
+                if nm == name or nm.endswith("_" + name) or nm.endswith(name):
+                    return f
+            return None
+
+        dispf = _resolve(disp)
+        if dispf is None or mw.get(str(dispf.get("name", ""))):
+            return False
+        try:
+            rec = self._recognize_pyx_dispatcher(dispf)
+        except Exception:
+            return False
+        if rec is None:
+            return False
+        for _entry in rec[2]:
+            if not _entry:
+                return False
+            hf = _resolve(_entry[-1])
+            if hf is None or mw.get(str(hf.get("name", ""))):
+                return False
+        return True
+
     def _variadic_content_comp(self, g: Dict[str, Any], target: str, elt: Any,
                                src_ir: Any, local_refs: Set[str], invariant_ctx: bool,
                                subst: Optional[Dict[str, str]]) -> Optional[str]:
@@ -13279,13 +13340,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         if not self._src_is_array_emit_ir(src_ir):
             return None
+        # SOUNDNESS GATE (see `_disp_state_independent`): the per-index content law asserts
+        # the map is a DETERMINISTIC FUNCTION of the source element alone, which a
+        # STATE-MUTATING dispatcher falsifies. When it does, keep the `irlist` carrier and
+        # the LENGTH law — both still true — and DROP the content law. Returning None here
+        # is NOT an option: `IrMkTupleN`'s payload is `irlist`, so the fall-through
+        # `array emit_ir` is a Why3 TYPE ERROR (measured).
+        _content_ok = self._disp_state_independent(disp)
         srcw = self._expr_to_whyml(src_ir, local_refs or set(), invariant_ctx, subst)
         srca = self._array_coerce_arg(srcw)
         # FABLE §6 condition 2: ONE shared symbol per DISPATCHER, reused across every site
         # (dedup by name in `_add_abstract_op`). Restores the get_x-style cross-site
         # observability the projection precedent has.
         sym = "emit_ir_disp__" + disp.lstrip("_")
-        self._add_abstract_op(f"val function {sym} (e: emit_ir) : emit_ir")
+        if _content_ok:
+            self._add_abstract_op(f"val function {sym} (e: emit_ir) : emit_ir")
         n = getattr(self, "_comp_content_counter", 0)
         self._comp_content_counter = n + 1
         op = f"list_content_comp_{n}"
@@ -13295,9 +13364,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # lemmas; see preamble.py `_emit_exprir_theory`). `irlen`/`irnth` are its length/nth.
         decl = (
             f"val {op} (src: array emit_ir) : irlist\n"
-            f"    ensures {{ irlen result = Array.length src }}\n"
-            f"    ensures {{ forall _ci : int. 0 <= _ci < Array.length src ->\n"
-            f"                irnth _ci result = (let _celt = src[_ci] in {sym} _celt) }}")
+            f"    ensures {{ irlen result = Array.length src }}")
+        if _content_ok:
+            decl += (
+                f"\n    ensures {{ forall _ci : int. 0 <= _ci < Array.length src ->\n"
+                f"                irnth _ci result = (let _celt = src[_ci] in {sym} _celt) }}")
         self._add_abstract_op(decl)
         return f"({op} {srca})"
 
