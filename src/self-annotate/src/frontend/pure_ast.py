@@ -350,9 +350,18 @@ class _Parser:
     # sets is_noreturn, Module6 gives the abstract op `ensures { false }` and lowers a call
     # to `(let _ = <call> in absurd)`, so the continuation is UNREACHABLE. Without it a
     # guard whose live body RAISES models as falling through — a raise-erasure. STAYS
-    # \trusted (raise + f-string + the `_tokenize.tok_name` dict read); the annotation only
-    # makes the trusted interface precise, backed by the live unconditional raise.
-    # Count-neutral.
+    # trusted, and RE-DERIVED WITH THE ORACLE (relaunch #19) rather than inherited: the
+    # earlier reason named the f-string and the `_tokenize.tok_name` dict read, and called
+    # the conversion "count-neutral". Both are wrong. It is NOT count-neutral (-2), and the
+    # body DOES convert: L3-tc GREEN, emitted as `let _parser__error (self: _parser)
+    # (msg: string) : unit ensures { false } raises { PyCSLSyntaxError }` over a REAL
+    # receiver read (`t := (_parser__cur self)`). What declines it is
+    # `bin/check-emitted-vacuity.py --emit`, which then reports a NEW erasure:
+    # `_parser__error erased=['msg'] of ['msg']` — the converted body is INPUT-BLIND,
+    # because the message f-string is the only thing `msg` feeds. So the conversion trades
+    # a COUNTED marker for an UNCOUNTED erasure-ledger entry and buys nothing.
+    # REOPENING CAPABILITY: a modelled message payload on the raise (the same decision
+    # `_fin` needs for its location stamps), so `msg` reaches the emitted body.
     def error(self, msg: str) -> "NoReturn":
         pass
 
@@ -361,7 +370,9 @@ class _Parser:
     #@ ensures True
     #@ assigns \nothing
     # DIVERGENCE MODEL (see `error`): an UNCONDITIONAL raise, so `-> "NoReturn"` is the
-    # faithful interface. STAYS \trusted. Count-neutral.
+    # faithful interface. Stays trusted for the SAME measured reason as `error`, and it is
+    # the vacuity plane, not the count, that says so: converting emits
+    # `_parser__unsupported erased=['what'] of ['what']` — input-blind.
     def unsupported(self, what: str) -> "NoReturn":
         pass
 
