@@ -1,279 +1,162 @@
-# HANDOFF — read this FIRST on relaunch (rewritten 2026-08-31, RELAUNCH #18 worker)
+# HANDOFF — read this FIRST on relaunch (rewritten 2026-08-31, RELAUNCH #19 worker)
 
 ## State, verified from the surface at end of session
 
-- **Count: MARKERS 491 · grep-substring 516 · offset 25 · unattached 0.** Quote BOTH.
-  From **`bin/count-trusted-directives.py`**, never a hand-rolled grep — 25 of the grep hits
-  are one boilerplate module-docstring line repeated across 25 mirror files, so every
-  historical absolute figure (the famous "687") is overstated by that 25.
-  Stable across 3 samples. **Window #2 delta: markers 530 -> 491, grep 555 -> 516.**
-  **This session (#18): 492 -> 491, ONE conversion across TEN gated increments** — the
-  other nine are capability / faithfulness / gate / SOUNDNESS work, and three of them moved
-  metrics that matter more than the count (see below). **TWO of the ten repaired a REAL
-  UNSOUNDNESS: a pure `val function` standing for a STATE-DEPENDENT method.**
-- **`bin/check-shadowed-selfcalls.py`: 14 CONVERTED methods / 125 bypassing call sites,
-  ratchet 14** (was 14/153). Needs `TMPDIR=/home/fabrice/git/pycsl/scratchpad`; ~2 min.
-  **92 of the 125 are the single remaining L2 dispatcher `_csl_to_ir`** — see its boundary.
-- **NEW FOURTH GATE PLANE: `bin/check-trusted-frame-honesty.py` — 3 MODEL-VISIBLE / 73 total**
-  (was 11 / 79 when first measured this session). All 3 survivors are CONSTRUCTORS.
-- Ledger **3**, untouched. Emitted axioms: **0** in every file proved this session.
-  Corpus is **814** files.
-- Fidelity at the standing baseline **2 DIVERGED** (`_handle_var_expr`, `_handle_for_stmt`).
-  `bin/self-annotate-mirror-check.sh`: **3 mirrors drifted, exit 1 — that IS the baseline.**
-  check-untrusted-emitted **818 / 802 / 0 / 0** (was 817/801).
-  emitted-vacuity `--emit`: no NEW erasure, **8 known**, 0 input-blind. doc-coherency GREEN.
-- **Corpus byte-diff was 0 of 814 for EVERY ONE of this session's eight increments.**
-  Nothing was spent. Verified after each with `bin/byte-diff-sweep.sh` against a HEAD-at-
-  session-start baseline (`scratchpad/w2/corpus_base18`).
-- **FULL REFERENCE SUITE run THREE TIMES (after increments 8, 9 and 10): `Results:
-  3010/3112 passed` every time, and the 102 failing names are IDENTICAL each time and to the
-  recorded baseline** — 23 in pycsl-reference (0211-0220,
-  0226, 0484, 0540, 0700, 0701, 0714, 0766, 0932, 0938, 0943, 0944, 0948, 0949) and 79 in
-  python-reference. **Zero regressions from ten increments, six of which changed the live
-  emitter.** Run it with `PYCSL_SKIP_CONFORMANCE_CHECK=1` — the leading IR-conformance gate
-  still aborts with **40 MISMATCH** (`only-derived=['param_ast_node_types','set_value_types']`,
-  stale goldens, nobody's work item).
-- **PROOF COSTS** (this session's measurements marked NEW; NOT proportional to source size):
-  `frontend/pure_ast` **2857**, ~50 min. `frontend/Module5_IREmitter` **1198** (was 1134),
-  ~50 min. `module6_whyml/stmt_control_flow` **1846**, ~45 min.
-  **`module6_whyml/statements` 912, ~20 min** and **`core_ir_semantic` 1506, ~35 min** —
-  BOTH NEW, the campaign had never measured either; `core_ir_semantic` is the
-  SECOND-LARGEST mirror after `pure_ast`.
-  `module6_whyml/functions` **1191** (was 1187), ~30-45 min.
-  `module6_whyml/expressions` **1069**, ~16 min. `frontend/Module2_Parser` **720**, ~10 min.
-  `src/self-annotate/src/pycsl.py` **731**, ~20 min. `Module6_WhyMLTranspiler` **706**, ~20 min.
-  `frontend/ir_resolve` **792**. `frontend/__init__` **683**. `proof2why3/parser` **438**.
-  `frontend/Module3_Weaver` **266** (was 259), ~8 min — still the fastest real loop.
-  `module6_whyml/preamble` **216**, ~5 min. `proof2why3/from_lean_json` **56**.
-  `proof2why3/canonical` **48**. `frontend/exec_splice` **45**, `proof2why3/crosscheck_ir` **41**,
-  `audit_proof` **40**, `audit_proof_reverify` **11**, `proof2why3/sertop` **11**,
-  `module6_whyml/struct_format` **5**, `proof2why3/crosscheck` **2**. Corpus driver 1-11 s.
-- Tree clean apart from the pre-existing user/build dirt (`session.txt`, untracked
-  `scratchpad/`, `prompt`, `prompt.txt`, `style.css`). `getting-better/.driver-deadline`
-  intact (Sep 1 08:24 UTC, untouched).
-- **PUSH: nothing was pushed by this worker, and NOTHING NEW WAS PUSHED BY ANYONE.**
-  `git reflog show origin/ghost-assign-bc6` still has its most recent `update by push` on
-  **`4a4f0e66`**, exactly where relaunch #17 found it. 25 commits are ahead of that ref.
-  Report only what you can verify; keep flagging the anomaly if it recurs.
+- **Count: MARKERS 491 · grep-substring 516 · offset 25 · unattached 0. UNCHANGED, and
+  that is the honest result of this session.** From `bin/count-trusted-directives.py`,
+  never a hand-rolled grep — 25 of the grep hits are one boilerplate module-docstring
+  line repeated across 25 mirror files. **Every increment this session was SOUNDNESS,
+  FAITHFULNESS or GATE work.** The cheap-win queue was re-drained twice from scratch and
+  is EMPTY; see "the census" below before you spend a minute looking for a cheap win.
+- **`bin/check-shadowed-selfcalls.py`: 13 CONVERTED methods / 33 bypassing call sites,
+  ratchet 13** (was 14 / 125). **The 92 `_csl_to_ir` sites — the largest single item that
+  metric ever held — are GONE.** Needs `TMPDIR=/home/fabrice/git/pycsl/scratchpad`;
+  `--emit-dir <dir-of-emitted-mlw> --verbose` gives the breakdown in seconds.
+- **`bin/check-trusted-frame-honesty.py` now reports TWO POPULATIONS.**
+  **trusted 3 model-visible / 73 total** (from 3/73, via 6/76 when the analysis was made
+  table-aware). **converted 2 / 69** — a NEW population this session, first measured at
+  63/130. All THREE trusted survivors are CONSTRUCTORS; the converted survivors are
+  `ControlFlowStmtMixin._handle_return_stmt` and one constructor.
+- Ledger **3**, untouched. Emitted axioms **0**. Corpus is **814** files.
+- Fidelity at the standing baseline **2 DIVERGED** (`_handle_var_expr`, `_handle_for_stmt`);
+  `bin/self-annotate-mirror-check.sh` **3 mirrors drifted, exit 1 — that IS the baseline**,
+  and this session compared the DRIFT LIST byte-for-byte on every increment rather than
+  just the count.
+- **Corpus byte-diff was 0 of 814 on EVERY increment**, including the three that changed
+  the LIVE emitter (`module6_whyml/preamble.py`, `functions.py`, `expressions.py`,
+  `abstract_ops.py`). Baseline at `scratchpad/w3/corpus_base`.
+- **FULL REFERENCE SUITE: `Results: 3010/3112 passed`, and the 23 failing pycsl-reference
+  names are IDENTICAL to the recorded baseline** (0211-0220, 0226, 0484, 0540, 0700, 0701,
+  0714, 0766, 0932, 0938, 0943, 0944, 0948, 0949). Run with
+  `PYCSL_SKIP_CONFORMANCE_CHECK=1`; the leading IR-conformance gate still aborts with 40
+  MISMATCH on stale goldens — nobody's work item.
+- **PROOF COSTS measured this session (they MOVED):**
+  `frontend/Module5_IREmitter` **1199 → 1481 → 1499**, ~35-50 min. The rises are REAL VCs
+  from making 75 methods concrete and then making their comprehensions faithful; every one
+  discharges. `frontend/ir_resolve` **793**. `frontend/__init__` **684**.
+  `src/self-annotate/src/pycsl.py` **732**. Others unchanged from #18's table.
+- Tree clean apart from the pre-existing user/build dirt. `getting-better/.driver-deadline`
+  intact and UNTOUCHED.
+- **PUSH: nothing was pushed by this worker.** Do not push.
 
-## WHAT THIS SESSION LANDED (ten gated increments)
+## WHAT THIS SESSION LANDED
 
-1. **THE CHEAP-WIN DRAIN, CENSUSED OVER THE COMPLETE SURFACE FOR THE FIRST TIME — 490 of 490
-   stubs in ALL 44 mirror files, ZERO faithful wins.** Previous censuses covered ~230 in 22
-   files. New repeatable tool `scratchpad/w2/probe_all2.py` ports each live body, re-emits
-   `--no-proof --keep-mlw`, and **SCORES THE EMITTED BODY** for erasure (`str_hash_op`,
-   `getattr_*`, `setattr_*`, argument-less oracles, `Array.make <n>`, `if true then`, `: int`
-   params) instead of stopping at "L3-tc passes" (trap (hh)). ~10 minutes for the whole
-   surface, 0.6 s per stub — the cheapest comprehensive oracle the campaign has. **38 pass
-   L3-tc; all 38 decline on the emitted body.** Re-run it after EVERY capability lands.
-2. **THE OBJECT-STATE WRITE MODEL — the FRAME PLANE made REAL for converted bodies.**
-   An abstract `val setattr_* … : unit` has NO effect in Why3, so every mutating body
-   satisfied `#@ assigns \nothing` VACUOUSLY. Now `_add_abstract_op` gives every `setattr_*`
-   val `writes { _pyobj_state }` over one COARSE abstract cell and `_emit_function` emits the
-   matching frame clause once the body is known to store an attribute — so `writes { }` under
-   a mutating body is REJECTED. Nine mirror methods re-annotated honestly (the recorded gap
-   said ELEVEN; two were false positives of a census that matched the emitter mirror's own
-   STRING LITERALS `"val setattr_"`). Attribute READS stay effect-free `val`s, so the
-   projector purity that got `_desugar_for` declined is NOT reintroduced.
-   Module3_Weaver 259/259, functions 1191/1191, pure_ast 2857/2857.
-3. **THE L2 DISPATCHER WALL BROKEN WITH `#@ \diverges` — `_py_expr_to_ir` IS CONCRETE,
-   shadowed sites 153 -> 125, ZERO axioms.** The recorded floor said the 20-member mutual
-   recursion needs a common variant, that the measure cannot be derived, and that the ledger
-   would exceed 3. The first two are TRUE; the conclusion is not — a variant is only ONE of
-   Why3's two ways to accept a recursive definition. Three parts: the SCC group-keyword
-   post-process in `_emit_function` (nine bespoke group emitters hard-code `let`, breaking the
-   `let rec … with` chain from the inside; byte-inert on its own), `\diverges` on the NINE
-   members that ACTUALLY recurse (Why3 rejects it on the other eleven), and the caller cascade
-   closed to a FIXPOINT computed statically over the emitted `.mlw` — exactly 12 more, then it
-   stops, because every remaining self-call still goes through an abstract val.
-   Module5_IREmitter 1198/1198, pycsl.py 731/731.
-4. **`PyCSLWeaver._desugar_for` CONVERTED (492 -> 491) — and the soundness price that
-   declined it is NOT PAID AT ALL.** The previous session built it, proved it 270/270 GREEN
-   and reverted it because its chain needed PURE `val function get_<attr>` / `iter_length`
-   projectors, solely so a `variant` term could mention them. The whole chain existed only to
-   supply a variant; `\diverges` removes the need for one. Verified in the emitted `.mlw`:
-   `get_lo`/`get_hi`/`get_var`/`get_clauses`/`iter_length`/`iter_get` are all PROGRAM vals,
-   never `val function`. Module3_Weaver 266/266.
-5. **A FOURTH GATE PLANE: `bin/check-trusted-frame-honesty.py`.** A `\trusted` stub's contract
-   is ASSUMED, never checked, so a stub declaring `#@ assigns \nothing` for a live method that
-   really mutates `self` is an unsoundness NO EXISTING PLANE CAN SEE — the proof is green, the
-   byte-diff is 0, mirror-sync is happy and the vacuity probe finds nothing, because there is
-   no body to check the claim against. Measured with a call-graph fixpoint over the live tree.
-   First measurement: **390 stubs declare `assigns \nothing`; 79 stand for a live body that
-   transitively writes self state; 27 write DIRECTLY; 11 MODEL-VISIBLE.**
-6. **`ExpressionEmissionMixin._to_bool` corrected (11 -> 10)**, plus the emitter fix it
-   needed: the CALLER-SIDE shadow val was emitted with all 17 declared fields while the
-   callee's own val correctly carried 4 — `_emit_function` filters a method's own writes
-   through `_emitted_record_field_labels`, the caller-side abstract op in
-   `_resolve_dotted_signature` is a SECOND PRODUCER of the same clause and did not (lesson
-   (am)). New `_writes_filtered_to_labels`. expressions 1069/1069, M6T 706/706.
-7. **`ControlFlowStmtMixin._render_match_pattern` corrected, and the gate's model-visibility
-   test sharpened to a PER-FILE question (10 -> 7).** stmt_control_flow 1846/1846.
-8. **The four `module6_whyml/statements.py` false frames drained (7 -> 3).** statements
-   **912/912 (NEW cost)**, M6T 706/706. All three survivors are constructors.
-9. **A REAL SOUNDNESS DEFECT INSIDE A FABLE-SANCTIONED CONSTRUCT, FOUND AND REPAIRED.**
-   `_variadic_content_comp` lowers `[self.<disp>(t) for t in <array emit_ir>]` with
-   `ensures { forall i. irnth i result = emit_ir_disp__<disp> src[i] }` over a **PURE
-   `val function`** — the mapped element is a DETERMINISTIC FUNCTION OF THE SOURCE ELEMENT
-   ALONE. False for a state-mutating dispatcher: two STRUCTURALLY EQUAL elements then map to
-   DIFFERENT results while the law forces them equal. MEASURED: `_csl_to_ir` dispatches
-   (`_CSL_HANDLERS` + `getattr`) to `_csl_in`, which calls `self._fresh_var("_dk")`, and
-   `_csl_in`'s mirror ALREADY honestly declares `#@ assigns self._fresh_var_counter`; a
-   table-aware analysis of the live source agrees (`_csl_to_ir` transitively READS
-   `_cur_func_name`/`_cur_func_symtab`/`_fresh_var_counter` and WRITES the last, while
-   **`_py_expr_to_ir` reads and writes NOTHING**, so its law is SOUND and is KEPT). The new
-   `_disp_state_independent` gate asks only `_module_method_writes` — the same `#@ assigns`
-   the callee's own boundary `val` is emitted from — for the dispatcher AND every handler its
-   CERTIFIED table names, failing CLOSED on a missing dispatcher / table / handler. So the law
-   can never disagree with the frames it rests on, and a false `assigns \nothing` on one of
-   those handlers is exactly what increment 5's gate polices: **the two increments lock
-   together.** Module5_IREmitter **1198/1198** — the SAME goal count, so nothing depended on
-   the two false laws. Two things the first cut needed: returning None is a Why3 TYPE ERROR
-   (`IrMkTupleN`'s payload is `irlist`, the fall-through is `array emit_ir`), so the honest
-   lowering keeps the carrier and the LENGTH law and drops only the content law; and
-   `_current_self_type` is the LOWERCASED whyml name while the IR carries the raw class name,
-   so a direct match finds nothing and the gate first failed closed on EVERY dispatcher,
-   silently dropping the SOUND law too.
-10. **THE SAME PURITY DEFECT IN A SECOND PLACE, found by turning increment 9's lesson into a
-    CENSUS.** Of the **126 distinct `val function` symbols** the emitter mints across the 52
-    emitted mirrors, `val function csl_to_ir (e: emit_ir) : emit_ir` stands for the SAME
-    state-dependent `_csl_to_ir` and is applied TWICE IN ONE EXPRESSION —
-    `SGhostArraySet (ghost_target_ast ga) (csl_to_ir (ghost_index_ast ga)) (csl_to_ir
-    (ghost_value_ast ga))` — where purity asserts the two results are equal whenever the two
-    nodes are. Measured first: **0 occurrences inside any `requires`/`ensures`/`invariant`/
-    `variant`/`assert`/`assume` across all 52 mirrors**, so nothing needed it as a LOGIC term
-    and it is demoted to a program `val`. Five mirrors re-proved: core_ir_semantic
-    **1506/1506 (NEW cost)**, ir_resolve 792/792, frontend/__init__ 683/683, pycsl.py
-    731/731, Module5_IREmitter 1198/1198.
-    **OPEN, RECORDED, NOT SILENTLY KEPT — READ THIS FIRST:** the sibling
-    `val function csl_to_ir_op` CANNOT be demoted the same way. It is applied inside the
-    LOGIC-level `function synth_overload_clauses` fold (`Seq.cons (IrBinOp "==>" guard
-    (csl_to_ir_op (ens_expr_ast e)))` in `preamble.py`), so a program `val` is ill-typed
-    there and removing the purity claim requires REDESIGNING THAT FOLD. It is the same
-    defect class as increments 9 and 10, still live.
+1. **LADDER ITEM 0 — the known-live unsoundness `val function csl_to_ir_op` — CLOSED,
+   plus a SECOND offender of the same class found by finishing the census.**
+   The fold `function synth_overload_clauses` is now PROGRAM code: a `let rec` with a
+   STRUCTURAL `variant { ens }` over `list ens_node`. **Why3 accepts structural descent on
+   an algebraic type, so no `diverges` is needed and NO effect propagates to the caller** —
+   the bespoke `_synthesize_overload_guard` emitter is untouched. The second offender is
+   `val function m5_current_class_present : bool`, the ONLY ARGUMENT-LESS pure
+   `val function` on the whole surface: an argument-less pure symbol over per-visit mutable
+   state is a CONSTANT. Both re-proved: ir_resolve 793, __init__ 684, pycsl.py 732,
+   Module5_IREmitter 1199, all 0 non-Valid.
+   **THE PREMISE WAS RE-DERIVED, NOT INHERITED.** A table-aware transitive self-write
+   analysis over the LIVE `Module5_IREmitter.py` (resolving `_CSL_HANDLERS` 79 /
+   `_PY_EXPR_HANDLERS` 23 / `_PY_STMT_HANDLERS` 16) gives `_csl_to_ir` → 77 methods reached,
+   WRITES `_fresh_var_counter`; `_py_expr_to_ir` → 48 reached, WRITES NOTHING. So the
+   demotions are necessary AND `boolop_dispatch` / `dict_dispatch` /
+   `emit_ir_disp__py_expr_to_ir` — also pure, also applied inside LOGIC folds — are sound
+   and were correctly left alone. **The `val function` census is now COMPLETE over all 123
+   symbols and there are no further offenders.**
+2. **THE FOURTH GATE PLANE HAD TWO BLIND SPOTS. Both closed.**
+   (a) **The CONVERTED surface.** The plane was scoped to `\trusted` stubs on the reasoning
+   that a converted method has a body so Why3 checks its frame. HALF TRUE: Module 6 emits an
+   explicit `writes {  }` and Why3 DOES reject an under-declared frame (spike: an OMITTED
+   `writes` is INFERRED and silently accepted; an EXPLICIT empty one fails) — but it checks
+   the EMITTED body, an ERASURE of the live one, and in every OTHER file the method is a
+   caller-side abstract `val` minted from the same `#@ assigns`, where the frame is ASSUMED
+   exactly as a stub's is.
+   (b) **Table-aware dispatch.** The call-graph walk resolved `self.<m>(...)` by attribute
+   name only, so it could not see `getattr(self, self._TABLE.get(k))(x)` — it was blind to
+   precisely the DISPATCHERS. Gated on the body also performing a `getattr(self, ...)` call;
+   tightening it that way changed NO count, which is evidence every table edge is a real
+   dispatcher.
+3. **THE `_csl_to_ir` CERTIFIED-BOUNDARY IS BROKEN — 75 methods concrete in ONE
+   `let rec … with` group, 92 shadowed sites gone, 1481/1481 Valid.**
+   The record said the family's effect summary "cannot be made exact BY CONSTRUCTION".
+   **That is true of exactly TWO of the 75.** `scratchpad/w3/fix_assigns.py` drives the
+   emitter and reacts to its OWN error text, editing only `#@` directives — the recorded
+   reopening capability ("an effect analysis computed from the EMITTED BODY rather than the
+   IR") built as a LOOP rather than as an analysis. 57 iterations to L3-tc.
+   56 of 75 took the honest `#@ assigns self._fresh_var_counter`; 17 of the other 19 make NO
+   self-call at all; the last 2 were the erasure. Blocker (2) did NOT need the reverted
+   `_callee_raised_direct` registry fix — an explicit `#@ raises E when True` is a second,
+   working route. **The dispatcher is BESPOKE-emitted and had never carried `#@ \diverges`
+   (lesson (am)); the first proof run was 1481/1595 Valid with ALL 114 failures being its
+   termination sub-goal.**
+4. **THE FAITHFUL COMPREHENSION LOWERING — built, and it is SMALL.**
+   `[self.<disp>(t) for t in xs]` now emits a LOCAL `let rec` that PERFORMS the call.
+   **The architectural finding: it does NOT need to be a new member of the `let rec … with`
+   group — a group member's body has its siblings IN SCOPE**, so a local `let rec` can call
+   the concrete dispatcher directly. Both length-only oracles are gone; the exactness
+   fixpoint then converged in SIX iterations and gave `_csl_mktuple` / `_csl_call_expr` the
+   honest frame. Module5_IREmitter 1499/1499.
+5. **THE `_py_stmts_to_ir` SHADOW TAKES ITS RECEIVER AND CARRIES ITS FRAME.**
+   `val self__py_stmts_to_ir_1 (x0: array int)` was RECEIVER-LESS and EFFECT-FREE for a
+   state-writing method. It has **FOUR PRODUCERS** — the generic `_handle_dotted_call`
+   route, the hard-coded fallback table in `abstract_ops._SELF_DISPATCH_VAL_DECLS`, and
+   three bespoke stmt handlers — and the decision now lives in ONE place
+   (`functions._stmts_disp_writes`). Fails closed on the IMPORTED-emitter path, where the
+   class is `type pycsltojsonemitter = int` and an unfilterable label produced `unbound
+   function or predicate symbol '_fresh_var_counter'`.
+6. **The census scorer had a FALSE-NEGATIVE CLASS.** Its `nilop` mark required an
+   argument-less oracle's name to END IN `_<digits>`, so `errors.PyCSLError.message` —
+   whose WHOLE emitted body is `(str_dunder_op ())` — scored 0 and read as a cheap win.
+   Fixed in `scratchpad/w3/probe_all4.py`.
 
 ## CERTIFIED-BOUNDARIES RECORDED OR CORRECTED THIS SESSION
 
-- **`_csl_to_ir` (92 shadowed sites — the largest single item left on that metric) — NEW AND
-  PRECISE REASON.** The recorded cause ("members of a `let rec … with` group must agree on
-  their EFFECT SUMMARY") is directionally right and incomplete. The whole chain was walked
-  with `#@ sibling_concrete` applied: (1) `unlisted write effect` — a member really does reach
-  `_csl_in`, which writes `self._fresh_var_counter`, so today's abstract `val` with
-  `assigns \nothing` models the WHOLE handler subtree as pure and it is not; declaring
-  `#@ assigns self._fresh_var_counter` on the members clears it. (2) `unlisted exception` —
-  root cause is a REGISTRY-KEY MISMATCH: `_callee_raised_direct` looks callees up by the Call
-  node's `self.<m>` spelling while `_module_func_raises` is keyed by the qualified
-  `<class>__<m>`, so **a callee's `#@ raises` is invisible to its sibling callers**. Fixed and
-  measured BYTE-INERT (0 of 52 mirrors, 0 of 814 corpus) — then REVERTED, because
-  `_callee_raised_direct` is mirrored UN-TRUSTED and its own mirror body is already a facade
-  (`registry := (if (0 <> 0) || ((const (None: option int)) <> 0) then 1 else 0)`), so the
-  required port stops type-checking. (3) **THE WALL: Why3 requires a concrete `let`'s effect
-  summary to be EXACT and rejects over-declaration BOTH ways** (`this write effect does not
-  happen in the expression`, `this expression does not raise exception PyCSLIRError`). It
-  cannot be made exact because the IR-level analysis and the emitted body disagree BY
-  CONSTRUCTION: `_csl_mktuple`'s `[self._csl_to_ir(e) for e in node.elts]` lowers to
-  `(IrMkTupleN (list_content_comp_3 node.mktupleexpr_elts))`, where
-  `val list_content_comp_3 (src: array emit_ir) : irlist` is a PURE, EFFECT-FREE oracle and
-  the per-element call is GONE. **REOPENING CAPABILITY: a FAITHFUL comprehension lowering for
-  `[self.<m>(e) for e in xs]` that actually performs the call, or an effect analysis computed
-  from the EMITTED BODY rather than the IR — the principle the `materialize` bridge already
-  uses when it tests `any("(materialize_X " in l for l in lines)`.**
-- **THE "ATTRIBUTE STORE IS STRUCTURALLY IMPOSSIBLE IN WHY3" REFUTATION WAS WRONG ABOUT ITS
-  OWN HORNS — there is a THIRD, and it works.** The record called two horns exclusive and
-  exhaustive (a ghost `ref (map …)`, or an `array int` store making `get_<attr>` non-pure).
-  Spiked in minutes (`scratchpad/w2/heapspike.mlw`): keep the state as an opaque program
-  token and PASS IT AS AN ARGUMENT to a pure logic projector —
-  `val _pyobj_state : ref int`, `val function get_attr (st o f: int) : int` (pure, because the
-  state is an ARGUMENT and not an external variable, hence legal in every contract clause),
-  `val setattr_3 … writes { _pyobj_state } ensures { get_attr !_pyobj_state x f = v }`.
-  Alt-Ergo: the mutate-then-read TRUE fact is **Valid**; the FALSE preservation claim across a
-  store is **Unknown**. Zero axioms. **IT IS STILL A BOUNDARY FOR A NEW REASON:
-  OBJECT-IDENTITY INJECTIVITY.** The read relation is sound only if distinct objects never
-  lower to the same Why3 term, and the int-erased object model gives no such guarantee
-  (`_coerce_to_int` collapses to the literal `0`; erased locals are `ref 0`). Measured against
-  the emitted `.mlw`: today every `setattr_*`/`getattr_*` object term is a plain identifier
-  (`node` 35 / `self` 12 writes; `self` 22 / typed `x` 8 reads), never a literal — so the
-  hazard is UNEXERCISED but UNPREVENTED. **REOPENING CAPABILITY: injective object identity —
-  the record AST model, or an allocator minting provably-distinct references. The heap
-  encoding itself is DONE.**
-- **`exception_model.bases_closure` — its recorded reason is only half the blockage.** Tried
-  with `\diverges` and refuted in seconds: it fails L3-tc with `This expression has type
-  string, but is expected to have type int`. The wall is the VALUE MODEL, not the
-  while-fixpoint termination the record names.
+- **`pure_ast._Parser.error` / `.unsupported` — conclusion SURVIVES, reason REPLACED.**
+  The mirror said they stay trusted because of "raise + f-string + the `_tokenize.tok_name`
+  dict read" and that the conversion is "count-neutral". Both wrong. They DO convert
+  (L3-tc GREEN, `let … ensures { false } raises { PyCSLSyntaxError }` over a real receiver
+  read `t := (_parser__cur self)`) and the count goes 491 → 489. What declines it is
+  `bin/check-emitted-vacuity.py --emit`: 2 NEW erasures, each function erasing its ONLY
+  input. **REOPENING CAPABILITY: a modelled message payload on the raise** — the same
+  decision `_fin` needs for its location stamps. The mirror comments now say this.
+- **`_py_stmts_to_ir`'s bespoke second producers** — recorded then BUILT in the same
+  session; see landing 5.
 
 ## RECORDED BOUNDARIES CARRIED FORWARD — do not re-grind without the named capability
 
-- The three above, plus everything below.
-- **`crosscheck_ir.pairwise`** — the `Optional[Term]` PARAM route is SPIKED AND WORKING
-  (`scratchpad/w2/opt_term_param.spike.patch`); two gaps remain: (a) a call to a LIFTED NESTED
-  `def` does not resolve to the hoisted symbol; (b) `Dict[str, Optional[bool]]` is not
-  expressible (the dict model already spends `option` on KEY PRESENCE). DEMAND IS NIL — the
-  only reader of `.pairwise` is the `\trusted` `diagnostic()`. A whole-repo census this session
-  found only **6** trusted stubs with a nested `def` at all, all in heavy I/O functions, so the
-  generic lifted-nested-def capability has almost no yield.
-- **The shadowed TCFAIL residue — [PYVAL / ARRAY-INT MODEL SPLIT]** on the 11 non-dispatcher
-  shadowed methods.
+- The `_csl_to_ir` boundary is **BROKEN and should be struck from any ladder that still
+  lists it.**
+- **The attribute-store third horn** (pass the state as an ARGUMENT to a pure projector)
+  works and is axiom-free; it is still blocked on **OBJECT-IDENTITY INJECTIVITY**.
+- **`crosscheck_ir.pairwise`** — spiked and working, demand NIL.
+- **The shadowed TCFAIL residue — [PYVAL / ARRAY-INT MODEL SPLIT]** on the remaining
+  non-dispatcher shadowed methods (now only 33 sites over 13 methods).
 - **`_fin`, `_max_end`, `_fin_block` — [ERASURE-LEDGER]**; `node(self, name, start_tok, **kw)`
-  — [MODEL]; `_slice` (needs `self._lines`); the **`_Unparser` family (~50 stubs)** — 13 of
-  them pass L3-tc and every one is an int-erased facade; **`Module2_Parser`'s
+  — [MODEL]; `_slice`; the **`_Unparser` family (~50 stubs)**; **`Module2_Parser`'s
   contract-expression cluster** (TERMINUS); `_decode_escapes` / `_decode_string`;
   `identifiers.whyml_ident` / `stable_hash`; `struct_format.parse_format` / `calcsize`;
   `proof2why3/normalize`'s whole file (regex).
-- **`error` / `unsupported`** stay `\trusted` by design; count-neutral.
+- **`exception_model.bases_closure`** — the wall is the VALUE MODEL, not termination.
 - Dropping the `_record_array_fields` PROXY disjunct changes 6 of 813 corpus files.
-- The **Set[str]-returning surface is EXHAUSTED**: a fresh AST census found only FOUR trusted
-  `Set[str]` stubs left — `audit_proof._parse_rocq_file` / `_parse_lean_file` /
-  `_index_proofs_dir` (file I/O) and `statements._typed_local_vars` (recorded). Backlog 1b(A)
-  has nothing left to convert; the per-callee `#@ sibling_concrete` gate it asked for exists.
 
 ## Pick up here — in this order
 
-0. **THE ONE KNOWN-LIVE UNSOUNDNESS: `val function csl_to_ir_op`.** It stands for the
-   state-dependent `_csl_to_ir` and is applied inside the LOGIC-level
-   `function synth_overload_clauses` fold in `preamble.py`, so it cannot simply be demoted
-   to a program `val` the way increment 10 demoted its sibling. Either rebuild that fold so
-   the dispatcher application happens in PROGRAM code, or drop the synthesized-overload
-   clause construction to a length-style law. Do this before anything else: it is a claim
-   the model makes that the source does not satisfy.
-1. **`#@ \diverges` IS A NEW, CHEAP, AXIOM-FREE TOOL AND IT IS NOT YET FULLY MINED.** It broke
-   two recorded floors this session. Its scope is bounded and known: a stub blocked ONLY on
-   termination PASSES L3-tc today, so it is necessarily inside the 38-member KEEP set of the
-   complete-surface census — and a re-run of that census WITH `\diverges` injected
-   (`scratchpad/w2/probe_all3.py`) produced NO new candidates. So do not re-probe for more
-   conversions; instead apply it wherever a build's soundness price is being paid ONLY to
-   satisfy a termination obligation. **RULE, banked: `\diverges` asserts NOTHING, so it can
-   never be the source of a false claim, whereas a purity upgrade can.**
-2. **THE `_csl_to_ir` REOPENING CAPABILITY — a faithful comprehension lowering for
-   `[self.<m>(e) for e in xs]`. NOTE WHAT INCREMENT 9 CHANGED ABOUT IT:** the content-law
-   oracle for that dispatcher is now LENGTH-ONLY, because the per-index law was UNSOUND for a
-   state-mutating dispatcher. A faithful lowering must therefore perform the call in
-   SEQUENCE, threading the emitter state — which is the honest shape anyway, and it is what
-   makes the effect analysis and the emitted body agree. This is the highest-value item left: it is the named
-   blocker for the 92 remaining shadowed sites, it removes a content-law ORACLE in favour of a
-   real call, and the rest of that build (the honest `#@ assigns self._fresh_var_counter` on
-   the 56 group members, `\diverges` for the group) is already walked and understood. Watch
-   the `irlist` size-lemma explosion note in `preamble.py` before reaching for a polymorphic
-   list.
-3. **THE THREE REMAINING MODEL-VISIBLE FALSE TRUSTED FRAMES ARE ALL CONSTRUCTORS**
-   (`PyCSLToJSONEmitter.__init__`, `pure_ast._Parser.__init__`, `_ContractParser.__init__`).
-   A constructor writing the fields of the object it is CONSTRUCTING is a materially weaker
-   case than a method mutating shared cursor state, and correcting one means declaring the
-   whole record written at every construction site. Judge it on its merits; do not drain it
-   for the number. The **73 total** (non-model-visible) offenders are honest-annotation debt,
-   not unsoundness — correcting one of those is COSMETIC and was measured to change the
-   emitted `.mlw` not at all.
-4. **The `pyx_view` ADT redesign / the record AST model** remains the soundness floor under
-   everything above: it is what makes object identity INJECTIVE (unblocking the heap encoding
-   in §2 of the boundaries), what would let the L2 groups carry a real variant instead of
-   `\diverges`, and what makes the AST-node `: int` erasure — measured at roughly twenty of
-   the 38 L3-tc-passing stubs — go away. **BE PRECISE ABOUT WHAT EXISTS:** `py_with_node` /
-   `py_match_node` / `py_ghost_node` are ABSTRACT types with pure `val` projectors, NOT
-   records; the record model to route onto is the `@dataclass` one with MUTABLE FIELDS.
-   **AND KNOW THE NEW OBSTACLE MEASURED THIS SESSION:** `pure_ast`'s node classes are
-   SYNTHESIZED AT IMPORT by `type(name, (base,), body)` from the `_NODE_SPEC` dict literal,
-   so Module5's static `@dataclass` recognizer cannot see them at all. Routing them onto the
-   record model first requires either static class declarations in `pure_ast` (a real change
-   to a core live file) or a bespoke recognizer that reads `_NODE_SPEC` itself.
+1. **`ControlFlowStmtMixin._handle_return_stmt`** — the ONE non-constructor model-visible
+   false frame left on either population (18 fields via-callee, including the MODELLED
+   `_current_self_type`). Expect the same shape as landing 5: find which shadow/oracle
+   erases the write, make it carry its receiver and its frame, then let
+   `scratchpad/w3/fix_assigns.py` converge. `module6_whyml/stmt_control_flow` is 1846 goals,
+   ~45 min.
+2. **THE CONSTRUCTORS.** After item 1, EVERY remaining model-visible false frame on BOTH
+   populations is a constructor (`PyCSLToJSONEmitter.__init__`, `pure_ast._Parser.__init__`,
+   `Module2_Parser._ContractParser.__init__`, `proof2why3/parser.py::_Parser.__init__`). A
+   constructor writing the fields of the object it is CONSTRUCTING is a materially weaker
+   case, and correcting one means declaring the whole record written at every construction
+   site. Judge it on its merits; do not drain it for the number.
+3. **`scratchpad/w3/fix_assigns.py` IS THE REUSABLE TOOL OF THIS SESSION.** It converges
+   `#@ assigns` / `#@ raises` / `#@ \diverges` against Why3's own error text. Point its
+   `MIR` constant at another mirror and it generalises. Every wall whose recorded reason is
+   "the effect summary cannot be made exact" should be re-tested with it FIRST.
+4. **The `pyx_view` ADT redesign / record AST model** remains the soundness floor under the
+   object-identity question. **KNOW THE OBSTACLE:** `pure_ast`'s node classes are
+   SYNTHESIZED AT IMPORT by `type(name, (base,), body)` from `_NODE_SPEC`, so Module5's
+   static `@dataclass` recognizer cannot see them.
 
 ## Instrument facts (re-verified this session)
 
@@ -283,70 +166,64 @@
 3. `check-emitted-vacuity.py` is a false green without `--emit`.
 4. **`.gitignore` has `*.mlw`** — `git add -A` SILENTLY SKIPS evidence files.
 5. `bin/check-untrusted-emitted.py` reports 0/0/0/0 — a FALSE GREEN — with no PATH export.
-6. `python3 -u` on every proof; a `grep -c "Prover result"` on a running log flushes in
-   batches. Do not conclude "stuck" from it.
+6. `python3 -u` on every proof; `grep -c "Prover result"` flushes in batches. **A run can sit
+   at ZERO prover results for 50 minutes and then flush 1500 — do NOT conclude "stuck".**
+   Check for live `alt-ergo`/`z3` children instead.
 7. **A FAILING `pycsl.py` run is much FASTER than a passing one.**
 8. **BACKGROUND WATCHERS DO NOT SURVIVE YOUR TURN ENDING.** `nohup` the proof, then wait in
-   the FOREGROUND with `timeout 580 bash -c 'until … ; do sleep 25; done'` AND pass the Bash
-   tool's own `timeout`. **`scratchpad/w2/r18prove.sh <file> …`** proves a LIST sequentially
-   (edit its `OUT=` per battery, as `r18prove2..7.sh` do).
-8b. **`bin/byte-diff-sweep.sh` RUNS WITH `--no-typecheck`** — byte-diff 0 is NOT proof-safety.
-9. **`scratchpad/w2/sweep.sh <root> <outdir>`** emits all 52 mirrors WITH L3-tc in ~35 s;
-   **`keepsweep.sh`** keeps the `.mlw`. `bin/byte-diff-sweep.sh <out>` does 814 corpus files in
-   ~32 s. RE-BASELINE both after every landed increment.
+   the FOREGROUND with `timeout 580 bash -c 'until … ; do sleep 25; done'` AND the Bash
+   tool's own `timeout`. **`scratchpad/w3/prove.sh <files…>`** proves a list sequentially in
+   the main tree; **`scratchpad/w3/prove_wt.sh`** does the same in the worktree.
+8b. `bin/byte-diff-sweep.sh` RUNS WITH `--no-typecheck` — byte-diff 0 is NOT proof-safety.
+9. **`scratchpad/w2/sweep.sh <root> <outdir>`** emits all 52 mirrors WITH L3-tc in ~35 s and
+   writes an md5 manifest; **`keepsweep.sh`** keeps the `.mlw`. **PASS ABSOLUTE PATHS** — it
+   `cd`s to `<root>` and a relative outdir lands inside the worktree.
 10. **`--fun` CANNOT probe `Module5_IREmitter` at all** — whole-file or nothing.
-11. **`bin/check-shadowed-selfcalls.py --emit-dir <dir> --verbose`** gives the per-method
-    breakdown in seconds from already-emitted `.mlw`.
-12. The **Alt-Ergo pin at `pycsl.py:1318` is stale**. Pass
+11. **A GIT WORKTREE IS THE RIGHT PLACE FOR A SPIKE.** `git worktree add --detach
+    scratchpad/w3/wt HEAD` + symlink `.venv`. It lets a long main-tree proof and a
+    spike proof run at the same time, and it keeps a census's port→revert churn off the
+    real tree. **Sync it with `git checkout --detach $(git -C <main> rev-parse HEAD)` —
+    `git rev-parse HEAD` INSIDE the worktree returns the worktree's own HEAD.**
+12. **A PROOF TRANSFERS BETWEEN TREES WHEN THE EMISSION MANIFEST IS IDENTICAL.** `diff` the
+    two `sweep.sh` md5 manifests; if they match, the worktree's proof IS evidence for the
+    main tree. This session used it once and re-ran the battery anyway.
+13. The **Alt-Ergo pin at `pycsl.py:1318` is stale**. Pass
     `--provers 'Alt-Ergo,2.6.3,,Z3,4.13.3,'` EXPLICITLY; do NOT edit the pin.
-13. **`grep` MISBEHAVES on `driver-progress.log`** (very long lines). Use
-    `python3 -c "print(open(f).read().count(...))"`. The shell `grep` here is **ugrep**.
-14. **A `#@`-block heredoc in a Bash `-m` commit message gets MANGLED by backtick command
-    substitution.** Use `git commit -F -` with a QUOTED heredoc. Same for progress-log lines:
-    write them with a `python3 - <<'PYEOF'` heredoc, never an inline `python3 -c "…"` (a
-    backslash or apostrophe in the text kills it — happened once this session).
-15. **Check `ps -eo cmd | grep -c '[p]ycsl.py'` BEFORE launching a battery.**
+14. **`grep` here is ugrep and MISBEHAVES on `driver-progress.log`** (very long lines). Use
+    python. Write progress lines with a `python3 - <<'PYEOF'` heredoc, never inline `-c`.
+15. **`cd` PERSISTS ACROSS A COMPOUND BASH COMMAND** in this harness even though the cwd is
+    reset between calls. A `cd <worktree> && …` followed by a relative path silently
+    operates on the wrong tree. Use absolute paths after any `cd`.
 16. **NEVER put a `\trusted` marker LITERAL in a mirror comment** — it counts as a MARKER.
-17. **NEW TOOLS this session** (all in `scratchpad/w2/`, foreground-only, always restoring):
-    `probe_all2.py` (complete-surface census WITH an emitted-body erasure score),
-    `probe_all3.py` (the same, injecting extra `#@` directives),
-    `port_one.py` (port ONE stub's live body in place, plus extra directives — no restore),
-    `fix_assigns_loop.py` / `fix_writes_loop.py` (iterate the emitter and repair a `#@ assigns`
-    cascade to a fixpoint).
+17. **NEW TOOLS this session** (`scratchpad/w3/`, foreground-only):
+    `fix_assigns.py` (the Why3-EXACTNESS FIXPOINT over `#@ assigns`/`raises`/`\diverges` —
+    the session's most valuable artifact), `probe_all4.py` (the census with the repaired
+    argument-less-oracle mark), `conv_frame.py` (the converted-surface frame probe, now
+    folded into the gate), `census.sh`, `prove.sh` / `prove_wt.sh`,
+    `spike_local.mlw` / `spike_cc.mlw` / `spike_cc_neg2.mlw` / `spike_fold.mlw`.
 
 ## Method notes this session paid for
 
-- **WHEN A BUILD'S SOUNDNESS PRICE IS PAID ONLY TO SATISFY A TERMINATION OBLIGATION, CHECK
-  WHETHER PARTIAL CORRECTNESS BUYS THE SAME RESULT FOR FREE.** `#@ \diverges` asserts nothing.
-  It broke the L2 dispatcher floor AND converted `_desugar_for` without its declined price.
-- **A RECORDED REFUTATION'S "EXHAUSTIVE HORNS" DESERVE THE SAME SUSPICION AS ITS GATE AND ITS
-  MODEL.** The attribute-store refutation named two horns and called them exhaustive; the
-  third (pass the state as an ARGUMENT) works and is axiom-free. This is the FOURTH
-  consecutive session in which a recorded boundary was wrong about its own reason.
-- **WHEN A LIVE-EMITTER CHANGE COSTS FIDELITY DRIFT, LOOK FOR A `\trusted`-MIRRORED CHOKE
-  POINT THE SAME CHANGE CAN SIT BEHIND.** The object-state model first went into
-  `statements.py` (mirrored un-trusted) and immediately cost 2 new `DIVERGED` entries, a
-  ported helper and an unbound writes label; the identical three lines in `_add_abstract_op`
-  (a `\trusted` stub) cost nothing. Same trick made the caller-side writes filter free.
-- **A "PURE `val function`" IS A DETERMINISM CLAIM, AND A STATEFUL PYTHON METHOD DOES NOT
-  SATISFY IT.** Increment 9's defect had been sanctioned and reviewed; what caught it was
-  asking, of a symbol declared `val function`, whether the SOURCE method it stands for reads
-  or writes any mutable state. Do that for every `val function` the emitter mints.
-- **A GATE MUST MEASURE THE MODEL'S CLAIM, NOT THE ANNOTATION'S WORDING.** The new
-  frame-honesty metric was defined three times (79 -> 22 -> 11 -> 7) before it counted only
-  the claims a prover can actually be misled by: `@mutable_state` class AND a field the
-  stub's OWN MIRROR FILE assigns. A repo-wide field set still counted a class whose file
-  emits `type <cls> = int`.
-- **A FALSE `assigns \nothing` ON A TRUSTED EMITTER STUB HIDES A ONE-METHOD CASCADE, NOT A
-  WAVE** — measured three times in a row (`_to_bool`, `_render_match_pattern`, the four
-  statements.py stubs) — because every other path to the mutated state already declares it.
-  But seed the cascade loop with the stub's FULL declared write set: seeded short it spins
-  forever re-adding the same insufficient clause (60 no-progress iterations, measured).
-- **AN EFFECT SUMMARY MUST BE EXACT IN WHY3, NOT AN OVER-APPROXIMATION.** Why3 rejects both
-  `this write effect does not happen` and `this expression does not raise exception X`. Any
-  scheme that DERIVES a frame from the IR must therefore agree with what the body EMITS.
-- Still live: **(am)** ASSUME TWO PRODUCERS — it bit three more times this session (the SCC
-  group keyword, the bespoke dispatcher dropping `#@ \diverges`, the caller-side `writes`
-  clause); **(ai)** prove sequentially; **(bq)** a returnless mutator is modelled as a NO-OP;
-  **(bu)** the concrete-route allowlist is a serial silent floor; **(hh)** L3-tc passing is NOT
-  a conversion criterion — now measured at 38 of 38 over the COMPLETE surface.
+- **WHEN A RECORDED REASON SAYS "BY CONSTRUCTION", MAKE THE MACHINE SAY IT.** The
+  `_csl_to_ir` boundary's claim that the family's effect summary can never be exact was true
+  of 2 members out of 75. A loop that reads Why3's error text found that in 57 iterations;
+  three sessions of reasoning had not.
+- **`#@ \diverges` ASSERTS NOTHING, so it can never be the source of a false claim** — but
+  a BESPOKE emitter is a SECOND PRODUCER of the contract block and will silently drop it.
+  Lesson (am) fired FOUR times this session (the dispatcher's `diverges`, the
+  `_py_stmts_to_ir` shadow's receiver, its declaration table, its three bespoke call sites).
+- **A LOCAL `let rec` INSIDE A GROUP MEMBER'S BODY SEES ITS `let rec … with` SIBLINGS.**
+  This is what made the faithful comprehension lowering a small change instead of a
+  group-restructuring one.
+- **AN ARGUMENT-LESS PURE `val function` IS A CONSTANT.** If it stands for mutable state,
+  the model asserts that state never changes. Grep for `val function <name> : <type>` (no
+  parameters) — there was exactly one, and it was wrong.
+- **A GATE'S SCOPE IS A CLAIM, AND IT DESERVES THE SAME SUSPICION AS ITS THRESHOLD.** The
+  frame-honesty plane's two blind spots were both in its SCOPE, not its measurement: it
+  looked at the wrong population and it could not see dispatch.
+- **A RATCHET MAY RISE WHEN THE ANALYSIS GETS SHARPER** — and the docstring must then say
+  what it newly sees. The table-aware change took trusted 3/73 → 6/76 before the session's
+  work took it back to 3/73.
+- Still live from earlier sessions: **(ai)** prove sequentially; **(bq)** a returnless
+  mutator is modelled as a NO-OP; **(bu)** the concrete-route allowlist is a serial silent
+  floor; **(hh)** L3-tc passing is NOT a conversion criterion.
