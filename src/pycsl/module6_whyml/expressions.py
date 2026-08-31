@@ -5339,6 +5339,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     return str(sum(int(elems[i]) for i in range(size)))
         return ""
 
+    def _writes_filtered_to_labels(self, cls, fields):
+        """Keep only the `#@ assigns self.<f>` targets that the record for `cls` ACTUALLY
+        EMITS as a field label.
+
+        `_module_method_writes` is derived straight from the source `#@ assigns`, and a
+        method may honestly declare a field Module 5 never registers as a record field —
+        e.g. one written only inside a `\\trusted` mirror stub's LIVE body, which the mirror
+        itself never assigns. Emitting such a label into a caller-side `writes { … }` gives
+        Why3 `unbound function or predicate symbol '<f>'`.
+
+        `_emit_function` already applies exactly this filter when it emits a method's OWN
+        `writes` clause (see its `_emitted_record_field_labels` note); the CALLER-SIDE
+        abstract op built here is a SECOND PRODUCER of the same clause and did not — lesson
+        (am). Measured on the shadow val `self__to_bool_2`, which carried all seventeen
+        declared fields while the callee's own val carried the four real labels.
+        When the registry is absent (no record emitted) nothing is filtered, so emission is
+        byte-identical wherever the two sets already agreed.
+        """
+        labels = getattr(self, "_emitted_record_field_labels", {}).get(cls)
+        if labels is None:
+            return list(fields)
+        return [f for f in fields if self._field_label(cls, f) in labels]
+
     def _resolve_dotted_signature(self, func_name: str):
         """Resolve a dotted call's `(ret_type, param_types, result_ensures, field_spec)`
         from the module method tables: `self.<m>(...)` and `<recordvar>.<m>(...)` look up
@@ -5381,7 +5404,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _fppe = getattr(self, "_module_method_field_param_post_ensures", {}).get(lookup_key, [])
             _fpfe = getattr(self, "_module_method_field_param_frame_ensures", {}).get(lookup_key, [])
             _rfe = getattr(self, "_module_method_result_frame_ensures", {}).get(lookup_key, [])
-            _w = getattr(self, "_module_method_writes", {}).get(lookup_key, [])
+            _w = self._writes_filtered_to_labels(
+                cls, getattr(self, "_module_method_writes", {}).get(lookup_key, []))
             field_ens = _fe + _foe + _fpe + _fppe
             if (field_ens or _w or _fpfe or _rfe) and cls:
                 # `self.<m>()` called from a sibling method: the enclosing
@@ -5427,7 +5451,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     mwrites = getattr(self, "_module_method_writes", {})
                     field_ens = (fens.get(lookup_key, []) + foens.get(lookup_key, [])
                                  + fpens.get(lookup_key, []) + fppens.get(lookup_key, []))
-                    writes = mwrites.get(lookup_key, [])
+                    writes = self._writes_filtered_to_labels(
+                        cls, mwrites.get(lookup_key, []))
                     frame_ens = fpfens.get(lookup_key, [])
                     result_frame_ens = rfens.get(lookup_key, [])
                     if field_ens or writes or frame_ens or result_frame_ens:
