@@ -41,8 +41,8 @@ import collections
 import os
 import sys
 
-RATCHET = 7           # MODEL-VISIBLE offenders: `@mutable_state` class AND a modelled field
-TOTAL_RATCHET = 77    # every offender, including opaque-self classes
+RATCHET = 3           # MODEL-VISIBLE offenders: `@mutable_state` class AND a modelled field
+TOTAL_RATCHET = 73    # every offender, including opaque-self classes
 LIVE_ROOT = "src/pycsl"
 MIRROR_ROOT = "src/self-annotate/src"
 
