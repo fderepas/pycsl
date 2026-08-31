@@ -5440,3 +5440,81 @@ carrier. (The `Optional[str]` twin DOES work — that is what the class-by-name 
 Landed alongside the `_fin` recognizer and worth knowing: a LITERAL `None` keyword argument bound to
 an `option` field used to lower to the int `0` (both a type error and the None-reads-as-zero
 erasure); it now lowers to Why3's `None`, and an OMITTED option field defaults to `None` too.
+
+---
+
+## RELAUNCH #19 (2026-08-31) — RESOLUTIONS AND THE STATE OF THE LADDER
+
+### BROKEN — `_csl_to_ir` / the `_csl_*` family effect summary (the largest shadowed item)
+
+The record said the 75-member family's effect summary "cannot be made exact BY CONSTRUCTION"
+because the IR-level analysis and the emitted body disagree. **That is true of exactly TWO
+members.** Driving `#@ assigns` / `#@ raises` / `#@ \diverges` to a fixpoint against Why3's
+OWN error text (`scratchpad/w3/fix_assigns.py`, 57 iterations to L3-tc) — the recorded
+reopening capability, built as a LOOP over the emitted body rather than as an analysis —
+makes the whole family one concrete `let rec … with` group.
+
+* 56 of 75 carry the honest `#@ assigns self._fresh_var_counter`; 17 of the remaining 19 make
+  NO self-call at all, so `\nothing` is true of the source too; **exactly 2 are erased**
+  (`_csl_mktuple`, `_csl_call_expr` — the only two with `[self._csl_to_ir(e) for e in …]`).
+* Blocker (2), the "unlisted exception" wall, did NOT need the reverted `_callee_raised_direct`
+  registry-key fix: an explicit `#@ raises E when True` is a second, working route.
+* Termination: `#@ \diverges` on the 53 recursing members AND on the dispatcher. The
+  dispatcher is BESPOKE-emitted (lesson (am), second producer) and had never carried it — the
+  first proof run was 1481/1595 Valid with ALL 114 failures being its termination sub-goal.
+* Measured: whole-file proof **1481/1481 Valid**; shadowed-selfcalls **14/125 → 13/33**;
+  frame-honesty **trusted 6/76 → 5/75, converted 63/130 → 9/76**; corpus byte-diff 0/814;
+  `\trusted` count UNCHANGED at 491 (every member was already converted).
+
+### STILL OPEN, now priced to TWO METHODS — the faithful comprehension lowering
+
+`[self.<m>(e) for e in xs]` lowers to an abstract `list_content_comp_N` and the per-element
+call is GONE, so the emitted body has no effect and `#@ assigns \nothing` is exact for the
+EMISSION and false for the SOURCE. This is the last erasure in the `_csl_*` family and it is
+now exactly `_csl_mktuple` and `_csl_call_expr`.
+
+**The WhyML shape is SPIKED AND PROVING** (`scratchpad/w3/spike_cc.mlw`, Alt-Ergo Valid):
+
+```
+let rec cc_N (self: <cls>) (src: array emit_ir) (i: int) : irlist
+  requires { 0 <= i <= Array.length src }
+  ensures  { irlen result = Array.length src - i }
+  variant  { Array.length src - i }
+  writes   { self.<field> }
+= if i >= Array.length src then ILNil
+  else let h = <dispatcher> self src[i] in
+       let t = cc_N self src (i + 1) in
+       ILCons h t
+```
+
+with the negative control confirmed (`scratchpad/w3/spike_cc_neg2.mlw`: an explicit
+`writes {  }` over this body IS rejected). **The remaining work is emitter-side and is
+NOT a correctness question:** `cc_N` calls the dispatcher and the dispatcher dispatches back
+to the comprehension's owner, so `cc_N` must be emitted as a MEMBER of the same
+`let rec … with` group. That is COST/SCALE.
+
+### NEW GATE FINDING — the fourth plane had two blind spots, both now closed
+
+1. **The CONVERTED surface.** The plane was scoped to `\trusted` stubs because "a converted
+   method has a body, so Why3 checks its frame". Half true: in its OWN file Why3 does check it
+   (Module 6 emits an explicit `writes {  }`, and an explicit empty one IS rejected — an
+   OMITTED one is inferred and silently accepted, spike `scratchpad/w3/spike_cc_neg2.mlw`),
+   but what it checks against is the EMITTED body, an erasure of the live one; and in every
+   OTHER file the method is a caller-side abstract `val` minted from the same declared
+   `#@ assigns`, where the frame is ASSUMED exactly as a `\trusted` stub's is.
+2. **Table-aware dispatch.** The call-graph walk resolved `self.<m>(...)` by attribute name
+   only, so it could not see `getattr(self, self._TABLE.get(k))(x)` — i.e. it was blind to
+   precisely the DISPATCHERS. Handler tables are now resolved (gated on the body also
+   performing a `getattr(self, ...)` call; tightening it that way changed no count).
+
+### NEW LESSON — a pure `val function` is a determinism claim, and the census is now COMPLETE
+
+Over the 123 `val function` symbols the emitter mints: `getattr_*` are already PROGRAM vals;
+`overload_type_name_op` is a genuinely pure `@staticmethod`; `mutable_state_classes_mem` reads
+a set assigned exactly once; the `<cls>__<method>__<local>` family models pure string ops; and
+`boolop_dispatch` / `dict_dispatch` / `emit_ir_disp__py_expr_to_ir` are SOUND because a
+table-aware transitive write analysis of the LIVE source shows `_py_expr_to_ir` reaches 48
+methods and writes NOTHING (while `_csl_to_ir` reaches 77 and writes `_fresh_var_counter`).
+Two offenders were repaired: `csl_to_ir_op` (the recorded live unsoundness) and
+`m5_current_class_present` (the only ARGUMENT-LESS pure `val function` on the surface — an
+argument-less pure symbol over mutable state is a CONSTANT).

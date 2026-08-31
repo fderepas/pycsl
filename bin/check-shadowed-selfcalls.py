@@ -82,7 +82,16 @@ BASELINE = 13          # 55 at first measurement, 50 after the `array <t>` concr
                        # `name in self._module_binding_names()` int-HASHED its key against
                        # an unconstrained int-keyed map. This is backlog 1b(A)'s rejected
                        # GLOBAL `Set[str]` retype, made safe by using the marker as the
-                       # PER-CONSUMER gate that attempt lacked)
+                       # PER-CONSUMER gate that attempt lacked), 13 after wave 9
+                       # (relaunch #19: the `_csl_to_ir` CERTIFIED-BOUNDARY BROKEN — 92 of
+                       # the 125 bypassing sites, the largest single item this metric ever
+                       # held, in ONE increment. Not a new capability: the recorded blocker
+                       # said the 75-member family's effect summary "cannot be made exact BY
+                       # CONSTRUCTION", and that is true of exactly TWO of them. Driving
+                       # `#@ assigns`/`#@ raises`/`#@ \diverges` to a fixpoint against Why3's
+                       # OWN error text — the recorded reopening capability, built as a loop
+                       # rather than an analysis — converged in 57 iterations and the whole
+                       # family became one concrete `let rec ... with` group, 1481/1481 Valid)
                        # — a RATCHET, only lower it
 MIRROR_COUNT = 52      # mirrors that emit a .mlw; a smaller population is NOT a pass
 
