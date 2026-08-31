@@ -7,9 +7,10 @@
   are one boilerplate module-docstring line repeated across 25 mirror files, so every
   historical absolute figure (the famous "687") is overstated by that 25.
   Stable across 3 samples. **Window #2 delta: markers 530 -> 491, grep 555 -> 516.**
-  **This session (#18): 492 -> 491, ONE conversion across NINE gated increments** — the
-  other eight are capability / faithfulness / gate / SOUNDNESS work, and three of them moved
-  metrics that matter more than the count (see below).
+  **This session (#18): 492 -> 491, ONE conversion across TEN gated increments** — the
+  other nine are capability / faithfulness / gate / SOUNDNESS work, and three of them moved
+  metrics that matter more than the count (see below). **TWO of the ten repaired a REAL
+  UNSOUNDNESS: a pure `val function` standing for a STATE-DEPENDENT method.**
 - **`bin/check-shadowed-selfcalls.py`: 14 CONVERTED methods / 125 bypassing call sites,
   ratchet 14** (was 14/153). Needs `TMPDIR=/home/fabrice/git/pycsl/scratchpad`; ~2 min.
   **92 of the 125 are the single remaining L2 dispatcher `_csl_to_ir`** — see its boundary.
@@ -24,18 +25,20 @@
 - **Corpus byte-diff was 0 of 814 for EVERY ONE of this session's eight increments.**
   Nothing was spent. Verified after each with `bin/byte-diff-sweep.sh` against a HEAD-at-
   session-start baseline (`scratchpad/w2/corpus_base18`).
-- **FULL REFERENCE SUITE run TWICE on the final tree (after increment 8 and again after
-  increment 9): `Results: 3010/3112 passed` both times, and the 102 failing names are
-  IDENTICAL to each other and to the recorded baseline** — 23 in pycsl-reference (0211-0220,
+- **FULL REFERENCE SUITE run THREE TIMES (after increments 8, 9 and 10): `Results:
+  3010/3112 passed` every time, and the 102 failing names are IDENTICAL each time and to the
+  recorded baseline** — 23 in pycsl-reference (0211-0220,
   0226, 0484, 0540, 0700, 0701, 0714, 0766, 0932, 0938, 0943, 0944, 0948, 0949) and 79 in
-  python-reference. **Zero regressions from nine increments, five of which changed the live
+  python-reference. **Zero regressions from ten increments, six of which changed the live
   emitter.** Run it with `PYCSL_SKIP_CONFORMANCE_CHECK=1` — the leading IR-conformance gate
   still aborts with **40 MISMATCH** (`only-derived=['param_ast_node_types','set_value_types']`,
   stale goldens, nobody's work item).
 - **PROOF COSTS** (this session's measurements marked NEW; NOT proportional to source size):
   `frontend/pure_ast` **2857**, ~50 min. `frontend/Module5_IREmitter` **1198** (was 1134),
   ~50 min. `module6_whyml/stmt_control_flow` **1846**, ~45 min.
-  **`module6_whyml/statements` 912, ~20 min (NEW — the campaign had never measured it)**.
+  **`module6_whyml/statements` 912, ~20 min** and **`core_ir_semantic` 1506, ~35 min** —
+  BOTH NEW, the campaign had never measured either; `core_ir_semantic` is the
+  SECOND-LARGEST mirror after `pure_ast`.
   `module6_whyml/functions` **1191** (was 1187), ~30-45 min.
   `module6_whyml/expressions` **1069**, ~16 min. `frontend/Module2_Parser` **720**, ~10 min.
   `src/self-annotate/src/pycsl.py` **731**, ~20 min. `Module6_WhyMLTranspiler` **706**, ~20 min.
@@ -53,7 +56,7 @@
   **`4a4f0e66`**, exactly where relaunch #17 found it. 25 commits are ahead of that ref.
   Report only what you can verify; keep flagging the anomaly if it recurs.
 
-## WHAT THIS SESSION LANDED (nine gated increments)
+## WHAT THIS SESSION LANDED (ten gated increments)
 
 1. **THE CHEAP-WIN DRAIN, CENSUSED OVER THE COMPLETE SURFACE FOR THE FIRST TIME — 490 of 490
    stubs in ALL 44 mirror files, ZERO faithful wins.** Previous censuses covered ~230 in 22
@@ -131,6 +134,23 @@
    `_current_self_type` is the LOWERCASED whyml name while the IR carries the raw class name,
    so a direct match finds nothing and the gate first failed closed on EVERY dispatcher,
    silently dropping the SOUND law too.
+10. **THE SAME PURITY DEFECT IN A SECOND PLACE, found by turning increment 9's lesson into a
+    CENSUS.** Of the **126 distinct `val function` symbols** the emitter mints across the 52
+    emitted mirrors, `val function csl_to_ir (e: emit_ir) : emit_ir` stands for the SAME
+    state-dependent `_csl_to_ir` and is applied TWICE IN ONE EXPRESSION —
+    `SGhostArraySet (ghost_target_ast ga) (csl_to_ir (ghost_index_ast ga)) (csl_to_ir
+    (ghost_value_ast ga))` — where purity asserts the two results are equal whenever the two
+    nodes are. Measured first: **0 occurrences inside any `requires`/`ensures`/`invariant`/
+    `variant`/`assert`/`assume` across all 52 mirrors**, so nothing needed it as a LOGIC term
+    and it is demoted to a program `val`. Five mirrors re-proved: core_ir_semantic
+    **1506/1506 (NEW cost)**, ir_resolve 792/792, frontend/__init__ 683/683, pycsl.py
+    731/731, Module5_IREmitter 1198/1198.
+    **OPEN, RECORDED, NOT SILENTLY KEPT — READ THIS FIRST:** the sibling
+    `val function csl_to_ir_op` CANNOT be demoted the same way. It is applied inside the
+    LOGIC-level `function synth_overload_clauses` fold (`Seq.cons (IrBinOp "==>" guard
+    (csl_to_ir_op (ens_expr_ast e)))` in `preamble.py`), so a program `val` is ill-typed
+    there and removing the purity claim requires REDESIGNING THAT FOLD. It is the same
+    defect class as increments 9 and 10, still live.
 
 ## CERTIFIED-BOUNDARIES RECORDED OR CORRECTED THIS SESSION
 
@@ -208,6 +228,13 @@
 
 ## Pick up here — in this order
 
+0. **THE ONE KNOWN-LIVE UNSOUNDNESS: `val function csl_to_ir_op`.** It stands for the
+   state-dependent `_csl_to_ir` and is applied inside the LOGIC-level
+   `function synth_overload_clauses` fold in `preamble.py`, so it cannot simply be demoted
+   to a program `val` the way increment 10 demoted its sibling. Either rebuild that fold so
+   the dispatcher application happens in PROGRAM code, or drop the synthesized-overload
+   clause construction to a length-style law. Do this before anything else: it is a claim
+   the model makes that the source does not satisfy.
 1. **`#@ \diverges` IS A NEW, CHEAP, AXIOM-FREE TOOL AND IT IS NOT YET FULLY MINED.** It broke
    two recorded floors this session. Its scope is bounded and known: a stub blocked ONLY on
    termination PASSES L3-tc today, so it is necessarily inside the 38-member KEEP set of the
