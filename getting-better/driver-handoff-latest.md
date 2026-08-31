@@ -7,9 +7,9 @@
   are one boilerplate module-docstring line repeated across 25 mirror files, so every
   historical absolute figure (the famous "687") is overstated by that 25.
   Stable across 3 samples. **Window #2 delta: markers 530 -> 491, grep 555 -> 516.**
-  **This session (#18): 492 -> 491, ONE conversion across EIGHT gated increments** — the
-  other seven are capability / faithfulness / gate work, and two of them moved metrics that
-  matter more than the count (see below).
+  **This session (#18): 492 -> 491, ONE conversion across NINE gated increments** — the
+  other eight are capability / faithfulness / gate / SOUNDNESS work, and three of them moved
+  metrics that matter more than the count (see below).
 - **`bin/check-shadowed-selfcalls.py`: 14 CONVERTED methods / 125 bypassing call sites,
   ratchet 14** (was 14/153). Needs `TMPDIR=/home/fabrice/git/pycsl/scratchpad`; ~2 min.
   **92 of the 125 are the single remaining L2 dispatcher `_csl_to_ir`** — see its boundary.
@@ -24,10 +24,11 @@
 - **Corpus byte-diff was 0 of 814 for EVERY ONE of this session's eight increments.**
   Nothing was spent. Verified after each with `bin/byte-diff-sweep.sh` against a HEAD-at-
   session-start baseline (`scratchpad/w2/corpus_base18`).
-- **FULL REFERENCE SUITE on the final tree: `Results: 3010/3112 passed`, and the 102 failing
-  names are IDENTICAL to the recorded baseline** — 23 in pycsl-reference (0211-0220, 0226,
-  0484, 0540, 0700, 0701, 0714, 0766, 0932, 0938, 0943, 0944, 0948, 0949) and 79 in
-  python-reference. **Zero regressions from eight increments, four of which changed the live
+- **FULL REFERENCE SUITE run TWICE on the final tree (after increment 8 and again after
+  increment 9): `Results: 3010/3112 passed` both times, and the 102 failing names are
+  IDENTICAL to each other and to the recorded baseline** — 23 in pycsl-reference (0211-0220,
+  0226, 0484, 0540, 0700, 0701, 0714, 0766, 0932, 0938, 0943, 0944, 0948, 0949) and 79 in
+  python-reference. **Zero regressions from nine increments, five of which changed the live
   emitter.** Run it with `PYCSL_SKIP_CONFORMANCE_CHECK=1` — the leading IR-conformance gate
   still aborts with **40 MISMATCH** (`only-derived=['param_ast_node_types','set_value_types']`,
   stale goldens, nobody's work item).
@@ -52,7 +53,7 @@
   **`4a4f0e66`**, exactly where relaunch #17 found it. 25 commits are ahead of that ref.
   Report only what you can verify; keep flagging the anomaly if it recurs.
 
-## WHAT THIS SESSION LANDED (eight gated increments)
+## WHAT THIS SESSION LANDED (nine gated increments)
 
 1. **THE CHEAP-WIN DRAIN, CENSUSED OVER THE COMPLETE SURFACE FOR THE FIRST TIME — 490 of 490
    stubs in ALL 44 mirror files, ZERO faithful wins.** Previous censuses covered ~230 in 22
@@ -107,6 +108,29 @@
    test sharpened to a PER-FILE question (10 -> 7).** stmt_control_flow 1846/1846.
 8. **The four `module6_whyml/statements.py` false frames drained (7 -> 3).** statements
    **912/912 (NEW cost)**, M6T 706/706. All three survivors are constructors.
+9. **A REAL SOUNDNESS DEFECT INSIDE A FABLE-SANCTIONED CONSTRUCT, FOUND AND REPAIRED.**
+   `_variadic_content_comp` lowers `[self.<disp>(t) for t in <array emit_ir>]` with
+   `ensures { forall i. irnth i result = emit_ir_disp__<disp> src[i] }` over a **PURE
+   `val function`** — the mapped element is a DETERMINISTIC FUNCTION OF THE SOURCE ELEMENT
+   ALONE. False for a state-mutating dispatcher: two STRUCTURALLY EQUAL elements then map to
+   DIFFERENT results while the law forces them equal. MEASURED: `_csl_to_ir` dispatches
+   (`_CSL_HANDLERS` + `getattr`) to `_csl_in`, which calls `self._fresh_var("_dk")`, and
+   `_csl_in`'s mirror ALREADY honestly declares `#@ assigns self._fresh_var_counter`; a
+   table-aware analysis of the live source agrees (`_csl_to_ir` transitively READS
+   `_cur_func_name`/`_cur_func_symtab`/`_fresh_var_counter` and WRITES the last, while
+   **`_py_expr_to_ir` reads and writes NOTHING**, so its law is SOUND and is KEPT). The new
+   `_disp_state_independent` gate asks only `_module_method_writes` — the same `#@ assigns`
+   the callee's own boundary `val` is emitted from — for the dispatcher AND every handler its
+   CERTIFIED table names, failing CLOSED on a missing dispatcher / table / handler. So the law
+   can never disagree with the frames it rests on, and a false `assigns \nothing` on one of
+   those handlers is exactly what increment 5's gate polices: **the two increments lock
+   together.** Module5_IREmitter **1198/1198** — the SAME goal count, so nothing depended on
+   the two false laws. Two things the first cut needed: returning None is a Why3 TYPE ERROR
+   (`IrMkTupleN`'s payload is `irlist`, the fall-through is `array emit_ir`), so the honest
+   lowering keeps the carrier and the LENGTH law and drops only the content law; and
+   `_current_self_type` is the LOWERCASED whyml name while the IR carries the raw class name,
+   so a direct match finds nothing and the gate first failed closed on EVERY dispatcher,
+   silently dropping the SOUND law too.
 
 ## CERTIFIED-BOUNDARIES RECORDED OR CORRECTED THIS SESSION
 
@@ -193,7 +217,11 @@
    satisfy a termination obligation. **RULE, banked: `\diverges` asserts NOTHING, so it can
    never be the source of a false claim, whereas a purity upgrade can.**
 2. **THE `_csl_to_ir` REOPENING CAPABILITY — a faithful comprehension lowering for
-   `[self.<m>(e) for e in xs]`.** This is the highest-value item left: it is the named
+   `[self.<m>(e) for e in xs]`. NOTE WHAT INCREMENT 9 CHANGED ABOUT IT:** the content-law
+   oracle for that dispatcher is now LENGTH-ONLY, because the per-index law was UNSOUND for a
+   state-mutating dispatcher. A faithful lowering must therefore perform the call in
+   SEQUENCE, threading the emitter state — which is the honest shape anyway, and it is what
+   makes the effect analysis and the emitted body agree. This is the highest-value item left: it is the named
    blocker for the 92 remaining shadowed sites, it removes a content-law ORACLE in favour of a
    real call, and the rest of that build (the honest `#@ assigns self._fresh_var_counter` on
    the 56 group members, `\diverges` for the group) is already walked and understood. Watch
@@ -273,6 +301,10 @@
   `statements.py` (mirrored un-trusted) and immediately cost 2 new `DIVERGED` entries, a
   ported helper and an unbound writes label; the identical three lines in `_add_abstract_op`
   (a `\trusted` stub) cost nothing. Same trick made the caller-side writes filter free.
+- **A "PURE `val function`" IS A DETERMINISM CLAIM, AND A STATEFUL PYTHON METHOD DOES NOT
+  SATISFY IT.** Increment 9's defect had been sanctioned and reviewed; what caught it was
+  asking, of a symbol declared `val function`, whether the SOURCE method it stands for reads
+  or writes any mutable state. Do that for every `val function` the emitter mints.
 - **A GATE MUST MEASURE THE MODEL'S CLAIM, NOT THE ANNOTATION'S WORDING.** The new
   frame-honesty metric was defined three times (79 -> 22 -> 11 -> 7) before it counted only
   the claims a prover can actually be misled by: `@mutable_state` class AND a field the
