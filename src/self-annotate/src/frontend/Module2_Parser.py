@@ -825,7 +825,7 @@ class _ContractParser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.toks, self.i
     def __init__(self, source: str):
         toks, raw = _lex_contract(source)
         self.toks: List[_Tok] = toks

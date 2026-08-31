@@ -96,6 +96,14 @@ wrong in BOTH directions, and both were measured:
   - UNDER: `ExpressionEmissionMixin._ifexpr_seq_arm` was reported unmodelled and the
     emitted `type expressionemissionmixin` carries FOUR of its written fields.  That one
     raised CONVERTED_RATCHET from 2 to 3.
+A THIRD refinement, and it is the one that emptied the trusted plane: a method the emitted
+`.mlw` DOES NOT DECLARE AT ALL carries no frame, so its `#@ assigns` cannot mislead any
+prover.  MEASURED: not one of the four `__init__` offenders this plane used to report as
+MODEL-VISIBLE is emitted as a WhyML symbol -- Python construction lowers to a record
+literal, not to a method call -- and correcting all four left the emission of all 52 mirrors
+BYTE-IDENTICAL.  The "three model-visible constructors" earlier sessions recorded as the
+plane's floor were therefore never model-visible at all.
+
 `--emit-dir DIR` reuses an existing emitted-mirror directory (either naming scheme);
 `--no-emit` falls back to the heuristic and the ratchets then do NOT apply.
 
@@ -112,10 +120,10 @@ import shutil
 import sys
 import tempfile
 
-RATCHET = 3           # MODEL-VISIBLE offenders: `@mutable_state` class AND a modelled field
-TOTAL_RATCHET = 73    # every offender, including opaque-self classes
-CONVERTED_RATCHET = 3         # the CONVERTED surface, model-visible (see the note below)
-CONVERTED_TOTAL_RATCHET = 69  # the CONVERTED surface, every offender
+RATCHET = 0           # MODEL-VISIBLE offenders: `@mutable_state` class AND a modelled field
+TOTAL_RATCHET = 70    # every offender, including opaque-self classes
+CONVERTED_RATCHET = 2         # the CONVERTED surface, model-visible (see the note below)
+CONVERTED_TOTAL_RATCHET = 68  # the CONVERTED surface, every offender
 LIVE_ROOT = "src/pycsl"
 MIRROR_ROOT = "src/self-annotate/src"
 
@@ -322,8 +330,10 @@ def _emitted_record_fields(emit_dir, mirror_root):
             if mlw is None:
                 continue
             txt = open(mlw).read()
-            out[path] = {m.group(1): set(fld_re.findall(m.group(2)))
-                         for m in rec_re.finditer(txt)}
+            out[path] = ({m.group(1): set(fld_re.findall(m.group(2)))
+                          for m in rec_re.finditer(txt)},
+                         set(re.findall(r"^  (?:val|let rec|let|with)\s+([A-Za-z_0-9]+)",
+                                        txt, re.M)))
     return out
 
 
@@ -488,7 +498,11 @@ def main():
     if _tmp is not None:
         shutil.rmtree(_tmp, ignore_errors=True)
 
-    def _visible(cls, path, writes):
+    def _sym_of(cls, name):
+        """The WhyML symbol Module 6 emits for `<cls>.<name>` (lowercased class, `__`)."""
+        return ((cls.lower() + "__" + name) if cls else name)
+
+    def _visible(cls, path, writes, sym=None):
         """Is a missing `writes` for any of `writes` something a prover can be misled by?
 
         With `--emit-dir` this is the DIRECT question: does the file's emitted record for
@@ -496,8 +510,18 @@ def main():
         which OVER-APPROXIMATES (see `_emitted_record_fields`)."""
         if cls not in ms_classes:
             return False
-        recs = emitted.get(path)
-        if recs is not None:
+        ent = emitted.get(path)
+        if ent is not None:
+            recs, syms = ent
+            # A method the emitted `.mlw` DOES NOT DECLARE AT ALL carries no frame, so its
+            # `#@ assigns` cannot mislead any prover. MEASURED: not one of the four
+            # `__init__` offenders this plane used to report as MODEL-VISIBLE is emitted as
+            # a WhyML symbol -- Python construction is lowered to a record literal, not to a
+            # method call -- and correcting all four left the emission of all 52 mirrors
+            # BYTE-IDENTICAL. Without this test the plane's headline number was dominated by
+            # claims the model never made.
+            if sym and sym not in syms:
+                return False
             flds = recs.get(cls.lower())
             if flds is None:
                 return False
@@ -513,7 +537,8 @@ def main():
             if writes:
                 offenders.append((path, cls, name, sorted(writes),
                                   bool(direct.get(live_key)), path))
-        visible = [o for o in offenders if _visible(o[1], o[5], o[3])]
+        visible = [o for o in offenders
+                   if _visible(o[1], o[5], o[3], _sym_of(o[1], o[2]))]
         return stubs, offenders, visible
 
     def _report(tag, stubs, offenders, visible):
@@ -529,7 +554,8 @@ def main():
                 print("    %-40s %-44s %3d %-10s %-13s %s"
                       % (rel, (cls + "." + name if cls else name)[:44], len(writes),
                          "DIRECT" if is_direct else "via-callee",
-                         "MODEL-VISIBLE" if _visible(cls, path, writes)
+                         "MODEL-VISIBLE" if _visible(cls, path, writes,
+                                                     _sym_of(cls, name))
                          else "unmodelled", writes[:4]))
 
     rc = 0

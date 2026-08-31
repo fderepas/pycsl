@@ -20,7 +20,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._final_registry, self.program_ir, self._fresh_var_counter
     def __init__(self) -> None:
         # K2 (self-tcb-reduction Tier-5): declare the per-module Final registry as a
         # `seq pyval` self-field (List[Dict[str, PyVal]]) so `_collect_final_registry`'s

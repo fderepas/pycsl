@@ -71,7 +71,7 @@ def mutable_state(cls):
 class _Parser:
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.toks, self.pos
     def __init__(self, tokens: List[Token]) -> None:
         self.toks: List[Token] = tokens
         self.pos: int = 0

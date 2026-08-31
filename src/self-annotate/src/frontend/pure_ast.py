@@ -208,7 +208,7 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._lines, self.filename, self.i, self.source
     def __init__(self, toks, filename='<unknown>', source=''):
         self.toks: List[_Tok] = toks
         self.i: int = 0
