@@ -821,7 +821,7 @@ class ControlFlowStmtMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _render_match_pattern(self, pat: "ExprIR", top: bool=False) -> str:
         return ""
 
@@ -855,7 +855,7 @@ class ControlFlowStmtMixin:
     #@ ensures True
     # Inherited from `_stmts_to_whyml` (see its frame note) — the callee writes
     # `self._in_spec`, so this caller's `\nothing` was false too.
-    #@ assigns self._in_spec
+    #@ assigns self._current_params, self._current_self_type, self._func_return_type, self._in_spec
     def _handle_match_stmt(self, stmt: MatchStmt, rest: List[Dict[str, Any]],
                            local_refs: Set[str], declared_refs: Set[str],
                            indent: str, in_loop: bool) -> str:

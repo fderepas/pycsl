@@ -41,8 +41,8 @@ import collections
 import os
 import sys
 
-RATCHET = 10          # MODEL-VISIBLE offenders: `@mutable_state` class AND a modelled field
-TOTAL_RATCHET = 79    # every offender, including opaque-self classes
+RATCHET = 7           # MODEL-VISIBLE offenders: `@mutable_state` class AND a modelled field
+TOTAL_RATCHET = 77    # every offender, including opaque-self classes
 LIVE_ROOT = "src/pycsl"
 MIRROR_ROOT = "src/self-annotate/src"
 
@@ -155,25 +155,34 @@ def _self_write_fixpoint(classes, bases, funcs):
 
 
 def _mirror_modelled_fields(mirror_root):
-    """`self.<f>` names the MIRROR itself assigns — the ones Module 5 registers as real
-    record fields, hence the only ones a converted caller can actually read.  A field
-    written ONLY by a live body whose mirror counterpart is a `\\trusted` stub is not
-    modelled at all, so a missing `writes` for it cannot mislead the prover."""
-    out = set()
+    """PER MIRROR FILE, the `self.<f>` names that file itself assigns.
+
+    Module 5 registers a record field from an assignment IN THE FILE BEING EMITTED, and
+    each mirror file is transpiled on its own, so the question "can a converted caller read
+    this field?" is a PER-FILE question.  Two coarser tests were tried and both
+    over-counted: the raw offender list rewards a purely cosmetic annotation fix on an
+    opaque-self class, and a repo-wide field set still counts a class the file emits as
+    `type <cls> = int` (measured: `GhostSpecOpsMixin` is decorated `@mutable_state` and its
+    own `.mlw` still declares `type ghostspecopsmixin = int`, so a `writes { self._f }` on
+    its val is an UNBOUND SYMBOL, not a frame).  A field the emitting file never assigns is
+    not part of that file's record, so a missing `writes` for it cannot mislead the prover.
+    """
+    out = collections.defaultdict(set)
     for dirpath, _dirs, files in os.walk(mirror_root):
         if "__pycache__" in dirpath:
             continue
         for fname in sorted(files):
             if not fname.endswith(".py"):
                 continue
+            path = os.path.join(dirpath, fname)
             try:
-                tree = ast.parse(open(os.path.join(dirpath, fname)).read())
+                tree = ast.parse(open(path).read())
             except (OSError, SyntaxError):
                 continue
             for n in ast.walk(tree):
                 if (isinstance(n, ast.Attribute) and isinstance(n.ctx, ast.Store)
                         and isinstance(n.value, ast.Name) and n.value.id == "self"):
-                    out.add(n.attr)
+                    out[path].add(n.attr)
     return out
 
 
@@ -263,25 +272,25 @@ def main():
         writes = trans.get(live_key)
         if writes:
             offenders.append((path, cls, name, sorted(writes),
-                              bool(direct.get(live_key))))
+                              bool(direct.get(live_key)), path))
 
     ms_classes = _mutable_state_classes(MIRROR_ROOT)
     modelled = _mirror_modelled_fields(MIRROR_ROOT)
     visible = [o for o in offenders
-               if o[1] in ms_classes and any(w in modelled for w in o[3])]
+               if o[1] in ms_classes and any(w in modelled.get(o[5], ()) for w in o[3])]
     n_direct = sum(1 for o in offenders if o[4])
     print("[*] trusted-frame-honesty: %d `\\trusted` stub(s) declare `#@ assigns \\nothing`; "
           "%d stand for a live body that transitively writes `self` state "
           "(%d write DIRECTLY); %d of those are MODEL-VISIBLE (`@mutable_state` class)."
           % (len(stubs), len(offenders), n_direct, len(visible)))
     if args.verbose:
-        for path, cls, name, writes, is_direct in sorted(offenders, key=lambda o: -len(o[3])):
+        for path, cls, name, writes, is_direct, _p in sorted(offenders, key=lambda o: -len(o[3])):
             rel = path[len(MIRROR_ROOT) + 1:]
             print("    %-40s %-44s %3d %-10s %-13s %s"
                   % (rel, (cls + "." + name if cls else name)[:44], len(writes),
                      "DIRECT" if is_direct else "via-callee",
                      "MODEL-VISIBLE" if (cls in ms_classes
-                                        and any(w in modelled for w in writes))
+                                        and any(w in modelled.get(path, ()) for w in writes))
                      else "unmodelled", writes[:4]))
     rc = 0
     for label, got, want in (("model-visible", len(visible), args.ratchet),
