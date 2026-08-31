@@ -190,13 +190,30 @@ class PyCSLWeaver(ast.NodeVisitor):
     # VALUE, not on mutable object state) and the range-loop variant.
     # WHAT WOULD MAKE IT SOUND: relate `setattr` to the projectors (a real object-state
     # model), or emit the projectors as pure ONLY in a file with no `setattr` at all.
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _desugar_for(contracts: List[Any]) -> List[Any]:
-        return []
+        """Expand each `ForExpand` (`#@ for VAR in range(lo,hi):`) into ground
+        requires/ensures: for each m in [lo, hi) (upper-exclusive), each body
+        clause with VAR substituted by the literal m. Meaning-preserving — the
+        output is exactly the hand-written clause sequence (sugar-for-spec.md §4)."""
+        out: List[Any] = []
+        for c in contracts:
+            if not isinstance(c, ForExpand):
+                out.append(c)
+                continue
+            lo = PyCSLWeaver._const_int(c.lo, c.var)
+            hi = PyCSLWeaver._const_int(c.hi, c.var)
+            if not c.clauses:
+                raise PyCSLSemanticError(
+                    f"`for {c.var} in range(...)`: empty body", stage="Module3")
+            for m in range(lo, hi):
+                for clause in c.clauses:
+                    out.append(PyCSLWeaver._subst_var(clause, c.var, m))
+        return out
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
