@@ -82,6 +82,23 @@ and `_csl_in`'s OWN mirror declares that write honestly.  This is the same `unli
 effect` the `_csl_to_ir` CERTIFIED-BOUNDARY already names as the first of its three
 blockers; the gate now MEASURES it instead of only recording it in prose.
 
+MODEL-VISIBILITY IS DECIDED BY THE EMITTED RECORD (added 2026-08-31, relaunch #19).
+The tool now EMITS every mirror itself (~35 s, needs `why3` on PATH) and asks the direct
+question: does this file's emitted `type <cls> = { ... }` actually DECLARE the field?  The
+previous source-assignment heuristic -- "the mirror file assigns `self.<f>` somewhere" -- is
+wrong in BOTH directions, and both were measured:
+  - OVER: `ControlFlowStmtMixin._handle_return_stmt` was reported model-visible for
+    `_comp_content_counter` / `_current_params` / `_current_self_type` /
+    `_frame_trigger_active`, and the emitted `type controlflowstmtmixin` carries NONE of
+    those four.  (It stays model-visible for a DIFFERENT pair, `_func_return_type` and
+    `_in_spec`, which the record does carry -- so the verdict survives and its REASON does
+    not.)
+  - UNDER: `ExpressionEmissionMixin._ifexpr_seq_arm` was reported unmodelled and the
+    emitted `type expressionemissionmixin` carries FOUR of its written fields.  That one
+    raised CONVERTED_RATCHET from 2 to 3.
+`--emit-dir DIR` reuses an existing emitted-mirror directory (either naming scheme);
+`--no-emit` falls back to the heuristic and the ratchets then do NOT apply.
+
 RATCHET.  The counts may go down, never up -- EXCEPT when the analysis itself gets sharper,
 which must be stated in this docstring with what it newly sees, as the paragraph above does.
 Lower them deliberately when a stub is converted or its `#@ assigns` is corrected.
@@ -90,11 +107,14 @@ import argparse
 import ast
 import collections
 import os
+import re
+import shutil
 import sys
+import tempfile
 
 RATCHET = 3           # MODEL-VISIBLE offenders: `@mutable_state` class AND a modelled field
 TOTAL_RATCHET = 73    # every offender, including opaque-self classes
-CONVERTED_RATCHET = 2         # the CONVERTED surface, model-visible (see the note below)
+CONVERTED_RATCHET = 3         # the CONVERTED surface, model-visible (see the note below)
 CONVERTED_TOTAL_RATCHET = 69  # the CONVERTED surface, every offender
 LIVE_ROOT = "src/pycsl"
 MIRROR_ROOT = "src/self-annotate/src"
@@ -260,6 +280,53 @@ def _self_write_fixpoint(classes, bases, funcs, tables=None):
     return direct, trans
 
 
+def _emitted_record_fields(emit_dir, mirror_root):
+    """PER MIRROR FILE and PER CLASS, the fields the EMITTED record actually declares.
+
+    This is the DIRECT oracle for model-visibility, and it strictly refines the
+    source-assignment heuristic below.  Module 5 does not promote every `self.<f> = ...`
+    it sees into the emitted record -- it drops the ones it cannot type -- so a file can
+    assign a field that its `.mlw` record does not carry, and a missing `writes` for such a
+    field cannot mislead any prover.  MEASURED: `ControlFlowStmtMixin._handle_return_stmt`
+    was reported MODEL-VISIBLE for `_comp_content_counter` / `_current_params` /
+    `_current_self_type` / `_frame_trigger_active`, and the emitted
+    `type controlflowstmtmixin = { ... }` carries NONE of the four.  Declaring the honest
+    frame on it emits `writes {  }` unchanged, because the emitter filters the clause
+    through the same record labels.
+
+    `emit_dir` holds one `.mlw` per mirror, named by the mirror's repo-relative path with
+    `/` replaced by `_` (what `scratchpad/w2/keepsweep.sh` produces).  Returns
+    {mirror_path: {whyml_record_name: {field, ...}}}; a file with no entry falls back to
+    the heuristic."""
+    out = {}
+    rec_re = re.compile(r"^  type ([a-z0-9_]+) = \{(.*?)\}", re.M)
+    fld_re = re.compile(r"mutable ([A-Za-z_0-9]+):")
+    for dirpath, _dirs, files in os.walk(mirror_root):
+        if "__pycache__" in dirpath:
+            continue
+        for fname in sorted(files):
+            if not fname.endswith(".py"):
+                continue
+            path = os.path.join(dirpath, fname)
+            # Two naming schemes are in use for an emitted-mirror directory:
+            # `scratchpad/w2/keepsweep.sh` keys by the REPO-relative path, while
+            # `bin/check-shadowed-selfcalls.py --emit-dir` keys by the MIRROR-relative one.
+            # Accept both, so either tool's output can be fed here.
+            mlw = None
+            for key in (path.replace(os.sep, "_") + ".mlw",
+                        os.path.relpath(path, mirror_root)[:-3].replace(os.sep, "_") + ".mlw"):
+                cand = os.path.join(emit_dir, key)
+                if os.path.exists(cand):
+                    mlw = cand
+                    break
+            if mlw is None:
+                continue
+            txt = open(mlw).read()
+            out[path] = {m.group(1): set(fld_re.findall(m.group(2)))
+                         for m in rec_re.finditer(txt)}
+    return out
+
+
 def _mirror_modelled_fields(mirror_root):
     """PER MIRROR FILE, the `self.<f>` names that file itself assigns.
 
@@ -363,6 +430,30 @@ def _mirror_nothing_stubs(mirror_root, want_trusted=True):
     return out
 
 
+def _emit_all(out_dir):
+    """Emit every mirror's `.mlw` into `out_dir` (needs `why3` on PATH)."""
+    import glob
+    import subprocess
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    py = os.path.join(root, ".venv", "bin", "python3")
+    if not os.path.exists(py):
+        py = sys.executable
+    env = dict(os.environ, PYTHONHASHSEED="0")
+    for src in sorted(glob.glob(os.path.join(root, MIRROR_ROOT, "**", "*.py"),
+                                recursive=True)):
+        mlw = src[:-3] + ".mlw"
+        if os.path.exists(mlw):
+            os.remove(mlw)
+        subprocess.run([py, os.path.join(root, "src", "pycsl", "pycsl.py"), src,
+                        "--import-path", os.path.join(root, "src", "pycsl"),
+                        "--no-proof", "--keep-mlw"],
+                       cwd=root, env=env,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if os.path.exists(mlw):
+            rel = os.path.relpath(src, os.path.join(root, MIRROR_ROOT))
+            shutil.move(mlw, os.path.join(out_dir, rel[:-3].replace(os.sep, "_") + ".mlw"))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -370,6 +461,13 @@ def main():
                     help="list every offending stub with its transitive write set")
     ap.add_argument("--ratchet", type=int, default=RATCHET)
     ap.add_argument("--total-ratchet", type=int, default=TOTAL_RATCHET)
+    ap.add_argument("--no-emit", action="store_true",
+                    help="skip emission and fall back to the OVER/UNDER-approximating "
+                         "source-assignment heuristic (the ratchets do NOT apply).")
+    ap.add_argument("--emit-dir",
+                    help="directory of emitted .mlw (scratchpad/w2/keepsweep.sh output). "
+                         "With it, MODEL-VISIBLE is decided by the EMITTED record's fields "
+                         "instead of the over-approximating source-assignment heuristic.")
     ap.add_argument("--converted-ratchet", type=int, default=CONVERTED_RATCHET)
     ap.add_argument("--converted-total-ratchet", type=int,
                     default=CONVERTED_TOTAL_RATCHET)
@@ -380,6 +478,31 @@ def main():
 
     ms_classes = _mutable_state_classes(MIRROR_ROOT)
     modelled = _mirror_modelled_fields(MIRROR_ROOT)
+    _tmp = None
+    _edir = args.emit_dir
+    if _edir is None and not args.no_emit:
+        _tmp = tempfile.mkdtemp(prefix="frame-honesty-")
+        _emit_all(_tmp)
+        _edir = _tmp
+    emitted = _emitted_record_fields(_edir, MIRROR_ROOT) if _edir else {}
+    if _tmp is not None:
+        shutil.rmtree(_tmp, ignore_errors=True)
+
+    def _visible(cls, path, writes):
+        """Is a missing `writes` for any of `writes` something a prover can be misled by?
+
+        With `--emit-dir` this is the DIRECT question: does the file's emitted record for
+        `cls` declare the field?  Without it, fall back to the source-assignment heuristic,
+        which OVER-APPROXIMATES (see `_emitted_record_fields`)."""
+        if cls not in ms_classes:
+            return False
+        recs = emitted.get(path)
+        if recs is not None:
+            flds = recs.get(cls.lower())
+            if flds is None:
+                return False
+            return any(w in flds for w in writes)
+        return any(w in modelled.get(path, ()) for w in writes)
 
     def _population(want_trusted):
         stubs = _mirror_nothing_stubs(MIRROR_ROOT, want_trusted)
@@ -390,8 +513,7 @@ def main():
             if writes:
                 offenders.append((path, cls, name, sorted(writes),
                                   bool(direct.get(live_key)), path))
-        visible = [o for o in offenders
-                   if o[1] in ms_classes and any(w in modelled.get(o[5], ()) for w in o[3])]
+        visible = [o for o in offenders if _visible(o[1], o[5], o[3])]
         return stubs, offenders, visible
 
     def _report(tag, stubs, offenders, visible):
@@ -407,8 +529,7 @@ def main():
                 print("    %-40s %-44s %3d %-10s %-13s %s"
                       % (rel, (cls + "." + name if cls else name)[:44], len(writes),
                          "DIRECT" if is_direct else "via-callee",
-                         "MODEL-VISIBLE" if (cls in ms_classes
-                                             and any(w in modelled.get(path, ()) for w in writes))
+                         "MODEL-VISIBLE" if _visible(cls, path, writes)
                          else "unmodelled", writes[:4]))
 
     rc = 0
