@@ -6395,7 +6395,19 @@ class PreambleEmissionMixin:
                 "  val function ghost_declared_type_ast (g: py_ghost_node) : string",
                 "  val function ghost_index_ast (g: py_ghost_node) : emit_ir",
                 "  val function ghost_value_ast (g: py_ghost_node) : emit_ir",
-                "  val function csl_to_ir (e: emit_ir) : emit_ir",
+                # SOUNDNESS (2026-08-31): a PURE `val function` asserts the symbol is a
+                # DETERMINISTIC FUNCTION of its argument. `_csl_to_ir` is not: it dispatches
+                # (through `_CSL_HANDLERS` + `getattr`) to `_csl_in`, which allocates fresh
+                # binder names from `self._fresh_var_counter` — the mirror's own `_csl_in`
+                # honestly declares `#@ assigns self._fresh_var_counter`. So two applications
+                # to EQUAL nodes really can differ, and the pure symbol forced them equal.
+                # Demoted to a PROGRAM `val`: every use is a program context (measured: 0
+                # occurrences inside any `requires`/`ensures`/`invariant`/`variant`/`assert`
+                # across all 52 emitted mirrors), so nothing needs it as a logic term. The
+                # SIBLING `csl_to_ir_op` below CANNOT be demoted the same way — it is applied
+                # inside the LOGIC-level `function synth_overload_clauses` fold, so removing
+                # its purity requires redesigning that fold; recorded, not silently kept.
+                "  val csl_to_ir (e: emit_ir) : emit_ir",
                 "  (* _py_expr_lambda increment (self-tcb-reduction M5, C-bucket): the typed"
                 " AST reader for `_py_expr_lambda`. `py_lambda_node` models `ast.Lambda`;"
                 " `lambda_args_ast` reads `expr.args.args` (an irlist of arg name-nodes);"
