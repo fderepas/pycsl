@@ -48,7 +48,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _get_mutex_invariant_ir(self, mutex: str) -> int:
         return {}
 
@@ -1475,7 +1475,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # 0. Verbatim body port of the LIVE `_emit_ghost_assign`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _emit_ghost_assign(self, ga) -> int:
         if isinstance(ga, GhostArraySetDecl):
             return {"stmt": "GhostArraySet", "target": ga.target,
@@ -3176,7 +3176,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # ctors). Verbatim body port of the LIVE `_synthesize_overload_guard`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _synthesize_overload_guard(self, node: ast.FunctionDef) -> List[Dict[str, Any]]:
         guard = self._build_overload_param_guard(node)
         if guard is None:
