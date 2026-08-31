@@ -32,6 +32,35 @@ dishonest to a HUMAN reader but the model claims nothing false.  Correcting one 
 cosmetic; correcting a `@mutable_state` one changes the emitted `val` and can break a caller
 that was relying on the false assumption — which is exactly the point of finding it.
 
+THE CONVERTED SURFACE (added 2026-08-31, relaunch #19) -- THE PLANE'S OWN BLIND SPOT.
+The check above was scoped to `\\trusted` stubs on the reasoning that a CONVERTED method
+has a body, so Why3 checks its frame.  Measured against the emitted `.mlw`, that reasoning
+is only half true, and the half that fails is the half that matters:
+
+  - IN ITS OWN FILE a converted method really is checked.  Module 6 emits an explicit
+    `writes {  }` for `#@ assigns \\nothing` (NOT an omitted clause), and Why3 rejects an
+    under-declared frame -- confirmed by spike: an omitted `writes` is INFERRED and
+    silently accepted, an explicit empty one raises `this expression produces an unlisted
+    write effect`.  But what it is checked against is the EMITTED body, which is an
+    ERASURE of the live one: the very calls that do the writing are commonly lowered to
+    effect-free abstract `val`s, so `writes {  }` can be true of the emission and false of
+    the source.
+  - IN EVERY OTHER FILE the method appears as a caller-side abstract `val` minted from the
+    SAME declared `#@ assigns` (e.g. `val self__seq_init_expr_3 ... writes {
+    self._current_self_type, self._in_spec, self._string_local_vars }`).  That `val` has
+    no body, so the frame is ASSUMED there exactly as a `\\trusted` stub's is -- and a
+    converted method declaring a false `assigns \\nothing` hands every cross-file caller
+    an unchecked "this field did not change".
+
+So the converted population is the same hazard one step removed, and no plane sees it: the
+fidelity gate compares bodies, not frames; the whole-file proof checks the erased emission;
+the byte-diff and the vacuity probe are blind to it.  It is reported as a SECOND population
+with its own two ratchets.  First measurement: 567 converted methods declare
+`assigns \\nothing`, 69 stand for a live body that transitively writes `self` (12 directly),
+2 MODEL-VISIBLE -- `ControlFlowStmtMixin._handle_return_stmt` (18 fields, via-callee) and
+`proof2why3/parser.py::_Parser.__init__` (2 fields, direct; a constructor, so it belongs to
+the constructor bucket the trusted plane also bottoms out in).
+
 RATCHET.  The counts may go down, never up.  Lower them deliberately when a stub is
 converted or its `#@ assigns` is corrected.
 """
@@ -43,6 +72,8 @@ import sys
 
 RATCHET = 3           # MODEL-VISIBLE offenders: `@mutable_state` class AND a modelled field
 TOTAL_RATCHET = 73    # every offender, including opaque-self classes
+CONVERTED_RATCHET = 2        # the CONVERTED surface, model-visible (see the note below)
+CONVERTED_TOTAL_RATCHET = 69 # the CONVERTED surface, every offender
 LIVE_ROOT = "src/pycsl"
 MIRROR_ROOT = "src/self-annotate/src"
 
@@ -211,8 +242,12 @@ def _mutable_state_classes(mirror_root):
     return out
 
 
-def _mirror_nothing_stubs(mirror_root):
-    """Every `\\trusted` mirror stub that declares `#@ assigns \\nothing`."""
+def _mirror_nothing_stubs(mirror_root, want_trusted=True):
+    """Every mirror method that declares `#@ assigns \\nothing`.
+
+    `want_trusted=True`  -> the `\\trusted` stubs (the ASSUMED-contract population).
+    `want_trusted=False` -> the CONVERTED methods (the second population, see the
+    CONVERTED SURFACE note in the module docstring)."""
     out = []
     for dirpath, _dirs, files in os.walk(mirror_root):
         if "__pycache__" in dirpath:
@@ -247,7 +282,7 @@ def _mirror_nothing_stubs(mirror_root):
                             if stripped == "#@ assigns \\nothing":
                                 nothing = True
                             i -= 1
-                        if trusted and nothing:
+                        if (trusted == want_trusted) and nothing:
                             out.append((path, cls, child.name))
             walk(tree, "")
     return out
@@ -260,52 +295,81 @@ def main():
                     help="list every offending stub with its transitive write set")
     ap.add_argument("--ratchet", type=int, default=RATCHET)
     ap.add_argument("--total-ratchet", type=int, default=TOTAL_RATCHET)
+    ap.add_argument("--converted-ratchet", type=int, default=CONVERTED_RATCHET)
+    ap.add_argument("--converted-total-ratchet", type=int,
+                    default=CONVERTED_TOTAL_RATCHET)
     args = ap.parse_args()
 
     classes, bases, funcs = _parse_tree(LIVE_ROOT)
     direct, trans = _self_write_fixpoint(classes, bases, funcs)
 
-    stubs = _mirror_nothing_stubs(MIRROR_ROOT)
-    offenders = []
-    for path, cls, name in stubs:
-        live_key = (LIVE_ROOT + path[len(MIRROR_ROOT):], cls, name)
-        writes = trans.get(live_key)
-        if writes:
-            offenders.append((path, cls, name, sorted(writes),
-                              bool(direct.get(live_key)), path))
-
     ms_classes = _mutable_state_classes(MIRROR_ROOT)
     modelled = _mirror_modelled_fields(MIRROR_ROOT)
-    visible = [o for o in offenders
-               if o[1] in ms_classes and any(w in modelled.get(o[5], ()) for w in o[3])]
-    n_direct = sum(1 for o in offenders if o[4])
-    print("[*] trusted-frame-honesty: %d `\\trusted` stub(s) declare `#@ assigns \\nothing`; "
-          "%d stand for a live body that transitively writes `self` state "
-          "(%d write DIRECTLY); %d of those are MODEL-VISIBLE (`@mutable_state` class)."
-          % (len(stubs), len(offenders), n_direct, len(visible)))
-    if args.verbose:
-        for path, cls, name, writes, is_direct, _p in sorted(offenders, key=lambda o: -len(o[3])):
-            rel = path[len(MIRROR_ROOT) + 1:]
-            print("    %-40s %-44s %3d %-10s %-13s %s"
-                  % (rel, (cls + "." + name if cls else name)[:44], len(writes),
-                     "DIRECT" if is_direct else "via-callee",
-                     "MODEL-VISIBLE" if (cls in ms_classes
-                                        and any(w in modelled.get(path, ()) for w in writes))
-                     else "unmodelled", writes[:4]))
+
+    def _population(want_trusted):
+        stubs = _mirror_nothing_stubs(MIRROR_ROOT, want_trusted)
+        offenders = []
+        for path, cls, name in stubs:
+            live_key = (LIVE_ROOT + path[len(MIRROR_ROOT):], cls, name)
+            writes = trans.get(live_key)
+            if writes:
+                offenders.append((path, cls, name, sorted(writes),
+                                  bool(direct.get(live_key)), path))
+        visible = [o for o in offenders
+                   if o[1] in ms_classes and any(w in modelled.get(o[5], ()) for w in o[3])]
+        return stubs, offenders, visible
+
+    def _report(tag, stubs, offenders, visible):
+        n_direct = sum(1 for o in offenders if o[4])
+        print("[*] %s: %d method(s) declare `#@ assigns \\nothing`; "
+              "%d stand for a live body that transitively writes `self` state "
+              "(%d write DIRECTLY); %d of those are MODEL-VISIBLE (`@mutable_state` class)."
+              % (tag, len(stubs), len(offenders), n_direct, len(visible)))
+        if args.verbose:
+            for path, cls, name, writes, is_direct, _p in sorted(offenders,
+                                                                 key=lambda o: -len(o[3])):
+                rel = path[len(MIRROR_ROOT) + 1:]
+                print("    %-40s %-44s %3d %-10s %-13s %s"
+                      % (rel, (cls + "." + name if cls else name)[:44], len(writes),
+                         "DIRECT" if is_direct else "via-callee",
+                         "MODEL-VISIBLE" if (cls in ms_classes
+                                             and any(w in modelled.get(path, ()) for w in writes))
+                         else "unmodelled", writes[:4]))
+
     rc = 0
-    for label, got, want in (("model-visible", len(visible), args.ratchet),
-                             ("total", len(offenders), args.total_ratchet)):
-        if got > want:
-            print("[!] trusted-frame-honesty: %s RATCHET BROKEN — %d > %d. A `\\trusted` "
-                  "stub's `assigns` is ASSUMED, never checked, so a false one is an "
-                  "unsoundness no proof plane can see." % (label, got, want))
-            rc = 1
-        elif got < want:
-            print("[+] trusted-frame-honesty: %s %d < ratchet %d — lower the constant."
-                  % (label, got, want))
+
+    def _ratchet(tag, pairs, why):
+        nonlocal rc
+        for label, got, want in pairs:
+            if got > want:
+                print("[!] %s: %s RATCHET BROKEN — %d > %d. %s" % (tag, label, got, want, why))
+                rc = 1
+            elif got < want:
+                print("[+] %s: %s %d < ratchet %d — lower the constant."
+                      % (tag, label, got, want))
+
+    t_stubs, t_off, t_vis = _population(True)
+    _report("trusted-frame-honesty", t_stubs, t_off, t_vis)
+    _ratchet("trusted-frame-honesty",
+             (("model-visible", len(t_vis), args.ratchet),
+              ("total", len(t_off), args.total_ratchet)),
+             "A `\\trusted` stub's `assigns` is ASSUMED, never checked, so a false one is "
+             "an unsoundness no proof plane can see.")
+
+    c_stubs, c_off, c_vis = _population(False)
+    _report("converted-frame-honesty", c_stubs, c_off, c_vis)
+    _ratchet("converted-frame-honesty",
+             (("model-visible", len(c_vis), args.converted_ratchet),
+              ("total", len(c_off), args.converted_total_ratchet)),
+             "A CONVERTED method's `writes {  }` is checked against the EMITTED body, "
+             "which is an ERASURE of the live one — and every OTHER file's caller-side "
+             "abstract `val` is minted from the same declared `assigns`, so it inherits "
+             "the false frame UNCHECKED.")
+
     if rc == 0:
-        print("[+] trusted-frame-honesty: OK (model-visible ratchet %d, total ratchet %d)."
-              % (args.ratchet, args.total_ratchet))
+        print("[+] frame-honesty: OK (trusted ratchets %d/%d, converted ratchets %d/%d)."
+              % (args.ratchet, args.total_ratchet,
+                 args.converted_ratchet, args.converted_total_ratchet))
     return rc
 
 
