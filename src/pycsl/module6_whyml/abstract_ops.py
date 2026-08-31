@@ -212,6 +212,23 @@ class AbstractOpsMixin:
         for sym, decl in self._SELF_DISPATCH_VAL_DECLS.items():
             if sym in self._abstract_ops:
                 continue
+            # FOURTH PRODUCER of `self__py_stmts_to_ir_1` (lesson (am)). When the mirror
+            # declares a non-empty `#@ assigns` for `_py_stmts_to_ir`, the generic route
+            # emits it WITH a receiver and a `writes` clause; this fallback declaration --
+            # used only when the emitter class is IMPORTED -- must match, or the bespoke
+            # applications become a Why3 type error. `functions._stmts_disp_writes` is the
+            # single place that decides; ask it, with the class the bespoke handlers use.
+            if sym == "self__py_stmts_to_ir_1":
+                _wl, _st = [], ""
+                try:
+                    _wl = self._stmts_disp_writes(None)
+                    _st = self._stmts_disp_class()
+                except Exception:
+                    _wl, _st = [], ""
+                if _wl and _st:
+                    decl = ("val self__py_stmts_to_ir_1 (self: %s) (x0: array int)"
+                            " : seq stmt_ir\n    writes { %s }"
+                            % (_st, ", ".join("self." + _l for _l in _wl)))
             if joined is None:
                 joined = "\n".join(out)
             if re.search(r"\b" + re.escape(sym) + r"\b", joined):

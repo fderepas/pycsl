@@ -2424,13 +2424,16 @@ class FunctionEmissionMixin:
         (fires only for this named mirror method under `_uses_stmt_ir`)."""
         name = whyml_ident(func["name"])
         cls = whyml_ident(func["self_type"].lower())
-        disp = "self__py_stmts_to_ir_1"
+        disp = self._stmts_disp_app(func.get("self_type"))
         L = [
             f"  let {name} (self: {cls}) (stmt: py_try_node)"
             f" (ir_stmts: ref (seq stmt_ir)) : unit",
             "    requires { true }",
             "    ensures  { true }",
-            "    writes { ir_stmts }",
+            # The receiver-taking shadow carries the dispatcher's declared frame, so this
+            # bespoke body must declare it too (lesson (am): same four producers).
+            ("    writes { " + ", ".join(["self." + _l for _l in
+                self._stmts_disp_writes(func.get("self_type"))] + ["ir_stmts"]) + " }"),
             "  =",
             "    let hs = try_handlers_ast stmt in",
             "    let handlers = ref (Seq.empty: seq except_handler) in",
@@ -2494,13 +2497,16 @@ class FunctionEmissionMixin:
         name = whyml_ident(func["name"])
         cls = whyml_ident(func["self_type"].lower())
         disp_e = "self__py_expr_to_ir_1"
-        disp_s = "self__py_stmts_to_ir_1"
+        disp_s = self._stmts_disp_app(func.get("self_type"))
         L = [
             f"  let {name} (self: {cls}) (stmt: py_match_node)"
             f" (ir_stmts: ref (seq stmt_ir)) : unit",
             "    requires { true }",
             "    ensures  { true }",
-            "    writes { ir_stmts }",
+            # The receiver-taking shadow carries the dispatcher's declared frame, so this
+            # bespoke body must declare it too (lesson (am): same four producers).
+            ("    writes { " + ", ".join(["self." + _l for _l in
+                self._stmts_disp_writes(func.get("self_type"))] + ["ir_stmts"]) + " }"),
             "  =",
             "    let cs = match_cases_ast stmt in",
             "    let cases = ref (Seq.empty: seq match_case) in",
@@ -3701,13 +3707,16 @@ class FunctionEmissionMixin:
         `_get_mutex_invariant_ir` stays \trusted. Corpus-inert."""
         name = whyml_ident(func["name"])
         cls = whyml_ident(func["self_type"].lower())
-        disp_s = "self__py_stmts_to_ir_1"
+        disp_s = self._stmts_disp_app(func.get("self_type"))
         L = [
             f"  let {name} (self: {cls}) (stmt: py_with_node)"
             f" (ir_stmts: ref (seq stmt_ir)) : unit",
             "    requires { true }",
             "    ensures  { true }",
-            "    writes { ir_stmts }",
+            # The receiver-taking shadow carries the dispatcher's declared frame, so this
+            # bespoke body must declare it too (lesson (am): same four producers).
+            ("    writes { " + ", ".join(["self." + _l for _l in
+                self._stmts_disp_writes(func.get("self_type"))] + ["ir_stmts"]) + " }"),
             "  =",
             f"    let body_ir = {disp_s} (with_body_ast stmt) in",
             "    match csl_mutex_ast stmt with",
@@ -3792,6 +3801,59 @@ class FunctionEmissionMixin:
                 out += emit_check_subscript_assignments_group(desc, whyml_ident)
                 self._csa_emitted.add(nm)
         return out
+
+    def _stmts_disp_writes(self, self_type: Any) -> List[str]:
+        """The MODELLED field labels `_py_stmts_to_ir` declares it writes, for `self_type`.
+
+        `self__py_stmts_to_ir_1` has FOUR producers (lesson (am)): the generic
+        `_handle_dotted_call` route, the hard-coded declaration table in
+        `abstract_ops._SELF_DISPATCH_VAL_DECLS`, and three bespoke stmt handlers here. The
+        moment the mirror declares a non-empty `#@ assigns` for `_py_stmts_to_ir`, the
+        generic route emits the val WITH a receiver parameter and the other three still
+        spell the application with ONE argument -- a Why3 type error
+        (`This expression has type array int, but is expected to have type
+        <class>`). This is the single place that decides, so the four cannot drift."""
+        _stl = str(self_type or "").lower()
+        for f in (self.ir.get("functions") or []):
+            if f.get("kind") != "method":
+                continue
+            # `self_type=None` means "whatever class owns `_py_stmts_to_ir`" -- the
+            # imported-emitter fallback has no current class to pass.
+            if _stl and str(f.get("self_type") or "").lower() != _stl:
+                continue
+            nm = str(f.get("name", ""))
+            if not nm.endswith("_py_stmts_to_ir"):
+                continue
+            _wf = (getattr(self, "_module_method_writes", {}) or {}).get(nm, []) or []
+            _cls = whyml_ident(str(f.get("self_type") or _stl).lower())
+            _wl = [self._field_label(_cls, x) for x in _wf]
+            _lbls = getattr(self, "_emitted_record_field_labels", {}).get(_cls)
+            # FAIL CLOSED when the class has NO emitted record in this file (the IMPORTED
+            # emitter: `type pycsltojsonemitter = int`). `_emit_function`'s convention is
+            # "absent registry -> filter nothing", but here an unfilterable label would be
+            # emitted into a `writes` clause with nothing to bind it
+            # (`unbound function or predicate symbol '_fresh_var_counter'`, measured).
+            # Returning [] keeps the receiver-less spelling, which is what every producer
+            # then agrees on and is byte-identical to before.
+            if _lbls is None:
+                return []
+            _wl = [l for l in _wl if l in _lbls]
+            return _wl
+        return []
+
+    def _stmts_disp_class(self) -> str:
+        """The whyml record name of the class that owns `_py_stmts_to_ir`, or ""."""
+        for fn in (self.ir.get("functions") or []):
+            if (fn.get("kind") == "method"
+                    and str(fn.get("name", "")).endswith("_py_stmts_to_ir")):
+                return whyml_ident(str(fn.get("self_type") or "").lower())
+        return ""
+
+    def _stmts_disp_app(self, self_type: Any) -> str:
+        """The applied head of the `_py_stmts_to_ir` shadow: with the receiver when its
+        declared frame is non-empty, without it otherwise (byte-identical then)."""
+        return ("self__py_stmts_to_ir_1 self" if self._stmts_disp_writes(self_type)
+                else "self__py_stmts_to_ir_1")
 
     def _emit_function(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
         """Emit one WhyML let/val function block. Returns the list of output lines.

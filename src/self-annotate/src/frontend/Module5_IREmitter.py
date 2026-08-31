@@ -1458,7 +1458,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _py_stmts_to_ir(self, stmts: List[ast.stmt]) -> List[int]:
         return []
 
@@ -1655,7 +1655,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns ir_stmts
+    #@ assigns self._fresh_var_counter
     def _py_stmt_while(self, stmt: ast.While, ir_stmts: List[int]) -> None:
         ir_stmts.append(self._process_while(stmt))
 
@@ -1671,7 +1671,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns ir_stmts
+    #@ assigns self._fresh_var_counter
     def _py_stmt_for(self, stmt: ast.For, ir_stmts: List[int]) -> None:
         ir_stmts.append(self._process_for(stmt))
 
@@ -1682,7 +1682,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns ir_stmts
+    #@ assigns self._fresh_var_counter
     def _py_stmt_if(self, stmt: ast.If, ir_stmts: List[int]) -> None:
         ir_stmts.append(self._process_if(stmt))
 
@@ -1990,7 +1990,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _process_while(self, node: ast.While) -> int:
         return {
             "stmt": "While",
@@ -2026,7 +2026,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _process_for(self, node: ast.For) -> int:
         target = node.target.id if isinstance(node.target, ast.Name) else "_for_target"
         d: Dict[str, Any] = {
@@ -2061,7 +2061,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _process_if(self, node: ast.If) -> int:
         return {
             "stmt": "If",
