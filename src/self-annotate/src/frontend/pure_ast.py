@@ -5007,6 +5007,21 @@ class _Unparser(NodeVisitor):
             self.set_precedence(_Precedence.TEST, node.body)
             self.traverse(node.body)
 
+    # `_Unparser` FAMILY BOUNDARY -- MEASURED (relaunch #19), and the reason is NOT the
+    # one previously recorded ("an int-erased facade"). The node typing is FIXABLE and was
+    # fixed: annotate the parameter with the harvested `_NODE_SPEC` record and the body
+    # emits `let _unparser__visit_alias (self: _unparser) (node: py_alias) : unit` reading
+    # the REAL fields `node.py_alias_name` / `node.py_alias_asname`. (That needed a bug fix
+    # in `ir_resolve._resolve_pure_ast_records`: its parameter-annotation branch looked a
+    # method up by its BARE name while the function IR is keyed by the QUALIFIED
+    # `<Class>__<method>`, so the branch had never fired for a method at all.)
+    # WHAT ACTUALLY BLOCKS THE FAMILY IS `_Unparser.write(self, *text)` -- VARIADIC. It
+    # emits as `let _unparser__write (self: _unparser) : unit`, taking NO parameters, with
+    # callers going through `val self_write_1 (x0: int) : unit`; so every string this
+    # visitor produces is discarded by the model. ALL 51 remaining `_Unparser` stubs call
+    # it. REOPENING CAPABILITY: a `*args` parameter model (a `seq string` formal, with the
+    # call site materializing its actual arguments into it) -- ONE feature that unblocks
+    # the whole family, which is 51 of the 491 markers.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True

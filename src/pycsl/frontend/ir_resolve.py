@@ -1444,7 +1444,20 @@ def _resolve_same_file_node_spec_records(validated_ast: Any,
             an = _ann_name(arg.annotation) if arg.annotation is not None else None
             if an in records:
                 wanted.add(an)
+                # A METHOD's function IR is keyed by its QUALIFIED `<Class>__<method>`
+                # name, so the bare `func_by_name.get(node.name)` lookup silently missed
+                # EVERY method -- the branch only ever fired for a module-level function.
+                # That is why a `def visit_alias(self, node: "alias")` on `_Unparser` still
+                # emitted `(node: int)` with int-erased `get_name`/`get_asname` projectors.
+                # Resolve by LINE + qualified-name suffix, exactly as the RETURN branch
+                # above already does.
                 fi = func_by_name.get(node.name)
+                if fi is None:
+                    for _f in ir_data.get("functions", []):
+                        if (_f.get("line") == getattr(node, "lineno", None)
+                                and str(_f.get("name", "")).endswith(node.name)):
+                            fi = _f
+                            break
                 if fi is not None and fi.get("symbol_table") is not None:
                     fi["symbol_table"][arg.arg] = an
     # A "RecList:<Rec>" FIELD names an element record that must ALSO be harvested and
