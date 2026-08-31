@@ -6613,13 +6613,23 @@ class PreambleEmissionMixin:
                 " iff it is a Name whose head name equals the target, reusing is_var/name_of,"
                 " NO new ctor, NOT a length-only law). Both accessors TAKE the node (no"
                 " erasure). `m5_current_class_present` models the opaque instance-state"
-                " truthiness `self._current_class` (a sound abstract reader, like symtab_mem)."
+                " truthiness `self._current_class`. SOUNDNESS (2026-08-31, relaunch #19):"
+                " it is a PROGRAM `val` taking `unit`, NOT an argument-less `val function`."
+                " `self._current_class` is genuine per-visit MUTABLE state (Module5 sets it"
+                " on entering a ClassDef and clears it on leaving), so a pure argument-less"
+                " symbol is a CONSTANT: it asserts the truthiness is the same at every"
+                " point of the module, forcing two reads separated by a class transition to"
+                " agree. Nothing consumes it as a logic term (measured: 0 occurrences in any"
+                " `requires`/`ensures`/`invariant`/`variant`/`assert` across all 52 emitted"
+                " mirrors, and `_should_skip_method` has NO caller in any mirror), so the"
+                " claim was unexercised — but unexercised is not sound, and a `unit`-taking"
+                " program `val` asserts nothing at all."
                 " Gated on `_uses_py_functiondef_node` -> corpus + every other mirror"
                 " byte-identical. *)",
                 "  type py_functiondef_node",
                 "  val function func_name_ast (n: py_functiondef_node) : string",
                 "  val function func_decorator_list_ast (n: py_functiondef_node) : irlist",
-                "  val function m5_current_class_present : bool",
+                "  val m5_current_class_present (_u: unit) : bool",
                 "  function decorator_has_name (target: string) (l: irlist) : bool =",
                 "    match l with",
                 "    | ILNil -> false",
@@ -6705,7 +6715,9 @@ class PreambleEmissionMixin:
                 " postcondition synthesis. `func_csl_ensures_ast node` reads `node.csl_ensures`"
                 " (a REAL list of `#@ ensures` nodes, TAKING the node); `ens_expr_ast e` reads"
                 " `csl_ens.expr` (the ensures expression, an emit_ir); `csl_to_ir_op` is the"
-                " opaque sibling `_csl_to_ir` reader (`emit_ir -> emit_ir`). The guard comes"
+                " opaque sibling `_csl_to_ir` reader (`emit_ir -> emit_ir`), a PROGRAM `val`"
+                " and NOT a `val function`: `_csl_to_ir` is state-dependent, so a pure symbol"
+                " would assert a determinism the source does not have. The guard comes"
                 " from the sibling `build_overload_guard_acc_prog None (func_args_ast node)`"
                 " (`option emit_ir`); `guard is None -> return []` is the None arm. Per ensures"
                 " the clause `IrBinOp \"==>\" guard (csl_to_ir_op (ens_expr_ast e))` is built"
@@ -6713,25 +6725,43 @@ class PreambleEmissionMixin:
                 " (order-preserving: clause i mirrors the i-th `#@ ensures`, matching the live"
                 " `clauses.append(...)`). The seq is materialized to the CANONICAL `array emit_ir`"
                 " List-return via `materialize_ir` (the emit_ir analogue of `materialize_str`;"
-                " fresh result, no region link). Structural recursion on the ens list (no"
-                " termination VC, no new ctor, no new variant ADT: `list`/`seq` are stdlib, the"
-                " clauses reuse the EXISTING emit_ir ctors). Gated on"
+                " fresh result, no region link). The fold is PROGRAM code (a `let rec` over"
+                " the ens list with a STRUCTURAL `variant { ens }`, discharged by the"
+                " algebraic-type descent order) precisely so the state-dependent"
+                " `csl_to_ir_op` is applied in a PROGRAM context; there is no logic-level"
+                " `synth_overload_clauses` and no pinning `ensures` law. No new ctor and no"
+                " new variant ADT: `list`/`seq` are stdlib, the clauses reuse the EXISTING"
+                " emit_ir ctors. Gated on"
                 " `_uses_synthesize_overload_guard`. *)",
                 "  type ens_node",
                 "  val function func_csl_ensures_ast (n: py_functiondef_node) : list ens_node",
                 "  val function ens_expr_ast (e: ens_node) : emit_ir",
-                "  val function csl_to_ir_op (e: emit_ir) : emit_ir",
-                "  function synth_overload_clauses (guard: emit_ir)"
-                " (ens: list ens_node) : Seq.seq emit_ir =",
+                # SOUNDNESS (2026-08-31, relaunch #19): `csl_to_ir_op` stands for the
+                # STATE-DEPENDENT `_csl_to_ir` (it reaches `_csl_in`, which writes
+                # `self._fresh_var_counter`), so a PURE `val function` asserted a
+                # determinism the source does not have: two structurally EQUAL ensures
+                # expressions were forced to lower to EQUAL clauses. Its sibling
+                # `csl_to_ir` was demoted to a program `val` earlier; THIS one could not
+                # be, because it was applied inside the LOGIC-level fold
+                # `function synth_overload_clauses`. The fold is now PROGRAM code — a
+                # `let rec` with a STRUCTURAL `variant { ens }` on the `list ens_node`
+                # (Why3 accepts structural descent on an algebraic type, so no `diverges`
+                # is needed and NO effect propagates to the caller). The logic function
+                # and the `ensures { result = synth_overload_clauses ... }` pinning law
+                # are GONE: nothing consumed them as a logic term (the sole consumer is
+                # `_emit_synthesize_overload_guard_bespoke`, whose method contract is
+                # `requires true / ensures true`). Zero axioms; ledger untouched.
+                "  val csl_to_ir_op (e: emit_ir) : emit_ir",
+                "  let rec synth_overload_clauses_prog (guard: emit_ir)"
+                " (ens: list ens_node) : Seq.seq emit_ir",
+                "    variant { ens }",
+                "  =",
                 "    match ens with",
                 "    | Nil -> Seq.empty",
                 "    | Cons e rest ->",
                 "      Seq.cons (IrBinOp \"==>\" guard (csl_to_ir_op (ens_expr_ast e)))"
-                " (synth_overload_clauses guard rest)",
+                " (synth_overload_clauses_prog guard rest)",
                 "    end",
-                "  val function synth_overload_clauses_prog (guard: emit_ir)"
-                " (ens: list ens_node) : Seq.seq emit_ir",
-                "    ensures { result = synth_overload_clauses guard ens }",
                 "  val materialize_ir (s: Seq.seq emit_ir) : array emit_ir",
                 "    ensures { Array.length result = Seq.length s }",
                 "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }",

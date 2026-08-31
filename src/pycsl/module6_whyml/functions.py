@@ -2797,8 +2797,10 @@ class FunctionEmissionMixin:
         The dunder test lowers to the FAITHFUL `str_startswith_op`/`str_endswith_op`
         (substring-based ensures) over `func_name_ast node` — the accessor APPLIED TO the
         node, NOT a node-free hashed stub. `self._current_class` truthiness -> the opaque
-        `m5_current_class_present` abstract reader (a sound abstraction of genuine instance
-        state, like symtab_mem). `assigns \nothing` (pure bool). Corpus-inert.
+        `m5_current_class_present ()` abstract reader -- a PROGRAM `val` taking `unit`, NOT
+        an argument-less `val function`: `self._current_class` is per-visit MUTABLE state, so
+        a pure argument-less symbol would be a CONSTANT asserting the truthiness never changes.
+        `assigns \nothing` (the method itself writes nothing). Corpus-inert.
 
         `@property` SUPPORT (relaunch #16): the decorator-existence disjunct is GONE from
         BOTH producers — the live/mirror source AND this synthesized body (lesson (am):
@@ -2824,7 +2826,7 @@ class FunctionEmissionMixin:
             "    requires { true }",
             "    ensures  { true }",
             "  =",
-            "    if not m5_current_class_present then false",
+            "    if not (m5_current_class_present ()) then false",
             "    else if (str_startswith_op (func_name_ast node) \"__\" = 1)"
             " && (str_endswith_op (func_name_ast node) \"__\" = 1) then true",
             "    else false",

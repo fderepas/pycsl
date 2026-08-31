@@ -2917,6 +2917,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # (func_csl_ensures_ast node)` fold, each clause = `IrBinOp "==>" guard (csl_to_ir_op
     # (ens_expr_ast e))` (opaque `ens_node`/`func_csl_ensures_ast`/`ens_expr_ast` readers +
     # the opaque `csl_to_ir_op` for `self._csl_to_ir`), the seq materialized to `array emit_ir`.
+    # SOUNDNESS: the fold is a PROGRAM `let rec` with a structural `variant { ens }`, and
+    # `csl_to_ir_op` is a PROGRAM `val` -- `_csl_to_ir` is state-dependent (it reaches
+    # `_csl_in`, which writes `self._fresh_var_counter`), so a pure `val function` would have
+    # asserted that two structurally EQUAL ensures expressions lower to EQUAL clauses.
     # NO new axiom / NO new variant ADT (list/option/seq stdlib; clauses reuse EXISTING emit_ir
     # ctors). Verbatim body port of the LIVE `_synthesize_overload_guard`.
     #@ requires True
