@@ -92,10 +92,10 @@ import collections
 import os
 import sys
 
-RATCHET = 6           # MODEL-VISIBLE offenders: `@mutable_state` class AND a modelled field
-TOTAL_RATCHET = 76    # every offender, including opaque-self classes
-CONVERTED_RATCHET = 63        # the CONVERTED surface, model-visible (see the note below)
-CONVERTED_TOTAL_RATCHET = 130 # the CONVERTED surface, every offender
+RATCHET = 5           # MODEL-VISIBLE offenders: `@mutable_state` class AND a modelled field
+TOTAL_RATCHET = 75    # every offender, including opaque-self classes
+CONVERTED_RATCHET = 9         # the CONVERTED surface, model-visible (see the note below)
+CONVERTED_TOTAL_RATCHET = 76  # the CONVERTED surface, every offender
 LIVE_ROOT = "src/pycsl"
 MIRROR_ROOT = "src/self-annotate/src"
 

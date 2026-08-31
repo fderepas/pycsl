@@ -86,28 +86,50 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # writes/raises, emitted on every member of a mutually-recursive group), ON TOP OF
     # the common structural variant `_py_expr_to_ir` needs. 92 shadowed call sites ride
     # on this one — the single largest item left on the shadowed metric.
+    # SOUNDNESS (relaunch #19, from the independent review): the CROSS-MODULE boundary
+    # `val pycsltojsonemitter___csl_to_ir` that other mirrors import is minted from THIS
+    # `#@` block, while the concrete `let` in this file is BESPOKE-emitted and computes its
+    # own raises union over the handler table. Two producers (lesson (am)): the `let`
+    # correctly carried `raises { PyCSLIRError, PyCSLSemanticError }` while the boundary
+    # `val` carried only `PyCSLIRError` — an UNDERSTATING contract. Measured UNEXERCISED
+    # (exactly one occurrence of the symbol in each of pycsl.mlw and ir_resolve.mlw: the
+    # declaration, zero call sites), but the first cross-module caller would prove against
+    # it. Declared explicitly so the two producers cannot disagree.
+    #@ raises PyCSLIRError when True
+    #@ raises PyCSLSemanticError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_to_ir(self, node: "ExprIR") -> "ExprIR":
         handler_name = self._CSL_HANDLERS.get(type(node))
         if handler_name is None:
             raise PyCSLIRError(f"Unsupported CSL node: {type(node).__name__}", stage="ir-emit")
         return getattr(self, handler_name)(node)
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_binop(self, node: CSLBinOp) -> Dict[str, Any]:
         return {"type": "BinOp", "op": node.op,
                 "left": self._csl_to_ir(node.left), "right": self._csl_to_ir(node.right)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_unaryop(self, node: CSLUnaryOp) -> Dict[str, Any]:
         return {"type": "UnaryOp", "op": node.op, "expr": self._csl_to_ir(node.expr)}
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -124,17 +146,25 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     "object": {"type": "Var", "name": node.object}, "attr": node.field}
         return {"type": "FieldGet", "object": node.object, "field": node.field}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_field_subscript(self, node: CSLFieldSubscript) -> Dict[str, Any]:
         return {"type": "Subscript",
                 "value": {"type": "FieldGet", "object": "self", "field": node.field},
                 "index": self._csl_to_ir(node.index)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_global_field_subscript(self, node: CSLGlobalFieldSubscript) -> Dict[str, Any]:
         return {"type": "Subscript",
                 "value": {"type": "Attribute",
@@ -142,6 +172,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                           "attr": node.field},
                 "index": self._csl_to_ir(node.index)}
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -154,12 +185,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # branch) to `(IrNumF node.value)` — the NEW `IrNumF real` leaf reading node's real
     # field. Distinct from the int-literal `IrNum` (`_py_expr_name`'s `Number 0`). NO
     # dropped field, NO opaque val. Verbatim body port of the LIVE `_csl_number`.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _csl_number(self, node: CSLNumber) -> Dict[str, Any]:
         return {"type": "Number", "value": node.value}
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -171,18 +204,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # "value": node.value}` lowers (expressions.py `_IRNODE_CTORS["Bool"]`) to the NEW
     # `IrBoolC int` leaf `(IrBoolC node.value)`, reading node's int field. NO dropped
     # field, NO opaque val. Verbatim body port of the LIVE `_csl_bool`.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _csl_bool(self, node: CSLBool) -> Dict[str, Any]:
         return {"type": "Bool", "value": node.value}
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _csl_none(self, node: CSLNone) -> Dict[str, Any]:
         return {"type": "None"}
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -199,14 +235,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # (`_EMIT_IR_HANDLER_ATTR_PROJ["_csl_old"]`) and builds `IrOldField string string`.
     # The FALSE branch builds `IrOld (csl_to_ir node.expr)`. Verbatim body port of the
     # LIVE `_csl_old`; NO opaque val, NO dropped field.
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_old(self, node: CSLOld) -> Dict[str, Any]:
         if isinstance(node.expr, CSLFieldAccess):
             return {"type": "OldField", "object": node.expr.object, "field": node.expr.field}
         return {"type": "Old", "expr": self._csl_to_ir(node.expr)}
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -222,9 +263,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # <iropt_str from binder_type> <iropt_ir mapping csl_to_ir over domain>)` — the
     # optionals READ from node's option fields and converted to the monomorphic
     # `iropt_str`/`iropt_ir` at the ctor arg (NO dropped field, NO opaque val).
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_forall(self, node: Forall) -> Dict[str, Any]:
         d: Dict[str, Any] = {"type": "Forall", "var": node.var, "body": self._csl_to_ir(node.body)}
         if getattr(node, "binder_type", None) is not None:
@@ -233,9 +278,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             d["domain"] = self._csl_to_ir(node.domain)
         return d
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_forall_items(self, node: ForallItems) -> Dict[str, Any]:
         return {"type": "ForallItems", "key": node.key, "val": node.val,
                 "map": node.coll, "body": self._csl_to_ir(node.body)}
@@ -243,9 +292,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # optional-field builder (monomorphic-option ADTs): identical shape to
     # `_csl_forall` over the Exists node — lowers to `(IrExists node.var
     # (csl_to_ir node.body) <iropt_str> <iropt_ir>)`.
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_exists(self, node: Exists) -> Dict[str, Any]:
         d: Dict[str, Any] = {"type": "Exists", "var": node.var, "body": self._csl_to_ir(node.body)}
         if getattr(node, "binder_type", None) is not None:
@@ -254,27 +307,34 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             d["domain"] = self._csl_to_ir(node.domain)
         return d
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _csl_array_length(self, node: ArrayLength) -> Dict[str, Any]:
         return {"type": "ArrayLen", "var": node.var}
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _csl_in_globals(self, node: InGlobals) -> Dict[str, Any]:
         return {"type": "InGlobals", "name": node.name}   # 07-1839 P2
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _csl_in_scope(self, node: InScope) -> Dict[str, Any]:
         return {"type": "InScope", "name": node.name}     # 07-1839 P3
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_subscript(self, node: SubscriptAccess) -> Dict[str, Any]:
         if node.array == "\\result":
             return {"type": "Subscript",
@@ -284,9 +344,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 "value": {"type": "Var", "name": node.array},
                 "index": self._csl_to_ir(node.index)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_chained_subscript(self, node: ChainedSubscript) -> Dict[str, Any]:
         inner = {"type": "Subscript",
                  "value": {"type": "Var", "name": node.array},
@@ -295,50 +359,78 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 "value": inner,
                 "index": self._csl_to_ir(node.index2)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_assigns_region(self, node: AssignsRegion) -> Dict[str, Any]:
         return {"type": "AssignsRegion", "base": node.base,
                 "low": self._csl_to_ir(node.low), "high": self._csl_to_ir(node.high)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_valid(self, node: Valid) -> Dict[str, Any]:
         return {"type": "Valid", "base": node.base, "length": self._csl_to_ir(node.length)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_separated(self, node: Separated) -> Dict[str, Any]:
         return {"type": "Separated", "base1": node.base1,
                 "len1": self._csl_to_ir(node.length1),
                 "base2": node.base2, "len2": self._csl_to_ir(node.length2)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_at(self, node: CSLAt) -> Dict[str, Any]:
         return {"type": "At", "expr": self._csl_to_ir(node.expr), "label": node.label}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_length2d(self, node: Length2D) -> Dict[str, Any]:
         return {"type": "Length2D", "base": node.base,
                 "rows": self._csl_to_ir(node.rows), "cols": self._csl_to_ir(node.cols)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_valid2d(self, node: Valid2D) -> Dict[str, Any]:
         return {"type": "Valid2D", "base": node.base,
                 "row": self._csl_to_ir(node.row), "col": self._csl_to_ir(node.col)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_contract_wrapper(self, node: ContractWrapper) -> Dict[str, Any]:
         return self._csl_to_ir(node.expr)
 
@@ -354,9 +446,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # (`node.ordering` is a parser `expect_name()` token, never empty → truthiness =
     # presence). Verbatim body port of the LIVE `_csl_function_variant`
     # (Module5_IREmitter.py:661).
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_function_variant(self, node: FunctionVariant) -> Dict[str, Any]:
         ir: Dict[str, Any] = {"expr": self._csl_to_ir(node.expr)}
         if node.ordering:
@@ -373,6 +469,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # dispatcher, FABLE condition 2). The return builds the new `IrCallN string irlist` ctor
     # (expressions.py `_IRNODE_CTORS["Call"]` + preamble.py `_emit_exprir_theory`). Verbatim
     # body port of the LIVE `_csl_call_expr` (Module5_IREmitter.py:667).
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -380,32 +477,48 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {"type": "Call", "func": node.func,
                 "args": [self._csl_to_ir(a) for a in node.args]}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_is_sorted(self, node: IsSorted) -> Dict[str, Any]:
         return {"type": "IsSorted", "base": node.base,
                 "lo": self._csl_to_ir(node.lo), "hi": self._csl_to_ir(node.hi)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_array_eq(self, node: ArrayEq) -> Dict[str, Any]:
         return {"type": "ArrayEq",
                 "left": self._csl_to_ir(node.left),
                 "right": self._csl_to_ir(node.right)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_permutation(self, node: Permutation) -> Dict[str, Any]:
         return {"type": "Permutation",
                 "left": self._csl_to_ir(node.left),
                 "right": self._csl_to_ir(node.right)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_sum(self, node: Sum) -> Dict[str, Any]:
         return {"type": "Sum", "base": node.base,
                 "lo": self._csl_to_ir(node.lo), "hi": self._csl_to_ir(node.hi)}
@@ -413,6 +526,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # L2 DISPATCH-EXPANSION: return retyped `int` -> `"ExprIR"` so this handler's arm of the
     # `_csl_to_ir` dispatch match is `emit_ir`-typed like every other arm. Stays \trusted
     # (body unchanged) — signature-only retype, not a body conversion.
+    #@ sibling_concrete
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -420,17 +534,25 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_in(self, node: CSLIn) -> "ExprIR":
         return {}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_not_in(self, node: CSLNotIn) -> Dict[str, Any]:
         # x not in arr → ¬(x in arr)
         in_ir = self._csl_to_ir(CSLIn(node.element, node.collection))
         return {"type": "UnaryOp", "op": "not", "expr": in_ir}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_slice(self, node: CSLSlice) -> Dict[str, Any]:
         return {"type": "SliceAccess",
                 "value": {"type": "Var", "name": node.collection},
@@ -450,21 +572,30 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # (expressions.py `_IRNODE_CTORS["MkTuple"]` + preamble.py `_emit_exprir_theory`).
     # The content law pins map STRUCTURE (per-index deterministic function of source), NOT
     # dispatcher value-semantics — honest labeling per FABLE condition 3.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _csl_mktuple(self, node: MkTupleExpr) -> Dict[str, Any]:
         return {"type": "MkTuple", "elts": [self._csl_to_ir(e) for e in node.elts]}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_fst(self, node: FstExpr) -> Dict[str, Any]:
         return {"type": "FstExpr", "tuple": self._csl_to_ir(node.tuple_expr)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_snd(self, node: SndExpr) -> Dict[str, Any]:
         return {"type": "SndExpr", "tuple": self._csl_to_ir(node.tuple_expr)}
 
@@ -477,9 +608,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # PyCSLSemanticError` is the err-divergence arm (message DROPPED, raise takes the exc
     # name only; the raise path never reaches `ensures`). NON-VACUOUS: descends the real
     # `node.tuple_expr` node field.
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_proj(self, node: ProjExpr) -> Dict[str, Any]:
         if not isinstance(node.index, CSLNumber):
             from errors import PyCSLSemanticError
@@ -490,12 +624,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {"type": "ProjExpr", "tuple": self._csl_to_ir(node.tuple_expr),
                 "index": int(node.index.value)}
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _csl_ctor_test(self, node: CtorTest) -> Dict[str, Any]:
         return {"type": "CtorTest", "var": node.var, "ctor": node.ctor}
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -503,212 +639,321 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {"type": "CtorPayload", "var": node.var, "ctor": node.ctor,
                 "index": getattr(node, "index", 0)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_strconcat(self, node: StrConcatExpr) -> Dict[str, Any]:
         return {"type": "StrConcat", "left": self._csl_to_ir(node.left),
                 "right": self._csl_to_ir(node.right)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_str_length(self, node: StrLengthExpr) -> Dict[str, Any]:
         return {"type": "StrLength", "string": self._csl_to_ir(node.string)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_str_sub(self, node: StrSubExpr) -> Dict[str, Any]:
         return {"type": "StrSub", "string": self._csl_to_ir(node.string),
                 "lo": self._csl_to_ir(node.lo), "hi": self._csl_to_ir(node.hi)}
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _csl_ghost_copy(self, node: GhostCopyExpr) -> Dict[str, Any]:
         return {"type": "GhostCopy", "arr": node.arr}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_ghost_copy_range(self, node: GhostCopyRangeExpr) -> Dict[str, Any]:
         return {"type": "GhostCopyRange", "arr": node.arr,
                 "lo": self._csl_to_ir(node.lo), "hi": self._csl_to_ir(node.hi)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_ghost_make(self, node: GhostMakeExpr) -> Dict[str, Any]:
         return {"type": "GhostMake", "size": self._csl_to_ir(node.size),
                 "default": self._csl_to_ir(node.default)}
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _csl_map_empty(self, node: MapEmptyExpr) -> Dict[str, Any]:
         return {"type": "MapEmpty"}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_map_get(self, node: MapGetExpr) -> Dict[str, Any]:
         return {"type": "MapGet", "dict": self._csl_to_ir(node.dict_expr),
                 "key": self._csl_to_ir(node.key)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_map_set(self, node: MapSetExpr) -> Dict[str, Any]:
         return {"type": "MapSet", "dict": self._csl_to_ir(node.dict_expr),
                 "key": self._csl_to_ir(node.key), "value": self._csl_to_ir(node.value)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_map_eq(self, node: MapEqExpr) -> Dict[str, Any]:
         return {"type": "MapEq", "left": self._csl_to_ir(node.left),
                 "right": self._csl_to_ir(node.right)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_has_key(self, node: HasKeyExpr) -> Dict[str, Any]:
         return {"type": "HasKey", "dict": self._csl_to_ir(node.dict_expr),
                 "key": self._csl_to_ir(node.key)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_map_remove(self, node: MapRemoveExpr) -> Dict[str, Any]:
         return {"type": "MapRemove", "dict": self._csl_to_ir(node.dict_expr),
                 "key": self._csl_to_ir(node.key)}
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _csl_set_empty(self, node: SetEmptyExpr) -> Dict[str, Any]:
         return {"type": "SetEmpty"}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_set_add(self, node: SetAddExpr) -> Dict[str, Any]:
         return {"type": "SetAdd", "set": self._csl_to_ir(node.set_expr),
                 "elem": self._csl_to_ir(node.elem)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_set_remove(self, node: SetRemoveExpr) -> Dict[str, Any]:
         return {"type": "SetRemove", "set": self._csl_to_ir(node.set_expr),
                 "elem": self._csl_to_ir(node.elem)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_set_mem(self, node: SetMemExpr) -> Dict[str, Any]:
         return {"type": "SetMem", "elem": self._csl_to_ir(node.elem),
                 "set": self._csl_to_ir(node.set_expr)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_set_union(self, node: SetUnionExpr) -> Dict[str, Any]:
         return {"type": "SetUnion", "left": self._csl_to_ir(node.left),
                 "right": self._csl_to_ir(node.right)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_set_inter(self, node: SetInterExpr) -> Dict[str, Any]:
         return {"type": "SetInter", "left": self._csl_to_ir(node.left),
                 "right": self._csl_to_ir(node.right)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_set_diff(self, node: SetDiffExpr) -> Dict[str, Any]:
         return {"type": "SetDiff", "left": self._csl_to_ir(node.left),
                 "right": self._csl_to_ir(node.right)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_set_card(self, node: SetCardExpr) -> Dict[str, Any]:
         return {"type": "SetCard", "set": self._csl_to_ir(node.set_expr),
                 "lo": self._csl_to_ir(node.lo), "hi": self._csl_to_ir(node.hi)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_set_subset(self, node: SetSubsetExpr) -> Dict[str, Any]:
         return {"type": "SetSubset", "left": self._csl_to_ir(node.left),
                 "right": self._csl_to_ir(node.right)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_set_eq(self, node: SetEqExpr) -> Dict[str, Any]:
         return {"type": "SetEq", "left": self._csl_to_ir(node.left),
                 "right": self._csl_to_ir(node.right)}
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _csl_nil(self, node: NilExpr) -> Dict[str, Any]:
         return {"type": "Nil"}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_cons(self, node: ConsExpr) -> Dict[str, Any]:
         return {"type": "Cons", "head": self._csl_to_ir(node.head),
                 "tail": self._csl_to_ir(node.tail)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_hd(self, node: HdExpr) -> Dict[str, Any]:
         return {"type": "Hd", "list": self._csl_to_ir(node.list_expr)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_tl(self, node: TlExpr) -> Dict[str, Any]:
         return {"type": "Tl", "list": self._csl_to_ir(node.list_expr)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_list_length(self, node: ListLengthExpr) -> Dict[str, Any]:
         return {"type": "ListLength", "list": self._csl_to_ir(node.list_expr)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_nth(self, node: NthExpr) -> Dict[str, Any]:
         return {"type": "Nth", "list": self._csl_to_ir(node.list_expr),
                 "index": self._csl_to_ir(node.index)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_mem(self, node: MemExpr) -> Dict[str, Any]:
         return {"type": "Mem", "elem": self._csl_to_ir(node.elem),
                 "list": self._csl_to_ir(node.list_expr)}
 
+    #@ raises PyCSLSemanticError when True
+    #@ raises PyCSLIRError when True
+    #@ sibling_concrete
+    #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_append(self, node: AppendExpr) -> Dict[str, Any]:
         return {"type": "Append", "left": self._csl_to_ir(node.left),
                 "right": self._csl_to_ir(node.right)}
 
+    #@ sibling_concrete
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._fresh_var_counter
     def _csl_list_to_ir(self, csl_list: List[CSLNode]) -> List[int]:
         return []
 
