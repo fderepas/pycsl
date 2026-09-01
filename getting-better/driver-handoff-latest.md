@@ -1,3 +1,170 @@
+# HANDOFF — #29 FINAL ENTRY (2026-09-01, WINDOW 3): **491 -> 462. TWENTY-NINE MARKERS
+# in one window — more than the previous three windows combined — and not one of them
+# needed a new value model. Every unlock was a ONE-LINE gap in the emitter that an
+# earlier relaunch had recorded as a value-model boundary.**
+
+## THE NUMBER
+
+| | markers | grep | offset | unattached | ledger |
+|---|---|---|---|---|---|
+| window start | 491 | 516 | 25 | 0 | 3 |
+| **window end** | **462** | **487** | **25** | **0** | **3** |
+
+Seven commits, every one gated on all planes, tree clean, no prover process left running.
+
+| commit | markers | what unlocked it |
+|---|---|---|
+| `6f059995` | — | ITEM 0: the `csl_to_ir_op` "live unsoundness" REFUTED (a stale comment) |
+| `772cad82` | — | the `_Unparser` boundary REOPENED (`_PURE_AST_FIELD_TABLE` already exists) |
+| `e2a9a35b` | 491 | `visit_Name` record + `str_hash_op` for computed string vararg elements |
+| `c633e7e1` | **488** | bool-actual coercion + the `-> int` trusted-stub disjunct, BOTH producers |
+| `430f6ca5` | **477** | `unit -> unit` closure formal — the "higher-order formals" block |
+| `8a5803e0` | — | INSTRUMENT: `probe-conversion-candidates.py` repaired (3 bugs, 38% of the tree) |
+| `50c7bba6` | **469** | HOISTED loop bound — for-over-collection termination, with NO purity claim |
+| `034227cf` | **464** | mixed string/int `+` was emitting a raw Why3 `+` |
+| `abda560f` | **462** | `-> int` on a `unit` stub + the `s * n` string-repetition recognizer |
+
+## THE SEVEN EMITTER CAPABILITIES THIS WINDOW ADDED — all fail-closed, all corpus-audited
+
+1. `str_hash_op` coercion for a COMPUTED string actual packed into a `seq int` vararg
+   (`expressions.py::_handle_dotted_call`, which now receives the source arg IRs). String
+   LITERALS deliberately stay on `_coerce_to_int` so every existing literal write is
+   byte-identical.
+2. BOOL ACTUAL INTO AN INT FORMAL — reuses the emitter's own `_bool_ir_to_int_wrap`.
+   Fires only where the formal is `int` AND the actual is a bool-source IR, i.e. only
+   where the emitted file was ALREADY ill-typed: byte-inert by construction.
+3. The `-> int` `\trusted`-stub return-type disjunct, in **both** producers
+   (`_compute_return_type` AND `_build_method_return_type_map`).
+4. `unit -> unit` inference for a ZERO-ARGUMENT closure actual (`(fun () -> …)`).
+5. HOISTED PROGRAM LOOP BOUND: `let _len<idx> = <program length call> in` before the loop,
+   used in the guard AND the variant. Two gates: **no mutable deref in the length term**
+   (SOUNDNESS — hoisting freezes the bound) and not an `@mutable_state` class (blast radius).
+6. MIXED STRING/INT `+` routed to the int-model `str_concat` the f-string path already uses.
+7. `s * n` STRING-REPETITION recognized as string in `_is_string_expr` (the lowering
+   already emitted `str_repeat_op … : string`).
+
+## THE LESSONS — read these before touching anything
+
+**(bb) In a mature emitter, "the value model cannot express this" is far more often a
+MISSING ONE-LINE INFERENCE than a missing model.** Five separate boundaries recorded by
+#23/#24/#27 were each one line. The discriminator is mechanical: **read the L3-tc error,
+then grep the emitter for the mechanism that already handles the ADJACENT case.** The
+`array int` inference sat three lines above the missing `unit -> unit` one. The `-> str`
+disjunct sat one line above the missing `-> int` one. `_bool_ir_to_int_wrap` was already
+imported into the same file.
+
+**(bc) Re-prove the WHOLE file, never just the new goals.** A 20-port batch produced 20
+non-Valid goals — ten were the new loop bodies and **ten were `get_docstring`, which had
+been Valid at 0.00 s one increment earlier**. Unknown / Out-of-memory / Timeout, never
+Invalid. Reverting the one genuinely-unprovable body restored it to 0.00 s. **A conversion
+batch has a context cost that lands on goals it never mentions, and the cost is
+proportional to how much UNPROVABLE material is in the file — so a failing goal elsewhere
+is a signal to find and remove the one bad body, not to shrink the batch.**
+
+**(bd) A MEASUREMENT INSTRUMENT IS A CLAIM LIKE ANY OTHER**, and its failure mode is the
+worst kind: it reports a HARNESS bug in the vocabulary of a REAL boundary, so every reader
+downstream inherits a fabricated wall. `probe-conversion-candidates.py` had three bugs; one
+of them turned a Python `SyntaxError` (its own bad dedent of module-level bodies) into
+`L3TC-FAIL ['expected an indented block']` for **133 of 352 verdicts, 38% of the tree**.
+The tell needed no domain knowledge at all: 133 "type errors" that were word-for-word the
+same SyntaxError. **Aggregate an instrument's output and look at the SHAPE of the
+distribution before acting on any single verdict.**
+
+**(be) A PORT DOES NOT INHERIT ITS STUB'S FRAME.** `#@ assigns \nothing` is harmless on a
+`\trusted` stub (whose emitted `val` has no body) and becomes a FALSE FRAME the instant the
+method enters the converted population, where `writes { }` is checked against an ERASURE of
+the live body. Seven `_Unparser` ports used `with self.block():` (which writes
+`self._indent`) and had to re-declare `#@ assigns self._indent`. Re-derive the frame on
+every port.
+
+**(bf) The gate planes are NOT redundant — each one caught a different bad port, three
+separate times this window.** NON-VACUITY caught `get_type_comment` INPUT-BLIND (twice).
+SHADOWED-SELFCALLS caught `_type_params_helper` / `_write_fstring_inner` / `_function_helper`
+(three times — do not attempt them a fourth). FRAME-HONESTY caught the `block()` family.
+The PROOF caught `visit_If`'s termination and the context blowup. **The candidate filter's
+CLEAN verdict was refuted 2 out of 2 times by non-vacuity** (`Module3_Weaver`
+`_attach_loop_contracts` / `_region_bound_str` — both erase an input). CLEAN is a filter,
+never a gate.
+
+## WHAT REMAINS ON `_Unparser` — every entry with its MEASURED reason
+
+Reproduce any of these in ~4 seconds: `python3 scratchpad/port.py <name>` then
+`./scratchpad/tc.sh`. Helpers left in the tree: `port.py` / `port2.py` (port a live body
+into the mirror), `restub.py` (put it back as a `\trusted` stub), `tryport.sh` (port, test,
+KEEP on green), `diag.sh` (port, test, REVERT and report), `tc.sh` (emit + typecheck, 1.8 s),
+`mirror_md5.sh <root>` (52-mirror md5 sweep, 6.5 s).
+
+| method | measured blocker |
+|---|---|
+| `visit_If` | `Sub-goal termination` — a genuine `while node.orelse and len(node.orelse)==1 and isinstance(…)`, not a for-over-collection, so no auto-variant applies and the source supplies no measure. **A REAL boundary.** |
+| `_function_helper`, `_type_params_helper`, `_write_fstring_inner` | SHADOWED — call sites route through `val self__<m>_<n>`. Rejected three times. |
+| `get_type_comment` | INPUT-BLIND (non-vacuity), twice. |
+| `visit_BoolOp` | `This function is stateful, it cannot be used as pure` |
+| `visit_Dict`, `visit_MatchMapping` | nested `def` (a local function) |
+| `visit_MatchClass` | `This pattern has type ('mu, 'mu1)` — a tuple pattern |
+| `visit_arguments`, `__init__` | `array int @rho` — a mutable list literal |
+| `visit_MatchStar` | `string` vs `int` at an f-string over an optional name |
+| `visit_JoinedStr`, `visit_FormattedValue` | nested `def` / `seq` clash |
+| `interleave`, `items_view` | `This expression has type int, it cannot be applied` — a function-VALUED FORMAL (`f`, `traverser`) called inside the body. The dual of capability 4: that one types a closure ACTUAL, this needs a closure FORMAL. |
+| `set_precedence` | `seq int` vs `int` — `self._precedences[node] = precedence`, a dict keyed by a NODE |
+| `fill` | the string-literal TERNARY `"except*" if self._in_try_star else "except"` lowers to int hashes, because the `IfExpr`-is-string rule in `_is_string_expr` is gated on `@mutable_state` and `_Unparser` is not one |
+| `buffered`, `delimit_if`, `_str_literal_helper`, `_write_docstring_and_traverse_body` | array/int clashes |
+
+### THE TWO NAMED, PRICED, NOT-YET-TRIED CAPABILITIES
+
+**(A) `@mutable_state` on `_Unparser`.** It genuinely has mutable state (`_source`,
+`_indent`, `_precedences`), so the annotation is TRUE, and it turns on the whole typed-local
+pre-decl family plus the `IfExpr`-is-string rule for the class at once — which is what
+`fill` (a 14-use hub) needs. **WARNING, measured: it will also flip ~7 currently
+"unmodelled" false frames to MODEL-VISIBLE, and the model-visible ratchet is a hard 0.**
+Every one of those `#@ assigns` would have to become truthful first. That is the increment's
+real cost and it is the honest one — those frames are false today either way.
+
+**(B) A closure FORMAL.** `interleave(self, inter, f, seq)` and `items_view(self, traverser,
+items)` take a function and CALL it. Capability 4 types a closure ACTUAL as `unit -> unit`;
+the formal side needs the same treatment plus an effect story for the call. Two hub markers,
+and it is what the whole `interleave` family's remaining depth rests on.
+
+### `option string` RECORD-FIELD READS — still unbuilt, still priced
+`MatchAs.name`, `ExceptHandler.name`, `keyword.arg`, `MatchStar.name` are `OptStr` ->
+`option string` and the emitter has no read path for an option-typed record field.
+REOPENING: a truthiness form (`<> None`) and a value form
+(`match f with Some v -> v | None -> "" end`). Note `visit_alias` converted WITHOUT it, via
+capability 6 — so the option path is now worth less than it was.
+
+## THE REST OF THE TREE — probed, and it is genuinely harder
+
+Every mirror was probed with the REPAIRED harness. Outside `pure_ast.py` there are exactly
+**two** CLEAN candidates in the whole tree (`Module3_Weaver._attach_loop_contracts` and
+`Module3_Weaver._region_bound_str`) and **both were refuted by non-vacuity** — each erases an
+input. Everything else is L3TC-FAIL or ERASURE. The ranked blocker census across the tree,
+now that the harness reports real reasons: `string`-actual-into-`int`-formal (50),
+`unit`-returning-callee-used-as-a-value (20), `int`-actual-into-`string`-formal (17),
+`array int @rho` (16), unbound symbol (12), array/int (7), tuple pattern (6). **The first
+two are the SAME families this window already fixed twice** — they are the next place to
+look, in `Module1_Ingestor.py` and `Module2_Parser.py`, which hold most of them.
+
+## INSTRUMENT FACTS (carry forward)
+
+1. **`export PATH=/home/fabrice/.opam/framac-coq8/bin:$PATH` ON EVERY GATE.**
+   `_why3_typecheck` returns `(True, "(why3 not found — typecheck skipped)")` on
+   `FileNotFoundError` and the caller prints `L3-tc ✓` + `Verification SUCCESS` without ever
+   printing the skip reason. #29 hit this in its first hour on a file why3 rejects outright.
+2. emit+typecheck `pure_ast.py`: **1.8 s**. 52-mirror md5 sweep: **6.5 s**. corpus
+   byte-diff sweep: **31 s** per side. whole-file proof of `pure_ast.py`: **~50-60 min**.
+3. **`check-self-annotate-sync.sh` is a LIVE PLANE FOR EMITTER EDITS.** Editing
+   `module6_whyml/functions.py` took DIVERGED 2 -> 4 because `_compute_return_type` and
+   `_build_method_return_type_map` are UN-trusted in the mirror. `_handle_dotted_call` needed
+   nothing — it is a `\trusted` stub there. That asymmetry is the plane working.
+4. The corpus byte-diff is **NOT 0** any more, by design and with M1 justification: exactly
+   3 files (0418, 0884, 0886) carry the hoisted loop bound. 0418/0886 are `--no-proof` and
+   re-emit L3-tc ✓; 0884 is `# pycsl-expected: FAIL` and still FAILS. **Use
+   `scratchpad/corpus_head` semantics carefully: a future worker's "byte-diff 0" baseline is
+   now HEAD, not the window-start tree.**
+5. The trusted frame-honesty TOTAL ratchet was lowered **70 -> 68** this window.
+
+---
+
 # HANDOFF — #29 THIRD ENTRY (2026-09-01, WINDOW 3): **491 -> 477. FOURTEEN MARKERS.
 # The `_Unparser` "CERTIFIED-BOUNDARY" was not a boundary at all — it was five separate
 # ONE-LINE gaps in the emitter, each recorded by an earlier relaunch as a body block.**
