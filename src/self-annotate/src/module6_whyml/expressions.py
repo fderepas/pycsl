@@ -76,6 +76,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     'Expression-emission dispatch: every IR expression-shape `_handle_*_expr`\n    handler routed via `_EXPR_DISPATCH` on the facade, plus the orchestration\n    entrypoints (`_expr_to_whyml`, `_expr_to_whyml_string_ctx`) and the shared\n    helpers (`_to_bool`, `_coerce_*`, `_match_pattern_cond`, ...). Mixed into\n    Module6_WhyMLTranspiler. `_EXPR_DISPATCH` stays on the facade as a class\n    attribute — moving it would force a circular import.\n    '
     _BITWISE_FOLD_OPS = {'&': lambda a, b: a & b, '|': lambda a, b: a | b, '^': lambda a, b: a ^ b, '<<': lambda a, b: a << b, '>>': lambda a, b: a >> b, '**': lambda a, b: a ** b}
     _BITWISE_FN_NAMES = {'&': 'bit_and', '|': 'bit_or', '^': 'bit_xor', '<<': 'bit_lshift', '>>': 'bit_rshift', '**': 'py_pow'}
+    _STRING_VALUED_OPS = ("(str_concat_op ", "(str_repeat_op ", "(str_sub_op ",
+                          "(str_strip_op ", "(str_lower_op ", "(str_upper_op ",
+                          "(str_replace_op ", "(str_repr_op ", "(str_mod_op ",
+                          "(str_split_elem_op ", "(int_to_string ", "(str_dunder_op ")
 
     # self-tcb-reduction T1.a: sibling stubs the ported expression handlers call cross-mixin.
     #@ \trusted reviewer: pycsl-self-annotate

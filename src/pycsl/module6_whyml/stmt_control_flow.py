@@ -1158,6 +1158,16 @@ class ControlFlowStmtMixin:
         # (Why3 rejects two `variant` clauses on one loop), not the string-char / psl /
         # enumerate arms (each supplies its own), and a length term that is NOT already a
         # logic term (those keep today's byte-identical form).
+        # (relaunch #30) Is the head symbol of the length term a PROGRAM `val`? The
+        # emitter's own registry answers: `_abstract_ops` maps a minted symbol to the
+        # declaration it emitted, and `val function` / `val constant` are the LOGIC forms.
+        # An unknown head (an ADT `let rec function` such as `irlen`, a record projector)
+        # is treated as LOGIC — fail-closed towards leaving the emission untouched.
+        _len_head = str(len_expr).lstrip("(").split(" ", 1)[0].split(")", 1)[0]
+        _len_decl = getattr(self, "_abstract_ops", {}).get(_len_head, "")
+        _len_is_program_val = (_len_decl.startswith("val ")
+                               and not _len_decl.startswith("val function ")
+                               and not _len_decl.startswith("val constant "))
         _len_hoist = None
         if (str_ci is None and enum_seq is None
                 and getattr(self, "_pyast_loop_variant_len", None) is None
@@ -1178,8 +1188,25 @@ class ControlFlowStmtMixin:
                 # unconditionally from the arm below, so hoisting there would only rewrite
                 # a variant that already discharges. Excluding it keeps every
                 # @mutable_state mirror byte-identical.
-                and getattr(self, "_current_self_type", None)
-                    not in getattr(self, "_mutable_state_classes", set())):
+                #
+                # (relaunch #30) — WITH ONE EXCEPTION, which is what putting
+                # `@mutable_state` on `_Unparser` exposed. "The arm below already gives it
+                # a variant" is only true when that variant is LEGAL. The `Array.length` /
+                # `Seq.length` / `String.length` gate above excludes the library logic
+                # terms, but NOT every logic term: `irlen (elts_of node)` is a `let rec
+                # function` from the IR-node ADT and is perfectly legal in a `variant`,
+                # while `iter_length (get_handlers node)` is a PROGRAM `val` and Why3
+                # rejects it outright ("unbound function or predicate symbol"). Only the
+                # PROGRAM-`val` case needs the hoist, and only it is byte-inert to take:
+                # the emission it replaces does not typecheck. The discriminator is the
+                # emitter's OWN registry — `_abstract_ops` holds the declaration it minted
+                # for the head symbol, and `val function` / `val constant` are the logic
+                # forms. A head the registry does not know (an ADT function such as
+                # `irlen`, a record projector) is treated as LOGIC, i.e. left alone:
+                # fail-closed towards byte-identity. Verified by the 52-mirror md5 sweep.
+                and (getattr(self, "_current_self_type", None)
+                     not in getattr(self, "_mutable_state_classes", set())
+                     or _len_is_program_val)):
             _len_hoist = (f"_len{idx}", len_expr)
             len_expr = f"_len{idx}"
 

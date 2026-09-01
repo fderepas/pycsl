@@ -4217,6 +4217,7 @@ class _Precedence(_enum.IntEnum):
         pass
 
 
+@mutable_state
 class _Unparser(NodeVisitor):
     'Methods in this class recursively traverse an AST and output source.'
     #@ \trusted reviewer: pycsl-self-annotate
@@ -4655,19 +4656,34 @@ class _Unparser(NodeVisitor):
     def visit_AsyncFunctionDef(self, node):
         self._function_helper(node, "async def")
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._indent
     def _function_helper(self, node, fill_suffix):
-        pass
+        self.maybe_newline()
+        for deco in node.decorator_list:
+            self.fill("@")
+            self.traverse(deco)
+        def_str = fill_suffix + " " + node.name
+        self.fill(def_str)
+        self._type_params_helper(node.type_params)
+        with self.delimit("(", ")"):
+            self.traverse(node.args)
+        if node.returns:
+            self.write(" -> ")
+            self.traverse(node.returns)
+        with self.block(extra=self.get_type_comment(node)):
+            self._write_docstring_and_traverse_body(node)
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _type_params_helper(self, type_params):
-        pass
+        if type_params is not None and len(type_params) > 0:
+            with self.delimit("[", "]"):
+                self.interleave(lambda: self.write(", "), self.traverse, type_params)
 
     #@ requires True
     #@ ensures True
@@ -4729,12 +4745,24 @@ class _Unparser(NodeVisitor):
             with self.block():
                 self.traverse(node.orelse)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._indent
     def visit_If(self, node):
-        pass
+        self.fill("if ")
+        self.traverse(node.test)
+        with self.block():
+            self.traverse(node.body)
+        while node.orelse and len(node.orelse) == 1 and isinstance(node.orelse[0], If):
+            node = node.orelse[0]
+            self.fill("elif ")
+            self.traverse(node.test)
+            with self.block():
+                self.traverse(node.body)
+        if node.orelse:
+            self.fill("else")
+            with self.block():
+                self.traverse(node.orelse)
 
     #@ requires True
     #@ ensures True
@@ -5188,6 +5216,7 @@ class _Unparser(NodeVisitor):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -5212,12 +5241,26 @@ class _Unparser(NodeVisitor):
     def _fstring_FormattedValue(self, node):
         self.visit_FormattedValue(node)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_FormattedValue(self, node):
-        pass
+        def unparse_inner(inner):
+            unparser = type(self)(_avoid_backslashes=True)
+            unparser.set_precedence(_Precedence.TEST.next(), inner)
+            return unparser.visit(inner)
+
+        with self.delimit("{", "}"):
+            expr = unparse_inner(node.value)
+            if expr.startswith("{"):
+                # Separate pair of opening brackets as "{ {"
+                self.write(" ")
+            self.write(expr)
+            if node.conversion != -1:
+                self.write(f"!{chr(node.conversion)}")
+            if node.format_spec:
+                self.write(":")
+                self._write_fstring_inner(node.format_spec)
 
     #@ requires True
     #@ ensures True

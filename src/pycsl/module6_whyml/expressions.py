@@ -790,6 +790,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         collection operand may arrive already-dereffed."""
         return f"!{expr.lstrip('!')}" if expr.startswith("!") else expr
 
+    # String-VALUED abstract ops (relaunch #30): the head of any emitted WhyML expression
+    # whose Why3 type is `string`. Used by `_coerce_to_int` to hash a computed string into
+    # the int domain the string-LITERAL path already folds into.
+    _STRING_VALUED_OPS = ("(str_concat_op ", "(str_repeat_op ", "(str_sub_op ",
+                          "(str_strip_op ", "(str_lower_op ", "(str_upper_op ",
+                          "(str_replace_op ", "(str_repr_op ", "(str_mod_op ",
+                          "(str_split_elem_op ", "(int_to_string ", "(str_dunder_op ")
+
     def _coerce_to_int(self, whyml_str: str) -> str:
         """Coerce any non-int WhyML expression to int for abstract val arguments.
 
@@ -5789,6 +5797,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _bir = arg_irs[_bi]
                 if isinstance(_bir, dict):
                     args[_bi] = self._bool_ir_to_int_wrap(args[_bi], _bir)
+                    # A STRING ACTUAL INTO AN INT FORMAL (relaunch #30) — the exact dual of
+                    # the bool coercion above, and gated identically: the formal is `int`
+                    # (`param_types[_bi] != "int"` was already `continue`d) and the ACTUAL
+                    # is a string-source IR, i.e. this fires only where the emitted file was
+                    # ALREADY ill-typed (`string` where `int` is expected) and rejected at
+                    # L3-tc. Reaches the `self.fill("except*" if self._in_try_star else
+                    # "except")` shape, whose emitted arms became real Why3 strings the
+                    # moment the `IfExpr`-is-string rule went live for the class. Text-gated
+                    # on a string-SHAPED operand so an already-int actual (a literal the
+                    # emitter folded to its hash) is untouched. Declaration recovery: see
+                    # `abstract_ops._insert_abstract_val_block`.
+                    if self._is_string_expr(_bir):
+                        _as = args[_bi].strip()
+                        # NOT a bare string LITERAL: `_coerce_dotted_args` folds one to its
+                        # `stable_hash` constant two lines further on, and pre-wrapping it
+                        # here would replace that constant with an uninterpreted
+                        # `str_hash_op "…"` — measured, it moved four already-typechecking
+                        # mirrors off byte-identity.
+                        if (any(_as.startswith(_s) for _s in self._STRING_VALUED_OPS)
+                                or (_as.startswith("(if ") and _as.endswith(")")
+                                    and any((" then " + _s) in _as or (" else " + _s) in _as
+                                            for _s in self._STRING_VALUED_OPS + ('"',)))):
+                            args[_bi] = f"(str_hash_op {args[_bi]})"
         coerced = self._coerce_dotted_args(args, param_types)
         # W8 capability (vi): a call to a SAME-CLASS sibling method whose declared return
         # type is a RECORD lowers to the CONCRETE sibling application
@@ -7130,6 +7161,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # Unannotated callee: no signature is known, so the abstract op and
             # its args stay in the int model.
             coerced_args = [self._coerce_to_int(a) for a in args]
+            # COMPUTED STRING INTO THE INT MODEL (relaunch #30). `_coerce_to_int` folds a
+            # string LITERAL to its `stable_hash` constant but hands a string-VALUED
+            # EXPRESSION (`repr(value).replace("nan", f"({_INFSTR}-{_INFSTR})")`) through
+            # RAW — and the abstract op minted just below declares EVERY formal `int`, so
+            # the raw string is a `string`-vs-`int` L3-tc rejection. Hash it into the same
+            # int domain the literal path uses. BYTE-INERT BY CONSTRUCTION: this arm is the
+            # "no signature is known → int model" arm, so a string operand here was already
+            # ill-typed. The `val str_hash_op` declaration is recovered from the emitted
+            # text by `abstract_ops._insert_abstract_val_block` — NOT registered here,
+            # because `_add_abstract_op` writes `self._obj_state_written` and this method
+            # is a converted mirror method under `#@ assigns \nothing` (lesson (be)).
+            for _ci in range(len(coerced_args)):
+                _cs = coerced_args[_ci].strip()
+                for _sop in self._STRING_VALUED_OPS:
+                    if _cs.startswith(_sop):
+                        coerced_args[_ci] = f"(str_hash_op {coerced_args[_ci]})"
+                        break
             # THE RECEIVER-CARRYING UNANNOTATED CALL (relaunch #17). A method call on a
             # COMPUTED receiver (`float(node.value).is_integer()`,
             # `repr(value).replace(a, b)`) arrives here with a bare method `func` and the

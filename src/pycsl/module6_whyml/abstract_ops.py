@@ -279,6 +279,22 @@ class AbstractOpsMixin:
             if name in shared_skip:
                 continue
             abs_lines.append(f"  {decl}")
+        # LATE `str_hash_op` RECOVERY (relaunch #30). `ExpressionEmissionMixin._coerce_to_int`
+        # hashes a COMPUTED string into the int domain, but must not call `_add_abstract_op`
+        # to declare the operator: that method writes `self._obj_state_written`, and
+        # `_coerce_to_int` is a CONVERTED mirror method declaring `#@ assigns \nothing` —
+        # registering from there would make its frame FALSE (lesson (be)) and break the
+        # converted frame-honesty ratchet. The declaration is recovered HERE instead, from
+        # the emitted text, in a `\trusted` mirror stub where no frame is claimed.
+        # FAIL-CLOSED AND BYTE-INERT: it fires only when the module MENTIONS `str_hash_op`
+        # and does not declare it, which is an "unbound function or predicate symbol"
+        # L3-tc rejection today. `shared_skip` / `axiom_decl_names` are honoured so the
+        # modular path cannot double-declare a symbol `Shared` already owns.
+        if ("str_hash_op" not in self._abstract_ops
+                and "str_hash_op" not in shared_skip
+                and "str_hash_op" not in axiom_decl_names
+                and any("str_hash_op " in line for line in out)):
+            abs_lines.append("  val str_hash_op (s: string) : int")
         # If everything got deduped, don't leave a dangling comment.
         if len(abs_lines) == 2:
             return
