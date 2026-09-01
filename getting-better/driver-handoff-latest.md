@@ -1,3 +1,97 @@
+# HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #26 worker)
+
+## #26 IN ONE LINE: **#25's 4-site "cost-shaped lowering selection" IS NOT ONE. Three of the four
+## clash sites are INT-SOURCED, so `str_concat_op` cannot take them — the residue is a VALUE-MODEL
+## capability (string-model the node-field projectors / `_str_literal_helper` returns), not a gate.**
+
+#26 got the final ~10 minutes of the 96h window. Per the supervisor it started no prover run and
+attempted no port. It spent the sliver locating the ROOT CAUSE of #25's four sites, and the answer
+CORRECTS #25's reopening capability in the unfavourable direction (the first time in nine windows
+that a re-pricing went the wrong way — record it as such, it is the counter-example to the streak).
+
+### WHAT #25 CLAIMED, AND WHERE IT IS WRONG
+
+#25 wrote: "under a `string` vararg element type, a computed string argument must lower through
+`str_concat_op`/`+` rather than the hash-int `str_concat`; both symbols already exist; this is a
+lowering SELECTION driven by `_vararg_elem_type`, COST-shaped." **The selection premise is false.**
+
+`str_concat_op` has signature `(a: string) (b: string) : string`. Selecting it only helps if the
+OPERANDS are Why3 `string`s. #26 read the four sites back to their mirror sources:
+
+| emitted line | mirror source | operands |
+|---|---|---|
+| 4113 | `pure_ast.py:5087` `self.write(f"{quote_type}{string}{quote_type}")` | `quote_type`, `string` are **ints** — they are unpacked from `self._str_literal_helper(...)`, **which is still a `\trusted` stub returning ints** |
+| 4120 | `_write_constant` inf/nan `repr` chain | `repr_conv`/`replace_3` results, int-modelled |
+| 4348 | `(str_concat (str_concat 1376817993 !operator) 1376817993)` | `!operator` is an **int-typed local**; only the two literals are string-able |
+| 4537 | `(str_concat 1174530543 (get_name node))` | `get_name` is one of the **int-modelled node-field projectors** |
+
+So exactly ONE of the four (the literal halves of 4348) is a selection question. The other three are
+int VALUES. Routing them through `str_concat_op` produces the *mirror-image* type error.
+
+### THIS IS ALREADY RECORDED IN THE TREE, BY #20, AND IT WAS READ PAST TWICE
+
+`src/self-annotate/src/frontend/pure_ast.py:5030-5044` (a comment #20 left in the mirror) states it
+outright, and names the same first failure #25 rediscovered:
+
+> "The remaining 16 come from INT-MODELLED sources — the `get_name` / `get_id` / `get_attr` /
+> `get_arg` node-field projectors, `str_concat` over int-typed locals, and int-typed parameters
+> (`extra`, `start`, `py_end`, `!operator`) … **L3-tc FAILS on the first one
+> (`_write_str_avoiding_backslashes`, whose `quote_type`/`string` locals are ints because
+> `_str_literal_helper` is still a stub returning ints)**. There is no int->string direction
+> available: `str_hash_op` goes the other way and is not invertible, so no coercion can bridge it
+> without a fiction."
+
+#25 measured the residue as 4 sites (down from #20's 16 — that part of the re-pricing STANDS and is
+a genuine gain: `seq string` really does clear 54 of 58) but attributed those 4 to the wrong
+mechanism. **The count was re-measured; the CAUSE was not.**
+
+### THE CORRECTED REOPENING CAPABILITY (for #27)
+
+Not a lowering selection. It is: **the int-modelled node-field projectors (`get_name`/`get_id`/
+`get_attr`/`get_arg`) and the tuple return of the still-`\trusted` `_str_literal_helper` must
+produce Why3 `string`s.** Two independent sub-moves, either of which shrinks the 4:
+
+1. **`_str_literal_helper` is one of #24's body-blocked leaves** (nested `def`, `map`, `lambda`,
+   list comps, tuple return, `repr`). Porting it is what makes 4113 a string site. Body-blocked
+   still, so this is NOT the cheap half.
+2. **`get_name` & friends** are emitter-side projectors, not mirror bodies. Whether they can carry a
+   `string` return model is UNMEASURED and is the ~2-minute probe #27 should open with. If they can,
+   4537 (and the `!operator` half of 4348) go string and the residue may reach 1-2 sites.
+
+**Per the standing lesson, #26 did NOT try either and therefore files NEITHER as a boundary.** What
+is established here is only that the WORK IS NOT the work #25 named. `*text: str` still cannot land
+until the residue is 0, because all 58 sites share the one `write` formal.
+
+### THE LESSON — the streak's counter-example, and it is the more useful half
+
+Eight windows re-priced a recorded boundary FAVOURABLY. #26 is the ninth and it went the other way:
+**a re-measured NUMBER does not re-measure the MECHANISM.** #25 correctly recensused 16 -> 4 and then
+inferred the cause of the 4 from the emitted symbol name (`str_concat` vs `str_concat_op`) instead of
+from the operands' provenance. One `grep` back to the mirror source — 60 seconds — would have shown
+that three of the four operands are values, not spellings. **When a census shrinks a residue, trace
+the SURVIVORS to their source; do not assume they are small instances of the same cause as the ones
+that went away.** They are usually the hard core that the easy cause was hiding.
+
+Corollary, and it stings: **the answer was in a comment in the file under edit.** #20 wrote it, #24
+and #25 both edited within 50 lines of it. Before pricing a blocker in a mirror, read the mirror's
+own comments near the failing construct.
+
+### #26 hygiene
+
+No edit was made to `src/` at all — this window bought a diagnosis, not a build, so there was nothing
+to revert. Metric verified fresh at window end: **markers 491 · grep 516 · offset 25 · attached 491 ·
+unattached 0 · ledger 3.** No prover process started, none left running. Tracked `src/` clean.
+
+### #27's #1 ITEM
+
+Probe (2 min) whether the node-field projectors `get_name`/`get_id`/`get_attr`/`get_arg` can carry a
+`string` return model. That is the cheap half of the corrected capability and it is the gate on the
+54-marker `_Unparser` lever. If it clears, re-census the residue; if it refutes, the lever's residue
+is `_str_literal_helper` alone and the question becomes whether that body-blocked leaf is portable —
+which is the value-model floor, and THEN it may be recorded as one.
+
+---
+
 # HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #25 worker)
 
 ## #25 IN ONE LINE: **`seq string` CLEARS #24's blocker. The 54-marker `_Unparser` lever is LIVE
