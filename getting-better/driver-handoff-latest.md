@@ -1,3 +1,88 @@
+# HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #27 worker)
+
+## #27 IN ONE LINE: **the projector probe is REFUTED — `get_name` is ONE global abstract symbol
+## shared across ALL node types and it is used as a NODE, as a NONE-TEST and as a STRING in the
+## SAME emitted file. A `string` return model is not merely ill-typed, it is semantically wrong.**
+
+#27 got the final ~7 minutes and ran exactly the one probe #26 queued. NO edit was made to `src/`
+(the probe is read-only: emit `pure_ast.mlw` at `--no-proof --keep-mlw`, 1.8 s, and census the
+projector uses). Metric verified fresh at window end: **markers 491 · grep 516 · offset 25 ·
+attached 491 · unattached 0 · ledger 3.** Tree clean, no prover process started.
+
+### THE MECHANISM (measured, do not re-derive)
+
+The projectors are NOT per-field emitter symbols. `src/pycsl/module6_whyml/expressions.py:11918`
+is a single generic fallback for ANY attribute read off an int-modelled object:
+
+```python
+self._add_abstract_op(f"val get_{attr} (x: int) : int")     # or `val function …` in a spec ctx
+```
+
+So there is exactly ONE `val get_name (x: int) : int` per emitted file (`pure_ast.mlw:543`),
+keyed on the ATTRIBUTE NAME ONLY — never on the receiver's node type. Its 7 uses in
+`pure_ast.mlw` are mutually incompatible:
+
+| line | use | required return type |
+|---|---|---|
+| 4425 | `self_traverse_1 (get_name node)` | **a NODE (int handle)** — `node.name` on this arm is an AST node, and it is fed to `traverse`'s `int` formal |
+| 4426 | `if ((get_name node) <> 0)` | **int** — a lowered `is None` test |
+| 4428 / 4533 / 4727 / 4586(`get_id`) / 4312(`get_attr`) / 4799,4820(`get_arg`) | `Seq.cons (get_name node) …` | element of the write vararg — string under `*text: str` |
+| 4537 | `str_concat 1174530543 (get_name node)` | the #25/#26 clash site |
+| 4817 | `if ((get_arg node) = 0)` | **int** — another `is None` test |
+
+`get_arg` shows the same split by itself: two write-element uses and one `= 0` None-test.
+
+**Therefore: no uniform per-attribute return type exists.** Giving `get_name` a `string` return
+breaks the traverse feed and both None-tests; leaving it `int` keeps the clash. This is not a
+lowering selection and not a signature tweak — it is the ABSENCE OF A TYPED NODE MODEL.
+
+### VERDICT — CERTIFIED-BOUNDARY, and now it is a legitimately EARNED one
+
+Both halves of #26's corrected capability are now settled:
+
+1. **projectors -> `string`: REFUTED (this window, tried, not assumed).**
+2. `_str_literal_helper`: still a body-blocked leaf (#24's classification, unchanged).
+
+So the 54-marker `_Unparser` lever's residue is **not 1-2 sites reachable by a cheap move**. Its
+reopening capability is now precise and it is the campaign's ALREADY-RECORDED value-model floor:
+
+**REOPENING CAPABILITY: per-(receiver-node-type, field) projector typing — i.e. the node ADT /
+record AST model (`pyx_view`, carried-forward item 4).** Only a typed node model can let
+`ParamSpec.name : string` and `ClassDef.name : node` coexist. The `_optional_union_locals` /
+`_term_local_vars` carrier-field projections right above line 11918 in `expressions.py` are the
+EXISTING precedent for exactly this move — they bypass `get_<attr>` when the receiver's type is
+known — so the capability is not novel, it is that machinery extended to `_Unparser`'s `node`
+formals, which today are bare `(node: int)`.
+
+This converges with the independently-recorded obstacle at item 4: `pure_ast`'s node classes are
+SYNTHESIZED AT IMPORT by `type(name, (base,), body)` from `_NODE_SPEC`, so there is no static
+class surface for the emitter to read a field type off. That is the same wall, reached from a
+second direction — the third such convergence this campaign.
+
+### THE LESSON #27 BANKS
+
+#26's lesson said: when a census shrinks a residue, trace the SURVIVORS to their source. #27 adds
+the next step: **trace them to the DECLARATION SITE, not just to the mirror source.** #26 traced
+`get_name` back to "an int-modelled node-field projector" and stopped there, which made a string
+return model look like a local choice. One `grep 'val get_'` (one command) shows it is a single
+generic emitter fallback keyed on the attribute name alone — at which point the refutation is
+immediate and needs no edit at all. **A symbol's TYPE is a property of where it is DECLARED, and
+in an emitter that is a line of Python, not a line of the mirror.**
+
+Corollary for the metric: the probe cost ~4 minutes and closed a question that had been open for
+three windows, without touching `src/`. Read-only emit-and-census is the cheapest instrument in
+this campaign — reach for it before any port probe.
+
+### #27's #1 ITEM FOR #28
+
+The `_Unparser` lever is CERTIFIED-BOUNDARY on the value model (node ADT). Do NOT re-open it
+without that capability. The live ladder is unchanged below it:
+`ControlFlowStmtMixin._handle_return_stmt` (item 2), then `scratchpad/w3/fix_assigns.py` re-tests
+of "effect summary cannot be made exact" walls (item 3). `val function csl_to_ir_op` remains a
+KNOWN-LIVE unsoundness in `synth_overload_clauses` (preamble.py) — still open, still unfixed.
+
+---
+
 # HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #26 worker)
 
 ## #26 IN ONE LINE: **#25's 4-site "cost-shaped lowering selection" IS NOT ONE. Three of the four
