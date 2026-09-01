@@ -37,6 +37,24 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 1. **Cheap drain (always first, §P).** Any `\trusted` stub a fresh census rates `cheap_win==true`.
    Re-run after every wall breaks (a break may unlock cheap follow-ons).
 
+1a. **UNANNOTATED-VARARG -> `seq int` (pyval) LOWERING — NEW, 2026-09-01, PRE-AUTHORIZED,
+   TOP OF THE LADDER after the cheap drain.** Today an unannotated `*args` is DROPPED from the
+   signature entirely; only a `*vals: str`-annotated vararg is modelled (as `seq string`).
+   MEASURED (relaunch #20, commit fb2f9fe8): the `seq string` path already works end-to-end
+   with ZERO emitter changes, but it forces a [STRING-MODEL SPLIT] — 40 of `_Unparser`'s 56
+   `write` call sites become real Why3 `string` literals while 16 int-modelled ones become
+   hard `seq string` vs `seq int` type errors, so L3-tc fails. Lowering an UNANNOTATED vararg
+   to `seq int` instead removes the split entirely (the vararg joins the file's own pyval
+   model) and needs no source annotation. THREE SURFACES: Module5_IREmitter `_cur_func_vararg_str`
+   (:4966-4977, :5087-5099, :5177-5179) gains a `vararg_pyval_param` sibling; Module6
+   `functions._param_type_str` (:38-43, :344-352) returns `(safe: seq int)`; call-site
+   materialization (:7406-7411) emits `(Seq.empty: seq int)`. **CORPUS-AFFECTING** — the `: str`
+   gate exists precisely to keep every corpus and `pycsl_lib` plain-`*args` function
+   byte-identical — so **M1 discipline**: the byte-diff must be EXACTLY the vararg correction
+   and every affected program must re-prove 0 non-Valid. PAYOFF: unblocks the `_Unparser`
+   family, 51 of the 491 markers, the largest single lever left. If a shape cannot be
+   corrected axiom-free -> THAT is the CERTIFIED-BOUNDARY, not the byte-diff.
+
 1b. **VALUE-MODEL builds — CURRENT FRONTIER at 750 (2026-08-08, PRE-AUTHORIZED, corpus-affecting → M1
    discipline; see SKILL §A.6 "corpus-affecting value-model builds").** The seven-levers campaign
    (754→750 + Module6 soundness un-mask, all committed 75747ae7/93e8b341/97e5690f/825772ec/d8169f2d)
