@@ -4334,7 +4334,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def get_type_comment(self, node):
+    def get_type_comment(self, node) -> int:
         pass
 
     #@ requires True
@@ -4407,19 +4407,30 @@ class _Unparser(NodeVisitor):
         self.fill("import ")
         self.interleave(lambda: self.write(", "), self.traverse, node.names)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_ImportFrom(self, node):
-        pass
+        self.fill("from ")
+        self.write("." * (node.level or 0))
+        if node.module:
+            self.write(node.module)
+        self.write(" import ")
+        self.interleave(lambda: self.write(", "), self.traverse, node.names)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Assign(self, node):
-        pass
+        self.fill()
+        for target in node.targets:
+            self.set_precedence(_Precedence.TUPLE, target)
+            self.traverse(target)
+            self.write(" = ")
+        self.traverse(node.value)
+        type_comment = self.get_type_comment(node)
+        if type_comment:
+            self.write(type_comment)
 
     #@ requires True
     #@ ensures True

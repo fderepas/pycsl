@@ -4099,6 +4099,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `s + t` is a `BinOp(+)` node (string concatenation when both operands are
         # strings) — so a concat expression is itself string-typed. Required so e.g.
         # `len(s + t)` routes to str_length_op rather than the opaque iter_length.
+        # G2 STRING REPETITION (#29). `s * n` / `n * s` with EXACTLY ONE string operand
+        # produces a string, and the LOWERING already knows it: `_handle_binop` emits
+        # `str_repeat_op (s: string) (n: int) : string` for precisely this shape. Without
+        # the recognizer here the two producers disagreed — the emitted VALUE was a
+        # `string` while this predicate called it an int — so `"." * (node.level or 0)`
+        # landed in a `seq int` write vararg uncoerced (`_Unparser.visit_ImportFrom`,
+        # measured) and `"    " * self._indent + text` lowered to a RAW Why3 `+` between
+        # two strings instead of `str_concat_op` (`_Unparser.fill`, measured). The
+        # condition here is character-for-character the one the lowering branch uses, so
+        # the recognizer and the lowering cannot disagree again.
+        if t == "BinOp" and ir.get("op") == "*":
+            _rl, _rr = ir.get("left", {}), ir.get("right", {})
+            if ((self._is_string_expr(_rl) and not self._is_string_expr(_rr))
+                    or (self._is_string_expr(_rr) and not self._is_string_expr(_rl))):
+                return True
         if t == "BinOp" and ir.get("op") == "+":
             return (self._is_string_expr(ir.get("left", {}))
                     and self._is_string_expr(ir.get("right", {})))
