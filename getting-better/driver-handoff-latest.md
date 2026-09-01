@@ -1,3 +1,130 @@
+# HANDOFF — #29 SECOND ENTRY (2026-09-01, WINDOW 3): **THE `_Unparser` CERTIFIED-BOUNDARY IS
+# REOPENED. #27's named reopening capability — per-(receiver-node-type, field) projector typing —
+# ALREADY EXISTS IN-TREE AND HAS SINCE RELAUNCH #19. It is `_PURE_AST_FIELD_TABLE` +
+# a param annotation. PROVED BY BUILDING IT: `get_name`/`get_attr`/`get_id`/`get_arg` are GONE
+# from four converted visitors and replaced by REAL `string` record fields.**
+
+## WHAT WAS ACTUALLY TRIED (not scoped — run, with the emitted artifact inspected)
+
+Probe, ~6 minutes, emission is **1.8 s** per cycle (`--no-proof --keep-mlw`), so this loop is
+almost free — use it:
+
+1. Added ONE entry to `_PURE_AST_FIELD_TABLE` (`src/pycsl/frontend/ir_resolve.py:688`):
+   `"TypeVar": [("name", "string"), ("bound", "OptExprIR")]`.
+2. Annotated ONE parameter: `def visit_TypeVar(self, node: "TypeVar")` (mirror AND live).
+
+Emitted diff — 19 lines, and it is exactly the capability #27 declared missing:
+
+```
++  type typevar = { mutable typevar_name: string; mutable typevar_bound: option emit_ir }
+-  val get_bound (x: int) : int
+-  let _unparser__visit_TypeVar (self: _unparser) (node: int) : unit
++  let _unparser__visit_TypeVar (self: _unparser) (node: typevar) : unit
+-    self_write_1 (Seq.cons (get_name node) ...)
++    self_write_1 (Seq.cons node.typevar_name ...)      <-- a REAL `string`
+-    if ((get_bound node) <> 0)         +    if (node.typevar_bound <> 0)
+-    self_traverse_1 (get_bound node)   +    self_traverse_1 node.typevar_bound
+```
+
+Then `Attribute` / `Name` / `arg` — already IN the table, needing only the annotation — likewise
+lost their `get_attr` / `get_id` / `get_arg` projectors for real `string` fields, AND their
+`value` children became `emit_ir`, so `isinstance(node.value, Constant)` now lowers to the
+ADT discriminant `py_isinstance_Constant_emit_ir_op node.attribute_value` instead of an int test.
+
+## WHY FOUR WINDOWS MISSED IT — the lesson, and it is lesson (p) exactly
+
+#27 traced `get_name` to its declaration site (`expressions.py:11918`), proved NO UNIFORM
+per-attribute return type exists (correct, still correct), and named the reopening capability
+"per-(receiver-node-type, field) projector typing = the node ADT (`pyx_view`)". #28 then SIZED
+`pyx_view`. **Neither asked the census-FIRST question: does a mechanism for this already exist?**
+It does, three of them, all in production:
+
+| mechanism | where | keys on |
+|---|---|---|
+| `_PURE_AST_FIELD_TABLE` (28 entries) + `_harvest_node_spec_records` | `frontend/ir_resolve.py:688` | the node CLASS, per field: `string`/`int`/`ExprIR`/`OptStr`/`OptExprIR`/`ExprIRList`/`StmtIRList`/`RecList:R` |
+| `_EMIT_IR_STR_ATTRS` / `_EMIT_IR_NODE_ATTRS` | `module6_whyml/expressions.py` | the ATTRIBUTE, on an `emit_ir` receiver |
+| `_EMIT_IR_HANDLER_ATTR_PROJ` | same | the ENCLOSING HANDLER (`_current_emitting_func`) |
+
+And `pure_ast.py:5010-5017` — the file's OWN comment, 20 lines above the `\trusted` stub — says
+so in plain words: *"The node typing is FIXABLE and was fixed: annotate the parameter with the
+harvested `_NODE_SPEC` record and the body emits ... reading the REAL fields."* Relaunch #19
+wrote that. #24, #25, #26, #27 and #28 all worked inside this file and none of them applied it.
+
+**LESSON (ba): `pyx_view` was never the blocker — it was the WRONG NAME for the blocker.** A
+recorded reopening capability is a CLAIM, and the most expensive way for it to be wrong is to
+name a capability you would have to BUILD when an equivalent one is already installed. #27's
+refutation was sound and its conclusion ("no per-attribute type exists") is still true; only its
+PRICE was wrong, by roughly two orders of magnitude — a 76-arm recursive ADT with a structural
+variant, versus one table row and one `: "ClassName"` annotation. The campaign already has the
+rule for this (lesson (p): census existing certified constructs BEFORE scoping a new one); what
+this adds is **where to run that census: not over the model, over the EMITTER'S OWN TABLES.**
+Corollary, and it is the sharper half: **the obstacle recorded against item 4 — "pure_ast's node
+classes are synthesized at import by `type(name,(base,),body)`, so there is no static class
+surface" — is TRUE AND IRRELEVANT.** The types never came from the classes. They come from the
+`_NODE_SPEC` DICT LITERAL, harvested structurally from the source text, plus a hand-curated
+per-field type table. A true obstacle guarding the wrong door blocks nothing.
+
+## THE FULL PHASE-1 WORK LIST — MEASURED, NOT ESTIMATED
+
+The record model and the `seq string` vararg must land TOGETHER (a `string` field cannot enter a
+`seq int` write, and an int-sourced arg cannot enter a `seq string` write). With
+`def write(self, *text: str)` the file has **74 write/fill call lines and exactly 16 non-literal
+arguments**; every other write argument is already a real Why3 string literal. The 16, each with
+its enclosing emitted function, its fix class, and whether it is TRIED:
+
+| # | emitted line | function | argument | fix | status |
+|---|---|---|---|---|---|
+| 1 | 4318 | `visit_Attribute` | `get_attr node` | annotate param (`Attribute` already in table) | **DONE, works** |
+| 2 | 4587 | `visit_Name` | `get_id node` | annotate param (`Name` already in table) | **DONE, works** |
+| 3 | 4805 | `visit_arg` | `get_arg node` | annotate param (`arg` already in table) | **DONE, works** |
+| 4 | — | `visit_TypeVar` | `get_name node` | table row + annotate | **DONE, works** |
+| 5 | 4429 | `visit_ExceptHandler` | `get_name node` | NEW row `ExceptHandler: [type OptExprIR, name OptStr, body StmtIRList]` + annotate | not yet |
+| 6,7 | 4534, 4538 | `visit_MatchAs` | `get_name node`, `str_concat 1174530543 (get_name node)` | NEW row `MatchAs: [pattern OptExprIR, name OptStr]` + annotate | not yet |
+| 8 | 4821 | `visit_keyword` | `get_arg node` | NEW row `keyword: [arg OptStr, value ExprIR]` + annotate | not yet |
+| 9 | 4155 | `block` | `extra` | annotate `def block(self, *, extra: str = None)` | not yet |
+| 10,11 | 4169, 4171 | `delimit` | `start`, `py_end` | annotate `def delimit(self, start: str, end: str)` | not yet |
+| 12 | 4504 | `visit_Lambda` | `buffer` | a buffered-list local — needs its source typed | not yet |
+| 13,14 | 4746, 4349 | `visit_UnaryOp`, `visit_BinOp` | `!operator` | local from the `self.unop[...]` / `self.binop[...]` string-table lookup | not yet |
+| 15 | 4126 | `_write_constant` | `repr_conv value` | `repr()` returns `str`; `repr_conv` is an int-returning abstract op | not yet |
+| 16 | 4119 | `_write_str_avoiding_backslashes` | `str_concat (str_concat !quote_type !string) !quote_type` | needs `_str_literal_helper -> Tuple[str, List[str]]` | **TRIED, blocked — see below** |
+
+### #16 is the only one with a MEASURED obstacle, and it is small and named
+
+`def _write_str_avoiding_backslashes(self, string: str, ...)` works immediately — the param
+retypes to `string`. The blocker is one slot type: `_str_literal_helper` (a `\trusted` stub, so
+its DECLARED annotation is the only authority on its return) needs
+`-> "Tuple[str, List[str]]"`, and `ir_resolve`'s per-slot table (the `_SLOT_WHYML` dict,
+~line 1395) recognises `str`/`bool`/`int`/`PyConstVal`/`ExprIR`/`StmtIR`/`IRNode`/
+`ContractExprIR` and `List[<node type>] -> seq emit_ir`, but **NOT `List[str]`**, so the whole
+annotation is refused fail-closed and the return stays `(int, int)`.
+**REOPENING CAPABILITY, PRICED: one row — `List[str] -> "seq string"` in `_SLOT_WHYML` — plus
+whatever `subscript_get` needs to project a `seq string` element (`quote_types[0]`).** The table
+is CLOSED and unrecognised slots already break out to the int-erased form, so widening it is
+a pure widening. NOT YET TRIED — that is the next move.
+
+## STATE OF THE TREE AT THIS ENTRY
+
+The probe is IN FLIGHT and is NOT committed to `src/`. It is saved verbatim at
+`getting-better/interrupted/2026-09-01-29-unparser-record-model.patch` (124 lines, 3 files:
+`ir_resolve.py` table row, and the `pure_ast.py` annotations in BOTH the live and mirror copies).
+It currently FAILS L3-tc at item #16 — that is expected and is the frontier, not a regression.
+Metric unchanged: markers 491 · grep 516 · offset 25 · ledger 3.
+
+## INSTRUMENT WARNING #29 PAID FOR — read this before you trust any `L3-tc ✓`
+
+`_why3_typecheck` (`src/pycsl/pycsl.py`) does `subprocess.run(["why3", ...])` and, on
+`FileNotFoundError`, **`return True, "(why3 not found — typecheck skipped)"`** — and the caller
+prints `[level] L1 ✓ L2 ✓ L3-tc ✓` and `Verification SUCCESS`. The skip reason is returned but
+NEVER PRINTED on the success path. `why3` is NOT on the default PATH here (it is only in
+`/home/fabrice/.opam/framac-coq8/bin`, and there is no `default` opam switch, so
+`bin/run-rocq-proofs.sh`'s `$HOME/.opam/default/bin` export points at a directory that does not
+exist). #29 hit this within the first hour: a run reported `L3-tc ✓` on a file `why3` rejects
+with a hard type error two lines long. `export PATH=/home/fabrice/.opam/framac-coq8/bin:$PATH`
+on EVERY gate — the handoff's instrument-fact #1 has said so for windows and it is still the
+easiest way to fabricate a green in this repo.
+
+---
+
 # HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #29 worker — WINDOW 3 START)
 
 ## #29 ITEM 0 IN ONE LINE: **`csl_to_ir_op` is NOT a live unsoundness. It was FIXED in the same
