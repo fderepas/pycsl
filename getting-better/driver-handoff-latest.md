@@ -120,9 +120,42 @@ vararg, but **MIXED positional-plus-starred packing at a call site into a `seq i
 today, so its behaviour on port is UNKNOWN and must be probed, not assumed. Two of the three even
 have a non-starred positional *before* the star, which is the hard sub-case.
 
-**Consequence for the plan: 48 of the 51 bodies are unblocked and can be ported now; 3 are a probe.**
-Do the 48 first — do not let the 3 hold up 94% of the lever. Per lesson (#20), the probe on those 3
-is TRY IT (port one, emit, read the `.mlw`, 1.8 s), not scope it.
+**#22 RAN THAT PROBE.** Isolated it in a 15-line standalone file (`scratchpad/r22/star_probe.py`,
+a `sink(self, p, *nodes)` plus a star-only caller and a mixed caller) rather than editing the mirror
+— zero risk, ~2 s. **The result is unambiguous, and it is the same for BOTH shapes:**
+
+```
+let p__caller_star_only (self: p) (xs: array int) : unit =
+  let _ = (self_sink_2 1 (Seq.cons xs (Seq.empty: seq int))) in ()
+let p__caller_mixed (self: p) (a: int) (xs: array int) : unit =
+  let _ = (self_sink_2 1 (Seq.cons a (Seq.cons xs (Seq.empty: seq int)))) in ()
+```
+
+A `Starred` actual in a vararg position is packed **as a single ELEMENT** — `Seq.cons xs …` — so the
+whole sequence lands where one element belongs. It does not splat. `L3-tc ✗`:
+
+> `This expression has type seq.Seq.seq int, but is expected to have type seq.Seq.seq (array.Array.array int @rho)`
+
+**Two things follow, and the second is the important one:**
+
+1. The 3 bodies are genuinely blocked. Star-only (`visit_MatchOr`) is blocked exactly as hard as
+   mixed (`visit_Compare`, `visit_comprehension`) — the prefix is not the hard part; the splat is.
+2. **The failure is LOUD, not silent.** It is a Why3 TYPE error at L3-tc, not a mis-typed-but-
+   accepted lowering. So this residue can never quietly produce a wrong proof — porting one of the
+   3 by accident fails the gate immediately. That makes "port the 48 now" safe to do without first
+   solving the 3.
+
+**PRECISE REOPENING CAPABILITY (supersedes the vaguer `g(*args)` wording):** at a call site, a
+`Starred` actual in a vararg position must lower to a sequence **CONCATENATION** of its inner value
+(coerced to `seq elem`) onto the materialized prefix — `Seq.(++) (Seq.cons a Seq.empty) (to_seq xs)`
+— instead of today's `Seq.cons xs`. That is a call-site packing change in the same materialization
+code #21 added, not the "positional re-binding against the callee's arity" the record describes;
+re-binding is only needed when a starred actual feeds NON-vararg formals, which is the
+`_new`/`__new__`/`Constant.__init__` case, not this one. **These are two different capabilities and
+the record conflates them.**
+
+**Consequence for the plan: port the 48 unblocked bodies now — do not let the 3 hold up 94% of the
+lever.** The 3 are a bounded, well-typed follow-on.
 
 ## Then, in this order (carried forward, still valid)
 
