@@ -21,7 +21,38 @@ PYTHONHASHSEED=0 python3 -u src/pycsl/pycsl.py \
   > scratchpad/r22/pure_ast_proof.log 2>&1 &
 ```
 
-**VERDICT: see `## PROOF VERDICT` below — it is the first thing to read.**
+## PROOF VERDICT — **GREEN. 2857 / 2857 Valid, 0 non-Valid.**
+
+**Ladder item 1a STANDS.** The unannotated-vararg -> `seq int` pyval lowering is not merely
+type-checking; the whole of `pure_ast.py` proves under it.
+
+| | |
+|---|---|
+| proof obligations | **2857** |
+| `Valid` | **2857** |
+| `Unknown` / `Timeout` / `Failure` / `Invalid` | **0** |
+| provers | Alt-Ergo 2.6.3, Z3 4.13.3 (`--timelimit 5`, `-a split_vc`) |
+| wall clock to full flush | ~13 min (the proof engine phase) |
+
+Evidence: `scratchpad/r22/pure_ast_proof.log` (2857 `Prover result is: Valid` lines, zero
+non-Valid; tally it with a python heredoc, NOT `grep` — instrument fact 14).
+
+**This retires lesson (hh)'s open exposure on 1a.** #21 landed 1a on `L3-tc` alone and the campaign's
+own rule is that a type-check is not a conversion criterion. It has now been paid: the criterion was
+applied, and 1a passed it. Nothing built on top of 1a is resting on an unproved emitter change.
+
+**Caveat, stated precisely so nobody over-reads the green.** The run had, at window end, moved past
+the proof engine into pycsl.py's **per-goal non-vacuity phase** (one `why3 prove -g` per goal against
+`scratchpad/.pycsl_vac_*.mlw`; it was ~200 goals in and still going). That phase is a SEPARATE gate
+from the proof and it had NOT finished. **The proof plane is green; the vacuity plane is UNFINISHED,
+not failed.** First action next window: re-run and let it finish, or run
+`bin/check-emitted-vacuity.py --emit` (remember: a false green without `--emit`, instrument fact 3).
+
+**The other two L-planes are INHERITED, not re-run.** The tracked tree has not changed since #21
+gated them at `44150508` (this window's commits touch `getting-better/` only), so #21's fidelity
+(2-DIVERGED baseline) and byte-inertness (3/3) results carry over unchanged. #22 re-verified the
+metric itself fresh: **markers 491 · grep 516 · offset 25 · unattached 0 · ledger 3.**
+
 
 ## What #22 VERIFIED about 1a independently (all fresh, from the emitted `.mlw`)
 
