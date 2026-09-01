@@ -1,4 +1,94 @@
-# HANDOFF — read this FIRST on relaunch (rewritten 2026-09-01, RELAUNCH #23 worker)
+# HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #24 worker)
+
+## #24 IN ONE LINE: **the 13-leaf batch is NOT 13 — the `seq int` element type of ladder 1a blocks
+## every body that writes a COMPUTED string, and only ~3 of the 13 leaves are body-portable at all.**
+
+#24 got the last ~16 minutes of the 96h window. Per the supervisor's instruction it did NOT start the
+port batch; it ran ONE cheap probe against the port plan #23 wrote an hour earlier. The probe
+corrected the plan again — the fifth consecutive window in which a record's claim failed on first
+contact.
+
+### FINDING 1 — LEAF-NESS IS A CALL-GRAPH PROPERTY. PORTABILITY NEEDS A SECOND, INDEPENDENT GATE.
+
+#23's "13 leaves are portable now" was measured purely on the call graph (calls no still-trusted
+sibling). #24 read the 13 LIVE BODIES (`src/pycsl/frontend/pure_ast.py`, `ast` census, 1 min) and
+classified what each body actually needs. **Most of them are blocked by a body feature that has
+nothing to do with the call graph:**
+
+| leaf | live body needs | portable? |
+|---|---|---|
+| `set_precedence` | `self._precedences[node] = precedence` — **dict store keyed by an AST node** | NO — the object-identity / value-model floor |
+| `__init__` | `{}` / `[]` dict+list field init | NO — dict model |
+| `get_type_comment` | `dict.get` + dynamic `getattr` + f-string | NO |
+| `interleave` | `iter()`/`next()`/`StopIteration` + **higher-order callable formals `f`, `inter`** | NO |
+| `buffered` | `@contextmanager` with `yield` — a generator | NO |
+| `delimit_if` | **returns a context-manager object** (`self.delimit(...)` / `_nullcontext()`) | NO |
+| `traverse` | `isinstance(node, list)` + recursion + **`super().visit(node)`** | NO |
+| `_str_literal_helper` | nested `def`, `map`, `lambda`, list comps, tuple return, `repr` | NO |
+| `fill` | `self.write("    " * self._indent + text)` — computed string | see FINDING 2 |
+| `visit_TypeVarTuple` | `self.write("*" + node.name)` | see FINDING 2 |
+| `visit_ParamSpec` | `self.write("**" + node.name)` | see FINDING 2 |
+| `visit_alias` | `self.write(node.name)` + `" as " + node.asname` | see FINDING 2 |
+| `visit_MatchStar` | f-string `f"*{name}"` + None-default | see FINDING 2 |
+
+**So the top hubs `traverse`, `interleave`, `set_precedence` — the three that #23 counted on to
+unblock 23+18+8 dependents — are ALL body-blocked.** The DAG analysis is correct and still useful,
+but it is a NECESSARY condition for porting, not a sufficient one. Batch 1 is at most the 5 rows in
+the bottom group, and FINDING 2 cuts that further.
+
+### FINDING 2 — THE `seq int` ELEMENT TYPE OF LADDER 1a IS A HARD BLOCKER FOR COMPUTED WRITES
+
+#24 ported the two smallest candidate leaves (`visit_TypeVarTuple`, `visit_ParamSpec`, 1 line each)
+into the mirror and emitted (`--no-proof --keep-mlw`, 134 -> 132 markers). **L3-tc FAILS:**
+
+```
+let _unparser__visit_ParamSpec (self: _unparser) (node: int) : unit =
+  let _ = (self_write_1 (Seq.cons ("**" + (get_name node)) (Seq.empty: seq int))) in ()
+File "…/pure_ast.mlw", line 4605: This expression has type string, but is expected to have type int
+```
+
+`write`'s formal is `let _unparser__write (self: _unparser) (text: seq int)` (line 4851). A **string
+LITERAL** write lowers fine — it becomes a `str_hash_op` int (`self_fill_1 2128406761` in an
+already-converted caller right below the failure). A **COMPUTED** string (`"**" + node.name`, `"    "
+* self._indent + text`, an f-string) is a genuine Why3 `string` and cannot be an element of
+`seq int`. The failure is again LOUD (a type error at L3-tc), never a silent mis-lowering.
+
+**This is the decisive fact for the whole 54-marker lever.** Ladder 1a's uniform `seq int` was gated
+on all four planes against the mirror AS IT STANDS — where every `_Unparser` body is an empty stub
+and every live write call site passes a literal. The moment real bodies are ported, the overwhelming
+majority of `_Unparser` writes are computed strings. **1a is proved, and 1a is still not the element
+type the port needs.**
+
+### CONSEQUENCE — THE #1 ITEM FOR THE NEXT WINDOW HAS CHANGED
+
+Do **NOT** open the next window by porting leaves. Open it by exercising **degree of freedom 1,
+which has now been sitting unused for four windows**: `vararg_elem_type` makes the element type a
+PER-FUNCTION choice (#21's infrastructure carries it; #20 measured `seq string` turning 40 of 56
+write sites into real Why3 string literals). Set `_Unparser.write` (and `fill`) to `seq string` and
+re-run the probe above. That is the gate on batch 1, and it is a ~2-minute probe, not a scope.
+If `seq string` clears it, re-price the batch; if it does not, the 54-marker lever is a
+CERTIFIED-BOUNDARY on the value model and should be recorded as one.
+
+The 3 starred-blocked bodies (`visit_Compare`, `visit_comprehension`, `visit_MatchOr`) are now moot
+for batch 1 — their target `set_precedence` is body-blocked on the dict model anyway.
+
+### #24 hygiene
+
+Probe fully REVERTED; mirror byte-restored (134 markers, re-confirmed). Metric UNCHANGED:
+**markers 491 · grep 516 · offset 25 · ledger 3.** No prover process left running. Tree clean.
+Nothing was banked as an increment — this window bought a plan correction, which is what the
+supervisor asked for.
+
+### The method note #24 paid for
+
+**A DEPENDENCY ANALYSIS IS A CLAIM ABOUT ONE AXIS ONLY.** #23's DAG was measured correctly and
+answers "may I port X before Y?" It silently got read as "X is portable." Whenever a plan is built
+on a structural census, ask which axis it measured and which axes it did NOT — then spend two
+minutes reading the actual artifacts along the unmeasured axis. Here the unmeasured axis (what the
+body's Python features require of the value model) knocked out 8 of 13 outright and the element-type
+axis knocked out most of the rest.
+
+---
 
 ## #23 IN ONE LINE: the vacuity plane on `pure_ast.py` is CLOSED, GREEN. Ladder 1a is fully paid for.
 
