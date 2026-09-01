@@ -1,6 +1,62 @@
-# HANDOFF — read this FIRST on relaunch (rewritten 2026-09-01, RELAUNCH #22 worker)
+# HANDOFF — read this FIRST on relaunch (rewritten 2026-09-01, RELAUNCH #23 worker)
 
-## What #22 had, and what it did
+## #23 IN ONE LINE: the vacuity plane on `pure_ast.py` is CLOSED, GREEN. Ladder 1a is fully paid for.
+
+#23 got a ~20-minute window and the supervisor named exactly one job: finish the per-goal
+NON-VACUITY gate that #22 had to kill at window end. It is done, and it did not need the slow
+per-goal `why3 prove -g` loop at all — `bin/check-emitted-vacuity.py --emit` is the same plane
+and it runs in well under a minute:
+
+```
+export PATH=/home/fabrice/.opam/framac-coq8/bin:$PATH
+export TMPDIR=/home/fabrice/git/pycsl/scratchpad
+python3 bin/check-emitted-vacuity.py --emit      # EXIT 0
+```
+
+**VERDICT: `[+] emitted-vacuity: no NEW erasure (8 known param-erasures gated; 0 input-blind).`**
+Evidence: `scratchpad/r23/vacuity.log`.
+
+Read the 8 gated rows carefully, because two of them are in this very file and they are NOT a
+finding against 1a:
+
+- `pure_ast.mlw::_parser___dict_rest` (erases `t`) and `pure_ast.mlw::_parser___sequence_pattern`
+  (erases `t`) are **PRE-EXISTING, already in `KNOWN_ERASURES`, banked in commit `87f9cdb9` in an
+  earlier window.** They sit in `_Parser`, not `_Unparser`. `bin/check-emitted-vacuity.py` is
+  byte-unmodified in this tree — #23 added no entry to the ledger to make the gate pass.
+- The other 6 are the long-standing `core_ir_semantic` / `Module3_Weaver` / `expr_ghost_spec_ops`
+  / `statements` rows, unchanged.
+
+### LADDER ITEM 1a IS NOW GATED ON ALL FOUR PLANES — nothing is left owing on it
+
+| plane | verdict | who |
+|---|---|---|
+| fidelity (`check-self-annotate-sync.sh` + mirror-check) | green (2-DIVERGED baseline) | #21, inherited — tracked tree unchanged since `44150508` |
+| whole-file proof | **2857 / 2857 Valid, 0 non-Valid** | #22, `scratchpad/r22/pure_ast_proof.log` |
+| byte-inertness | 3/3 | #21, inherited |
+| **non-vacuity** | **0 NEW erasures, 0 input-blind** | **#23, `scratchpad/r23/vacuity.log`** |
+
+Plus: **`src/self-annotate/src/frontend/pure_ast.mlw` declares ZERO `axiom`s** (re-measured by #23
+on the freshly emitted file). Ledger stays 3. `#22`'s caveat — "the vacuity plane is UNFINISHED,
+not failed" — is now RESOLVED as FINISHED and GREEN. Do not re-run it as a precondition for step 3.
+
+Metric re-verified fresh by #23, UNCHANGED by this window:
+**markers 491 · grep-substring 516 · offset 25 · attached 491 · unattached 0 · ledger 3.**
+
+### The instrument note #23 paid for
+
+**Instrument fact 3 says `check-emitted-vacuity.py` is a false green without `--emit`. The
+converse is the useful half: WITH `--emit` it is CHEAP.** It re-emits every mirror at
+`-P 7 --no-proof --no-typecheck --keep-mlw` and finishes in under a minute — i.e. the whole
+vacuity plane for the entire mirror surface costs less than one `--fun` probe. #22 spent its
+window's tail inside pycsl.py's per-goal `why3 prove -g` vacuity loop, which was ~200 goals in
+after many minutes. **Those are not two speeds of the same check to choose between on time
+budget; the standalone probe is the one to reach for, and it covers all 52 mirrors, not one file.**
+Generalization worth carrying: when a gate is embedded in a slow driver AND exists as a standalone
+`bin/` probe, price the standalone one before assuming the plane is expensive.
+
+---
+
+## WHAT #22 ESTABLISHED (all still valid; its vacuity caveat is now closed by #23 above)
 
 A **~55-minute** window against the same deadline (`.driver-deadline` = 1788251064). The window was
 too short to start a build, and the supervisor named exactly one job: **run a prover on ladder item
@@ -226,7 +282,9 @@ lever.** The 3 are a bounded, well-typed follow-on.
 1. **`why3` is NOT on the default PATH** (`/home/fabrice/.opam/framac-coq8/bin`). Without it
    `pycsl.py` errors AND EXITS 0. `export PATH=...` on every gate.
 2. `--import-path src/pycsl` is the canonical mirror path.
-3. `check-emitted-vacuity.py` is a false green without `--emit`.
+3. `check-emitted-vacuity.py` is a false green without `--emit` — but WITH `--emit` it is CHEAP
+   (re-emits all 52 mirrors `-P 7 --no-proof --no-typecheck --keep-mlw`, **under a minute**, and it
+   IS the vacuity plane). Prefer it over pycsl.py's slow embedded per-goal `why3 prove -g` loop.
 4. `.gitignore` has `*.mlw` — `git add -A` SILENTLY SKIPS evidence files.
 5. `bin/check-untrusted-emitted.py` reports 0/0/0/0 — a FALSE GREEN — with no PATH export.
 6. `python3 -u` on every proof. A run can sit at ZERO prover results for 50 minutes and then
