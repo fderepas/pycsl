@@ -1,3 +1,108 @@
+# HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #25 worker)
+
+## #25 IN ONE LINE: **`seq string` CLEARS #24's blocker. The 54-marker `_Unparser` lever is LIVE
+## again — it is NOT a value-model boundary. Residue is FOUR int-model call sites, not fifty-eight.**
+
+#25 got the final ~13 minutes and ran exactly the probe #24 queued: exercise degree of freedom 1
+(`vararg_elem_type` as a PER-FUNCTION choice) on `_Unparser.write`, then re-run #24's port probe.
+
+### HOW YOU SET IT (the mechanism, measured — do not re-derive)
+
+`vararg_elem_type` is NOT a knob you pass; it is selected in
+`src/pycsl/frontend/Module5_IREmitter.py:4979-5000` **from the vararg's own annotation**:
+`*text: str` -> `"string"`, unannotated `*text` -> `"int"` (ladder 1a), star-forwarded -> dropped.
+So the per-function choice is made **in the mirror source**, one annotation:
+
+```python
+def write(self, *text: str):      # was: def write(self, *text):
+    self._source.extend(text)
+```
+
+`fill` needs nothing — its `text=''` is a plain default arg, not a vararg.
+
+### RESULT — L3-tc gets MUCH further, and the two ported bodies are CORRECT
+
+With `*text: str`, `let _unparser__write (self: _unparser) (text: seq string)` (line 4851), and
+#24's two ported leaves lower exactly as wanted:
+
+```
+let _unparser__visit_ParamSpec   … = self_write_1 (Seq.cons ("**" + (get_name node)) (Seq.empty: seq string))
+let _unparser__visit_TypeVarTuple… = self_write_1 (Seq.cons ("*"  + (get_name node)) (Seq.empty: seq string))
+```
+
+**A COMPUTED STRING IS NOW A FIRST-CLASS ELEMENT.** #24's decisive failure ("computed string cannot
+be an element of `seq int`", old line 4605) is GONE. All 58 write/fill call sites re-materialize as
+`seq string`, and the literals become REAL Why3 strings (`" in "`, `":"`, `"\n"`) instead of
+`str_hash_op` ints — the fidelity gain #20 predicted.
+
+### THE NEW BLOCKER IS SMALL AND IT IS IN THE *ALREADY-CONVERTED* BODIES, NOT THE PORT
+
+L3-tc now fails at `pure_ast.mlw:4113`:
+
+```
+self_write_1 (Seq.cons (str_concat (str_concat !quote_type !string) !quote_type) (Seq.empty: seq string))
+  This expression has type seq.Seq.seq string, but is expected to have type seq.Seq.seq int
+```
+
+because `val str_concat (x: int) (y: int) : int` (line 628) is the **hash-int** concat, while
+`str_concat_op (a: string) (b: string) : string` (line 629) is the string one. The element is an
+int, so `Seq.cons` fixes the sequence to `seq int` and the annotated `seq string` tail clashes.
+
+**#25 CENSUSED THE WHOLE SURFACE (python over the emitted .mlw, not grep):**
+
+| write/fill argument sites in `pure_ast.mlw` | **58** |
+|---|---|
+| already fine under `seq string` | **54** |
+| int-model, would clash | **4** |
+
+The four, with line numbers in the `seq string` emission:
+
+```
+4113  (str_concat (str_concat !quote_type !string) !quote_type)          _write_str_avoiding_backslashes
+4120  (replace_3 (replace_3 (repr_conv value) …) … (str_concat …))       _write_constant (inf/nan repr)
+4348  (str_concat (str_concat 1376817993 !operator) 1376817993)          visit_BinOp-family
+4537  (str_concat 1174530543 (get_name node))                            a visit_* name write
+```
+
+### VERDICT — RE-PRICE, DO NOT RECORD A BOUNDARY
+
+#24 asked for a two-way answer and this is the favourable one. **The 54-marker `_Unparser` lever is
+NOT a value-model CERTIFIED-BOUNDARY.** It is gated on a bounded, named, 4-site capability:
+
+**REOPENING CAPABILITY (precise, and it is a COST item, not a correctness one): under a `string`
+vararg element type, a computed string argument must lower through the STRING concat
+(`str_concat_op`/`+`) rather than the hash-int `str_concat`.** Both symbols already exist in the
+preamble — this is a lowering *selection* in `module6_whyml/expressions.py`, driven by the same
+`_vararg_elem_type` that already gates `seq_mem_str` (expressions.py:1088) and the abstract
+self-call param typing (expressions.py:5675). It is the identical gating idiom, one call site over.
+
+**#1 ITEM FOR THE NEXT WINDOW:** make those 4 sites string-model under `_vararg_elem_type ==
+"string"`, land `*text: str` on the mirror's `write`, re-run L3-tc, then port the leaf batch —
+which #24 showed is at most ~5 bodies (`fill`, `visit_TypeVarTuple`, `visit_ParamSpec`,
+`visit_alias`, `visit_MatchStar`), all of them computed-string writes and hence all of them
+unblocked by exactly this change. The other 8 of #24's 13 stay body-blocked (dict / generator /
+higher-order / `super().visit`) — that finding stands unchanged.
+
+### THE LESSON, NOW SEVEN TIMES IN SIX HOURS
+
+**#24 wrote a conditional record ("if it does not clear, this is a value-model boundary"). The probe
+cleared it. A boundary that has not been TRIED is not a boundary even when the worker who named it
+had just measured the failure it predicts.** #24's measurement was correct *for `seq int`*; the axis
+it did not measure was the element type it had itself identified as free. Two minutes bought back an
+11.0%-of-campaign lever that was one sentence from being filed as a floor.
+
+Corollary for the census habit: **census the emitted `.mlw`, not the plan.** "Computed writes break"
+sounded like it covered most of 58 sites. It covered 4.
+
+### #25 hygiene
+
+Probe FULLY REVERTED (mirror byte-restored, 134 markers in file). Metric re-verified after revert:
+**markers 491 · grep 516 · offset 25 · attached 491 · unattached 0 · ledger 3.** `src/` clean.
+No prover process started, none left running. Nothing banked as a conversion — this window bought a
+re-pricing, which is what the supervisor asked for.
+
+---
+
 # HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #24 worker)
 
 ## #24 IN ONE LINE: **the 13-leaf batch is NOT 13 — the `seq int` element type of ladder 1a blocks
