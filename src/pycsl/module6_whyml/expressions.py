@@ -4738,9 +4738,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if raw_op == "+" and (self._is_string_expr(expr["left"])
                               != self._is_string_expr(expr["right"])) \
                 and not self._in_spec:
+            # (relaunch #30) `_coerce_str_arg` folds a string LITERAL to its `stable_hash`
+            # constant and hands anything else through RAW — so a COMPUTED string operand
+            # (`"    " * self._indent + text`, i.e. `str_repeat_op "    " …`) still met an
+            # int in a `val str_concat (x y: int) : int`. That is the SAME one-line gap
+            # this arm was written to close, one shape further out, and it is what blocks
+            # `_Unparser.fill`, a 14-use hub. Hash the computed string into the same int
+            # domain the literal fold uses. BYTE-INERT BY CONSTRUCTION: a raw string here
+            # is an L3-tc rejection, so no typechecking program reaches it.
             self._add_abstract_op("val str_concat (x: int) (y: int) : int")
-            return (f"(str_concat {self._coerce_str_arg(left)} "
-                    f"{self._coerce_str_arg(right)})")
+            _sc = []
+            for _side in (left, right):
+                _c = self._coerce_str_arg(_side)
+                _cs = _c.strip()
+                if any(_cs.startswith(_s) for _s in self._STRING_VALUED_OPS):
+                    _c = f"(str_hash_op {_c})"
+                _sc.append(_c)
+            return f"(str_concat {_sc[0]} {_sc[1]})"
         # strings-plan Stage 2: string `==`/`!=` content equality. In a spec, polymorphic `=`
         # is fine (falls through below); in a program (body) context `=` on strings is not
         # usable, so bridge through `val str_eq_op : bool` (tied by `ensures` to `=`). Must

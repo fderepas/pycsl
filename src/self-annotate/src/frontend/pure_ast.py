@@ -4248,12 +4248,12 @@ class _Unparser(NodeVisitor):
         if self._source:
             self.write("\n")
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def fill(self, text=''):
-        pass
+    def fill(self, text=""):
+        self.maybe_newline()
+        self.write("    " * self._indent + text)
 
     #@ requires True
     #@ ensures True
@@ -4745,24 +4745,12 @@ class _Unparser(NodeVisitor):
             with self.block():
                 self.traverse(node.orelse)
 
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._indent
+    #@ assigns \nothing
     def visit_If(self, node):
-        self.fill("if ")
-        self.traverse(node.test)
-        with self.block():
-            self.traverse(node.body)
-        while node.orelse and len(node.orelse) == 1 and isinstance(node.orelse[0], If):
-            node = node.orelse[0]
-            self.fill("elif ")
-            self.traverse(node.test)
-            with self.block():
-                self.traverse(node.body)
-        if node.orelse:
-            self.fill("else")
-            with self.block():
-                self.traverse(node.orelse)
+        pass
 
     #@ requires True
     #@ ensures True
