@@ -48,6 +48,10 @@ from the proof and it had NOT finished. **The proof plane is green; the vacuity 
 not failed.** First action next window: re-run and let it finish, or run
 `bin/check-emitted-vacuity.py --emit` (remember: a false green without `--emit`, instrument fact 3).
 
+**One more fact worth having: the emitted `pure_ast.mlw` declares ZERO `axiom`s.** So those 2857
+goals are discharged without the module contributing anything to the ledger. The campaign ledger
+stays at 3 and this file adds nothing to it.
+
 **The other two L-planes are INHERITED, not re-run.** The tracked tree has not changed since #21
 gated them at `44150508` (this window's commits touch `getting-better/` only), so #21's fidelity
 (2-DIVERGED baseline) and byte-inertness (3/3) results carry over unchanged. #22 re-verified the
