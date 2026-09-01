@@ -147,8 +147,23 @@ def probe(name, cls):
     marker_i, end_i, kept = span
     lines = orig.split("\n")
     ind = lines[marker_i][:len(lines[marker_i]) - len(lines[marker_i].lstrip())]
-    ported = "\n".join((ind + l[4:] if l.startswith("    ") else ind + l)
-                       for l in body.split("\n"))
+    # HARNESS BUG, FOUND AND FIXED 2026-09-01 (#29). The re-indentation stripped a FIXED
+    # four spaces from every body line and then prefixed the MIRROR stub's indentation.
+    # For a METHOD (mirror `ind` = 4 spaces, live body indented 4) that is the identity.
+    # For a MODULE-LEVEL function the mirror `ind` is EMPTY, so the strip flattened the
+    # whole body to column 0 and the ported file did not even PARSE — the harness then
+    # reported the SyntaxError as `L3TC-FAIL  ['expected an indented block (got …)']`,
+    # i.e. as a real conversion blocker. MEASURED BLAST RADIUS: 133 of the 352 L3TC-FAIL
+    # verdicts across the whole mirror tree (38%) were this bug, not a blocker — every
+    # module-level `\trusted` stub in `pycsl.py` (29), `ir_resolve.py` (15),
+    # `monomorphize.py` (14), `audit_proof.py` (12), `audit_proof_reverify.py` (11),
+    # `canonical.py` (11), `sertop.py` (6), `normalize.py` (6) and more.
+    # Re-indent RELATIVE to the live def's own indentation instead.
+    _blines = body.split("\n")
+    _lind = _blines[0][:len(_blines[0]) - len(_blines[0].lstrip())] if _blines else ""
+    ported = "\n".join((ind + l[len(_lind):] if l.startswith(_lind) else ind + l.lstrip())
+                       if l.strip() else l
+                       for l in _blines)
     new = "\n".join(lines[:marker_i] + kept + ported.split("\n") + lines[end_i + 1:])
     try:
         open(MIRROR, "w").write(new)
@@ -159,7 +174,20 @@ def probe(name, cls):
                             "--no-proof", "--keep-mlw"],
                            capture_output=True, text=True, cwd=ROOT, env=env, timeout=300)
         if "L3-tc ✓" not in r.stdout:
-            tail = [l for l in (r.stdout + r.stderr).split("\n") if l.strip()][-1:]
+            # HARNESS FIX (#29): "the last non-empty line" is NOT the diagnosis. why3
+            # prints its `File "…", line N` locator BEFORE the message and a long tail of
+            # `Warning, … unused variable` lines can follow, and the pipeline's own
+            # traceback echoes a SOURCE line last — so the recorded reason was frequently
+            # an unrelated fragment (`_union_c8_walk(s.get("body", …))` was reported as the
+            # blocker for 126 candidates across the tree). Prefer the first line that
+            # actually reads like a diagnosis, and fall back to the tail only if none does.
+            _ls = [l for l in (r.stdout + r.stderr).split("\n") if l.strip()]
+            _diag = [l.strip() for l in _ls
+                     if re.search(r"but is expected to have type|unbound |syntax error|"
+                                  r"cannot be used as pure|cannot be applied|This pattern has type|"
+                                  r"expected an indented block|not supported|Unsupported|"
+                                  r"rejected under|UnsupportedFeature|Error:", l)]
+            tail = _diag[:1] or _ls[-1:]
             return name, "L3TC-FAIL", tail
         txt = open(MLW).read() if os.path.exists(MLW) else ""
         pat = re.compile(r"^  (let(?: rec)?(?: function)?|val)\s+([A-Za-z0-9_]+)[^\n]*\n(?:(?!^  (?:let|val|type|exception|axiom|goal|lemma)\b).*\n)*", re.M)
@@ -182,8 +210,16 @@ def probe(name, cls):
         # bare literal.
         blines = [l for l in blk.rstrip().split("\n") if l.strip()]
         last = blines[-1].strip() if blines else ""
-        src_t = ast.parse("\n".join(l[4:] if l.startswith("    ") else l
-                                     for l in body.split("\n")))
+        # SAME HARNESS BUG as the re-indentation above (#29): a fixed 4-space strip
+        # flattens a MODULE-LEVEL live body to column 0 and this `ast.parse` raises
+        # IndentationError, which is NOT caught — it aborted the whole sweep partway
+        # through `pycsl.py` and `ir_resolve.py`. Dedent relative to the live def's own
+        # indentation instead.
+        _sl = body.split("\n")
+        _si = _sl[0][:len(_sl[0]) - len(_sl[0].lstrip())] if _sl else ""
+        src_t = ast.parse("\n".join((l[len(_si):] if l.startswith(_si) else l.lstrip())
+                                     if l.strip() else l
+                                     for l in _sl))
         src_fn = src_t.body[0]
         src_last = src_fn.body[-1]
         src_returns_value = (isinstance(src_last, ast.Return) and src_last.value is not None
