@@ -4293,15 +4293,14 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def delimit_if(self, start, end, condition):
+    def delimit_if(self, start, end, condition) -> int:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def require_parens(self, precedence, node):
-        pass
+        return self.delimit_if("(", ")", self.get_precedence(node) > precedence)
 
     #@ requires True
     #@ ensures True
@@ -4630,19 +4629,17 @@ class _Unparser(NodeVisitor):
             self.write(": ")
             self.traverse(node.bound)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def visit_TypeVarTuple(self, node):
-        pass
+    def visit_TypeVarTuple(self, node: "TypeVarTuple"):
+        self.write("*" + node.name)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def visit_ParamSpec(self, node):
-        pass
+    def visit_ParamSpec(self, node: "ParamSpec"):
+        self.write("**" + node.name)
 
     #@ requires True
     #@ ensures True

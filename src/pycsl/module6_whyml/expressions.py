@@ -5714,6 +5714,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 param_types[i] = self._dict_param_whyml_type(
                     ident, getattr(self, "_dict_key_types", {}) or {},
                     getattr(self, "_dict_value_types", {}) or {})
+        # BOOL ACTUAL INTO AN INT FORMAL (#29). Python has no separate bool type in this
+        # model — a `bool` annotation collapses to `int` and every emitted predicate is
+        # carried as `0`/`1` — but a COMPARISON lowers to a genuine Why3 `bool`. Passed
+        # straight into an `int` formal that is a hard L3-tc error, and it is exactly what
+        # blocked `_Unparser.require_parens`
+        # (`self.delimit_if("(", ")", self.get_precedence(node) > precedence)`) at
+        # relaunch #23, which recorded it as "a bool actual is a LOUD type error" without
+        # noticing the emitter already owns the coercion: `_bool_ir_to_int_wrap` (types.py)
+        # is the SAME bool-source detector `return isinstance(...)` uses, and it produces
+        # the same `(if b then 1 else 0)` the rest of the emitter emits.
+        # BYTE-INERT BY CONSTRUCTION, not by measurement: it fires only where the formal is
+        # `int` AND the actual is a bool-source IR — i.e. only where the emitted file was
+        # ALREADY ill-typed and rejected at L3-tc. A `bool`-typed formal keeps the bare
+        # Why3 bool (the `param_types[i] != "int"` guard), and an int actual is untouched.
+        # Fail-closed when `arg_irs is None` (the keyword/default re-binding path).
+        if arg_irs is not None:
+            for _bi in range(min(len(args), len(param_types), len(arg_irs))):
+                if param_types[_bi] != "int":
+                    continue
+                _bir = arg_irs[_bi]
+                if isinstance(_bir, dict):
+                    args[_bi] = self._bool_ir_to_int_wrap(args[_bi], _bir)
         coerced = self._coerce_dotted_args(args, param_types)
         # W8 capability (vi): a call to a SAME-CLASS sibling method whose declared return
         # type is a RECORD lowers to the CONCRETE sibling application

@@ -3080,10 +3080,10 @@ class _Unparser(NodeVisitor):
             self.write(": ")
             self.traverse(node.bound)
 
-    def visit_TypeVarTuple(self, node):
+    def visit_TypeVarTuple(self, node: "TypeVarTuple"):
         self.write("*" + node.name)
 
-    def visit_ParamSpec(self, node):
+    def visit_ParamSpec(self, node: "ParamSpec"):
         self.write("**" + node.name)
 
     def visit_TypeAlias(self, node):

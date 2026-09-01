@@ -742,6 +742,17 @@ _PURE_AST_FIELD_TABLE: Dict[str, List[Tuple[str, str]]] = {
     # (module6_whyml/statements.py `_wrap_body_with_return_catch`) and the
     # pre-existing `IrNum`/`IrNone`/`IrVar` ctors — NO new theory constructor.
     "Name": [("id", "string"), ("ctx", "int")],
+    # `_Unparser` PER-NODE RECORD MODEL (#29), the two SCALAR-ONLY type_param classes.
+    # `_NODE_SPEC` gives both exactly one field — `('type_param', ('name',), None)` — and
+    # neither appears in `_OPTIONAL_FIELDS`, so each is a TOTAL one-field record whose
+    # single field is the type-parameter NAME, a real `string` (`visit_TypeVarTuple`
+    # writes `"*" + node.name`, `visit_ParamSpec` writes `"**" + node.name`). Having NO
+    # expr child is what makes these two portable ON THEIR OWN: the record model gives a
+    # node-valued field the `emit_ir` type, which the still-int `val self_traverse_1
+    # (x0: int)` rejects, so a visitor that traverses a child cannot be annotated until
+    # the whole family is. These two traverse nothing.
+    "TypeVarTuple": [("name", "string")],
+    "ParamSpec": [("name", "string")],
     # isinstance-on-emit_ir batch (self-tcb-reduction M5): Attribute's 3 fields
     # (`value`, `attr`, `ctx`) are total (no `_OPTIONAL_FIELDS` entry). `value`
     # tagged "ExprIR" (the child expr, lowered by `_py_expr_to_ir`); `attr` tagged

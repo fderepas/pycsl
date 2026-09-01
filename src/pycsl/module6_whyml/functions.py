@@ -2242,6 +2242,19 @@ class FunctionEmissionMixin:
             # statement (`return_type` never "unit"), so this is byte-identical for
             # the reference corpus (verified: full-corpus byte-diff 0).
             return_type = "string"
+        elif ann == "int" and return_type == "unit" and func.get("trusted"):
+            # self-tcb-reduction GAP #2, SCALAR TWIN (#29): the exact `-> str` / `-> bool`
+            # disjuncts below, for a `\trusted` stub declared `-> int`. Same mechanism,
+            # same reason: the stub's placeholder body is a bare `pass`, so
+            # `find_return_type` gives "unit", the `val` announces `: unit`, and a
+            # CONVERTED caller that RETURNS the call (`_Unparser.require_parens` ->
+            # `return self.delimit_if(...)`) has a `unit` where its own declared `int`
+            # result belongs — `This expression has type (), but is expected to have type
+            # int`. The DECLARED annotation is the authority on what a trusted stub
+            # returns. Gated on `func["trusted"]`: a real `-> int` function has a return
+            # statement, so `return_type` is never "unit" for one and the corpus is
+            # untouched (byte-diff verified, not assumed).
+            return_type = "int"
         elif ann == "bool" and return_type == "unit" and func.get("trusted"):
             # self-tcb-reduction GAP #2, PREDICATE TWIN: the `-> str` disjunct directly
             # above, for a `\trusted` stub declared `-> bool`. Same mechanism, same
@@ -6119,6 +6132,19 @@ class FunctionEmissionMixin:
                 # below. Byte-identical for the corpus (a real `-> str` function has
                 # a return statement, so `ret` is never "unit").
                 ret = "string"
+            elif ann == "int" and ret == "unit" and func.get("trusted"):
+                # GAP #2, SCALAR TWIN (self-call site) (#29): the CALL-SITE half of the
+                # `_compute_return_type` `-> int` disjunct. BOTH halves are needed — that
+                # is lesson (am), two producers: patching `_compute_return_type` alone
+                # retypes the stub's OWN `val _unparser__delimit_if … : int` while the
+                # `self.<m>(...)` call site still abstracts through THIS map as
+                # `val self_delimit_if_3 … : unit`, and the converted caller
+                # (`require_parens`, which RETURNS that call) still fails L3-tc with
+                # `This expression has type (), but is expected to have type int`.
+                # Measured exactly that way before this branch was added. Byte-identical
+                # for the corpus: a real `-> int` function has a return statement, so
+                # `ret` is never "unit" for one.
+                ret = "int"
             elif ann == "bool" and ret == "unit" and func.get("trusted"):
                 # GAP #2, PREDICATE TWIN (self-call site): the `-> str` disjunct's
                 # boolean sibling, and the CALL-SITE half of the `_compute_return_type`
