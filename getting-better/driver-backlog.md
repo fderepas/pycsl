@@ -5536,3 +5536,36 @@ methods and writes NOTHING (while `_csl_to_ir` reaches 77 and writes `_fresh_var
 Two offenders were repaired: `csl_to_ir_op` (the recorded live unsoundness) and
 `m5_current_class_present` (the only ARGUMENT-LESS pure `val function` on the surface — an
 argument-less pure symbol over mutable state is a CONSTANT).
+
+
+## LADDER 1a — DONE as a CAPABILITY (relaunch #21, 2026-09-01, commits e140e4d8 / 935c0cee)
+
+Unannotated `*args` -> `seq int` (pyval) formal. **Built and gated; marker payoff NOT yet taken.**
+
+- Surfaces touched: `Module5_IREmitter.py` (record `vararg_elem_type` for an unannotated vararg),
+  `Module6_WhyMLTranspiler.py` (`_module_method_vararg_elem`), `module6_whyml/functions.py`
+  (`_param_type_str`, registry `seq <elem>`), `module6_whyml/expressions.py` (call-site packing +
+  `_coerce_to_int` on elements, `seq_mem_str` gated to string elements, abstract self-call stub
+  parameter inference), and the mirror `src/self-annotate/src/module6_whyml/functions.py`.
+- **`pure_ast.py` L3-tc GREEN.** Mirror sweep 52/52 TC_OK. Corpus byte-diff 0 (only 3 non-mirror
+  files in the tree have an unannotated vararg, and all 3 emit byte-identical `.mlw`).
+- **#20's price ("corpus-affecting, M1 discipline") was WRONG.** The `: str` gate guarded 3 files.
+- NOT DONE: whole-file PROOF of `pure_ast.py`, and the un-trusting of the `_Unparser.write`
+  family (~51 markers) that this unblocks. That is the next window's item 1.
+
+### NEW live backlog item — STARRED-ARGUMENT FORWARDING
+
+`g(*args)` still drops the vararg (gated in Module5 by an `ast.walk` for `Starred(Name(vararg))`).
+A starred argument lowers to its bare inner value, so the callee gets the whole sequence where it
+declares a scalar. **Reopening capability: positional re-binding of an unknown-length sequence
+against the callee's declared arity** — i.e. materialize `Seq.get va 0 … Seq.get va (k-1)` for the
+callee's k missing positionals, plus the `Seq.length va >= k` obligation. TRIED? No — identified
+and deliberately deferred, because gating it out costs nothing and unblocks `write` anyway.
+Affects `pure_ast._new`, `Ellipsis.__new__`, `Constant.__init__`.
+
+### NEW degree of freedom — per-function vararg ELEMENT TYPE
+
+`vararg_elem_type` now exists as an IR field ("string" | "int"). #20 measured that `seq string`
+makes 40 of 56 `write` call sites real Why3 string literals but leaves 16 unbridgeable int-sourced
+sites; `seq int` is uniform and annotation-free. **Both are now supported by the same machinery**,
+so the choice is per-function. Nobody has exploited that yet.

@@ -1,92 +1,67 @@
-# HANDOFF — read this FIRST on relaunch (rewritten 2026-09-01, RELAUNCH #20 worker)
+# HANDOFF — read this FIRST on relaunch (rewritten 2026-09-01, RELAUNCH #21 worker)
 
-## Why this handoff is short
+## What #21 got, and what it did with it
 
-Relaunch #20 got a **~70-minute window**, not a 96-hour one: the supervisor relaunched me with
-the deadline (`getting-better/.driver-deadline` = 1788251064, Sep 1 08:24 UTC) already ~73
-minutes out. I deliberately did NOT start a multi-hour build. One increment landed, it is a
-**re-priced CERTIFIED-BOUNDARY correction on the largest single lever left on the count**, and
-the rest of the window went into leaving this file accurate. Relaunch #19's handoff (the long
-one) is still substantially valid — read it at `git show a292802b:getting-better/driver-handoff-latest.md`
-or just `git log` back one revision of this file; everything under its "Instrument facts",
-"Recorded boundaries carried forward" and "Method notes" sections still holds.
+A **~65-minute** window (same deadline `.driver-deadline` = 1788251064). No multi-hour build was
+started. #20's lesson — *a reopening capability is a claim; TRY it before you scope it* — was
+applied to **#20's own ladder item 1a**, and it paid off exactly the same way.
 
-## State, verified from the surface at end of session
+## THE RESULT — ladder 1a is BUILT, and its price was wrong too
 
-- **Count: MARKERS 491 · grep-substring 516 · offset 25 · unattached 0. UNCHANGED.**
-  From `bin/count-trusted-directives.py`, never a hand-rolled grep.
-- Ledger **3**. Emitted axioms **0**. Corpus **814** files.
-- Fidelity at the standing baseline: `check-self-annotate-sync.sh` **2 DIVERGED**
-  (`module6_whyml/expressions.py::_handle_var_expr`, `module6_whyml/stmt_control_flow.py::_handle_for_stmt`);
-  `self-annotate-mirror-check.sh` **3 mirrors drifted, exit 1 — that IS the baseline**.
-- `bin/check-shadowed-selfcalls.py`: **13 methods / 33 sites, ratchet 13** (unchanged; this
-  session's edit was a comment, emission byte-identical).
-- `bin/check-trusted-frame-honesty.py`: **trusted 0 model-visible / 70; converted 2 / 68**
-  (unchanged, same reason).
-- Tree clean apart from the pre-existing user/build dirt (`session.txt`, `prompt*.txt`,
-  `scratchpad/**`). `getting-better/.driver-deadline` intact and UNTOUCHED.
-- **58 commits local-only. Nothing was pushed. Do not push.**
+**`e140e4d8` + `935c0cee`. Unannotated `*args` now lowers to a `seq int` (pyval) formal instead
+of being DROPPED.** #20 priced this as *"CORPUS-AFFECTING … an M1-discipline build … budget it as
+a real increment, not a one-liner"*.
 
-## WHAT THIS SESSION LANDED — one increment, `fb2f9fe8`
+**Measured:**
+- It is **~40 lines** across the three surfaces #20 named, plus **two** #20 did not.
+- **The corpus blast radius is ZERO.** Exactly THREE non-mirror files in the whole tree have an
+  unannotated vararg (`test-suite/corpus/python-reference/0209.py` `__aexit__`,
+  `…/0093.py` `__exit__`, `src/pycsl_lib/typ/__init__.py` `__call__`) and **all three emit
+  BYTE-IDENTICAL `.mlw`**. The `: str` gate was not protecting the corpus from anything.
+- **`pure_ast.py` reaches `L3-tc ✓`** — which **#20's `seq string` variant never did**.
+- Mirror sweep **52/52 TC_OK, TC_FAIL=0**; 3 files changed (`pure_ast`, and stub-signature-only
+  changes in `Module3_Weaver` / `Module5_IREmitter`, e.g.
+  `val _contractparser__at_op (self: _contractparser)` gains `(vals: seq int)`).
+- **Markers 491 · grep 516 · offset 25 · unattached 0 — UNCHANGED. Ledger 3.**
 
-**The `_Unparser` family boundary's reason was wrong AGAIN, and the reason it replaced was
-16 hours old — written by this same campaign (relaunch #19 inc8, `ebe049de`).**
+### The two surfaces #20 did NOT name (they are why it typechecks now)
 
-inc8 said the blocker is that `_Unparser.write(self, *text)` is VARIADIC, and named the
-reopening capability as *"a `*args` parameter model — a `seq string` formal, with the call
-site materializing its actual arguments into it."*
+1. **Call-site element coercion.** Packing had to run each actual through `_coerce_to_int`, or a
+   string-literal actual lands in a `seq int` (`Seq.cons " in " (Seq.empty: seq int)`). The
+   `seq int` model carries the SAME `str_hash_op` ints the drop-behaviour used for the collapsed
+   single argument — so `write(" in ")` becomes `self_write_1 (Seq.cons 260070937 (Seq.empty: seq int))`.
+2. **Abstract self-call stub inference** (`expressions.py`, the `param_types[i]` inference block
+   around line 5660). A vararg passed on to another self-method (`self._source.extend(text)`)
+   default-typed the stub's parameter `int`. It now types it `seq <elem>`.
 
-**THAT CAPABILITY ALREADY EXISTS AND ALREADY WORKS END-TO-END.** Annotating the vararg
-(`def write(self, *text: str)` in the mirror AND in the live `src/pycsl/frontend/pure_ast.py`)
-with **ZERO emitter changes** immediately emits
+### THE NAMED RESIDUE — and this one WAS tried, and refused
 
-    let _unparser__write (self: _unparser) (text: seq string) : unit
-      = let _ = (self__source_extend_1 text) in ()
+**STARRED-ARGUMENT FORWARDING (`g(*args)`).** A starred argument lowers to its bare inner value
+(`expressions._expr_to_whyml`, `"Starred"` at ~14613), so the callee receives the whole sequence
+where it declares a scalar. Modelling it needs Python's positional re-binding of an
+**unknown-length** sequence against the callee's arity. Until that capability exists, a
+star-forwarding function **keeps the historical drop behaviour** — gated in Module5 by an
+`ast.walk` for `Starred(Name(vararg))`. In `pure_ast.py` that covers `_new`, `Ellipsis.__new__`
+and `Constant.__init__`; **`_Unparser.write` and `set_precedence` are NOT affected**, so the
+51-marker lever is unblocked.
 
-with `val self_write_1 (x0: seq string) : unit`, and the emitter materializes every call site
-itself as `Seq.cons <arg> (Seq.empty: seq string)`. Module5's `_cur_func_vararg_str`
-(`Module5_IREmitter.py:4966-4977`, `:5087-5099`, `:5177-5179`) and Module6's
-`functions._vararg_str_param` (`functions.py:38-43`, `:344-352`, `:7406-7411`) already do all of it.
+## THE #1 ITEM FOR THE NEXT WINDOW — cash the lever
 
-**THE REAL WALL IS THE [STRING-MODEL SPLIT] AT THE MATERIALIZATION SITE — measured, not argued:**
-- **40 of the 56** write call sites in the converted part of the class become **REAL Why3
-  STRING LITERALS** (`Seq.cons " in " (Seq.empty: seq string)`) where they were opaque hash
-  ints (`self_write_1 260070937`). **That is a large fidelity gain nobody in this campaign had
-  ever seen**, and it is evidence about the string model well beyond `_Unparser`.
-- **The other 16** come from INT-MODELLED sources: 7 node-field projectors
-  (`get_name`/`get_id`/`get_attr`/`get_arg`), 3 `str_concat`-over-int-locals, `replace_3`,
-  `repr_conv`, and the int-typed params `extra` / `start` / `py_end` / `!operator`. Each is a
-  hard `seq string` vs `seq int` Why3 type error. **L3-tc fails on the first**,
-  `_write_str_avoiding_backslashes`, whose `quote_type`/`string` locals are ints because
-  `_str_literal_helper` is still a stub returning ints.
-- **No coercion bridges it.** `str_hash_op` goes int-ward and is not invertible; an
-  int→string direction would be a fiction.
+Ladder 1a is the *capability*. **The marker payoff has not been taken yet.**
 
-## THE #1 ITEM FOR THE NEXT WINDOW — a BUILD, not a boundary
+1. **Prove `pure_ast.py` whole-file** with the new lowering
+   (`--provers 'Alt-Ergo,2.6.3,,Z3,4.13.3,'`, budget ~45 min). Nothing above ran a prover.
+2. **Then un-trust the `_Unparser.write` family** (~51 of the 491 markers; `pure_ast.py` holds 96).
+   `write` is now a REAL parameterized method: `let _unparser__write (self: _unparser) (text: seq int) : unit`,
+   and `len(text)` / `text` reads / membership all lower faithfully.
+3. **Open question worth one probe, not a scope**: #20 measured that a `seq string` vararg turns
+   **40 of the 56** `write` call sites into REAL Why3 string literals — a fidelity gain `seq int`
+   does not give. `seq int` is *uniform and annotation-free*; `seq string` is *more faithful but
+   splits the model* (16 int-sourced sites are unbridgeable). The infrastructure now supports BOTH
+   element types via `vararg_elem_type`, so this is a per-function choice, not a global one. That
+   is a new degree of freedom nobody has used yet.
 
-**Lower an UNANNOTATED vararg to a `seq int` (pyval) formal instead of DROPPING it**, rather
-than lowering an ANNOTATED one to `seq string`.
-
-- **Why it wins:** it removes the split entirely. The vararg then lives in the SAME model as
-  every other value in `pure_ast.py`; all 56 sites materialize as `Seq.cons <int> Seq.empty`;
-  the write payload stops being discarded; and no source file needs a (dishonest) annotation.
-- **Where:** exactly the three surfaces named above — Module5 record the vararg name when it
-  has NO annotation (a sibling field to `vararg_str_param`, e.g. `vararg_pyval_param`),
-  Module6 `functions._param_type_str` return `(safe: seq int)`, and the call-site
-  materialization in `functions.py:7406-7411` emit `(Seq.empty: seq int)`.
-- **KNOW THE COST BEFORE YOU START — it is CORPUS-AFFECTING.** The `: str` gate exists
-  *precisely* so that every corpus and `pycsl_lib` function with a plain `*args` stays
-  byte-identical (the comments at `Module5_IREmitter.py:5095-5096` and `functions.py:41-42`
-  say so in as many words). Lifting it is therefore an **M1-discipline build**: the byte-diff
-  must be EXACTLY the vararg correction, and every affected program must re-prove 0 non-Valid.
-  Budget it as a real increment, not a one-liner.
-- **Payoff: 51 of the 491 markers** — the largest single lever left. `pure_ast.py` holds 96 of
-  the 491 in total.
-- **Second-order:** the same annotation experiment showed the emitter WILL emit real Why3
-  `string` literals when a `string`-typed sink demands them. Worth asking, separately, how much
-  of the int-hash string model is a default rather than a necessity.
-
-## Then, in this order (carried forward from #19, still valid)
+## Then, in this order (carried forward, still valid)
 
 2. **`ControlFlowStmtMixin._handle_return_stmt`** — the ONE non-constructor model-visible false
    frame left (18 fields via-callee). Expect relaunch #19's landing-5 shape: find which
@@ -145,7 +120,21 @@ than lowering an ANNOTATED one to `seq string`.
 16. **NEVER put a `\trusted` marker LITERAL in a mirror comment** — it counts as a MARKER.
 17. `TMPDIR=/home/fabrice/git/pycsl/scratchpad` for `bin/check-shadowed-selfcalls.py`.
 
-## The method note this session paid for
+## The method note THIS session paid for (#21)
+
+**THE LESSON GENERALIZES ONE STEP FURTHER: a recorded PRICE is a claim too.** #20 corrected a
+recorded *reason* and then, in the same file, wrote a *price* ("corpus-affecting, M1 discipline,
+budget a real increment") for the follow-on build. That price was measured, in five minutes, by
+one 20-line `ast` scan over the corpus — and it was **zero**. The gate's own comments
+(`Module5_IREmitter.py:5095-5096`, `functions.py:41-42`) asserted the corpus needed protecting;
+**nobody had ever counted the files it was protecting.** Before budgeting any gate-lifting build,
+COUNT THE FILES THE GATE ACTUALLY GUARDS. It is an `ast.walk`, not an increment.
+
+Second, smaller note: **`check-self-annotate-sync.sh` is a live plane for EMITTER edits, not only
+mirror edits.** Touching an un-trusted emitter body (`_build_method_param_types_map`) silently
+pushed DIVERGED 2 -> 3. Run it after ANY `src/pycsl/` change and port the same lines to the mirror.
+
+## The method note #20 paid for
 
 **A REOPENING CAPABILITY IS A CLAIM, AND IT DESERVES THE SAME SUSPICION AS THE BOUNDARY IT
 PRICES.** This campaign has now learned seven times that a recorded boundary's *reason* is
