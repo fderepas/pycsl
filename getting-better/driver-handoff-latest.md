@@ -1,3 +1,168 @@
+# HANDOFF — #29 THIRD ENTRY (2026-09-01, WINDOW 3): **491 -> 477. FOURTEEN MARKERS.
+# The `_Unparser` "CERTIFIED-BOUNDARY" was not a boundary at all — it was five separate
+# ONE-LINE gaps in the emitter, each recorded by an earlier relaunch as a body block.**
+
+## THE HEADLINE, AND THE LESSON UNDER IT
+
+Three relaunches (#24, #25, #26, #27, #28) worked this wall and recorded it as a value-model
+CERTIFIED-BOUNDARY needing a 76-arm recursive node ADT. What actually unblocked it:
+
+| what #24/#27 recorded | what it actually was | size |
+|---|---|---|
+| "higher-order formals" body-block (8 of 13 leaves) | the emitter ALREADY lowers `lambda: self.write(", ")` to a real Why3 closure `(fun () -> …)`; only the FORMAL was missing, because an abstract self-call avatar default-types every parameter `int` | **one line** in `_handle_dotted_call`'s param-type loop |
+| "a bool actual is a LOUD type error" (`require_parens`, #23) | the emitter already OWNS the coercion — `_bool_ir_to_int_wrap` in types.py, the same detector `return isinstance(...)` uses — it was just never applied at an argument position | **one loop** |
+| "computed string element into `seq int`" (`visit_TypeVarTuple`/`ParamSpec`, #24) | `_coerce_to_int` hashes string LITERALS only; a computed string needed the same `str_hash_op` | **one branch** |
+| "per-(node-type,field) projector typing = the pyx_view node ADT" (#27) | `_PURE_AST_FIELD_TABLE` + a `node: "<Class>"` param annotation, in production since #19 | **one table row** |
+| a `\trusted` `-> int` stub's caller fails with `()` vs `int` | the `-> str` / `-> bool` disjunct already existed; `int` was simply missing, in BOTH producers | **two branches** |
+
+**LESSON (bb): in a mature emitter, a "the value model cannot express this" verdict is far more
+often a MISSING ONE-LINE INFERENCE than a missing model.** The five above were all recorded as
+capability-level boundaries by workers who had just measured the failure. The discriminator is
+cheap and mechanical, and it is the same one every time: **read the L3-tc error, then grep the
+emitter for the mechanism that already handles the ADJACENT case.** `array int` inference sat
+three lines above the missing `unit -> unit` inference. The `-> str` disjunct sat one line above
+the missing `-> int` disjunct. `_bool_ir_to_int_wrap` was already imported into the same file.
+None of it needed a new model; it needed someone to look at the line next door.
+
+## WHAT LANDED (three commits, all gated on every plane, all clean)
+
+| # | commit | markers | what |
+|---|---|---|---|
+| 1 | `e2a9a35b` | 491 (neutral) | `visit_Name(node: "Name")` — first per-node RECORD in the emitted mirror; `val get_id` GONE, payload is `str_hash_op node.id`. Plus the `str_hash_op` coercion for computed string vararg elements. |
+| 2 | `c633e7e1` | 491 -> **488** | `visit_TypeVarTuple`, `visit_ParamSpec`, `require_parens`. Plus the bool-actual coercion and the `-> int` trusted-stub disjunct in BOTH producers. |
+| 3 | `430f6ca5` | 488 -> **477** | eleven `interleave(lambda: …)` visitors. Plus the `unit -> unit` closure-formal inference. |
+
+Final state, driver-verified fresh: **markers 477 · grep 502 · offset 25 · unattached 0 ·
+ledger 3.** pure_ast.py 2873/2873 Valid SUCCESS; functions.py 1199/1199 Valid SUCCESS;
+corpus byte-diff 0 (814/814); fidelity 2 DIVERGED / 3 drifted (baseline); non-vacuity no NEW
+erasure; shadowed-selfcalls 13; frame-honesty trusted 0/68 + converted 2/68 (the trusted TOTAL
+ratchet was LOWERED 70 -> 68 in commit 3). No prover process left running.
+
+## THE THREE GATE PLANES EACH CAUGHT A DIFFERENT BAD PORT — keep every one of them
+
+This batch is the clearest demonstration in the campaign that the planes are not redundant:
+
+- **NON-VACUITY** caught `get_type_comment` as INPUT-BLIND (`erased=['node'] of ['node']`) — a
+  conversion whose emitted body ignores its only argument. Nothing else would have seen it.
+- **SHADOWED-SELFCALLS** caught `_type_params_helper` and `_write_fstring_inner` (15 > ratchet
+  13): the call sites still route through `val self__<m>_1`, so the marker would have gone while
+  the body stayed invisible to every caller.
+- **FRAME-HONESTY** caught five ports at once and was fixed HONESTLY, not by reverting:
+  `do_visit_try`/`visit_If`/`visit_With`/`visit_AsyncWith`/`visit_Match` use `with self.block():`,
+  which writes `self._indent`. `#@ assigns \nothing` is harmless on a `\trusted` stub and becomes
+  a FALSE FRAME the instant the method enters the converted population. They now declare
+  `#@ assigns self._indent`. **A port must re-derive its own frame; it does not inherit the
+  stub's.**
+- **THE PROOF PLANE** caught the rest — see the next section, which is the finding to keep.
+
+## THE PROOF FINDING — a batch can break a goal it does not touch
+
+The first battery on the full 20-port batch FAILED: 2904 goals, 2884 Valid, **20 non-Valid**.
+Ten were `Sub-goal termination` of the newly ported LOOP bodies. **The other ten were
+`get_docstring` postcondition sub-goals that had been Valid at 2862/2862 one increment
+earlier** — Unknown / Out-of-memory / Timeout, never Invalid. Reverting the nine loop-carrying
+ports restored `get_docstring` to Valid in **0.00 s**, which is the proof that the cause was
+those bodies and nothing else.
+
+**LESSON (bc): re-prove the WHOLE file, never just the new goals — and read a previously-Valid
+goal turning Unknown as a SIZE signal, not a correctness signal.** A conversion batch has a
+context cost that lands on goals it never mentions.
+
+## THE ONE REAL BOUNDARY THIS WINDOW HIT, and it was already written down
+
+`for gen in node.generators:` lowers to `while !_idx_gen < (iter_length (get_generators node))`
+with NO variant. `module6_whyml/stmt_control_flow.py:1166-1180` already documents why: the
+auto-variant is admitted only when the length term is a pure LOGIC term (`Array.length` /
+`Seq.length` / `String.length`), and `iter_length (get_generators node)` is a PROGRAM call,
+which a Why3 `variant` term cannot mention at all.
+
+**REOPENING CAPABILITY, PRICED, DELIBERATELY NOT TAKEN: promote `iter_length` and the node-field
+projector in the length term to pure `val function`s.** NOT taken because it is a DETERMINISM
+CLAIM on `iter_length` — `len` of an int-collapsed handle is constant only if the underlying list
+is never mutated — and that is exactly the class of claim this campaign has twice caught as a
+live unsoundness (see the `csl_to_ir` / `m5_current_class_present` repairs). It needs its own
+increment with its own soundness argument, scoped to receivers that are provably immutable AST
+nodes. **NINE markers ride on it**: `visit_Call`, `do_visit_try`, `visit_DictComp`,
+`visit_GeneratorExp`, `visit_If`, `visit_ListComp`, `visit_Match`, `visit_SetComp`,
+`visit_comprehension`.
+
+## THE REMAINING `_Unparser` TRUSTED SURFACE — each with its MEASURED L3-tc error
+
+Reproduce any of these in ~4 seconds: `python3 scratchpad/port.py <name>` then
+`./scratchpad/tc.sh` (both left in the tree; `port.py` copies the LIVE body into the mirror and
+drops the `#@ \trusted` line, `tc.sh` emits + typechecks with PATH set — 1.8 s per cycle).
+
+| method | measured L3-tc error | shape of the fix |
+|---|---|---|
+| the 9 loop bodies above | `Sub-goal termination` (proof, not tc) | the `iter_length` variant capability |
+| `visit_AugAssign`, `visit_Compare` | `has type string, but is expected to have type int` | `self.binop[<k>]` / `self.cmpops[<k>]` — a CLASS-level `str -> str` const dict, subscripted. `_is_string_expr` does not recognize `self.<table>[k]`, so `" " + <lookup> + "= "` emits a RAW Why3 `+` between two strings instead of `str_concat_op`. Same two-producer shape as the `s * n` repetition below. |
+| `visit_BoolOp` | `This function is stateful, it cannot be used as pure` | a closure capturing mutable state used in a pure position |
+| `visit_MatchClass` | `This pattern has type ('mu, 'mu1), but is expected to have type int` | a tuple pattern |
+| `visit_Assign` | `has type (), but is expected to have type int` | another `unit`-returning trusted callee whose result is used |
+| `visit_ImportFrom` | `seq int` vs `seq string` | the `"." * (node.level or 0)` repetition |
+| `visit_alias`, `visit_MatchStar` | `option string` record-field READ | see below |
+| `visit_Dict`, `visit_MatchMapping` | nested `def` (a local function) | body-blocked |
+| `visit_arguments`, `__init__` | `array int @rho` (a mutable list literal) | |
+| `visit_ClassDef`, `_function_helper` | `int` vs `array` | |
+| `visit_JoinedStr`, `visit_FormattedValue` | nested `def` / `seq` clash | |
+| `items_view`, `interleave`, `traverse`, `set_precedence`, `buffered`, `fill`, `_str_literal_helper` | hubs — see below | |
+
+### `option string` RECORD-FIELD READS — priced, not built
+`alias.asname`, `MatchAs.name`, `ExceptHandler.name`, `keyword.arg`, `MatchStar.name` are all
+`OptStr` -> `option string`, and the emitter has NO read path for an option-typed record field:
+`if node.asname:` emits the raw option against an int, and `" as " + node.asname` has no unwrap.
+**REOPENING: a truthiness form (`<> None`) and a value form (`match f with Some v -> v | None ->
+"" end`) for an option-typed record field.** Buys ~2 markers directly (`visit_alias`,
+`visit_MatchStar`) plus real fidelity in three already-converted visitors.
+
+### `fill` (a 14-use hub) — got THREE fixes deep and was reverted at the fourth
+`text: str` annotation, `_for_helper(fill: str, …)` annotation, and a `_is_string_expr`
+recognizer for the `s * n` repetition (whose LOWERING already emits
+`str_repeat_op … : string` — a genuine two-producer disagreement, character-for-character the
+same shape as the `binop[k]` one above). Its body then emitted correctly as
+`str_hash_op (str_concat_op (str_repeat_op "    " indent) text)`. Reverted at the NEXT link:
+`self.fill("except*" if self._in_try_star else "except")` — a string-literal TERNARY lowers to
+int hashes because the `IfExpr`-is-string rule in `_is_string_expr` is gated on
+`_current_self_type in _mutable_state_classes` and `_Unparser` is not a `@mutable_state` class.
+**REOPENING, PRICED, NOT TRIED: put `@mutable_state` on `_Unparser`.** It genuinely has mutable
+state (`_source`, `_indent`, `_precedences`), so the annotation is TRUE, and it would turn on the
+whole typed-local pre-decl family for the class at once. It is a large single-step emission
+change and needs its own increment.
+
+### The `traverse` polymorphism — the reason the record model is not per-visitor incremental
+`traverse(self, node)` is `if isinstance(node, list): for item in node: self.traverse(item) else:
+super().visit(node)`, i.e. `AST | list[AST]`, so its formal is `(x0: int)`. The moment a
+`_PURE_AST_FIELD_TABLE` row gives a field the `emit_ir` type, `self.traverse(node.<child>)` is a
+type error, and `set_precedence`'s `seq int` vararg fails one line earlier. MEASURED on
+`visit_Attribute`, `visit_arg` and `visit_TypeVar` — all three typecheck their own bodies and
+fail at the first hub call. **Only visitors whose fields are ALL scalars can be annotated one at
+a time** (which is exactly `Name`, `TypeVarTuple`, `ParamSpec`). NAMED CHEAP ROUTE, NOT TRIED:
+tag every LIST-valued field as `ExprIR` (ONE opaque `emit_ir` standing for the whole list)
+instead of `StmtIRList` — exactly as faithful as today's opaque `int`, and it makes `traverse`'s
+formal uniform across the family.
+
+## INSTRUMENT FACTS #29 ADDS
+
+1. **`export PATH=/home/fabrice/.opam/framac-coq8/bin:$PATH` ON EVERY GATE.** `_why3_typecheck`
+   (`src/pycsl/pycsl.py`) returns `(True, "(why3 not found — typecheck skipped)")` on
+   `FileNotFoundError` and the caller prints `L3-tc ✓` and `Verification SUCCESS` WITHOUT ever
+   printing the skip reason. #29 hit this in its first hour on a file why3 rejects outright.
+2. **The emit+typecheck loop on `pure_ast.py` is 1.8 seconds.** `scratchpad/tc.sh` wraps it.
+   Reach for it instead of reasoning about what the emitter will do.
+3. **A full 52-mirror md5 sweep is 6.5 seconds** (`scratchpad/mirror_md5.sh <root>`); run it
+   against a detached worktree at HEAD to get the sibling-emission set exactly.
+4. **The corpus byte-diff sweep is 31 seconds** per side (`bin/byte-diff-sweep.sh <dir>`).
+5. `scratchpad/port.py <names>` ports live bodies into the mirror; `scratchpad/restub.py <names>`
+   puts them back as `\trusted` stubs; `scratchpad/tryport.sh` / `scratchpad/diag.sh` do
+   port-test-keep and port-test-revert-and-report respectively.
+6. **`check-self-annotate-sync.sh` is a LIVE PLANE FOR EMITTER EDITS.** Editing
+   `module6_whyml/functions.py` took DIVERGED from 2 to 4 because `_compute_return_type` and
+   `_build_method_return_type_map` are UN-trusted in the mirror; the hunks had to be copied into
+   `src/self-annotate/src/module6_whyml/functions.py`. `_handle_dotted_call` needed nothing —
+   it is a `\trusted` stub in the mirror. That asymmetry is the plane working.
+
+---
+
 # HANDOFF — #29 SECOND ENTRY (2026-09-01, WINDOW 3): **THE `_Unparser` CERTIFIED-BOUNDARY IS
 # REOPENED. #27's named reopening capability — per-(receiver-node-type, field) projector typing —
 # ALREADY EXISTS IN-TREE AND HAS SINCE RELAUNCH #19. It is `_PURE_AST_FIELD_TABLE` +
