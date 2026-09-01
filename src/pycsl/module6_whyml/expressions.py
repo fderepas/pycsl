@@ -5502,7 +5502,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                               "in_emitted_fragment": 1, "frag_dict": 1,
                               "frag_list": 1}
 
-    def _handle_dotted_call(self, func_name: str, args: List[str]) -> str:
+    def _handle_dotted_call(self, func_name: str, args: List[str],
+                            arg_irs: Optional[List[Any]] = None) -> str:
         """Handle dotted method calls (x.method(...)): emit abstract val declaration."""
         # module-emission.md (§T.2.7m): a CROSS-MODULE `self.<m>(...)` call — the callee
         # lives in a DIFFERENT `#@ verify_module` group than the function currently being
@@ -5563,13 +5564,36 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _velem = getattr(
                     self, "_module_method_vararg_elem", {}).get(_vk, "string")
                 _vpacked = f"(Seq.empty: seq {_velem})"
-                for _vt in reversed(args[_vfixed:]):
+                for _vi, _vt in reversed(list(enumerate(args[_vfixed:], _vfixed))):
                     # ladder 1a: a `seq int` (pyval) vararg carries each actual in the
                     # SAME int model the drop-the-vararg behaviour used for the single
                     # collapsed argument (a string literal -> its `str_hash_op`), so the
                     # element type of the packed sequence matches the declared formal.
                     if _velem == "int":
-                        _vt = self._coerce_to_int(_vt)
+                        # `_Unparser` PER-NODE RECORD MODEL (#29): a COMPUTED string actual
+                        # — `node.<str field>` projected off a harvested `_NODE_SPEC`
+                        # record — is a real Why3 `string`, and `_coerce_to_int` passes it
+                        # through UNCHANGED (it hashes only LITERALS), so it reached the
+                        # `seq int` formal as a hard L3-tc clash. Hash it with the SAME
+                        # `str_hash_op` the literal path uses: the packed element type then
+                        # matches the declared formal, and the write payload is exactly as
+                        # (un)modelled as it is today — except that the hash is now taken
+                        # of the REAL string content instead of an opaque attribute-keyed
+                        # `get_<attr>` projector, which is strictly more information, never
+                        # less. STRING LITERALS ARE DELIBERATELY LEFT ON THE
+                        # `_coerce_to_int` PATH: it constant-folds them to the same
+                        # `stable_hash` at emission time, so every existing literal write
+                        # stays BYTE-IDENTICAL. Fail-closed when `arg_irs is None` (the
+                        # keyword/default re-binding path, where positional alignment with
+                        # `expr["args"]` is not guaranteed) -> unchanged behaviour there.
+                        _vir = (arg_irs[_vi] if arg_irs is not None
+                                and _vi < len(arg_irs) else None)
+                        if (isinstance(_vir, dict) and _vir.get("type") != "String"
+                                and self._is_string_expr(_vir)):
+                            self._add_abstract_op("val str_hash_op (s: string) : int")
+                            _vt = f"(str_hash_op {_vt})"
+                        else:
+                            _vt = self._coerce_to_int(_vt)
                     _vpacked = f"(Seq.cons {_vt} {_vpacked})"
                 args = args[:_vfixed] + [_vpacked]
         # 1111-spec R7 (self-method extension): a same-class `self.<m>(...)` call that
@@ -6842,7 +6866,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             or (len(_bound) > len(args) and _kwpos
                                 and max(_kwpos) < len(_bound))):
                         args = _bound
-            return self._handle_dotted_call(func_name, args)
+            # #29: hand the ALREADY-LOWERED args their source IRs so the `seq int`
+            # vararg packing can tell a computed STRING actual from an int one. Passed
+            # only while the lowered list is still positionally aligned with
+            # `expr["args"]` (it is not after the keyword/default re-binding above), so
+            # the packing falls back to its historical behaviour whenever alignment is
+            # not guaranteed.
+            _dc_irs = expr.get("args") or []
+            if len(_dc_irs) != len(args):
+                _dc_irs = None
+            return self._handle_dotted_call(func_name, args, _dc_irs)
         # WL-07: lower any EXPLICIT keyword args (`Point(x=1, y=2)`) so a record
         # constructor binds its fields by name. Empty for a keyword-free call
         # (byte-identical). A `**kwargs` splat was never captured in the IR.

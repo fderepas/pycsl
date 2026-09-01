@@ -3444,7 +3444,7 @@ class _Unparser(NodeVisitor):
             self.write(":")
             self.traverse(node.step)
 
-    def visit_Name(self, node):
+    def visit_Name(self, node: "Name"):
         self.write(node.id)
 
     def visit_arg(self, node):

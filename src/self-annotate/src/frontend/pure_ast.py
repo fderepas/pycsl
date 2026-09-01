@@ -4963,7 +4963,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def visit_Name(self, node):
+    def visit_Name(self, node: "Name"):
         self.write(node.id)
 
     #@ requires True
