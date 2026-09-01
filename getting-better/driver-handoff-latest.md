@@ -82,6 +82,48 @@ Two live degrees of freedom, both opened in the last two windows and **neither o
    and `set_precedence` are NOT affected, so the 54-marker lever is unblocked by it.**
    Per lesson (#20): the first move against this capability is to TRY it, not to scope it.
 
+## STEP 3 IS FULLY SCOPED BY #22 — it is 503 lines of PORTING, and 48/51 are unblocked
+
+`src/pycsl/frontend/pure_ast.py` is the live counterpart of the mirror (note the path: it is under
+`frontend/`, NOT `src/pycsl/pure_ast.py`). Measured by AST diff against it:
+
+- **All 51** trusted `_Unparser` stubs have a live body available. **Zero missing.**
+- **Total live body lines to port: 503.** Size distribution: **23 bodies are <=5 lines**,
+  19 are 6-15, only 9 are 16+. Largest five: `visit_arguments` 50, `_str_literal_helper` 38,
+  `visit_JoinedStr` 32, `visit_ClassDef` 23, `visit_MatchClass` 22. Smallest are 2-3 lines
+  (`require_parens`, `visit_ParamSpec`, `visit_TypeVarTuple`, `fill`, `set_precedence`,
+  `visit_Delete`, `visit_Global`, `visit_Import`).
+- **Start with the 23 <=5-line bodies.** They are a natural first batch and, at ~0.45 markers per
+  line ported, the cheapest markers left anywhere in the campaign.
+
+### THE STARRED BLOCKER IS REAL FOR THIS FAMILY — but it is NOT the shape the record names
+
+The record (and `Module5_IREmitter.py:4986-4999`) says star-forwarding "affects `_new` /
+`Ellipsis.__new__` / `Constant.__init__` only" and that "`_Unparser.write` and `set_precedence` are
+NOT affected". **The first half is right about the GATE; the second half is wrong about the FAMILY.**
+
+Read the gate: it walks the *defining* function and drops the vararg only when that function's OWN
+vararg NAME is star-forwarded (`isinstance(_n.value, ast.Name) and _n.value.id == _va0.arg`).
+`set_precedence`'s own 3-line body forwards nothing, so it correctly keeps its `seq int` formal —
+confirmed in the `.mlw`. **But three of the 51 live bodies to be ported are CALLERS that pass a
+starred actual INTO that vararg formal:**
+
+```
+visit_comprehension : self.set_precedence(_Precedence.TEST.next(), node.iter, *node.ifs)
+visit_Compare       : self.set_precedence(_Precedence.CMP.next(),  node.left, *node.comparators)
+visit_MatchOr       : self.set_precedence(_Precedence.BOR.next(),  *node.patterns)
+```
+
+This is a **different capability** from the recorded one: not `g(*args)` forwarding of an enclosing
+vararg, but **MIXED positional-plus-starred packing at a call site into a `seq int` formal**
+(`f(a, *b)` — concat a materialized prefix onto an existing sequence). Nothing in the tree gates it
+today, so its behaviour on port is UNKNOWN and must be probed, not assumed. Two of the three even
+have a non-starred positional *before* the star, which is the hard sub-case.
+
+**Consequence for the plan: 48 of the 51 bodies are unblocked and can be ported now; 3 are a probe.**
+Do the 48 first — do not let the 3 hold up 94% of the lever. Per lesson (#20), the probe on those 3
+is TRY IT (port one, emit, read the `.mlw`, 1.8 s), not scope it.
+
 ## Then, in this order (carried forward, still valid)
 
 2. **`ControlFlowStmtMixin._handle_return_stmt`** — the ONE non-constructor model-visible false
