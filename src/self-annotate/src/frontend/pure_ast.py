@@ -4337,12 +4337,15 @@ class _Unparser(NodeVisitor):
     def get_type_comment(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def traverse(self, node):
-        pass
+        if isinstance(node, list):
+            for item in node:
+                self.traverse(item)
+        else:
+            super().visit(node)
 
     #@ requires True
     #@ ensures True
@@ -4418,12 +4421,14 @@ class _Unparser(NodeVisitor):
     def visit_Assign(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_AugAssign(self, node):
-        pass
+        self.fill()
+        self.traverse(node.target)
+        self.write(" " + self.binop[node.op.__class__.__name__] + "= ")
+        self.traverse(node.value)
 
     #@ requires True
     #@ ensures True
@@ -4600,12 +4605,32 @@ class _Unparser(NodeVisitor):
         with self.block():
             self.traverse(node.body)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._indent
     def visit_ClassDef(self, node):
-        pass
+        self.maybe_newline()
+        for deco in node.decorator_list:
+            self.fill("@")
+            self.traverse(deco)
+        self.fill("class " + node.name)
+        self._type_params_helper(node.type_params)
+        with self.delimit_if("(", ")", condition=node.bases or node.keywords):
+            comma = False
+            for e in node.bases:
+                if comma:
+                    self.write(", ")
+                else:
+                    comma = True
+                self.traverse(e)
+            for e in node.keywords:
+                if comma:
+                    self.write(", ")
+                else:
+                    comma = True
+                self.traverse(e)
+        with self.block():
+            self._write_docstring_and_traverse_body(node)
 
     #@ requires True
     #@ ensures True
@@ -4919,12 +4944,16 @@ class _Unparser(NodeVisitor):
             self.traverse(node.right)
 
     cmpops = {'Eq': '==', 'NotEq': '!=', 'Lt': '<', 'LtE': '<=', 'Gt': '>', 'GtE': '>=', 'Is': 'is', 'IsNot': 'is not', 'In': 'in', 'NotIn': 'not in'}
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Compare(self, node):
-        pass
+        with self.require_parens(_Precedence.CMP, node):
+            self.set_precedence(_Precedence.CMP.next(), node.left, *node.comparators)
+            self.traverse(node.left)
+            for o, e in zip(node.ops, node.comparators):
+                self.write(" " + self.cmpops[o.__class__.__name__] + " ")
+                self.traverse(e)
 
     boolops = {'And': 'and', 'Or': 'or'}
     boolop_precedence = {'and': _Precedence.AND, 'or': _Precedence.OR}
@@ -5106,12 +5135,13 @@ class _Unparser(NodeVisitor):
     # it to unannotated varargs is CORPUS-AFFECTING and needs the M1 discipline: the exact
     # diff must be only the vararg correction and every affected program must re-prove.
     # That is a next-window build, not a boundary. 51 of the 491 markers ride on it.
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_alias(self, node):
-        pass
+        self.write(node.name)
+        if node.asname:
+            self.write(" as " + node.asname)
 
     #@ requires True
     #@ ensures True

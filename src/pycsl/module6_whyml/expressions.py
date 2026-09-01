@@ -4698,6 +4698,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "    ensures { result = (concat a b) }\n"
                 "    ensures { String.length result = String.length a + String.length b }")
             return f"(str_concat_op {left} {right})"
+        # MIXED STRING/INT `+` (#29). The comment above says a mixed `+` "is left as int
+        # addition (legacy hash model)" — but it was NOT. The string side still lowered to
+        # a real Why3 STRING literal and met an int in a raw `+`, which is a hard L3-tc
+        # error: `"**" + (get_name node)` emitted `("**" + (get_name node))`. That single
+        # ill-typed emission is what relaunch #24 recorded as the "computed string element"
+        # body-block on `_Unparser.visit_ParamSpec` / `visit_TypeVarTuple`, and it still
+        # blocks `visit_alias` and `visit_MatchStar` today.
+        # Route it to the int-model `str_concat` the F-STRING path already uses for exactly
+        # this situation (`f" as {node.name}"` emits `str_concat 1174530543 (get_name node)`),
+        # with `_coerce_str_arg` hashing the string side. The result is as (un)modelled as
+        # the f-string spelling of the same thing — never more, never less — and it is
+        # TYPE-CORRECT, which the previous emission was not.
+        # BYTE-INERT BY CONSTRUCTION: the only programs this changes are ones whose emitted
+        # WhyML was already rejected at L3-tc, so no corpus program can be relying on it.
+        if raw_op == "+" and (self._is_string_expr(expr["left"])
+                              != self._is_string_expr(expr["right"])) \
+                and not self._in_spec:
+            self._add_abstract_op("val str_concat (x: int) (y: int) : int")
+            return (f"(str_concat {self._coerce_str_arg(left)} "
+                    f"{self._coerce_str_arg(right)})")
         # strings-plan Stage 2: string `==`/`!=` content equality. In a spec, polymorphic `=`
         # is fine (falls through below); in a program (body) context `=` on strings is not
         # usable, so bridge through `val str_eq_op : bool` (tied by `ensures` to `=`). Must
