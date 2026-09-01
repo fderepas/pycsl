@@ -56,6 +56,52 @@ Generalization worth carrying: when a gate is embedded in a slow driver AND exis
 
 ---
 
+
+## #23's SECOND FINDING — **PORT ORDER, not body length, is what gates step 3**
+
+With the vacuity plane closed, #23 spent its remaining minutes on ONE cheap probe (2 min, fully
+reverted, tree clean) rather than starting the port: it ported the single SHORTEST live body,
+`_Unparser.require_parens` (1 line), into the mirror and emitted with `--no-proof --keep-mlw`.
+
+**It FAILED L3-tc — and not for the starred reason.**
+
+```
+    (self_delimit_if_3 747334986 1226926668 ((_unparser__get_precedence self node) > precedence))
+File "…/pure_ast.mlw", line 4242: This expression has type bool, but is expected to have type int
+```
+
+because the *callee is still a stub*:
+
+```
+val _unparser__delimit_if (self: _unparser) (start: int) (py_end: int) (condition: int) : unit
+```
+
+**A `\trusted` stub has a `pass` body, so its formals get the default `int` type. Port a CALLER
+before its CALLEE and any non-int actual (here a `bool` comparison) is a hard type error.** As with
+the starred residue, the failure is LOUD, never a silent mis-lowering — but it means the port is
+not a flat batch.
+
+### THE DEPENDENCY STRUCTURE (measured, `ast`, 30 s)
+
+Of the 51 trusted `_Unparser` methods, counting `self.X(...)` calls in the LIVE body where `X` is
+also still `\trusted`:
+
+- **13 are LEAVES** — they call no still-trusted sibling: `__init__`, `_str_literal_helper`,
+  `buffered`, `delimit_if`, `fill`, `get_type_comment`, `interleave`, `set_precedence`, `traverse`,
+  `visit_MatchStar`, `visit_ParamSpec`, `visit_TypeVarTuple`, `visit_alias`.
+- **38 depend on at least one** still-trusted sibling.
+- The hubs are `traverse` (23 dependents), `interleave` (18), `fill` (14), `set_precedence` (8),
+  `get_type_comment` (4), `require_parens` (3), `delimit_if` (2). **All the top hubs are themselves
+  LEAVES**, so the 13-leaf batch is both portable now and unblocks nearly all of the 38.
+
+**PORT ORDER FOR THE NEXT WINDOW: the 13 leaves first, then re-emit and take the 38 in topological
+order.** This SUPERSEDES #22's "start with the 23 shortest bodies" — `require_parens` is the
+shortest body in the class and it is *not* portable first. **Shortest != portable-first.** Note the
+happy accident: `set_precedence` is a leaf, so it ports in batch 1; the 3 starred-blocked bodies
+(`visit_Compare`, `visit_comprehension`, `visit_MatchOr`) are its CALLERS and stay deferred.
+
+---
+
 ## WHAT #22 ESTABLISHED (all still valid; its vacuity caveat is now closed by #23 above)
 
 A **~55-minute** window against the same deadline (`.driver-deadline` = 1788251064). The window was
