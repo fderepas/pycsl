@@ -1731,7 +1731,8 @@ class FunctionEmissionMixin:
             # coercion (`_coerce_dotted_args` zips args against this list) does not
             # TRUNCATE the packed sequence argument away. Always last.
             if func.get("vararg_str_param"):
-                param_types = param_types + ["seq string"]
+                param_types = param_types + [
+                    "seq " + func.get("vararg_elem_type", "string")]
             result[func["name"]] = param_types
         # self-tcb-reduction (F2 fidelity): `_handle_return_stmt` calls the cross-mixin
         # helper `self._thread_optional_return(val_ir, local_refs)`, but that helper is
