@@ -5015,13 +5015,44 @@ class _Unparser(NodeVisitor):
     # in `ir_resolve._resolve_pure_ast_records`: its parameter-annotation branch looked a
     # method up by its BARE name while the function IR is keyed by the QUALIFIED
     # `<Class>__<method>`, so the branch had never fired for a method at all.)
-    # WHAT ACTUALLY BLOCKS THE FAMILY IS `_Unparser.write(self, *text)` -- VARIADIC. It
-    # emits as `let _unparser__write (self: _unparser) : unit`, taking NO parameters, with
-    # callers going through `val self_write_1 (x0: int) : unit`; so every string this
-    # visitor produces is discarded by the model. ALL 51 remaining `_Unparser` stubs call
-    # it. REOPENING CAPABILITY: a `*args` parameter model (a `seq string` formal, with the
-    # call site materializing its actual arguments into it) -- ONE feature that unblocks
-    # the whole family, which is 51 of the 491 markers.
+    # THAT REASON IS ALSO WRONG -- REFUTED BY MEASUREMENT (relaunch #20). It said the
+    # blocker is that `_Unparser.write(self, *text)` is VARIADIC and that the reopening
+    # capability is "a `*args` parameter model (a `seq string` formal, with the call site
+    # materializing its actual arguments into it)". THAT CAPABILITY ALREADY EXISTS AND
+    # ALREADY WORKS END-TO-END. Annotating the vararg (`def write(self, *text: str)`, in
+    # the mirror AND in the live `src/pycsl/frontend/pure_ast.py`) immediately emits
+    #     let _unparser__write (self: _unparser) (text: seq string) : unit
+    #     = let _ = (self__source_extend_1 text) in ()
+    # with `val self_write_1 (x0: seq string) : unit` and EVERY call site materialized by
+    # the emitter itself as `Seq.cons <arg> (Seq.empty: seq string)`. No emitter change of
+    # any kind was needed: Module5 `_cur_func_vararg_str` + Module6
+    # `functions._vararg_str_param` already do all of it, gated on the `: str` annotation.
+    #
+    # THE REAL BLOCKER IS THE [STRING-MODEL SPLIT] AT THE MATERIALIZATION SITE. Under the
+    # `seq string` formal the emitter types the write arguments as Why3 `string`, and 40
+    # of the 56 write call sites in the currently-converted part of the class become REAL
+    # STRING LITERALS (`Seq.cons " in " ...`) where they were opaque hash ints
+    # (`self_write_1 260070937`) before -- a large, measured fidelity gain. The remaining
+    # 16 come from INT-MODELLED sources -- the `get_name` / `get_id` / `get_attr` /
+    # `get_arg` node-field projectors, `str_concat` over int-typed locals, and int-typed
+    # parameters (`extra`, `start`, `py_end`, `!operator`) -- and each of those is a hard
+    # Why3 type error, `seq string` against `seq int`. L3-tc FAILS on the first one
+    # (`_write_str_avoiding_backslashes`, whose `quote_type`/`string` locals are ints
+    # because `_str_literal_helper` is still a stub returning ints). There is no
+    # int->string direction available: `str_hash_op` goes the other way and is not
+    # invertible, so no coercion can bridge it without a fiction.
+    #
+    # REOPENING CAPABILITY, RE-PRICED AND NAMED: make an UNANNOTATED vararg lower to a
+    # `seq int` (pyval) formal instead of being DROPPED, rather than making an annotated
+    # one lower to `seq string`. That removes the split entirely -- the vararg then lives
+    # in the SAME model as every other value in this file, all 56 sites materialize as
+    # `Seq.cons <int> Seq.empty`, and the write payload stops being discarded. Cost: the
+    # `: str` gate exists precisely to keep every corpus and `pycsl_lib` function
+    # byte-identical (Module5_IREmitter `_cur_func_vararg_str`, Module6
+    # `functions.py` `_vararg_str_param`, plus the call-site materialization), so lifting
+    # it to unannotated varargs is CORPUS-AFFECTING and needs the M1 discipline: the exact
+    # diff must be only the vararg correction and every affected program must re-prove.
+    # That is a next-window build, not a boundary. 51 of the 491 markers ride on it.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
