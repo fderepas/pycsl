@@ -41,7 +41,9 @@ class FunctionEmissionMixin:
         # therefore cannot be a pure parameter here. Gated on the Module5-recorded
         # `vararg_str_param` (str-annotated varargs only) -> byte-identical elsewhere.
         if arg == getattr(self, "_vararg_str_param", None):
-            return f"({safe}: seq string)"
+            # ladder 1a: element type is "string" for a `*vals: str` vararg and "int"
+            # for an UNANNOTATED `*args` (pyval model) -> str-annotated byte-identical.
+            return f"({safe}: seq {getattr(self, '_vararg_elem_type', 'string')})"
         # self-tcb-reduction giants (generic class-body lowering): a param annotated
         # `ast.ClassDef` whose `.body` is iterated is the opaque `py_classdef_node` AST
         # node (its `.body` reads the `class_body_ast` psl). Gated on the per-function
@@ -345,6 +347,7 @@ class FunctionEmissionMixin:
         # None. Module5 only records a STRING-annotated vararg, so this is None for
         # every corpus / pycsl_lib function -> byte-identical.
         self._vararg_str_param = func.get("vararg_str_param")
+        self._vararg_elem_type = func.get("vararg_elem_type", "string")
         if self._vararg_str_param:
             # It is a real parameter, so a bare read of it must resolve to the
             # parameter name — NOT fall through to the opaque `val constant vals : int`
@@ -7409,7 +7412,8 @@ class FunctionEmissionMixin:
             # coercion (`_coerce_dotted_args` zips args against this list) does not
             # TRUNCATE the packed sequence argument away. Always last.
             if func.get("vararg_str_param"):
-                param_types = param_types + ["seq string"]
+                param_types = param_types + [
+                    "seq " + func.get("vararg_elem_type", "string")]
             result[func["name"]] = param_types
         # self-tcb-reduction (F2 fidelity): `_handle_return_stmt` calls the cross-mixin
         # helper `self._thread_optional_return(val_ir, local_refs)`, but that helper is

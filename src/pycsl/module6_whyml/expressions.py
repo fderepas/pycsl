@@ -1082,6 +1082,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _lcall = f"(seq_mem_str {left} {_chain})"
                 return f"(not {_lcall})" if negate else _lcall
         _vap = getattr(self, "_vararg_str_param", None)
+        # ladder 1a: `seq_mem_str` is the STRING-element membership. An unannotated
+        # `*args` is a `seq int`, so it must not take this path (it would mistype);
+        # fall through to the generic handling.
+        if getattr(self, "_vararg_elem_type", "string") != "string":
+            _vap = None
         if _vap is not None and rhs.get("type") == "Var" and rhs.get("name") == _vap:
             _vseq = whyml_ident(_vap)
             if self._in_spec:
@@ -5555,8 +5560,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _vfp = getattr(self, "_module_method_formal_params", {}).get(_vk, [])
             if _van and _vfp and _vfp[-1] == _van:
                 _vfixed = len(_vfp) - 1
-                _vpacked = "(Seq.empty: seq string)"
+                _velem = getattr(
+                    self, "_module_method_vararg_elem", {}).get(_vk, "string")
+                _vpacked = f"(Seq.empty: seq {_velem})"
                 for _vt in reversed(args[_vfixed:]):
+                    # ladder 1a: a `seq int` (pyval) vararg carries each actual in the
+                    # SAME int model the drop-the-vararg behaviour used for the single
+                    # collapsed argument (a string literal -> its `str_hash_op`), so the
+                    # element type of the packed sequence matches the declared formal.
+                    if _velem == "int":
+                        _vt = self._coerce_to_int(_vt)
                     _vpacked = f"(Seq.cons {_vt} {_vpacked})"
                 args = args[:_vfixed] + [_vpacked]
         # 1111-spec R7 (self-method extension): a same-class `self.<m>(...)` call that
@@ -5655,6 +5668,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # (val_ir : emit_ir) that would otherwise default to `int` and fail L3-tc.
             # Byte-inert: no CORPUS symbol is emit_ir-typed (those types name the
             # emitter's own AST/IR node classes), so this never fires on corpus code.
+            # ladder 1a: the function's own VARARG parameter is a `seq <elem>`, not an
+            # int — an abstract self-call stub that default-types it `int` is an L3-tc
+            # error at the call site (`self._source.extend(text)` with `text: seq int`).
+            # Gated on `_vararg_str_param` -> byte-identical wherever there is no vararg.
+            if ident == getattr(self, "_vararg_str_param", None):
+                param_types[i] = "seq " + getattr(
+                    self, "_vararg_elem_type", "string")
+                continue
             if st.get(ident) in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
                 param_types[i] = "emit_ir"
             # self-tcb-reduction _infer_tuple_slot_type (cap-d): a bare `Dict[str,str]`
@@ -7078,8 +7099,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if _va_name and formal_params and formal_params[-1] == _va_name:
             _fixed = len(formal_params) - 1
             _tail = args[_fixed:]
-            _packed = "(Seq.empty: seq string)"
+            _velem2 = getattr(
+                self, "_module_method_vararg_elem", {}).get(func_name, "string")
+            _packed = f"(Seq.empty: seq {_velem2})"
             for _t in reversed(_tail):
+                if _velem2 == "int":
+                    _t = self._coerce_to_int(_t)
                 _packed = f"(Seq.cons {_t} {_packed})"
             args = args[:_fixed] + [_packed]
         # KEYWORD ARGUMENTS ON A MODULE-LEVEL CALL (relaunch #11) — a FAITHFULNESS repair.

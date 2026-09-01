@@ -4969,12 +4969,35 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # desugaring it to the ARRAY-positional `exists … Array.length …` (which would
         # leave `Array.length`/`subscript_get` unbound against a `seq`). Reused below
         # for the IR field. None for every function without a str-annotated vararg.
+        # ladder 1a (relaunch #21): an UNANNOTATED `*args` is recorded the same way,
+        # with element type `int` (the pyval model every other unannotated value uses),
+        # instead of being DROPPED from the signature. Dropping it made a bare read of
+        # the vararg resolve to an opaque `val constant args : int` and discarded the
+        # payload of every variadic call; carrying it as a `seq int` puts it in the SAME
+        # model as the rest of the function and needs no source annotation.
         self._cur_func_vararg_str = None
+        self._cur_func_vararg_elem = "string"
         _va0 = getattr(node.args, "vararg", None)
         if _va0 is not None:
             _vann0 = getattr(_va0, "annotation", None)
             if isinstance(_vann0, ast.Name) and _vann0.id == "str":
                 self._cur_func_vararg_str = _va0.arg
+            elif _vann0 is None:
+                # ...EXCEPT when the vararg is STAR-FORWARDED (`g(*args)`) to another
+                # callee. A starred argument lowers to the bare inner value
+                # (`expressions._expr_to_whyml`, "Starred"), so the callee would receive
+                # the whole `seq int` where it declares a scalar — an L3-tc error — and
+                # modelling it correctly needs Python's positional re-binding of an
+                # UNKNOWN-length sequence against the callee's arity. That is a separate
+                # capability (STARRED-ARGUMENT FORWARDING); until it exists, a
+                # star-forwarding function keeps the historical drop-the-vararg
+                # behaviour, which is exactly byte-identical to before.
+                if not any(isinstance(_n, ast.Starred)
+                           and isinstance(getattr(_n, "value", None), ast.Name)
+                           and _n.value.id == _va0.arg
+                           for _n in ast.walk(node)):
+                    self._cur_func_vararg_str = _va0.arg
+                    self._cur_func_vararg_elem = "int"
         # STEP 1 (B-final): surface name for the \proj-index guard in `_csl_proj`.
         self._cur_func_name = f"function '{node.name}'"
         return_annotation = None
@@ -5177,6 +5200,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # W8 (ii): name of the `*vals: str` vararg parameter (`seq string`), or
             # absent. Omitted for every function without a str-annotated vararg.
             **({"vararg_str_param": _vararg_str} if _vararg_str else {}),
+            # ladder 1a: WhyML element type of the vararg sequence — "string" for a
+            # `*vals: str` vararg (W8 (ii), unchanged), "int" for an UNANNOTATED
+            # `*args` (the pyval model). Emitted only when it is NOT the default
+            # "string" -> the IR of every str-annotated vararg is byte-identical.
+            **({"vararg_elem_type": getattr(self, "_cur_func_vararg_elem", "string")}
+               if (_vararg_str
+                   and getattr(self, "_cur_func_vararg_elem", "string") != "string")
+               else {}),
             "return_annotation": return_annotation,
             "return_value_type": return_value_type,
             # typing-engagement ty1 / 28-0000-typing-spec-4: `-> NoReturn` (PEP

@@ -185,6 +185,9 @@ class Module6_WhyMLTranspiler(
         self._module_method_param_defaults: Dict[str, Dict[str, Any]] = {}
         # W8 (ii): callee-name -> its `*vals: str` vararg param name.
         self._module_method_vararg_str: Dict[str, str] = {}
+        # ladder 1a: callee-name -> WhyML element type of its vararg sequence
+        # ("string" | "int"). Absent entry means "string" (the W8 (ii) default).
+        self._module_method_vararg_elem: Dict[str, str] = {}
         self._module_method_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._module_method_param_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._module_method_field_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
@@ -940,6 +943,9 @@ class Module6_WhyMLTranspiler(
         self._module_method_vararg_str = {
             f["name"]: f["vararg_str_param"] for f in funcs_for_maps
             if f.get("vararg_str_param")}
+        self._module_method_vararg_elem = {
+            f["name"]: f.get("vararg_elem_type", "string") for f in funcs_for_maps
+            if f.get("vararg_str_param")}
         # 10-1732-gap (Gap 3): by-name {param → WhyML type} for call-site default fill,
         # so an omitted `None`-defaulted non-int param is filled at its faithful zero
         # (`""`/`0.0`) instead of int `0`. Built from the SAME `funcs_for_maps` (incl.
@@ -1229,6 +1235,9 @@ class Module6_WhyMLTranspiler(
         # (no str-annotated vararg) -> byte-identical.
         self._module_method_vararg_str = {
             f["name"]: f["vararg_str_param"] for f in funcs_for_maps
+            if f.get("vararg_str_param")}
+        self._module_method_vararg_elem = {
+            f["name"]: f.get("vararg_elem_type", "string") for f in funcs_for_maps
             if f.get("vararg_str_param")}
         self._module_method_param_whyml_types = \
             self._build_method_param_whyml_types_by_name(funcs_for_maps)
