@@ -121,7 +121,9 @@ import sys
 import tempfile
 
 RATCHET = 0           # MODEL-VISIBLE offenders: `@mutable_state` class AND a modelled field
-TOTAL_RATCHET = 70    # every offender, including opaque-self classes
+TOTAL_RATCHET = 68    # every offender, including opaque-self classes (70 -> 68 at #29:
+                      # the `_Unparser` ports move offenders from the TRUSTED population
+                      # to the CONVERTED one; a RATCHET, only lower it)
 CONVERTED_RATCHET = 2         # the CONVERTED surface, model-visible (see the note below)
 CONVERTED_TOTAL_RATCHET = 68  # the CONVERTED surface, every offender
 LIVE_ROOT = "src/pycsl"

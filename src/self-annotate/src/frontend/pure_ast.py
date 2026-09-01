@@ -4370,12 +4370,14 @@ class _Unparser(NodeVisitor):
         self._write_docstring_and_traverse_body(node)
         self._type_ignores.clear()
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_FunctionType(self, node):
-        pass
+        with self.delimit("(", ")"):
+            self.interleave(lambda: self.write(", "), self.traverse, node.argtypes)
+        self.write(" -> ")
+        self.traverse(node.returns)
 
     #@ requires True
     #@ ensures True
@@ -4395,12 +4397,12 @@ class _Unparser(NodeVisitor):
             self.write(" := ")
             self.traverse(node.value)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Import(self, node):
-        pass
+        self.fill("import ")
+        self.interleave(lambda: self.write(", "), self.traverse, node.names)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -4465,12 +4467,12 @@ class _Unparser(NodeVisitor):
     def visit_Continue(self, node):
         self.fill("continue")
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Delete(self, node):
-        pass
+        self.fill("del ")
+        self.interleave(lambda: self.write(", "), self.traverse, node.targets)
 
     #@ requires True
     #@ ensures True
@@ -4482,19 +4484,19 @@ class _Unparser(NodeVisitor):
             self.write(", ")
             self.traverse(node.msg)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Global(self, node):
-        pass
+        self.fill("global ")
+        self.interleave(lambda: self.write(", "), self.write, node.names)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Nonlocal(self, node):
-        pass
+        self.fill("nonlocal ")
+        self.interleave(lambda: self.write(", "), self.write, node.names)
 
     #@ requires True
     #@ ensures True
@@ -4700,19 +4702,23 @@ class _Unparser(NodeVisitor):
             with self.block():
                 self.traverse(node.orelse)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._indent
     def visit_With(self, node):
-        pass
+        self.fill("with ")
+        self.interleave(lambda: self.write(", "), self.traverse, node.items)
+        with self.block(extra=self.get_type_comment(node)):
+            self.traverse(node.body)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._indent
     def visit_AsyncWith(self, node):
-        pass
+        self.fill("async with ")
+        self.interleave(lambda: self.write(", "), self.traverse, node.items)
+        with self.block(extra=self.get_type_comment(node)):
+            self.traverse(node.body)
 
     #@ requires True
     #@ ensures True
@@ -4756,12 +4762,12 @@ class _Unparser(NodeVisitor):
                 self.write("u")
             self._write_constant(node.value)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_List(self, node):
-        pass
+        with self.delimit("[", "]"):
+            self.interleave(lambda: self.write(", "), self.traverse, node.elts)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -4811,12 +4817,17 @@ class _Unparser(NodeVisitor):
             self.set_precedence(_Precedence.TEST, node.orelse)
             self.traverse(node.orelse)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Set(self, node):
-        pass
+        if node.elts:
+            with self.delimit("{", "}"):
+                self.interleave(lambda: self.write(", "), self.traverse, node.elts)
+        else:
+            # `{}` would be interpreted as a dictionary literal, and
+            # `set` might be shadowed. Thus:
+            self.write("{*()}")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -5153,12 +5164,14 @@ class _Unparser(NodeVisitor):
     def visit_MatchSingleton(self, node):
         self._write_constant(node.value)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_MatchSequence(self, node):
-        pass
+        with self.delimit("[", "]"):
+            self.interleave(
+                lambda: self.write(", "), self.traverse, node.patterns
+            )
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -5197,12 +5210,13 @@ class _Unparser(NodeVisitor):
                 self.traverse(node.pattern)
                 self.write(f" as {node.name}")
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_MatchOr(self, node):
-        pass
+        with self.require_parens(_Precedence.BOR, node):
+            self.set_precedence(_Precedence.BOR.next(), *node.patterns)
+            self.interleave(lambda: self.write(" | "), self.traverse, node.patterns)
 
 
 #@ \trusted reviewer: pycsl-self-annotate

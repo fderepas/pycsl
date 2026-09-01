@@ -5667,6 +5667,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # empty list literal", never "the callee takes an array".
             if stripped == "(Array.make 1024 0)":
                 continue
+            # ZERO-ARGUMENT LAMBDA ACTUAL (#29). `self.interleave(lambda: self.write(", "),
+            # …)` — the separator thunk the whole `_Unparser` list-writing family passes —
+            # ALREADY lowers to a real Why3 closure `(fun () -> (self_write_1 …))`. The
+            # only thing missing was the FORMAL: the abstract self-call avatar
+            # default-types every parameter `int`, so the closure met an `int` and the file
+            # failed L3-tc with `This expression has type () -> (), but is expected to have
+            # type int`. That single mismatch — not the lambda, which the emitter has
+            # always lowered — is what relaunch #24 recorded as the "higher-order formals"
+            # body-block. Infer `unit -> unit` from the lowered form, exactly as the
+            # `array int` / `emit_ir` / `seq <elem>` inferences directly around it do.
+            # Restricted to the ZERO-ARGUMENT unit thunk (`(fun () -> …)`): that is the
+            # only closure shape this emitter produces as a call argument, and anything
+            # else keeps the historical `int` and fails LOUDLY rather than silently.
+            # Byte-inert for the corpus: a corpus call passing a closure to an int formal
+            # was already an L3-tc error, so no corpus program emits this shape.
+            if stripped.startswith("(fun () ->"):
+                param_types[i] = "unit -> unit"
+                continue
             if any(stripped.startswith(p) for p in ARRAY_INT_PREFIXES):
                 param_types[i] = "array int"
                 continue
