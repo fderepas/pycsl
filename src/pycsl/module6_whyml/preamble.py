@@ -6404,9 +6404,18 @@ class PreambleEmissionMixin:
                 # Demoted to a PROGRAM `val`: every use is a program context (measured: 0
                 # occurrences inside any `requires`/`ensures`/`invariant`/`variant`/`assert`
                 # across all 52 emitted mirrors), so nothing needs it as a logic term. The
-                # SIBLING `csl_to_ir_op` below CANNOT be demoted the same way — it is applied
-                # inside the LOGIC-level `function synth_overload_clauses` fold, so removing
-                # its purity requires redesigning that fold; recorded, not silently kept.
+                # SIBLING `csl_to_ir_op` (declared ~350 lines below, in the
+                # `_uses_synthesize_overload_guard` block) WAS demoted the same way in the
+                # SAME increment: its consuming fold was rewritten from a logic
+                # `function synth_overload_clauses` to the PROGRAM `let rec
+                # synth_overload_clauses_prog` with a structural `variant { ens }`, and the
+                # pinning `ensures` law was dropped. Both siblings are now program `val`s.
+                # (An earlier revision of THIS comment said `csl_to_ir_op` "CANNOT be demoted";
+                # that text outlived the fix by one edit and was then quoted forward as a
+                # live-unsoundness record for four relaunches. Verified 2026-09-01 (#29)
+                # against the source AND all 53 emitted mirrors: `val function csl_to_ir_op`
+                # occurs ZERO times, a logic `function synth_overload_clauses` occurs ZERO
+                # times, and `csl_to_ir_op` occurs in ZERO spec clauses. CLOSED.)
                 "  val csl_to_ir (e: emit_ir) : emit_ir",
                 "  (* _py_expr_lambda increment (self-tcb-reduction M5, C-bucket): the typed"
                 " AST reader for `_py_expr_lambda`. `py_lambda_node` models `ast.Lambda`;"

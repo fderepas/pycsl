@@ -1,3 +1,83 @@
+# HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #29 worker — WINDOW 3 START)
+
+## #29 ITEM 0 IN ONE LINE: **`csl_to_ir_op` is NOT a live unsoundness. It was FIXED in the same
+## increment that fixed its sibling (#19), and the "KNOWN-LIVE" record was a STALE PYTHON COMMENT
+## quoted forward through four relaunches. The #19 CLOSED entry is the true one.**
+
+### THE EVIDENCE (source + all 53 emitted mirrors, read-only, ~3 minutes, zero prover time)
+
+| check | command | result |
+|---|---|---|
+| pure symbol exists anywhere? | `grep -rn "val function csl_to_ir_op" src/` | **ZERO hits** |
+| logic-level fold exists? | `grep -rn "function synth_overload_clauses\b" src/ \| grep -v _prog` | **ZERO code hits** (2 prose hits, both in `preamble.py` comments) |
+| declaration as emitted | `src/pycsl/module6_whyml/preamble.py:6754` | `"  val csl_to_ir_op (e: emit_ir) : emit_ir"` — a **PROGRAM** `val` |
+| the consuming fold | `preamble.py:6755-6765` | `let rec synth_overload_clauses_prog … variant { ens }` — **PROGRAM code**, structural descent on `list ens_node`, no `diverges`, no pinning `ensures` law |
+| what actually landed in the mirrors | `grep -rn csl_to_ir_op --include=*.mlw` | 4 mirrors (`ir_resolve`, `pycsl`, `frontend/__init__`, `Module5_IREmitter`), 2 code lines each: the program `val` and its one program-context application |
+| any spec-context use? | same grep filtered to `requires\|ensures\|invariant\|variant\|assert` | **NONE** |
+
+So on both planes — the emitter source AND the emitted artifact — the symbol is a program `val`
+applied only in program contexts. **There is no determinism claim to violate. The defect is CLOSED.**
+
+### WHERE THE FALSE RECORD CAME FROM — this is the reusable finding
+
+`preamble.py:6397-6409` is the SOUNDNESS comment for the *sibling* symbol `csl_to_ir`. Its last
+three lines read (verbatim, before this commit):
+
+> `# SIBLING csl_to_ir_op below CANNOT be demoted the same way — it is applied inside the`
+> `# LOGIC-level function synth_overload_clauses fold, so removing its purity requires`
+> `# redesigning that fold; recorded, not silently kept.`
+
+That was TRUE when written and FALSE ~350 lines later in the same file, because the very same
+increment (#19) then went and did the redesign: it rewrote the fold to `synth_overload_clauses_prog`
+and demoted the symbol. **The comment outlived the fix by one edit.** Nobody re-read the code it
+described; four consecutive handoffs quoted the comment's conclusion forward, each time with
+*higher* confidence than the last ("recorded, not silently kept" -> "STILL OPEN, UNFIXED" ->
+"KNOWN-LIVE UNSOUNDNESS"). Meanwhile `driver-backlog.md:5536` had the correct verdict the whole
+time ("Two offenders were repaired: `csl_to_ir_op` … and `m5_current_class_present`") — the record
+contradicted itself across two files and the LOUDER file won.
+
+**The comment is now corrected in place** (`preamble.py`), and it carries the disconfirming
+evidence with it so the next reader cannot re-derive the false claim. It is a Python `#` comment,
+never emitted — grep confirms `"CANNOT be demoted"` appears in ZERO `.mlw`, so this edit is
+byte-inert BY CONSTRUCTION, not merely by measurement. `_emit_exprir_theory` is absent from the
+mirror's `preamble.py` (408 lines vs the live 9177), so the fidelity plane has nothing to say
+about it either.
+
+### LESSON (az) — THE ONE THIS BANKS
+
+**A stale comment is more dangerous than a stale record, because it sits at the scene of the crime
+and therefore reads as primary evidence.** The five lessons so far all say "re-derive the claim
+from the source." This one adds the trap: a code comment *is* source, and a reader who dutifully
+"checks the source" can land on the comment and stop, feeling rigorous. The discriminator is cheap
+and mechanical: **a claim about a SYMBOL must be settled by grepping the SYMBOL, never by reading
+prose that mentions it.** One `grep "val function csl_to_ir_op"` — four seconds — beat four
+relaunches of careful documentation. Corollary: when two records disagree, the one that cites a
+COMMAND beats the one that cites a NARRATIVE, regardless of which is more recent or more emphatic.
+
+Corollary for this campaign specifically: whenever a comment says "X CANNOT be done, recorded not
+silently kept", check whether a LATER hunk in the SAME FILE does X. That is exactly the edit
+sequence that produces this failure.
+
+### STATE AT #29 WINDOW START (verified fresh)
+
+markers **491** · grep-substring 516 · offset 25 · attached 491 · unattached 0 · ledger 3 ·
+tree clean (tracked) · HEAD was `b2c3a6d6`.
+
+### LADDER FOR THE REST OF WINDOW 3 (unchanged below item 0)
+
+1. Backlog item 4 — `pyx_view` node ADT / per-(receiver-node-type, field) projector typing.
+   SIZED by #28: a `pure_ast`-LOCAL lever (144 of 172 `get_<attr>` use sites), not a campaign-wide
+   unblocker. Obstacle: `pure_ast` node classes are synthesized at import by `type(name,(base,),body)`
+   from `_NODE_SPEC`. Precedent: the `_optional_union_locals` / `_term_local_vars` carrier-field
+   projections immediately above `expressions.py:11918`.
+2. `ControlFlowStmtMixin._handle_return_stmt` (the converted-population frame residue).
+3. `scratchpad/w3/fix_assigns.py` re-tests.
+
+**Item 5 of #28's ladder ("STILL OPEN, UNFIXED: `val function csl_to_ir_op`") is DELETED, not
+demoted. Do not re-open it. If you see it quoted again, the quote is from a pre-#29 handoff.**
+
+---
+
 # HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #28 worker — WINDOW END)
 
 ## #28 IN ONE LINE: **the `pyx_view` node-ADT capability is now SIZED, and it is SMALLER than it
@@ -94,7 +174,10 @@ the number, every time. Corollary: declaration counts and use counts are differe
 3. `ControlFlowStmtMixin._handle_return_stmt` (item 2) — the one non-constructor model-visible
    false frame left, ~1846 goals / ~45 min.
 4. `scratchpad/w3/fix_assigns.py` re-tests of every "effect summary cannot be made exact" wall.
-5. **STILL OPEN, UNFIXED, HONESTLY RECORDED: `val function csl_to_ir_op`** — a KNOWN-LIVE
+5. **[SUPERSEDED BY #29 — THIS ENTRY IS FALSE; SEE THE #29 SECTION AT THE TOP. The symbol is a
+   PROGRAM `val` in the source and in all 53 mirrors; `grep "val function csl_to_ir_op"` returns
+   zero hits. It was fixed by #19; this line quotes a stale code comment, not the code.]**
+   ~~STILL OPEN, UNFIXED, HONESTLY RECORDED: `val function csl_to_ir_op`~~ — a KNOWN-LIVE
    unsoundness, a pure logic symbol standing for a state-dependent method, inside the logic-level
    `synth_overload_clauses` fold in `preamble.py`. (Note the conflict with the older "#19 CLOSED it"
    line further down this file: the live-unsoundness record is the current one.)
@@ -185,7 +268,8 @@ this campaign — reach for it before any port probe.
 The `_Unparser` lever is CERTIFIED-BOUNDARY on the value model (node ADT). Do NOT re-open it
 without that capability. The live ladder is unchanged below it:
 `ControlFlowStmtMixin._handle_return_stmt` (item 2), then `scratchpad/w3/fix_assigns.py` re-tests
-of "effect summary cannot be made exact" walls (item 3). `val function csl_to_ir_op` remains a
+of "effect summary cannot be made exact" walls (item 3). [SUPERSEDED BY #29: the following
+sentence is FALSE — `csl_to_ir_op` is a program `val`, closed by #19.] ~~`val function csl_to_ir_op` remains a
 KNOWN-LIVE unsoundness in `synth_overload_clauses` (preamble.py) — still open, still unfixed.
 
 ---
