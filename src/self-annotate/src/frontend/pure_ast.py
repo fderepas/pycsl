@@ -4546,12 +4546,23 @@ class _Unparser(NodeVisitor):
             self.write(" from ")
             self.traverse(node.cause)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._indent
     def do_visit_try(self, node):
-        pass
+        self.fill("try")
+        with self.block():
+            self.traverse(node.body)
+        for ex in node.handlers:
+            self.traverse(ex)
+        if node.orelse:
+            self.fill("else")
+            with self.block():
+                self.traverse(node.orelse)
+        if node.finalbody:
+            self.fill("finally")
+            with self.block():
+                self.traverse(node.finalbody)
 
     #@ requires True
     #@ ensures True
@@ -4769,40 +4780,60 @@ class _Unparser(NodeVisitor):
         with self.delimit("[", "]"):
             self.interleave(lambda: self.write(", "), self.traverse, node.elts)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_ListComp(self, node):
-        pass
+        with self.delimit("[", "]"):
+            self.traverse(node.elt)
+            for gen in node.generators:
+                self.traverse(gen)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_GeneratorExp(self, node):
-        pass
+        with self.delimit("(", ")"):
+            self.traverse(node.elt)
+            for gen in node.generators:
+                self.traverse(gen)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_SetComp(self, node):
-        pass
+        with self.delimit("{", "}"):
+            self.traverse(node.elt)
+            for gen in node.generators:
+                self.traverse(gen)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_DictComp(self, node):
-        pass
+        with self.delimit("{", "}"):
+            self.traverse(node.key)
+            self.write(": ")
+            self.traverse(node.value)
+            for gen in node.generators:
+                self.traverse(gen)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_comprehension(self, node):
-        pass
+        if node.is_async:
+            self.write(" async for ")
+        else:
+            self.write(" for ")
+        self.set_precedence(_Precedence.TUPLE, node.target)
+        self.traverse(node.target)
+        self.write(" in ")
+        self.set_precedence(_Precedence.TEST.next(), node.iter, *node.ifs)
+        self.traverse(node.iter)
+        for if_clause in node.ifs:
+            self.write(" if ")
+            self.traverse(if_clause)
 
     #@ requires True
     #@ ensures True
@@ -4918,12 +4949,26 @@ class _Unparser(NodeVisitor):
         self.write(".")
         self.write(node.attr)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def visit_Call(self, node):
-        pass
+        self.set_precedence(_Precedence.ATOM, node.func)
+        self.traverse(node.func)
+        with self.delimit("(", ")"):
+            comma = False
+            for e in node.args:
+                if comma:
+                    self.write(", ")
+                else:
+                    comma = True
+                self.traverse(e)
+            for e in node.keywords:
+                if comma:
+                    self.write(", ")
+                else:
+                    comma = True
+                self.traverse(e)
 
     #@ requires True
     #@ ensures True
@@ -5133,12 +5178,15 @@ class _Unparser(NodeVisitor):
     def visit_FormattedValue(self, node):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._indent
     def visit_Match(self, node):
-        pass
+        self.fill("match ")
+        self.traverse(node.subject)
+        with self.block():
+            for case in node.cases:
+                self.traverse(case)
 
     #@ requires True
     #@ ensures True

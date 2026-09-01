@@ -1131,6 +1131,58 @@ class ControlFlowStmtMixin:
         else:
             len_expr, elem_expr, is_range = self._classify_iterable(iter_ir, local_refs, idx)
 
+        # PROGRAM-LENGTH FOR-LOOP TERMINATION (#29). The `for`-over-collection auto-variant
+        # below is admitted only when the length term is already a pure LOGIC term
+        # (`Array.length` / `Seq.length` / `String.length`); a PROGRAM call such as
+        # `iter_length (get_generators node)` cannot appear in a Why3 `variant` term at all,
+        # so such a loop got NO variant and its enclosing function's `termination` VC was
+        # simply unprovable. That is the recorded [`for`-over-array termination] boundary,
+        # and the reopening capability recorded against it was "promote `iter_length` and
+        # the projectors to pure `val function`s".
+        #
+        # DO NOT DO THAT — it is a DETERMINISM CLAIM (`len` of an int-collapsed handle is
+        # constant only if the underlying object is never mutated), i.e. exactly the class
+        # of claim this campaign has twice caught as a live unsoundness.
+        #
+        # HOIST THE LENGTH INSTEAD. Bind it ONCE, before the loop, to an IMMUTABLE `let`:
+        #     let _len_<idx> = <program length call> in
+        #     while !<idx> < _len_<idx> do invariant { 0 <= !<idx> }
+        #                                  variant { _len_<idx> - !<idx> } … done
+        # An immutable `let`-bound int IS legal in a logic term, so the variant discharges
+        # with NO purity assertion about `iter_length` whatsoever — the length is evaluated
+        # exactly once, as a program call, and the variant talks about the resulting VALUE.
+        # It is also strictly closer to Python, which takes its iterator ONCE at loop entry
+        # rather than re-evaluating the bound every iteration as the previous lowering did.
+        #
+        # GATED to exactly the loops that have no variant today: no source `#@ loop variant`
+        # (Why3 rejects two `variant` clauses on one loop), not the string-char / psl /
+        # enumerate arms (each supplies its own), and a length term that is NOT already a
+        # logic term (those keep today's byte-identical form).
+        _len_hoist = None
+        if (str_ci is None and enum_seq is None
+                and getattr(self, "_pyast_loop_variant_len", None) is None
+                and getattr(self, "_str_slice_loop_len", None) is None
+                and not stmt.variants
+                and not str(len_expr).lstrip("(").startswith(
+                    ("Array.length", "Seq.length", "String.length"))
+                # SOUNDNESS GATE, load-bearing: the length term must contain NO mutable
+                # deref. Hoisting FREEZES the bound, and for a term like `!hi` (a `ref`
+                # the loop body may itself assign) that is a real semantic change, not an
+                # optimisation — the previous lowering re-read it every iteration.
+                # A term built only from parameters, immutable locals and pure calls
+                # (`iter_length (get_generators node)`) cannot change under a hoist,
+                # because nothing in the loop can alter what it reads. Measured: this
+                # excludes `iter_length (get_clauses !c)` and `irlen (elts_of !inner)`.
+                and "!" not in str(len_expr)
+                # BLAST-RADIUS GATE: an @mutable_state class already gets the variant
+                # unconditionally from the arm below, so hoisting there would only rewrite
+                # a variant that already discharges. Excluding it keeps every
+                # @mutable_state mirror byte-identical.
+                and getattr(self, "_current_self_type", None)
+                    not in getattr(self, "_mutable_state_classes", set())):
+            _len_hoist = (f"_len{idx}", len_expr)
+            len_expr = f"_len{idx}"
+
         while_parts = [f"{loop_indent}while !{idx} < {len_expr} do"]
         # seq-model-pivot.md SQ5: a @mutable_state for-loop (the emitter's `for var in
         # shared_for_mutex`) carries the index bound + a decreasing variant so the element
@@ -1179,7 +1231,9 @@ class ControlFlowStmtMixin:
                    # gaining exactly these two lines, both re-proved.
                    or (not stmt.variants
                        and str(len_expr).lstrip("(").startswith(
-                           ("Array.length", "Seq.length", "String.length"))))):
+                           ("Array.length", "Seq.length", "String.length")))
+                   # #29: the hoisted immutable program length — see the block above.
+                   or _len_hoist is not None)):
             while_parts.append(f"{inner_indent}invariant {{ 0 <= !{idx} }}")
             while_parts.append(f"{inner_indent}variant {{ {len_expr} - !{idx} }}")
         # W2: character-level string iteration carries an ARITHMETIC termination
@@ -1362,6 +1416,12 @@ class ControlFlowStmtMixin:
         if _mat is not None:
             _mv, _mexpr = _mat
             idx_decl = f"{loop_indent}let {_mv} = {_mexpr} in\n{idx_decl}"
+        # #29: bind the hoisted program length ONCE, outside the loop, so the variant term
+        # is an immutable int rather than a program call. Placed AFTER the iterable
+        # materialisation wrap so the length may reference the materialised name.
+        if _len_hoist is not None:
+            idx_decl = (f"{loop_indent}let {_len_hoist[0]} = {_len_hoist[1]} in\n"
+                        f"{idx_decl}")
 
         if has_direct_ret and not self._has_early_ret and not in_loop:
             rest_code = self._stmts_to_whyml(
