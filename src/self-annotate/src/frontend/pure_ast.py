@@ -4241,6 +4241,7 @@ class _Unparser(NodeVisitor):
     def items_view(self, traverser, items):
         pass
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -4248,6 +4249,7 @@ class _Unparser(NodeVisitor):
         if self._source:
             self.write("\n")
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -4255,6 +4257,7 @@ class _Unparser(NodeVisitor):
         self.maybe_newline()
         self.write("    " * self._indent + text)
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -4338,6 +4341,7 @@ class _Unparser(NodeVisitor):
     def get_type_comment(self, node) -> int:
         pass
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -4563,6 +4567,7 @@ class _Unparser(NodeVisitor):
             self.write(" from ")
             self.traverse(node.cause)
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns self._indent
@@ -5229,6 +5234,7 @@ class _Unparser(NodeVisitor):
     def _fstring_FormattedValue(self, node):
         self.visit_FormattedValue(node)
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

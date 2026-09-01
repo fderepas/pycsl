@@ -96,7 +96,20 @@ BASELINE = 13          # 55 at first measurement, 50 after the `array <t>` concr
 MIRROR_COUNT = 52      # mirrors that emit a .mlw; a smaller population is NOT a pass
 
 _DEF = re.compile(r'^  (?:let rec|let|with) ([A-Za-z_0-9]+)', re.M)
-_VAL = re.compile(r'^  val (self__([A-Za-z_0-9]+)_(\d+)) ', re.M)
+# INSTRUMENT REPAIR (relaunch #30, lesson (bd) again). The pattern was `self__` — TWO
+# underscores — which matches the avatar of a method whose own name starts with `_`
+# (`_deref` -> `val self___deref_1`, `_str_literal_helper` -> `val self__str_literal_helper_1`)
+# and MISSES every PUBLIC-named method: the mangling is `self_` + <name> + `_` + <arity>, so
+# `fill` -> `val self_fill_1`, `traverse` -> `val self_traverse_1`,
+# `visit_FormattedValue` -> `val self_visit_FormattedValue_1`. The whole public surface of
+# every mirror class was invisible to this gate, and it is exactly the surface a visitor
+# class is made of. Measured on `frontend/pure_ast.mlw` alone the blind spot hid
+# `self_fill_1` (34 uses), `self_do_visit_try_1`, `self_traverse_1`, `self_write_1`,
+# `self_interleave_3`, `self_items_view_2`, `self_maybe_newline_0`, `self_error_1`,
+# `self_set_precedence_2`, `self_unsupported_1` and `self_visit_FormattedValue_1`.
+# The pairing below is unchanged and still keys on `d.endswith("__" + meth)`, which is
+# correct for both spellings.
+_VAL = re.compile(r'^  val (self_([A-Za-z_0-9]+)_(\d+)) ', re.M)
 
 
 def emit_all(out_dir: str) -> None:
