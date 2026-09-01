@@ -1,3 +1,110 @@
+# HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #28 worker — WINDOW END)
+
+## #28 IN ONE LINE: **the `pyx_view` node-ADT capability is now SIZED, and it is SMALLER than it
+## reads: the generic `get_<attr>` fallback is declared in only 7 of 53 emitted mirrors, and
+## 144 of its 172 use sites (84%) are in `pure_ast.mlw` alone. It is a pure_ast-LOCAL lever,
+## not a campaign-wide unblocker.**
+
+#28 got the final ~5 minutes of the 96h window (last relaunch). Per the supervisor it started no
+prover run, attempted no port, made ZERO edits to `src/`. It spent the sliver on the read-only
+census #27 queued: how much of the remaining 491 routes through the same generic `get_<attr>`
+emitter fallback that #27 refuted a `string` return model for. Pure `python` over the 53 already-
+emitted `.mlw` on disk (all mtime 2026-09-01, i.e. fresh), ~20 s, no emission needed.
+
+Metric verified fresh at window end: **markers 491 · grep 516 · offset 25 · attached 491 ·
+unattached 0 · ledger 3.** Tree clean (tracked), no prover process started. HEAD was `c9e08136`.
+
+### THE SIZING (measured; do not re-derive)
+
+Declarations matched as `val [function] get_<attr> (x: int) : int` — the fallback #27 traced to
+`src/pycsl/module6_whyml/expressions.py:11918`. Use sites = occurrences of the symbol minus its
+declaration.
+
+| emitted mirror | use sites | distinct attrs declared | that file's `\trusted` markers |
+|---|---|---|---|
+| **`pure_ast.mlw`** | **144** | 45 | 96 |
+| `Module3_Weaver.mlw` | 15 | 10 | 27 |
+| `module_collect.mlw` | 5 | 6 | 3 |
+| `exec_splice.mlw` | 3 | 7 | 2 |
+| `audit_proof.mlw` | 3 | 3 | 12 |
+| `Module5_IREmitter.mlw` | 1 | 14 | 30 |
+| `pycsl.mlw` | 1 | 1 | 33 |
+| **all other 46 mirrors** | **0** | **0** | — |
+| TOTAL | **172** | 86 | 203 markers live in these 7 files |
+
+Hottest attrs in `pure_ast.mlw`: `value`:34, `body`:13, `name`:7, `ATOM`:6, `orelse`:6, `target`:5.
+
+### WHAT THIS CHANGES FOR THE LADDER
+
+**Favourable read:** the node ADT is not a sprawling cross-mirror redesign. 84% of its demand is
+one file, and that file is the one holding the 54-marker `_Unparser` lever. Build it *for*
+`pure_ast` and you have essentially built all of today's demand.
+
+**Unfavourable read, and it is the honest one:** the ADT therefore does NOT unblock a broad slice
+of the remaining 491. Nothing outside these 7 files touches the fallback at all. Whoever prices
+item 4 next must price it as "buys `pure_ast`'s residue", not "buys the value-model frontier".
+
+### THE CAVEAT THAT MUST TRAVEL WITH THE NUMBER (lesson (ay), below)
+
+**172 is a LOWER BOUND on post-port demand, not the true demand.** A `\trusted` stub has an
+elided body, so it reads no attributes and generates no projector uses. The 144 uses in
+`pure_ast.mlw` come from its ALREADY-CONVERTED methods; the 51 still-trusted `_Unparser` bodies
+contribute zero today and will contribute more once ported. `Module5_IREmitter.mlw` is the visible
+proof of the effect from the other side: it declares **14** distinct attr projectors but has only
+**1** use site — declaration also happens in spec contexts, so declaration count and use count
+measure different things. **Do not quote 172 as "the size of the ADT job." Quote it as "the size
+of the demand the currently-converted surface already places on it."**
+
+### THE LESSON #28 BANKS — (ay)
+
+The three prior lessons were about not trusting a record. This one is about not trusting your own
+fresh measurement's SCOPE: **a census of an emitted artifact measures the CONVERTED surface only.**
+In a campaign whose entire purpose is converting stubs, every artifact-side census is systematically
+biased toward zero on exactly the stubs still to be done. State the direction of the bias next to
+the number, every time. Corollary: declaration counts and use counts are different instruments —
+`Module5_IREmitter` reads 14 vs 1 depending which you pick.
+
+### THE THREE LESSONS FROM THE PRIOR HOUR — carried forward verbatim, they are the campaign's core
+
+- **A boundary that has not been TRIED is not a boundary**, even when the worker naming it had just
+  measured the failure it predicts (#25 overturned #24's conditional floor in two minutes).
+- **A re-measured number does not re-measure the mechanism** — when a census shrinks a residue,
+  trace the SURVIVORS to their source; they are usually the hard core the easy cause was hiding
+  (#26 overturned #25). Corollary: read the mirror's own comments near the failing construct —
+  #20 had documented this exact failure at `pure_ast.py:5030-5044` and two later workers edited
+  within 50 lines without reading it.
+- **Trace survivors to the DECLARATION site, not the mirror source** (#27). #26 stopped at "an
+  int-modelled projector," which made a string return look like a local choice; one
+  `grep 'val get_'` showed it is a generic attr-keyed emitter fallback and the refutation followed
+  with zero edits. **A symbol's type is a property of where it is DECLARED — in an emitter, that is
+  a line of Python, not a line of the mirror.**
+
+### WHERE THE LADDER STANDS FOR #29 (first worker of the NEXT window)
+
+1. `_Unparser` (54 markers) is **CERTIFIED-BOUNDARY on the value model**. Both halves settled by
+   trying: projector `string` return REFUTED with zero edits (#27); `_str_literal_helper` still
+   body-blocked (#24). Do NOT re-open without the node ADT.
+2. **Backlog item 4 — `pyx_view` node ADT / per-(receiver-node-type, field) projector typing** —
+   is the named reopening capability, now SIZED by #28 (above). Its recorded obstacle stands:
+   `pure_ast`'s node classes are synthesized at import by `type(name, (base,), body)` from
+   `_NODE_SPEC`, so there is no static class surface to read a field type off. Existing in-tree
+   precedent for the machinery: the `_optional_union_locals` / `_term_local_vars` carrier-field
+   projections immediately ABOVE `expressions.py:11918` already bypass `get_<attr>` when the
+   receiver's type is known. That is the shape to extend.
+3. `ControlFlowStmtMixin._handle_return_stmt` (item 2) — the one non-constructor model-visible
+   false frame left, ~1846 goals / ~45 min.
+4. `scratchpad/w3/fix_assigns.py` re-tests of every "effect summary cannot be made exact" wall.
+5. **STILL OPEN, UNFIXED, HONESTLY RECORDED: `val function csl_to_ir_op`** — a KNOWN-LIVE
+   unsoundness, a pure logic symbol standing for a state-dependent method, inside the logic-level
+   `synth_overload_clauses` fold in `preamble.py`. (Note the conflict with the older "#19 CLOSED it"
+   line further down this file: the live-unsoundness record is the current one.)
+
+Reproduce #28's census in 20 s, no emission, no edits:
+`python3` over `glob('src/self-annotate/**/*.mlw')`, match `^\s*val (?:function )?get_(\w+) \(x: int\) : int`,
+count `\bget_<attr>\b` occurrences minus 1 per declaration.
+
+---
+
 # HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #27 worker)
 
 ## #27 IN ONE LINE: **the projector probe is REFUTED — `get_name` is ONE global abstract symbol
