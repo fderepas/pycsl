@@ -71,6 +71,21 @@ REOPENING CAPABILITY for (B), and TWO ROUTES WERE SPIKED AND MEASURED (#33):
   STUB, and it triggers the same caller fixpoint #32 closed in 5-6 iterations per file,
   followed by a whole-file re-proof of each. Budget it as a segment, not as an increment.
 
+A THIRD KIND OF SILENT FRAME HOLE, found by closing (B) and worth its own sweep: a
+`\trusted` stub that carries `#@ requires` / `#@ ensures` and **NO `#@ assigns` LINE AT
+ALL**. The stub exists, is signature-checked and is believed — it simply says nothing about
+its frame, so `_module_method_writes` has no entry and the avatar is minted frameless.
+THREE of the four (B) closures were exactly this, and cost no marker to fix. CENSUS at
+#33: **11 of 476** `\trusted` stubs have no `#@ assigns`:
+    errors.py                        message, as_dict
+    module6_whyml/statements.py      _resolve_dotted_signature, _is_emit_ir_expr,
+                                     _coerce_to_int, _expr_to_whyml_string_ctx,
+                                     _is_string_expr, _e,
+                                     _maybe_emit_no_exception_assert, _mutex_inv_application
+    module6_whyml/stmt_control_flow.py  _coerce_to_int
+Some are genuinely pure (`_coerce_to_int`, `errors.message`); the rest are candidates, and
+the CONSEQUENTIAL subset is exactly what the INHERITED bucket below already counts.
+
 `--emit-dir` must point at a directory of emitted mirror `.mlw` files (the `l3sweep.sh`
 output). Without it the gate emits them itself is NOT attempted — it fails loudly instead,
 because a silently-skipped plane is worse than no plane.
