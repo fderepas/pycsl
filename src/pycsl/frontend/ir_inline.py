@@ -366,12 +366,19 @@ def _inline_calls(funcs: List[Dict[str, Any]], globals_set: Set[str],
     # not walked).
     for f in (rewrite_funcs if rewrite_funcs is not None else funcs):
         body = f.get("body", [])
+        # (#33) EXPLICIT CONVERGENCE FLAG, not `for ... else`. The IR emitter reads only a
+        # loop's body — `_process_for`/`_process_while` never look at `orelse` — so a loop
+        # `else` was SILENTLY DROPPED from the model. `frontend/desugar.reject_loop_else`
+        # now refuses the shape rather than dropping it; this is the mechanical rewrite it
+        # asks for, and it is exactly semantics-preserving.
+        _converged = False
         for _ in range(_MAX_INLINE_DEPTH):
             new_body = inliner.inline_stmts(body)
             if new_body == body:
+                _converged = True
                 break
             body = new_body
-        else:
+        if not _converged:
             raise PyCSLSemanticError(
                 f"inlining depth exceeded ({_MAX_INLINE_DEPTH}) in '{f['name']}' — "
                 f"a chain of global method calls too deep to inline (inline.md Phase 3).")

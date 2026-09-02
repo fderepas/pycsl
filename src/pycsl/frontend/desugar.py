@@ -1,4 +1,16 @@
-"""#33 — CHAINED-COMPARISON DESUGARING, a Python-AST normalization pre-pass.
+"""#33 — THE MODULE-5 INPUT NORMALIZATION PASS (Python-AST -> Python-AST).
+
+Every rewrite here exists because a Module 5 handler SILENTLY DROPS part of the node it is
+given — a fail-OPEN erasure, invisible to every gate plane because the dropped construct
+simply is not in the IR to be checked. Normalizing the INPUT is deliberate: the handlers
+(`_py_expr_compare`, `_py_stmt_annassign`) are CONVERTED mirror methods whose models are
+HAND-SYNTHESIZED bespoke lowerings keyed on the method name, so editing their bodies would
+leave mirror-sync, L3-tc and the whole-file proof all GREEN while the model silently
+stopped being the body. Rewriting the input instead leaves every such body byte-identical
+and makes its bespoke model TRUE, because the shape it cannot express no longer reaches it.
+
+
+## 1. CHAINED COMPARISONS
 
 Python's `a < b < c` means `a < b and b < c`, with the middle operand evaluated EXACTLY
 ONCE. Module 5's expression walker (`_py_expr_compare`) lowers a `Compare` node by reading
@@ -46,10 +58,55 @@ WALRUS on its first and only evaluation and read back in the next link:
 which is Python's own rule for a chain, written in Python. No purity assumption is needed
 and no idiom is rejected. The temporary is numbered from a per-pass counter, never from
 `id(...)`, because the emitted `.mlw` must be byte-reproducible across runs.
+
+
+## 2. ANNOTATED STORES THROUGH A NON-NAME TARGET
+
+`_py_stmt_annassign` is
+
+    if isinstance(stmt.target, ast.Name) and stmt.value is not None:
+        ir_stmts.append({"stmt": "Assign", ...})
+
+so `self.x: int = 0` and `a[i]: int = v` — an AnnAssign whose target is an ATTRIBUTE or a
+SUBSCRIPT — produce NO IR AT ALL. The store vanishes. `_py_stmt_assign` handles exactly
+these targets, and handles them carefully: `self.f = v` becomes a `FieldAssign`, `p.f = v`
+on a record-typed parameter becomes a caller-visible `FieldAssign`, `a[i].f = v` is
+REFUSED with a diagnostic — its own comment records that the earlier silent drop was "an
+UNSOUND fail-OPEN: a caller/body could prove the field UNCHANGED after a real mutation".
+The annotated form is the same store with a type written on it, and it had the very bug
+`_py_stmt_assign` was fixed for.
+
+So `_normalize_annotated_stores` rewrites `<non-Name target>: T = v` into `<target> = v`
+and lets `_py_stmt_assign` decide. `T` is a DECLARATION, not part of the store, and no
+consumer reads it here — with ONE exception, which is why `__init__` is excluded: Module 5
+`_collect_class_fields` and `module5/construction_synth` scan `__init__` bodies for
+`self.x: T = ...` to recover the FIELD TYPE (that is how the mirror's own
+`self._final_registry: List[Dict[str, PyVal]] = []` declares its type). Rewriting those
+would erase the type, so they are left exactly as they are. Every other AnnAssign consumer
+in the tree already filters on `isinstance(target, ast.Name)` and is unaffected.
+
+CENSUS AT THE TIME OF WRITING: 0 in the reference corpus, 0 in the mirror, 0 in
+`pycsl_lib`, 51 in the live emitter (`functions._reset_function_state`,
+`Module6_WhyMLTranspiler.transpile`, `Module5_IREmitter.visit_Module`, ...). So this is
+byte-inert today and it UNBLOCKS those state-reset methods for conversion.
+
+
+## 3. `for ... else` / `while ... else` ARE REFUSED, NOT DROPPED
+
+`_process_for` and `_process_while` read `target`/`iter`/`body` and `test`/`body`; neither
+reads `orelse`. A loop `else` runs exactly when the loop finished WITHOUT `break`, and
+dropping it removes a whole reachable path from the model while leaving the program's
+behaviour unchanged — fail-OPEN in the same way as the two above. Modelling it needs a
+break-flag lowering, which is a feature, not a normalization. Until that exists the honest
+answer is a loud refusal: `_reject_loop_else` raises. CENSUS: 0 in the corpus, 0 in the
+mirror, 0 in `pycsl_lib`, 2 in the live emitter (both inside `\trusted` mirror stubs, whose
+bodies are never parsed by this pipeline). `try ... else` is NOT affected —
+`_py_stmt_try` does carry `orelse` and `finalbody`.
 """
 from __future__ import annotations
 
 from frontend import pure_ast as ast
+from errors import PyCSLParseError
 
 # Calls that may be mentioned twice by the expansion: pure, total, deterministic
 # projections of their argument, with no state and no I/O. A literal tuple, not a
@@ -116,6 +173,45 @@ class _ChainDesugarer(ast.NodeTransformer):
         ast.copy_location(out, node)
         ast.fix_missing_locations(out)
         return out
+
+
+def reject_loop_else(tree: ast.AST) -> None:
+    """Refuse `for ... else` / `while ... else`, which Module 5 would silently DROP."""
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.For, ast.While)) and node.orelse:
+            raise PyCSLParseError(
+                "`for ... else` / `while ... else` is not modelled: the `else` clause runs "
+                "exactly when the loop finished without `break`, and the IR emitter reads "
+                "only the loop body, so the clause would be silently DROPPED from the "
+                "model. Rewrite it with an explicit flag.")
+
+
+def normalize_annotated_stores(tree: ast.AST) -> None:
+    """Rewrite `<attribute-or-subscript>: T = v` into `<target> = v`, which Module 5 lowers.
+
+    `__init__` is EXCLUDED: its annotated `self.x: T = ...` statements are where the record
+    field TYPES are read from."""
+    protected = set()
+    for node in ast.walk(tree):
+        if (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name == "__init__"):
+            for sub in ast.walk(node):
+                if isinstance(sub, ast.AnnAssign):
+                    protected.add(id(sub))
+    for node in ast.walk(tree):
+        for field in ("body", "orelse", "finalbody"):
+            stmts = getattr(node, field, None)
+            if not isinstance(stmts, list):
+                continue
+            for i in range(len(stmts)):
+                st = stmts[i]
+                if (isinstance(st, ast.AnnAssign) and st.value is not None
+                        and not isinstance(st.target, ast.Name)
+                        and id(st) not in protected):
+                    rewritten = ast.Assign(targets=[st.target], value=st.value)
+                    ast.copy_location(rewritten, st)
+                    ast.fix_missing_locations(rewritten)
+                    stmts[i] = rewritten
 
 
 def desugar_chained_comparisons(tree: ast.AST) -> ast.AST:

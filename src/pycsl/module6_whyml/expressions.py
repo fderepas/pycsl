@@ -2979,11 +2979,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         fn = expr.get("func")
         if not isinstance(fn, str) or expr.get("receiver") is not None or expr.get("keywords"):
             return None
+        # (#33) EXPLICIT FOUND FLAG, not `for ... else` — see `frontend/desugar.
+        # reject_loop_else`: a loop `else` is never read by `_process_for`/`_process_while`
+        # and was silently dropped from the model. Exactly semantics-preserving.
+        _pfx_found = False
         for _pfx in ("os.path.", "_os.path.", "ospath."):
             if fn.startswith(_pfx):
                 tail = fn[len(_pfx):]
+                _pfx_found = True
                 break
-        else:
+        if not _pfx_found:
             return None
         n = len(expr.get("args") or [])
         if tail == "join" and n == 2:
