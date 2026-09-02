@@ -1,3 +1,196 @@
+# HANDOFF — #32 (2026-09-02, WINDOW 3): **446 -> 447 markers (ONE honest re-trust) and
+# `check-trusted-frame-honesty` 82 -> 19 — because the probe reported only THREE CLEAN
+# candidates in the whole tree, TWO of them were hollow in ways no marker could see, and
+# the honest ladder turned out to be the FRAME plane, where a `\trusted` stub's
+# `#@ assigns` was not merely assumed but UNOBSERVABLE.**
+
+## THE HEADLINE, STATED PLAINLY
+**There are no free conversions left.** The repaired whole-tree probe, re-run twice at
+HEAD, reports **1 CLEAN out of 446** — and that one is `_ContractParser._err`, which #31
+already refuted on the non-vacuity plane. Every remaining marker needs a NEW CAPABILITY;
+none is one port away. That is the single most important state fact for the next relaunch,
+and it is why this window's yield is honesty and capability rather than count.
+
+## THE NUMBERS
+
+| | markers | grep | offset | ledger |
+|---|---|---|---|---|
+| #32 start (`b2764659`) | 446 | 471 | 25 | 3 |
+| **#32 (this section)** | **447** | **472** | **25** | **3** |
+
+| plane | #32 start | now |
+|---|---|---|
+| trusted-frame-honesty (total / model-visible) | 82 / 0 | **19 / 0** |
+| converted-frame-honesty (total / model-visible) | 133 / 4 | **125 / 1** |
+| computed-rhs-erasure (NEW plane) | — | **5 / 0** |
+| yield-erasure | 0 / 2 / 1 | 0 / 2 / 1 |
+| mirror-signature-drift | 16 (0 converted) | 16 (0 converted) |
+| corpus byte-diff | 0 | **0** (814/814, re-measured for EVERY increment) |
+| fidelity (both scripts) | DIVERGED 2 | DIVERGED 2 (the baseline pair) |
+| mirrors L3-tc | 52/52 | **52/52** |
+
++1 marker is the RIGHT direction here: `pure_ast.copy_location` was a hollow conversion and
+is now honestly `\trusted`.
+
+## FIVE INSTRUMENT FINDINGS, AND ONE IS ABOUT THE SHELL YOU RUN IN
+
+### (bl) **`why3` IS NOT ON THE DEFAULT PATH, AND `pycsl.py` PRINTS `L3-tc ✓` WHEN IT IS ABSENT**
+`_why3_typecheck` returns `(True, "(why3 not found — typecheck skipped)")` by design — a
+missing prover must not be reported as a typecheck failure. The consequence is that **any
+L3-tc sweep run from a shell without `/home/fabrice/.opam/framac-coq8/bin` on PATH is a
+FALSE GREEN**, and this session wrote one and believed it for three increments. It was
+caught only because `bin/probe-conversion-candidates.py` sets that PATH itself and
+disagreed with a hand-rolled sweep on the same file.
+**EVERY L3-tc sweep must `export PATH=/home/fabrice/.opam/framac-coq8/bin:$PATH`.**
+`scratchpad/w5/l3sweep.sh` does; use it. Corollary: `--keep-mlw` keeps the `.mlw` even when
+the run FAILS, so "a .mlw appeared" is not evidence of anything.
+
+### (bm) The probe read the EMITTER'S OWN PROGRESS LINE as a why3 diagnosis
+`_DIAG_RE` carries an `Unsupported` alternative; `proof2why3/ir.py` declares a class
+literally NAMED `Unsupported`, so the emitter prints
+`[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) …)` above
+every real message and `_idx[0]` picked it. **25 of 378 L3TC-FAIL verdicts — the ENTIRE
+`proof2why3` subtree — recorded that line instead of a blocker.** The ranked census the
+ladder navigates by was blind to that subtree, whose real shape is one homogeneous family
+(`term` vs `int`, 9 stubs). Fixed: a line with a pipeline prefix is never a diagnosis.
+
+### (bm2) The probe's FALLBACK read STDERR
+`tail = _ls[-1:]` over stdout+stderr; `core_ir_semantic`'s C8 Union warning prints its own
+SOURCE LINE to stderr and is physically last, so 8 candidates recorded `], union_vars,
+fname)` as their blocker. Their real blocker is the pipeline's `[!] PIPELINE ERROR:` —
+the HETEROGENEOUS LIST LITERAL refusal — which merges them into a 15-stub family.
+
+### (bn) TWO NEW FACADE CLASSES the marker list could not see — and a new gate plane
+Both were found on the same whole-tree census, both were reported **CLEAN**:
+- **PARAM-FIELD MATERIALIZED AS A FRESH CONSTANT ARRAY.** `PyCSLWeaver._attach_loop_contracts`'s
+  entire body is three `node.<listfield>.append(c)`; `node` is an int-typed parameter, so
+  the emitter binds `let node_csl_invariants = Array.make 1024 0 in` and every read AND
+  every append lands in that empty local. Reported CLEAN because the parameter name `node`
+  DOES appear — inside the fresh local's own name.
+- **COMPUTED RHS ERASED TO 0.** `Module3_Weaver._region_bound_str`'s
+  `v = getattr(node, "value", None)` emitted `v := 0`, so `!v <> 0` is false on every path
+  and the whole method collapses to `return "<expr>"`. Not abstracted to an opaque op —
+  replaced by a LITERAL — which is why no marker fires.
+Both are probe markers now (negative-tested), and both are a standing gate:
+**`bin/check-computed-rhs-erasure.py`**, which audits the CONVERTED population the probe
+never looks at. It found SIX there; one (`copy_location`) is re-trusted, ratchet is now 5/0.
+
+## THE CAPABILITIES (every one corpus byte-diff 0)
+
+1. **`getattr(self, "<field>", <default>)` reads the MODELLED FIELD for a SCALAR field.**
+   `_lower_getattr` already did this — but only when the DEFAULT was a STRING literal, so
+   `None` and `{}`, the two commonest spellings of the same idiom (1224 sites in the live
+   emitter), fell through to "emit the default" and became the literal `0`. The license is
+   carried by the `_all_record_fields` test that already guards the branch: a field the
+   model DECLARES is present, so the default is unreachable. **Two WRONG LOWERINGS fixed:**
+   `tmp_count := (0 + 1)` -> `tmp_count := (self._slice_set_tmp_counter + 1)` (a slice-temp
+   counter restarting from 0 on every call) and `not (0 <> 0)` -> `not (self._scope_dyn_exec
+   <> 0)` (a guard that was unconditionally TRUE). Both re-proved: statements.py 922 goals
+   SUCCESS, expressions.py 1069 goals SUCCESS.
+   **The BLANKET relaxation was MEASURED AND REFUSED** — fail-closed but blocking, with
+   three named residues, each an ADJACENT mechanism that has not met this shape:
+   local first-assign kind inference not seeing through `getattr`; map-typed field
+   TRUTHINESS; string-typed field TRUTHINESS (`_to_bool` has the exact rule already).
+2. **A list literal is `array string` when every element is STRING-TYPED**, not only when
+   every element is a string LITERAL (`_is_string_expr` instead of `type == "String"`).
+   Unblocks the 15-stub heterogeneous-list family and closes a LATENT UNSOUNDNESS: an
+   all-VAR literal `[s1, s2]` carried no string literal, so the WL-04g guard let it through
+   and the int-coercion fallback HASHED both elements into an `array int`.
+3. **The TERM CARRIER reaches aliased locals and `Term`-annotated PARAMETERS.**
+   `_term_alias_fixpoint` (a local bound from another term local is term-typed, iterated);
+   and a `Term` parameter joins `_term_local_vars` so `t.body` projects through the
+   inductive's arm instead of the opaque `get_body : int -> int`.
+4. **THE AVATAR CARRIES THE CALLEE'S FRAME.** See below — the most consequential one.
+
+## THE STRUCTURAL FINDING: A `\trusted` STUB'S `#@ assigns` WAS UNOBSERVABLE
+
+`_writes_filtered_to_labels` keeps only `#@ assigns` targets the emitted record carries as
+a field LABEL. When the filter empties the set, `field_spec` stayed None and the
+caller-side avatar was minted as a bare `val self__<m>_<n> (x0: …) : unit` — no receiver,
+no frame. **MEASURED EXACTLY:** giving `expressions.py`'s `_add_abstract_op` protocol stub
+its honest `#@ assigns` left `module6_whyml_expressions.mlw` BYTE-IDENTICAL, while the same
+edit in `statements.py` (where the label IS emitted) produced
+```
+val self__add_abstract_op_1 (self: statementemissionmixin) (x0: string) : unit
+  writes { self._abstract_ops }
+```
+and forced six callers to tell the truth. So repairing the 82 declarations would have
+changed NOTHING wherever the named field is not an emitted label.
+
+**THE RULE BUILT (the caller-side twin of what `functions._emit_function` already applies
+to a method's OWN definition — "the source names ANY assigns target -> add `_pyobj_state`
+to the frame"): when the callee DECLARES a non-empty `#@ assigns` and the label filter
+empties it, the avatar declares `writes { _pyobj_state }` and the caller's emission is
+flagged `_obj_state_written`, so the caller's own definition inherits the cell.** The
+coarse single cell over-approximates what may change and never claims a preservation the
+source does not guarantee.
+**BLAST RADIUS, MEASURED AND FAR SMALLER THAN THE FINDING SUGGESTED: 51 of 52 mirrors
+byte-identical; only `expressions.py` rejected, with exactly the honest message.** The
+fixpoint closed in 5 iterations.
+
+With that in place the honest-frames pass became meaningful:
+- **54 `\trusted` stubs given their honest `#@ assigns`**, derived PER STUB from the SAME
+  live transitive closure `bin/check-trusted-frame-honesty.py` computes
+  (`scratchpad/w5/honest_trusted_frames.py`), with the caller fixpoint closed by
+  `scratchpad/w5/framefix3.py` (per-method derived field sets, NOT #31's blanket 17).
+  **82 -> 28.**
+- **Both label filters now FAIL CLOSED when the class has no record in the file**
+  (`type functionemissionmixin = int` — `hasattr(self, "_emitted_record_field_labels")` is
+  literally False). "Absent registry -> filter nothing" is safe only when the absence means
+  "we did not build it"; here it means "there are NO labels", so every name is unbound.
+  `functions._emit_function` fails closed AND sets a coarse flag so the effect is still
+  SAID against `_pyobj_state`. **28 -> 19.**
+**The entire residue 19 is `pure_ast.py`**, left alone only because its whole-file proof
+was in flight. Finishing it is the first item for the next relaunch and needs no new idea.
+
+**HONEST CAVEAT, recorded beside the ratchet:** the closure can still UNDER-approximate
+(the #31 `_walk_body` blind spot), so 19 is a floor on what is KNOWN false, not a proof
+that the other 271 are true.
+
+## WHERE THE LADDER STANDS FOR #33
+
+0. **Finish the frame-honesty pass on `pure_ast.py`** — 19 -> ~0, mechanical, tools written
+   (`scratchpad/w5/honest_trusted_frames.py` + `scratchpad/w5/framefix3.py`), one pure_ast
+   re-proof. Do it FIRST; it is the cheapest remaining honesty win in the tree.
+1. **The last model-visible converted offender**, `expressions._ifexpr_seq_arm`: its
+   callee's now-declared frame is still an UNDER-claim of the live closure. One level
+   deeper than what this window fixed.
+2. **The three named residues of capability 1** (map/string field truthiness in `_to_bool`;
+   first-assign local kind inference seeing through `getattr`). Each is a one-rule addition
+   with an ADJACENT mechanism that already exists, and together they close the remaining
+   FIVE `computed-rhs-erasure` offenders.
+3. **The `proof2why3` `term` family (9 stubs) is a genuine COST/SCALE boundary**, now
+   correctly characterised for the first time. These are IMPERATIVE passes over the
+   certified `term` inductive; converting them needs a GENERAL ADT-value lowering —
+   constructor CALLS (`Forall(b, ty, body)` currently emits a RECORD LITERAL where a `term`
+   is expected), `list term` locals, `Var(...)`-vs-`term` — not the spec-driven generator
+   that produced the already-proved `_flip_comparisons`. Multi-session; NOT a floor.
+4. **The heterogeneous-list-literal family, 15 stubs** — capability 2 moved its first
+   blocker; the residue is literals genuinely mixing a string with a non-string.
+5. `<x> or []` — **DEMOTED, and this is a measurement, not an opinion.** It IS a wrong
+   lowering, but a fresh emission of all 52 mirrors contains **ZERO** occurrences of the
+   boolean-collapse shape: all 56 converted methods containing `or []` already route
+   through the pyval / emit_ir / closed-key recognizers. So it is a BLOCKER for 58 trusted
+   stubs, NOT a live defect in the proved population — and #31's own note stands that the
+   residue needs the empty-collection value-type inference anyway.
+6. The 16 mirror-signature drifts and the `TypedDict`-view device — unchanged from #31.
+
+## INSTRUMENT FACTS #32 ADDS
+1. `scratchpad/w5/l3sweep.sh <outdir>` — the ONLY L3-tc sweep to use (it exports the opam
+   PATH; see lesson (bl)). Writes every mirror `.mlw` into `<outdir>` for byte-diffing.
+2. `scratchpad/w5/diag.sh <mirror-rel> <Class:name>` — port, emit with the right PATH,
+   print the why3 error plus the surrounding emitted WhyML, restore the tree.
+3. `scratchpad/w5/honest_trusted_frames.py` — rewrite every `\trusted` stub's
+   `#@ assigns` from the live transitive closure. `scratchpad/w5/framefix3.py` — the
+   caller fixpoint with PER-METHOD derived fields (env vars `FF_REL`, `FF_MAX`).
+4. A git WORKTREE (`git worktree add`) is the right place to measure an emitter change
+   while a whole-file proof is running in the main tree; symlink `.venv` into it so
+   `bin/byte-diff-sweep.sh` works.
+5. A backgrounded probe killed by a tool timeout does NOT run its `finally`: it leaves the
+   ported mirror file DIRTY. Check `git status` after any interrupted sweep.
+
+---
+
 # HANDOFF — #31 (2026-09-02, WINDOW 3): **455 -> 446, seven emitter capabilities, two NEW
 # GATE PLANES, and eleven conversions of which the GATES REVERTED TWO — but the findings
 # that matter are that the CANDIDATE PROBE was measuring the wrong function for 40% of the
