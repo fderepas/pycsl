@@ -5736,3 +5736,36 @@ The family: `statements._handle_assign_stmt` `._typed_local_vars` ·
 `._content_string_method` · `Module5_IREmitter._get_mutex_invariant_ir` `._csl_in`
 `._csl_list_to_ir` `._py_expr_fstring` `._py_stmts_to_ir` `._normalize_union_annotation`
 (also signature-drifted) · `Module3_Weaver._desugar_acts` · `pure_ast._Parser.node`.
+
+### NEW LIVE ITEM (#31, MEASURED) — `<x> or []` IS A WRONG LOWERING, and it is the LARGEST
+### identified family in the tree: **54 `\trusted` stubs**
+Python's `or` returns a VALUE, not a bool: `rec.get("ensures") or []` is the list, or the
+empty list. The emitter lowers it as a BOOLEAN:
+
+    for ens in (rec.get("ensures") or []):
+    =>  let _len_idx_ens = (iter_length
+            (if ((rec_get_2 1299063237 0) <> 0) || ((Array.make 1024 0) <> 0)
+             then 1 else 0)) in
+
+`1` or `0` where a list belongs. Measured as the first blocker on
+`preamble._fresh_globals_facts`, and it is a large slice of the second-ranked
+`int` vs `array` family (28) as well as part of the `int` vs `map` one (9).
+
+**POPULATION: 54 `\trusted` stubs whose live body contains `<x> or []` / `or {}` / `or ()`**
+— across `expressions.py` (15), `pycsl.py` (6), `preamble.py` (4), `functions.py` (5),
+`Module5_IREmitter.py` (4), `ir_resolve.py` (4), `monomorphize.py` (3) and 13 more files.
+That is the biggest single identified family this campaign currently has.
+
+**THE ADJACENT MECHANISM ALREADY EXISTS (lesson (bb)), in two places:**
+  * `d.get(k, [])` — the EXPLICIT empty-list default — already lowers to
+    `match Map.get d k with Some l_ -> l_ | None -> Nil end`
+    (`expressions._lower_dict_get_call`, the `_dargs[1]["type"] == "ArrayLit"` branch);
+  * `_emit_ir_args_recv_ir` already UNWRAPS the defensive `(<emit_ir>.get("args") or [{}])`
+    form, and `_recognize_pyval_or_default` does the same for a `pyval` receiver.
+So the missing case is the DOTTED/`or`-spelled twin of a lowering the emitter owns twice.
+SHAPE OF THE FIX: in a VALUE position, `A or <empty collection literal>` lowers as `A`'s own
+total lowering with the empty collection as the missing-key default — never as a truth value.
+GATE: this touches a general operator, so measure the corpus byte-diff FIRST; a corpus
+program that writes `x or []` in a BOOLEAN position must stay byte-identical, which means
+the rule has to be gated on the CONSUMING position (an iterable, an assignment to a
+collection-typed local, a collection-typed argument), not on the operator alone.
