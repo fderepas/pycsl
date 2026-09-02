@@ -93,8 +93,23 @@ lowering never mention?
     `IRScanner.find_iteration_mutations`, which reads the flag off the IR statement. So
     Module 6's `_handle_for_stmt` not reading that field is correct, not a drop.
 
-NOT YET SWEPT THIS WAY: Module 3's `#@` ATTACHMENT itself (which `#@` block binds to which
-AST node), which is a different question from directive wiring.
+  MODULE 3 ATTACHMENT (which `#@` block binds to which node) — PARTLY swept, and it has a
+    family: **a directive attached to the wrong KIND of target is silently ignored**, and
+    the run still reports success. Three shapes measured end-to-end:
+      · a contract block with NO follower — the DANGLING category below. FIXED: the weaver
+        now refuses it (census was 0).
+      · `#@ loop invariant` / `#@ loop variant` NOT immediately before a `for`/`while` —
+        accepted and ignored. CENSUS 1: `pycsl-reference/0299.py` carries two vestigial
+        loop annotations directly above a bare `return n`. A refusal is therefore NOT
+        inert; it needs that test cleaned first (the lines are meaningless, so the edit
+        should be emission-inert — verify before landing).
+      · a FUNCTION-level contract (`#@ ensures ...`) directly above a `class` — accepted
+        and ignored. CENSUS 0 everywhere, so a refusal here IS inert. Not built: it wants
+        the same pass as the loop case, and they should land together.
+    Also noted while measuring: a `#@` sequence can appear INSIDE a docstring
+    (`src/pycsl/agents/agent-infer-invariants.py:6`), where it is not a directive at all.
+    Any raw-source scan of `#@` must expect that; the DANGLING check is safe from it only
+    because it additionally requires end-of-file.
 
 SCOPE. The four populations that are actually verified or mirrored: the reference corpus,
 the self-annotation mirror, `src/pycsl_lib`, and the LIVE emitter — the last one because
