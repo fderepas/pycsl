@@ -91,16 +91,30 @@ MIRROR_ROOT = "src/self-annotate/src"
 # --------------------------------------------------------------------------------------
 # RATCHETS — the honest measurement at the tree that introduced this gate (relaunch #33).
 #   (A) SAME-FILE ... 0  — a HARD 0. #32's rule covers this case and must keep covering it.
-#   (B) INHERITED ... 11, every one named by the run:
-#         frontend/__init__, frontend/ir_resolve, pycsl   ->  _py_stmts_to_ir
-#         module6_whyml/functions   -> _collect_array_var_assigns, _is_emit_ir_expr,
-#                                      _is_string_expr
-#         module6_whyml/statements  -> _handle_return_stmt
-#         module6_whyml/stmt_control_flow -> _add_abstract_op, _is_string_expr,
-#                                      _seq_init_expr, _to_bool
+#   (B) INHERITED ... 11 -> **7**, closed by the source-level protocol-stub route:
+#         CLOSED, and TWO OF THE FOUR COST NO MARKER — `statements._handle_return_stmt`,
+#           `stmt_control_flow._seq_init_expr` and `stmt_control_flow._to_bool` ALREADY had
+#           a local `\trusted` stub; it simply carried no `#@ assigns` line at all, so
+#           adding the honest frame copied from the DECLARING mirror costs nothing.
+#           `stmt_control_flow._add_abstract_op` and `stmt_control_flow._is_string_expr`
+#           needed a new stub (+2 markers). The caller fixpoint closed in 2 iterations
+#           (`_materialize_bridge`, `_materialize_str_bridge`,
+#           `_infer_return_value_type`, `_maybe_inject_union_return`).
+#         REFUTED — `functions._is_string_expr` / `_is_emit_ir_expr` /
+#           `_collect_array_var_assigns`. Declaring them LOCALLY also RETYPES the avatar's
+#           parameter (from the int fallback to the stub's `ir: "ExprIR"` -> `emit_ir`) and
+#           `functions.py` then fails L3-tc: "This expression has type `string -> option
+#           string`, but is expected to have type `emit_ir`" at a call site whose local is a
+#           map. The frame and the TYPE ride on the same declaration and cannot be
+#           separated, so this file's three are a TYPE-MODEL boundary, not a frame one.
+#         NOT REACHABLE BY THIS ROUTE — `_py_stmts_to_ir` in `frontend/__init__`,
+#           `frontend/ir_resolve` and `pycsl`: those avatars are minted from the HARD-CODED
+#           table in `module6_whyml/abstract_ops.py` (the imported-emitter-class path), not
+#           from `_module_method_writes`, so a source stub does not reach them. Their frame
+#           belongs in that table.
 # --------------------------------------------------------------------------------------
 MAX_SAME_FILE = 0
-MAX_INHERITED = 11
+MAX_INHERITED = 7
 
 _AVATAR = re.compile(r"^\s*val self__([A-Za-z0-9_]+)_\d+ ")
 

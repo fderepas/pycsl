@@ -201,8 +201,9 @@ CONVERTED_RATCHET = 0         # 2 -> 4 at #31 by the SHARPER DETECTOR (the `_add
                               # SIX that the record actually labels, the avatar declares
                               # exactly those, and Why3 accepts it. The `writes {  }` it
                               # replaces was the false claim.
-CONVERTED_TOTAL_RATCHET = 98  # 68 -> 133 at #31 by the SHARPER DETECTOR; 133 -> 99 at #32;
-                              # 99 -> 98 at #33 (`_ifexpr_seq_arm`)
+CONVERTED_TOTAL_RATCHET = 96  # 68 -> 133 at #31 by the SHARPER DETECTOR; 133 -> 99 at #32;
+                              # 99 -> 98 at #33 (`_ifexpr_seq_arm`), 98 -> 96 by the
+                              # cross-mixin protocol stubs' caller fixpoint
                               # (the three `statements.py` callers above). Every offender
 LIVE_ROOT = "src/pycsl"
 MIRROR_ROOT = "src/self-annotate/src"

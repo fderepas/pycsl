@@ -75,15 +75,47 @@ class ControlFlowStmtMixin:
     # Module6_WhyMLTranspiler.__init__ (`self._for_idx_init: str = "0"`).
     _for_idx_init: str = "0"
     "Control-flow statement handlers — `while` / `for` / `if` / `try` / `match`\n    / `return` — plus their private helpers (`_classify_iterable`,\n    `_first_assign_value_ir`, `_try_local_decl_kind`).\n\n    Extracted verbatim from `StatementEmissionMixin` (Part B move 3e, mirroring\n    the expressions.py split). `StatementEmissionMixin` inherits this mixin, so\n    the handlers resolve via MRO through the facade's `_STMT_HANDLERS` table and\n    recurse back into the core `self._stmts_to_whyml` / `self._expr_to_whyml`\n    (which stay in `StatementEmissionMixin`)."
+    # (#33) CROSS-MIXIN PROTOCOL STUB — the `statements.py`/`expressions.py` precedent.
+    # `_is_string_expr` is DEFINED in `module6_whyml/expressions.py` and merely INHERITED here, so this file's
+    # `_module_method_writes` has no entry and the caller-side avatar was minted
+    # FRAMELESS: Why3 then infers NO effect and every converted caller may claim it
+    # changes nothing. Measured by `bin/check-avatar-frame-parity.py`. Declaring the
+    # honest frame LOCALLY is the only route: the emitter resolves imports against the
+    # LIVE `src/pycsl` tree, which carries no `#@` contracts at all, so no import-based
+    # lookup can ever recover it.
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_pyast_parser_cache
+    def _is_string_expr(self, ir: "ExprIR") -> bool:
+        pass
+
 
     # item34.md CF0.3: cross-file recursion-leaf / bridge sibling stubs (defined in the
     # StatementEmissionMixin / expressions.py files the mixin composes with at runtime). Typed
     # `-> str` so the ported control-flow bodies compose their strings; effect-free registrar
     # helpers (`*_bridge`) are `assigns \nothing`.
+    # (#33) CROSS-MIXIN PROTOCOL STUB, the `statements.py`/`expressions.py` precedent.
+    # `_add_abstract_op` is DEFINED in `expressions.py` and merely INHERITED here, so this
+    # file's `_module_method_writes` has no entry for it and its caller-side avatar was
+    # minted FRAMELESS — `val self__add_abstract_op_1 (x0: int) : int`, no receiver, no
+    # `writes` — while the SAME method in `statements.mlw` carries
+    # `writes { self._abstract_ops }`. A frameless avatar makes Why3 infer NO effect, so
+    # every converted caller here may claim it changes nothing. Measured by
+    # `bin/check-avatar-frame-parity.py`. Declaring the honest frame LOCALLY is the only
+    # route that works: the emitter resolves imports against the LIVE `src/pycsl` tree,
+    # which carries no `#@` contracts at all, so no import-based lookup can ever recover it.
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns self._abstract_ops, self._obj_state_written
+    def _add_abstract_op(self, decl: str) -> None:
+        pass
+
     #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _materialize_bridge(self) -> None:
         """07-1705-rev4 P4: emit the faithful seq→array bridge val (fresh result, no
         region link), used where a seq-modelled value crosses into `array int` code."""
@@ -95,7 +127,7 @@ class ControlFlowStmtMixin:
     #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _materialize_str_bridge(self) -> None:
         """str-list-elements: the STRING analogue of `_materialize_bridge` — bridges a
         `seq string` (a growable string list) to a fresh `array string` at the return
@@ -107,6 +139,7 @@ class ControlFlowStmtMixin:
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _seq_init_expr(self, val_ir: "ExprIR", local_refs: Set[str]) -> str:
         return ""
 
@@ -145,6 +178,7 @@ class ControlFlowStmtMixin:
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _to_bool(self, whyml_str: str, ir_expr: "ExprIR") -> str:
         return ""
 
@@ -1018,7 +1052,7 @@ class ControlFlowStmtMixin:
     #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _maybe_inject_union_return(self, val: str, val_ir: "ExprIR") -> str:
         """typing-engagement ty1 §0/§2.2 C2 — if the function's return type is a
         synthesized `_union_*` variant, auto-inject the return value into the
@@ -1067,7 +1101,7 @@ class ControlFlowStmtMixin:
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _infer_return_value_type(self, val_ir: "ExprIR") -> Optional[str]:
         """Infer the WhyML type of a return value IR node for Union injection."""
         if not isinstance(val_ir, dict):
