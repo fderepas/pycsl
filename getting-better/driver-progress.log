@@ -778,3 +778,4 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 21:15 #33: cross-file avatar frames 11 -> 7 via protocol stubs (2 free, 2 markers); converted-frame-honesty 98 -> 96; 3 mirrors to re-prove
 21:33 #33: try/else closed — Module 6 mechanical field sweep says orelse was the LAST unread semantic IR field; TRYFINAL 10 -> 9
 21:38 #33: DANGLING category added (ratchet 0, hard) — a contract block attaching to nothing is discarded under 'All contracts formally proven'
+21:53 #33: dangling contract block REFUSED in the pipeline (inline in the trusted weaver process; 1 line of mirror movement)
