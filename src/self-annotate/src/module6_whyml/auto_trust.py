@@ -9,7 +9,7 @@ class AutoTrustMixin:
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _build_witness_str(field_names: List[str], vals: int, field_types: int=None, array_lengths: int=None) -> str:
+    def _build_witness_str(field_names: List[str], vals: int, field_types: int=None, array_lengths: int=None, array_elem_witnesses: int=None) -> str:
         return ""
 
     #@ requires True

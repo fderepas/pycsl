@@ -2701,7 +2701,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ requires True
     #@ ensures True
     #@ assigns self._fresh_var_counter, self._union_synth_cache, self.program_ir
-    def _normalize_union_annotation(self, ann_expr: ast.expr, scope_name: str) -> str:
+    def _normalize_union_annotation(self, ann_expr: ast.expr, scope_name: str, dedup: int=None) -> str:
         return ""
 
     # _is_final_annotation bool-recognizer increment (self-tcb-reduction M5, C-bucket):
@@ -2959,7 +2959,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ requires True
     #@ ensures True
     #@ assigns self._cur_literal_ensures, self._cur_literal_requires, self._fresh_var_counter, self._union_synth_cache, self.program_ir
-    def _m5_get_type_name(self, annotation: ast.expr, scope_name: str='', param_name: str='') -> str:
+    def _m5_get_type_name(self, annotation: ast.expr, scope_name: str='', param_name: str='', dedup: int=None) -> str:
         return ""
 
     # value-model campaign increment 7 (primitive #1 string-return wrapping + #2 tuple-unpack-

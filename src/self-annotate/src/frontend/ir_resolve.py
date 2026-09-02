@@ -242,6 +242,6 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: int, deep:
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def resolve(ir_data: int, validated_ast: _ast.AST, main_file: str, deep: bool=False) -> int:
+def resolve(ir_data: int, validated_ast: _ast.AST, main_file: str, deep: bool=False, import_paths: int=None) -> int:
     return set()
 

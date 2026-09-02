@@ -79,6 +79,6 @@ def emits_as_logic_symbol(func: LogicSymbolView) -> bool:
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def sort_functions_by_scc(functions: List[int]) -> Tuple[List[int], int]:
+def sort_functions_by_scc(functions: List[int], extra_concrete: int=None) -> Tuple[List[int], int]:
     return ([], {})
 

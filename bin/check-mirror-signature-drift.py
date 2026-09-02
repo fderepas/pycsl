@@ -38,7 +38,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 LIVE = os.path.join(ROOT, "src", "pycsl")
 
-BASELINE = 16          # 6 renames + 10 missing-parameter stubs, all `\trusted`.
+BASELINE = 11          # 16 -> 11 at #32: FIVE MISSING-parameter stubs repaired, so their
+                       # trusted INTERFACE now matches the live function again —
+                       # `scc.sort_functions_by_scc` (+extra_concrete),
+                       # `ir_resolve.resolve` (+import_paths),
+                       # `auto_trust._build_witness_str` (+array_elem_witnesses),
+                       # `Module5_IREmitter._m5_get_type_name` / `._normalize_union_annotation`
+                       # (+dedup). Residue 11 = 6 renames + 5 missing-parameter.
+                       # (was: 6 renames + 10 missing-parameter stubs, all `\trusted`.)
                        # A RATCHET — only lower it.
 
 

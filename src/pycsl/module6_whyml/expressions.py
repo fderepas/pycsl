@@ -3945,6 +3945,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         """True if an IR expression is string-typed: a literal, a string-producing op, or a
         `str`-typed variable. (strings-plan Stage 2 — used to route `+` to `concat`.)"""
         t = ir.get("type")
+        # (#32) `getattr(self, "<str field>", <default>)` IS `self.<field>`, and #32's
+        # `_lower_getattr` relaxation makes it LOWER as the real field — so it must be
+        # CLASSIFIED as one too. Without this the defensive read of a `str` field keeps the
+        # default int typing and `getattr(self, "_result_alias", None) or "result"` takes
+        # the int-truthiness `or` (`self._result_alias <> 0`, a string-vs-int rejection)
+        # instead of the exact string ITE the `||` path already owns. Same fail-closed gate
+        # as the lowering: `@mutable_state` class, literal attribute name, and the field's
+        # DECLARED type must be `str` -> byte-inert everywhere else.
+        if (t == "Call" and ir.get("func") == "getattr"
+                and 2 <= len(ir.get("args") or []) <= 3):
+            _ga = ir["args"]
+            if (isinstance(_ga[0], dict) and _ga[0].get("type") == "Var"
+                    and _ga[0].get("name") == "self"
+                    and isinstance(_ga[1], dict) and _ga[1].get("type") == "String"
+                    and getattr(self, "_current_self_type", None)
+                    in getattr(self, "_mutable_state_classes", set())
+                    and _ga[1].get("value") in getattr(self, "_all_record_fields", set())
+                    and self._self_field_py_type(_ga[1].get("value")) == "str"):
+                return True
         # #31 PATH MODEL: `<path>.parent` / `.stem` / `.name` / `.suffix` is itself a
         # path, hence a string; and so is `<path> / <path-or-name>`. Both are gated on
         # STRING-TYPED operands (see `_PATH_STR_ATTRS` for why that is fail-closed:
@@ -10030,7 +10049,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     and isinstance(default_ir, dict)
                     and (default_ir.get("type") == "String"
                          or self._self_field_py_type(name_ir.get("value"))
-                         in ("int", "bool"))):
+                         in ("int", "bool", "str"))):
                 # (#32) THE DEFAULT'S TYPE IS IRRELEVANT ONCE THE FIELD IS MODELLED.
                 # This branch used to fire only for a STRING default, so the two
                 # commonest spellings of the very same idiom — `getattr(self, "_f", None)`
