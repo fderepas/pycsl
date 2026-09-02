@@ -725,3 +725,4 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 03:56 #30 increment 3 WIP e177ea92: 458->456 (iter_child_nodes CLEAN + copy_location); 3 capabilities (dynamic setattr unification, computed hasattr name, generator -> int model annotation); all cheap gates green; proof running detached
 05:02 #30 increment 3 VERIFIED: 456 markers, pure_ast 3118/3118 Valid SUCCESS
 05:31 #30 increment 4 VERIFIED: 456->455 (_Inliner._fresh + 4 byte-inert string-model capabilities); ir_inline 358/358 Valid SUCCESS
+05:55 #30 trusted frame-honesty ratchet lowered 68->63
