@@ -769,3 +769,4 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 19:35 #33: NEW GATE PLANE check-dropped-mutation.py — 28165 stmts, 1 DROPPED (ratchet 1), the fail-open class made permanently visible
 19:44 #33: SECOND UNSOUNDNESS — extended slice x[lo:hi:step] drops the step, proved a false postcondition; REFUSED (census 0 everywhere, inert)
 19:48 #33: dropped-mutation gate gains CTXBIND (48, all mirror sites trusted); expression-handler sweep complete and recorded
+20:04 #33: BOUNDARY BROKEN — _ifexpr_seq_arm honest frame; converted-frame-honesty 1->0 model-visible, 99->98 total; BOTH frame planes now at zero
