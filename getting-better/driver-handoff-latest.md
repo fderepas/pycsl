@@ -270,6 +270,14 @@ that the other 271 are true.
    residue needs the empty-collection value-type inference anyway.
 6. The 16 mirror-signature drifts and the `TypedDict`-view device — unchanged from #31.
 
+## OPERATIONAL FACT #32 PAID FOR
+**Do not run more than TWO whole-file mirror proofs concurrently on this machine.** Each
+`pycsl.py --provers …` run ends with an internal VACUITY phase that re-proves every goal
+individually at `--timelimit 5`, and that phase is itself parallel — so four concurrent
+whole-file proofs put the 12-core box at load average 20 and every one of them slowed to a
+crawl (`pure_ast.py` sat in its vacuity phase for over two hours). Queue them
+sequentially in one detached `setsid` script, or at most two scripts.
+
 ## INSTRUMENT FACTS #32 ADDS
 1. `scratchpad/w5/l3sweep.sh <outdir>` — the ONLY L3-tc sweep to use (it exports the opam
    PATH; see lesson (bl)). Writes every mirror `.mlw` into `<outdir>` for byte-diffing.
