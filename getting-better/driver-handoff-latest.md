@@ -4,6 +4,44 @@
 # the honest ladder turned out to be the FRAME plane, where a `\trusted` stub's
 # `#@ assigns` was not merely assumed but UNOBSERVABLE.**
 
+## WHAT LANDED AFTER THE FIRST DRAFT OF THIS SECTION (same window, later)
+
+| plane | at first draft | at window end |
+|---|---|---|
+| trusted-frame-honesty | 19 / 0 | **19 / 0** |
+| converted-frame-honesty | 125 / 1 | **125 / 1** |
+| **mirror-signature-drift** | 16 (ratchet 16) | **0 (ratchet now a HARD 0)** |
+
+- **THE MIRROR-SIGNATURE-DRIFT PLANE IS AT ZERO.** All sixteen repaired: ten stubs MISSING
+  a live parameter (`_handle_dotted_call` +`arg_irs`, `_handle_join_call`
+  +`local_refs`/`invariant_ctx`/`subst`, `_handle_isinstance` +`local_refs`,
+  `_call_record_constructor` +`kwargs_map`/`kwargs_ir`, `_emit_first_assign` +`local_refs`,
+  `scc.sort_functions_by_scc` +`extra_concrete`, `ir_resolve.resolve` +`import_paths`,
+  `auto_trust._build_witness_str` +`array_elem_witnesses`, and both Module5_IREmitter
+  `dedup` stubs) and six pure RENAMES. The renames matter because they BLOCKED the
+  signature-preserving port: those six stubs could not be MEASURED at all. They now can be,
+  and the first measurement is recorded — all eight probe as L3TC-FAIL, four of them on
+  `int` vs `emit_ir`, confirming #31's spike. Ratchet 16 -> 0 and 0 is a HARD FLOOR.
+- **`getattr(self, "<str field>", …)` is STRING-TYPED** (`_is_string_expr`), fixing a third
+  wrong lowering: an `int_to_string (if (0 <> 0) || …)` where the alias name belonged. The
+  `dict`/`set` extension was MEASURED AND REFUSED in the same spike (breaks three files, on
+  the two residues already named).
+- **A `depends_method`/`requires_method` WINDOW MAY NOW DECLARE THE DEPENDENCY'S FRAME.**
+  The window accepted `requires`/`ensures` only, so a declared dependency was FRAMELESS BY
+  CONSTRUCTION and every method calling it could claim `assigns \nothing`. Wired through
+  weaver -> Module5 IR -> `_mixin_dep_pseudo_functions`, three doc surfaces, and corpus
+  witness `0968_requires_method_frame.py` with BOTH halves negative-tested.
+  **It is deliberately NOT yet used by the mirror, and the reason is a CERTIFIED
+  BOUNDARY:** annotating the `_seq_operand` requirement does give its avatar
+  `writes { _pyobj_state }` and Why3 then correctly rejects `_ifexpr_seq_arm`'s `\nothing`
+  — but the caller cannot then state an honest frame, because Why3 requires the declared
+  `writes` to be EXACTLY the model's effect while the live closure names ~20 fields the
+  model erases. Over-claim is rejected, under-claim is the direction #31 refused.
+  **REOPENING CAPABILITY: lower a declared `#@ assigns` to `writes { _pyobj_state }` PLUS
+  only the labels the model actually writes, decided as a FIXPOINT against Why3 rather
+  than read off the declaration.** That single rule closes the last model-visible offender
+  and is the natural successor to everything this window built.
+
 ## THE HEADLINE, STATED PLAINLY
 **There are no free conversions left.** The repaired whole-tree probe, re-run twice at
 HEAD, reports **1 CLEAN out of 446** — and that one is `_ContractParser._err`, which #31
