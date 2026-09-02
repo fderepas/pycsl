@@ -5709,3 +5709,30 @@ worth doing, but not as a marker item, and **the field set must be DERIVED PER S
 live body, not applied as the blanket 17 used for the spike**: an over-wide frame on a
 protocol stub propagates an unnecessarily wide frame into every converted caller and weakens
 their contracts for nothing. Not landed; the spike is reverted.
+
+### THE DEFINITIVE RANKED CENSUS (#31 end — repaired probe, all #31 capabilities in place)
+Only the top of the table is trustworthy before this point; every pre-#31 census was taken
+with the signature-discarding probe (see above).
+
+    39  int -> string                      (the residual string boundary)
+    28  int -> array
+    15  string -> int
+    14  int -> PyCSL_Program.emit_ir       <-- SEE BELOW, the cheapest-looking family
+    10  () -> int
+     9  int -> map ('mu -> option int)     (a dict where an int is expected)
+     8  array int @rho -> int
+     7  array string @rho -> int
+     5  syntax error · 5 py_classdef_node · 4 tuple pattern · 4 ref 'mu @rho
+     4  PARAM-LIST DIVERGES (the signature-drift gate's population)
+
+**`int` vs `emit_ir` (14 stubs) is the next thing to try, and it is cheap in principle.**
+The blocker is an INT flowing into a position that wants the certified IR-node ADT — i.e. a
+mirror stub whose parameter is NOT annotated `"ExprIR"` while the value really is an IR node.
+188 stubs already carry exactly that refinement, so the device is routine; what is NOT
+routine is the per-stub check that the value passed really is an IR node (an `"ExprIR"`
+annotation on something else is a FALSE model, not a conversion).
+The family: `statements._handle_assign_stmt` `._typed_local_vars` ·
+`expressions._e` `._to_bool` `._match_pattern_cond` `._handle_sum_call`
+`._content_string_method` · `Module5_IREmitter._get_mutex_invariant_ir` `._csl_in`
+`._csl_list_to_ir` `._py_expr_fstring` `._py_stmts_to_ir` `._normalize_union_annotation`
+(also signature-drifted) · `Module3_Weaver._desugar_acts` · `pure_ast._Parser.node`.
