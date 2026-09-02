@@ -181,19 +181,28 @@ TOTAL_RATCHET = 0     # 63 -> 82 at #31 by the SHARPER DETECTOR; 82 -> 28 -> 19 
                       # THE HONEST CAVEAT, unchanged: the closure can still
                       # UNDER-approximate (the #31 `_walk_body` blind spot), so 0 means
                       # "nothing KNOWN false", not "every declaration proven true".
-CONVERTED_RATCHET = 1         # 2 -> 4 at #31 by the SHARPER DETECTOR (the `_add_abstract_op`
+CONVERTED_RATCHET = 0         # 2 -> 4 at #31 by the SHARPER DETECTOR (the `_add_abstract_op`
                               # subscript store); 4 -> 1 at #32 by GIVING THE TWO
                               # `_add_abstract_op` CROSS-MIXIN PROTOCOL STUBS THEIR HONEST
                               # `#@ assigns self._abstract_ops, self._obj_state_written`
                               # and driving the caller frames to a FIXPOINT against Why3's
-                              # own error text (6 iterations on `statements.py`). The
-                              # remaining ONE is `expressions._ifexpr_seq_arm`: in
-                              # `expressions.py` the mirror's `ExpressionEmissionMixin`
-                              # does not emit `_abstract_ops` as a record field label, so
-                              # `_writes_filtered_to_labels` drops it and the caller-side
-                              # avatar carries no frame at all -- see the #32 handoff's
-                              # AVATAR FRAME finding for the reopening capability.
-CONVERTED_TOTAL_RATCHET = 99  # 68 -> 133 at #31 by the SHARPER DETECTOR; 133 -> 99 at #32
+                              # own error text (6 iterations on `statements.py`).
+                              # **1 -> 0 at #33**, and the plane is now at its floor in BOTH
+                              # populations. The last one was `expressions._ifexpr_seq_arm`,
+                              # recorded by #32 as a CERTIFIED BOUNDARY. It was not one: #32
+                              # built the capability that closes it — a `requires_method` /
+                              # `depends_method` window may DECLARE THE DEPENDENCY'S FRAME —
+                              # and then deliberately did not use it, on the reasoning that
+                              # Why3 would demand the declared `writes` be EXACTLY the
+                              # model's effect while the live closure names ~20 fields the
+                              # model erases. That reasoning was superseded by the label
+                              # FILTER the same window put in: writing the honest 22-field
+                              # `#@ assigns` on BOTH the window and the method leaves the
+                              # SIX that the record actually labels, the avatar declares
+                              # exactly those, and Why3 accepts it. The `writes {  }` it
+                              # replaces was the false claim.
+CONVERTED_TOTAL_RATCHET = 98  # 68 -> 133 at #31 by the SHARPER DETECTOR; 133 -> 99 at #32;
+                              # 99 -> 98 at #33 (`_ifexpr_seq_arm`)
                               # (the three `statements.py` callers above). Every offender
 LIVE_ROOT = "src/pycsl"
 MIRROR_ROOT = "src/self-annotate/src"
