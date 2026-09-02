@@ -46,7 +46,11 @@ MARKERS (the facade-detector list this campaign has paid for)
 Usage:  bin/probe-conversion-candidates.py <mirror.py> [Class:name | name ...]
         (no candidates => every `\trusted` stub in the file)
 """
-import ast, os, re, subprocess, sys
+import ast, os, re, subprocess, sys, textwrap
+
+
+def _textwrap_dedent(t):
+    return textwrap.dedent(t)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIRROR_ROOT = os.path.join(ROOT, "src/self-annotate/src")
@@ -220,6 +224,38 @@ def probe(name, cls):
         if kind == "val":
             return name, "VAL(re-abstracted)", []
         found = [d for rx, d in MARKERS if re.search(rx, blk)]
+        # YIELD ERASURE (#31). Module 6 has no generator model: `yield <v>` lowers to
+        # `let _ = 0 in ()` and the surrounding `def` is emitted as an ordinary function,
+        # so a generator's ENTIRE meaning — the sequence it produces — vanishes while the
+        # emitted body still looks like real work. `pure_ast.iter_child_nodes` was banked
+        # as a conversion in relaunch #30 in exactly that state, and NOTHING in this
+        # marker list saw it. Structural, from the LIVE source: a value-carrying `yield`
+        # whose emitted counterpart is `unit`-returning or contains the dropped-value
+        # placeholder. The gate that ENFORCES this is `bin/check-yield-erasure.py`; this
+        # marker keeps a generator from ever being reported CLEAN here first.
+        try:
+            _lt = ast.parse(body if body.startswith("def") else _textwrap_dedent(body))
+        except Exception:
+            _lt = None
+        if _lt is not None:
+            _vy = 0
+            for _fn in _lt.body:
+                if not isinstance(_fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                _stack = list(_fn.body)
+                while _stack:
+                    _n = _stack.pop()
+                    if isinstance(_n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                        continue
+                    if isinstance(_n, ast.Yield) and _n.value is not None:
+                        _vy += 1
+                    elif isinstance(_n, ast.YieldFrom):
+                        _vy += 1
+                    for _c in ast.iter_child_nodes(_n):
+                        _stack.append(_c)
+            if _vy and (blk.split("\n")[0].rstrip().endswith(": unit")
+                        or "let _ = 0 in ()" in blk):
+                found.append(f"YIELD ERASURE ({_vy} value-yield(s) dropped)")
         # RESULT ERASURE (the defect the marker list missed on `_import_as_name` /
         # `_dotted_as_name`): the body computes its locals faithfully and then RETURNS A
         # BARE LITERAL, because the source's `return <constructed value>` had no lowering.
