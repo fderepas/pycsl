@@ -291,7 +291,26 @@ def _probe_emit(name, cls, orig, new, sig_note):
                        and not re.match(r"^\s*(This expression has type|This pattern has type|"
                                         r"This function |Error:)", _ls[j])):
                     j -= 1
-                tail = [" ".join(l.strip() for l in _ls[j:i + 1])]
+                # ...and FORWARD too. why3 also wraps the TAIL of a message, so a long
+                # expected-type name lands on the next line and the paragraph ends with a
+                # dangling `... but is expected to have type PyCSL_Program.` — which is
+                # exactly the shape of the record family, 23 verdicts on the 2026-09-02
+                # census, all of them unreadable. Extend while the text is visibly
+                # unfinished (ends with `type`, or with a dotted module qualifier), never
+                # past a `File "…"` locator, a `Warning`, or a pipeline `[*]` line.
+                k = i
+                while (k + 1 < len(_ls) and k - i < 2):
+                    _acc = " ".join(l.strip() for l in _ls[j:k + 1])
+                    if not (_acc.endswith("type") or _acc.endswith(".")
+                            or _acc.endswith("have type type")):
+                        break
+                    _nxt = _ls[k + 1].lstrip()
+                    if (_nxt.startswith('File "') or _nxt.startswith("Warning")
+                            or _nxt.startswith("[*]") or _nxt.startswith("[!]")
+                            or _nxt.startswith("[+]") or _nxt.startswith("[level]")):
+                        break
+                    k += 1
+                tail = [" ".join(l.strip() for l in _ls[j:k + 1])]
             else:
                 tail = _ls[-1:]
             return name, "L3TC-FAIL", sig_note + tail
