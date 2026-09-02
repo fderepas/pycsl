@@ -719,3 +719,4 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 22:54 #30 increment 1 committed: 462->458 (visit_FormattedValue, _function_helper, _type_params_helper, fill); all cheap gates green; whole-file proof starting
 23:09 #30 instrument repair: shadowed-selfcalls blind to public methods; 6 _Unparser hubs made sibling_concrete (224 call sites now concrete); proof starting
 23:40 #30 proof of pure_ast.py running 20+ min under Z3 (concrete write/traverse hubs make it much heavier than the 9-min Alt-Ergo-only pass); tree clean at 39c576c5
+00:58 #30 pure_ast proof re-launched DETACHED (setsid; the harness killed the first attempt at ~1h); Z3 phase 29 min. Meanwhile: _decl_arity emitter bug diagnosed + both tie-breaks measured in an isolated worktree (arity fix alone is corpus-byte-inert; keep-first REFUTED)
