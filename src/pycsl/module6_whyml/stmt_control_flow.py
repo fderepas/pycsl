@@ -736,6 +736,21 @@ class ControlFlowStmtMixin:
             self._for_iter_materialize = ("_fp", iter_expr)
             self._pyast_loop_variant_len = "(Seq.length _fp)"
             return "(Seq.length _fp)", f"(Seq.get _fp !{idx})", False
+        # (#31) A REFLECTED NODE LIST IS A REAL ARRAY, not an opaque iterable.
+        # `for elt in <emit_ir>.get("elts", [])` lowers its iterable to `(args_of val_ir)`,
+        # whose type is `array emit_ir`; the opaque `iter_length`/`iter_get` (both
+        # `int -> int`) then met it and the body failed L3-tc at its very first loop —
+        # measured as the blocker on `statements._emit_array_local_reassign` once the
+        # signature-preserving probe let its `val_ir: "ExprIR"` annotation reach the
+        # emitter at all. Use `Array.length` and the real subscript.
+        # MATERIALISED ONCE, for exactly the reason `_formal_params` is above: `args_of`
+        # is a `val`, so re-reading it in the loop BOUND and again in the ELEMENT read
+        # gives two unrelated arrays and the termination measure is not stable.
+        _nl_expr = self._emit_ir_array_iter_expr(iter_ir, local_refs)
+        if _nl_expr is not None:
+            self._for_iter_materialize = ("_nl", _nl_expr)
+            self._pyast_loop_variant_len = "(Array.length _nl)"
+            return "(Array.length _nl)", f"_nl[!{idx}]", False
         if not self._value_semantic:
             iter_expr = self._expr_to_whyml(iter_ir, local_refs)
             return f"{iter_expr}_len", f"Map.get !{self._heap_var} ({iter_expr} + !{idx})", False
@@ -743,6 +758,27 @@ class ControlFlowStmtMixin:
         self._add_abstract_op("val iter_length (x: int) : int")
         self._add_abstract_op("val iter_get (x: int) (i: int) : int")
         return f"(iter_length {iter_expr})", f"(iter_get {iter_expr} !{idx})", False
+
+    # The emit_ir reflection projectors whose result is a WhyML `array` (`args_of` ->
+    # `array emit_ir`, the stmt-list readers -> `array int`). Everything else in
+    # `_EMIT_IR_PROJ` yields a scalar or a single sub-node.
+    _EMIT_IR_ARRAY_PROJ = ("args_of", "stmts_of", "orelse_stmts_of")
+
+    def _emit_ir_array_iter_expr(self, iter_ir, local_refs):
+        """The lowered iterable when it is a REFLECTED NODE LIST (an `array`), else None.
+
+        Decided from the EMITTED TERM's head rather than from the IR shape, because the
+        same array can be reached through `.get("elts", [])`, `["elts"]`, an `or []`
+        default and the scoped per-handler key overrides — all of which already agree on
+        the projector they emit. Fail-closed: any other head keeps the opaque
+        `iter_length`/`iter_get` path byte-identically."""
+        if not isinstance(iter_ir, dict):
+            return None
+        e = self._expr_to_whyml(iter_ir, local_refs)
+        for proj in self._EMIT_IR_ARRAY_PROJ:
+            if e.startswith("(" + proj + " "):
+                return e
+        return None
 
     def _string_char_iter(self, iter_ir: Dict[str, Any], target: str,
                           tuple_targets: Optional[List[str]],
