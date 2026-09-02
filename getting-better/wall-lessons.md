@@ -4520,3 +4520,90 @@ about what the emitter would do.
 The stopping rule stays lesson (ca): stop when the next thing in the way is that the
 converted body would CLAIM something false. That is a soundness boundary, not a cost one,
 and it is where a decline is the right answer no matter how much budget is left.
+
+
+## (cd) A GREEN FROM A TOOL THAT ISN'T INSTALLED IS NOT A GREEN
+
+`why3` is NOT on this machine's default PATH; it lives in `/home/fabrice/.opam/framac-coq8/bin`.
+And `pycsl.py::_why3_typecheck` — by deliberate, correct design — returns
+`(True, "(why3 not found — typecheck skipped)")` when the binary is missing, so that an absent
+prover is never reported as a typecheck FAILURE.
+
+Compose the two and every L3-tc sweep run from a bare shell prints `L3-tc ✓` for a file that
+does not type-check. Relaunch #32 wrote such a sweep, believed it across three increments, and
+caught it only because `bin/probe-conversion-candidates.py` sets that PATH itself and
+disagreed with the hand-rolled sweep about the SAME file. The three increments turned out to be
+sound anyway — but that was luck, not method.
+
+Two rules follow, and the second is the general one:
+
+**Any sweep that claims a prover verdict must put the prover on PATH itself, not inherit it.**
+`scratchpad/w5/l3sweep.sh` exports it in line 3. A gate that depends on an external binary
+should either export its own PATH or FAIL when the binary is absent — never fall through to the
+tool's own "absent means skip" convenience.
+
+**And `--keep-mlw` keeps the `.mlw` even when the run FAILED,** so "a `.mlw` appeared" is
+evidence of nothing. The #32 sweep used exactly that test. Check the verdict LINE, and check
+that the verdict line can only be printed when the check actually ran.
+
+This is the same family as (bd) — a measurement instrument is a claim — but the failure mode is
+sharper: here the instrument was not broken, the ENVIRONMENT was, and the instrument's
+best-practice behaviour (do not punish a missing optional tool) is exactly what converted the
+environment fault into a false green.
+
+
+## (ce) A `\trusted` STUB'S `#@ assigns` CAN BE UNOBSERVABLE, NOT MERELY ASSUMED
+
+The whole point of `bin/check-trusted-frame-honesty.py` is that a `\trusted` stub's frame is
+ASSUMED and never checked, so a false one is an unsoundness no proof plane can see. Relaunch
+#32 found the sharper version of that: for many stubs the declared frame is not even ASSUMED —
+it is DISCARDED before it reaches any caller.
+
+The route: `_writes_filtered_to_labels` keeps only `#@ assigns` targets the emitted record
+carries as a field LABEL. When that filter empties the set, `field_spec` stays `None`, and the
+caller-side avatar is minted as a bare `val self__<m>_<n> (x0: …) : unit` — no receiver, no
+`writes`. MEASURED EXACTLY, on one method, two files: giving `expressions.py`'s
+`_add_abstract_op` protocol stub its honest `#@ assigns` left the whole emitted `.mlw`
+BYTE-IDENTICAL, while the same edit in `statements.py`, where the label IS emitted, produced
+
+    val self__add_abstract_op_1 (self: statementemissionmixin) (x0: string) : unit
+      writes { self._abstract_ops }
+
+and forced six callers to declare the truth.
+
+**So "repair the N false frames" is not a work item until you have checked that repairing one
+CHANGES THE EMITTED TEXT.** The repair that matters came first: the avatar must carry
+`writes { _pyobj_state }` whenever the callee declares an `assigns` the record cannot label —
+the caller-side twin of a rule `functions._emit_function` had applied to a method's OWN
+definition for two windows. Its blast radius was 1 of 52 mirrors. With it in place, writing the
+honest frame on 54 stubs took the plane from 82 to 19.
+
+The general form: **before repairing a declaration, emit the file twice and diff. A declaration
+that changes no byte is not a claim the model makes.**
+
+
+## (cf) THE FIDELITY PLANE PRICES WHERE A CAPABILITY MAY LIVE, NOT WHETHER IT IS SOUND
+
+#32 built the `dict`/`set` half of the `getattr(self, "<field>", <default>)` capability and
+measured it fully green: 52/52 mirrors L3-tc, corpus byte-diff 0, and the
+`computed-rhs-erasure` plane 5 -> 3. It was then REVERTED, and not for any of those reasons.
+
+One of its three rules had to live in `types._rhs_yields_map`, which is a CONVERTED mirror
+method. `check-self-annotate-mirror-sync` requires a converted method's mirror body to be a
+verbatim copy of the live one — so the live change has to be copied into the mirror, and the
+copied body does not type-check THERE: the mirror's refined `val_ir: "ExprIR"` signature
+reflects `.get("args")` to `args_of : array emit_ir`, so indexing it yields an `emit_ir` where
+an `int` is wanted. DIVERGED went 2 -> 3, which is a fidelity FAILURE, not a ratchet.
+
+**A capability's cost includes WHICH FUNCTION it has to live in.** An emitter change inside a
+`\trusted`-stubbed method is free to the mirror (lesson: `_add_abstract_op` and
+`_handle_expr_stmt` are why several #30-#32 capabilities were cheap); the same change inside a
+CONVERTED method costs a mirror body that must itself type-check and prove. Check the host's
+trust status BEFORE writing the rule, not after the gate rejects it.
+
+The companion half is that the same commit's OTHER rule — faithful map truthiness — needed no
+`_rhs_yields_map` change and was kept, and it turned out to be the more valuable one: `_to_bool`
+had been returning the CONSTANT `true` for an hval-map local, so `not vinfo` lowered to
+`not true` = false and the guarded path was DEAD IN THE MODEL. `map_nonempty`, a `val function`
+whose postcondition is the exact `exists k. m[k] <> None`, made two such branches live again
+with no axiom. **Splitting a refuted increment is usually cheaper than defending it.**
