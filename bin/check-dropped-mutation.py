@@ -69,7 +69,18 @@ lowering never mention?
     the semantic residue is ZERO — what is left is `ForStmt.line`, `ForStmt.lineno`,
     `ForStmt.allow_iteration_mutation` and `WhileStmt.line`, all metadata.
 
-NOT YET SWEPT THIS WAY: Module 3's `#@` attachment.
+  DIRECTIVE WIRING (all 61 `#@` names in `test-suite/annotations.md`, checked against
+    grammar / weaver / Module 5 / `core_ir_semantic` / Module 6): **no directive is
+    parsed-but-inert.** Every name absent from a late stage is a FRONT-END check that
+    legitimately never reaches the IR, and the two that look most like holes were traced
+    to their consumers: `allow_finalizer` is the UB-7.5 escape and BOTH the check and the
+    escape live in `Module3_Weaver.visit_ClassDef`; `allow_iteration_mutation` is the
+    UB-7.1 escape, checked in the `pycsl.py` driver via
+    `IRScanner.find_iteration_mutations`, which reads the flag off the IR statement. So
+    Module 6's `_handle_for_stmt` not reading that field is correct, not a drop.
+
+NOT YET SWEPT THIS WAY: Module 3's `#@` ATTACHMENT itself (which `#@` block binds to which
+AST node), which is a different question from directive wiring.
 
 SCOPE. The four populations that are actually verified or mirrored: the reference corpus,
 the self-annotation mirror, `src/pycsl_lib`, and the LIVE emitter — the last one because
