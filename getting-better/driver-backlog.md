@@ -34,6 +34,46 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #32 STATE UPDATE (2026-09-02) — READ BEFORE PICKING AN ITEM
+
+**ZERO free conversions remain.** The repaired whole-tree probe, re-run twice at HEAD,
+reports **1 CLEAN of 446**, and that one (`_ContractParser._err`) was already refuted on
+the non-vacuity plane at #31. Item 1 ("cheap drain") is EMPTY; do not spend a window
+re-running it expecting a yield. Every remaining marker needs a NEW CAPABILITY.
+
+**THE HONEST LADDER IS NOW THE FRAME PLANE**, and it moved further in one window than the
+marker count has in three: `check-trusted-frame-honesty` went **82 -> 19** and the
+converted population **133 -> 125 / model-visible 4 -> 1**. What unlocked it was the
+discovery that a `\trusted` stub's `#@ assigns` was UNOBSERVABLE — every call site routes
+through an arity-suffixed AVATAR that was minted with no frame — and the capability that
+fixes it (the avatar carries `writes { _pyobj_state }` when the callee declares an assigns
+the record cannot label). See the #32 handoff.
+
+**NEXT ITEMS, in order, all pre-authorized and none needing a new idea:**
+  0. finish the honest-frames pass on `pure_ast.py` (19 -> ~0); tools written
+     (`scratchpad/w5/honest_trusted_frames.py`, `scratchpad/w5/framefix3.py`);
+  1. `expressions._ifexpr_seq_arm`, the last model-visible converted offender — its
+     callee's declared frame is still an UNDER-claim of the live closure;
+  2. the three named residues of the `getattr(self, "<field>", <default>)` capability:
+     map-typed and string-typed field TRUTHINESS in `_to_bool`, and first-assign local
+     kind inference seeing through `getattr`. Each closes one of the five remaining
+     `computed-rhs-erasure` offenders.
+  3. `proof2why3`'s `term` family (9 stubs) — a genuine COST/SCALE boundary, NOT a floor:
+     it needs a GENERAL ADT-value lowering (constructor calls, `list term` locals,
+     record-vs-ADT), not the spec-driven generator that produced `_flip_comparisons`.
+
+**DEMOTED BY MEASUREMENT: `<x> or []`.** It IS a wrong lowering rule, but a fresh emission
+of all 52 mirrors contains **ZERO** occurrences of the boolean-collapse shape — all 56
+converted methods containing `or []` already route through the pyval / emit_ir / closed-key
+recognizers. It is a BLOCKER for 58 trusted stubs, not a live defect in the proved
+population. Treat it as a capability item, not as a correctness emergency.
+
+**MANDATORY (lesson (bl)): every L3-tc sweep must run with
+`/home/fabrice/.opam/framac-coq8/bin` on PATH.** `why3` is NOT on the default PATH and
+`pycsl.py` prints `L3-tc ✓` when why3 is absent, so a sweep from a bare shell is a FALSE
+GREEN. Use `scratchpad/w5/l3sweep.sh`.
+
+
 1. **Cheap drain (always first, §P).** Any `\trusted` stub a fresh census rates `cheap_win==true`.
    Re-run after every wall breaks (a break may unlock cheap follow-ons).
 
