@@ -5697,3 +5697,15 @@ The rest want the frame their live body has.
 relaunch-#19 Why3-error-text loop). Each stub that gains a real frame cascades to its
 converted callers; `_expr_to_whyml` cascaded to 9 of them across 3 files and converged in ONE
 iteration per file. PRICE per stub: a whole-file re-proof of each affected mirror.
+
+**MEASURED (#31), so the item above is priced honestly:** extending the frame to the OTHER
+twelve no-`#@ assigns` protocol stubs (`_coerce_to_int`, `_to_bool`, `_is_string_expr`,
+`_is_emit_ir_expr`, `_e`, `_handle_return_stmt`, `_resolve_dotted_signature`,
+`_expr_to_whyml_string_ctx`, `_maybe_emit_no_exception_assert`, `_mutex_inv_application`,
+`_seq_init_expr`) with the same field set CONVERGES (2 further fixpoint iterations, adding
+`_call_returns_string_collection` and `_dv_store_value`) and yields **ZERO additional
+conversions**. It is therefore an HONESTY-ONLY change costing three whole-file re-proofs —
+worth doing, but not as a marker item, and **the field set must be DERIVED PER STUB from its
+live body, not applied as the blanket 17 used for the spike**: an over-wide frame on a
+protocol stub propagates an unnecessarily wide frame into every converted caller and weakens
+their contracts for nothing. Not landed; the spike is reverted.
