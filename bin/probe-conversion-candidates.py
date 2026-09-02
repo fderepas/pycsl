@@ -73,7 +73,15 @@ MARKERS = [
     (r"hasattr_check ", "hashed attribute name"),
 ]
 
-def live_src(name, cls):
+def _param_names(fn):
+    a = fn.args
+    return ([x.arg for x in a.posonlyargs] + [x.arg for x in a.args]
+            + ([a.vararg.arg] if a.vararg else [])
+            + [x.arg for x in a.kwonlyargs]
+            + ([a.kwarg.arg] if a.kwarg else []))
+
+
+def _find_live_fn(name, cls):
     src = open(LIVE).read(); lines = src.split("\n"); t = ast.parse(src)
     scopes = [t] + [n for n in ast.walk(t) if isinstance(n, ast.ClassDef)]
     for sc in scopes:
@@ -82,9 +90,40 @@ def live_src(name, cls):
         if cls is None and isinstance(sc, ast.ClassDef):
             continue
         for m in sc.body:
-            if isinstance(m, ast.FunctionDef) and m.name == name:
-                return "\n".join(lines[m.lineno-1:(m.body[-1].end_lineno or m.lineno)])
-    return None
+            if isinstance(m, (ast.FunctionDef, ast.AsyncFunctionDef)) and m.name == name:
+                return m, lines
+    return None, lines
+
+
+def live_src(name, cls):
+    """The live `def` line(s) PLUS body, as one block (the legacy whole-def port)."""
+    m, lines = _find_live_fn(name, cls)
+    if m is None:
+        return None
+    return "\n".join(lines[m.lineno - 1:(m.body[-1].end_lineno or m.lineno)])
+
+
+def live_body(name, cls):
+    """(body_text, param_names) — the live body WITHOUT its `def` header.
+
+    HARNESS FIX (#31), and it is the largest one this instrument has had. The port
+    replaced the mirror's `def` line with the LIVE one, DISCARDING the mirror's signature.
+    But the mirror's signature is not decoration: 188 of 466 `\trusted` stubs (40%) carry a
+    REFINED model annotation the live source does not have — `val_ir: "ExprIR"` where live
+    says `Dict[str, Any]`, `node: "Name"`, `rec: Dict[str, PyVal]` where live says `dict`,
+    `-> "List[ExprIR]"` where live has no return annotation at all. Those annotations are
+    exactly what selects the emit_ir reflection, the record projection and the typed return,
+    and a REAL conversion keeps them (it deletes the `#@ \trusted` line and swaps the body,
+    it does not rewrite the signature). By porting the live header the probe measured a
+    DIFFERENT function from the one a conversion produces — and it measured it as the
+    un-annotated, int-erased one, i.e. systematically HARDER. Every `Map.get val_ir "type"`
+    verdict in the 2026-09-02 census is an artefact of this."""
+    m, lines = _find_live_fn(name, cls)
+    if m is None:
+        return None, None
+    start = m.body[0].lineno - 1
+    end = m.body[-1].end_lineno or m.lineno
+    return "\n".join(lines[start:end]), _param_names(m)
 
 def stub_span(mirror_src, name, cls):
     r"""Locate the `\trusted` stub for `cls.name` in the mirror, AST-first.
@@ -134,7 +173,13 @@ def stub_span(mirror_src, name, cls):
         return None
     kept.reverse()
     end = (target.end_lineno or target.lineno) - 1
-    return marker, end, kept
+    # The mirror's own `def` header — from the `def` line through the last line before the
+    # first body statement — and its parameter names. Kept verbatim by the port so the
+    # mirror's MODEL ANNOTATIONS survive (see `live_body`).
+    hdr_start = target.lineno - 1
+    hdr_end = target.body[0].lineno - 1          # exclusive
+    header = lines[hdr_start:hdr_end]
+    return marker, end, kept, header, _param_names(target), hdr_start
 
 
 MARKER_RE = re.compile(r"^#@\s*\\trusted\b")
@@ -148,9 +193,33 @@ def probe(name, cls):
     span = stub_span(orig, name, cls)
     if span is None:
         return name, "NO-TRUSTED-STUB", []
-    marker_i, end_i, kept = span
+    marker_i, end_i, kept, m_header, m_params, hdr_i = span
     lines = orig.split("\n")
     ind = lines[marker_i][:len(lines[marker_i]) - len(lines[marker_i].lstrip())]
+    # (#31) SIGNATURE-PRESERVING PORT. Keep the MIRROR's `def` header (its model
+    # annotations select the emit_ir reflection, the record projection and the typed
+    # return) and splice in the LIVE BODY — which is exactly what a real conversion does.
+    # Requires the two parameter LISTS to agree; when they do not, the mirror stub is a
+    # different function from the live one and the honest report is the legacy whole-def
+    # port, flagged so the divergence is visible rather than silent.
+    _lbody, _lparams = live_body(name, cls)
+    _sig_note = []
+    if _lbody is not None and _lparams is not None and _lparams == m_params:
+        _hind = m_header[0][:len(m_header[0]) - len(m_header[0].lstrip())]
+        _bl = _lbody.split("\n")
+        _bind = _bl[0][:len(_bl[0]) - len(_bl[0].lstrip())] if _bl else ""
+        _want = _hind + "    "
+        _bodyp = "\n".join((_want + l[len(_bind):] if l.startswith(_bind)
+                            else _want + l.lstrip()) if l.strip() else l
+                           for l in _bl)
+        ported = "\n".join([(ind + h[len(_hind):] if h.startswith(_hind) else ind + h.lstrip())
+                            for h in m_header]
+                           + [(ind + l[len(_hind):] if l.startswith(_hind) else l)
+                              for l in _bodyp.split("\n")])
+        new = "\n".join(lines[:marker_i] + kept + ported.split("\n") + lines[end_i + 1:])
+        return _probe_emit(name, cls, orig, new, _sig_note)
+    if _lparams is not None and _lparams != m_params:
+        _sig_note = [f"PARAM-LIST DIVERGES mirror={m_params} live={_lparams}"]
     # HARNESS BUG, FOUND AND FIXED 2026-09-01 (#29). The re-indentation stripped a FIXED
     # four spaces from every body line and then prefixed the MIRROR stub's indentation.
     # For a METHOD (mirror `ind` = 4 spaces, live body indented 4) that is the identity.
@@ -169,6 +238,11 @@ def probe(name, cls):
                        if l.strip() else l
                        for l in _blines)
     new = "\n".join(lines[:marker_i] + kept + ported.split("\n") + lines[end_i + 1:])
+    return _probe_emit(name, cls, orig, new, _sig_note)
+
+
+def _probe_emit(name, cls, orig, new, sig_note):
+    body = live_src(name, cls) or ""
     try:
         open(MIRROR, "w").write(new)
         env = dict(os.environ, PATH="/home/fabrice/.opam/framac-coq8/bin:" + os.environ["PATH"],
@@ -211,7 +285,7 @@ def probe(name, cls):
                 tail = [" ".join(l.strip() for l in _ls[j:i + 1])]
             else:
                 tail = _ls[-1:]
-            return name, "L3TC-FAIL", tail
+            return name, "L3TC-FAIL", sig_note + tail
         txt = open(MLW).read() if os.path.exists(MLW) else ""
         pat = re.compile(r"^  (let(?: rec)?(?: function)?|val)\s+([A-Za-z0-9_]+)[^\n]*\n(?:(?!^  (?:let|val|type|exception|axiom|goal|lemma)\b).*\n)*", re.M)
         blk = None; kind = None
@@ -220,10 +294,10 @@ def probe(name, cls):
             if n == name or n.endswith("_" + name) or n.endswith(name):
                 kind, blk = m.group(1), m.group(0); break
         if blk is None:
-            return name, "ABSENT", []
+            return name, "ABSENT", sig_note
         if kind == "val":
-            return name, "VAL(re-abstracted)", []
-        found = [d for rx, d in MARKERS if re.search(rx, blk)]
+            return name, "VAL(re-abstracted)", sig_note
+        found = list(sig_note) + [d for rx, d in MARKERS if re.search(rx, blk)]
         # YIELD ERASURE (#31). Module 6 has no generator model: `yield <v>` lowers to
         # `let _ = 0 in ()` and the surrounding `def` is emitted as an ordinary function,
         # so a generator's ENTIRE meaning — the sequence it produces — vanishes while the
