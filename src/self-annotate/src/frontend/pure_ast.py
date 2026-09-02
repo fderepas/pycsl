@@ -4341,7 +4341,6 @@ class _Unparser(NodeVisitor):
     def get_type_comment(self, node) -> int:
         pass
 
-    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

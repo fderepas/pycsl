@@ -720,3 +720,4 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 23:09 #30 instrument repair: shadowed-selfcalls blind to public methods; 6 _Unparser hubs made sibling_concrete (224 call sites now concrete); proof starting
 23:40 #30 proof of pure_ast.py running 20+ min under Z3 (concrete write/traverse hubs make it much heavier than the 9-min Alt-Ergo-only pass); tree clean at 39c576c5
 00:58 #30 pure_ast proof re-launched DETACHED (setsid; the harness killed the first attempt at ~1h); Z3 phase 29 min. Meanwhile: _decl_arity emitter bug diagnosed + both tie-breaks measured in an isolated worktree (arity fix alone is corpus-byte-inert; keep-first REFUTED)
+02:07 #30: sibling_concrete on traverse REFUTED — 124 unproven goals, all Sub-goal termination (concrete routing makes traverse/visit/visit_<Node> one mutually recursive group with no measure). Reverted traverse only; shadowed re-baselined 13(broken regex)->14(repaired). Re-proof running.

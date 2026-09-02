@@ -39,7 +39,25 @@ import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
-BASELINE = 13          # 55 at first measurement, 50 after the `array <t>` concrete-
+BASELINE = 14          # (relaunch #30) RE-BASELINED because the ANALYSIS GOT SHARPER, the
+                       # one condition under which this number may rise. The `_VAL` regex
+                       # required TWO underscores after `self`, so it only ever saw the
+                       # avatar of a method whose OWN NAME starts with `_`; every
+                       # PUBLIC-named method was invisible. On the tree this constant was
+                       # last set against, the repaired regex reports 19 methods and 257
+                       # bypassing call sites, not 13 and 33 — `self_write_1` (97 uses) and
+                       # `self_traverse_1` (88) had been converted AND PROVED with no caller
+                       # able to see anything their bodies compute.
+                       # 19 -> 14 in the same increment, via `#@ sibling_concrete` on
+                       # `write`, `fill`, `maybe_newline`, `do_visit_try` and
+                       # `visit_FormattedValue` (121 bypassing sites, down from 257).
+                       # `traverse` is the one that CANNOT take it: concrete routing makes
+                       # `traverse`/`visit`/`visit_<Node>` one mutually recursive group and
+                       # Why3 then demands a measure the int model cannot supply — measured,
+                       # 124 unproven goals, EVERY ONE of them `Sub-goal termination`.
+                       # Historical trail below is against the BROKEN regex; only the
+                       # relative movements are meaningful.
+                       # 55 at first measurement, 50 after the `array <t>` concrete-
                        # sibling capability landed (relaunch #9), 43 after the first
                        # `#@ sibling_concrete` marker wave (relaunch #10: `_deref` and its
                        # 28 call sites, `_rhs_yields_array`, and five ExpressionEmissionMixin
