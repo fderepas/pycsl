@@ -5651,3 +5651,29 @@ capability 11 · EVERY-RHS-STRING-TYPED local as a FIXPOINT · STRING SUBSCRIPT 
 `str_sub_op s i 1` · the `os.path` model split by DETERMINISM (pure `val function` vs
 cwd/`$HOME`-reading plain `val` vs filesystem predicates) with a `splitext(p)[k]` slot
 recognizer.
+
+### NEW LIVE ITEM (#31, PRICED AND MEASURED) — the CROSS-MIXIN PROTOCOL-STUB FRAME FIXPOINT
+**The blocker it removes.** Why3 REJECTS an over-claimed `writes` ("this write effect does
+not happen in the expression"). A converted method whose live body writes emitter state ONLY
+THROUGH a `\trusted` cross-mixin protocol stub therefore cannot state its honest frame: the
+stub's `val` declares no writes, so the converted body writes nothing in the MODEL while its
+`#@ assigns` (derived from the LIVE transitive closure) lists seventeen fields. Measured on
+`statements._emit_array_local_reassign`, which is otherwise CLEAN.
+Narrowing the caller to `#@ assigns \nothing` makes it CLEAN — measured — and is REFUSED:
+`assigns` is an upper bound on effects, so under-claiming is the dangerous direction, and it
+would move an existing dishonesty out of the counted trusted-63 into the converted population.
+
+**The build.** Give the cross-mixin protocol stubs — `_expr_to_whyml` first, then
+`_coerce_to_int`, `_to_bool`, `_stmts_to_whyml`, `_e`, … — the `#@ assigns` their LIVE bodies
+actually have. MEASURED CASCADE: the write then exists in the model and every CONVERTED
+caller must list it exactly. **33 converted callers**: `module6_whyml/expressions.py` 22 ·
+`module6_whyml/statements.py` 6 · `module6_whyml/stmt_control_flow.py` 5. Why3 rejects both
+over- and under-claims, so this is a FIXPOINT, not a blanket widening.
+**THE DEVICE ALREADY EXISTS**: relaunch #19 drove `#@ assigns` / `#@ raises` / `#@ \diverges`
+to a fixpoint against Why3's OWN ERROR TEXT — built as a LOOP rather than an analysis — and
+converged in 57 iterations on the 75-member `_csl_to_ir` family (which was the largest single
+item the shadowed-selfcalls metric ever held). Reuse it.
+**PAYS TWICE**: it unblocks the converted callers AND lowers the trusted frame-honesty count
+(63), because those protocol stubs are exactly where the false `\nothing` frames live.
+PRICE: three whole-file re-proofs (`expressions.py`, `statements.py`, `stmt_control_flow.py`
+— all large). Not started; the window's proof capacity was committed elsewhere.
