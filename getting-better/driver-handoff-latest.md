@@ -15,6 +15,13 @@
 | 2 INSTRUMENT repair + 5 `sibling_concrete` hubs | `39c576c5` | — | (folded into 1's proof) |
 | 3 `setattr`/`hasattr`/generator return type | `e37eca32` | 458 -> 456 | pure_ast 3118/3118 Valid |
 | 4 four string-model capabilities + `_Inliner._fresh` | `c21486e7` | 456 -> 455 | ir_inline 358/358 Valid |
+| 5 `_decl_arity` fix (byte-inert, no proof needed) | `cd223597` | — | emission unchanged |
+| 6 trusted frame-honesty ratchet 68 -> 63 | `55b02c7a` | — | — |
+
+**FINAL VERIFICATION at HEAD, run after every commit:** 52/52 mirrors L3-tc GREEN and
+their `.mlw` md5s are IDENTICAL to the tree that proved 3118/358 — so both whole-file
+proofs still stand. Corpus: exactly `0482`/`0483` differ from the window-start tree, both
+re-verified `Verification SUCCESS`. No prover process left running; tree clean.
 
 CONVERTED this window: `visit_FormattedValue`, `_function_helper`, `_type_params_helper`,
 `fill`, `iter_child_nodes`, `copy_location`, `_Inliner._fresh`.
@@ -26,7 +33,7 @@ CONVERTED this window: `visit_FormattedValue`, `_function_helper`, `_type_params
 | fidelity | DIVERGED 2 (`_handle_var_expr`, `_handle_for_stmt` — the baseline pair) |
 | shadowed-selfcalls | **14 / 121**, REPAIRED instrument (19 / 257 at window start, reported as 13 / 33) |
 | non-vacuity (`--emit`) | no NEW erasure, 0 input-blind |
-| frame-honesty | trusted 63/68 · converted 68/68 · model-visible 0 and 2 |
+| frame-honesty | trusted **63/63** (ratchet LOWERED 68 -> 63) · converted 68/68 · model-visible 0 and 2 |
 | ledger | 3, no axiom added |
 
 ## THE FIVE THINGS THE NEXT RELAUNCH MUST KNOW
