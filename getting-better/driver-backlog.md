@@ -5677,3 +5677,23 @@ item the shadowed-selfcalls metric ever held). Reuse it.
 (63), because those protocol stubs are exactly where the false `\nothing` frames live.
 PRICE: three whole-file re-proofs (`expressions.py`, `statements.py`, `stmt_control_flow.py`
 — all large). Not started; the window's proof capacity was committed elsewhere.
+
+### NEW LIVE ITEM (#31) — the FOURTEEN `\trusted` STUBS WITH NO `#@ assigns` CLAUSE
+A `\trusted` stub with no `#@ assigns` emits a `val` with an implicit **`writes {}`** — a
+frame claim of "writes nothing" that `bin/check-trusted-frame-honesty.py` cannot see,
+because that gate counts stubs which explicitly declare `#@ assigns \nothing`. Twelve of the
+fourteen are CROSS-MIXIN PROTOCOL STUBS (no live counterpart in their own file), i.e. exactly
+the population whose live implementation is the emitter's most stateful code:
+  `statements.py`: `_resolve_dotted_signature` `_is_emit_ir_expr` `_coerce_to_int`
+      `_expr_to_whyml_string_ctx` `_is_string_expr` `_e` `_maybe_emit_no_exception_assert`
+      `_mutex_inv_application` `_handle_return_stmt`
+  `stmt_control_flow.py`: `_seq_init_expr` `_coerce_to_int` `_to_bool`
+  `errors.py`: `PyCSLError.message` `PyCSLError.as_dict` (these two DO have a live body in
+      their own file, so they are a different, easier case)
+Some are genuinely pure (`_is_string_expr`, `_is_emit_ir_expr`) and want an EXPLICIT
+`#@ assigns \nothing`, which is honest and also puts them under the frame-honesty counter.
+The rest want the frame their live body has.
+**METHOD: the same fixpoint that landed in #31** (`scratchpad/w4/framefix_loop.py`, the
+relaunch-#19 Why3-error-text loop). Each stub that gains a real frame cascades to its
+converted callers; `_expr_to_whyml` cascaded to 9 of them across 3 files and converged in ONE
+iteration per file. PRICE per stub: a whole-file re-proof of each affected mirror.
