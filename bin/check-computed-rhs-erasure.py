@@ -77,10 +77,18 @@ MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 #       kind inference seeing through `getattr`). `copy_location` is different in kind: its
 #       attribute name is a LOOP VARIABLE, so there is no field to resolve, and it is the
 #       honest re-trust candidate.
+#       (#33) 5 -> 3. The `dict`/`set` half of the `getattr` capability was RE-HOSTED (the
+#       #32 block was a SPELLING, not the rule: `.get("args") or []` reflects through
+#       `_EMIT_IR_PROJ` where `val_ir["args"]` does not), which closed
+#       `_handle_setlit_expr` (`_poly`) and `_infer_return_value_type` (`symtab`). The
+#       residue is THREE, each with a DIFFERENT reason and none a `getattr` field read:
+#         frontend/pure_ast.py            _Unparser.unparse_inner   ['unparser']
+#         module6_whyml/expressions.py    _handle_field_get_expr    ['_pg2']
+#         module6_whyml/functions.py      _refine_tuple_return_type ['_saved_*' x4]
 #   (B) PARAM-FIELD MATERIALISED ......... 0  — HARD 0. `_attach_loop_contracts` is the
 #       only known instance and it is (correctly) still `\trusted`.
 # --------------------------------------------------------------------------------------
-MAX_RHS_ERASED = 5
+MAX_RHS_ERASED = 3
 MAX_PARAM_MATERIALIZED = 0
 
 _BLOCK = re.compile(
