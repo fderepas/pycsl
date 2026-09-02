@@ -40,13 +40,36 @@ TWO BUCKETS, and they are different findings:
       it says non-`\nothing`. The honest frame is knowable but not visible at this emission
       site. **Measured 11.**
 
-REOPENING CAPABILITY for (B): resolve a called method's declared `#@ assigns` through the
-IMPORTED-mixin registry (the emitter already imports the class and its method stubs — it
-prints `Imported class from '<mod>': <Cls> (record + N method stub(s))`) instead of only
-through `_module_method_writes`, which is this file's own declarations. The cheaper,
-source-level alternative is the one #32 used for `_add_abstract_op` in `statements.py` and
-`expressions.py`: add a `\trusted` protocol stub with the honest `#@ assigns` to each
-inheriting mirror — correct, but it costs one marker per stub.
+REOPENING CAPABILITY for (B), and TWO ROUTES WERE SPIKED AND MEASURED (#33):
+
+  ROUTE 1 — read the declaration from ANOTHER `<cls>__<m>` entry in `_module_method_writes`
+  (the callee's own class prefix rather than the caller's). **MEASURED: no mirror moved,
+  0 of 53.** `ir_resolve` injects a dependency's method stubs only for classes the file
+  IMPORTS, and an inheriting mirror does not import the defining mixin — `stmt_control_flow`
+  reports only `Imported from 'exception_model'`. There is nothing to find.
+
+  ROUTE 2 — when the file has NO declaration for the callee at all, mint the avatar with
+  the coarse `writes { _pyobj_state }`. Sound in the MODEL, and it does move the emission
+  (7 mirrors), but **REFUTED**: 5 of 53 then fail L3-tc with "this expression depends on
+  variable _pyobj_state, which is left out in the specification", and the only way to
+  satisfy that is a non-`\nothing` `#@ assigns` on the CALLER. The first caller reached is
+  `types._rhs_yields_map`, whose newly-flagged callee `_self_field_py_type` is a PURE
+  lookup — so the rule forces a source declaration that is FALSE IN THE OTHER DIRECTION.
+  Over-claiming is precisely what #32 measured and refused ("the cruder 'always emit the
+  coarse cell when the filtered set is empty' rule was tried first and REFUSED"). A rule
+  that cannot tell a writing callee from a pure one may not speak for either.
+  (Two emitter pieces from that spike ARE independently correct and are recorded here for
+  reuse: an avatar carrying the cell must register its name in `_pyobj_state_writers`,
+  because `_add_abstract_op` DEDUPES and only the FIRST caller's mint sets
+  `_obj_state_written`, so every later caller emitted `writes { }`; the caller-side re-arm
+  then behaves exactly as it already does for a concrete sibling.)
+
+  WHAT REMAINS, and it is a COST/SCALE item, not a floor: the source-level route #32 used
+  by hand for `_add_abstract_op` in `statements.py` and `expressions.py` — add a `\trusted`
+  protocol stub carrying the honest `#@ assigns` to each inheriting mirror. It is HONEST
+  (all 11 methods declare a real frame where they are defined), it costs ONE MARKER PER
+  STUB, and it triggers the same caller fixpoint #32 closed in 5-6 iterations per file,
+  followed by a whole-file re-proof of each. Budget it as a segment, not as an increment.
 
 `--emit-dir` must point at a directory of emitted mirror `.mlw` files (the `l3sweep.sh`
 output). Without it the gate emits them itself is NOT attempted — it fails loudly instead,
