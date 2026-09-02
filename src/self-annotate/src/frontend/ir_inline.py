@@ -159,12 +159,12 @@ class _Inliner:
         self.no_inline = no_inline or set()
         self.counter = 0
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.counter
     def _fresh(self, base: str) -> str:
-        return ""
+        self.counter += 1
+        return f"{base}__inl{self.counter}"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

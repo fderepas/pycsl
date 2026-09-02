@@ -4758,11 +4758,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # domain the literal fold uses. BYTE-INERT BY CONSTRUCTION: a raw string here
             # is an L3-tc rejection, so no typechecking program reaches it.
             self._add_abstract_op("val str_concat (x: int) (y: int) : int")
+            # The STRING side is known exactly — the arm's own guard is
+            # `_is_string_expr(left) != _is_string_expr(right)` — so hash THAT side, from
+            # the IR rather than from the emitted text. `_coerce_str_arg` folds a string
+            # LITERAL to its `stable_hash` constant (left alone here); a computed string OR
+            # a string-typed VARIABLE (`base + "_" + self.counter` in `_Inliner._fresh`)
+            # needs the uninterpreted hash. Byte-inert by construction: `val str_concat`
+            # takes two ints, so a raw string operand did not typecheck.
+            _left_is_str = self._is_string_expr(expr["left"])
             _sc = []
-            for _side in (left, right):
+            for _side, _isstr in ((left, _left_is_str), (right, not _left_is_str)):
                 _c = self._coerce_str_arg(_side)
                 _cs = _c.strip()
-                if any(_cs.startswith(_s) for _s in self._STRING_VALUED_OPS):
+                if _isstr and not _cs.lstrip("-").isdigit():
                     _c = f"(str_hash_op {_c})"
                 _sc.append(_c)
             return f"(str_concat {_sc[0]} {_sc[1]})"
@@ -5840,10 +5848,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         # here would replace that constant with an uninterpreted
                         # `str_hash_op "…"` — measured, it moved four already-typechecking
                         # mirrors off byte-identity.
-                        if (any(_as.startswith(_s) for _s in self._STRING_VALUED_OPS)
-                                or (_as.startswith("(if ") and _as.endswith(")")
-                                    and any((" then " + _s) in _as or (" else " + _s) in _as
-                                            for _s in self._STRING_VALUED_OPS + ('"',)))):
+                        _bare_lit = (len(_as) >= 2 and _as.startswith('"')
+                                     and _as.endswith('"'))
+                        if not _bare_lit and not _as.lstrip("-").isdigit():
                             args[_bi] = f"(str_hash_op {args[_bi]})"
         coerced = self._coerce_dotted_args(args, param_types)
         # W8 capability (vi): a call to a SAME-CLASS sibling method whose declared return
@@ -7197,12 +7204,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # text by `abstract_ops._insert_abstract_val_block` — NOT registered here,
             # because `_add_abstract_op` writes `self._obj_state_written` and this method
             # is a converted mirror method under `#@ assigns \nothing` (lesson (be)).
+            # GENERALISED to the IR (relaunch #30, second pass): the text test below only
+            # sees an expression whose HEAD is a string-valued op. A string-typed VARIABLE
+            # (`!s`, `concrete_type`, a `str` param) has no such head and was still handed
+            # through raw — measured as the single largest blocker family in the whole
+            # mirror tree ("has type string, but is expected to have type int", 46 stubs).
+            # `_is_string_expr` on the ARGUMENT IR answers it directly. Still byte-inert by
+            # construction: this arm mints `(x0: int) … : int`, so any string operand
+            # reaching it did not typecheck.
+            _arg_irs = expr.get("args") or []
             for _ci in range(len(coerced_args)):
                 _cs = coerced_args[_ci].strip()
-                for _sop in self._STRING_VALUED_OPS:
-                    if _cs.startswith(_sop):
-                        coerced_args[_ci] = f"(str_hash_op {coerced_args[_ci]})"
-                        break
+                if _cs.lstrip("-").isdigit():
+                    continue        # a literal the `stable_hash` fold already collapsed
+                _is_str = any(_cs.startswith(_sop) for _sop in self._STRING_VALUED_OPS)
+                if not _is_str and _ci < len(_arg_irs):
+                    _air = _arg_irs[_ci]
+                    _is_str = isinstance(_air, dict) and self._is_string_expr(_air)
+                if _is_str:
+                    coerced_args[_ci] = f"(str_hash_op {coerced_args[_ci]})"
             # THE RECEIVER-CARRYING UNANNOTATED CALL (relaunch #17). A method call on a
             # COMPUTED receiver (`float(node.value).is_integer()`,
             # `repr(value).replace(a, b)`) arrives here with a bare method `func` and the
@@ -7269,7 +7289,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if func_name == "setattr" and n == 3:
                 self._add_abstract_op("val setattr_3 (x: int) (f: int) (v: int) : unit")
                 _f = coerced_args[1].strip()
-                if not _f.lstrip("-").isdigit():
+                if not _f.lstrip("-").isdigit() and not _f.startswith("(str_hash_op "):
                     _f = f"(str_hash_op {coerced_args[1]})"
                 return f"(setattr_3 {coerced_args[0]} {_f} {coerced_args[2]})"
             if n == 0:
@@ -12690,7 +12710,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (not self._in_spec and (getattr(self, "_current_self_type", None)
                 in getattr(self, "_mutable_state_classes", set())
                 or self._emitting_compute_return_type()
-                or self._emitting_build_param_list())):
+                or self._emitting_build_param_list()
+                # (relaunch #30) A function DECLARED `-> str` must produce a Why3 `string`.
+                # Without this the int-model joiner below returns an int-hash and the body
+                # is `This expression has type int, but is expected to have type string` —
+                # measured as the blocker on `monomorphize._mangled_name`,
+                # `ir_inline._Inliner._fresh` and `proof2why3.normalize._strip_all_parens`,
+                # all three of which are plain module functions and so could never satisfy
+                # the `@mutable_state` gate. Strictly MORE faithful: a real `str_concat_op`
+                # over real strings instead of an uninterpreted hash.
+                or getattr(self, "_func_return_type", None) == "string")):
             self._add_abstract_op("val int_to_string (n: int) : string")
             self._add_abstract_op(
                 "val str_concat_op (a: string) (b: string) : string\n"
@@ -12701,9 +12730,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             for pp in parts[1:]:
                 acc = f"(str_concat_op {acc} {self._fstring_str_part(pp, local_refs, invariant_ctx, subst)})"
             return acc
-        acc = self._coerce_str_arg(self._expr_to_whyml(parts[0], local_refs, invariant_ctx, subst))
+        # THE INT-MODEL F-STRING JOINER. `_coerce_str_arg` folds a string LITERAL to its
+        # `stable_hash` constant and hands everything else through RAW — so a part that is
+        # a string-typed VARIABLE or expression (`f"{base}_{self.counter}"` in
+        # `ir_inline._Inliner._fresh`, `f"{generic_name}_{safe}"` in
+        # `monomorphize._mangled_name`) put a Why3 `string` into
+        # `val str_concat (x: int) (y: int) : int`. (relaunch #30) Hash it, from the PART'S
+        # IR — the same int-hash domain the literal fold uses, and the same coercion the
+        # `@mutable_state` branch above avoids only because it has a real string model.
+        # Byte-inert by construction: `str_concat` takes two ints, so a raw string part did
+        # not typecheck.
+        def _part(_pir):
+            _w = self._coerce_str_arg(
+                self._expr_to_whyml(_pir, local_refs, invariant_ctx, subst))
+            _ws = _w.strip()
+            if (not _ws.lstrip("-").isdigit()
+                    and (any(_ws.startswith(_s) for _s in self._STRING_VALUED_OPS)
+                         or (isinstance(_pir, dict) and self._is_string_expr(_pir))
+                         or (len(_ws) >= 2 and _ws.startswith('"') and _ws.endswith('"')))):
+                return f"(str_hash_op {_w})"
+            return _w
+        acc = _part(parts[0])
         for part in parts[1:]:
-            p = self._coerce_str_arg(self._expr_to_whyml(part, local_refs, invariant_ctx, subst))
+            p = _part(part)
             self._add_abstract_op("val str_concat (x: int) (y: int) : int")
             acc = f"(str_concat {acc} {p})"
         return acc
