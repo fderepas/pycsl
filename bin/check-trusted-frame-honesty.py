@@ -166,7 +166,7 @@ _MUTATING_METHODS = frozenset({
     "remove", "discard", "setdefault", "sort", "reverse",
 })
 
-TOTAL_RATCHET = 28    # 63 -> 82 at #31 by the SHARPER DETECTOR; 82 -> 28 at #32 by GIVING
+TOTAL_RATCHET = 19    # 63 -> 82 at #31 by the SHARPER DETECTOR; 82 -> 28 -> 19 at #32 by GIVING
                       # 54 `\trusted` STUBS THEIR HONEST `#@ assigns`, derived per stub
                       # from the SAME live transitive self-write closure this file computes
                       # (`scratchpad/w5/honest_trusted_frames.py`), then closing the caller
@@ -175,11 +175,10 @@ TOTAL_RATCHET = 28    # 63 -> 82 at #31 by the SHARPER DETECTOR; 82 -> 28 at #32
                       # stub's `#@ assigns` naming a non-label field was unobservable.
                       # The residue 28 is in `pure_ast.py`, `functions.py` and
                       # `expr_ghost_spec_ops.py`, deliberately NOT converted here — the
-                      # first because its proof was mid-flight, the other two because the
-                      # honest frame emits `unbound function or predicate symbol
-                      # '<field>'` (the `_writes_filtered_to_labels` filter is not applied
-                      # on every producer of the clause -- lesson (am) has a THIRD
-                      # producer). NOTE the closure can still UNDER-approximate (the #31
+                      # first because its proof was mid-flight; the other two were then
+                      # UNBLOCKED in the same window by making BOTH label filters FAIL
+                      # CLOSED when the class has no emitted record in the file (28 -> 19),
+                      # so the residue 19 is now `pure_ast.py` alone. NOTE the closure can still UNDER-approximate (the #31
                       # `_walk_body` blind spot), so 28 is a floor on what is KNOWN false,
                       # not a proof that the other 280 are true.
                       # (old note) 63 -> 82 at #31 by the SHARPER DETECTOR above (not by new false

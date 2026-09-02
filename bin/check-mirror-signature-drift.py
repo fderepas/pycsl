@@ -38,7 +38,16 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 LIVE = os.path.join(ROOT, "src", "pycsl")
 
-BASELINE = 11          # 16 -> 11 at #32: FIVE MISSING-parameter stubs repaired, so their
+BASELINE = 0           # 16 -> 11 -> 0 at #32: EVERY drift repaired. A `\trusted` stub has
+                       # no body, so its INTERFACE is its entire content, and ten of these
+                       # declared a function that had not existed for several relaunches
+                       # (`_handle_dotted_call` was missing `arg_irs`, added at #29). The
+                       # six RENAMES (`expr` where the live binder is `node`) were harmless
+                       # to the model but BLOCKED the signature-preserving port, so those
+                       # six stubs could not be MEASURED at all; they now can be (and all
+                       # eight measured stubs probe L3TC-FAIL, four on `int` vs `emit_ir`).
+                       # 0 is a HARD FLOOR: any new drift is a regression, not a ratchet.
+                       # (was: 16 -> 11 at #32: FIVE MISSING-parameter stubs repaired, so their
                        # trusted INTERFACE now matches the live function again —
                        # `scc.sort_functions_by_scc` (+extra_concrete),
                        # `ir_resolve.resolve` (+import_paths),
