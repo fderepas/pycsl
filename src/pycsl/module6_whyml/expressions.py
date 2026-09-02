@@ -10073,6 +10073,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 f"val compound_map_getter_of (self: {_st}) "
                 ": option (map string (option string))")
             return "(compound_map_getter_of self)"
+        # (#33) THE READER SIDE OF THE POLY SELF-FIELD PROTOCOL. `_refine_tuple_return_type`
+        # saves four self-fields, sets them, and restores them in a `finally`. The WRITES
+        # already go through `setattr_<cls>_poly` (`statements.py`, the typed-self-field-WRITE
+        # cap); the READS had no lowering and folded to the LITERAL `0`, so the restore put
+        # `0` back instead of the saved value — a WRONG value, not an unknown one, and it is
+        # what `bin/check-computed-rhs-erasure.py` reports for this method. The symmetric
+        # reader is an abstract `val getattr_<cls>_poly (x: <cls>) (f: int) : 'a` — NOT an
+        # axiom (ledger unchanged) — and it is what makes the save/restore RELATIONSHIP
+        # expressible: `setattr_poly self K !_saved` writes back exactly the value
+        # `getattr_poly self K` produced. Gated on the SAME per-method predicate as the
+        # writer, so it is byte-inert everywhere else, including the whole corpus.
+        if (self._emitting_refine_tuple_return_type()
+                and isinstance(obj_ir, dict) and obj_ir.get("name") == "self"
+                and isinstance(name_ir, dict) and name_ir.get("type") == "String"
+                and self._current_self_type):
+            _pst = self._current_self_type
+            self._add_abstract_op(
+                f"val getattr_{_pst}_poly (x: {_pst}) (f: int) : 'a")
+            return f"(getattr_{_pst}_poly self {stable_hash(name_ir.get('value', ''))})"
         # Resolve `obj` to a known record-typed Var and `name` to a string literal.
         if isinstance(obj_ir, dict) and obj_ir.get("type") == "Var":
             obj_name = obj_ir.get("name", "")

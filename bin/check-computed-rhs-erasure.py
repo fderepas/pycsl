@@ -77,6 +77,17 @@ MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 #       kind inference seeing through `getattr`). `copy_location` is different in kind: its
 #       attribute name is a LOOP VARIABLE, so there is no field to resolve, and it is the
 #       honest re-trust candidate.
+#       (#33b) 3 -> 2. `_refine_tuple_return_type` is closed by the READER side of the poly
+#       self-field protocol: `getattr(self, "<f>", None)` in that method now lowers to
+#       `val getattr_<cls>_poly (x) (f: int) : 'a` instead of folding to the literal `0`,
+#       so the `finally` restore writes back the value the save produced. The residue is
+#       TWO, with two different causes:
+#         module6_whyml/expressions.py    _handle_field_get_expr    ['_pg2']
+#           the class HAS a record but `_property_getters` is not one of its LABELS, so the
+#           field is not modelled at all. Add the label, or route through the poly reader.
+#         frontend/pure_ast.py            _Unparser.unparse_inner   ['unparser']
+#           `type(self)(_avoid_backslashes=True)` — a DYNAMIC CLASS CONSTRUCTION, not a
+#           `getattr`. Different in kind; no capability named yet.
 #       (#33) 5 -> 3. The `dict`/`set` half of the `getattr` capability was RE-HOSTED (the
 #       #32 block was a SPELLING, not the rule: `.get("args") or []` reflects through
 #       `_EMIT_IR_PROJ` where `val_ir["args"]` does not), which closed
@@ -88,7 +99,7 @@ MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 #   (B) PARAM-FIELD MATERIALISED ......... 0  — HARD 0. `_attach_loop_contracts` is the
 #       only known instance and it is (correctly) still `\trusted`.
 # --------------------------------------------------------------------------------------
-MAX_RHS_ERASED = 3
+MAX_RHS_ERASED = 2
 MAX_PARAM_MATERIALIZED = 0
 
 _BLOCK = re.compile(
