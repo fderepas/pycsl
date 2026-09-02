@@ -13,6 +13,7 @@
         "x": "int",
         "y": "int"
       },
+      "param_ast_node_types": {},
       "param_list_elem_types": {},
       "param_list_nested_elem": {},
       "param_list_flat_elem": {},
@@ -21,6 +22,7 @@
       "acts": [],
       "dict_value_types": {},
       "dict_key_types": {},
+      "set_value_types": {},
       "formal_params": [
         "x",
         "y"
