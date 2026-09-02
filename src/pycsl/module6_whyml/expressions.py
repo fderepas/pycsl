@@ -2805,6 +2805,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         elts = a.get("elts", [])
         return bool(elts) and all(self._is_string_expr(e) for e in elts)
 
+    # faithful-string-op (self-tcb-reduction #31): PURE, STRING-RETURNING functions of the
+    # `re` module, mapped to their exact positional arity. `re.sub(pat, repl, s)` and
+    # `re.escape(s)` return a Python `str`; the generic dotted-call fallback minted an
+    # opaque `re_sub_3 (x0 x1 x2: int) : int`, which int-HASHED both regex literals and the
+    # subject string and then made every downstream `.strip()`/`.lower()` on the result an
+    # opaque int op too — so a `-> str` function ending in `re.sub(...).strip()` could not
+    # type-check at all. `re` is ABSENT from the reference corpus and from every currently
+    # converted mirror body, so this recognizer is byte-inert by construction (verified).
+    _RE_STR_FUNCS = {"re.sub": 3, "_re.sub": 3, "re.escape": 1, "_re.escape": 1}
+
     _STR_VALUE_METHODS = ("replace", "lower", "upper", "strip", "lstrip", "rstrip")
 
     def _is_str_value_method(self, expr):
@@ -2817,6 +2827,49 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if tail not in self._STR_VALUE_METHODS or recv_ir is None:
             return False
         return self._is_string_expr(recv_ir)
+
+    def _is_re_str_call(self, expr):
+        """True if `expr` is one of the pure string-returning `re` functions
+        (`re.sub(pat, repl, s)`, `re.escape(s)`) applied to STRING arguments.
+
+        Fail-closed on every shape it cannot vouch for: a keyword argument (`count=`,
+        `flags=`), a wrong arity, a method call on a COMPILED pattern (`PAT.sub(...)`,
+        which has a receiver), and — the important one — a non-string `repl`, because
+        Python's `re.sub` also accepts a CALLABLE replacement and that result is not a
+        function of the argument values this model can see. All of those keep the
+        existing opaque-int lowering."""
+        if not isinstance(expr, dict) or expr.get("type") != "Call":
+            return False
+        fn = expr.get("func")
+        n = self._RE_STR_FUNCS.get(fn) if isinstance(fn, str) else None
+        if n is None or expr.get("receiver") is not None or expr.get("keywords"):
+            return False
+        a = expr.get("args") or []
+        if len(a) != n:
+            return False
+        return all(self._is_string_expr(x) for x in a)
+
+    def _handle_re_str_call(self, expr, args):
+        """Lower a recognized `re` string function to a faithful `string`-typed op.
+
+        NO content law is claimed — a regex substitution is not expressible in the string
+        theory, and the `str_repr_op` discipline is never to over-claim. What IS claimed
+        is exactly what Python guarantees: the result is a `string`, and the op is a
+        `val function`, i.e. DETERMINISTIC — `re.sub` with default `count`/`flags` is a
+        pure function of (pattern, replacement, subject), so equal arguments give equal
+        results. `re.escape` additionally never SHORTENS its input (it only inserts
+        backslashes), which is a sound length lower bound. None if not applicable."""
+        if not self._is_re_str_call(expr):
+            return None
+        fn = expr.get("func")
+        if fn.endswith("escape"):
+            self._add_abstract_op(
+                "val function re_escape_op (s: string) : string\n"
+                "    ensures { String.length result >= String.length s }")
+            return f"(re_escape_op {args[0]})"
+        self._add_abstract_op(
+            "val function re_sub_op (pat rep s: string) : string")
+        return f"(re_sub_op {args[0]} {args[1]} {args[2]})"
 
     def _handle_string_value_method(self, expr, args, local_refs, invariant_ctx, subst):
         """faithful-string-op.md §3.1–3.3: lower `.replace`/`.lower`/`.upper`/`.strip`/
@@ -3948,6 +4001,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # string receiver is itself string-typed, so a receiving local (`arr_name =
             # func.rsplit(".",1)[0].replace(".","_")`) types as a string local.
             if self._is_str_value_method(ir):
+                return True
+            # #31: `re.sub(...)` / `re.escape(...)` are string-typed, so a receiving
+            # local types as a string AND a chained `.strip()`/`.lower()` on the result
+            # reaches the faithful string-value-method path instead of an opaque int op.
+            if self._is_re_str_call(ir):
                 return True
             # §3.5: a literal-string-list `sep.join([…])` is string (nested concat).
             if self._is_literal_string_join(ir):
@@ -6881,6 +6939,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # string receiver → a faithful `string`-typed op, BEFORE the generic dotted-call
         # fallback (which would emit an opaque int). Gated on a string receiver, so
         # `datetime.replace`/`dataclasses.replace` (non-string) stay on the opaque path.
+        # #31: `re.sub` / `re.escape` -> a faithful `string` op, BEFORE the generic
+        # dotted-call fallback that would mint an opaque int `re_sub_3`.
+        _rsc = self._handle_re_str_call(expr, args)
+        if _rsc is not None:
+            return _rsc
+
         _svm = self._handle_string_value_method(expr, args, local_refs, invariant_ctx, subst)
         if _svm is not None:
             return _svm

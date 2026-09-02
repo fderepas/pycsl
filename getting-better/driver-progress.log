@@ -726,3 +726,5 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 05:02 #30 increment 3 VERIFIED: 456 markers, pure_ast 3118/3118 Valid SUCCESS
 05:31 #30 increment 4 VERIFIED: 456->455 (_Inliner._fresh + 4 byte-inert string-model capabilities); ir_inline 358/358 Valid SUCCESS
 05:55 #30 trusted frame-honesty ratchet lowered 68->63
+2026-09-02T06:09Z #31 INSTRUMENT: probe-conversion-candidates.py wrapped-diagnosis repair (76/385 = 20% of L3TC-FAIL verdicts had lost their source type). Committed 93dffbb0. Whole-tree fresh census: 431 stubs probed, 2 CLEAN (both Module3_Weaver, both known non-vacuity refutes) — the cheap-drain seam is confirmed EMPTY tree-wide with all 11 of #30's capabilities in place.
+2026-09-02T06:32Z #31 INCREMENT 1: re.sub/re.escape faithful STRING model (byte-inert: corpus 814/814 + 51/52 mirrors identical) + _strip_all_parens CONVERTED. markers 455->454. normalize.py proof SUCCESS. All planes green.

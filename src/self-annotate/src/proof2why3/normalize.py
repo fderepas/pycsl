@@ -17,12 +17,16 @@ _PREFIX_STRIPS: List[int] = [('PeanoNat.Nat.gcd', 'gcd'), ('PeanoNat.Nat.modulo'
 def normalize_prover_output(s: str) -> str:
     return ""
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _strip_all_parens(s: str) -> str:
-    return ""
+    """v0 lossy unification: drop all parentheses from a normalized
+    string. Sufficient for the gcd-family where structural ambiguity
+    is benign (all applications are flat). Phase 3's IR-based
+    canonicalization will replace this with structural equality."""
+    s = s.replace("(", "").replace(")", "")
+    return re.sub(r"\s+", " ", s).strip()
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
