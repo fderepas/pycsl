@@ -48,6 +48,29 @@ The ratchet is the DROPPED count. It is NOT allowed to rise. Lowering it means e
 adding a sound lowering, adding a normalization, or adding a refusal — in every case the
 fail-open becomes something a reader can see.
 
+THE SWEEP THAT PRODUCED THIS PLANE, AND ITS NEGATIVE RESULTS — recorded so the next window
+does not re-derive them. The question is always the same: which fields of the node does the
+lowering never mention?
+
+  MODULE 5, Python-AST handlers (`_PY_EXPR_HANDLERS` / `_PY_STMT_HANDLERS`, 39 of them):
+    14 had an unmentioned field, 11 benign (`ctx`, `type_comment`, `kind`, or a two-line
+    delegator). THREE were real and all three are closed or ratcheted: the chained
+    comparison, the multi-target assign, the annotated non-Name store.
+  MODULE 5, list-head reads ("reads only element `[0]` without iterating"): FOUR —
+    `_py_expr_compare.ops`/`.comparators` (fixed), `_py_stmt_raise.args` (benign, the
+    exception payload), `_py_stmt_assign.targets` (the proved-false-postcondition one).
+  MODULE 5, CSL annotation handlers (`_csl_*`, 79 of them, against the node classes in
+    `Module2_Parser.py`): **ZERO drop a field.** The `#@` lowering surface is COMPLETE on
+    this axis. Independently confirmed end-to-end: a deliberately VIOLATING body was
+    REJECTED for `\forall`, `\exists`, `\old`, `\old(a[i])`, `\old(self.f)`, a call-site
+    precondition and a `\length` range.
+  MODULE 6, `_handle_*` lowerings (against the `StmtIR`/`ExprIR` dataclasses in
+    `ir_schema.py`): **only THREE**, and after this window's `finalbody` and `orelse` fixes
+    the semantic residue is ZERO — what is left is `ForStmt.line`, `ForStmt.lineno`,
+    `ForStmt.allow_iteration_mutation` and `WhileStmt.line`, all metadata.
+
+NOT YET SWEPT THIS WAY: Module 3's `#@` attachment.
+
 SCOPE. The four populations that are actually verified or mirrored: the reference corpus,
 the self-annotation mirror, `src/pycsl_lib`, and the LIVE emitter — the last one because
 `--import-path src/pycsl` makes the pipeline PARSE the live modules as import stubs and
