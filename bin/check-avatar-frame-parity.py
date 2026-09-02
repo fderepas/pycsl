@@ -125,8 +125,19 @@ MIRROR_ROOT = "src/self-annotate/src"
 #         NOT REACHABLE BY THIS ROUTE — `_py_stmts_to_ir` in `frontend/__init__`,
 #           `frontend/ir_resolve` and `pycsl`: those avatars are minted from the HARD-CODED
 #           table in `module6_whyml/abstract_ops.py` (the imported-emitter-class path), not
-#           from `_module_method_writes`, so a source stub does not reach them. Their frame
-#           belongs in that table.
+#           from `_module_method_writes`, so a source stub does not reach them.
+#           SPIKED AND MEASURED (#33): giving that declaration the coarse
+#           `writes { _pyobj_state }` when `_stmts_disp_writes` returns [] IS the right
+#           shape — the cell is a GLOBAL ref, not a record label, so it needs no receiver
+#           and the four producers' application spelling is unchanged. All three files then
+#           fail L3-tc on the caller, and the caller is `_py_stmt_match` — which lives in
+#           `frontend/Module5_IREmitter.py`, the IMPORTED file, not in the file being
+#           emitted. So the source frame must be added THERE, which re-emits
+#           `Module5_IREmitter.mlw` (1499 goals) as well as all three importers, and the
+#           automatic `_obj_state_written` re-arm cannot help because this avatar is
+#           registered by `_register_referenced_self_dispatch_vals` AFTER every function is
+#           emitted. A four-file segment with its own caller fixpoint — budgeted, not
+#           attempted.
 # --------------------------------------------------------------------------------------
 MAX_SAME_FILE = 0
 MAX_INHERITED = 7
