@@ -9940,6 +9940,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _acc = _nm
         return "(" + " ".join(_lets) + f" {_acc})"
 
+    def _self_field_py_type(self, field: str) -> Optional[str]:
+        """The declared Python type of `self.<field>` for the class currently being
+        emitted, or None when the class/field is not a modelled record field.
+        `_current_self_type` is the LOWERCASED WhyML record name; `_record_types` is keyed
+        by the raw Python class name, so the lookup goes through `whyml_name`."""
+        cls = getattr(self, "_current_self_type", None)
+        if not cls:
+            return None
+        for _info in (getattr(self, "_record_types", {}) or {}).values():
+            if isinstance(_info, dict) and _info.get("whyml_name") == cls:
+                return (_info.get("field_types") or {}).get(field)
+        return None
+
     def _lower_getattr(self, expr: Dict[str, Any], args: List[str],
                        local_refs: Set[str], invariant_ctx: bool,
                        subst: Optional[Dict[str, str]]) -> str:
@@ -9988,7 +10001,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     in getattr(self, "_mutable_state_classes", set())
                     and isinstance(name_ir, dict) and name_ir.get("type") == "String"
                     and name_ir.get("value") in getattr(self, "_all_record_fields", set())
-                    and isinstance(default_ir, dict)):
+                    and isinstance(default_ir, dict)
+                    and (default_ir.get("type") == "String"
+                         or self._self_field_py_type(name_ir.get("value"))
+                         in ("int", "bool"))):
                 # (#32) THE DEFAULT'S TYPE IS IRRELEVANT ONCE THE FIELD IS MODELLED.
                 # This branch used to fire only for a STRING default, so the two
                 # commonest spellings of the very same idiom — `getattr(self, "_f", None)`
