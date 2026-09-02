@@ -752,3 +752,4 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 12:40 #32: AVATAR-FRAME capability BUILT and landed (51/52 mirrors byte-identical, corpus 0, fixpoint 5 iters with per-method derived fields). converted-frame-honesty 133->125, model-visible 4->1. expressions re-proof queued.
 12:47 #32: FIFTY-FOUR trusted stubs given honest #@ assigns -> trusted-frame-honesty 82->28 (converted 133->125, model-visible 4->1). 5 mirrors queued for re-proof (ConcurrencyChecker, stmt_control_flow, M6, statements, expressions); pure_ast proof still running on unchanged content.
 12:57 #32: fail-closed label filters -> trusted-frame-honesty 28->19 (residue = pure_ast only). ConcurrencyChecker re-proved SUCCESS. 6 more proofs queued/running.
+13:20 #32: landed getattr-str capability (another wrong lowering fixed) + 5 mirror-signature-drift repairs (16->11). 12 mirror re-proofs queued/running across 3 detached batches.
