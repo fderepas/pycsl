@@ -25,6 +25,14 @@ exactly one bucket:
   REFUSED     the pipeline raises with a diagnostic (fail-CLOSED — the honest answer for a
               shape that has no sound lowering).
   DROPPED     no branch matches and nothing refuses it. **This is the ratchet.**
+  CTXBIND     a `with ... as X` binding. `_py_stmt_with` reads `stmt.body` and the mutex
+              annotations and NEVER reads `stmt.items`, so the context manager and the `as`
+              name are both absent from the model and the body is spliced in their place.
+              It has its OWN ratchet because it is a different kind of gap: modelling it
+              needs an `__enter__`/`__exit__` protocol, and today every occurrence in the
+              self-annotation mirror is inside a `\trusted` function (measured, all ten),
+              while the reference corpus has none. So it is a KNOWN, BOUNDED gap rather
+              than a live defect — and this counter is what keeps it bounded.
 
 The ratchet is the DROPPED count. It is NOT allowed to rise. Lowering it means either
 adding a sound lowering, adding a normalization, or adding a refusal — in every case the
@@ -75,6 +83,13 @@ ROOTS = [
 #   Until then this is a RECORDED fail-open, not an unnoticed one.
 # --------------------------------------------------------------------------------------
 MAX_DROPPED = 1
+
+# CTXBIND ratchet — `with <expr> as X`. Measured at the tree that introduced this gate:
+# 10 in `src/self-annotate/src` (every one inside a `\trusted` function — `_sha256_file`,
+# `_run_proofs`, `main`, `_is_false_goal`), 38 in the live emitter, 0 in the reference
+# corpus, 0 in `src/pycsl_lib`. REOPENING CAPABILITY: an `__enter__`/`__exit__` protocol
+# in the IR, at which point the `as` binding becomes an ordinary store.
+MAX_CTXBIND = 48
 
 
 def _classify_augassign(node: ast.AugAssign):
@@ -148,7 +163,12 @@ def scan_file(path: str):
         elif isinstance(node, ast.AnnAssign):
             bucket, why = _classify_annassign(node, id(node) in protected)
         elif isinstance(node, (ast.For, ast.While)) and node.orelse:
-            bucket, why = "REFUSED", "loop `else` (desugar.reject_loop_else)"
+            bucket, why = "REFUSED", "loop `else` (desugar.reject_unmodelled)"
+        elif isinstance(node, ast.Slice) and node.step is not None:
+            bucket, why = "REFUSED", "extended slice `x[lo:hi:step]` (desugar.reject_unmodelled)"
+        elif isinstance(node, ast.With) and any(
+                it.optional_vars is not None for it in node.items):
+            bucket, why = "CTXBIND", "`with ... as X` — the binding is not read"
         else:
             continue
         rows.append((bucket, path, node.lineno, why))
@@ -158,10 +178,11 @@ def scan_file(path: str):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--max-dropped", type=int, default=MAX_DROPPED)
+    ap.add_argument("--max-ctxbind", type=int, default=MAX_CTXBIND)
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
-    counts = {"HANDLED": 0, "NORMALIZED": 0, "REFUSED": 0, "DROPPED": 0}
+    counts = {"HANDLED": 0, "NORMALIZED": 0, "REFUSED": 0, "DROPPED": 0, "CTXBIND": 0}
     dropped = []
     for root in ROOTS:
         if not os.path.isdir(root):
@@ -176,14 +197,19 @@ def main() -> int:
                     if bucket == "DROPPED":
                         dropped.append((path, line, why))
 
-    print("[*] dropped-mutation: %d assignment-family statement(s) scanned — "
-          "%d HANDLED, %d NORMALIZED, %d REFUSED, %d DROPPED."
+    print("[*] dropped-mutation: %d statement(s) scanned — "
+          "%d HANDLED, %d NORMALIZED, %d REFUSED, %d DROPPED, %d CTXBIND."
           % (sum(counts.values()), counts["HANDLED"], counts["NORMALIZED"],
-             counts["REFUSED"], counts["DROPPED"]))
+             counts["REFUSED"], counts["DROPPED"], counts["CTXBIND"]))
     if args.verbose or dropped:
         for path, line, why in sorted(dropped):
             print("    DROPPED  %s:%d  %s" % (path, line, why))
 
+    if counts["CTXBIND"] > args.max_ctxbind:
+        print("[!] dropped-mutation: CTXBIND RATCHET BROKEN — %d > %d. A `with ... as X` "
+              "binding is absent from the model; the gap is bounded, not licensed."
+              % (counts["CTXBIND"], args.max_ctxbind))
+        return 1
     if counts["DROPPED"] > args.max_dropped:
         print("[!] dropped-mutation: RATCHET BROKEN — %d > %d. A statement Module 5 "
               "neither lowers nor refuses is a fail-OPEN no other plane can see: the "
@@ -194,7 +220,11 @@ def main() -> int:
     if counts["DROPPED"] < args.max_dropped:
         print("[+] dropped-mutation: DROPPED %d < ratchet %d — lower the constant."
               % (counts["DROPPED"], args.max_dropped))
-    print("[+] dropped-mutation: OK (ratchet %d)." % (args.max_dropped,))
+    if counts["CTXBIND"] < args.max_ctxbind:
+        print("[+] dropped-mutation: CTXBIND %d < ratchet %d — lower the constant."
+              % (counts["CTXBIND"], args.max_ctxbind))
+    print("[+] dropped-mutation: OK (ratchets %d dropped / %d ctxbind)."
+          % (args.max_dropped, args.max_ctxbind))
     return 0
 
 
