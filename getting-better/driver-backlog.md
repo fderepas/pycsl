@@ -34,6 +34,58 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #33 STATE UPDATE (2026-09-02) — READ BEFORE PICKING AN ITEM
+
+**THE HIGHEST-YIELD WORK IN THIS CAMPAIGN IS NO LONGER MARKER CONVERSION. IT IS THE
+SILENT-DROP AUDIT.** #33 found FIVE instances of one bug class — "a Module 5 handler reads
+some of a node's fields and silently drops the rest" — and TWO of them let a contract that
+is FALSE OF THE PROGRAM be proved `Verification SUCCESS`:
+  * `a = b = 5` dropped `b` (a live victim sat in `pure_ast._subscript_item`, a CONVERTED
+    method proved at 3103 goals, saved only by the coincidence that the dropped value
+    `None` equals the declaration default);
+  * `xs[1:4:2]` dropped the STEP (`Array.sub xs 1 3`).
+Both closed. The class is now a standing gate, `bin/check-dropped-mutation.py` (ratchets
+1 DROPPED / 48 CTXBIND). **Run it after ANY Module 5 change — it is pure-AST, needs no
+`why3`, and takes seconds.**
+
+**THE METHOD THAT FOUND THEM, use it again:** enumerate the dispatch table mechanically
+(`_fields` of the AST node vs the field names the handler mentions; then "reads only `[0]`
+of a list field without iterating it"), then probe each candidate END-TO-END WITH A
+CONTRACT THAT IS FALSE OF THE PROGRAM. A true contract failing to prove tells you nothing.
+
+**THE RULE THAT SHAPED EVERY FIX, and it is the trap to avoid:** `_py_expr_compare`,
+`_py_stmt_assign` and `_py_stmt_annassign` are CONVERTED mirror methods whose models are
+HAND-SYNTHESIZED bespoke lowerings keyed on the METHOD NAME. Change the live body and
+mirror-sync stays green, L3-tc stays green, the whole-file proof stays green, AND THE MODEL
+SILENTLY STOPS BEING THE BODY. No gate detects that. **Before fixing a Module 5 handler,
+`grep _emit_py_.*_bespoke`. If it has one, fix the INPUT** — `frontend/desugar.py`, run
+from the `\trusted` `Module5_IREmitter.generate_json`, the single choke point both Module 5
+entry paths go through.
+
+**BOTH FRAME-HONESTY POPULATIONS ARE AT ZERO** (trusted 0/0, converted 0/98). #32's last
+recorded CERTIFIED BOUNDARY, `expressions._ifexpr_seq_arm`, was refuted in one emission:
+#32 had already built the capability that closes it (a `requires_method` window may declare
+the dependency's frame) and held it back for a reason the label FILTER already answered.
+**LESSON (cg): re-run a boundary's spike before inheriting it.**
+
+**NEXT ITEMS, in order:**
+  1. the `computed-rhs-erasure` THREE — THREE DIFFERENT causes, do not expect one rule:
+     (a) `functions._refine_tuple_return_type` needs a symmetric
+         `getattr_<class>_poly (x) (f: int) : 'a` reader (the class emits NO record, so
+         writes go through `setattr_..._poly` while reads erase to `0`, and the
+         save/restore therefore restores `0`). Abstract `val`, not an axiom.
+     (b) `expressions._handle_field_get_expr` — the class HAS a record but
+         `_property_getters` is not a label.
+     (c) `pure_ast.unparse_inner` — `type(self)(...)`, a DYNAMIC CLASS CONSTRUCTION. No
+         capability named yet.
+  2. `proof2why3`'s `term` family (9 stubs) — COST/SCALE, not a floor (unchanged).
+  3. the heterogeneous-list-literal family, 15 stubs (unchanged).
+  4. **THE AUDIT VEIN IS NOT EXHAUSTED.** Not yet swept the same way: Module 3's `#@`
+     attachment, Module 6's own `_handle_*` lowerings, and the `pycsl_lib` stdlib
+     population.
+
+---
+
 ### #32 STATE UPDATE (2026-09-02) — READ BEFORE PICKING AN ITEM
 
 **ZERO free conversions remain.** The repaired whole-tree probe, re-run twice at HEAD,
