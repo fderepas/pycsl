@@ -239,7 +239,14 @@ that the other 271 are true.
 
 0. **Finish the frame-honesty pass on `pure_ast.py`** — 19 -> ~0, mechanical, tools written
    (`scratchpad/w5/honest_trusted_frames.py` + `scratchpad/w5/framefix3.py`), one pure_ast
-   re-proof. Do it FIRST; it is the cheapest remaining honesty win in the tree.
+   re-proof. Do it FIRST; it is the cheapest remaining honesty win in the tree. It was left
+   out of #32's pass for one reason only: its whole-file proof was in flight.
+0b. **Re-host the `dict`/`set` half of the `getattr` capability.** It is BUILT and MEASURED
+   (52/52 L3-tc, corpus byte-diff 0, `computed-rhs-erasure` 5 -> 3); it was reverted purely
+   because one rule lives in `types._rhs_yields_map`, a CONVERTED method whose mirrored body
+   does not type-check. Move that one recognizer into a `\trusted` host or write it in a
+   reflection-safe spelling and the increment lands as-is. The exact diff is recoverable
+   from this window's REFUTED-AND-NARROWED commit.
 1. **The last model-visible converted offender**, `expressions._ifexpr_seq_arm`: its
    callee's now-declared frame is still an UNDER-claim of the live closure. One level
    deeper than what this window fixed.
