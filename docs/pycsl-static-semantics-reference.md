@@ -2286,6 +2286,31 @@ Constructs listed in `annotations.md` §4 are **rejected at parse time**
 (Module2, not Module4). No static semantics rules are needed for them
 since they never produce an AST node.
 
+### 4.0 Constructs REFUSED at IR emission (relaunch #33)
+
+Three Python shapes are now **rejected with a diagnostic** rather than lowered, because
+the lowering that existed for them silently dropped part of the construct. Each refusal
+replaced a fail-OPEN with a fail-CLOSED, and each was measured to have ZERO occurrences in
+the reference corpus, the self-annotation mirror, `src/pycsl_lib` and the live emitter
+before it landed. They are enforced in `frontend/desugar.reject_unmodelled` (run from
+`Module5_IREmitter.generate_json`) and `Module3_Weaver.process`.
+
+| construct | why it is refused | mechanism that would reopen it |
+|---|---|---|
+| `for ... else:` / `while ... else:` | `_process_for` reads `target`/`iter`/`body` and `_process_while` reads `test`/`body`; neither reads `orelse`. The clause runs exactly when the loop finished WITHOUT `break`, so dropping it removes a whole reachable path from the model. | a break-flag lowering |
+| `x[lo:hi:step]` (extended slice) | the lowering is `Array.sub x lo (hi - lo)`, which ignores the step, so the model carries a sequence of a DIFFERENT length with DIFFERENT elements. Measured: `ys = xs[1:4:2]` let `\result == xs[1] + xs[2]` be proved, while the program returns `xs[1] + xs[3]`. | a strided-copy value model |
+| a `#@` contract block with nothing after it to attach to | an annotation block binds to the node that FOLLOWS it. A block with no follower was silently discarded while the run still printed *All contracts formally proven* — a contract the author wrote that was never checked, under a message asserting the opposite. Statement-level directives (`assert`, `assume`, `ghost`, `loop ...`, `label`, `reveal`, `unfold`, `havoc`) are exempt: a trailing `#@ assert` IS the last statement of a body. | — (move the block above its `def`/`class`) |
+
+`bin/check-dropped-mutation.py` measures the residue of this family and ratchets it.
+
+**Note — two shapes that are NOT refused but NORMALIZED**, because a faithful rewrite
+exists: a chained comparison `a <= b <= c` becomes the conjunction Python means by it (the
+middle operand bound by a walrus when it may not be evaluated twice), and a multi-target
+assignment `a = b = v` becomes one assignment per target. Both were silently dropping their
+tail; see `frontend/desugar.py`.
+
+---
+
 ### 4.1 Pure Function Eligibility
 
 _Corresponds to `annotations.md` §4.1._
