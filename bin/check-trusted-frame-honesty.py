@@ -192,7 +192,7 @@ CONVERTED_RATCHET = 1         # 2 -> 4 at #31 by the SHARPER DETECTOR (the `_add
                               # `_writes_filtered_to_labels` drops it and the caller-side
                               # avatar carries no frame at all -- see the #32 handoff's
                               # AVATAR FRAME finding for the reopening capability.
-CONVERTED_TOTAL_RATCHET = 130 # 68 -> 133 at #31 by the SHARPER DETECTOR; 133 -> 130 at #32
+CONVERTED_TOTAL_RATCHET = 125 # 68 -> 133 at #31 by the SHARPER DETECTOR; 133 -> 125 at #32
                               # (the three `statements.py` callers above). Every offender
 LIVE_ROOT = "src/pycsl"
 MIRROR_ROOT = "src/self-annotate/src"

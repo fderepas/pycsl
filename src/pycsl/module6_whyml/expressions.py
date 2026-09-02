@@ -5715,17 +5715,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _fppe = getattr(self, "_module_method_field_param_post_ensures", {}).get(lookup_key, [])
             _fpfe = getattr(self, "_module_method_field_param_frame_ensures", {}).get(lookup_key, [])
             _rfe = getattr(self, "_module_method_result_frame_ensures", {}).get(lookup_key, [])
-            _w = self._writes_filtered_to_labels(
-                cls, getattr(self, "_module_method_writes", {}).get(lookup_key, []))
+            _declared_w = getattr(self, "_module_method_writes", {}).get(lookup_key, [])
+            _w = self._writes_filtered_to_labels(cls, _declared_w)
+            # (#32 SPIKE) THE CALLER-SIDE TWIN of the rule `functions._emit_function`
+            # already applies to a method's OWN definition ("the source names ANY assigns
+            # target -> add `_pyobj_state` to the frame"). When the callee DECLARES an
+            # `#@ assigns self.<f>` whose target the record does NOT carry as an emitted
+            # field label, `_writes_filtered_to_labels` empties the set and the avatar is
+            # minted with NO frame at all -- so the callee's declared effect is
+            # UNOBSERVABLE and every caller may claim `writes { }`. The coarse
+            # `_pyobj_state` cell is the sound over-approximation, exactly as on the
+            # definition side.
+            _objstate_w = bool(_declared_w) and not _w
             field_ens = _fe + _foe + _fpe + _fppe
-            if (field_ens or _w or _fpfe or _rfe) and cls:
+            if (field_ens or _w or _fpfe or _rfe or _objstate_w) and cls:
                 # `self.<m>()` called from a sibling method: the enclosing
                 # method's own `self` is the receiver, typed as the class. The 5th slot
                 # carries the OPT-IN quantified frame ensures (M4), lowered separately with
                 # the Call-trigger so only they get a trigger (non-frame ensures stay bare).
                 # The 6th slot carries the OPT-IN `\result`-referencing single-cell frame
                 # (fd-import-boundary), lowered with `\result` bound to the val's `result`.
-                field_spec = ("self", cls, field_ens, _w, _fpfe, _rfe)
+                field_spec = ("self", cls, field_ens, _w, _fpfe, _rfe, _objstate_w)
         else:
             # `<recordvar>.method(...)` — resolve the receiver's class so the
             # callee's result-only `ensures` propagates to this call site,
@@ -6212,11 +6222,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # the abstract op, so the call mutates the receiver's region (the `_dotted_ensures_suffix`
             # `\old(self.f)` clause then relates post- to pre-state, and the caller sees the change).
             writes_fields = field_spec[3] if len(field_spec) > 3 else []
-            if writes_fields:
+            _objw = field_spec[6] if len(field_spec) > 6 else False
+            if writes_fields or _objw:
                 # Why3 `writes` is COMMA-separated (a `;` is a syntax error — only shows with
                 # multi-field writes like os.sys_write's disk+fd_offset+_mtime_ticks).
-                writes_clause = "\n    writes { " + ", ".join(
-                    f"self.{f}" for f in writes_fields) + " }"
+                _wparts = [f"self.{f}" for f in writes_fields]
+                if _objw:
+                    self._obj_state_written = True
+                    self._add_abstract_op("val _pyobj_state : ref int")
+                    _wparts.append("_pyobj_state")
+                writes_clause = "\n    writes { " + ", ".join(_wparts) + " }"
         # allocator-frame plan §2.7 (scope-to-win): an OPT-IN `#@ sibling_concrete` callee
         # gets a CONCRETE `self.<m>()` lowering — `(<class>__<m> self args)` — so why3 uses
         # the real method's FULL contract AND its type (class) invariant guarantee on the

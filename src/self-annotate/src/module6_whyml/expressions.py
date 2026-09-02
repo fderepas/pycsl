@@ -291,7 +291,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _dv_store_value(self, nu: Optional[str], val_expr: str) -> str:
         """The value stored at `d[k] = val`: a `seq int` snapshots the array
         (ownership-discipline §3), a string/nested-map value passes through
@@ -357,7 +357,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     # `_str_operand_to_int`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _str_operand_to_int(self, whyml_str: str) -> str:
         s = whyml_str.strip()
         if s.startswith('"') and s.endswith('"'):
@@ -1074,7 +1074,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return base
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written, self._uses_build_param_list_cache
     def _handle_field_get_expr(self, node: "ExprIR", invariant_ctx: bool) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature
         if invariant_ctx:
@@ -1462,7 +1462,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return names
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _handle_in_globals_expr(self, node: "ExprIR", local_refs: Set[str],
                                 invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> str:
         """07-1839 P2: `\\in_globals(name)` — three-valued, true-only lower bound.
@@ -1477,7 +1477,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"(in_globals_op {sum(ord(c) for c in name)})"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _handle_in_scope_expr(self, node: "ExprIR", local_refs: Set[str],
                               invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> str:
         """07-1839 P3: `\\in_scope(name)` — three-valued via definite-assignment.
