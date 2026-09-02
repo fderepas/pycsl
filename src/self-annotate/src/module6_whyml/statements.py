@@ -643,7 +643,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ ensures True
     #@ assigns self._abstract_ops, self._array_locals, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._lambda_locals, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._record_locals, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _emit_first_assign(self, kind: str, indent: str, safe_target: str, target: str,
-                           val: str, val_ir: "ExprIR") -> str:
+                           val: str, val_ir: "ExprIR", local_refs: int=None) -> str:
         """Emit the `let X = …` line for a first declaration of `target`,
         updating the locals-tracking sets as a side effect."""
         if kind == "record":
