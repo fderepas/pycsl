@@ -776,3 +776,4 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 20:52 #33: IR-conformance CI gate was RED at window start (0 OK/38) — drift purely additive, goldens refreshed, both corpora GREEN
 21:02 #33: poly getattr READER lands — save/restore restores the saved value not 0; computed-rhs-erasure 3 -> 2
 21:15 #33: cross-file avatar frames 11 -> 7 via protocol stubs (2 free, 2 markers); converted-frame-honesty 98 -> 96; 3 mirrors to re-prove
+21:33 #33: try/else closed — Module 6 mechanical field sweep says orelse was the LAST unread semantic IR field; TRYFINAL 10 -> 9
