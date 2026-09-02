@@ -1,0 +1,118 @@
+diff --git a/src/pycsl/frontend/Module5_IREmitter.py b/src/pycsl/frontend/Module5_IREmitter.py
+index 35943209..bf98956f 100644
+--- a/src/pycsl/frontend/Module5_IREmitter.py
++++ b/src/pycsl/frontend/Module5_IREmitter.py
+@@ -4258,6 +4258,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
+                 return f"option:{_optrec}"
+         except Exception:
+             pass
++        # SPIKE: Optional[Term] PARAM -> the same opaque_term route the FIELD
++        # seam already takes.
++        try:
++            _arms = self._collect_union_arms(annotation)
++            if _arms is not None and len(_arms) == 2:
++                _nm = [e for e in _arms
++                       if isinstance(e, ast.Name) and e.id == "Term"]
++                _nn = [e for e in _arms
++                       if (isinstance(e, ast.Constant) and e.value is None)
++                       or (isinstance(e, ast.Name) and e.id == "None")]
++                if len(_nm) == 1 and len(_nn) == 1:
++                    return "opt_term"
++        except Exception:
++            pass
+         if scope_name:
+             try:
+                 return self._normalize_union_annotation(annotation, scope_name, dedup=dedup)
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index bb81b81a..6078426f 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -4330,6 +4330,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+         # even independent of the guard). Without this the string operand int-hashes
+         # against the raw option (`str_hash_op arm_type = !val_type`, an `int`/`option`
+         # type clash). Gated on `_option_str_return_vars` -> corpus/other-mirror byte-inert.
++        # SPIKE opt_term: `a == b` on two `Optional[Term]` PARAMS.
++        if raw_op in ("==", "!="):
++            _otp = getattr(self, "_option_term_params", set())
++            _bl, _br = expr.get("left"), expr.get("right")
++            if (isinstance(_bl, dict) and _bl.get("type") == "Var"
++                    and _bl.get("name") in _otp
++                    and isinstance(_br, dict) and _br.get("type") == "Var"
++                    and _br.get("name") in _otp):
++                _a = whyml_ident(_bl["name"]); _b = whyml_ident(_br["name"])
++                _cmp = ("term_eq _ota _otb" if getattr(self, "_term_adt_spec", None)
++                        else "_ota = _otb")
++                _chk = (f"(match {_a}, {_b} with Some _ota, Some _otb -> {_cmp} "
++                        f"| _, _ -> false end)")
++                if raw_op == "!=":
++                    _chk = f"(not {_chk})"
++                if getattr(self, "_in_spec", False):
++                    return _chk
++                return f"(if {_chk} then 1 else 0)"
+         if raw_op in ("==", "!=") and not self._in_spec:
+             _osv = getattr(self, "_option_str_return_vars", set())
+             _bl, _br = expr.get("left"), expr.get("right")
+@@ -4520,6 +4538,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+                 _ov = whyml_ident(_nn.get("name"))
+                 _chk = f"(match {_ov} with None -> true | Some _ -> false end)"
+                 return _chk if raw_op == "==" else f"(not {_chk})"
++            # SPIKE opt_term: `p is None` on an `Optional[Term]` PARAM.
++            if (isinstance(_nn, dict) and _nn.get("type") == "Var"
++                    and _nn.get("name") in getattr(self, "_option_term_params", set())):
++                _ov = whyml_ident(_nn.get("name"))
++                _chk = f"(match {_ov} with None -> true | Some _ -> false end)"
++                return _chk if raw_op == "==" else f"(not {_chk})"
+             # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): a
+             # `_py_expr_constant`-style `expr.value is None` value-type test — where the
+             # non-None side is a `pyconst_val`-typed record-field read (`_pyconst_val_field_read`)
+diff --git a/src/pycsl/module6_whyml/functions.py b/src/pycsl/module6_whyml/functions.py
+index 26edc45a..f8da172a 100644
+--- a/src/pycsl/module6_whyml/functions.py
++++ b/src/pycsl/module6_whyml/functions.py
+@@ -222,6 +222,11 @@ class FunctionEmissionMixin:
+         # None-guarded `p.get("k")` projects the field from the Some arm
+         # (`_option_record_get_field`). A bare `is None` on `p` compares against the
+         # option `None`. Byte-safe: no corpus param annotates `Optional[<record>]`.
++        if symtype == "opt_term":
++            _tt = "term" if getattr(self, "_term_adt_spec", None) else "int"
++            self._option_term_params = getattr(self, "_option_term_params", set())
++            self._option_term_params.add(arg)
++            return f"({safe}: option {_tt})"
+         if isinstance(symtype, str) and symtype.startswith("option:"):
+             _rname = symtype[len("option:"):]
+             _rt = self._record_types.get(_rname)
+@@ -449,6 +454,7 @@ class FunctionEmissionMixin:
+         # None-guarded `p.get("k")` projects the field from the `Some` arm
+         # (`_option_record_get_field`) and `p is None` compares the option `None`.
+         self._option_record_param_classes: Dict[str, str] = {}
++        self._option_term_params: set = set()
+         # WL-04b (wrong-lowering-to-fix.md §WL-04 record residual): a flat
+         # `List[<record>]` param (or the loop target of a comprehension over one) →
+         # the ELEMENT record's whyml name, so `a[i].field` lowers to a native record
+diff --git a/src/self-annotate/src/proof2why3/crosscheck_ir.py b/src/self-annotate/src/proof2why3/crosscheck_ir.py
+index 02936dce..6b2c629e 100644
+--- a/src/self-annotate/src/proof2why3/crosscheck_ir.py
++++ b/src/self-annotate/src/proof2why3/crosscheck_ir.py
+@@ -66,13 +66,20 @@ class IRCrossCheckResult:
+     # OPAQUE payload when `X` is an unmodelled class, instead of dropping the arm. That
+     # makes the presence test real and the else-branch reachable; `a == b` would then be an
+     # honest uninterpreted equality on the opaque payload.
+-    #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing
+     @property
+     def pairwise(self) -> Dict[str, Optional[bool]]:
+-        return {}
++        def cmp(a: Optional[Term], b: Optional[Term]) -> Optional[bool]:
++            if a is None or b is None:
++                return None
++            return a == b
++        return {
++            "rocq==lean":     cmp(self.rocq_canon, self.lean_canon),
++            "rocq==registry": cmp(self.rocq_canon, self.registry_canon),
++            "lean==registry": cmp(self.lean_canon, self.registry_canon),
++        }
+ 
+     #@ requires True
+     #@ ensures True

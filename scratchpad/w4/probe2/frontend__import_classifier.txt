@@ -1,0 +1,2 @@
+L3TC-FAIL            <module>._stub_set  ['This expression has type int, but is expected to have type int -> option.']
+L3TC-FAIL            <module>.check_imports  ['This expression has type int, but is expected to have type PyCSL_Program.']

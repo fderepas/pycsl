@@ -1,0 +1,284 @@
+diff --git a/src/self-annotate/src/frontend/Module5_IREmitter.py b/src/self-annotate/src/frontend/Module5_IREmitter.py
+index 5f80712a..cc7d9325 100644
+--- a/src/self-annotate/src/frontend/Module5_IREmitter.py
++++ b/src/self-annotate/src/frontend/Module5_IREmitter.py
+@@ -2038,6 +2038,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
+             return self._wrap_optional(annotation, scope_name)
+         return self._field_type_from_annotation_inst(annotation, scope_name)
+ 
++    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
++    # `self._wrap_optional(...)` call site in this file went through the receiver-less abstract
++    # `val self___wrap_optional_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
++    # this body computes. The opt-in marker is the SECOND admission route into the
++    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
++    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
++    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
++    # already supplies the callee-before-caller ordering edge for a marked callee.
++    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
++    #@ sibling_concrete
+     #@ requires True
+     #@ ensures True
+     #@ assigns self._fresh_var_counter, self.program_ir
+@@ -2450,6 +2460,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
+             "(L4 / L5c / PEP 586 — nested Literal and Enum members are not)",
+             stage="ir-emit")
+ 
++    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
++    # `self._m5_get_type_name_legacy(...)` call site in this file went through the receiver-less abstract
++    # `val self___m5_get_type_name_legacy_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
++    # this body computes. The opt-in marker is the SECOND admission route into the
++    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
++    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
++    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
++    # already supplies the callee-before-caller ordering edge for a marked callee.
++    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
++    #@ sibling_concrete
+     # value-model campaign increment 10 (loop-over-irlist + banked primitives): `annotation`
+     # emit_ir; `isinstance(annotation, ast.Name)`->`is_var`, `annotation.id`->`name_of`;
+     # Subscript head via svalue_of/name_of; `.slice`->`sindex_of` (P1). The `Union` arm loop
+diff --git a/src/self-annotate/src/module6_whyml/expr_ghost_collections.py b/src/self-annotate/src/module6_whyml/expr_ghost_collections.py
+index 3911affd..29ffe750 100644
+--- a/src/self-annotate/src/module6_whyml/expr_ghost_collections.py
++++ b/src/self-annotate/src/module6_whyml/expr_ghost_collections.py
+@@ -20,6 +20,17 @@ class GhostCollectionOpsMixin:
+     def _e(self, ir: "ExprIR", lr: Set[str]) -> str:
+         return ""
+ 
++    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet all 28 of its
++    # `self._deref(...)` call sites in this file went through the receiver-less abstract
++    # `val self__deref_1 (x0: string) : string`, whose result is UNCONSTRAINED — so no
++    # caller saw the `!`-normalization this body computes. The opt-in marker is the
++    # SECOND admission route into the concrete lowering (the first, `_record_array_fields`,
++    # is a PROXY that holds only for the parser-cursor shape and is empty for this file).
++    # Sound: the callee is a same-file VERIFIED method in `_module_func_names`, and
++    # `scc.find_self_method_calls` already supplies the callee-before-caller ordering edge
++    # for a marked callee. Corpus byte-inert BY CONSTRUCTION — no corpus program writes
++    # the directive.
++    #@ sibling_concrete
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing
+diff --git a/src/self-annotate/src/module6_whyml/expressions.py b/src/self-annotate/src/module6_whyml/expressions.py
+index 5bd66d9b..f4798717 100644
+--- a/src/self-annotate/src/module6_whyml/expressions.py
++++ b/src/self-annotate/src/module6_whyml/expressions.py
+@@ -96,6 +96,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+     def _e(self, ir: Dict, lr: Set[str]) -> str:
+         return ""
+ 
++    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
++    # `self._whyml_string_literal(...)` call site in this file went through the receiver-less abstract
++    # `val self___whyml_string_literal_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
++    # this body computes. The opt-in marker is the SECOND admission route into the
++    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
++    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
++    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
++    # already supplies the callee-before-caller ordering edge for a marked callee.
++    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
++    #@ sibling_concrete
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing
+@@ -197,6 +207,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+         collection operand may arrive already-dereffed."""
+         return f"!{expr.lstrip('!')}" if expr.startswith("!") else expr
+ 
++    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
++    # `self._coerce_to_int(...)` call site in this file went through the receiver-less abstract
++    # `val self___coerce_to_int_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
++    # this body computes. The opt-in marker is the SECOND admission route into the
++    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
++    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
++    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
++    # already supplies the callee-before-caller ordering edge for a marked callee.
++    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
++    #@ sibling_concrete
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing
+@@ -885,6 +905,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+     #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
+     def _handle_attribute_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
+         return ""
++    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
++    # `self._var_todict_alias(...)` call site in this file went through the receiver-less abstract
++    # `val self___var_todict_alias_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
++    # this body computes. The opt-in marker is the SECOND admission route into the
++    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
++    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
++    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
++    # already supplies the callee-before-caller ordering edge for a marked callee.
++    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
++    #@ sibling_concrete
+     #@ requires True
+     #@ ensures True
+     #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
+@@ -1014,6 +1044,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+     #@ assigns self._quant_record_binders, self._quant_scalar_binders
+     def _pop_quant_binder(self, var: Optional[str], token) -> None:
+         pass
++    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
++    # `self._field_label(...)` call site in this file went through the receiver-less abstract
++    # `val self___field_label_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
++    # this body computes. The opt-in marker is the SECOND admission route into the
++    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
++    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
++    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
++    # already supplies the callee-before-caller ordering edge for a marked callee.
++    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
++    #@ sibling_concrete
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing
+@@ -1243,6 +1283,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+             return f"(begin {target} := {v}; !{target} end)"
+         local_refs.add(target)
+         return f"(let {target} = ref {v} in !{target})"
++    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
++    # `self._slice_array_or_opaque(...)` call site in this file went through the receiver-less abstract
++    # `val self___slice_array_or_opaque_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
++    # this body computes. The opt-in marker is the SECOND admission route into the
++    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
++    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
++    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
++    # already supplies the callee-before-caller ordering edge for a marked callee.
++    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
++    #@ sibling_concrete
+     #@ requires True
+     #@ ensures True
+     #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
+diff --git a/src/self-annotate/src/module6_whyml/functions.py b/src/self-annotate/src/module6_whyml/functions.py
+index 371d1219..e4d536b8 100644
+--- a/src/self-annotate/src/module6_whyml/functions.py
++++ b/src/self-annotate/src/module6_whyml/functions.py
+@@ -312,6 +312,16 @@ class FunctionEmissionMixin:
+                 return "map int (option int)"
+         return "int"
+ 
++    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
++    # `self._refine_tuple_return_type(...)` call site in this file went through the receiver-less abstract
++    # `val self___refine_tuple_return_type_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
++    # this body computes. The opt-in marker is the SECOND admission route into the
++    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
++    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
++    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
++    # already supplies the callee-before-caller ordering edge for a marked callee.
++    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
++    #@ sibling_concrete
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing
+diff --git a/src/self-annotate/src/module6_whyml/statements.py b/src/self-annotate/src/module6_whyml/statements.py
+index ec22108f..cf87255e 100644
+--- a/src/self-annotate/src/module6_whyml/statements.py
++++ b/src/self-annotate/src/module6_whyml/statements.py
+@@ -247,6 +247,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+     def _is_emit_ir_expr(self, ir: "ExprIR") -> bool:
+         return False
+ 
++    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
++    # `self._field_label(...)` call site in this file went through the receiver-less abstract
++    # `val self___field_label_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
++    # this body computes. The opt-in marker is the SECOND admission route into the
++    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
++    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
++    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
++    # already supplies the callee-before-caller ordering edge for a marked callee.
++    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
++    #@ sibling_concrete
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing
+@@ -410,6 +420,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+             return "bounded_int"
+         return "default"
+ 
++    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
++    # `self._rhs_yields_array(...)` call site in this file went through the receiver-less abstract
++    # `val self___rhs_yields_array_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
++    # this body computes. The opt-in marker is the SECOND admission route into the
++    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
++    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
++    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
++    # already supplies the callee-before-caller ordering edge for a marked callee.
++    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
++    #@ sibling_concrete
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing
+diff --git a/src/self-annotate/src/module6_whyml/stmt_control_flow.py b/src/self-annotate/src/module6_whyml/stmt_control_flow.py
+index 85a6d8d2..d8f6626e 100644
+--- a/src/self-annotate/src/module6_whyml/stmt_control_flow.py
++++ b/src/self-annotate/src/module6_whyml/stmt_control_flow.py
+@@ -369,6 +369,16 @@ class ControlFlowStmtMixin:
+                     return r
+         return {}
+ 
++    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
++    # `self._try_local_decl_kind(...)` call site in this file went through the receiver-less abstract
++    # `val self___try_local_decl_kind_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
++    # this body computes. The opt-in marker is the SECOND admission route into the
++    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
++    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
++    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
++    # already supplies the callee-before-caller ordering edge for a marked callee.
++    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
++    #@ sibling_concrete
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing
+@@ -567,6 +577,16 @@ class ControlFlowStmtMixin:
+             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+         return code
+ 
++    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
++    # `self._try_union_is_none_match(...)` call site in this file went through the receiver-less abstract
++    # `val self___try_union_is_none_match_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
++    # this body computes. The opt-in marker is the SECOND admission route into the
++    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
++    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
++    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
++    # already supplies the callee-before-caller ordering edge for a marked callee.
++    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
++    #@ sibling_concrete
+     #@ requires True
+     #@ ensures True
+     # Inherited from `_stmts_to_whyml` (see its frame note) — the callee writes
+@@ -957,6 +977,16 @@ class ControlFlowStmtMixin:
+             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+         return code
+ 
++    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
++    # `self._maybe_inject_union_return(...)` call site in this file went through the receiver-less abstract
++    # `val self___maybe_inject_union_return_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
++    # this body computes. The opt-in marker is the SECOND admission route into the
++    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
++    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
++    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
++    # already supplies the callee-before-caller ordering edge for a marked callee.
++    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
++    #@ sibling_concrete
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing
+diff --git a/src/self-annotate/src/module6_whyml/types.py b/src/self-annotate/src/module6_whyml/types.py
+index e923388c..f592dd59 100644
+--- a/src/self-annotate/src/module6_whyml/types.py
++++ b/src/self-annotate/src/module6_whyml/types.py
+@@ -137,6 +137,16 @@ class TypeInferenceMixin:
+             return "bounded_int"
+         return "default"
+ 
++    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
++    # `self._rhs_yields_array(...)` call site in this file went through the receiver-less abstract
++    # `val self___rhs_yields_array_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
++    # this body computes. The opt-in marker is the SECOND admission route into the
++    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
++    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
++    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
++    # already supplies the callee-before-caller ordering edge for a marked callee.
++    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
++    #@ sibling_concrete
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing

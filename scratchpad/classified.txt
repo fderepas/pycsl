@@ -1,0 +1,668 @@
+NONE-noreturn		extend	src/pycsl/audit_proof.py
+RET:name	fileio	_extract_directives	src/pycsl/audit_proof.py
+RET:call		_strip_rocq_comments	src/pycsl/audit_proof.py
+RET:name	fileio	_parse_rocq_file	src/pycsl/audit_proof.py
+RET:call		_strip_lean_comments	src/pycsl/audit_proof.py
+RET:name	fileio	_parse_lean_file	src/pycsl/audit_proof.py
+RET:name	fileio	_index_proofs_dir	src/pycsl/audit_proof.py
+RET:name		_audit_one_prover	src/pycsl/audit_proof.py
+RET:name	fileio	_index_proofs_dir_by_file	src/pycsl/audit_proof.py
+RET:expr		_default_rocq_dir	src/pycsl/audit_proof.py
+RET:expr		_default_lean_dir	src/pycsl/audit_proof.py
+RET:call		audit_rocq	src/pycsl/audit_proof.py
+RET:call		audit_lean	src/pycsl/audit_proof.py
+RET:name		audit_both	src/pycsl/audit_proof.py
+NONE-noreturn		print_report	src/pycsl/audit_proof.py
+RET:call		message	src/pycsl/errors.py
+RET:dict		as_dict	src/pycsl/errors.py
+NONE-raiseonly	raise	validate_ir	src/pycsl/ir_schema.py
+RET:call		bases_closure	src/pycsl/exception_model.py
+NONE-noreturn		run_ir_semantic_checks	src/pycsl/core_ir_semantic.py
+NONE-noreturn	warn	_typeddict_check_subscript	src/pycsl/core_ir_semantic.py
+NONE-raiseonly	raise	_namedtuple_check_call	src/pycsl/core_ir_semantic.py
+NONE-noreturn	warn	_namedtuple_check_subscript	src/pycsl/core_ir_semantic.py
+RET:bool		is_rocq_assumption_allowed	src/pycsl/proof_axiom_allowlist.py
+RET:bool		is_lean_axiom_allowed	src/pycsl/proof_axiom_allowlist.py
+RET:list		parse_lean_axioms_line	src/pycsl/proof_axiom_allowlist.py
+RET:tuple		parse_rocq_assumptions_block	src/pycsl/proof_axiom_allowlist.py
+RET:expr	fileio	_proof_reference_mlw_name	src/pycsl/pycsl.py
+RET:name	fileio	_make_temp_mlw_path	src/pycsl/pycsl.py
+NONE-noreturn	fileio	_generate_rocq_obligations	src/pycsl/pycsl.py
+RET:call	fileio	_sha256_file	src/pycsl/pycsl.py
+RET:call,name	fileio	_find_coqc	src/pycsl/pycsl.py
+RET:None,name	fileio	_find_why3_coq_lib	src/pycsl/pycsl.py
+RET:int,name	fileio	_check_rocq_proofs	src/pycsl/pycsl.py
+RET:call		_parse_args	src/pycsl/pycsl.py
+RET:dict		_build_soundness_report	src/pycsl/pycsl.py
+NONE-noreturn	str2int	_print_soundness_report	src/pycsl/pycsl.py
+RET:call	fileio|raise	_run_pipeline	src/pycsl/pycsl.py
+RET:tuple	fileio	_why3_typecheck	src/pycsl/pycsl.py
+RET:name		_parse_goal_blocks	src/pycsl/pycsl.py
+RET:name		_parse_why3_json	src/pycsl/pycsl.py
+RET:list		_json_goal_records	src/pycsl/pycsl.py
+RET:bool		_record_answer	src/pycsl/pycsl.py
+RET:tuple		_record_key	src/pycsl/pycsl.py
+RET:list		_merge_records_best_of_n	src/pycsl/pycsl.py
+RET:expr		_synthesize_block	src/pycsl/pycsl.py
+RET:call		_synthesize_legacy_text	src/pycsl/pycsl.py
+RET:None,name		_residual_selectors_from_records	src/pycsl/pycsl.py
+RET:tuple	regex	_function_body_eqs	src/pycsl/pycsl.py
+RET:None,bool,list,name,tuple	fileio	_run_vacuity_gate	src/pycsl/pycsl.py
+RET:bool,tuple	fileio	_probe_one	src/pycsl/pycsl.py
+RET:bool		_is_false_goal	src/pycsl/pycsl.py
+RET:call	fileio	_run_why3_prove	src/pycsl/pycsl.py
+RET:call,tuple		_dispatch_provers	src/pycsl/pycsl.py
+RET:tuple		_finalize	src/pycsl/pycsl.py
+NONE-noreturn	fileio|str2int	_run_proofs	src/pycsl/pycsl.py
+NONE-noreturn		_gate_vacuity_then_succeed	src/pycsl/pycsl.py
+RET:expr	fileio	_run_audit_mode	src/pycsl/pycsl.py
+RET:tuple	fileio	_resolve_runtime_config	src/pycsl/pycsl.py
+NONE-noreturn	fileio	main	src/pycsl/pycsl.py
+NONE-noreturn		__init__	src/pycsl/errors.py
+RET:str	raise	_heap_var	src/pycsl/Module6_WhyMLTranspiler.py
+NONE-noreturn		_build_callee_no_exception_summary	src/pycsl/Module6_WhyMLTranspiler.py
+RET:expr,name		_wrap_call_with_callee_raises_assert	src/pycsl/Module6_WhyMLTranspiler.py
+RET:None,call		_render_callee_condition	src/pycsl/Module6_WhyMLTranspiler.py
+RET:call,str		_maybe_emit_no_exception_assert	src/pycsl/Module6_WhyMLTranspiler.py
+RET:call		transpile	src/pycsl/Module6_WhyMLTranspiler.py
+NONE-noreturn		_compute_shared_module_maps	src/pycsl/Module6_WhyMLTranspiler.py
+RET:name		_emit_prefunctions_infra	src/pycsl/Module6_WhyMLTranspiler.py
+NONE-noreturn		_reset_module_accumulators	src/pycsl/Module6_WhyMLTranspiler.py
+RET:None,expr,name		_sig_val_from_let	src/pycsl/Module6_WhyMLTranspiler.py
+RET:call,name		_transpile_modular	src/pycsl/Module6_WhyMLTranspiler.py
+RET:name		_emit_funcs	src/pycsl/Module6_WhyMLTranspiler.py
+RET:expr		_shared_use_lines	src/pycsl/Module6_WhyMLTranspiler.py
+RET:bool,call		ok	src/pycsl/audit_proof_reverify.py
+RET:expr		summary	src/pycsl/audit_proof_reverify.py
+RET:name		_cache_root	src/pycsl/audit_proof_reverify.py
+RET:call	fileio	_sha256_file	src/pycsl/pycsl.py
+RET:call		_cache_key	src/pycsl/audit_proof_reverify.py
+RET:None,call	fileio	_cache_load	src/pycsl/audit_proof_reverify.py
+NONE-noreturn	fileio	_cache_store	src/pycsl/audit_proof_reverify.py
+RET:expr,str	fileio	_coqc_version	src/pycsl/audit_proof_reverify.py
+RET:expr,str	fileio	_lean_version	src/pycsl/audit_proof_reverify.py
+RET:name	fileio	verify_rocq_file	src/pycsl/audit_proof_reverify.py
+RET:name		_split_rocq_print_assumptions	src/pycsl/audit_proof_reverify.py
+RET:name	fileio	verify_lean_file	src/pycsl/audit_proof_reverify.py
+RET:dict		_to_cache_payload	src/pycsl/audit_proof_reverify.py
+RET:None,tuple		_construct_indices	src/pycsl/proof2why3/from_sexp.py
+RET:None,call,name		_find_construct_idx	src/pycsl/proof2why3/from_sexp.py
+RET:call		_project_app	src/pycsl/proof2why3/from_sexp.py
+RET:call	str2int	project_constr	src/pycsl/proof2why3/from_sexp.py
+RET:dict		pairwise	src/pycsl/proof2why3/crosscheck.py
+RET:call		diagnostic	src/pycsl/proof2why3/crosscheck.py
+RET:dict	fileio|ast|raise	_load_axiom_registry	src/pycsl/proof2why3/crosscheck.py
+RET:name	fileio	crosscheck_file	src/pycsl/proof2why3/crosscheck.py
+NONE-noreturn	fileio	main	src/pycsl/pycsl.py
+RET:dict		pairwise	src/pycsl/proof2why3/crosscheck.py
+RET:call		diagnostic	src/pycsl/proof2why3/crosscheck.py
+RET:dict	fileio|ast|raise	_load_axiom_registry	src/pycsl/proof2why3/crosscheck.py
+RET:name		_preprocess_whyml	src/pycsl/proof2why3/crosscheck_ir.py
+RET:name	fileio	crosscheck_file_ir	src/pycsl/proof2why3/crosscheck_ir.py
+NONE-noreturn	fileio	main	src/pycsl/pycsl.py
+RET:name	regex	normalize_prover_output	src/pycsl/proof2why3/normalize.py
+RET:call	regex	_strip_all_parens	src/pycsl/proof2why3/normalize.py
+RET:call,expr	regex	_nat_to_int_with_sidecond	src/pycsl/proof2why3/normalize.py
+RET:name	regex	_expand_anon_binders	src/pycsl/proof2why3/normalize.py
+RET:name	regex	_alpha_rename	src/pycsl/proof2why3/normalize.py
+RET:name	regex	normalize_whyml_axiom	src/pycsl/proof2why3/normalize.py
+RET:call,name	raise	substitute	src/pycsl/proof2why3/canonical.py
+RET:call,name		_expand_nat_to_int	src/pycsl/proof2why3/canonical.py
+RET:name	regex	_alpha_rename	src/pycsl/proof2why3/normalize.py
+RET:call,name	raise	_dedup_arrow_chain	src/pycsl/proof2why3/canonical.py
+RET:call,name	raise	_ac_normalize	src/pycsl/proof2why3/canonical.py
+RET:call,name	raise	_sort_arrow_hypotheses	src/pycsl/proof2why3/canonical.py
+RET:call,name	raise	_flatten_foralls	src/pycsl/proof2why3/canonical.py
+RET:call		_camel_to_snake	src/pycsl/proof2why3/canonical.py
+RET:call,name	raise	_normalize_names	src/pycsl/proof2why3/canonical.py
+RET:call,name,str		_normalize_type_string	src/pycsl/proof2why3/canonical.py
+RET:call,name	raise	_iff_app_to_binop	src/pycsl/proof2why3/canonical.py
+RET:name		canonicalize	src/pycsl/proof2why3/canonical.py
+RET:name	regex	normalize_surface	src/pycsl/proof2why3/parser.py
+RET:expr		__repr__	src/pycsl/proof2why3/parser.py
+RET:name		lex	src/pycsl/proof2why3/parser.py
+RET:call	raise	expect	src/pycsl/proof2why3/parser.py
+RET:call		parse_expr	src/pycsl/proof2why3/parser.py
+RET:call	raise	parse_quant	src/pycsl/proof2why3/parser.py
+RET:call,name		parse_implication	src/pycsl/proof2why3/parser.py
+RET:name		parse_disjunction	src/pycsl/proof2why3/parser.py
+RET:name		parse_conjunction	src/pycsl/proof2why3/parser.py
+RET:call,name		parse_comparison	src/pycsl/proof2why3/parser.py
+RET:name		parse_arith_add	src/pycsl/proof2why3/parser.py
+RET:name		parse_arith_mul	src/pycsl/proof2why3/parser.py
+RET:call,name		parse_atom_application	src/pycsl/proof2why3/parser.py
+RET:call,name	raise	parse_atom	src/pycsl/proof2why3/parser.py
+RET:call,name		parse_type_expr	src/pycsl/proof2why3/parser.py
+RET:tuple		_linearize_app	src/pycsl/proof2why3/from_lean_json.py
+RET:None,call		_is_ofnat_lit	src/pycsl/proof2why3/from_lean_json.py
+RET:call		project_to_ir	src/pycsl/proof2why3/from_lean_json.py
+RET:bool		lean_meta_available	src/pycsl/proof2why3/extract_lean_meta.py
+RET:dict,name	fileio	extract_lean_statements_meta	src/pycsl/proof2why3/extract_lean_meta.py
+RET:call	fileio	extract_rocq_statements	src/pycsl/proof2why3/extract.py
+RET:name		_split_rocq_check_output	src/pycsl/proof2why3/extract.py
+RET:bool,name	fileio	extract_lean_statements	src/pycsl/proof2why3/extract.py
+RET:expr,str	fileio	sertop_version	src/pycsl/proof2why3/sertop.py
+NONE-noreturn		_sexp_tokens	src/pycsl/proof2why3/sertop.py
+RET:call,name	raise	_sexp_parse	src/pycsl/proof2why3/sertop.py
+RET:call		parse_sexp	src/pycsl/proof2why3/sertop.py
+RET:None,name		_process_sertop_line	src/pycsl/proof2why3/sertop.py
+RET:name	fileio	run_sertop_batch	src/pycsl/proof2why3/sertop.py
+RET:name		__enter__	src/pycsl/proof2why3/sertop.py
+NONE-noreturn		__exit__	src/pycsl/proof2why3/sertop.py
+RET:call		type_of_batch	src/pycsl/proof2why3/sertop.py
+RET:call,dict	fileio	extract_via_sertop	src/pycsl/proof2why3/sertop.py
+NONE-raiseonly	raise	apply_monomorphization	src/pycsl/frontend/monomorphize.py
+RET:name		_collect_generic_decls	src/pycsl/frontend/monomorphize.py
+RET:name		_collect_instantiations	src/pycsl/frontend/monomorphize.py
+RET:None,tuple	regex	_match_generic_annotation	src/pycsl/frontend/monomorphize.py
+NONE-raiseonly	ast|raise	_check_gt4_polymorphic_recursion	src/pycsl/frontend/monomorphize.py
+NONE-noreturn		_emit_specializations	src/pycsl/frontend/monomorphize.py
+RET:expr	regex	_mangled_name	src/pycsl/frontend/monomorphize.py
+RET:name		_specialize_decl	src/pycsl/frontend/monomorphize.py
+RET:name		_specialize_function	src/pycsl/frontend/monomorphize.py
+NONE-noreturn		_rewrite_call_sites	src/pycsl/frontend/monomorphize.py
+RET:list,name		_rewrite_subscript_calls_in_stmt	src/pycsl/frontend/monomorphize.py
+RET:dict,list,name		_rewrite_subscript_to_name	src/pycsl/frontend/monomorphize.py
+NONE-noreturn		_rewrite_annotations	src/pycsl/frontend/monomorphize.py
+RET:expr,name	regex	_rewrite_annotation_str	src/pycsl/frontend/monomorphize.py
+NONE-noreturn		_record_classification	src/pycsl/frontend/monomorphize.py
+RET:call,set	fileio	_stub_set	src/pycsl/frontend/import_classifier.py
+RET:name	ast|raise	check_imports	src/pycsl/frontend/import_classifier.py
+NONE-noreturn		__init__	src/pycsl/errors.py
+NONE-noreturn	ast	visit_Module	src/pycsl/frontend/Module5_IREmitter.py
+RET:None,call		_get_mutex_invariant_ir	src/pycsl/frontend/Module5_IREmitter.py
+RET:call	raise	_csl_to_ir	src/pycsl/frontend/Module5_IREmitter.py
+RET:call		_csl_contract_wrapper	src/pycsl/frontend/Module5_IREmitter.py
+RET:dict	raise	_csl_in	src/pycsl/frontend/Module5_IREmitter.py
+RET:dict		_csl_not_in	src/pycsl/frontend/Module5_IREmitter.py
+RET:dict	raise	_csl_proj	src/pycsl/frontend/Module5_IREmitter.py
+RET:name		_csl_list_to_ir	src/pycsl/frontend/Module5_IREmitter.py
+RET:call		_py_op_to_str	src/pycsl/frontend/Module5_IREmitter.py
+RET:call,dict		_py_expr_to_ir	src/pycsl/frontend/Module5_IREmitter.py
+RET:dict,name	ast|raise	_py_expr_call	src/pycsl/frontend/Module5_IREmitter.py
+RET:dict	ast	_py_expr_fstring	src/pycsl/frontend/Module5_IREmitter.py
+RET:name	ast	_py_stmts_to_ir	src/pycsl/frontend/Module5_IREmitter.py
+NONE-noreturn	ast	_py_stmt_raise	src/pycsl/frontend/Module5_IREmitter.py
+RET:dict	ast	_match_pattern_to_ir	src/pycsl/frontend/Module5_IREmitter.py
+RET:call,name,str		_field_type_from_annotation_inst	src/pycsl/frontend/Module5_IREmitter.py
+NONE-noreturn	ast	_emit_typeddict_record	src/pycsl/frontend/Module5_IREmitter.py
+NONE-noreturn	ast	_synthesize_typeddict_functional	src/pycsl/frontend/Module5_IREmitter.py
+NONE-noreturn	ast	_emit_namedtuple_record	src/pycsl/frontend/Module5_IREmitter.py
+NONE-noreturn	ast	_synthesize_namedtuple_functional	src/pycsl/frontend/Module5_IREmitter.py
+NONE-noreturn	ast	_emit_protocol_interface	src/pycsl/frontend/Module5_IREmitter.py
+NONE-raiseonly	ast|raise	_populate_protocol_conformance	src/pycsl/frontend/Module5_IREmitter.py
+RET:tuple	ast	_collect_class_fields	src/pycsl/frontend/Module5_IREmitter.py
+RET:None,call,expr	ast	_array_init_size	src/pycsl/frontend/Module5_IREmitter.py
+RET:None,call,expr	ast	_const_int_value	src/pycsl/frontend/Module5_IREmitter.py
+NONE-noreturn	ast	visit_ClassDef	src/pycsl/frontend/Module5_IREmitter.py
+RET:bool	ast	_should_skip_method	src/pycsl/frontend/Module5_IREmitter.py
+RET:None,call,list,name	ast	_collect_union_arms	src/pycsl/frontend/Module5_IREmitter.py
+RET:call,expr,name,str		_normalize_union_annotation	src/pycsl/frontend/Module5_IREmitter.py
+RET:None,name	ast|raise	_normalize_literal_annotation	src/pycsl/frontend/Module5_IREmitter.py
+RET:tuple	ast|raise	_classify_literal_value	src/pycsl/frontend/Module5_IREmitter.py
+RET:expr	ast|raise	_encode_callable_annotation	src/pycsl/frontend/Module5_IREmitter.py
+RET:call,expr,name,str	raise	_m5_get_type_name	src/pycsl/frontend/Module5_IREmitter.py
+RET:bool,tuple	ast	_build_function_symbol_table	src/pycsl/frontend/Module5_IREmitter.py
+RET:dict	ast	_build_function_ir	src/pycsl/frontend/Module5_IREmitter.py
+NONE-noreturn		_detect_array_dimensions	src/pycsl/frontend/Module5_IREmitter.py
+RET:bool		_detect_seq_promotion	src/pycsl/frontend/Module5_IREmitter.py
+NONE-noreturn	ast	visit_FunctionDef	src/pycsl/frontend/Module5_IREmitter.py
+RET:bool	ast	_is_overload_stub	src/pycsl/frontend/Module5_IREmitter.py
+RET:list,name	ast	_synthesize_overload_guard	src/pycsl/frontend/Module5_IREmitter.py
+RET:None,expr,name	ast	_build_overload_param_guard	src/pycsl/frontend/Module5_IREmitter.py
+RET:call		generate_json	src/pycsl/frontend/Module5_IREmitter.py
+NONE-noreturn	ast	_init_function_csl_fields	src/pycsl/frontend/Module3_Weaver.py
+RET:call,name		_act_guard	src/pycsl/frontend/Module3_Weaver.py
+RET:call,list,name		_subst_var	src/pycsl/frontend/Module3_Weaver.py
+RET:name	raise	_desugar_for	src/pycsl/frontend/Module3_Weaver.py
+RET:tuple		_desugar_acts	src/pycsl/frontend/Module3_Weaver.py
+RET:name	ast	_extract_mixin_directives	src/pycsl/frontend/Module3_Weaver.py
+NONE-noreturn	ast|warn	_dispatch_function_contracts	src/pycsl/frontend/Module3_Weaver.py
+NONE-raiseonly	ast|warn|raise	_validate_function_contracts	src/pycsl/frontend/Module3_Weaver.py
+NONE-noreturn	ast	visit_FunctionDef	src/pycsl/frontend/Module5_IREmitter.py
+NONE-noreturn	ast	visit_Module	src/pycsl/frontend/Module5_IREmitter.py
+NONE-noreturn	ast	visit_With	src/pycsl/frontend/Module3_Weaver.py
+NONE-noreturn	ast	visit_ClassDef	src/pycsl/frontend/Module5_IREmitter.py
+NONE-noreturn		_attach_loop_contracts	src/pycsl/frontend/Module3_Weaver.py
+NONE-noreturn	ast	visit_While	src/pycsl/frontend/Module3_Weaver.py
+NONE-noreturn	ast	visit_For	src/pycsl/frontend/Module3_Weaver.py
+RET:tuple		_parse_extracted_contracts	src/pycsl/frontend/Module3_Weaver.py
+NONE-noreturn	ast	_consolidate_module_concurrency	src/pycsl/frontend/Module3_Weaver.py
+NONE-noreturn	ast	_attach_labels_and_ghost_assigns	src/pycsl/frontend/Module3_Weaver.py
+RET:name		_extract_happy_properties	src/pycsl/frontend/Module3_Weaver.py
+RET:None,dict	ast	_field_write_site	src/pycsl/frontend/Module3_Weaver.py
+RET:call,expr		_happy_predicate	src/pycsl/frontend/Module3_Weaver.py
+NONE-raiseonly	ast|raise	_expand_happy_properties	src/pycsl/frontend/Module3_Weaver.py
+RET:call,expr		_region_bound_str	src/pycsl/frontend/Module3_Weaver.py
+RET:call		_canonical_preservation_ensures	src/pycsl/frontend/Module3_Weaver.py
+RET:None,call,expr	ast	_target_dotted_path	src/pycsl/frontend/Module3_Weaver.py
+RET:call,name		_subst_csl_param	src/pycsl/frontend/Module3_Weaver.py
+NONE-raiseonly	ast|raise	_check_protect_aliasing	src/pycsl/frontend/Module3_Weaver.py
+RET:None,dict	ast	_subscript_read_site	src/pycsl/frontend/Module3_Weaver.py
+NONE-noreturn	ast	_collect_self_call_sites	src/pycsl/frontend/Module3_Weaver.py
+RET:name	ast|raise	_synthesize_selfcomp	src/pycsl/frontend/Module3_Weaver.py
+NONE-noreturn	ast	_collect_field_read_sites	src/pycsl/frontend/Module3_Weaver.py
+RET:name	ast	process	src/pycsl/frontend/Module3_Weaver.py
+RET:dict	ast	collect_module_constants	src/pycsl/frontend/module_collect.py
+RET:dict	ast	collect_module_globals	src/pycsl/frontend/module_collect.py
+RET:bool,set		_recursive_methods	src/pycsl/frontend/ir_inline.py
+RET:expr		_fresh	src/pycsl/frontend/ir_inline.py
+RET:name	raise	_expand	src/pycsl/frontend/ir_inline.py
+RET:dict,list,name		_hoist_calls_in_expr	src/pycsl/frontend/ir_inline.py
+RET:name		inline_stmts	src/pycsl/frontend/ir_inline.py
+NONE-raiseonly	raise	_inline_calls	src/pycsl/frontend/ir_inline.py
+NONE-noreturn	fileio	apply_inline_globals	src/pycsl/frontend/ir_inline.py
+NONE-noreturn		__init__	src/pycsl/errors.py
+RET:expr		__repr__	src/pycsl/proof2why3/parser.py
+RET:expr,name		_build_nodes	src/pycsl/frontend/pure_ast.py
+RET:expr		_const_value_getter	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		_const_value_setter	src/pycsl/frontend/pure_ast.py
+RET:bool,call		__instancecheck__	src/pycsl/frontend/pure_ast.py
+RET:call		__new__	src/pycsl/frontend/pure_ast.py
+RET:expr		__repr__	src/pycsl/proof2why3/parser.py
+RET:name,tuple		_lex	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		__init__	src/pycsl/errors.py
+RET:expr		__repr__	src/pycsl/proof2why3/parser.py
+RET:name		comments	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		__init__	src/pycsl/errors.py
+RET:call,expr		_slice	src/pycsl/frontend/pure_ast.py
+NONE-raiseonly	raise	error	src/pycsl/frontend/pure_ast.py
+NONE-raiseonly	raise	unsupported	src/pycsl/frontend/pure_ast.py
+RET:name		_fin	src/pycsl/frontend/pure_ast.py
+RET:call		node	src/pycsl/frontend/pure_ast.py
+RET:name		_max_end	src/pycsl/frontend/pure_ast.py
+RET:name		_fin_block	src/pycsl/frontend/pure_ast.py
+RET:name		parse_module	src/pycsl/frontend/pure_ast.py
+RET:name		parse_eval	src/pycsl/frontend/pure_ast.py
+RET:call,list		statement	src/pycsl/frontend/pure_ast.py
+RET:bool,call		_looks_like_match	src/pycsl/frontend/pure_ast.py
+RET:bool		_line_ends_with_colon	src/pycsl/frontend/pure_ast.py
+RET:name		_parse_type_params	src/pycsl/frontend/pure_ast.py
+RET:call		type_alias_stmt	src/pycsl/frontend/pure_ast.py
+RET:name		simple_stmt	src/pycsl/frontend/pure_ast.py
+RET:call		small_stmt	src/pycsl/frontend/pure_ast.py
+RET:call		return_stmt	src/pycsl/frontend/pure_ast.py
+RET:call		raise_stmt	src/pycsl/frontend/pure_ast.py
+RET:call		del_stmt	src/pycsl/frontend/pure_ast.py
+RET:call		assert_stmt	src/pycsl/frontend/pure_ast.py
+RET:call		global_stmt	src/pycsl/frontend/pure_ast.py
+RET:expr		_name_str	src/pycsl/frontend/pure_ast.py
+RET:call		import_stmt	src/pycsl/frontend/pure_ast.py
+RET:call		_dotted_as_name	src/pycsl/frontend/pure_ast.py
+RET:call		import_from	src/pycsl/frontend/pure_ast.py
+RET:name		_import_as_names	src/pycsl/frontend/pure_ast.py
+RET:call		_import_as_name	src/pycsl/frontend/pure_ast.py
+RET:call		expr_stmt	src/pycsl/frontend/pure_ast.py
+RET:call		testlist_star_expr_or_yield	src/pycsl/frontend/pure_ast.py
+RET:call,expr		testlist_star_expr	src/pycsl/frontend/pure_ast.py
+RET:name		exprlist	src/pycsl/frontend/pure_ast.py
+RET:call		expr_or_star	src/pycsl/frontend/pure_ast.py
+RET:call		test_or_star	src/pycsl/frontend/pure_ast.py
+RET:call,name		testlist	src/pycsl/frontend/pure_ast.py
+RET:call,name		block	src/pycsl/frontend/pure_ast.py
+RET:call		if_stmt	src/pycsl/frontend/pure_ast.py
+RET:call,list		_if_tail	src/pycsl/frontend/pure_ast.py
+RET:call		while_stmt	src/pycsl/frontend/pure_ast.py
+RET:call,list		_else_block	src/pycsl/frontend/pure_ast.py
+RET:call		match_stmt	src/pycsl/frontend/pure_ast.py
+RET:call,name		_match_subject	src/pycsl/frontend/pure_ast.py
+RET:call		case_block	src/pycsl/frontend/pure_ast.py
+RET:call,name		pattern	src/pycsl/frontend/pure_ast.py
+RET:call,name		or_pattern	src/pycsl/frontend/pure_ast.py
+RET:expr		_capture_name	src/pycsl/frontend/pure_ast.py
+RET:call		closed_pattern	src/pycsl/frontend/pure_ast.py
+RET:call,name		_pattern_number	src/pycsl/frontend/pure_ast.py
+RET:name		_dotted_value	src/pycsl/frontend/pure_ast.py
+RET:call,expr		_sequence_pattern	src/pycsl/frontend/pure_ast.py
+RET:call		for_stmt	src/pycsl/frontend/pure_ast.py
+RET:name		_for_target	src/pycsl/frontend/pure_ast.py
+RET:call		with_stmt	src/pycsl/frontend/pure_ast.py
+RET:bool		_with_parenthesized	src/pycsl/frontend/pure_ast.py
+RET:call		_with_item	src/pycsl/frontend/pure_ast.py
+RET:call		try_stmt	src/pycsl/frontend/pure_ast.py
+RET:call		decorated	src/pycsl/frontend/pure_ast.py
+RET:call		async_stmt	src/pycsl/frontend/pure_ast.py
+RET:call		funcdef	src/pycsl/frontend/pure_ast.py
+RET:call		classdef	src/pycsl/frontend/pure_ast.py
+RET:call		parse_parameters	src/pycsl/frontend/pure_ast.py
+RET:call		_param_arg	src/pycsl/frontend/pure_ast.py
+RET:call		lambda_parameters	src/pycsl/frontend/pure_ast.py
+RET:call		_lambda_arg	src/pycsl/frontend/pure_ast.py
+RET:call,name		namedexpr_test	src/pycsl/frontend/pure_ast.py
+RET:call,name		test	src/pycsl/frontend/pure_ast.py
+RET:call		lambdef	src/pycsl/frontend/pure_ast.py
+RET:call,name		or_test	src/pycsl/frontend/pure_ast.py
+RET:call,name		and_test	src/pycsl/frontend/pure_ast.py
+RET:call		not_test	src/pycsl/frontend/pure_ast.py
+RET:call,name		comparison	src/pycsl/frontend/pure_ast.py
+RET:call		expr	src/pycsl/frontend/pure_ast.py
+RET:name		_binop	src/pycsl/frontend/pure_ast.py
+RET:call		factor	src/pycsl/frontend/pure_ast.py
+RET:name		power	src/pycsl/frontend/pure_ast.py
+RET:call		await_expr	src/pycsl/frontend/pure_ast.py
+RET:call		unary_postfix	src/pycsl/frontend/pure_ast.py
+RET:name		trailers	src/pycsl/frontend/pure_ast.py
+RET:expr,name		_subscript	src/pycsl/frontend/pure_ast.py
+RET:call,name		_subscript_item	src/pycsl/frontend/pure_ast.py
+RET:call		test_or_star_slice	src/pycsl/frontend/pure_ast.py
+RET:tuple		_call_args	src/pycsl/frontend/pure_ast.py
+RET:call		atom	src/pycsl/frontend/pure_ast.py
+RET:call,name		atom_paren	src/pycsl/frontend/pure_ast.py
+RET:name		_fin_pos	src/pycsl/frontend/pure_ast.py
+RET:call		atom_list	src/pycsl/frontend/pure_ast.py
+RET:call		atom_brace	src/pycsl/frontend/pure_ast.py
+RET:call		_dict_rest	src/pycsl/frontend/pure_ast.py
+RET:name		comp_for	src/pycsl/frontend/pure_ast.py
+RET:call		or_test_no_cond	src/pycsl/frontend/pure_ast.py
+RET:name		_comp_target	src/pycsl/frontend/pure_ast.py
+RET:call		yield_expr	src/pycsl/frontend/pure_ast.py
+RET:call		strings	src/pycsl/frontend/pure_ast.py
+RET:call		_fstring	src/pycsl/frontend/pure_ast.py
+RET:name		_fstring_replacement	src/pycsl/frontend/pure_ast.py
+RET:call,name		testlist_for_fstring	src/pycsl/frontend/pure_ast.py
+RET:name		_fstring_format_spec	src/pycsl/frontend/pure_ast.py
+RET:bool		_fstring_prefix_raw	src/pycsl/frontend/pure_ast.py
+RET:call,name		_decode_fstring_middle	src/pycsl/frontend/pure_ast.py
+RET:name		_merge_str_constants	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		_set_ctx	src/pycsl/frontend/pure_ast.py
+RET:call		_parse_number	src/pycsl/frontend/pure_ast.py
+RET:tuple		_decode_string	src/pycsl/frontend/pure_ast.py
+RET:call,name		_decode_escapes	src/pycsl/frontend/pure_ast.py
+RET:call	raise	parse	src/pycsl/frontend/pure_ast.py
+RET:call,expr	raise	literal_eval	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		iter_fields	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		iter_child_nodes	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		walk	src/pycsl/core_ir_semantic.py
+RET:None,name	raise	get_docstring	src/pycsl/frontend/pure_ast.py
+RET:name		copy_location	src/pycsl/frontend/pure_ast.py
+RET:name		fix_missing_locations	src/pycsl/frontend/pure_ast.py
+RET:name		increment_lineno	src/pycsl/frontend/pure_ast.py
+RET:expr,tuple	raise	dump	src/pycsl/frontend/pure_ast.py
+RET:name		_splitlines_no_ff	src/pycsl/frontend/pure_ast.py
+RET:name		_pad_whitespace	src/pycsl/frontend/pure_ast.py
+RET:None,call		get_source_segment	src/pycsl/frontend/pure_ast.py
+RET:call		visit	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		generic_visit	src/pycsl/frontend/pure_ast.py
+RET:call	warn	visit_Constant	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		generic_visit	src/pycsl/frontend/pure_ast.py
+RET:call,name		next	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		__init__	src/pycsl/errors.py
+NONE-noreturn		interleave	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	items_view	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	fill	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		buffered	src/pycsl/frontend/pure_ast.py
+RET:call,name		block	src/pycsl/frontend/pure_ast.py
+RET:call		delimit_if	src/pycsl/frontend/pure_ast.py
+RET:call		require_parens	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		set_precedence	src/pycsl/frontend/pure_ast.py
+RET:None,name		get_raw_docstring	src/pycsl/frontend/pure_ast.py
+RET:None,expr		get_type_comment	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		traverse	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		_write_docstring_and_traverse_body	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_FunctionType	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_NamedExpr	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_Import	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_ImportFrom	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_Assign	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_AugAssign	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_AnnAssign	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_Return	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_Delete	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_Assert	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_Global	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_Nonlocal	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_Await	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_Yield	src/pycsl/frontend/pure_ast.py
+NONE-raiseonly	fileio|raise	visit_YieldFrom	src/pycsl/frontend/pure_ast.py
+NONE-raiseonly	fileio|raise	visit_Raise	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		do_visit_try	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		visit_Try	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		visit_TryStar	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_ExceptHandler	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	ast	visit_ClassDef	src/pycsl/frontend/Module5_IREmitter.py
+NONE-noreturn	fileio	_function_helper	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	_type_params_helper	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_TypeVar	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_TypeVarTuple	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_ParamSpec	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_TypeAlias	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	_for_helper	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		visit_If	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	ast	visit_While	src/pycsl/frontend/Module3_Weaver.py
+NONE-noreturn	ast	visit_With	src/pycsl/frontend/Module3_Weaver.py
+NONE-noreturn	fileio	visit_AsyncWith	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	_write_constant	src/pycsl/frontend/pure_ast.py
+RET:call	warn	visit_Constant	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_List	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		visit_ListComp	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		visit_GeneratorExp	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		visit_SetComp	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_DictComp	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_comprehension	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_IfExp	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_Set	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_Dict	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_UnaryOp	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_BinOp	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_Compare	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_BoolOp	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_Attribute	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_Call	src/pycsl/frontend/pure_ast.py
+RET:bool		visit_Subscript	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_Slice	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_arg	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_arguments	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_keyword	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_Lambda	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_alias	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_withitem	src/pycsl/frontend/pure_ast.py
+RET:call,name,tuple		_str_literal_helper	src/pycsl/frontend/pure_ast.py
+RET:call	fileio	visit_JoinedStr	src/pycsl/frontend/pure_ast.py
+NONE-raiseonly	fileio|raise	_write_fstring_inner	src/pycsl/frontend/pure_ast.py
+RET:call	fileio	visit_FormattedValue	src/pycsl/frontend/pure_ast.py
+NONE-noreturn		visit_Match	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_match_case	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_MatchSequence	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_MatchStar	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_MatchMapping	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_MatchClass	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_MatchAs	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	visit_MatchOr	src/pycsl/frontend/pure_ast.py
+RET:call		unparse	src/pycsl/frontend/pure_ast.py
+RET:dict	fileio|str2int	_self_test	src/pycsl/frontend/pure_ast.py
+NONE-noreturn	fileio	main	src/pycsl/pycsl.py
+RET:None,tuple	regex	_match_block_hdr	src/pycsl/frontend/Module1_Ingestor.py
+RET:name	ast	process	src/pycsl/frontend/Module3_Weaver.py
+RET:tuple		_make	src/pycsl/frontend/Module1_Ingestor.py
+RET:name		_build	src/pycsl/frontend/Module1_Ingestor.py
+RET:expr		run	src/pycsl/frontend/Module1_Ingestor.py
+RET:name	ast	_assign	src/pycsl/frontend/Module3_Weaver.py
+RET:call,list		_normalize_leading	src/pycsl/frontend/Module1_Ingestor.py
+RET:tuple	raise	_fold_clauses	src/pycsl/frontend/Module1_Ingestor.py
+RET:name	regex|raise	_fold_blocks	src/pycsl/frontend/Module1_Ingestor.py
+NONE-noreturn		_emit_suite	src/pycsl/frontend/Module1_Ingestor.py
+NONE-noreturn		_emit_target	src/pycsl/frontend/Module1_Ingestor.py
+NONE-noreturn		_emit_block_footer	src/pycsl/frontend/Module1_Ingestor.py
+RET:expr	ast|raise	check	src/pycsl/frontend/ConcurrencyChecker.py
+NONE-noreturn	ast	_check_function	src/pycsl/frontend/ConcurrencyChecker.py
+NONE-noreturn		_walk_body	src/pycsl/frontend/ConcurrencyChecker.py
+NONE-noreturn	ast	_walk_stmt	src/pycsl/frontend/ConcurrencyChecker.py
+NONE-noreturn		_warn_if_unprotected	src/pycsl/frontend/ConcurrencyChecker.py
+RET:expr		summary	src/pycsl/audit_proof_reverify.py
+RET:tuple	regex|raise	_lex_contract	src/pycsl/frontend/Module2_Parser.py
+NONE-noreturn		__init__	src/pycsl/errors.py
+RET:call	raise	parse	src/pycsl/frontend/pure_ast.py
+RET:call		_parse_contract	src/pycsl/frontend/Module2_Parser.py
+RET:call		_parse_trusted	src/pycsl/frontend/Module2_Parser.py
+RET:name	regex	_grab_reviewer_id	src/pycsl/frontend/Module2_Parser.py
+RET:call		_parse_no_exception	src/pycsl/frontend/Module2_Parser.py
+RET:call	str2int	_parse_assumes	src/pycsl/frontend/Module2_Parser.py
+RET:list,name		_parse_assigns_target	src/pycsl/frontend/Module2_Parser.py
+RET:call		_parse_act_block	src/pycsl/frontend/Module2_Parser.py
+RET:call		_parse_for_block	src/pycsl/frontend/Module2_Parser.py
+RET:call		_parse_happy	src/pycsl/frontend/Module2_Parser.py
+RET:call		_parse_happy_region	src/pycsl/frontend/Module2_Parser.py
+RET:call		_parse_happy_targets	src/pycsl/frontend/Module2_Parser.py
+RET:call		_parse_datatype	src/pycsl/frontend/Module2_Parser.py
+RET:tuple		_parse_variant_def	src/pycsl/frontend/Module2_Parser.py
+RET:call		_parse_inductive	src/pycsl/frontend/Module2_Parser.py
+RET:name		_parse_inductive_rules	src/pycsl/frontend/Module2_Parser.py
+RET:call,name	raise	_parse_atom_name	src/pycsl/frontend/Module2_Parser.py
+RET:call	str2int	_parse_atom_bs	src/pycsl/frontend/Module2_Parser.py
+RET:name		_parse_expr_list	src/pycsl/frontend/Module2_Parser.py
+RET:call	raise	parse_contract	src/pycsl/frontend/Module2_Parser.py
+RET:name		parse_node_contracts	src/pycsl/frontend/Module2_Parser.py
+NONE-noreturn		visit_Expr	src/pycsl/frontend/pure_ast.py
+RET:None,name	fileio	_resolve_module_path	src/pycsl/frontend/ir_resolve.py
+RET:None,set	fileio|ast	_get_module_exports	src/pycsl/frontend/ir_resolve.py
+RET:list,name	fileio	_process_dependency	src/pycsl/frontend/ir_resolve.py
+RET:name		_strip_dir_scan_proofs	src/pycsl/frontend/ir_resolve.py
+RET:None,name	fileio	_find_record_type_from_dep_imports	src/pycsl/frontend/ir_resolve.py
+RET:name		_inject_functions	src/pycsl/frontend/ir_resolve.py
+RET:name	fileio	_resolve_direct_imports	src/pycsl/frontend/ir_resolve.py
+RET:name	fileio	_resolve_wildcard_imports	src/pycsl/frontend/ir_resolve.py
+RET:name		_resolve_module_imports	src/pycsl/frontend/ir_resolve.py
+RET:name	fileio	_resolve_imported_classes	src/pycsl/frontend/ir_resolve.py
+RET:name	fileio|ast	_resolve_imported_base_classes	src/pycsl/frontend/ir_resolve.py
+NONE-noreturn		apply_inheritance	src/pycsl/frontend/ir_resolve.py
+RET:name	raise	apply_composition	src/pycsl/frontend/ir_resolve.py
+RET:call,name	ast	resolve_imports	src/pycsl/frontend/ir_resolve.py
+RET:name	fileio|ast	resolve	src/pycsl/frontend/ir_resolve.py
+NONE-noreturn		_add_abstract_op	src/pycsl/module6_whyml/abstract_ops.py
+RET:tuple		_resolve_dotted_signature	src/pycsl/module6_whyml/expressions.py
+RET:call,expr	str2int	_str_operand_to_int	src/pycsl/module6_whyml/expressions.py
+RET:bool		_is_emit_ir_expr	src/pycsl/module6_whyml/expressions.py
+RET:expr,name		_field_label	src/pycsl/module6_whyml/expressions.py
+RET:name,str		_array_coerce_arg	src/pycsl/module6_whyml/expressions.py
+RET:call,name,str	str2int	_coerce_to_int	src/pycsl/module6_whyml/expressions.py
+RET:None,call		_field_type_for	src/pycsl/module6_whyml/types.py
+RET:bool,call,expr,name,str	raise	_expr_to_whyml	src/pycsl/module6_whyml/expressions.py
+RET:call,expr,name		_expr_to_whyml_string_ctx	src/pycsl/module6_whyml/expressions.py
+RET:bool,call		_is_string_expr	src/pycsl/module6_whyml/expressions.py
+NONE-noreturn		_track_collection_metadata	src/pycsl/module6_whyml/types.py
+RET:str		_first_assign_kind	src/pycsl/module6_whyml/types.py
+RET:bool		_val_is_bool	src/pycsl/module6_whyml/types.py
+RET:expr,name,str		_resolve_effective_ghost_type	src/pycsl/module6_whyml/types.py
+RET:call		_e	src/pycsl/ir_schema.py
+RET:None,call		_field_type_of	src/pycsl/module6_whyml/types.py
+RET:call,str		_maybe_emit_no_exception_assert	src/pycsl/Module6_WhyMLTranspiler.py
+RET:call,expr,name		_dv_store_value	src/pycsl/module6_whyml/expressions.py
+RET:expr		_mutex_inv_application	src/pycsl/module6_whyml/preamble.py
+RET:expr	fileio	_handle_return_stmt	src/pycsl/module6_whyml/stmt_control_flow.py
+RET:expr		_emit_first_assign	src/pycsl/module6_whyml/statements.py
+RET:call,expr	str2int	_emit_array_local_reassign	src/pycsl/module6_whyml/statements.py
+RET:call,expr,name		_handle_assign_stmt	src/pycsl/module6_whyml/statements.py
+RET:call,name		_seq_init_expr	src/pycsl/module6_whyml/statements.py
+RET:call,expr		_seq_operand	src/pycsl/module6_whyml/statements.py
+RET:call,name		_handle_ghost_assign_stmt	src/pycsl/module6_whyml/statements.py
+RET:call,name		_handle_tuple_unpack_stmt	src/pycsl/module6_whyml/statements.py
+RET:expr,name		_handle_array_set_stmt	src/pycsl/module6_whyml/statements.py
+RET:name		_handle_augassign_stmt	src/pycsl/module6_whyml/statements.py
+RET:expr,name		_handle_expr_stmt	src/pycsl/module6_whyml/statements.py
+RET:call,expr,name,str	raise	_stmts_to_whyml	src/pycsl/module6_whyml/statements.py
+RET:list,name		_emit_frame_condition	src/pycsl/module6_whyml/statements.py
+NONE-noreturn		rec	src/pycsl/frontend/Module5_IREmitter.py
+NONE-noreturn		rec	src/pycsl/frontend/Module5_IREmitter.py
+RET:bool,call,expr		_typed_local_vars	src/pycsl/module6_whyml/statements.py
+RET:name		_emit_body_code	src/pycsl/module6_whyml/statements.py
+RET:call		_e	src/pycsl/ir_schema.py
+RET:expr		_deref	src/pycsl/module6_whyml/expressions.py
+RET:call		arity	src/pycsl/module6_whyml/struct_format.py
+RET:call,str		slot_id	src/pycsl/module6_whyml/struct_format.py
+RET:None,call	regex|str2int	parse_format	src/pycsl/module6_whyml/struct_format.py
+RET:None,name	regex|str2int	calcsize	src/pycsl/module6_whyml/struct_format.py
+NONE-noreturn		_add_abstract_op	src/pycsl/module6_whyml/abstract_ops.py
+RET:call,expr		_find_abstract_val_insert_idx	src/pycsl/module6_whyml/abstract_ops.py
+RET:None,expr,name		_advance_past_referenced_axiom_decls	src/pycsl/module6_whyml/abstract_ops.py
+NONE-noreturn		_insert_abstract_val_block	src/pycsl/module6_whyml/abstract_ops.py
+NONE-noreturn		_add_abstract_op	src/pycsl/module6_whyml/abstract_ops.py
+RET:bool		_is_emit_ir_expr	src/pycsl/module6_whyml/expressions.py
+RET:call		_e	src/pycsl/ir_schema.py
+RET:call,expr,name,str		_to_bool	src/pycsl/module6_whyml/expressions.py
+RET:call,name,str	str2int	_coerce_to_int	src/pycsl/module6_whyml/expressions.py
+RET:call,expr,str		_match_pattern_cond	src/pycsl/module6_whyml/expressions.py
+RET:expr		_emit_membership	src/pycsl/module6_whyml/expressions.py
+RET:call,expr		_emit_bitwise_or_power	src/pycsl/module6_whyml/expressions.py
+RET:bool,call		_is_string_expr	src/pycsl/module6_whyml/expressions.py
+RET:call,expr,name	ast	_handle_binop	src/pycsl/module6_whyml/expressions.py
+RET:None,expr,name,str		_iter_len_expr	src/pycsl/module6_whyml/expressions.py
+RET:call,expr		_handle_len_call	src/pycsl/module6_whyml/expressions.py
+RET:expr,name		_handle_join_call	src/pycsl/module6_whyml/expressions.py
+RET:call,str		_handle_sum_call	src/pycsl/module6_whyml/expressions.py
+RET:tuple		_resolve_dotted_signature	src/pycsl/module6_whyml/expressions.py
+RET:call,expr	fileio	_handle_dotted_call	src/pycsl/module6_whyml/expressions.py
+RET:name		_coerce_dotted_args	src/pycsl/module6_whyml/expressions.py
+RET:name,str		_dotted_ensures_suffix	src/pycsl/module6_whyml/expressions.py
+RET:None,expr	raise	_handle_struct_call	src/pycsl/module6_whyml/expressions.py
+RET:None,expr		_emit_contract_logic_symbol	src/pycsl/module6_whyml/expressions.py
+RET:None,tuple		_linear_form	src/pycsl/module6_whyml/expressions.py
+RET:None,expr		_static_width	src/pycsl/module6_whyml/expressions.py
+RET:None,expr		_recognize_field_decode_idiom	src/pycsl/module6_whyml/expressions.py
+RET:call,expr,name,str	regex|raise	_handle_call_expr	src/pycsl/module6_whyml/expressions.py
+RET:None,expr		_content_string_method	src/pycsl/module6_whyml/expressions.py
+RET:None,call,expr,name,str	str2int	_call_named_builtins	src/pycsl/module6_whyml/expressions.py
+NONE-noreturn		_emit_metatype_tags	src/pycsl/module6_whyml/expressions.py
+RET:expr,name		_tag_of_value	src/pycsl/module6_whyml/expressions.py
+RET:expr,str	ast	_handle_isinstance	src/pycsl/module6_whyml/expressions.py
+RET:None,expr,str		_call_record_constructor	src/pycsl/module6_whyml/expressions.py
+RET:None,expr		_call_bytes_methods	src/pycsl/module6_whyml/expressions.py
+RET:call,expr,name	str2int	_handle_subscript	src/pycsl/module6_whyml/expressions.py
+RET:call,expr		_handle_attribute_expr	src/pycsl/module6_whyml/expressions.py
+RET:tuple		_push_quant_binder	src/pycsl/module6_whyml/expressions.py
+NONE-noreturn		_pop_quant_binder	src/pycsl/module6_whyml/expressions.py
+RET:name,str		_handle_fstring_expr	src/pycsl/module6_whyml/expressions.py
+RET:bool,call,expr		_handle_ifexpr_expr	src/pycsl/module6_whyml/expressions.py
+RET:bool,call,expr,name,str	raise	_expr_to_whyml	src/pycsl/module6_whyml/expressions.py
+RET:call,expr,name		_expr_to_whyml_string_ctx	src/pycsl/module6_whyml/expressions.py
+RET:bool,call,dict	ast	_scan_preamble_needs	src/pycsl/module6_whyml/preamble.py
+RET:name		_emit_preamble_uses	src/pycsl/module6_whyml/preamble.py
+RET:name		_emit_preamble_exceptions	src/pycsl/module6_whyml/preamble.py
+RET:name		_emit_preamble_helpers	src/pycsl/module6_whyml/preamble.py
+RET:name		_precompute_axiom_logic_funcs	src/pycsl/module6_whyml/preamble.py
+RET:name		_emit_class_inv_axioms	src/pycsl/module6_whyml/preamble.py
+RET:list,name	raise	_emit_preamble_axioms	src/pycsl/module6_whyml/preamble.py
+RET:list,name		_emit_preamble_no_exception_predicates	src/pycsl/module6_whyml/preamble.py
+RET:name		_emit_preamble	src/pycsl/module6_whyml/preamble.py
+RET:name		_emit_shared_state	src/pycsl/module6_whyml/preamble.py
+RET:expr		_mutex_inv_application	src/pycsl/module6_whyml/preamble.py
+RET:list,name		_inductive_referenced_axiom_decls	src/pycsl/module6_whyml/preamble.py
+RET:list,name		_emit_uncited_axiom_func_decls	src/pycsl/module6_whyml/preamble.py
+RET:list,name		_emit_inductive_decls	src/pycsl/module6_whyml/preamble.py
+RET:call,list,name		_subst_self_in_expr	src/pycsl/module6_whyml/preamble.py
+RET:name		_fresh_globals_facts	src/pycsl/module6_whyml/preamble.py
+RET:list,name		_emit_module_globals	src/pycsl/module6_whyml/preamble.py
+RET:expr,name,tuple	ast	_emit_type_decls	src/pycsl/module6_whyml/preamble.py
+NONE-noreturn		_emit_opaque_class_aliases	src/pycsl/module6_whyml/preamble.py
+RET:call		_build_witness_str	src/pycsl/module6_whyml/auto_trust.py
+RET:bool		_check_witness_vals	src/pycsl/module6_whyml/auto_trust.py
+RET:bool,call		_should_auto_trust_tuple_return	src/pycsl/module6_whyml/auto_trust.py
+RET:call		_e	src/pycsl/ir_schema.py
+RET:call,expr,name		_expr_to_whyml_string_ctx	src/pycsl/module6_whyml/expressions.py
+RET:expr		_handle_proj_expr	src/pycsl/module6_whyml/expr_ghost_spec_ops.py
+RET:expr,str		_handle_ctor_payload_expr	src/pycsl/module6_whyml/expr_ghost_spec_ops.py
+RET:expr		stable_hash	src/pycsl/module6_whyml/identifiers.py
+RET:name,str		whyml_ident	src/pycsl/module6_whyml/identifiers.py
+NONE-noreturn		_materialize_bridge	src/pycsl/module6_whyml/statements.py
+NONE-noreturn		_materialize_str_bridge	src/pycsl/module6_whyml/statements.py
+RET:call,name		_seq_init_expr	src/pycsl/module6_whyml/statements.py
+RET:expr,name		_bool_ir_to_int_wrap	src/pycsl/module6_whyml/types.py
+RET:bool,call,expr,name,str	raise	_expr_to_whyml	src/pycsl/module6_whyml/expressions.py
+RET:call,name,str	str2int	_coerce_to_int	src/pycsl/module6_whyml/expressions.py
+RET:call,expr,name,str		_to_bool	src/pycsl/module6_whyml/expressions.py
+RET:name		_callee_raised_in	src/pycsl/module6_whyml/stmt_control_flow.py
+RET:call,expr,str		_match_pattern_cond	src/pycsl/module6_whyml/expressions.py
+RET:call,expr,name,str		_render_match_pattern	src/pycsl/module6_whyml/stmt_control_flow.py
+NONE-noreturn		_track_collection_metadata	src/pycsl/module6_whyml/types.py
+RET:name	regex	_collect_array_var_assigns	src/pycsl/module6_whyml/types.py
+RET:name		compute_sccs	src/pycsl/module6_whyml/scc.py
+RET:tuple		sort_functions_by_scc	src/pycsl/module6_whyml/scc.py
+RET:expr	ast	_param_type_str	src/pycsl/module6_whyml/functions.py
+RET:tuple	ast	_reset_function_state	src/pycsl/module6_whyml/functions.py
+RET:name		_emit_contracts	src/pycsl/module6_whyml/functions.py
+RET:expr,name		_emit_narrowing_vc	src/pycsl/module6_whyml/functions.py
+RET:name		_emit_union_arm_vc	src/pycsl/module6_whyml/functions.py
+RET:None,call,expr,list,name	ast|warn	_emit_function	src/pycsl/module6_whyml/functions.py
+RET:list,name		_emit_subtyping_goals	src/pycsl/module6_whyml/functions.py
+RET:expr,list		_render_refinement_goal	src/pycsl/module6_whyml/functions.py
+RET:tuple		_parse_mixin_sig	src/pycsl/module6_whyml/functions.py
+RET:name		_mixin_dep_pseudo_functions	src/pycsl/module6_whyml/functions.py

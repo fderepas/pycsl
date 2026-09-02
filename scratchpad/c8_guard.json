@@ -1,0 +1,825 @@
+======================================================================
+_union_c8_recognized_guard params= ['test'] ret= bool
+[
+ {
+  "stmt": "If",
+  "test": {
+   "type": "UnaryOp",
+   "op": "not",
+   "expr": {
+    "type": "Call",
+    "func": "isinstance",
+    "args": [
+     {
+      "type": "Var",
+      "name": "test"
+     },
+     {
+      "type": "Var",
+      "name": "dict"
+     }
+    ]
+   }
+  },
+  "body": [
+   {
+    "stmt": "Return",
+    "value": {
+     "type": "Bool",
+     "value": false
+    }
+   }
+  ],
+  "orelse": []
+ },
+ {
+  "stmt": "If",
+  "test": {
+   "type": "BinOp",
+   "op": "and",
+   "left": {
+    "type": "BinOp",
+    "op": "==",
+    "left": {
+     "type": "Call",
+     "func": "test.get",
+     "args": [
+      {
+       "type": "String",
+       "value": "type"
+      }
+     ]
+    },
+    "right": {
+     "type": "String",
+     "value": "BinOp"
+    }
+   },
+   "right": {
+    "type": "BinOp",
+    "op": "in",
+    "left": {
+     "type": "Call",
+     "func": "test.get",
+     "args": [
+      {
+       "type": "String",
+       "value": "op"
+      }
+     ]
+    },
+    "right": {
+     "type": "Tuple",
+     "elts": [
+      {
+       "type": "String",
+       "value": "=="
+      },
+      {
+       "type": "String",
+       "value": "!="
+      }
+     ]
+    }
+   }
+  },
+  "body": [
+   {
+    "stmt": "For",
+    "line": 1225,
+    "target": "side",
+    "iter": {
+     "type": "Tuple",
+     "elts": [
+      {
+       "type": "Call",
+       "func": "test.get",
+       "args": [
+        {
+         "type": "String",
+         "value": "left"
+        }
+       ]
+      },
+      {
+       "type": "Call",
+       "func": "test.get",
+       "args": [
+        {
+         "type": "String",
+         "value": "right"
+        }
+       ]
+      }
+     ]
+    },
+    "invariants": [],
+    "variants": [],
+    "body": [
+     {
+      "stmt": "If",
+      "test": {
+       "type": "BinOp",
+       "op": "and",
+       "left": {
+        "type": "Call",
+        "func": "isinstance",
+        "args": [
+         {
+          "type": "Var",
+          "name": "side"
+         },
+         {
+          "type": "Var",
+          "name": "dict"
+         }
+        ]
+       },
+       "right": {
+        "type": "BinOp",
+        "op": "==",
+        "left": {
+         "type": "Call",
+         "func": "side.get",
+         "args": [
+          {
+           "type": "String",
+           "value": "type"
+          }
+         ]
+        },
+        "right": {
+         "type": "String",
+         "value": "None"
+        }
+       }
+      },
+      "body": [
+       {
+        "stmt": "Return",
+        "value": {
+         "type": "Bool",
+         "value": true
+        }
+       }
+      ],
+      "orelse": []
+     }
+    ],
+    "allow_iteration_mutation": false,
+    "lineno": 1225
+   },
+   {
+    "stmt": "Assign",
+    "target": "sides",
+    "value": {
+     "type": "Tuple",
+     "elts": [
+      {
+       "type": "Call",
+       "func": "test.get",
+       "args": [
+        {
+         "type": "String",
+         "value": "left"
+        }
+       ]
+      },
+      {
+       "type": "Call",
+       "func": "test.get",
+       "args": [
+        {
+         "type": "String",
+         "value": "right"
+        }
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "stmt": "Assign",
+    "target": "has_var",
+    "value": {
+     "type": "Call",
+     "func": "any",
+     "args": [
+      {
+       "type": "GenExp",
+       "elt": {
+        "type": "BinOp",
+        "op": "and",
+        "left": {
+         "type": "Call",
+         "func": "isinstance",
+         "args": [
+          {
+           "type": "Var",
+           "name": "s"
+          },
+          {
+           "type": "Var",
+           "name": "dict"
+          }
+         ]
+        },
+        "right": {
+         "type": "BinOp",
+         "op": "==",
+         "left": {
+          "type": "Call",
+          "func": "s.get",
+          "args": [
+           {
+            "type": "String",
+            "value": "type"
+           }
+          ]
+         },
+         "right": {
+          "type": "String",
+          "value": "Var"
+         }
+        }
+       },
+       "generators": [
+        {
+         "target": "s",
+         "iter": {
+          "type": "Var",
+          "name": "sides"
+         },
+         "ifs": []
+        }
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "stmt": "Assign",
+    "target": "has_str",
+    "value": {
+     "type": "Call",
+     "func": "any",
+     "args": [
+      {
+       "type": "GenExp",
+       "elt": {
+        "type": "BinOp",
+        "op": "and",
+        "left": {
+         "type": "Call",
+         "func": "isinstance",
+         "args": [
+          {
+           "type": "Var",
+           "name": "s"
+          },
+          {
+           "type": "Var",
+           "name": "dict"
+          }
+         ]
+        },
+        "right": {
+         "type": "BinOp",
+         "op": "==",
+         "left": {
+          "type": "Call",
+          "func": "s.get",
+          "args": [
+           {
+            "type": "String",
+            "value": "type"
+           }
+          ]
+         },
+         "right": {
+          "type": "String",
+          "value": "String"
+         }
+        }
+       },
+       "generators": [
+        {
+         "target": "s",
+         "iter": {
+          "type": "Var",
+          "name": "sides"
+         },
+         "ifs": []
+        }
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "stmt": "If",
+    "test": {
+     "type": "BinOp",
+     "op": "and",
+     "left": {
+      "type": "Var",
+      "name": "has_var"
+     },
+     "right": {
+      "type": "Var",
+      "name": "has_str"
+     }
+    },
+    "body": [
+     {
+      "stmt": "Return",
+      "value": {
+       "type": "Bool",
+       "value": true
+      }
+     }
+    ],
+    "orelse": []
+   }
+  ],
+  "orelse": []
+ },
+ {
+  "stmt": "If",
+  "test": {
+   "type": "BinOp",
+   "op": "and",
+   "left": {
+    "type": "BinOp",
+    "op": "==",
+    "left": {
+     "type": "Call",
+     "func": "test.get",
+     "args": [
+      {
+       "type": "String",
+       "value": "type"
+      }
+     ]
+    },
+    "right": {
+     "type": "String",
+     "value": "BinOp"
+    }
+   },
+   "right": {
+    "type": "BinOp",
+    "op": "in",
+    "left": {
+     "type": "Call",
+     "func": "test.get",
+     "args": [
+      {
+       "type": "String",
+       "value": "op"
+      }
+     ]
+    },
+    "right": {
+     "type": "Tuple",
+     "elts": [
+      {
+       "type": "String",
+       "value": "in"
+      },
+      {
+       "type": "String",
+       "value": "not in"
+      }
+     ]
+    }
+   }
+  },
+  "body": [
+   {
+    "stmt": "Assign",
+    "target": "left",
+    "value": {
+     "type": "Call",
+     "func": "test.get",
+     "args": [
+      {
+       "type": "String",
+       "value": "left"
+      }
+     ]
+    }
+   },
+   {
+    "stmt": "Assign",
+    "target": "right",
+    "value": {
+     "type": "Call",
+     "func": "test.get",
+     "args": [
+      {
+       "type": "String",
+       "value": "right"
+      }
+     ]
+    }
+   },
+   {
+    "stmt": "If",
+    "test": {
+     "type": "BinOp",
+     "op": "and",
+     "left": {
+      "type": "BinOp",
+      "op": "and",
+      "left": {
+       "type": "BinOp",
+       "op": "and",
+       "left": {
+        "type": "BinOp",
+        "op": "and",
+        "left": {
+         "type": "BinOp",
+         "op": "and",
+         "left": {
+          "type": "Call",
+          "func": "isinstance",
+          "args": [
+           {
+            "type": "Var",
+            "name": "left"
+           },
+           {
+            "type": "Var",
+            "name": "dict"
+           }
+          ]
+         },
+         "right": {
+          "type": "BinOp",
+          "op": "==",
+          "left": {
+           "type": "Call",
+           "func": "left.get",
+           "args": [
+            {
+             "type": "String",
+             "value": "type"
+            }
+           ]
+          },
+          "right": {
+           "type": "String",
+           "value": "Var"
+          }
+         }
+        },
+        "right": {
+         "type": "Call",
+         "func": "isinstance",
+         "args": [
+          {
+           "type": "Var",
+           "name": "right"
+          },
+          {
+           "type": "Var",
+           "name": "dict"
+          }
+         ]
+        }
+       },
+       "right": {
+        "type": "BinOp",
+        "op": "in",
+        "left": {
+         "type": "Call",
+         "func": "right.get",
+         "args": [
+          {
+           "type": "String",
+           "value": "type"
+          }
+         ]
+        },
+        "right": {
+         "type": "Tuple",
+         "elts": [
+          {
+           "type": "String",
+           "value": "Tuple"
+          },
+          {
+           "type": "String",
+           "value": "ArrayLit"
+          },
+          {
+           "type": "String",
+           "value": "SetLit"
+          }
+         ]
+        }
+       }
+      },
+      "right": {
+       "type": "Call",
+       "func": "all",
+       "args": [
+        {
+         "type": "GenExp",
+         "elt": {
+          "type": "BinOp",
+          "op": "and",
+          "left": {
+           "type": "Call",
+           "func": "isinstance",
+           "args": [
+            {
+             "type": "Var",
+             "name": "e"
+            },
+            {
+             "type": "Var",
+             "name": "dict"
+            }
+           ]
+          },
+          "right": {
+           "type": "BinOp",
+           "op": "==",
+           "left": {
+            "type": "Call",
+            "func": "e.get",
+            "args": [
+             {
+              "type": "String",
+              "value": "type"
+             }
+            ]
+           },
+           "right": {
+            "type": "String",
+            "value": "String"
+           }
+          }
+         },
+         "generators": [
+          {
+           "target": "e",
+           "iter": {
+            "type": "BinOp",
+            "op": "or",
+            "left": {
+             "type": "Call",
+             "func": "right.get",
+             "args": [
+              {
+               "type": "String",
+               "value": "elts"
+              }
+             ]
+            },
+            "right": {
+             "type": "ArrayLit",
+             "elts": []
+            }
+           },
+           "ifs": []
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "right": {
+      "type": "BinOp",
+      "op": "or",
+      "left": {
+       "type": "Call",
+       "func": "right.get",
+       "args": [
+        {
+         "type": "String",
+         "value": "elts"
+        }
+       ]
+      },
+      "right": {
+       "type": "ArrayLit",
+       "elts": []
+      }
+     }
+    },
+    "body": [
+     {
+      "stmt": "Return",
+      "value": {
+       "type": "Bool",
+       "value": true
+      }
+     }
+    ],
+    "orelse": []
+   }
+  ],
+  "orelse": []
+ },
+ {
+  "stmt": "If",
+  "test": {
+   "type": "BinOp",
+   "op": "==",
+   "left": {
+    "type": "Call",
+    "func": "test.get",
+    "args": [
+     {
+      "type": "String",
+      "value": "type"
+     }
+    ]
+   },
+   "right": {
+    "type": "String",
+    "value": "Call"
+   }
+  },
+  "body": [
+   {
+    "stmt": "Assign",
+    "target": "func",
+    "value": {
+     "type": "Call",
+     "func": "test.get",
+     "args": [
+      {
+       "type": "String",
+       "value": "func"
+      }
+     ]
+    }
+   },
+   {
+    "stmt": "If",
+    "test": {
+     "type": "BinOp",
+     "op": "and",
+     "left": {
+      "type": "Call",
+      "func": "isinstance",
+      "args": [
+       {
+        "type": "Var",
+        "name": "func"
+       },
+       {
+        "type": "Var",
+        "name": "str"
+       }
+      ]
+     },
+     "right": {
+      "type": "BinOp",
+      "op": "==",
+      "left": {
+       "type": "Var",
+       "name": "func"
+      },
+      "right": {
+       "type": "String",
+       "value": "isinstance"
+      }
+     }
+    },
+    "body": [
+     {
+      "stmt": "Return",
+      "value": {
+       "type": "Bool",
+       "value": true
+      }
+     }
+    ],
+    "orelse": []
+   },
+   {
+    "stmt": "Assign",
+    "target": "args",
+    "value": {
+     "type": "Call",
+     "func": "test.get",
+     "args": [
+      {
+       "type": "String",
+       "value": "args"
+      },
+      {
+       "type": "ArrayLit",
+       "elts": []
+      }
+     ]
+    }
+   },
+   {
+    "stmt": "If",
+    "test": {
+     "type": "BinOp",
+     "op": "and",
+     "left": {
+      "type": "Call",
+      "func": "isinstance",
+      "args": [
+       {
+        "type": "Var",
+        "name": "args"
+       },
+       {
+        "type": "Var",
+        "name": "list"
+       }
+      ]
+     },
+     "right": {
+      "type": "Var",
+      "name": "args"
+     }
+    },
+    "body": [
+     {
+      "stmt": "Assign",
+      "target": "first",
+      "value": {
+       "type": "Subscript",
+       "value": {
+        "type": "Var",
+        "name": "args"
+       },
+       "index": {
+        "type": "Number",
+        "value": 0
+       }
+      }
+     },
+     {
+      "stmt": "If",
+      "test": {
+       "type": "BinOp",
+       "op": "and",
+       "left": {
+        "type": "Call",
+        "func": "isinstance",
+        "args": [
+         {
+          "type": "Var",
+          "name": "first"
+         },
+         {
+          "type": "Var",
+          "name": "dict"
+         }
+        ]
+       },
+       "right": {
+        "type": "BinOp",
+        "op": "==",
+        "left": {
+         "type": "Call",
+         "func": "first.get",
+         "args": [
+          {
+           "type": "String",
+           "value": "type"
+          }
+         ]
+        },
+        "right": {
+         "type": "String",
+         "value": "Var"
+        }
+       }
+      },
+      "body": [
+       {
+        "stmt": "Return",
+        "value": {
+         "type": "Bool",
+         "value": true
+        }
+       }
+      ],
+      "orelse": []
+     }
+    ],
+    "orelse": []
+   }
+  ],
+  "orelse": []
+ },
+ {
+  "stmt": "Return",
+  "value": {
+   "type": "Bool",
+   "value": false
+  }
+ }
+]

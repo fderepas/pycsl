@@ -1,0 +1,60 @@
+[
+ {
+  "stmt": "Assign",
+  "target": "result",
+  "value": {
+   "type": "Call",
+   "func": "set",
+   "args": []
+  }
+ },
+ {
+  "stmt": "For",
+  "line": 1757,
+  "target": "stmt",
+  "iter": {
+   "type": "Var",
+   "name": "body_ir"
+  },
+  "invariants": [],
+  "variants": [],
+  "body": [
+   {
+    "stmt": "Expr",
+    "value": {
+     "type": "Call",
+     "func": "self._scan_2d_in_stmt",
+     "args": [
+      {
+       "type": "Var",
+       "name": "stmt"
+      },
+      {
+       "type": "Var",
+       "name": "param_names"
+      },
+      {
+       "type": "Var",
+       "name": "result"
+      }
+     ]
+    }
+   }
+  ],
+  "allow_iteration_mutation": false,
+  "lineno": 1757
+ },
+ {
+  "stmt": "Return",
+  "value": {
+   "type": "Call",
+   "func": "sorted",
+   "args": [
+    {
+     "type": "Var",
+     "name": "result"
+    }
+   ]
+  }
+ }
+]

@@ -1,0 +1,25 @@
+it0   pycsltojsonemitter___py_stmt_for                        -> self._fresh_var_counter 
+it1   pycsltojsonemitter___py_stmt_if                         -> self._fresh_var_counter 
+NO-PROGRESS / different error at iteration 2:
+ontend/Module5_IREmitter.mlw", line 3765, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 3767, characters 82-90: unused variable ann_expr
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 3767, characters 98-108: unused variable scope_name
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 3769, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 3772, characters 47-51: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 3774, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 3789, characters 85-89: unused variable node
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 3796, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 3804, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 3812, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 3838, characters 43-47: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 3895, characters 42-46: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 3895, characters 69-73: unused variable stmt
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 3903, characters 45-49: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 3903, characters 72-76: unused variable stmt
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 3911, characters 43-47: unused variable self
+File "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 3979, characters 54-70:
+This expression has type array.Array.array int @rho,
+but is expected to have type PyCSL_Program.pycsltojsonemitter @rho1
+/home/fabrice/git/pycsl/scratchpad/w3/wt/src/pycsl/core_ir_semantic.py:1632: UserWarning: Function 'pycsltojsonemitter___collect_class_constants': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+

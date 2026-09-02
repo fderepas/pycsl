@@ -1,0 +1,14 @@
+/home/fabrice.derepas@canonical.com/git/pycsl/src/pycsl/core_ir_semantic.py:1604: UserWarning: Function 'expressionemissionmixin___dv_store_value': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(func.get("body", []) or [], union_vars, func.get("name", "?"))
+/home/fabrice.derepas@canonical.com/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union__dotted_ensures_suffix_3'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/expressions.py'...
+[*] Memory model: hoare
+[*] Imported class from 'ir_schema': AtExpr (record + 0 method stub(s) + 18 helper(s))
+[*] Imported class from 'ir_schema': IfExprExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': NamedExprExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': OldExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': UnaryOpExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported from 'module6_whyml.identifiers': ['op_translate', 'whyml_ident', 'stable_hash'] (trusted stubs)
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

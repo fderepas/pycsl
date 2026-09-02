@@ -1,0 +1,64 @@
+File "scratchpad/spike_structural_only.mlw", line 37, characters 16-39:
+Sub-goal Variant decrease of goal sc_val'vc.
+Prover result is: Valid (1.13s, 2591947 steps).
+
+File "scratchpad/spike_structural_only.mlw", line 38, characters 18-35:
+Sub-goal Variant decrease of goal sc_val'vc.
+Prover result is: Valid (0.01s, 18527 steps).
+
+File "scratchpad/spike_structural_only.mlw", line 45, characters 37-53:
+Sub-goal Variant decrease of goal sc_list'vc.
+Prover result is: Valid (0.01s, 5936 steps).
+
+File "scratchpad/spike_structural_only.mlw", line 45, characters 18-33:
+Sub-goal Variant decrease of goal sc_list'vc.
+Prover result is: Valid (0.01s, 5936 steps).
+
+File "scratchpad/spike_structural_only.mlw", line 54, characters 11-37:
+Sub-goal Variant decrease of goal sc_dict_bodies'vc.
+Prover result is: Valid (0.01s, 4798 steps).
+
+File "scratchpad/spike_structural_only.mlw", line 53, characters 14-29:
+Sub-goal Variant decrease of goal sc_dict_bodies'vc.
+Prover result is: Valid (0.01s, 4800 steps).
+
+File "scratchpad/spike_structural_only.mlw", line 55, characters 24-50:
+Sub-goal Variant decrease of goal sc_dict_bodies'vc.
+Prover result is: Valid (0.01s, 4872 steps).
+
+File "scratchpad/spike_structural_only.mlw", line 80, characters 13-43:
+Sub-goal Variant decrease of goal wrap_records'vc.
+Prover result is: Valid (0.01s, 5936 steps).
+
+File "scratchpad/spike_structural_only.mlw", line 74, characters 14-55:
+Sub-goal Postcondition of goal wrap_records'vc.
+Prover result is: Valid (0.02s, 27162 steps).
+
+File "scratchpad/spike_structural_only.mlw", line 92, characters 20-30:
+Sub-goal Variant decrease of goal fim_val'vc.
+Prover result is: Valid (0.03s, 31362 steps).
+
+File "scratchpad/spike_structural_only.mlw", line 93, characters 18-29:
+Sub-goal Variant decrease of goal fim_val'vc.
+Prover result is: Valid (0.02s, 18527 steps).
+
+File "scratchpad/spike_structural_only.mlw", line 100, characters 31-41:
+Sub-goal Variant decrease of goal fim_list'vc.
+Prover result is: Valid (0.01s, 5936 steps).
+
+File "scratchpad/spike_structural_only.mlw", line 100, characters 18-27:
+Sub-goal Variant decrease of goal fim_list'vc.
+Prover result is: Valid (0.01s, 5972 steps).
+
+File "scratchpad/spike_structural_only.mlw", line 109, characters 11-24:
+Sub-goal Variant decrease of goal fim_dict'vc.
+Prover result is: Valid (0.01s, 4798 steps).
+
+File "scratchpad/spike_structural_only.mlw", line 108, characters 14-23:
+Sub-goal Variant decrease of goal fim_dict'vc.
+Prover result is: Valid (0.01s, 4836 steps).
+
+File "scratchpad/spike_structural_only.mlw", line 110, characters 24-37:
+Sub-goal Variant decrease of goal fim_dict'vc.
+Prover result is: Valid (0.01s, 4872 steps).
+

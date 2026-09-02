@@ -1,0 +1,294 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/import_classifier.py'...
+[*] Memory model: hoare
+[*] Imported class from 'errors': PyCSLSemanticError (record + 0 method stub(s) + 2 helper(s))
+[*] --fun filter: verifying ['collect_imports'], trusting ['_stub_set', 'any_function_trusted', 'check_imports', 'classify', 'pycslerror__as_dict', 'pycslerror__message']
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl__lekjv1m.mlw", line 79, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 17247 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 80, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 17166 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 77, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.38s, 629260 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 84, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 4510 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 84, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 5217 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 83, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.02s, 16925 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 87, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 4514 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 87, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 5578 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 86, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.02s, 18160 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 94, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 5660 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 90, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.03s, 25056 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 121, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.02s, 8074 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 121, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.02s, 30628 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 117, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.79s, 700666 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 162, characters 59-73:
+Sub-goal variant decrease of goal slookup'vc.
+Prover result is: Valid (0.01s, 8232 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 173, characters 34-50:
+Sub-goal variant decrease of goal sappend'vc.
+Prover result is: Valid (0.01s, 8206 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 183, characters 68-86:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8252 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 184, characters 24-42:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8524 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 180, characters 14-85:
+Sub-goal postcondition of goal pget_dyn'vc.
+Prover result is: Valid (0.02s, 30846 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 188, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.02s, 28826 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 188, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.15s, 433134 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 188, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.11s, 281686 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 207, characters 52-73:
+Sub-goal variant decrease of goal pdict_to_sdict'vc.
+Prover result is: Valid (0.01s, 8206 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 221, characters 32-36:
+Sub-goal postcondition of goal any_function_trusted__node'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 233, characters 7-36:
+Sub-goal precondition of goal any_function_trusted__walk'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 235, characters 18-47:
+Sub-goal variant decrease of goal any_function_trusted__walk'vc.
+Prover result is: Valid (0.02s, 29965 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 235, characters 18-47:
+Sub-goal precondition of goal any_function_trusted__walk'vc.
+Prover result is: Valid (0.01s, 2967 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 236, characters 19-49:
+Sub-goal variant decrease of goal any_function_trusted__walk'vc.
+Prover result is: Valid (0.02s, 29965 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 236, characters 19-49:
+Sub-goal precondition of goal any_function_trusted__walk'vc.
+Prover result is: Valid (0.01s, 2967 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 232, characters 32-36:
+Sub-goal postcondition of goal any_function_trusted__walk'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 243, characters 27-55:
+Sub-goal variant decrease of goal any_function_trusted__walkd'vc.
+Prover result is: Valid (0.02s, 32727 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 243, characters 27-55:
+Sub-goal precondition of goal any_function_trusted__walkd'vc.
+Prover result is: Valid (0.01s, 2958 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 243, characters 71-103:
+Sub-goal variant decrease of goal any_function_trusted__walkd'vc.
+Prover result is: Valid (0.02s, 32796 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 243, characters 71-103:
+Sub-goal precondition of goal any_function_trusted__walkd'vc.
+Prover result is: Valid (0.01s, 2967 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 240, characters 32-36:
+Sub-goal postcondition of goal any_function_trusted__walkd'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 249, characters 21-49:
+Sub-goal variant decrease of goal any_function_trusted__walkl'vc.
+Prover result is: Valid (0.02s, 30933 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 249, characters 21-49:
+Sub-goal precondition of goal any_function_trusted__walkl'vc.
+Prover result is: Valid (0.01s, 2901 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 249, characters 65-94:
+Sub-goal variant decrease of goal any_function_trusted__walkl'vc.
+Prover result is: Valid (0.02s, 31002 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 249, characters 65-94:
+Sub-goal precondition of goal any_function_trusted__walkl'vc.
+Prover result is: Valid (0.01s, 2910 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 246, characters 32-36:
+Sub-goal postcondition of goal any_function_trusted__walkl'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 253, characters 4-35:
+Sub-goal precondition of goal any_function_trusted'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 252, characters 32-36:
+Sub-goal postcondition of goal any_function_trusted'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 263, characters 32-36:
+Sub-goal postcondition of goal classify'vc.
+Prover result is: Valid (0.01s, 2958 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 263, characters 32-36:
+Sub-goal postcondition of goal classify'vc.
+Prover result is: Valid (0.00s, 2963 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 278, characters 8-42:
+Sub-goal variant decrease of goal collect_imports__names'vc.
+Prover result is: Valid (0.01s, 8315 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 278, characters 8-42:
+Sub-goal precondition of goal collect_imports__names'vc.
+Prover result is: Valid (0.01s, 3009 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 269, characters 32-36:
+Sub-goal postcondition of goal collect_imports__names'vc.
+Prover result is: Valid (0.01s, 3112 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 289, characters 45-82:
+Sub-goal precondition of goal collect_imports__node'vc.
+Prover result is: Valid (0.01s, 3166 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 281, characters 32-36:
+Sub-goal postcondition of goal collect_imports__node'vc.
+Prover result is: Valid (0.01s, 3112 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 306, characters 14-42:
+Sub-goal precondition of goal collect_imports__walk'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 308, characters 17-45:
+Sub-goal variant decrease of goal collect_imports__walk'vc.
+Prover result is: Valid (0.02s, 35635 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 308, characters 17-45:
+Sub-goal precondition of goal collect_imports__walk'vc.
+Prover result is: Valid (0.01s, 3121 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 309, characters 18-47:
+Sub-goal variant decrease of goal collect_imports__walk'vc.
+Prover result is: Valid (0.04s, 35635 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 309, characters 18-47:
+Sub-goal precondition of goal collect_imports__walk'vc.
+Prover result is: Valid (0.01s, 3121 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 305, characters 32-36:
+Sub-goal postcondition of goal collect_imports__walk'vc.
+Prover result is: Valid (0.01s, 3112 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 316, characters 52-81:
+Sub-goal variant decrease of goal collect_imports__walkd'vc.
+Prover result is: Valid (0.02s, 32727 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 316, characters 52-81:
+Sub-goal precondition of goal collect_imports__walkd'vc.
+Prover result is: Valid (0.01s, 2958 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 316, characters 24-81:
+Sub-goal variant decrease of goal collect_imports__walkd'vc.
+Prover result is: Valid (0.02s, 35990 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 316, characters 24-81:
+Sub-goal precondition of goal collect_imports__walkd'vc.
+Prover result is: Valid (0.01s, 3121 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 313, characters 32-36:
+Sub-goal postcondition of goal collect_imports__walkd'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 322, characters 43-72:
+Sub-goal variant decrease of goal collect_imports__walkl'vc.
+Prover result is: Valid (0.01s, 30933 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 322, characters 43-72:
+Sub-goal precondition of goal collect_imports__walkl'vc.
+Prover result is: Valid (0.01s, 2901 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 322, characters 18-72:
+Sub-goal variant decrease of goal collect_imports__walkl'vc.
+Prover result is: Valid (0.02s, 34220 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 322, characters 18-72:
+Sub-goal precondition of goal collect_imports__walkl'vc.
+Prover result is: Valid (0.01s, 3064 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 319, characters 32-36:
+Sub-goal postcondition of goal collect_imports__walkl'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 326, characters 4-34:
+Sub-goal precondition of goal collect_imports'vc.
+Prover result is: Valid (0.01s, 2949 steps).
+
+File "/tmp/.pycsl__lekjv1m.mlw", line 325, characters 32-36:
+Sub-goal postcondition of goal collect_imports'vc.
+Prover result is: Valid (0.01s, 3112 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl__lekjv1m.mlw", line 216, characters 17-25: unused variable stub_dir
+Warning, file "/tmp/.pycsl__lekjv1m.mlw", line 218, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__lekjv1m.mlw", line 221, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__lekjv1m.mlw", line 246, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__lekjv1m.mlw", line 240, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__lekjv1m.mlw", line 232, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__lekjv1m.mlw", line 252, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__lekjv1m.mlw", line 254, characters 21-25: unused variable tree
+Warning, file "/tmp/.pycsl__lekjv1m.mlw", line 256, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl__lekjv1m.mlw", line 263, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__lekjv1m.mlw", line 269, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__lekjv1m.mlw", line 281, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__lekjv1m.mlw", line 319, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__lekjv1m.mlw", line 313, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__lekjv1m.mlw", line 305, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl__lekjv1m.mlw", line 325, characters 32-36: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

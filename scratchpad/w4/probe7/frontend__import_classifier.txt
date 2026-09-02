@@ -1,0 +1,2 @@
+ERASURE              <module>._stub_set  ['0-ary opaque call (INPUT-BLIND)']
+L3TC-FAIL            <module>.check_imports  ['This expression has type int, but is expected to have type string']

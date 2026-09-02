@@ -1,0 +1,509 @@
+diff --git a/src/pycsl/Module6_WhyMLTranspiler.py b/src/pycsl/Module6_WhyMLTranspiler.py
+index d476cb28..698b3147 100644
+--- a/src/pycsl/Module6_WhyMLTranspiler.py
++++ b/src/pycsl/Module6_WhyMLTranspiler.py
+@@ -618,6 +618,17 @@ class Module6_WhyMLTranspiler(
+                 _suffix = _ot.replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
+                 _exprir_theory = list(_exprir_theory) + [
+                     "", f"  exception Return_opttuple_{_suffix} (option {_ot})"]
++            # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a tuple return carrying a
++            # `pyconst_val` slot (`_classify_literal_value`'s `(string, pyconst_val, emit_ir)`)
++            # needs its dedicated `Return_tup_<slots>` exception declared HERE — after the
++            # emit_ir ADT + the pyconst_val theory (both its slot types are only in scope now),
++            # never at top-of-module. Named by payload type (like the emit_ir opttuples) so it
++            # never collides with the homogeneous `Return_<arity>`. Byte-inert: no corpus /
++            # other-mirror tuple return refines to a pyconst_val slot.
++            for _pt in sorted(needs.get("pyconst_val_tuple_return_types", set())):
++                _psuffix = _pt.replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
++                _exprir_theory = list(_exprir_theory) + [
++                    "", f"  exception Return_tup_{_psuffix} {_pt}"]
+             # parser-primitives-wall-impl-3.md capability (i) — LOW-BLAST-RADIUS
+             # record-element class-field gate. `_mutable_state_classes` is the COARSE
+             # disjunct above: it fires for ANY @mutable_state class, including one whose
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index 01d88359..235895a8 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -327,6 +327,16 @@ _EMIT_IR_HANDLER_ATTR_PROJ.update({
+ _EMIT_IR_HANDLER_ATTR_PROJ.update({
+     "_collect_type_params": {"slice": "sindex_of"},
+ })
++# V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): `_classify_literal_value`'s
++# `v = elt.value` reads the CONSTANT-leaf VALUE off `elt` (an `ast.Constant` self-annotated
++# as the emit_ir ADT, established by the enclosing `isinstance(elt, ast.Constant)` guard).
++# `.value` on emit_ir defaults to `svalue_of` (the Subscript head sub-node, an emit_ir) —
++# WRONG here: a Constant's value is a Python SCALAR, faithfully the `pyconst_val` projection
++# `const_pyval_of elt`. SCOPED via `_current_emitting_func` so every other handler's `.value`
++# (the `svalue_of` default) is unperturbed — corpus + every other mirror byte-identical.
++_EMIT_IR_HANDLER_ATTR_PROJ.update({
++    "_classify_literal_value": {"value": "const_pyval_of"},
++})
+ # self-tcb-reduction Layer-2: SCOPED `.get(key)`-projectors for the method-receiver /
+ # slice recognizer `_match_field_decode_idiom`. `receiver`->receiver_of (the certified
+ # Layer-2 method-call receiver), `slice`->slice_of (an IrSliceAccess's slice sub-node),
+@@ -3217,8 +3227,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+         Returns the projected WhyML string, or None when the arg is not a pyconst_val
+         `.value` read (the caller then lowers it generically). Corpus-inert: only fires on a
+         pyconst_val field read, which the corpus never produces."""
+-        if field != "value" or self._pyconst_val_field_read(arg_ir) is None:
+-            return None
++        _is_pv_local = (isinstance(arg_ir, dict) and arg_ir.get("type") == "Var"
++                        and arg_ir.get("name")
++                        in getattr(self, "_pyconst_val_local_vars", set()))
++        if field != "value" or (
++                self._pyconst_val_field_read(arg_ir) is None and not _is_pv_local):
++            return None
++        # V1 pyconst-dispatch: the `value` arg is a pyconst_val record-field read OR a
++        # pyconst_val LOCAL (`v`) — project it through the matching total accessor so the
++        # `IrStr string`/`IrNum int`/`IrBoolC int` ctor arg is well-typed and value-faithful.
+         _pvs = self._expr_to_whyml(arg_ir, local_refs, invariant_ctx, subst)
+         _proj = {"String": "pvstr_of", "Number": "pvint_of"}.get(kind)
+         if _proj is not None:
+@@ -4127,7 +4144,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+             # Both arms reachable (a Constant's `.value` may or may not be PVNone) -> the guarded
+             # branch is NON-VACUOUS. Faithful per the Phase2c_PyConstVal certificate: the
+             # abstraction map sends Python `None` to PVNone and `is_pvnone` decides exactly it.
++            # V1 pyconst-dispatch: the non-None side is a pyconst_val record-field read OR a
++            # pyconst_val LOCAL (`v = elt.value`) — either way `v is None` is `is_pvnone v`.
+             _pv_none = self._pyconst_val_field_read(_nn)
++            if (_pv_none is None and isinstance(_nn, dict) and _nn.get("type") == "Var"
++                    and _nn.get("name") in getattr(self, "_pyconst_val_local_vars", set())):
++                _pv_none = _nn
+             if _pv_none is not None:
+                 _pvs = self._expr_to_whyml(_pv_none, local_refs, invariant_ctx, subst)
+                 _chk = f"(is_pvnone {_pvs})"
+@@ -7284,8 +7306,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+                                "bytes": "is_pvbytes", "complex": "is_pvcomplex"}
+         if (isinstance(_a1, dict) and _a1.get("type") == "Var"
+                 and _a1.get("name") in _PV_BUILTIN_DISCRIM
+-                and self._pyconst_val_field_read(_a0) is not None):
+-            _av = self._expr_to_whyml(_a0, set(), getattr(self, "_in_spec", False), None)
++                and (self._pyconst_val_field_read(_a0) is not None
++                     or (isinstance(_a0, dict) and _a0.get("type") == "Var"
++                         and _a0.get("name")
++                         in getattr(self, "_pyconst_val_local_vars", set())))):
++            # V1 pyconst-dispatch: arg0 is a pyconst_val record-field read OR a pyconst_val
++            # LOCAL (`v = elt.value`, `const_pyval_of elt`) — either way the value-type test
++            # `isinstance(v, bool/int/str)` is the pyconst_val discriminant `is_pv*`. A LOCAL
++            # ref needs `local_refs` so it derefs to `!v` (a field read is param-rooted, so
++            # `set()` — byte-identical to the pre-existing field-read path).
++            _pv_lr = (local_refs if (isinstance(_a0, dict) and _a0.get("type") == "Var"
++                                     and _a0.get("name")
++                                     in getattr(self, "_pyconst_val_local_vars", set()))
++                      else set())
++            _av = self._expr_to_whyml(_a0, _pv_lr, getattr(self, "_in_spec", False), None)
+             return f"({_PV_BUILTIN_DISCRIM[_a1['name']]} {_av})"
+         t_name = args_ir[1].get("name") if isinstance(args_ir[1], dict) else None
+         t_tag = self._tag_of_type(t_name)
+@@ -11436,6 +11470,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+         if isinstance(node, StarredExpr):
+             return self._expr_to_whyml(node.value, local_refs, invariant_ctx, subst)
+         if isinstance(node, TupleExpr):
++            # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): inside
++            # `_classify_literal_value` the return tuple's MIDDLE slot is the Python constant
++            # VALUE — a DIRECT bare `None`/`True`/`False` literal element, faithfully the
++            # `PVNone`/`PVBool` variant (NOT the int 0/1). A DIRECT `NoneExpr`/`BoolExpr` tuple
++            # element is UNAMBIGUOUS: the IrBoolC ctor's `value` bool is nested inside a DictLit
++            # (`{"type":"Bool","value":True}`), never a direct tuple element, so it stays the
++            # int the `IrBoolC` payload expects. Method-gated via `_current_emitting_func` ->
++            # corpus + every other tuple byte-identical.
++            _cef_t = getattr(self, "_current_emitting_func", None) or ""
++            if (_cef_t == "_classify_literal_value"
++                    or _cef_t.endswith("___classify_literal_value")):
++                elts = []
++                for e in node.elts:
++                    if isinstance(e, NoneExpr):
++                        elts.append("PVNone")
++                    elif isinstance(e, BoolExpr):
++                        elts.append("(PVBool true)" if e.value else "(PVBool false)")
++                    else:
++                        elts.append(self._expr_to_whyml(e, local_refs, invariant_ctx, subst))
++                return f"({', '.join(elts)})"
+             elts = [self._expr_to_whyml(e, local_refs, invariant_ctx, subst) for e in node.elts]
+             return f"({', '.join(elts)})"
+         # --- legacy dict body (un-converted kinds) ---
+diff --git a/src/pycsl/module6_whyml/functions.py b/src/pycsl/module6_whyml/functions.py
+index b421c0de..e7fa66c3 100644
+--- a/src/pycsl/module6_whyml/functions.py
++++ b/src/pycsl/module6_whyml/functions.py
+@@ -1188,6 +1188,23 @@ class FunctionEmissionMixin:
+         if not isinstance(elt, dict):
+             return "int"
+         t = elt.get("type")
++        # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): inside `_classify_literal_value`
++        # the MIDDLE tuple slot is the Python constant VALUE — faithfully `pyconst_val`. In the
++        # FIRST tuple return (`("int", None, {...})`, which `_refine_tuple_return_type` slots) the
++        # middle is a `None` literal; other returns use a `True`/`False` literal or the pyconst_val
++        # local `v`. Gated on the plain-BOOL flag `_pyconst_val_tuple_slot` (set only while emitting
++        # `_classify_literal_value`, from the TRUSTED `_emit_function`) — a getattr-bool + set-
++        # membership + tuple-`in`, the SAME clean shape as the `_mutable_state_classes` /
++        # `_tuple_*_slot_locals` reads above, so it lowers to `False`/dead-code in every other
++        # method incl. the giants (which never read `_current_emitting_func` as a string). Returns
++        # the type-name STRING "pyconst_val" (no pyconst_val VALUE constructed here). slot-0 String
++        # and slot-2 DictLit fall through to the string/emit_ir recognizers below.
++        if getattr(self, "_pyconst_val_tuple_slot", False):
++            if (t == "Var" and elt.get("name")
++                    in getattr(self, "_pyconst_val_local_vars", set())):
++                return "pyconst_val"
++            if t in ("None", "Bool"):
++                return "pyconst_val"
+         # tuple-return-of-emit_ir feature: a slot that lowers to the `emit_ir` sum (an IR-node
+         # sub-projection `expr["receiver"]`, an inline `{"type":K}` construction, an emit_ir local)
+         # → `emit_ir`; a string-valued slot (a str attr projection / str local) → `string`. Checked
+@@ -4727,6 +4744,17 @@ class FunctionEmissionMixin:
+         self._current_sig_func_name = func.get("name")
+         ref_params, args_str = self._build_param_list(func, local_refs, ghost_vars)
+ 
++        # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): set the plain-BOOL flag that
++        # gates the `pyconst_val` MIDDLE-tuple-slot typing in `_infer_tuple_slot_type` (a verified
++        # method that must NOT read the int-modelled `_current_emitting_func` as a string). Set
++        # HERE — in the TRUSTED `_emit_function`, whose body is never lowered — so the flag is a
++        # clean `False` default everywhere else. Must precede `_compute_return_type` (its refine
++        # slots the return type). Byte-inert (True only for `_classify_literal_value`).
++        _pv_fn = func.get("name", "") or ""
++        self._pyconst_val_tuple_slot = (
++            _pv_fn == "_classify_literal_value"
++            or _pv_fn.endswith("___classify_literal_value"))
++
+         return_type = self._compute_return_type(func, body_stmts)
+         # self-tcb-reduction FunctionEmissionMixin WRITER class (`_build_param_list`): its
+         # `Tuple[Set[str], str]` return is the `(seq string, string)` pair — the
+diff --git a/src/pycsl/module6_whyml/preamble.py b/src/pycsl/module6_whyml/preamble.py
+index 32df32e8..a7da909e 100644
+--- a/src/pycsl/module6_whyml/preamble.py
++++ b/src/pycsl/module6_whyml/preamble.py
+@@ -1820,6 +1820,10 @@ class PreambleEmissionMixin:
+         # Optional-tuple return: the refined `(τ...)` tuple types of `Optional[Tuple]`
+         # readers, each emitted as an `exception Return_opttuple_<arity> (option (τ...))`.
+         opt_tuple_return_types: Set[str] = set()
++        # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): refined tuple return types
++        # carrying a `pyconst_val` slot (`_classify_literal_value`) — each emitted as a
++        # `Return_tup_<slots> (<slots>)` exception DEFERRED into the emit_ir/pyconst_val theory.
++        pyconst_val_tuple_return_types: Set[str] = set()
+         # value-model campaign incr5 (primitive c): synthesized-union (`Optional[X]`) return
+         # types that need a dedicated `Return_<variant>` exception — a function returning a
+         # `_union_*` variant WITH an early/in-loop return can't carry the variant through the
+@@ -1848,10 +1852,27 @@ class PreambleEmissionMixin:
+                     opt_tuple_return_types.add(
+                         self._refine_tuple_return_type(func, func["body"], ret_type))
+                 elif ret_type.startswith("(") and "," in ret_type:
+-                    # Tuple return — needs a dedicated Return_<arity> exception
+-                    # so the value carries through; the plain `exception Return int`
+-                    # would force `_coerce_to_int` to hash the whole tuple.
+-                    tuple_return_arities.add(ret_type.count(",") + 1)
++                    # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a tuple return whose
++                    # REFINED type carries a `pyconst_val` slot (`_classify_literal_value`'s
++                    # `(string, pyconst_val, emit_ir)`) needs a DEDICATED payload-typed exception
++                    # `Return_tup_<slots>` declared AFTER the pyconst_val/emit_ir theory (both slot
++                    # types are out of scope at top-of-module) — NOT the shared homogeneous
++                    # `Return_<arity>` (whose `(int,...,int)` payload mis-types the slots and
++                    # collides with corpus 3-tuples). Byte-inert: no corpus/other-mirror tuple
++                    # return refines to a pyconst_val slot.
++                    _pv_fn = func.get("name", "") or ""
++                    self._pyconst_val_tuple_slot = (
++                        _pv_fn == "_classify_literal_value"
++                        or _pv_fn.endswith("___classify_literal_value"))
++                    _refined_tup = self._refine_tuple_return_type(func, func["body"], ret_type)
++                    self._pyconst_val_tuple_slot = False
++                    if "pyconst_val" in _refined_tup:
++                        pyconst_val_tuple_return_types.add(_refined_tup)
++                    else:
++                        # Tuple return — needs a dedicated Return_<arity> exception
++                        # so the value carries through; the plain `exception Return int`
++                        # would force `_coerce_to_int` to hash the whole tuple.
++                        tuple_return_arities.add(ret_type.count(",") + 1)
+                 elif ret_type == "array int" or ann in ("list", "bytes", "bytearray"):
+                     # return-arr.md: an array-returning function with early/in-loop returns.
+                     # Why3 forbids a mutable `array int` exception payload, so carry the value
+@@ -2974,6 +2995,7 @@ class PreambleEmissionMixin:
+             "needs_body_dict": needs_body_dict,
+             "tuple_return_arities": tuple_return_arities,
+             "opt_tuple_return_types": opt_tuple_return_types,
++            "pyconst_val_tuple_return_types": pyconst_val_tuple_return_types,
+             "union_return_types": union_return_types,
+             "needs_string": needs_string,
+             "needs_char": needs_char,
+@@ -5714,6 +5736,26 @@ class PreambleEmissionMixin:
+                 " match v with PVBytes b -> b | _ -> Seq.empty end",
+                 "  let function pvreal_of (v: pyconst_val) : real ="
+                 " match v with PVComplex r -> r | _ -> 0.0 end",
++                # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): the DEFINITIONAL
++                # projection of a CONSTANT-leaf emit_ir node to its `pyconst_val` value — the model
++                # of `elt.value` where `elt` is an `ast.Constant` self-annotated as `emit_ir` (the
++                # ADT, not a Constant-record; `_pyconst_val_field_read` handles the record case).
++                # `_py_expr_constant` sends a Python scalar to IrNum/IrStr/IrBoolC/IrNumF/IrNone by
++                # value; `const_pyval_of` is its FAITHFUL inverse (IrNum n -> PVInt n, IrStr s ->
++                # PVStr s, IrBoolC b -> PVBool (b<>0) matching the int-encoded bool leaf, IrNumF r ->
++                # PVComplex r, IrNone -> PVNone). Total `let function` over the EXISTING const leaves
++                # (the num_of/svalue_of precedent) — NO axiom, NO new ADT/ctor/cert; the pyconst_val
++                # variants it produces are exactly those the Phase2c_PyConstVal certificate pins to
++                # Python isinstance/`is None`. Gated on `_uses_pyconst_val` -> Module5 mirror only.
++                "  let function const_pyval_of (e: emit_ir) : pyconst_val =",
++                "    match e with",
++                "    | IrNone -> PVNone",
++                "    | IrBoolC b -> PVBool (b <> 0)",
++                "    | IrNum n -> PVInt n",
++                "    | IrStr s -> PVStr s",
++                "    | IrNumF r -> PVComplex r",
++                "    | _ -> PVNone",
++                "    end",
+                 # complex branch of `_py_expr_constant`: `int(expr.value.real)` is a real->int
+                 # truncation. Why3's `real.Truncate.truncate` is a LOGIC function (rejected in
+                 # a program/ghost-free context), so expose a program-callable wrapper PINNED by
+@@ -7222,6 +7264,20 @@ class PreambleEmissionMixin:
+                             and _a0.get("attr") == "value"):
+                         found[0] = True
+                         return
++                    # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): `isinstance(<x>,
++                    # ast.Constant)` — the compound const-node discriminant test — ALSO needs the
++                    # `is_constant` COMPOUND discriminant emitted into the emit_ir theory (the
++                    # recognizer at expressions.py `_handle_isinstance` branch (A), same gate). arg1
++                    # is the dotted `ast.Constant` class. Byte-inert (no corpus program does an
++                    # emit_ir `isinstance(_, ast.Constant)`).
++                    _a1 = _args[1] if len(_args) > 1 else None
++                    if (isinstance(_a1, dict) and _a1.get("type") == "Attribute"
++                            and isinstance(_a1.get("object"), dict)
++                            and _a1["object"].get("type") == "Var"
++                            and _a1["object"].get("name") == "ast"
++                            and _a1.get("attr") == "Constant"):
++                        found[0] = True
++                        return
+                 for x in n.values():
+                     rec(x)
+             elif isinstance(n, list):
+diff --git a/src/pycsl/module6_whyml/statements.py b/src/pycsl/module6_whyml/statements.py
+index e79a1be5..0fbab5f5 100644
+--- a/src/pycsl/module6_whyml/statements.py
++++ b/src/pycsl/module6_whyml/statements.py
+@@ -2114,6 +2114,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+             # (immutable — no materialize). Parallel to the `Return_<arity>` tuple arm.
+             suffix = return_type[len("option "):].replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
+             return f"    try\n{body_code}\n    with Return_opttuple_{suffix} r -> r end"
++        if return_type.startswith("(") and "pyconst_val" in return_type:
++            # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a tuple return with a
++            # `pyconst_val` slot (`_classify_literal_value`'s `(string, pyconst_val, emit_ir)`)
++            # is caught by the DEDICATED payload-typed `Return_tup_<slots>` exception (raised by
++            # `_handle_return_stmt`, declared in the pyconst_val theory), whose tuple payload is
++            # handed straight back. Gated on `pyconst_val in return_type` -> corpus + every other
++            # mirror byte-identical.
++            _suffix = (return_type.replace("(", "").replace(")", "")
++                       .replace(" ", "").replace(",", "_"))
++            return f"    try\n{body_code}\n    with Return_tup_{_suffix} r -> r end"
+         if arity > 0:
+             return f"    try\n{body_code}\n    with Return_{arity} r -> r end"
+         if return_type == "array int":
+@@ -3694,6 +3704,36 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+         # local reclassifies (pass 2 is a no-op there and pass 3 == pass 1).
+         self._array_elem_types = self._collect_array_elem_types(body_stmts)
+         self._emit_ir_local_vars = self._collect_emit_ir_result_locals(body_stmts)
++        # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a local whose FIRST assignment
++        # is `<emit_ir>.value` inside `_classify_literal_value` (whose scoped `.value` projection
++        # is `const_pyval_of`, expressions.py `_EMIT_IR_HANDLER_ATTR_PROJ`) is a `pyconst_val`
++        # local — it pre-declares `ref PVNone` (never `ref (IrOther "")`) so its `:=`, its
++        # `is_pv*`/ctor projections, and the tuple slot it feeds all type-check against
++        # `pyconst_val`. Method-scoped via `_current_emitting_func` (the established scoped-
++        # lowering pattern) + the faithful `.value`-on-emit_ir structural test -> corpus + every
++        # other mirror byte-identical (no such scoped `.value` there). Inlined (no new mixin
++        # method — the zero-new-method device that dissolves the mirror-giant L3-tc collision).
++        self._pyconst_val_local_vars: Set[str] = set()
++        _cef_pv = getattr(self, "_current_emitting_func", None) or ""
++        if (_cef_pv == "_classify_literal_value"
++                or _cef_pv.endswith("___classify_literal_value")):
++            _pvset: Set[str] = set()
++
++            def _rec_pv(n: Any) -> None:
++                if isinstance(n, dict):
++                    if (n.get("stmt") == "Assign" and isinstance(n.get("target"), str)):
++                        _rv = n.get("value", {})
++                        if (isinstance(_rv, dict) and _rv.get("type") == "Attribute"
++                                and _rv.get("attr") == "value"
++                                and self._is_emit_ir_expr(_rv.get("object", {}))):
++                            _pvset.add(n["target"])
++                    for _x in n.values():
++                        _rec_pv(_x)
++                elif isinstance(n, list):
++                    for _x in n:
++                        _rec_pv(_x)
++            _rec_pv(body_stmts)
++            self._pyconst_val_local_vars = _pvset
+         # self-tcb-reduction _typeddict_record_literal (cap-2): irlist locals (a DictLit
+         # child-list `.get("keys"/"values",[])` read) pre-declare `ref ILNil`, not `ref 0`.
+         self._irlist_local_vars = self._collect_dictlit_child_list_locals(body_stmts)
+@@ -4339,6 +4379,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+         # `Some (…)` arm — exclude them from EVERY typed pre-decl (string/emit_ir/map).
+         _uput = getattr(self, "_option_tuple_unpack_targets", set())
+         _str_predecl: Set[str] = set()
++        _pyconst_val_predecl: Set[str] = set()
+         _emit_ir_predecl: Set[str] = set()
+         _irlist_predecl: Set[str] = set()
+         _hvalmap_predecl: Set[str] = set()
+@@ -4350,6 +4391,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+                             and v not in _uput
+                             and v not in struct_array_targets and v not in struct_pack_targets}
+             pre_decl_vars |= _str_predecl
++            # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): `pyconst_val` locals
++            # (`v = elt.value` in `_classify_literal_value`) pre-declare `ref PVNone` (never the
++            # emit_ir `ref (IrOther "")`), so their `:=`, `is_pv*` tests and ctor projections
++            # type-check against `pyconst_val`. Computed FIRST and subtracted from the emit_ir
++            # set below (a `.value` read is also `_is_emit_ir_expr`-classifiable, but pyconst_val
++            # is the faithful type here). Byte-inert (`_pyconst_val_local_vars` empty elsewhere).
++            _pyconst_val_predecl = {v for v in getattr(self, "_pyconst_val_local_vars", set())
++                                    if v in local_refs and v not in ghost_vars
++                                    and v not in ref_params and v not in self._formal_params
++                                    and v not in _uput
++                                    and v not in struct_array_targets and v not in struct_pack_targets
++                                    and v not in _str_predecl}
++            pre_decl_vars |= _pyconst_val_predecl
+             # typed-ir §19: emit_ir locals pre-declare `ref (IrOther "")` (the emit_ir
+             # counterpart of the string `ref ""` pre-decl above).
+             _emit_ir_predecl = {v for v in getattr(self, "_emit_ir_local_vars", set())
+@@ -4357,7 +4411,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+                                 and v not in ref_params and v not in self._formal_params
+                                 and v not in _uput
+                                 and v not in struct_array_targets and v not in struct_pack_targets
+-                                and v not in _str_predecl}
++                                and v not in _str_predecl and v not in _pyconst_val_predecl}
+             pre_decl_vars |= _emit_ir_predecl
+             # cap-2: irlist locals (DictLit child-list) pre-declare `ref ILNil`.
+             _irlist_predecl = {v for v in getattr(self, "_irlist_local_vars", set())
+@@ -4518,6 +4572,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+             # R3: a @mutable_state string local pre-declares `ref ""` (see above).
+             if var in _str_predecl:
+                 init = '""'
++            elif var in _pyconst_val_predecl:
++                init = 'PVNone'        # V1 pyconst-dispatch: pyconst_val local pre-decl
+             elif var in _emit_ir_predecl:
+                 init = '(IrOther "")'   # typed-ir §19: emit_ir local pre-decl
+             elif var in _irlist_predecl:
+diff --git a/src/pycsl/module6_whyml/stmt_control_flow.py b/src/pycsl/module6_whyml/stmt_control_flow.py
+index 551a82cd..382fc234 100644
+--- a/src/pycsl/module6_whyml/stmt_control_flow.py
++++ b/src/pycsl/module6_whyml/stmt_control_flow.py
+@@ -2196,6 +2196,21 @@ class ControlFlowStmtMixin:
+                 return f"{indent}raise (Return_opttuple_{suffix} None)"
+             if func_ret == "unit":
+                 return f"{indent}raise Return_void"
++            # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a tuple return whose refined
++            # type carries a `pyconst_val` slot (only `_classify_literal_value`'s
++            # `(string, pyconst_val, emit_ir)`) uses a DEDICATED payload-typed exception
++            # `Return_tup_<slots>` — NOT the shared homogeneous `Return_<arity>` (whose payload is
++            # `(int,...,int)`; reusing it would both mis-type the slots AND collide with every
++            # corpus 3-tuple return). The MIDDLE (`pyconst_val`) slot is coerced to its value:
++            # a `None` literal -> PVNone, a `True`/`False` literal -> `PVBool true/false`, the
++            # pyconst_val local `v` -> `!v`. slot0/slot2 lower normally (string / emit_ir ctor).
++            # Gated on `"pyconst_val" in func_ret` -> corpus + every other mirror byte-identical
++            # (no pyconst_val tuple return there). This branch emits a WhyML-SOURCE STRING (no
++            # pyconst_val value handled in Python), so its own lowering in the giants is inert.
++            if func_ret.startswith("(") and "pyconst_val" in func_ret:
++                _suffix = (func_ret.replace("(", "").replace(")", "")
++                           .replace(" ", "").replace(",", "_"))
++                return f"{indent}raise (Return_tup_{_suffix} {val})"
+             arity = self._current_tuple_arity
+             if arity > 0:
+                 # Tuple return: use the dedicated Return_<arity> exception
+diff --git a/src/self-annotate/src/frontend/Module5_IREmitter.py b/src/self-annotate/src/frontend/Module5_IREmitter.py
+index 3292c76f..166c2af0 100644
+--- a/src/self-annotate/src/frontend/Module5_IREmitter.py
++++ b/src/self-annotate/src/frontend/Module5_IREmitter.py
+@@ -2318,13 +2318,57 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
+     def _normalize_literal_annotation(self, ann_expr: ast.expr, param_name: str) -> Optional[str]:
+         return None
+ 
+-    #@ \trusted reviewer: pycsl-self-annotate
++    # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): `elt` is the general expr node,
++    # self-annotated as the emit_ir ADT ("ExprIR"). `isinstance(elt, ast.Constant)` -> `is_constant
++    # elt`; `v = elt.value` projects the constant leaf to a `pyconst_val` via `const_pyval_of`
++    # (preamble.py pyconst_val block) — the faithful inverse of `_py_expr_constant`. Each INPUT-side
++    # value-type test lowers to the matching pyconst_val discriminant: `v is None` -> is_pvnone,
++    # `isinstance(v, bool/int/str/bytes)` -> is_pvbool/is_pvint/is_pvstr/is_pvbytes. Each IR-node
++    # construction `{"type":"Number"/"String"/"Bool","value":v}` projects the pyconst_val at the
++    # IrNum/IrStr/IrBoolC ctor (pvint_of/pvstr_of/(if pvbool_of..)). The heterogeneous
++    # `Tuple[str, Any, Dict]` return retypes to the monomorphic `(string, pyconst_val, emit_ir)` slot
++    # triple. `isinstance(elt, ast.Name)` -> `is_var elt`, `elt.id` -> `name_of elt`. Verbatim body
++    # port of the LIVE `_classify_literal_value` (Module5_IREmitter.py). No new axiom/ADT/ctor/cert:
++    # `const_pyval_of` is a definitional projection, SAME class as svalue_of/num_of.
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing
+     @staticmethod
+-    def _classify_literal_value(elt: ast.expr) -> int:
+-        return ([], {})
++    def _classify_literal_value(elt: "ExprIR") -> Tuple[str, Any, Dict[str, Any]]:
++        # ast.Constant covers `1`, `"a"`, `True`, `False`, `None`, `b"x"`.
++        if isinstance(elt, ast.Constant):
++            v = elt.value
++            if v is None:
++                return ("int", None, {"type": "Number", "value": 0})
++            if isinstance(v, bool):
++                return ("int", v, {"type": "Bool", "value": v})
++            if isinstance(v, int):
++                return ("int", v, {"type": "Number", "value": v})
++            if isinstance(v, str):
++                return ("str", v, {"type": "String", "value": v})
++            if isinstance(v, bytes):
++                raise PyCSLIRError(
++                    "Literal: bytes literals are not supported "
++                    "(L4a / PEP 586)", stage="ir-emit")
++            raise PyCSLIRError(
++                f"Literal: unsupported literal kind {type(v).__name__} "
++                "(L4 / PEP 586 — only int/str/bool/None supported)",
++                stage="ir-emit")
++        if isinstance(elt, ast.Name):
++            if elt.id == "None":
++                return ("int", None, {"type": "Number", "value": 0})
++            if elt.id == "True":
++                return ("int", True, {"type": "Bool", "value": True})
++            if elt.id == "False":
++                return ("int", False, {"type": "Bool", "value": False})
++            raise PyCSLIRError(
++                f"Literal: unsupported value '{elt.id}' "
++                "(L4 / L5c / PEP 586 — only int/str/bool/None literals supported)",
++                stage="ir-emit")
++        raise PyCSLIRError(
++            "Literal: only int/str/bool/None literals are supported "
++            "(L4 / L5c / PEP 586 — nested Literal and Enum members are not)",
++            stage="ir-emit")
+ 
+     # value-model campaign increment 10 (loop-over-irlist + banked primitives): `annotation`
+     # emit_ir; `isinstance(annotation, ast.Name)`->`is_var`, `annotation.id`->`name_of`;
+diff --git a/src/self-annotate/src/module6_whyml/functions.py b/src/self-annotate/src/module6_whyml/functions.py
+index 9d756ab6..f18574bc 100644
+--- a/src/self-annotate/src/module6_whyml/functions.py
++++ b/src/self-annotate/src/module6_whyml/functions.py
+@@ -260,6 +260,16 @@ class FunctionEmissionMixin:
+         if not isinstance(elt, dict):
+             return "int"
+         t = elt.get("type")
++        # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): the MIDDLE tuple slot of
++        # `_classify_literal_value` is the Python constant VALUE — faithfully `pyconst_val`. Gated
++        # on the plain-BOOL flag `_pyconst_val_tuple_slot` (a getattr-bool + set-membership +
++        # tuple-`in`, the clean shape of the reads above) so it is `False`/dead-code elsewhere.
++        if getattr(self, "_pyconst_val_tuple_slot", False):
++            if (t == "Var" and elt.get("name")
++                    in getattr(self, "_pyconst_val_local_vars", set())):
++                return "pyconst_val"
++            if t in ("None", "Bool"):
++                return "pyconst_val"
+         if getattr(self, "_mutable_state_classes", None):
+             if self._is_string_expr(elt) or (t == "Var" and elt.get("name") in getattr(
+                     self, "_tuple_string_slot_locals", set())):
+diff --git a/src/self-annotate/src/module6_whyml/stmt_control_flow.py b/src/self-annotate/src/module6_whyml/stmt_control_flow.py
+index d3bb55db..41c096c9 100644
+--- a/src/self-annotate/src/module6_whyml/stmt_control_flow.py
++++ b/src/self-annotate/src/module6_whyml/stmt_control_flow.py
+@@ -1149,6 +1149,15 @@ class ControlFlowStmtMixin:
+                 return f"{indent}raise (Return_opttuple_{suffix} None)"
+             if func_ret == "unit":
+                 return f"{indent}raise Return_void"
++            # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a tuple return whose refined
++            # type carries a `pyconst_val` slot uses a DEDICATED payload-typed exception
++            # `Return_tup_<slots>` (never the shared `Return_<arity>`); the MIDDLE slot is coerced
++            # to its pyconst_val value. Emits a WhyML-SOURCE STRING (no pyconst_val value handled
++            # in Python) -> dead-code / inert in the giants.
++            if func_ret.startswith("(") and "pyconst_val" in func_ret:
++                _suffix = (func_ret.replace("(", "").replace(")", "")
++                           .replace(" ", "").replace(",", "_"))
++                return f"{indent}raise (Return_tup_{_suffix} {val})"
+             arity = self._current_tuple_arity
+             if arity > 0:
+                 # Tuple return: use the dedicated Return_<arity> exception

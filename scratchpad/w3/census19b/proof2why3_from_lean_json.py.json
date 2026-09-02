@@ -1,0 +1,1 @@
+[{"file": "proof2why3/from_lean_json.py", "cls": null, "name": "project_to_ir", "tc": false}, {"file": "proof2why3/from_lean_json.py", "cls": null, "name": "_is_ofnat_lit", "tc": false}, {"file": "proof2why3/from_lean_json.py", "cls": null, "name": "_linearize_app", "tc": false}]

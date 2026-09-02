@@ -1,0 +1,1 @@
+[{"file": "proof2why3/from_sexp.py", "cls": null, "name": "project_constr", "tc": false}, {"file": "proof2why3/from_sexp.py", "cls": null, "name": "_project_app", "tc": false}, {"file": "proof2why3/from_sexp.py", "cls": null, "name": "_find_construct_idx", "tc": false}, {"file": "proof2why3/from_sexp.py", "cls": null, "name": "_construct_indices", "tc": false}]

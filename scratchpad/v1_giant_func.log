@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/functions.py'...
+[*] Memory model: hoare
+[*] Imported from 'module6_whyml.identifiers': ['whyml_ident'] (trusted stubs)
+
+[!] UNEXPECTED PIPELINE ERROR:
+cannot access local variable '_pyconst_val_predecl' where it is not associated with a value

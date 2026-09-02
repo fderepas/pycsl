@@ -1,0 +1,648 @@
+[
+ {
+  "stmt": "Assign",
+  "target": "s",
+  "value": {
+   "type": "Call",
+   "func": "stmt.get",
+   "args": [
+    {
+     "type": "String",
+     "value": "stmt"
+    },
+    {
+     "type": "String",
+     "value": ""
+    }
+   ]
+  }
+ },
+ {
+  "stmt": "If",
+  "test": {
+   "type": "BinOp",
+   "op": "==",
+   "left": {
+    "type": "Var",
+    "name": "s"
+   },
+   "right": {
+    "type": "String",
+    "value": "ArraySet"
+   }
+  },
+  "body": [
+   {
+    "stmt": "Assign",
+    "target": "arr",
+    "value": {
+     "type": "Call",
+     "func": "stmt.get",
+     "args": [
+      {
+       "type": "String",
+       "value": "array"
+      },
+      {
+       "type": "DictLit",
+       "keys": [],
+       "values": []
+      }
+     ]
+    }
+   },
+   {
+    "stmt": "If",
+    "test": {
+     "type": "BinOp",
+     "op": "==",
+     "left": {
+      "type": "Call",
+      "func": "arr.get",
+      "args": [
+       {
+        "type": "String",
+        "value": "type"
+       }
+      ]
+     },
+     "right": {
+      "type": "String",
+      "value": "Subscript"
+     }
+    },
+    "body": [
+     {
+      "stmt": "Assign",
+      "target": "root",
+      "value": {
+       "type": "Call",
+       "func": "arr.get",
+       "args": [
+        {
+         "type": "String",
+         "value": "value"
+        },
+        {
+         "type": "DictLit",
+         "keys": [],
+         "values": []
+        }
+       ]
+      }
+     },
+     {
+      "stmt": "If",
+      "test": {
+       "type": "BinOp",
+       "op": "and",
+       "left": {
+        "type": "BinOp",
+        "op": "==",
+        "left": {
+         "type": "Call",
+         "func": "root.get",
+         "args": [
+          {
+           "type": "String",
+           "value": "type"
+          }
+         ]
+        },
+        "right": {
+         "type": "String",
+         "value": "Var"
+        }
+       },
+       "right": {
+        "type": "BinOp",
+        "op": "in",
+        "left": {
+         "type": "Call",
+         "func": "root.get",
+         "args": [
+          {
+           "type": "String",
+           "value": "name"
+          }
+         ]
+        },
+        "right": {
+         "type": "Var",
+         "name": "param_names"
+        }
+       }
+      },
+      "body": [
+       {
+        "stmt": "Assign",
+        "target": "idx1",
+        "value": {
+         "type": "Call",
+         "func": "arr.get",
+         "args": [
+          {
+           "type": "String",
+           "value": "index"
+          },
+          {
+           "type": "DictLit",
+           "keys": [],
+           "values": []
+          }
+         ]
+        }
+       },
+       {
+        "stmt": "Assign",
+        "target": "idx2",
+        "value": {
+         "type": "Call",
+         "func": "stmt.get",
+         "args": [
+          {
+           "type": "String",
+           "value": "index"
+          },
+          {
+           "type": "DictLit",
+           "keys": [],
+           "values": []
+          }
+         ]
+        }
+       },
+       {
+        "stmt": "If",
+        "test": {
+         "type": "BinOp",
+         "op": "and",
+         "left": {
+          "type": "BinOp",
+          "op": "!=",
+          "left": {
+           "type": "Call",
+           "func": "idx1.get",
+           "args": [
+            {
+             "type": "String",
+             "value": "type"
+            }
+           ]
+          },
+          "right": {
+           "type": "String",
+           "value": "String"
+          }
+         },
+         "right": {
+          "type": "BinOp",
+          "op": "!=",
+          "left": {
+           "type": "Call",
+           "func": "idx2.get",
+           "args": [
+            {
+             "type": "String",
+             "value": "type"
+            }
+           ]
+          },
+          "right": {
+           "type": "String",
+           "value": "String"
+          }
+         }
+        },
+        "body": [
+         {
+          "stmt": "Expr",
+          "value": {
+           "type": "Call",
+           "func": "result.add",
+           "args": [
+            {
+             "type": "Subscript",
+             "value": {
+              "type": "Var",
+              "name": "root"
+             },
+             "index": {
+              "type": "String",
+              "value": "name"
+             }
+            }
+           ]
+          }
+         }
+        ],
+        "orelse": []
+       }
+      ],
+      "orelse": []
+     }
+    ],
+    "orelse": []
+   },
+   {
+    "stmt": "Expr",
+    "value": {
+     "type": "Call",
+     "func": "self._scan_2d_in_expr",
+     "args": [
+      {
+       "type": "Var",
+       "name": "arr"
+      },
+      {
+       "type": "Var",
+       "name": "param_names"
+      },
+      {
+       "type": "Var",
+       "name": "result"
+      }
+     ]
+    }
+   },
+   {
+    "stmt": "Expr",
+    "value": {
+     "type": "Call",
+     "func": "self._scan_2d_in_expr",
+     "args": [
+      {
+       "type": "Call",
+       "func": "stmt.get",
+       "args": [
+        {
+         "type": "String",
+         "value": "index"
+        },
+        {
+         "type": "DictLit",
+         "keys": [],
+         "values": []
+        }
+       ]
+      },
+      {
+       "type": "Var",
+       "name": "param_names"
+      },
+      {
+       "type": "Var",
+       "name": "result"
+      }
+     ]
+    }
+   },
+   {
+    "stmt": "Expr",
+    "value": {
+     "type": "Call",
+     "func": "self._scan_2d_in_expr",
+     "args": [
+      {
+       "type": "Call",
+       "func": "stmt.get",
+       "args": [
+        {
+         "type": "String",
+         "value": "value"
+        },
+        {
+         "type": "DictLit",
+         "keys": [],
+         "values": []
+        }
+       ]
+      },
+      {
+       "type": "Var",
+       "name": "param_names"
+      },
+      {
+       "type": "Var",
+       "name": "result"
+      }
+     ]
+    }
+   }
+  ],
+  "orelse": [
+   {
+    "stmt": "If",
+    "test": {
+     "type": "BinOp",
+     "op": "in",
+     "left": {
+      "type": "Var",
+      "name": "s"
+     },
+     "right": {
+      "type": "Tuple",
+      "elts": [
+       {
+        "type": "String",
+        "value": "Assign"
+       },
+       {
+        "type": "String",
+        "value": "AugAssign"
+       },
+       {
+        "type": "String",
+        "value": "Return"
+       }
+      ]
+     }
+    },
+    "body": [
+     {
+      "stmt": "Expr",
+      "value": {
+       "type": "Call",
+       "func": "self._scan_2d_in_expr",
+       "args": [
+        {
+         "type": "Call",
+         "func": "stmt.get",
+         "args": [
+          {
+           "type": "String",
+           "value": "value"
+          },
+          {
+           "type": "DictLit",
+           "keys": [],
+           "values": []
+          }
+         ]
+        },
+        {
+         "type": "Var",
+         "name": "param_names"
+        },
+        {
+         "type": "Var",
+         "name": "result"
+        }
+       ]
+      }
+     }
+    ],
+    "orelse": [
+     {
+      "stmt": "If",
+      "test": {
+       "type": "BinOp",
+       "op": "in",
+       "left": {
+        "type": "Var",
+        "name": "s"
+       },
+       "right": {
+        "type": "Tuple",
+        "elts": [
+         {
+          "type": "String",
+          "value": "While"
+         },
+         {
+          "type": "String",
+          "value": "For"
+         }
+        ]
+       }
+      },
+      "body": [
+       {
+        "stmt": "Expr",
+        "value": {
+         "type": "Call",
+         "func": "self._scan_2d_in_expr",
+         "args": [
+          {
+           "type": "Call",
+           "func": "stmt.get",
+           "args": [
+            {
+             "type": "String",
+             "value": "test"
+            },
+            {
+             "type": "DictLit",
+             "keys": [],
+             "values": []
+            }
+           ]
+          },
+          {
+           "type": "Var",
+           "name": "param_names"
+          },
+          {
+           "type": "Var",
+           "name": "result"
+          }
+         ]
+        }
+       },
+       {
+        "stmt": "For",
+        "line": 1741,
+        "target": "child",
+        "iter": {
+         "type": "Call",
+         "func": "stmt.get",
+         "args": [
+          {
+           "type": "String",
+           "value": "body"
+          },
+          {
+           "type": "ArrayLit",
+           "elts": []
+          }
+         ]
+        },
+        "invariants": [],
+        "variants": [],
+        "body": [
+         {
+          "stmt": "Expr",
+          "value": {
+           "type": "Call",
+           "func": "self._scan_2d_in_stmt",
+           "args": [
+            {
+             "type": "Var",
+             "name": "child"
+            },
+            {
+             "type": "Var",
+             "name": "param_names"
+            },
+            {
+             "type": "Var",
+             "name": "result"
+            }
+           ]
+          }
+         }
+        ],
+        "allow_iteration_mutation": false,
+        "lineno": 1741
+       }
+      ],
+      "orelse": [
+       {
+        "stmt": "If",
+        "test": {
+         "type": "BinOp",
+         "op": "==",
+         "left": {
+          "type": "Var",
+          "name": "s"
+         },
+         "right": {
+          "type": "String",
+          "value": "If"
+         }
+        },
+        "body": [
+         {
+          "stmt": "Expr",
+          "value": {
+           "type": "Call",
+           "func": "self._scan_2d_in_expr",
+           "args": [
+            {
+             "type": "Call",
+             "func": "stmt.get",
+             "args": [
+              {
+               "type": "String",
+               "value": "test"
+              },
+              {
+               "type": "DictLit",
+               "keys": [],
+               "values": []
+              }
+             ]
+            },
+            {
+             "type": "Var",
+             "name": "param_names"
+            },
+            {
+             "type": "Var",
+             "name": "result"
+            }
+           ]
+          }
+         },
+         {
+          "stmt": "For",
+          "line": 1745,
+          "target": "child",
+          "iter": {
+           "type": "Call",
+           "func": "stmt.get",
+           "args": [
+            {
+             "type": "String",
+             "value": "body"
+            },
+            {
+             "type": "ArrayLit",
+             "elts": []
+            }
+           ]
+          },
+          "invariants": [],
+          "variants": [],
+          "body": [
+           {
+            "stmt": "Expr",
+            "value": {
+             "type": "Call",
+             "func": "self._scan_2d_in_stmt",
+             "args": [
+              {
+               "type": "Var",
+               "name": "child"
+              },
+              {
+               "type": "Var",
+               "name": "param_names"
+              },
+              {
+               "type": "Var",
+               "name": "result"
+              }
+             ]
+            }
+           }
+          ],
+          "allow_iteration_mutation": false,
+          "lineno": 1745
+         },
+         {
+          "stmt": "For",
+          "line": 1747,
+          "target": "child",
+          "iter": {
+           "type": "Call",
+           "func": "stmt.get",
+           "args": [
+            {
+             "type": "String",
+             "value": "orelse"
+            },
+            {
+             "type": "ArrayLit",
+             "elts": []
+            }
+           ]
+          },
+          "invariants": [],
+          "variants": [],
+          "body": [
+           {
+            "stmt": "Expr",
+            "value": {
+             "type": "Call",
+             "func": "self._scan_2d_in_stmt",
+             "args": [
+              {
+               "type": "Var",
+               "name": "child"
+              },
+              {
+               "type": "Var",
+               "name": "param_names"
+              },
+              {
+               "type": "Var",
+               "name": "result"
+              }
+             ]
+            }
+           }
+          ],
+          "allow_iteration_mutation": false,
+          "lineno": 1747
+         }
+        ],
+        "orelse": []
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+]

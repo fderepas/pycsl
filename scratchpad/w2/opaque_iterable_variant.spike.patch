@@ -1,0 +1,64 @@
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index 5e511f66..9da89e9a 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -5167,7 +5167,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+             if is_array:
+                 arg0 = f"({args[0]})" if args[0].startswith("!") else args[0]
+                 return f"(Array.length {arg0})"
+-            self._add_abstract_op("val iter_length (x: int) : int")
++            self._add_abstract_op("val function iter_length (x: int) : int")
+             return f"(iter_length {args[0]})"
+         return f"{args[0].lstrip('!')}_len"
+ 
+@@ -11819,7 +11819,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+         if getattr(self, "_in_spec", False):
+             self._add_abstract_op(f"val function get_{attr} (x: int) : int")
+         else:
+-            self._add_abstract_op(f"val get_{attr} (x: int) : int")
++            self._add_abstract_op(f"val function get_{attr} (x: int) : int")
+         return f"(get_{attr} {obj_str})"
+ 
+     def _union_local_field_projection(self, name: str, attr: str) -> Optional[str]:
+diff --git a/src/pycsl/module6_whyml/stmt_control_flow.py b/src/pycsl/module6_whyml/stmt_control_flow.py
+index 11271cc5..b4f7857b 100644
+--- a/src/pycsl/module6_whyml/stmt_control_flow.py
++++ b/src/pycsl/module6_whyml/stmt_control_flow.py
+@@ -654,7 +654,7 @@ class ControlFlowStmtMixin:
+                     is_array = True
+             if is_array:
+                 return f"Array.length {iter_expr}", f"{iter_expr}[!{idx}]", False
+-            self._add_abstract_op("val iter_length (x: int) : int")
++            self._add_abstract_op("val function iter_length (x: int) : int")
+             self._add_abstract_op("val iter_get (x: int) (i: int) : int")
+             return f"(iter_length {iter_expr})", f"(iter_get {iter_expr} !{idx})", False
+         # `for x in self.<method>(...)` / `for x in <fn>(...)` where the
+@@ -740,7 +740,7 @@ class ControlFlowStmtMixin:
+             iter_expr = self._expr_to_whyml(iter_ir, local_refs)
+             return f"{iter_expr}_len", f"Map.get !{self._heap_var} ({iter_expr} + !{idx})", False
+         iter_expr = self._coerce_to_int(self._expr_to_whyml(iter_ir, local_refs))
+-        self._add_abstract_op("val iter_length (x: int) : int")
++        self._add_abstract_op("val function iter_length (x: int) : int")
+         self._add_abstract_op("val iter_get (x: int) (i: int) : int")
+         return f"(iter_length {iter_expr})", f"(iter_get {iter_expr} !{idx})", False
+ 
+@@ -1178,9 +1178,16 @@ class ControlFlowStmtMixin:
+                    # MEASURED BLAST RADIUS: 2 of 814 corpus files (0406, 0407), each
+                    # gaining exactly these two lines, both re-proved.
+                    or (not stmt.variants
+-                       and str(len_expr).lstrip("(").startswith(
+-                           ("Array.length", "Seq.length", "String.length"))))):
+-            while_parts.append(f"{inner_indent}invariant {{ 0 <= !{idx} }}")
++                       and (is_range
++                            or str(len_expr).lstrip("(").startswith(
++                                ("Array.length", "Seq.length", "String.length",
++                                 "iter_length")))))):
++            if not is_range:
++                # A RANGE loop starts its index at `start`, which need not be >= 0
++                # (measured: `Sub-goal loop invariant init` on `for m in range(lo, hi)`
++                # where `lo` is an opaque int). The variant alone is enough — Why3's
++                # integer variant is discharged by the guard `!idx < <stop>`.
++                while_parts.append(f"{inner_indent}invariant {{ 0 <= !{idx} }}")
+             while_parts.append(f"{inner_indent}variant {{ {len_expr} - !{idx} }}")
+         # W2: character-level string iteration carries an ARITHMETIC termination
+         # variant — the LOGIC `String.length s` (not the program `str_length_op`,

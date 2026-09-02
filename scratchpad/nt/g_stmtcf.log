@@ -1,0 +1,3458 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/stmt_control_flow.py'...
+[*] Memory model: hoare
+[*] Imported class from 'ir_schema': ReturnStmt (record + 0 method stub(s) + 18 helper(s))
+[*] Imported class from 'ir_schema': IfStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': WhileStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': ForStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': TryStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': MatchStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported from 'module6_whyml.identifiers': ['whyml_ident', 'safe_exc_name'] (trusted stubs)
+[*] Imported from 'exception_model': ['handler_catches'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 86, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.01s, 23676 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 87, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.01s, 23704 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 84, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.09s, 248208 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 91, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 6210 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 91, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 6917 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 90, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.03s, 22745 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 94, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 6214 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 94, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.02s, 7278 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 93, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.02s, 23980 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 101, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 7360 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 97, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.02s, 30876 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 128, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 9774 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 128, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.04s, 37589 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 124, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.35s, 514312 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 169, characters 59-73:
+Sub-goal variant decrease of goal slookup'vc.
+Prover result is: Valid (0.01s, 9932 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 180, characters 34-50:
+Sub-goal variant decrease of goal sappend'vc.
+Prover result is: Valid (0.01s, 9906 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 190, characters 68-86:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 9952 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 191, characters 24-42:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 10224 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 187, characters 14-85:
+Sub-goal postcondition of goal pget_dyn'vc.
+Prover result is: Valid (0.02s, 37492 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 195, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.02s, 35198 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 195, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.17s, 64 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 195, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.11s, 313074 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 214, characters 52-73:
+Sub-goal variant decrease of goal pdict_to_sdict'vc.
+Prover result is: Valid (0.01s, 9906 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 357, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30922 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 357, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30944 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 358, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30938 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 358, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30960 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 359, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30910 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 359, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30932 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 360, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30914 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 360, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30936 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 361, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30870 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 362, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30904 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 363, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30950 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 363, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30972 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 363, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30994 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 364, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30940 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 365, characters 22-28:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30944 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 366, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30962 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 367, characters 45-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30980 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 367, characters 35-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31002 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 368, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30980 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 368, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31002 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 369, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30984 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 369, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31006 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 370, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30988 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 370, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31010 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 371, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.03s, 30988 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 371, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31010 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 372, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 30992 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 372, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31014 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 373, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31000 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 373, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31022 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 374, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31004 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 374, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 375, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31006 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 376, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31014 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 376, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31036 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 377, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 377, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31048 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 377, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31070 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 378, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31022 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 378, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31044 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 379, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 379, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31048 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 380, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31030 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 380, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31052 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 381, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31040 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 381, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31062 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 382, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31044 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 382, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31066 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 383, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31048 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 383, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31070 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 384, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31052 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 384, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31074 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 385, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31056 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 385, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31078 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 386, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31060 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 386, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31082 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 387, characters 50-57:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31072 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 387, characters 40-47:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31094 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 387, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31116 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 388, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31068 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 388, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31090 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 389, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31072 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 389, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31094 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 390, characters 33-39:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31082 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 390, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31104 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 391, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31076 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 392, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31080 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 393, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31084 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 394, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31098 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 394, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31120 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 395, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31102 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 395, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31124 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 396, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31106 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 396, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31128 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 397, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31100 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 398, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31104 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 399, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31128 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 399, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31150 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 400, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31122 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 401, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31144 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 401, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31166 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 401, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31188 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 402, characters 45-51:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.03s, 31150 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 402, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31172 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 403, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31150 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 403, characters 30-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31172 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 404, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31154 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 404, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31176 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 405, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31158 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 405, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31180 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 406, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31166 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 407, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.02s, 31174 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 408, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31204 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 409, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31208 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 410, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 31206 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 354, characters 14-25:
+Sub-goal postcondition of goal size'vc.
+Prover result is: Valid (0.05s, 152952 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 415, characters 58-83:
+Sub-goal goal of goal size_left_dec.
+Prover result is: Valid (0.04s, 52226 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 416, characters 58-84:
+Sub-goal goal of goal size_right_dec.
+Prover result is: Valid (0.04s, 53043 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 419, characters 65-90:
+Sub-goal goal of goal size_ifexpr_body_dec.
+Prover result is: Valid (0.03s, 53866 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 420, characters 67-94:
+Sub-goal goal of goal size_ifexpr_orelse_dec.
+Prover result is: Valid (0.04s, 54683 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 423, characters 59-87:
+Sub-goal goal of goal size_ter_fst_dec.
+Prover result is: Valid (0.04s, 55579 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 424, characters 59-87:
+Sub-goal goal of goal size_ter_snd_dec.
+Prover result is: Valid (0.04s, 56381 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 425, characters 59-87:
+Sub-goal goal of goal size_ter_thd_dec.
+Prover result is: Valid (0.03s, 57209 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 474, characters 57-84:
+Sub-goal goal of goal size_svalue_dec.
+Prover result is: Valid (0.04s, 57871 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 475, characters 57-84:
+Sub-goal goal of goal size_sindex_dec.
+Prover result is: Valid (0.03s, 58688 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 476, characters 63-90:
+Sub-goal goal of goal size_object_dec.
+Prover result is: Valid (0.04s, 59436 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 477, characters 58-83:
+Sub-goal goal of goal size_arg0_dec.
+Prover result is: Valid (0.03s, 60359 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 478, characters 59-84:
+Sub-goal goal of goal size_elt0_dec.
+Prover result is: Valid (0.04s, 61346 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 479, characters 59-84:
+Sub-goal goal of goal size_elt1_dec.
+Prover result is: Valid (0.05s, 62163 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 485, characters 48-55:
+Sub-goal variant decrease of goal irlen'vc.
+Prover result is: Valid (0.01s, 19006 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 483, characters 14-25:
+Sub-goal postcondition of goal irlen'vc.
+Prover result is: Valid (0.04s, 67787 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 489, characters 75-90:
+Sub-goal variant decrease of goal irnth'vc.
+Prover result is: Valid (0.02s, 19042 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 506, characters 63-76:
+Sub-goal variant decrease of goal pairs_get'vc.
+Prover result is: Valid (0.02s, 19036 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 524, characters 99-120:
+Sub-goal variant decrease of goal hval_list_str_mem'vc.
+Prover result is: Valid (0.03s, 21857 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 531, characters 48-63:
+Sub-goal variant decrease of goal hval_list_len'vc.
+Prover result is: Valid (0.01s, 19006 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 538, characters 43-66:
+Sub-goal variant decrease of goal hval_list_nth'vc.
+Prover result is: Valid (0.02s, 19042 steps).
+
+File "/home/fabrice.derepas@canonical.com/.opam/coq-4.14/share/why3/stdlib/set.mlw", line 538, characters 14-30:
+Sub-goal postcondition of goal eq'refn'vc.
+Prover result is: Valid (0.02s, 9026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 708, characters 24-79:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__gtype'vc.
+Prover result is: Valid (0.02s, 24552 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 708, characters 24-79:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__gtype'vc.
+Prover result is: Valid (0.02s, 24404 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 715, characters 24-79:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__gfunc'vc.
+Prover result is: Valid (0.01s, 24536 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 721, characters 76-130:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__gexc'vc.
+Prover result is: Valid (0.02s, 24252 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 722, characters 24-78:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__gexc'vc.
+Prover result is: Valid (0.02s, 24524 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 733, characters 10-68:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__rcfold'vc.
+Prover result is: Valid (0.04s, 94509 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 733, characters 10-68:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__rcfold'vc.
+Prover result is: Valid (0.01s, 8978 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 726, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___callee_raised_direct__rcfold'vc.
+Prover result is: Valid (0.01s, 9026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 738, characters 102-207:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__leaf'vc.
+Prover result is: Valid (0.02s, 9026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 735, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___callee_raised_direct__leaf'vc.
+Prover result is: Valid (0.01s, 9035 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 744, characters 81-135:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__v'vc.
+Prover result is: Valid (0.04s, 88656 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 744, characters 81-135:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__v'vc.
+Prover result is: Valid (0.02s, 9035 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 744, characters 27-80:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__v'vc.
+Prover result is: Valid (0.02s, 9044 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 745, characters 18-71:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__v'vc.
+Prover result is: Valid (0.05s, 88656 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 745, characters 18-71:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__v'vc.
+Prover result is: Valid (0.02s, 9035 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 742, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___callee_raised_direct__v'vc.
+Prover result is: Valid (0.01s, 9026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 753, characters 69-126:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__dfold'vc.
+Prover result is: Valid (0.04s, 95380 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 753, characters 69-126:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__dfold'vc.
+Prover result is: Valid (0.01s, 9052 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 753, characters 18-68:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__dfold'vc.
+Prover result is: Valid (0.04s, 95595 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 753, characters 18-68:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__dfold'vc.
+Prover result is: Valid (0.01s, 9061 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 749, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___callee_raised_direct__dfold'vc.
+Prover result is: Valid (0.01s, 9026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 757, characters 79-133:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__lfold'vc.
+Prover result is: Valid (0.05s, 94509 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 757, characters 79-133:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__lfold'vc.
+Prover result is: Valid (0.01s, 8978 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 757, characters 28-78:
+Sub-goal variant decrease of goal controlflowstmtmixin___callee_raised_direct__lfold'vc.
+Prover result is: Valid (0.04s, 95610 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 757, characters 28-78:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct__lfold'vc.
+Prover result is: Valid (0.02s, 8987 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 755, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___callee_raised_direct__lfold'vc.
+Prover result is: Valid (0.01s, 9026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 760, characters 4-57:
+Sub-goal precondition of goal controlflowstmtmixin___callee_raised_direct'vc.
+Prover result is: Valid (0.02s, 9026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 759, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___callee_raised_direct'vc.
+Prover result is: Valid (0.01s, 9035 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 782, characters 70-126:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__gstmt'vc.
+Prover result is: Valid (0.02s, 24252 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 783, characters 24-80:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__gstmt'vc.
+Prover result is: Valid (0.02s, 24524 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 788, characters 24-79:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__gtgt'vc.
+Prover result is: Valid (0.02s, 24536 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 793, characters 24-79:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__gval'vc.
+Prover result is: Valid (0.02s, 24536 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 800, characters 24-83:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__L_body_g'vc.
+Prover result is: Valid (0.02s, 24536 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 796, characters 14-85:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_body_g'vc.
+Prover result is: Valid (0.04s, 84313 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 803, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_body'vc.
+Prover result is: Valid (0.03s, 87242 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 803, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_body'vc.
+Prover result is: Valid (1.13s, 7977007 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 803, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_body'vc.
+Prover result is: Valid (0.21s, 344416 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 811, characters 24-85:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__L_orelse_g'vc.
+Prover result is: Valid (0.02s, 24536 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 807, characters 14-85:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_orelse_g'vc.
+Prover result is: Valid (0.04s, 84313 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 814, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_orelse'vc.
+Prover result is: Valid (0.04s, 87242 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 814, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_orelse'vc.
+Prover result is: Valid (1.16s, 7977007 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 814, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_orelse'vc.
+Prover result is: Valid (0.14s, 344416 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 821, characters 75-139:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__L_finalbody_g'vc.
+Prover result is: Valid (0.02s, 24252 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 822, characters 24-88:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__L_finalbody_g'vc.
+Prover result is: Valid (0.02s, 24524 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 818, characters 14-85:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_finalbody_g'vc.
+Prover result is: Valid (0.04s, 91664 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 825, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_finalbody'vc.
+Prover result is: Valid (0.03s, 87242 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 825, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_finalbody'vc.
+Prover result is: Valid (1.13s, 7977007 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 825, characters 14-45:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__L_finalbody'vc.
+Prover result is: Valid (0.14s, 344416 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 839, characters 24-136:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.05s, 98496 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 839, characters 24-136:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.01s, 9165 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 841, characters 24-138:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.04s, 100093 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 841, characters 24-138:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.02s, 9277 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 843, characters 24-141:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.07s, 101714 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 843, characters 24-141:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.01s, 9387 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 845, characters 24-105:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.05s, 103363 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 845, characters 24-105:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.02s, 9497 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 846, characters 83-143:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.04s, 104634 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 846, characters 83-143:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.01s, 9598 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 847, characters 16-76:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.05s, 87814 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 847, characters 16-76:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.03s, 9047 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 829, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__f'vc.
+Prover result is: Valid (0.01s, 9026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 854, characters 43-156:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__hf'vc.
+Prover result is: Valid (0.04s, 94772 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 854, characters 43-156:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir__hf'vc.
+Prover result is: Valid (0.01s, 8995 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 855, characters 76-138:
+Sub-goal variant decrease of goal controlflowstmtmixin___first_assign_value_ir__hf'vc.
+Prover result is: Valid (0.04s, 97766 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 855, characters 76-138:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir__hf'vc.
+Prover result is: Valid (0.01s, 9230 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 850, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir__hf'vc.
+Prover result is: Valid (0.02s, 9026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 859, characters 4-65:
+Sub-goal precondition of goal controlflowstmtmixin___first_assign_value_ir'vc.
+Prover result is: Valid (0.02s, 9026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 858, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___first_assign_value_ir'vc.
+Prover result is: Valid (0.02s, 9026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 928, characters 18-61:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.06s, 147034 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 929, characters 18-68:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 83417 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 931, characters 13-35:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 40137 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 930, characters 16-37:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.04s, 75930 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 928, characters 18-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.07s, 151631 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 929, characters 18-68:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14477 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 940, characters 18-61:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.06s, 147519 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 941, characters 18-68:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 13970 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 943, characters 16-36:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 40323 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 942, characters 16-37:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 76106 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 940, characters 18-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.05s, 151913 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 941, characters 18-68:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14479 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17404 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 17408 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 17317 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17321 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16955 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16867 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 17082 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17086 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16995 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 16999 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16633 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16545 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17064 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17068 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 16977 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16981 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.04s, 16607 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16519 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16742 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16746 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16655 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16659 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16285 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 16197 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17131 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17135 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17044 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17048 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16682 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16594 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16809 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16813 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 16722 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16726 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16360 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16272 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16791 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16795 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16704 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16708 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16334 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16246 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16469 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16473 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16382 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16386 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16012 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15924 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 928, characters 18-61:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.06s, 131303 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 929, characters 18-68:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 75035 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 931, characters 13-35:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 36195 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 930, characters 16-37:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.05s, 71078 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 928, characters 18-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.05s, 141746 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 929, characters 18-68:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 13006 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 940, characters 18-61:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.05s, 131788 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 941, characters 18-68:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 12051 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 943, characters 16-36:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 36381 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 942, characters 16-37:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.04s, 71270 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 940, characters 18-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.06s, 142039 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 941, characters 18-68:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 13024 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15931 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15935 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15844 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15848 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15482 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15394 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15609 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15613 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15522 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15526 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15160 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.04s, 15072 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 15591 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15595 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15504 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15508 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15134 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15046 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15269 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15273 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15182 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15186 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14812 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14724 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15658 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15662 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 15571 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15575 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15209 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15121 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15336 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15340 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15249 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 15253 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14887 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14799 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15318 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.01s, 15322 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15231 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15235 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 14861 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14773 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14996 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15000 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14909 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14913 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14539 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14451 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 928, characters 18-61:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.05s, 147052 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 929, characters 18-68:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.04s, 83379 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 931, characters 13-35:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 40077 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 930, characters 16-37:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 75896 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 928, characters 18-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.05s, 151648 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 929, characters 18-68:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.01s, 14449 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 940, characters 18-61:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.07s, 147537 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 941, characters 18-68:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 13942 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 943, characters 16-36:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 40263 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 942, characters 16-37:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.04s, 76072 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 940, characters 18-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.06s, 151930 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 941, characters 18-68:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14451 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17376 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17380 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.01s, 17289 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17293 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16927 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16839 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17054 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17058 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16967 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16971 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16605 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16517 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17036 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 17040 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16949 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16953 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16579 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16491 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16714 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16718 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16627 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16631 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.01s, 16257 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16169 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17103 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17107 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17016 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 17020 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16654 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 16566 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16781 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16785 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16694 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16698 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16332 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16244 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16763 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 16767 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16676 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16680 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16306 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16218 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 16441 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16445 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 16354 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.04s, 16358 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15984 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15896 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 928, characters 18-61:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.05s, 131316 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 929, characters 18-68:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.04s, 74993 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 931, characters 13-35:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 36131 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 930, characters 16-37:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 71044 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 928, characters 18-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.05s, 141763 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 929, characters 18-68:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.01s, 12978 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 940, characters 18-61:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.05s, 131801 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 941, characters 18-68:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 12019 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 943, characters 16-36:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 36317 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 942, characters 16-37:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 71236 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 940, characters 18-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.05s, 142056 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 941, characters 18-68:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.01s, 12996 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15903 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 15907 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15816 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 15820 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 15454 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15366 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15581 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15585 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15494 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15498 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15132 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15044 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15563 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15567 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15476 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 15480 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15106 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15018 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15241 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15245 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15154 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15158 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14784 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14696 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15630 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 15634 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15543 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.01s, 15547 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15181 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15093 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15308 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15312 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 15221 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15225 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 14859 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14771 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15290 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 15294 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 15203 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 15207 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14833 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14745 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.04s, 14968 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 14972 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.02s, 14881 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 14885 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 14511 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_for_stmt'vc.
+Prover result is: Valid (0.03s, 14423 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 9035 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 5163 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 5167 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 5164 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 5161 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 5165 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.01s, 5162 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 5162 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 5160 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.03s, 5180 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 5177 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 5176 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 5173 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 5161 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 5165 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.01s, 5162 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.03s, 5159 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 5163 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 5160 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 5160 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.03s, 5158 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.03s, 5178 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.03s, 5175 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 5174 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_if_stmt'vc.
+Prover result is: Valid (0.02s, 5171 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1095, characters 20-32:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 9039 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1098, characters 22-38:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 13027 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1096, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.10s, 123099 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1095, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.10s, 122933 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1111, characters 55-74:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.10s, 126136 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1096, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.09s, 123747 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1095, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.09s, 123581 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1096, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.14s, 123785 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1095, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.10s, 123619 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1096, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 7407 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1095, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 7407 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1122, characters 14-30:
+Sub-goal array creation size of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 9287 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1127, characters 20-32:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 9588 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1129, characters 20-36:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 13496 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 12695 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1143, characters 20-36:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.05s, 17172 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1142, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.09s, 147642 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.15s, 147478 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1142, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 8103 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 8103 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1142, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.14s, 147408 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.09s, 147248 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1142, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 8094 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 8094 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1060, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 13305 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1060, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 13218 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1128, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.08s, 126698 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1127, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.09s, 126534 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 9614 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1143, characters 20-36:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 13535 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1142, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.12s, 122503 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.13s, 122339 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1142, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5940 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5940 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1142, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.08s, 122139 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.08s, 121979 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1142, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5929 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5929 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1060, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 10232 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1060, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 10145 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.07s, 101328 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 9613 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1172, characters 13-27:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 26455 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.05s, 20368 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.13s, 123314 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 11209 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 64059 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.13s, 122806 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 11062 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.07s, 61190 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.11s, 121643 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 11386 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5943 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5943 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5944 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5942 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5942 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5943 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 5944 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 5944 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5945 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 20334 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.09s, 123094 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 11181 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.08s, 63943 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.12s, 122452 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 11034 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.08s, 61088 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.13s, 121413 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 11358 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5927 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 5927 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5928 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5926 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5926 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5927 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 5928 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5928 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5929 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1060, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 10723 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1060, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 10632 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1122, characters 14-30:
+Sub-goal array creation size of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5055 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1127, characters 20-32:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5190 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1129, characters 20-36:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5310 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 7477 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1143, characters 20-36:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 7480 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1142, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 7958 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 7958 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1142, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 7946 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 7946 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1142, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 7957 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 7957 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1142, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 7945 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 7945 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1060, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 7493 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1060, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 7490 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1128, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 7475 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1127, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 7475 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5310 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1143, characters 20-36:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5313 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1142, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5839 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5839 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1142, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5827 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 5827 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1142, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5838 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5838 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1142, characters 18-46:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 5826 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1141, characters 20-32:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5826 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1060, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5326 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1060, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5323 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5310 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5311 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1172, characters 13-27:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5315 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5834 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5834 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5835 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 5833 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5833 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5834 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5835 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5835 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5836 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 5834 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5834 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5835 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5833 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5833 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5834 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5835 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5835 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5836 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5832 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 5832 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5833 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5831 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5831 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5832 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5833 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5833 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5834 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5832 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5832 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5833 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5831 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5831 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5832 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1171, characters 18-38:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5833 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1169, characters 20-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5833 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1170, characters 20-53:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.02s, 5834 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1060, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.03s, 5775 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1060, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_match_stmt'vc.
+Prover result is: Valid (0.04s, 5772 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.03s, 14673 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.03s, 14331 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.03s, 13435 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.03s, 13855 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.02s, 8057 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.04s, 13803 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.04s, 13767 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.04s, 8062 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.04s, 13844 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.03s, 13808 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.03s, 13696 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.03s, 13737 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.03s, 13940 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.03s, 13845 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.04s, 13561 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.04s, 13480 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.04s, 13669 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_return_stmt'vc.
+Prover result is: Valid (0.04s, 13585 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1383, characters 32-36:
+Sub-goal postcondition of goal handler_catches'vc.
+Prover result is: Valid (0.02s, 9026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1420, characters 18-52:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.07s, 107228 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1421, characters 18-51:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 9713 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1423, characters 11-26:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.04s, 26745 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1422, characters 16-31:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.05s, 53202 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1420, characters 18-52:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.10s, 109591 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1421, characters 18-51:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 9909 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1432, characters 18-52:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.08s, 107645 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1433, characters 18-57:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 9772 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1434, characters 16-31:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.07s, 65954 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1432, characters 18-52:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.14s, 141322 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1433, characters 18-57:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 13195 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1434, characters 16-31:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.06s, 70886 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1432, characters 18-52:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.16s, 146246 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1433, characters 18-57:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 13383 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1434, characters 16-31:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.06s, 66401 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1432, characters 18-52:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.10s, 142438 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1433, characters 18-57:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 13387 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1434, characters 16-31:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.07s, 59500 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1432, characters 18-52:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.10s, 118141 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1433, characters 18-57:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 10287 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1467, characters 20-51:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.07s, 119308 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1468, characters 20-52:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.02s, 11054 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1470, characters 13-27:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 30472 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1472, characters 127-146:
+Sub-goal array creation size of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.02s, 11232 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1481, characters 22-37:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 11468 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1482, characters 20-56:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.10s, 130486 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1481, characters 22-37:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.14s, 130314 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1489, characters 68-88:
+Sub-goal array creation size of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.02s, 11529 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1492, characters 24-38:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 11648 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1493, characters 22-58:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.15s, 150950 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1492, characters 24-38:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.09s, 150754 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1493, characters 22-58:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.13s, 161320 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1492, characters 24-38:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.12s, 161138 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1482, characters 20-56:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.11s, 127850 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1481, characters 22-37:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.12s, 127678 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1509, characters 22-36:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 11490 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1510, characters 20-54:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.10s, 126559 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1509, characters 22-36:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.12s, 126399 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1469, characters 18-31:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.05s, 62259 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1467, characters 20-51:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.09s, 128471 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1468, characters 20-52:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 11640 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1481, characters 22-37:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.02s, 11450 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1482, characters 20-56:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.14s, 130527 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1481, characters 22-37:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.08s, 130355 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1489, characters 68-88:
+Sub-goal array creation size of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.02s, 11511 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1492, characters 24-38:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 11630 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1493, characters 22-58:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.12s, 150991 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1492, characters 24-38:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.16s, 150795 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1493, characters 22-58:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.13s, 161361 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1492, characters 24-38:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.16s, 161179 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1482, characters 20-56:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.13s, 127891 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1481, characters 22-37:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.12s, 127719 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1509, characters 22-36:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 11472 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1510, characters 20-54:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.14s, 126602 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1509, characters 22-36:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.14s, 126442 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1469, characters 18-31:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.05s, 62249 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1467, characters 20-51:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.14s, 128512 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1468, characters 20-52:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 11622 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1389, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.04s, 11228 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1389, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.04s, 11141 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1389, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 5507 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1389, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.04s, 5504 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1467, characters 20-51:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.15s, 119327 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1468, characters 20-52:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.02s, 11026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1470, characters 13-27:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.06s, 30414 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1472, characters 127-146:
+Sub-goal array creation size of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 11204 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1481, characters 22-37:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 11450 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1482, characters 20-56:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.10s, 130523 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1481, characters 22-37:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.10s, 130351 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1489, characters 68-88:
+Sub-goal array creation size of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.05s, 11511 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1492, characters 24-38:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.05s, 11630 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1493, characters 22-58:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.14s, 150987 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1492, characters 24-38:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.10s, 150791 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1493, characters 22-58:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.20s, 161357 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1492, characters 24-38:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.16s, 161175 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1482, characters 20-56:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.11s, 127887 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1481, characters 22-37:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.11s, 127715 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1509, characters 22-36:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 11472 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1510, characters 20-54:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.10s, 126602 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1509, characters 22-36:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.17s, 126442 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1469, characters 18-31:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.09s, 62245 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1467, characters 20-51:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.17s, 128508 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1468, characters 20-52:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.04s, 11622 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1481, characters 22-37:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.02s, 11422 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1482, characters 20-56:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.08s, 130544 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1481, characters 22-37:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.08s, 130372 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1489, characters 68-88:
+Sub-goal array creation size of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.02s, 11483 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1492, characters 24-38:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.02s, 11602 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1493, characters 22-58:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.09s, 151006 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1492, characters 24-38:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.09s, 150810 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1493, characters 22-58:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.18s, 161376 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1492, characters 24-38:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.13s, 161194 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1482, characters 20-56:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.14s, 127910 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1481, characters 22-37:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.11s, 127738 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1509, characters 22-36:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.05s, 11444 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1510, characters 20-54:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.10s, 126621 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1509, characters 22-36:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.08s, 126461 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1469, characters 18-31:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.08s, 62217 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1467, characters 20-51:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.15s, 128531 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1468, characters 20-52:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.05s, 11594 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1389, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.04s, 11200 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1389, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.03s, 11113 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1389, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.02s, 5491 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1389, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_try_stmt'vc.
+Prover result is: Valid (0.02s, 5488 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1570, characters 18-61:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.12s, 98570 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1571, characters 18-58:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.04s, 9548 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1573, characters 13-35:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.05s, 25937 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1572, characters 16-37:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.08s, 51177 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1570, characters 18-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.07s, 100455 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1571, characters 18-58:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.02s, 9933 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1582, characters 18-61:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.06s, 98992 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1583, characters 18-56:
+Sub-goal loop invariant init of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.04s, 9606 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1585, characters 13-33:
+Sub-goal index in array bounds of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.05s, 26117 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1584, characters 16-37:
+Sub-goal loop variant decrease of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.06s, 51419 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1582, characters 18-61:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.08s, 100861 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1583, characters 18-56:
+Sub-goal loop invariant preservation of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.03s, 9975 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.04s, 10749 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.04s, 10662 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.04s, 10550 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.04s, 10463 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.03s, 10409 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.04s, 10322 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.04s, 10198 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.03s, 10105 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.04s, 10623 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.04s, 10536 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.04s, 10422 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.03s, 10335 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.04s, 10281 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.04s, 10194 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.04s, 10068 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___handle_while_stmt'vc.
+Prover result is: Valid (0.04s, 9975 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1644, characters 82-138:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor__get'vc.
+Prover result is: Valid (0.05s, 24268 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1645, characters 24-80:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor__get'vc.
+Prover result is: Valid (0.04s, 24540 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1645, characters 24-80:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor__get'vc.
+Prover result is: Valid (0.05s, 24404 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1653, characters 93-144:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor'vc.
+Prover result is: Valid (0.11s, 88622 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1653, characters 93-144:
+Sub-goal precondition of goal controlflowstmtmixin___pattern_has_constructor'vc.
+Prover result is: Valid (0.03s, 9048 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1654, characters 18-70:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor'vc.
+Prover result is: Valid (0.08s, 88656 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1654, characters 18-70:
+Sub-goal precondition of goal controlflowstmtmixin___pattern_has_constructor'vc.
+Prover result is: Valid (0.04s, 9035 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1651, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___pattern_has_constructor'vc.
+Prover result is: Valid (0.03s, 9026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1658, characters 51-99:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor__d'vc.
+Prover result is: Valid (0.12s, 96262 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1658, characters 51-99:
+Sub-goal precondition of goal controlflowstmtmixin___pattern_has_constructor__d'vc.
+Prover result is: Valid (0.04s, 9035 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1658, characters 103-157:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor__d'vc.
+Prover result is: Valid (0.09s, 96331 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1658, characters 103-157:
+Sub-goal precondition of goal controlflowstmtmixin___pattern_has_constructor__d'vc.
+Prover result is: Valid (0.04s, 9044 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1657, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___pattern_has_constructor__d'vc.
+Prover result is: Valid (0.04s, 9026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1661, characters 45-93:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor__l'vc.
+Prover result is: Valid (0.07s, 94468 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1661, characters 45-93:
+Sub-goal precondition of goal controlflowstmtmixin___pattern_has_constructor__l'vc.
+Prover result is: Valid (0.04s, 8978 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1661, characters 97-148:
+Sub-goal variant decrease of goal controlflowstmtmixin___pattern_has_constructor__l'vc.
+Prover result is: Valid (0.05s, 94537 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1661, characters 97-148:
+Sub-goal precondition of goal controlflowstmtmixin___pattern_has_constructor__l'vc.
+Prover result is: Valid (0.03s, 8987 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1660, characters 32-36:
+Sub-goal postcondition of goal controlflowstmtmixin___pattern_has_constructor__l'vc.
+Prover result is: Valid (0.04s, 9026 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1678, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___try_local_decl_kind'vc.
+Prover result is: Valid (0.02s, 12718 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1678, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___try_local_decl_kind'vc.
+Prover result is: Valid (0.02s, 12928 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1678, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___try_local_decl_kind'vc.
+Prover result is: Valid (0.02s, 12926 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1701, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___union_arm_whyml_type'vc.
+Prover result is: Valid (0.03s, 9931 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1701, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___union_arm_whyml_type'vc.
+Prover result is: Valid (0.03s, 9962 steps).
+
+File "/tmp/.pycsl_hdd_sz_u.mlw", line 1701, characters 15-19:
+Sub-goal postcondition of goal controlflowstmtmixin___union_arm_whyml_type'vc.
+Prover result is: Valid (0.04s, 9960 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 613, characters 43-45: unused variable x0
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 652, characters 20-23: unused variable sep
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 652, characters 34-36: unused variable xs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 659, characters 27-30: unused variable sep
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 659, characters 41-42: unused variable i
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 700, characters 50-54: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 700, characters 79-85: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 700, characters 96-102: unused variable val_ir
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 701, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 726, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 735, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 755, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 749, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 742, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 759, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 761, characters 47-51: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 761, characters 76-81: unused variable stmts
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 763, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 765, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 765, characters 77-84: unused variable iter_ir
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 765, characters 96-106: unused variable local_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 765, characters 131-134: unused variable idx
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 767, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 769, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 769, characters 73-79: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 770, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 772, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 772, characters 73-77: unused variable expr
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 772, characters 89-99: unused variable local_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 773, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 850, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 829, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 858, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 879, characters 8-15: unused variable iter_ir
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 868, characters 8-23: unused variable while_parts_len
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1115, characters 14-21: unused variable new_pat
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1065, characters 8-16: unused variable arms_len
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1064, characters 8-17: unused variable lines_len
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1060, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1254, characters 16-22: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1250, characters 18-24: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1247, characters 18-24: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1241, characters 16-22: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1237, characters 16-22: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1231, characters 12-18: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1227, characters 10-16: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1265, characters 10-16: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1262, characters 10-16: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1372, characters 16-22: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1369, characters 16-22: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1365, characters 14-20: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1337, characters 34-40: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1334, characters 34-40: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1330, characters 32-38: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1326, characters 30-36: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1322, characters 28-34: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1207, characters 97-101: unused variable rest
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1207, characters 150-163: unused variable declared_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1383, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1397, characters 8-12: unused variable part
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1394, characters 8-11: unused variable tag
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1392, characters 8-20: unused variable arm_tags_len
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1389, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1619, characters 54-58: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1619, characters 83-89: unused variable val_ir
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1621, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1623, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1623, characters 78-81: unused variable pat
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1623, characters 93-100: unused variable subject
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1623, characters 111-121: unused variable local_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1625, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1627, characters 55-59: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1627, characters 84-88: unused variable stmt
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1629, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1631, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1634, characters 53-57: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1637, characters 56-60: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1637, characters 85-91: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1637, characters 102-108: unused variable val_ir
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1639, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1660, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1657, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1651, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1662, characters 51-55: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1662, characters 80-83: unused variable pat
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1662, characters 95-98: unused variable top
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1664, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1666, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1666, characters 73-79: unused variable val_ir
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1666, characters 91-101: unused variable local_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1667, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1669, characters 45-49: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1669, characters 74-78: unused variable rest
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1669, characters 92-102: unused variable local_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1669, characters 127-140: unused variable declared_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1669, characters 165-171: unused variable indent
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1669, characters 182-189: unused variable in_loop
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1671, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1673, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1673, characters 67-76: unused variable whyml_str
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1673, characters 87-94: unused variable ir_expr
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1674, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1678, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1695, characters 54-58: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1695, characters 83-87: unused variable stmt
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1695, characters 99-103: unused variable rest
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1695, characters 117-127: unused variable local_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1695, characters 152-165: unused variable declared_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1695, characters 190-196: unused variable indent
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1695, characters 207-214: unused variable in_loop
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1697, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1699, characters 51-55: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1701, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1717, characters 53-57: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1717, characters 82-87: unused variable vinfo
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1717, characters 99-106: unused variable arm_tag
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1719, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1725, characters 23-27: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1736, characters 19-21: unused variable ir
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 613, characters 43-45: unused variable x0
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 652, characters 20-23: unused variable sep
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 652, characters 34-36: unused variable xs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 659, characters 27-30: unused variable sep
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 659, characters 41-42: unused variable i
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 700, characters 50-54: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 700, characters 79-85: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 700, characters 96-102: unused variable val_ir
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 701, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 726, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 735, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 755, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 749, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 742, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 759, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 761, characters 47-51: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 761, characters 76-81: unused variable stmts
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 763, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 765, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 765, characters 77-84: unused variable iter_ir
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 765, characters 96-106: unused variable local_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 765, characters 131-134: unused variable idx
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 767, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 769, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 769, characters 73-79: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 770, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 772, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 772, characters 73-77: unused variable expr
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 772, characters 89-99: unused variable local_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 773, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 850, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 829, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 858, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 879, characters 8-15: unused variable iter_ir
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 868, characters 8-23: unused variable while_parts_len
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 864, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 996, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1115, characters 14-21: unused variable new_pat
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1065, characters 8-16: unused variable arms_len
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1064, characters 8-17: unused variable lines_len
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1060, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1254, characters 16-22: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1250, characters 18-24: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1247, characters 18-24: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1241, characters 16-22: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1237, characters 16-22: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1231, characters 12-18: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1227, characters 10-16: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1265, characters 10-16: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1262, characters 10-16: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1372, characters 16-22: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1369, characters 16-22: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1365, characters 14-20: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1337, characters 34-40: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1334, characters 34-40: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1330, characters 32-38: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1326, characters 30-36: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1322, characters 28-34: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1207, characters 97-101: unused variable rest
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1207, characters 150-163: unused variable declared_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1209, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1383, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1397, characters 8-12: unused variable part
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1394, characters 8-11: unused variable tag
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1392, characters 8-20: unused variable arm_tags_len
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1389, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1532, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1619, characters 54-58: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1619, characters 83-89: unused variable val_ir
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1621, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1623, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1623, characters 78-81: unused variable pat
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1623, characters 93-100: unused variable subject
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1623, characters 111-121: unused variable local_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1625, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1627, characters 55-59: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1627, characters 84-88: unused variable stmt
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1629, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1631, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1634, characters 53-57: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1637, characters 56-60: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1637, characters 85-91: unused variable py_val
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1637, characters 102-108: unused variable val_ir
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1639, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1660, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1657, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1651, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1662, characters 51-55: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1662, characters 80-83: unused variable pat
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1662, characters 95-98: unused variable top
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1664, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1666, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1666, characters 73-79: unused variable val_ir
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1666, characters 91-101: unused variable local_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1667, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1669, characters 45-49: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1669, characters 74-78: unused variable rest
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1669, characters 92-102: unused variable local_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1669, characters 127-140: unused variable declared_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1669, characters 165-171: unused variable indent
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1669, characters 182-189: unused variable in_loop
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1671, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1673, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1673, characters 67-76: unused variable whyml_str
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1673, characters 87-94: unused variable ir_expr
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1674, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1678, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1695, characters 54-58: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1695, characters 83-87: unused variable stmt
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1695, characters 99-103: unused variable rest
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1695, characters 117-127: unused variable local_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1695, characters 152-165: unused variable declared_refs
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1695, characters 190-196: unused variable indent
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1695, characters 207-214: unused variable in_loop
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1697, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1699, characters 51-55: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1701, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1717, characters 53-57: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1717, characters 82-87: unused variable vinfo
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1717, characters 99-106: unused variable arm_tag
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1719, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1725, characters 23-27: unused variable self
+Warning, file "/tmp/.pycsl_hdd_sz_u.mlw", line 1736, characters 19-21: unused variable ir
+
+[+] Verification SUCCESS! All contracts formally proven.

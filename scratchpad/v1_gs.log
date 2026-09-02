@@ -1,0 +1,12 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/stmt_control_flow.py'...
+[*] Memory model: hoare
+[*] Imported class from 'ir_schema': ReturnStmt (record + 0 method stub(s) + 18 helper(s))
+[*] Imported class from 'ir_schema': IfStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': WhileStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': ForStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': TryStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': MatchStmt (record + 0 method stub(s) + 0 helper(s))
+[*] Imported from 'module6_whyml.identifiers': ['whyml_ident', 'safe_exc_name'] (trusted stubs)
+[*] Imported from 'exception_model': ['handler_catches'] (trusted stubs)
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

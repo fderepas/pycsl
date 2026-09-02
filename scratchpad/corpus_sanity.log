@@ -1,0 +1,4 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/0008.py'...
+[*] Memory model: hoare
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

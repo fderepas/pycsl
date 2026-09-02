@@ -1,0 +1,7 @@
+  val all_phase1_exceptions () : array string
+  val bases_closure (exc: string) : map int (option int)
+  val constant tRIGGERS : map (string, option string) (option (list (string, string)))
+  val handler_catches__in_closure (h: string) (r: string) : bool
+  val predicate_definitions (needed: _union_predicate_definitions_0) : array string
+  val pystr_eq (a b: string) : bool
+  val set_add (m: map string bool) (e: string) : map string bool

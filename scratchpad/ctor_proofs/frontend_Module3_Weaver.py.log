@@ -1,0 +1,219 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/Module3_Weaver.py'...
+[*] Memory model: hoare
+[*] Imported class from 'frontend.Module2_Parser': Requires (record + 0 method stub(s) + 81 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Ensures (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Assigns (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': LoopInvariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': LoopVariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ClassInvariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLLabel (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': FunctionVariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Diverges (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': NoInline (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SiblingConcrete (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': VerifyModule (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': PropagateFrame (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': FreshGlobals (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Trusted (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Abstract (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Lemma (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Uses (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': InterfaceClause (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Reveal (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': GhostAssignDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': GhostArraySetDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': RaisesDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': NoExceptionDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': AllowFinalizerDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': AllowIterationMutationDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': BoundedIntDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ProofDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SharedDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': DatatypeDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': InductiveDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ThreadEntry (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Acquires (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Releases (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CriticalSection (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': MutexInvariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': LockOrder (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': BinOp (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Number (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Act (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ForExpand (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Given (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Complete (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Disjoint (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Old (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': UnaryOp (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLBool (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CheckPoint (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': HappyProperty (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Preserves (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Footprint (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Var (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Forall (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': FieldSubscript (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': MixinDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ProvidesDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SharedStateDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': TouchesFieldDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': MethodDependencyDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ComposeFromDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ConformsToDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'errors': PyCSLSemanticError (record + 0 method stub(s) + 2 helper(s))
+[*] Imported class from 'frontend.Module1_Ingestor': PyCSLContract (record + 0 method stub(s) + 14 helper(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 176, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 176, characters 53-56: unused variable msg
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 201, characters 41-45: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 290, characters 42-46: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 345, characters 21-25: unused variable body
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 350, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 350, characters 51-60: unused variable raw_lines
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 353, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 353, characters 52-61: unused variable raw_lines
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 353, characters 78-79: unused variable i
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 353, characters 87-88: unused variable n
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 353, characters 96-106: unused variable blk_indent
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 353, characters 114-122: unused variable py_label
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 362, characters 21-27: unused variable source
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 367, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 367, characters 61-73: unused variable contract_str
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 367, characters 84-95: unused variable line_number
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 372, characters 56-60: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 372, characters 79-89: unused variable python_ast
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 372, characters 97-110: unused variable contracts_map
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 372, characters 141-163: unused variable trailing_contracts_map
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 376, characters 55-59: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 376, characters 78-80: unused variable hp
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 378, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 380, characters 47-51: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 380, characters 70-74: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 380, characters 82-91: unused variable protected
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 380, characters 116-126: unused variable except_set
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 380, characters 151-159: unused variable cur_func
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 380, characters 167-174: unused variable hp_name
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 384, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 384, characters 72-76: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 384, characters 84-89: unused variable field
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 384, characters 100-108: unused variable cur_func
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 384, characters 116-124: unused variable cur_stmt
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 384, characters 132-135: unused variable out
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 388, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 388, characters 67-71: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 388, characters 79-84: unused variable field
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 388, characters 95-103: unused variable cur_func
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 388, characters 111-114: unused variable out
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 392, characters 52-56: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 392, characters 75-79: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 392, characters 87-91: unused variable path
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 392, characters 102-110: unused variable cur_func
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 392, characters 118-121: unused variable out
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 396, characters 46-50: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 396, characters 69-73: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 396, characters 81-90: unused variable protected
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 396, characters 115-123: unused variable cur_func
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 396, characters 131-134: unused variable out
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 400, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 400, characters 71-75: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 400, characters 83-89: unused variable target
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 400, characters 100-108: unused variable cur_func
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 400, characters 116-124: unused variable cur_stmt
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 400, characters 132-135: unused variable out
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 404, characters 55-59: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 404, characters 78-88: unused variable python_ast
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 404, characters 96-109: unused variable contracts_map
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 408, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 408, characters 71-81: unused variable python_ast
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 408, characters 89-100: unused variable happy_props
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 412, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 412, characters 72-85: unused variable contracts_map
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 414, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 416, characters 41-45: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 416, characters 64-68: unused variable stmt
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 416, characters 76-81: unused variable field
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 420, characters 40-44: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 420, characters 63-65: unused variable hp
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 420, characters 83-87: unused variable site
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 420, characters 112-116: unused variable line
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 422, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 424, characters 50-54: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 426, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 428, characters 41-45: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 428, characters 64-68: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 430, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 432, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 432, characters 67-70: unused variable sub
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 432, characters 84-89: unused variable field
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 436, characters 40-44: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 436, characters 63-67: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 436, characters 75-85: unused variable param_name
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 436, characters 96-100: unused variable repl
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 440, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 440, characters 67-77: unused variable python_ast
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 440, characters 85-87: unused variable hp
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 444, characters 43-47: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 444, characters 66-72: unused variable target
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 448, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 450, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 456, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 456, characters 51-54: unused variable act
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 458, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 460, characters 43-47: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 460, characters 63-67: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 460, characters 75-84: unused variable contracts
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 464, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 464, characters 51-55: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 464, characters 63-66: unused variable var
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 466, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 468, characters 34-38: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 468, characters 54-63: unused variable contracts
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 470, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 472, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 472, characters 53-62: unused variable contracts
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 474, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 476, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 476, characters 69-73: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 476, characters 81-90: unused variable contracts
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 480, characters 46-50: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 480, characters 66-70: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 480, characters 78-87: unused variable contracts
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 482, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 484, characters 46-50: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 484, characters 66-70: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 488, characters 36-40: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 488, characters 56-58: unused variable fn
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 490, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 492, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 492, characters 51-55: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 492, characters 63-66: unused variable var
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 492, characters 77-78: unused variable m
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 494, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 496, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 496, characters 69-73: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 500, characters 35-39: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 500, characters 55-59: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 502, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 504, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 504, characters 50-54: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 506, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 508, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 508, characters 58-62: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 510, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 512, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 512, characters 53-57: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 514, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 516, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 516, characters 52-56: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 518, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 520, characters 31-35: unused variable self
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 520, characters 51-55: unused variable node
+Warning, file "/tmp/.pycsl_mjy2kyy0.mlw", line 522, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.
+EXIT=0 frontend/Module3_Weaver.py

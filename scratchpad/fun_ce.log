@@ -1,0 +1,189 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/exec_splice.py'...
+[*] Memory model: hoare
+[*] Imported class from 'errors': PyCSLParseError (record + 0 method stub(s) + 2 helper(s))
+[*] --fun filter: verifying ['_contains_exec'], trusting ['_execsplicer__visit_Expr', '_is_constant_exec', 'pycslerror__as_dict', 'pycslerror__message', 'splice_constant_exec']
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_v6ws71k6.mlw", line 76, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 16714 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 77, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 16770 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 74, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.12s, 335996 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 81, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 4362 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 81, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 5069 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 80, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.02s, 16453 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 84, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 4366 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 84, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 5430 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 83, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.02s, 17688 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 91, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 5512 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 87, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.02s, 24584 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 118, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 7926 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 118, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.02s, 30059 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 114, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.56s, 701921 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 159, characters 59-73:
+Sub-goal variant decrease of goal slookup'vc.
+Prover result is: Valid (0.01s, 8084 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 170, characters 34-50:
+Sub-goal variant decrease of goal sappend'vc.
+Prover result is: Valid (0.01s, 8058 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 180, characters 68-86:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 181, characters 24-42:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 177, characters 14-85:
+Sub-goal postcondition of goal pget_dyn'vc.
+Prover result is: Valid (0.03s, 30308 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 185, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.02s, 28310 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 185, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.14s, 372464 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 185, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.11s, 332285 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 204, characters 52-73:
+Sub-goal variant decrease of goal pdict_to_sdict'vc.
+Prover result is: Valid (0.01s, 8058 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 214, characters 32-36:
+Sub-goal postcondition of goal _contains_exec__node'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 235, characters 7-30:
+Sub-goal precondition of goal _contains_exec__walk'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 237, characters 18-41:
+Sub-goal variant decrease of goal _contains_exec__walk'vc.
+Prover result is: Valid (0.02s, 29440 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 237, characters 18-41:
+Sub-goal precondition of goal _contains_exec__walk'vc.
+Prover result is: Valid (0.00s, 2916 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 238, characters 19-43:
+Sub-goal variant decrease of goal _contains_exec__walk'vc.
+Prover result is: Valid (0.02s, 29440 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 238, characters 19-43:
+Sub-goal precondition of goal _contains_exec__walk'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 234, characters 32-36:
+Sub-goal postcondition of goal _contains_exec__walk'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 245, characters 27-49:
+Sub-goal variant decrease of goal _contains_exec__walkd'vc.
+Prover result is: Valid (0.02s, 32158 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 245, characters 27-49:
+Sub-goal precondition of goal _contains_exec__walkd'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 245, characters 65-91:
+Sub-goal variant decrease of goal _contains_exec__walkd'vc.
+Prover result is: Valid (0.02s, 32227 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 245, characters 65-91:
+Sub-goal precondition of goal _contains_exec__walkd'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 242, characters 32-36:
+Sub-goal postcondition of goal _contains_exec__walkd'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 251, characters 21-43:
+Sub-goal variant decrease of goal _contains_exec__walkl'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 251, characters 21-43:
+Sub-goal precondition of goal _contains_exec__walkl'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 251, characters 59-82:
+Sub-goal variant decrease of goal _contains_exec__walkl'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 251, characters 59-82:
+Sub-goal precondition of goal _contains_exec__walkl'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 248, characters 32-36:
+Sub-goal postcondition of goal _contains_exec__walkl'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 255, characters 4-29:
+Sub-goal precondition of goal _contains_exec'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_v6ws71k6.mlw", line 254, characters 32-36:
+Sub-goal postcondition of goal _contains_exec'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_v6ws71k6.mlw", line 214, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_v6ws71k6.mlw", line 248, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_v6ws71k6.mlw", line 242, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_v6ws71k6.mlw", line 234, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_v6ws71k6.mlw", line 254, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_v6ws71k6.mlw", line 256, characters 32-36: unused variable self
+Warning, file "/tmp/.pycsl_v6ws71k6.mlw", line 256, characters 53-57: unused variable node
+Warning, file "/tmp/.pycsl_v6ws71k6.mlw", line 260, characters 25-29: unused variable call
+Warning, file "/tmp/.pycsl_v6ws71k6.mlw", line 262, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_v6ws71k6.mlw", line 268, characters 28-32: unused variable tree
+Warning, file "/tmp/.pycsl_v6ws71k6.mlw", line 270, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

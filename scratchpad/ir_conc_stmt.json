@@ -1,0 +1,944 @@
+======================================================================
+_conc_stmt params= ['s', 'held', 'fname', 'shared', 'lock_order'] ret= None
+[
+ {
+  "stmt": "Assign",
+  "target": "st",
+  "value": {
+   "type": "Call",
+   "func": "s.get",
+   "args": [
+    {
+     "type": "String",
+     "value": "stmt"
+    }
+   ]
+  }
+ },
+ {
+  "stmt": "If",
+  "test": {
+   "type": "BinOp",
+   "op": "==",
+   "left": {
+    "type": "Var",
+    "name": "st"
+   },
+   "right": {
+    "type": "String",
+    "value": "CriticalSection"
+   }
+  },
+  "body": [
+   {
+    "stmt": "Assign",
+    "target": "mutex",
+    "value": {
+     "type": "Call",
+     "func": "s.get",
+     "args": [
+      {
+       "type": "String",
+       "value": "mutex"
+      }
+     ]
+    }
+   },
+   {
+    "stmt": "Assign",
+    "target": "inner_held",
+    "value": {
+     "type": "IfExpr",
+     "test": {
+      "type": "Var",
+      "name": "mutex"
+     },
+     "body": {
+      "type": "BinOp",
+      "op": "|",
+      "left": {
+       "type": "Var",
+       "name": "held"
+      },
+      "right": {
+       "type": "SetLit",
+       "elts": [
+        {
+         "type": "Var",
+         "name": "mutex"
+        }
+       ]
+      }
+     },
+     "orelse": {
+      "type": "Var",
+      "name": "held"
+     }
+    }
+   },
+   {
+    "stmt": "If",
+    "test": {
+     "type": "BinOp",
+     "op": "and",
+     "left": {
+      "type": "BinOp",
+      "op": "and",
+      "left": {
+       "type": "Var",
+       "name": "mutex"
+      },
+      "right": {
+       "type": "Var",
+       "name": "held"
+      }
+     },
+     "right": {
+      "type": "BinOp",
+      "op": "==",
+      "left": {
+       "type": "Var",
+       "name": "lock_order"
+      },
+      "right": {
+       "type": "None"
+      }
+     }
+    },
+    "body": [
+     {
+      "stmt": "Raise",
+      "exc_type": "PyCSLSemanticError",
+      "exc_value": {
+       "type": "FString",
+       "parts": [
+        {
+         "type": "String",
+         "value": "Function '"
+        },
+        {
+         "type": "Var",
+         "name": "fname"
+        },
+        {
+         "type": "String",
+         "value": "': nested mutex acquisition of '"
+        },
+        {
+         "type": "Var",
+         "name": "mutex"
+        },
+        {
+         "type": "String",
+         "value": "' while holding "
+        },
+        {
+         "type": "Call",
+         "func": "sorted",
+         "args": [
+          {
+           "type": "Var",
+           "name": "held"
+          }
+         ]
+        },
+        {
+         "type": "String",
+         "value": " requires a module-level '#@ lock_order' declaration."
+        }
+       ]
+      }
+     }
+    ],
+    "orelse": []
+   },
+   {
+    "stmt": "If",
+    "test": {
+     "type": "BinOp",
+     "op": "and",
+     "left": {
+      "type": "BinOp",
+      "op": "and",
+      "left": {
+       "type": "Var",
+       "name": "mutex"
+      },
+      "right": {
+       "type": "Var",
+       "name": "held"
+      }
+     },
+     "right": {
+      "type": "BinOp",
+      "op": "!=",
+      "left": {
+       "type": "Var",
+       "name": "lock_order"
+      },
+      "right": {
+       "type": "None"
+      }
+     }
+    },
+    "body": [
+     {
+      "stmt": "For",
+      "line": 1339,
+      "target": "already_held",
+      "iter": {
+       "type": "Call",
+       "func": "sorted",
+       "args": [
+        {
+         "type": "Var",
+         "name": "held"
+        }
+       ]
+      },
+      "invariants": [],
+      "variants": [],
+      "body": [
+       {
+        "stmt": "Assign",
+        "target": "ah_idx",
+        "value": {
+         "type": "IfExpr",
+         "test": {
+          "type": "BinOp",
+          "op": "in",
+          "left": {
+           "type": "Var",
+           "name": "already_held"
+          },
+          "right": {
+           "type": "Var",
+           "name": "lock_order"
+          }
+         },
+         "body": {
+          "type": "Call",
+          "func": "lock_order.index",
+          "args": [
+           {
+            "type": "Var",
+            "name": "already_held"
+           }
+          ]
+         },
+         "orelse": {
+          "type": "UnaryOp",
+          "op": "-",
+          "expr": {
+           "type": "Number",
+           "value": 1
+          }
+         }
+        }
+       },
+       {
+        "stmt": "Assign",
+        "target": "new_idx",
+        "value": {
+         "type": "IfExpr",
+         "test": {
+          "type": "BinOp",
+          "op": "in",
+          "left": {
+           "type": "Var",
+           "name": "mutex"
+          },
+          "right": {
+           "type": "Var",
+           "name": "lock_order"
+          }
+         },
+         "body": {
+          "type": "Call",
+          "func": "lock_order.index",
+          "args": [
+           {
+            "type": "Var",
+            "name": "mutex"
+           }
+          ]
+         },
+         "orelse": {
+          "type": "UnaryOp",
+          "op": "-",
+          "expr": {
+           "type": "Number",
+           "value": 1
+          }
+         }
+        }
+       },
+       {
+        "stmt": "If",
+        "test": {
+         "type": "BinOp",
+         "op": "and",
+         "left": {
+          "type": "BinOp",
+          "op": "and",
+          "left": {
+           "type": "BinOp",
+           "op": ">=",
+           "left": {
+            "type": "Var",
+            "name": "ah_idx"
+           },
+           "right": {
+            "type": "Number",
+            "value": 0
+           }
+          },
+          "right": {
+           "type": "BinOp",
+           "op": ">=",
+           "left": {
+            "type": "Var",
+            "name": "new_idx"
+           },
+           "right": {
+            "type": "Number",
+            "value": 0
+           }
+          }
+         },
+         "right": {
+          "type": "BinOp",
+          "op": "<=",
+          "left": {
+           "type": "Var",
+           "name": "new_idx"
+          },
+          "right": {
+           "type": "Var",
+           "name": "ah_idx"
+          }
+         }
+        },
+        "body": [
+         {
+          "stmt": "Raise",
+          "exc_type": "PyCSLSemanticError",
+          "exc_value": {
+           "type": "FString",
+           "parts": [
+            {
+             "type": "String",
+             "value": "Function '"
+            },
+            {
+             "type": "Var",
+             "name": "fname"
+            },
+            {
+             "type": "String",
+             "value": "': lock_order violation \u2014 acquiring '"
+            },
+            {
+             "type": "Var",
+             "name": "mutex"
+            },
+            {
+             "type": "String",
+             "value": "' while holding '"
+            },
+            {
+             "type": "Var",
+             "name": "already_held"
+            },
+            {
+             "type": "String",
+             "value": "' violates declared order "
+            },
+            {
+             "type": "Var",
+             "name": "lock_order"
+            },
+            {
+             "type": "String",
+             "value": "."
+            }
+           ]
+          }
+         }
+        ],
+        "orelse": []
+       }
+      ],
+      "allow_iteration_mutation": false,
+      "lineno": 1339
+     }
+    ],
+    "orelse": []
+   },
+   {
+    "stmt": "Expr",
+    "value": {
+     "type": "Call",
+     "func": "_conc_stmts",
+     "args": [
+      {
+       "type": "BinOp",
+       "op": "or",
+       "left": {
+        "type": "Call",
+        "func": "s.get",
+        "args": [
+         {
+          "type": "String",
+          "value": "body"
+         },
+         {
+          "type": "ArrayLit",
+          "elts": []
+         }
+        ]
+       },
+       "right": {
+        "type": "ArrayLit",
+        "elts": []
+       }
+      },
+      {
+       "type": "Var",
+       "name": "inner_held"
+      },
+      {
+       "type": "Var",
+       "name": "fname"
+      },
+      {
+       "type": "Var",
+       "name": "shared"
+      },
+      {
+       "type": "Var",
+       "name": "lock_order"
+      }
+     ]
+    }
+   }
+  ],
+  "orelse": [
+   {
+    "stmt": "If",
+    "test": {
+     "type": "BinOp",
+     "op": "==",
+     "left": {
+      "type": "Var",
+      "name": "st"
+     },
+     "right": {
+      "type": "String",
+      "value": "If"
+     }
+    },
+    "body": [
+     {
+      "stmt": "Expr",
+      "value": {
+       "type": "Call",
+       "func": "_conc_stmts",
+       "args": [
+        {
+         "type": "BinOp",
+         "op": "or",
+         "left": {
+          "type": "Call",
+          "func": "s.get",
+          "args": [
+           {
+            "type": "String",
+            "value": "body"
+           },
+           {
+            "type": "ArrayLit",
+            "elts": []
+           }
+          ]
+         },
+         "right": {
+          "type": "ArrayLit",
+          "elts": []
+         }
+        },
+        {
+         "type": "Var",
+         "name": "held"
+        },
+        {
+         "type": "Var",
+         "name": "fname"
+        },
+        {
+         "type": "Var",
+         "name": "shared"
+        },
+        {
+         "type": "Var",
+         "name": "lock_order"
+        }
+       ]
+      }
+     },
+     {
+      "stmt": "Expr",
+      "value": {
+       "type": "Call",
+       "func": "_conc_stmts",
+       "args": [
+        {
+         "type": "BinOp",
+         "op": "or",
+         "left": {
+          "type": "Call",
+          "func": "s.get",
+          "args": [
+           {
+            "type": "String",
+            "value": "orelse"
+           },
+           {
+            "type": "ArrayLit",
+            "elts": []
+           }
+          ]
+         },
+         "right": {
+          "type": "ArrayLit",
+          "elts": []
+         }
+        },
+        {
+         "type": "Var",
+         "name": "held"
+        },
+        {
+         "type": "Var",
+         "name": "fname"
+        },
+        {
+         "type": "Var",
+         "name": "shared"
+        },
+        {
+         "type": "Var",
+         "name": "lock_order"
+        }
+       ]
+      }
+     }
+    ],
+    "orelse": [
+     {
+      "stmt": "If",
+      "test": {
+       "type": "BinOp",
+       "op": "in",
+       "left": {
+        "type": "Var",
+        "name": "st"
+       },
+       "right": {
+        "type": "Tuple",
+        "elts": [
+         {
+          "type": "String",
+          "value": "While"
+         },
+         {
+          "type": "String",
+          "value": "For"
+         }
+        ]
+       }
+      },
+      "body": [
+       {
+        "stmt": "Expr",
+        "value": {
+         "type": "Call",
+         "func": "_conc_stmts",
+         "args": [
+          {
+           "type": "BinOp",
+           "op": "or",
+           "left": {
+            "type": "Call",
+            "func": "s.get",
+            "args": [
+             {
+              "type": "String",
+              "value": "body"
+             },
+             {
+              "type": "ArrayLit",
+              "elts": []
+             }
+            ]
+           },
+           "right": {
+            "type": "ArrayLit",
+            "elts": []
+           }
+          },
+          {
+           "type": "Var",
+           "name": "held"
+          },
+          {
+           "type": "Var",
+           "name": "fname"
+          },
+          {
+           "type": "Var",
+           "name": "shared"
+          },
+          {
+           "type": "Var",
+           "name": "lock_order"
+          }
+         ]
+        }
+       }
+      ],
+      "orelse": [
+       {
+        "stmt": "If",
+        "test": {
+         "type": "BinOp",
+         "op": "==",
+         "left": {
+          "type": "Var",
+          "name": "st"
+         },
+         "right": {
+          "type": "String",
+          "value": "Assign"
+         }
+        },
+        "body": [
+         {
+          "stmt": "Assign",
+          "target": "target",
+          "value": {
+           "type": "Call",
+           "func": "s.get",
+           "args": [
+            {
+             "type": "String",
+             "value": "target"
+            }
+           ]
+          }
+         },
+         {
+          "stmt": "If",
+          "test": {
+           "type": "Call",
+           "func": "isinstance",
+           "args": [
+            {
+             "type": "Var",
+             "name": "target"
+            },
+            {
+             "type": "Var",
+             "name": "str"
+            }
+           ]
+          },
+          "body": [
+           {
+            "stmt": "Expr",
+            "value": {
+             "type": "Call",
+             "func": "_conc_check_shared_access",
+             "args": [
+              {
+               "type": "Var",
+               "name": "target"
+              },
+              {
+               "type": "Var",
+               "name": "held"
+              },
+              {
+               "type": "Var",
+               "name": "fname"
+              },
+              {
+               "type": "Var",
+               "name": "shared"
+              }
+             ],
+             "keywords": [
+              {
+               "arg": "write",
+               "value": {
+                "type": "Bool",
+                "value": true
+               }
+              }
+             ]
+            }
+           }
+          ],
+          "orelse": []
+         },
+         {
+          "stmt": "Expr",
+          "value": {
+           "type": "Call",
+           "func": "_conc_check_reads",
+           "args": [
+            {
+             "type": "Call",
+             "func": "s.get",
+             "args": [
+              {
+               "type": "String",
+               "value": "value"
+              }
+             ]
+            },
+            {
+             "type": "Var",
+             "name": "held"
+            },
+            {
+             "type": "Var",
+             "name": "fname"
+            },
+            {
+             "type": "Var",
+             "name": "shared"
+            }
+           ]
+          }
+         }
+        ],
+        "orelse": [
+         {
+          "stmt": "If",
+          "test": {
+           "type": "BinOp",
+           "op": "==",
+           "left": {
+            "type": "Var",
+            "name": "st"
+           },
+           "right": {
+            "type": "String",
+            "value": "AugAssign"
+           }
+          },
+          "body": [
+           {
+            "stmt": "Assign",
+            "target": "target",
+            "value": {
+             "type": "Call",
+             "func": "s.get",
+             "args": [
+              {
+               "type": "String",
+               "value": "target"
+              }
+             ]
+            }
+           },
+           {
+            "stmt": "If",
+            "test": {
+             "type": "Call",
+             "func": "isinstance",
+             "args": [
+              {
+               "type": "Var",
+               "name": "target"
+              },
+              {
+               "type": "Var",
+               "name": "str"
+              }
+             ]
+            },
+            "body": [
+             {
+              "stmt": "Expr",
+              "value": {
+               "type": "Call",
+               "func": "_conc_check_shared_access",
+               "args": [
+                {
+                 "type": "Var",
+                 "name": "target"
+                },
+                {
+                 "type": "Var",
+                 "name": "held"
+                },
+                {
+                 "type": "Var",
+                 "name": "fname"
+                },
+                {
+                 "type": "Var",
+                 "name": "shared"
+                }
+               ],
+               "keywords": [
+                {
+                 "arg": "write",
+                 "value": {
+                  "type": "Bool",
+                  "value": true
+                 }
+                }
+               ]
+              }
+             }
+            ],
+            "orelse": []
+           }
+          ],
+          "orelse": [
+           {
+            "stmt": "If",
+            "test": {
+             "type": "BinOp",
+             "op": "==",
+             "left": {
+              "type": "Var",
+              "name": "st"
+             },
+             "right": {
+              "type": "String",
+              "value": "Return"
+             }
+            },
+            "body": [
+             {
+              "stmt": "If",
+              "test": {
+               "type": "BinOp",
+               "op": "!=",
+               "left": {
+                "type": "Call",
+                "func": "s.get",
+                "args": [
+                 {
+                  "type": "String",
+                  "value": "value"
+                 }
+                ]
+               },
+               "right": {
+                "type": "None"
+               }
+              },
+              "body": [
+               {
+                "stmt": "Expr",
+                "value": {
+                 "type": "Call",
+                 "func": "_conc_check_reads",
+                 "args": [
+                  {
+                   "type": "Call",
+                   "func": "s.get",
+                   "args": [
+                    {
+                     "type": "String",
+                     "value": "value"
+                    }
+                   ]
+                  },
+                  {
+                   "type": "Var",
+                   "name": "held"
+                  },
+                  {
+                   "type": "Var",
+                   "name": "fname"
+                  },
+                  {
+                   "type": "Var",
+                   "name": "shared"
+                  }
+                 ]
+                }
+               }
+              ],
+              "orelse": []
+             }
+            ],
+            "orelse": [
+             {
+              "stmt": "If",
+              "test": {
+               "type": "BinOp",
+               "op": "==",
+               "left": {
+                "type": "Var",
+                "name": "st"
+               },
+               "right": {
+                "type": "String",
+                "value": "Expr"
+               }
+              },
+              "body": [
+               {
+                "stmt": "Expr",
+                "value": {
+                 "type": "Call",
+                 "func": "_conc_check_reads",
+                 "args": [
+                  {
+                   "type": "Call",
+                   "func": "s.get",
+                   "args": [
+                    {
+                     "type": "String",
+                     "value": "value"
+                    }
+                   ]
+                  },
+                  {
+                   "type": "Var",
+                   "name": "held"
+                  },
+                  {
+                   "type": "Var",
+                   "name": "fname"
+                  },
+                  {
+                   "type": "Var",
+                   "name": "shared"
+                  }
+                 ]
+                }
+               }
+              ],
+              "orelse": []
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+]

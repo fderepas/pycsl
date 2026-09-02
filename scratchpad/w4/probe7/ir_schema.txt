@@ -1,0 +1,1 @@
+ERASURE              <module>.validate_ir  ['0-ary opaque call (INPUT-BLIND)', 'hashed literal (string erased to an int)']

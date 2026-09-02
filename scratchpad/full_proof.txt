@@ -1,0 +1,560 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/preamble.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_xvja09mn.mlw", line 78, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.01s, 16714 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 79, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 16770 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 76, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.11s, 335996 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 83, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 4362 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 83, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 5069 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 82, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 16453 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 86, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 4366 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 86, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 5430 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 85, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.02s, 17688 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 93, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 5512 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 89, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.02s, 24584 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 120, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 7926 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 120, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.02s, 30059 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 116, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.55s, 701921 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 159, characters 24-85:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__gtype'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 159, characters 24-85:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__gtype'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 166, characters 24-85:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__gfunc'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 166, characters 24-85:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__gfunc'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 172, characters 78-137:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__gtd'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 173, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__gtd'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 179, characters 84-143:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__gci'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 180, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__gci'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 184, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___class_inv_refs_axiom_func__leaf'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 184, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___class_inv_refs_axiom_func__leaf'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 190, characters 17-80:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 190, characters 84-148:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__v'vc.
+Prover result is: Valid (0.02s, 29440 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 190, characters 84-148:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__v'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 191, characters 18-83:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 191, characters 18-83:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 188, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___class_inv_refs_axiom_func__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 199, characters 8-68:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__dfold'vc.
+Prover result is: Valid (0.02s, 31310 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 199, characters 8-68:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__dfold'vc.
+Prover result is: Valid (0.01s, 2924 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 199, characters 72-139:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__dfold'vc.
+Prover result is: Valid (0.02s, 31304 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 199, characters 72-139:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__dfold'vc.
+Prover result is: Valid (0.01s, 2933 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 195, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___class_inv_refs_axiom_func__dfold'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 203, characters 18-78:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__lfold'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 203, characters 18-78:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__lfold'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 203, characters 82-146:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__lfold'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 203, characters 82-146:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__lfold'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 201, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___class_inv_refs_axiom_func__lfold'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 209, characters 114-181:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__tdfold'vc.
+Prover result is: Valid (0.01s, 2854 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 211, characters 11-76:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__tdfold'vc.
+Prover result is: Valid (0.02s, 31370 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 211, characters 11-76:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__tdfold'vc.
+Prover result is: Valid (0.01s, 2976 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 205, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___class_inv_refs_axiom_func__tdfold'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 218, characters 98-165:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 214, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___class_inv_refs_axiom_func'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 285, characters 83-141:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gsvt'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 286, characters 24-82:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gsvt'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 293, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gbody'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 299, characters 79-138:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gstmt'vc.
+Prover result is: Valid (0.01s, 8120 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 300, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gstmt'vc.
+Prover result is: Valid (0.01s, 8392 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 300, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gstmt'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 307, characters 24-82:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gval'vc.
+Prover result is: Valid (0.01s, 8388 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 314, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gtype'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 314, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gtype'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 321, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gname'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 321, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gname'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 327, characters 73-133:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gsv'vc.
+Prover result is: Valid (0.01s, 8120 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 328, characters 24-84:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gsv'vc.
+Prover result is: Valid (0.01s, 8392 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 328, characters 24-84:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gsv'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 331, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___func_returns_string_seq__leaf'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 331, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___func_returns_string_seq__leaf'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 343, characters 17-76:
+Sub-goal precondition of goal preambleemissionmixin___func_returns_string_seq__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 343, characters 80-140:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__v'vc.
+Prover result is: Valid (0.02s, 29440 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 343, characters 80-140:
+Sub-goal precondition of goal preambleemissionmixin___func_returns_string_seq__v'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 344, characters 18-79:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 344, characters 18-79:
+Sub-goal precondition of goal preambleemissionmixin___func_returns_string_seq__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 341, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___func_returns_string_seq__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 352, characters 8-64:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__dfold'vc.
+Prover result is: Valid (0.02s, 31310 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 352, characters 8-64:
+Sub-goal precondition of goal preambleemissionmixin___func_returns_string_seq__dfold'vc.
+Prover result is: Valid (0.01s, 2924 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 352, characters 68-131:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__dfold'vc.
+Prover result is: Valid (0.02s, 31304 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 352, characters 68-131:
+Sub-goal precondition of goal preambleemissionmixin___func_returns_string_seq__dfold'vc.
+Prover result is: Valid (0.01s, 2933 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 348, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___func_returns_string_seq__dfold'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 356, characters 18-74:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__lfold'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 356, characters 18-74:
+Sub-goal precondition of goal preambleemissionmixin___func_returns_string_seq__lfold'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 356, characters 78-138:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__lfold'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 356, characters 78-138:
+Sub-goal precondition of goal preambleemissionmixin___func_returns_string_seq__lfold'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 354, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___func_returns_string_seq__lfold'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 362, characters 97-158:
+Sub-goal precondition of goal preambleemissionmixin___func_returns_string_seq'vc.
+Prover result is: Valid (0.01s, 2830 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 358, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___func_returns_string_seq'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 374, characters 24-95:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gtype'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 374, characters 24-95:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gtype'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 381, characters 24-95:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gfunc'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 381, characters 24-95:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gfunc'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 388, characters 24-95:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gname'vc.
+Prover result is: Valid (0.01s, 8404 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 388, characters 24-95:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gname'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 394, characters 81-151:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gobj'vc.
+Prover result is: Valid (0.01s, 8120 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 395, characters 24-94:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gobj'vc.
+Prover result is: Valid (0.01s, 8392 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 395, characters 24-94:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gobj'vc.
+Prover result is: Valid (0.01s, 8256 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 401, characters 82-151:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gmg'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 402, characters 24-93:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gmg'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 408, characters 83-154:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__ginds'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 409, characters 24-95:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__ginds'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 417, characters 11-82:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__ginmg'vc.
+Prover result is: Valid (0.02s, 33016 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 417, characters 11-82:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__ginmg'vc.
+Prover result is: Valid (0.01s, 2990 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 413, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__ginmg'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 424, characters 103-175:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__leaf'vc.
+Prover result is: Valid (0.01s, 2985 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 425, characters 98-170:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__leaf'vc.
+Prover result is: Valid (0.01s, 3015 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 420, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__leaf'vc.
+Prover result is: Valid (0.01s, 2962 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 429, characters 17-93:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 429, characters 97-174:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__v'vc.
+Prover result is: Valid (0.02s, 29440 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 429, characters 97-174:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__v'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 430, characters 18-96:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__v'vc.
+Prover result is: Valid (0.02s, 29412 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 430, characters 18-96:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__v'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 427, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__v'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 438, characters 8-81:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__dfold'vc.
+Prover result is: Valid (0.02s, 31310 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 438, characters 8-81:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__dfold'vc.
+Prover result is: Valid (0.01s, 2924 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 438, characters 85-165:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__dfold'vc.
+Prover result is: Valid (0.02s, 31304 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 438, characters 85-165:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__dfold'vc.
+Prover result is: Valid (0.01s, 2933 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 434, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__dfold'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 442, characters 18-91:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__lfold'vc.
+Prover result is: Valid (0.02s, 30364 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 442, characters 18-91:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__lfold'vc.
+Prover result is: Valid (0.01s, 2850 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 442, characters 95-172:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__lfold'vc.
+Prover result is: Valid (0.02s, 30433 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 442, characters 95-172:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__lfold'vc.
+Prover result is: Valid (0.01s, 2859 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 440, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__lfold'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 449, characters 111-191:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func'vc.
+Prover result is: Valid (0.01s, 2839 steps).
+
+File "/tmp/.pycsl_xvja09mn.mlw", line 444, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func'vc.
+Prover result is: Valid (0.01s, 2907 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 184, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 201, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 195, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 188, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 205, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 214, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 221, characters 56-60: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 223, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 225, characters 53-57: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 225, characters 83-85: unused variable ir
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 227, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 229, characters 52-56: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 229, characters 82-97: unused variable inductive_decls
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 231, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 233, characters 51-55: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 235, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 237, characters 57-61: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 237, characters 87-96: unused variable functions
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 237, characters 110-113: unused variable out
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 237, characters 130-144: unused variable declared_types
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 241, characters 45-49: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 241, characters 75-80: unused variable needs
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 241, characters 88-99: unused variable module_name
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 243, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 245, characters 52-56: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 245, characters 82-84: unused variable ir
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 247, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 249, characters 56-60: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 249, characters 86-91: unused variable needs
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 251, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 253, characters 53-57: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 253, characters 83-88: unused variable needs
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 255, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 257, characters 69-73: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 257, characters 99-104: unused variable needs
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 259, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 261, characters 50-54: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 261, characters 80-85: unused variable needs
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 261, characters 93-104: unused variable module_name
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 263, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 265, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 267, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 269, characters 47-51: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 269, characters 77-87: unused variable type_decls
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 271, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 273, characters 61-65: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 275, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 277, characters 51-55: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 279, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 331, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 354, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 348, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 341, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 358, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 365, characters 64-68: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 365, characters 94-109: unused variable inductive_decls
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 367, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 413, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 420, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 440, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 434, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 427, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 444, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 452, characters 51-55: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 452, characters 81-90: unused variable signature
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 454, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 456, characters 53-57: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 456, characters 83-88: unused variable mutex
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 456, characters 99-106: unused variable inv_str
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 458, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 460, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 460, characters 78-83: unused variable mutex
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 460, characters 94-101: unused variable inv_str
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 462, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 464, characters 60-64: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 464, characters 90-92: unused variable ir
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 468, characters 51-55: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 468, characters 81-90: unused variable functions
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 468, characters 104-114: unused variable all_bodies
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 470, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 472, characters 50-54: unused variable self
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 472, characters 80-84: unused variable expr
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 472, characters 92-96: unused variable repl
+Warning, file "/tmp/.pycsl_xvja09mn.mlw", line 474, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

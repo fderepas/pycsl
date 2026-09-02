@@ -1,0 +1,2 @@
+/home/fabrice.derepas@canonical.com/git/pycsl/src/pycsl/core_ir_semantic.py:1632: UserWarning: Function 'module6_whymltranspiler___sig_val_from_let': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("body", []) or [], union_vars, fname)

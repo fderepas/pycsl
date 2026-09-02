@@ -1,0 +1,3254 @@
+Warning, file "scratchpad/cm_stub.mlw", line 227, characters 20-23: unused variable sep
+Warning, file "scratchpad/cm_stub.mlw", line 227, characters 34-36: unused variable xs
+Warning, file "scratchpad/cm_stub.mlw", line 233, characters 28-32: unused variable rest
+Warning, file "scratchpad/cm_stub.mlw", line 242, characters 26-30: unused variable rest
+Warning, file "scratchpad/cm_stub.mlw", line 258, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 255, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 249, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 260, characters 37-42: unused variable stmts
+Warning, file "scratchpad/cm_stub.mlw", line 260, characters 57-59: unused variable tn
+Warning, file "scratchpad/cm_stub.mlw", line 260, characters 70-73: unused variable out
+Warning, file "scratchpad/cm_stub.mlw", line 280, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 274, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 271, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 302, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 296, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 293, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 305, characters 46-50: unused variable self
+Warning, file "scratchpad/cm_stub.mlw", line 305, characters 64-69: unused variable stmts
+Warning, file "scratchpad/cm_stub.mlw", line 307, characters 15-19: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 345, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 339, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 333, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 383, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 376, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 406, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 400, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 397, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 455, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 449, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 443, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 458, characters 43-47: unused variable self
+Warning, file "scratchpad/cm_stub.mlw", line 458, characters 61-66: unused variable stmts
+Warning, file "scratchpad/cm_stub.mlw", line 460, characters 15-19: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 550, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 590, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 584, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 578, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 593, characters 43-47: unused variable self
+Warning, file "scratchpad/cm_stub.mlw", line 593, characters 61-66: unused variable stmts
+Warning, file "scratchpad/cm_stub.mlw", line 595, characters 15-19: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 653, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 647, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 641, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 761, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 753, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 746, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 833, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 827, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 821, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 903, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 897, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 886, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 881, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 927, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 921, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 918, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 949, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 943, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 940, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 971, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 965, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 962, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 993, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 987, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 984, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 999, characters 28-32: unused variable rest
+Warning, file "scratchpad/cm_stub.mlw", line 1008, characters 28-32: unused variable rest
+Warning, file "scratchpad/cm_stub.mlw", line 1024, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1021, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1015, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1029, characters 28-32: unused variable rest
+Warning, file "scratchpad/cm_stub.mlw", line 1038, characters 26-30: unused variable rest
+Warning, file "scratchpad/cm_stub.mlw", line 1047, characters 21-25: unused variable rest
+Warning, file "scratchpad/cm_stub.mlw", line 1063, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1060, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1054, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1084, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1078, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1075, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1106, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1100, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1097, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1128, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1122, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1119, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1131, characters 30-34: unused variable self
+Warning, file "scratchpad/cm_stub.mlw", line 1133, characters 15-19: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1156, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1150, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1147, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1178, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1172, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1169, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1216, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1209, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1202, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1223, characters 28-32: unused variable rest
+Warning, file "scratchpad/cm_stub.mlw", line 1232, characters 28-32: unused variable rest
+Warning, file "scratchpad/cm_stub.mlw", line 1248, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1245, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1239, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1253, characters 28-32: unused variable rest
+Warning, file "scratchpad/cm_stub.mlw", line 1262, characters 28-32: unused variable rest
+Warning, file "scratchpad/cm_stub.mlw", line 1278, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1275, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1269, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1283, characters 28-32: unused variable rest
+Warning, file "scratchpad/cm_stub.mlw", line 1299, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1296, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1290, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1304, characters 28-32: unused variable rest
+Warning, file "scratchpad/cm_stub.mlw", line 1320, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1317, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1311, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1325, characters 28-32: unused variable rest
+Warning, file "scratchpad/cm_stub.mlw", line 1341, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1338, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1332, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1346, characters 28-32: unused variable rest
+Warning, file "scratchpad/cm_stub.mlw", line 1362, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1359, characters 32-36: unused variable result
+Warning, file "scratchpad/cm_stub.mlw", line 1353, characters 32-36: unused variable result
+File "scratchpad/cm_stub.mlw", line 81, characters 18-37:
+Sub-goal Variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.06s, 137 steps).
+
+File "scratchpad/cm_stub.mlw", line 82, characters 18-36:
+Sub-goal Variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.06s, 137 steps).
+
+File "scratchpad/cm_stub.mlw", line 79, characters 14-27:
+Sub-goal Postcondition of goal size_pos'vc.
+Prover result is: Valid (0.40s, 4219 steps).
+
+File "scratchpad/cm_stub.mlw", line 86, characters 41-51:
+Sub-goal Variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.06s, 80 steps).
+
+File "scratchpad/cm_stub.mlw", line 86, characters 53-71:
+Sub-goal Variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.06s, 102 steps).
+
+File "scratchpad/cm_stub.mlw", line 85, characters 14-30:
+Sub-goal Postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.46s, 4444 steps).
+
+File "scratchpad/cm_stub.mlw", line 89, characters 48-58:
+Sub-goal Variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.06s, 72 steps).
+
+File "scratchpad/cm_stub.mlw", line 89, characters 60-81:
+Sub-goal Variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.04s, 105 steps).
+
+File "scratchpad/cm_stub.mlw", line 88, characters 14-30:
+Sub-goal Postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.34s, 4418 steps).
+
+File "scratchpad/cm_stub.mlw", line 96, characters 48-68:
+Sub-goal Variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.06s, 107 steps).
+
+File "scratchpad/cm_stub.mlw", line 92, character 29 to line 94, character 49:
+Sub-goal Postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (1.98s, 25923 steps).
+
+File "scratchpad/cm_stub.mlw", line 123, characters 24-42:
+Sub-goal Variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.05s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 123, characters 24-42:
+Sub-goal Precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.05s, 60 steps).
+
+File "scratchpad/cm_stub.mlw", line 119, characters 52-62:
+Sub-goal Postcondition of goal wf_ir_binds'vc.
+Prover result is: Timeout (30.00s, 227311 steps).
+
+File "scratchpad/cm_stub.mlw", line 164, characters 59-73:
+Sub-goal Variant decrease of goal slookup'vc.
+Prover result is: Valid (0.06s, 100 steps).
+
+File "scratchpad/cm_stub.mlw", line 175, characters 34-50:
+Sub-goal Variant decrease of goal sappend'vc.
+Prover result is: Valid (0.06s, 99 steps).
+
+File "scratchpad/cm_stub.mlw", line 185, characters 68-86:
+Sub-goal Variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.06s, 122 steps).
+
+File "scratchpad/cm_stub.mlw", line 186, characters 24-42:
+Sub-goal Variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.06s, 127 steps).
+
+File "scratchpad/cm_stub.mlw", line 182, characters 14-85:
+Sub-goal Postcondition of goal pget_dyn'vc.
+Prover result is: Timeout (30.00s, 205651 steps).
+
+File "scratchpad/cm_stub.mlw", line 190, characters 14-45:
+Sub-goal Postcondition of goal pget_list'vc.
+Prover result is: Valid (0.05s, 63 steps).
+
+File "scratchpad/cm_stub.mlw", line 190, characters 14-45:
+Sub-goal Postcondition of goal pget_list'vc.
+Prover result is: Valid (0.04s, 64 steps).
+
+File "scratchpad/cm_stub.mlw", line 190, characters 14-45:
+Sub-goal Postcondition of goal pget_list'vc.
+Prover result is: Valid (0.04s, 61 steps).
+
+File "scratchpad/cm_stub.mlw", line 209, characters 52-73:
+Sub-goal Variant decrease of goal pdict_to_sdict'vc.
+Prover result is: Valid (0.06s, 122 steps).
+
+File "/home/fabrice.derepas@canonical.com/.opam/coq-4.14/share/why3/stdlib/set.mlw", line 538, characters 14-30:
+Sub-goal Postcondition of goal eq'refn'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 234, characters 24-56:
+Sub-goal Variant decrease of goal irscanner___check__get_type'vc.
+Prover result is: Valid (0.07s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 234, characters 24-56:
+Sub-goal Variant decrease of goal irscanner___check__get_type'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 243, characters 24-54:
+Sub-goal Variant decrease of goal irscanner___check__get_op'vc.
+Prover result is: Valid (0.07s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 243, characters 24-54:
+Sub-goal Variant decrease of goal irscanner___check__get_op'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 251, characters 171-193:
+Sub-goal Variant decrease of goal irscanner___check'vc.
+Prover result is: Valid (0.07s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 251, characters 171-193:
+Sub-goal Precondition of goal irscanner___check'vc.
+Prover result is: Valid (0.05s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 252, characters 18-41:
+Sub-goal Variant decrease of goal irscanner___check'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 252, characters 18-41:
+Sub-goal Precondition of goal irscanner___check'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 249, characters 32-36:
+Sub-goal Postcondition of goal irscanner___check'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 256, characters 51-70:
+Sub-goal Variant decrease of goal irscanner___check__d'vc.
+Prover result is: Valid (0.06s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 256, characters 51-70:
+Sub-goal Precondition of goal irscanner___check__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 256, characters 74-99:
+Sub-goal Variant decrease of goal irscanner___check__d'vc.
+Prover result is: Valid (0.06s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 256, characters 74-99:
+Sub-goal Precondition of goal irscanner___check__d'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 255, characters 32-36:
+Sub-goal Postcondition of goal irscanner___check__d'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 259, characters 45-64:
+Sub-goal Variant decrease of goal irscanner___check__l'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 259, characters 45-64:
+Sub-goal Precondition of goal irscanner___check__l'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 259, characters 68-90:
+Sub-goal Variant decrease of goal irscanner___check__l'vc.
+Prover result is: Valid (0.06s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 259, characters 68-90:
+Sub-goal Precondition of goal irscanner___check__l'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 258, characters 32-36:
+Sub-goal Postcondition of goal irscanner___check__l'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 264, characters 77-114:
+Sub-goal Variant decrease of goal irscanner___has_return__get_stmt'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 265, characters 24-61:
+Sub-goal Variant decrease of goal irscanner___has_return__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 265, characters 24-61:
+Sub-goal Variant decrease of goal irscanner___has_return__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 272, characters 48-75:
+Sub-goal Variant decrease of goal irscanner___has_return'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 272, characters 48-75:
+Sub-goal Precondition of goal irscanner___has_return'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 272, characters 79-103:
+Sub-goal Variant decrease of goal irscanner___has_return'vc.
+Prover result is: Valid (0.07s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 272, characters 79-103:
+Sub-goal Precondition of goal irscanner___has_return'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 271, characters 32-36:
+Sub-goal Postcondition of goal irscanner___has_return'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 276, characters 63-90:
+Sub-goal Variant decrease of goal irscanner___has_return__v'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 276, characters 63-90:
+Sub-goal Precondition of goal irscanner___has_return__v'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 277, characters 18-43:
+Sub-goal Variant decrease of goal irscanner___has_return__v'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 277, characters 18-43:
+Sub-goal Precondition of goal irscanner___has_return__v'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 274, characters 32-36:
+Sub-goal Postcondition of goal irscanner___has_return__v'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 282, characters 24-51:
+Sub-goal Variant decrease of goal irscanner___has_return__d'vc.
+Prover result is: Valid (0.06s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 282, characters 24-51:
+Sub-goal Precondition of goal irscanner___has_return__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 282, characters 55-85:
+Sub-goal Variant decrease of goal irscanner___has_return__d'vc.
+Prover result is: Valid (0.06s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 282, characters 55-85:
+Sub-goal Precondition of goal irscanner___has_return__d'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 280, characters 32-36:
+Sub-goal Postcondition of goal irscanner___has_return__d'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 286, characters 77-125:
+Sub-goal Variant decrease of goal
+irscanner___has_return_with_value__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 287, characters 24-72:
+Sub-goal Variant decrease of goal
+irscanner___has_return_with_value__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 287, characters 24-72:
+Sub-goal Variant decrease of goal
+irscanner___has_return_with_value__get_stmt'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 294, characters 48-86:
+Sub-goal Variant decrease of goal irscanner___has_return_with_value'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 294, characters 48-86:
+Sub-goal Precondition of goal irscanner___has_return_with_value'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 294, characters 90-125:
+Sub-goal Variant decrease of goal irscanner___has_return_with_value'vc.
+Prover result is: Valid (0.06s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 294, characters 90-125:
+Sub-goal Precondition of goal irscanner___has_return_with_value'vc.
+Prover result is: Valid (0.04s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 293, characters 32-36:
+Sub-goal Postcondition of goal irscanner___has_return_with_value'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 298, characters 74-112:
+Sub-goal Variant decrease of goal irscanner___has_return_with_value__v'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 298, characters 74-112:
+Sub-goal Precondition of goal irscanner___has_return_with_value__v'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 299, characters 18-54:
+Sub-goal Variant decrease of goal irscanner___has_return_with_value__v'vc.
+Prover result is: Valid (0.04s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 299, characters 18-54:
+Sub-goal Precondition of goal irscanner___has_return_with_value__v'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 296, characters 32-36:
+Sub-goal Postcondition of goal irscanner___has_return_with_value__v'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 304, characters 24-62:
+Sub-goal Variant decrease of goal irscanner___has_return_with_value__d'vc.
+Prover result is: Valid (0.06s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 304, characters 24-62:
+Sub-goal Precondition of goal irscanner___has_return_with_value__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 304, characters 66-107:
+Sub-goal Variant decrease of goal irscanner___has_return_with_value__d'vc.
+Prover result is: Valid (0.06s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 304, characters 66-107:
+Sub-goal Precondition of goal irscanner___has_return_with_value__d'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 302, characters 32-36:
+Sub-goal Postcondition of goal irscanner___has_return_with_value__d'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 313, characters 70-123:
+Sub-goal Variant decrease of goal
+irscanner__collect_user_exceptions__get_dyn_stmt'vc.
+Prover result is: Valid (0.06s, 124 steps).
+
+File "scratchpad/cm_stub.mlw", line 314, characters 24-77:
+Sub-goal Variant decrease of goal
+irscanner__collect_user_exceptions__get_dyn_stmt'vc.
+Prover result is: Valid (0.07s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 320, characters 74-131:
+Sub-goal Variant decrease of goal
+irscanner__collect_user_exceptions__get_dyn_exc_type'vc.
+Prover result is: Valid (0.07s, 124 steps).
+
+File "scratchpad/cm_stub.mlw", line 321, characters 24-81:
+Sub-goal Variant decrease of goal
+irscanner__collect_user_exceptions__get_dyn_exc_type'vc.
+Prover result is: Valid (0.07s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 337, characters 70-108:
+Sub-goal Variant decrease of goal irscanner__collect_user_exceptions'vc.
+Prover result is: Valid (0.06s, 115 steps).
+
+File "scratchpad/cm_stub.mlw", line 337, characters 70-108:
+Sub-goal Precondition of goal irscanner__collect_user_exceptions'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 337, characters 28-69:
+Sub-goal Variant decrease of goal irscanner__collect_user_exceptions'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 337, characters 28-69:
+Sub-goal Precondition of goal irscanner__collect_user_exceptions'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 333, characters 32-36:
+Sub-goal Postcondition of goal irscanner__collect_user_exceptions'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 341, characters 71-112:
+Sub-goal Variant decrease of goal irscanner__collect_user_exceptions__v'vc.
+Prover result is: Valid (0.07s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 341, characters 71-112:
+Sub-goal Precondition of goal irscanner__collect_user_exceptions__v'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 342, characters 18-55:
+Sub-goal Variant decrease of goal irscanner__collect_user_exceptions__v'vc.
+Prover result is: Valid (0.08s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 342, characters 18-55:
+Sub-goal Precondition of goal irscanner__collect_user_exceptions__v'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 339, characters 32-36:
+Sub-goal Postcondition of goal irscanner__collect_user_exceptions__v'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 347, characters 76-120:
+Sub-goal Variant decrease of goal irscanner__collect_user_exceptions__d'vc.
+Prover result is: Valid (0.07s, 124 steps).
+
+File "scratchpad/cm_stub.mlw", line 347, characters 76-120:
+Sub-goal Precondition of goal irscanner__collect_user_exceptions__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 347, characters 34-75:
+Sub-goal Variant decrease of goal irscanner__collect_user_exceptions__d'vc.
+Prover result is: Valid (0.07s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 347, characters 34-75:
+Sub-goal Precondition of goal irscanner__collect_user_exceptions__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 345, characters 32-36:
+Sub-goal Postcondition of goal irscanner__collect_user_exceptions__d'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 361, characters 77-137:
+Sub-goal Variant decrease of goal
+irscanner__collection_binder_kinds__get_dyn_binder_type'vc.
+Prover result is: Valid (0.06s, 124 steps).
+
+File "scratchpad/cm_stub.mlw", line 362, characters 24-84:
+Sub-goal Variant decrease of goal
+irscanner__collection_binder_kinds__get_dyn_binder_type'vc.
+Prover result is: Valid (0.07s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 372, characters 71-115:
+Sub-goal Variant decrease of goal irscanner__collection_binder_kinds'vc.
+Prover result is: Valid (0.07s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 372, characters 71-115:
+Sub-goal Precondition of goal irscanner__collection_binder_kinds'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 373, characters 18-61:
+Sub-goal Variant decrease of goal irscanner__collection_binder_kinds'vc.
+Prover result is: Valid (0.05s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 373, characters 18-61:
+Sub-goal Precondition of goal irscanner__collection_binder_kinds'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 369, characters 32-63:
+Sub-goal Postcondition of goal irscanner__collection_binder_kinds'vc.
+Prover result is: Valid (0.07s, 186 steps).
+
+File "scratchpad/cm_stub.mlw", line 380, characters 73-120:
+Sub-goal Variant decrease of goal
+irscanner__collection_binder_kinds__dict'vc.
+Prover result is: Valid (0.07s, 124 steps).
+
+File "scratchpad/cm_stub.mlw", line 380, characters 73-120:
+Sub-goal Precondition of goal irscanner__collection_binder_kinds__dict'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 380, characters 34-72:
+Sub-goal Variant decrease of goal
+irscanner__collection_binder_kinds__dict'vc.
+Prover result is: Valid (0.07s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 380, characters 34-72:
+Sub-goal Precondition of goal irscanner__collection_binder_kinds__dict'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 376, characters 32-36:
+Sub-goal Postcondition of goal irscanner__collection_binder_kinds__dict'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 386, characters 67-111:
+Sub-goal Variant decrease of goal
+irscanner__collection_binder_kinds__list'vc.
+Prover result is: Valid (0.06s, 115 steps).
+
+File "scratchpad/cm_stub.mlw", line 386, characters 67-111:
+Sub-goal Precondition of goal irscanner__collection_binder_kinds__list'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 386, characters 28-66:
+Sub-goal Variant decrease of goal
+irscanner__collection_binder_kinds__list'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 386, characters 28-66:
+Sub-goal Precondition of goal irscanner__collection_binder_kinds__list'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 383, characters 32-36:
+Sub-goal Postcondition of goal irscanner__collection_binder_kinds__list'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 390, characters 77-119:
+Sub-goal Variant decrease of goal irscanner__ends_with_return__get_stmt'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 391, characters 24-66:
+Sub-goal Variant decrease of goal irscanner__ends_with_return__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 391, characters 24-66:
+Sub-goal Variant decrease of goal irscanner__ends_with_return__get_stmt'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 398, characters 48-80:
+Sub-goal Variant decrease of goal irscanner__ends_with_return'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 398, characters 48-80:
+Sub-goal Precondition of goal irscanner__ends_with_return'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 398, characters 84-113:
+Sub-goal Variant decrease of goal irscanner__ends_with_return'vc.
+Prover result is: Valid (0.06s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 398, characters 84-113:
+Sub-goal Precondition of goal irscanner__ends_with_return'vc.
+Prover result is: Valid (0.04s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 397, characters 32-36:
+Sub-goal Postcondition of goal irscanner__ends_with_return'vc.
+Prover result is: Valid (0.04s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 402, characters 115-147:
+Sub-goal Variant decrease of goal irscanner__ends_with_return__v'vc.
+Prover result is: Valid (0.06s, 78 steps).
+
+File "scratchpad/cm_stub.mlw", line 402, characters 115-147:
+Sub-goal Precondition of goal irscanner__ends_with_return__v'vc.
+Prover result is: Valid (0.05s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 403, characters 18-48:
+Sub-goal Variant decrease of goal irscanner__ends_with_return__v'vc.
+Prover result is: Valid (0.05s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 403, characters 18-48:
+Sub-goal Precondition of goal irscanner__ends_with_return__v'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 400, characters 32-36:
+Sub-goal Postcondition of goal irscanner__ends_with_return__v'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 408, characters 24-56:
+Sub-goal Variant decrease of goal irscanner__ends_with_return__d'vc.
+Prover result is: Valid (0.06s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 408, characters 24-56:
+Sub-goal Precondition of goal irscanner__ends_with_return__d'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 408, characters 60-95:
+Sub-goal Variant decrease of goal irscanner__ends_with_return__d'vc.
+Prover result is: Valid (0.06s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 408, characters 60-95:
+Sub-goal Precondition of goal irscanner__ends_with_return__d'vc.
+Prover result is: Valid (0.04s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 406, characters 32-36:
+Sub-goal Postcondition of goal irscanner__ends_with_return__d'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 413, characters 70-119:
+Sub-goal Variant decrease of goal
+irscanner__find_append_targets__get_dyn_stmt'vc.
+Prover result is: Valid (0.07s, 124 steps).
+
+File "scratchpad/cm_stub.mlw", line 414, characters 24-73:
+Sub-goal Variant decrease of goal
+irscanner__find_append_targets__get_dyn_stmt'vc.
+Prover result is: Valid (0.07s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 421, characters 24-72:
+Sub-goal Variant decrease of goal
+irscanner__find_append_targets__get_K_value'vc.
+Prover result is: Valid (0.07s, 168 steps).
+
+File "scratchpad/cm_stub.mlw", line 428, characters 24-71:
+Sub-goal Variant decrease of goal
+irscanner__find_append_targets__get_K_func'vc.
+Prover result is: Valid (0.06s, 128 steps).
+
+File "scratchpad/cm_stub.mlw", line 447, characters 66-100:
+Sub-goal Variant decrease of goal irscanner__find_append_targets'vc.
+Prover result is: Valid (0.05s, 115 steps).
+
+File "scratchpad/cm_stub.mlw", line 447, characters 66-100:
+Sub-goal Precondition of goal irscanner__find_append_targets'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 447, characters 28-65:
+Sub-goal Variant decrease of goal irscanner__find_append_targets'vc.
+Prover result is: Valid (0.07s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 447, characters 28-65:
+Sub-goal Precondition of goal irscanner__find_append_targets'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 443, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_append_targets'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 451, characters 67-104:
+Sub-goal Variant decrease of goal irscanner__find_append_targets__v'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 451, characters 67-104:
+Sub-goal Precondition of goal irscanner__find_append_targets__v'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 452, characters 18-51:
+Sub-goal Variant decrease of goal irscanner__find_append_targets__v'vc.
+Prover result is: Valid (0.07s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 452, characters 18-51:
+Sub-goal Precondition of goal irscanner__find_append_targets__v'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 449, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_append_targets__v'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 457, characters 72-112:
+Sub-goal Variant decrease of goal irscanner__find_append_targets__d'vc.
+Prover result is: Valid (0.06s, 124 steps).
+
+File "scratchpad/cm_stub.mlw", line 457, characters 72-112:
+Sub-goal Precondition of goal irscanner__find_append_targets__d'vc.
+Prover result is: Valid (0.07s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 457, characters 34-71:
+Sub-goal Variant decrease of goal irscanner__find_append_targets__d'vc.
+Prover result is: Valid (0.06s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 457, characters 34-71:
+Sub-goal Precondition of goal irscanner__find_append_targets__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 455, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_append_targets__d'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 465, characters 70-111:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__gstmt'vc.
+Prover result is: Valid (0.06s, 124 steps).
+
+File "scratchpad/cm_stub.mlw", line 466, characters 24-65:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__gstmt'vc.
+Prover result is: Valid (0.06s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 471, characters 24-64:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__gtgt'vc.
+Prover result is: Valid (0.07s, 128 steps).
+
+File "scratchpad/cm_stub.mlw", line 476, characters 24-65:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__gtype'vc.
+Prover result is: Valid (0.06s, 128 steps).
+
+File "scratchpad/cm_stub.mlw", line 483, characters 84-125:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__Lbody'vc.
+Prover result is: Valid (0.06s, 178 steps).
+
+File "scratchpad/cm_stub.mlw", line 478, characters 14-45:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__Lbody'vc.
+Prover result is: Timeout (30.00s, 306192 steps).
+
+File "scratchpad/cm_stub.mlw", line 491, characters 86-129:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__Lorelse'vc.
+Prover result is: Valid (0.05s, 178 steps).
+
+File "scratchpad/cm_stub.mlw", line 486, characters 14-45:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__Lorelse'vc.
+Prover result is: Timeout (30.00s, 306195 steps).
+
+File "scratchpad/cm_stub.mlw", line 502, characters 8-52:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.05s, 77 steps).
+
+File "scratchpad/cm_stub.mlw", line 502, characters 8-52:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.06s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 494, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.06s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 502, characters 8-52:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.07s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 502, characters 8-52:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 494, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 502, characters 8-52:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.06s, 73 steps).
+
+File "scratchpad/cm_stub.mlw", line 502, characters 8-52:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.07s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 494, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 502, characters 8-52:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.06s, 75 steps).
+
+File "scratchpad/cm_stub.mlw", line 502, characters 8-52:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 494, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.06s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 502, characters 8-52:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 502, characters 8-52:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 494, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 502, characters 8-52:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.06s, 73 steps).
+
+File "scratchpad/cm_stub.mlw", line 502, characters 8-52:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 494, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 503, characters 18-63:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.06s, 73 steps).
+
+File "scratchpad/cm_stub.mlw", line 503, characters 18-63:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 494, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 494, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.05s, 47 steps).
+
+File "scratchpad/cm_stub.mlw", line 506, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 510, characters 8-55:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.05s, 127 steps).
+
+File "scratchpad/cm_stub.mlw", line 510, characters 8-55:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 506, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 509, characters 67-110:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.05s, 126 steps).
+
+File "scratchpad/cm_stub.mlw", line 509, characters 67-110:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 510, characters 8-55:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.06s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 510, characters 8-55:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 506, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.04s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 509, characters 118-161:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.06s, 132 steps).
+
+File "scratchpad/cm_stub.mlw", line 509, characters 118-161:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 510, characters 8-55:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.06s, 134 steps).
+
+File "scratchpad/cm_stub.mlw", line 510, characters 8-55:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 506, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 512, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 513, characters 42-85:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.05s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 513, characters 42-85:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 513, characters 87-131:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.06s, 115 steps).
+
+File "scratchpad/cm_stub.mlw", line 513, characters 87-131:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 512, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 515, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 533, characters 13-55:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 124 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 515, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 533, characters 13-55:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 515, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 533, characters 13-55:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.07s, 122 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 515, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 525, characters 58-119:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.07s, 148 steps).
+
+File "scratchpad/cm_stub.mlw", line 525, characters 58-119:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 533, characters 13-55:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 515, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 526, characters 52-129:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 150 steps).
+
+File "scratchpad/cm_stub.mlw", line 526, characters 52-129:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 52 steps).
+
+File "scratchpad/cm_stub.mlw", line 533, characters 13-55:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 52 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 52 steps).
+
+File "scratchpad/cm_stub.mlw", line 515, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 52 steps).
+
+File "scratchpad/cm_stub.mlw", line 527, characters 50-127:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 151 steps).
+
+File "scratchpad/cm_stub.mlw", line 527, characters 50-127:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 53 steps).
+
+File "scratchpad/cm_stub.mlw", line 527, characters 129-208:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 160 steps).
+
+File "scratchpad/cm_stub.mlw", line 527, characters 129-208:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.04s, 54 steps).
+
+File "scratchpad/cm_stub.mlw", line 533, characters 13-55:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 54 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 77 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 54 steps).
+
+File "scratchpad/cm_stub.mlw", line 515, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 54 steps).
+
+File "scratchpad/cm_stub.mlw", line 528, characters 156-233:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 154 steps).
+
+File "scratchpad/cm_stub.mlw", line 528, characters 156-233:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 56 steps).
+
+File "scratchpad/cm_stub.mlw", line 533, characters 13-55:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 56 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 78 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 56 steps).
+
+File "scratchpad/cm_stub.mlw", line 515, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 56 steps).
+
+File "scratchpad/cm_stub.mlw", line 528, characters 156-233:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.07s, 158 steps).
+
+File "scratchpad/cm_stub.mlw", line 528, characters 156-233:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 54 steps).
+
+File "scratchpad/cm_stub.mlw", line 533, characters 13-55:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.07s, 54 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 83 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 54 steps).
+
+File "scratchpad/cm_stub.mlw", line 515, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 54 steps).
+
+File "scratchpad/cm_stub.mlw", line 528, characters 156-233:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 152 steps).
+
+File "scratchpad/cm_stub.mlw", line 528, characters 156-233:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 54 steps).
+
+File "scratchpad/cm_stub.mlw", line 533, characters 13-55:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 54 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 81 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 54 steps).
+
+File "scratchpad/cm_stub.mlw", line 515, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 54 steps).
+
+File "scratchpad/cm_stub.mlw", line 529, characters 51-128:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.07s, 152 steps).
+
+File "scratchpad/cm_stub.mlw", line 529, characters 51-128:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 56 steps).
+
+File "scratchpad/cm_stub.mlw", line 529, characters 130-192:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.07s, 162 steps).
+
+File "scratchpad/cm_stub.mlw", line 529, characters 130-192:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 58 steps).
+
+File "scratchpad/cm_stub.mlw", line 533, characters 13-55:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 58 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 84 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 58 steps).
+
+File "scratchpad/cm_stub.mlw", line 515, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 58 steps).
+
+File "scratchpad/cm_stub.mlw", line 530, characters 52-111:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.08s, 153 steps).
+
+File "scratchpad/cm_stub.mlw", line 530, characters 52-111:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 58 steps).
+
+File "scratchpad/cm_stub.mlw", line 533, characters 13-55:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 58 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 77 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 58 steps).
+
+File "scratchpad/cm_stub.mlw", line 515, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.04s, 58 steps).
+
+File "scratchpad/cm_stub.mlw", line 533, characters 13-55:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 58 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.07s, 130 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.04s, 58 steps).
+
+File "scratchpad/cm_stub.mlw", line 515, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 58 steps).
+
+File "scratchpad/cm_stub.mlw", line 533, characters 13-55:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 515, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 533, characters 13-55:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 122 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 515, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 120 steps).
+
+File "scratchpad/cm_stub.mlw", line 535, characters 8-49:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 515, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 538, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 540, characters 83-125:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.05s, 70 steps).
+
+File "scratchpad/cm_stub.mlw", line 540, characters 83-125:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.04s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 538, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.05s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 540, characters 83-125:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.05s, 120 steps).
+
+File "scratchpad/cm_stub.mlw", line 540, characters 83-125:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 538, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 542, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 544, characters 47-125:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.07s, 147 steps).
+
+File "scratchpad/cm_stub.mlw", line 544, characters 47-125:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 544, characters 142-184:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.05s, 75 steps).
+
+File "scratchpad/cm_stub.mlw", line 544, characters 142-184:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.07s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 542, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 544, characters 142-184:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.07s, 120 steps).
+
+File "scratchpad/cm_stub.mlw", line 544, characters 142-184:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 542, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 546, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 548, characters 47-125:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.07s, 147 steps).
+
+File "scratchpad/cm_stub.mlw", line 548, characters 47-125:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.06s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 548, characters 142-184:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.06s, 75 steps).
+
+File "scratchpad/cm_stub.mlw", line 548, characters 142-184:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 546, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 548, characters 142-184:
+Sub-goal Variant decrease of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.07s, 120 steps).
+
+File "scratchpad/cm_stub.mlw", line 548, characters 142-184:
+Sub-goal Precondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 546, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 552, characters 4-46:
+Sub-goal Precondition of goal irscanner__find_assigned_vars'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 550, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_assigned_vars'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 558, characters 70-115:
+Sub-goal Variant decrease of goal
+irscanner__find_ghost_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.05s, 124 steps).
+
+File "scratchpad/cm_stub.mlw", line 559, characters 24-69:
+Sub-goal Variant decrease of goal
+irscanner__find_ghost_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.07s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 566, characters 24-69:
+Sub-goal Variant decrease of goal
+irscanner__find_ghost_vars__get_K_target'vc.
+Prover result is: Valid (0.07s, 128 steps).
+
+File "scratchpad/cm_stub.mlw", line 582, characters 62-92:
+Sub-goal Variant decrease of goal irscanner__find_ghost_vars'vc.
+Prover result is: Valid (0.06s, 115 steps).
+
+File "scratchpad/cm_stub.mlw", line 582, characters 62-92:
+Sub-goal Precondition of goal irscanner__find_ghost_vars'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 582, characters 28-61:
+Sub-goal Variant decrease of goal irscanner__find_ghost_vars'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 582, characters 28-61:
+Sub-goal Precondition of goal irscanner__find_ghost_vars'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 578, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_ghost_vars'vc.
+Prover result is: Valid (0.04s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 586, characters 63-96:
+Sub-goal Variant decrease of goal irscanner__find_ghost_vars__v'vc.
+Prover result is: Valid (0.07s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 586, characters 63-96:
+Sub-goal Precondition of goal irscanner__find_ghost_vars__v'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 587, characters 18-47:
+Sub-goal Variant decrease of goal irscanner__find_ghost_vars__v'vc.
+Prover result is: Valid (0.04s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 587, characters 18-47:
+Sub-goal Precondition of goal irscanner__find_ghost_vars__v'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 584, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_ghost_vars__v'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 592, characters 68-104:
+Sub-goal Variant decrease of goal irscanner__find_ghost_vars__d'vc.
+Prover result is: Valid (0.06s, 124 steps).
+
+File "scratchpad/cm_stub.mlw", line 592, characters 68-104:
+Sub-goal Precondition of goal irscanner__find_ghost_vars__d'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 592, characters 34-67:
+Sub-goal Variant decrease of goal irscanner__find_ghost_vars__d'vc.
+Prover result is: Valid (0.06s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 592, characters 34-67:
+Sub-goal Precondition of goal irscanner__find_ghost_vars__d'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 590, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_ghost_vars__d'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 601, characters 70-116:
+Sub-goal Variant decrease of goal
+irscanner__find_lambda_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.06s, 124 steps).
+
+File "scratchpad/cm_stub.mlw", line 602, characters 24-70:
+Sub-goal Variant decrease of goal
+irscanner__find_lambda_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.07s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 609, characters 24-69:
+Sub-goal Variant decrease of goal
+irscanner__find_lambda_vars__get_K_value'vc.
+Prover result is: Valid (0.06s, 168 steps).
+
+File "scratchpad/cm_stub.mlw", line 616, characters 24-68:
+Sub-goal Variant decrease of goal irscanner__find_lambda_vars__get_K_type'vc.
+Prover result is: Valid (0.07s, 128 steps).
+
+File "scratchpad/cm_stub.mlw", line 623, characters 24-70:
+Sub-goal Variant decrease of goal
+irscanner__find_lambda_vars__get_K_target'vc.
+Prover result is: Valid (0.06s, 128 steps).
+
+File "scratchpad/cm_stub.mlw", line 645, characters 63-94:
+Sub-goal Variant decrease of goal irscanner__find_lambda_vars'vc.
+Prover result is: Valid (0.07s, 115 steps).
+
+File "scratchpad/cm_stub.mlw", line 645, characters 63-94:
+Sub-goal Precondition of goal irscanner__find_lambda_vars'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 645, characters 28-62:
+Sub-goal Variant decrease of goal irscanner__find_lambda_vars'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 645, characters 28-62:
+Sub-goal Precondition of goal irscanner__find_lambda_vars'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 641, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_lambda_vars'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 649, characters 64-98:
+Sub-goal Variant decrease of goal irscanner__find_lambda_vars__v'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 649, characters 64-98:
+Sub-goal Precondition of goal irscanner__find_lambda_vars__v'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 650, characters 18-48:
+Sub-goal Variant decrease of goal irscanner__find_lambda_vars__v'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 650, characters 18-48:
+Sub-goal Precondition of goal irscanner__find_lambda_vars__v'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 647, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_lambda_vars__v'vc.
+Prover result is: Valid (0.08s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 655, characters 69-106:
+Sub-goal Variant decrease of goal irscanner__find_lambda_vars__d'vc.
+Prover result is: Valid (0.08s, 124 steps).
+
+File "scratchpad/cm_stub.mlw", line 655, characters 69-106:
+Sub-goal Precondition of goal irscanner__find_lambda_vars__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 655, characters 34-68:
+Sub-goal Variant decrease of goal irscanner__find_lambda_vars__d'vc.
+Prover result is: Valid (0.06s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 655, characters 34-68:
+Sub-goal Precondition of goal irscanner__find_lambda_vars__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 653, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_lambda_vars__d'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 661, characters 24-75:
+Sub-goal Variant decrease of goal
+irscanner__find_named_expr_targets__get_K_type'vc.
+Prover result is: Valid (0.07s, 128 steps).
+
+File "scratchpad/cm_stub.mlw", line 668, characters 24-77:
+Sub-goal Variant decrease of goal
+irscanner__find_named_expr_targets__get_K_target'vc.
+Prover result is: Valid (0.07s, 128 steps).
+
+File "scratchpad/cm_stub.mlw", line 686, characters 68-118:
+Sub-goal Variant decrease of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.05s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 686, characters 68-118:
+Sub-goal Precondition of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 683, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 687, characters 18-69:
+Sub-goal Variant decrease of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 687, characters 18-69:
+Sub-goal Precondition of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 683, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 683, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.05s, 47 steps).
+
+File "scratchpad/cm_stub.mlw", line 690, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 696, characters 8-61:
+Sub-goal Variant decrease of goal
+irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.06s, 138 steps).
+
+File "scratchpad/cm_stub.mlw", line 696, characters 8-61:
+Sub-goal Precondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.06s, 64 steps).
+
+File "scratchpad/cm_stub.mlw", line 690, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.06s, 64 steps).
+
+File "scratchpad/cm_stub.mlw", line 695, characters 68-112:
+Sub-goal Variant decrease of goal
+irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.08s, 123 steps).
+
+File "scratchpad/cm_stub.mlw", line 695, characters 68-112:
+Sub-goal Precondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.05s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 696, characters 8-61:
+Sub-goal Variant decrease of goal
+irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.05s, 126 steps).
+
+File "scratchpad/cm_stub.mlw", line 696, characters 8-61:
+Sub-goal Precondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.05s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 690, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.04s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 699, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 701, characters 42-86:
+Sub-goal Variant decrease of goal
+irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 701, characters 42-86:
+Sub-goal Precondition of goal irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 701, characters 88-138:
+Sub-goal Variant decrease of goal
+irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.07s, 115 steps).
+
+File "scratchpad/cm_stub.mlw", line 701, characters 88-138:
+Sub-goal Precondition of goal irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 699, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 706, characters 70-123:
+Sub-goal Variant decrease of goal
+irscanner__find_record_var_classes__get_dyn_stmt'vc.
+Prover result is: Valid (0.06s, 124 steps).
+
+File "scratchpad/cm_stub.mlw", line 707, characters 24-77:
+Sub-goal Variant decrease of goal
+irscanner__find_record_var_classes__get_dyn_stmt'vc.
+Prover result is: Valid (0.06s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 714, characters 24-77:
+Sub-goal Variant decrease of goal
+irscanner__find_record_var_classes__get_K_target'vc.
+Prover result is: Valid (0.07s, 128 steps).
+
+File "scratchpad/cm_stub.mlw", line 721, characters 24-76:
+Sub-goal Variant decrease of goal
+irscanner__find_record_var_classes__get_K_value'vc.
+Prover result is: Valid (0.07s, 168 steps).
+
+File "scratchpad/cm_stub.mlw", line 728, characters 24-75:
+Sub-goal Variant decrease of goal
+irscanner__find_record_var_classes__get_K_func'vc.
+Prover result is: Valid (0.07s, 128 steps).
+
+File "scratchpad/cm_stub.mlw", line 750, characters 83-134:
+Sub-goal Variant decrease of goal irscanner__find_record_var_classes'vc.
+Prover result is: Valid (0.06s, 115 steps).
+
+File "scratchpad/cm_stub.mlw", line 750, characters 83-134:
+Sub-goal Precondition of goal irscanner__find_record_var_classes'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 750, characters 26-82:
+Sub-goal Variant decrease of goal irscanner__find_record_var_classes'vc.
+Prover result is: Valid (0.06s, 115 steps).
+
+File "scratchpad/cm_stub.mlw", line 750, characters 26-82:
+Sub-goal Precondition of goal irscanner__find_record_var_classes'vc.
+Prover result is: Valid (0.05s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 746, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_record_var_classes'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 756, characters 82-139:
+Sub-goal Variant decrease of goal irscanner__find_record_var_classes__val'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 756, characters 82-139:
+Sub-goal Precondition of goal irscanner__find_record_var_classes__val'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 757, characters 18-68:
+Sub-goal Variant decrease of goal irscanner__find_record_var_classes__val'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 757, characters 18-68:
+Sub-goal Precondition of goal irscanner__find_record_var_classes__val'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 753, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_record_var_classes__val'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 765, characters 89-149:
+Sub-goal Variant decrease of goal
+irscanner__find_record_var_classes__dict'vc.
+Prover result is: Valid (0.06s, 124 steps).
+
+File "scratchpad/cm_stub.mlw", line 765, characters 89-149:
+Sub-goal Precondition of goal irscanner__find_record_var_classes__dict'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 765, characters 32-88:
+Sub-goal Variant decrease of goal
+irscanner__find_record_var_classes__dict'vc.
+Prover result is: Valid (0.06s, 123 steps).
+
+File "scratchpad/cm_stub.mlw", line 765, characters 32-88:
+Sub-goal Precondition of goal irscanner__find_record_var_classes__dict'vc.
+Prover result is: Valid (0.05s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 761, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_record_var_classes__dict'vc.
+Prover result is: Valid (0.04s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 771, characters 70-116:
+Sub-goal Variant decrease of goal
+irscanner__find_record_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.07s, 124 steps).
+
+File "scratchpad/cm_stub.mlw", line 772, characters 24-70:
+Sub-goal Variant decrease of goal
+irscanner__find_record_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.08s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 779, characters 24-69:
+Sub-goal Variant decrease of goal
+irscanner__find_record_vars__get_K_value'vc.
+Prover result is: Valid (0.06s, 168 steps).
+
+File "scratchpad/cm_stub.mlw", line 786, characters 24-68:
+Sub-goal Variant decrease of goal irscanner__find_record_vars__get_K_type'vc.
+Prover result is: Valid (0.07s, 128 steps).
+
+File "scratchpad/cm_stub.mlw", line 793, characters 24-68:
+Sub-goal Variant decrease of goal irscanner__find_record_vars__get_K_func'vc.
+Prover result is: Valid (0.07s, 128 steps).
+
+File "scratchpad/cm_stub.mlw", line 800, characters 24-70:
+Sub-goal Variant decrease of goal
+irscanner__find_record_vars__get_K_target'vc.
+Prover result is: Valid (0.07s, 128 steps).
+
+File "scratchpad/cm_stub.mlw", line 825, characters 76-120:
+Sub-goal Variant decrease of goal irscanner__find_record_vars'vc.
+Prover result is: Valid (0.08s, 115 steps).
+
+File "scratchpad/cm_stub.mlw", line 825, characters 76-120:
+Sub-goal Precondition of goal irscanner__find_record_vars'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 825, characters 28-75:
+Sub-goal Variant decrease of goal irscanner__find_record_vars'vc.
+Prover result is: Valid (0.07s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 825, characters 28-75:
+Sub-goal Precondition of goal irscanner__find_record_vars'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 821, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_record_vars'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 829, characters 77-124:
+Sub-goal Variant decrease of goal irscanner__find_record_vars__v'vc.
+Prover result is: Valid (0.07s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 829, characters 77-124:
+Sub-goal Precondition of goal irscanner__find_record_vars__v'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 830, characters 18-61:
+Sub-goal Variant decrease of goal irscanner__find_record_vars__v'vc.
+Prover result is: Valid (0.05s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 830, characters 18-61:
+Sub-goal Precondition of goal irscanner__find_record_vars__v'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 827, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_record_vars__v'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 835, characters 82-132:
+Sub-goal Variant decrease of goal irscanner__find_record_vars__d'vc.
+Prover result is: Valid (0.06s, 124 steps).
+
+File "scratchpad/cm_stub.mlw", line 835, characters 82-132:
+Sub-goal Precondition of goal irscanner__find_record_vars__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 835, characters 34-81:
+Sub-goal Variant decrease of goal irscanner__find_record_vars__d'vc.
+Prover result is: Valid (0.07s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 835, characters 34-81:
+Sub-goal Precondition of goal irscanner__find_record_vars__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 833, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_record_vars__d'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 839, characters 77-119:
+Sub-goal Variant decrease of goal irscanner__find_return_type__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 840, characters 24-66:
+Sub-goal Variant decrease of goal irscanner__find_return_type__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 840, characters 24-66:
+Sub-goal Variant decrease of goal irscanner__find_return_type__get_stmt'vc.
+Prover result is: Valid (0.09s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 848, characters 24-67:
+Sub-goal Variant decrease of goal irscanner__find_return_type__get_value'vc.
+Prover result is: Valid (0.07s, 168 steps).
+
+File "scratchpad/cm_stub.mlw", line 852, characters 51-93:
+Sub-goal Variant decrease of goal irscanner__find_return_type__get_type'vc.
+Prover result is: Valid (0.07s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 852, characters 51-93:
+Sub-goal Variant decrease of goal irscanner__find_return_type__get_type'vc.
+Prover result is: Valid (0.06s, 136 steps).
+
+File "scratchpad/cm_stub.mlw", line 856, characters 75-117:
+Sub-goal Variant decrease of goal irscanner__find_return_type__get_elts'vc.
+Prover result is: Valid (0.06s, 133 steps).
+
+File "scratchpad/cm_stub.mlw", line 857, characters 24-66:
+Sub-goal Variant decrease of goal irscanner__find_return_type__get_elts'vc.
+Prover result is: Valid (0.07s, 132 steps).
+
+File "scratchpad/cm_stub.mlw", line 857, characters 24-66:
+Sub-goal Variant decrease of goal irscanner__find_return_type__get_elts'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 860, characters 45-80:
+Sub-goal Variant decrease of goal irscanner__find_return_type__llen'vc.
+Prover result is: Valid (0.05s, 107 steps).
+
+File "scratchpad/cm_stub.mlw", line 859, characters 14-25:
+Sub-goal Postcondition of goal irscanner__find_return_type__llen'vc.
+Prover result is: Valid (0.35s, 3170 steps).
+
+File "scratchpad/cm_stub.mlw", line 873, characters 80-101:
+Sub-goal Array creation size of goal
+irscanner__find_return_type__value_tail'vc.
+Prover result is: Valid (0.08s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 882, characters 11-41:
+Sub-goal Precondition of goal irscanner__find_return_type'vc.
+Prover result is: Valid (0.07s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 883, characters 16-57:
+Sub-goal Precondition of goal irscanner__find_return_type'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 884, characters 9-50:
+Sub-goal Variant decrease of goal irscanner__find_return_type'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 884, characters 9-50:
+Sub-goal Precondition of goal irscanner__find_return_type'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 881, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_return_type'vc.
+Prover result is: Valid (0.04s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 892, characters 20-59:
+Sub-goal Variant decrease of goal irscanner__find_return_type__search'vc.
+Prover result is: Valid (0.06s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 892, characters 20-59:
+Sub-goal Precondition of goal irscanner__find_return_type__search'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 893, characters 79-119:
+Sub-goal Variant decrease of goal irscanner__find_return_type__search'vc.
+Prover result is: Valid (0.07s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 893, characters 79-119:
+Sub-goal Precondition of goal irscanner__find_return_type__search'vc.
+Prover result is: Valid (0.05s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 886, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_return_type__search'vc.
+Prover result is: Valid (0.07s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 899, characters 17-55:
+Sub-goal Variant decrease of goal irscanner__find_return_type__child'vc.
+Prover result is: Valid (0.04s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 899, characters 17-55:
+Sub-goal Precondition of goal irscanner__find_return_type__child'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 900, characters 18-48:
+Sub-goal Variant decrease of goal irscanner__find_return_type__child'vc.
+Prover result is: Valid (0.06s, 73 steps).
+
+File "scratchpad/cm_stub.mlw", line 900, characters 18-48:
+Sub-goal Precondition of goal irscanner__find_return_type__child'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 897, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_return_type__child'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 906, characters 16-52:
+Sub-goal Variant decrease of goal irscanner__find_return_type__child_d'vc.
+Prover result is: Valid (0.07s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 906, characters 16-52:
+Sub-goal Precondition of goal irscanner__find_return_type__child_d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 907, characters 75-116:
+Sub-goal Variant decrease of goal irscanner__find_return_type__child_d'vc.
+Prover result is: Valid (0.07s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 907, characters 75-116:
+Sub-goal Precondition of goal irscanner__find_return_type__child_d'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 903, characters 32-36:
+Sub-goal Postcondition of goal irscanner__find_return_type__child_d'vc.
+Prover result is: Valid (0.04s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 911, characters 77-115:
+Sub-goal Variant decrease of goal irscanner__has_continue__get_stmt'vc.
+Prover result is: Valid (0.05s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 912, characters 24-62:
+Sub-goal Variant decrease of goal irscanner__has_continue__get_stmt'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 912, characters 24-62:
+Sub-goal Variant decrease of goal irscanner__has_continue__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 919, characters 48-76:
+Sub-goal Variant decrease of goal irscanner__has_continue'vc.
+Prover result is: Valid (0.05s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 919, characters 48-76:
+Sub-goal Precondition of goal irscanner__has_continue'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 919, characters 80-105:
+Sub-goal Variant decrease of goal irscanner__has_continue'vc.
+Prover result is: Valid (0.05s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 919, characters 80-105:
+Sub-goal Precondition of goal irscanner__has_continue'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 918, characters 32-36:
+Sub-goal Postcondition of goal irscanner__has_continue'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 923, characters 66-94:
+Sub-goal Variant decrease of goal irscanner__has_continue__v'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 923, characters 66-94:
+Sub-goal Precondition of goal irscanner__has_continue__v'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 924, characters 18-44:
+Sub-goal Variant decrease of goal irscanner__has_continue__v'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 924, characters 18-44:
+Sub-goal Precondition of goal irscanner__has_continue__v'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 921, characters 32-36:
+Sub-goal Postcondition of goal irscanner__has_continue__v'vc.
+Prover result is: Valid (0.04s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 929, characters 24-52:
+Sub-goal Variant decrease of goal irscanner__has_continue__d'vc.
+Prover result is: Valid (0.09s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 929, characters 24-52:
+Sub-goal Precondition of goal irscanner__has_continue__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 929, characters 56-87:
+Sub-goal Variant decrease of goal irscanner__has_continue__d'vc.
+Prover result is: Valid (0.06s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 929, characters 56-87:
+Sub-goal Precondition of goal irscanner__has_continue__d'vc.
+Prover result is: Valid (0.04s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 927, characters 32-36:
+Sub-goal Postcondition of goal irscanner__has_continue__d'vc.
+Prover result is: Valid (0.04s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 933, characters 77-120:
+Sub-goal Variant decrease of goal irscanner__has_direct_return__get_stmt'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 934, characters 24-67:
+Sub-goal Variant decrease of goal irscanner__has_direct_return__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 934, characters 24-67:
+Sub-goal Variant decrease of goal irscanner__has_direct_return__get_stmt'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 941, characters 48-81:
+Sub-goal Variant decrease of goal irscanner__has_direct_return'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 941, characters 48-81:
+Sub-goal Precondition of goal irscanner__has_direct_return'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 941, characters 85-115:
+Sub-goal Variant decrease of goal irscanner__has_direct_return'vc.
+Prover result is: Valid (0.06s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 941, characters 85-115:
+Sub-goal Precondition of goal irscanner__has_direct_return'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 940, characters 32-36:
+Sub-goal Postcondition of goal irscanner__has_direct_return'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 945, characters 166-199:
+Sub-goal Variant decrease of goal irscanner__has_direct_return__v'vc.
+Prover result is: Valid (0.05s, 77 steps).
+
+File "scratchpad/cm_stub.mlw", line 945, characters 166-199:
+Sub-goal Precondition of goal irscanner__has_direct_return__v'vc.
+Prover result is: Valid (0.05s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 946, characters 18-49:
+Sub-goal Variant decrease of goal irscanner__has_direct_return__v'vc.
+Prover result is: Valid (0.05s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 946, characters 18-49:
+Sub-goal Precondition of goal irscanner__has_direct_return__v'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 943, characters 32-36:
+Sub-goal Postcondition of goal irscanner__has_direct_return__v'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 951, characters 24-57:
+Sub-goal Variant decrease of goal irscanner__has_direct_return__d'vc.
+Prover result is: Valid (0.09s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 951, characters 24-57:
+Sub-goal Precondition of goal irscanner__has_direct_return__d'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 951, characters 61-97:
+Sub-goal Variant decrease of goal irscanner__has_direct_return__d'vc.
+Prover result is: Valid (0.07s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 951, characters 61-97:
+Sub-goal Precondition of goal irscanner__has_direct_return__d'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 949, characters 32-36:
+Sub-goal Postcondition of goal irscanner__has_direct_return__d'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 955, characters 77-119:
+Sub-goal Variant decrease of goal irscanner__has_early_return__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 956, characters 24-66:
+Sub-goal Variant decrease of goal irscanner__has_early_return__get_stmt'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 956, characters 24-66:
+Sub-goal Variant decrease of goal irscanner__has_early_return__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 963, characters 48-80:
+Sub-goal Variant decrease of goal irscanner__has_early_return'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 963, characters 48-80:
+Sub-goal Precondition of goal irscanner__has_early_return'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 963, characters 84-113:
+Sub-goal Variant decrease of goal irscanner__has_early_return'vc.
+Prover result is: Valid (0.06s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 963, characters 84-113:
+Sub-goal Precondition of goal irscanner__has_early_return'vc.
+Prover result is: Valid (0.06s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 962, characters 32-36:
+Sub-goal Postcondition of goal irscanner__has_early_return'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 967, characters 210-242:
+Sub-goal Variant decrease of goal irscanner__has_early_return__v'vc.
+Prover result is: Valid (0.06s, 80 steps).
+
+File "scratchpad/cm_stub.mlw", line 967, characters 210-242:
+Sub-goal Precondition of goal irscanner__has_early_return__v'vc.
+Prover result is: Valid (0.06s, 52 steps).
+
+File "scratchpad/cm_stub.mlw", line 968, characters 18-48:
+Sub-goal Variant decrease of goal irscanner__has_early_return__v'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 968, characters 18-48:
+Sub-goal Precondition of goal irscanner__has_early_return__v'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 965, characters 32-36:
+Sub-goal Postcondition of goal irscanner__has_early_return__v'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 973, characters 24-56:
+Sub-goal Variant decrease of goal irscanner__has_early_return__d'vc.
+Prover result is: Valid (0.06s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 973, characters 24-56:
+Sub-goal Precondition of goal irscanner__has_early_return__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 973, characters 60-95:
+Sub-goal Variant decrease of goal irscanner__has_early_return__d'vc.
+Prover result is: Valid (0.07s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 973, characters 60-95:
+Sub-goal Precondition of goal irscanner__has_early_return__d'vc.
+Prover result is: Valid (0.04s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 971, characters 32-36:
+Sub-goal Postcondition of goal irscanner__has_early_return__d'vc.
+Prover result is: Valid (0.04s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 977, characters 77-121:
+Sub-goal Variant decrease of goal irscanner__has_in_loop_return__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 978, characters 24-68:
+Sub-goal Variant decrease of goal irscanner__has_in_loop_return__get_stmt'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 978, characters 24-68:
+Sub-goal Variant decrease of goal irscanner__has_in_loop_return__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 985, characters 48-82:
+Sub-goal Variant decrease of goal irscanner__has_in_loop_return'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 985, characters 48-82:
+Sub-goal Precondition of goal irscanner__has_in_loop_return'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 985, characters 86-117:
+Sub-goal Variant decrease of goal irscanner__has_in_loop_return'vc.
+Prover result is: Valid (0.05s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 985, characters 86-117:
+Sub-goal Precondition of goal irscanner__has_in_loop_return'vc.
+Prover result is: Valid (0.06s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 984, characters 32-36:
+Sub-goal Postcondition of goal irscanner__has_in_loop_return'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 989, characters 218-252:
+Sub-goal Variant decrease of goal irscanner__has_in_loop_return__v'vc.
+Prover result is: Valid (0.05s, 80 steps).
+
+File "scratchpad/cm_stub.mlw", line 989, characters 218-252:
+Sub-goal Precondition of goal irscanner__has_in_loop_return__v'vc.
+Prover result is: Valid (0.04s, 52 steps).
+
+File "scratchpad/cm_stub.mlw", line 990, characters 18-50:
+Sub-goal Variant decrease of goal irscanner__has_in_loop_return__v'vc.
+Prover result is: Valid (0.07s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 990, characters 18-50:
+Sub-goal Precondition of goal irscanner__has_in_loop_return__v'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 987, characters 32-36:
+Sub-goal Postcondition of goal irscanner__has_in_loop_return__v'vc.
+Prover result is: Valid (0.04s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 995, characters 24-58:
+Sub-goal Variant decrease of goal irscanner__has_in_loop_return__d'vc.
+Prover result is: Valid (0.07s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 995, characters 24-58:
+Sub-goal Precondition of goal irscanner__has_in_loop_return__d'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 995, characters 62-99:
+Sub-goal Variant decrease of goal irscanner__has_in_loop_return__d'vc.
+Prover result is: Valid (0.07s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 995, characters 62-99:
+Sub-goal Precondition of goal irscanner__has_in_loop_return__d'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 993, characters 32-36:
+Sub-goal Postcondition of goal irscanner__has_in_loop_return__d'vc.
+Prover result is: Valid (0.04s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1000, characters 24-62:
+Sub-goal Variant decrease of goal irscanner__is_recursive__get_type'vc.
+Prover result is: Valid (0.06s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 1000, characters 24-62:
+Sub-goal Variant decrease of goal irscanner__is_recursive__get_type'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1009, characters 24-62:
+Sub-goal Variant decrease of goal irscanner__is_recursive__get_func'vc.
+Prover result is: Valid (0.06s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 1009, characters 24-62:
+Sub-goal Variant decrease of goal irscanner__is_recursive__get_func'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1017, characters 109-142:
+Sub-goal Variant decrease of goal irscanner__is_recursive'vc.
+Prover result is: Valid (0.05s, 77 steps).
+
+File "scratchpad/cm_stub.mlw", line 1017, characters 109-142:
+Sub-goal Precondition of goal irscanner__is_recursive'vc.
+Prover result is: Valid (0.06s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1018, characters 18-52:
+Sub-goal Variant decrease of goal irscanner__is_recursive'vc.
+Prover result is: Valid (0.06s, 73 steps).
+
+File "scratchpad/cm_stub.mlw", line 1018, characters 18-52:
+Sub-goal Precondition of goal irscanner__is_recursive'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1015, characters 32-36:
+Sub-goal Postcondition of goal irscanner__is_recursive'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1022, characters 51-81:
+Sub-goal Variant decrease of goal irscanner__is_recursive__d'vc.
+Prover result is: Valid (0.07s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 1022, characters 51-81:
+Sub-goal Precondition of goal irscanner__is_recursive__d'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1022, characters 85-121:
+Sub-goal Variant decrease of goal irscanner__is_recursive__d'vc.
+Prover result is: Valid (0.06s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 1022, characters 85-121:
+Sub-goal Precondition of goal irscanner__is_recursive__d'vc.
+Prover result is: Valid (0.06s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1021, characters 32-36:
+Sub-goal Postcondition of goal irscanner__is_recursive__d'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1025, characters 45-75:
+Sub-goal Variant decrease of goal irscanner__is_recursive__l'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 1025, characters 45-75:
+Sub-goal Precondition of goal irscanner__is_recursive__l'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1025, characters 79-112:
+Sub-goal Variant decrease of goal irscanner__is_recursive__l'vc.
+Prover result is: Valid (0.05s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 1025, characters 79-112:
+Sub-goal Precondition of goal irscanner__is_recursive__l'vc.
+Prover result is: Valid (0.04s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1024, characters 32-36:
+Sub-goal Postcondition of goal irscanner__is_recursive__l'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1030, characters 24-64:
+Sub-goal Variant decrease of goal irscanner__uses_array_lit__get_type'vc.
+Prover result is: Valid (0.05s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 1030, characters 24-64:
+Sub-goal Variant decrease of goal irscanner__uses_array_lit__get_type'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1039, characters 24-62:
+Sub-goal Variant decrease of goal irscanner__uses_array_lit__get_op'vc.
+Prover result is: Valid (0.04s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 1039, characters 24-62:
+Sub-goal Variant decrease of goal irscanner__uses_array_lit__get_op'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1048, characters 24-65:
+Sub-goal Variant decrease of goal irscanner__uses_array_lit__getp_left'vc.
+Prover result is: Valid (0.07s, 168 steps).
+
+File "scratchpad/cm_stub.mlw", line 1056, characters 233-263:
+Sub-goal Variant decrease of goal irscanner__uses_array_lit'vc.
+Prover result is: Valid (0.09s, 79 steps).
+
+File "scratchpad/cm_stub.mlw", line 1056, characters 233-263:
+Sub-goal Precondition of goal irscanner__uses_array_lit'vc.
+Prover result is: Valid (0.05s, 51 steps).
+
+File "scratchpad/cm_stub.mlw", line 1057, characters 18-49:
+Sub-goal Variant decrease of goal irscanner__uses_array_lit'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1057, characters 18-49:
+Sub-goal Precondition of goal irscanner__uses_array_lit'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1054, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_array_lit'vc.
+Prover result is: Valid (0.04s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1061, characters 51-78:
+Sub-goal Variant decrease of goal irscanner__uses_array_lit__d'vc.
+Prover result is: Valid (0.05s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 1061, characters 51-78:
+Sub-goal Precondition of goal irscanner__uses_array_lit__d'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1061, characters 82-115:
+Sub-goal Variant decrease of goal irscanner__uses_array_lit__d'vc.
+Prover result is: Valid (0.07s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 1061, characters 82-115:
+Sub-goal Precondition of goal irscanner__uses_array_lit__d'vc.
+Prover result is: Valid (0.04s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1060, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_array_lit__d'vc.
+Prover result is: Valid (0.04s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1064, characters 45-72:
+Sub-goal Variant decrease of goal irscanner__uses_array_lit__l'vc.
+Prover result is: Valid (0.07s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 1064, characters 45-72:
+Sub-goal Precondition of goal irscanner__uses_array_lit__l'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1064, characters 76-106:
+Sub-goal Variant decrease of goal irscanner__uses_array_lit__l'vc.
+Prover result is: Valid (0.06s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 1064, characters 76-106:
+Sub-goal Precondition of goal irscanner__uses_array_lit__l'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1063, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_array_lit__l'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1068, characters 77-116:
+Sub-goal Variant decrease of goal irscanner__uses_arrayset__get_stmt'vc.
+Prover result is: Valid (0.05s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1069, characters 24-63:
+Sub-goal Variant decrease of goal irscanner__uses_arrayset__get_stmt'vc.
+Prover result is: Valid (0.05s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1069, characters 24-63:
+Sub-goal Variant decrease of goal irscanner__uses_arrayset__get_stmt'vc.
+Prover result is: Valid (0.08s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1076, characters 48-77:
+Sub-goal Variant decrease of goal irscanner__uses_arrayset'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 1076, characters 48-77:
+Sub-goal Precondition of goal irscanner__uses_arrayset'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1076, characters 81-107:
+Sub-goal Variant decrease of goal irscanner__uses_arrayset'vc.
+Prover result is: Valid (0.07s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 1076, characters 81-107:
+Sub-goal Precondition of goal irscanner__uses_arrayset'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1075, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_arrayset'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1080, characters 67-96:
+Sub-goal Variant decrease of goal irscanner__uses_arrayset__v'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1080, characters 67-96:
+Sub-goal Precondition of goal irscanner__uses_arrayset__v'vc.
+Prover result is: Valid (0.04s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1081, characters 18-45:
+Sub-goal Variant decrease of goal irscanner__uses_arrayset__v'vc.
+Prover result is: Valid (0.05s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1081, characters 18-45:
+Sub-goal Precondition of goal irscanner__uses_arrayset__v'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1078, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_arrayset__v'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1086, characters 24-53:
+Sub-goal Variant decrease of goal irscanner__uses_arrayset__d'vc.
+Prover result is: Valid (0.05s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 1086, characters 24-53:
+Sub-goal Precondition of goal irscanner__uses_arrayset__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1086, characters 57-89:
+Sub-goal Variant decrease of goal irscanner__uses_arrayset__d'vc.
+Prover result is: Valid (0.06s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 1086, characters 57-89:
+Sub-goal Precondition of goal irscanner__uses_arrayset__d'vc.
+Prover result is: Valid (0.06s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1084, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_arrayset__d'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1090, characters 77-113:
+Sub-goal Variant decrease of goal irscanner__uses_break__get_stmt'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1091, characters 24-60:
+Sub-goal Variant decrease of goal irscanner__uses_break__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1091, characters 24-60:
+Sub-goal Variant decrease of goal irscanner__uses_break__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1098, characters 48-74:
+Sub-goal Variant decrease of goal irscanner__uses_break'vc.
+Prover result is: Valid (0.07s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 1098, characters 48-74:
+Sub-goal Precondition of goal irscanner__uses_break'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1098, characters 78-101:
+Sub-goal Variant decrease of goal irscanner__uses_break'vc.
+Prover result is: Valid (0.06s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 1098, characters 78-101:
+Sub-goal Precondition of goal irscanner__uses_break'vc.
+Prover result is: Valid (0.04s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1097, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_break'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1102, characters 61-87:
+Sub-goal Variant decrease of goal irscanner__uses_break__v'vc.
+Prover result is: Valid (0.05s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1102, characters 61-87:
+Sub-goal Precondition of goal irscanner__uses_break__v'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1103, characters 18-42:
+Sub-goal Variant decrease of goal irscanner__uses_break__v'vc.
+Prover result is: Valid (0.05s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1103, characters 18-42:
+Sub-goal Precondition of goal irscanner__uses_break__v'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1100, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_break__v'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1108, characters 24-50:
+Sub-goal Variant decrease of goal irscanner__uses_break__d'vc.
+Prover result is: Valid (0.07s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 1108, characters 24-50:
+Sub-goal Precondition of goal irscanner__uses_break__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1108, characters 54-83:
+Sub-goal Variant decrease of goal irscanner__uses_break__d'vc.
+Prover result is: Valid (0.07s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 1108, characters 54-83:
+Sub-goal Precondition of goal irscanner__uses_break__d'vc.
+Prover result is: Valid (0.06s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1106, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_break__d'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1112, characters 77-116:
+Sub-goal Variant decrease of goal irscanner__uses_continue__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1113, characters 24-63:
+Sub-goal Variant decrease of goal irscanner__uses_continue__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1113, characters 24-63:
+Sub-goal Variant decrease of goal irscanner__uses_continue__get_stmt'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1120, characters 48-77:
+Sub-goal Variant decrease of goal irscanner__uses_continue'vc.
+Prover result is: Valid (0.07s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 1120, characters 48-77:
+Sub-goal Precondition of goal irscanner__uses_continue'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1120, characters 81-107:
+Sub-goal Variant decrease of goal irscanner__uses_continue'vc.
+Prover result is: Valid (0.06s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 1120, characters 81-107:
+Sub-goal Precondition of goal irscanner__uses_continue'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1119, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_continue'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1124, characters 67-96:
+Sub-goal Variant decrease of goal irscanner__uses_continue__v'vc.
+Prover result is: Valid (0.07s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1124, characters 67-96:
+Sub-goal Precondition of goal irscanner__uses_continue__v'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1125, characters 18-45:
+Sub-goal Variant decrease of goal irscanner__uses_continue__v'vc.
+Prover result is: Valid (0.05s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1125, characters 18-45:
+Sub-goal Precondition of goal irscanner__uses_continue__v'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1122, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_continue__v'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1130, characters 24-53:
+Sub-goal Variant decrease of goal irscanner__uses_continue__d'vc.
+Prover result is: Valid (0.06s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 1130, characters 24-53:
+Sub-goal Precondition of goal irscanner__uses_continue__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1130, characters 57-89:
+Sub-goal Variant decrease of goal irscanner__uses_continue__d'vc.
+Prover result is: Valid (0.09s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 1130, characters 57-89:
+Sub-goal Precondition of goal irscanner__uses_continue__d'vc.
+Prover result is: Valid (0.04s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1128, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_continue__d'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1133, characters 15-19:
+Sub-goal Postcondition of goal irscanner__uses_divmod'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1140, characters 77-111:
+Sub-goal Variant decrease of goal irscanner__uses_for__get_stmt'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1141, characters 24-58:
+Sub-goal Variant decrease of goal irscanner__uses_for__get_stmt'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1141, characters 24-58:
+Sub-goal Variant decrease of goal irscanner__uses_for__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1148, characters 48-72:
+Sub-goal Variant decrease of goal irscanner__uses_for'vc.
+Prover result is: Valid (0.07s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 1148, characters 48-72:
+Sub-goal Precondition of goal irscanner__uses_for'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1148, characters 76-97:
+Sub-goal Variant decrease of goal irscanner__uses_for'vc.
+Prover result is: Valid (0.06s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 1148, characters 76-97:
+Sub-goal Precondition of goal irscanner__uses_for'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1147, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_for'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1152, characters 57-81:
+Sub-goal Variant decrease of goal irscanner__uses_for__v'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1152, characters 57-81:
+Sub-goal Precondition of goal irscanner__uses_for__v'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1153, characters 18-40:
+Sub-goal Variant decrease of goal irscanner__uses_for__v'vc.
+Prover result is: Valid (0.05s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1153, characters 18-40:
+Sub-goal Precondition of goal irscanner__uses_for__v'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1150, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_for__v'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1158, characters 24-48:
+Sub-goal Variant decrease of goal irscanner__uses_for__d'vc.
+Prover result is: Valid (0.06s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 1158, characters 24-48:
+Sub-goal Precondition of goal irscanner__uses_for__d'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1158, characters 52-79:
+Sub-goal Variant decrease of goal irscanner__uses_for__d'vc.
+Prover result is: Valid (0.06s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 1158, characters 52-79:
+Sub-goal Precondition of goal irscanner__uses_for__d'vc.
+Prover result is: Valid (0.06s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1156, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_for__d'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1162, characters 77-118:
+Sub-goal Variant decrease of goal irscanner__uses_ghost_type__get_stmt'vc.
+Prover result is: Valid (0.05s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1163, characters 24-65:
+Sub-goal Variant decrease of goal irscanner__uses_ghost_type__get_stmt'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1163, characters 24-65:
+Sub-goal Variant decrease of goal irscanner__uses_ghost_type__get_stmt'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1170, characters 48-85:
+Sub-goal Variant decrease of goal irscanner__uses_ghost_type'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 1170, characters 48-85:
+Sub-goal Precondition of goal irscanner__uses_ghost_type'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1170, characters 89-123:
+Sub-goal Variant decrease of goal irscanner__uses_ghost_type'vc.
+Prover result is: Valid (0.06s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 1170, characters 89-123:
+Sub-goal Precondition of goal irscanner__uses_ghost_type'vc.
+Prover result is: Valid (0.06s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1169, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_ghost_type'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1174, characters 72-109:
+Sub-goal Variant decrease of goal irscanner__uses_ghost_type__v'vc.
+Prover result is: Valid (0.04s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1174, characters 72-109:
+Sub-goal Precondition of goal irscanner__uses_ghost_type__v'vc.
+Prover result is: Valid (0.06s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1175, characters 18-53:
+Sub-goal Variant decrease of goal irscanner__uses_ghost_type__v'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1175, characters 18-53:
+Sub-goal Precondition of goal irscanner__uses_ghost_type__v'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1172, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_ghost_type__v'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1180, characters 24-61:
+Sub-goal Variant decrease of goal irscanner__uses_ghost_type__d'vc.
+Prover result is: Valid (0.06s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 1180, characters 24-61:
+Sub-goal Precondition of goal irscanner__uses_ghost_type__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1180, characters 65-105:
+Sub-goal Variant decrease of goal irscanner__uses_ghost_type__d'vc.
+Prover result is: Valid (0.06s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 1180, characters 65-105:
+Sub-goal Precondition of goal irscanner__uses_ghost_type__d'vc.
+Prover result is: Valid (0.04s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1178, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_ghost_type__d'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1187, characters 24-77:
+Sub-goal Variant decrease of goal
+irscanner__uses_inline_set_or_dict_ops__g_K_type'vc.
+Prover result is: Valid (0.07s, 128 steps).
+
+File "scratchpad/cm_stub.mlw", line 1194, characters 24-77:
+Sub-goal Variant decrease of goal
+irscanner__uses_inline_set_or_dict_ops__g_K_func'vc.
+Prover result is: Valid (0.05s, 128 steps).
+
+File "scratchpad/cm_stub.mlw", line 1205, characters 67-113:
+Sub-goal Variant decrease of goal irscanner__uses_inline_set_or_dict_ops'vc.
+Prover result is: Valid (0.05s, 75 steps).
+
+File "scratchpad/cm_stub.mlw", line 1205, characters 67-113:
+Sub-goal Precondition of goal irscanner__uses_inline_set_or_dict_ops'vc.
+Prover result is: Valid (0.06s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1206, characters 18-65:
+Sub-goal Variant decrease of goal irscanner__uses_inline_set_or_dict_ops'vc.
+Prover result is: Valid (0.07s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1206, characters 18-65:
+Sub-goal Precondition of goal irscanner__uses_inline_set_or_dict_ops'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1202, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_inline_set_or_dict_ops'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1213, characters 24-64:
+Sub-goal Variant decrease of goal
+irscanner__uses_inline_set_or_dict_ops__dict'vc.
+Prover result is: Valid (0.06s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 1213, characters 24-64:
+Sub-goal Precondition of goal
+irscanner__uses_inline_set_or_dict_ops__dict'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1213, characters 68-117:
+Sub-goal Variant decrease of goal
+irscanner__uses_inline_set_or_dict_ops__dict'vc.
+Prover result is: Valid (0.07s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 1213, characters 68-117:
+Sub-goal Precondition of goal
+irscanner__uses_inline_set_or_dict_ops__dict'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1209, characters 32-36:
+Sub-goal Postcondition of goal
+irscanner__uses_inline_set_or_dict_ops__dict'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1219, characters 18-58:
+Sub-goal Variant decrease of goal
+irscanner__uses_inline_set_or_dict_ops__list'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 1219, characters 18-58:
+Sub-goal Precondition of goal
+irscanner__uses_inline_set_or_dict_ops__list'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1219, characters 62-108:
+Sub-goal Variant decrease of goal
+irscanner__uses_inline_set_or_dict_ops__list'vc.
+Prover result is: Valid (0.06s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 1219, characters 62-108:
+Sub-goal Precondition of goal
+irscanner__uses_inline_set_or_dict_ops__list'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1216, characters 32-36:
+Sub-goal Postcondition of goal
+irscanner__uses_inline_set_or_dict_ops__list'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1224, characters 24-61:
+Sub-goal Variant decrease of goal irscanner__uses_minmax__get_type'vc.
+Prover result is: Valid (0.06s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 1224, characters 24-61:
+Sub-goal Variant decrease of goal irscanner__uses_minmax__get_type'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1233, characters 24-61:
+Sub-goal Variant decrease of goal irscanner__uses_minmax__get_func'vc.
+Prover result is: Valid (0.06s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 1233, characters 24-61:
+Sub-goal Variant decrease of goal irscanner__uses_minmax__get_func'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1241, characters 155-182:
+Sub-goal Variant decrease of goal irscanner__uses_minmax'vc.
+Prover result is: Valid (0.06s, 75 steps).
+
+File "scratchpad/cm_stub.mlw", line 1241, characters 155-182:
+Sub-goal Precondition of goal irscanner__uses_minmax'vc.
+Prover result is: Valid (0.05s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 1242, characters 18-46:
+Sub-goal Variant decrease of goal irscanner__uses_minmax'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1242, characters 18-46:
+Sub-goal Precondition of goal irscanner__uses_minmax'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1239, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_minmax'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1246, characters 51-75:
+Sub-goal Variant decrease of goal irscanner__uses_minmax__d'vc.
+Prover result is: Valid (0.07s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 1246, characters 51-75:
+Sub-goal Precondition of goal irscanner__uses_minmax__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1246, characters 79-109:
+Sub-goal Variant decrease of goal irscanner__uses_minmax__d'vc.
+Prover result is: Valid (0.06s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 1246, characters 79-109:
+Sub-goal Precondition of goal irscanner__uses_minmax__d'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1245, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_minmax__d'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1249, characters 45-69:
+Sub-goal Variant decrease of goal irscanner__uses_minmax__l'vc.
+Prover result is: Valid (0.10s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 1249, characters 45-69:
+Sub-goal Precondition of goal irscanner__uses_minmax__l'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1249, characters 73-100:
+Sub-goal Variant decrease of goal irscanner__uses_minmax__l'vc.
+Prover result is: Valid (0.09s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 1249, characters 73-100:
+Sub-goal Precondition of goal irscanner__uses_minmax__l'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1248, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_minmax__l'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1254, characters 24-62:
+Sub-goal Variant decrease of goal irscanner__uses_ord_chr__get_type'vc.
+Prover result is: Valid (0.06s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 1254, characters 24-62:
+Sub-goal Variant decrease of goal irscanner__uses_ord_chr__get_type'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1263, characters 24-62:
+Sub-goal Variant decrease of goal irscanner__uses_ord_chr__get_func'vc.
+Prover result is: Valid (0.06s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 1263, characters 24-62:
+Sub-goal Variant decrease of goal irscanner__uses_ord_chr__get_func'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1271, characters 158-186:
+Sub-goal Variant decrease of goal irscanner__uses_ord_chr'vc.
+Prover result is: Valid (0.06s, 75 steps).
+
+File "scratchpad/cm_stub.mlw", line 1271, characters 158-186:
+Sub-goal Precondition of goal irscanner__uses_ord_chr'vc.
+Prover result is: Valid (0.06s, 50 steps).
+
+File "scratchpad/cm_stub.mlw", line 1272, characters 18-47:
+Sub-goal Variant decrease of goal irscanner__uses_ord_chr'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1272, characters 18-47:
+Sub-goal Precondition of goal irscanner__uses_ord_chr'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1269, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_ord_chr'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1276, characters 51-76:
+Sub-goal Variant decrease of goal irscanner__uses_ord_chr__d'vc.
+Prover result is: Valid (0.06s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 1276, characters 51-76:
+Sub-goal Precondition of goal irscanner__uses_ord_chr__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1276, characters 80-111:
+Sub-goal Variant decrease of goal irscanner__uses_ord_chr__d'vc.
+Prover result is: Valid (0.05s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 1276, characters 80-111:
+Sub-goal Precondition of goal irscanner__uses_ord_chr__d'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1275, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_ord_chr__d'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1279, characters 45-70:
+Sub-goal Variant decrease of goal irscanner__uses_ord_chr__l'vc.
+Prover result is: Valid (0.07s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 1279, characters 45-70:
+Sub-goal Precondition of goal irscanner__uses_ord_chr__l'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1279, characters 74-102:
+Sub-goal Variant decrease of goal irscanner__uses_ord_chr__l'vc.
+Prover result is: Valid (0.06s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 1279, characters 74-102:
+Sub-goal Precondition of goal irscanner__uses_ord_chr__l'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1278, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_ord_chr__l'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1284, characters 24-63:
+Sub-goal Variant decrease of goal irscanner__uses_set_card__get_type'vc.
+Prover result is: Valid (0.07s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 1284, characters 24-63:
+Sub-goal Variant decrease of goal irscanner__uses_set_card__get_type'vc.
+Prover result is: Valid (0.05s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1292, characters 68-97:
+Sub-goal Variant decrease of goal irscanner__uses_set_card'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1292, characters 68-97:
+Sub-goal Precondition of goal irscanner__uses_set_card'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1293, characters 18-48:
+Sub-goal Variant decrease of goal irscanner__uses_set_card'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1293, characters 18-48:
+Sub-goal Precondition of goal irscanner__uses_set_card'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1290, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_set_card'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1297, characters 51-77:
+Sub-goal Variant decrease of goal irscanner__uses_set_card__d'vc.
+Prover result is: Valid (0.06s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 1297, characters 51-77:
+Sub-goal Precondition of goal irscanner__uses_set_card__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1297, characters 81-113:
+Sub-goal Variant decrease of goal irscanner__uses_set_card__d'vc.
+Prover result is: Valid (0.06s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 1297, characters 81-113:
+Sub-goal Precondition of goal irscanner__uses_set_card__d'vc.
+Prover result is: Valid (0.04s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1296, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_set_card__d'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1300, characters 45-71:
+Sub-goal Variant decrease of goal irscanner__uses_set_card__l'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 1300, characters 45-71:
+Sub-goal Precondition of goal irscanner__uses_set_card__l'vc.
+Prover result is: Valid (0.04s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1300, characters 75-104:
+Sub-goal Variant decrease of goal irscanner__uses_set_card__l'vc.
+Prover result is: Valid (0.06s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 1300, characters 75-104:
+Sub-goal Precondition of goal irscanner__uses_set_card__l'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1299, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_set_card__l'vc.
+Prover result is: Valid (0.04s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1305, characters 24-61:
+Sub-goal Variant decrease of goal irscanner__uses_string__get_type'vc.
+Prover result is: Valid (0.06s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 1305, characters 24-61:
+Sub-goal Variant decrease of goal irscanner__uses_string__get_type'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1313, characters 65-92:
+Sub-goal Variant decrease of goal irscanner__uses_string'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1313, characters 65-92:
+Sub-goal Precondition of goal irscanner__uses_string'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1314, characters 18-46:
+Sub-goal Variant decrease of goal irscanner__uses_string'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1314, characters 18-46:
+Sub-goal Precondition of goal irscanner__uses_string'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1311, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_string'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1318, characters 51-75:
+Sub-goal Variant decrease of goal irscanner__uses_string__d'vc.
+Prover result is: Valid (0.05s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 1318, characters 51-75:
+Sub-goal Precondition of goal irscanner__uses_string__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1318, characters 79-109:
+Sub-goal Variant decrease of goal irscanner__uses_string__d'vc.
+Prover result is: Valid (0.07s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 1318, characters 79-109:
+Sub-goal Precondition of goal irscanner__uses_string__d'vc.
+Prover result is: Valid (0.06s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1317, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_string__d'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1321, characters 45-69:
+Sub-goal Variant decrease of goal irscanner__uses_string__l'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 1321, characters 45-69:
+Sub-goal Precondition of goal irscanner__uses_string__l'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1321, characters 73-100:
+Sub-goal Variant decrease of goal irscanner__uses_string__l'vc.
+Prover result is: Valid (0.06s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 1321, characters 73-100:
+Sub-goal Precondition of goal irscanner__uses_string__l'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1320, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_string__l'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1326, characters 24-64:
+Sub-goal Variant decrease of goal irscanner__uses_subscript__get_type'vc.
+Prover result is: Valid (0.06s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 1326, characters 24-64:
+Sub-goal Variant decrease of goal irscanner__uses_subscript__get_type'vc.
+Prover result is: Valid (0.06s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1334, characters 71-101:
+Sub-goal Variant decrease of goal irscanner__uses_subscript'vc.
+Prover result is: Valid (0.05s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1334, characters 71-101:
+Sub-goal Precondition of goal irscanner__uses_subscript'vc.
+Prover result is: Valid (0.06s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1335, characters 18-49:
+Sub-goal Variant decrease of goal irscanner__uses_subscript'vc.
+Prover result is: Valid (0.06s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1335, characters 18-49:
+Sub-goal Precondition of goal irscanner__uses_subscript'vc.
+Prover result is: Valid (0.08s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1332, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_subscript'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1339, characters 51-78:
+Sub-goal Variant decrease of goal irscanner__uses_subscript__d'vc.
+Prover result is: Valid (0.05s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 1339, characters 51-78:
+Sub-goal Precondition of goal irscanner__uses_subscript__d'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1339, characters 82-115:
+Sub-goal Variant decrease of goal irscanner__uses_subscript__d'vc.
+Prover result is: Valid (0.09s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 1339, characters 82-115:
+Sub-goal Precondition of goal irscanner__uses_subscript__d'vc.
+Prover result is: Valid (0.06s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1338, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_subscript__d'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1342, characters 45-72:
+Sub-goal Variant decrease of goal irscanner__uses_subscript__l'vc.
+Prover result is: Valid (0.07s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 1342, characters 45-72:
+Sub-goal Precondition of goal irscanner__uses_subscript__l'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1342, characters 76-106:
+Sub-goal Variant decrease of goal irscanner__uses_subscript__l'vc.
+Prover result is: Valid (0.07s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 1342, characters 76-106:
+Sub-goal Precondition of goal irscanner__uses_subscript__l'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1341, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_subscript__l'vc.
+Prover result is: Valid (0.04s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1347, characters 24-58:
+Sub-goal Variant decrease of goal irscanner__uses_sum__get_type'vc.
+Prover result is: Valid (0.06s, 129 steps).
+
+File "scratchpad/cm_stub.mlw", line 1347, characters 24-58:
+Sub-goal Variant decrease of goal irscanner__uses_sum__get_type'vc.
+Prover result is: Valid (0.07s, 131 steps).
+
+File "scratchpad/cm_stub.mlw", line 1355, characters 59-83:
+Sub-goal Variant decrease of goal irscanner__uses_sum'vc.
+Prover result is: Valid (0.05s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1355, characters 59-83:
+Sub-goal Precondition of goal irscanner__uses_sum'vc.
+Prover result is: Valid (0.06s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1356, characters 18-43:
+Sub-goal Variant decrease of goal irscanner__uses_sum'vc.
+Prover result is: Valid (0.09s, 76 steps).
+
+File "scratchpad/cm_stub.mlw", line 1356, characters 18-43:
+Sub-goal Precondition of goal irscanner__uses_sum'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1353, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_sum'vc.
+Prover result is: Valid (0.05s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1360, characters 51-72:
+Sub-goal Variant decrease of goal irscanner__uses_sum__d'vc.
+Prover result is: Valid (0.07s, 121 steps).
+
+File "scratchpad/cm_stub.mlw", line 1360, characters 51-72:
+Sub-goal Precondition of goal irscanner__uses_sum__d'vc.
+Prover result is: Valid (0.05s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1360, characters 76-103:
+Sub-goal Variant decrease of goal irscanner__uses_sum__d'vc.
+Prover result is: Valid (0.07s, 125 steps).
+
+File "scratchpad/cm_stub.mlw", line 1360, characters 76-103:
+Sub-goal Precondition of goal irscanner__uses_sum__d'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1359, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_sum__d'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+File "scratchpad/cm_stub.mlw", line 1363, characters 45-66:
+Sub-goal Variant decrease of goal irscanner__uses_sum__l'vc.
+Prover result is: Valid (0.06s, 112 steps).
+
+File "scratchpad/cm_stub.mlw", line 1363, characters 45-66:
+Sub-goal Precondition of goal irscanner__uses_sum__l'vc.
+Prover result is: Valid (0.06s, 48 steps).
+
+File "scratchpad/cm_stub.mlw", line 1363, characters 70-94:
+Sub-goal Variant decrease of goal irscanner__uses_sum__l'vc.
+Prover result is: Valid (0.07s, 117 steps).
+
+File "scratchpad/cm_stub.mlw", line 1363, characters 70-94:
+Sub-goal Precondition of goal irscanner__uses_sum__l'vc.
+Prover result is: Valid (0.05s, 49 steps).
+
+File "scratchpad/cm_stub.mlw", line 1362, characters 32-36:
+Sub-goal Postcondition of goal irscanner__uses_sum__l'vc.
+Prover result is: Valid (0.06s, 46 steps).
+
+EXIT=2

@@ -1,0 +1,30 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/types.py'...
+[*] Memory model: hoare
+[*] Imported from 'module6_whyml.struct_format': ['parse_format', 'parse_format'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_vsold5ku.mlw", line 495, characters 20-21: unused variable s
+Warning, file "/tmp/.pycsl_vsold5ku.mlw", line 495, characters 32-35: unused variable sep
+Warning, file "/tmp/.pycsl_vsold5ku.mlw", line 524, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_vsold5ku.mlw", line 526, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_vsold5ku.mlw", line 547, characters 51-55: unused variable self
+Warning, file "/tmp/.pycsl_vsold5ku.mlw", line 547, characters 78-80: unused variable fn
+Warning, file "/tmp/.pycsl_vsold5ku.mlw", line 549, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_vsold5ku.mlw", line 551, characters 54-58: unused variable self
+Warning, file "/tmp/.pycsl_vsold5ku.mlw", line 551, characters 81-86: unused variable stmts
+Warning, file "/tmp/.pycsl_vsold5ku.mlw", line 551, characters 100-104: unused variable seed
+Warning, file "/tmp/.pycsl_vsold5ku.mlw", line 553, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_vsold5ku.mlw", line 604, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_vsold5ku.mlw", line 598, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_vsold5ku.mlw", line 592, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_vsold5ku.mlw", line 708, characters 63-67: unused variable self
+Warning, file "/tmp/.pycsl_vsold5ku.mlw", line 709, characters 32-36: unused variable result
+File "/tmp/.pycsl_vsold5ku.mlw", line 718, characters 13-18:
+This expression has type array.Array.array int @rho,
+but is expected to have type int
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.
+EXIT=1

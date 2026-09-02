@@ -1,0 +1,63 @@
+/home/fabrice.derepas@canonical.com/git/pycsl/src/pycsl/core_ir_semantic.py:1632: UserWarning: Function 'pycsltojsonemitter___collect_class_constants': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+[*] Parsing and Semantic Analysis for 'scratchpad/head_mirror_m5.py'...
+[*] Memory model: hoare
+[level] L1 ✓  L2 ✓  L3-tc ✗
+[!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success:
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1090, characters 40-44: unused variable self
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1090, characters 66-72: unused variable indent
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1092, characters 15-19: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1098, characters 44-48: unused variable self
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1098, characters 71-74: unused variable rhs
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1100, characters 15-19: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1102, characters 46-50: unused variable self
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1102, characters 73-77: unused variable node
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1104, characters 15-19: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1106, characters 56-60: unused variable self
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1106, characters 83-87: unused variable node
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1108, characters 15-19: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1110, characters 55-59: unused variable self
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1110, characters 82-86: unused variable node
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1112, characters 15-19: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1114, characters 46-50: unused variable self
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1116, characters 15-19: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1136, characters 51-55: unused variable self
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1136, characters 78-81: unused variable elt
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1138, characters 15-19: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1334, characters 32-36: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1344, characters 8-13: unused variable child
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1338, characters 52-56: unused variable self
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1338, characters 104-115: unused variable field_names
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1340, characters 15-19: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1383, characters 49-53: unused variable self
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1383, characters 76-80: unused variable node
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1385, characters 15-19: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1394, characters 8-13: unused variable cstmt
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1393, characters 8-12: unused variable stmt
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1392, characters 8-11: unused variable sub
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1453, characters 32-36: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1478, characters 32-36: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1472, characters 32-36: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1465, characters 32-36: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1482, characters 32-36: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1526, characters 137-141: unused variable m_or
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1496, characters 8-9: unused variable b
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1491, characters 8-10: unused variable nm
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1490, characters 8-10: unused variable tp
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1489, characters 8-15: unused variable out_len
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1486, characters 15-19: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1552, characters 8-10: unused variable kw
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1550, characters 8-12: unused variable stmt
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1544, characters 53-57: unused variable self
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1546, characters 15-19: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1600, characters 47-51: unused variable self
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1600, characters 74-82: unused variable ann_expr
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1602, characters 15-19: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1604, characters 59-63: unused variable self
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1606, characters 15-19: unused variable result
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1611, characters 44-48: unused variable self
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1611, characters 71-76: unused variable value
+Warning, file "scratchpad/head_mirror_m5.mlw", line 1613, characters 15-19: unused variable result
+File "scratchpad/head_mirror_m5.mlw", line 1620, characters 69-85:
+This expression has type int, but is expected to have type PyCSL_Program.
+emit_ir

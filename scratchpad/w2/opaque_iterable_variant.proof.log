@@ -1,0 +1,1313 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/Module3_Weaver.py'...
+[*] Memory model: hoare
+[*] Imported class from 'frontend.Module2_Parser': Requires (record + 0 method stub(s) + 81 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Ensures (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Assigns (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': LoopInvariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': LoopVariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ClassInvariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLLabel (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': FunctionVariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Diverges (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': NoInline (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SiblingConcrete (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': VerifyModule (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': PropagateFrame (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': FreshGlobals (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Trusted (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Abstract (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Lemma (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Uses (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': InterfaceClause (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Reveal (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': GhostAssignDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': GhostArraySetDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': RaisesDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': NoExceptionDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': AllowFinalizerDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': AllowIterationMutationDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': BoundedIntDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ProofDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SharedDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': DatatypeDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': InductiveDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ThreadEntry (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Acquires (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Releases (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CriticalSection (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': MutexInvariant (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': LockOrder (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': BinOp (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Number (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Act (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ForExpand (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Given (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Complete (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Disjoint (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Old (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': UnaryOp (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CSLBool (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': CheckPoint (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': HappyProperty (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Preserves (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Footprint (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Var (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': Forall (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': FieldSubscript (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': MixinDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ProvidesDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': SharedStateDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': TouchesFieldDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': MethodDependencyDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ComposeFromDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'frontend.Module2_Parser': ConformsToDecl (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'errors': PyCSLSemanticError (record + 0 method stub(s) + 2 helper(s))
+[*] Imported class from 'frontend.Module1_Ingestor': PyCSLContract (record + 0 method stub(s) + 14 helper(s))
+[*] Imported from 'frontend.Module2_Parser': ['Ensures', 'BinOp', 'Old', 'CSLBool', 'Var', 'Forall', 'FieldSubscript'] (trusted stubs)
+[*] Import 'copy.deepcopy': external module, no local source found — skipping
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 92, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.01s, 17247 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 93, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.01s, 17166 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 90, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.12s, 629260 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 97, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 97, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 5217 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 96, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.00s, 16925 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 100, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.00s, 4514 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 100, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.00s, 5578 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 99, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.00s, 18160 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 107, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.00s, 5660 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 103, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 25056 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 134, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 8074 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 134, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 30628 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 130, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.32s, 700666 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 175, characters 59-73:
+Sub-goal variant decrease of goal slookup'vc.
+Prover result is: Valid (0.00s, 8232 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 186, characters 34-50:
+Sub-goal variant decrease of goal sappend'vc.
+Prover result is: Valid (0.00s, 8206 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 196, characters 68-86:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8252 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 197, characters 24-42:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8524 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 193, characters 14-85:
+Sub-goal postcondition of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 30846 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 201, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.01s, 28826 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 201, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.09s, 433134 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 201, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.06s, 281686 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 220, characters 52-73:
+Sub-goal variant decrease of goal pdict_to_sdict'vc.
+Prover result is: Valid (0.00s, 8206 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 389, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29952 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 389, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29974 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 390, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29968 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 390, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29990 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 391, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29940 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 391, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29962 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 392, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29944 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 392, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29966 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 393, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29900 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 394, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29934 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 395, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29980 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 395, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30002 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 395, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30024 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 396, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 29970 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 397, characters 22-28:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29974 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 398, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 29992 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 399, characters 45-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30010 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 399, characters 35-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 30032 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 400, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30010 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 400, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30032 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 401, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30014 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 401, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30036 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 402, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30018 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 402, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30040 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 403, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30018 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 403, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30040 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 404, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30022 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 404, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30044 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 405, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30030 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 405, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30052 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 406, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30034 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 406, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30056 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 407, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30036 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 408, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30044 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 408, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 30066 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 409, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30056 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 409, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30078 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 409, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30100 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 410, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30052 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 410, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30074 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 411, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30056 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 411, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30078 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 412, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30060 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 412, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30082 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 413, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30070 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 413, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30092 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 414, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30074 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 414, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 30096 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 415, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30078 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 415, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30100 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 416, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30082 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 416, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30104 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 417, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30086 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 417, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 30108 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 418, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30090 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 418, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30112 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 419, characters 50-57:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30102 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 419, characters 40-47:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30124 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 419, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30146 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 420, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30098 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 420, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30120 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 421, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30102 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 421, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 30124 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 422, characters 33-39:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30112 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 422, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 30134 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 423, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30106 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 424, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30110 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 425, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30114 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 426, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30128 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 426, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 30150 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 427, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30132 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 427, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30154 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 428, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 30136 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 428, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30158 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 429, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30130 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 430, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30134 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 431, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30158 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 431, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30180 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 432, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30152 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 433, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 30174 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 433, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 30196 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 433, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30218 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 434, characters 45-51:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30180 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 434, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30202 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 435, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30180 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 435, characters 30-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30202 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 436, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30184 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 436, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30206 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 437, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30188 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 437, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30210 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 438, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30196 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 439, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30204 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 440, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30234 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 441, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 30238 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 442, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30240 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 443, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 30246 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 444, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30254 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 445, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30264 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 445, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30286 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 446, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30268 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 446, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30290 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 447, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30262 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 448, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30266 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 449, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 30274 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 450, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30274 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 451, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30278 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 452, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30294 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 453, characters 48-54:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30300 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 453, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30322 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 454, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30294 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 455, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 30298 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 386, characters 14-25:
+Sub-goal postcondition of goal size'vc.
+Prover result is: Valid (0.03s, 195158 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 460, characters 58-83:
+Sub-goal goal of goal size_left_dec.
+Prover result is: Valid (0.02s, 50229 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 461, characters 58-84:
+Sub-goal goal of goal size_right_dec.
+Prover result is: Valid (0.01s, 51046 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 464, characters 65-90:
+Sub-goal goal of goal size_ifexpr_body_dec.
+Prover result is: Valid (0.01s, 51869 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 465, characters 67-94:
+Sub-goal goal of goal size_ifexpr_orelse_dec.
+Prover result is: Valid (0.01s, 52686 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 468, characters 59-87:
+Sub-goal goal of goal size_ter_fst_dec.
+Prover result is: Valid (0.01s, 53582 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 469, characters 59-87:
+Sub-goal goal of goal size_ter_snd_dec.
+Prover result is: Valid (0.02s, 54384 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 470, characters 59-87:
+Sub-goal goal of goal size_ter_thd_dec.
+Prover result is: Valid (0.01s, 55212 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 522, characters 57-84:
+Sub-goal goal of goal size_svalue_dec.
+Prover result is: Valid (0.02s, 55874 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 523, characters 57-84:
+Sub-goal goal of goal size_sindex_dec.
+Prover result is: Valid (0.02s, 56691 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 524, characters 63-90:
+Sub-goal goal of goal size_object_dec.
+Prover result is: Valid (0.02s, 57439 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 525, characters 58-83:
+Sub-goal goal of goal size_arg0_dec.
+Prover result is: Valid (0.02s, 58362 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 526, characters 59-84:
+Sub-goal goal of goal size_elt0_dec.
+Prover result is: Valid (0.01s, 59349 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 527, characters 59-84:
+Sub-goal goal of goal size_elt1_dec.
+Prover result is: Valid (0.01s, 60166 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 533, characters 48-55:
+Sub-goal variant decrease of goal irlen'vc.
+Prover result is: Valid (0.00s, 18442 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 531, characters 14-25:
+Sub-goal postcondition of goal irlen'vc.
+Prover result is: Valid (0.02s, 65374 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 537, characters 75-90:
+Sub-goal variant decrease of goal irnth'vc.
+Prover result is: Valid (0.01s, 18478 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 561, characters 70-96:
+Sub-goal goal of goal is_given_faithful.
+Prover result is: Valid (0.03s, 60855 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 561, characters 50-65:
+Sub-goal goal of goal is_given_faithful.
+Prover result is: Valid (0.03s, 62078 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 562, characters 76-105:
+Sub-goal goal of goal is_requires_faithful.
+Prover result is: Valid (0.02s, 61781 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 562, characters 53-71:
+Sub-goal goal of goal is_requires_faithful.
+Prover result is: Valid (0.03s, 62865 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 563, characters 74-102:
+Sub-goal goal of goal is_ensures_faithful.
+Prover result is: Valid (0.02s, 62706 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 563, characters 52-69:
+Sub-goal goal of goal is_ensures_faithful.
+Prover result is: Valid (0.02s, 63595 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 564, characters 74-102:
+Sub-goal goal of goal is_assigns_faithful.
+Prover result is: Valid (0.02s, 63409 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 564, characters 52-69:
+Sub-goal goal of goal is_assigns_faithful.
+Prover result is: Valid (0.02s, 64454 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 571, characters 86-100:
+Sub-goal variant decrease of goal cl_nth'vc.
+Prover result is: Valid (0.01s, 19138 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 581, characters 21-66:
+Sub-goal variant decrease of goal act_guard_fold'vc.
+Prover result is: Valid (0.01s, 19146 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 582, characters 23-86:
+Sub-goal variant decrease of goal act_guard_fold'vc.
+Prover result is: Valid (0.01s, 19165 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 584, characters 13-36:
+Sub-goal variant decrease of goal act_guard_fold'vc.
+Prover result is: Valid (0.00s, 19172 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 971, characters 15-19:
+Sub-goal postcondition of goal module3_weaver___canonical_preservation_ensures'vc.
+Prover result is: Valid (0.00s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 990, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites__node'vc.
+Prover result is: Valid (0.01s, 7601 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1003, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites__cf'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1015, characters 14-72:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1016, characters 14-60:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.01s, 7594 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1018, characters 17-76:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.02s, 82047 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1018, characters 17-76:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.01s, 7610 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1019, characters 18-77:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.02s, 82047 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1019, characters 18-77:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.00s, 7610 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1014, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites__walk'vc.
+Prover result is: Valid (0.01s, 7601 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1026, characters 82-141:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walkd'vc.
+Prover result is: Valid (0.02s, 75931 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1026, characters 82-141:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walkd'vc.
+Prover result is: Valid (0.01s, 7382 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1026, characters 24-141:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walkd'vc.
+Prover result is: Valid (0.02s, 81767 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1026, characters 24-141:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walkd'vc.
+Prover result is: Valid (0.01s, 7603 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1023, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites__walkd'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1032, characters 73-132:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walkl'vc.
+Prover result is: Valid (0.02s, 74137 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1032, characters 73-132:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walkl'vc.
+Prover result is: Valid (0.00s, 7325 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1032, characters 18-132:
+Sub-goal variant decrease of goal module3_weaver___collect_field_sites__walkl'vc.
+Prover result is: Valid (0.02s, 79997 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1032, characters 18-132:
+Sub-goal precondition of goal module3_weaver___collect_field_sites__walkl'vc.
+Prover result is: Valid (0.01s, 7546 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1029, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites__walkl'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1037, characters 69-125:
+Sub-goal precondition of goal module3_weaver___collect_field_sites'vc.
+Prover result is: Valid (0.01s, 7382 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1037, characters 17-129:
+Sub-goal precondition of goal module3_weaver___collect_field_sites'vc.
+Prover result is: Valid (0.00s, 7391 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1038, characters 18-83:
+Sub-goal precondition of goal module3_weaver___collect_field_sites'vc.
+Prover result is: Valid (0.01s, 7382 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1035, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_field_sites'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1077, characters 8-78:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__tgts'vc.
+Prover result is: Valid (0.01s, 20795 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1077, characters 8-78:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__tgts'vc.
+Prover result is: Valid (0.01s, 7979 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1051, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__tgts'vc.
+Prover result is: Valid (0.00s, 7597 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1087, characters 13-83:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__node'vc.
+Prover result is: Valid (0.00s, 7401 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1080, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__node'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1093, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__cf'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1105, characters 14-79:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1106, characters 14-68:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.01s, 7590 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1108, characters 17-83:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.02s, 81163 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1108, characters 17-83:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.00s, 7606 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1109, characters 18-84:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.02s, 81163 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1109, characters 18-84:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.01s, 7606 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1104, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__walk'vc.
+Prover result is: Valid (0.01s, 7597 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1116, characters 89-155:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walkd'vc.
+Prover result is: Valid (0.02s, 75931 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1116, characters 89-155:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walkd'vc.
+Prover result is: Valid (0.01s, 7382 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1116, characters 24-155:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walkd'vc.
+Prover result is: Valid (0.03s, 80883 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1116, characters 24-155:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walkd'vc.
+Prover result is: Valid (0.01s, 7599 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1113, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__walkd'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1122, characters 80-146:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walkl'vc.
+Prover result is: Valid (0.03s, 74137 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1122, characters 80-146:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walkl'vc.
+Prover result is: Valid (0.01s, 7325 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1122, characters 18-146:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_index_sites__walkl'vc.
+Prover result is: Valid (0.03s, 79113 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1122, characters 18-146:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites__walkl'vc.
+Prover result is: Valid (0.01s, 7542 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1119, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites__walkl'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1127, characters 76-140:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites'vc.
+Prover result is: Valid (0.01s, 7382 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1127, characters 17-144:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites'vc.
+Prover result is: Valid (0.01s, 7391 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1128, characters 18-90:
+Sub-goal precondition of goal module3_weaver___collect_protect_index_sites'vc.
+Prover result is: Valid (0.01s, 7382 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1125, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_index_sites'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1142, characters 8-77:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__tgts'vc.
+Prover result is: Valid (0.00s, 19904 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1142, characters 8-77:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__tgts'vc.
+Prover result is: Valid (0.01s, 7596 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1135, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__tgts'vc.
+Prover result is: Valid (0.01s, 7606 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1152, characters 13-82:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__node'vc.
+Prover result is: Valid (0.01s, 7401 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1145, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__node'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1158, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__cf'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1170, characters 14-78:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1171, characters 14-62:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.01s, 7590 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1173, characters 17-82:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.03s, 81163 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1173, characters 17-82:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.01s, 7606 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1174, characters 18-83:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.02s, 81163 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1174, characters 18-83:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.00s, 7606 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1169, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__walk'vc.
+Prover result is: Valid (0.01s, 7597 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1181, characters 88-153:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walkd'vc.
+Prover result is: Valid (0.02s, 75931 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1181, characters 88-153:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walkd'vc.
+Prover result is: Valid (0.01s, 7382 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1181, characters 24-153:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walkd'vc.
+Prover result is: Valid (0.03s, 80883 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1181, characters 24-153:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walkd'vc.
+Prover result is: Valid (0.01s, 7599 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1178, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__walkd'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1187, characters 79-144:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walkl'vc.
+Prover result is: Valid (0.03s, 74137 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1187, characters 79-144:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walkl'vc.
+Prover result is: Valid (0.01s, 7325 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1187, characters 18-144:
+Sub-goal variant decrease of goal module3_weaver___collect_protect_sites__walkl'vc.
+Prover result is: Valid (0.02s, 79113 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1187, characters 18-144:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites__walkl'vc.
+Prover result is: Valid (0.00s, 7542 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1184, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites__walkl'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1192, characters 75-133:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites'vc.
+Prover result is: Valid (0.01s, 7382 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1192, characters 17-137:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites'vc.
+Prover result is: Valid (0.01s, 7391 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1193, characters 18-89:
+Sub-goal precondition of goal module3_weaver___collect_protect_sites'vc.
+Prover result is: Valid (0.01s, 7382 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1190, characters 32-36:
+Sub-goal postcondition of goal module3_weaver___collect_protect_sites'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1242, characters 15-19:
+Sub-goal postcondition of goal module3_weaver___target_dotted_path'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1242, characters 15-19:
+Sub-goal postcondition of goal module3_weaver___target_dotted_path'vc.
+Prover result is: Valid (0.01s, 7395 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1242, characters 15-19:
+Sub-goal postcondition of goal module3_weaver___target_dotted_path'vc.
+Prover result is: Valid (0.01s, 7391 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1242, characters 15-19:
+Sub-goal postcondition of goal module3_weaver___target_dotted_path'vc.
+Prover result is: Valid (0.01s, 7400 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1272, characters 15-19:
+Sub-goal postcondition of goal pycslweaver___act_guard'vc.
+Prover result is: Valid (0.01s, 7378 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1281, characters 15-42:
+Sub-goal postcondition of goal pycslweaver___const_int'vc.
+Prover result is: Valid (0.01s, 7430 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1310, characters 18-30:
+Sub-goal loop invariant init of goal pycslweaver___desugar_for'vc.
+Prover result is: Valid (0.01s, 7386 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1313, characters 20-40:
+Sub-goal index in array bounds of goal pycslweaver___desugar_for'vc.
+Prover result is: Valid (0.01s, 10475 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1311, characters 16-48:
+Sub-goal loop variant decrease of goal pycslweaver___desugar_for'vc.
+Prover result is: Valid (0.03s, 80649 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1310, characters 18-30:
+Sub-goal loop invariant preservation of goal pycslweaver___desugar_for'vc.
+Prover result is: Valid (0.03s, 80495 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1329, characters 22-39:
+Sub-goal loop invariant init of goal pycslweaver___desugar_for'vc.
+Prover result is: Valid (0.01s, 7698 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1330, characters 20-65:
+Sub-goal loop variant decrease of goal pycslweaver___desugar_for'vc.
+Prover result is: Valid (0.02s, 91127 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1329, characters 22-39:
+Sub-goal loop invariant preservation of goal pycslweaver___desugar_for'vc.
+Prover result is: Valid (0.02s, 90949 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1325, characters 18-31:
+Sub-goal loop variant decrease of goal pycslweaver___desugar_for'vc.
+Prover result is: Valid (0.02s, 78182 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1311, characters 16-48:
+Sub-goal loop variant decrease of goal pycslweaver___desugar_for'vc.
+Prover result is: Valid (0.02s, 77800 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1310, characters 18-30:
+Sub-goal loop invariant preservation of goal pycslweaver___desugar_for'vc.
+Prover result is: Valid (0.02s, 77638 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1298, characters 15-19:
+Sub-goal postcondition of goal pycslweaver___desugar_for'vc.
+Prover result is: Valid (0.01s, 7814 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1352, characters 15-19:
+Sub-goal postcondition of goal pycslweaver___init_function_csl_fields'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1387, characters 32-36:
+Sub-goal postcondition of goal pycslweaver___is_trivial_new__isdoc'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1406, characters 21-58:
+Sub-goal precondition of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.01s, 7325 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1406, characters 64-100:
+Sub-goal variant decrease of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.01s, 74178 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1406, characters 64-100:
+Sub-goal precondition of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.01s, 7325 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1406, characters 113-151:
+Sub-goal variant decrease of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.03s, 74206 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1406, characters 113-151:
+Sub-goal precondition of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.01s, 7334 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1403, characters 32-36:
+Sub-goal postcondition of goal pycslweaver___is_trivial_new__filt'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1409, characters 32-36:
+Sub-goal postcondition of goal pycslweaver___is_trivial_new__recvok'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1439, characters 20-58:
+Sub-goal precondition of goal pycslweaver___is_trivial_new'vc.
+Prover result is: Valid (0.01s, 7399 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1456, characters 69-110:
+Sub-goal precondition of goal pycslweaver___is_trivial_new'vc.
+Prover result is: Valid (0.01s, 7504 steps).
+
+File "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1434, characters 32-36:
+Sub-goal postcondition of goal pycslweaver___is_trivial_new'vc.
+Prover result is: Valid (0.01s, 7373 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 769, characters 29-33: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 769, characters 53-56: unused variable msg
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 794, characters 41-45: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 883, characters 42-46: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 938, characters 21-25: unused variable body
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 943, characters 32-36: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 943, characters 51-60: unused variable raw_lines
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 946, characters 33-37: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 946, characters 52-61: unused variable raw_lines
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 946, characters 78-79: unused variable i
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 946, characters 87-88: unused variable n
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 946, characters 96-106: unused variable blk_indent
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 946, characters 114-122: unused variable py_label
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 955, characters 21-27: unused variable source
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 960, characters 38-42: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 960, characters 61-73: unused variable contract_str
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 960, characters 84-95: unused variable line_number
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 965, characters 56-60: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 965, characters 79-89: unused variable python_ast
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 965, characters 97-110: unused variable contracts_map
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 965, characters 141-163: unused variable trailing_contracts_map
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 969, characters 55-59: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 971, characters 15-19: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 978, characters 47-51: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 978, characters 70-74: unused variable node
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 978, characters 82-91: unused variable protected
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 978, characters 116-126: unused variable except_set
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 978, characters 151-159: unused variable cur_func
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 978, characters 167-174: unused variable hp_name
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 982, characters 49-53: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 982, characters 72-76: unused variable node
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 982, characters 84-89: unused variable field
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 982, characters 100-108: unused variable cur_func
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 982, characters 116-124: unused variable cur_stmt
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 982, characters 132-135: unused variable out
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 986, characters 49-54: unused variable child
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 986, characters 64-69: unused variable field
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 987, characters 14-18: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 990, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1003, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1029, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1023, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1014, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1034, characters 44-48: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1035, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1041, characters 57-58: unused variable v
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1042, characters 14-18: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1051, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1080, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1093, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1119, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1113, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1104, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1124, characters 52-56: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1125, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1131, characters 51-54: unused variable tgt
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1132, characters 14-18: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1135, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1145, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1158, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1184, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1178, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1169, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1189, characters 46-50: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1190, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1196, characters 48-52: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1196, characters 71-75: unused variable node
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1196, characters 83-89: unused variable target
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1196, characters 100-108: unused variable cur_func
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1196, characters 116-124: unused variable cur_stmt
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1196, characters 132-135: unused variable out
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1200, characters 55-59: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1200, characters 78-88: unused variable python_ast
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1200, characters 96-109: unused variable contracts_map
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1204, characters 48-52: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1204, characters 71-81: unused variable python_ast
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1204, characters 89-100: unused variable happy_props
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1208, characters 49-53: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1208, characters 72-85: unused variable contracts_map
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1210, characters 15-19: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1212, characters 41-45: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1212, characters 64-68: unused variable stmt
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1212, characters 76-81: unused variable field
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1216, characters 40-44: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1216, characters 63-65: unused variable hp
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1216, characters 83-87: unused variable site
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1216, characters 112-116: unused variable line
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1218, characters 15-19: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1220, characters 50-54: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1222, characters 15-19: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1224, characters 41-45: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1224, characters 64-68: unused variable node
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1226, characters 15-19: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1228, characters 44-48: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1228, characters 67-70: unused variable sub
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1228, characters 84-89: unused variable field
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1232, characters 40-44: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1232, characters 63-67: unused variable node
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1232, characters 75-85: unused variable param_name
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1232, characters 96-100: unused variable repl
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1236, characters 44-48: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1236, characters 67-77: unused variable python_ast
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1236, characters 85-87: unused variable hp
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1240, characters 43-47: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1242, characters 15-19: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1262, characters 31-35: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1264, characters 15-19: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1270, characters 31-35: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1272, characters 15-19: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1275, characters 43-47: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1275, characters 63-67: unused variable node
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1275, characters 75-84: unused variable contracts
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1279, characters 31-35: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1279, characters 63-66: unused variable var
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1292, characters 34-38: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1292, characters 54-63: unused variable contracts
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1294, characters 15-19: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1306, characters 8-9: unused variable c
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1305, characters 8-14: unused variable clause
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1302, characters 8-9: unused variable m
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1301, characters 8-15: unused variable out_len
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1296, characters 33-37: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1298, characters 15-19: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1342, characters 49-53: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1342, characters 69-73: unused variable node
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1342, characters 81-90: unused variable contracts
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1346, characters 46-50: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1346, characters 66-70: unused variable node
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1346, characters 78-87: unused variable contracts
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1348, characters 15-19: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1350, characters 46-50: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1387, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1403, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1409, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1434, characters 32-36: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1474, characters 31-35: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1474, characters 51-55: unused variable node
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1474, characters 63-66: unused variable var
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1474, characters 77-78: unused variable m
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1476, characters 15-19: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1478, characters 49-53: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1478, characters 69-73: unused variable node
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1482, characters 35-39: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1482, characters 55-59: unused variable node
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1484, characters 15-19: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1486, characters 30-34: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1486, characters 50-54: unused variable node
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1488, characters 15-19: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1490, characters 38-42: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1490, characters 58-62: unused variable node
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1492, characters 15-19: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1494, characters 33-37: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1494, characters 53-57: unused variable node
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1496, characters 15-19: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1498, characters 32-36: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1498, characters 52-56: unused variable node
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1500, characters 15-19: unused variable result
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1502, characters 31-35: unused variable self
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1502, characters 51-55: unused variable node
+Warning, file "/tmp/claude-1000/-home-fabrice-git-pycsl/8f7f6044-5a3d-4979-a728-07c3eb57e115/scratchpad/spiketmp/.pycsl__w8mgyxk.mlw", line 1504, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

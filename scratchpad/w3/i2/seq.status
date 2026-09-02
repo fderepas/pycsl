@@ -1,0 +1,5 @@
+[START 00:46:03] src/self-annotate/src/module6_whyml/types.py
+[DONE  00:48:11] src/self-annotate/src/module6_whyml/types.py valid=667 total=671 success=0
+[START 00:48:11] src/self-annotate/src/Module6_WhyMLTranspiler.py
+[DONE  00:59:50] src/self-annotate/src/Module6_WhyMLTranspiler.py valid=706 total=706 success=1
+[START 00:59:50] src/self-annotate/src/pycsl.py

@@ -1,0 +1,42 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/types.py'...
+[*] Memory model: hoare
+[*] Imported from 'module6_whyml.struct_format': ['parse_format', 'parse_format'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 561, characters 20-21: unused variable s
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 561, characters 32-35: unused variable sep
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 596, characters 48-52: unused variable self
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 598, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 637, characters 10-23: unused variable py_underscore
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 628, characters 8-21: unused variable py_underscore
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 621, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 653, characters 54-58: unused variable self
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 653, characters 81-86: unused variable stmts
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 653, characters 100-104: unused variable seed
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 655, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 706, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 700, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 694, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 810, characters 63-67: unused variable self
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 811, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 938, characters 64-68: unused variable self
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 939, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 983, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 975, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 968, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 1029, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 1021, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 1014, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 1105, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 1099, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 1093, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 1114, characters 8-12: unused variable info
+Warning, file "/tmp/.pycsl_xol3x4ez.mlw", line 1110, characters 15-19: unused variable result
+File "/tmp/.pycsl_xol3x4ez.mlw", line 1155, characters 18-37:
+This expression has type PyCSL_Program.emit_ir,
+but is expected to have type int
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

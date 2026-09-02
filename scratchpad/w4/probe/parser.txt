@@ -1,0 +1,4 @@
+ABSENT               Token.__repr__  
+L3TC-FAIL            <module>.normalize_surface  ["[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))"]
+L3TC-FAIL            <module>.lex  ["[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))"]
+L3TC-FAIL            <module>.parse_type_expr  ["[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))"]

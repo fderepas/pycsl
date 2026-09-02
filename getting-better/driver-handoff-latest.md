@@ -4,6 +4,29 @@
 # the honest ladder turned out to be the FRAME plane, where a `\trusted` stub's
 # `#@ assigns` was not merely assumed but UNOBSERVABLE.**
 
+## THE LAST TWO INCREMENTS (and the one the FIDELITY plane refused)
+
+- **FAITHFUL MAP TRUTHINESS, and it revived two DEAD BRANCHES.** `_to_bool` had been
+  returning the CONSTANT `true` for an hval-map local, so `if not vinfo:` lowered to
+  `not true` = false and the guarded path was UNREACHABLE IN THE MODEL — an
+  under-approximation of the program's own behaviour, in two proved files. Python's
+  `if <dict-or-set>:` is NON-EMPTINESS and a Why3 `map k (option v)` states it EXACTLY, so
+  the fix is one `val function map_nonempty` with the DEFINITIONAL postcondition
+  `result <-> (exists k. Map.get m k <> None)` — no over-approximation and NO AXIOM
+  (ledger stays 3). `expressions.py` and `stmt_control_flow.py` both move.
+- **THE `dict`/`set` HALF OF THE `getattr` CAPABILITY WAS BUILT, MEASURED GREEN, AND THEN
+  REVERTED BY THE FIDELITY PLANE.** It works — 52/52 mirrors L3-tc, corpus byte-diff 0,
+  `computed-rhs-erasure` 5 -> 3 — but one of its three rules has to live in
+  `types._rhs_yields_map`, which is a CONVERTED mirror method, so the live change must be
+  copied into the mirror verbatim, and the copied body does NOT type-check there (the
+  mirror's refined `val_ir: "ExprIR"` signature reflects `.get("args")` to
+  `args_of : array emit_ir`, so the element index yields an `emit_ir` where an `int` is
+  wanted). DIVERGED went 2 -> 3, which is a FAILURE, not a ratchet. Reverted; the
+  reopening capability is recorded beside the gate constant: **host the recognizer where
+  the mirror can carry it — a `\trusted` helper, or a reflection-safe spelling.**
+  This is lesson (cf): **a capability's cost includes WHICH FUNCTION it has to live in.**
+  Check the host's trust status BEFORE writing the rule.
+
 ## VERIFICATION STATE AT WINDOW END
 
 Every mirror `.mlw` that MOVED this window was re-proved, `Verification SUCCESS` / 0

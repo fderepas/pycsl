@@ -1,0 +1,25 @@
+/home/fabrice.derepas@canonical.com/git/pycsl/src/pycsl/core_ir_semantic.py:1632: UserWarning: Function 'pycsltojsonemitter___collect_class_constants': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/Module5_IREmitter.py'...
+[*] Memory model: hoare
+[level] L1 ✓  L2 ✓  L3-tc ✗
+[!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success:
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1061, characters 40-44: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1061, characters 66-72: unused variable indent
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1063, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1069, characters 44-48: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1069, characters 71-74: unused variable rhs
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1071, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1073, characters 46-50: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1073, characters 73-77: unused variable node
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1075, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1077, characters 56-60: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1077, characters 83-87: unused variable node
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1079, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1081, characters 55-59: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1081, characters 82-86: unused variable node
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1083, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1085, characters 46-50: unused variable self
+Warning, file "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1087, characters 15-19: unused variable result
+File "src/self-annotate/src/frontend/Module5_IREmitter.mlw", line 1107, characters 103-114:
+unbound type symbol 'pyconst_val'

@@ -1,0 +1,31 @@
+diff --git a/src/pycsl/frontend/Module5_IREmitter.py b/src/pycsl/frontend/Module5_IREmitter.py
+index 0b0cf866..b7a8a2dd 100644
+--- a/src/pycsl/frontend/Module5_IREmitter.py
++++ b/src/pycsl/frontend/Module5_IREmitter.py
+@@ -3538,6 +3538,26 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
+             if any(td.get("kind") == "record" and td.get("name") == elt.id
+                    for td in self.program_ir.get("type_decls", [])):
+                 return elt.id
++            # OPAQUE `Some` ARM (relaunch #16). A CLASS-shaped arm with no record
++            # type_decl used to degrade to `Any` and be DROPPED — on the ground that its
++            # payload would int-erase, "exactly the kind of facade this capability exists
++            # to remove". Measured, the DROP is the worse of the two: it collapses the
++            # union to `Arm_<i>_None` ALONE, a type with exactly ONE inhabitant, so every
++            # `x is None` guard on such a value lowers to a literal `true` (lesson (bl))
++            # and the model CLAIMS the value is always absent — a positive FALSE statement
++            # (lesson (ca)). An int-erased `Some` arm claims strictly LESS: the PRESENCE is
++            # modelled faithfully and only the payload is opaque. Module6 resolves an
++            # unknown payload tag to the int default, so no Module6 change is needed and
++            # each distinct class keeps its own arm signature.
++            # Gated on a CLASS-SHAPED name (leading capital, not a typing alias) so a
++            # builtin or an alias still takes the paths above.
++            if (elt.id[:1].isupper()
++                    and elt.id not in ("Any", "Optional", "Union", "List", "Dict", "Set",
++                                       "FrozenSet", "Tuple", "Type", "Callable",
++                                       "Sequence", "Mapping", "Iterable", "Iterator",
++                                       "Literal", "Final", "ClassVar", "NoReturn",
++                                       "Text", "AnyStr", "ByteArray", "Bytes")):
++                return elt.id
+             return "Any"
+         # self-tcb-reduction giants (generic class-body lowering): an `ast.<expr-node>`
+         # arm (`Optional[ast.expr]` — the `value` local of `_collect_class_constants`)

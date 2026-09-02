@@ -1,0 +1,12 @@
+/home/fabrice.derepas@canonical.com/git/pycsl/src/pycsl/core_ir_semantic.py:1632: UserWarning: Function 'module6_whymltranspiler___sig_val_from_let': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/Module6_WhyMLTranspiler.py'...
+[*] Memory model: hoare
+[*] Imported class from 'module6_whyml.types': TypeInferenceMixin (record + 19 method stub(s) + 1 helper(s))
+[*] Imported class from 'module6_whyml.expressions': ExpressionEmissionMixin (record + 92 method stub(s) + 0 helper(s))
+[*] Imported class from 'module6_whyml.statements': StatementEmissionMixin (record + 49 method stub(s) + 0 helper(s))
+[*] Imported from 'module6_whyml.identifiers': ['whyml_ident'] (trusted stubs)
+[*] Imported from 'module6_whyml.scc': ['sort_functions_by_scc', 'sort_functions_by_scc'] (trusted stubs)
+[*] Imported from 'exception_model': ['all_phase1_exceptions', 'triggers_for', 'all_phase1_exceptions', 'all_phase1_exceptions'] (trusted stubs)
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

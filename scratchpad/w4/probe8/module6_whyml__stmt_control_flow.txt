@@ -1,0 +1,9 @@
+NO-LIVE-SOURCE       ControlFlowStmtMixin._seq_init_expr  
+NO-LIVE-SOURCE       ControlFlowStmtMixin._expr_to_whyml  
+NO-LIVE-SOURCE       ControlFlowStmtMixin._coerce_to_int  
+NO-LIVE-SOURCE       ControlFlowStmtMixin._to_bool  
+NO-LIVE-SOURCE       ControlFlowStmtMixin._stmts_to_whyml  
+L3TC-FAIL            ControlFlowStmtMixin._classify_iterable  ["This expression has type int, but is expected to have type 'mu -> option."]
+L3TC-FAIL            ControlFlowStmtMixin._callee_raised_in  ["This expression has type int, but is expected to have type 'mu -> option."]
+NO-LIVE-SOURCE       ControlFlowStmtMixin._match_pattern_cond  
+L3TC-FAIL            ControlFlowStmtMixin._render_match_pattern  ['This expression has type int, but is expected to have type string']

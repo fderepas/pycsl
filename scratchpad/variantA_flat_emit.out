@@ -1,0 +1,53 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/monomorphize.py'...
+[*] Memory model: hoare
+[*] Imported class from 'errors': PyCSLSemanticError (record + 0 method stub(s) + 2 helper(s))
+[level] L1 ✓  L2 ✓  L3-tc ✗
+[!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success:
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 306, characters 40-47: unused variable ir_data
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 306, characters 55-63: unused variable generics
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 306, characters 71-85: unused variable instantiations
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 306, characters 93-106: unused variable validated_ast
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 310, characters 30-37: unused variable ir_data
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 312, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 314, characters 31-38: unused variable ir_data
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 314, characters 46-54: unused variable generics
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 316, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 318, characters 35-39: unused variable tree
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 318, characters 47-55: unused variable generics
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 320, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 322, characters 29-36: unused variable ir_data
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 322, characters 44-52: unused variable generics
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 322, characters 60-74: unused variable instantiations
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 326, characters 30-34: unused variable node
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 326, characters 42-55: unused variable generic_names
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 328, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 330, characters 29-33: unused variable body
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 330, characters 47-60: unused variable generic_names
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 332, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 334, characters 21-33: unused variable generic_name
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 334, characters 44-57: unused variable concrete_type
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 336, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 338, characters 33-41: unused variable type_str
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 338, characters 49-62: unused variable generic_names
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 340, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 342, characters 30-37: unused variable ir_data
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 342, characters 45-53: unused variable generics
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 342, characters 61-75: unused variable instantiations
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 346, characters 31-39: unused variable type_str
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 346, characters 47-57: unused variable rename_map
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 348, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 350, characters 28-35: unused variable ir_data
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 350, characters 43-53: unused variable rename_map
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 354, characters 27-34: unused variable ir_data
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 354, characters 42-52: unused variable rename_map
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 358, characters 40-44: unused variable stmt
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 358, characters 52-62: unused variable rename_map
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 360, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 362, characters 34-38: unused variable node
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 362, characters 46-56: unused variable rename_map
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 364, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 368, characters 15-19: unused variable result
+Warning, file "src/self-annotate/src/frontend/monomorphize.mlw", line 401, characters 32-36: unused variable result
+File "src/self-annotate/src/frontend/monomorphize.mlw", line 435, characters 29-40:
+This expression has type int, but is expected to have type PyCSL_Program.
+pyval

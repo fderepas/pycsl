@@ -1,0 +1,201 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/proof2why3/crosscheck_ir.py'...
+[*] Memory model: hoare
+[*] Imported class from 'proof2why3.ir': App (record + 1 method stub(s) + 11 helper(s))
+[*] Imported class from 'proof2why3.ir': BinOp (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'proof2why3.ir': BoolLit (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'proof2why3.ir': Exists (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'proof2why3.ir': Forall (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'proof2why3.ir': IntLit (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'proof2why3.ir': UnaryOp (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'proof2why3.ir': Var (record + 0 method stub(s) + 0 helper(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 37, characters 50-70:
+Sub-goal variant decrease of goal term_eq'vc.
+Prover result is: Valid (0.01s, 26454 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 38, characters 60-75:
+Sub-goal variant decrease of goal term_eq'vc.
+Prover result is: Valid (0.01s, 26711 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 38, characters 79-94:
+Sub-goal variant decrease of goal term_eq'vc.
+Prover result is: Valid (0.01s, 26465 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 40, characters 42-60:
+Sub-goal variant decrease of goal term_eq'vc.
+Prover result is: Valid (0.01s, 26582 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 40, characters 84-99:
+Sub-goal variant decrease of goal term_eq'vc.
+Prover result is: Valid (0.01s, 26819 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 41, characters 42-60:
+Sub-goal variant decrease of goal term_eq'vc.
+Prover result is: Valid (0.01s, 26538 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 41, characters 84-99:
+Sub-goal variant decrease of goal term_eq'vc.
+Prover result is: Valid (0.01s, 26770 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 43, characters 58-73:
+Sub-goal variant decrease of goal term_eq'vc.
+Prover result is: Valid (0.01s, 26836 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 52, characters 32-45:
+Sub-goal variant decrease of goal term_list_eq'vc.
+Prover result is: Valid (0.01s, 5949 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 52, characters 49-71:
+Sub-goal variant decrease of goal term_list_eq'vc.
+Prover result is: Valid (0.01s, 5949 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 59, characters 50-70:
+Sub-goal variant decrease of goal strlist_eq'vc.
+Prover result is: Valid (0.00s, 3181 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 120, characters 47-77:
+Sub-goal variant decrease of goal flatten_arrow_chain__app'vc.
+Prover result is: Valid (0.00s, 5902 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 127, characters 13-111:
+Sub-goal variant decrease of goal flatten_arrow_chain__go'vc.
+Prover result is: Valid (0.01s, 26420 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 132, characters 32-36:
+Sub-goal postcondition of goal flatten_arrow_chain'vc.
+Prover result is: Valid (0.00s, 2017 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 143, characters 85-107:
+Sub-goal variant decrease of goal free_vars__binders'vc.
+Prover result is: Valid (0.00s, 3134 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 148, characters 22-44:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.01s, 26411 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 149, characters 68-85:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.01s, 26420 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 149, characters 68-85:
+Sub-goal precondition of goal free_vars'vc.
+Prover result is: Valid (0.00s, 2026 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 149, characters 50-67:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.01s, 26782 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 149, characters 50-67:
+Sub-goal precondition of goal free_vars'vc.
+Prover result is: Valid (0.00s, 2035 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 151, characters 55-73:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.01s, 26774 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 151, characters 55-73:
+Sub-goal precondition of goal free_vars'vc.
+Prover result is: Valid (0.00s, 2026 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 152, characters 55-73:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.01s, 26725 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 152, characters 55-73:
+Sub-goal precondition of goal free_vars'vc.
+Prover result is: Valid (0.00s, 2026 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 154, characters 25-40:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.01s, 26793 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 154, characters 25-40:
+Sub-goal precondition of goal free_vars'vc.
+Prover result is: Valid (0.00s, 2026 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 145, characters 32-36:
+Sub-goal postcondition of goal free_vars'vc.
+Prover result is: Valid (0.00s, 2017 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 160, characters 101-120:
+Sub-goal variant decrease of goal free_vars__list'vc.
+Prover result is: Valid (0.00s, 5902 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 160, characters 87-100:
+Sub-goal variant decrease of goal free_vars__list'vc.
+Prover result is: Valid (0.00s, 5940 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 160, characters 87-100:
+Sub-goal precondition of goal free_vars__list'vc.
+Prover result is: Valid (0.00s, 2035 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 164, characters 32-36:
+Sub-goal postcondition of goal ircrosscheckresult__all_agree'vc.
+Prover result is: Valid (0.01s, 2261 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 167, characters 32-36:
+Sub-goal postcondition of goal ircrosscheckresult__all_present_unsupported'vc.
+Prover result is: Valid (0.00s, 2823 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 167, characters 32-36:
+Sub-goal postcondition of goal ircrosscheckresult__all_present_unsupported'vc.
+Prover result is: Valid (0.00s, 2831 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 167, characters 32-36:
+Sub-goal postcondition of goal ircrosscheckresult__all_present_unsupported'vc.
+Prover result is: Valid (0.00s, 2412 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 170, characters 32-36:
+Sub-goal postcondition of goal ircrosscheckresult__any_unsupported'vc.
+Prover result is: Valid (0.01s, 2278 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 170, characters 32-36:
+Sub-goal postcondition of goal ircrosscheckresult__any_unsupported'vc.
+Prover result is: Valid (0.00s, 2399 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 170, characters 32-36:
+Sub-goal postcondition of goal ircrosscheckresult__any_unsupported'vc.
+Prover result is: Valid (0.00s, 2270 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 181, characters 32-36:
+Sub-goal postcondition of goal ircrosscheckresult__provers_agree'vc.
+Prover result is: Valid (0.00s, 2261 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 184, characters 32-36:
+Sub-goal postcondition of goal ircrosscheckresult__registry_skipped'vc.
+Prover result is: Valid (0.00s, 2261 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 194, characters 38-76:
+Sub-goal variant decrease of goal mk_arrow_chain__go'vc.
+Prover result is: Valid (0.01s, 5902 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 197, characters 32-36:
+Sub-goal postcondition of goal mk_arrow_chain'vc.
+Prover result is: Valid (0.00s, 2017 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 100, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 102, characters 25-29: unused variable body
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 104, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 112, characters 26-33: unused variable py_file
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 114, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 132, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 145, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 165, characters 382-383: unused variable a
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 164, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 167, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 170, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 172, characters 38-42: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 174, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 176, characters 36-40: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 178, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 181, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 184, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 186, characters 12-16: unused variable argv
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 188, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/.pycsl_3fip5p9e.mlw", line 197, characters 32-36: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

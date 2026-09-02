@@ -1,0 +1,1 @@
+[{"file": "module6_whyml/auto_trust.py", "cls": "AutoTrustMixin", "name": "_should_auto_trust_tuple_return", "tc": false}, {"file": "module6_whyml/auto_trust.py", "cls": "AutoTrustMixin", "name": "_check_witness_vals", "tc": false}, {"file": "module6_whyml/auto_trust.py", "cls": "AutoTrustMixin", "name": "_build_witness_str", "tc": false}]

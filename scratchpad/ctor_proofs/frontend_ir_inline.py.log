@@ -1,0 +1,1359 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/ir_inline.py'...
+[*] Memory model: hoare
+[*] Imported class from 'errors': PyCSLSemanticError (record + 0 method stub(s) + 2 helper(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 79, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 16714 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 80, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 16770 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 77, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.14s, 335996 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 84, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 4362 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 84, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 5069 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 83, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.02s, 16453 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 87, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 4366 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 87, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 5430 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 86, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 17688 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 94, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 5512 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 90, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.02s, 24584 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 121, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 7926 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 121, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.02s, 30059 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 117, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.65s, 701921 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 162, characters 59-73:
+Sub-goal variant decrease of goal slookup'vc.
+Prover result is: Valid (0.01s, 8084 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 173, characters 34-50:
+Sub-goal variant decrease of goal sappend'vc.
+Prover result is: Valid (0.01s, 8058 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 183, characters 68-86:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8104 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 184, characters 24-42:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8376 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 180, characters 14-85:
+Sub-goal postcondition of goal pget_dyn'vc.
+Prover result is: Valid (0.02s, 30308 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 188, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.02s, 28310 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 188, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.16s, 372464 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 188, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.15s, 332285 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 207, characters 52-73:
+Sub-goal variant decrease of goal pdict_to_sdict'vc.
+Prover result is: Valid (0.01s, 8058 steps).
+
+File "/home/fabrice.derepas@canonical.com/.opam/coq-4.14/share/why3/stdlib/set.mlw", line 538, characters 14-30:
+Sub-goal postcondition of goal eq'refn'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 244, characters 47-71:
+Sub-goal variant decrease of goal _walk_dicts__wdapp'vc.
+Prover result is: Valid (0.02s, 13045 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 249, characters 27-45:
+Sub-goal variant decrease of goal _walk_dicts'vc.
+Prover result is: Valid (0.03s, 49862 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 249, characters 27-45:
+Sub-goal precondition of goal _walk_dicts'vc.
+Prover result is: Valid (0.01s, 4710 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 250, characters 18-35:
+Sub-goal variant decrease of goal _walk_dicts'vc.
+Prover result is: Valid (0.03s, 49862 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 250, characters 18-35:
+Sub-goal precondition of goal _walk_dicts'vc.
+Prover result is: Valid (0.01s, 4710 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 246, characters 32-36:
+Sub-goal postcondition of goal _walk_dicts'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 258, characters 59-80:
+Sub-goal variant decrease of goal _walk_dicts__d'vc.
+Prover result is: Valid (0.03s, 54269 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 258, characters 59-80:
+Sub-goal precondition of goal _walk_dicts__d'vc.
+Prover result is: Valid (0.01s, 4710 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 258, characters 43-58:
+Sub-goal variant decrease of goal _walk_dicts__d'vc.
+Prover result is: Valid (0.04s, 54228 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 258, characters 43-58:
+Sub-goal precondition of goal _walk_dicts__d'vc.
+Prover result is: Valid (0.01s, 4710 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 254, characters 32-36:
+Sub-goal postcondition of goal _walk_dicts__d'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 265, characters 53-71:
+Sub-goal variant decrease of goal _walk_dicts__l'vc.
+Prover result is: Valid (0.03s, 52475 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 265, characters 53-71:
+Sub-goal precondition of goal _walk_dicts__l'vc.
+Prover result is: Valid (0.01s, 4653 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 265, characters 37-52:
+Sub-goal variant decrease of goal _walk_dicts__l'vc.
+Prover result is: Valid (0.03s, 52434 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 265, characters 37-52:
+Sub-goal precondition of goal _walk_dicts__l'vc.
+Prover result is: Valid (0.01s, 4653 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 261, characters 32-36:
+Sub-goal postcondition of goal _walk_dicts__l'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 271, characters 68-100:
+Sub-goal variant decrease of goal _assigned_locals__getk'vc.
+Prover result is: Valid (0.01s, 13300 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 272, characters 24-56:
+Sub-goal variant decrease of goal _assigned_locals__getk'vc.
+Prover result is: Valid (0.02s, 13572 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 280, characters 18-42:
+Sub-goal variant decrease of goal _assigned_locals__f'vc.
+Prover result is: Valid (0.03s, 52475 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 280, characters 18-42:
+Sub-goal precondition of goal _assigned_locals__f'vc.
+Prover result is: Valid (0.01s, 4653 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 275, characters 32-36:
+Sub-goal postcondition of goal _assigned_locals__f'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 296, characters 24-42:
+Sub-goal precondition of goal _assigned_locals'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 296, characters 4-42:
+Sub-goal precondition of goal _assigned_locals'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal _assigned_locals'vc.
+Prover result is: Valid (0.01s, 4710 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 301, characters 68-102:
+Sub-goal variant decrease of goal _check_no_aliasing__getk'vc.
+Prover result is: Valid (0.02s, 13300 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 302, characters 24-58:
+Sub-goal variant decrease of goal _check_no_aliasing__getk'vc.
+Prover result is: Valid (0.01s, 13572 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 307, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.01s, 4649 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 322, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.03s, 52691 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 322, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 307, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 322, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.03s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 322, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 307, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 322, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.02s, 52663 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 322, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 307, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 322, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.02s, 52691 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 322, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 307, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 322, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.02s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 322, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 307, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 322, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.03s, 52663 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 322, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 307, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 322, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.03s, 49010 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 322, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.01s, 4722 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 307, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__a'vc.
+Prover result is: Valid (0.01s, 4722 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4649 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 350, characters 40-76:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 52691 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53266 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.04s, 52691 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 52719 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4675 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4675 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53266 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.04s, 52691 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 350, characters 40-76:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53813 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4795 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4795 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 53266 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53813 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4795 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4795 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 350, characters 40-76:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 52663 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 52663 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 52691 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 52663 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 350, characters 40-76:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 52691 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53266 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 52691 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 52719 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4675 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4675 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 53266 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 52691 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 350, characters 40-76:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.04s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.04s, 53813 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4795 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4795 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.04s, 53266 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53813 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4795 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4795 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.05s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 350, characters 40-76:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 52663 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 52663 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 52691 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.04s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.04s, 52663 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 350, characters 40-76:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.04s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53813 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4795 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4795 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53266 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53813 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4795 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4795 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 350, characters 40-76:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 52663 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 52663 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.04s, 52691 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.04s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 52663 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 350, characters 40-76:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 52691 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53266 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 52691 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 52719 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4675 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4675 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53266 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 52691 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 350, characters 40-76:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.04s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.04s, 53813 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4795 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4795 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53266 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4735 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53813 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4795 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4795 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 350, characters 40-76:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 52663 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.04s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.04s, 52663 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 52691 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4666 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.03s, 53238 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.05s, 52663 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal variant decrease of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.04s, 49010 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 355, characters 8-46:
+Sub-goal precondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.01s, 4722 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 326, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__f'vc.
+Prover result is: Valid (0.02s, 4722 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 359, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__ff'vc.
+Prover result is: Valid (0.02s, 4649 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 366, characters 58-73:
+Sub-goal precondition of goal _check_no_aliasing__ff'vc.
+Prover result is: Valid (0.02s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 366, characters 36-85:
+Sub-goal precondition of goal _check_no_aliasing__ff'vc.
+Prover result is: Valid (0.02s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 369, characters 8-47:
+Sub-goal variant decrease of goal _check_no_aliasing__ff'vc.
+Prover result is: Valid (0.03s, 52663 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 369, characters 8-47:
+Sub-goal precondition of goal _check_no_aliasing__ff'vc.
+Prover result is: Valid (0.02s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 359, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__ff'vc.
+Prover result is: Valid (0.02s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 369, characters 8-47:
+Sub-goal variant decrease of goal _check_no_aliasing__ff'vc.
+Prover result is: Valid (0.04s, 52663 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 369, characters 8-47:
+Sub-goal precondition of goal _check_no_aliasing__ff'vc.
+Prover result is: Valid (0.02s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 359, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__ff'vc.
+Prover result is: Valid (0.01s, 4657 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 369, characters 8-47:
+Sub-goal variant decrease of goal _check_no_aliasing__ff'vc.
+Prover result is: Valid (0.05s, 49010 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 369, characters 8-47:
+Sub-goal precondition of goal _check_no_aliasing__ff'vc.
+Prover result is: Valid (0.01s, 4722 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 359, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing__ff'vc.
+Prover result is: Valid (0.01s, 4722 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 374, characters 4-44:
+Sub-goal precondition of goal _check_no_aliasing'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 373, characters 32-36:
+Sub-goal postcondition of goal _check_no_aliasing'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 377, characters 15-19:
+Sub-goal postcondition of goal _method_key'vc.
+Prover result is: Valid (0.02s, 4879 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 386, characters 24-53:
+Sub-goal variant decrease of goal _global_call_target__gk1'vc.
+Prover result is: Valid (0.02s, 13600 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 386, characters 24-53:
+Sub-goal variant decrease of goal _global_call_target__gk1'vc.
+Prover result is: Valid (0.01s, 13452 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 393, characters 24-53:
+Sub-goal variant decrease of goal _global_call_target__gk2'vc.
+Prover result is: Valid (0.02s, 13600 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 393, characters 24-53:
+Sub-goal variant decrease of goal _global_call_target__gk2'vc.
+Prover result is: Valid (0.02s, 13452 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 410, characters 30-63:
+Sub-goal precondition of goal _global_call_target'vc.
+Prover result is: Valid (0.02s, 5140 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 399, characters 32-36:
+Sub-goal postcondition of goal _global_call_target'vc.
+Prover result is: Valid (0.02s, 4719 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 443, characters 24-49:
+Sub-goal variant decrease of goal _method_edges__gtype'vc.
+Prover result is: Valid (0.02s, 13600 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 443, characters 24-49:
+Sub-goal variant decrease of goal _method_edges__gtype'vc.
+Prover result is: Valid (0.03s, 13452 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 450, characters 24-49:
+Sub-goal variant decrease of goal _method_edges__gfunc'vc.
+Prover result is: Valid (0.02s, 13600 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 450, characters 24-49:
+Sub-goal variant decrease of goal _method_edges__gfunc'vc.
+Prover result is: Valid (0.02s, 13452 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 457, characters 24-49:
+Sub-goal variant decrease of goal _method_edges__gbody'vc.
+Prover result is: Valid (0.03s, 13584 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 470, characters 18-74:
+Sub-goal variant decrease of goal _method_edges__f'vc.
+Prover result is: Valid (0.04s, 55124 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 470, characters 18-74:
+Sub-goal precondition of goal _method_edges__f'vc.
+Prover result is: Valid (0.01s, 4678 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 479, characters 31-87:
+Sub-goal precondition of goal _method_edges__f'vc.
+Prover result is: Valid (0.02s, 4717 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 482, characters 34-118:
+Sub-goal precondition of goal _method_edges__f'vc.
+Prover result is: Valid (0.02s, 5105 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 465, characters 32-36:
+Sub-goal postcondition of goal _method_edges__f'vc.
+Prover result is: Valid (0.02s, 4726 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 498, characters 47-62:
+Sub-goal precondition of goal _method_edges'vc.
+Prover result is: Valid (0.01s, 4710 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 498, characters 30-97:
+Sub-goal precondition of goal _method_edges'vc.
+Prover result is: Valid (0.02s, 4710 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 495, characters 32-36:
+Sub-goal postcondition of goal _method_edges'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 514, characters 68-99:
+Sub-goal variant decrease of goal _touches_global__getk'vc.
+Prover result is: Valid (0.02s, 13300 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 515, characters 24-55:
+Sub-goal variant decrease of goal _touches_global__getk'vc.
+Prover result is: Valid (0.02s, 13572 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 545, characters 30-65:
+Sub-goal variant decrease of goal _touches_global__f'vc.
+Prover result is: Valid (0.05s, 56687 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 545, characters 30-65:
+Sub-goal precondition of goal _touches_global__f'vc.
+Prover result is: Valid (0.01s, 5283 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 519, characters 32-36:
+Sub-goal postcondition of goal _touches_global__f'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 549, characters 23-40:
+Sub-goal precondition of goal _touches_global'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 549, characters 4-52:
+Sub-goal precondition of goal _touches_global'vc.
+Prover result is: Valid (0.01s, 4701 steps).
+
+File "/tmp/.pycsl_w3yrvrgu.mlw", line 548, characters 32-36:
+Sub-goal postcondition of goal _touches_global'vc.
+Prover result is: Valid (0.02s, 4701 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 261, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 254, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 246, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 275, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 295, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 377, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 399, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 418, characters 21-26: unused variable funcs
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 418, characters 40-51: unused variable globals_set
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 418, characters 59-66: unused variable g_class
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 418, characters 74-87: unused variable rewrite_funcs
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 422, characters 25-29: unused variable self
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 422, characters 42-48: unused variable callee
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 422, characters 59-63: unused variable recv
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 422, characters 74-78: unused variable args
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 422, characters 92-102: unused variable result_var
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 424, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 426, characters 24-28: unused variable self
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 426, characters 41-45: unused variable base
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 428, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 430, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 430, characters 55-59: unused variable node
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 430, characters 67-70: unused variable pre
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 432, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 434, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 434, characters 47-52: unused variable stmts
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 436, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 465, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 495, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 502, characters 26-31: unused variable funcs
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 502, characters 45-56: unused variable globals_set
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 502, characters 64-71: unused variable g_class
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 504, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 506, characters 19-23: unused variable node
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 506, characters 31-40: unused variable self_name
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 506, characters 51-60: unused variable param_map
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 506, characters 68-74: unused variable rename
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 508, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 519, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 548, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_w3yrvrgu.mlw", line 550, characters 28-35: unused variable ir_data
+
+[+] Verification SUCCESS! All contracts formally proven.
+EXIT=0 frontend/ir_inline.py

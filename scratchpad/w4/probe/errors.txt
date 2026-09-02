@@ -1,0 +1,2 @@
+ERASURE              PyCSLError.message  ['0-ary opaque call (INPUT-BLIND)']
+L3TC-FAIL            PyCSLError.as_dict  ['This expression has type string, but is expected to have type int']

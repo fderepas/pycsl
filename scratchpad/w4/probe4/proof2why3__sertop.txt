@@ -1,0 +1,9 @@
+ABSENT               SertopSession.__enter__  
+ABSENT               SertopSession.__exit__  
+L3TC-FAIL            SertopSession.type_of_batch  ['This expression has type ref int @rho, it cannot be applied']
+L3TC-FAIL            <module>.sertop_version  ['This expression has type array.Array.array string @rho, but is expected to have type int']
+ERASURE              <module>._sexp_tokens  ['while without a variant (termination will fail)']
+L3TC-FAIL            <module>._sexp_parse  ['This expression has type string, but is expected to have type int']
+L3TC-FAIL            <module>.parse_sexp  ['This expression has type int, but is expected to have type array.Array.array']
+L3TC-FAIL            <module>.run_sertop_batch  ['  _check_union_gt1(ir)']
+L3TC-FAIL            <module>.extract_via_sertop  ['  _check_union_gt1(ir)']
