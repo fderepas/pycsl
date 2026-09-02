@@ -484,7 +484,6 @@ def _index_proofs_dir_by_file(proofs_dir: Path, prover: str) -> dict:
 # ---------------------------------------------------------------------------
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -492,7 +491,6 @@ def _default_rocq_dir(py_file: Path) -> Path:
     return py_file.parent / f"{py_file.stem}.proofs" / "rocq"
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

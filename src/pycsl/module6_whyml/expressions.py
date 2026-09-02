@@ -2815,6 +2815,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     # converted mirror body, so this recognizer is byte-inert by construction (verified).
     _RE_STR_FUNCS = {"re.sub": 3, "_re.sub": 3, "re.escape": 1, "_re.escape": 1}
 
+    # #31 PATH MODEL: the `pathlib.Path` attributes that are themselves paths (i.e.
+    # STRINGS in this model). A Python `str` has NO `.parent` / `.stem` / `.suffix`
+    # attribute at all, so an attribute read of one of these names on a STRING-TYPED
+    # receiver can only be a `Path` in a well-typed program — the same fail-closed
+    # argument that licenses the `/` path-join rule. `.name` is included on the same
+    # ground (a `str` has no `.name` either); a non-path object that happens to carry
+    # `.name` is not string-typed here, so it never reaches this rule.
+    _PATH_STR_ATTRS = {"parent": "path_parent_op", "stem": "path_stem_op",
+                       "name": "path_name_op", "suffix": "path_suffix_op"}
+
     _STR_VALUE_METHODS = ("replace", "lower", "upper", "strip", "lstrip", "rstrip")
 
     def _is_str_value_method(self, expr):
@@ -3830,6 +3840,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         """True if an IR expression is string-typed: a literal, a string-producing op, or a
         `str`-typed variable. (strings-plan Stage 2 — used to route `+` to `concat`.)"""
         t = ir.get("type")
+        # #31 PATH MODEL: `<path>.parent` / `.stem` / `.name` / `.suffix` is itself a
+        # path, hence a string; and so is `<path> / <path-or-name>`. Both are gated on
+        # STRING-TYPED operands (see `_PATH_STR_ATTRS` for why that is fail-closed:
+        # a Python `str` carries none of these attributes and `str / str` is a
+        # TypeError, so only a `pathlib.Path` can reach either rule). Recognising the
+        # RESULT is what makes a CHAIN work — `p.parent / f"{p.stem}.proofs" / "lean"`
+        # is a `/` whose LEFT operand is itself a `/`.
+        if t in ("Attribute", "FieldGet"):
+            _pa = ir.get("attr") or ir.get("field")
+            _pb = ir.get("object")
+            if not isinstance(_pb, dict):
+                _pb = ir.get("value")
+            if (_pa in self._PATH_STR_ATTRS and isinstance(_pb, dict)
+                    and self._is_string_expr(_pb)):
+                return True
+        if (t == "BinOp" and ir.get("op") == "/"
+                and isinstance(ir.get("left"), dict) and isinstance(ir.get("right"), dict)
+                and self._is_string_expr(ir["left"]) and self._is_string_expr(ir["right"])):
+            return True
         # PYTHON-AST NODE CTOR FAMILY (relaunch #8): a 0-FIELD ASDL SINGLETON construction
         # is a STRING expression — `_N("NotIn")()` lowers to `"NotIn"`, its class-name (the
         # increment-10 rule), and so does the const-dict form `_N(_CMP[<k>])()`. Without
@@ -4222,7 +4251,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     and (getattr(self, "_current_self_type", None)
                          in getattr(self, "_mutable_state_classes", set())
                          or self._emitting_compute_return_type()
-                         or self._emitting_build_param_list()))
+                         or self._emitting_build_param_list()
+                         # (#31) THE TYPING HALF OF RELAUNCH #30's CAPABILITY 11. The
+                         # f-string LOWERING already treats a function DECLARED `-> str`
+                         # as the string model (`_func_return_type == "string"`, see
+                         # `_handle_fstring_expr`), but `_is_string_expr` did not, so the
+                         # emitted `str_concat_op ...` was correctly a `string` while every
+                         # CONSUMER of it still classified the f-string as int. Measured
+                         # blocker on `audit_proof._default_lean_dir`'s
+                         # `p.parent / f"{p.stem}.proofs" / "lean"`, where the `/`
+                         # path-join rule saw a non-string right operand and fell back to
+                         # WL-02 float division. Same gate, same value model, both halves.
+                         or getattr(self, "_func_return_type", None) == "string"))
         # todict-reflection-plan.md: a record's `str`-typed FIELD read (`n.kind` on a
         # record-typed param/local, or `self.f`/`global.f`) is string-typed — so
         # `n.kind == "Var"` routes to `str_eq_op`, not the int-hash mismatch. self/
@@ -4947,6 +4987,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not self._in_spec and op in ("=", "<>"):
             left = self._coerce_str_arg(left)
             right = self._coerce_str_arg(right)
+        # #31 PATH JOIN. In Python `str / str` is a TypeError, so the ONLY way a `/`
+        # can carry two string-typed operands in this model is `pathlib.Path.__truediv__`
+        # — path composition, which the Path model (Module5 `_m5_path_ann_tag`) renders in
+        # its string form. Before this it fell through to the WL-02 true-division rule and
+        # emitted `float_truediv_op (a b: int) : real`, which is a wrong lowering AND an
+        # immediate type error at every use. NO length or prefix law is claimed: an
+        # ABSOLUTE right operand discards the left entirely (`Path("a") / "/b" == "/b"`),
+        # so `length result >= length a` would be unsound. `val function` (deterministic)
+        # is exactly what `os.path.join` guarantees.
+        if raw_op == "/" and self._is_string_expr(expr.get("left") or {}) \
+                and self._is_string_expr(expr.get("right") or {}):
+            self._add_abstract_op("val function path_join_op (a b: string) : string")
+            return f"(path_join_op {left} {right})"
         if op == "div":
             if raw_op == "/":
                 # WL-02: Python `/` is TRUE division — it ALWAYS returns a float
@@ -12200,6 +12253,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _fp = self._union_local_field_projection(obj_ir["name"], attr)
             if _fp is not None:
                 return _fp
+        # #31 PATH MODEL: a path-valued `pathlib` attribute on a STRING-TYPED receiver
+        # is a faithful `string`-returning op, not the opaque int-hash `get_<attr>`
+        # (which is both ill-typed against a `string` consumer and value-blind). NO
+        # length law is claimed: `Path("").parent` is `"."`, which is LONGER than its
+        # input, so even `length result <= length s` is unsound. `val function` —
+        # deterministic, which is exactly what the pure `pathlib` accessors are.
+        if (attr in self._PATH_STR_ATTRS and isinstance(obj_ir, dict)
+                and self._is_string_expr(obj_ir)):
+            _pop = self._PATH_STR_ATTRS[attr]
+            self._add_abstract_op(f"val function {_pop} (s: string) : string")
+            _pobj = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
+            return f"({_pop} {_pobj})"
         obj_str = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
         # cleared-array.md S2: in a SPEC/logic context (a contract or a
         # projection-comprehension content law), the abstract getter must be a

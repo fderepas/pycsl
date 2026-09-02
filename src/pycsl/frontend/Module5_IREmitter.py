@@ -4183,6 +4183,36 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             stage="ir-emit", code="PYCSL-TY3-CALLABLE-SCOPE",
         )
 
+    # The `pathlib` classes whose values ARE paths. `Path`/`PurePath` and the
+    # concrete flavours; a same-named USER class would also be modelled as a string,
+    # which is why the recognizer is a closed list of the pathlib names rather than
+    # "any name ending in Path".
+    _M5_PATH_TYPE_NAMES = frozenset({
+        "Path", "PurePath", "PosixPath", "WindowsPath",
+        "PurePosixPath", "PureWindowsPath",
+    })
+
+    def _m5_path_ann_tag(self, annotation) -> Optional[str]:
+        """`"str"` if `annotation` denotes a `pathlib` path type — bare (`Path`),
+        dotted (`pathlib.Path`), quoted (`"Path"`), or `Optional[Path]` — else None.
+        `Optional[Path]` collapses to the same `str` tag because the model has no
+        separate null path; a `None` path is already indistinguishable from an
+        unconstrained string here, and that is strictly what was true before."""
+        a = annotation
+        if isinstance(a, ast.Constant) and isinstance(a.value, str):
+            return "str" if a.value in self._M5_PATH_TYPE_NAMES else None
+        if isinstance(a, ast.Name):
+            return "str" if a.id in self._M5_PATH_TYPE_NAMES else None
+        if isinstance(a, ast.Attribute):
+            return "str" if a.attr in self._M5_PATH_TYPE_NAMES else None
+        if isinstance(a, ast.Subscript) and isinstance(a.value, ast.Name) \
+                and a.value.id == "Optional":
+            inner = a.slice
+            if type(inner).__name__ == "Index":
+                inner = inner.value
+            return self._m5_path_ann_tag(inner)
+        return None
+
     def _m5_get_type_name(self, annotation: ast.expr,
                           scope_name: str = "",
                           param_name: str = "",
@@ -4216,6 +4246,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # legacy path (byte-identical) on any non-PyCSLIRError exception.
         if self._irnode_ann_name(annotation) is not None:
             return "ExprIR"              # typed-ir-for-b-ceiling.md B-C2 (param)
+        # #31 PATH MODEL: a `pathlib.Path` IS its string form in the value model
+        # (`str(p)` is total and the only observable the emitter ever needs), so a
+        # `Path`-annotated parameter / local / return resolves to the SAME `"str"` tag
+        # as a `str` one and inherits every existing string mechanism for free —
+        # `string` parameter type, `_is_string_expr` on a read, the `-> str` return
+        # disjunct, `str_concat_op` on `+`. Before this, `Path` fell through to the
+        # unrecognised-name `int` default, and the emitter then lowered `p / "name"`
+        # (path composition) through the WL-02 TRUE-DIVISION rule as
+        # `float_truediv_op (a b: int) : real` — a WRONG LOWERING that also made every
+        # `Path`-taking body an L3-tc failure. `pathlib` is ABSENT from the reference
+        # corpus, so this is byte-inert there (verified, not assumed).
+        _pth = self._m5_path_ann_tag(annotation)
+        if _pth is not None:
+            return _pth
         # wrong-lowering.md §WL-03: a recognized fixed-length `Tuple[T1, ..., Tn]`
         # param resolves to its synthesized per-slot record (registered by
         # `_synthesize_tuple_records`), so `_param_type_str` emits the record
@@ -5003,6 +5047,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return_annotation = None
         return_value_type = None
         is_noreturn = False
+        # #31 PATH MODEL: a `-> Path` / `-> pathlib.Path` / `-> "Path"` return carries the
+        # SAME `"str"` tag as `-> str` (a path IS its string form — see
+        # `_m5_path_ann_tag`), so the existing `-> str` disjunct in
+        # `_compute_return_type` announces `string` instead of the unrecognised-name `int`
+        # default. Restricted to the UNPARAMETRIC forms: a `Optional[Path]` return goes
+        # through `_normalize_union_annotation`, which REGISTERS a variant `type_decl` as a
+        # side effect, and silently retagging it here would leave that declaration dangling.
+        if (node.returns is not None
+                and not isinstance(node.returns, (ast.Subscript, ast.BinOp))
+                and self._m5_path_ann_tag(node.returns) is not None):
+            node_returns_is_path = True
+        else:
+            node_returns_is_path = False
         if node.returns:
             if isinstance(node.returns, ast.Name):
                 if node.returns.id == "NoReturn":
@@ -5208,7 +5265,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                if (_vararg_str
                    and getattr(self, "_cur_func_vararg_elem", "string") != "string")
                else {}),
-            "return_annotation": return_annotation,
+            "return_annotation": ("str" if node_returns_is_path else return_annotation),
             "return_value_type": return_value_type,
             # typing-engagement ty1 / 28-0000-typing-spec-4: `-> NoReturn` (PEP
             # 484) sets the IR flag consumed by Module 6 (`ensures { false }`,
