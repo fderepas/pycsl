@@ -134,6 +134,7 @@ class ControlFlowStmtMixin:
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _expr_to_whyml(self, expr: "ExprIR", local_refs: Set[str]) -> str:
         return ""
 
@@ -162,7 +163,7 @@ class ControlFlowStmtMixin:
 
     #@ requires True
     #@ ensures True
-    #@ assigns self._in_spec
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_while_stmt(self, stmt: WhileStmt, rest: List[Dict[str, Any]],
                             local_refs: Set[str], declared_refs: Set[str],
                             indent: str, in_loop: bool) -> str:
@@ -251,7 +252,7 @@ class ControlFlowStmtMixin:
     #@ ensures True
     # Frame completed: `self._classify_iterable(...)` (above) writes `_for_idx_init`, which
     # this body reads back as `idx_init`; the callee's effect propagates into this frame.
-    #@ assigns self._in_spec, self._for_idx_init
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._for_idx_init, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_for_stmt(self, stmt: ForStmt, rest: List[Dict[str, Any]],
                           local_refs: Set[str], declared_refs: Set[str],
                           indent: str, in_loop: bool) -> str:
@@ -733,7 +734,7 @@ class ControlFlowStmtMixin:
     #@ ensures True
     # Inherited from `_stmts_to_whyml`, whose frame this audit corrected: the callee writes
     # `self._in_spec`, so this caller's `\nothing` was false too.
-    #@ assigns self._in_spec
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_if_stmt(self, stmt: IfStmt, rest: List[Dict[str, Any]],
                         local_refs: Set[str], declared_refs: Set[str],
                         indent: str, in_loop: bool) -> str:
@@ -855,7 +856,7 @@ class ControlFlowStmtMixin:
     #@ ensures True
     # Inherited from `_stmts_to_whyml` (see its frame note) — the callee writes
     # `self._in_spec`, so this caller's `\nothing` was false too.
-    #@ assigns self._current_params, self._current_self_type, self._func_return_type, self._in_spec
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_match_stmt(self, stmt: MatchStmt, rest: List[Dict[str, Any]],
                            local_refs: Set[str], declared_refs: Set[str],
                            indent: str, in_loop: bool) -> str:
@@ -1144,7 +1145,7 @@ class ControlFlowStmtMixin:
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_return_stmt(
         self,
         stmt: ReturnStmt,

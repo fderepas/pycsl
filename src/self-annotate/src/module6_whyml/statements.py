@@ -341,6 +341,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _expr_to_whyml(self, expr: "ExprIR", local_refs: Set[str], invariant_ctx: bool = False,
                        subst: int = None) -> str:
         return ""
@@ -669,7 +670,6 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             val = f"(if {val} then 1 else 0)"
         return f"{indent}let {safe_target} = ref {val} in\n"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
@@ -722,7 +722,6 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return expr
         return self._seq_operand(val_ir, local_refs)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
@@ -731,10 +730,31 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         seq local, else `snapshot(b)` to bridge an array-modelled value into seq."""
         if val_ir.get("type") == "Var" and val_ir.get("name") in self._seq_locals:
             return f"(!{whyml_ident(val_ir['name'])})"
-        self._add_abstract_op(
-            "val snapshot (a: array int) : seq int\n"
-            "    ensures { Seq.length result = Array.length a }\n"
-            "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }")
+        # seq-model-pivot.md SQ3: a SLICE of a seq local (`body_stmts[:-1]`) already lowers to
+        # a `seq` value (`seq_sub`) — pass it through, no `snapshot` (which expects an array).
+        if (val_ir.get("type") in ("Subscript", "SliceAccess")
+                and isinstance(val_ir.get("value"), dict)
+                and val_ir["value"].get("type") == "Var"
+                and val_ir["value"].get("name") in self._seq_locals):
+            return self._expr_to_whyml(val_ir, local_refs)
+        # item34.md CF5: a value that ALREADY lowers to `seq string` — `find_*`/`collect_*`/
+        # `<str>.split(…)` (snapshot-at-source), `sorted(<seq>)`, a `[a]+[comp]` concat, or the
+        # `<split> if … else [x]` ternary of such — is passed through WITHOUT re-`snapshot`.
+        if getattr(self, "_mutable_state_classes", None) and self._seq_value_producing(val_ir):
+            return self._expr_to_whyml(val_ir, local_refs)
+        # seq-model-pivot.md SQ2: POLYMORPHIC `snapshot` in a @mutable_state module (bridges a
+        # `List[StmtIR]`/`List[str]` field → `seq emit_ir`/`seq string`); the corpus's
+        # `array int → seq int` snapshot is byte-identical (no @mutable_state).
+        if getattr(self, "_mutable_state_classes", None):
+            self._add_abstract_op(
+                "val snapshot (a: array 'a) : seq 'a\n"
+                "    ensures { Seq.length result = Array.length a }\n"
+                "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }")
+        else:
+            self._add_abstract_op(
+                "val snapshot (a: array int) : seq int\n"
+                "    ensures { Seq.length result = Array.length a }\n"
+                "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }")
         return f"(snapshot {self._expr_to_whyml(val_ir, local_refs)})"
 
     # Body-faithful (bucket 1): single call to trusted `_add_abstract_op` (frame
@@ -816,7 +836,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ requires True
     #@ ensures True
-    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
+    #@ assigns self._abstract_ops, self._array_locals, self._comp_content_counter, self._current_params, self._current_self_type, self._decode_to_string, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._record_locals, self._slice_set_tmp_counter, self._string_local_vars, self._todict_aliases, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_ghost_array_set_stmt(self, stmt: GhostArraySetStmt, rest: List[Dict[str, Any]],
                                       local_refs: Set[str], declared_refs: Set[str],
                                       indent: str, in_loop: bool) -> str:
@@ -843,7 +863,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ requires True
     #@ ensures True
-    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
+    #@ assigns self._abstract_ops, self._array_locals, self._comp_content_counter, self._current_params, self._current_self_type, self._decode_to_string, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._record_locals, self._slice_set_tmp_counter, self._string_local_vars, self._todict_aliases, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_array_slice_set_stmt(self, stmt: ArraySliceSetStmt, rest: List[Dict[str, Any]],
                                       local_refs: Set[str], declared_refs: Set[str],
                                       indent: str, in_loop: bool) -> str:
@@ -904,7 +924,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ requires True
     #@ ensures True
-    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
+    #@ assigns self._abstract_ops, self._array_locals, self._comp_content_counter, self._current_params, self._current_self_type, self._decode_to_string, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._record_locals, self._slice_set_tmp_counter, self._string_local_vars, self._todict_aliases, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_critical_section_stmt(self, stmt: CriticalSectionStmt, rest: List[Dict[str, Any]],
                                        local_refs: Set[str], declared_refs: Set[str],
                                        indent: str, in_loop: bool) -> str:
@@ -1007,7 +1027,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ requires True
     #@ ensures True
-    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
+    #@ assigns self._abstract_ops, self._array_locals, self._comp_content_counter, self._current_params, self._current_self_type, self._decode_to_string, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._record_locals, self._slice_set_tmp_counter, self._string_local_vars, self._todict_aliases, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_fieldassign_stmt(
         self,
         stmt: FieldAssignStmt,
@@ -1124,7 +1144,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ requires True
     #@ ensures True
-    #@ assigns self._abstract_ops, self._array_locals, self._decode_to_string, self._dict_locals, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._record_locals, self._slice_set_tmp_counter, self._todict_aliases
+    #@ assigns self._abstract_ops, self._array_locals, self._comp_content_counter, self._current_params, self._current_self_type, self._decode_to_string, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_spec, self._lambda_locals, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._record_locals, self._slice_set_tmp_counter, self._string_local_vars, self._todict_aliases, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_fieldaugassign_stmt(
         self,
         stmt: FieldAugAssignStmt,
