@@ -4,6 +4,33 @@
 # the honest ladder turned out to be the FRAME plane, where a `\trusted` stub's
 # `#@ assigns` was not merely assumed but UNOBSERVABLE.**
 
+## VERIFICATION STATE AT WINDOW END
+
+Every mirror `.mlw` that MOVED this window was re-proved, `Verification SUCCESS` / 0
+non-Valid. Confirmed at the time of writing:
+
+| mirror | goals | verdict |
+|---|---|---|
+| `module6_whyml/statements.py` (getattr-scalar) | 922 | SUCCESS |
+| `module6_whyml/expressions.py` (getattr-scalar) | 1069 | SUCCESS |
+| `frontend/ConcurrencyChecker.py` | 5 | SUCCESS |
+| `module6_whyml/expr_ghost_spec_ops.py` (×2 — honest frames, then the drift repair) | 123 | SUCCESS |
+| `module6_whyml/scc.py` | 50 | SUCCESS |
+| `module6_whyml/auto_trust.py` | 280 | SUCCESS |
+| `module6_whyml/functions.py` | 1199 | SUCCESS |
+| `module6_whyml/stmt_control_flow.py` (honest frames) | 1874+ | SUCCESS |
+| `frontend/ir_resolve.py` | — | SUCCESS |
+| `Module6_WhyMLTranspiler.py` | — | SUCCESS |
+
+STILL IN FLIGHT when this section was written, all detached under `setsid` and all on the
+FINAL tree content: `frontend/pure_ast.py` (3097 goals reached), `module6_whyml/statements.py`
+(drift repair), `module6_whyml/expressions.py` (drift repair + map truthiness),
+`module6_whyml/stmt_control_flow.py` (map truthiness — the one to watch, a previously-dead
+branch is now reachable), `frontend/Module5_IREmitter.py`, `pycsl.py`.
+Logs: `scratchpad/w5/proofs/*.log`, exit codes in the matching `*.rc`.
+**IF ANY OF THOSE FAILED, the increment to revert is named in its commit message; every
+commit this window states exactly which mirrors it moves.**
+
 ## WHAT LANDED AFTER THE FIRST DRAFT OF THIS SECTION (same window, later)
 
 | plane | at first draft | at window end |
