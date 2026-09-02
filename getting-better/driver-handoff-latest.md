@@ -113,6 +113,34 @@ THE FULL BATTERY, driver-verified fresh at window end, `why3` ON PATH:
   than read off the declaration.** That single rule closes the last model-visible offender
   and is the natural successor to everything this window built.
 
+## THE PLANE THAT WENT TO ZERO
+
+**`check-trusted-frame-honesty` is at 0, from 82 at window start.** Every `\trusted` stub
+in the mirror now declares a frame that is TRUE of its live body. A `\trusted` stub's
+`assigns` is ASSUMED and never checked, so a false one is an unsoundness no proof plane can
+see — that is the plane's whole reason to exist, and it is now at its floor. `82 -> 28 ->
+19 -> 0`, and the converted population came with it: `133 -> 99`, model-visible `4 -> 1`.
+
+Together with `mirror-signature-drift` `16 -> 0`, TWO WHOLE PLANES CLOSED this window.
+
+The last step needed one more emitter rule, and its absence is exactly what had stalled the
+`pure_ast.py` pass after three fixpoint iterations: **a CONCRETE callee's `_pyobj_state`
+effect reaches its caller too.** `_obj_state_written` was set when a body registered a
+`setattr_*` op or minted an avatar with the coarse cell, but a caller can inherit the effect
+from an already-emitted concrete sibling (`let <callee> … writes { _pyobj_state }`) and that
+route set no flag — so the caller emitted `writes { }` and Why3 rejected it with no
+source-level knob to fix it. `_emit_function` now RECORDS every symbol it emits with the
+cell in its frame and re-arms the flag when the emitted body applies one. Precise in both
+directions, which matters: the cruder "always emit the coarse cell when the filtered set is
+empty" rule was tried first and REFUSED, because Why3 then says *"variable `_pyobj_state`
+does not occur in this expression"* for every method that really writes nothing.
+
+**HONEST CAVEAT, written beside the constant: the closure can still UNDER-approximate (the
+#31 `_walk_body` blind spot), so 0 means "nothing KNOWN false", not "every declaration
+proven true".** Sharpening the closure again — as #31 did when it found `self.xs.append(v)`
+— is the way to test that, and it should be expected to push the number back up. That would
+be a better instrument, not a regression.
+
 ## THE HEADLINE, STATED PLAINLY
 **There are no free conversions left.** The repaired whole-tree probe, re-run twice at
 HEAD, reports **1 CLEAN out of 446** — and that one is `_ContractParser._err`, which #31
