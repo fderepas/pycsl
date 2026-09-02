@@ -282,7 +282,22 @@ def _probe_emit(name, cls, orig, new, sig_note):
             # ranked blocker census the ladder navigates by. Rebuild the wrapped paragraph by
             # walking back to the diagnosis opener (bounded, and never past the `File "..."`
             # locator why3 prints ahead of every message).
-            _idx = [i for i, l in enumerate(_ls) if re.search(_DIAG_RE, l)]
+            # HARNESS FIX (#32): the PIPELINE'S OWN PROGRESS LINES must never be read as a
+            # why3 diagnosis. `proof2why3/ir.py` declares a class literally named
+            # `Unsupported`, so the emitter prints
+            #     [*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method …)
+            # which matches `_DIAG_RE`'s `Unsupported` alternative and sits ABOVE every
+            # real message — so the FIRST match was that line for every candidate in a file
+            # importing that module. MEASURED BLAST RADIUS on the 2026-09-02 whole-tree
+            # census: 25 of 378 L3TC-FAIL verdicts — the ENTIRE `proof2why3` subtree
+            # (canonical.py 11, crosscheck_ir.py 6, from_sexp.py 3, parser.py 3,
+            # from_lean_json.py 2) — recorded that progress line INSTEAD of their real
+            # blocker, which for `canonical._camel_to_snake` is
+            # `This expression has type string, but is expected to have type int`. The
+            # ranked blocker census the ladder navigates by was blind to that whole subtree.
+            _PIPE = ("[*]", "[+]", "[!]", "[level]", "[-]")
+            _idx = [i for i, l in enumerate(_ls)
+                    if re.search(_DIAG_RE, l) and not l.lstrip().startswith(_PIPE)]
             if _idx:
                 i = _idx[0]
                 j = i
