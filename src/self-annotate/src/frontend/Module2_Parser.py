@@ -906,6 +906,7 @@ class _ContractParser:
     # postcondition across this sibling call.
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def expect_op(self, val: str) -> _Tok:
         if not self.at_op(val):
             self._err(f"expected {val!r}")
@@ -920,6 +921,7 @@ class _ContractParser:
     # exactly as the expression-chain RHS helpers (`_parse_impl_rhs`, …) do.
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def expect_name(self, val: str = None) -> str:
         if not self.at_name() or (val is not None and not self.at_name(val)):
             self._err(f"expected name {val!r}" if val else "expected name")
@@ -928,11 +930,13 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def expect_bs(self, val: str) -> str:
         if not self.at_bs(val):
             self._err(f"expected {val!r}")
         return self.advance().string
 
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -992,6 +996,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_loop(self) -> "ExprIR":
         self.expect_name("loop")
         if self.at_name("invariant"):
@@ -1003,6 +1008,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_class_invariant(self) -> "ExprIR":
         self.expect_name("class")
         self.expect_name("invariant")
@@ -1011,6 +1017,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_function_variant(self) -> "ExprIR":
         self.expect_bs("\\variant")
         if self.at_op("("):
@@ -1039,6 +1046,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_ghost(self) -> "ExprIR":
         self.expect_name("ghost")
         name = self.expect_name()
@@ -1061,6 +1069,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_raises(self) -> "ExprIR":
         self.expect_name("raises")
         exc = self.expect_name()
@@ -1084,6 +1093,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_proof(self) -> "ExprIR":
         self.expect_name("proof")
         prover = self.expect_name()  # PROVER_ID: rocq | lean
@@ -1093,6 +1103,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_qualname(self) -> str:
         name = self.expect_name()
         #@ loop invariant self.i >= \old(self.i)
@@ -1106,6 +1117,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_interface(self) -> "ExprIR":
         self.expect_name("interface")
         if self.at_name("ensures"):
@@ -1138,6 +1150,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_assigns_region(self) -> "ExprIR":
         name = self.expect_name()
         self.expect_op("[")
@@ -1157,6 +1170,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_for_block(self) -> ForExpand:
         self.expect_name("for")
         var = self.expect_name()
@@ -1187,6 +1201,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_act_names(self) -> List[str]:
         names = [self.expect_name()]
         #@ loop invariant self.i >= \old(self.i)
@@ -1207,6 +1222,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_happy_region(self, name: str) -> HappyProperty:
         self.expect_name("region")
         lo = self._parse_expr()
@@ -1237,6 +1253,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_opt_except(self) -> List[str]:
         if self.at_name("except"):
             self.advance()
@@ -1246,6 +1263,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_dotted_path(self) -> str:
         path = self.expect_name()
         #@ loop invariant self.i >= \old(self.i)
@@ -1259,6 +1277,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_dotted_path_list(self) -> List[str]:
         paths = [self._parse_dotted_path()]
         #@ loop invariant self.i >= \old(self.i)
@@ -1272,6 +1291,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_footprint(self) -> "ExprIR":
         self.expect_name("footprint")
         happy_name = self.expect_name()
@@ -1311,6 +1331,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_shared_state(self) -> "ExprIR":
         self.expect_name("shared_state")
         name = self.expect_name()
@@ -1321,6 +1342,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_touches_field(self) -> "ExprIR":
         self.expect_name("touches_field")
         name = self.expect_name()
@@ -1331,6 +1353,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_depends_method(self, kind: str) -> "ExprIR":
         self.advance()  # depends_method / requires_method
         method = self.expect_name()
@@ -1341,6 +1364,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_compose_from(self) -> "ExprIR":
         self.expect_name("compose_from")
         names = [self.expect_name()]
@@ -1355,6 +1379,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_conforms_to(self) -> "ExprIR":
         self.expect_name("conforms_to")
         names = [self.expect_name()]
@@ -1383,6 +1408,7 @@ class _ContractParser:
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
     #@ \variant \length(self.toks) - self.i
+    #@ raises ContractSyntaxError when True
     def _parse_mixin_type(self) -> str:
         name = self.expect_name()
         if self.at_op("["):
@@ -1401,6 +1427,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_mixin_param(self) -> str:
         name = self.expect_name()
         if self.accept_op(":"):
@@ -1410,6 +1437,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_mixin_params(self) -> str:
         params = [self._parse_mixin_param()]
         #@ loop invariant self.i >= \old(self.i)
@@ -1423,6 +1451,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_mixin_method_sig(self) -> str:
         self.expect_op("(")
         params = None
@@ -1438,6 +1467,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_shared(self) -> "ExprIR":
         self.expect_name("shared")
         name = self.expect_name()
@@ -1461,6 +1491,7 @@ class _ContractParser:
     # with the signature-preserving probe it emits a real
     # `let ... : string` building `str_concat_op !name "[" (_csl_to_str !index) "]"` —
     # the mismatch was the probe discarding this stub's own `-> str`, not the model.
+    #@ raises ContractSyntaxError when True
     def _parse_mutex_expr_str(self) -> str:
         name = self.expect_name()
         if self.at_op("["):
@@ -1473,6 +1504,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures True
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_mutex_invariant(self) -> "ExprIR":
         self.expect_name("mutex_invariant")
         mutex = self._parse_mutex_expr_str()
@@ -1482,6 +1514,7 @@ class _ContractParser:
     #@ requires True
     #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
+    #@ raises ContractSyntaxError when True
     def _parse_lock_order(self) -> "ExprIR":
         self.expect_name("lock_order")
         names = [self._parse_mutex_expr_str()]

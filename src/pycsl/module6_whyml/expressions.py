@@ -6184,7 +6184,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                      or ret_type in {_ri["whyml_name"]
                                      for _ri in getattr(self, "_record_types", {}).values()})):
             if _concrete in getattr(self, "_module_func_names", set()):
-                return f"({_concrete} {' '.join(['self'] + coerced)})".rstrip()
+                _cc = f"({_concrete} {' '.join(['self'] + coerced)})".rstrip()
+                # (#31) THE CONCRETE ROUTE MUST CARRY THE DIVERGENCE TOO. A `-> NoReturn`
+                # callee never returns, and the ABSTRACT route below wraps its call as
+                # `(let _ = <call> in absurd)` so the continuation is bottom-typed. This
+                # route returned the bare application, so a `#@ sibling_concrete`
+                # `-> NoReturn` sibling type-checked as `unit` inside an `if … then <call>
+                # else 0` and failed with `This expression has type int, but is expected to
+                # have type ()`. Measured on `_ContractParser._err` the moment it was given
+                # `#@ sibling_concrete` to un-shadow its seven call sites — the two features
+                # had simply never met. Same gate, same set, same wrapper as below.
+                if (func_name.startswith("self.") and self._current_self_type is not None
+                        and _concrete in getattr(self, "_module_method_noreturn", set())):
+                    return f"(let _ = {_cc} in absurd)"
+                return _cc
         # A2c: a self-FIELD-referencing callee ensure (`\result == self.x`) is
         # bound by giving the abstract op a leading receiver parameter
         # `(self: <class>)` and passing the receiver record, so `self.x` in the
