@@ -50,10 +50,13 @@ content:
 
 `module6_whyml/stmt_control_flow.py` is the one that mattered most: it proved WITH the
 previously-dead branch made reachable by faithful map truthiness.
-`pycsl.py` was still running when this was written (its only change is the
-`ir_resolve.resolve` signature repair); logs and exit codes are in `scratchpad/w5/proofs/`,
-and `scratchpad/w5/proofs/superseded/` holds three runs that were KILLED (rc 137/15)
-because a later increment superseded their content — those are not failures.
+| `pycsl.py` | 735 | SUCCESS |
+
+FIFTEEN runs, rc=0 and `Verification SUCCESS` on every one; **NO PROVER PROCESS LEFT
+RUNNING.** Logs and exit codes are in `scratchpad/w5/proofs/`, and
+`scratchpad/w5/proofs/superseded/` holds three runs that were KILLED (rc 137/15) because a
+later increment superseded their content — those are not failures, and one of them
+(`module6_whyml_statements_2.log`) had already reported SUCCESS before the kill.
 
 THE FULL BATTERY, driver-verified fresh at window end, `why3` ON PATH:
   · markers **447**, stable over 3 samples · grep 472 · offset 25 · unattached 0
