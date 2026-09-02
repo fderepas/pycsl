@@ -52,12 +52,11 @@ content:
 previously-dead branch made reachable by faithful map truthiness.
 | `pycsl.py` | 735 | SUCCESS |
 
-| `frontend/pure_ast.py` (again, honest frames) | 3097 | queued |
-| `module6_whyml/functions.py` (again, honest frames) | 1199 | queued |
+| `frontend/pure_ast.py` (again, the zero-frame pass) | 3103 | SUCCESS |
+| `module6_whyml/functions.py` (again, the zero-frame pass) | 1199 | SUCCESS |
 
-FIFTEEN runs completed rc=0 with `Verification SUCCESS` on every one. The final honest-frame
-pass (trusted-frame-honesty 19 -> 0) moves `pure_ast.py` and `functions.py` once more and
-those two re-proofs were the last thing running. Logs and exit codes are in `scratchpad/w5/proofs/`, and
+**SEVENTEEN whole-file runs, rc=0 and `Verification SUCCESS` on every single one, and NO
+PROVER PROCESS LEFT RUNNING.** Nothing this window is banked on an unproved tree. Logs and exit codes are in `scratchpad/w5/proofs/`, and
 `scratchpad/w5/proofs/superseded/` holds three runs that were KILLED (rc 137/15) because a
 later increment superseded their content — those are not failures, and one of them
 (`module6_whyml_statements_2.log`) had already reported SUCCESS before the kill.
