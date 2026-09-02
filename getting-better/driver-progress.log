@@ -774,3 +774,4 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 20:43 #33: NEW GATE PLANE check-avatar-frame-parity — #32's avatar rule is intra-file only; 0 same-file / 11 inherited frameless avatars measured
 20:49 #33: both cheap cross-file avatar-frame routes REFUTED and recorded (route 2 forces over-claiming); residue ratcheted at 11
 20:52 #33: IR-conformance CI gate was RED at window start (0 OK/38) — drift purely additive, goldens refreshed, both corpora GREEN
+21:02 #33: poly getattr READER lands — save/restore restores the saved value not 0; computed-rhs-erasure 3 -> 2
