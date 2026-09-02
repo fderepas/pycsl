@@ -7251,6 +7251,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     self._abstract_ops.update(_ops_snap_rcv)
             n = len(coerced_args)
             arity_fn = f"{safe_fn}_{n}"
+            # DYNAMIC `setattr` (relaunch #30). `setattr(o, <literal>, v)` is recognised by
+            # `_handle_fieldassign_stmt`, which mints `val setattr_3 (x: int) (f: int)
+            # (v: int) : unit` and gets `writes { _pyobj_state }` attached by
+            # `_add_abstract_op`. `setattr(o, <computed name>, v)` — `copy_location`'s
+            # `setattr(new_node, attr, value)` with `attr` a loop variable — reaches THIS
+            # generic arm instead, which mints a SECOND `setattr_3`, `(x0 x1 x2) : int`.
+            # Both land in the emitted module under the SAME Why3 symbol and Why3 rejects
+            # the file: "Symbol setattr_3 is already defined in the current scope". (They
+            # coexist at all only because `_add_abstract_op`'s arity heuristic
+            # `decl.count("(x")` miscounts the first as arity ONE and files it apart — a
+            # separate defect, diagnosed in the #30 handoff and NOT fixed here.)
+            # Emit the RECOGNISED op instead: same symbol, same signature, same effect.
+            # The dynamic case is precisely what that op models — a coarse object-state
+            # write with the field name int-hashed — so this makes the two producers agree
+            # by construction rather than papering over the clash.
+            if func_name == "setattr" and n == 3:
+                self._add_abstract_op("val setattr_3 (x: int) (f: int) (v: int) : unit")
+                _f = coerced_args[1].strip()
+                if not _f.lstrip("-").isdigit():
+                    _f = f"(str_hash_op {coerced_args[1]})"
+                return f"(setattr_3 {coerced_args[0]} {_f} {coerced_args[2]})"
             if n == 0:
                 self._add_abstract_op(f"val {arity_fn} () : int")
             else:
@@ -8188,6 +8209,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if func_name == "hasattr":
             a0 = args[0] if args else "0"
             a1 = self._coerce_str_arg(args[1] if len(args) > 1 else "0")
+            # A COMPUTED attribute NAME (relaunch #30). `_coerce_str_arg` folds a string
+            # LITERAL to its `stable_hash` constant and hands anything else through RAW, so
+            # `hasattr(new_node, attr)` with `attr` a loop variable put a Why3 `string` into
+            # `val hasattr_check (x: int) (a: int)` — an L3-tc rejection, and the last
+            # blocker on `copy_location`. Hash it into the same int domain the literal fold
+            # uses. Byte-inert by construction: a raw string here does not typecheck.
+            # `val str_hash_op` is recovered by `abstract_ops._insert_abstract_val_block`,
+            # never registered from here (lesson (be)).
+            _a1s = a1.strip()
+            if ((len(_a1s) >= 2 and _a1s.startswith('"') and _a1s.endswith('"'))
+                    or any(_a1s.startswith(_s) for _s in self._STRING_VALUED_OPS)
+                    or _a1s.lstrip("!").isidentifier()):
+                if not _a1s.lstrip("-").isdigit():
+                    a1 = f"(str_hash_op {a1})"
             self_type = self._current_self_type
             if a0 == "self" and self_type:
                 op = f"hasattr_check_{self_type}"

@@ -4021,21 +4021,27 @@ def literal_eval(node_or_string):
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def iter_fields(node):
+def iter_fields(node) -> int:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def iter_child_nodes(node):
-    pass
+    """Yield all direct child nodes of *node*."""
+    for _name, field in iter_fields(node):
+        if isinstance(field, AST):
+            yield field
+        elif isinstance(field, list):
+            for item in field:
+                if isinstance(item, AST):
+                    yield item
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def walk(node):
+def walk(node) -> int:
     pass
 
 #@ requires True
@@ -4057,12 +4063,20 @@ def get_docstring(node, clean=True):
         text = inspect.cleandoc(text)
     return text
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns new_node
 def copy_location(new_node, old_node):
-    pass
+    """Copy source location attributes from *old_node* to *new_node*."""
+    for attr in ('lineno', 'col_offset', 'end_lineno', 'end_col_offset'):
+        if attr in old_node._attributes and attr in new_node._attributes \
+                and hasattr(old_node, attr):
+            value = getattr(old_node, attr)
+            if value is not None or (
+                hasattr(new_node, attr) and getattr(new_node, attr) is None
+            ):
+                setattr(new_node, attr, value)
+    return new_node
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
