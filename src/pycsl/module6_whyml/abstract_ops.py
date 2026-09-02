@@ -74,8 +74,8 @@ class AbstractOpsMixin:
             # Different arity → store under name_N key
             # Count params in existing and new
             existing = self._abstract_ops[name]
-            existing_params = existing.count("(x")
-            new_params = decl.count("(x")
+            existing_params = self._decl_arity(existing)
+            new_params = self._decl_arity(decl)
             if new_params != existing_params:
                 # Store under arity-suffixed key
                 arity_key = f"{name}_{new_params}"
@@ -84,6 +84,28 @@ class AbstractOpsMixin:
                 # Same arity but different declaration — keep longer
                 if len(decl) > len(existing):
                     self._abstract_ops[name] = decl
+
+    @staticmethod
+    def _decl_arity(decl: str) -> int:
+        """Number of PARAMETERS a `val` declaration binds.
+
+        (relaunch #30) This was `decl.count("(x")` — a count of parameter groups whose
+        first binder happens to be NAMED `x`. Right for the emitter's own synthesized
+        `(x0: int) (x1: int) …` ops, WRONG for every hand-written one: it reads
+        `val setattr_3 (x: int) (f: int) (v: int) : unit` as arity ONE and
+        `val setattr_3 (x0: int) (x1: int) (x2: int) : int` as arity THREE, files the
+        second under the key `setattr_3_3`, and EMITS BOTH under the same Why3 name —
+        "Symbol setattr_3 is already defined in the current scope". That exact pair was
+        the blocker on `pure_ast.copy_location`; increment 3 removed it at the source (the
+        two producers now agree), and this makes the disambiguator itself correct so the
+        next same-name collision is resolved by real arity.
+
+        Counts binder NAMES inside each `(names… : type)` group, so `(lo len: int)` is 2.
+        MEASURED byte-inert: corpus 814/814 and all 52 mirror `.mlw` md5s unchanged.
+        """
+        head = decl.split("\n", 1)[0]
+        return sum(len(g.split()) for g in re.findall(
+            r"\(\s*([A-Za-z_][A-Za-z_0-9]*(?:\s+[A-Za-z_][A-Za-z_0-9]*)*)\s*:", head))
 
     def _find_abstract_val_insert_idx(self, out: List[str]) -> int:
         """Pick the insertion point for the abstract-val block. Abstract
