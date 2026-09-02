@@ -5569,3 +5569,85 @@ Affects `pure_ast._new`, `Ellipsis.__new__`, `Constant.__init__`.
 makes 40 of 56 `write` call sites real Why3 string literals but leaves 16 unbridgeable int-sourced
 sites; `seq int` is uniform and annotation-free. **Both are now supported by the same machinery**,
 so the choice is per-function. Nobody has exploited that yet.
+
+---
+
+## RELAUNCH #31 (2026-09-02) — TWO NEW GATE PLANES, FIVE CAPABILITIES, AND AN INSTRUMENT
+## DEFECT THAT HAD BEEN MIS-MEASURING 40% OF THE TREE
+
+### THE MEASUREMENT DEFECT — read this before trusting ANY pre-#31 census
+`bin/probe-conversion-candidates.py` ported the LIVE `def` line together with the live body,
+overwriting the mirror stub's signature. **188 of the 466 `\trusted` stubs with a live
+counterpart — 40% — carry a REFINED model annotation the live source does not have**
+(`val_ir: "ExprIR"` vs live `Dict[str, Any]`; `-> "List[ExprIR]"` vs no return annotation at
+all; `rec: Dict[str, PyVal]` vs `dict`). Those annotations are what SELECT the emit_ir
+reflection, the record projection, the pyval carrier and the typed return, and a real
+conversion KEEPS them. The probe was therefore measuring the un-annotated, int-erased twin of
+each stub — systematically HARDER than the thing a conversion produces.
+Whole-tree re-census after the repair: **CLEAN 2 -> 8**.
+**Any "REFUTED" or "CERTIFIED BOUNDARY" record whose evidence is a pre-#31 probe verdict is
+UNRELIABLE and must be re-measured.** Two were overturned immediately: `Module2_Parser`
+(#30: "25 stubs / 25 L3TC-FAIL / 0 CLEAN") and `_parse_mutex_expr_str` (an explicit
+*CERTIFIED BOUNDARY, parser-tokenstream-impl.md GAP #2* comment in the mirror).
+
+### NEW LIVE ITEM — repair the 16 MIRROR SIGNATURE DRIFTS
+`bin/check-mirror-signature-drift.py` (new plane, ratchet 16). A `\trusted` stub has no body
+for the fidelity scripts to compare, and its INTERFACE is its entire content: every mirror
+caller is typed against it and every `#@` clause is asserted of it.
+- **10 stubs are MISSING a live parameter.** `_handle_dotted_call` declares
+  `(self, func_name, args)` while the live signature has been `(self, func_name, args,
+  arg_irs)` since relaunch #29 added `arg_irs`; `ir_resolve.resolve` is missing
+  `import_paths`; `_m5_get_type_name` / `_normalize_union_annotation` are missing `dedup`;
+  `_emit_first_assign` is missing `local_refs`; also `_handle_join_call`,
+  `_handle_isinstance`, `_call_record_constructor`, `scc.sort_functions_by_scc`,
+  `auto_trust._build_witness_str`. **The trusted interface is for a function that no longer
+  exists.** This is a FIDELITY item, not a marker item.
+- **6 are pure RENAMES** (`expr` where the live binder is `node`): `_handle_binop`,
+  `_handle_call_expr`, `_handle_subscript`, `_handle_attribute_expr`, `_handle_proj_expr`,
+  `_handle_ctor_payload_expr`. MEASURED in a worktree spike: renaming all six makes them
+  measurable and **none becomes CLEAN**, so the rename buys measurement, not markers.
+- PRICE: each repair changes that mirror's emitted `val` and costs a whole-file re-proof.
+
+### NEW LIVE ITEM — the HETEROGENEOUS `Dict[str, Any]` PARAMETER (the top-ranked family)
+On the repaired census the record/carrier family reads `int` vs **`PyCSL_Program.pyval`** —
+an int where the heterogeneous carrier belongs — and ~13 emitter-mixin stubs' FIRST blocker
+is `match Map.get <ir> "type" ... None -> 0` compared with `str_eq_op`.
+**CENSUS-FIRST FINDING (lesson (p)): the device already EXISTS and is used exactly twice.**
+`ValIRBoolView(TypedDict)` in `module6_whyml/statements.py` + `types.py` is a CLOSED-KEY view
+of a `Dict[str, Any]` parameter that monomorphizes to a native WhyML record, so
+`val_ir.get("type")` becomes a real field read and the literal comparisons route through
+`str_eq_op`. It is declared in the MIRROR while the live signature stays `Dict[str, Any]` —
+the same class of model refinement as the 188 signature refinements above, and precedented.
+UNTRIED AT SCALE. Each view is per-method (a body that reads a key outside the view breaks),
+so this is a per-stub build, not one global retype — which is also why it does NOT hit the
+attempt-#1 `Set[str]` caller-coupling cascade.
+
+### NEW GATE PLANE — `bin/check-yield-erasure.py` (and the facade it caught)
+Module 6 has no generator model: `yield <v>` lowers to `let _ = 0 in ()`. `iter_child_nodes`
+was CONVERTED AND PROVED by relaunch #30 with both of its yields dropped, and **every
+existing plane was green** — L3-tc (a `unit` body is well typed), `check-untrusted-emitted`
+(it IS a definition), `check-emitted-vacuity` (the body still reads `node`, and that probe is
+a documented LOWER BOUND), shadowed-selfcalls, both fidelity scripts, the byte-diff.
+RE-TRUSTED (451 -> 452 — the count going UP was the right outcome).
+Ratchets: 0 value-erasing (HARD), 2 suspension-dropping (`_Unparser.block` / `delimit`, whose
+VALUELESS `@contextmanager` yield drops the suspension rather than a value; lowering that
+needs a context-manager model). `ir_inline._walk_dicts` is the one genuinely modelled
+generator — the emitter has a real recognizer that emits `list pyval`.
+
+### RECORD — a possible blind spot in `check-trusted-frame-honesty`
+`ConcurrencyChecker._walk_body` converted with `#@ assigns \nothing`. Live it reaches
+`_walk_stmt -> _warn_if_unprotected -> self.warnings.append(...)`. The gate's transitive
+closure follows DECLARED frames and `_walk_stmt`'s trusted stub declares `\nothing`, so the
+write is invisible; `_warn_if_unprotected` is not among the gate's 63 either. Two readings:
+stopping at a declared frame is BY DESIGN (the falseness is counted at the stub that declares
+it), or `<list-field>.append` is not recognised as a self-write. **Determine which before
+trusting the 63.**
+
+### CAPABILITIES LANDED (all fail-closed, all corpus byte-diff 0)
+`re.sub`/`re.escape` string ops · the `pathlib.Path` value model (Path IS its string form;
+`/` -> `path_join_op`; `.parent`/`.stem`/`.name`/`.suffix`) which also fixed a WRONG LOWERING
+(path composition was emitting `float_truediv_op : real`) · the TYPING half of #30's
+capability 11 · EVERY-RHS-STRING-TYPED local as a FIXPOINT · STRING SUBSCRIPT `s[i]` ->
+`str_sub_op s i 1` · the `os.path` model split by DETERMINISM (pure `val function` vs
+cwd/`$HOME`-reading plain `val` vs filesystem predicates) with a `splitext(p)[k]` slot
+recognizer.
