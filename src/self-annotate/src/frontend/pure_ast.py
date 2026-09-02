@@ -50,7 +50,7 @@ def _const_value_getter(self):
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns self.value
 def _const_value_setter(self, value):
     pass
 
@@ -160,7 +160,7 @@ class Comment:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.col_offset, self.indent, self.lineno, self.own_line, self.text
     def __init__(self, lineno, col_offset, text, own_line, indent):
         pass
 
@@ -208,7 +208,7 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._lines, self.filename, self.i, self.source
+    #@ assigns self._lines, self.filename, self.i, self.pos, self.source, self.toks
     def __init__(self, toks, filename='<unknown>', source=''):
         self.toks: List[_Tok] = toks
         self.i: int = 0
@@ -4006,7 +4006,7 @@ def _decode_escapes(body, is_bytes):
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns self.i
 def parse(source, filename='<unknown>', mode='exec', *, type_comments=False, feature_version=None):
     pass
 
@@ -4193,14 +4193,14 @@ class NodeVisitor:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def generic_visit(self, node):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit_Constant(self, node):
         pass
 
@@ -4255,7 +4255,7 @@ class _Unparser(NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._avoid_backslashes, self._in_try_star, self._indent, self._precedences, self._source, self._type_ignores
     def __init__(self, *, _avoid_backslashes=False):
         pass
 
@@ -4269,7 +4269,7 @@ class _Unparser(NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def items_view(self, traverser, items):
         pass
 
@@ -4299,7 +4299,7 @@ class _Unparser(NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     @_contextmanager
     def buffered(self, buffer=None):
         pass
@@ -4328,7 +4328,7 @@ class _Unparser(NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def delimit_if(self, start, end, condition) -> int:
         pass
 
@@ -4347,7 +4347,7 @@ class _Unparser(NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences
     def set_precedence(self, precedence, *nodes):
         pass
 
@@ -4394,7 +4394,7 @@ class _Unparser(NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def _write_docstring_and_traverse_body(self, node):
         pass
 
@@ -4420,7 +4420,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_Expr(self, node):
         self.fill()
         self.set_precedence(_Precedence.YIELD, node.value)
@@ -4428,7 +4428,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_NamedExpr(self, node):
         with self.require_parens(_Precedence.NAMED_EXPR, node):
             self.set_precedence(_Precedence.ATOM, node.target, node.value)
@@ -4456,7 +4456,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_Assign(self, node):
         self.fill()
         for target in node.targets:
@@ -4552,7 +4552,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_Await(self, node):
         with self.require_parens(_Precedence.AWAIT, node):
             self.write("await")
@@ -4563,7 +4563,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_Yield(self, node):
         with self.require_parens(_Precedence.YIELD, node):
             self.write("yield")
@@ -4574,7 +4574,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_YieldFrom(self, node):
         with self.require_parens(_Precedence.YIELD, node):
             self.write("yield from ")
@@ -4682,13 +4682,13 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._indent, self._source
     def visit_FunctionDef(self, node):
         self._function_helper(node, "def")
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._indent, self._source
     def visit_AsyncFunctionDef(self, node):
         self._function_helper(node, "async def")
 
@@ -4754,20 +4754,20 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._indent, self._precedences, self._source
     def visit_For(self, node):
         self._for_helper("for ", node)
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._indent, self._precedences, self._source
     def visit_AsyncFor(self, node):
         self._for_helper("async for ", node)
 
     #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._indent, self._precedences, self._source
     def _for_helper(self, fill, node):
         self.fill(fill)
         self.set_precedence(_Precedence.TUPLE, node.target)
@@ -4784,7 +4784,7 @@ class _Unparser(NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._indent, self._source
     def visit_If(self, node):
         pass
 
@@ -4848,7 +4848,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit_Constant(self, node):
         value = node.value
         if isinstance(value, tuple):
@@ -4908,7 +4908,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_comprehension(self, node):
         if node.is_async:
             self.write(" async for ")
@@ -4925,7 +4925,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_IfExp(self, node):
         with self.require_parens(_Precedence.TEST, node):
             self.set_precedence(_Precedence.TEST.next(), node.body, node.test)
@@ -4951,13 +4951,13 @@ class _Unparser(NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_Dict(self, node):
         pass
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit_Tuple(self, node):
         with self.delimit_if(
             "(",
@@ -4970,7 +4970,7 @@ class _Unparser(NodeVisitor):
     unop_precedence = {'not': _Precedence.NOT, '~': _Precedence.FACTOR, '+': _Precedence.FACTOR, '-': _Precedence.FACTOR}
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_UnaryOp(self, node):
         operator = self.unop[node.op.__class__.__name__]
         operator_precedence = self.unop_precedence[operator]
@@ -4988,7 +4988,7 @@ class _Unparser(NodeVisitor):
     binop_rassoc = frozenset(('**',))
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_BinOp(self, node):
         operator = self.binop[node.op.__class__.__name__]
         operator_precedence = self.binop_precedence[operator]
@@ -5009,7 +5009,7 @@ class _Unparser(NodeVisitor):
     cmpops = {'Eq': '==', 'NotEq': '!=', 'Lt': '<', 'LtE': '<=', 'Gt': '>', 'GtE': '>=', 'Is': 'is', 'IsNot': 'is not', 'In': 'in', 'NotIn': 'not in'}
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_Compare(self, node):
         with self.require_parens(_Precedence.CMP, node):
             self.set_precedence(_Precedence.CMP.next(), node.left, *node.comparators)
@@ -5023,13 +5023,13 @@ class _Unparser(NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_BoolOp(self, node):
         pass
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_Attribute(self, node):
         self.set_precedence(_Precedence.ATOM, node.value)
         self.traverse(node.value)
@@ -5043,7 +5043,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_Call(self, node):
         self.set_precedence(_Precedence.ATOM, node.func)
         self.traverse(node.func)
@@ -5064,7 +5064,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_Subscript(self, node):
         def is_non_empty_tuple(slice_value):
             return isinstance(slice_value, Tuple) and slice_value.elts
@@ -5080,7 +5080,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_Starred(self, node):
         self.write("*")
         self.set_precedence(_Precedence.EXPR, node.value)
@@ -5123,7 +5123,7 @@ class _Unparser(NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit_arguments(self, node):
         pass
 
@@ -5140,7 +5140,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_Lambda(self, node):
         with self.require_parens(_Precedence.TEST, node):
             self.write("lambda")
@@ -5235,7 +5235,7 @@ class _Unparser(NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit_JoinedStr(self, node):
         pass
 
@@ -5243,7 +5243,7 @@ class _Unparser(NodeVisitor):
     #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def _write_fstring_inner(self, node):
         pass
 
@@ -5333,27 +5333,27 @@ class _Unparser(NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit_MatchStar(self, node):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit_MatchMapping(self, node):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_MatchClass(self, node):
         pass
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_MatchAs(self, node):
         name = node.name
         pattern = node.pattern
@@ -5369,7 +5369,7 @@ class _Unparser(NodeVisitor):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._precedences, self._source
     def visit_MatchOr(self, node):
         with self.require_parens(_Precedence.BOR, node):
             self.set_precedence(_Precedence.BOR.next(), *node.patterns)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from module6_whyml.identifiers import whyml_ident, safe_exc_name, whyml_string_literal
@@ -5895,6 +5896,26 @@ class FunctionEmissionMixin:
         # are still unrelated. That is exactly the `val function` projector purity the
         # `_desugar_for` build was DECLINED for, and it is NOT reintroduced here.
         # BYTE-INERT OUTSIDE THE MIRROR: measured, 0 of 814 corpus files emit a `setattr_*`.
+        # (#32) A CONCRETE CALLEE'S `_pyobj_state` EFFECT REACHES ITS CALLER TOO.
+        # `_obj_state_written` is set when THIS body registers a `setattr_*` op or mints an
+        # avatar carrying the coarse cell. But a caller can inherit the effect from a
+        # CONCRETE sibling — an already-emitted `let <callee> … writes { _pyobj_state }` —
+        # and that route sets no flag, so the caller emitted `writes { }` and Why3 rejected
+        # it ("this expression depends on variable _pyobj_state, which is left out").
+        # MEASURED: that is what stalled the `pure_ast.py` honest-frame fixpoint after
+        # three iterations — `_Unparser.visit_AsyncFor` reaches the cell only through
+        # `self.fill(...)`. Record every symbol emitted WITH the cell in its frame (SCC
+        # ordering puts callees first) and re-arm the flag when the emitted body applies
+        # one. Precise in both directions: no symbol applied -> no claim, so a method that
+        # really writes nothing is NOT over-claimed (Why3's "does not occur in this
+        # expression" was the failure mode of the cruder rule that was measured and
+        # refused).
+        if not getattr(self, "_obj_state_written", False) and not emit_as_val:
+            _pw = getattr(self, "_pyobj_state_writers", None) or set()
+            if _pw:
+                _btxt = "\n".join(lines[_objstate_eq_idx:])
+                if any(re.search(r"\b%s\b" % re.escape(_w), _btxt) for _w in _pw):
+                    self._obj_state_written = True
         if getattr(self, "_obj_state_written", False) and not emit_as_val:
             _asg = (func.get("contracts", {}) or {}).get("assigns", []) or []
             _named = any(isinstance(a, dict) and a.get("type") != "Nothing" for a in _asg)
@@ -5911,6 +5932,10 @@ class FunctionEmissionMixin:
                 lines.insert(_objstate_eq_idx, "    writes { _pyobj_state }")
             else:
                 lines.insert(_objstate_eq_idx, "    writes { }")
+            if _named:
+                if not hasattr(self, "_pyobj_state_writers"):
+                    self._pyobj_state_writers = set()
+                self._pyobj_state_writers.add(name)
         # b-spec §4 (P2): in the owning unit (real `let`), prove the interface is a sound weakening
         # of the definition. Fail-loud — an over-claiming interface makes the goal unprovable.
         if _iface:

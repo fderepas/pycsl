@@ -166,35 +166,21 @@ _MUTATING_METHODS = frozenset({
     "remove", "discard", "setdefault", "sort", "reverse",
 })
 
-TOTAL_RATCHET = 19    # 63 -> 82 at #31 by the SHARPER DETECTOR; 82 -> 28 -> 19 at #32 by GIVING
-                      # 54 `\trusted` STUBS THEIR HONEST `#@ assigns`, derived per stub
-                      # from the SAME live transitive self-write closure this file computes
-                      # (`scratchpad/w5/honest_trusted_frames.py`), then closing the caller
-                      # fixpoint against Why3's own error text. This is the change the
-                      # AVATAR-FRAME capability made MEANINGFUL: before it, a trusted
-                      # stub's `#@ assigns` naming a non-label field was unobservable.
-                      # The residue 28 is in `pure_ast.py`, `functions.py` and
-                      # `expr_ghost_spec_ops.py`, deliberately NOT converted here — the
-                      # first because its proof was mid-flight; the other two were then
-                      # UNBLOCKED in the same window by making BOTH label filters FAIL
-                      # CLOSED when the class has no emitted record in the file (28 -> 19),
-                      # so the residue 19 is now `pure_ast.py` alone. NOTE the closure can still UNDER-approximate (the #31
-                      # `_walk_body` blind spot), so 28 is a floor on what is KNOWN false,
-                      # not a proof that the other 280 are true.
-                      # (old note) 63 -> 82 at #31 by the SHARPER DETECTOR above (not by new false
-                      # frames); the pre-#31 history below is against the blunter walk.
-                      # every offender, including opaque-self classes (68 -> 63 at #30:
-                      # the window converted seven `\trusted` stubs, five of which stood
-                      # for a live body that writes `self` state, so the TRUSTED
-                      # population shrank; each of those became a CONVERTED offender only
-                      # where the frame was re-derived HONESTLY — `visit_If` /
-                      # `_function_helper` -> `#@ assigns self._indent`, `copy_location`
-                      # -> `#@ assigns new_node`, `_Inliner._fresh` -> `#@ assigns
-                      # self.counter`. Lowered because the tool asked and the measurement
-                      # is stable.)
-                      # (70 -> 68 at #29:
-                      # the `_Unparser` ports move offenders from the TRUSTED population
-                      # to the CONVERTED one; a RATCHET, only lower it)
+TOTAL_RATCHET = 0     # 63 -> 82 at #31 by the SHARPER DETECTOR; 82 -> 28 -> 19 -> **0** at
+                      # #32. EVERY `\trusted` stub in the mirror now declares a frame that
+                      # is TRUE of its live body, derived per stub from the same live
+                      # transitive self-write closure this file computes
+                      # (`scratchpad/w5/honest_trusted_frames.py`), with the caller fixpoint
+                      # closed against Why3's own error text
+                      # (`scratchpad/w5/framefix3.py`): 5 iterations on `expressions.py`,
+                      # 7 on `statements.py`, 25 on `pure_ast.py`, 1 on `functions.py`.
+                      # A `\trusted` stub's `assigns` is ASSUMED and never checked, so a
+                      # false one is an unsoundness no proof plane can see — this is the
+                      # plane's whole point, and it is now at its floor.
+                      # 0 IS A HARD FLOOR: any new offender is a regression.
+                      # THE HONEST CAVEAT, unchanged: the closure can still
+                      # UNDER-approximate (the #31 `_walk_body` blind spot), so 0 means
+                      # "nothing KNOWN false", not "every declaration proven true".
 CONVERTED_RATCHET = 1         # 2 -> 4 at #31 by the SHARPER DETECTOR (the `_add_abstract_op`
                               # subscript store); 4 -> 1 at #32 by GIVING THE TWO
                               # `_add_abstract_op` CROSS-MIXIN PROTOCOL STUBS THEIR HONEST
@@ -207,7 +193,7 @@ CONVERTED_RATCHET = 1         # 2 -> 4 at #31 by the SHARPER DETECTOR (the `_add
                               # `_writes_filtered_to_labels` drops it and the caller-side
                               # avatar carries no frame at all -- see the #32 handoff's
                               # AVATAR FRAME finding for the reopening capability.
-CONVERTED_TOTAL_RATCHET = 125 # 68 -> 133 at #31 by the SHARPER DETECTOR; 133 -> 125 at #32
+CONVERTED_TOTAL_RATCHET = 99  # 68 -> 133 at #31 by the SHARPER DETECTOR; 133 -> 99 at #32
                               # (the three `statements.py` callers above). Every offender
 LIVE_ROOT = "src/pycsl"
 MIRROR_ROOT = "src/self-annotate/src"

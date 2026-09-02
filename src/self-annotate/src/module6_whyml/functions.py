@@ -418,7 +418,7 @@ class FunctionEmissionMixin:
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._current_emitting_func, self._current_self_type, self._current_symbol_table, self._tuple_emit_ir_slot_locals, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_pyast_parser_cache
     def _compute_return_type(self, func: Dict[str, PyVal], body_stmts: List[Dict[str, Any]]) -> str:
         """Compute the WhyML return type for one function, applying the
         `List[T] → array int`, `Set[T]`/`Dict[K, V]` → `map int (option int)`,
