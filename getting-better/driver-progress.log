@@ -765,3 +765,4 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 18:36 #33: FINDING — chained comparison drops its tail (unsound else-branch); mitigation landed (mirror chain respelled); real fix built in worktree, faithfulness trap = bespoke compare lowering
 19:04 #33: chained-comparison desugar pre-pass LANDED (447->448, one honest marker); corpus byte-diff 0, witness 0969 negative-tested 8 non-Valid; frame-honesty plane caught the new stub's false frame
 19:23 #33: Module5 silent-drop AUDIT — annassign non-Name store + for/while-else refusal landed (448->449); 2 live for/else victims found via import-stub parsing; corpus byte-diff 0
+19:31 #33: UNSOUNDNESS FIXED — a = b = v dropped all targets but the first and PROVED A FALSE POSTCONDITION; 0 marker cost; pure_ast re-proof queued
