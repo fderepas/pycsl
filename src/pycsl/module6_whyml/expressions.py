@@ -5670,7 +5670,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         """
         labels = getattr(self, "_emitted_record_field_labels", {}).get(cls)
         if labels is None:
-            return list(fields)
+            # (#32) FAIL CLOSED when the class has NO emitted record in this file — the
+            # IMPORTED-mixin spelling `type functionemissionmixin = int`. "Absent registry
+            # -> filter nothing" is safe only when the absence means "we did not build the
+            # registry"; here it means "there are NO field labels", so EVERY label the
+            # clause names is unbound (`unbound function or predicate symbol
+            # '_option_record_param_classes'` on the avatar `self__param_type_str_6`,
+            # measured the moment 54 \trusted stubs were given their honest `#@ assigns`).
+            # Returning [] then makes `_objstate_w` fire in `_resolve_dotted_signature`, so
+            # the declared effect is still SAID — coarsely, against `_pyobj_state` — rather
+            # than dropped. The same fail-closed precedent already exists in
+            # `functions._stmts_disp_writes`.
+            return []
         return [f for f in fields if self._field_label(cls, f) in labels]
 
     def _resolve_dotted_signature(self, func_name: str):

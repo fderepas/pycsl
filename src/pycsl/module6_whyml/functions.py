@@ -5793,8 +5793,24 @@ class FunctionEmissionMixin:
             _lbls = getattr(self, "_emitted_record_field_labels", {}).get(
                 self._current_self_type)
             _wl = [self._field_label(self._current_self_type, f) for f in _wf]
+            _coarse = False
             if _lbls is not None:
                 _wl = [l for l in _wl if l in _lbls]
+            elif _wf:
+                # (#32) FAIL CLOSED, THEN SAY THE TRUTH COARSELY. `_lbls is None` means the
+                # class has NO emitted record in this file (`type ghostspecopsmixin = int`
+                # — the IMPORTED-mixin spelling), so NOT ONE of the declared labels can be
+                # bound and the unfiltered clause emits `unbound function or predicate
+                # symbol '_abstract_ops'` (measured, the moment 54 `\trusted` stubs were
+                # given their honest `#@ assigns`). The precedent for failing closed is
+                # already in this file (`_stmts_disp_writes`'s `if _lbls is None: return
+                # []`), but returning [] alone would throw the honest claim away. The
+                # declared write IS real, so declare it against the same coarse
+                # `_pyobj_state` cell the avatar rule and `_emit_function`'s object-state
+                # branch already use: one cell for every object and attribute, which
+                # OVER-approximates what may change and never claims a preservation the
+                # source does not guarantee.
+                _wl, _coarse = [], True
             # On the CONCRETE `let` path an EMPTY `writes { }` is meaningful - it
             # CHECKS that the body writes nothing - so it is always emitted there.
             # On the bodyless `val` path it conveys nothing a missing clause does not
@@ -5804,9 +5820,12 @@ class FunctionEmissionMixin:
             # trusted/abstract method with a non-nothing self-field assigns (the only
             # two @mutable_state corpus programs with a trusted method, 0900/0901,
             # declare `assigns \nothing` on it).
-            if _wl or not emit_as_val:
-                _wc = ", ".join(f"self.{l}" for l in _wl)
-                lines.append(f"    writes {{ {_wc} }}")
+            if _wl or _coarse or not emit_as_val:
+                _parts = [f"self.{l}" for l in _wl]
+                if _coarse:
+                    self._add_abstract_op("val _pyobj_state : ref int")
+                    _parts.append("_pyobj_state")
+                lines.append(f"    writes {{ {', '.join(_parts)} }}")
 
         # wrong-lowering-to-fix.md §WL-05b: a STANDALONE function whose dict/set params
         # are item-mutated in the body carries a `writes { d, s, … }` frame so Why3
