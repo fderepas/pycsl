@@ -210,11 +210,48 @@ path exists: no handlers, and no `raise` anywhere in the LOWERED body. That sing
 test is complete — every jump-out (`return`/`break`/`continue`/exception) lowers to a
 `raise` — and it tests the EMITTED body, so it cannot miss a nested one.
 
+## VERIFICATION STATE — COMPLETE, NOTHING PENDING
+
+**FOURTEEN whole-file proofs, EVERY ONE `rc=0` and `Verification SUCCESS`, and NO PROVER
+PROCESS LEFT RUNNING.** Logs and exit codes in `scratchpad/w6/proofs/` with `RC.txt`.
+
+| mirror | goals | run |
+|---|---|---|
+| `frontend/pure_ast.py` | 3103 | SUCCESS (the `try/finally` + multi-target content) |
+| `module6_whyml/stmt_control_flow.py` | 1874 | SUCCESS x2 (dict/set re-host; then `finally` + `try/else` + protocol stubs) |
+| `Module6_WhyMLTranspiler.py` | 706 | SUCCESS x2 (`_ifexpr_seq_arm` frame; then protocol stubs) |
+| `module6_whyml/functions.py` | 1199 | SUCCESS (poly reader + `finally`) |
+| `module6_whyml/expressions.py` | 1069 | SUCCESS x2 (dict/set re-host; then the `_ifexpr_seq_arm` honest frame) |
+| `module6_whyml/statements.py` | 923 | SUCCESS x2 (dict/set re-host; then protocol stubs) |
+| `frontend/ir_resolve.py` | 793 | SUCCESS (the dangling refusal's `raises` line) |
+| `frontend/__init__.py` | — | SUCCESS (same) |
+| `module6_whyml/types.py` | — | SUCCESS (dict/set re-host) |
+| `frontend/desugar.py` (NEW mirror) | — | SUCCESS |
+
+One entry in `RC.txt` reads `rc=143 frontend_pure_ast`: that run was KILLED as SUPERSEDED
+when the `try/finally` fix changed `pure_ast.mlw` under it. It is not a failure, and the
+replacement (`frontend_pure_ast_tf33`) is the SUCCESS above.
+
+**CORPUS BYTE-DIFF 0 ACROSS THE WHOLE WINDOW**, not just per increment: all 815 files that
+existed at `e4d0a209` emit byte-identically at HEAD, re-measured from a worktree pinned at
+that commit. The only new outputs are this window's four witnesses.
+
+FULL BATTERY AT HEAD, `why3` on PATH:
+  · markers **451**, stable over 3 samples · grep 476 · offset 25 · unattached 0 · ledger 3
+  · 53/53 mirrors L3-tc GREEN · corpus byte-diff **0** (819 emitted = 815 + 4 witnesses)
+  · fidelity DIVERGED **2** on both scripts (the documented baseline pair);
+    mirror-check 3 drifts == the `e4d0a209` baseline, re-measured in a clean worktree
+  · frame-honesty **0/0 trusted, 0/96 converted** — BOTH POPULATIONS AT ZERO MODEL-VISIBLE
+  · avatar-frame-parity **0 same-file / 7 inherited** (NEW plane)
+  · dropped-mutation **1 DROPPED / 50 CTXBIND / 9 TRYFINAL / 0 DANGLING** (NEW plane)
+  · computed-rhs-erasure **2 / 0** · yield-erasure 0/2/1 · mirror-signature-drift 0
+  · mirror-field-parity 0 NEW · untrusted-emitted 865/849/**0**/0 · shadowed-selfcalls 14/121
+  · non-vacuity (`--emit`): no NEW erasure, 8 known gated, **0 input-blind**
+  · **IR conformance: BOTH corpora pass** (was 0 OK / 38 MISMATCH at window start)
+  · doc-coherency OK · tree clean · no prover process running
+
 ## WHERE THE LADDER STANDS FOR #34
 
-0. **Confirm the in-flight proofs** in `scratchpad/w6/proofs/RC.txt` (rc=0 AND
-   `Verification SUCCESS` in each log). Anything with rc=143 was KILLED as superseded, not
-   failed.
 1. **`avatar-frame-parity` INHERITED 7 -> lower.** Three named routes, all measured:
    - `functions._is_string_expr` / `_is_emit_ir_expr` / `_collect_array_var_assigns`:
      **TYPE-MODEL boundary**, not a frame one. A local stub also RETYPES the avatar's
