@@ -182,12 +182,31 @@ def probe(name, cls):
             # blocker for 126 candidates across the tree). Prefer the first line that
             # actually reads like a diagnosis, and fall back to the tail only if none does.
             _ls = [l for l in (r.stdout + r.stderr).split("\n") if l.strip()]
-            _diag = [l.strip() for l in _ls
-                     if re.search(r"but is expected to have type|unbound |syntax error|"
-                                  r"cannot be used as pure|cannot be applied|This pattern has type|"
-                                  r"expected an indented block|not supported|Unsupported|"
-                                  r"rejected under|UnsupportedFeature|Error:", l)]
-            tail = _diag[:1] or _ls[-1:]
+            _DIAG_RE = (r"but is expected to have type|unbound |syntax error|"
+                        r"cannot be used as pure|cannot be applied|This pattern has type|"
+                        r"expected an indented block|not supported|Unsupported|"
+                        r"rejected under|UnsupportedFeature|Error:")
+            # HARNESS FIX (#31): why3 WRAPS a type-mismatch diagnosis across physical lines,
+            # so the FIRST line matching the pattern is often the CONTINUATION
+            # (`but is expected to have type int`) while the informative half
+            # (`This expression has type <T>,`) sits on the line above. Measured on the
+            # 2026-09-02 whole-tree census: 76 of 385 L3TC-FAIL verdicts -- 20% -- recorded a
+            # blocker carrying NO source type, which silently MERGES unrelated families in the
+            # ranked blocker census the ladder navigates by. Rebuild the wrapped paragraph by
+            # walking back to the diagnosis opener (bounded, and never past the `File "..."`
+            # locator why3 prints ahead of every message).
+            _idx = [i for i, l in enumerate(_ls) if re.search(_DIAG_RE, l)]
+            if _idx:
+                i = _idx[0]
+                j = i
+                while (j > 0 and i - j < 4
+                       and not re.match(r'^\s*File "', _ls[j - 1])
+                       and not re.match(r"^\s*(This expression has type|This pattern has type|"
+                                        r"This function |Error:)", _ls[j])):
+                    j -= 1
+                tail = [" ".join(l.strip() for l in _ls[j:i + 1])]
+            else:
+                tail = _ls[-1:]
             return name, "L3TC-FAIL", tail
         txt = open(MLW).read() if os.path.exists(MLW) else ""
         pat = re.compile(r"^  (let(?: rec)?(?: function)?|val)\s+([A-Za-z0-9_]+)[^\n]*\n(?:(?!^  (?:let|val|type|exception|axiom|goal|lemma)\b).*\n)*", re.M)
