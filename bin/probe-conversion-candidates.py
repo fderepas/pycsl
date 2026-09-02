@@ -71,6 +71,15 @@ MARKERS = [
     (r"\bget_[a-z_]+ ", "opaque attribute getter"),
     (r"[^\w](\d{6,})\b", "hashed literal (string erased to an int)"),
     (r"hasattr_check ", "hashed attribute name"),
+    # (#31) A COMPREHENSION / GENERATOR ERASED TO A CONSTANT ARRAY. `any(<genexpr>)` and
+    # `all(<genexpr>)` have no lowering, so the emitter applies the opaque `any_1`/`all_1`
+    # to a FRESH CONSTANT `(Array.make 1 0)` — the generator, and every variable it reads,
+    # is gone. Measured on `proof2why3.from_sexp._find_construct_idx`, which the repaired
+    # signature-preserving port reported CLEAN: its whole discriminating test is
+    # `any(... x[0] == "MutInd" ...)` and it emitted `any_1 (Array.make 1 0)`. Keyed on an
+    # ARITY-SUFFIXED abstract op applied to a constant array, so the legitimate array-local
+    # initialiser `let a = (Array.make 1024 0) in` is untouched.
+    (r"[a-z_]\w*_\d+ \(Array\.make \d+ 0\)", "comprehension erased to a constant array"),
 ]
 
 def _param_names(fn):
