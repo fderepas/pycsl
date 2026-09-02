@@ -84,7 +84,14 @@ MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 #       TWO, with two different causes:
 #         module6_whyml/expressions.py    _handle_field_get_expr    ['_pg2']
 #           the class HAS a record but `_property_getters` is not one of its LABELS, so the
-#           field is not modelled at all. Add the label, or route through the poly reader.
+#           field is not modelled at all. INSPECTED (#33): adding the label is NOT enough —
+#           the read is `_pg2.get((self._current_self_type, field))`, a TUPLE-KEYED lookup,
+#           and the value model has no product key. So this is a VALUE-MODEL boundary, not
+#           a missing-label one. REOPENING CAPABILITY: a tuple/product map key (or a
+#           deterministic key-mangling of the pair into a string, which is what the
+#           emitter already does elsewhere with `str_concat_op`). Note the read is also
+#           genuinely empty for every property-free module, which is why it is corpus
+#           byte-inert either way.
 #         frontend/pure_ast.py            _Unparser.unparse_inner   ['unparser']
 #           `type(self)(_avoid_backslashes=True)` — a DYNAMIC CLASS CONSTRUCTION, not a
 #           `getattr`. Different in kind; no capability named yet.
