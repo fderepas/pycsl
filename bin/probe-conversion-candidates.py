@@ -327,7 +327,25 @@ def _probe_emit(name, cls, orig, new, sig_note):
                     k += 1
                 tail = [" ".join(l.strip() for l in _ls[j:k + 1])]
             else:
-                tail = _ls[-1:]
+                # HARNESS FIX (#32b): the FALLBACK must not read STDERR. The pipeline
+                # emits a hard refusal as a `[!] PIPELINE ERROR:` header followed by the
+                # message on the NEXT stdout line; meanwhile core_ir_semantic's C8
+                # UserWarning prints its own SOURCE LINE to stderr, which is physically
+                # last. So `_ls[-1:]` recorded
+                #     `], union_vars, fname)`
+                # for 8 candidates whose real blocker is the heterogeneous-list-literal
+                # refusal (Module6_WhyMLTranspiler.transpile, three Module5_IREmitter
+                # detectors, four pycsl.py drivers). Prefer the line after the header,
+                # then the last STDOUT line, and only then the combined tail.
+                _out = [l for l in r.stdout.split("\n") if l.strip()]
+                _hdr = [i for i, l in enumerate(_out)
+                        if l.lstrip().startswith("[!] PIPELINE ERROR")]
+                if _hdr and _hdr[0] + 1 < len(_out):
+                    tail = _out[_hdr[0] + 1:_hdr[0] + 2]
+                elif _out:
+                    tail = _out[-1:]
+                else:
+                    tail = _ls[-1:]
             return name, "L3TC-FAIL", sig_note + tail
         txt = open(MLW).read() if os.path.exists(MLW) else ""
         pat = re.compile(r"^  (let(?: rec)?(?: function)?|val)\s+([A-Za-z0-9_]+)[^\n]*\n(?:(?!^  (?:let|val|type|exception|axiom|goal|lemma)\b).*\n)*", re.M)
