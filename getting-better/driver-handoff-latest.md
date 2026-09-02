@@ -201,10 +201,18 @@ hub.** Its entire body is `self._source.extend(text)` and it emits as
     = let _ = (self__source_extend_1 text) in ()
 
 a RECEIVER-LESS opaque op with no effect, under a frame saying the method changes nothing —
-while a CONVERTED sibling (`maybe_newline`, `if self._source:`) READS that field through
-`getattr__unparser`, i.e. through `_pyobj_state`, which `writes { }` asserts is unchanged.
-**That is an under-approximation of effects in the converted population.** Every plane was
-green on it. Ratchets re-baselined to 82/133/4 with the derivation written beside the
+while a CONVERTED sibling reads that field through `getattr__unparser`, i.e. through
+`_pyobj_state`, which `writes { }` asserts is unchanged. **CHECKED EXACTLY, not inferred:**
+`stable_hash("_source") == 1975084088`, and the emitted `_unparser__maybe_newline` is
+
+    let _unparser__maybe_newline (self: _unparser) : unit
+      writes {  }
+    = if ((getattr__unparser self 1975084088) <> 0) then
+        let _ = (_unparser__write self (Seq.cons 1470490902 (Seq.empty: seq int))) in ()
+
+so the model can prove `self._source` INVARIANT across any number of `write` calls, which is
+false of the program. Both methods are CONVERTED and PROVED. **That is an
+under-approximation of effects in the converted population.** Every plane was green on it. Ratchets re-baselined to 82/133/4 with the derivation written beside the
 constants; raising a ratchet is legitimate ONLY when the analysis got sharper and the tree
 did not get worse, the same condition under which shadowed-selfcalls went 13 -> 14 at #30.
 
