@@ -5769,3 +5769,18 @@ GATE: this touches a general operator, so measure the corpus byte-diff FIRST; a 
 program that writes `x or []` in a BOOLEAN position must stay byte-identical, which means
 the rule has to be gated on the CONSUMING position (an iterable, an assignment to a
 collection-typed local, a collection-typed argument), not on the operator alone.
+
+**SHARPENED (#31, from reading the lowering):** the general rule is
+`A or D`  ==>  `(if <truthy A> then A else D)` **in a VALUE position**, which is exactly
+Python's semantics; the emitter's current `if truthy(A) || truthy(D) then 1 else 0` is
+`bool(A or D)` and is only correct in a BOOLEAN position. The obstacle is that A and D must
+share a WhyML type, so the rule must be gated on a type agreement the emitter can DECIDE —
+`_is_string_expr` on both sides, or both array-typed, or both emit_ir — and fail closed to
+the existing boolean form otherwise. `expressions._handle_binop` already carries a
+CLOSED-KEY special case of exactly this (`<emit_ir>.get(k) or []` for
+`k in {body, orelse, captures, args, parts, elts, alternatives}` returns the array, added by
+the union/match cluster), so the generalisation axis is "the LEFT lowers to an array-typed
+term", not "the key is in a list". That covers the emit_ir slice of the 54 immediately.
+The DICT slice (`rec.get("ensures") or []`, where the map's ν is int) additionally needs the
+`or []` to be read as EVIDENCE that ν is a list — i.e. backlog item 1b-B
+(empty-collection-literal value-type inference), which is where those two items meet.
