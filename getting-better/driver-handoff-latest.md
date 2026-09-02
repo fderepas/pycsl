@@ -1,278 +1,271 @@
-# HANDOFF — #33 (2026-09-02, WINDOW 3): **447 -> 449 markers, and the two extra markers
-# bought TWO PROVED FALSE POSTCONDITIONS being made impossible.** The window's yield is not
-# a count: it is a SYSTEMATIC AUDIT of one bug class — "a Module 5 handler reads some of a
-# node's fields and silently drops the rest" — which found five instances, two of them
-# DEMONSTRATED UNSOUNDNESSES, and turned the class into a standing gate plane.
+# HANDOFF — #33 (2026-09-02, WINDOW 3): **447 -> 451 markers, and the four extra markers
+# bought THREE PROVED FALSE POSTCONDITIONS being made impossible, TWO NEW GATE PLANES, a
+# DEAD CI GATE RESTORED, and both frame-honesty populations driven to zero.** The window's
+# yield is not a count: it is a SYSTEMATIC AUDIT of one bug class — "a lowering reads some
+# of a node's fields and silently drops the rest" — run mechanically over the dispatch
+# table, and every candidate probed END-TO-END WITH A CONTRACT THAT IS FALSE OF THE PROGRAM.
 
-## THE TWO FALSE PROOFS, BOTH REPRODUCED BEFORE BEING FIXED
+## THE THREE FALSE PROOFS, EACH REPRODUCED BEFORE BEING FIXED
 
 **1. `a = b = v` dropped every target but the first.**
 ```
-    #@ ensures n > 0  ==> \result == 7
     #@ ensures n <= 0 ==> \result == 0        <-- FALSE OF THE PROGRAM
     def f(n: int) -> int:
         a = b = 5
-        if n > 0:
-            b = 7
+        if n > 0: b = 7
         return a * 0 + b
     [+] Verification SUCCESS! All contracts formally proven.
 ```
-`f(0)` returns **5**. `_py_stmt_assign` opens `target = stmt.targets[0]` and never looks at
-the rest, so `b = 5` was not in the model: `b` was declared `ref 0` and assigned only inside
-the `if`. **Where it hides:** when nothing else assigns the extra target the file at least
-fails L3-tc with `unbound function or predicate symbol 'b'`; the dangerous case is when a
-LATER assignment declares the local and the lost initialisation silently becomes the
-declaration DEFAULT. Which case you get depends on code elsewhere in the function.
-**One live victim, in a CONVERTED PROVED method**: `pure_ast._Parser._subscript_item`'s
+`f(0)` returns **5**. `_py_stmt_assign` opens `target = stmt.targets[0]`. Where it hides:
+when nothing else assigns the extra target the file at least fails L3-tc (`unbound function
+or predicate symbol 'b'`); the dangerous case is a LATER assignment declaring the local, so
+the lost initialisation silently becomes the declaration DEFAULT.
+**A live victim sat in a CONVERTED, PROVED method**: `pure_ast._Parser._subscript_item`'s
 `lower = upper = step = None`, in a file proved at 3103 goals. It survived by COINCIDENCE —
 the dropped value is `None` and the declaration default for an option-typed local is
-`IrONone`, the same value. The fix's emitted diff there is exactly the two missing lines.
+`IrONone`, the same value.
 
-**2. `x[lo:hi:step]` dropped the step.**
-```
-    #@ ensures \result == xs[1] + xs[2]        <-- FALSE OF THE PROGRAM
-    def f(xs: list) -> int:
-        ys = xs[1:4:2]
-        return ys[0] + ys[1]
-    [+] Verification SUCCESS! All contracts formally proven.
-```
-`f` returns `xs[1] + xs[3]`. The emission is `let ys = (Array.sub xs (1) ((4) - (1)))` —
-the step is never read, so the model's `ys` has a different LENGTH and different ELEMENTS.
-REFUSED (a strided copy is a value-model feature, not a normalization). Census: **0 in the
-corpus, 0 in the mirror, 0 in `pycsl_lib`, 0 in the live emitter** — the refusal is
-completely inert and closes a demonstrated unsoundness at zero cost.
+**2. `x[lo:hi:step]` dropped the step.** `ys = xs[1:4:2]` emitted
+`Array.sub xs 1 (4-1)`; `ensures \result == xs[1] + xs[2]` — false, `f` returns
+`xs[1]+xs[3]` — proved SUCCESS. REFUSED (a strided copy is a value-model feature). Census
+**0 corpus / 0 mirror / 0 pycsl_lib / 0 live**: the refusal is completely inert.
 
-## THE AUDIT — MECHANICAL, AND THE REASON IT KEPT PAYING
+**3. A `finally:` block was dropped ENTIRELY.** `try: self.v = 1 finally: self.v = 2`
+emitted `self.v <- 1; ()`, and `ensures self.v == 1` proved. Module 5 DOES carry `orelse`
+and `finalbody` into the IR; **Module 6's `_handle_try_stmt` reads `stmt.body` and
+`stmt.handlers` and neither of the other two** — so this one is a LOWERING drop, one stage
+past the other two. **THREE CONVERTED, PROVED MIRROR METHODS were live victims**, every one
+a save/restore whose RESTORE was absent from the model, so the model asserted the saved
+state was still in place: `pure_ast.visit_Try`, `pure_ast.visit_TryStar`,
+`functions._refine_tuple_return_type`.
 
-It started from ONE hand-found defect (a chained comparison `2 <= a <= 3` lowering to
-`2 <= a`) and was then run as a MACHINE PASS over the dispatch table: for each
-`ast.<Node>` in `_PY_EXPR_HANDLERS`/`_PY_STMT_HANDLERS`, compare the node type's `_fields`
-against the field names the handler's source mentions; then, one notch wider, "which
-handler reads only element `[0]` of a list-valued field without iterating it anywhere?"
+## THE METHOD — reuse it, it is the whole reason the window paid
 
-Every candidate was then probed END-TO-END WITH A CONTRACT THAT IS FALSE OF THE PROGRAM.
-**That is the only test that distinguishes "incomplete" from "unsound"** — a true contract
-failing tells you nothing. Full result, recorded so it is not re-derived:
+1. Enumerate the dispatch table MECHANICALLY: for each `ast.<Node>` in
+   `_PY_EXPR_HANDLERS`/`_PY_STMT_HANDLERS`, diff the node type's `_fields` against the
+   field names the handler's source mentions. Then one notch wider: "which handler reads
+   only element `[0]` of a list-valued field without iterating it anywhere?"
+2. Probe every candidate with a contract that is **FALSE of the program**. A true contract
+   failing to prove tells you NOTHING — it is indistinguishable from incompleteness. This
+   step is what turned three "maybe" shapes into demonstrated unsoundnesses and nine clean
+   verdicts.
+
+FULL RESULT, so it is not re-derived:
 
 | shape | verdict | disposition |
 |---|---|---|
 | chained comparison `a<b<c` | **UNSOUND** | fixed (normalization) |
 | extended slice `x[lo:hi:step]` | **UNSOUND** | refused |
 | multi-target `a = b = v` | **UNSOUND** | fixed (normalization) |
+| `try ... finally` | **UNSOUND** | safe case emitted, rest ratcheted |
 | annotated non-Name store `self.x: T = v` | fail-OPEN | fixed (normalization) |
 | `for/while ... else` | fail-OPEN | refused |
-| `with ... as X` | fail-OPEN | COUNTED (new CTXBIND ratchet, 48) |
-| augmented store through a non-Name base | fail-OPEN | RECORDED, ratchet 1 |
-| keyword arguments `g(3, b=4)` | CLEAN | `(g 3 4)` |
-| starred list element `[*a, 3]` | fail-CLOSED | L3-tc type error |
-| dict `{**a, "y": 2}` | fail-CLOSED | and correctly modelled by the bespoke lowering at the one converted site |
-| tuple-unpack with a non-Name elt | fail-CLOSED | `let () = (3, 4)` is a type error |
-| nested `def` | CLEAN | lifted and proved |
-| f-string format spec, `in` | conservative | not unsound |
+| `with ... as X` | fail-OPEN | ratcheted (CTXBIND 48) |
+| augmented store through a non-Name base | fail-OPEN | ratcheted (DROPPED 1) |
+| keyword args `g(3, b=4)` | CLEAN | `(g 3 4)` |
+| starred list `[*a, 3]` · tuple-unpack to attributes | fail-CLOSED | L3-tc type error |
+| dict `{**a, "y": 2}` | fail-CLOSED | and correctly modelled by the bespoke lowering at its one converted site |
+| nested `def` · f-string spec · `in` | CLEAN / conservative | — |
+| **floor `//` and `%` with a NEGATIVE divisor** | **CLEAN** | `7 // -2 = -4`, `7 % -2 = -1` both prove and the Euclidean answers are REJECTED |
+| negative index `a[-1]` · `del d[k]` · `except ... as e` · list `+=` | CLEAN | — |
+| `#@` ANNOTATION forms (`\forall`, `\exists`, `\old`, `\old(a[i])`, `\old(self.f)`, call-site preconditions, `\length` ranges) | CLEAN | every deliberately-VIOLATING body was REJECTED |
 
 ## THE STRUCTURAL FINDING THAT SHAPED EVERY FIX — CARRY IT FORWARD
 
-**None of these could be fixed in the handler.** `_py_expr_compare`, `_py_stmt_assign` and
-`_py_stmt_annassign` are all CONVERTED mirror methods, and their models are not their
-bodies: they are HAND-SYNTHESIZED whole-body lowerings
+**None of the Module 5 defects could be fixed in the handler.** `_py_expr_compare`,
+`_py_stmt_assign` and `_py_stmt_annassign` are CONVERTED mirror methods, and their models
+are not their bodies: they are HAND-SYNTHESIZED whole-body lowerings
 (`functions._emit_py_expr_compare_bespoke` and siblings) keyed on the METHOD NAME. Change
-the live body and **mirror-sync stays GREEN (the bodies still match), L3-tc stays green,
-the whole-file proof stays green — and the model silently stops being the body.** That is
-the most dangerous shape in this codebase and NO gate plane detects it.
+the live body and **mirror-sync stays GREEN (the bodies still match), L3-tc stays green, the
+whole-file proof stays green — and the model silently stops being the body.** No gate plane
+detects that.
 
-So every fix normalizes the INPUT instead, in the new pass `frontend/desugar.py`, run from
-`Module5_IREmitter.generate_json` — the single choke point both Module 5 entry paths go
-through (`pycsl.py`'s pipeline and `ir_resolve.resolve`'s dependency sub-pipeline), and a
-method that is `\trusted` in the mirror, so no mirror body moves. This leaves every
+So every Module 5 fix normalizes the INPUT instead, in `frontend/desugar.py`, run from
+`Module5_IREmitter.generate_json` — the single choke point BOTH Module 5 entry paths go
+through (`pycsl.py`'s pipeline and `ir_resolve.resolve`'s dependency sub-pipeline) and a
+method that is `\trusted` in the mirror, so no mirror body moves. That leaves every
 bespoke-modelled handler byte-identical AND MAKES ITS MODEL'S IMPLICIT CLAIM TRUE, because
 the shape it cannot express no longer reaches it.
+**RULE: before fixing a Module 5 handler, `grep _emit_py_.*_bespoke`. If it has one, fix
+the input.** (The `finally` fix is in Module 6's `_handle_try_stmt`, which has NO bespoke
+lowering, so it was edited directly — check first, then choose.)
 
-**RULE FOR THE NEXT WINDOW: before fixing a Module 5 handler, check whether it has a
-bespoke lowering (`grep _emit_py_.*_bespoke`). If it does, fix the input, not the handler.**
+## TWO NEW GATE PLANES
 
-## THE NEW GATE PLANE
+**`bin/check-dropped-mutation.py`** — the fail-OPEN no other plane can see. Every other
+plane inspects what WAS emitted; a statement never emitted leaves nothing to inspect. It
+classifies every assignment-family statement in the four verified/mirrored populations as
+HANDLED / NORMALIZED / REFUSED / **DROPPED** / **CTXBIND** / **TRYFINAL**, the last three
+ratcheted. Pure AST, no `why3`, seconds to run — **run it after ANY Module 5 or Module 6
+lowering change**. Now: 28254 statements — 28122 HANDLED, 70 NORMALIZED, 3 REFUSED,
+**1 DROPPED, 48 CTXBIND, 10 TRYFINAL**, each residue named with its reopening capability.
 
-**`bin/check-dropped-mutation.py`** classifies EVERY assignment-family statement in the
-four populations that are verified or mirrored:
-`HANDLED` / `NORMALIZED` (desugar rewrites it) / `REFUSED` (fail-closed with a diagnostic)
-/ **`DROPPED`** (nothing matches, nothing refuses — the ratchet) / **`CTXBIND`** (a
-`with ... as X` binding, its own ratchet because closing it needs an `__enter__`/`__exit__`
-protocol).
-FIRST MEASUREMENT: **28213 statements — 28091 HANDLED, 70 NORMALIZED, 3 REFUSED, 1 DROPPED,
-48 CTXBIND.** Both DROPPED and CTXBIND are named beside their constants with their
-reopening capabilities. Every other plane in this campaign inspects what WAS emitted; a
-statement never emitted leaves nothing to inspect, which is exactly why this class was
-invisible for the whole campaign.
+**`bin/check-avatar-frame-parity.py`** — #32's avatar-frame rule is INTRA-FILE ONLY. Every
+`self.<m>(...)` in a converted method is applied through an abstract avatar whose `writes`
+clause is the ONLY thing a caller knows about the callee's effect; a frameless avatar lets
+every caller declare `assigns \nothing` however much the callee writes. `_module_method_
+writes` holds only the methods THIS file declares, so a mixin method DEFINED elsewhere and
+merely INHERITED here is minted frameless. Measured: `stmt_control_flow.mlw` emitted
+`val self__add_abstract_op_1 (x0: int) : int` while `statements.mlw` emitted the same
+method with `writes { self._abstract_ops }`. **SAME-FILE 0 (a hard 0 — #32's rule must keep
+covering it); INHERITED 11 -> 7.**
+
+## A DEAD CI GATE, RESTORED
+
+`bin/run-conformance.sh` is a LEADING gate in `bin/run-reference-tests.sh` and it reported
+`front-end conformance: 0 OK / 38 MISMATCH`. **Measured at the window-start commit
+`e4d0a209` in a clean worktree: identical.** It had been red before this window — and a
+permanently-red gate is worth exactly what a falsely-green one is. Every diff was PURELY
+ADDITIVE (`only-golden=[]` in all 38): `param_ast_node_types`, `set_value_types`, and
+`method_deps[*].assigns` — the last being #32's own `depends_method` frame capability,
+landed without refreshing these goldens. Refreshed with the repo's own
+`bin/regen-ir-conformance-goldens.py`; **the `.expected.mlw` goldens did not move at all**,
+which is the check that makes it a refresh and not a blessing. Both corpora now pass.
 
 ## A CERTIFIED BOUNDARY THAT WAS NOT ONE — AND THE LESSON
 
-**`expressions._ifexpr_seq_arm`, #32's last model-visible converted frame offender, is
-CLOSED, and both frame-honesty populations are now at ZERO.**
+**`expressions._ifexpr_seq_arm` is CLOSED and both frame-honesty populations are at ZERO.**
 #32 recorded it as a boundary ("Why3 requires the declared `writes` be EXACTLY the model's
 effect while the live closure names ~20 fields the model erases") — but #32 had ALREADY
 BUILT what closes it and did not connect the two: (a) a `requires_method`/`depends_method`
-window may now DECLARE THE DEPENDENCY'S FRAME, and (b) `_writes_filtered_to_labels` keeps
-only the targets the emitted record carries as a LABEL. (b) is the answer to the objection
-(a) was held back for. Writing the honest 22-field `#@ assigns` on BOTH leaves the SIX the
-record actually labels; the avatar declares exactly those; Why3 accepts. The `writes {  }`
-it replaces was **the false claim** — a converted, proved method asserting it changes
-nothing while its callee writes six modelled fields.
+window may DECLARE THE DEPENDENCY'S FRAME, and (b) `_writes_filtered_to_labels` keeps only
+the targets the record carries as a LABEL. (b) is the answer to the objection (a) was held
+back for. The honest 22-field `#@ assigns` on both leaves the SIX the record labels; the
+avatar declares exactly those; Why3 accepts. The `writes {  }` it replaces was **the false
+claim**.
 **LESSON (cg): a CERTIFIED BOUNDARY is a claim like any other and can be invalidated by a
 capability landed later IN THE SAME WINDOW. Re-run its spike before inheriting it — this
-one cost a single emission and refuted in one step.**
+one refuted in a single emission.**
 
-## LESSON (cf) SHARPENED, AND THE WINDOW'S FIRST INCREMENT
+## A THIRD KIND OF SILENT FRAME HOLE
 
-#32 built the `dict`/`set` half of the `getattr(self,"<field>",…)` capability, measured it
-green, and REVERTED it because the rule must live in `types._rhs_yields_map`, a CONVERTED
-method whose copied body did not type-check in the mirror. **The block was a SPELLING, not
-the rule.** Census first: the mirror already carries the same access pattern in TWO
-converted methods (`expressions._iter_elem_class`, `ir_scanner`), and the difference is the
-BINDING FORM — `val_ir["args"]` is a Subscript and is NOT routed through `_EMIT_IR_PROJ`,
-while `.get("args") or []` IS, and reflects to `args_of : array emit_ir`. Same Python
-semantics, same fail-closed gate, mirror type-checks, **no `\trusted` helper needed and no
-marker cost.** `computed-rhs-erasure` 5 -> 3, and the four moved mirrors each replaced a
-wrong lowering with a right one — two guards that were UNCONDITIONALLY FALSE in the model
-(`if (0 <> 0)`) and three constant-folded reads of a real collection field.
-**Lesson (cf) now reads: a capability's cost includes WHICH function it must live in AND
-HOW IT IS SPELLED THERE. Grep the mirror for the same access pattern in an
-already-converted method and copy its spelling before concluding the mirror cannot carry
-the rule.**
-
-## A CENSUS OVER THE MIRROR IS NOT A CENSUS OVER WHAT THE PIPELINE PARSES
-
-The `for/else` refusal was measured inert — "0 in the mirror" — and then immediately
-rejected `src/self-annotate/src/frontend/ir_resolve.py`. `--import-path src/pycsl` makes
-the pipeline PARSE THE LIVE MODULES as import stubs and lower their helpers (214 from
-`Module5_IREmitter` alone), so two live `for ... else`-with-`break` loops that had been
-silently dropped all along became hard errors. Both rewritten to the explicit flag the
-diagnostic asks for. **Scope every census over the LIVE tree too.**
+#32 named two (a declared frame the label filter erases; one the record cannot label). #33
+adds: **a `\trusted` stub that carries `#@ requires` and `#@ ensures` and NO `#@ assigns`
+LINE AT ALL.** The stub exists, its signature is checked, it is believed — and it says
+nothing about its frame, so `_module_method_writes` has no entry and the avatar is
+frameless. THREE of the four avatar closures were exactly this, which is why they cost ZERO
+markers. Census: 11 of 476 `\trusted` stubs have no `#@ assigns` (some genuinely pure).
 
 ## THE NUMBERS
 
 | | markers | grep | offset | ledger |
 |---|---|---|---|---|
 | #33 start (`e4d0a209`) | 447 | 472 | 25 | 3 |
-| **#33 (this section)** | **449** | **474** | **25** | **3** |
+| **#33 (this section)** | **451** | **476** | **25** | **3** |
 
-Both new markers are HONEST and both are in the new `frontend/desugar.py`:
-`_ChainDesugarer.visit_Compare` and `normalize_stores`, each `\trusted` for a stated reason
-(they CONSTRUCT `pure_ast` nodes; `normalize_stores` also reads `getattr(node, field, None)`
-with `field` a LOOP VARIABLE — the same dynamic-attribute-name reason that made #32
-re-trust `pure_ast.copy_location`). The module's other two functions are CONVERTED verbatim
-body ports (the `exec_splice.py` precedent) and `frontend/desugar.mlw` is PROVED.
+The FOUR new markers, every one honest: `desugar._ChainDesugarer.visit_Compare` and
+`desugar.normalize_stores` (they CONSTRUCT `pure_ast` nodes; `normalize_stores` also reads
+`getattr(node, field, None)` with `field` a LOOP VARIABLE — the dynamic-attribute-name
+reason that made #32 re-trust `copy_location`), and the two cross-mixin protocol stubs
+`stmt_control_flow._add_abstract_op` / `._is_string_expr`.
 
 | plane | #33 start | now |
 |---|---|---|
 | trusted-frame-honesty (total / model-visible) | 0 / 0 | **0 / 0** |
-| converted-frame-honesty (total / model-visible) | 99 / 1 | **98 / 0** |
-| computed-rhs-erasure | 5 / 0 | **3 / 0** |
-| **dropped-mutation (NEW)** | — | **1 DROPPED / 48 CTXBIND** |
-| yield-erasure | 0 / 2 / 1 | 0 / 2 / 1 |
+| converted-frame-honesty (total / model-visible) | 99 / 1 | **96 / 0** |
+| computed-rhs-erasure | 5 / 0 | **2 / 0** |
+| **dropped-mutation (NEW)** | — | **1 / 48 / 10** |
+| **avatar-frame-parity (NEW)** | — | **0 same-file / 7 inherited** |
+| IR conformance (front-end) | **0 OK / 38 MISMATCH** | **38 OK / 0** |
+| yield-erasure | 0/2/1 | 0/2/1 |
 | mirror-signature-drift | 0 | 0 |
 | shadowed-selfcalls | 14 / 121 | 14 / 121 |
 | untrusted-emitted | 862/846/0/0 | 865/849/0/0 |
-| corpus byte-diff | 0 | **0** (818 files, re-measured for EVERY increment) |
+| corpus byte-diff | 0 | **0** (819 files, re-measured for EVERY increment) |
 | fidelity (both scripts) | DIVERGED 2 | DIVERGED 2 (the baseline pair) |
-| mirrors L3-tc | 52/52 | **53/53** (the new `frontend/desugar.py`) |
-
-THE FRAME PLANE IS AT ZERO IN BOTH POPULATIONS. That is the first time in the campaign.
+| mirrors L3-tc | 52/52 | **53/53** |
 
 ## THE FRAME-HONESTY GATE EARNED ITS KEEP, IN REAL TIME
 
 `_ChainDesugarer.visit_Compare` was first written with `#@ assigns \nothing` and
 `check-trusted-frame-honesty` REJECTED IT the same hour — the live body writes `self._n`,
-the deterministic temp counter. Declared honestly as `#@ assigns self._n`; the plane went
-back to 0/0. **A new false frame, caught by a machine, minutes after it was written.**
+the deterministic temp counter. Declared honestly; the plane went back to 0/0. **A new false
+frame, caught by a machine, minutes after it was written.**
 
 ## THE CORPUS WITNESSES, ALL NEGATIVE-TESTED
 
 | file | witnesses | with the fix removed |
 |---|---|---|
-| `0969_chained_comparison.py` | plain chain, 3-comparator chain, pure-builtin middle (`len`), user-call middle (the walrus) | **8 non-Valid, Verification FAILED** |
-| `0970_annotated_field_store.py` | `self.v: int = 5` in a non-`__init__` method | `set_to` emits an EMPTY body; `ensures self.v == 5` Unknown |
-| `0971_multi_target_assign.py` | `a = b = 5` then conditional reassign; `p = q = three()` (the temporary route) | L3-tc fails on unbound `q`; the TRUE postcondition unprovable |
+| `0969_chained_comparison.py` | plain chain, 3-comparator chain, pure-builtin middle (`len`), user-call middle (the walrus) | **8 non-Valid, FAILED** |
+| `0970_annotated_field_store.py` | `self.v: int = 5` outside `__init__` | `set_to` emits an EMPTY body |
+| `0971_multi_target_assign.py` | `a = b = 5` + conditional reassign; `p = q = three()` | L3-tc fails on unbound `q` |
+| `0972_try_finally.py` | `try/finally` with no handlers | `ensures self.v == 2` Unknown |
 
-## ONE DESIGN DECISION WORTH INHERITING: THE WALRUS, NOT A REFUSAL
+## TWO DESIGN DECISIONS WORTH INHERITING
 
-The chained-comparison expansion mentions the middle operand TWICE while Python evaluates
-it ONCE. The first version REFUSED a non-repeatable middle and **broke four reference-corpus
-files** (0836, 0862, 0865, 0867 — all `assert 0 <= f() < 256` inside a `main()` that is
-walked but not emitted, which is why no gate had ever fired on them). The shipped version
-binds it with a WALRUS on its single evaluation instead —
-`a <= (_pycsl_cmp_1 := f()) and _pycsl_cmp_1 <= b` — which is Python's own rule written in
-Python: no purity assumption, no idiom rejected. Same principle in `normalize_stores`: the
-RHS of `a = b = v` is re-mentioned only when it is a `Constant` or a `Name` (both SHARE
-their object, so `a = b = []` binding ONE list is preserved); anything else is bound to a
-temporary first. **Temporaries are numbered from a per-pass counter, never `id(...)` — the
-emitted `.mlw` must be byte-reproducible, and that was verified by emitting the whole
-corpus TWICE and diffing (0).**
+**THE WALRUS, NOT A REFUSAL.** The chain expansion mentions the middle operand twice while
+Python evaluates it once. The first version REFUSED a non-repeatable middle and **broke four
+reference-corpus files** (0836/0862/0865/0867 — all `assert 0 <= f() < 256` inside a
+`main()` that is walked but not emitted, which is why no gate had ever fired on them). The
+shipped version binds it with a WALRUS on its single evaluation:
+`a <= (_pycsl_cmp_1 := f()) and _pycsl_cmp_1 <= b` — Python's own rule written in Python.
+Same principle in `normalize_stores`: the RHS of `a = b = v` is re-mentioned only when it is
+a `Constant` or a `Name` (both SHARE their object, so `a = b = []` binding ONE list is
+preserved); anything else is bound to a temporary. **Temporaries are numbered from a
+per-pass counter, never `id(...)`** — verified by emitting the whole corpus TWICE (diff 0).
 
-## VERIFICATION STATE
-
-| mirror | goals | verdict |
-|---|---|---|
-| `module6_whyml/expressions.py` | 1069 | SUCCESS (rc=0) |
-| `module6_whyml/statements.py` | 923 | SUCCESS (rc=0) |
-| `module6_whyml/stmt_control_flow.py` | 1874 | SUCCESS (rc=0) |
-| `module6_whyml/types.py` | — | SUCCESS (rc=0) |
-| `frontend/desugar.py` | — | SUCCESS (proved at each of its three shapes) |
-| `frontend/pure_ast.py` | 3103 | IN FLIGHT (detached) |
-| `module6_whyml/expressions.py` (again, the `_ifexpr_seq_arm` frame) | 1069 | IN FLIGHT (detached) |
-| `Module6_WhyMLTranspiler.py` | 706 | QUEUED (detached) |
-
-`types.mlw` was verified BYTE-IDENTICAL to the final tree content after its proof, so that
-verdict stands for HEAD. Logs and exit codes in `scratchpad/w6/proofs/`.
+**EMIT THE SAFE CASE, COUNT THE REST.** `finally` runs on every exit path and only the
+normal one is expressible by appending the block, so it is appended exactly when no other
+path exists: no handlers, and no `raise` anywhere in the LOWERED body. That single string
+test is complete — every jump-out (`return`/`break`/`continue`/exception) lowers to a
+`raise` — and it tests the EMITTED body, so it cannot miss a nested one.
 
 ## WHERE THE LADDER STANDS FOR #34
 
-0. **Confirm the three in-flight proofs** (`scratchpad/w6/proofs/RC.txt` +
-   `Verification SUCCESS` in each log). Nothing else is pending.
-1. **The `computed-rhs-erasure` THREE, and they have THREE DIFFERENT causes** — do not
-   expect one rule to close them:
-   - `functions._refine_tuple_return_type` (`_saved_*` x4): the class emits NO RECORD
-     (`type functionemissionmixin = int`), so WRITES go through the opaque
-     `setattr_functionemissionmixin_poly self <hash> v` while READS erase to `0`. The
-     save/restore therefore restores `0`. **NAMED CAPABILITY: a symmetric
-     `getattr_<class>_poly (x) (f: int) : 'a` reader.** It is an abstract `val`, not an
-     axiom (ledger stays 3), and it expresses the save/restore relationship EXACTLY
-     (`setattr_poly self K !_saved` writes back the value `getattr_poly self K` produced).
-     Measure the blast radius first — every no-record `@mutable_state` mirror moves.
-   - `expressions._handle_field_get_expr` (`_pg2`): the class HAS a record but
-     `_property_getters` is NOT one of its labels, so the field is not modelled at all.
-     Either add the label (a `check-mirror-field-parity` change) or route through the same
-     poly reader.
-   - `pure_ast._Unparser.unparse_inner` (`unparser`): `type(self)(_avoid_backslashes=True)`
-     — a DYNAMIC CLASS CONSTRUCTION, not a `getattr`. Genuinely different; no capability
-     named yet.
-2. **`proof2why3`'s `term` family (9 stubs)** — unchanged from #32: a genuine COST/SCALE
-   boundary needing a general ADT-value lowering (constructor calls, `list term` locals,
-   `Var(...)`-vs-`term`), NOT a floor, and a funded window pays it.
-3. **The heterogeneous-list-literal family, 15 stubs** — unchanged from #32.
-4. **The audit vein is NOT exhausted.** It covered the assignment family and the expression
-   dispatch table. NOT yet swept the same way: Module 3 (the weaver's `#@` attachment),
-   Module 6's own lowerings (the same "reads some fields, drops the rest" question applies
-   to `_handle_*`), and the `pycsl_lib` stdlib population (`json/encoder.py:143` has a
-   tuple-unpack with two ATTRIBUTE targets — fail-closed, but it means that file cannot
-   currently be body-verified as written).
+0. **Confirm the in-flight proofs** in `scratchpad/w6/proofs/RC.txt` (rc=0 AND
+   `Verification SUCCESS` in each log). Anything with rc=143 was KILLED as superseded, not
+   failed.
+1. **`avatar-frame-parity` INHERITED 7 -> lower.** Three named routes, all measured:
+   - `functions._is_string_expr` / `_is_emit_ir_expr` / `_collect_array_var_assigns`:
+     **TYPE-MODEL boundary**, not a frame one. A local stub also RETYPES the avatar's
+     parameter (int fallback -> `emit_ir`) and `functions.py` fails L3-tc at a call site
+     whose local is a map. The frame and the type ride on the same declaration.
+   - the three `_py_stmts_to_ir`: a **FOUR-FILE SEGMENT**. The coarse-declaration shape is
+     right and needs no receiver, but the caller is `_py_stmt_match` in the IMPORTED
+     `Module5_IREmitter.py`, so the source frame lands there and re-emits that mirror
+     (1499 goals) plus all three importers.
+   - `expressions._materialize_bridge`: newly surfaced, not yet triaged.
+2. **`computed-rhs-erasure` 2, and the two causes are DIFFERENT**:
+   `_handle_field_get_expr`'s `_pg2` (the class HAS a record but `_property_getters` is not
+   one of its LABELS) and `unparse_inner`'s `unparser` (`type(self)(...)`, a DYNAMIC CLASS
+   CONSTRUCTION — no capability named yet).
+3. **`dropped-mutation` residues**: TRYFINAL 10 (run the block on handler arms and a
+   `Return_t` re-raise arm), CTXBIND 48 (an `__enter__`/`__exit__` protocol), DROPPED 1
+   (a sound write-back through a subscript — the same boundary `_py_stmt_assign` names).
+4. **`proof2why3`'s `term` family (9 stubs)** — unchanged from #32: a COST/SCALE boundary
+   needing a general ADT-value lowering. NOT a floor.
+5. **THE AUDIT VEIN IS NOT EXHAUSTED.** Swept: the Module 5 assignment family, the Module 5
+   expression dispatch table, Module 6's `_handle_try_stmt`, and the `#@` annotation forms.
+   NOT yet swept the same way: **the rest of Module 6's `_handle_*` lowerings** (the same
+   "reads some fields, drops the rest" question), and Module 3's `#@` attachment.
 
 ## INSTRUMENT FACTS #33 ADDS
 
-1. **A census over the mirror is not a census over what the pipeline PARSES.** See above.
+1. **A census over the mirror is not a census over what the pipeline PARSES.** The `for/else`
+   refusal measured "0 in the mirror" and then rejected `ir_resolve.py`: `--import-path
+   src/pycsl` makes the LIVE modules import stubs whose helpers are lowered (214 from
+   `Module5_IREmitter` alone). Two live `for ... else`-with-`break` loops had been silently
+   dropped all along. **Scope every census over the LIVE tree too.**
 2. **Probe a suspected drop with a contract that is FALSE of the program.** A true contract
-   failing to prove tells you nothing — it is indistinguishable from incompleteness. The
-   false-contract probe is what turned three "maybe" shapes into two demonstrated
-   unsoundnesses and nine clean verdicts.
+   failing tells you nothing.
 3. **`getattr(node, "<name>", None)` erases to the constant `0` in the model; `node.<name>`
-   projects.** `reject_unmodelled`'s first draft used `getattr` and emitted
-   `... && (0 <> 0)` — a check that can never fire. One word (`node.orelse`) is the
-   difference between a live check and a dead one, and reading the emitted WhyML is the
-   only way to see it.
-4. `bin/check-dropped-mutation.py` is a pure-AST gate: fast, no `why3`, no emission. Run it
-   after ANY Module 5 change.
-5. The `scratchpad/w6/` layout mirrors #32's `w5`: `wt/` is a git worktree for measuring
-   while the main tree proves, `base/` is a worktree pinned at the window-start commit for
-   byte-diff baselines, `proofs/` holds every log plus `RC.txt`.
+   projects.** `reject_unmodelled`'s first draft used `getattr` and emitted `... && (0 <> 0)`
+   — a check that can never fire. Reading the emitted WhyML is the only way to see it.
+4. **THE LIVE EMITTER CARRIES NO `#@` CONTRACTS.** Every `#@ assigns` in `src/pycsl` is
+   inside a comment or docstring. So no import-based cross-file contract lookup can ever
+   work — the emitter resolves imports against the live tree. That is why the avatar-frame
+   residue must be closed in mirror SOURCE, and it is a structural fact, not a gap.
+5. **`src/pycsl_lib/json/scanner.py` and `encoder.py` do NOT type-check** — measured
+   identically at `e4d0a209`, so pre-existing. The stdlib population is not uniformly
+   verified; its 25 `\trusted` lines are outside this campaign's metric.
+6. `bin/check-dropped-mutation.py` and `bin/check-avatar-frame-parity.py` are cheap; the
+   latter needs `--emit-dir` and REFUSES to run without one.
+7. `scratchpad/w6/` mirrors #32's `w5`: `wt/` is a worktree for measuring while the main
+   tree proves, `base/` is pinned at the window-start commit for byte-diff baselines,
+   `proofs/` holds every log plus `RC.txt`. `/tmp/framefix.py` and `/tmp/framefix2.py` drive
+   the caller frame fixpoint against Why3's own error text (the second APPENDS to a
+   non-`\nothing` `#@ assigns` instead of replacing `\nothing`).
+
 # HANDOFF — #32 (2026-09-02, WINDOW 3): **446 -> 447 markers (ONE honest re-trust) and
 # `check-trusted-frame-honesty` 82 -> 19 — because the probe reported only THREE CLEAN
 # candidates in the whole tree, TWO of them were hollow in ways no marker could see, and
