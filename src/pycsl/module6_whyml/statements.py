@@ -4639,14 +4639,57 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     _walk(x)
 
         _walk(body_stmts)
-        return out
+        # (#32) same aliasing fixpoint as the method-level twin; see
+        # `_term_alias_fixpoint`. Kept as a CALL from both walkers rather than folded
+        # into `_sibling_ret_ann_locals`, whose gate is shared with the `_union_*`
+        # locals (lesson (bn)).
+        return self._term_alias_fixpoint(body_stmts, out)
 
     def _term_bound_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """Locals bound from a `-> Term` sibling call — `term`-typed, so they must NOT
         pre-declare `ref 0`. Additionally gated on the certified inductive being emitted."""
         if not getattr(self, "_term_adt_spec", None):
             return set()
-        return self._sibling_ret_ann_locals(body_stmts, lambda a: a == "Term")
+        return self._term_alias_fixpoint(
+            body_stmts, self._sibling_ret_ann_locals(body_stmts, lambda a: a == "Term"))
+
+    def _term_alias_fixpoint(self, body_stmts: List[Dict[str, Any]],
+                             seed: Set[str]) -> Set[str]:
+        """(#32) TERM-LOCAL ALIASING IS A FIXPOINT, exactly as the string-typed locals
+        were made one in #31. The seed is "bound from a `-> Term` call"; a local bound
+        from ANOTHER term local (`cur = new_body` in `canonical._flatten_foralls`) is just
+        as term-typed, and without this it pre-declared `ref 0` and then took a `term` on
+        its first `:=` — the L3-tc rejection that is the first blocker on NINE `\trusted`
+        stubs in `proof2why3/canonical.py`, a family the ranked census could not even SEE
+        until the #32 probe repair. Iterated, because marking one local makes the next
+        one's RHS term-typed.
+
+        Conservative in the same direction as its string sibling: a plain `Var` alias
+        only. A call, a projection or a conditional leaves the local out and it keeps
+        today's `ref 0` — fail-closed at L3-tc, never a silent coercion. Empty seed ->
+        empty result -> byte-identical.
+        """
+        if not seed:
+            return set(seed)
+        out = set(seed)
+        changed = True
+        while changed:
+            changed = False
+            stack = [body_stmts]
+            while stack:
+                n = stack.pop()
+                if isinstance(n, dict):
+                    if (n.get("stmt") == "Assign" and isinstance(n.get("target"), str)
+                            and n["target"] not in out):
+                        v = n.get("value")
+                        if (isinstance(v, dict) and v.get("type") == "Var"
+                                and v.get("name") in out):
+                            out.add(n["target"])
+                            changed = True
+                    stack.extend(n.values())
+                elif isinstance(n, list):
+                    stack.extend(n)
+        return out
 
     def _typed_local_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """Body locals that carry a NON-int WhyML type — array, dict/set, lambda,
@@ -6010,6 +6053,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                       and v not in struct_pack_targets}
             pre_decl_vars |= _mterm
             _term_predecl |= _mterm
+        # (#32) A `Term`-ANNOTATED PARAMETER IS A TERM CARRIER TOO. `_term_local_vars` is
+        # what the EXPRESSION layer consults to project `x.<field>` through the certified
+        # inductive's arm (`match x with Forall _ _ _v2 -> _v2 | _ -> …`) instead of the
+        # opaque, ill-typed `get_<field> x : int`. It was seeded from the term-typed
+        # LOCALS only, so `t.body` on the `-> Term` function's own `t: Term` PARAMETER —
+        # the very first thing every pass in `proof2why3/canonical.py` does — still took
+        # the int getter. Params are added to the EXPRESSION-layer set only, never to
+        # `_term_predecl`: a parameter already has its declared type and must not be
+        # pre-declared as a local. Gated on the certified inductive being emitted at all
+        # -> byte-identical for every module without it.
+        if getattr(self, "_term_adt_spec", None):
+            self._term_local_vars |= {
+                _p for _p, _a in (func.get("param_annotations") or {}).items()
+                if _a == "Term" and _p not in self._term_local_vars}
         # self-tcb-reduction WRITER class (`_build_param_list`): the symbol table, the two
         # array-param sequences, and the set-comprehension result are `seq string` locals —
         # pre-declared `ref (Seq.empty: seq string)`, never the int `ref 0` (which would
