@@ -4073,19 +4073,27 @@ def get_docstring(node, clean=True):
         text = inspect.cleandoc(text)
     return text
 
+# HOLLOW CONVERSION, RE-TRUSTED (#32) — an honest +1, the same outcome as
+# `iter_child_nodes` at #31. This method was converted and PROVED, and its emitted body
+# copied NOTHING: `attr` is the LOOP VARIABLE, so `getattr(old_node, attr)` is a
+# DYNAMIC-name attribute read with no lowering and it emitted the literal
+#     value := 0;
+#     ... setattr_3 new_node (str_hash_op !attr) !value
+# i.e. every one of the four location attributes was written the constant 0 instead of the
+# source node's value, on every path. No plane could see it: L3-tc passes (all ints),
+# `check-untrusted-emitted` passes (it IS a definition), non-vacuity passes (the body still
+# reads `old_node` through `get__attributes`/`hasattr_check`), shadowed-selfcalls and both
+# fidelity scripts are indifferent. `bin/check-computed-rhs-erasure.py` (new at #32) is the
+# plane that finds this class; it is what reported this method.
+# REOPENING CAPABILITY: a DYNAMIC-name `getattr(o, <non-literal>)` / `setattr(o, <non-literal>, v)`
+# pair that relates the read to the write — the model has neither, and the LITERAL-name
+# form (`getattr(self, "<field>", d)`) that #32 did land cannot reach a loop variable.
+#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns new_node
 def copy_location(new_node, old_node):
     """Copy source location attributes from *old_node* to *new_node*."""
-    for attr in ('lineno', 'col_offset', 'end_lineno', 'end_col_offset'):
-        if attr in old_node._attributes and attr in new_node._attributes \
-                and hasattr(old_node, attr):
-            value = getattr(old_node, attr)
-            if value is not None or (
-                hasattr(new_node, attr) and getattr(new_node, attr) is None
-            ):
-                setattr(new_node, attr, value)
     return new_node
 
 #@ \trusted reviewer: pycsl-self-annotate

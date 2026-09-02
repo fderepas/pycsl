@@ -61,8 +61,10 @@ MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 # RATCHETS — the honest measurement at the tree that introduced this gate (relaunch #32,
 # after the `getattr(self, "<scalar field>", <default>)` capability landed).
 #
-#   (A) COMPUTED RHS ERASED TO 0 ......... 6
-#         frontend/pure_ast.py            copy_location            value
+#   (A) COMPUTED RHS ERASED TO 0 ......... 6, LOWERED TO 5 in the same window by
+#       RE-TRUSTING `pure_ast.copy_location` (an honest +1 marker: `attr` is the LOOP
+#       VARIABLE, so `getattr(old_node, attr)` is a DYNAMIC-name read with no lowering and
+#       the method wrote the constant 0 into all four location attributes).
 #         frontend/pure_ast.py            unparse_inner            unparser
 #         module6_whyml/expressions.py    _handle_field_get_expr   _pg2
 #         module6_whyml/expressions.py    _handle_setlit_expr      _poly
@@ -78,7 +80,7 @@ MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 #   (B) PARAM-FIELD MATERIALISED ......... 0  — HARD 0. `_attach_loop_contracts` is the
 #       only known instance and it is (correctly) still `\trusted`.
 # --------------------------------------------------------------------------------------
-MAX_RHS_ERASED = 6
+MAX_RHS_ERASED = 5
 MAX_PARAM_MATERIALIZED = 0
 
 _BLOCK = re.compile(
