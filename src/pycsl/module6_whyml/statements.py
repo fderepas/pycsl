@@ -2996,6 +2996,75 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     st[v] = "str"
         return out
 
+    def _collect_string_valued_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """(#31) THE FIXPOINT GENERALISATION of `_collect_string_literal_locals`: a local
+        whose EVERY assignment RHS is STRING-TYPED (`_is_string_expr`, not merely a plain
+        `String` literal) is a `string` local.
+
+        Module5 leaves an un-annotated local typed `Any`, which Module6 pre-declares as
+        the integer `ref 0`. A body that then does `ret = "int"` … `ret = rhs.strip() or
+        "int"` emits `ret := "int"` against a `ref int` — `This expression has type
+        string, but is expected to have type int`. That single shape is the FIRST blocker
+        on a large, measured slice of the mirror: `functions._parse_mixin_sig`,
+        `pure_ast.dump`, `pure_ast._Unparser.visit_MatchStar`, `normalize._alpha_rename`,
+        `pycsl._parse_why3_json` and more. The LITERAL-only rule above already covers the
+        easy half; everything with one non-literal string RHS (a concatenation, a
+        `.strip()`, a ternary, an `or` default) fell through.
+
+        FIXPOINT, because marking one local makes ANOTHER local's RHS string-typed
+        (`out = s` then `nxt = out + "x"`). Iterated over a growing symbol table until
+        nothing changes, bounded so a pathological body cannot loop.
+
+        CONSERVATIVE in exactly the way the literal rule is: a local assigned ANY
+        non-string-typed value ANYWHERE is excluded and keeps its int model, so this only
+        ever reclassifies locals that were already string-ONLY — and for those the string
+        model is strictly the faithful one (a real Why3 `string` instead of an
+        uninterpreted `str_hash_op` int). An AUGMENTED assignment (`s += …`) counts as an
+        assignment of its RHS, so a `+=` of an int excludes the local."""
+        st = getattr(self, "_current_symbol_table", None)
+        if st is None:
+            return set()
+        formals = set(self._formal_params)
+        # Gather every (target, rhs) assignment pair once; the fixpoint only re-evaluates
+        # `_is_string_expr` over them.
+        pairs: List[tuple] = []
+
+        def rec(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") in ("Assign", "AugAssign") and isinstance(n.get("target"), str):
+                    pairs.append((n["target"], n.get("value")))
+                for x in n.values():
+                    rec(x)
+            elif isinstance(n, list):
+                for x in n:
+                    rec(x)
+
+        rec(body_stmts)
+        if not pairs:
+            return set()
+        marked: Set[str] = set()
+        for _ in range(4):
+            ok: Set[str] = set()
+            bad: Set[str] = set()
+            for tgt, v in pairs:
+                if tgt in formals:
+                    bad.add(tgt)
+                    continue
+                if isinstance(v, dict) and self._is_string_expr(v):
+                    ok.add(tgt)
+                else:
+                    bad.add(tgt)
+            new_marked = {v for v in (ok - bad)
+                          if st.get(v) in (None, "Any", "str", "string")}
+            new_marked -= formals
+            if new_marked == marked:
+                break
+            marked = new_marked
+            for v in marked:
+                if st.get(v) in (None, "Any"):
+                    st[v] = "str"
+        return marked
+
     def _collect_dict_str_param_get_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """self-tcb-reduction _infer_tuple_slot_type (cap-b): a local whose first
         assignment reads a `string` off a `Dict[str,str]` param/local — `t =
@@ -5121,6 +5190,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # non-string-literal value is NOT marked (a mixed/int local keeps its int model), so
         # this only reclassifies locals that were already string-only.
         string_vars |= self._collect_string_literal_locals(body_stmts)
+        # (#31) the fixpoint generalisation of the rule above: EVERY-RHS-STRING-TYPED,
+        # not merely every-RHS-a-literal. See `_collect_string_valued_locals`.
+        string_vars |= self._collect_string_valued_locals(body_stmts)
         # str-list-elements: cross-function element-type propagation. A local bound to a
         # STRING-element-list-returning call (`names = listdir(...)`) is a string-element
         # array; an element READ of it (`name = names[i]`) is a `string`. Mark those

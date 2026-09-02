@@ -251,12 +251,13 @@ def _check_bounds(
 def _emit_specializations(ir_data: int, generics: int, instantiations: int) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _mangled_name(generic_name: str, concrete_type: str) -> str:
-    return ""
+    """`Stack` + `int` -> `Stack_int`. Non-alnum concrete chars -> `_`."""
+    safe = re.sub(r"[^A-Za-z0-9_]", "_", concrete_type)
+    return f"{generic_name}_{safe}"
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
