@@ -779,3 +779,4 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 21:33 #33: try/else closed — Module 6 mechanical field sweep says orelse was the LAST unread semantic IR field; TRYFINAL 10 -> 9
 21:38 #33: DANGLING category added (ratchet 0, hard) — a contract block attaching to nothing is discarded under 'All contracts formally proven'
 21:53 #33: dangling contract block REFUSED in the pipeline (inline in the trusted weaver process; 1 line of mirror movement)
+22:01 #33: recorded — misplaced-directive family, _pg2 as a value-model boundary, library-op probes clean (incl. floor // with negative divisor), dependency sub-pipeline skips exec splice (census 0)
