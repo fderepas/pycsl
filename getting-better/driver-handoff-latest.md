@@ -173,7 +173,32 @@ so the defect is now latent rather than blocking. Nothing is in the tree; re-der
    sites, and the nine `iter_length` loop bodies #29 recorded). Biggest single item left.
 2. **The `int`/`string` model boundary** (see §5) — a model change, not more coercions.
 3. `_decl_arity` + the statement-position `let _ = … in ()` (above).
-4. The closure FORMAL for `interleave` / `items_view` — #29's ladder item 2, STILL untried.
+4. The closure FORMAL for `interleave` / `items_view` — #29's ladder item 2. **NO LONGER
+   UNTRIED: spiked end-to-end at the close of #30 and RECORDED AS A CERTIFIED BOUNDARY.
+   Every step below was measured; do not re-derive it.**
+   - A `_prescan_callable_params` (formals APPLIED in the body -> their arity) plus one
+     branch in `functions._param_type_str` rendering `int -> unit` / `unit -> unit` makes
+     **`interleave` TYPECHECK and score CLEAN on the probe.** Corpus byte-inert (814/814);
+     it moves exactly ONE line in two mirrors (`val _contractparser___try (fn: int)` ->
+     `(fn: unit -> unit)`, which is the truthful type — `fn` is a thunk `_try` calls).
+   - **But converting it is a LOST CONVERSION**: 11 call sites still route through
+     `val self_interleave_3`, so shadowed-selfcalls goes 14 -> 15 and the gate rejects it.
+   - `#@ sibling_concrete` on `interleave` then fails, because
+     `self.interleave(lambda: …, self.traverse, node.elts)` passes a BOUND METHOD as a
+     value and the attribute lowering emits the opaque `getattr__unparser self <hash>`.
+   - A bound-method eta-expansion was built (`self.<m>` in a function-formal position ->
+     `(fun x0 -> <cls>__<m> self x0)` when concrete, else onto the receiver-less avatar
+     `self_<m>_<n>` the file already uses). It gets one level further and then hits the
+     REAL obstacle: **the family is POLYMORPHIC in the argument type.** `interleave` is
+     handed `self.traverse` (`int -> unit`) at one call site and `self._write_constant` /
+     `self.write` (`seq int -> unit`) at another, so one avatar cannot carry both.
+   - Typing the formal `'c0 -> unit` was tried and REFUTED: `interleave`'s own body
+     applies `f` to `next(seq)`, an int, so the type variable cannot be universally
+     quantified inside the definition (`This expression has type int, but is expected to
+     have type 'c0`).
+   **REOPENING CAPABILITY: per-call-site MONOMORPHISATION of a higher-order self-method
+   (one avatar/definition per argument type), or a value model in which `traverse` and
+   `write` share an argument type.** Nothing from this spike is in the tree.
 5. `option string` record-field reads — still unbuilt, still priced (#29).
 
 ## HELPERS LEFT IN THE TREE (`scratchpad/`)
