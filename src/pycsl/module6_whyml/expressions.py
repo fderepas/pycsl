@@ -2825,6 +2825,37 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     _PATH_STR_ATTRS = {"parent": "path_parent_op", "stem": "path_stem_op",
                        "name": "path_name_op", "suffix": "path_suffix_op"}
 
+    # (#31) THE `os.path` STRING MODEL — the procedural twin of the `pathlib` model above.
+    # Every one of these takes and returns a Python `str`; the generic dotted-call fallback
+    # minted `os_path_join_2 (x0 x1: int) : int`, which int-HASHED the path and made every
+    # downstream string use a type error. Split by DETERMINISM, which is the only thing
+    # claimed here:
+    #   PURE  — a mathematical function of its arguments alone -> `val function`.
+    #   IMPURE— reads the process environment (cwd for `abspath`/`realpath`, `$HOME` for
+    #           `expanduser`) or the FILESYSTEM (the predicates) -> a plain `val`, so two
+    #           calls with equal arguments may differ. That is the honest model: the
+    #           filesystem changes under the program.
+    # NO length or prefix law anywhere: `join("a", "/b") == "/b"` (an absolute component
+    # discards everything before it), `basename` can be "", `normpath` can shrink.
+    _OS_PATH_PURE_STR = {          # name -> (arity, whyml op)
+        "basename": (1, "path_basename_op"),
+        "dirname": (1, "path_dirname_op"),
+        "normpath": (1, "path_normpath_op"),
+        "relpath": (2, "path_relpath_op"),
+    }
+    _OS_PATH_IMPURE_STR = {
+        "abspath": (1, "path_abspath_op"),
+        "realpath": (1, "path_realpath_op"),
+        "expanduser": (1, "path_expanduser_op"),
+    }
+    _OS_PATH_PRED = {              # filesystem predicates -> int (the emitter's bool model)
+        "exists": (1, "path_exists_op"),
+        "isfile": (1, "path_isfile_op"),
+        "isdir": (1, "path_isdir_op"),
+        "islink": (1, "path_islink_op"),
+        "isabs": (1, "path_isabs_op"),
+    }
+
     _STR_VALUE_METHODS = ("replace", "lower", "upper", "strip", "lstrip", "rstrip")
 
     def _is_str_value_method(self, expr):
@@ -2858,6 +2889,80 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if len(a) != n:
             return False
         return all(self._is_string_expr(x) for x in a)
+
+    _OS_PATH_SPLIT_SLOTS = {
+        "splitext": ("path_splitext_root_op", "path_splitext_ext_op"),
+        "split": ("path_split_head_op", "path_split_tail_op"),
+        "splitdrive": ("path_splitdrive_drive_op", "path_splitdrive_tail_op"),
+    }
+
+    def _os_path_split_slot(self, value_ir, index_ir):
+        """`(op, argument_ir)` if `value_ir[index_ir]` is slot 0/1 of an `os.path.split*`
+        2-tuple, else None. NO law relating the two slots is claimed — `concat root ext = s`
+        is true of `splitext` but needs both symbols declared in a fixed order, and the
+        `str_repr_op` discipline is to claim only what is cheap AND certain."""
+        if not isinstance(value_ir, dict) or value_ir.get("type") != "Call":
+            return None
+        fn = value_ir.get("func")
+        if not isinstance(fn, str) or value_ir.get("receiver") is not None:
+            return None
+        if not (fn.startswith("os.path.") or fn.startswith("_os.path.")
+                or fn.startswith("ospath.")):
+            return None
+        slots = self._OS_PATH_SPLIT_SLOTS.get(fn.rsplit(".", 1)[-1])
+        if slots is None or len(value_ir.get("args") or []) != 1:
+            return None
+        if not isinstance(index_ir, dict) or index_ir.get("type") != "Number":
+            return None
+        k = index_ir.get("value")
+        if k not in (0, 1):
+            return None
+        return slots[k], value_ir["args"][0]
+
+    def _os_path_call(self, expr):
+        """`(kind, op, arity)` for a recognized `os.path.<f>(...)` call, else None.
+
+        `kind` is "pure" (a `val function` of its arguments), "impure" (reads cwd/$HOME —
+        a plain `val`, so equal arguments need not give equal results) or "pred" (a
+        filesystem predicate, `int` in the emitter's bool model). Fail-closed on a keyword
+        argument and on any arity the table does not name — `os.path.join` in particular
+        is VARIADIC and only the binary form is modelled here."""
+        if not isinstance(expr, dict) or expr.get("type") != "Call":
+            return None
+        fn = expr.get("func")
+        if not isinstance(fn, str) or expr.get("receiver") is not None or expr.get("keywords"):
+            return None
+        for _pfx in ("os.path.", "_os.path.", "ospath."):
+            if fn.startswith(_pfx):
+                tail = fn[len(_pfx):]
+                break
+        else:
+            return None
+        n = len(expr.get("args") or [])
+        if tail == "join" and n == 2:
+            return ("pure", "path_join_op", 2)
+        for kind, table in (("pure", self._OS_PATH_PURE_STR),
+                            ("impure", self._OS_PATH_IMPURE_STR),
+                            ("pred", self._OS_PATH_PRED)):
+            ent = table.get(tail)
+            if ent and ent[0] == n:
+                return (kind, ent[1], n)
+        return None
+
+    def _handle_os_path_call(self, expr, args):
+        """Lower a recognized `os.path` call to its faithful op. None if not applicable."""
+        rec = self._os_path_call(expr)
+        if rec is None:
+            return None
+        kind, op, n = rec
+        params = " ".join(["s"] if n == 1 else [f"s{i}" for i in range(n)])
+        if kind == "pure":
+            self._add_abstract_op(f"val function {op} ({params}: string) : string")
+        elif kind == "impure":
+            self._add_abstract_op(f"val {op} ({params}: string) : string")
+        else:
+            self._add_abstract_op(f"val {op} ({params}: string) : int")
+        return "(" + op + " " + " ".join(args[:n]) + ")"
 
     def _handle_re_str_call(self, expr, args):
         """Lower a recognized `re` string function to a faithful `string`-typed op.
@@ -3859,6 +3964,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and isinstance(ir.get("left"), dict) and isinstance(ir.get("right"), dict)
                 and self._is_string_expr(ir["left"]) and self._is_string_expr(ir["right"])):
             return True
+        # (#31) a slot of an `os.path.splitext`/`split`/`splitdrive` 2-tuple is a string,
+        # so `os.path.splitext(os.path.basename(f))[0] + ".mlw"` routes `+` through
+        # `str_concat_op` instead of the int-model `str_concat`.
+        if (t == "Subscript"
+                and self._os_path_split_slot(ir.get("value") or {},
+                                             ir.get("index") or {}) is not None):
+            return True
         # PYTHON-AST NODE CTOR FAMILY (relaunch #8): a 0-FIELD ASDL SINGLETON construction
         # is a STRING expression — `_N("NotIn")()` lowers to `"NotIn"`, its class-name (the
         # increment-10 rule), and so does the const-dict form `_N(_CMP[<k>])()`. Without
@@ -4035,6 +4147,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # local types as a string AND a chained `.strip()`/`.lower()` on the result
             # reaches the faithful string-value-method path instead of an opaque int op.
             if self._is_re_str_call(ir):
+                return True
+            # (#31) `os.path.basename/dirname/join/...` return a Python `str`, so a
+            # receiving local types as a string and a chained `.lower()`/`+` on the
+            # result reaches the faithful string path. The PREDICATES are excluded —
+            # they are ints in the emitter's bool model.
+            _ospc = self._os_path_call(ir)
+            if _ospc is not None and _ospc[0] != "pred":
                 return True
             # §3.5: a literal-string-list `sep.join([…])` is string (nested concat).
             if self._is_literal_string_join(ir):
@@ -6992,6 +7111,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # string receiver → a faithful `string`-typed op, BEFORE the generic dotted-call
         # fallback (which would emit an opaque int). Gated on a string receiver, so
         # `datetime.replace`/`dataclasses.replace` (non-string) stay on the opaque path.
+        # (#31) `os.path.<f>` -> its faithful op, BEFORE the generic dotted-call fallback.
+        _ospw = self._handle_os_path_call(expr, args)
+        if _ospw is not None:
+            return _ospw
+
         # #31: `re.sub` / `re.escape` -> a faithful `string` op, BEFORE the generic
         # dotted-call fallback that would mint an opaque int `re_sub_3`.
         _rsc = self._handle_re_str_call(expr, args)
@@ -11960,6 +12084,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # `array string` receiver and the index). Fires only for a Call receiver
                 # whose ret-type resolves to `array string`; every other subscript is
                 # byte-identical.
+                # (#31) `os.path.splitext(p)[k]` / `os.path.split(p)[k]`. Both return a
+                # 2-TUPLE of strings and the model has no tuple for an opaque call, so the
+                # whole expression collapsed to `subscript_get (os_path_splitext_1 ...) 0`
+                # — an int. Recognised WHOLE, at the subscript, with one faithful
+                # `string`-returning op per slot. Only a LITERAL 0/1 index is accepted (a
+                # computed index into a 2-tuple has no slot to name), so every other
+                # subscript is untouched.
+                _spl = self._os_path_split_slot(value, expr.get("index", {}))
+                if _spl is not None:
+                    _sop, _sarg = _spl
+                    self._add_abstract_op(f"val function {_sop} (s: string) : string")
+                    _sargw = self._expr_to_whyml(_sarg, local_refs, invariant_ctx, subst)
+                    return f"({_sop} {_sargw})"
                 # (#31) STRING SUBSCRIPT. `s[i]` on a STRING-typed receiver is Python's
                 # ONE-CHARACTER STRING, not an opaque int. The emitter already lowers the
                 # ADJACENT case — the element read of a `for c in <str>` loop — as

@@ -4024,6 +4024,16 @@ def literal_eval(node_or_string):
 def iter_fields(node) -> int:
     pass
 
+# YIELD-ERASURE REVERT (#31). This was CONVERTED in relaunch #30. Its emitted body was
+# `let iter_child_nodes (node: int) : unit` in which BOTH `yield field` and `yield item`
+# lowered to `let _ = 0 in ()` — the yielded value dropped on the floor — so the proof
+# established nothing whatsoever about what the generator produces, which IS its entire
+# meaning. No gate saw it: L3-tc passes (a `unit` body is well typed), non-vacuity passes
+# (the body still READS `node` via `iter_fields node`, so it is not input-blind), and the
+# candidate probe's marker list had no yield rule. Re-trusted until the model can carry a
+# yielded sequence. See `bin/check-yield-erasure.py`, which now makes this class of
+# conversion impossible to bank again.
+#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

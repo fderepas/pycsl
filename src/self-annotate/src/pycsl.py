@@ -39,7 +39,6 @@ from frontend.ConcurrencyChecker import ConcurrencyChecker
 from frontend.ir_resolve import resolve as _ir_resolve, _collect_calls
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -137,7 +136,6 @@ def _find_coqc() -> Optional[str]:
     return _sh.which("coqc")
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

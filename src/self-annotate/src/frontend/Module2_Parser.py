@@ -933,7 +933,6 @@ class _ContractParser:
             self._err(f"expected {val!r}")
         return self.advance().string
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -944,11 +943,17 @@ class _ContractParser:
     # `self._err(...)` call to `(let _ = <call> in absurd)` (continuation UNREACHABLE). This
     # is what lets a clause parser whose live body ends in a trailing `self._err(...)` with
     # no following return (e.g. `_parse_loop`) type-check as `-> ExprIR` — the raising path
-    # yields the branch's emit_ir type via the divergence, not a spurious `unit`. Stays
-    # `\trusted` (raise + f-string + `self.cur()` char boundary); the annotation only makes
-    # the trusted interface precise, backed by the live unconditional raise.
+    # yields the branch's emit_ir type via the divergence, not a spurious `unit`.
+    # CONVERTED (#31). The record above read "Stays `\trusted` (raise + f-string +
+    # `self.cur()` char boundary)" — that was measured with a probe that PORTED THE LIVE
+    # `def` LINE and so threw away this stub's own `-> NoReturn` annotation, which is
+    # exactly what makes the raise lower. With the signature preserved the body emits as a
+    # real `let ... : unit ensures { false } raises { ContractSyntaxError }` over
+    # `_contractparser__cur self`. Lesson (az): a stale COMMENT is more dangerous than a
+    # stale record.
     def _err(self, msg: str) -> NoReturn:
-        pass
+        t = self.cur()
+        raise _ContractSyntaxError(f"{msg} (got {t.type} {t.string!r})")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -1442,7 +1447,6 @@ class _ContractParser:
             return SharedDecl(name, mutex)
         return SharedDecl(name, None)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ ensures self.i >= \old(self.i)
@@ -1451,11 +1455,20 @@ class _ContractParser:
     # Returns the mutex-expression STRING (`NAME` or `NAME[<idx>]`); the `-> str` return
     # annotation lets a converted caller (`_parse_mutex_invariant`) bind it as the leaf
     # `mutex` field. Stays `\trusted` — its `f"{name}[{_csl_to_str(index)}]"` body threads
-    # a value through the two-trusted-stub `_parse_expr`/`_csl_to_str` type mismatch
-    # (CERTIFIED BOUNDARY, parser-tokenstream-impl.md GAP #2 run); the annotation only
-    # makes the trusted interface precise (the `_parse_assigns`/`_parse_expr` precedent).
+    # a value through the `_parse_expr`/`_csl_to_str` pair.
+    # CONVERTED (#31). The record above said CERTIFIED BOUNDARY
+    # (parser-tokenstream-impl.md GAP #2) on a "two-trusted-stub type mismatch". Re-measured
+    # with the signature-preserving probe it emits a real
+    # `let ... : string` building `str_concat_op !name "[" (_csl_to_str !index) "]"` —
+    # the mismatch was the probe discarding this stub's own `-> str`, not the model.
     def _parse_mutex_expr_str(self) -> str:
-        pass
+        name = self.expect_name()
+        if self.at_op("["):
+            self.advance()
+            index = self._parse_expr()
+            self.expect_op("]")
+            return f"{name}[{_csl_to_str(index)}]"
+        return name
 
     #@ requires True
     #@ ensures True

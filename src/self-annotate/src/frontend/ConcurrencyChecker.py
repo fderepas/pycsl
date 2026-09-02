@@ -50,12 +50,12 @@ class ConcurrencyChecker:
     def _check_function(self, func: ast.FunctionDef) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _walk_body(self, stmts: list, held: int, func_name: str) -> None:
-        pass
+        for stmt in stmts:
+            self._walk_stmt(stmt, held, func_name)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
