@@ -14973,7 +14973,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # `return [...]` now type-checks against a str/float use site. An all-`int`/
                 # all-`bool` literal keeps the `array int` path below (byte-identical);
                 # a mixed / non-scalar literal keeps the int-coercion default (documented).
-                _all_str = all(isinstance(e, dict) and e.get("type") == "String"
+                # (#32) EVERY-ELEMENT-STRING-TYPED, not every-element-a-STRING-LITERAL.
+                # `_all_str` used the literal-only test, so `["why3", "prove",
+                # "--type-only", mlw_filename]` — three literals and one `str`-annotated
+                # parameter — was NOT uniform, fell through to the int-coercion fallback,
+                # and was REJECTED by the WL-04g heterogeneous guard. That refusal is the
+                # first blocker on FIFTEEN `\trusted` stubs on the honest #32 census
+                # (Module6_WhyMLTranspiler.transpile, three Module5_IREmitter detectors,
+                # four pycsl.py drivers, and seven more) — the fourth-largest identified
+                # family, and it is not a missing model: `_is_string_expr` is the
+                # emitter's general string-typedness decider (generalised and fixpointed
+                # in #31 for exactly this reason), and it already answers for every one of
+                # those elements. Using it here is the same substitution #31 made in
+                # `_collect_string_literal_locals`. Conservative in the same direction: a
+                # single element `_is_string_expr` cannot vouch for leaves the literal
+                # non-uniform and the fail-closed guard still fires.
+                _all_str = all(isinstance(e, dict) and self._is_string_expr(e)
                                for e in elts)
                 _all_float = all(isinstance(e, dict) and e.get("type") == "Number"
                                  and isinstance(e.get("value"), float) for e in elts)
