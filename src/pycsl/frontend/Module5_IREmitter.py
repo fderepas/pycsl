@@ -5818,6 +5818,16 @@ class Module5_IREmitter:
         self.tree = tree
 
     def generate_json(self, indent: int = 2) -> str:
+        # (#33) CHAINED-COMPARISON NORMALIZATION, the single choke point both Module 5
+        # entry paths go through (`pycsl.py`'s pipeline and `ir_resolve.resolve`'s
+        # dependency sub-pipeline). `a < b < c` is `a < b and b < c` in Python;
+        # `_py_expr_compare` reads only `ops[0]`/`comparators[0]`, so an un-normalized
+        # chain lost its tail and the ELSE branch was proved over a strict SUBSET of the
+        # reachable states. Normalizing here rather than in `_py_expr_compare` is
+        # deliberate: that method is CONVERTED and its model is a hand-synthesized bespoke
+        # lowering keyed on the method name, so editing its body would leave every gate
+        # green while the model stopped being the body. See `frontend/desugar_compare.py`.
+        from frontend.desugar_compare import desugar_chained_comparisons
         emitter = PyCSLToJSONEmitter()
-        emitter.visit(self.tree)
+        emitter.visit(desugar_chained_comparisons(self.tree))
         return json.dumps(emitter.program_ir, indent=indent)
