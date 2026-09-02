@@ -5828,8 +5828,8 @@ class Module5_IREmitter:
         # lowering keyed on the method name, so editing its body would leave every gate
         # green while the model stopped being the body. See `frontend/desugar.py`.
         from frontend.desugar import (desugar_chained_comparisons,
-                                      normalize_stores, reject_loop_else)
-        reject_loop_else(self.tree)
+                                      normalize_stores, reject_unmodelled)
+        reject_unmodelled(self.tree)
         normalize_stores(self.tree)
         emitter = PyCSLToJSONEmitter()
         emitter.visit(desugar_chained_comparisons(self.tree))

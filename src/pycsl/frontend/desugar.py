@@ -115,7 +115,7 @@ aliasing Python guarantees (`a = b = []` binds ONE list to both names) is preser
 every other RHS a fresh temporary is bound first, so the value is computed exactly once.
 
 
-## 4. `for ... else` / `while ... else` ARE REFUSED, NOT DROPPED
+## 4. `for ... else` / `while ... else`, AND THE EXTENDED SLICE, ARE REFUSED NOT DROPPED
 
 `_process_for` and `_process_while` read `target`/`iter`/`body` and `test`/`body`; neither
 reads `orelse`. A loop `else` runs exactly when the loop finished WITHOUT `break`, and
@@ -126,6 +126,22 @@ answer is a loud refusal: `_reject_loop_else` raises. CENSUS: 0 in the corpus, 0
 mirror, 0 in `pycsl_lib`, 2 in the live emitter (both inside `\trusted` mirror stubs, whose
 bodies are never parsed by this pipeline). `try ... else` is NOT affected —
 `_py_stmt_try` does carry `orelse` and `finalbody`.
+
+An EXTENDED SLICE `x[lo:hi:step]` lowers to `Array.sub x lo (hi - lo)` — the step is
+dropped and the model carries a sequence of a DIFFERENT LENGTH with DIFFERENT ELEMENTS.
+Measured, before the refusal:
+
+    #@ ensures \result == xs[1] + xs[2]        <-- FALSE OF THE PROGRAM
+    def f(xs: list) -> int:
+        ys = xs[1:4:2]
+        return ys[0] + ys[1]
+
+    [+] Verification SUCCESS! All contracts formally proven.
+
+`f` returns `xs[1] + xs[3]` in Python. Modelling a strided copy is a value-model feature,
+not a normalization, so the honest answer is again a refusal. CENSUS: 0 in the corpus, 0 in
+the mirror, 0 in `pycsl_lib`, 0 in the live emitter — the refusal is completely inert and
+closes a demonstrated unsoundness.
 """
 from __future__ import annotations
 
@@ -199,8 +215,8 @@ class _ChainDesugarer(ast.NodeTransformer):
         return out
 
 
-def reject_loop_else(tree: ast.AST) -> None:
-    """Refuse `for ... else` / `while ... else`, which Module 5 would silently DROP."""
+def reject_unmodelled(tree: ast.AST) -> None:
+    """Refuse the shapes Module 5 would SILENTLY DROP and that have no sound rewrite."""
     for node in ast.walk(tree):
         if isinstance(node, (ast.For, ast.While)) and node.orelse:
             raise PyCSLParseError(
@@ -208,6 +224,12 @@ def reject_loop_else(tree: ast.AST) -> None:
                 "exactly when the loop finished without `break`, and the IR emitter reads "
                 "only the loop body, so the clause would be silently DROPPED from the "
                 "model. Rewrite it with an explicit flag.")
+        if isinstance(node, ast.Slice) and node.step is not None:
+            raise PyCSLParseError(
+                "an EXTENDED slice `x[lo:hi:step]` is not modelled: the lowering is "
+                "`Array.sub x lo (hi - lo)`, which ignores the step entirely, so the "
+                "model would carry a DIFFERENT sequence — different length and different "
+                "elements — from the one Python builds. Use an explicit strided loop.")
 
 
 def normalize_stores(tree: ast.AST) -> None:
