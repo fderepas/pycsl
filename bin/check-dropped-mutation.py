@@ -111,6 +111,15 @@ lowering never mention?
     Any raw-source scan of `#@` must expect that; the DANGLING check is safe from it only
     because it additionally requires end-of-file.
 
+LIBRARY-OPERATION PROBES, same false-contract method, all CLEAN (conservative, never
+unsound): `d.get(k, default)` with and without the key present; `a.append(v)` then
+`len(a)`/`a[-1]`; `s.startswith` / `s.replace` / `s.find` (the opaque string model rejects
+BOTH the true and the false contract — incomplete, not wrong); `del d[k]` then `k in d`;
+`except ... as e`; list `+=`; negative indexing; and Python's FLOOR `//` and `%` with a
+NEGATIVE DIVISOR, where `7 // -2 = -4` and `7 % -2 = -1` both prove and the Euclidean
+answers `-3` / `1` are REJECTED — a place a Why3 backend could very easily have been wrong
+and is not.
+
 SCOPE. The four populations that are actually verified or mirrored: the reference corpus,
 the self-annotation mirror, `src/pycsl_lib`, and the LIVE emitter — the last one because
 `--import-path src/pycsl` makes the pipeline PARSE the live modules as import stubs and
