@@ -111,6 +111,17 @@ lowering never mention?
     Any raw-source scan of `#@` must expect that; the DANGLING check is safe from it only
     because it additionally requires end-of-file.
 
+A PIPELINE ASYMMETRY, found while tracing where the normalization pass had to live, and
+recorded because it is the same bug class one level up: **`ir_resolve.resolve`'s dependency
+sub-pipeline does NOT run `exec_splice.splice_constant_exec`.** The main pipeline
+(`pycsl.py`) splices a constant `exec("...")` into its parsed straight-line body before
+Module 5; the dependency path goes `Module1 -> Module2 -> Module3.process() ->
+Module5_IREmitter(unified)` with no splice, so a constant `exec` in an IMPORTED module
+would have its statements simply absent from that module's IR. CENSUS: **2 sites, both in
+main corpus files (0642, 0643), 0 in any dependency** — so it is a latent asymmetry today.
+FIX: one call, in the same place `Module5_IREmitter.generate_json` puts the desugar pass
+(and check `resolve`'s trust status in the mirror first — see the lesson about new methods).
+
 LIBRARY-OPERATION PROBES, same false-contract method, all CLEAN (conservative, never
 unsound): `d.get(k, default)` with and without the key present; `a.append(v)` then
 `len(a)`/`a[-1]`; `s.startswith` / `s.replace` / `s.find` (the opaque string model rejects
