@@ -539,6 +539,20 @@ class ControlFlowStmtMixin:
         body_str = self._stmts_to_whyml(body_stmts, local_refs, declared_refs.copy(), indent + "  ", in_loop)
         if not body_str:
             body_str = f"{indent}  ()"
+        # (#33) `try ... except ... else:` — the `else` clause was DROPPED too. Module 5
+        # carries `orelse` into the IR and this handler never read it, so a whole reachable
+        # block was absent from the model. Python runs it AFTER the try body completes
+        # WITHOUT an exception, which is exactly "at the end of the try body" — provided it
+        # cannot itself raise into the handlers, which Python would not let it do. One
+        # string test of the LOWERED else decides that, the same way the `finally` rule
+        # decides its own safe case: no `raise` anywhere in it. Anything else keeps today's
+        # behaviour and is counted by `bin/check-dropped-mutation.py`'s TRYFINAL category.
+        _else = [s.to_dict() for s in stmt.orelse]
+        if _else:
+            _else_str = self._stmts_to_whyml(_else, local_refs, declared_refs.copy(),
+                                             indent + "  ", in_loop)
+            if _else_str.strip() and "raise" not in _else_str:
+                body_str = body_str + ";\n" + _else_str
         if handlers:
             from exception_model import handler_catches
             # Concrete exception tags that can actually escape the try body

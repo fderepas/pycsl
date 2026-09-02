@@ -107,7 +107,7 @@ MAX_CTXBIND = 48
 # `functions._refine_tuple_return_type` — each one a save/restore whose restore was absent
 # from the model), and the residue is the shapes with handlers or with a jump out of the
 # try body. 0 in the reference corpus.
-MAX_TRYFINAL = 10
+MAX_TRYFINAL = 9
 
 
 def _classify_augassign(node: ast.AugAssign):
@@ -201,6 +201,8 @@ def scan_file(path: str):
         elif isinstance(node, ast.Try) and (node.finalbody or node.orelse):
             if node.finalbody and not node.handlers and not _jumps_out(node.body):
                 bucket, why = "HANDLED", "`try/finally`, no handlers, no jump out — emitted"
+            elif node.orelse and not node.finalbody and not _jumps_out(node.orelse):
+                bucket, why = "HANDLED", "`try/else`, else cannot raise — appended to the try body"
             else:
                 bucket, why = "TRYFINAL", (
                     "`try/%s` block not emitted (%s)"
