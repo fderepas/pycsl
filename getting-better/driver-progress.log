@@ -767,3 +767,4 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 19:23 #33: Module5 silent-drop AUDIT — annassign non-Name store + for/while-else refusal landed (448->449); 2 live for/else victims found via import-stub parsing; corpus byte-diff 0
 19:31 #33: UNSOUNDNESS FIXED — a = b = v dropped all targets but the first and PROVED A FALSE POSTCONDITION; 0 marker cost; pure_ast re-proof queued
 19:35 #33: NEW GATE PLANE check-dropped-mutation.py — 28165 stmts, 1 DROPPED (ratchet 1), the fail-open class made permanently visible
+19:44 #33: SECOND UNSOUNDNESS — extended slice x[lo:hi:step] drops the step, proved a false postcondition; REFUSED (census 0 everywhere, inert)
