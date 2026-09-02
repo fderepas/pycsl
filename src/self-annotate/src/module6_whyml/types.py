@@ -215,6 +215,25 @@ class TypeInferenceMixin:
             return self._field_type_of(val_ir) in ("set", "dict", "frozenset")
         if t == "Call":
             fn = val_ir.get("func", "")
+            # (#33) `getattr(self, "<dict/set field>", {})` IS `self.<field>` — #32's
+            # `_lower_getattr` relaxation makes it LOWER as the real field, so the LOCAL it
+            # binds must be pre-declared as a MAP and not as `ref 0`. Without this the
+            # defensive read of a collection field takes a `map` on its first `:=` against
+            # an int slot. Same fail-closed gate as the lowering: literal attribute name,
+            # `self` receiver, DECLARED collection type.
+            # REFLECTION-SAFE SPELLING (lesson (cf)): this method is CONVERTED, so the body
+            # is copied verbatim into the mirror and must type-check THERE. `val_ir["args"]`
+            # (a Subscript) is not routed through `_EMIT_IR_PROJ`; `.get("args") or []` is,
+            # and reflects to `args_of : array emit_ir` — the spelling already proved in
+            # `expressions._iter_elem_class` and `ir_scanner`.
+            _ga = val_ir.get("args") or []
+            if fn == "getattr" and 2 <= len(_ga) <= 3:
+                if (isinstance(_ga[0], dict) and _ga[0].get("type") == "Var"
+                        and _ga[0].get("name") == "self"
+                        and isinstance(_ga[1], dict) and _ga[1].get("type") == "String"
+                        and self._self_field_py_type(_ga[1].get("value"))
+                        in ("dict", "set", "frozenset")):
+                    return True
             # `self.<method>(...)` — apply class-prefix mangling.
             if fn.startswith("self."):
                 tail = fn[len("self."):]

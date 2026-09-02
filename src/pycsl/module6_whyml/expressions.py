@@ -460,6 +460,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 not in getattr(self, "_mutable_state_classes", set())):
             return False
         t = ir_expr.get("type")
+        if (t == "Call" and ir_expr.get("func") == "getattr"
+                and 2 <= len(ir_expr.get("args") or []) <= 3):
+            _a = ir_expr["args"]
+            if (isinstance(_a[0], dict) and _a[0].get("type") == "Var"
+                    and _a[0].get("name") == "self"
+                    and isinstance(_a[1], dict) and _a[1].get("type") == "String"
+                    and _a[1].get("value") in getattr(self, "_all_record_fields", set())
+                    and self._self_field_py_type(_a[1].get("value"))
+                    in ("dict", "set", "frozenset")):
+                return True
         if (t == "Var" and ir_expr.get("name")
                 in getattr(self, "_dict_locals", set())):
             return True
@@ -10086,7 +10096,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     and isinstance(default_ir, dict)
                     and (default_ir.get("type") == "String"
                          or self._self_field_py_type(name_ir.get("value"))
-                         in ("int", "bool", "str"))):
+                         in ("int", "bool", "str", "dict", "set", "frozenset"))):
                 # (#32) THE DEFAULT'S TYPE IS IRRELEVANT ONCE THE FIELD IS MODELLED.
                 # This branch used to fire only for a STRING default, so the two
                 # commonest spellings of the very same idiom — `getattr(self, "_f", None)`
