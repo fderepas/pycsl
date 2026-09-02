@@ -52,8 +52,12 @@ content:
 previously-dead branch made reachable by faithful map truthiness.
 | `pycsl.py` | 735 | SUCCESS |
 
-FIFTEEN runs, rc=0 and `Verification SUCCESS` on every one; **NO PROVER PROCESS LEFT
-RUNNING.** Logs and exit codes are in `scratchpad/w5/proofs/`, and
+| `frontend/pure_ast.py` (again, honest frames) | 3097 | queued |
+| `module6_whyml/functions.py` (again, honest frames) | 1199 | queued |
+
+FIFTEEN runs completed rc=0 with `Verification SUCCESS` on every one. The final honest-frame
+pass (trusted-frame-honesty 19 -> 0) moves `pure_ast.py` and `functions.py` once more and
+those two re-proofs were the last thing running. Logs and exit codes are in `scratchpad/w5/proofs/`, and
 `scratchpad/w5/proofs/superseded/` holds three runs that were KILLED (rc 137/15) because a
 later increment superseded their content — those are not failures, and one of them
 (`module6_whyml_statements_2.log`) had already reported SUCCESS before the kill.
@@ -67,7 +71,8 @@ THE FULL BATTERY, driver-verified fresh at window end, `why3` ON PATH:
   · non-vacuity (`--emit`): no NEW erasure, 8 known gated, **0 input-blind**
   · shadowed-selfcalls **14 / 121** (ratchet 14)
   · untrusted-emitted 862 un-trusted, 846 definitions, **0 re-abstracted**, 0 absent
-  · frame-honesty **0/19 trusted (was 0/82), 1/125 converted (was 4/133)**
+  · frame-honesty **0/0 trusted (was 0/82 — THE PLANE IS AT ZERO), 1/99 converted
+    (was 4/133)**
   · yield-erasure **0 value-erasing / 2 suspension (ratchet 2) / 1 modelled**
   · computed-rhs-erasure (NEW PLANE) **5 / 0**
   · mirror-signature-drift **0 (ratchet now a HARD 0, was 16)**
