@@ -4694,9 +4694,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             else:
                 sstr, nstr = right, left
             self._add_abstract_op(
+                # (relaunch #30) THE `requires { n >= 0 }` WAS NOT A PYTHON PRECONDITION.
+                # `"ab" * -1` is `""` in Python — repetition by a non-positive count is
+                # TOTAL, not an error — so the guard was an over-restriction of the model,
+                # and it was a load-bearing one: `_Unparser.fill` lowers
+                # `"    " * self._indent + text` and `self._indent` is an opaque
+                # `getattr__unparser` read, so `n >= 0` is not provable at the call site and
+                # the precondition was the ONE unproven goal in the whole 2900-goal file.
+                # Replace it with the faithful TOTAL contract: the length law holds for
+                # `n >= 0` and the result is EMPTY for `n < 0`, exactly as Python behaves.
+                # Strictly WEAKER as a requirement and strictly MORE INFORMATIVE as a
+                # postcondition — nothing that proved before can stop proving.
                 "val str_repeat_op (s: string) (n: int) : string\n"
-                "    requires { n >= 0 }\n"
-                "    ensures { String.length result = n * String.length s }")
+                "    ensures { n >= 0 -> String.length result = n * String.length s }\n"
+                "    ensures { n < 0 -> String.length result = 0 }")
             return f"(str_repeat_op {sstr} {nstr})"
         # G2 strings: `%`-formatting `s % x` produces SOME string — its content is NOT
         # modeled (faithful boundary). An honest abstract `val` pins only `length >= 0` (a
