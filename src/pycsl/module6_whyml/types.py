@@ -237,22 +237,6 @@ class TypeInferenceMixin:
             return self._field_type_of(val_ir) in ("set", "dict", "frozenset")
         if t == "Call":
             fn = val_ir.get("func", "")
-            # (#32) `getattr(self, "<dict/set field>", {})` IS `self.<field>` — #32's
-            # `_lower_getattr` relaxation makes it LOWER as the real field, so the LOCAL it
-            # binds must be pre-declared as a MAP and not as `ref 0`. Without this the
-            # defensive read of a collection field takes a `map` on its first `:=` against
-            # an int slot (`symtab := self._current_symbol_table`, the L3-tc rejection that
-            # is the first blocker on `_infer_return_value_type`). Same fail-closed gate as
-            # the lowering: literal attribute name, `self` receiver, DECLARED collection
-            # type.
-            if fn == "getattr" and 2 <= len(val_ir.get("args") or []) <= 3:
-                _ga = val_ir["args"]
-                if (isinstance(_ga[0], dict) and _ga[0].get("type") == "Var"
-                        and _ga[0].get("name") == "self"
-                        and isinstance(_ga[1], dict) and _ga[1].get("type") == "String"
-                        and self._self_field_py_type(_ga[1].get("value"))
-                        in ("dict", "set", "frozenset")):
-                    return True
             # `self.<method>(...)` — apply class-prefix mangling.
             if fn.startswith("self."):
                 tail = fn[len("self."):]
