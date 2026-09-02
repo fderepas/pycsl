@@ -120,8 +120,55 @@ import shutil
 import sys
 import tempfile
 
+
+# ===========================================================================================
+# RE-BASELINED 2026-09-02 (relaunch #31) — THE ANALYSIS GOT SHARPER, THE TREE DID NOT GET
+# WORSE. This is the one condition under which any ratchet in this battery may RISE, and it
+# is the same condition under which `check-shadowed-selfcalls.py` went 13 -> 14 at #30.
+#
+# The write detector saw `self.x = ...` and NOTHING ELSE. It did not see:
+#     self.xs.append(v)      self.s.add(v)        self.d.update(m)     self.xs.sort()
+#     self.d[k] = v          del self.d[k]        self.d.setdefault(k, v)
+# — which is how the emitter mutates most of its state. (`self.d[k] = v` has an
+# `ast.Subscript` target, not an `ast.Attribute` one, so it missed the store walk too.)
+#
+# ON THE SAME TREE, with the sharper detector:
+#     trusted   total          63  ->  82   (direct writers 23 -> 32)
+#     converted total          68  -> 133   (direct writers 11 -> 12)
+#     converted MODEL-VISIBLE   2  ->   4
+# The four model-visible CONVERTED offenders are `expressions._ifexpr_seq_arm`,
+# `statements._materialize_bridge`, `._materialize_str_bridge`,
+# `._wrap_body_with_return_catch` — all of them reach `_add_abstract_op`, whose
+# `self._abstract_ops[k] = ...` is exactly the subscript store the old walk could not see.
+# Relaunch #30 already recorded the lesson that a CONVERTED method must not call
+# `_add_abstract_op` because it writes `_obj_state_written`; this makes the OTHER half of
+# that write visible too.
+#
+# THE MOST INSTRUCTIVE SINGLE OFFENDER, and it is in the CONVERTED population:
+# `pure_ast._Unparser.write` — the 97-call-site output hub. Its whole body is
+# `self._source.extend(text)` and it is emitted as
+#     let _unparser__write (self: _unparser) (text: seq int) : unit
+#       writes {  }
+#     = let _ = (self__source_extend_1 text) in ()
+# a RECEIVER-LESS opaque op with no effect, under a frame that says the method changes
+# nothing. Nothing in the battery could see it: L3-tc passes, the proof passes, non-vacuity
+# passes (the body reads `text`), shadowed-selfcalls passes.
+#
+# These numbers are a re-baseline of the MEASUREMENT, not a licence: they may only go down
+# from here, and the four model-visible converted offenders are a live ladder item.
+# ===========================================================================================
 RATCHET = 0           # MODEL-VISIBLE offenders: `@mutable_state` class AND a modelled field
-TOTAL_RATCHET = 63    # every offender, including opaque-self classes (68 -> 63 at #30:
+# The Python collection mutators that write through a self field WITHOUT an
+# attribute STORE. `sort`/`reverse` are in-place; `pop`/`popitem`/`clear`/`remove`/
+# `discard`/`insert`/`setdefault`/`update`/`extend`/`append`/`add` all mutate.
+_MUTATING_METHODS = frozenset({
+    "append", "extend", "insert", "add", "update", "pop", "popitem", "clear",
+    "remove", "discard", "setdefault", "sort", "reverse",
+})
+
+TOTAL_RATCHET = 82    # 63 -> 82 at #31 by the SHARPER DETECTOR above (not by new false
+                      # frames); the pre-#31 history below is against the blunter walk.
+                      # every offender, including opaque-self classes (68 -> 63 at #30:
                       # the window converted seven `\trusted` stubs, five of which stood
                       # for a live body that writes `self` state, so the TRUSTED
                       # population shrank; each of those became a CONVERTED offender only
@@ -133,8 +180,9 @@ TOTAL_RATCHET = 63    # every offender, including opaque-self classes (68 -> 63 
                       # (70 -> 68 at #29:
                       # the `_Unparser` ports move offenders from the TRUSTED population
                       # to the CONVERTED one; a RATCHET, only lower it)
-CONVERTED_RATCHET = 2         # the CONVERTED surface, model-visible (see the note below)
-CONVERTED_TOTAL_RATCHET = 68  # the CONVERTED surface, every offender
+CONVERTED_RATCHET = 4         # 2 -> 4 at #31 by the SHARPER DETECTOR (the `_add_abstract_op`
+                              # subscript store); the CONVERTED surface, model-visible
+CONVERTED_TOTAL_RATCHET = 133 # 68 -> 133 at #31 by the SHARPER DETECTOR; every offender
 LIVE_ROOT = "src/pycsl"
 MIRROR_ROOT = "src/self-annotate/src"
 
@@ -238,6 +286,38 @@ def _self_write_fixpoint(classes, bases, funcs, tables=None):
             if isinstance(n, ast.Attribute) and isinstance(n.ctx, ast.Store)
             and isinstance(n.value, ast.Name) and n.value.id == "self"
         }
+        # SHARPER ANALYSIS (relaunch #31) -- IN-PLACE MUTATION OF A SELF COLLECTION.
+        # The store-context walk above sees `self.x = ...` and NOTHING ELSE. It does not
+        # see `self.xs.append(v)`, `self.d[k] = v`, `self.s.add(v)`, `del self.d[k]` — and
+        # those are how the emitter mutates most of its state. MEASURED: 18 methods
+        # declaring `#@ assigns \nothing` mutate a self collection this way, and ONE of
+        # them is CONVERTED — `_Unparser.write`, the 97-call-site output hub, whose entire
+        # body is `self._source.extend(text)` and which was emitted as
+        #     let _unparser__write (self: _unparser) (text: seq int) : unit
+        #       writes {  }
+        #     = let _ = (self__source_extend_1 text) in ()
+        # i.e. a receiver-less opaque op with no effect, under a frame that says the method
+        # changes nothing. `_Unparser` is `@mutable_state`, so a caller can read a field
+        # through `getattr__unparser` and rely on `writes { }` across the call.
+        # A subscript STORE (`self.d[k] = v`) is an `ast.Subscript` target, not an
+        # `ast.Attribute` one, which is why it slipped through the same walk.
+        for n in ast.walk(fn):
+            if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                    and n.func.attr in _MUTATING_METHODS):
+                b = n.func.value
+                if (isinstance(b, ast.Attribute) and isinstance(b.value, ast.Name)
+                        and b.value.id == "self"):
+                    direct[key].add(b.attr)
+            if isinstance(n, (ast.Assign, ast.AugAssign, ast.Delete)):
+                tgts = (n.targets if isinstance(n, (ast.Assign, ast.Delete))
+                        else [n.target])
+                for t in tgts:
+                    while isinstance(t, ast.Subscript):
+                        t = t.value
+                    if (isinstance(t, ast.Attribute) and isinstance(t.value, ast.Name)
+                            and t.value.id == "self"
+                            and not isinstance(getattr(t, "ctx", None), ast.Store)):
+                        direct[key].add(t.attr)
         edges = set()
         for n in ast.walk(fn):
             if not isinstance(n, ast.Call):
