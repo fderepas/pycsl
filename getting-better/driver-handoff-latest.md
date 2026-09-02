@@ -27,32 +27,50 @@
   This is lesson (cf): **a capability's cost includes WHICH FUNCTION it has to live in.**
   Check the host's trust status BEFORE writing the rule.
 
-## VERIFICATION STATE AT WINDOW END
+## VERIFICATION STATE AT WINDOW END — COMPLETE
 
-Every mirror `.mlw` that MOVED this window was re-proved, `Verification SUCCESS` / 0
-non-Valid. Confirmed at the time of writing:
+**EVERY mirror `.mlw` that moved this window was re-proved, `Verification SUCCESS`, 0
+non-Valid.** Fourteen whole-file proofs, all detached under `setsid`, all on the FINAL tree
+content:
 
 | mirror | goals | verdict |
 |---|---|---|
-| `module6_whyml/statements.py` (getattr-scalar) | 922 | SUCCESS |
-| `module6_whyml/expressions.py` (getattr-scalar) | 1069 | SUCCESS |
-| `frontend/ConcurrencyChecker.py` | 5 | SUCCESS |
-| `module6_whyml/expr_ghost_spec_ops.py` (×2 — honest frames, then the drift repair) | 123 | SUCCESS |
-| `module6_whyml/scc.py` | 50 | SUCCESS |
-| `module6_whyml/auto_trust.py` | 280 | SUCCESS |
+| `frontend/pure_ast.py` | 3097 | SUCCESS |
+| `module6_whyml/stmt_control_flow.py` (honest frames, then map truthiness) | 1874 | SUCCESS x2 |
+| `frontend/Module5_IREmitter.py` | 1499 | SUCCESS |
 | `module6_whyml/functions.py` | 1199 | SUCCESS |
-| `module6_whyml/stmt_control_flow.py` (honest frames) | 1874+ | SUCCESS |
-| `frontend/ir_resolve.py` | — | SUCCESS |
-| `Module6_WhyMLTranspiler.py` | — | SUCCESS |
+| `module6_whyml/expressions.py` (getattr-scalar; then avatar frame + honest frames + drift + getattr-str + map truthiness) | 1069 | SUCCESS x2 |
+| `module6_whyml/statements.py` (getattr-scalar; then honest frames + drift) | 922 / 923 | SUCCESS x2 |
+| `frontend/ir_resolve.py` | 793 | SUCCESS |
+| `Module6_WhyMLTranspiler.py` | 706 | SUCCESS |
+| `module6_whyml/auto_trust.py` | 280 | SUCCESS |
+| `module6_whyml/expr_ghost_spec_ops.py` (honest frames, then drift) | 123 | SUCCESS x2 |
+| `module6_whyml/scc.py` | 50 | SUCCESS |
+| `frontend/ConcurrencyChecker.py` | 5 | SUCCESS |
 
-STILL IN FLIGHT when this section was written, all detached under `setsid` and all on the
-FINAL tree content: `frontend/pure_ast.py` (3097 goals reached), `module6_whyml/statements.py`
-(drift repair), `module6_whyml/expressions.py` (drift repair + map truthiness),
-`module6_whyml/stmt_control_flow.py` (map truthiness — the one to watch, a previously-dead
-branch is now reachable), `frontend/Module5_IREmitter.py`, `pycsl.py`.
-Logs: `scratchpad/w5/proofs/*.log`, exit codes in the matching `*.rc`.
-**IF ANY OF THOSE FAILED, the increment to revert is named in its commit message; every
-commit this window states exactly which mirrors it moves.**
+`module6_whyml/stmt_control_flow.py` is the one that mattered most: it proved WITH the
+previously-dead branch made reachable by faithful map truthiness.
+`pycsl.py` was still running when this was written (its only change is the
+`ir_resolve.resolve` signature repair); logs and exit codes are in `scratchpad/w5/proofs/`,
+and `scratchpad/w5/proofs/superseded/` holds three runs that were KILLED (rc 137/15)
+because a later increment superseded their content — those are not failures.
+
+THE FULL BATTERY, driver-verified fresh at window end, `why3` ON PATH:
+  · markers **447**, stable over 3 samples · grep 472 · offset 25 · unattached 0
+  · corpus byte-diff **0** — 814/814 identical to the window-start tree (the 815th file is
+    this window's own new corpus test `0968`)
+  · all **52/52** mirrors L3-tc GREEN
+  · fidelity DIVERGED **2** on both scripts (the documented baseline pair)
+  · non-vacuity (`--emit`): no NEW erasure, 8 known gated, **0 input-blind**
+  · shadowed-selfcalls **14 / 121** (ratchet 14)
+  · untrusted-emitted 862 un-trusted, 846 definitions, **0 re-abstracted**, 0 absent
+  · frame-honesty **0/19 trusted (was 0/82), 1/125 converted (was 4/133)**
+  · yield-erasure **0 value-erasing / 2 suspension (ratchet 2) / 1 modelled**
+  · computed-rhs-erasure (NEW PLANE) **5 / 0**
+  · mirror-signature-drift **0 (ratchet now a HARD 0, was 16)**
+  · ledger **3** — no axiom added by any capability this window (`map_nonempty` is a
+    `val function` with a DEFINITIONAL postcondition, not an axiom)
+  · tree clean
 
 ## WHAT LANDED AFTER THE FIRST DRAFT OF THIS SECTION (same window, later)
 
