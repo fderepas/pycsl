@@ -445,6 +445,36 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         from the duplicated inline escaper in `_handle_var_expr` / `_call_named_builtins`."""
         return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
+    def _map_truthy_operand(self, ir_expr: Dict[str, Any]) -> bool:
+        """True iff `ir_expr` lowers to a MAP the model actually carries, so its Python
+        truthiness is the map's NON-EMPTINESS rather than the default int `<> 0` coercion.
+
+        Two shapes, both fail-closed and both @mutable_state-gated (the mirror's own
+        emission): the `getattr(self, "<dict/set field>", <default>)` defensive read that
+        #32 made lower as the real field, and a LOCAL bound from one (already registered in
+        `_dict_locals` by `_rhs_yields_map`). Anything else returns False and keeps today's
+        coercion, so this is byte-inert wherever the shapes do not occur."""
+        if not isinstance(ir_expr, dict):
+            return False
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return False
+        t = ir_expr.get("type")
+        if (t == "Call" and ir_expr.get("func") == "getattr"
+                and 2 <= len(ir_expr.get("args") or []) <= 3):
+            _a = ir_expr["args"]
+            if (isinstance(_a[0], dict) and _a[0].get("type") == "Var"
+                    and _a[0].get("name") == "self"
+                    and isinstance(_a[1], dict) and _a[1].get("type") == "String"
+                    and _a[1].get("value") in getattr(self, "_all_record_fields", set())
+                    and self._self_field_py_type(_a[1].get("value"))
+                    in ("dict", "set", "frozenset")):
+                return True
+        if (t == "Var" and ir_expr.get("name")
+                in getattr(self, "_dict_locals", set())):
+            return True
+        return False
+
     def _to_bool(self, whyml_str: str, ir_expr: Dict[str, Any]) -> str:
         """Coerce a WhyML expression to bool if it might be int.
         Comparison operators and bool literals are already bool.
@@ -452,6 +482,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         Other expressions (int) need `<> 0` coercion."""
         t = ir_expr.get("type", "")
         op = ir_expr.get("op", "")
+        # (#32) MAP TRUTHINESS, FAITHFULLY. Python's `if <dict-or-set>:` is NON-EMPTINESS,
+        # and a Why3 `map k (option v)` CAN state it exactly — `exists k. m[k] <> None` —
+        # so this needs no over-approximation and no axiom: one `val function` with a
+        # DEFINITIONAL postcondition. Without it, #32's `getattr(self, "<dict/set field>",
+        # {})` relaxation is blocked at exactly two sites (`if _poly:` in
+        # `_handle_setlit_expr`, `if self._mutable_state_classes and …` in
+        # `_typed_local_vars`), both of which the default `<> 0` coercion rejects
+        # (`int` vs `string -> option int`). NOTE the older `return "true"` branches
+        # further down are NOT touched: those are for shapes whose map type the model does
+        # not carry at all; this one fires only where the map IS the emitted value.
+        _mt = self._map_truthy_operand(ir_expr)
+        if _mt:
+            self._add_abstract_op(
+                "val function map_nonempty (m: map 'k (option 'v)) : bool\n"
+                "    ensures { result <-> (exists _mnk: 'k. Map.get m _mnk <> None) }")
+            return f"(map_nonempty {whyml_str})"
+
         # self-tcb-reduction _typeddict_field_access (a): truthiness of a DOUBLED hval
         # `.get` read (`if self._record_types[sym].get("is_typeddict"):`) — the projected
         # value is an `hval` whose Python-truthiness is `hval_truthy`, NEVER the int `<> 0`
@@ -10049,7 +10096,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     and isinstance(default_ir, dict)
                     and (default_ir.get("type") == "String"
                          or self._self_field_py_type(name_ir.get("value"))
-                         in ("int", "bool", "str"))):
+                         in ("int", "bool", "str", "dict", "set", "frozenset"))):
                 # (#32) THE DEFAULT'S TYPE IS IRRELEVANT ONCE THE FIELD IS MODELLED.
                 # This branch used to fire only for a STRING default, so the two
                 # commonest spellings of the very same idiom — `getattr(self, "_f", None)`
