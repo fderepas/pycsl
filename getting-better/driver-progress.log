@@ -780,3 +780,4 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 21:38 #33: DANGLING category added (ratchet 0, hard) — a contract block attaching to nothing is discarded under 'All contracts formally proven'
 21:53 #33: dangling contract block REFUSED in the pipeline (inline in the trusted weaver process; 1 line of mirror movement)
 22:01 #33: recorded — misplaced-directive family, _pg2 as a value-model boundary, library-op probes clean (incl. floor // with negative divisor), dependency sub-pipeline skips exec splice (census 0)
+23:46 #33: SEGMENT CLOSE — 14/14 whole-file proofs rc=0 SUCCESS; corpus byte-diff 0 across the WHOLE window vs e4d0a209; no prover left running
