@@ -5784,3 +5784,26 @@ term", not "the key is in a list". That covers the emit_ir slice of the 54 immed
 The DICT slice (`rec.get("ensures") or []`, where the map's ν is int) additionally needs the
 `or []` to be read as EVIDENCE that ν is a list — i.e. backlog item 1b-B
 (empty-collection-literal value-type inference), which is where those two items meet.
+
+### NEW LIVE ITEM (#31) — the FOUR MODEL-VISIBLE CONVERTED FALSE FRAMES
+Exposed by the sharpened `check-trusted-frame-honesty` write detector (it was blind to
+`self.xs.append(v)` / `self.d[k] = v` / `.add` / `.update` / `.sort` / `del self.d[k]`).
+`expressions._ifexpr_seq_arm` · `statements._materialize_bridge` · `._materialize_str_bridge`
+· `._wrap_body_with_return_catch` all declare `#@ assigns \nothing` while reaching
+`_add_abstract_op`, whose `self._abstract_ops[k] = ...` IS a self write, in a
+`@mutable_state` class where a converted caller can read the field and rely on the missing
+`writes`. #30's lesson ("a CONVERTED method must not call `_add_abstract_op`") already names
+the mechanism; these four are its remaining victims.
+ALSO: `pure_ast._Unparser.write` — the 97-call-site output hub, body `self._source.extend
+(text)`, emitted as `let _unparser__write ... writes { } = let _ = (self__source_extend_1
+text) in ()`, a RECEIVER-LESS opaque op with no effect. Two possible repairs, and the second
+is much better than the first:
+  (a) re-trust it (+1 marker, honest, loses nothing — its 97 concrete call sites currently
+      route to a body that computes nothing observable); or
+  (b) **build the read-modify-write lowering**: under `@mutable_state`, an in-place
+      collection mutation on a self field is `self.f = <mutate>(self.f, args)`, i.e.
+      `setattr__unparser self <f> (self__source_extend_1 (getattr__unparser self <f>) text)`
+      — which makes the write MODEL-VISIBLE, lets the honest `#@ assigns self._source`
+      discharge, and fixes the whole 18-method class rather than one method. The emitter
+      already has both halves (`getattr__unparser` / `setattr__unparser ... writes
+      { _pyobj_state }`).
