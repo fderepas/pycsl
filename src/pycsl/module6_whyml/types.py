@@ -249,7 +249,13 @@ class TypeInferenceMixin:
             # and reflects to `args_of : array emit_ir` — the spelling already proved in
             # `expressions._iter_elem_class` and `ir_scanner`.
             _ga = val_ir.get("args") or []
-            if fn == "getattr" and 2 <= len(_ga) <= 3:
+            # SPELLED AS AN EXPLICIT CONJUNCTION, NOT AS THE CHAIN `2 <= len(_ga) <= 3`:
+            # Module5 `_py_expr_compare` keeps only `ops[0]`/`comparators[0]`, so a chained
+            # comparison in Python-expression position DROPS ITS TAIL and this guard would
+            # be modelled as `2 <= len(_ga)` alone — an over-approximation of the guard in a
+            # CONVERTED, PROVED method. Recorded as its own finding; until the lowering is
+            # fixed, no chain may be written in mirrored code.
+            if fn == "getattr" and 2 <= len(_ga) and len(_ga) <= 3:
                 if (isinstance(_ga[0], dict) and _ga[0].get("type") == "Var"
                         and _ga[0].get("name") == "self"
                         and isinstance(_ga[1], dict) and _ga[1].get("type") == "String"
