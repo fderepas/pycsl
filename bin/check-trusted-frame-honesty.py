@@ -121,7 +121,16 @@ import sys
 import tempfile
 
 RATCHET = 0           # MODEL-VISIBLE offenders: `@mutable_state` class AND a modelled field
-TOTAL_RATCHET = 68    # every offender, including opaque-self classes (70 -> 68 at #29:
+TOTAL_RATCHET = 63    # every offender, including opaque-self classes (68 -> 63 at #30:
+                      # the window converted seven `\trusted` stubs, five of which stood
+                      # for a live body that writes `self` state, so the TRUSTED
+                      # population shrank; each of those became a CONVERTED offender only
+                      # where the frame was re-derived HONESTLY — `visit_If` /
+                      # `_function_helper` -> `#@ assigns self._indent`, `copy_location`
+                      # -> `#@ assigns new_node`, `_Inliner._fresh` -> `#@ assigns
+                      # self.counter`. Lowered because the tool asked and the measurement
+                      # is stable.)
+                      # (70 -> 68 at #29:
                       # the `_Unparser` ports move offenders from the TRUSTED population
                       # to the CONVERTED one; a RATCHET, only lower it)
 CONVERTED_RATCHET = 2         # the CONVERTED surface, model-visible (see the note below)
