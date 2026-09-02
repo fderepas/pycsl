@@ -21,6 +21,7 @@ from frontend.Module2_Parser import (
     MixinDecl, ProvidesDecl, SharedStateDecl, TouchesFieldDecl,
     MethodDependencyDecl, ComposeFromDecl, ConformsToDecl,
 )
+import re
 import copy
 from errors import PyCSLSemanticError
 from frontend.Module1_Ingestor import PyCSLContract
@@ -1262,7 +1263,50 @@ class Module3_Weaver:
                     out.append((cur_stmt, site, cur_func))
             self._collect_field_read_sites(child, field, new_func, new_stmt, out)
 
+    # (#33) A CONTRACT BLOCK WITH NOTHING TO ATTACH TO IS DISCARDED, AND THE RUN STILL
+    # SAYS "All contracts formally proven". An annotation block binds to the node that
+    # FOLLOWS it; a block with no follower is dropped silently. Measured: a trailing
+    # `#@ ensures \result == 99` after a function returning 1 reported
+    # `[+] Verification SUCCESS! All contracts formally proven.` It cannot make a false
+    # statement provable, so it is not an unsoundness — it is the tool reporting success
+    # for work it did not do, which is the same dishonesty in a different place.
+    # STATEMENT-LEVEL directives are excluded and that exclusion is load-bearing: a
+    # trailing `#@ assert` IS the last statement of a body and attaches correctly (corpus
+    # 0710/0711/0712 end exactly that way). Filtering by directive KIND turns three false
+    # positives into zero. CENSUS: 0 in every population — `pycsl-reference`,
+    # `python-reference`, the negative corpus, the mirror, `pycsl_lib` and the live
+    # emitter — so this is byte-inert, and `bin/check-dropped-mutation.py`'s DANGLING
+    # counter (a hard 0) keeps it that way.
+    # SPELLED INLINE, not as a helper: a new method on this class becomes a new abstract
+    # `val module3_weaver___reject_dangling_contract_block` in the emission of EVERY mirror
+    # that imports the weaver (measured — `frontend/__init__` and `frontend/ir_resolve`
+    # both gained a declaration line and would each need a whole-file re-proof for a check
+    # whose census is 0). Same reason as `Module5_IREmitter._py_expr_call`'s `_fin`-family
+    # recognizer and `desugar`'s repeatability walk.
     def process(self) -> ast.AST:
+        _stmt_lvl = ("assert", "assume", "ghost", "loop", "label",
+                     "reveal", "unfold", "havoc")
+        _lines = self.source_code.split("\n")
+        _i = 0
+        while _i < len(_lines):
+            if not _lines[_i].strip().startswith("#@"):
+                _i += 1
+                continue
+            _j, _kinds, _first = _i, [], _i + 1
+            while _j < len(_lines) and (_lines[_j].strip().startswith("#")
+                                        or not _lines[_j].strip()):
+                _m = re.match(r"#@\s+\\?([a-z_]+)", _lines[_j].strip())
+                if _m:
+                    _kinds.append(_m.group(1))
+                _j += 1
+            if _j >= len(_lines) and any(_k not in _stmt_lvl for _k in _kinds):
+                raise PyCSLSemanticError(
+                    f"line {_first}: this `#@` contract block has nothing after it to "
+                    f"attach to (it runs to end-of-file), so it would be SILENTLY "
+                    f"DISCARDED while the run still reports 'All contracts formally "
+                    f"proven'. Move it directly above the `def`/`class` it describes, or "
+                    f"delete it. (Directives: {', '.join(_kinds) or '<none>'}.)")
+            _i = _j
         contracts_map, trailing_contracts_map = self._parse_extracted_contracts()
         happy_props = self._extract_happy_properties(contracts_map)
         python_ast = ast.parse(self.source_code)
