@@ -41,14 +41,14 @@ class PreambleEmissionMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._bmem_outer_ids, self._bmem_walk_ids, self._cbw_emitted, self._cbw_funcs, self._cbw_names, self._cce_emitted, self._cce_funcs, self._cce_names, self._ccm_outer_ids, self._ccm_walk_ids, self._ccns_emitted, self._ccns_funcs, self._ccns_names, self._ccs_emitted, self._ccs_funcs, self._ccs_names, self._check_final_desc, self._check_final_name, self._cira_outer_ids, self._cira_walk_ids, self._clx_outer_ids, self._clx_pred_names, self._clx_walk_ids, self._cmtl_outer_ids, self._cmtl_walk_ids, self._conc_cluster, self._conc_emitted, self._conc_names, self._crd_outer_ids, self._crd_walk_ids, self._crn_outer_ids, self._crn_walk_ids, self._crvn_outer_ids, self._crvn_walk_ids, self._cs_trio, self._cs_trio_emitted, self._cs_trio_names, self._csa_emitted, self._csa_funcs, self._csa_names, self._cssd_outer_ids, self._cssd_walk_ids, self._current_emitting_func, self._current_self_type, self._current_symbol_table, self._eal_outer_ids, self._eal_walk_ids, self._emitted_walker_names, self._fdsl_outer_ids, self._fdsl_walk_ids, self._final_pair, self._final_pair_emitted, self._final_pair_names, self._frss_outer_ids, self._frss_walk_ids, self._has_crosscheck_str_record, self._has_opaque_term_fields, self._hsom_outer_ids, self._hsom_walk_ids, self._ile_outer_ids, self._ile_walk_ids, self._iroaf_outer_ids, self._iroaf_walk_ids, self._lss_outer_ids, self._lss_pred_names, self._lss_walk_ids, self._needs_crosscheck_str_agree, self._needs_term_eq, self._needs_term_strbuild, self._needs_term_streq, self._nrw_emitted, self._nrw_funcs, self._nrw_names, self._pb_trio, self._pb_trio_emitted, self._pb_trio_names, self._pp_term_emitted, self._pyconst_val_tuple_slot, self._rss_outer_ids, self._rss_walk_ids, self._scan2d_trio, self._scan2d_trio_emitted, self._scan2d_trio_names, self._sdl_outer_ids, self._sdl_walk_ids, self._serl_outer_ids, self._serl_walk_ids, self._spat_outer_ids, self._spat_walk_ids, self._ssd_emitted, self._ssd_funcs, self._ssd_names, self._ssd_walkers_seen, self._suat_outer_ids, self._suat_walk_ids, self._term_adt_spec, self._term_const_dicts, self._term_const_int_dicts, self._term_pp_convert_classes, self._term_pp_family, self._term_pp_mc, self._term_pp_method_classes, self._term_pp_names, self._tuple_emit_ir_slot_locals, self._union_cluster, self._union_emitted, self._union_names, self._uses_build_param_list_cache, self._uses_call_kw_cache, self._uses_compute_return_type_cache, self._uses_pyast_parser_cache, self._uses_stmt_ir_cache, self._uses_stmt_return_recogniser_cache, self._uses_tparam_cache
     def _scan_preamble_needs(self, functions: List[int], all_bodies: List[Any]) -> int:
         return {}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._uses_pyval_cache
     def _emit_preamble_uses(self, needs: int, module_name: str='PyCSL_Program') -> List[str]:
         return []
 
@@ -228,21 +228,21 @@ class PreambleEmissionMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._axiom_logic_funcs
     def _precompute_axiom_logic_funcs(self, ir: int) -> None:
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._class_inv_axioms_emitted
     def _emit_class_inv_axioms(self, ir: int) -> List[str]:
         return []
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._axiom_emitted_decls, self._axiom_logic_funcs
     def _emit_preamble_axioms(self, ir: int) -> List[str]:
         return []
 
@@ -256,7 +256,7 @@ class PreambleEmissionMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._uses_pyval_cache
     def _emit_preamble(self, needs: int, module_name: str='PyCSL_Program') -> List[str]:
         return []
 
@@ -294,7 +294,7 @@ class PreambleEmissionMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._shared_var_names, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _emit_shared_state(self) -> List[str]:
         return []
 
@@ -326,7 +326,7 @@ class PreambleEmissionMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._axiom_emitted_decls
     def _emit_uncited_axiom_func_decls(self) -> List[str]:
         return []
 
@@ -366,7 +366,7 @@ class PreambleEmissionMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._axiom_emitted_decls, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _emit_inductive_decls(self, inductive_decls: List[int]) -> List[str]:
         return []
 
@@ -380,21 +380,21 @@ class PreambleEmissionMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _fresh_globals_facts(self) -> List[str]:
         return []
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._module_global_classes, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _emit_module_globals(self) -> List[str]:
         return []
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._ambiguous_fields, self._class_constants, self._class_str_set_constants, self._comp_content_counter, self._constructors, self._current_params, self._current_self_type, self._current_symbol_table, self._dict_locals, self._emit_record_ctx, self._emitted_record_field_labels, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._list_element_record_types, self._needs_array_init, self._obj_state_written, self._pyval_seq_append_targets, self._pyval_seq_fields, self._quant_record_binders, self._quant_scalar_binders, self._record_array_fields, self._record_types, self._reserved_exprir_symbols_cache, self._str_array_record_fields, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_act_guard_cache, self._uses_build_overload_param_guard_cache, self._uses_build_param_list_cache, self._uses_call_kw_cache, self._uses_clause_ir_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_csl_proj_cache, self._uses_dictlit_cache, self._uses_is_overload_stub_cache, self._uses_method_recv_cache, self._uses_null_byte_num_reader_cache, self._uses_py_functiondef_node_cache, self._uses_pyast_module_cache, self._uses_pyast_parser_cache, self._uses_pyast_stmt_cache, self._uses_refine_tuple_return_type_cache, self._uses_stmt_if_test_cache, self._uses_stmt_ir_cache, self._uses_stmt_return_recogniser_cache, self._uses_synthesize_overload_guard_cache, self._uses_tparam_cache, self._variant_types
     def _emit_type_decls(self, type_decls: List[int]) -> Tuple[List[str], int]:
         return ([], {})
 

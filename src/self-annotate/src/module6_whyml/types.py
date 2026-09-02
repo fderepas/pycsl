@@ -59,7 +59,7 @@ class TypeInferenceMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._known_collection_elements, self._known_collection_sizes, self._record_array_locals
     def _track_collection_metadata(self, target: str, val_ir: int) -> None:
         pass
 
@@ -432,7 +432,7 @@ class TypeInferenceMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._uses_pyast_parser_cache
     def _collect_array_var_assigns(self, stmts: List[int], seed: int=None) -> int:
         return set()
 

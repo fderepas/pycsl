@@ -20,7 +20,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._final_registry, self.program_ir, self._fresh_var_counter
+    #@ assigns self._cur_func_name, self._cur_func_symtab, self._cur_literal_ensures, self._cur_literal_requires, self._current_class, self._enclosing_trusted_stack, self._final_registry, self._fresh_var_counter, self._mutex_invariants_csl, self._pending_overloads, self._protocols, self._shared_var_names, self.program_ir
     def __init__(self) -> None:
         # K2 (self-tcb-reduction Tier-5): declare the per-module Final registry as a
         # `seq pyval` self-field (List[Dict[str, PyVal]]) so `_collect_final_registry`'s
@@ -41,7 +41,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._final_registry, self._fresh_var_counter, self.program_ir
+    #@ assigns self._final_registry, self._fresh_var_counter, self._m5_record_class_names, self._mutex_invariants_csl, self._shared_var_names, self._source, self._union_synth_cache, self.program_ir
     def visit_Module(self, node: ast.Module) -> None:
         pass
 
@@ -2208,7 +2208,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._fresh_var_counter, self.program_ir
+    #@ assigns self._fresh_var_counter, self._union_synth_cache, self.program_ir
     def _field_type_from_annotation_inst(self, annotation: "ExprIR", scope_name: str='') -> str:
         return ""
 
@@ -2362,7 +2362,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._fresh_var_counter, self.program_ir
+    #@ assigns self._fresh_var_counter, self._union_synth_cache, self.program_ir
     def _emit_typeddict_record(self, node: ast.ClassDef) -> None:
         pass
 
@@ -2421,7 +2421,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._fresh_var_counter, self.program_ir
+    #@ assigns self._fresh_var_counter, self._union_synth_cache, self.program_ir
     def _synthesize_typeddict_functional(self, node: ast.Module) -> None:
         pass
 
@@ -2445,14 +2445,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._fresh_var_counter, self.program_ir
+    #@ assigns self._fresh_var_counter, self._union_synth_cache, self.program_ir
     def _emit_namedtuple_record(self, node: ast.ClassDef) -> None:
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._fresh_var_counter, self.program_ir
+    #@ assigns self._fresh_var_counter, self._union_synth_cache, self.program_ir
     def _synthesize_namedtuple_functional(self, node: ast.Module) -> None:
         pass
 
@@ -2475,7 +2475,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._cur_func_symtab, self._fresh_var_counter, self.program_ir
+    #@ assigns self._cur_func_name, self._cur_func_symtab, self._cur_func_vararg_elem, self._cur_func_vararg_str, self._cur_literal_ensures, self._cur_literal_requires, self._current_class, self._fresh_var_counter, self._protocols, self._union_synth_cache, self.program_ir
     def _emit_protocol_interface(self, node: ast.ClassDef) -> None:
         pass
 
@@ -2489,7 +2489,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._fresh_var_counter, self.program_ir
+    #@ assigns self._fresh_var_counter, self._union_synth_cache, self.program_ir
     def _collect_class_fields(self, node: ast.ClassDef) -> Tuple[List[int], int]:
         return ([], {})
 
@@ -2570,7 +2570,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._cur_func_symtab, self._fresh_var_counter, self.program_ir
+    #@ assigns self._cur_func_name, self._cur_func_symtab, self._cur_func_vararg_elem, self._cur_func_vararg_str, self._cur_literal_ensures, self._cur_literal_requires, self._current_class, self._fresh_var_counter, self._protocols, self._source, self._union_synth_cache, self.program_ir
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         pass
 
@@ -2700,7 +2700,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._fresh_var_counter, self.program_ir
+    #@ assigns self._fresh_var_counter, self._union_synth_cache, self.program_ir
     def _normalize_union_annotation(self, ann_expr: ast.expr, scope_name: str) -> str:
         return ""
 
@@ -2791,7 +2791,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._cur_literal_ensures, self._cur_literal_requires
     def _normalize_literal_annotation(self, ann_expr: ast.expr, param_name: str) -> Optional[str]:
         return None
 
@@ -2958,7 +2958,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._fresh_var_counter, self.program_ir
+    #@ assigns self._cur_literal_ensures, self._cur_literal_requires, self._fresh_var_counter, self._union_synth_cache, self.program_ir
     def _m5_get_type_name(self, annotation: ast.expr, scope_name: str='', param_name: str='') -> str:
         return ""
 
@@ -3050,14 +3050,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._fresh_var_counter, self.program_ir
+    #@ assigns self._cur_literal_ensures, self._cur_literal_requires, self._fresh_var_counter, self._union_synth_cache, self.program_ir
     def _build_function_symbol_table(self, node: ast.FunctionDef) -> int:
         return ([], {})
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._cur_func_symtab, self._fresh_var_counter, self.program_ir
+    #@ assigns self._cur_func_name, self._cur_func_symtab, self._cur_func_vararg_elem, self._cur_func_vararg_str, self._cur_literal_ensures, self._cur_literal_requires, self._fresh_var_counter, self._union_synth_cache, self.program_ir
     def _build_function_ir(self, node: ast.FunctionDef) -> int:
         return {}
 
@@ -3112,7 +3112,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._cur_func_symtab, self._fresh_var_counter, self.program_ir
+    #@ assigns self._cur_func_name, self._cur_func_symtab, self._cur_func_vararg_elem, self._cur_func_vararg_str, self._cur_literal_ensures, self._cur_literal_requires, self._enclosing_trusted_stack, self._fresh_var_counter, self._pending_overloads, self._source, self._union_synth_cache, self.program_ir
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         pass
 

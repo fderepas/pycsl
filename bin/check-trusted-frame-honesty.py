@@ -166,7 +166,23 @@ _MUTATING_METHODS = frozenset({
     "remove", "discard", "setdefault", "sort", "reverse",
 })
 
-TOTAL_RATCHET = 82    # 63 -> 82 at #31 by the SHARPER DETECTOR above (not by new false
+TOTAL_RATCHET = 28    # 63 -> 82 at #31 by the SHARPER DETECTOR; 82 -> 28 at #32 by GIVING
+                      # 54 `\trusted` STUBS THEIR HONEST `#@ assigns`, derived per stub
+                      # from the SAME live transitive self-write closure this file computes
+                      # (`scratchpad/w5/honest_trusted_frames.py`), then closing the caller
+                      # fixpoint against Why3's own error text. This is the change the
+                      # AVATAR-FRAME capability made MEANINGFUL: before it, a trusted
+                      # stub's `#@ assigns` naming a non-label field was unobservable.
+                      # The residue 28 is in `pure_ast.py`, `functions.py` and
+                      # `expr_ghost_spec_ops.py`, deliberately NOT converted here — the
+                      # first because its proof was mid-flight, the other two because the
+                      # honest frame emits `unbound function or predicate symbol
+                      # '<field>'` (the `_writes_filtered_to_labels` filter is not applied
+                      # on every producer of the clause -- lesson (am) has a THIRD
+                      # producer). NOTE the closure can still UNDER-approximate (the #31
+                      # `_walk_body` blind spot), so 28 is a floor on what is KNOWN false,
+                      # not a proof that the other 280 are true.
+                      # (old note) 63 -> 82 at #31 by the SHARPER DETECTOR above (not by new false
                       # frames); the pre-#31 history below is against the blunter walk.
                       # every offender, including opaque-self classes (68 -> 63 at #30:
                       # the window converted seven `\trusted` stubs, five of which stood

@@ -250,21 +250,21 @@ class PyCSLWeaver(ast.NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit_Module(self, node: ast.Module) -> Any:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit_With(self, node: ast.With) -> Any:
         return None
 
@@ -292,7 +292,7 @@ class PyCSLWeaver(ast.NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         return None
 
@@ -307,14 +307,14 @@ class PyCSLWeaver(ast.NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit_While(self, node: ast.While) -> Any:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit_For(self, node: ast.For) -> Any:
         return None
 

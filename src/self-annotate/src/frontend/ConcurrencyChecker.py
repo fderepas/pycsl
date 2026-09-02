@@ -39,14 +39,14 @@ class ConcurrencyChecker:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._lock_order, self._shared_vars, self._thread_entries, self.warnings
     def check(self) -> List[ConcurrencyWarning]:
         return []
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.warnings
     def _check_function(self, func: ast.FunctionDef) -> None:
         pass
 
@@ -60,14 +60,14 @@ class ConcurrencyChecker:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.warnings
     def _walk_stmt(self, node: ast.AST, held: int, func_name: str) -> None:
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.warnings
     def _warn_if_unprotected(self, var: str, held: int, func_name: str, line: int, write: bool) -> None:
         pass
 

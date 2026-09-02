@@ -103,28 +103,28 @@ class _Harvester:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._dec_ranges
     def _make(self, node):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._cur_class, self._dec_ranges, self._flat
     def _build(self, stmt_nodes) -> List[_Target]:
         return []
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._cur_class, self._dec_ranges, self._flat, self._header_consumed, self._module_contracts, self._module_header, self._out
     def run(self, tree) -> List[PyCSLContract]:
         return []
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._module_contracts, self._module_header
     def _assign(self) -> None:
         pass
 
@@ -152,21 +152,21 @@ class _Harvester:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._header_consumed, self._out
     def _emit_suite(self, targets: List[_Target]) -> None:
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._header_consumed, self._out
     def _emit_target(self, tgt: _Target) -> None:
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._out
     def _emit_block_footer(self, last_stmt: _Target) -> None:
         pass
 

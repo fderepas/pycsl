@@ -243,7 +243,7 @@ class ControlFlowStmtMixin:
     # `(self: <class>)` receiver binder and the `writes` clause from the abstract val that
     # `_handle_dotted_call` had registered, while the call site still passed `self` — is
     # fixed at source (`_abstract_val_receiver_and_tail`).
-    #@ assigns self._for_idx_init
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._for_target_is_pyval, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._pyast_loop_variant_len, self._quant_record_binders, self._quant_scalar_binders, self._str_slice_loop_len, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_call_kw_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _classify_iterable(self, iter_ir: "ExprIR", local_refs: Set[str],
                            idx: str) -> Tuple[str, str, bool]:
         return ("", "", False)
@@ -822,7 +822,7 @@ class ControlFlowStmtMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _render_match_pattern(self, pat: "ExprIR", top: bool=False) -> str:
         return ""
 

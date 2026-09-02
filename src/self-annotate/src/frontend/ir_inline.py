@@ -169,21 +169,21 @@ class _Inliner:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.counter
     def _expand(self, callee: str, recv: str, args: List[Any], result_var: Optional[str]) -> List[Any]:
         return []
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.counter
     def _hoist_calls_in_expr(self, node: Any, pre: List[Any]) -> Any:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.counter
     def inline_stmts(self, stmts: List[Any]) -> List[Any]:
         return []
 
