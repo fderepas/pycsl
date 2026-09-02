@@ -55,14 +55,15 @@ def reject_loop_else(tree: ast.AST) -> None:
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def normalize_annotated_stores(tree: ast.AST) -> None:
-    """Rewrite `<attribute-or-subscript>: T = v` into `<target> = v`, which Module 5 lowers.
+def normalize_stores(tree: ast.AST) -> None:
+    """Rewrite the two ASSIGNMENT shapes Module 5 drops, in every statement list.
 
-    `\trusted`, and the reason is the same one that made #32 RE-TRUST `pure_ast.copy_location`:
-    the live body reads `getattr(node, field, None)` with `field` a LOOP VARIABLE — a
-    DYNAMIC attribute name, which has no lowering, so a converted port would model the
-    whole rewrite as a constant and be HOLLOW. It also CONSTRUCTS an `ast.Assign` node,
-    which the mirror's value model carries no constructor for."""
+    `\trusted`, and the reason is the same one that made #32 RE-TRUST
+    `pure_ast.copy_location`: the live body reads `getattr(node, field, None)` with `field`
+    a LOOP VARIABLE — a DYNAMIC attribute name, which has no lowering, so a converted port
+    would model the whole rewrite as a constant and be HOLLOW. It also CONSTRUCTS
+    `ast.Assign` / `ast.Name` nodes, which the mirror's value model carries no constructor
+    for."""
     pass
 
 

@@ -91,7 +91,31 @@ CENSUS AT THE TIME OF WRITING: 0 in the reference corpus, 0 in the mirror, 0 in
 byte-inert today and it UNBLOCKS those state-reset methods for conversion.
 
 
-## 3. `for ... else` / `while ... else` ARE REFUSED, NOT DROPPED
+## 3. MULTI-TARGET ASSIGNMENT `a = b = v`
+
+`_py_stmt_assign` opens with `target = stmt.targets[0]` and never looks at the rest, so in
+`a = b = 5` the binding of `b` DOES NOT EXIST in the model. When no other statement
+assigns `b` the file at least fails L3-tc with `unbound function or predicate symbol 'b'`;
+when another statement DOES assign it, the initialisation is silently lost and the local
+keeps its declaration DEFAULT. That is not a theoretical hazard — it PROVES FALSE
+POSTCONDITIONS. Measured, before the fix:
+
+    def f(n: int) -> int:          #@ ensures n <= 0 ==> \result == 0
+        a = b = 5
+        if n > 0:
+            b = 7
+        return a * 0 + b
+
+reported `Verification SUCCESS`, while `f(0)` returns 5 in Python. The model had `b`
+declared `ref 0` and assigned only inside the `if`.
+
+`normalize_stores` expands the statement into one assignment per target. The RHS is
+re-mentioned only when it is a `Constant` or a `Name` — both SHARE their object, so the
+aliasing Python guarantees (`a = b = []` binds ONE list to both names) is preserved; for
+every other RHS a fresh temporary is bound first, so the value is computed exactly once.
+
+
+## 4. `for ... else` / `while ... else` ARE REFUSED, NOT DROPPED
 
 `_process_for` and `_process_while` read `target`/`iter`/`body` and `test`/`body`; neither
 reads `orelse`. A loop `else` runs exactly when the loop finished WITHOUT `break`, and
@@ -186,11 +210,17 @@ def reject_loop_else(tree: ast.AST) -> None:
                 "model. Rewrite it with an explicit flag.")
 
 
-def normalize_annotated_stores(tree: ast.AST) -> None:
-    """Rewrite `<attribute-or-subscript>: T = v` into `<target> = v`, which Module 5 lowers.
+def normalize_stores(tree: ast.AST) -> None:
+    """Rewrite the two ASSIGNMENT shapes Module 5 drops, in every statement list.
 
-    `__init__` is EXCLUDED: its annotated `self.x: T = ...` statements are where the record
-    field TYPES are read from."""
+    1. `<attribute-or-subscript>: T = v`  ->  `<target> = v`
+       `__init__` is EXCLUDED: its annotated `self.x: T = ...` statements are where the
+       record field TYPES are read from.
+    2. `t1 = t2 = ... = v`  ->  `t1 = v` followed by one assignment per remaining target.
+       `_py_stmt_assign` reads `stmt.targets[0]` ONLY. The value is re-mentioned only when
+       it is a `Constant` or a `Name` — both share their object, so the aliasing Python
+       guarantees (`a = b = []` binds ONE list) is preserved. For anything else a fresh
+       temporary is bound first, so the RHS is evaluated exactly once, as Python does."""
     protected = set()
     for node in ast.walk(tree):
         if (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
@@ -198,20 +228,45 @@ def normalize_annotated_stores(tree: ast.AST) -> None:
             for sub in ast.walk(node):
                 if isinstance(sub, ast.AnnAssign):
                     protected.add(id(sub))
+    counter = [0]
     for node in ast.walk(tree):
         for field in ("body", "orelse", "finalbody"):
             stmts = getattr(node, field, None)
             if not isinstance(stmts, list):
                 continue
-            for i in range(len(stmts)):
-                st = stmts[i]
+            out = []
+            for st in stmts:
                 if (isinstance(st, ast.AnnAssign) and st.value is not None
                         and not isinstance(st.target, ast.Name)
                         and id(st) not in protected):
                     rewritten = ast.Assign(targets=[st.target], value=st.value)
                     ast.copy_location(rewritten, st)
                     ast.fix_missing_locations(rewritten)
-                    stmts[i] = rewritten
+                    out.append(rewritten)
+                elif isinstance(st, ast.Assign) and len(st.targets) > 1:
+                    if isinstance(st.value, (ast.Constant, ast.Name)):
+                        source = st.value
+                        pre = []
+                    else:
+                        counter[0] += 1
+                        tmp = "_pycsl_multi_%d" % (counter[0],)
+                        hold = ast.Assign(targets=[ast.Name(id=tmp, ctx=ast.Store())],
+                                          value=st.value)
+                        ast.copy_location(hold, st)
+                        ast.fix_missing_locations(hold)
+                        pre = [hold]
+                        source = ast.Name(id=tmp, ctx=ast.Load())
+                        ast.copy_location(source, st)
+                        ast.fix_missing_locations(source)
+                    out.extend(pre)
+                    for tgt in st.targets:
+                        one = ast.Assign(targets=[tgt], value=source)
+                        ast.copy_location(one, st)
+                        ast.fix_missing_locations(one)
+                        out.append(one)
+                else:
+                    out.append(st)
+            stmts[:] = out
 
 
 def desugar_chained_comparisons(tree: ast.AST) -> ast.AST:
