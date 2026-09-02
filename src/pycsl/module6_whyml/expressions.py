@@ -11960,6 +11960,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # `array string` receiver and the index). Fires only for a Call receiver
                 # whose ret-type resolves to `array string`; every other subscript is
                 # byte-identical.
+                # (#31) STRING SUBSCRIPT. `s[i]` on a STRING-typed receiver is Python's
+                # ONE-CHARACTER STRING, not an opaque int. The emitter already lowers the
+                # ADJACENT case — the element read of a `for c in <str>` loop — as
+                # `str_sub_op <s> <idx> 1` with the exact `String.substring` law
+                # (`stmt_control_flow._classify_iterable`); only the SUBSCRIPT form fell
+                # through to the int-erasing `subscript_get (x: int) : int`, so
+                # `tok[i] not in "'\""` and `ord(s[i])` compared an int hash against a
+                # real string. Measured as the first blocker on `pure_ast._decode_string`,
+                # `pure_ast._decode_escapes` and `identifiers.whyml_ident`.
+                #
+                # FAIL-CLOSED on a syntactically NEGATIVE literal index (`s[-1]`): Python
+                # reads from the end, `String.substring s (-1) 1` does not, and the
+                # array path's `len - k` rewrite has no counterpart here without a
+                # `String.length` term the receiver may not support. Those keep the old
+                # lowering.
+                if (isinstance(value, dict) and self._is_string_expr(value)
+                        and self._negative_literal_index(expr.get("index", {})) is None):
+                    self._add_abstract_op(
+                        "val str_sub_op (s: string) (lo len: int) : string\n"
+                        "    ensures { result = (String.substring s lo len) }\n"
+                        "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
+                        " -> String.length result = len }")
+                    return f"(str_sub_op {value_str} {self._coerce_to_int(index)} 1)"
                 if (isinstance(value, dict) and value.get("type") == "Call"
                         and self._resolve_dotted_signature(value.get("func", ""))[0] == "array string"):
                     self._add_abstract_op(
