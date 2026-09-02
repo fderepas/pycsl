@@ -578,8 +578,8 @@ composer's record.
 | 2 | Provides | `#@ provides <m>` | method | Declares the method `<m>` is a provider satisfying a sibling's dependency. |
 | 3 | Shared state | `#@ shared_state <name>: <type>` | method | Declares `<name>` as **deliberately shared** facade state (multiple mixins may read/write it — not a conflict). D1. |
 | 4 | Touches field | `#@ touches_field <name>: <type>` | method | Declares `<name>` as an **owned** field the method may touch (at most one owner; two owners → conflict, Tier 2). D1. |
-| 5 | Depends method | `#@ depends_method <m>: <sig>` (+ indented `#@ ensures`) | method | A **concrete** dependency on a sibling/core method `<m>`; the provider's contract must refine the declared one. D2. |
-| 6 | Requires method | `#@ requires_method <m>: <sig>` (+ indented `#@ ensures`) | method | An **abstract** operation the composing class must supply (verified once against an abstract `val`). D2. |
+| 5 | Depends method | `#@ depends_method <m>: <sig>` (+ indented `#@ requires` / `#@ ensures` / `#@ assigns`) | method | A **concrete** dependency on a sibling/core method `<m>`; the provider's contract must refine the declared one. D2. |
+| 6 | Requires method | `#@ requires_method <m>: <sig>` (+ indented `#@ requires` / `#@ ensures` / `#@ assigns`) | method | An **abstract** operation the composing class must supply (verified once against an abstract `val`). D2. |
 | 7 | Compose from | `#@ compose_from <M1>, <M2>, …` | `class` | Composes the named mixins: unique-provider + field-classification check, then flatten. |
 
 Placed on leading lines before the `class`/`def` keyword, as with the other class/method directives.

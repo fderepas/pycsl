@@ -381,8 +381,11 @@ _Corresponds to `annotations.md` §2.7._
 | 2.5.7 | Compose from | `compose_from_decl ::= "compose_from" CNAME ("," CNAME)* ;` |
 
 `mixin_decl`/`compose_from_decl` precede the `class` keyword; the method-scoped forms precede a `def`.
-A `depends_method`/`requires_method` opens a window: the immediately-following indented `#@ ensures`
-lines are the **dependency's** declared contract (closed by the next `provides`/structural directive).
+A `depends_method`/`requires_method` opens a window: the immediately-following indented `#@ requires`,
+`#@ ensures` and `#@ assigns` lines are the **dependency's** declared contract (closed by the next
+`provides`/structural directive, or by any other directive). The `#@ assigns` form declares the
+dependency's FRAME; without it a declared dependency is frameless, so its caller-side abstract
+`val` claims no effect however much state the real provider writes.
 
 #### Example
 

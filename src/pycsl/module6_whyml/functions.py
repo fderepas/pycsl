@@ -7096,7 +7096,12 @@ class FunctionEmissionMixin:
                     "contracts": {
                         "requires": dep.get("requires", []),
                         "ensures": dep.get("ensures", []),
-                        "assigns": [], "raises": [],
+                        # (#32) the dependency's DECLARED FRAME, so
+                        # `_module_method_writes[<cls>__<dep>]` is populated and the
+                        # caller-side abstract `val` for `self.<dep>(…)` carries a
+                        # `writes` clause. Absent -> [] -> byte-identical.
+                        "assigns": dep.get("assigns", []) or [],
+                        "raises": [],
                         "no_exception": [], "no_exception_all": False,
                     },
                 })

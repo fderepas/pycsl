@@ -1327,6 +1327,14 @@ So `MapOps.handle_get` calling `self.emit(k)` discharges against `self_emit_n`'s
 (`module6_whyml/functions.py::_mixin_dep_pseudo_functions`). The mixin proves in isolation (corpus
 `0553`).
 
+An indented `#@ assigns` in the dependency window lowers to the abstract `val`'s **`writes`**
+clause, by the same route a method's own `#@ assigns` takes — the declared targets are filtered
+to the labels the receiver's record actually emits, and a target the record does not carry falls
+back to the coarse `_pyobj_state` cell. Omitting it leaves the dependency FRAMELESS: the abstract
+`val` then declares no effect at all, so every method that calls the dependency may declare
+`#@ assigns \nothing` however much state the real provider writes — a false frame no proof plane
+can see, because the model has no effect to contradict it.
+
 **(b) Flatten-on-compose.** `pycsl.py::_apply_composition` (an IR→IR pass after inheritance) **checks**
 the composition (unique provider per dependency; no two-provider collision; every `self.<field>` write
 declared `shared_state`/`touches_field`/`__init__`) then **clones** each provided method

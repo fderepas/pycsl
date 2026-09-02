@@ -208,7 +208,7 @@ class PyCSLWeaver(ast.NodeVisitor):
             if isinstance(c, MethodDependencyDecl):
                 close_dep()
                 open_dep = {"method": c.method, "sig": c.sig, "kind": c.kind,
-                            "requires": [], "ensures": []}
+                            "requires": [], "ensures": [], "assigns": []}
             elif isinstance(c, ProvidesDecl):
                 close_dep()
                 node.csl_provides.append(c.method)
@@ -226,6 +226,17 @@ class PyCSLWeaver(ast.NodeVisitor):
                 open_dep["requires"].append(c)
             elif open_dep is not None and isinstance(c, Ensures):
                 open_dep["ensures"].append(c)
+            elif open_dep is not None and isinstance(c, Assigns):
+                # (#32) A METHOD REQUIREMENT MAY DECLARE ITS FRAME. The window already
+                # accepts `requires`/`ensures`; without `assigns` a `#@ requires_method`
+                # dependency is FRAMELESS BY CONSTRUCTION, so its caller-side abstract
+                # `val` declares no effect and every calling method may claim
+                # `assigns \nothing` however much state the real provider writes.
+                # Measured: that is the sole remaining MODEL-VISIBLE converted false frame
+                # (`expressions._ifexpr_seq_arm`, whose `_seq_operand` requirement reaches
+                # `_add_abstract_op`). An `assigns` OUTSIDE a window still closes it and is
+                # the method's own, exactly as before -> no existing program changes.
+                open_dep["assigns"].append(c)
             else:
                 # Anything else closes an open dependency window and is the method's own.
                 close_dep()

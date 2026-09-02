@@ -5354,7 +5354,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "method_deps": [
                 {"method": d["method"], "sig": d["sig"], "kind": d["kind"],
                  "requires": self._csl_list_to_ir(d["requires"]),
-                 "ensures": self._csl_list_to_ir(d["ensures"])}
+                 "ensures": self._csl_list_to_ir(d["ensures"]),
+                 # (#32) the dependency's declared FRAME, same shape as a method's own
+                 # `assigns` (a flat list of lowered targets). Absent -> [] -> the
+                 # frameless behaviour every existing program already has.
+                 "assigns": [self._csl_to_ir(t)
+                             for a in (d.get("assigns") or []) for t in a.targets]}
                 for d in getattr(node, 'csl_method_deps', []) or []
             ],
             # Field classification (D1): names this mixin method declared it may touch.
