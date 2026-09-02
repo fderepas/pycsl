@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""check-dropped-mutation.py — the MUTATION-DROP plane.
+r"""check-dropped-mutation.py — the MUTATION-DROP plane.
 
 WHAT IT MEASURES, and why it exists.
 
@@ -35,6 +35,20 @@ exactly one bucket:
               ratchet. REOPENING CAPABILITY: run the block on the handler arms and on a
               `Return_t` re-raise arm, which needs the function's return-exception name at
               that point in the emitter.
+  DANGLING    a CONTRACT-level `#@` block with nothing after it to attach to (it runs to
+              end-of-file). Module 3 binds an annotation block to the node that FOLLOWS it;
+              a block with no follower is silently discarded and the run still reports
+              `[+] Verification SUCCESS! All contracts formally proven.` — a contract the
+              author wrote, that was never checked, under a message that says everything
+              was. MEASURED: a trailing `#@ ensures \result == 99` after a function
+              returning 1 proves SUCCESS. Statement-level directives (`assert`, `assume`,
+              `ghost`, `loop ...`, `label`, `reveal`) are EXCLUDED — a trailing `#@ assert`
+              is the last statement of a body and attaches correctly; three corpus files
+              (0710/0711/0712) end that way and are not findings.
+              **RATCHET 0, a HARD 0** across all four populations plus `python-reference`
+              and the negative corpus. Fixing it properly belongs in `Module3_Weaver`
+              (raise on a `contracts_map` key nothing consumed); until then this counter
+              guarantees the tree never grows one.
   CTXBIND     a `with ... as X` binding. `_py_stmt_with` reads `stmt.body` and the mutex
               annotations and NEVER reads `stmt.items`, so the context manager and the `as`
               name are both absent from the model and the body is spliced in their place.
@@ -93,6 +107,7 @@ from __future__ import annotations
 import argparse
 import ast
 import os
+import re
 import sys
 import warnings
 
@@ -101,8 +116,12 @@ import warnings
 # NOISE here, not findings.
 warnings.filterwarnings("ignore", category=SyntaxWarning)
 
+_STMT_LEVEL = ("assert", "assume", "ghost", "loop", "label", "reveal", "unfold", "havoc")
+
 ROOTS = [
     "test-suite/corpus/pycsl-reference",
+    "test-suite/corpus/python-reference",
+    "test-suite/corpus/negative",
     "src/self-annotate/src",
     "src/pycsl_lib",
     "src/pycsl",
@@ -131,9 +150,10 @@ MAX_DROPPED = 1
 # CTXBIND ratchet — `with <expr> as X`. Measured at the tree that introduced this gate:
 # 10 in `src/self-annotate/src` (every one inside a `\trusted` function — `_sha256_file`,
 # `_run_proofs`, `main`, `_is_false_goal`), 38 in the live emitter, 0 in the reference
-# corpus, 0 in `src/pycsl_lib`. REOPENING CAPABILITY: an `__enter__`/`__exit__` protocol
+# corpus, 0 in `src/pycsl_lib`; 48 -> 50 when the scan was widened to the
+# `python-reference` and `negative` corpora for the DANGLING check (two more there). REOPENING CAPABILITY: an `__enter__`/`__exit__` protocol
 # in the IR, at which point the `as` binding becomes an ordinary store.
-MAX_CTXBIND = 48
+MAX_CTXBIND = 50
 
 # TRYFINAL ratchet — a `try/finally` or `try/else` whose block is still dropped. Measured
 # after #33 emitted the safe case: the THREE CONVERTED, PROVED mirror methods that had a
@@ -142,6 +162,11 @@ MAX_CTXBIND = 48
 # from the model), and the residue is the shapes with handlers or with a jump out of the
 # try body. 0 in the reference corpus.
 MAX_TRYFINAL = 9
+
+# DANGLING ratchet — a HARD 0. See the class list above. Measured across
+# pycsl-reference, python-reference, the negative corpus, the mirror, `src/pycsl_lib` and
+# the live emitter: not one contract-level `#@` block runs to end-of-file.
+MAX_DANGLING = 0
 
 
 def _classify_augassign(node: ast.AugAssign):
@@ -210,6 +235,31 @@ def _init_annassigns(tree: ast.AST):
     return protected
 
 
+def scan_dangling(path: str):
+    """CONTRACT-level `#@` blocks that run to end-of-file with nothing to attach to."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            lines = fh.read().split("\n")
+    except (UnicodeDecodeError, OSError):
+        return []
+    out, i = [], 0
+    while i < len(lines):
+        if lines[i].strip().startswith("#@"):
+            j, kinds = i, []
+            while j < len(lines) and (lines[j].strip().startswith("#")
+                                      or not lines[j].strip()):
+                m = re.match(r"#@\s+\\?([a-z_]+)", lines[j].strip())
+                if m:
+                    kinds.append(m.group(1))
+                j += 1
+            if j >= len(lines) and any(k not in _STMT_LEVEL for k in kinds):
+                out.append((i + 1, ",".join(kinds)))
+            i = j
+        else:
+            i += 1
+    return out
+
+
 def scan_file(path: str):
     try:
         with open(path, encoding="utf-8") as fh:
@@ -253,12 +303,14 @@ def main() -> int:
     ap.add_argument("--max-dropped", type=int, default=MAX_DROPPED)
     ap.add_argument("--max-ctxbind", type=int, default=MAX_CTXBIND)
     ap.add_argument("--max-tryfinal", type=int, default=MAX_TRYFINAL)
+    ap.add_argument("--max-dangling", type=int, default=MAX_DANGLING)
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
     counts = {"HANDLED": 0, "NORMALIZED": 0, "REFUSED": 0, "DROPPED": 0,
-              "CTXBIND": 0, "TRYFINAL": 0}
+              "CTXBIND": 0, "TRYFINAL": 0, "DANGLING": 0}
     dropped = []
+    dangling = []
     for root in ROOTS:
         if not os.path.isdir(root):
             continue
@@ -267,20 +319,33 @@ def main() -> int:
             for fn in sorted(filenames):
                 if not fn.endswith(".py"):
                     continue
-                for bucket, path, line, why in scan_file(os.path.join(dirpath, fn)):
+                full = os.path.join(dirpath, fn)
+                for bucket, path, line, why in scan_file(full):
                     counts[bucket] += 1
                     if bucket == "DROPPED":
                         dropped.append((path, line, why))
+                for line, kinds in scan_dangling(full):
+                    counts["DANGLING"] += 1
+                    dangling.append((full, line, kinds))
 
     print("[*] dropped-mutation: %d statement(s) scanned — "
-          "%d HANDLED, %d NORMALIZED, %d REFUSED, %d DROPPED, %d CTXBIND, %d TRYFINAL."
+          "%d HANDLED, %d NORMALIZED, %d REFUSED, %d DROPPED, %d CTXBIND, %d TRYFINAL, "
+          "%d DANGLING."
           % (sum(counts.values()), counts["HANDLED"], counts["NORMALIZED"],
              counts["REFUSED"], counts["DROPPED"], counts["CTXBIND"],
-             counts["TRYFINAL"]))
+             counts["TRYFINAL"], counts["DANGLING"]))
     if args.verbose or dropped:
         for path, line, why in sorted(dropped):
             print("    DROPPED  %s:%d  %s" % (path, line, why))
 
+    for path, line, kinds in sorted(dangling):
+        print("    DANGLING   %s:%d  `#@ %s` block with nothing to attach to" % (path, line, kinds))
+    if counts["DANGLING"] > args.max_dangling:
+        print("[!] dropped-mutation: DANGLING RATCHET BROKEN — %d > %d. A contract block "
+              "with no following node is DISCARDED, and the run still reports "
+              "`All contracts formally proven`."
+              % (counts["DANGLING"], args.max_dangling))
+        return 1
     if counts["TRYFINAL"] > args.max_tryfinal:
         print("[!] dropped-mutation: TRYFINAL RATCHET BROKEN — %d > %d. Python runs a "
               "`finally` block on EVERY exit path; a dropped one is a fail-OPEN."
@@ -307,8 +372,9 @@ def main() -> int:
     if counts["TRYFINAL"] < args.max_tryfinal:
         print("[+] dropped-mutation: TRYFINAL %d < ratchet %d — lower the constant."
               % (counts["TRYFINAL"], args.max_tryfinal))
-    print("[+] dropped-mutation: OK (ratchets %d dropped / %d ctxbind / %d tryfinal)."
-          % (args.max_dropped, args.max_ctxbind, args.max_tryfinal))
+    print("[+] dropped-mutation: OK (ratchets %d dropped / %d ctxbind / %d tryfinal / "
+          "%d dangling)."
+          % (args.max_dropped, args.max_ctxbind, args.max_tryfinal, args.max_dangling))
     return 0
 
 
