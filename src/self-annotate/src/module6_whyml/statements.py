@@ -194,7 +194,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # Faithful: the real siblings do return `str`; this only surfaces that fact.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _add_abstract_op(self, decl: str) -> None:
         return
 
@@ -231,7 +231,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # no new device/ADT/axiom, non-vacuous (the `whyml_str` param drives every guard + return).
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _str_operand_to_int(self, whyml_str: str) -> str:
         s = whyml_str.strip()
         if s.startswith('"') and s.endswith('"'):
@@ -609,7 +609,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _dv_store_value(self, nu: Optional[str], val_expr: str) -> str:
         """The value stored at `d[k] = val`: a `seq int` snapshots the array
         (ownership-discipline §3), a string/nested-map value passes through
@@ -724,7 +724,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ requires True
     #@ ensures True
-    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _seq_operand(self, val_ir: "ExprIR", local_refs: Set[str]) -> str:
         """07-1705-rev4 P3: an operand that must be a `seq int` — `!b` if `b` is itself a
         seq local, else `snapshot(b)` to bridge an array-modelled value into seq."""
@@ -763,7 +763,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # which is hidden behind the trusted stub's frame.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _materialize_bridge(self) -> None:
         """07-1705-rev4 P4: emit the faithful seq→array bridge val (fresh result, no
         region link), used where a seq-modelled value crosses into `array int` code."""
@@ -777,7 +777,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _materialize_str_bridge(self) -> None:
         """str-list-elements: the STRING analogue of `_materialize_bridge` — bridges a
         `seq string` (a growable string list) to a fresh `array string` at the return
@@ -1396,7 +1396,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # the real source (forbidden by the Phase-C "copy exactly" rule).
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _wrap_body_with_return_catch(self, body_code: str, return_type: str) -> str:
         """Wrap a function body with the `try ... with Return r -> r end`
         catch when early-returns can fire. Picks the right Return arm

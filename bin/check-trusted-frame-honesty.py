@@ -180,9 +180,20 @@ TOTAL_RATCHET = 82    # 63 -> 82 at #31 by the SHARPER DETECTOR above (not by ne
                       # (70 -> 68 at #29:
                       # the `_Unparser` ports move offenders from the TRUSTED population
                       # to the CONVERTED one; a RATCHET, only lower it)
-CONVERTED_RATCHET = 4         # 2 -> 4 at #31 by the SHARPER DETECTOR (the `_add_abstract_op`
-                              # subscript store); the CONVERTED surface, model-visible
-CONVERTED_TOTAL_RATCHET = 133 # 68 -> 133 at #31 by the SHARPER DETECTOR; every offender
+CONVERTED_RATCHET = 1         # 2 -> 4 at #31 by the SHARPER DETECTOR (the `_add_abstract_op`
+                              # subscript store); 4 -> 1 at #32 by GIVING THE TWO
+                              # `_add_abstract_op` CROSS-MIXIN PROTOCOL STUBS THEIR HONEST
+                              # `#@ assigns self._abstract_ops, self._obj_state_written`
+                              # and driving the caller frames to a FIXPOINT against Why3's
+                              # own error text (6 iterations on `statements.py`). The
+                              # remaining ONE is `expressions._ifexpr_seq_arm`: in
+                              # `expressions.py` the mirror's `ExpressionEmissionMixin`
+                              # does not emit `_abstract_ops` as a record field label, so
+                              # `_writes_filtered_to_labels` drops it and the caller-side
+                              # avatar carries no frame at all -- see the #32 handoff's
+                              # AVATAR FRAME finding for the reopening capability.
+CONVERTED_TOTAL_RATCHET = 130 # 68 -> 133 at #31 by the SHARPER DETECTOR; 133 -> 130 at #32
+                              # (the three `statements.py` callers above). Every offender
 LIVE_ROOT = "src/pycsl"
 MIRROR_ROOT = "src/self-annotate/src"
 

@@ -84,7 +84,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     # self-tcb-reduction T1.a: sibling stubs the ported expression handlers call cross-mixin.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _add_abstract_op(self, decl: str) -> None:
         return
 
