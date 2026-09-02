@@ -1,38 +1,44 @@
-# HANDOFF — #31 (2026-09-02, WINDOW 3): **455 -> 445, six emitter capabilities, two NEW
-# GATE PLANES and eleven conversions — but the two findings that matter are that the
-# CANDIDATE PROBE was measuring the wrong function for 40% of the tree, and that a
-# CONVERTED GENERATOR's `yield`ed values are dropped on the floor with no plane able to
-# see it.**
+# HANDOFF — #31 (2026-09-02, WINDOW 3): **455 -> 446, seven emitter capabilities, two NEW
+# GATE PLANES, and eleven conversions of which the GATES REVERTED TWO — but the findings
+# that matter are that the CANDIDATE PROBE was measuring the wrong function for 40% of the
+# tree, that a CONVERTED GENERATOR's `yield`ed values are dropped on the floor, and that
+# `check-trusted-frame-honesty` could not see `self.xs.append(v)`.**
 
-## VERIFICATION STATE AT THIS WRITING
-Every increment is committed and every plane is green. WHOLE-FILE PROOFS, `Verification
-SUCCESS` / 0 non-Valid: `pure_ast.py` (**3105 goals**, after the `iter_child_nodes`
-re-trust) · `pycsl.py` · `monomorphize.py` · `normalize.py` · `Module2_Parser.py` ·
-`ConcurrencyChecker.py` · `audit_proof.py` · `audit_proof_reverify.py` ·
-`frontend/__init__.py` · `import_classifier.py` · `ir_resolve.py` · `crosscheck.py` ·
-`crosscheck_ir.py` · `extract.py` · `extract_lean_meta.py` · `sertop.py` — sixteen files.
-STILL IN FLIGHT when this was written: `statements.py`, `stmt_control_flow.py`,
-`expressions.py` — the three the FRAME FIXPOINT (increment 9, commit `ec12c362`, 447 -> 445)
-moves. That commit is labelled WIP for exactly this reason. **If any of the three does not
-prove, revert `ec12c362` and the two conversions it carries; everything above it is
-independent of it.**
-Corpus byte-diff **0** (814/814). All **52/52** mirrors L3-tc GREEN. Fidelity DIVERGED **2**
-on both scripts (the baseline pair). Non-vacuity: no NEW erasure, 0 input-blind.
-shadowed-selfcalls **14 / 121**. untrusted-emitted 864 un-trusted, **0 re-abstracted**.
-yield-erasure **0 value-erasing / 2 suspension (ratchet 2) / 1 modelled**.
-mirror-signature-drift **16 (ratchet 16), 0 converted**. frame-honesty **0/82 trusted,
-4/133 converted** against the RE-BASELINED ratchets (see lesson (bk)). Ledger **3**, no
-axiom added by any of this window's six capabilities. Tree clean; no prover process left
-running that this window owns.
+## VERIFICATION STATE — COMPLETE, NOTHING PENDING
+**TWENTY mirror `.mlw` files moved this window and EVERY ONE was re-proved**, `Verification
+SUCCESS` / 0 non-Valid: `pure_ast.py` (**3105 goals**) · `expressions.py` · `statements.py` ·
+`stmt_control_flow.py` · `Module2_Parser.py` (proved three times as the gates walked it
+back) · `pycsl.py` · `monomorphize.py` · `normalize.py` · `ConcurrencyChecker.py` ·
+`audit_proof.py` · `audit_proof_reverify.py` · `frontend/__init__.py` ·
+`import_classifier.py` · `ir_resolve.py` · `crosscheck.py` · `crosscheck_ir.py` ·
+`extract.py` · `extract_lean_meta.py` · `sertop.py` · `Module6_WhyMLTranspiler.mlw`.
+
+THE FULL BATTERY, driver-verified fresh at HEAD:
+  · markers **446**, stable over 3 samples · grep 471 · offset 25 · unattached 0
+  · corpus byte-diff **0** — 814/814 identical to the window-start tree
+  · all **52/52** mirrors L3-tc GREEN (full sweep)
+  · fidelity DIVERGED **2** on both scripts (the documented baseline pair)
+  · non-vacuity (`--emit`): no NEW erasure, 8 known gated, **0 input-blind**
+  · shadowed-selfcalls **14 / 121** (ratchet 14)
+  · frame-honesty **0/82 trusted, 4/133 converted** — against the RE-BASELINED ratchets,
+    see lesson (bk) below for why they rose and why that is not a regression
+  · untrusted-emitted 863 un-trusted, **0 re-abstracted**, 0 unexpectedly absent
+  · yield-erasure **0 value-erasing / 2 suspension (ratchet 2) / 1 genuinely modelled**
+  · mirror-signature-drift **16 (ratchet 16), 0 converted**
+  · ledger **3** — no axiom added by any of this window's seven capabilities
+  · tree clean; **no prover process running**
 
 ## THE NUMBERS
 
 | | markers | grep | offset | unattached | ledger |
 |---|---|---|---|---|---|
 | #31 start (`b3ad0507`) | 455 | 480 | 25 | 0 | 3 |
-| **#31 end** | **445** | **470** | **25** | **0** | **3** |
+| **#31 end** | **446** | **471** | **25** | **0** | **3** |
 
-Net -10 = ELEVEN conversions minus ONE deliberate RE-TRUST (`iter_child_nodes`, below).
+Net -9 = ELEVEN conversions minus TWO gate-driven RE-TRUSTS (`iter_child_nodes`, refuted by
+the NEW yield-erasure plane; `_ContractParser._err`, refuted by NON-VACUITY —
+`erased=['msg'] of ['msg']`, its whole body being a `raise` whose payload is unmodelled).
+**Both reverts are the right outcome and both were found by a plane, not by inspection.**
 
 | # | commit | markers | what |
 |---|---|---|---|
@@ -46,6 +52,29 @@ Net -10 = ELEVEN conversions minus ONE deliberate RE-TRUST (`iter_child_nodes`, 
 | 7 | `9dec2e15` + `592c753f` | 450 -> 447 | probe SIGNATURE-PRESERVING port + `_err` / `_parse_mutex_expr_str` / `_walk_body` |
 | 8 | `7121d1a7` | — | a REFLECTED NODE LIST is a real `array`, not an opaque iterable |
 | 9 | `ec12c362` | 447 -> 445 | the CROSS-MIXIN PROTOCOL-STUB FRAME FIXPOINT + `_emit_array_local_reassign` / `_seq_operand` |
+| 10 | `004f9ed7` | — | the SIBLING-CONCRETE route now carries the `-> NoReturn` divergence + a 32-method `#@ raises` fixpoint |
+| 11 | `5dac35df` | 445 -> **446** | NON-VACUITY reverts `_err` — `erased=['msg'] of ['msg']` |
+
+### THE `_err` SEQUENCE IS THE CLEANEST DEMONSTRATION OF LESSON (bf) THIS CAMPAIGN HAS
+Five planes spoke on ONE method, each rejecting something the previous could not see:
+1. the CANDIDATE PROBE (repaired, signature-preserving) said **CLEAN**;
+2. SHADOWED-SELFCALLS said **14 -> 15**: all seven `self._err(...)` sites still routed
+   through `val self__err_1`, so the converted body was invisible to every caller;
+3. `#@ sibling_concrete` (the documented repair) then failed L3-tc — and the cause was a
+   REAL EMITTER DEFECT: the concrete route never carried the `-> NoReturn` divergence
+   wrapper that the abstract route has, so `if c then self._err(x) else 0` had a `unit` arm
+   against an `int` one. `#@ sibling_concrete` and `-> NoReturn` had never met. **FIXED AND
+   KEPT** (byte-inert: it fires only for a method that is both);
+4. that exposed the unlisted `ContractSyntaxError` — exactly the reopening #30 recorded for
+   `_write_fstring_inner`. BUILT with relaunch #19's device again, a fixpoint against Why3's
+   own error text (`scratchpad/w4/raisesfix.py`): **converged in 32 iterations over 32
+   methods**;
+5. NON-VACUITY refuted the whole thing: `erased=['msg'] of ['msg']`. `_err`'s body is
+   `raise _ContractSyntaxError(f"{msg} ...")`, the exception PAYLOAD is not modelled, so the
+   emitted body ignores its only argument.
+REVERTED to `\trusted` with the measurement written into the mirror in place of the old
+guess. **REOPENING CAPABILITY: an exception payload in the model** — at which point the
+raise consumes `msg` and every other piece this window built for it is already landed.
 
 ## THE TWO FINDINGS THAT MATTER
 
