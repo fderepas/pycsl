@@ -407,6 +407,55 @@ def _probe_emit(name, cls, orig, new, sig_note):
         pgone = sorted(pp for pp in params if pp in used_params and pp not in blk)
         if pgone:
             found.append(f"PARAM ERASURE (used in source, absent from body: {pgone})")
+        # (#32) PARAM-FIELD MATERIALIZED AS A FRESH CONSTANT ARRAY. A collection field of a
+        # NON-self object — `node.csl_invariants` where `node` is an int-typed parameter —
+        # has no lowering, so the emitter binds a FRESH `let <param>_<field> = Array.make
+        # 1024 0 in` local and every read AND every `.append(...)` into it is performed on
+        # that empty local and then discarded. Measured on `Module3_Weaver.PyCSLWeaver.
+        # _attach_loop_contracts`, whose ENTIRE body is three such appends: the probe
+        # reported it CLEAN because the parameter name `node` does appear (in the fresh
+        # local's own name) and no regex marker fires. This is the PARAM-side twin of the
+        # SELF-FIELD ERASURE check above.
+        _pfields = sorted({(n.value.id, n.attr) for n in ast.walk(src_fn)
+                           if isinstance(n, ast.Attribute) and isinstance(n.value, ast.Name)
+                           and n.value.id in params})
+        _mat = [f"{o}.{f}" for o, f in _pfields
+                if re.search(r"\blet %s_%s = \(?Array\.make\b" % (re.escape(o), re.escape(f)),
+                             blk)]
+        if _mat:
+            found.append("PARAM-FIELD MATERIALIZED as a fresh constant array "
+                         "(reads and mutations both dropped): %s" % _mat)
+        # (#32) A COMPUTED RHS ERASED TO THE LITERAL 0. `v = getattr(node, "value", None)`
+        # emits `v := 0` — the read is GONE, not abstracted, so no opaque-op marker fires
+        # and the local silently becomes a constant. Measured on `Module3_Weaver.
+        # _region_bound_str`, reported CLEAN: its `v := 0` makes the guard `!v <> 0` false
+        # on every path, so the whole method collapses to `return "<expr>"`. Keyed on the
+        # SOURCE's RHS being a COMPUTATION (call / attribute / subscript / comprehension),
+        # and suppressed when the source itself ever assigns that name a falsy literal —
+        # then `:= 0` is a faithful emission.
+        _erased = []
+        for _n in ast.walk(src_fn):
+            if not isinstance(_n, ast.Assign) or len(_n.targets) != 1:
+                continue
+            _t = _n.targets[0]
+            if not isinstance(_t, ast.Name):
+                continue
+            if not isinstance(_n.value, (ast.Call, ast.Attribute, ast.Subscript,
+                                         ast.ListComp, ast.DictComp, ast.SetComp,
+                                         ast.GeneratorExp)):
+                continue
+            if any(isinstance(_o, ast.Assign) and len(_o.targets) == 1
+                   and isinstance(_o.targets[0], ast.Name)
+                   and _o.targets[0].id == _t.id
+                   and isinstance(_o.value, ast.Constant)
+                   and not _o.value.value
+                   for _o in ast.walk(src_fn)):
+                continue
+            if re.search(r"(?m)^\s*%s := 0\s*;?\s*$" % re.escape(_t.id), blk):
+                _erased.append(_t.id)
+        if _erased:
+            found.append("COMPUTED RHS ERASED TO 0 (the read never happens): %s"
+                         % sorted(set(_erased)))
         return name, ("CLEAN" if not found else "ERASURE"), found
     finally:
         open(MIRROR, "w").write(orig)

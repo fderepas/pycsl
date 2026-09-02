@@ -9988,8 +9988,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     in getattr(self, "_mutable_state_classes", set())
                     and isinstance(name_ir, dict) and name_ir.get("type") == "String"
                     and name_ir.get("value") in getattr(self, "_all_record_fields", set())
-                    and isinstance(default_ir, dict)
-                    and default_ir.get("type") == "String"):
+                    and isinstance(default_ir, dict)):
+                # (#32) THE DEFAULT'S TYPE IS IRRELEVANT ONCE THE FIELD IS MODELLED.
+                # This branch used to fire only for a STRING default, so the two
+                # commonest spellings of the very same idiom — `getattr(self, "_f", None)`
+                # and `getattr(self, "_f", {})` — fell through to the "emit the default"
+                # path and became the LITERAL `0`. Measured in the emitted mirror: six
+                # CONVERTED, PROVED methods contain a `<local> := 0` where the source read
+                # a self field this way (`_refine_tuple_return_type`'s four save/restore
+                # locals, `_handle_setlit_expr`'s `_poly`, `_handle_field_get_expr`'s
+                # `_pg2`, `_infer_return_value_type`'s `symtab`), i.e. the read never
+                # happened and the guard that consumes it is decided by a constant.
+                # The LICENSE is unchanged and is carried by the `_all_record_fields`
+                # test that already guards this branch: `getattr(o, "f", d)` returns `d`
+                # only when `f` is ABSENT, and a field the model DECLARES is present, so
+                # `getattr(self, "f", <anything>)` IS `self.f`. Relaxing the default's
+                # type therefore adds no claim the String case did not already make.
+                # Fail-closed: a field NOT in `_all_record_fields` still takes the
+                # default path, and a type disagreement at the use site is an L3-tc
+                # rejection (WL-02), never a silent coercion.
                 return f"self.{self._field_label(self._current_self_type, name_ir['value'])}"
         # Dynamic-config / unknown-field path: emit the default. getattr returns
         # `default` for an absent attribute, so this is sound (the real runtime
