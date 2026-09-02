@@ -25,6 +25,16 @@ exactly one bucket:
   REFUSED     the pipeline raises with a diagnostic (fail-CLOSED — the honest answer for a
               shape that has no sound lowering).
   DROPPED     no branch matches and nothing refuses it. **This is the ratchet.**
+  TRYFINAL    a `try ... finally:` / `try ... else:` whose block is NOT emitted. Module 5
+              DOES carry `orelse` and `finalbody` into the IR; Module 6's
+              `_handle_try_stmt` reads `stmt.body` and `stmt.handlers` and neither of the
+              other two. #33 emits the `finally` block in the ONE case that is expressible
+              by appending it — no handlers, and no `raise` anywhere in the LOWERED body,
+              so no other exit path exists — and counts the rest here. Python runs
+              `finally` on EVERY exit path, so the residue is a fail-OPEN with its own
+              ratchet. REOPENING CAPABILITY: run the block on the handler arms and on a
+              `Return_t` re-raise arm, which needs the function's return-exception name at
+              that point in the emitter.
   CTXBIND     a `with ... as X` binding. `_py_stmt_with` reads `stmt.body` and the mutex
               annotations and NEVER reads `stmt.items`, so the context manager and the `as`
               name are both absent from the model and the body is spliced in their place.
@@ -91,6 +101,14 @@ MAX_DROPPED = 1
 # in the IR, at which point the `as` binding becomes an ordinary store.
 MAX_CTXBIND = 48
 
+# TRYFINAL ratchet — a `try/finally` or `try/else` whose block is still dropped. Measured
+# after #33 emitted the safe case: the THREE CONVERTED, PROVED mirror methods that had a
+# dropped `finally` are FIXED (`pure_ast.visit_Try`, `pure_ast.visit_TryStar`,
+# `functions._refine_tuple_return_type` — each one a save/restore whose restore was absent
+# from the model), and the residue is the shapes with handlers or with a jump out of the
+# try body. 0 in the reference corpus.
+MAX_TRYFINAL = 10
+
 
 def _classify_augassign(node: ast.AugAssign):
     t = node.target
@@ -136,6 +154,17 @@ def _classify_annassign(node: ast.AnnAssign, in_init: bool):
     return "NORMALIZED", "annotated non-Name store -> plain Assign"
 
 
+def _jumps_out(stmts) -> bool:
+    """Does any statement in `stmts` (recursively) leave the block other than by falling
+    off the end? Each of these lowers to a `raise` in the emitted WhyML, which is exactly
+    what makes appending the `finally` block unfaithful."""
+    for st in stmts:
+        for sub in ast.walk(st):
+            if isinstance(sub, (ast.Return, ast.Break, ast.Continue, ast.Raise)):
+                return True
+    return False
+
+
 def _init_annassigns(tree: ast.AST):
     protected = set()
     for node in ast.walk(tree):
@@ -169,6 +198,14 @@ def scan_file(path: str):
         elif isinstance(node, ast.With) and any(
                 it.optional_vars is not None for it in node.items):
             bucket, why = "CTXBIND", "`with ... as X` — the binding is not read"
+        elif isinstance(node, ast.Try) and (node.finalbody or node.orelse):
+            if node.finalbody and not node.handlers and not _jumps_out(node.body):
+                bucket, why = "HANDLED", "`try/finally`, no handlers, no jump out — emitted"
+            else:
+                bucket, why = "TRYFINAL", (
+                    "`try/%s` block not emitted (%s)"
+                    % ("finally" if node.finalbody else "else",
+                       "has handlers" if node.handlers else "jumps out of the try body"))
         else:
             continue
         rows.append((bucket, path, node.lineno, why))
@@ -179,10 +216,12 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--max-dropped", type=int, default=MAX_DROPPED)
     ap.add_argument("--max-ctxbind", type=int, default=MAX_CTXBIND)
+    ap.add_argument("--max-tryfinal", type=int, default=MAX_TRYFINAL)
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
-    counts = {"HANDLED": 0, "NORMALIZED": 0, "REFUSED": 0, "DROPPED": 0, "CTXBIND": 0}
+    counts = {"HANDLED": 0, "NORMALIZED": 0, "REFUSED": 0, "DROPPED": 0,
+              "CTXBIND": 0, "TRYFINAL": 0}
     dropped = []
     for root in ROOTS:
         if not os.path.isdir(root):
@@ -198,13 +237,19 @@ def main() -> int:
                         dropped.append((path, line, why))
 
     print("[*] dropped-mutation: %d statement(s) scanned — "
-          "%d HANDLED, %d NORMALIZED, %d REFUSED, %d DROPPED, %d CTXBIND."
+          "%d HANDLED, %d NORMALIZED, %d REFUSED, %d DROPPED, %d CTXBIND, %d TRYFINAL."
           % (sum(counts.values()), counts["HANDLED"], counts["NORMALIZED"],
-             counts["REFUSED"], counts["DROPPED"], counts["CTXBIND"]))
+             counts["REFUSED"], counts["DROPPED"], counts["CTXBIND"],
+             counts["TRYFINAL"]))
     if args.verbose or dropped:
         for path, line, why in sorted(dropped):
             print("    DROPPED  %s:%d  %s" % (path, line, why))
 
+    if counts["TRYFINAL"] > args.max_tryfinal:
+        print("[!] dropped-mutation: TRYFINAL RATCHET BROKEN — %d > %d. Python runs a "
+              "`finally` block on EVERY exit path; a dropped one is a fail-OPEN."
+              % (counts["TRYFINAL"], args.max_tryfinal))
+        return 1
     if counts["CTXBIND"] > args.max_ctxbind:
         print("[!] dropped-mutation: CTXBIND RATCHET BROKEN — %d > %d. A `with ... as X` "
               "binding is absent from the model; the gap is bounded, not licensed."
@@ -223,8 +268,11 @@ def main() -> int:
     if counts["CTXBIND"] < args.max_ctxbind:
         print("[+] dropped-mutation: CTXBIND %d < ratchet %d — lower the constant."
               % (counts["CTXBIND"], args.max_ctxbind))
-    print("[+] dropped-mutation: OK (ratchets %d dropped / %d ctxbind)."
-          % (args.max_dropped, args.max_ctxbind))
+    if counts["TRYFINAL"] < args.max_tryfinal:
+        print("[+] dropped-mutation: TRYFINAL %d < ratchet %d — lower the constant."
+              % (counts["TRYFINAL"], args.max_tryfinal))
+    print("[+] dropped-mutation: OK (ratchets %d dropped / %d ctxbind / %d tryfinal)."
+          % (args.max_dropped, args.max_ctxbind, args.max_tryfinal))
     return 0
 
 

@@ -1733,6 +1733,32 @@ class ControlFlowStmtMixin:
             code += f"{indent}end"
         else:
             code = f"{pre_decls}{body_str}"
+        # (#33) `finally:` WAS DROPPED ENTIRELY, and that PROVED A FALSE POSTCONDITION.
+        # `_handle_try_stmt` read `stmt.body` and `stmt.handlers` and never `stmt.finalbody`,
+        # so the cleanup block was absent from the model. Measured, before this:
+        #     try:  self.v = 1;  return          #@ ensures self.v == 1   <-- FALSE
+        #     finally:  self.v = 2
+        # emitted `self.v <- 1; ()` and reported `Verification SUCCESS`, while Python leaves
+        # `self.v == 2` (the `finally` runs before the return completes).
+        # THE SAFE CASE IS EMITTED, THE REST IS COUNTED, NOT GUESSED. Python runs `finally`
+        # on EVERY exit path — normal completion, a caught exception, an uncaught one, and
+        # `return`/`break`/`continue` — and only the FIRST of those is expressible by
+        # appending the block. So it is appended exactly when the other paths cannot arise:
+        # no handlers (nothing is caught here) and no `raise` anywhere in the EMITTED body
+        # (a `return`/`break`/`continue` inside the try lowers to a `raise`, and so does any
+        # exception, so ONE string test covers every jump-out at once — it is a test of the
+        # LOWERED body, not of the source, so it cannot miss a nested one).
+        # Everything else keeps today's behaviour and is COUNTED by
+        # `bin/check-dropped-mutation.py`'s TRYFINAL category with its own ratchet, so the
+        # residue is measured rather than invisible. REOPENING CAPABILITY: run the block on
+        # the handler arms and on a `Return_t` re-raise arm, which needs the function's
+        # return-exception name at this point in the emitter.
+        _final = [s.to_dict() for s in stmt.finalbody]
+        if _final and not handlers and "raise" not in body_str:
+            _final_str = self._stmts_to_whyml(_final, local_refs, declared_refs,
+                                              indent, in_loop)
+            if _final_str.strip():
+                code += ";\n" + _final_str
         if rest:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
