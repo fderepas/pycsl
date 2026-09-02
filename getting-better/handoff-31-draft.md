@@ -151,6 +151,56 @@ also lowers `return None` to `raise (Return 0)`, conflating "not found" with ind
 NOT CONVERTED. New probe marker: an ARITY-SUFFIXED abstract op applied to `(Array.make n 0)`
 — keyed so the legitimate `let a = (Array.make 1024 0) in` initialiser is untouched.
 
+### 3. LESSON (bk): `check-trusted-frame-honesty` SAW `self.x = ...` AND NOTHING ELSE
+
+The gate whose whole purpose is to find `#@ assigns \nothing` frames that the live body
+contradicts walked for an `ast.Attribute` in a STORE context. It did not see
+`self.xs.append(v)`, `self.s.add(v)`, `self.d.update(m)`, `self.xs.sort()`,
+`del self.d[k]`, or `self.d[k] = v` (a Subscript target, not an Attribute one) — which is
+how the emitter mutates most of its state.
+
+ON THE SAME TREE, sharper detector, nothing else changed:
+
+| | before | after |
+|---|---|---|
+| trusted total | 63 | **82** (direct writers 23 -> 32) |
+| converted total | 68 | **133** |
+| converted MODEL-VISIBLE | 2 | **4** |
+
+The four model-visible converted offenders — `expressions._ifexpr_seq_arm`,
+`statements._materialize_bridge`, `._materialize_str_bridge`,
+`._wrap_body_with_return_catch` — all reach `_add_abstract_op`, whose
+`self._abstract_ops[k] = ...` is exactly the subscript store the old walk could not see.
+
+**The most instructive offender is `pure_ast._Unparser.write`, the 97-call-site output
+hub.** Its entire body is `self._source.extend(text)` and it emits as
+
+    let _unparser__write (self: _unparser) (text: seq int) : unit
+      writes {  }
+    = let _ = (self__source_extend_1 text) in ()
+
+a RECEIVER-LESS opaque op with no effect, under a frame saying the method changes nothing —
+while a CONVERTED sibling (`maybe_newline`, `if self._source:`) READS that field through
+`getattr__unparser`, i.e. through `_pyobj_state`, which `writes { }` asserts is unchanged.
+**That is an under-approximation of effects in the converted population.** Every plane was
+green on it. Ratchets re-baselined to 82/133/4 with the derivation written beside the
+constants; raising a ratchet is legitimate ONLY when the analysis got sharper and the tree
+did not get worse, the same condition under which shadowed-selfcalls went 13 -> 14 at #30.
+
+**THE REPAIR IS ON THE LADDER AND OPTION (b) IS THE RIGHT ONE:**
+  (a) re-trust `write` AND give it `#@ assigns self._source` — a trusted stub's frame is
+      assumed, so the honest one costs nothing to discharge. +1 marker, one `pure_ast`
+      re-proof. Available immediately.
+  (b) **build the read-modify-write lowering**: under `@mutable_state`, an in-place
+      collection mutation on a self field IS `self.f = <mutate>(self.f, args)`, i.e.
+      `setattr__unparser self <f> (self__source_extend_1 (getattr__unparser self <f>) text)`.
+      That makes the write MODEL-VISIBLE, lets the honest `#@ assigns self._source`
+      DISCHARGE on the converted body, and fixes the whole 18-method class instead of one
+      method. The emitter already owns both halves (`getattr__unparser` /
+      `setattr__unparser ... writes { _pyobj_state }`).
+  Do NOT simply re-trust without the honest `#@ assigns`: that only MOVES the false frame
+  into the assumed population.
+
 ## THE FRAME FIXPOINT — a boundary found and broken in the same window
 
 Why3 REJECTS an OVER-claimed `writes` ("this write effect does not happen in the
