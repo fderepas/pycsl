@@ -203,7 +203,13 @@ MAX_CTXBIND = 51
 # `functions._refine_tuple_return_type` — each one a save/restore whose restore was absent
 # from the model), and the residue is the shapes with handlers or with a jump out of the
 # try body. 0 in the reference corpus.
-MAX_TRYFINAL = 9
+# (#43) 9 -> 10, and as with CTXBIND the counter's MEANING changed. Route #21 established
+# that the residue was not merely counted but EXPLOITABLE: `try: x=2 / except ValueError:
+# x=9 / finally: x=3 / return x` proved `\result == 2` while Python returns 3. A `finally`
+# WITH handlers is now REFUSED in Module 6's statement lowering, so every site this counter
+# still sees is inside a `\trusted`/`\abstract` function or a `pycsl-expected: FAIL`
+# witness. The +1 is corpus 0990, the witness itself.
+MAX_TRYFINAL = 10
 
 # DANGLING ratchet — a HARD 0. See the class list above. Measured across
 # pycsl-reference, python-reference, the negative corpus, the mirror, `src/pycsl_lib` and

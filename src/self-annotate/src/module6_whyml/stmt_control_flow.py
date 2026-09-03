@@ -483,12 +483,37 @@ class ControlFlowStmtMixin:
                           indent: str, in_loop: bool) -> str:
         body_stmts = [s.to_dict() for s in stmt.body]
         handlers = stmt.handlers
+        # (#43) ROUTE #21 — THE `TRYFINAL` RESIDUE IS EXPLOITABLE. This handler reads
+        # `stmt.body` and `stmt.handlers` and neither `finalbody` nor `orelse`. #33 emits
+        # the `finally` in the ONE case it could — no handlers, and no jump out of the
+        # lowered body — and `bin/check-dropped-mutation.py` has counted the rest as
+        # `TRYFINAL = 9` ever since, green, unprobed. MEASURED (corpus 0990):
+        #     x: int = 1
+        #     try:     x = 2
+        #     except ValueError:  x = 9
+        #     finally: x = 3
+        #     return x
+        #     #@ ensures \result == 2      <-- FALSE OF THE PROGRAM (Python returns 3)
+        #     [+] Verification SUCCESS! All contracts formally proven.
+        # THE CONTROLS LOCALISE IT: the same file WITHOUT handlers correctly FAILS (that is
+        # #33's fixed case working), and the `try/except/else` form correctly FAILS too. So
+        # the live gap is exactly `finally` PLUS handlers.
+        # Refused HERE, in Module 6's statement lowering, so a `\trusted`/`\abstract`
+        # function — whose body is never lowered — stays exempt. CENSUS: 4 sites in the
+        # whole tree; the one in the mirror (`pycsl._run_proofs`) is `\trusted`, so this is
+        # byte-inert.
+        if getattr(stmt, "finalbody", None) and handlers:
+            raise PyCSLIRError(
+                "a `try ... except ... finally:` is not modelled: this lowering reads the "
+                "try BODY and the HANDLERS and neither the `finally` nor the `else` block, "
+                "so the `finally` would be silently DROPPED while the run still reported "
+                "'All contracts formally proven'. Measured: `try: x = 2 / except "
+                "ValueError: x = 9 / finally: x = 3 / return x` proved `\\result == 2` "
+                "while Python returns 3. A `try ... finally:` with NO handlers IS modelled "
+                "— split the statement, or move the cleanup after the `try`.")
         try_assigned = IRScanner.find_assigned_vars(body_stmts)
         n_ha = len(handlers)
         i_ha = 0
-        #@ loop invariant 0 <= i_ha and i_ha <= n_ha
-        #@ loop invariant n_ha == len(handlers)
-        #@ loop variant n_ha - i_ha
         while i_ha < n_ha:
             h = handlers[i_ha]
             try_assigned |= IRScanner.find_assigned_vars(h.get("body", []))
@@ -508,9 +533,6 @@ class ControlFlowStmtMixin:
         #     try is unsupported — but that was already a type error).
         #   - dict locals are `map int (option int)` — pre-declare the empty map
         #     so `data = literal_eval(…)` / `d = {}` inside a try type-check.
-        #@ loop invariant 0 <= i_sa and i_sa <= n_sa
-        #@ loop invariant n_sa == len(sorted_assigned)
-        #@ loop variant n_sa - i_sa
         while i_sa < n_sa:
             var = sorted_assigned[i_sa]
             safe_var = whyml_ident(var)
@@ -580,9 +602,6 @@ class ControlFlowStmtMixin:
             # Why3 requires `try BODY with Exc1 -> h1 | Exc2 -> h2 end` —
             # only the first arm uses `with`, subsequent arms use `|`.
             # Emitting separate `with` clauses produces a syntax error.
-            #@ loop invariant 0 <= i_h and i_h <= n_h
-            #@ loop invariant n_h == len(handlers)
-            #@ loop variant n_h - i_h
             while i_h < n_h:
                 h = handlers[i_h]
                 exc = h.get("exc_type") or "PyCSL_Exception"
