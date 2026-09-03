@@ -1,0 +1,4 @@
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1630: UserWarning: Function '_function_body_eqs': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("orelse", []) or [], union_vars, fname)
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1630: UserWarning: Function '_dispatch_provers': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(s.get("orelse", []) or [], union_vars, fname)
