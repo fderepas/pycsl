@@ -1,0 +1,79 @@
+FOUND(#43): UNSOUNDNESS ROUTE #13 — a mutating METHOD CALL on a self-field collection is erased, and it DEFEATS the frame-preservation fix
+
+Reproduced before anything is changed. `scratchpad/w8/probes/z5.py`:
+
+    #@ class invariant \length(self.xs) == 2
+    #@ class invariant self.xs[0] == 0
+    @mutable_state
+    class C:
+        #@ assigns self.xs
+        def __init__(self) -> None:
+            self.xs: List[int] = [0, 7]
+
+        #@ ensures True
+        #@ assigns \nothing
+        def go(self) -> None:
+            self.xs.reverse()
+
+        #@ ensures \result == 0            <-- FALSE OF THE PROGRAM
+        #@ assigns \nothing
+        def run(self) -> int:
+            self.go()
+            return self.xs[0]
+
+    [+] Verification SUCCESS! All contracts formally proven.
+
+Python returns **7**. Run it.
+
+THE EMITTED MODEL (kept as `scratchpad/w8/z5_evidence.mlw.txt`):
+
+    val self_xs_reverse_0 () : int          <-- no `self`, no `writes`
+    val self_go_0 () : unit                 <-- the caller-side avatar, also frameless
+
+    let c__go (self: c) : unit
+      ensures  { self.xs = old self.xs }    <-- #34's preservation clause
+      writes {  }
+    = let _ = (self_xs_reverse_0 ()) in ()
+
+The mutation is not under-claimed. It is ABSENT. `self.xs.reverse()` becomes a nullary
+abstract `val` that does not even take `self`, so there is nothing left for a frame to be
+wrong about.
+
+WHY THIS IS THE MOST DANGEROUS SHAPE FOUND SO FAR: it DEFEATS the fix #34 built for routes
+8/9/10. That fix emits `ensures { self.<f> = old self.<f> }` and lets Why3 check it against
+the body — but the check is against the EMITTED body, and the emitted body no longer
+contains the write. The preservation clause is true of the model and false of the program,
+and the class invariant `self.xs[0] == 0` is PROVED RE-ESTABLISHED by a method that
+reverses the list.
+
+A SECOND ERASURE SHAPE IN THE SAME FAMILY, also measured: `self.xs.append(1)` emits
+
+    let self_xs = Array.make 1024 0 in
+    let self_xs_len = ref 0 in
+    self_xs[!self_xs_len] <- 1
+
+— a write into a FRESH LOCAL ARRAY with no connection to `self.xs` at all.
+
+WHY EVERY EXISTING PLANE MISSES IT, and this is the part to carry forward:
+  · `check-dropped-mutation.py` classifies `Assign` / `AugAssign` / `AnnAssign`
+    STATEMENTS. A bare `Expr(Call)` mutator is not in its population, so its
+    `1 DROPPED / 0 DANGLING` says nothing about this shape.
+  · `check-trusted-frame-honesty.py`'s MODEL-VISIBLE predicate is satisfied — the class
+    HAS an emitted record — but the write it would look for is not in the emitted body.
+  · `check-avatar-frame-parity.py` sees `self_go_0` as correctly frameless, because by the
+    model it IS.
+  · the whole-file proof passes, because the model is consistent. It is simply a model of
+    a different program.
+
+LIVE VICTIM ALREADY IDENTIFIED, in the mirror itself: `pure_ast._Unparser.write` carries
+`#@ assigns \nothing` over a body of `self._source.extend(text)`, and emits as
+
+    let _unparser__write (self: _unparser) (text: seq int) : unit
+      writes {  }
+    = let _ = (self__source_extend_1 text) in ()
+
+That is the output buffer of the unparser, in a file proved at 3126 goals.
+
+Census and refusal next. Nothing is changed by this commit — it records the reproduction.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
