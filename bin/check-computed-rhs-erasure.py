@@ -286,8 +286,9 @@ def main():
             print("[+] computed-rhs-erasure: %s %d < ratchet %d — lower the constant."
                   % (label, got, want))
     if rc == 0:
-        print("[+] computed-rhs-erasure: OK (ratchets %d/%d)."
-              % (args.max_rhs, args.max_param))
+        print("[+] computed-rhs-erasure: OK — measured %d rhs / %d param "
+              "(ratchets %d/%d)."
+              % (len(rhs), len(param), args.max_rhs, args.max_param))
     return rc
 
 

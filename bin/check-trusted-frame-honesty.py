@@ -721,8 +721,10 @@ def main():
              "the false frame UNCHECKED.")
 
     if rc == 0:
-        print("[+] frame-honesty: OK (trusted ratchets %d/%d, converted ratchets %d/%d)."
-              % (args.ratchet, args.total_ratchet,
+        print("[+] frame-honesty: OK — measured trusted %d model-visible / %d total, "
+              "converted %d model-visible / %d total (ratchets %d/%d and %d/%d)."
+              % (len(t_vis), len(t_off), len(c_vis), len(c_off),
+                 args.ratchet, args.total_ratchet,
                  args.converted_ratchet, args.converted_total_ratchet))
     return rc
 

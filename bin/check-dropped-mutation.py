@@ -407,9 +407,10 @@ def main() -> int:
     if counts["TRYFINAL"] < args.max_tryfinal:
         print("[+] dropped-mutation: TRYFINAL %d < ratchet %d — lower the constant."
               % (counts["TRYFINAL"], args.max_tryfinal))
-    print("[+] dropped-mutation: OK (ratchets %d dropped / %d ctxbind / %d tryfinal / "
-          "%d dangling)."
-          % (args.max_dropped, args.max_ctxbind, args.max_tryfinal, args.max_dangling))
+    print("[+] dropped-mutation: OK — measured %d dropped / %d ctxbind / %d tryfinal / "
+          "%d dangling (ratchets %d / %d / %d / %d)."
+          % (counts["DROPPED"], counts["CTXBIND"], counts["TRYFINAL"], counts["DANGLING"],
+             args.max_dropped, args.max_ctxbind, args.max_tryfinal, args.max_dangling))
     return 0
 
 

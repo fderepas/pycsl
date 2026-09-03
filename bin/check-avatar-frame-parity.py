@@ -140,7 +140,15 @@ MIRROR_ROOT = "src/self-annotate/src"
 #           attempted.
 # --------------------------------------------------------------------------------------
 MAX_SAME_FILE = 0
-MAX_INHERITED = 7
+# (#43) LOWERED 7 -> 1. The 7 was never a census: it was the RATCHET, and the OK line
+# below used to print `args.max_*` rather than the measured counts, so a handoff that
+# copied that line recorded the ratchet as though it were a measurement (#34's closing
+# baseline says "avatar-frame-parity 0 same-file / 7 inherited"). Measured here, twice at
+# HEAD and once at 13c4860b, all three agreeing: 0 same-file and 1 INHERITED
+# (`pycsl.mlw::_py_stmts_to_ir`, declared in `frontend/Module5_IREmitter.py` — the
+# four-file segment described above). The OK line now prints BOTH the measurement and the
+# ratchet so the two can never be confused again.
+MAX_INHERITED = 1
 
 _AVATAR = re.compile(r"^\s*val self__([A-Za-z0-9_]+)_\d+ ")
 
@@ -246,8 +254,10 @@ def main() -> int:
             if got < want:
                 print("[+] avatar-frame-parity: %s %d < ratchet %d — lower the constant."
                       % (what, got, want))
-        print("[+] avatar-frame-parity: OK (ratchets %d same-file / %d inherited)."
-              % (args.max_same_file, args.max_inherited))
+        print("[+] avatar-frame-parity: OK — measured %d same-file / %d inherited "
+              "(ratchets %d / %d)."
+              % (len(same_file), len(inherited), args.max_same_file,
+                 args.max_inherited))
     return rc
 
 

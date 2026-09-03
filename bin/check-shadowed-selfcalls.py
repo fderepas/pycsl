@@ -234,7 +234,8 @@ def _run(args) -> int:
         print(f"[!] shadowed-selfcalls: {len(shadowed)} > allowed {args.max} — a "
               f"conversion landed whose body no caller can see.")
         return 1
-    print(f"[+] shadowed-selfcalls: OK (ratchet {args.max}).")
+    print(f"[+] shadowed-selfcalls: OK — measured {len(shadowed)} "
+          f"(ratchet {args.max}).")
     return 0
 
 
