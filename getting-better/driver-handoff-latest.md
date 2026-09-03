@@ -1,3 +1,101 @@
+# HANDOFF ADDENDUM 2 — #43, ROUTES #14, #15, #16. **Sixteen routes are now enumerated
+# across #33/#34/#43; fifteen are closed.** Metric 451 -> 454, every +3 an HONEST re-trust.
+
+## ROUTE #14 — the erasure of route #13 is not about `self`
+
+The `self.<field>` restriction on route #13's guard was far too narrow. On a plain LOCAL
+and on a PARAMETER, each printing SUCCESS under `#@ ensures \result == 0`:
+
+    xs: List[int] = [0, 7]; xs.reverse();           return xs[0]    # Python 7
+    xs: List[int] = [0, 7]; xs.sort(reverse=True);  return xs[0]    # Python 7
+    xs: List[int] = [0, 7]; xs.insert(0, 9);        return xs[0]    # Python 9
+    def driver(ys: List[int]) -> int: ys.reverse(); return ys[0]    # Python 7
+
+The parameter form emits `let function driver` — Why3 was told the function is PURE,
+because the only thing making it impure had been deleted. The guard is now keyed on the
+CALL'S LOWERING (no receiver parameter AND no `writes` clause) rather than on the receiver.
+Witnesses **0982**, **0983**. Corpus 820/820 byte-identical: `.append` has a faithful
+array-local lowering and never reaches the fallback.
+
+ONE HONEST REGRESSION: `src/pycsl_lib` L3-tc 92 -> 90. `warn.simplefilter`
+(`_filter_actions.insert(0, action)` under `#@ assigns \nothing`) and `sysmod.path_insert`
+are REAL victims that were compiling a model in which the insertion did not happen. They
+are backlog items for the stdlib-stub policy, not silent successes.
+
+## ROUTE #15 — a constructor's contract is silently discarded. FOUND, NOT CLOSED.
+
+Found by a NEW GATE PLANE, `bin/check-clause-survival.py` (see below). `__init__` is never
+emitted as a function — it is inlined at each allocation site — so its `#@ requires` and
+`#@ ensures` go nowhere:
+
+    #@ ensures self.x == 99      over a body `self.x = 0`
+    [+] Verification SUCCESS! All contracts formally proven.
+
+and `#@ requires 1 == 2` on `__init__` is discarded the same way. The inlining itself is
+FAITHFUL (a caller-side claim relying on the false postcondition correctly FAILS,
+single-file and cross-file), so this is a DISHONESTY, not a demonstrated unsoundness —
+#33's category for the dangling-block finding.
+
+**PRICED, and cheaper than it looks.** Of the 61 constructors carrying a
+`#@ requires`/`#@ ensures`, only 34 carry a NON-TRIVIAL one, and **ZERO of those are in the
+mirror** — 13 corpus files and 21 `pycsl_lib` stubs. A fix gated on a non-trivial
+constructor contract is MIRROR-INERT, so the 53-file battery never arises. It needs TWO
+additive IR fields, not one: `init_requires`, and `init_param_types` (the checking
+function's signature needs WhyML types, and `init_params` is names only; `__init__` is
+absent from `_module_method_param_whyml_types`). `init_body` is NOT a body model — it holds
+only param-dependent stores — so the body must come from `_call_record_constructor`.
+Cost: 2 IR fields + a Module 6 emitter + 38 front-end goldens under a machine-checked guard
++ 13 corpus re-proofs. **THE TOP LADDER ITEM.** Acceptance test: clause-survival 4 -> 0.
+
+## ROUTE #16 — a Python `assert` is lowered to `()`, and inside a catching `try` that is unsound
+
+`def f(n): assert n > 0; return n` emits `(); n`. Outside a handler that is CONSERVATIVE
+and sound. Inside a `try` the handler branch is DEAD in the model and is the branch Python
+takes. Four shapes proved `#@ ensures \result == 1` where Python returns 2 — lexical and
+INTERPROCEDURAL, with `except AssertionError`, bare `except:` and `except Exception`.
+CLOSED in `desugar.reject_unmodelled`, interprocedurally (a same-module callee that
+transitively asserts counts), census **0** over 3565 files / 454 `try` / 1450 `assert`.
+Witness **0984**. Corpus byte-identical; `pycsl_lib` L3-tc unchanged.
+Callee exception propagation itself is FINE and was checked separately — `raise ValueError`
+under `except ValueError` / `except Exception`, and `1 // 0` under `except ZeroDivisionError`,
+all correctly FAIL. The leak is specific to `assert`.
+
+## NEW GATE PLANE — `bin/check-clause-survival.py`
+
+The plane that looks for what the emission is MISSING. Sound in one direction: the emitter
+only ADDS clause lines, so `emitted < source` implies a clause did not survive. Tokenizes
+the source side; returns rc 1 on an empty/stale `--emit-dir` with "that is a FALSE GREEN,
+not a pass". Ratchet 4 — and all four are route #15, so it is that route's exact tracker.
+
+**It was wrong twice before it was right**, and both fixes are the lesson: it first
+anchored the emitted patterns at `^\s*` and missed the one-line
+`requires { true } ensures { true }` form; then it counted `#@ requires True`, which is
+legitimately normalized away. 25 -> 21 -> 4.
+
+## SWEPT THIS RELAUNCH — do not re-derive
+
+* Module-5 handler FIELD COVERAGE (transitive, depth 3): expression handlers 0 unmentioned
+  fields; the 5 statement candidates all covered or not demonstrable.
+* The Module-5 -> Module-6 IR-KEY boundary: 111 node tags, ZERO unread keys, under both a
+  whole-Module-6 and a per-handler-closure form.
+* Clause survival for `#@ loop invariant` / `loop variant` (90 files), `#@ class invariant`
+  (83 files, 158 -> 178), `#@ assert` (13/13), `#@ check` (1/1) — all ZERO deficits.
+* Argument binding: defaults, keywords and mixed calls all faithful (5 probes).
+* STARRED-ARGUMENT FORWARDING is FAIL-CLOSED, not unsound — the backlog's wording implies
+  otherwise and should be corrected. A multi-parameter callee is refused on arity; the
+  single-parameter shape correctly FAILS a false postcondition.
+* Inheritance: override dispatch, an inherited method, `super().m()`, and a polymorphic
+  call through a base-typed parameter — all four correctly FAIL a false postcondition.
+* Chained comparison, walrus, comprehension filters — correct.
+* The `UnknownPyExpr -> 0` catch-all does NOT erase calls.
+
+## THREE TIMES THIS RELAUNCH A FRESH INSTRUMENT'S FIRST FINDING WAS ITS OWN BUG
+
+The line-based `#@` census reporting 95 docstring hits where the truth was 0; the
+`^\s*ensures` anchor missing one-line contracts; the `#@ assume` prefix matching
+`#@ assumes bounded_int(32)`. Each cost seconds to catch and would have cost a window to
+act on. **Read the SOURCE LINE the census points at before believing the census.**
+
 # HANDOFF ADDENDUM — #43, ROUTE #13: **the biggest find of the relaunch, and it DEFEATED
 # the fix #34 built.** A mutating METHOD CALL on a `self.<field>` collection was erased
 # from the model. 451 -> 454 markers, all three an HONEST RE-TRUST.
