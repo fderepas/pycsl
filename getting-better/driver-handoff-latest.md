@@ -77,21 +77,38 @@ go from `Verification SUCCESS` to FAILED under it.
     change (`pure_ast`, `Module5_IREmitter`, `Module2_Parser`, `Module3_Weaver`,
     `statements`, `expressions`, `ConcurrencyChecker`, `ir_inline`,
     `audit_proof_reverify`, `Module6_WhyMLTranspiler`).
-  · WHAT IT OWES: verify the 50 changed corpus files (`scratchpad/w7/verify_changed.sh`
-    drives it), and RE-PROVE the ~10 changed mirrors. **That re-proof is the measurement
-    that matters**: a preservation clause that fails to prove is a LIVE VICTIM — a
-    converted, proved mirror method whose declared frame is a lie. The `writes` variant
-    already named one (`frontend/ConcurrencyChecker.py`, "unlisted write effect") and eight
-    corpus files (0459 0460 0461 0720 0721 0723 0724 0725).
+  · THE CORPUS COST IS **TWO ONE-LINE `#@ assigns` REPAIRS, AND BOTH ARE GENUINE.** Of
+    the 50 files whose `.mlw` changes, 48 prove untouched; 0721 (`Bank.handle` writes
+    `self.session_authenticated`, the very HAPPY capability flag its call site relies on)
+    and 0723 (`Ledger.transfer` writes `self.balance`, `self.audit`, `self.audit_len`) are
+    route-#10 defects — no `#@ assigns` clause at all. Repaired IN THE PATCH; both then
+    prove, so the corpus side is 50/50.
+  · THE MIRROR VICTIM IS FOUND AND ALREADY REPAIRED IN THE MAIN TREE.
+    `frontend/ConcurrencyChecker._walk_body` declared `#@ assigns \nothing` while its only
+    statement calls `self._walk_stmt`, which declares `#@ assigns self.warnings`, and
+    `warnings` IS a label of the emitted record — so every caller-side `val` minted from
+    that contract asserted the field was unchanged. TWO INDEPENDENT INSTRUMENTS converged
+    on it: Why3's "this expression produces an unlisted write effect" under the `writes`
+    experiment, and the WIDENED frame-honesty predicate (`scratchpad/w7/tfh_wide.py`,
+    converted MODEL-VISIBLE 0 -> 1). It now declares `#@ assigns self.warnings`; the
+    converted total ratchet went 96 -> 95.
+  · SO WHAT IS LEFT IS EXACTLY ONE THING: RE-PROVE THE ~10 CHANGED MIRRORS.
+    `scratchpad/w7/land-frame-fix.sh` lists them in order. That re-proof IS the rest of
+    the victim census — a preservation clause that will not prove is a converted, proved
+    mirror method whose declared frame is a lie, and the repair is an honest `#@ assigns`,
+    exactly as for `_walk_body`, 0721 and 0723.
   · NAMED EXTENSION, still open after it lands: element-wise preservation for `array`/`map`
     fields. Corpus 0459 is exactly that shape (`self.disk[i] = v` in a method that declares
-    nothing).
+    nothing) and is why the `writes` experiment flagged 0459/0460/0461/0720/0724/0725 that
+    the scalar-only preservation form does not yet reach.
 
-**2. `bin/check-trusted-frame-honesty.py` MEASURES THE WRONG SET.** Its MODEL-VISIBLE
-predicate is "`@mutable_state` class", and it reports 0/0 and 0/96. A class can emit a
-`type c = { mutable a: int; ... }` record WITHOUT that decorator — both frame probes do —
-and that is exactly the population where routes 8/9/10 bite. Widen the predicate to "the
-class has an emitted record" before trusting another 0.
+**2. `bin/check-trusted-frame-honesty.py` MEASURES THE WRONG SET — recorded in the file
+itself now, at `_visible`.** Its MODEL-VISIBLE predicate hard-gates on `@mutable_state`
+BEFORE its own `--emit-dir` refinement gets a chance, so it reports 0/0 and 0/95 over a set
+that excludes exactly the population routes 8/9/10 bite. Relaxing the gate to
+`if ent is None and cls not in ms_classes` is a ONE-LINE change and it found the one live
+victim. Land that widening TOGETHER WITH the frame-preservation patch — the two are the
+same increment, one the fix and one its instrument.
 
 **3. The `#@`-attachment vein has one unswept surface left**: `Module1_Ingestor._assign`'s
 `elif nxt is None: pass` (a module-level trailing `#@` at indent 0 is ignored "as libcst").
