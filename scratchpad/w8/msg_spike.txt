@@ -1,0 +1,28 @@
+spike(#43): route #15's fix CONFIRMED in Why3 — positive and negative — without building it
+
+The only real design risk in route #15's fix was whether the proposed checking-only
+constructor function type-checks and actually discriminates. Answered directly, on corpus
+0706's real emission with the function hand-inserted:
+
+    let c__init () : c
+      ensures { result.x = 0 }      (* the source `#@ ensures self.x == 0`, with
+    = { x = 0 }                        `self` substituted by `result` *)
+
+  POSITIVE   Goal c__init'vc — Valid. And that goal INCLUDES the record's class-invariant
+             obligation, so the checking function carries the constructor's full burden.
+  NEGATIVE   the same function with `ensures { result.x = 99 }` — Unknown.
+
+It type-checks and it discriminates. Files kept under `scratchpad/w8/spike15/`.
+
+The IR side is confirmed too: 0706's `init_ensures` is already a real expression
+(`BinOp == (FieldGet self x) (Number 0)`), so Module 6 needs no new parsing — only the two
+additive fields (`init_requires`, `init_param_types`) plus a NON-TRIVIALITY gate, so the
+mirrors' 24 `ensures True` constructors emit nothing and stay byte-identical.
+
+NOT BUILT, deliberately. What remains is 13 corpus and 21 `pycsl_lib` constructor checks
+that may FAIL — each one a finding and a repair — plus the 38 front-end conformance goldens
+under a machine-checked guard. That is sprawl-prone, and with eight proofs queued the
+responsible hand-over is a de-risked design with its riskiest assumption already measured,
+not a half-landed build.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
