@@ -12579,3 +12579,46 @@ Prover result is: Valid (0.00s, 8619 steps).
 File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1603, characters 15-60:
 Sub-goal postcondition of goal typeinferencemixin___val_is_bool'vc.
 Prover result is: Valid (0.00s, 8620 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 563, characters 20-21: unused variable s
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 563, characters 32-35: unused variable sep
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 590, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 665, characters 10-23: unused variable py_underscore
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 656, characters 8-21: unused variable py_underscore
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 631, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 681, characters 54-58: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 681, characters 81-86: unused variable stmts
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 681, characters 100-104: unused variable seed
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 683, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 713, characters 8-12: unused variable info
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 687, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 779, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 908, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 902, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 896, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1012, characters 63-67: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1013, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1140, characters 64-68: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1141, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1185, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1177, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1170, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1231, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1223, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1216, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1307, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1301, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1295, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1334, characters 8-12: unused variable info
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1312, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1360, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1427, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1503, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1551, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1579, characters 54-58: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1579, characters 81-87: unused variable target
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1579, characters 98-104: unused variable val_ir
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_5ir76o02.mlw", line 1585, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.
