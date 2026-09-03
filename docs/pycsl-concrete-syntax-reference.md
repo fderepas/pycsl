@@ -49,6 +49,22 @@ annotate:
 | Class | Before `class` line (requires anchor — see §1.3) |
 | Statement | Before the statement line |
 | `with` block | Before `with` line |
+| `if` / `try` / `try…except*` / `match` | Before the compound-statement line (statement-level directives only) |
+
+**A directive that lands on an anchor that does not consume it is now a HARD ERROR**
+(`Module3_Weaver._reject_misplaced_directives`, relaunch #34). Each anchor consumes
+exactly one family: a `def` takes the function-level clauses, a `class` takes
+`class invariant` / `allow_finalizer` / `mixin` / `compose_from` / `conforms_to`, a loop
+takes `loop invariant` / `loop variant` / `allow_iteration_mutation`, a `with` takes
+`acquires` / `releases` / `critical`, and ANY statement takes the statement-level
+directives `label` / `assert` / `check` / `ghost`. `datatype`, `inductive`, `shared`,
+`mutex_invariant`, `lock_order` and `happy` are hoisted to module level from wherever they
+appear. Anything else on the wrong anchor used to be SILENTLY DISCARDED while the run
+still printed *All contracts formally proven* — `#@ assert 1 == 2` above a `def` or a
+`class`, and `#@ ensures 1 == 2` on a `while`, all reported `Verification SUCCESS`.
+
+A `#@` block written BETWEEN a decorator and its `def` is attached to the decorated
+function (relaunch #34); it used to be discarded outright.
 
 ### 1.3 Class-Level Anchor
 
