@@ -46,12 +46,17 @@ import tokenize
 
 CORPUS = "test-suite/corpus/pycsl-reference"
 
-# (#43) 25 is the route-#15 population as first measured. Every one of these is a file
+# (#43) 4, and ALL FOUR ARE ROUTE #15 — a constructor contract that never reaches the
+# emission. 0661 and 0662 are the ones that show its size: each writes NINETEEN
+# non-trivial `#@ requires` on `Inode.__init__` (`\valid(initial, 18)` and eighteen
+# per-field range bounds) and every one of them is discarded. 0705 loses a constructor
+# `ensures`, 0706 the same. This plane therefore doubles as route #15's tracker: it goes
+# to 0 when constructor contracts start being checked. Every one of these is a file
 # whose emitted module carries fewer contract clauses than its author wrote. The bulk are
 # constructor contracts (`__init__` is inlined, never emitted, so its clauses go nowhere);
 # the rest are `requires True` normalizations. LOWER THIS as route #15 is paid off — the
 # fix is a checking-only `let <class>__init` emitted beside the inlining.
-MAX_DEFICIT_FILES = 25
+MAX_DEFICIT_FILES = 4
 
 
 def _source_counts(path):
@@ -67,9 +72,14 @@ def _source_counts(path):
         st = t.string.strip()
         # real COMMENT tokens only — a line scan counts `#@` text inside docstrings, which
         # is how the route-#12 census first reported 95 hits where the truth was 0.
-        if st.startswith("#@ requires"):
+        # A `#@ requires True` / `#@ ensures True` carries no information and IS
+        # legitimately normalized away (corpus 0950's only contract is exactly that, and
+        # its emitted `let rec function has_bad` correctly has no clause at all). Counting
+        # them made the plane's ratchet mostly noise. Excluded, so what remains is the
+        # signal: a clause that says something and did not arrive.
+        if st.startswith("#@ requires") and st.split(None, 2)[2:] != ["True"]:
             req += 1
-        elif st.startswith("#@ ensures"):
+        elif st.startswith("#@ ensures") and st.split(None, 2)[2:] != ["True"]:
             ens += 1
     return req, ens
 
@@ -96,8 +106,14 @@ def main():
             continue
         s_req, s_ens = sc
         text = open(mlw, encoding="utf-8").read()
-        e_req = len(re.findall(r"^\s*requires\s*\{", text, re.M))
-        e_ens = len(re.findall(r"^\s*ensures\s*\{", text, re.M))
+        # COUNT OCCURRENCES ANYWHERE, NOT AT LINE START. The first version of this
+        # plane anchored both patterns at `^\s*` and immediately reported a
+        # `ensures 5 -> 0` deficit on corpus 0964 — which was ITS OWN BUG: the emitter
+        # writes `requires { true } ensures { true }` on ONE line for a leaf method, so
+        # every such `ensures` was invisible to the count. Lesson (bd) on the instrument
+        # this very plane was written to embody.
+        e_req = len(re.findall(r"\brequires\s*\{", text))
+        e_ens = len(re.findall(r"\bensures\s*\{", text))
         compared += 1
         if e_req < s_req or e_ens < s_ens:
             deficits.append((f, s_req, e_req, s_ens, e_ens))
