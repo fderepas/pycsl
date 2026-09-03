@@ -117,6 +117,55 @@ class Module1_Ingestor:
         tree = ast.parse(self.source_code)
         coms = [c for c in ast.comments(self.source_code)
                 if c.own_line and c.text.startswith("#@")]
+        # (#43) A `#@` DIRECTIVE WRITTEN INSIDE THE CONTINUATION LINES OF A SIMPLE
+        # STATEMENT IS SILENTLY DISCARDED, AND THE RUN STILL PRINTS "All contracts
+        # formally proven". `_Harvester._assign` associates a comment with a target by
+        # `bisect` over the targets' START lines, so a comment that sits BETWEEN a leaf
+        # statement's first and last line bisects PAST that statement. When the statement
+        # is the last one in the file there is no `nxt` at all and the comment takes the
+        # `elif nxt is None: pass` branch ("module-level trailing comment -> ignored, as
+        # libcst") or `prev.footer`, and in both cases the directive vanishes. #33's and
+        # #34's end-of-file guards in `Module3_Weaver.process` do NOT see this: the block
+        # does not run to end-of-file, the statement's own continuation lines follow it.
+        # MEASURED, before this refusal (both the column-0 and the indented form):
+        #     #@ ensures \result == 2
+        #     def f() -> int:
+        #         return (
+        #     #@ assert 1 == 2                  <-- FALSE, AND NEVER CHECKED
+        #             2)
+        #     [+] Verification SUCCESS! All contracts formally proven.
+        # A `#@ ghost x = 99` + `#@ assert x == 99` pair in the same position also proved.
+        # CENSUS: 0 real `#@` COMMENT tokens in this position across all 3663 annotated
+        # files of `src/`, `test-suite/`, `bin/` and `tests/` (the census must tokenize --
+        # a line-based scan reports 95, every one of them `#@` text inside a docstring).
+        # So the refusal is byte-inert.
+        # SPELLED INLINE, not as a helper, for the reason recorded beside
+        # `Module3_Weaver.process`'s dangling-block guard: a new method on this class
+        # becomes a new abstract `val` in the emission of every mirror that imports the
+        # ingestor, which would owe whole-file re-proofs for a check whose census is 0.
+        _leaf_spans = []
+        for _n in ast.walk(tree):
+            if not isinstance(_n, ast.stmt):
+                continue
+            _has_kids = False
+            for _f in ("body", "orelse", "finalbody", "handlers", "cases"):
+                _v = getattr(_n, _f, None)
+                if isinstance(_v, list) and _v:
+                    _has_kids = True
+                    break
+            if not _has_kids:
+                _leaf_spans.append((_n.lineno, getattr(_n, "end_lineno", _n.lineno)))
+        for _c in coms:
+            for _lo, _hi in _leaf_spans:
+                if _lo < _c.lineno <= _hi:
+                    raise PyCSLParseError(
+                        "line %d: this `#@` directive sits INSIDE the continuation lines "
+                        "of the statement that begins on line %d, where it would be "
+                        "SILENTLY DISCARDED while the run still reports 'All contracts "
+                        "formally proven' (a directive is associated with the statement "
+                        "that FOLLOWS it, and a statement already in progress cannot "
+                        "follow it). Move it to its own line above that statement."
+                        % (_c.lineno, _lo), stage="Module1")
         return _Harvester(coms).run(tree)
 
 
