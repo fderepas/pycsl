@@ -201,10 +201,13 @@ CONVERTED_RATCHET = 0         # 2 -> 4 at #31 by the SHARPER DETECTOR (the `_add
                               # SIX that the record actually labels, the avatar declares
                               # exactly those, and Why3 accepts it. The `writes {  }` it
                               # replaces was the false claim.
-CONVERTED_TOTAL_RATCHET = 96  # 68 -> 133 at #31 by the SHARPER DETECTOR; 133 -> 99 at #32;
+CONVERTED_TOTAL_RATCHET = 95  # 68 -> 133 at #31 by the SHARPER DETECTOR; 133 -> 99 at #32;
                               # 99 -> 98 at #33 (`_ifexpr_seq_arm`), 98 -> 96 by the
                               # cross-mixin protocol stubs' caller fixpoint
-                              # (the three `statements.py` callers above). Every offender
+                              # (the three `statements.py` callers above); 96 -> 95 at #34
+                              # (`ConcurrencyChecker._walk_body`, the ONE offender this
+                              # plane's own MODEL-VISIBLE predicate could not see -- see
+                              # the note on `_visible` below). Every offender
 LIVE_ROOT = "src/pycsl"
 MIRROR_ROOT = "src/self-annotate/src"
 
@@ -621,6 +624,22 @@ def main():
         With `--emit-dir` this is the DIRECT question: does the file's emitted record for
         `cls` declare the field?  Without it, fall back to the source-assignment heuristic,
         which OVER-APPROXIMATES (see `_emitted_record_fields`)."""
+        # (#34) THIS `@mutable_state` HARD GATE IS THE PLANE'S OWN BLIND SPOT, and it is
+        # RECORDED, NOT YET CHANGED. A class can emit a `type c = { mutable a: int; ... }`
+        # record WITHOUT the decorator, and that population is exactly where the frame
+        # CLAIM/CHECK asymmetry bites: `functions.py` puts the declared frame on the
+        # concrete `let` (the CHECK) only for `@mutable_state` classes, while the
+        # arity-suffixed AVATAR every call site goes through carries `writes { self.f }`
+        # for ANY class with a record (the CLAIM). Measured with this line relaxed to
+        # `if ent is None and cls not in ms_classes` (the copy is
+        # `scratchpad/w7/tfh_wide.py`): converted MODEL-VISIBLE goes 0 -> 1, and the one is
+        # `ConcurrencyChecker._walk_body` -- the SAME method an independent experiment
+        # (putting the declared frame on the `let`) flagged with Why3's "this expression
+        # produces an unlisted write effect". It has been repaired, so the widened
+        # predicate is now ALSO 0; the line is left as it is only because widening it
+        # belongs with the frame-preservation fix it is the instrument for
+        # (`scratchpad/w7/frame-preservation.patch`). DO NOT read the 0 below as "the
+        # population is clean" until both land together.
         if cls not in ms_classes:
             return False
         ent = emitted.get(path)
