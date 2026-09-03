@@ -28,7 +28,7 @@ Every "Python returns N" below was obtained by RUNNING the probe.
 
 * **the mirror's own `pure_ast._Parser.import_from`**: TWO `#@ assert self.i > \old(self.i)`
   of its SIX staged monotonicity checkpoints sat above an `if` and were never anchored, in
-  a file proved at 3103 goals. They are now real obligations (the file proves at 3106).
+  a file proved at 3103 goals. They are now real obligations and the file emits **3106** goals where it emitted 3103; the whole-file re-proof was still running when this was written — see the SEGMENT-CLOSE line in `getting-better/driver-progress.log` for its verdict.
 * **`Module6_WhyMLTranspiler._heap_var`** (mirror): `#@ requires/ensures/assigns` under its
   `@property`, discarded; the method was verified as if uncontracted.
 * **`pycsl_lib/re/_engine.py`**: two `#@ class invariant` below `__slots__`, landing on
