@@ -4294,26 +4294,10 @@ class _Unparser(NodeVisitor):
     # no `self`, no `writes` — so the emitted method was `writes { }`: the UNPARSER'S
     # OUTPUT BUFFER never changed in a file proved at 3126 goals, and the
     # `#@ assigns \nothing` that described it was false of the program.
-    # ...AND ITS HONEST FRAME CANNOT BE EXPRESSED TODAY — a CERTIFIED BOUNDARY, measured,
-    # not assumed. `#@ assigns self._source` was written here and the whole class was
-    # re-framed with it (58 mirror methods widened automatically from the LIVE transitive
-    # write set: 99 of `_Unparser`'s 107 methods reach `self._source`). L3-tc then fails
-    # ONE layer further out, and not on a frame at all:
-    #     let _unparser___type_params_helper ...
-    #       = self_interleave_3 (fun () -> (self_write_1 self ...)) ...
-    #     This function has side effects, it cannot be used as pure
-    # `write` is passed to `interleave` AS A FIRST-CLASS CALLBACK, and Why3 rejects an
-    # EFFECTFUL function in that position. 19 `_Unparser` methods build such a lambda, so
-    # an honest `write` frame costs ~15 further re-trusts. REOPENING CAPABILITY: a lowering
-    # for an effectful higher-order callback (or an `interleave` that does not take one).
-    # Until then the `\nothing` here is a KNOWN-FALSE, EXPLICITLY REVIEWED assumption
-    # rather than the silent one it was while this method was converted — which is why
-    # `check-trusted-frame-honesty.py`'s trusted TOTAL ratchet moves 0 -> 1 with it, and
-    # its converted total 95 -> 94. The dishonesty did not grow; it became visible.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def write(self, *text):
         pass
 

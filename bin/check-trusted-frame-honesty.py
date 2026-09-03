@@ -166,7 +166,19 @@ _MUTATING_METHODS = frozenset({
     "remove", "discard", "setdefault", "sort", "reverse",
 })
 
-TOTAL_RATCHET = 0     # 63 -> 82 at #31 by the SHARPER DETECTOR; 82 -> 28 -> 19 -> **0** at
+# (#43) 0 -> 1, AND THE POPULATION DID NOT GROW — IT BECAME VISIBLE. The single member is
+# `pure_ast._Unparser.write`, which route #13 caught: its body `self._source.extend(text)`
+# lowered to `val self__source_extend_1 (x0: seq int)` — no `self`, no `writes` — so the
+# method emitted as `writes { }` and its `#@ assigns \nothing` was FALSE while it was
+# CONVERTED and counted in the converted population below (which drops 95 -> 94 with it).
+# Its honest frame `#@ assigns self._source` was written, and the whole class re-framed
+# from the live transitive write set (58 mirror methods widened, 99 of 107 reach
+# `self._source`); L3-tc then failed at `interleave`, which takes `write` AS A FIRST-CLASS
+# CALLBACK — `This function has side effects, it cannot be used as pure`. 19 `_Unparser`
+# methods build such a lambda. CERTIFIED BOUNDARY; reopening capability = a lowering for an
+# effectful higher-order callback. Moving it to `\trusted` makes the assumption EXPLICIT
+# and REVIEWED instead of silent, which is what this counter is for.
+TOTAL_RATCHET = 1     # 63 -> 82 at #31 by the SHARPER DETECTOR; 82 -> 28 -> 19 -> **0** at
                       # #32. EVERY `\trusted` stub in the mirror now declares a frame that
                       # is TRUE of its live body, derived per stub from the same live
                       # transitive self-write closure this file computes
@@ -201,7 +213,8 @@ CONVERTED_RATCHET = 0         # 2 -> 4 at #31 by the SHARPER DETECTOR (the `_add
                               # SIX that the record actually labels, the avatar declares
                               # exactly those, and Why3 accepts it. The `writes {  }` it
                               # replaces was the false claim.
-CONVERTED_TOTAL_RATCHET = 95  # 68 -> 133 at #31 by the SHARPER DETECTOR; 133 -> 99 at #32;
+# (#43) 95 -> 94: `pure_ast._Unparser.write` left this population for the trusted one above.
+CONVERTED_TOTAL_RATCHET = 94  # 68 -> 133 at #31 by the SHARPER DETECTOR; 133 -> 99 at #32;
                               # 99 -> 98 at #33 (`_ifexpr_seq_arm`), 98 -> 96 by the
                               # cross-mixin protocol stubs' caller fixpoint
                               # (the three `statements.py` callers above); 96 -> 95 at #34
