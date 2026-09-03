@@ -793,6 +793,7 @@ class Module6_WhyMLTranspiler(
             out += self._emit_preamble_axioms(self.ir)
             out += self._emit_uncited_axiom_func_decls()
             out += self._emit_module_globals()
+            out += self._emit_init_contract_checks()   # (#43) route #15
             out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
         else:
             out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
@@ -804,6 +805,7 @@ class Module6_WhyMLTranspiler(
             # inline.md Phase 1: module-level global object instances. Emitted
             # AFTER the record type declarations and BEFORE functions.
             out += self._emit_module_globals()
+            out += self._emit_init_contract_checks()   # (#43) route #15
 
         self._emit_opaque_class_aliases(functions, out, declared_types)
 
@@ -1303,6 +1305,7 @@ class Module6_WhyMLTranspiler(
                 out += self._emit_preamble_axioms(axiom_ir)
             out += self._emit_uncited_axiom_func_decls()
             out += self._emit_module_globals()
+            out += self._emit_init_contract_checks()   # (#43) route #15
             out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
         else:
             out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
@@ -1310,6 +1313,7 @@ class Module6_WhyMLTranspiler(
                 out += self._emit_preamble_axioms(axiom_ir)
             out += self._emit_uncited_axiom_func_decls()
             out += self._emit_module_globals()
+            out += self._emit_init_contract_checks()   # (#43) route #15
         self._emit_opaque_class_aliases(functions, out, declared_types)
         self._declared_types_modular = declared_types
         return out

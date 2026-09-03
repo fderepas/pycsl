@@ -1,0 +1,18 @@
+L3-tc GREEN: 88
+FAIL:
+src/pycsl_lib/dc/__init__.py
+src/pycsl_lib/iomod/__init__.py
+src/pycsl_lib/json/__init__.py
+src/pycsl_lib/json/decoder.py
+src/pycsl_lib/json/encoder.py
+src/pycsl_lib/json/scanner.py
+src/pycsl_lib/json/tool.py
+src/pycsl_lib/os/UnixInodeFileSystem.py
+src/pycsl_lib/os/__init__.py
+src/pycsl_lib/proc/__init__.py
+src/pycsl_lib/re/_engine.py
+src/pycsl_lib/subproc/__init__.py
+src/pycsl_lib/sysmod/__init__.py
+src/pycsl_lib/tmpf/__init__.py
+src/pycsl_lib/warn/__init__.py
+src/pycsl_lib/world/__init__.py

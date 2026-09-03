@@ -4698,6 +4698,133 @@ class PreambleEmissionMixin:
         out.append("")
         return out
 
+    # Measured over all 34 non-trivial constructor contracts in the tree: only `int` and
+    # `list` actually occur. The rest are here so an unseen annotation degrades to a typed
+    # guess rather than silently to `int` — which is what made corpus 0661's nineteen
+    # `initial[i]` preconditions lower against an int-typed `initial` and fail.
+    _INIT_PARAM_WHYML = {
+        "int": "int", "bool": "int", "str": "string", "float": "real",
+        "list": "array int", "List[int]": "array int", "List[str]": "array string",
+        "dict": "map int (option int)", "set": "map int (option int)",
+    }
+    _INIT_PARAM_SYMTAB = {
+        "int": "int", "bool": "bool", "str": "str", "float": "float",
+        "list": "list", "List[int]": "list", "List[str]": "list",
+        "dict": "dict", "set": "set",
+    }
+
+    def _emit_init_contract_checks(self) -> List[str]:
+        """(#43) ROUTE #15 — CHECK the constructor contract that used to go nowhere.
+
+        `__init__` is never emitted as a function: it is INLINED at every allocation site,
+        so its `#@ requires` / `#@ ensures` were silently discarded and the run still
+        printed *All contracts formally proven* over them. MEASURED:
+        `#@ ensures self.x == 99` over a body `self.x = 0` proved SUCCESS.
+
+        This emits a CHECKING-ONLY `let <class>__init (<params>) : <class>` carrying the
+        declared clauses over the SAME record literal every allocation site already builds
+        (`_call_record_constructor`, which fuses `init_body`'s param-dependent stores with
+        the per-field default witness). The inlining is UNTOUCHED, so no call site moves and
+        the caller-side faithfulness that makes route #15 a dishonesty rather than an
+        unsoundness is preserved.
+
+        The shape was SPIKED in Why3 before this was written (`scratchpad/w8/spike15/`):
+        `let c__init () : c ensures { result.x = 0 } = { x = 0 }` gives
+        `Goal c__init'vc — Valid`, and that goal INCLUDES the record's class-invariant
+        obligation; the same function with `ensures { result.x = 99 }` gives `Unknown`. It
+        type-checks AND discriminates.
+
+        Gated on `init_contract_check`, which Module 5 emits only for a NON-TRIVIAL
+        constructor contract — ZERO classes in the mirror, so every mirror emission and both
+        conformance golden sets are byte-identical."""
+        out: List[str] = []
+        for td in self.ir.get("type_decls", []) or []:
+            if not isinstance(td, dict) or td.get("kind") != "record":
+                continue
+            icc = td.get("init_contract_check")
+            if not icc:
+                continue
+            cls = td.get("name")
+            rec = (getattr(self, "_record_types", {}) or {}).get(cls)
+            if rec is None:
+                continue
+            # ONLY A CONSTRUCTOR WHOSE PARAMETERS ARE ALL ANNOTATED WITH A TYPE THIS
+            # EMITTER RECOGNIZES. An unannotated parameter would be typed `int` by default,
+            # and a clause that reads it as a string or a sequence then lowers through the
+            # opaque `subscript_get` fallback — which is registered too late to be declared
+            # and leaves the module with `unbound function or predicate symbol`. MEASURED on
+            # `pycsl_lib/os.DirEntry(self, name, inode_num)`, whose parameters carry no
+            # annotations at all, and on `pycsl_lib/world`, which imports it. Those classes
+            # keep their un-checked constructor contract and stay visible in
+            # `bin/check-clause-survival.py`.
+            _pt0 = (td.get("init_contract_check") or {}).get("param_types", {}) or {}
+            if any(_pt0.get(_p, "") not in self._INIT_PARAM_WHYML
+                   for _p in (td.get("init_params", []) or [])):
+                continue
+            lower = rec.get("whyml_name") or whyml_ident(str(cls).lower())
+            params = list(td.get("init_params", []) or [])
+            ptypes = icc.get("param_types", {}) or {}
+            args = [whyml_ident(p) for p in params]
+            prev_self = getattr(self, "_current_self_type", None)
+            prev_spec = self._in_spec
+            self._current_self_type = lower
+            body = self._call_record_constructor(args, cls)
+            if body is None:
+                self._current_self_type = prev_self
+                continue
+            # ONLY CHECK A BODY THAT IS THE REAL CONSTRUCTOR. `_call_record_constructor`
+            # falls back to the per-field DEFAULT WITNESS for a non-scalar (list/dict/set)
+            # or non-param-dependent field — its own docstring says so — so for a class
+            # whose `__init__` binds a LIST field from a parameter it produces
+            # `{ fields = (Array.make 0 0) }`, which is a different program from
+            # `self.fields = initial`. Checking the declared contract against THAT would
+            # report a failure that is about the modelling gap, not about the contract.
+            # MEASURED on corpus 0661/0662 (`Inode.__init__(self, initial: list)` with
+            # NINETEEN preconditions): the emitted body was the empty-array default and the
+            # class invariant `Array.length fields = 18` could not hold.
+            # Detected structurally rather than by re-deriving the fallback rule: if the
+            # constructor takes parameters and NONE of them appears in the emitted literal,
+            # the parameters were dropped. Those classes keep their un-checked constructor
+            # contract and stay visible in `bin/check-clause-survival.py`, which is exactly
+            # what that plane is for.
+            if args and not any((" " + a) in body or ("=" + a) in body
+                                or ("= " + a) in body for a in args):
+                self._current_self_type = prev_self
+                continue
+            # Give the clause lowering the same parameter context a real function would
+            # have, or `initial[0]` lowers through the opaque `subscript_get` fallback and
+            # mistypes against an `array int` parameter (measured on corpus 0661).
+            prev_symtab = getattr(self, "_current_symbol_table", None)
+            prev_formals = getattr(self, "_formal_params", None)
+            prev_cparams = getattr(self, "_current_params", None)
+            self._current_symbol_table = {
+                p: self._INIT_PARAM_SYMTAB.get(ptypes.get(p, ""), "int") for p in params}
+            self._formal_params = list(params)
+            self._current_params = set(params)
+            self._in_spec = True
+            try:
+                reqs = [self._expr_to_whyml(e, set()) for e in (icc.get("requires") or [])]
+                enss = [self._expr_to_whyml(self._subst_self_in_expr(e, "result"), set())
+                        for e in (icc.get("ensures") or [])]
+            finally:
+                self._in_spec = prev_spec
+                self._current_self_type = prev_self
+                self._current_symbol_table = prev_symtab
+                self._formal_params = prev_formals
+                self._current_params = prev_cparams
+            sig = " ".join(
+                "(%s: %s)" % (whyml_ident(p),
+                              self._INIT_PARAM_WHYML.get(ptypes.get(p, ""), "int"))
+                for p in params)
+            out.append("")
+            out.append("  let %s__init %s: %s" % (lower, (sig + " ") if sig else "() ", lower))
+            for r in reqs:
+                out.append("    requires { %s }" % r)
+            for e in enss:
+                out.append("    ensures  { %s }" % e)
+            out.append("  = " + body)
+        return out
+
     def _emit_module_globals(self) -> List[str]:
         """inline.md Phase 1: emit each module-level global object instance `g = C(...)`
         as a Why3 mutable-record binding `let g : c = <constructor literal>`. The

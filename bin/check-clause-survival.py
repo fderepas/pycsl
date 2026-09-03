@@ -56,7 +56,15 @@ CORPUS = "test-suite/corpus/pycsl-reference"
 # constructor contracts (`__init__` is inlined, never emitted, so its clauses go nowhere);
 # the rest are `requires True` normalizations. LOWER THIS as route #15 is paid off — the
 # fix is a checking-only `let <class>__init` emitted beside the inlining.
-MAX_DEFICIT_FILES = 4
+# (#43) 4 -> 2. Route #15 is CLOSED: Module 6 now emits a checking-only
+# `let <class>__init` carrying the declared constructor clauses, so 0705 and 0706's
+# deficits are gone. The two that remain are 0661 and 0662, and they remain HONESTLY:
+# their `Inode.__init__(self, initial: list)` binds a LIST field from a parameter, which
+# `_call_record_constructor` models as the empty-array default rather than the parameter,
+# so a check there would be about the modelling gap and not about the contract. They go to
+# 0 when a param-dependent non-scalar field is threaded faithfully — the same
+# value-model capability routes #13/#17/#18 need.
+MAX_DEFICIT_FILES = 2
 
 
 def _source_counts(path):
