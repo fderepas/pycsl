@@ -801,3 +801,4 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 05:27 #34: frame battery 11/16 green (adds module6_whyml/expressions rc=0). stmt_control_flow + statements in flight.
 06:06 #34: frame battery 13/16 green (adds stmt_control_flow, Module2_Parser). statements + Module5_IREmitter in flight; pure_ast last.
 06:57 #34: frame battery 14/16 green (adds module6_whyml/statements). Module5_IREmitter + pure_ast in flight, 0 bad goals in either so far.
+07:51 #34: FRAME FIX FULLY GATED — all 16 mirror re-proofs rc=0 SUCCESS, 0 bad goals; victim census empty beyond ConcurrencyChecker._walk_body; 8 conformance goldens refreshed under a machine-checked guard (pure additions of the preservation ensures only); full battery green. Suite re-running. Banked b2e408e1
