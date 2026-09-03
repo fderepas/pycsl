@@ -686,7 +686,33 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         typically handled by `\\trusted` upstream)."""
         len_name = f"{safe_target}_len"
         if val_ir.get("type") != "ArrayLit":
-            return f"{indent}()"
+            # (#43) ROUTE #18. The docstring above says this fall-through is "a no-op
+            # (soundness depends on the caller treating the array as opaque after this
+            # point — typically handled by `\trusted` upstream)". That is a hedge, and it
+            # is FALSE: the local is NOT opaque afterwards, it keeps its OLD value and
+            # every later read is answered from it. MEASURED, before this refusal
+            # (corpus 0986/0987), both printing SUCCESS over `#@ ensures \result == 1`:
+            #     xs: List[int] = [1, 2]; xs = g(); return xs[0]   # g -> [9,9]; Python 9
+            #     xs: List[int] = [1, 2]; xs = ys;  return xs[0]   # ys a PARAMETER
+            # The second is the sharper one: an ALIASING reassignment from a parameter,
+            # dropped, so the model answers from the old literal.
+            # REFUSED rather than modelled: assigning a non-literal sequence to an
+            # array-local means REBINDING the name to another array, and the array-local
+            # representation (`let arr = Array.make N 0` plus an `arr_len` ref, not a
+            # `ref`) cannot be rebound. The faithful lowering needs the local promoted to
+            # a `ref (array int)` — the same value-model capability routes #13/#17 need.
+            # The message does NOT interpolate `target`: this method is CONVERTED in the
+            # mirror and `target` is int-erased there, so concatenating it is an L3-tc
+            # `type int, but is expected to have type string` (measured while syncing).
+            raise PyCSLIRError(
+                "reassigning an array LOCAL from a non-literal right-hand side is not "
+                "modelled: the local is represented as a fixed `Array.make` plus a "
+                "length counter, not a rebindable reference, so the assignment would be "
+                "a NO-OP and every later read of that local would be answered from its "
+                "OLD value while the run still reported 'All contracts formally proven'. "
+                "Measured: `xs = [1, 2]; xs = ys; return xs[0]` proved "
+                "`\\result == 1` for a parameter `ys`. Assign to a FRESH name, or build "
+                "the new contents with a literal or an explicit element-wise loop.")
         parts: List[str] = [f"{indent}{len_name} := 0"]
         for elt in val_ir.get("elts", []):
             elt_str = self._expr_to_whyml(elt, local_refs)

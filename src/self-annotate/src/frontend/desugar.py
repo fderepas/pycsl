@@ -36,6 +36,21 @@ class _ChainDesugarer(ast.NodeTransformer):
         pass
 
 
+# (#43) route #16's helper. `\trusted`: it builds a same-module CALL GRAPH into a dict and
+# runs a WORKLIST FIXPOINT over it — the nested-collection + fixpoint shape the value model
+# carries no constructor for, the same reason `normalize_stores` below is trusted. ONE
+# boolean-returning helper rather than a set-returning one plus a predicate: a set-returning
+# stub has no value-model type here (measured — first `unbound function or predicate symbol
+# '_handler_catches_assertion'` from the `any(<genexp>)` bounded fold, then
+# `This expression has type (), but is expected to have type int`).
+#@ \trusted reviewer: pycsl-self-annotate
+#@ requires True
+#@ ensures True
+#@ assigns \nothing
+def _try_reaches_assert(tree: ast.AST, node: ast.AST) -> bool:
+    pass
+
+
 #@ requires True
 #@ ensures True
 #@ raises PyCSLParseError when True
@@ -58,6 +73,45 @@ def reject_unmodelled(tree: ast.AST) -> None:
                 "before this refusal: `try: x = 2 except* ValueError: x = 3` under "
                 "`ensures \\result == 1` proved SUCCESS while Python returns 2. "
                 "Rewrite with a plain `except`.")
+        # (#43) ROUTE #16 — A PYTHON `assert` IS LOWERED TO `()`, AND INSIDE A CATCHING
+        # `try` THAT IS UNSOUND. The emitted body of `def f(n): assert n > 0; return n`
+        # is `(); n` — the assertion is neither checked nor assumed. OUTSIDE a handler
+        # that is CONSERVATIVE and sound: the model must discharge the postcondition on
+        # the path Python aborts, which is strictly harder, so 1450 asserts across this
+        # tree stay exactly as they are. INSIDE a `try` whose handlers can catch
+        # `AssertionError`, the handler branch is DEAD in the model and is the branch
+        # Python takes. MEASURED, before this refusal (corpus 0984):
+        #     try:
+        #         assert 1 == 2
+        #         return 1
+        #     except AssertionError:
+        #         return 2
+        #     #@ ensures \result == 1     <-- FALSE OF THE PROGRAM (Python returns 2)
+        #     [+] Verification SUCCESS! All contracts formally proven.
+        # `AssertionError` is deliberately absent from `exception_model.KNOWN_EXCEPTIONS`
+        # (it has no mathematical implicit trigger), so `#@ no_exception \all` does not
+        # cover it and no existing plane sees this.
+        # CENSUS: 0 across pycsl-reference, python-reference, the mirror, `src/pycsl_lib`,
+        # the live emitter and `tests/` — of 1450 `assert` statements, NONE sits inside a
+        # catching `try`. Byte-inert.
+        # REOPENING CAPABILITY: model `assert P` as `if not P: raise AssertionError`, i.e.
+        # add `AssertionError` to the exception model with an explicit (not implicit)
+        # trigger. Then the handler becomes reachable and the refusal can go.
+        # An explicit loop, NOT `any(<genexp>)`: the `any`/`all` bounded-fold lowering
+        # needs the predicate as a PURE function symbol and rejects a call to a `\trusted`
+        # helper there (`unbound function or predicate symbol`), which is an L3-tc failure
+        # in the mirror. Measured while syncing this refusal into the mirror.
+        if isinstance(node, ast.Try) and _try_reaches_assert(tree, node):
+            raise PyCSLParseError(
+                "a Python `assert` inside a `try` whose handler can catch "
+                "`AssertionError` is not modelled: the `assert` is lowered to a NO-OP, so "
+                "the handler branch is DEAD in the model while it is the branch Python "
+                "takes, and the run would still report 'All contracts formally proven'. "
+                "Measured: `try: assert 1 == 2; return 1 / except AssertionError: "
+                "return 2` proved `\\result == 1` while Python returns 2. The same holds "
+                "when the `assert` is in a CALLEE reached from the `try` body — measured "
+                "too. Use an explicit `if not <cond>: raise AssertionError(...)`, or move "
+                "the `assert` out of the `try`.")
         if isinstance(node, ast.Slice) and node.step is not None:
             raise PyCSLParseError(
                 "an EXTENDED slice `x[lo:hi:step]` is not modelled: the lowering is "
