@@ -311,6 +311,80 @@ class FunctionEmissionMixin:
     def _reset_function_state(self, func: Dict[str, Any],
                                body_stmts: List[Dict[str, Any]]) -> Tuple[Set[str], Set[str]]:
         """Reset all per-function instance variables. Returns (local_refs, ghost_vars)."""
+        # (#43) ROUTE #19 — MAKE THE PROSE A MACHINE CHECK. `_handle_expr_stmt` lowers a
+        # set/dict-typed PARAM mutated via `.add`/`.discard`/`.remove` inside a
+        # `@mutable_state` class to a NO-OP, justified as "the mutation is on a value
+        # param, so it does NOT escape ... (A Python set param IS mutated, but no contract
+        # here reads it)". The last clause is a claim about the corpus, not a property of
+        # the lowering, and it is FALSE as soon as a contract does read it. MEASURED,
+        # before this refusal (corpus 0988):
+        #     @mutable_state
+        #     class C:
+        #         #@ requires 1 not in s
+        #         #@ ensures 1 not in s        <-- FALSE OF THE PROGRAM
+        #         #@ assigns \nothing
+        #         def m(self, s: Set[int]) -> None:  s.add(1)
+        #     [+] Verification SUCCESS! All contracts formally proven.
+        # The IDENTICAL class WITHOUT `@mutable_state` is REJECTED outright, so the
+        # decorator was converting a hard refusal into a silent no-op.
+        # SO THE EXEMPTION NOW HOLDS ONLY WHILE ITS OWN JUSTIFICATION DOES: the mutated
+        # parameter must not be NAMED in any contract clause. Measured alternative:
+        # removing the exemption outright breaks THREE mirror files (expressions,
+        # statements, stmt_control_flow), because the reflecting handlers really do mutate
+        # sibling `declared_refs`-style args — and none of them names one in a contract,
+        # so this check leaves every one of them untouched.
+        # SPELLED HERE, in `_reset_function_state`, deliberately: it is the one place that
+        # holds BOTH the contract and the body, and it is `\trusted` in the mirror, so the
+        # check adds no field, no fidelity divergence and no emission change.
+        # NARROWED to exactly the shape that reaches the no-op: a SET/DICT-typed formal
+        # in a `@mutable_state` class, mutated by `.add`/`.discard`/`.remove`. The first
+        # spelling used every collection mutator and every formal, and broke TWO mirror
+        # files — `Module5_IREmitter` and `pycsl.py` — because `ir_stmts.append(...)` on a
+        # contract-named LIST param is a different thing entirely: it has a FAITHFUL
+        # `Seq.snoc` lowering and never reaches the no-op. Measured, not guessed.
+        _mut_names = ("add", "discard", "remove")
+        _st = func.get("symbol_table") or {}
+        _formals = {p for p in (func.get("formal_params", []) or [])
+                    if _st.get(p) in ("set", "dict", "frozenset")}
+        # `_mutable_state_classes` holds `whyml_ident(name.lower())`, not the source class
+        # name — checked against the actual set rather than assumed (the first spelling
+        # compared the raw `self_type` and silently never fired).
+        if _formals and whyml_ident(str(func.get("self_type") or "").lower()) in getattr(
+                self, "_mutable_state_classes", set()):
+            _named = set()
+            _cst = [func.get("contracts", {}) or {}]
+            while _cst:
+                _cn = _cst.pop()
+                if isinstance(_cn, dict):
+                    if _cn.get("type") == "Var" and isinstance(_cn.get("name"), str):
+                        _named.add(_cn["name"])
+                    _cst.extend(v for v in _cn.values() if isinstance(v, (dict, list)))
+                elif isinstance(_cn, list):
+                    _cst.extend(_cn)
+            if _named & _formals:
+                _bst = list(body_stmts or [])
+                while _bst:
+                    _bn = _bst.pop()
+                    if isinstance(_bn, dict):
+                        _f = _bn.get("func")
+                        if (isinstance(_f, str) and "." in _f
+                                and _f.rsplit(".", 1)[1] in _mut_names
+                                and _f.rsplit(".", 1)[0] in (_named & _formals)):
+                            raise PyCSLIRError(
+                                "`" + _f + "(...)` mutates the collection PARAMETER `"
+                                + _f.rsplit(".", 1)[0] + "`, which this function's own "
+                                "contract also NAMES. The mutation of a by-value "
+                                "collection parameter is lowered to a NO-OP here, so the "
+                                "contract would be checked against a model in which the "
+                                "mutation never happened and the run would still report "
+                                "'All contracts formally proven'. Measured: "
+                                "`#@ requires 1 not in s` / `#@ ensures 1 not in s` over "
+                                "a body `s.add(1)` proved SUCCESS. Return the updated "
+                                "collection instead, or drop the parameter from the "
+                                "contract.")
+                        _bst.extend(v for v in _bn.values() if isinstance(v, (dict, list)))
+                    elif isinstance(_bn, list):
+                        _bst.extend(_bn)
         self._bounded_int = func.get("bounded_int")
         # `no_exception` context for VC injection. `_current_no_exception`
         # is the set of exception names whose triggers must produce an
