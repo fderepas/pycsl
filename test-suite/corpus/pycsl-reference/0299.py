@@ -9,6 +9,4 @@ def test_set_ops(n: int) -> int:
     #@ ghost s2 : ghost_set = \set_empty
     #@ ghost s1 = \set_add(s1, 1)
     #@ ghost s2 = \set_add(s2, 2)
-    #@ loop invariant 0 <= n - n and n - n <= n
-    #@ loop variant n
     return n

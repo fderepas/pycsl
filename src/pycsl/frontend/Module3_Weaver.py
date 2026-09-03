@@ -1283,6 +1283,68 @@ class Module3_Weaver:
     # both gained a declaration line and would each need a whole-file re-proof for a check
     # whose census is 0). Same reason as `Module5_IREmitter._py_expr_call`'s `_fin`-family
     # recognizer and `desugar`'s repeatability walk.
+    # (#34) WHICH DIRECTIVES EACH ANCHOR ACTUALLY CONSUMES. Every attachment site in this
+    # file is an `if/elif` chain with NO `else`, so a directive that reaches an anchor whose
+    # site does not name its class is DROPPED — silently, while the run still prints
+    # "All contracts formally proven". `process` already refused ONE case of that (a `#@`
+    # block with nothing after it to attach to); this is the same hazard one step later,
+    # where the block DOES have a follower but the follower ignores it.
+    #
+    # MEASURED VICTIMS, before this refusal:
+    #   · `src/pycsl_lib/re/_engine.py` — TWO `#@ class invariant` separated from
+    #     `class ReMatch:` by `__slots__` and a blank line, so they landed on `__init__`'s
+    #     FunctionDef anchor. `ReMatch` had NO invariants in the model.
+    #   · `src/pycsl_lib/os/UnixInodeFileSystem.py::_pad_name` — an `#@ assigns` and THREE
+    #     `#@ ensures` written AFTER the docstring, so they landed on the first body
+    #     statement. The source comment beside them says they are "surfaced as top-level
+    #     ensures so `_blit_dir_entry` can chain them"; they were not top-level anything.
+    #   · corpus `0299` — a `#@ loop invariant` + `#@ loop variant` above a `return`.
+    #   · corpus `0878`/`0880` and three mirror witness files — a stray `#@ ensures`
+    #     above a statement.
+    # `\trusted` is in the FunctionDef set, so a misplaced `\trusted` is now a hard error
+    # rather than a marker that counts but does nothing.
+    _STMT_LEVEL = (CSLLabel, CheckPoint, GhostAssignDecl, GhostArraySetDecl)
+    _ANY_ANCHOR = (DatatypeDecl, InductiveDecl, SharedDecl, MutexInvariant, LockOrder,
+                   HappyProperty)
+    _FUNCTION_LEVEL = (Requires, Ensures, Assigns, FunctionVariant, Diverges, NoInline,
+                       SiblingConcrete, VerifyModule, PropagateFrame, FreshGlobals,
+                       Trusted, Abstract, Lemma, Uses, InterfaceClause, Reveal, Preserves,
+                       Footprint, RaisesDecl, NoExceptionDecl, BoundedIntDecl, ProofDecl,
+                       ThreadEntry, Act, ForExpand, Complete, Disjoint, Given,
+                       MixinDecl, ProvidesDecl, SharedStateDecl, TouchesFieldDecl,
+                       MethodDependencyDecl, ComposeFromDecl, ConformsToDecl)
+    _ACCEPTS = {
+        "FunctionDef": _FUNCTION_LEVEL,
+        "ClassDef": (ClassInvariant, AllowFinalizerDecl, MixinDecl, ComposeFromDecl,
+                     ConformsToDecl),
+        "While": (LoopInvariant, LoopVariant) + _STMT_LEVEL,
+        "For": (LoopInvariant, LoopVariant, AllowIterationMutationDecl) + _STMT_LEVEL,
+        "With": (CriticalSection, Acquires, Releases) + _STMT_LEVEL,
+        "SimpleStatement": _STMT_LEVEL,
+        "TrailingSimpleStatement": _STMT_LEVEL,
+        "Module": (),
+    }
+
+    def _reject_misplaced_directives(self) -> None:
+        """Refuse a `#@` directive whose anchor's attachment site would ignore it."""
+        for extraction in self.extracted_data:
+            accepted = self._ACCEPTS.get(extraction.node_type)
+            if accepted is None:
+                continue
+            for node in self.parser_module.parse_node_contracts(
+                    extraction.contracts, extraction.line_number):
+                if isinstance(node, self._ANY_ANCHOR) or isinstance(node, accepted):
+                    continue
+                raise PyCSLSemanticError(
+                    f"line {extraction.line_number}: a "
+                    f"`{type(node).__name__}` directive is attached to a "
+                    f"{extraction.node_type} anchor "
+                    f"('{extraction.node_name}'), which does not consume it — the "
+                    f"clause would be SILENTLY DISCARDED while the run still reported "
+                    f"'All contracts formally proven'. A `#@` block binds to the node "
+                    f"that FOLLOWS it: move it directly above the "
+                    f"`def`/`class`/loop it describes.")
+
     def process(self) -> ast.AST:
         _stmt_lvl = ("assert", "assume", "ghost", "loop", "label",
                      "reveal", "unfold", "havoc")
@@ -1308,6 +1370,7 @@ class Module3_Weaver:
                     f"delete it. (Directives: {', '.join(_kinds) or '<none>'}.)")
             _i = _j
         contracts_map, trailing_contracts_map = self._parse_extracted_contracts()
+        self._reject_misplaced_directives()
         happy_props = self._extract_happy_properties(contracts_map)
         python_ast = ast.parse(self.source_code)
         # (#34) A `#@` CONTRACT ON AN `async def` IS SILENTLY DISCARDED, AND THE RUN THEN

@@ -35,7 +35,6 @@ def node_size(node: ExprIR) -> int:
 
 
 def binop_operator(node: ExprIR) -> str:
-    #@ ensures True
     if node.get("type") == "BinOp":
         return node.get("op")
     return ""

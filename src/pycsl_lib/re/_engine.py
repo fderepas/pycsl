@@ -35,13 +35,18 @@ class PatternError(Exception):
 
 # ── ReMatch object ─────────────────────────────────────────────────────
 
+# (#34) THESE TWO `#@ class invariant` LINES USED TO SIT INSIDE THE CLASS BODY, below
+# `__slots__` and directly above `__init__`. A `#@` block binds to the node that FOLLOWS
+# it, so both landed on `__init__`'s FunctionDef anchor — and
+# `Module3_Weaver._dispatch_function_contracts` has no `ClassInvariant` branch, so both
+# were SILENTLY DISCARDED and `ReMatch` carried NO invariants in the model at all. The
+# class anchor is the leading position, above `class`.
+#@ class invariant self._start >= 0
+#@ class invariant self._end >= self._start
 class ReMatch:
     """Minimal ReMatch compatible with json's usage."""
 
     __slots__ = ('_string', '_start', '_end', '_groups')
-
-    #@ class invariant self._start >= 0
-    #@ class invariant self._end >= self._start
 
     def __init__(self, string, start, end, groups):
         self._string = string

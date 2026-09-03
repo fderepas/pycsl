@@ -39,7 +39,6 @@ def expr_size(node: ExprIR) -> int:
 
 
 def is_leaf_kind(node: ExprIR) -> bool:
-    #@ ensures True
     if node.get("type") == "Var":
         return True
     if node.get("type") == "Number":
