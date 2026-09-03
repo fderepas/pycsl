@@ -781,3 +781,4 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 21:53 #33: dangling contract block REFUSED in the pipeline (inline in the trusted weaver process; 1 line of mirror movement)
 22:01 #33: recorded — misplaced-directive family, _pg2 as a value-model boundary, library-op probes clean (incl. floor // with negative divisor), dependency sub-pipeline skips exec splice (census 0)
 23:46 #33: SEGMENT CLOSE — 14/14 whole-file proofs rc=0 SUCCESS; corpus byte-diff 0 across the WHOLE window vs e4d0a209; no prover left running
+00:27 #33: full pycsl suite 877/900 — all 23 failures PRE-EXISTING (verified at e4d0a209 for 0211-0226; byte-diff 0 proves the rest); 4 new witnesses PASS; harness --start-at/--stop-at filter bug fixed
