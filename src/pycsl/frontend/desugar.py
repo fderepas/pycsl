@@ -215,8 +215,57 @@ class _ChainDesugarer(ast.NodeTransformer):
         return out
 
 
+def _module_transitive_assert_funcs(tree: ast.AST) -> set:
+    """Names of same-module functions that can execute a Python `assert`, transitively.
+    Used by route #16: an `assert` inside a CALLEE is just as invisible to the model as
+    one written in the `try` body, and `except Exception` catches it either way
+    (MEASURED: the interprocedural form proved `\\result == 1` while Python returned 2)."""
+    _funcs = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    _has = {k: any(isinstance(x, ast.Assert) for x in ast.walk(v))
+            for k, v in _funcs.items()}
+    _calls = {}
+    for _k, _v in _funcs.items():
+        _s = set()
+        for _c in ast.walk(_v):
+            if isinstance(_c, ast.Call):
+                _f = _c.func
+                _nm = (_f.id if isinstance(_f, ast.Name)
+                       else (_f.attr if isinstance(_f, ast.Attribute) else None))
+                if _nm in _funcs:
+                    _s.add(_nm)
+        _calls[_k] = _s
+    _changed = True
+    while _changed:
+        _changed = False
+        for _k in _funcs:
+            if not _has[_k] and any(_has.get(_c) for _c in _calls[_k]):
+                _has[_k] = True
+                _changed = True
+    return {k for k, v in _has.items() if v}
+
+
+def _handler_catches_assertion(h) -> bool:
+    """Does this `except` clause catch an `AssertionError`? A bare `except:`, an
+    `except AssertionError`, and an `except Exception` / `except BaseException` all do —
+    including inside a tuple of exception types."""
+    if h.type is None:
+        return True                       # bare `except:`
+    _catchers = ("AssertionError", "Exception", "BaseException")
+    _t = h.type
+    _names = []
+    if isinstance(_t, ast.Tuple):
+        _names = [e.id for e in _t.elts if isinstance(e, ast.Name)] + \
+                 [e.attr for e in _t.elts if isinstance(e, ast.Attribute)]
+    elif isinstance(_t, ast.Name):
+        _names = [_t.id]
+    elif isinstance(_t, ast.Attribute):
+        _names = [_t.attr]
+    return any(n in _catchers for n in _names)
+
+
 def reject_unmodelled(tree: ast.AST) -> None:
     """Refuse the shapes Module 5 would SILENTLY DROP and that have no sound rewrite."""
+    _assert_funcs = None            # route #16, computed lazily (only if a catching try exists)
     for node in ast.walk(tree):
         if isinstance(node, (ast.For, ast.While)) and node.orelse:
             raise PyCSLParseError(
@@ -233,6 +282,55 @@ def reject_unmodelled(tree: ast.AST) -> None:
                 "before this refusal: `try: x = 2 except* ValueError: x = 3` under "
                 "`ensures \\result == 1` proved SUCCESS while Python returns 2. "
                 "Rewrite with a plain `except`.")
+        # (#43) ROUTE #16 — A PYTHON `assert` IS LOWERED TO `()`, AND INSIDE A CATCHING
+        # `try` THAT IS UNSOUND. The emitted body of `def f(n): assert n > 0; return n`
+        # is `(); n` — the assertion is neither checked nor assumed. OUTSIDE a handler
+        # that is CONSERVATIVE and sound: the model must discharge the postcondition on
+        # the path Python aborts, which is strictly harder, so 1450 asserts across this
+        # tree stay exactly as they are. INSIDE a `try` whose handlers can catch
+        # `AssertionError`, the handler branch is DEAD in the model and is the branch
+        # Python takes. MEASURED, before this refusal (corpus 0984):
+        #     try:
+        #         assert 1 == 2
+        #         return 1
+        #     except AssertionError:
+        #         return 2
+        #     #@ ensures \result == 1     <-- FALSE OF THE PROGRAM (Python returns 2)
+        #     [+] Verification SUCCESS! All contracts formally proven.
+        # `AssertionError` is deliberately absent from `exception_model.KNOWN_EXCEPTIONS`
+        # (it has no mathematical implicit trigger), so `#@ no_exception \all` does not
+        # cover it and no existing plane sees this.
+        # CENSUS: 0 across pycsl-reference, python-reference, the mirror, `src/pycsl_lib`,
+        # the live emitter and `tests/` — of 1450 `assert` statements, NONE sits inside a
+        # catching `try`. Byte-inert.
+        # REOPENING CAPABILITY: model `assert P` as `if not P: raise AssertionError`, i.e.
+        # add `AssertionError` to the exception model with an explicit (not implicit)
+        # trigger. Then the handler becomes reachable and the refusal can go.
+        if isinstance(node, ast.Try) and any(
+                _handler_catches_assertion(h) for h in node.handlers):
+            if _assert_funcs is None:
+                _assert_funcs = _module_transitive_assert_funcs(tree)
+            for _stmt in node.body:
+                for _n in ast.walk(_stmt):
+                    _reaches = isinstance(_n, ast.Assert)
+                    if isinstance(_n, ast.Call):
+                        _f = _n.func
+                        _nm = (_f.id if isinstance(_f, ast.Name)
+                               else (_f.attr if isinstance(_f, ast.Attribute) else None))
+                        _reaches = _nm in _assert_funcs
+                    if _reaches:
+                        raise PyCSLParseError(
+                            "a Python `assert` inside a `try` whose handler can catch "
+                            "`AssertionError` is not modelled: the `assert` is lowered to "
+                            "a NO-OP, so the handler branch is DEAD in the model while it "
+                            "is the branch Python takes, and the run would still report "
+                            "'All contracts formally proven'. Measured: "
+                            "`try: assert 1 == 2; return 1 / except AssertionError: "
+                            "return 2` proved `\\result == 1` while Python returns 2. "
+                            "The same holds when the `assert` is in a CALLEE reached "
+                            "from the `try` body — measured too. Use an explicit "
+                            "`if not <cond>: raise AssertionError(...)`, or move the "
+                            "`assert` out of the `try`.")
         if isinstance(node, ast.Slice) and node.step is not None:
             raise PyCSLParseError(
                 "an EXTENDED slice `x[lo:hi:step]` is not modelled: the lowering is "
