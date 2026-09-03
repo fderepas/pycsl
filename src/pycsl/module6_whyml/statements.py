@@ -1901,6 +1901,34 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     + "    ensures { result = Map.set m k None }")
                 safe = whyml_ident(var_name)
                 code = f"{indent}{safe} := map_update_none !{safe} {k}"
+        # (#43) ROUTE #17 — THE LIST HALF OF WL-05c, LEFT OPEN WHEN THE DICT HALF WAS
+        # FIXED. The docstring above calls the blanket no-op "UNSOUND ... a severity-1
+        # fail-OPEN" and then keeps it for "list `del a[i]`, a self-field, an unknown
+        # receiver". It is unsound there for the same reason, and worse: Python's
+        # `del xs[i]` SHIFTS every later element left and SHRINKS the list, so the model
+        # is wrong about every index, not just one. MEASURED, before this refusal
+        # (corpus 0985):
+        #     xs: List[int] = [1, 2, 3]
+        #     del xs[0]
+        #     return xs[0]
+        #     #@ ensures \result == 1      <-- FALSE OF THE PROGRAM (Python returns 2)
+        #     [+] Verification SUCCESS! All contracts formally proven.
+        # emitting `(); 1` — the delete is a no-op and the read is then constant-folded.
+        # The dict half correctly FAILS the analogous probe, which is what localises this.
+        # REFUSED rather than modelled: a faithful `del` on an `array int` needs the
+        # length as part of the value model (the same capability route #13's list-mutator
+        # family needs), and a wrong shift is worse than no shift.
+        # CENSUS: 11 `del <subscript>` sites in the whole tree; the dict/set ones take the
+        # branches above, so only a non-dict/set receiver reaches here.
+        if code.strip() == "()":
+            raise PyCSLIRError(
+                "`del " + (arr.get("name") or "<expr>") + "[...]` on a non-dict/set "
+                "receiver is not modelled: Python's list `del` SHIFTS every later element "
+                "left and SHRINKS the sequence, and the lowering here is a NO-OP, so the "
+                "model would keep the original sequence while the run still reported 'All "
+                "contracts formally proven'. Measured: `xs = [1, 2, 3]; del xs[0]; "
+                "return xs[0]` proved `\\result == 1` while Python returns 2. Rewrite the "
+                "deletion as an explicit shift loop, or use a dict/set.")
         if rest:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
