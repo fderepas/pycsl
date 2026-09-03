@@ -157,15 +157,31 @@ measured.
 
 ## VERIFICATION BASELINE #34 LEAVES
 
+**THE PROJECT'S OWN FULL SUITE, run as the closing integration check: 3021/3123.**
+`pycsl-reference` **883/906** (695 PASS + 188 XFAIL, 23 FAIL) — **23 is exactly #33's
+failure count** (it reported 877/900; the +6 are this window's witnesses 0973-0978, all
+green), so that suite is unchanged. `python-reference` **2138/2217** (79 FAIL), a suite
+#33 did not run at all: 1707 of its 2217 tests are the `stdlib` subtree, which is why the
+denominators differ so much between the two windows' reports. **ZERO of the 102 failures
+is caused by a #34 refusal** — `scratchpad/w7/check_fail_cause.sh` re-ran every one and
+matched its output against all five refusal texts; 0 matched. Corpus 0208, previously
+`pycsl-expected: FAIL`, now PASSES.
+
+EIGHT WHOLE-FILE PROOFS, every one rc=0 `Verification SUCCESS` with 0 Unknown/Timeout/
+Failure: `pure_ast` **3106** (3103 before — the two newly-anchored `#@ assert`), `csys`
+**4873** (4866 before — three newly-anchored `#@ assert`), `ir_resolve` 793, transpiler
+**708** (706 before — `_heap_var`'s recovered contract), mirror `pycsl.py` 735,
+`frontend/__init__.py` 684, `ConcurrencyChecker` 5, `desugar` 16. The mirror `.mlw` set
+was re-emitted afterwards and is BYTE-IDENTICAL to the set those proofs ran over, so every
+verdict applies to HEAD. Mirror L3-tc 53/53.
+
 Corpus byte-diff vs f408c9e3: **1 file, 1 line** (0208's ghost update; everything else
 byte-identical). Mirror L3-tc **53/53**. IR conformance BOTH corpora (38 OK / 0 MISMATCH,
 10/10 drivers byte-stable across PYTHONHASHSEED). dropped-mutation 1/50/9/0 ·
 shadowed-selfcalls 14 · yield-erasure 2 · computed-rhs-erasure 2/0 · frame-honesty 0/0 and
-0/96 · mirror-signature-drift 0 · mirror-field-parity 7 known/0 new · avatar-frame-parity
+0/95 · mirror-signature-drift 0 · mirror-field-parity 7 known/0 new · avatar-frame-parity
 0 same-file / 7 inherited · emitted-vacuity `--emit` 8 known / 0 input-blind ·
-untrusted-emitted 849 emitted / 0 re-abstracted · doc-coherency OK. Whole-file proofs
-rc=0 `Verification SUCCESS`: mirror `desugar.py`, mirror `Module6_WhyMLTranspiler.py`,
-`src/pycsl_lib/csys/__init__.py`. Witnesses added: **0973** (`except*` refused), **0974**
+untrusted-emitted 849 emitted / 0 re-abstracted · doc-coherency OK. Witnesses added: **0973** (`except*` refused), **0974**
 (async contract refused), **0975** (misplaced directive refused), **0976** (directive
 anchoring — NEGATIVE-TESTED twice), **0977** (`nonlocal` refused). `python-reference/0111`
 marked `pycsl-expected: FAIL`; `pycsl-reference/0208` un-marked because it now proves.
