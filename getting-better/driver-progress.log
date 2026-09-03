@@ -782,3 +782,5 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 22:01 #33: recorded — misplaced-directive family, _pg2 as a value-model boundary, library-op probes clean (incl. floor // with negative divisor), dependency sub-pipeline skips exec splice (census 0)
 23:46 #33: SEGMENT CLOSE — 14/14 whole-file proofs rc=0 SUCCESS; corpus byte-diff 0 across the WHOLE window vs e4d0a209; no prover left running
 00:27 #33: full pycsl suite 877/900 — all 23 failures PRE-EXISTING (verified at e4d0a209 for 0211-0226; byte-diff 0 proves the rest); 4 new witnesses PASS; harness --start-at/--stop-at filter bug fixed
+00:38 #34: two demonstrated unsoundnesses found in the Module-3 #@-attachment audit (except* dropped entirely; a #@ contract on async def silently discarded) — both refused, witnesses 0973/0974, WIP-banked at 4e3260c8
+00:48 #34: FULL BATTERY GREEN — corpus byte-diff 0 (819/819 vs f408c9e3), mirror L3-tc 53/53, desugar mirror proof rc=0 SUCCESS, IR conformance both corpora, all ratchets held. Metric unchanged 451. INSTRUMENT FACT: both fidelity scripts rc=1 at baseline too, byte-identical output — long-standing, not a regression. Banked 6b8adee8
