@@ -1,3 +1,66 @@
+# HANDOFF ADDENDUM 4 — #43 FINAL AUDIT SUMMARY. **NINETEEN routes enumerated across
+# #33/#34/#43; EIGHTEEN closed. This relaunch found EIGHT (#12-#19) and closed SEVEN.**
+# Metric 451 -> 455, every +4 an honest re-trust or an honest new trusted stub.
+
+## ROUTE #19 — `@mutable_state` turned a REJECTION into a silent no-op
+
+    @mutable_state
+    class C:
+        #@ requires 1 not in s
+        #@ ensures 1 not in s          <-- FALSE OF THE PROGRAM
+        #@ assigns \nothing
+        def m(self, s: Set[int]) -> None:  s.add(1)
+    [+] Verification SUCCESS! All contracts formally proven.
+
+The IDENTICAL class WITHOUT `@mutable_state` is REJECTED outright. CLOSED by turning the
+source comment's own justification — "no contract here reads it" — into a MACHINE CHECK:
+the exemption holds only while the mutated parameter is not NAMED in a contract clause.
+Spelled in `_reset_function_state` because it is the one place holding both the contract
+and the body AND is `\trusted` in the mirror, so it adds no field, no fidelity divergence
+and NO emission change. Witness **0988**. Both corpora byte-identical.
+
+**TWO NARROWINGS, BOTH CAUGHT BY MEASUREMENT, AND THE SECOND IS THE ONE TO REMEMBER:** the
+class test first compared the raw `self_type` while `_mutable_state_classes` holds
+`whyml_ident(name.lower())`, so the refusal SILENTLY NEVER FIRED. A refusal that never fires
+is indistinguishable from one that works — only re-running the probe tells them apart.
+**Re-run the exploit probe after every narrowing.**
+
+## THE METHOD THAT PRODUCED #17, #18 AND #19 — start here next window
+
+`grep` Module 6 for every site that emits `()` for a whole statement, then probe each with a
+contract false of the program. 13 sites in `statements.py`; three were live unsoundnesses.
+**Every one of the three had a comment beside it ASSERTING soundness.** A no-op lowering
+with a prose soundness argument is the highest-yield thing to probe in this codebase.
+
+Census outcome, so it is not rebuilt: 2 unsoundnesses (#17, #18) + 1 in the adjacent
+expr-statement handler (#19) + 1 REFUTED (`_handle_sum_node_expr`'s `return "0"` — probed
+under all four `--memory-model` choices, all correctly FAIL) + 2 that need a
+MIRROR-INTERNAL probe (`statements.py:1634` `<emit_ir>[k] = v`, `statements.py:2252` the
+four ASDL location stamps — both gated on `_uses_pyast_parser()`, unreachable from a corpus
+file) + the rest structural.
+
+## THE BYTE-DIFF PLANE COVERED 27% OF THE CORPUS
+
+`bin/byte-diff-sweep.sh` sweeps only `pycsl-reference`. `python-reference` — 2217 tests,
+2144 emitting — had never been byte-diffed. `scratchpad/w8/pyref_sweep.sh` closes it, and
+every refusal this relaunch landed is byte-inert on BOTH corpora. **Run both from now on.**
+
+## WHAT IS OWED, IN ORDER
+
+1. **The proof battery** (addendum 3 lists all nine files). `a_expr` and `a_pure` were still
+   in their VACUITY phase at hand-off — both had finished PROVING with ZERO bad goals
+   (20125 and 3373 prover results) and were grinding the per-goal vacuity loop with 12 live
+   `why3` children. **The array/map extension may be banked only when both are rc=0.**
+   Instrument note: `pycsl.py`'s embedded vacuity loop is far slower than
+   `bin/check-emitted-vacuity.py --emit`, which does the whole 53-mirror set in ~11 s.
+2. **Route #15** — constructor contracts. Mirror-inert, two additive IR fields, 13 corpus
+   re-proofs. `bin/check-clause-survival.py` 4 -> 0 is the acceptance test.
+3. **One value-model capability retires THREE refusals**: a length-carrying, REBINDABLE
+   sequence local reopens routes #13, #17 and #18.
+4. The two mirror-internal no-op candidates above.
+5. `src/pycsl_lib` L3-tc 92 -> 90: `warn.simplefilter` and `sysmod.path_insert` are real
+   route-#14 victims awaiting a stdlib-policy repair.
+
 # HANDOFF ADDENDUM 3 — #43, ROUTES #17 and #18, and THE PROOF BATTERY THAT IS OWED.
 # **EIGHTEEN routes enumerated across #33/#34/#43; seventeen closed.** Metric 451 -> 455.
 
