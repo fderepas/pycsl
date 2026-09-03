@@ -34,6 +34,25 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #34 CLOSE (2026-09-03) — THE FRAME-PRESERVATION FIX LANDED AND IS FULLY GATED
+
+Everything the section below asks for HAS BEEN DONE. All 16 affected mirror re-proofs came
+back rc=0 `Verification SUCCESS` with ZERO bad goals, the victim census came back EMPTY
+beyond `ConcurrencyChecker._walk_body`, corpus 0721/0723 were repaired with the honest
+`#@ assigns` they were missing, the frame-honesty MODEL-VISIBLE predicate was widened, the
+8 core-only conformance goldens were refreshed under a machine-checked guard that permits
+ONLY added `ensures { self.<f> = old self.<f> }` lines, and the full suite re-ran to
+**3021/3123 with a BYTE-IDENTICAL failure set**. Read the section below only for the
+design record.
+
+**WHAT IS LEFT OF THE FRAME FAMILY, and it is the #1 item for #35: the ARRAY/MAP
+EXTENSION.** The preservation clauses cover SCALAR record labels only, so a method that
+declares nothing and writes `self.disk[i] = v` is still unchecked. Corpus **0459** is
+exactly that shape and is the ready-made driver; 0460 0461 0720 0724 0725 are the rest of
+the population the `writes`-variant experiment reached and the scalar form does not.
+
+---
+
 ### #34 FINAL — THE #1 ITEM FOR #35 IS ALREADY BUILT: LAND THE FRAME-PRESERVATION FIX
 
 `scratchpad/w7/frame-preservation.patch`, 43 additive lines in `module6_whyml/{preamble,

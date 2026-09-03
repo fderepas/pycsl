@@ -1,9 +1,11 @@
 # HANDOFF — #34 (2026-09-03, WINDOW 3): **the metric did not move (451) and that is the
 # right answer. This window found ELEVEN demonstrated unsoundnesses — routes on which
 # `[+] Verification SUCCESS! All contracts formally proven.` was printed over a contract
-# that is FALSE OF THE PROGRAM — and closed EIGHT of them.** #33's ladder item 5,
-# "Module 3's `#@` attachment", was the richest surface in the campaign so far, and the
-# vein did not stop there: the last three are in the FRAME, and they are the biggest.
+# that is FALSE OF THE PROGRAM — and CLOSED ALL ELEVEN, each one gated on every plane.**
+# #33's ladder item 5, "Module 3's `#@` attachment", was the richest surface in the
+# campaign so far, and the vein did not stop there: the last three are in the FRAME, and
+# they are the biggest — an `#@ assigns` on a converted method was an UNCHECKED
+# ASSUMPTION unless its class happened to carry `@mutable_state`.
 
 ## THE ELEVEN, EACH REPRODUCED BEFORE ANYTHING WAS CHANGED
 
@@ -21,9 +23,9 @@ Every "Python returns N" below was obtained by RUNNING the probe.
 | 6 | (same family) a `#@ class invariant` that lands on `__init__` | `pycsl_lib/re/_engine.py`: `ReMatch` had NO invariant in the model | **CLOSED** — moved above `class` |
 | 6b | a statement-level `#@` at COLUMN 0 with nothing after it: `process`'s at-EOF refusal exempts `assert`/`ghost`/… because "a trailing `#@ assert` IS the last statement of a body" — true only INSIDE a body | `#@ assert 1 == 2` as the last line of a file proved SUCCESS | **CLOSED** — the exemption is now conditioned on the block being INDENTED |
 | 7 | `nonlocal` dropped; the nested `def` is lifted and its write lands on a FRESH LOCAL | `ensures \result == 1`; Python returns 2 | **CLOSED** — refused in Module 6's GENERIC emission |
-| 8 | an UNDER-CLAIMED `#@ assigns` on a converted method is never checked against the body | `ensures \result == 0`; Python returns 7 | **BUILT + MEASURED, NOT LANDED** |
-| 9 | `#@ assigns \nothing` on a mutating method (the avatar does not even take `self`) | same shape, same false proof | **BUILT + MEASURED, NOT LANDED** |
-| 10 | NO `#@ assigns` clause at all — callers still assume the method writes nothing | same shape, same false proof | **BUILT + MEASURED, NOT LANDED** |
+| 8 | an UNDER-CLAIMED `#@ assigns` on a converted method is never checked against the body | `ensures \result == 0`; Python returns 7 | **CLOSED** — frame-preservation `ensures` in Module 6 |
+| 9 | `#@ assigns \nothing` on a mutating method (the avatar does not even take `self`) | same shape, same false proof | **CLOSED** — frame-preservation `ensures` in Module 6 |
+| 10 | NO `#@ assigns` clause at all — callers still assume the method writes nothing | same shape, same false proof | **CLOSED** — frame-preservation `ensures` in Module 6 |
 
 ## LIVE VICTIMS FOUND — every one repaired
 
@@ -63,53 +65,50 @@ Lesson (az) again — settle a claim about a mechanism by RUNNING the mechanism.
 
 ## WHERE THE LADDER STANDS FOR #35
 
-**1. LAND THE FRAME-PRESERVATION FIX. This is the #1 item and it is already built.**
-`scratchpad/w7/frame-preservation.patch` — 43 additive lines in two files. On the concrete
-`let` of every method of a record-emitting class it emits
+**0. THE FRAME-PRESERVATION FIX LANDED AND IS FULLY GATED — nothing is owed on it.**
+Module 6 now emits, on the CONCRETE `let` of every method of a record-emitting class,
 `ensures { self.<f> = old self.<f> }` for each SCALAR record label the method's
-`#@ assigns` does not name. All three probes (`scratchpad/w7/probes/frame/{f1,f4,f5}.py`)
-go from `Verification SUCCESS` to FAILED under it.
-  · The `writes`-on-the-`let` alternative was ALSO built and measured and is WORSE: Why3
-    rejects an over-claimed `writes` as hard as an under-claimed one, and 14 of the 22
-    corpus files it breaks are over-claims (`#@ assigns self.disk` on an `array int` field
-    whose body writes `self.disk[i]` = `self.disk.elts`). The preservation form has no
-    over-claim failure mode at all.
-  · MEASURED: **mirror L3-tc 53/53 GREEN**; 50 corpus `.mlw` change; ~10 mirror `.mlw`
-    change (`pure_ast`, `Module5_IREmitter`, `Module2_Parser`, `Module3_Weaver`,
-    `statements`, `expressions`, `ConcurrencyChecker`, `ir_inline`,
-    `audit_proof_reverify`, `Module6_WhyMLTranspiler`).
-  · THE CORPUS COST IS **TWO ONE-LINE `#@ assigns` REPAIRS, AND BOTH ARE GENUINE.** Of
-    the 50 files whose `.mlw` changes, 48 prove untouched; 0721 (`Bank.handle` writes
-    `self.session_authenticated`, the very HAPPY capability flag its call site relies on)
-    and 0723 (`Ledger.transfer` writes `self.balance`, `self.audit`, `self.audit_len`) are
-    route-#10 defects — no `#@ assigns` clause at all. Repaired IN THE PATCH; both then
-    prove, so the corpus side is 50/50.
-  · THE MIRROR VICTIM IS FOUND AND ALREADY REPAIRED IN THE MAIN TREE.
-    `frontend/ConcurrencyChecker._walk_body` declared `#@ assigns \nothing` while its only
-    statement calls `self._walk_stmt`, which declares `#@ assigns self.warnings`, and
-    `warnings` IS a label of the emitted record — so every caller-side `val` minted from
-    that contract asserted the field was unchanged. TWO INDEPENDENT INSTRUMENTS converged
-    on it: Why3's "this expression produces an unlisted write effect" under the `writes`
-    experiment, and the WIDENED frame-honesty predicate (`scratchpad/w7/tfh_wide.py`,
-    converted MODEL-VISIBLE 0 -> 1). It now declares `#@ assigns self.warnings`; the
-    converted total ratchet went 96 -> 95.
-  · SO WHAT IS LEFT IS EXACTLY ONE THING: RE-PROVE THE ~10 CHANGED MIRRORS.
-    `scratchpad/w7/land-frame-fix.sh` lists them in order. That re-proof IS the rest of
-    the victim census — a preservation clause that will not prove is a converted, proved
-    mirror method whose declared frame is a lie, and the repair is an honest `#@ assigns`,
-    exactly as for `_walk_body`, 0721 and 0723.
-  · NAMED EXTENSION, still open after it lands: element-wise preservation for `array`/`map`
-    fields. Corpus 0459 is exactly that shape (`self.disk[i] = v` in a method that declares
-    nothing) and is why the `writes` experiment flagged 0459/0460/0461/0720/0724/0725 that
-    the scalar-only preservation form does not yet reach.
+`#@ assigns` does not name. A preservation POSTCONDITION rather than a `writes` clause,
+because Why3 rejects an OVER-claimed `writes` as hard as an under-claimed one and the
+`writes` form breaks 14 corpus files whose `#@ assigns self.<array-field>` is spelled for
+the field while the body writes `self.f[i]` (`self.f.elts`). Declaring more than you write
+merely emits FEWER preservation clauses, so the form has no false-rejection mode at all.
+  · **ALL SIXTEEN affected mirror re-proofs came back rc=0 `Verification SUCCESS` with
+    ZERO bad goals** (pure_ast 3126, stmt_control_flow 6426, expressions 4315, statements
+    3886, Module5_IREmitter 1650, Module6_WhyMLTranspiler 862, types 815, Module2_Parser
+    738, proof2why3/parser 440, ir_inline 363, Module3_Weaver 284, proof2why3/ir 45,
+    audit_proof_reverify 25, struct_format 22, proof2why3/crosscheck 10,
+    ConcurrencyChecker 9). **THE VICTIM CENSUS CAME BACK EMPTY** beyond the one repaired
+    before the battery.
+  · THREE HONEST FRAME REPAIRS were needed and all three are genuine defects:
+    `frontend/ConcurrencyChecker._walk_body` (declared `\nothing`, calls a callee that
+    declares `#@ assigns self.warnings`), corpus 0721 `Bank.handle` (writes
+    `self.session_authenticated`, the HAPPY capability flag its own call site relies on)
+    and corpus 0723 `Ledger.transfer` (writes `self.balance`, `self.audit`,
+    `self.audit_len`). Each had NO or an under-claimed `#@ assigns`.
+  · `bin/check-trusted-frame-honesty.py`'s MODEL-VISIBLE predicate was WIDENED with it —
+    the emitted record now answers the question whenever an emission is available, and
+    `@mutable_state` is only the fallback for the source-heuristic path. Converted total
+    ratchet 96 -> 95.
+  · IR conformance: the FRONT-END corpus never moved (38 OK / 0 MISMATCH — this is a
+    Module 6 emission change, the IR is untouched); the CORE-ONLY corpus went 8 MISMATCH
+    and its goldens were refreshed under a MACHINE-CHECKED GUARD that aborts unless every
+    diff line is exactly an added `ensures  { self.<f> = old self.<f> }`. It aborted on
+    nothing.
+  · Full suite re-run after the fix: **3021/3123, and the FAILURE SET IS BYTE-IDENTICAL**
+    to the run before it. Zero new failures across 3123 tests.
 
-**2. `bin/check-trusted-frame-honesty.py` MEASURES THE WRONG SET — recorded in the file
-itself now, at `_visible`.** Its MODEL-VISIBLE predicate hard-gates on `@mutable_state`
-BEFORE its own `--emit-dir` refinement gets a chance, so it reports 0/0 and 0/95 over a set
-that excludes exactly the population routes 8/9/10 bite. Relaxing the gate to
-`if ent is None and cls not in ms_classes` is a ONE-LINE change and it found the one live
-victim. Land that widening TOGETHER WITH the frame-preservation patch — the two are the
-same increment, one the fix and one its instrument.
+**1. THE ONE THING THE FRAME WORK STILL OWES: the ARRAY/MAP extension.** The preservation
+clauses are emitted for SCALAR record labels only, because an `array`/`map` field needs
+element-wise preservation that scalar equality cannot express. So a method that declares
+nothing and writes `self.disk[i] = v` is STILL unchecked. Corpus **0459** is exactly that
+shape and is the ready-made driver; the `writes`-variant experiment named 0459 0460 0461
+0720 0724 0725 as the population it reaches and the scalar form does not.
+
+**2. `bin/check-trusted-frame-honesty.py`'s MODEL-VISIBLE predicate HAS BEEN WIDENED**
+(it hard-gated on `@mutable_state` before its own `--emit-dir` refinement got a chance, so
+it reported 0 over a set that excluded exactly the population routes 8/9/10 bite). It now
+reports 0/0 and 0/95 on the HONEST set. Nothing owed.
 
 **3. The `#@`-attachment vein has one unswept surface left**: `Module1_Ingestor._assign`'s
 `elif nxt is None: pass` (a module-level trailing `#@` at indent 0 is ignored "as libcst").
@@ -175,7 +174,8 @@ Failure: `pure_ast` **3106** (3103 before — the two newly-anchored `#@ assert`
 was re-emitted afterwards and is BYTE-IDENTICAL to the set those proofs ran over, so every
 verdict applies to HEAD. Mirror L3-tc 53/53.
 
-Corpus byte-diff vs f408c9e3: **1 file, 1 line** (0208's ghost update; everything else
+Corpus byte-diff vs f408c9e3: **51 files** — 50 of them gaining the frame-preservation
+`ensures` and 0208 its ghost line. Before the frame fix landed it was **1 file, 1 line** (0208's ghost update; everything else
 byte-identical). Mirror L3-tc **53/53**. IR conformance BOTH corpora (38 OK / 0 MISMATCH,
 10/10 drivers byte-stable across PYTHONHASHSEED). dropped-mutation 1/50/9/0 ·
 shadowed-selfcalls 14 · yield-erasure 2 · computed-rhs-erasure 2/0 · frame-honesty 0/0 and
