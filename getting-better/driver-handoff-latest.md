@@ -1,3 +1,57 @@
+# HANDOFF ADDENDUM 5 — #43, ROUTE #20. **TWENTY routes enumerated across #33/#34/#43;
+# NINETEEN closed. This relaunch found NINE (#12-#20) and closed EIGHT.** Metric 451 -> 456.
+
+## ROUTE #20 — `with ... as v` was exploitable, and it was hiding inside a GREEN RATCHET
+
+`bin/check-dropped-mutation.py` has reported `50 CTXBIND` on every run of this campaign, as
+a tracked and accepted residue. **A number a gate reports as within its ratchet is not the
+same as a number that has been probed.** It was a live unsoundness:
+
+    class CM:
+        #@ ensures \result == 7
+        def __enter__(self) -> int:  return 7
+    #@ ensures \result == 0                    <-- FALSE OF THE PROGRAM
+    def f() -> int:
+        v: int = 0
+        with CM() as v:  return v
+    [+] Verification SUCCESS!        (Python: 7; emitted `let v = ref 0 in v := 0; !v`)
+
+`_py_stmt_with` reads `stmt.body` and the critical-section markers and NEVER reads
+`stmt.items`. CLOSED with the `nonlocal_writes` shape — additive IR field `with_bindings`,
+refused in Module 6's GENERIC emission so `\trusted`/`\abstract` stays exempt. A BARE
+`with <lock>:` is untouched (it is a modelled CriticalSection); the refusal keys on `as`.
+
+PRICE, every part measured before landing: ONE converted mirror method re-`\trusted`
+(`pure_ast._Unparser.visit_Lambda`, reading a stale `buffer` — the only converted method in
+the tree with the shape, census 62 sites); TWO `python-reference` syntax tests marked
+`pycsl-expected: FAIL` (0093, 0191); the CTXBIND ratchet 50 -> 51, **and the +1 is the
+witness itself**. Witness **0989**, negative-tested. Both corpora byte-identical apart from
+the two newly-refused files; core AND front-end conformance 38/0 each — the new IR field
+moved no golden.
+
+## THE LESSON THIS RELAUNCH KEEPS PAYING
+
+Four of the nine routes were found by asking what a number MEANT rather than whether it was
+green:
+  · "13-file battery complete" was 10 of 13 — the log's runner iterated a different list.
+  · "avatar-frame INHERITED 7" was the RATCHET, printed by a gate that never printed its
+    measurement. The measurement is 1.
+  · "50 CTXBIND", green for windows — route #20.
+  · `bin/byte-diff-sweep.sh`'s "820/820 byte-identical" covered 27% of the corpus.
+
+**Ask what the instrument iterated over, and what the number it prints actually is.**
+
+## PROOF STATE AT HAND-OFF
+
+`a_expr` and `a_pure` were both still in their VACUITY phase, having finished PROVING with
+ZERO bad goals (20125 and 3373 prover results, 12 live `why3` children).
+`scratchpad/w8/queue_owed.sh` then runs the six owed re-proofs two at a time and writes
+`scratchpad/w7/proofs/OWED_DONE`; `scratchpad/w8/queue_final_pure.sh` then re-proves
+`pure_ast` at HEAD (route #20 moved its emission) and writes `FINAL_DONE`.
+
+**Banking rule: the array/map extension needs `a_expr` rc=0 AND a pure_ast rc=0 AT HEAD
+(`o_pure2`).** `a_m5` is already rc=0 with 2088 Valid and zero bad.
+
 # HANDOFF ADDENDUM 4 — #43 FINAL AUDIT SUMMARY. **NINETEEN routes enumerated across
 # #33/#34/#43; EIGHTEEN closed. This relaunch found EIGHT (#12-#19) and closed SEVEN.**
 # Metric 451 -> 455, every +4 an honest re-trust or an honest new trusted stub.

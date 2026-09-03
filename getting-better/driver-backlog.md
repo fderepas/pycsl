@@ -36,7 +36,8 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ### #43 STATE (2026-09-03, relaunch after the #34-#42 `529 Overloaded` outage) — READ FIRST
 
-**ROUTES #14, #16, #17, #18 ALSO FOUND AND CLOSED THIS RELAUNCH; #15 FOUND AND PRICED.**
+**ROUTES #14, #16, #17, #18, #19, #20 ALSO FOUND AND CLOSED THIS RELAUNCH; #15 FOUND,
+PRICED AND SPIKED.** Nine routes found (#12-#20), eight closed. Metric 451 -> 456.
 Eighteen routes are now enumerated across #33/#34/#43 and seventeen are closed. Metric
 451 -> 455, every +4 an HONEST re-trust or an honest new trusted stub. See the handoff for
 each. The three highest-value carry-forwards:
