@@ -662,7 +662,10 @@ class IRScanner:
                     result |= IRScanner.find_append_targets(stmt[key])
         return result
 
-    _MUTATING_METHODS: int = {'append', 'pop', 'clear', 'add', 'remove', 'discard', 'update', 'extend', 'insert', 'setdefault'}
+    # (#43) WIDENED in step with the live source — `sort`, `reverse`, `popitem` and the
+    # three set-difference updaters mutate in place exactly as the others do, and their
+    # absence made UB-7.1 a FAIL-OPEN masked only by route #14's refusal.
+    _MUTATING_METHODS: int = {'append', 'pop', 'clear', 'add', 'remove', 'discard', 'update', 'extend', 'insert', 'setdefault', 'sort', 'reverse', 'popitem', 'intersection_update', 'difference_update', 'symmetric_difference_update'}
     #@ requires True
     #@ ensures True
     #@ assigns out

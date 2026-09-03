@@ -657,9 +657,19 @@ class IRScanner:
     # ---- UB-7.1 — mutation during iteration ------------------------
     # Mutating method names (dotted-call receivers that imply mutation
     # of the receiver collection). Reads do not appear here; only writes.
+    # (#43) WIDENED. `sort`, `reverse`, `popitem` and the three set-difference updaters
+    # mutate their receiver in place exactly as the others do, and their absence made
+    # UB-7.1 a FAIL-OPEN for `for x in xs: xs.sort()`. That gap is currently MASKED by
+    # route #14, which refuses those calls at emission before the detector is consulted
+    # (measured: the `.sort()` form dies with the route-#14 diagnostic, the `.append()`
+    # form with UB-7.1) — a hidden coupling between two independent mechanisms. Widened
+    # here so the detector stands on its own, and so that retiring route #14 with the
+    # length-carrying sequence capability does not silently reopen UB-7.1.
     _MUTATING_METHODS: Set[str] = {
         "append", "pop", "clear", "add", "remove", "discard",
         "update", "extend", "insert", "setdefault",
+        "sort", "reverse", "popitem",
+        "intersection_update", "difference_update", "symmetric_difference_update",
     }
 
     @staticmethod
