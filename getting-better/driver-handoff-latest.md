@@ -1,3 +1,56 @@
+# HANDOFF ADDENDUM 6 — #43, ROUTE #21, AND THE HEADLINE. **TWENTY-ONE routes enumerated
+# across #33/#34/#43; TWENTY closed. This relaunch found TEN (#12-#21) and closed NINE.**
+# Metric 451 -> 456, every +5 an honest re-trust or an honest new trusted stub.
+
+## ROUTE #21 — the `TRYFINAL = 9` ratchet was also exploitable
+
+    #@ ensures \result == 2                    <-- FALSE OF THE PROGRAM
+    def f() -> int:
+        x: int = 1
+        try:     x = 2
+        except ValueError:  x = 9
+        finally: x = 3
+        return x
+    [+] Verification SUCCESS!                            (Python returns 3)
+
+`_handle_try_stmt` reads `stmt.body` and `stmt.handlers` and neither `finalbody` nor
+`orelse`. #33 emitted the `finally` in the one expressible case; the rest was counted and
+left. THE CONTROLS LOCALISE IT: the same file WITHOUT handlers correctly FAILS, and
+`try/except/else` correctly FAILS. Refused in Module 6's statement lowering. Witness
+**0990**. Census 4 sites, the mirror's one is `\trusted`; both corpora byte-identical.
+TRYFINAL ratchet 9 -> 10, the +1 being the witness itself.
+
+## **TWO RATCHETS IN A ROW WERE HIDING LIVE UNSOUNDNESSES. THIS IS THE HEADLINE.**
+
+`CTXBIND = 50` and `TRYFINAL = 9` were both reported GREEN by
+`bin/check-dropped-mutation.py` on every run of this campaign, for windows. Both were
+exploitable, and each took ONE probe to demonstrate. **A ratchet records that a population
+has not GROWN. It says nothing about whether anything in it is EXPLOITABLE.** Every
+non-zero ratchet in this project is now a list of un-probed candidates:
+
+    dropped-mutation      1 DROPPED · 51 CTXBIND · 10 TRYFINAL · 0 DANGLING
+    computed-rhs-erasure  2 rhs · 0 param          (probed this relaunch — faithfulness
+                                                    gaps, not unsoundnesses)
+    yield-erasure         2 suspension             ** NEVER PROBED **
+    shadowed-selfcalls    14                       ** NEVER PROBED **
+    frame-honesty         94 converted-total       ** NEVER PROBED **
+    mirror-field-parity   7 known drift            ** NEVER PROBED **
+    clause-survival       4                        (probed — all route #15)
+
+**Start the next window by probing `yield-erasure`'s 2 and `shadowed-selfcalls`' 14.**
+Take the ratchet's own description of the population, build the smallest program with that
+shape, and put a contract on it that is FALSE of the program. Two ratchets, two routes, so
+far.
+
+## THE FIDELITY PLANE CAUGHT THREE LIVE/MIRROR DESYNCS THIS RELAUNCH
+
+Every one from editing a live method that is CONVERTED in the mirror
+(`desugar.reject_unmodelled`, `statements._emit_array_local_reassign`,
+`stmt_control_flow._handle_try_stmt`). Two rules, both paid for here:
+**copy the BODY, keep the mirror's SIGNATURE** (a verbatim copy clobbered
+`val_ir: "ExprIR"` with `Dict[str, Any]` and stopped a file type-checking); and
+**`grep` the mirror for the method before touching a live body.**
+
 # HANDOFF ADDENDUM 5 — #43, ROUTE #20. **TWENTY routes enumerated across #33/#34/#43;
 # NINETEEN closed. This relaunch found NINE (#12-#20) and closed EIGHT.** Metric 451 -> 456.
 

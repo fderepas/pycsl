@@ -2288,7 +2288,7 @@ since they never produce an AST node.
 
 ### 4.0 Constructs REFUSED at IR emission (relaunches #33, #34, #43)
 
-Twelve Python shapes are now **rejected with a diagnostic** rather than lowered, because
+Fourteen Python shapes are now **rejected with a diagnostic** rather than lowered, because
 the lowering that existed for them silently dropped part of the construct. Each refusal
 replaced a fail-OPEN with a fail-CLOSED, and each was CENSUSED over the reference corpus,
 the self-annotation mirror, `src/pycsl_lib` and the live emitter before it landed. Four of
@@ -2321,6 +2321,9 @@ every one is byte-inert on both.
 | `del <list>[i]` and `del` on any non-dict/set receiver (#43, route 17) | the LIST half of WL-05c, left open when the dict half was fixed. Python's list `del` SHIFTS every later element left and SHRINKS the sequence, so the no-op model is wrong about EVERY index, not just the deleted one. Measured: `xs = [1,2,3]; del xs[0]; return xs[0]` proved `\result == 1` while the program returns 2. The DICT half correctly FAILS the analogous probe. | a length-carrying sequence value model with a shift |
 | reassigning an array LOCAL from a non-literal RHS (#43, route 18) | the local is a fixed `Array.make N 0` plus a separate `<name>_len` counter, not a rebindable reference, so the assignment was a NO-OP and every later read was answered from the OLD value. Measured both from a call (`xs = g()`) and as an ALIAS of a parameter (`xs = ys`), the latter proving a specific value for an unconstrained input. | the local promoted to `ref (array int)` |
 | a collection PARAMETER that the function's own contract NAMES, mutated in place inside a `@mutable_state` class (#43, route 19) | the mutation is lowered to a no-op on the grounds that "no contract here reads it" — a claim about the corpus, not a property of the lowering. Measured: `#@ requires 1 not in s` / `#@ ensures 1 not in s` over a body `s.add(1)` proved SUCCESS. The IDENTICAL class without `@mutable_state` is REJECTED outright, so the decorator converted a hard refusal into a silent no-op. The exemption now holds only while its own justification does. | caller-visible collection-parameter frames |
+
+| `with ... as v:` (#43, route 20) | `_py_stmt_with` reads the `with` BODY and the critical-section markers and NEVER reads `stmt.items`, so the context-manager expression AND the binding both vanish and the body runs against the PRE-`with` value of the name. Measured: `v = 0; with CM() as v: return v` proved `\result == 0` while the program returns 7 (emitted body: `let v = ref 0 in v := 0; !v`). This was the `CTXBIND` residue `check-dropped-mutation.py` had reported green for windows. A BARE `with <lock>:` has no binding and IS modelled, as a critical section — the refusal keys on the `as` clause alone. Carried as the additive IR field `with_bindings` and refused in Module 6's generic emission, so `\trusted`/`\abstract` stays exempt. | a context-manager protocol model (`__enter__`/`__exit__`) |
+| `try ... except ... finally:` (#43, route 21) | `_handle_try_stmt` reads `stmt.body` and `stmt.handlers` and neither `finalbody` nor `orelse`. #33 emits the `finally` in the ONE expressible case — no handlers, no jump out of the lowered body — and the rest was counted as the `TRYFINAL` ratchet. Measured: `try: x = 2 / except ValueError: x = 9 / finally: x = 3 / return x` proved `\result == 2` while the program returns 3. The CONTROLS localise it: the same file without handlers correctly FAILS (that is #33's case working) and `try/except/else` correctly FAILS. A `try ... finally:` with no handlers is still accepted. | a `finally`-on-every-exit-path lowering |
 
 
 `bin/check-dropped-mutation.py` measures the residue of this family and ratchets it.
