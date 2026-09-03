@@ -1355,13 +1355,26 @@ class Module3_Weaver:
                 _i += 1
                 continue
             _j, _kinds, _first = _i, [], _i + 1
+            _col0 = True
             while _j < len(_lines) and (_lines[_j].strip().startswith("#")
                                         or not _lines[_j].strip()):
                 _m = re.match(r"#@\s+\\?([a-z_]+)", _lines[_j].strip())
                 if _m:
                     _kinds.append(_m.group(1))
+                    if _lines[_j].startswith((" ", "\t")):
+                        _col0 = False
                 _j += 1
-            if _j >= len(_lines) and any(_k not in _stmt_lvl for _k in _kinds):
+            # (#34) THE STATEMENT-LEVEL EXEMPTION ONLY HOLDS WHEN THE BLOCK IS INDENTED.
+            # `assert`/`ghost`/`label`/… are exempt from the end-of-file refusal because a
+            # trailing `#@ assert` IS the last statement of a body — but that is true only
+            # INSIDE a body. At column 0 there is no enclosing block: Module 1's `_assign`
+            # takes the `elif nxt is None: pass` branch ("module-level trailing comment
+            # (indent 0) -> ignored, as libcst") and the directive is discarded. Measured:
+            #     def f() -> int: ... return 0
+            #     #@ assert 1 == 2                <-- FALSE, AND NEVER CHECKED
+            #     [+] Verification SUCCESS! All contracts formally proven.
+            # So an at-EOF block gets the exemption only if it is indented.
+            if _j >= len(_lines) and (_col0 or any(_k not in _stmt_lvl for _k in _kinds)):
                 raise PyCSLSemanticError(
                     f"line {_first}: this `#@` contract block has nothing after it to "
                     f"attach to (it runs to end-of-file), so it would be SILENTLY "
