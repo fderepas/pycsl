@@ -1,11 +1,11 @@
 # HANDOFF — #34 (2026-09-03, WINDOW 3): **the metric did not move (451) and that is the
-# right answer. This window found TEN demonstrated unsoundnesses — routes on which
+# right answer. This window found ELEVEN demonstrated unsoundnesses — routes on which
 # `[+] Verification SUCCESS! All contracts formally proven.` was printed over a contract
-# that is FALSE OF THE PROGRAM — and closed SEVEN of them.** #33's ladder item 5,
+# that is FALSE OF THE PROGRAM — and closed EIGHT of them.** #33's ladder item 5,
 # "Module 3's `#@` attachment", was the richest surface in the campaign so far, and the
 # vein did not stop there: the last three are in the FRAME, and they are the biggest.
 
-## THE TEN, EACH REPRODUCED BEFORE ANYTHING WAS CHANGED
+## THE ELEVEN, EACH REPRODUCED BEFORE ANYTHING WAS CHANGED
 
 Method, unchanged from #33: enumerate the dispatch mechanically, then probe END-TO-END
 WITH A CONTRACT THAT IS FALSE OF THE PROGRAM. A true contract failing tells you nothing.
@@ -19,6 +19,7 @@ Every "Python returns N" below was obtained by RUNNING the probe.
 | 4 | `#@` in decorator whitespace dropped ("invisible to libcst's leading_lines") | the mirror's `_heap_var` lost its whole contract | **CLOSED** — attached to the decorated def |
 | 5 | a directive on an anchor that ignores it (every attachment site is an `if/elif` with no `else`) | `#@ assert 1 == 2` above a `def` and above a `class`; `#@ ensures 1 == 2` on a `while` | **CLOSED** — `_reject_misplaced_directives` |
 | 6 | (same family) a `#@ class invariant` that lands on `__init__` | `pycsl_lib/re/_engine.py`: `ReMatch` had NO invariant in the model | **CLOSED** — moved above `class` |
+| 6b | a statement-level `#@` at COLUMN 0 with nothing after it: `process`'s at-EOF refusal exempts `assert`/`ghost`/… because "a trailing `#@ assert` IS the last statement of a body" — true only INSIDE a body | `#@ assert 1 == 2` as the last line of a file proved SUCCESS | **CLOSED** — the exemption is now conditioned on the block being INDENTED |
 | 7 | `nonlocal` dropped; the nested `def` is lifted and its write lands on a FRESH LOCAL | `ensures \result == 1`; Python returns 2 | **CLOSED** — refused in Module 6's GENERIC emission |
 | 8 | an UNDER-CLAIMED `#@ assigns` on a converted method is never checked against the body | `ensures \result == 0`; Python returns 7 | **BUILT + MEASURED, NOT LANDED** |
 | 9 | `#@ assigns \nothing` on a mutating method (the avatar does not even take `self`) | same shape, same false proof | **BUILT + MEASURED, NOT LANDED** |
