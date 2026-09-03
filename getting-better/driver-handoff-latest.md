@@ -24,6 +24,18 @@
 #    checking function proves in Why3 and discriminates: `scratchpad/w8/spike15/`).
 #    Acceptance test: `bin/check-clause-survival.py` 4 -> 0.
 #
+# ## A HARD PRECONDITION ON THE BIGGEST REMAINING MODEL UPGRADE
+#
+# Converting `_Unparser.__init__` (ONE marker; the whole class moves from the opaque
+# `_pyobj_state` store to a CONCRETE RECORD, and 20 of the 21 remaining `_Unparser`
+# `\trusted` stubs sit behind it) **MUST be done in the same increment as a
+# context-manager protocol model, or the 24 `with self.block():` callers must be
+# re-trusted.** Today `yield-erasure`'s 2 are unobservable ONLY because the emitted record
+# is `type _unparser = {  }` — empty. Give the class real `_indent` / `_source` fields and
+# the dropped indent/dedent tracking becomes a referenceable divergence in a file proved at
+# 3373 goals. The conversion would otherwise turn an unobservable erasure into an
+# exploitable one.
+#
 # ## THE METHOD THAT PRODUCED SEVEN OF THE TEN
 #
 # **Probe the thing with a prose soundness argument written beside it.** `grep` Module 6 for

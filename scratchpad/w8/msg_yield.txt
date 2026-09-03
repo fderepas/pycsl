@@ -1,0 +1,30 @@
+audit(#43): yield-erasure's 2 resolved — unobservable today, and OBSERVABLE the moment `_Unparser.__init__` is converted
+
+`_Unparser.block` and `.delimit` are `@contextmanager` generators consumed at 24
+`with self.block():` / `with self.delimit(...):` sites. Route #20 established that
+`_py_stmt_with` never reads `stmt.items`, so the manager call is dropped in every one of
+those callers; the emitted `_unparser__block` / `_unparser__delimit` exist and are never
+applied.
+
+TODAY THAT IS UNOBSERVABLE, for exactly the reason no-op candidate (c) was refuted: the
+emitted record is `type _unparser = {  }` — EMPTY — so `_indent` and `_source` are not model
+fields and no contract can reference them.
+
+**BUT IT BECOMES OBSERVABLE THE MOMENT `_Unparser.__init__` IS CONVERTED.** That conversion
+was recorded earlier this relaunch as the single largest model upgrade left in the mirror:
+ONE marker, and the whole class moves from the opaque `_pyobj_state` attribute store to a
+CONCRETE RECORD carrying `mutable _indent: int` and `mutable _source: array int`. At that
+point the dropped indent/dedent tracking is a real, referenceable divergence in a file
+proved at 3373 goals.
+
+SO THE TWO BACKLOG ITEMS ARE COUPLED AND MUST MOVE TOGETHER. Converting
+`_Unparser.__init__` requires a context-manager protocol model — or re-trusting the 24
+callers — in the SAME increment. Otherwise it converts a currently-unobservable erasure into
+an exploitable one, which is the opposite of what the conversion is for. Recorded in the
+handoff as a hard precondition rather than a note.
+
+That is the third coupling this relaunch has surfaced between two mechanisms that looked
+independent (the others: route #14's refusal masking UB-7.1's fail-open, and route #20
+moving `pure_ast`'s emission out from under an in-flight proof).
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
