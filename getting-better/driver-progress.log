@@ -794,3 +794,4 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 02:01 #34: ir_resolve mirror re-proof rc=0 SUCCESS (793 goals). pure_ast still in its vacuity phase (3106 goals all Valid, 0 Unknown). ConcurrencyChecker proof started for the frame repair.
 02:03 #34: ConcurrencyChecker mirror re-proof rc=0 SUCCESS (the honest #@ assigns self.warnings frame repair proves). pure_ast + pycsl mirror proofs still in their vacuity phase.
 02:54 #34: pycsl.py mirror re-proof rc=0 SUCCESS. pure_ast at 1h40m (all 3106 goals Valid, 0 Unknown; in the vacuity phase); frontend/__init__ running.
+03:16 #34: ALL EIGHT whole-file proofs rc=0 SUCCESS (pure_ast 3106, csys 4873, ir_resolve 793, transpiler 708, pycsl 735, frontend/__init__ 684, ConcurrencyChecker 5, desugar 16; 0 bad in all). Mirror emission byte-identical to the proved set, 53/53 L3-tc. Corpus byte-diff vs f408c9e3 = 1 file 1 line. Full gate battery green. Full reference suite started.
