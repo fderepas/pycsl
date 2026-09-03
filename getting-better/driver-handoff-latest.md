@@ -55,6 +55,14 @@ every refusal this relaunch landed is byte-inert on BOTH corpora. **Run both fro
    `bin/check-emitted-vacuity.py --emit`, which does the whole 53-mirror set in ~11 s.
 2. **Route #15** — constructor contracts. Mirror-inert, two additive IR fields, 13 corpus
    re-proofs. `bin/check-clause-survival.py` 4 -> 0 is the acceptance test.
+   **ITS RISKIEST ASSUMPTION IS ALREADY MEASURED.** The checking-only constructor function
+   was hand-inserted into corpus 0706's real emission and run through Why3:
+   `let c__init () : c ensures { result.x = 0 } = { x = 0 }` gives
+   `Goal c__init'vc — Valid`, and that goal INCLUDES the record's class-invariant
+   obligation; the same function with `ensures { result.x = 99 }` gives `Unknown`. It
+   type-checks AND discriminates. Files: `scratchpad/w8/spike15/`. What is left is
+   plumbing plus the 13 corpus and 21 `pycsl_lib` constructor checks that may fail — each
+   a finding — and the 38 front-end goldens under a machine-checked guard.
 3. **One value-model capability retires THREE refusals**: a length-carrying, REBINDABLE
    sequence local reopens routes #13, #17 and #18.
 4. The two mirror-internal no-op candidates above.
