@@ -1,3 +1,31 @@
+# HANDOFF ADDENDUM 7 — #43: **THE ARRAY/MAP FRAME EXTENSION IS BANKED. 13 of 13.**
+
+Every mirror whose emission the extension changed is rc=0 `Verification SUCCESS` with ZERO
+bad goals: struct_format · ConcurrencyChecker · audit_proof · audit_proof_reverify ·
+proof2why3/parser · types · Module6_WhyMLTranspiler · Module2_Parser · stmt_control_flow ·
+statements · expressions (20125 Valid) · Module5_IREmitter (2088) · pure_ast (3373).
+
+The relaunch inherited this battery described as COMPLETE and found it at **10 of 13** —
+one run killed at its timeout, two never started. Every other plane was re-derived rather
+than inherited: the changed corpus set recomputed from an 820-vs-820 emission diff against
+13c4860b (exactly the 26 recorded files), all 26 re-proved fresh, every non-proof plane
+re-run from the surface.
+
+**THE ONE QUALIFIER, stated rather than buried:** twelve of the thirteen emissions are
+byte-identical at HEAD; `pure_ast`'s moved afterwards under route #20, an independent later
+change. `o_pure2` re-proves it at HEAD and is queued. Do not treat the two emissions as
+interchangeable — instrument fact 12 is the whole reason this was tracked with a manifest.
+
+## STILL IN FLIGHT (autonomous, `scratchpad/w8/queue_*.sh`, marker files in `w7/proofs/`)
+
+    o_desugar  o_ap        route #16 sync / route #13 re-trust   -> then OWED_DONE
+    o_m3w  o_irr  o_finit  o_m6t   route #12's one `raises` line + the statements sync
+    o_stmts                        route #18 sync (3886 goals)
+    o_pure2                        route #20 -> pure_ast at HEAD  -> FINAL_DONE
+    o_scf                          route #21 sync (6426 goals)    -> SCF_DONE
+
+Each writes only to `scratchpad/w7/proofs` and TMPDIR; none touches the repo tree.
+
 # HANDOFF ADDENDUM 6 — #43, ROUTE #21, AND THE HEADLINE. **TWENTY-ONE routes enumerated
 # across #33/#34/#43; TWENTY closed. This relaunch found TEN (#12-#21) and closed NINE.**
 # Metric 451 -> 456, every +5 an honest re-trust or an honest new trusted stub.
