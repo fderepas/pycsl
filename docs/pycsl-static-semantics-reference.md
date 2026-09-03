@@ -2286,9 +2286,9 @@ Constructs listed in `annotations.md` §4 are **rejected at parse time**
 (Module2, not Module4). No static semantics rules are needed for them
 since they never produce an AST node.
 
-### 4.0 Constructs REFUSED at IR emission (relaunches #33, #34)
+### 4.0 Constructs REFUSED at IR emission (relaunches #33, #34, #43)
 
-Six Python shapes are now **rejected with a diagnostic** rather than lowered, because
+Twelve Python shapes are now **rejected with a diagnostic** rather than lowered, because
 the lowering that existed for them silently dropped part of the construct. Each refusal
 replaced a fail-OPEN with a fail-CLOSED, and each was CENSUSED over the reference corpus,
 the self-annotation mirror, `src/pycsl_lib` and the live emitter before it landed. Four of
@@ -2297,7 +2297,14 @@ users (0111, 0187, both `pycsl-expected: FAIL`). The `nonlocal` refusal has two 
 the mirror, and they are deliberately NOT refused: both are claimed by a certified bespoke
 lowering before the generic path is reached (see the row for the reason). They are enforced in `frontend/desugar.reject_unmodelled` (run from
 `Module5_IREmitter.generate_json`), `Module3_Weaver.process` /
-`._reject_misplaced_directives`, and `module6_whyml/functions._emit_function_block`.
+`._reject_misplaced_directives`, and `module6_whyml/functions._emit_function_block`. Relaunch #43 adds six more, enforced in
+`Module1_Ingestor.process`, `frontend/desugar.reject_unmodelled`,
+`module6_whyml/expressions._handle_dotted_call`,
+`module6_whyml/statements.{_emit_array_local_reassign,_handle_del_subscript_stmt}` and
+`module6_whyml/functions._reset_function_state`. **Every one of the six was censused over
+BOTH corpora** — `pycsl-reference` (820 emissions) and `python-reference` (2144), the second
+of which `bin/byte-diff-sweep.sh` does not cover; use `scratchpad/w8/pyref_sweep.sh` — and
+every one is byte-inert on both.
 
 | construct | why it is refused | mechanism that would reopen it |
 |---|---|---|
@@ -2307,6 +2314,14 @@ lowering before the generic path is reached (see the row for the reason). They a
 | `try ... except*` (an exception GROUP handler) | `_PY_STMT_HANDLERS` has no `TryStar` entry and `_py_stmts_to_ir` dispatches with no `else`, so the WHOLE statement — body, handlers, `else` and `finally` — vanished. Measured: `try: x = 2 except* ValueError: x = 3` let `ensures \result == 1` be proved SUCCESS while the program returns 2 (emitted body: `x := 1; !x`). | an ExceptionGroup splitting model |
 | a `#@` contract on an `async def` | Module 1 extracts an `AsyncFunctionDef` under the SAME `FunctionDef` anchor as a plain `def`, so the contract IS parsed into `contracts_map` — but `PyCSLWeaver` defines only `visit_FunctionDef` and `PyCSLToJSONEmitter` has no `AsyncFunctionDef` visitor, so the clauses were never attached and the coroutine never reached the IR. Measured: `async def m(self) -> int: return 2` under `ensures \result == 1` printed *All contracts formally proven* over a module that contained no `m` at all. Only CONTRACT-CARRYING coroutines are refused — an uncontracted one claims nothing (11 such definitions in `python-reference`, all nested, all still accepted). | a coroutine (suspension/resumption) model |
 | a closure that WRITES an enclosing local (`nonlocal`) | `ast.Nonlocal` has no `_PY_STMT_HANDLERS` entry and the nested `def` is lifted to a sibling function, so the write lands on a FRESH LOCAL of the sibling and is invisible to the enclosing function. Measured: `nonlocal x; x = 2` under `ensures \result == 1` proved SUCCESS while the program returns 2. Refused in **Module 6's GENERIC emission**, not in `reject_unmodelled` — `generic_fold.py` already models this shape faithfully for two converted mirror methods by pairing the wrapper with its lifted `_walk`, and the front end cannot tell the two paths apart. Module 5 carries the fact as the additive IR field `nonlocal_writes`. `\trusted`/`\abstract` functions are exempt (bodyless `val`). | a closure/captured-cell value model |
+| a `#@` directive inside a statement's CONTINUATION LINES (#43, route 12) | `_Harvester._assign` associates a comment with a target by `bisect` over the targets' START lines, so a comment between a leaf statement's first and last line bisects PAST it; when that statement is the file's last there is no `nxt` at all and the comment is dropped. The end-of-file guards cannot see it — the block does not run to end-of-file, the statement's own continuation lines follow it. Measured: `return (` / `#@ assert 1 == 2` / `2)` proved SUCCESS. Census 0 — **and the census must TOKENIZE**: a line scan reports 95 hits, every one `#@` text inside a docstring. | — (move the directive above the statement) |
+| a MUTATING METHOD CALL on a collection (`xs.reverse()`, `xs.sort()`, `xs.insert()`, `d.clear()`, `s.add()`, …) whose lowering is the generic abstract-op fallback (#43, routes 13/14) | the call becomes an abstract `val` that takes NEITHER the receiver NOR a `writes` clause, so the mutation is not under-claimed — it is ABSENT. The method then satisfies `#@ assigns \nothing`, satisfies the #34 frame-preservation `ensures` (which is checked against the EMITTED body), and re-establishes the class invariant. **This defeats the routes 8/9/10 fix.** Measured on a self field, a local AND a parameter; the parameter form emitted `let function driver`, i.e. Why3 was told the function is PURE. `.append` is untouched — it has a faithful array-local lowering. | a length-carrying, rebindable sequence value model |
+| `self.<field>.append(v)` reaching the array-local SHADOW arm (#43, route 13b) | the append is emitted against a FRESH `Array.make 1024 0` with no write-back, so the field is unchanged in the model. Measured: `#@ ensures \length(self.xs) == 2` proved over a body that appends. The faithful `Seq.snoc` self-field arms sit above it and are untouched. | the same |
+| a Python `assert` reaching a handler that can catch `AssertionError` (#43, route 16) | `assert P` is lowered to `()`. OUTSIDE a handler that is CONSERVATIVE and sound — the model must discharge the postcondition on the path Python aborts. INSIDE a `try` the handler branch is DEAD in the model and is the branch Python takes. Measured lexically and INTERPROCEDURALLY, with `except AssertionError`, a bare `except:` and `except Exception`. Callee exception propagation itself is fine — `raise ValueError` under `except ValueError`/`except Exception` and `1 // 0` under `except ZeroDivisionError` all correctly FAIL. Census 0 over 3565 files / 454 `try` / 1450 `assert`. | `AssertionError` given an explicit trigger in the exception model |
+| `del <list>[i]` and `del` on any non-dict/set receiver (#43, route 17) | the LIST half of WL-05c, left open when the dict half was fixed. Python's list `del` SHIFTS every later element left and SHRINKS the sequence, so the no-op model is wrong about EVERY index, not just the deleted one. Measured: `xs = [1,2,3]; del xs[0]; return xs[0]` proved `\result == 1` while the program returns 2. The DICT half correctly FAILS the analogous probe. | a length-carrying sequence value model with a shift |
+| reassigning an array LOCAL from a non-literal RHS (#43, route 18) | the local is a fixed `Array.make N 0` plus a separate `<name>_len` counter, not a rebindable reference, so the assignment was a NO-OP and every later read was answered from the OLD value. Measured both from a call (`xs = g()`) and as an ALIAS of a parameter (`xs = ys`), the latter proving a specific value for an unconstrained input. | the local promoted to `ref (array int)` |
+| a collection PARAMETER that the function's own contract NAMES, mutated in place inside a `@mutable_state` class (#43, route 19) | the mutation is lowered to a no-op on the grounds that "no contract here reads it" — a claim about the corpus, not a property of the lowering. Measured: `#@ requires 1 not in s` / `#@ ensures 1 not in s` over a body `s.add(1)` proved SUCCESS. The IDENTICAL class without `@mutable_state` is REJECTED outright, so the decorator converted a hard refusal into a silent no-op. The exemption now holds only while its own justification does. | caller-visible collection-parameter frames |
+
 
 `bin/check-dropped-mutation.py` measures the residue of this family and ratchets it.
 
