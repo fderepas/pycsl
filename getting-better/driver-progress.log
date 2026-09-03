@@ -799,3 +799,4 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 03:53 #34: frame-preservation fix LANDED (508c9d28); mirror battery 6/16 done, all rc=0 SUCCESS (struct_format, ConcurrencyChecker, proof2why3/crosscheck, proof2why3/ir, ir_inline, audit_proof_reverify).
 04:18 #34: frame battery 10/16 green (adds proof2why3/parser, module6_whyml/types, Module3_Weaver, Module6_WhyMLTranspiler).
 05:27 #34: frame battery 11/16 green (adds module6_whyml/expressions rc=0). stmt_control_flow + statements in flight.
+06:06 #34: frame battery 13/16 green (adds stmt_control_flow, Module2_Parser). statements + Module5_IREmitter in flight; pure_ast last.
