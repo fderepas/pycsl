@@ -1,3 +1,91 @@
+# HANDOFF ADDENDUM — #43, ROUTE #13: **the biggest find of the relaunch, and it DEFEATED
+# the fix #34 built.** A mutating METHOD CALL on a `self.<field>` collection was erased
+# from the model. 451 -> 454 markers, all three an HONEST RE-TRUST.
+
+## THE ROUTE, REPRODUCED BEFORE ANYTHING WAS CHANGED
+
+    #@ class invariant self.xs[0] == 0
+    @mutable_state
+    class C:
+        #@ assigns self.xs
+        def __init__(self) -> None:  self.xs: List[int] = [0, 7]
+        #@ assigns \nothing
+        def go(self) -> None:        self.xs.reverse()
+        #@ ensures \result == 0                       <-- FALSE OF THE PROGRAM
+        def run(self) -> int:        self.go(); return self.xs[0]
+
+    [+] Verification SUCCESS! All contracts formally proven.        (Python: 7)
+
+emitting `val self_xs_reverse_0 () : int` — **no `self`, no `writes`**. The mutation is
+not under-claimed, it is ABSENT. A second shape: `self.xs.append(9)` emits a write into a
+FRESH `Array.make 1024 0` with no write-back, and proves `#@ ensures \length(self.xs) == 2`
+where Python gives 3. Witnesses **0980** and **0981**, both negative-tested.
+
+**WHY IT MATTERS MORE THAN ROUTES 8/9/10: it defeats their fix.** #34's frame-preservation
+`ensures { self.<f> = old self.<f> }` is checked by Why3 against the EMITTED body — and the
+emitted body no longer contains the write. The clause is true of the model and false of the
+program, and the class invariant is PROVED RE-ESTABLISHED by a method that reverses the list.
+
+**WHY EVERY PLANE MISSED IT.** `check-dropped-mutation.py` classifies `Assign` / `AugAssign`
+/ `AnnAssign` STATEMENTS; a bare `Expr(Call)` mutator is not in its population at all.
+`check-trusted-frame-honesty.py` looks for a write the emitted body does not contain.
+`check-avatar-frame-parity.py` sees a correctly-frameless avatar, because by the model it is.
+The whole-file proof passes because the model is consistent — it is a model of a different
+program. **A gate that reads the EMITTED body cannot see a mutation the emitter deleted.**
+
+## CLOSED, and the refusals are byte-inert
+
+Two refusals, each at the exact point where the mutation disappears:
+`module6_whyml/expressions.py` (the generic abstract-op fallback, gated on
+`not receiver_param and not writes_clause`) and `module6_whyml/statements.py` (the
+array-local shadow arm of `.append`, gated on a `self.` receiver). Corpus **820/820
+byte-identical**, zero refusals — the reference corpus's two `self.<f>.<mut>()` sites are
+both modelled.
+
+## THE THREE MIRROR VICTIMS, and the exact census that found them
+
+`scratchpad/w8/census_selfmut3.py`. **Trust must be decided by the CONTIGUOUS `#@` block
+above the def** — a fixed 10-line window missed `visit_Module` entirely.
+
+  · `audit_proof.AuditReport.extend` — all THREE `self.<f>.extend(...)` absent from the model
+  · `pure_ast._Unparser.write` — the unparser's OUTPUT BUFFER, `writes { }`, in a file
+    proved at 3126 goals
+  · `pure_ast._Unparser.visit_Module` — a trailing `.clear()` left the dict POPULATED.
+    CHEAP REOPENING: the dict is alias-free there, so rewriting live+mirror to
+    `self._type_ignores = {}` restores the conversion with no new capability.
+
+`Module5_IREmitter._collect_final_registry` is NOT a victim — its appends take the faithful
+`Seq.snoc` arm. That is what makes the refusals narrow rather than blanket.
+
+## THE CERTIFIED BOUNDARY UNDER `_Unparser.write` — built, not argued
+
+`#@ assigns self._source` was actually written, and the whole class re-framed from the LIVE
+transitive write set (`scratchpad/w8/propagate_frame.py`; 58 mirror methods widened, 99 of
+107 reach `self._source`). L3-tc then failed one layer out and not on a frame:
+
+    self_interleave_3 (fun () -> (self_write_1 self ...))
+    This function has side effects, it cannot be used as pure
+
+`write` is passed to `interleave` as a FIRST-CLASS CALLBACK. 19 `_Unparser` methods build
+such a lambda, so an honest `write` frame costs ~15 further re-trusts.
+**REOPENING CAPABILITY: a lowering for an effectful higher-order callback.**
+So `write` is `\trusted` with a KNOWN-FALSE `\nothing`, and the frame-honesty ratchets moved
+**trusted total 0 -> 1, converted total 95 -> 94** — the same method relabelled from a
+SILENT false frame to an EXPLICIT reviewed assumption. The dishonesty did not grow; it
+became countable.
+
+## A SEPARATE, LARGE, UNTAKEN LEVER FOUND ON THE WAY
+
+Converting `_Unparser.__init__` (ONE marker, and its `#@ assigns` is already correct)
+upgrades the entire class from the opaque `_pyobj_state` attribute store to a CONCRETE
+RECORD — `type _unparser = { mutable _source: array int; mutable _precedences: ...; ... }` —
+replacing `getattr__unparser self <hash>` with real field projections across 107 methods.
+It currently costs ONE L3-tc error (`_for_helper`'s `writes` over-claims `self._source`,
+because `fill`/`write` declare `\nothing`), i.e. it is blocked by the SAME
+`_Unparser`-frame problem above. **Do this the moment the callback boundary is broken** —
+it is the single largest model upgrade left in the mirror, and 20 of the 21 remaining
+`_Unparser` `\trusted` stubs sit behind it.
+
 # HANDOFF — #43 (2026-09-03, WINDOW 3, relaunch after the #34-#42 `529 Overloaded` outage):
 # **the metric did not move (451) and that is again the right answer. This relaunch found
 # and closed the TWELFTH demonstrated unsoundness, corrected THREE inherited claims that

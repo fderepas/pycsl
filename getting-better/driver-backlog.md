@@ -36,6 +36,25 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ### #43 STATE (2026-09-03, relaunch after the #34-#42 `529 Overloaded` outage) — READ FIRST
 
+**ROUTE #13 (2026-09-03) — THE THIRTEENTH DEMONSTRATED UNSOUNDNESS, AND IT DEFEATED #34's
+FRAME-PRESERVATION FIX.** A mutating METHOD CALL on a `self.<field>` collection
+(`self.xs.reverse()`, `self.xs.append(v)`) was ERASED from the model — a nullary abstract
+`val` with no `self` and no `writes`, or a write into a fresh local array with no
+write-back. The method then satisfied `#@ assigns \nothing`, satisfied the emitted
+`ensures { self.<f> = old self.<f> }` (checked against the EMITTED body, which no longer
+contains the write), and RE-ESTABLISHED the class invariant. Witnesses 0980/0981, both
+negative-tested. CLOSED by two narrow refusals; corpus 820/820 byte-identical.
+Three mirror victims honestly re-`\trusted` (451 -> 454). See the handoff for the
+`_Unparser.write` CERTIFIED BOUNDARY (an effectful function passed as a first-class
+callback to `interleave`) and for the large untaken `_Unparser.__init__` record-model lever.
+
+**NEW LADDER ITEM (largest model upgrade left in the mirror): break the effectful
+higher-order callback boundary, then convert `_Unparser.__init__`.** One marker gives the
+whole class a CONCRETE RECORD instead of the opaque `_pyobj_state` store; 20 of the 21
+remaining `_Unparser` `\trusted` stubs sit behind it, as does the honest frame for 99 of
+its 107 methods.
+
+
 **THREE ITEMS THE INHERITED LADDER LISTED AS OPEN ARE CLOSED, AND ITS FIRST INSTRUCTION WAS
 WRONG.** Verified from disk, each in one command:
   · `nonlocal_writes` + the Module 6 generic refusal — **LANDED** (`Module5_IREmitter.py`
