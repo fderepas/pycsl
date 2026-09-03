@@ -250,6 +250,23 @@ FULL BATTERY AT HEAD, `why3` on PATH:
   · **IR conformance: BOTH corpora pass** (was 0 OK / 38 MISMATCH at window start)
   · doc-coherency OK · tree clean · no prover process running
 
+**THE PROJECT'S OWN FULL SUITE, run as a closing integration check: `877/900`.** All 23
+failures are PRE-EXISTING and that is established two ways, not assumed: (a) corpus
+byte-diff 0 means every one of those tests' `.mlw` is BYTE-IDENTICAL to the window-start
+tree, so its verdict cannot have changed; and (b) the 0211-0226 block was re-run at
+`e4d0a209` in a clean worktree and fails identically (5/16 passed there too). **All four of
+this window's witnesses PASS**, as does #32's `0968`. Worth knowing for #34: at
+`e4d0a209` the suite did not even reach the tests — it exited on the dead IR-conformance
+gate, which this window restored.
+
+A HARNESS BUG WAS FOUND BY THAT RUN AND FIXED: `run-reference-tests.sh` derived
+`file_num` with `sed 's/^0*//'` alone, so a descriptively-named test left a non-numeric
+token in an ARITHMETIC comparison — 46 lines of bash noise per run, and the comparison
+ERRORS OUT rather than evaluating, so `--start-at`/`--stop-at` silently stopped filtering
+exactly the tests whose names say what they test (everything from `0925` onward). One
+`sed` stops at the first non-digit; `--start-at 968 --stop-at 972` now selects 5 tests,
+5/5 pass, zero warnings.
+
 ## WHERE THE LADDER STANDS FOR #34
 
 1. **`avatar-frame-parity` INHERITED 7 -> lower.** Three named routes, all measured:
