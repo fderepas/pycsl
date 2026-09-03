@@ -1,0 +1,19 @@
+[!] DRIFT in module6_whyml/expr_ghost_collections.py:
+    ++ un-trusted mirror def not in source: func GhostCollectionOpsMixin._deref (2 params)
+[!] DRIFT in module6_whyml/statements.py:
+    ++ un-trusted mirror def not in source: class ValIRBoolView (0 params)
+    ++ un-trusted mirror def not in source: func StatementEmissionMixin._array_coerce_arg (1 params)
+    ++ un-trusted mirror def not in source: func StatementEmissionMixin._dv_store_value (3 params)
+    ++ un-trusted mirror def not in source: func StatementEmissionMixin._field_label (3 params)
+    ++ un-trusted mirror def not in source: func StatementEmissionMixin._field_type_for (3 params)
+    ++ un-trusted mirror def not in source: func StatementEmissionMixin._field_type_of (2 params)
+    ++ un-trusted mirror def not in source: func StatementEmissionMixin._first_assign_kind (3 params)
+    ++ un-trusted mirror def not in source: func StatementEmissionMixin._resolve_effective_ghost_type (4 params)
+    ++ ... and 4 more
+[!] DRIFT in module6_whyml/stmt_control_flow.py:
+    ++ un-trusted mirror def not in source: class BoolWrapIRView (0 params)
+    ++ un-trusted mirror def not in source: func ControlFlowStmtMixin._bool_ir_to_int_wrap (3 params)
+    ++ un-trusted mirror def not in source: func ControlFlowStmtMixin._materialize_bridge (1 params)
+    ++ un-trusted mirror def not in source: func ControlFlowStmtMixin._materialize_str_bridge (1 params)
+[!] mirror-check: 3 mirror(s) drifted.
+    Run: ./bin/self-annotate-stub-gen.py src/pycsl/<file> src/self-annotate/src/<file>

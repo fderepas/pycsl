@@ -2286,9 +2286,9 @@ Constructs listed in `annotations.md` §4 are **rejected at parse time**
 (Module2, not Module4). No static semantics rules are needed for them
 since they never produce an AST node.
 
-### 4.0 Constructs REFUSED at IR emission (relaunch #33)
+### 4.0 Constructs REFUSED at IR emission (relaunches #33, #34)
 
-Three Python shapes are now **rejected with a diagnostic** rather than lowered, because
+Five Python shapes are now **rejected with a diagnostic** rather than lowered, because
 the lowering that existed for them silently dropped part of the construct. Each refusal
 replaced a fail-OPEN with a fail-CLOSED, and each was measured to have ZERO occurrences in
 the reference corpus, the self-annotation mirror, `src/pycsl_lib` and the live emitter
@@ -2300,6 +2300,8 @@ before it landed. They are enforced in `frontend/desugar.reject_unmodelled` (run
 | `for ... else:` / `while ... else:` | `_process_for` reads `target`/`iter`/`body` and `_process_while` reads `test`/`body`; neither reads `orelse`. The clause runs exactly when the loop finished WITHOUT `break`, so dropping it removes a whole reachable path from the model. | a break-flag lowering |
 | `x[lo:hi:step]` (extended slice) | the lowering is `Array.sub x lo (hi - lo)`, which ignores the step, so the model carries a sequence of a DIFFERENT length with DIFFERENT elements. Measured: `ys = xs[1:4:2]` let `\result == xs[1] + xs[2]` be proved, while the program returns `xs[1] + xs[3]`. | a strided-copy value model |
 | a `#@` contract block with nothing after it to attach to | an annotation block binds to the node that FOLLOWS it. A block with no follower was silently discarded while the run still printed *All contracts formally proven* — a contract the author wrote that was never checked, under a message asserting the opposite. Statement-level directives (`assert`, `assume`, `ghost`, `loop ...`, `label`, `reveal`, `unfold`, `havoc`) are exempt: a trailing `#@ assert` IS the last statement of a body. | — (move the block above its `def`/`class`) |
+| `try ... except*` (an exception GROUP handler) | `_PY_STMT_HANDLERS` has no `TryStar` entry and `_py_stmts_to_ir` dispatches with no `else`, so the WHOLE statement — body, handlers, `else` and `finally` — vanished. Measured: `try: x = 2 except* ValueError: x = 3` let `ensures \result == 1` be proved SUCCESS while the program returns 2 (emitted body: `x := 1; !x`). | an ExceptionGroup splitting model |
+| a `#@` contract on an `async def` | Module 1 extracts an `AsyncFunctionDef` under the SAME `FunctionDef` anchor as a plain `def`, so the contract IS parsed into `contracts_map` — but `PyCSLWeaver` defines only `visit_FunctionDef` and `PyCSLToJSONEmitter` has no `AsyncFunctionDef` visitor, so the clauses were never attached and the coroutine never reached the IR. Measured: `async def m(self) -> int: return 2` under `ensures \result == 1` printed *All contracts formally proven* over a module that contained no `m` at all. Only CONTRACT-CARRYING coroutines are refused — an uncontracted one claims nothing (11 such definitions in `python-reference`, all nested, all still accepted). | a coroutine (suspension/resumption) model |
 
 `bin/check-dropped-mutation.py` measures the residue of this family and ratchets it.
 
