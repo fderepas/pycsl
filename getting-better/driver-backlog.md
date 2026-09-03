@@ -34,6 +34,84 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #34 STATE UPDATE (2026-09-03) — READ BEFORE PICKING AN ITEM
+
+**THE SILENT-DROP AUDIT IS STILL THE HIGHEST-YIELD WORK, AND MODULE 3's `#@` ATTACHMENT
+(#33's ladder item 5) WAS THE RICHEST SURFACE YET.** Six routes, every one of which printed
+`[+] Verification SUCCESS! All contracts formally proven.` over a directive or a statement
+it had thrown away:
+
+| route | shown by | closed how |
+|---|---|---|
+| `try ... except*` dropped ENTIRELY | `ensures \result == 1`, Python returns 2 | REFUSED (`desugar.reject_unmodelled`) |
+| a `#@` contract on an `async def` discarded | `ensures \result == 1`, method returns 2, module emitted EMPTY | REFUSED (`Module3_Weaver.process`) |
+| `#@` above `if`/`try`/`except*`/`match` never anchored | `#@ assert 1 == 2` above an `if` proved SUCCESS | ANCHORED (`Module1_Ingestor._make`) |
+| `#@` in decorator whitespace dropped | mirror `_heap_var`'s whole contract | ATTACHED to the decorated def |
+| a directive on an anchor that ignores it | `#@ assert 1 == 2` above a `def` / a `class`; `#@ ensures 1 == 2` on a `while` | REFUSED (`_reject_misplaced_directives`) |
+| `nonlocal` dropped | `ensures \result == 1`, Python returns 2 | **STILL OPEN — see below** |
+
+**LIVE VICTIMS FOUND, all repaired:** two `#@ assert self.i > \old(self.i)` in the mirror's
+own `pure_ast._Parser.import_from` (2 of 6 staged monotonicity checkpoints, in the file
+proved at 3103 goals); four `#@ assert` in `src/pycsl_lib`; the mirror's
+`Module6_WhyMLTranspiler._heap_var` contract; TWO `#@ class invariant` in
+`pycsl_lib/re/_engine.py` that landed on `__init__`, so `ReMatch` had NO invariant at all;
+an `#@ assigns` + three `#@ ensures` in `pycsl_lib/os/UnixInodeFileSystem._pad_name` whose
+own source comment claimed they were "surfaced as top-level ensures"; and `#@ ghost
+total += 1` in corpus 0208 — which is EXACTLY why 0208 was `pycsl-expected: FAIL`. It now
+PROVES.
+
+**THE #1 OPEN ITEM: `nonlocal` IS AN UNCLOSED DEMONSTRATED UNSOUNDNESS.**
+
+```
+    #@ ensures \result == 1              <-- FALSE OF THE PROGRAM
+    def outer() -> int:
+        x: int = 1
+        def inner() -> None:
+            nonlocal x
+            x = 2
+        inner()
+        return x
+    [+] Verification SUCCESS! All contracts formally proven.
+```
+`ast.Nonlocal` has no `_PY_STMT_HANDLERS` entry, so the declaration is dropped; the nested
+`def` is LIFTED to a sibling top-level function, and its `x = 2` becomes a write to a FRESH
+LOCAL. Emitted: `let inner () : unit = let x = ref 0 in x := 2`. Python returns 2.
+
+**WHY IT IS NOT CLOSED BY A REFUSAL, and this is the load-bearing fact for whoever takes
+it:** `desugar.reject_unmodelled` would refuse the two CONVERTED mirror methods
+`module6_whyml/preamble._inductive_refs_global_or_axiom_func` and
+`._class_inv_refs_axiom_func`, both of which are `hit = False` / nested `def _walk` /
+`nonlocal hit` existence walks. And those two are NOT victims: `generic_fold.py` already
+carries HAND-SYNTHESIZED BESPOKE lowerings for exactly this shape that "pair the OUTER
+wrapper with its lifted `_walk` sibling" (grep `_class_inv_refs_axiom_func` in
+`module6_whyml/generic_fold.py`). So the generic path is unsound and the bespoke path is
+not, and a frontend refusal cannot tell them apart — a LAYERING problem, not a modelling
+one. Rewriting the two methods to a returning-`bool` `_walk` is NOT the cheap way out
+either: the bespoke recognizers match an exact statement shape ("5-stmt", "8-stmt",
+fail-closed) and would stop matching.
+
+**NAMED REOPENING CAPABILITY (COST/SCALE, not a floor — a funded window pays it):** carry
+the fact into the IR. Module 5 records the closure's captured-and-WRITTEN names on the
+lifted function's IR (`"nonlocal_writes": [...]`, emitted only when non-empty, so the IR
+change is ADDITIVE and the frozen goldens do not move); Module 6's GENERIC function
+emission refuses when that list is non-empty, while a bespoke recognizer that claims the
+function may proceed. That puts the refusal at the layer that knows which model is in play.
+CENSUS for the eventual refusal: 2 in the mirror (both bespoke-modelled, both must be
+allowed), 1 in `python-reference/0182` (ALREADY `pycsl-expected: FAIL`), 0 in
+`pycsl-reference`, 0 in `src/pycsl_lib`, 3 in the live emitter.
+
+**SWEPT AND CLEAN (do not re-derive):** the `match` surface. `_py_stmt_match` reads
+`subject`, and per case `pattern`, `guard` AND `body` — no dropped field. A MAPPING pattern
+(`case {"a": 1}`) is a LOUD `unsupported` in `pure_ast`, and a KEYWORD class pattern
+(`case Ctor(x=0)`) is a LOUD syntax error, so `_match_pattern_to_ir`'s hard-coded
+`kwd_attrs=[]` can never silently drop a constraint. `global` is modelled
+(`module_collect` collects `written_via_global`); `import`/`import from`/`type X = ...`/a
+nested `class`/a nested `def` inside a body are dropped as STATEMENTS but each was probed
+with a false contract and each is INERT (the surrounding mutation survives, and a nested
+`def` is separately lifted and verified).
+
+---
+
 ### #33 STATE UPDATE (2026-09-02) — READ BEFORE PICKING AN ITEM
 
 **THE HIGHEST-YIELD WORK IN THIS CAMPAIGN IS NO LONGER MARKER CONVERSION. IT IS THE
