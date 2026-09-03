@@ -6391,20 +6391,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # REOPENING CAPABILITY: a faithful list/dict/set MUTATOR model for a self field —
         # for `array int` fields that means carrying the length as part of the field model,
         # which is the same capability the `\length`-of-a-self-field work needs.
+        # (#43) ROUTE #14 — THE SAME ERASURE ON EVERY OTHER RECEIVER. The `self.<field>`
+        # restriction this guard was first written with was far too narrow. MEASURED, on a
+        # plain LOCAL and on a PARAMETER (corpus 0982/0983), each printing SUCCESS:
+        #     xs: List[int] = [0, 7]; xs.reverse();        return xs[0]   # Python 7
+        #     xs: List[int] = [0, 7]; xs.sort(reverse=True); return xs[0] # Python 7
+        #     xs: List[int] = [0, 7]; xs.insert(0, 9);      return xs[0]  # Python 9
+        #     def driver(ys: List[int]) -> int: ys.reverse(); return ys[0]  # Python 7
+        # each under `#@ ensures \result == 0`, emitting `val xs_reverse_0 () : int` and
+        # leaving the array untouched. So the guard keys on the CALL'S LOWERING, not on the
+        # receiver: a mutator whose abstract op takes neither the receiver nor a `writes`
+        # clause has had its effect deleted, wherever the receiver came from.
         if (not receiver_param and not writes_clause
-                and func_name.startswith("self.")
-                and func_name.count(".") == 2
+                and "." in func_name
                 and func_name.rsplit(".", 1)[1] in _SELF_FIELD_MUTATORS):
             raise PyCSLIRError(
-                "`" + func_name + "(...)` MUTATES the collection in the field `"
-                + func_name.split(".")[1] + "`, and no certified lowering models it: the "
-                "call becomes an abstract operation that does not take `self` and declares "
-                "no `writes`, so the mutation would be SILENTLY ABSENT from the model "
+                "`" + func_name + "(...)` MUTATES its receiver in place, and no certified "
+                "lowering models it: the call becomes an abstract operation that takes "
+                "NEITHER the receiver NOR a `writes` clause, so the mutation would be "
+                "SILENTLY ABSENT from the model "
                 "while the run still reported 'All contracts formally proven' — the "
                 "method would satisfy `#@ assigns \\nothing`, satisfy its emitted "
                 "frame-preservation `ensures`, and re-establish the class invariant. "
-                "Rewrite the mutation as an indexed store (`self." + func_name.split(".")[1]
-                + "[i] = v`), or mark the method `#@ \\trusted`.")
+                "Rewrite the mutation as an indexed store (`"
+                + func_name.rsplit(".", 1)[0] + "[i] = v`), or mark the enclosing "
+                "function `#@ \\trusted`.")
         if n == 0 and not receiver_param:
             self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
             _call = f"({arity_name} ())"
