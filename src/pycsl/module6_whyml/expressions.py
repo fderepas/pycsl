@@ -5,6 +5,16 @@ import dataclasses
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from module6_whyml.identifiers import op_translate, whyml_ident, stable_hash, whyml_string_literal
+from errors import PyCSLIRError
+
+# (#43) route #13: the collection methods that MUTATE their receiver in place. A call to
+# one of these on a `self.<field>` receiver that reaches the generic abstract-op fallback
+# is refused — see the comment at the refusal site.
+_SELF_FIELD_MUTATORS = frozenset((
+    "append", "extend", "insert", "remove", "pop", "clear", "sort", "reverse",
+    "update", "popitem", "setdefault", "add", "discard",
+    "intersection_update", "difference_update", "symmetric_difference_update",
+))
 from ir_schema import (
     expr_from_dict, _expr_from_dict_inner, OpaqueExpr, IR_TAG_ALIASES,
     NumberExpr, StringExpr, ResultExpr, NoneExpr, RawWhymlExpr, BoolExpr,
@@ -6356,6 +6366,45 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             in getattr(self, "_module_method_noreturn", set()))
         if _nr_callee:
             ensures_suffix = ensures_suffix + "\n    ensures { false }"
+        # (#43) ROUTE #13 — A MUTATING METHOD CALL ON A `self.<field>` COLLECTION IS
+        # ERASED, AND THE ERASURE DEFEATS THE #34 FRAME-PRESERVATION FIX. Reaching this
+        # point means no recognizer modelled the call, so it becomes an abstract `val`.
+        # When there is no `receiver_param` AND no `writes_clause`, that val does not even
+        # take `self`: the mutation is not under-claimed, it is ABSENT. The method then
+        # satisfies `#@ assigns \nothing`, satisfies the emitted
+        # `ensures { self.<f> = old self.<f> }` (which is checked against the EMITTED body,
+        # and the emitted body no longer contains the write), and RE-ESTABLISHES the class
+        # invariant. MEASURED, before this refusal (corpus 0980):
+        #     #@ class invariant self.xs[0] == 0
+        #     def go(self) -> None:  self.xs.reverse()      # `#@ assigns \nothing`
+        #     #@ ensures \result == 0                       <-- FALSE OF THE PROGRAM
+        #     def run(self) -> int:  self.go(); return self.xs[0]
+        #     [+] Verification SUCCESS! All contracts formally proven.     (Python: 7)
+        # emitting `val self_xs_reverse_0 () : int` and `let c__go ... writes { }`.
+        # FAIL-CLOSED AND NARROW: it fires only on the GENERIC abstract-op fallback, only
+        # for a `self.<field>.<mutator>` receiver, and only when the op carries NEITHER a
+        # receiver parameter NOR a `writes` clause — every call a recognizer models, and
+        # every abstract op that does take the receiver and declare its writes, is
+        # untouched. CENSUS: 0 in the 819-file reference corpus (2 sites, both modelled);
+        # the mirror's own victims are `audit_proof.AuditReport.extend` and
+        # `pure_ast._Unparser.write`, both re-`\trusted` with this change.
+        # REOPENING CAPABILITY: a faithful list/dict/set MUTATOR model for a self field —
+        # for `array int` fields that means carrying the length as part of the field model,
+        # which is the same capability the `\length`-of-a-self-field work needs.
+        if (not receiver_param and not writes_clause
+                and func_name.startswith("self.")
+                and func_name.count(".") == 2
+                and func_name.rsplit(".", 1)[1] in _SELF_FIELD_MUTATORS):
+            raise PyCSLIRError(
+                "`" + func_name + "(...)` MUTATES the collection in the field `"
+                + func_name.split(".")[1] + "`, and no certified lowering models it: the "
+                "call becomes an abstract operation that does not take `self` and declares "
+                "no `writes`, so the mutation would be SILENTLY ABSENT from the model "
+                "while the run still reported 'All contracts formally proven' — the "
+                "method would satisfy `#@ assigns \\nothing`, satisfy its emitted "
+                "frame-preservation `ensures`, and re-establish the class invariant. "
+                "Rewrite the mutation as an indexed store (`self." + func_name.split(".")[1]
+                + "[i] = v`), or mark the method `#@ \\trusted`.")
         if n == 0 and not receiver_param:
             self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
             _call = f"({arity_name} ())"

@@ -43,13 +43,18 @@ class AuditReport:
     def exit_code(self) -> int:
         return 1 if self.failures else 0
 
+    # (#43) RE-`\trusted` BY ROUTE #13. The three `self.<f>.extend(...)` calls lowered to
+    # nullary abstract ops (`val self_passes_extend_1 (x0: int) : int`) that do not take
+    # `self` and declare no `writes`, so ALL THREE mutations were ABSENT from the model
+    # while this method was emitted, verified and counted as converted. An honest
+    # `\trusted` assumption of the frame it really has, until a faithful list-mutator
+    # model for a self field exists.
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.failures, self.passes, self.skips
     def extend(self, other: "AuditReport") -> None:
-        self.passes.extend(other.passes)
-        self.failures.extend(other.failures)
-        self.skips.extend(other.skips)
+        pass
 
 
 # ---------------------------------------------------------------------------

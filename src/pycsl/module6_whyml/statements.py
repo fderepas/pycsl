@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from module6_whyml.identifiers import op_translate, whyml_ident, safe_mutex_name, safe_exc_name, stable_hash, whyml_string_literal
 from module6_whyml.ir_scanner import IRScanner
+from errors import PyCSLIRError
 from module6_whyml.stmt_control_flow import ControlFlowStmtMixin
 
 from ir_schema import (
@@ -2427,6 +2428,37 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                 arg = f"(IrOSome {self._expr_to_whyml(_aiv, local_refs)})"
                         code = f"{indent}{safe_arr} := Seq.snoc !{safe_arr} {arg}"
                     else:
+                        # (#43) ROUTE #13b — THE SHADOW-LOCAL FORM OF THE SAME ERASURE.
+                        # This arm grows an ARRAY LOCAL (`arr[!arr_len] <- v; arr_len += 1`),
+                        # which is faithful for a local but NOT for a `self.<field>`
+                        # receiver: the local is a FRESH `Array.make 1024 0` with no
+                        # write-back, so `self.<field>` is untouched in the model. The
+                        # faithful self-field arm is the `Seq.snoc` branch above
+                        # (`_pyval_seq_append_targets` / the `@mutable_state` list-field
+                        # seq); reaching HERE with a `self.` receiver means none of them
+                        # matched. MEASURED, before this refusal (corpus 0981):
+                        #     #@ class invariant \length(self.xs) == 2
+                        #     #@ ensures \length(self.xs) == 2   <-- FALSE OF THE PROGRAM
+                        #     #@ assigns \nothing
+                        #     def go(self) -> None:  self.xs.append(9)
+                        #     [+] Verification SUCCESS! All contracts formally proven.
+                        # (Python: len becomes 3.) The emitted body was
+                        #     let self_xs = Array.make 1024 0 in
+                        #     let self_xs_len = ref 0 in
+                        #     self_xs[!self_xs_len] <- 9; ...
+                        if func.startswith("self.") and func.count(".") == 2:
+                            raise PyCSLIRError(
+                                "`" + func + "(...)` appends to the collection in the "
+                                "field `" + func.split(".")[1] + "`, and no certified "
+                                "lowering models it: the append is emitted against a FRESH "
+                                "LOCAL array with no write-back, so `self."
+                                + func.split(".")[1] + "` would be UNCHANGED in the model "
+                                "while the run still reported 'All contracts formally "
+                                "proven' — the method would satisfy `#@ assigns "
+                                "\\nothing`, satisfy its emitted frame-preservation "
+                                "`ensures`, and re-establish a `\\length` class "
+                                "invariant. Rewrite it as an indexed store, or mark the "
+                                "method `#@ \\trusted`.")
                         len_ref = f"{safe_arr}_len"
                         code = f"{indent}{safe_arr}[!{len_ref}] <- {arg};\n{indent}{len_ref} := !{len_ref} + 1"
             elif (func.endswith(".extend") and self._value_semantic

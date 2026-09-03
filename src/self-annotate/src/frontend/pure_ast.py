@@ -4289,12 +4289,17 @@ class _Unparser(NodeVisitor):
         self.maybe_newline()
         self.write("    " * self._indent + text)
 
-    #@ sibling_concrete
+    # (#43) RE-`\trusted` BY ROUTE #13, AND ITS FRAME CORRECTED FROM A LIE. The body
+    # `self._source.extend(text)` lowered to `val self__source_extend_1 (x0: seq int)` —
+    # no `self`, no `writes` — so the emitted method was `writes { }`: the UNPARSER'S
+    # OUTPUT BUFFER never changed in a file proved at 3126 goals, and the
+    # `#@ assigns \nothing` that described it was false of the program.
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def write(self, *text):
-        self._source.extend(text)
+        pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -4398,16 +4403,21 @@ class _Unparser(NodeVisitor):
     def _write_docstring_and_traverse_body(self, node):
         pass
 
+    # (#43) RE-`\trusted` BY ROUTE #13. The trailing `self._type_ignores.clear()` lowered
+    # to `val self__type_ignores_clear_0 () : int` — no `self`, no `writes` — so the model
+    # left the dict POPULATED where the program empties it. The declared frame is honest
+    # and unchanged; what was wrong was the BODY the model stood for. CHEAP REOPENING:
+    # `self._type_ignores.clear()` here is provably alias-free (the dict is constructed
+    # four lines above and never escapes), so rewriting BOTH the live body and this mirror
+    # to `self._type_ignores = {}` — an assignment, which IS modelled — restores the
+    # conversion without any new capability. Not taken here because it edits the live
+    # parser to suit the model rather than the other way round.
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._type_ignores
     def visit_Module(self, node):
-        self._type_ignores = {
-            ignore.lineno: f"ignore{ignore.tag}"
-            for ignore in node.type_ignores
-        }
-        self._write_docstring_and_traverse_body(node)
-        self._type_ignores.clear()
+        pass
 
     #@ requires True
     #@ ensures True
