@@ -52,7 +52,15 @@ class ConcurrencyChecker:
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # (#34) HONEST FRAME. This declared `\nothing` while its only statement calls
+    # `self._walk_stmt`, which declares `#@ assigns self.warnings` — and `warnings` IS a
+    # label of this file's emitted record, so the under-claim was MODEL-VISIBLE: every
+    # caller-side abstract `val` minted from this contract asserted that `warnings` is
+    # unchanged across the call. Found twice independently: by putting the declared frame
+    # on the concrete `let` (Why3: "this expression produces an unlisted write effect")
+    # and by widening `check-trusted-frame-honesty.py`'s MODEL-VISIBLE predicate from
+    # "`@mutable_state` class" to "the EMITTED record declares the field".
+    #@ assigns self.warnings
     def _walk_body(self, stmts: list, held: int, func_name: str) -> None:
         for stmt in stmts:
             self._walk_stmt(stmt, held, func_name)

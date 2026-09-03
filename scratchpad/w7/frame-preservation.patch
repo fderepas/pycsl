@@ -63,3 +63,31 @@ index 51491e5d..dafdac7c 100644
                  class_invs = td.get("class_invariants", [])
                  if class_invs:
                      # PRE-PASS (contract self-field subscript projection): register
+diff --git a/test-suite/corpus/pycsl-reference/0721.py b/test-suite/corpus/pycsl-reference/0721.py
+index 726e593b..a5c93489 100644
+--- a/test-suite/corpus/pycsl-reference/0721.py
++++ b/test-suite/corpus/pycsl-reference/0721.py
+@@ -20,6 +20,9 @@ class Bank:
+         return amount                          # guarded op — assumes the capability
+ 
+     #@ requires True
++    # (#34) HONEST FRAME: this method writes `self.session_authenticated`, and a method
++    # with NO `#@ assigns` at all was assumed by callers to write nothing.
++    #@ assigns self.session_authenticated
+     def handle(self, amount: int) -> int:
+         self.session_authenticated = 1         # grant AFTER (mock) token validation
+         return self.transfer(amount)           # call-site precond `session_authenticated==1` holds
+diff --git a/test-suite/corpus/pycsl-reference/0723.py b/test-suite/corpus/pycsl-reference/0723.py
+index bbb98fdb..a4cfa2c9 100644
+--- a/test-suite/corpus/pycsl-reference/0723.py
++++ b/test-suite/corpus/pycsl-reference/0723.py
+@@ -29,6 +29,9 @@ class Bank:
+     #@ requires s != r
+     #@ requires amount > 0
+     #@ requires self.audit_len < 1024
++    # (#34) HONEST FRAME: this method writes `self.audit_len` (and the two array fields),
++    # and a method with NO `#@ assigns` at all was assumed by callers to write nothing.
++    #@ assigns self.balance, self.audit, self.audit_len
+     def transfer(self, s: int, r: int, amount: int) -> int:
+         if self.balance[s] < amount:
+             return -1
