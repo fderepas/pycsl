@@ -1,0 +1,206 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/audit_proof_reverify.py'...
+[*] Memory model: hoare
+[*] Import 'pathlib.Path': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Imported from 'proof_axiom_allowlist': ['is_lean_axiom_allowed', 'is_rocq_assumption_allowed', 'parse_lean_axioms_line', 'parse_rocq_assumptions_block'] (trusted stubs)
+[*] Import 'hashlib.sha256': external module, no local source found — skipping
+[*] Imported from 'json': ['loads', 'dumps'] (trusted stubs, module-qualified)
+[*] Import 'subprocess.run': external module, no local source found — skipping
+[*] Import 'time.monotonic': external module, no local source found — skipping
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 33, characters 7-14:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 814 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 33, characters 34-41:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 1005 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 33, characters 51-58:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 1018 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 32, characters 14-79:
+Sub-goal postcondition of goal pycsl_div'vc.
+Prover result is: Valid (0.02s, 19 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 38, characters 7-14:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 814 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 38, characters 34-41:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 1005 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 38, characters 51-58:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 1018 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 37, characters 14-79:
+Sub-goal postcondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.01s, 10848 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 111, characters 15-19:
+Sub-goal postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 808 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 112, characters 15-44:
+Sub-goal postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 809 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 113, characters 15-52:
+Sub-goal postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 810 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 114, characters 15-60:
+Sub-goal postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 811 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 115, characters 15-60:
+Sub-goal postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 812 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 116, characters 15-66:
+Sub-goal postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.01s, 813 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 117, characters 15-52:
+Sub-goal postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 814 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 118, characters 15-44:
+Sub-goal postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.01s, 815 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 124, characters 31-47:
+Sub-goal array creation size of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 816 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 111, characters 15-19:
+Sub-goal postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1130 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 112, characters 15-44:
+Sub-goal postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1131 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 113, characters 15-52:
+Sub-goal postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1132 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 114, characters 15-60:
+Sub-goal postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1133 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 115, characters 15-60:
+Sub-goal postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1134 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 116, characters 15-66:
+Sub-goal postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1135 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 117, characters 15-52:
+Sub-goal postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1136 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 118, characters 15-44:
+Sub-goal postcondition of goal reverifyreport__ok'vc.
+Prover result is: Valid (0.00s, 1137 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 50, characters 20-24: unused variable path
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 52, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 54, characters 18-28: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 54, characters 39-48: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 54, characters 65-71: unused variable prover
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 54, characters 82-96: unused variable prover_version
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 56, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 58, characters 19-31: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 60, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 64, characters 13-14: unused variable s
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 67, characters 19-31: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 67, characters 42-48: unused variable prover
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 67, characters 59-62: unused variable key
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 69, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 73, characters 20-32: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 73, characters 43-49: unused variable prover
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 73, characters 60-63: unused variable key
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 73, characters 74-81: unused variable payload
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 79, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 83, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 85, characters 37-43: unused variable stdout
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 85, characters 54-63: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 87, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 89, characters 25-31: unused variable report
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 91, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 93, characters 29-33: unused variable name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 95, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 97, characters 34-38: unused variable name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 99, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 101, characters 30-34: unused variable line
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 103, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 105, characters 36-41: unused variable block
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 107, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 111, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 128, characters 31-35: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 130, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 132, characters 24-34: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 132, characters 45-54: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 132, characters 71-83: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 132, characters 94-103: unused variable use_cache
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 134, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 136, characters 24-34: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 136, characters 45-54: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 136, characters 71-83: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 136, characters 94-103: unused variable use_cache
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 138, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 50, characters 20-24: unused variable path
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 52, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 54, characters 18-28: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 54, characters 39-48: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 54, characters 65-71: unused variable prover
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 54, characters 82-96: unused variable prover_version
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 56, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 58, characters 19-31: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 60, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 64, characters 13-14: unused variable s
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 67, characters 19-31: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 67, characters 42-48: unused variable prover
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 67, characters 59-62: unused variable key
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 69, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 73, characters 20-32: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 73, characters 43-49: unused variable prover
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 73, characters 60-63: unused variable key
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 73, characters 74-81: unused variable payload
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 79, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 83, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 85, characters 37-43: unused variable stdout
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 85, characters 54-63: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 87, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 89, characters 25-31: unused variable report
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 91, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 93, characters 29-33: unused variable name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 95, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 97, characters 34-38: unused variable name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 99, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 101, characters 30-34: unused variable line
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 103, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 105, characters 36-41: unused variable block
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 107, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 111, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 128, characters 31-35: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 130, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 132, characters 24-34: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 132, characters 45-54: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 132, characters 71-83: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 132, characters 94-103: unused variable use_cache
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 134, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 136, characters 24-34: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 136, characters 45-54: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 136, characters 71-83: unused variable project_root
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 136, characters 94-103: unused variable use_cache
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_jator_9z.mlw", line 138, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

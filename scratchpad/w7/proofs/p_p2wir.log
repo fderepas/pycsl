@@ -1,0 +1,200 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/proof2why3/ir.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 61, characters 53-77:
+Sub-goal variant decrease of goal pp_term__joinstr'vc.
+Prover result is: Valid (0.00s, 3168 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 66, characters 179-209:
+Sub-goal variant decrease of goal pp_term'vc.
+Prover result is: Valid (0.01s, 27511 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 67, characters 155-170:
+Sub-goal variant decrease of goal pp_term'vc.
+Prover result is: Valid (0.01s, 26420 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 67, characters 66-81:
+Sub-goal variant decrease of goal pp_term'vc.
+Prover result is: Valid (0.01s, 26780 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 69, characters 218-234:
+Sub-goal variant decrease of goal pp_term'vc.
+Prover result is: Valid (0.01s, 26774 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 70, characters 218-234:
+Sub-goal variant decrease of goal pp_term'vc.
+Prover result is: Valid (0.01s, 26725 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 72, characters 101-116:
+Sub-goal variant decrease of goal pp_term'vc.
+Prover result is: Valid (0.01s, 26793 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 80, characters 20-29:
+Sub-goal variant decrease of goal pp_term__joinargs'vc.
+Prover result is: Valid (0.00s, 5902 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 81, characters 63-88:
+Sub-goal variant decrease of goal pp_term__joinargs'vc.
+Prover result is: Valid (0.00s, 5936 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 81, characters 32-43:
+Sub-goal variant decrease of goal pp_term__joinargs'vc.
+Prover result is: Valid (0.00s, 5951 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 84, characters 32-36:
+Sub-goal postcondition of goal app__pp'vc.
+Prover result is: Valid (0.00s, 2017 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 87, characters 32-36:
+Sub-goal postcondition of goal binop__pp'vc.
+Prover result is: Valid (0.00s, 2017 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 91, characters 15-19:
+Sub-goal postcondition of goal boollit__pp'vc.
+Prover result is: Valid (0.00s, 800 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 92, characters 15-58:
+Sub-goal postcondition of goal boollit__pp'vc.
+Prover result is: Valid (0.00s, 801 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 97, characters 32-36:
+Sub-goal postcondition of goal exists__pp'vc.
+Prover result is: Valid (0.00s, 2017 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 101, characters 47-77:
+Sub-goal variant decrease of goal flatten_arrow_chain__app'vc.
+Prover result is: Valid (0.00s, 5902 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 108, characters 13-111:
+Sub-goal variant decrease of goal flatten_arrow_chain__go'vc.
+Prover result is: Valid (0.01s, 26420 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 113, characters 32-36:
+Sub-goal postcondition of goal flatten_arrow_chain'vc.
+Prover result is: Valid (0.00s, 2017 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 116, characters 32-36:
+Sub-goal postcondition of goal forall__pp'vc.
+Prover result is: Valid (0.00s, 2017 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 125, characters 85-107:
+Sub-goal variant decrease of goal free_vars__binders'vc.
+Prover result is: Valid (0.00s, 3134 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 130, characters 22-44:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.01s, 26411 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 131, characters 68-85:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.01s, 26420 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 131, characters 68-85:
+Sub-goal precondition of goal free_vars'vc.
+Prover result is: Valid (0.00s, 2026 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 131, characters 50-67:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.01s, 26782 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 131, characters 50-67:
+Sub-goal precondition of goal free_vars'vc.
+Prover result is: Valid (0.00s, 2035 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 133, characters 55-73:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.01s, 26774 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 133, characters 55-73:
+Sub-goal precondition of goal free_vars'vc.
+Prover result is: Valid (0.00s, 2026 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 134, characters 55-73:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.01s, 26725 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 134, characters 55-73:
+Sub-goal precondition of goal free_vars'vc.
+Prover result is: Valid (0.00s, 2026 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 136, characters 25-40:
+Sub-goal variant decrease of goal free_vars'vc.
+Prover result is: Valid (0.01s, 26793 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 136, characters 25-40:
+Sub-goal precondition of goal free_vars'vc.
+Prover result is: Valid (0.01s, 2026 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 127, characters 32-36:
+Sub-goal postcondition of goal free_vars'vc.
+Prover result is: Valid (0.00s, 2017 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 142, characters 101-120:
+Sub-goal variant decrease of goal free_vars__list'vc.
+Prover result is: Valid (0.00s, 5902 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 142, characters 87-100:
+Sub-goal variant decrease of goal free_vars__list'vc.
+Prover result is: Valid (0.00s, 5940 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 142, characters 87-100:
+Sub-goal precondition of goal free_vars__list'vc.
+Prover result is: Valid (0.00s, 2035 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 145, characters 15-19:
+Sub-goal postcondition of goal intlit__pp'vc.
+Prover result is: Valid (0.00s, 799 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 146, characters 15-56:
+Sub-goal postcondition of goal intlit__pp'vc.
+Prover result is: Valid (0.00s, 800 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 154, characters 38-76:
+Sub-goal variant decrease of goal mk_arrow_chain__go'vc.
+Prover result is: Valid (0.00s, 5902 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 157, characters 32-36:
+Sub-goal postcondition of goal mk_arrow_chain'vc.
+Prover result is: Valid (0.00s, 2017 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 160, characters 32-36:
+Sub-goal postcondition of goal unaryop__pp'vc.
+Prover result is: Valid (0.00s, 2017 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 164, characters 15-19:
+Sub-goal postcondition of goal unsupported__pp'vc.
+Prover result is: Valid (0.00s, 999 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 165, characters 15-38:
+Sub-goal postcondition of goal unsupported__pp'vc.
+Prover result is: Valid (0.00s, 1000 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 166, characters 15-44:
+Sub-goal postcondition of goal unsupported__pp'vc.
+Prover result is: Valid (0.01s, 1001 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 172, characters 15-19:
+Sub-goal postcondition of goal var__pp'vc.
+Prover result is: Valid (0.00s, 799 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 173, characters 15-40:
+Sub-goal postcondition of goal var__pp'vc.
+Prover result is: Valid (0.00s, 800 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 84, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 87, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 91, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 97, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 113, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 116, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 127, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 145, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 157, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 160, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 164, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_sgul8du9.mlw", line 172, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

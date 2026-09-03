@@ -1,0 +1,66 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/proof2why3/crosscheck.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 33, characters 15-19:
+Sub-goal postcondition of goal _module_namespace_of'vc.
+Prover result is: Valid (0.00s, 748 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 42, characters 32-36:
+Sub-goal postcondition of goal crosscheckresult__all_agree'vc.
+Prover result is: Valid (0.00s, 748 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 50, characters 15-19:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1243 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 51, characters 15-50:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1244 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 52, characters 15-48:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1245 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 53, characters 15-48:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1246 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 54, characters 15-58:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1247 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 55, characters 15-56:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1248 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 56, characters 15-50:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1249 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 57, characters 15-48:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1250 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 29, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 31, characters 37-46: unused variable rocq_file
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 33, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 37, characters 23-30: unused variable py_file
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 39, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 42, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 44, characters 36-40: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 46, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 51, characters 32-35: this `at'/`old' operator is never used
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 52, characters 31-34: this `at'/`old' operator is never used
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 53, characters 31-34: this `at'/`old' operator is never used
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 54, characters 36-39: this `at'/`old' operator is never used
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 55, characters 35-38: this `at'/`old' operator is never used
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 56, characters 32-35: this `at'/`old' operator is never used
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 57, characters 31-34: this `at'/`old' operator is never used
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 50, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 61, characters 12-16: unused variable argv
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_qoclcbr3.mlw", line 63, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.
