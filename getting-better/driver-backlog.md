@@ -34,6 +34,57 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #34 FINAL — THE #1 ITEM FOR #35 IS ALREADY BUILT: LAND THE FRAME-PRESERVATION FIX
+
+`scratchpad/w7/frame-preservation.patch`, 43 additive lines in `module6_whyml/{preamble,
+functions}.py`. It closes THREE demonstrated unsoundnesses at once — an UNDER-CLAIMED
+`#@ assigns`, `#@ assigns \nothing`, and NO `#@ assigns` at all, each of which lets a
+caller prove a field UNCHANGED across a call that changes it:
+
+```
+    class C:                                   # NO @mutable_state
+        #@ ensures self.a == 1
+        #@ assigns self.a                      # b is NOT in the frame
+        def go(self) -> None:
+            self.a = 1
+            self.b = 7
+    #@ ensures \result == 0                    <-- FALSE OF THE PROGRAM
+    def driver() -> int:
+        c = C(); c.go(); return c.b
+    [+] Verification SUCCESS! All contracts formally proven.      (Python: 7)
+```
+
+ROOT CAUSE, one line: `functions.py` DOES emit the frame on the concrete `let` "so Why3
+CHECKS the frame against the body", but only `if is_method and self._current_self_type in
+self._mutable_state_classes` — OPT-IN via a class decorator. The AVATAR's `writes`, which
+is what every call site believes, is emitted for ANY class with an emitted record. Claim
+unconditional, check opt-in.
+
+THE FIX IS AN `ensures`, NOT A `writes`, AND THAT WAS MEASURED, NOT ARGUED. Why3 rejects an
+OVER-claimed `writes` on a `let` as hard as an under-claimed one; the `writes` form breaks
+22 corpus files, 14 of them over-claims on `array int` fields (`#@ assigns self.disk` vs a
+body writing `self.disk[i]`, i.e. `self.disk.elts`). A preservation POSTCONDITION
+(`ensures { self.f = old self.f }` for each scalar record label not in the frame) has no
+over-claim failure mode: declaring more than you write emits FEWER clauses.
+
+STATE: implemented, all three probes flip from SUCCESS to FAILED, **mirror L3-tc 53/53
+GREEN**, 50 corpus `.mlw` and ~10 mirror `.mlw` change.
+OWED: (1) verify the 50 changed corpus files — `scratchpad/w7/verify_changed.sh`;
+(2) RE-PROVE the ~10 changed mirrors (`pure_ast` 3103, `Module5_IREmitter` 1499,
+`Module2_Parser`, `Module3_Weaver`, `statements`, `expressions`, `ConcurrencyChecker`,
+`ir_inline`, `audit_proof_reverify`, `Module6_WhyMLTranspiler`) — **this re-proof IS the
+victim census**: a preservation clause that will not prove is a converted, proved mirror
+method whose declared frame is a lie, and the `writes` variant already named
+`frontend/ConcurrencyChecker.py` plus corpus 0459 0460 0461 0720 0721 0723 0724 0725;
+(3) the ARRAY/MAP extension (element-wise preservation), without which `self.disk[i] = v`
+in a method that declares nothing is still unchecked.
+
+ALSO FOR #35: `bin/check-trusted-frame-honesty.py`'s MODEL-VISIBLE predicate is
+"`@mutable_state` class", so its 0/0 and 0/96 do not cover the population these three
+routes bite. Widen it to "the class has an emitted record" before trusting another 0.
+
+---
+
 ### #34 STATE UPDATE (2026-09-03) — READ BEFORE PICKING AN ITEM
 
 **THE SILENT-DROP AUDIT IS STILL THE HIGHEST-YIELD WORK, AND MODULE 3's `#@` ATTACHMENT
