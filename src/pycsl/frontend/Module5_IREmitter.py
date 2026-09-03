@@ -5228,8 +5228,55 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if (isinstance(_ann, ast.Attribute) and isinstance(_ann.value, ast.Name)
                     and _ann.value.id == "ast"):
                 _past_node_types[_arg.arg] = _ann.attr
+        # (#34) NAMES THIS FUNCTION WRITES THROUGH A `nonlocal` DECLARATION.
+        # `ast.Nonlocal` has NO `_PY_STMT_HANDLERS` entry, so the declaration is dropped;
+        # the nested `def` is LIFTED to a sibling top-level function and its `x = 2`
+        # becomes a write to a FRESH LOCAL. Measured before this field existed:
+        #     #@ ensures \result == 1              <-- FALSE OF THE PROGRAM
+        #     def outer() -> int:
+        #         x: int = 1
+        #         def inner() -> None:
+        #             nonlocal x
+        #             x = 2
+        #         inner()
+        #         return x
+        #     [+] Verification SUCCESS! All contracts formally proven.
+        # emitting `let inner () : unit = let x = ref 0 in x := 2`, while Python returns 2.
+        # The refusal CANNOT live in the front end: `module6_whyml/generic_fold.py` carries
+        # hand-synthesized BESPOKE lowerings for exactly this shape (the `hit = False` /
+        # nested `_walk` / `nonlocal hit` existence walk of
+        # `preamble._inductive_refs_global_or_axiom_func` and `._class_inv_refs_axiom_func`)
+        # that PAIR the outer wrapper with its lifted `_walk` sibling — those two are
+        # faithful and must keep working. So the fact is carried into the IR and the
+        # refusal is made in Module 6's GENERIC emission, which is the only layer that
+        # knows whether a bespoke model claimed the function.
+        # Collected from THIS function's own statements only: the walk stops at a nested
+        # `def`/`class`, because a nested function's `nonlocal` belongs to the nested
+        # function, which Module 5 lifts and builds separately.
+        _nonlocal_writes: List[str] = []
+        _nl_stack = list(node.body)
+        while _nl_stack:
+            _nl = _nl_stack.pop()
+            if isinstance(_nl, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            if isinstance(_nl, ast.Nonlocal):
+                for _nm in _nl.names:
+                    if _nm not in _nonlocal_writes:
+                        _nonlocal_writes.append(_nm)
+                continue
+            for _f in ("body", "orelse", "finalbody"):
+                _v = getattr(_nl, _f, None)
+                if isinstance(_v, list):
+                    _nl_stack.extend(x for x in _v if isinstance(x, ast.stmt))
+            for _h in getattr(_nl, "handlers", []) or []:
+                _nl_stack.extend(_h.body)
+            for _c in getattr(_nl, "cases", []) or []:
+                _nl_stack.extend(_c.body)
         return {
             "name": func_name,
+            # (#34) emitted ONLY when non-empty, so the IR of every function without a
+            # `nonlocal` is byte-identical and the frozen conformance goldens do not move.
+            **({"nonlocal_writes": sorted(_nonlocal_writes)} if _nonlocal_writes else {}),
             "symbol_table": symbol_table,
             "param_annotations": _pann,
             "param_ast_node_types": _past_node_types,

@@ -2288,12 +2288,16 @@ since they never produce an AST node.
 
 ### 4.0 Constructs REFUSED at IR emission (relaunches #33, #34)
 
-Five Python shapes are now **rejected with a diagnostic** rather than lowered, because
+Six Python shapes are now **rejected with a diagnostic** rather than lowered, because
 the lowering that existed for them silently dropped part of the construct. Each refusal
-replaced a fail-OPEN with a fail-CLOSED, and each was measured to have ZERO occurrences in
-the reference corpus, the self-annotation mirror, `src/pycsl_lib` and the live emitter
-before it landed. They are enforced in `frontend/desugar.reject_unmodelled` (run from
-`Module5_IREmitter.generate_json`) and `Module3_Weaver.process`.
+replaced a fail-OPEN with a fail-CLOSED, and each was CENSUSED over the reference corpus,
+the self-annotation mirror, `src/pycsl_lib` and the live emitter before it landed. Four of
+the six were measured at ZERO everywhere. The `except*` refusal has two `python-reference`
+users (0111, 0187, both `pycsl-expected: FAIL`). The `nonlocal` refusal has two users in
+the mirror, and they are deliberately NOT refused: both are claimed by a certified bespoke
+lowering before the generic path is reached (see the row for the reason). They are enforced in `frontend/desugar.reject_unmodelled` (run from
+`Module5_IREmitter.generate_json`), `Module3_Weaver.process` /
+`._reject_misplaced_directives`, and `module6_whyml/functions._emit_function_block`.
 
 | construct | why it is refused | mechanism that would reopen it |
 |---|---|---|
@@ -2302,6 +2306,7 @@ before it landed. They are enforced in `frontend/desugar.reject_unmodelled` (run
 | a `#@` contract block with nothing after it to attach to | an annotation block binds to the node that FOLLOWS it. A block with no follower was silently discarded while the run still printed *All contracts formally proven* — a contract the author wrote that was never checked, under a message asserting the opposite. Statement-level directives (`assert`, `assume`, `ghost`, `loop ...`, `label`, `reveal`, `unfold`, `havoc`) are exempt: a trailing `#@ assert` IS the last statement of a body. | — (move the block above its `def`/`class`) |
 | `try ... except*` (an exception GROUP handler) | `_PY_STMT_HANDLERS` has no `TryStar` entry and `_py_stmts_to_ir` dispatches with no `else`, so the WHOLE statement — body, handlers, `else` and `finally` — vanished. Measured: `try: x = 2 except* ValueError: x = 3` let `ensures \result == 1` be proved SUCCESS while the program returns 2 (emitted body: `x := 1; !x`). | an ExceptionGroup splitting model |
 | a `#@` contract on an `async def` | Module 1 extracts an `AsyncFunctionDef` under the SAME `FunctionDef` anchor as a plain `def`, so the contract IS parsed into `contracts_map` — but `PyCSLWeaver` defines only `visit_FunctionDef` and `PyCSLToJSONEmitter` has no `AsyncFunctionDef` visitor, so the clauses were never attached and the coroutine never reached the IR. Measured: `async def m(self) -> int: return 2` under `ensures \result == 1` printed *All contracts formally proven* over a module that contained no `m` at all. Only CONTRACT-CARRYING coroutines are refused — an uncontracted one claims nothing (11 such definitions in `python-reference`, all nested, all still accepted). | a coroutine (suspension/resumption) model |
+| a closure that WRITES an enclosing local (`nonlocal`) | `ast.Nonlocal` has no `_PY_STMT_HANDLERS` entry and the nested `def` is lifted to a sibling function, so the write lands on a FRESH LOCAL of the sibling and is invisible to the enclosing function. Measured: `nonlocal x; x = 2` under `ensures \result == 1` proved SUCCESS while the program returns 2. Refused in **Module 6's GENERIC emission**, not in `reject_unmodelled` — `generic_fold.py` already models this shape faithfully for two converted mirror methods by pairing the wrapper with its lifted `_walk`, and the front end cannot tell the two paths apart. Module 5 carries the fact as the additive IR field `nonlocal_writes`. `\trusted`/`\abstract` functions are exempt (bodyless `val`). | a closure/captured-cell value model |
 
 `bin/check-dropped-mutation.py` measures the residue of this family and ratchets it.
 

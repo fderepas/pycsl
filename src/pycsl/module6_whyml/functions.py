@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from errors import PyCSLIRError
 from module6_whyml.identifiers import whyml_ident, safe_exc_name, whyml_string_literal
 from module6_whyml.ir_scanner import IRScanner
 from module6_whyml.scc import emits_as_logic_symbol
@@ -5503,6 +5504,31 @@ class FunctionEmissionMixin:
         _fvb = self._recognize_functionvariant_builder(func, body_stmts)
         if _fvb is not None:
             body_stmts = _fvb
+        # (#34) NO BESPOKE LOWERING CLAIMED THIS FUNCTION, so what follows is the GENERIC
+        # emission — and the generic emission has no model for a closure that WRITES an
+        # enclosing local. `ast.Nonlocal` is dropped by `_py_stmts_to_ir` (no
+        # `_PY_STMT_HANDLERS` entry) and the nested `def` is lifted to a sibling, so the
+        # write lands on a FRESH LOCAL of the lifted function and is invisible to the
+        # enclosing one. Measured: `nonlocal x; x = 2` under `ensures \result == 1` proved
+        # `Verification SUCCESS` while Python returns 2.
+        # THIS IS THE ONLY LAYER THAT CAN DECIDE IT. Every bespoke recognizer above has
+        # already had its chance, and `generic_fold.py` DOES model this shape faithfully
+        # for `preamble._inductive_refs_global_or_axiom_func` /
+        # `._class_inv_refs_axiom_func` by pairing the wrapper with its lifted `_walk`
+        # sibling — so a front-end refusal would have rejected two CONVERTED, PROVED mirror
+        # methods that are not victims. A `\trusted`/`\abstract` function emits as a
+        # bodyless `val` and its body is never lowered, so it is exempt.
+        if (func.get("nonlocal_writes")
+                and not (func.get("trusted") or func.get("abstract")
+                         or func.get("trusted_parent"))):
+            raise PyCSLIRError(
+                "function '%s' writes %s through a `nonlocal` declaration, and no "
+                "certified lowering models it. `nonlocal` has no IR statement: the nested "
+                "`def` is lifted to a sibling function, so the write would land on a FRESH "
+                "LOCAL and be SILENTLY INVISIBLE to the enclosing function, while the run "
+                "still reported 'All contracts formally proven'. Return the value from the "
+                "nested function instead of assigning through the closure."
+                % (func.get("name"), ", ".join(func["nonlocal_writes"])))
         is_method = func.get("kind") == "method"
 
         local_refs, ghost_vars = self._reset_function_state(func, body_stmts)
