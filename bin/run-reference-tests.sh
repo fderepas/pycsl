@@ -172,7 +172,15 @@ for dir in "${TEST_DIRS[@]}"; do
     for py_file in "${py_files[@]}"; do
         [ -f "$py_file" ] || continue
         name="$(basename "$py_file" .py)"
-        file_num=$(echo "$name" | sed 's/^0*//'); file_num="${file_num:-0}"
+        # (#33) STOP AT THE FIRST NON-DIGIT. A descriptively-named test
+        # (`0970_annotated_field_store`) left a non-numeric token here, and the
+        # `[[ "$file_num" -lt ... ]]` below then printed
+        #   run-reference-tests.sh: line NNN: [[: 970_annotated_field_store: value too
+        #   great for base (error token is "970_annotated_field_store")
+        # once per such file — 46 lines of noise in a standard run, and worse, the
+        # comparison ERRORS OUT rather than evaluating, so `--start-at`/`--stop-at`
+        # silently stop filtering exactly the files whose names say what they test.
+        file_num=$(echo "$name" | sed 's/^0*//' | sed 's/[^0-9].*//'); file_num="${file_num:-0}"
         [[ "$file_num" -lt "$START_AT" ]] && continue
         if [[ -n "$STOP_AT" && "$file_num" -gt "$STOP_AT" ]]; then break; fi
         entries+=("$py_file")
