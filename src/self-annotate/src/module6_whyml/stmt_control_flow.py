@@ -514,6 +514,9 @@ class ControlFlowStmtMixin:
         try_assigned = IRScanner.find_assigned_vars(body_stmts)
         n_ha = len(handlers)
         i_ha = 0
+        #@ loop invariant 0 <= i_ha and i_ha <= n_ha
+        #@ loop invariant n_ha == len(handlers)
+        #@ loop variant n_ha - i_ha
         while i_ha < n_ha:
             h = handlers[i_ha]
             try_assigned |= IRScanner.find_assigned_vars(h.get("body", []))
@@ -533,6 +536,9 @@ class ControlFlowStmtMixin:
         #     try is unsupported — but that was already a type error).
         #   - dict locals are `map int (option int)` — pre-declare the empty map
         #     so `data = literal_eval(…)` / `d = {}` inside a try type-check.
+        #@ loop invariant 0 <= i_sa and i_sa <= n_sa
+        #@ loop invariant n_sa == len(sorted_assigned)
+        #@ loop variant n_sa - i_sa
         while i_sa < n_sa:
             var = sorted_assigned[i_sa]
             safe_var = whyml_ident(var)
@@ -602,6 +608,9 @@ class ControlFlowStmtMixin:
             # Why3 requires `try BODY with Exc1 -> h1 | Exc2 -> h2 end` —
             # only the first arm uses `with`, subsequent arms use `|`.
             # Emitting separate `with` clauses produces a syntax error.
+            #@ loop invariant 0 <= i_h and i_h <= n_h
+            #@ loop invariant n_h == len(handlers)
+            #@ loop variant n_h - i_h
             while i_h < n_h:
                 h = handlers[i_h]
                 exc = h.get("exc_type") or "PyCSL_Exception"
