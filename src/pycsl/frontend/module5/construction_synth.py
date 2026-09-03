@@ -134,6 +134,76 @@ class ConstructionSynthMixin:
                          for fn in fnames]
         return init_params, init_body
 
+    def _collect_init_contract_check(self, node: ast.ClassDef) -> Dict[str, Any]:
+        """(#43) ROUTE #15 — a constructor's `#@ requires` / `#@ ensures` is never checked.
+
+        `__init__` is not emitted as a function: it is INLINED at each allocation site, so
+        its clauses go nowhere. MEASURED: `#@ ensures self.x == 99` over a body `self.x = 0`
+        printed *All contracts formally proven*, and `#@ requires 1 == 2` was discarded the
+        same way. The inlining itself is FAITHFUL (a caller-side claim that leans on the
+        false postcondition correctly FAILS, single-file and cross-file), so this is the
+        tool reporting success for work it did not do rather than an unsoundness — #33's
+        category for the dangling-block finding.
+
+        Returns the material Module 6 needs to emit a CHECKING-ONLY
+        `let <class>__init (<params>) : <class>` beside the inlining, or `{}` when there is
+        nothing to check. EMITTED ONLY WHEN A CLAUSE IS NON-TRIVIAL: `#@ requires True` /
+        `#@ ensures True` carry no information and are legitimately normalized away, and
+        ALL 24 of the mirror's constructor contracts are exactly that — so this field is
+        absent for every mirror file and the whole 53-file re-proof battery never arises.
+        Census: 34 non-trivial constructor contracts tree-wide, 13 in the reference corpus
+        and 21 in `src/pycsl_lib`, ZERO in `src/self-annotate/src`.
+
+        `param_types` is carried because `init_params` is a list of NAMES only and
+        `__init__` — never being emitted as a function — is absent from Module 6's
+        `_module_method_param_whyml_types`, so the types cannot be recovered downstream.
+        """
+        for child in node.body:
+            if not (isinstance(child, ast.FunctionDef) and child.name == '__init__'):
+                continue
+            def _nontrivial(clauses):
+                out = []
+                for c in clauses:
+                    ir = self._csl_to_ir(c.expr)
+                    if (isinstance(ir, dict) and ir.get("type") in ("Bool", "True")
+                            and ir.get("value") in (True, 1, "True")):
+                        continue
+                    if isinstance(ir, dict) and ir.get("type") == "Var" \
+                            and ir.get("name") == "True":
+                        continue
+                    out.append(ir)
+                return out
+            reqs = _nontrivial(getattr(child, 'csl_requires', []) or [])
+            enss = _nontrivial(getattr(child, 'csl_ensures', []) or [])
+            if not reqs and not enss:
+                return {}
+            def _ann_text(a):
+                """The annotation as SOURCE TEXT, for the shapes a constructor parameter
+                actually uses. Deliberately NOT `arg_type` from `_scan_function_scope`:
+                that derivation is entangled with the symbol table, and Module 6 only needs
+                enough to pick a WhyML type. Anything unrecognized yields "", which Module 6
+                treats as `int` — the same default `_param_type_str` already uses."""
+                if a is None:
+                    return ""
+                if isinstance(a, ast.Name):
+                    return a.id
+                if isinstance(a, ast.Constant) and isinstance(a.value, str):
+                    return a.value
+                if isinstance(a, ast.Attribute):
+                    return a.attr
+                if isinstance(a, ast.Subscript):
+                    _base = _ann_text(a.value)
+                    _sl = getattr(a, "slice", None)
+                    if isinstance(_sl, ast.Tuple):
+                        return _base + "[" + ", ".join(_ann_text(e) for e in _sl.elts) + "]"
+                    return _base + "[" + _ann_text(_sl) + "]"
+                return ""
+            _pt = {}
+            for _a in list(child.args.args)[1:]:          # skip `self`
+                _pt[_a.arg] = _ann_text(getattr(_a, "annotation", None))
+            return {"requires": reqs, "ensures": enss, "param_types": _pt}
+        return {}
+
     def _collect_init_ensures(self, node: ast.ClassDef) -> List[Dict[str, Any]]:
         """Capture the constructor's `#@ ensures` clauses (fresh_globals.md / the
         `#@ fresh_globals` directive). These are the CONSTRUCTOR POST-STATE facts

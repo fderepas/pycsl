@@ -3435,6 +3435,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 node, {f["name"] for f in fields})
             init_params, init_body = self._collect_init_construction(node)
             init_ensures = self._collect_init_ensures(node)
+            _icc = self._collect_init_contract_check(node)
             self.program_ir["type_decls"].append({
                 "kind": "record", "name": node.name, "fields": fields,
             "mutable_state": self._is_mutable_state_decorated(node),
@@ -3451,6 +3452,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                    if str_set_constants else {}),
                 "init_params": init_params, "init_body": init_body,
                 "init_ensures": init_ensures,
+                # (#43) route #15: the constructor's NON-TRIVIAL `#@ requires`/`#@ ensures`
+                # plus its parameter annotations, so Module 6 can emit a CHECKING-ONLY
+                # `let <class>__init` beside the (untouched) allocation-site inlining.
+                # Emitted ONLY when a clause is non-trivial -> absent for every mirror class
+                # (all 24 of theirs are `True`), so the IR of the whole mirror and of every
+                # frozen conformance golden is byte-identical.
+                **({"init_contract_check": _icc} if _icc else {}),
                 "is_mixin": is_mixin, "compose_from": compose_from,
                 # typing-engagement ty3 / 33-1700-typing-spec-9: PEP 695 type
                 # parameters of a generic class (`class C[T]:`) or the legacy
