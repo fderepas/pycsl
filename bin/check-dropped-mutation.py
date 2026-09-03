@@ -188,7 +188,14 @@ MAX_DROPPED = 1
 # corpus, 0 in `src/pycsl_lib`; 48 -> 50 when the scan was widened to the
 # `python-reference` and `negative` corpora for the DANGLING check (two more there). REOPENING CAPABILITY: an `__enter__`/`__exit__` protocol
 # in the IR, at which point the `as` binding becomes an ordinary store.
-MAX_CTXBIND = 50
+# (#43) 50 -> 51, and the counter's MEANING changed with it. Route #20 established that a
+# `with ... as v` binding is not merely absent from the model, it is EXPLOITABLE: the body
+# runs against the PRE-`with` value of `v`, and `v = 0; with CM() as v: return v` proved
+# `\result == 0` while Python returns 7. The shape is now REFUSED in Module 6's generic
+# emission (additive IR field `with_bindings`), so every site this counter still sees is
+# either inside a `\trusted`/`\abstract` function — whose body is never lowered — or inside
+# a `pycsl-expected: FAIL` witness. The +1 is corpus 0989, the witness itself.
+MAX_CTXBIND = 51
 
 # TRYFINAL ratchet — a `try/finally` or `try/else` whose block is still dropped. Measured
 # after #33 emitted the safe case: the THREE CONVERTED, PROVED mirror methods that had a

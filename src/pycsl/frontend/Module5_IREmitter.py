@@ -5272,11 +5272,54 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 _nl_stack.extend(_h.body)
             for _c in getattr(_nl, "cases", []) or []:
                 _nl_stack.extend(_c.body)
+        # (#43) ROUTE #20 — `with ... as v:` DROPS THE BINDING. `_py_stmt_with` reads
+        # `stmt.body` and the `csl_critical_mutex` / `csl_acquires` markers and NEVER reads
+        # `stmt.items`, so both the context-manager expression and the `as v` binding
+        # vanish and the body is inlined against the PRE-`with` value of `v`. That is the
+        # `CTXBIND` population `bin/check-dropped-mutation.py` has been ratcheting at 50.
+        # MEASURED, before the refusal (corpus 0989):
+        #     class CM:  #@ ensures \result == 7
+        #                def __enter__(self) -> int:  return 7
+        #     def f() -> int:
+        #         v: int = 0
+        #         with CM() as v:  return v
+        #     #@ ensures \result == 0      <-- FALSE OF THE PROGRAM (Python returns 7)
+        #     [+] Verification SUCCESS!    emitted body: `let v = ref 0 in v := 0; !v`
+        # Carried into the IR and refused in Module 6's GENERIC emission for the same
+        # reason `nonlocal_writes` is: a `\trusted` / `\abstract` function emits as a
+        # bodyless `val` and must stay exempt, and only Module 6 knows that. A BARE
+        # `with <lock>:` has no binding and is modelled through `CriticalSection`, so it is
+        # untouched — this keys on the `as` clause alone. Same walk discipline as
+        # `nonlocal_writes`: stops at a nested `def`/`class`.
+        _with_bindings: List[str] = []
+        _wb_stack = list(node.body)
+        while _wb_stack:
+            _wb = _wb_stack.pop()
+            if isinstance(_wb, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            if isinstance(_wb, (ast.With, ast.AsyncWith)):
+                for _it in _wb.items:
+                    _ov = getattr(_it, "optional_vars", None)
+                    if _ov is None:
+                        continue
+                    _nm = (_ov.id if isinstance(_ov, ast.Name) else "<target>")
+                    if _nm not in _with_bindings:
+                        _with_bindings.append(_nm)
+            for _f in ("body", "orelse", "finalbody"):
+                _v = getattr(_wb, _f, None)
+                if isinstance(_v, list):
+                    _wb_stack.extend(x for x in _v if isinstance(x, ast.stmt))
+            for _h in getattr(_wb, "handlers", []) or []:
+                _wb_stack.extend(_h.body)
+            for _c in getattr(_wb, "cases", []) or []:
+                _wb_stack.extend(_c.body)
         return {
             "name": func_name,
             # (#34) emitted ONLY when non-empty, so the IR of every function without a
             # `nonlocal` is byte-identical and the frozen conformance goldens do not move.
             **({"nonlocal_writes": sorted(_nonlocal_writes)} if _nonlocal_writes else {}),
+            # (#43) same discipline for route #20's `with ... as` bindings.
+            **({"with_bindings": sorted(_with_bindings)} if _with_bindings else {}),
             "symbol_table": symbol_table,
             "param_annotations": _pann,
             "param_ast_node_types": _past_node_types,

@@ -5164,6 +5164,13 @@ class _Unparser(NodeVisitor):
             self.write("=")
         self.traverse(node.value)
 
+    # (#43) RE-`\trusted` BY ROUTE #20. The body's `with self.buffered() as buffer:` binds
+    # `buffer` through a context manager, and `_py_stmt_with` never reads `stmt.items` —
+    # the manager call and the binding were both DROPPED, so the model read whatever
+    # `buffer` held BEFORE the `with`. This is the ONLY converted method in the whole
+    # mirror with that shape (census: 62 `with ... as` sites, one converted). An honest
+    # `\trusted` until a context-manager protocol model exists.
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._precedences, self._source

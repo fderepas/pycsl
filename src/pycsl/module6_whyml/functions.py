@@ -5592,6 +5592,33 @@ class FunctionEmissionMixin:
         # sibling — so a front-end refusal would have rejected two CONVERTED, PROVED mirror
         # methods that are not victims. A `\trusted`/`\abstract` function emits as a
         # bodyless `val` and its body is never lowered, so it is exempt.
+        # (#43) ROUTE #20 — the `with ... as` binding. Same shape and same layer as
+        # `nonlocal_writes` directly below, and for the same reason: a `\trusted` /
+        # `\abstract` function emits as a bodyless `val` whose body is never lowered, so
+        # it must stay exempt, and only this layer knows that. MEASURED before the
+        # refusal (corpus 0989): `v: int = 0; with CM() as v: return v` under
+        # `#@ ensures \result == 0` proved SUCCESS while Python returns 7, because
+        # `_py_stmt_with` never reads `stmt.items` — the emitted body was
+        # `let v = ref 0 in v := 0; !v`, with the context manager absent entirely.
+        # CENSUS: 62 `with ... as` sites in the tree; exactly ONE is inside a CONVERTED
+        # mirror method (`pure_ast._Unparser.visit_Lambda`, re-`\trusted` with this
+        # change) and three are `python-reference` coverage tests (0093, 0191, 0209), now
+        # `pycsl-expected: FAIL` — the same treatment #34 gave `python-reference/0111` for
+        # `except*`. A BARE `with <lock>:` has no binding and is modelled through
+        # `CriticalSection`; it is untouched.
+        if (func.get("with_bindings")
+                and not (func.get("trusted") or func.get("abstract")
+                         or func.get("trusted_parent"))):
+            raise PyCSLIRError(
+                "function '%s' binds %s with a `with ... as` clause, and no certified "
+                "lowering models it. `_py_stmt_with` reads only the `with` BODY: the "
+                "context-manager expression and the `as` binding are both DROPPED, so the "
+                "body would run against the PRE-`with` value of the name while the run "
+                "still reported 'All contracts formally proven'. Measured: "
+                "`v = 0; with CM() as v: return v` proved `\\result == 0` while Python "
+                "returns 7. Call `__enter__` explicitly and assign its result, or use a "
+                "bare `with <lock>:` (which IS modelled, as a critical section)."
+                % (func.get("name"), ", ".join(func["with_bindings"])))
         if (func.get("nonlocal_writes")
                 and not (func.get("trusted") or func.get("abstract")
                          or func.get("trusted_parent"))):
