@@ -34,6 +34,60 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #43 STATE (2026-09-03, relaunch after the #34-#42 `529 Overloaded` outage) — READ FIRST
+
+**THREE ITEMS THE INHERITED LADDER LISTED AS OPEN ARE CLOSED, AND ITS FIRST INSTRUCTION WAS
+WRONG.** Verified from disk, each in one command:
+  · `nonlocal_writes` + the Module 6 generic refusal — **LANDED** (`Module5_IREmitter.py`
+    5256-5279, `functions.py:5521`), witness **0977**. Not "died mid-implementation".
+  · Route **6b** of the `#@`-attachment audit — **CLOSED** at 8396828e; it is the row in
+    #34's own table marked CLOSED. All eleven #34 routes are closed.
+  · avatar-frame INHERITED "7" — never a census. Measured 0 same-file / **1** inherited;
+    ratchet lowered 7 -> 1. Five gates were printing `args.max_*` on their green line
+    instead of their measurement; all five now print both.
+  · "A completed 13-file array battery is waiting to be banked, verdict in
+    `verify_arr2.log`" — **FALSE**. That log is the CORPUS plane (26 corpus files). The
+    mirror battery was **10/13**: `a_expr.rc` = 124 (10800 s timeout, no SUCCESS line) and
+    `a_m5` / `a_pure` never ran. b952bef5's own message says "STILL OWED: the 13-mirror
+    re-proof battery".
+
+**ROUTE #12 — the TWELFTH demonstrated unsoundness — FOUND AND CLOSED.** A `#@` directive
+inside the CONTINUATION LINES of a simple statement was silently discarded while the run
+printed "All contracts formally proven" (five probes, incl. a `ghost`+`assert` pair).
+Refused inline in `Module1_Ingestor.process`; witness **0979**, negative-tested; corpus
+820/820 byte-identical; census 0 — and that census had to TOKENIZE, because a line-based
+scan reports 95 hits, every one `#@` text inside a docstring. **With this the
+`#@`-attachment vein is SWEPT**: the compound-statement HEADER shapes were probed too and
+are all correctly refused or correctly failed.
+
+**WHAT IS ACTUALLY OWED, in order:**
+  1. `module6_whyml/expressions.py`, `frontend/Module5_IREmitter.py` and
+     `frontend/pure_ast.py` — the last 3 of the array/map battery. expressions and
+     Module5_IREmitter are IN FLIGHT (`scratchpad/w7/pr2.sh`, 28800 s cap, `setsid`);
+     pure_ast NOT started. **Do not bank the extension until all three are rc=0.**
+     Everything else about the extension is already gated: corpus byte-diff re-derived
+     independently (exactly the 26 files) and re-proved fresh (26/26).
+  2. Three mirror re-proofs for route #12 — Module3_Weaver, frontend/__init__, ir_resolve
+     each gain exactly one `raises { PyCSLParseError }` line on an UNCALLED val.
+  3. `proof2why3`'s `term` family — the named COST/SCALE residue (general ADT-value
+     lowering). NOT a floor per §A.3; now the largest remaining item.
+  4. The heterogeneous-list-literal 15.
+  5. The three formerly authorize-first builds — still untouched.
+
+**SETTLED, do not re-derive:** `computed-rhs-erasure`'s 2 residues are faithfulness gaps,
+not unsoundnesses (the mirror contracts are `ensures True` and the erased branches only
+RETURN); `dropped-mutation`'s 1 DROPPED site is in a `\trusted` mirror method; the
+`UnknownPyExpr -> 0` catch-all does NOT erase calls (`xs.count(2)` emits an opaque
+`(xs_count_1 2)`; three false-`ensures` probes over unrecognized calls all correctly FAIL).
+
+**INSTRUMENT FACTS 18-20** (see the handoff for the full text): the mirror is
+`src/self-annotate/src/` and proving `src/pycsl/` instead refuses in the vocabulary of a
+REAL wall; a LIVE-tree edit leaks into mirror emission through `--import-path src/pycsl`
+(a `%` in a raise message pulled the `pycsl_div`/`pycsl_mod` preamble into two mirrors);
+`check-emitted-vacuity.py` without `--emit` actively invites you to delete eight live gates.
+
+---
+
 ### #34 CLOSE (2026-09-03) — THE FRAME-PRESERVATION FIX LANDED AND IS FULLY GATED
 
 Everything the section below asks for HAS BEEN DONE. All 16 affected mirror re-proofs came
