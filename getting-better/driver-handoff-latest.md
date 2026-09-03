@@ -67,6 +67,18 @@
 #   check compared the raw `self_type`. A refusal that never fires looks exactly like one
 #   that works.
 #
+# ## TWO NEW PLANES THIS RELAUNCH — run them
+#
+#     bin/check-clause-survival.py --emit-dir <fresh emit dir>     ratchet 2
+#         Does every `#@ requires`/`#@ ensures` the author wrote REACH the emission?
+#         Sound in one direction: the emitter only ADDS clause lines. It found route #15.
+#     bin/check-mirror-coverage.py                                 ratchets 550 / 41
+#         How much of the LIVE emitter the mirror models AT ALL. 550 of 1820 live defs in
+#         mirrored files (30.2%) have NO mirror counterpart, plus 41 unmirrored files.
+#         **The `\trusted` count structurally cannot see these** — an absent function
+#         carries no marker. Not an unsoundness; a limit on what "456" means, held by a
+#         ratchet so it can only shrink.
+#
 # ## SETTLED, DO NOT RE-DERIVE
 #
 # The metric has no uncounted escape hatch in its scope (`\abstract`: 14 tree-wide, 0 in the
