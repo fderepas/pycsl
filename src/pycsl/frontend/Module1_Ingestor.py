@@ -159,13 +159,13 @@ class Module1_Ingestor:
             for _lo, _hi in _leaf_spans:
                 if _lo < _c.lineno <= _hi:
                     raise PyCSLParseError(
-                        "line %d: this `#@` directive sits INSIDE the continuation lines "
-                        "of the statement that begins on line %d, where it would be "
-                        "SILENTLY DISCARDED while the run still reports 'All contracts "
-                        "formally proven' (a directive is associated with the statement "
-                        "that FOLLOWS it, and a statement already in progress cannot "
-                        "follow it). Move it to its own line above that statement."
-                        % (_c.lineno, _lo), stage="Module1")
+                        "line " + str(_c.lineno) + ": this `#@` directive sits INSIDE "
+                        "the continuation lines of the statement that begins on line "
+                        + str(_lo) + ", where it would be SILENTLY DISCARDED while the "
+                        "run still reports 'All contracts formally proven' (a directive "
+                        "is associated with the statement that FOLLOWS it, and a "
+                        "statement already in progress cannot follow it). Move it to its "
+                        "own line above that statement.", stage="Module1")
         return _Harvester(coms).run(tree)
 
 
