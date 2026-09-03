@@ -49,6 +49,15 @@ def reject_unmodelled(tree: ast.AST) -> None:
                 "exactly when the loop finished without `break`, and the IR emitter reads "
                 "only the loop body, so the clause would be silently DROPPED from the "
                 "model. Rewrite it with an explicit flag.")
+        if isinstance(node, ast.TryStar):
+            raise PyCSLParseError(
+                "`try ... except*` (an exception-GROUP handler) is not modelled: "
+                "`_PY_STMT_HANDLERS` has no `TryStar` entry and `_py_stmts_to_ir` falls "
+                "through with no `else`, so the WHOLE statement — body, handlers, "
+                "`else` and `finally` — is silently DROPPED from the model. Measured "
+                "before this refusal: `try: x = 2 except* ValueError: x = 3` under "
+                "`ensures \\result == 1` proved SUCCESS while Python returns 2. "
+                "Rewrite with a plain `except`.")
         if isinstance(node, ast.Slice) and node.step is not None:
             raise PyCSLParseError(
                 "an EXTENDED slice `x[lo:hi:step]` is not modelled: the lowering is "

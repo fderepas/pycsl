@@ -1310,6 +1310,33 @@ class Module3_Weaver:
         contracts_map, trailing_contracts_map = self._parse_extracted_contracts()
         happy_props = self._extract_happy_properties(contracts_map)
         python_ast = ast.parse(self.source_code)
+        # (#34) A `#@` CONTRACT ON AN `async def` IS SILENTLY DISCARDED, AND THE RUN THEN
+        # REPORTS "All contracts formally proven". Module 1 extracts an `AsyncFunctionDef`
+        # under the SAME `FunctionDef` anchor as a plain `def`, so the contract IS parsed
+        # and lands in `contracts_map` — but `PyCSLWeaver` has only `visit_FunctionDef`,
+        # so the clauses are never attached, and Module 5's `visit_FunctionDef` never
+        # fires either, so the whole coroutine is absent from the emitted WhyML. Measured
+        # before this refusal:
+        #     class C:
+        #         #@ ensures \result == 1        <-- FALSE OF THE PROGRAM
+        #         async def m(self) -> int:
+        #             return 2
+        # emitted a module with no `m` at all and printed
+        # `[+] Verification SUCCESS! All contracts formally proven.`
+        # Coroutines are not modelled (no suspension/resumption semantics), so the honest
+        # answer is a refusal rather than a silent drop. Refused only when a contract was
+        # actually extracted for the `async def`: an UNCONTRACTED coroutine claims nothing,
+        # and refusing it would reject files whose async code is irrelevant to the proof
+        # (11 such definitions live in `python-reference`, all nested, all uncontracted).
+        for _n in ast.walk(python_ast):
+            if isinstance(_n, ast.AsyncFunctionDef) and _n.lineno in contracts_map:
+                raise PyCSLSemanticError(
+                    f"Coroutine '{_n.name}' (line {_n.lineno}) carries a `#@` contract, "
+                    f"but `async def` is NOT MODELLED: the weaver attaches contracts only "
+                    f"to `FunctionDef`, and the IR emitter has no `AsyncFunctionDef` "
+                    f"visitor, so both the contract and the whole coroutine body would be "
+                    f"silently DROPPED while the run still reports 'All contracts formally "
+                    f"proven'. Remove the contract, or make the function synchronous.")
         PyCSLWeaver(contracts_map).visit(python_ast)
         python_ast.csl_happy_properties = happy_props
         self._consolidate_module_concurrency(python_ast, contracts_map)
