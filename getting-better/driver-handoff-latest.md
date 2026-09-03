@@ -3,7 +3,16 @@
 # ARRAY/MAP EXTENSION: **BANKED, 13/13.** (One qualifier: `o_pure2` confirms `pure_ast` at
 # HEAD, because route #20 moved that emission afterwards. It is queued.)
 #
-# TEN ROUTES FOUND THIS RELAUNCH (#12-#21), NINE CLOSED. Metric 451 -> 456.
+# **TEN ROUTES FOUND THIS RELAUNCH (#12-#21), ALL TEN CLOSED.** Metric 451 -> 456.
+#
+# ROUTE #15 (constructor contracts) is CLOSED — it is the one that needed a BUILD rather
+# than a refusal. Module 6 emits a checking-only `let <class>__init` carrying the declared
+# clauses over the same record literal every allocation site builds; the inlining is
+# untouched. **Mirror emissions moved: ZERO**, so the 53-file battery never arose.
+# `bin/check-clause-survival.py` 4 -> 2, its own acceptance test. The three gates it needed
+# — non-trivial clause, faithful constructor body, recognized parameter annotation — all
+# came from measurement, and the two remaining deficits (0661/0662) go to 0 with the same
+# value-model capability routes #13/#17/#18 need.
 #
 # ## THE THREE THINGS TO DO FIRST
 #
@@ -19,10 +28,11 @@
 #    candidates — all three need a MIRROR-INTERNAL false-contract probe, which does not
 #    exist yet and is worth building.
 #
-# 3. **ROUTE #15** — constructor contracts, the one route found and not closed. Mirror-inert,
-#    two additive IR fields, and **its riskiest assumption is already measured** (the
-#    checking function proves in Why3 and discriminates: `scratchpad/w8/spike15/`).
-#    Acceptance test: `bin/check-clause-survival.py` 4 -> 0.
+# 3. **THE ONE VALUE-MODEL CAPABILITY THAT RETIRES FOUR THINGS AT ONCE**: a
+#    length-carrying, REBINDABLE sequence local reopens route #13 (list mutators), #17
+#    (list `del`) and #18 (array-local reassignment), AND threads a param-dependent
+#    non-scalar constructor field faithfully, which takes `clause-survival` 2 -> 0. Four
+#    recorded boundaries, one capability. It is the highest-leverage item left.
 #
 # ## A HARD PRECONDITION ON THE BIGGEST REMAINING MODEL UPGRADE
 #
