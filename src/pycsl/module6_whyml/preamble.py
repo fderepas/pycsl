@@ -8819,6 +8819,15 @@ class PreambleEmissionMixin:
                 self._emitted_record_field_labels[type_name] = {
                     fs.split(":")[0].replace("mutable ", "").strip()
                     for fs in field_strs}
+                # (#34) …and their TYPES, so the FRAME-PRESERVATION ensures below can be
+                # restricted to SCALAR labels (an `array int` field needs an element-wise
+                # preservation the scalar equality cannot express).
+                if not hasattr(self, "_emitted_record_field_types"):
+                    self._emitted_record_field_types = {}
+                self._emitted_record_field_types[type_name] = {
+                    fs.split(":")[0].replace("mutable ", "").strip():
+                        fs.split(":", 1)[1].strip()
+                    for fs in field_strs}
                 class_invs = td.get("class_invariants", [])
                 if class_invs:
                     # PRE-PASS (contract self-field subscript projection): register

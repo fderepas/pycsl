@@ -5763,6 +5763,40 @@ class FunctionEmissionMixin:
         lines += self._emit_contracts(contract_src, spec_refs,
                                       func_variants, func_diverges,
                                       func_exceptions, func_is_noreturn)
+        # (#34) FRAME PRESERVATION — the CHECK that makes the avatar's frame CLAIM
+        # honest. A method's `#@ assigns` is lowered into `writes { self.f }` on the
+        # arity-suffixed AVATAR every call site goes through, but the CONCRETE `let`
+        # carried no frame at all unless the class opted in with `@mutable_state`, so the
+        # claim was never checked against the body. Measured, before this:
+        #     #@ ensures self.a == 1 / #@ assigns self.a
+        #     def go(self): self.a = 1; self.b = 7          <-- b NOT in the frame
+        #     #@ ensures \result == 0                       <-- FALSE OF THE PROGRAM
+        #     def driver(): c = C(); c.go(); return c.b
+        #     [+] Verification SUCCESS! All contracts formally proven.   (Python: 7)
+        # The same held for `#@ assigns \nothing` (the avatar then does not even take
+        # `self`) and for a method with NO `#@ assigns` at all.
+        # WHY AN `ensures` AND NOT A `writes` ON THE `let`: Why3 rejects an OVER-claimed
+        # `writes` too ("this write effect does not happen in the expression"), so a
+        # `writes` clause must match the body EXACTLY — measured, that breaks 14 corpus
+        # files and one mirror whose `assigns self.<array-field>` is spelled for the field
+        # while the body writes `self.f[i]` (`self.f.elts` in Why3). A preservation
+        # POSTCONDITION has no such failure mode: declaring MORE than you write just emits
+        # FEWER clauses, which can never reject a correct body.
+        # SCALAR LABELS ONLY for now: an `array`/`map` field needs element-wise
+        # preservation, which is the named extension.
+        if is_method and not emit_as_val:
+            _fp_types = getattr(self, "_emitted_record_field_types", {}).get(
+                self._current_self_type)
+            if _fp_types:
+                _declared = {self._field_label(self._current_self_type, f)
+                             for f in self._module_method_writes.get(func["name"], [])}
+                for _lbl in sorted(_fp_types):
+                    if _lbl in _declared:
+                        continue
+                    if _fp_types[_lbl] not in ("int", "bool", "string", "real"):
+                        continue
+                    lines.append(
+                        "    ensures  { self.%s = old self.%s }" % (_lbl, _lbl))
         # tier3-p1 T3.1.4 (spike LAW 3): a recursive function over an IR-node (`emit_ir`)
         # param — the `_expr_to_whyml`/dispatcher recursion shape — carries NO natural
         # structural `variant` (its recursive call passes a PROJECTED sub-node

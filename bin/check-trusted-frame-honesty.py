@@ -636,11 +636,11 @@ def main():
         # `ConcurrencyChecker._walk_body` -- the SAME method an independent experiment
         # (putting the declared frame on the `let`) flagged with Why3's "this expression
         # produces an unlisted write effect". It has been repaired, so the widened
-        # predicate is now ALSO 0; the line is left as it is only because widening it
-        # belongs with the frame-preservation fix it is the instrument for
-        # (`scratchpad/w7/frame-preservation.patch`). DO NOT read the 0 below as "the
-        # population is clean" until both land together.
-        if cls not in ms_classes:
+        # predicate is ALSO 0. (#34, second half) THE WIDENING HAS NOW LANDED, together
+        # with the frame-preservation fix it is the instrument for: whenever an EMISSION
+        # is available the emitted record answers the question, and `@mutable_state` is
+        # only the FALLBACK for the source-heuristic path.
+        if emitted.get(path) is None and cls not in ms_classes:
             return False
         ent = emitted.get(path)
         if ent is not None:
