@@ -1,3 +1,157 @@
+# HANDOFF — #34 (2026-09-03, WINDOW 3): **the metric did not move (451) and that is the
+# right answer. This window found TEN demonstrated unsoundnesses — routes on which
+# `[+] Verification SUCCESS! All contracts formally proven.` was printed over a contract
+# that is FALSE OF THE PROGRAM — and closed SEVEN of them.** #33's ladder item 5,
+# "Module 3's `#@` attachment", was the richest surface in the campaign so far, and the
+# vein did not stop there: the last three are in the FRAME, and they are the biggest.
+
+## THE TEN, EACH REPRODUCED BEFORE ANYTHING WAS CHANGED
+
+Method, unchanged from #33: enumerate the dispatch mechanically, then probe END-TO-END
+WITH A CONTRACT THAT IS FALSE OF THE PROGRAM. A true contract failing tells you nothing.
+Every "Python returns N" below was obtained by RUNNING the probe.
+
+| # | route | probe | status |
+|---|---|---|---|
+| 1 | `try ... except*` dropped ENTIRELY (`_PY_STMT_HANDLERS` has no `TryStar`, `_py_stmts_to_ir` has no `else`) | `ensures \result == 1`; Python returns 2 | **CLOSED** — refused in `desugar.reject_unmodelled` |
+| 2 | a `#@` contract on an `async def` discarded; the coroutine never reaches the IR | `ensures \result == 1`; method returns 2; module emitted EMPTY | **CLOSED** — refused in `Module3_Weaver.process` |
+| 3 | `#@` above `if`/`try`/`except*`/`match` never anchored (`_make` returned `mk(None, None)`) | `#@ assert 1 == 2` above an `if` proved SUCCESS | **CLOSED** — anchored as `SimpleStatement` |
+| 4 | `#@` in decorator whitespace dropped ("invisible to libcst's leading_lines") | the mirror's `_heap_var` lost its whole contract | **CLOSED** — attached to the decorated def |
+| 5 | a directive on an anchor that ignores it (every attachment site is an `if/elif` with no `else`) | `#@ assert 1 == 2` above a `def` and above a `class`; `#@ ensures 1 == 2` on a `while` | **CLOSED** — `_reject_misplaced_directives` |
+| 6 | (same family) a `#@ class invariant` that lands on `__init__` | `pycsl_lib/re/_engine.py`: `ReMatch` had NO invariant in the model | **CLOSED** — moved above `class` |
+| 7 | `nonlocal` dropped; the nested `def` is lifted and its write lands on a FRESH LOCAL | `ensures \result == 1`; Python returns 2 | **CLOSED** — refused in Module 6's GENERIC emission |
+| 8 | an UNDER-CLAIMED `#@ assigns` on a converted method is never checked against the body | `ensures \result == 0`; Python returns 7 | **BUILT + MEASURED, NOT LANDED** |
+| 9 | `#@ assigns \nothing` on a mutating method (the avatar does not even take `self`) | same shape, same false proof | **BUILT + MEASURED, NOT LANDED** |
+| 10 | NO `#@ assigns` clause at all — callers still assume the method writes nothing | same shape, same false proof | **BUILT + MEASURED, NOT LANDED** |
+
+## LIVE VICTIMS FOUND — every one repaired
+
+* **the mirror's own `pure_ast._Parser.import_from`**: TWO `#@ assert self.i > \old(self.i)`
+  of its SIX staged monotonicity checkpoints sat above an `if` and were never anchored, in
+  a file proved at 3103 goals. They are now real obligations (the file proves at 3106).
+* **`Module6_WhyMLTranspiler._heap_var`** (mirror): `#@ requires/ensures/assigns` under its
+  `@property`, discarded; the method was verified as if uncontracted.
+* **`pycsl_lib/re/_engine.py`**: two `#@ class invariant` below `__slots__`, landing on
+  `__init__`. `ReMatch` carried NO invariant.
+* **`pycsl_lib/os/UnixInodeFileSystem._pad_name`**: an `#@ assigns` and THREE `#@ ensures`
+  after the docstring, with a source comment claiming they were "surfaced as top-level
+  ensures so `_blit_dir_entry` can chain them". They were surfaced nowhere. (Redundant with
+  the real block above the `def` — deleted.)
+* **`pycsl_lib/csys`** (3) and **`UnixInodeFileSystem`** (1): four `#@ assert` above an `if`.
+  `csys` re-proves at **4873 Valid vs 4866 before**, rc=0 SUCCESS, 0 Unknown either side.
+* **corpus 0208**: `#@ ghost total += 1` above an `if`. This is EXACTLY why 0208 was
+  `pycsl-expected: FAIL` — its `loop invariant total == i` could not hold when the ghost
+  update did not exist. **It now PROVES**, and its one added line
+  (`ghost total := !total + 1;`) is the ONLY change in the entire 819-file corpus emission.
+
+## THE STRUCTURAL LESSON OF THIS WINDOW
+
+**A `#@` DIRECTIVE HAS THREE PLACES TO DIE, AND ONLY THE THIRD HAD A GUARD.** Module 1 can
+refuse to ANCHOR it; Module 3 can anchor it on a node whose attachment site IGNORES it;
+Module 5/6 can drop the STATEMENT it was attached to. #33's `process()` guard covered
+exactly one shape of the first (a block at end-of-file). Everything else printed
+"All contracts formally proven" over a directive it had thrown away. When you audit a
+directive surface, walk all three.
+
+**AND THE FRAME IS A CLAIM WITH NO CHECK.** `_build_method_writes_map`'s docstring says the
+avatar's `writes` is "derived from the SAME `contracts.assigns` the method's `let` is
+verified against, so the abstract op's `writes {self.x}` cannot drift from the method's
+frame." **That sentence is false.** The `let` carries no frame at all unless the class opts
+in with `@mutable_state`; Why3 infers its effect from the body; nothing ties the two.
+Lesson (az) again — settle a claim about a mechanism by RUNNING the mechanism.
+
+## WHERE THE LADDER STANDS FOR #35
+
+**1. LAND THE FRAME-PRESERVATION FIX. This is the #1 item and it is already built.**
+`scratchpad/w7/frame-preservation.patch` — 43 additive lines in two files. On the concrete
+`let` of every method of a record-emitting class it emits
+`ensures { self.<f> = old self.<f> }` for each SCALAR record label the method's
+`#@ assigns` does not name. All three probes (`scratchpad/w7/probes/frame/{f1,f4,f5}.py`)
+go from `Verification SUCCESS` to FAILED under it.
+  · The `writes`-on-the-`let` alternative was ALSO built and measured and is WORSE: Why3
+    rejects an over-claimed `writes` as hard as an under-claimed one, and 14 of the 22
+    corpus files it breaks are over-claims (`#@ assigns self.disk` on an `array int` field
+    whose body writes `self.disk[i]` = `self.disk.elts`). The preservation form has no
+    over-claim failure mode at all.
+  · MEASURED: **mirror L3-tc 53/53 GREEN**; 50 corpus `.mlw` change; ~10 mirror `.mlw`
+    change (`pure_ast`, `Module5_IREmitter`, `Module2_Parser`, `Module3_Weaver`,
+    `statements`, `expressions`, `ConcurrencyChecker`, `ir_inline`,
+    `audit_proof_reverify`, `Module6_WhyMLTranspiler`).
+  · WHAT IT OWES: verify the 50 changed corpus files (`scratchpad/w7/verify_changed.sh`
+    drives it), and RE-PROVE the ~10 changed mirrors. **That re-proof is the measurement
+    that matters**: a preservation clause that fails to prove is a LIVE VICTIM — a
+    converted, proved mirror method whose declared frame is a lie. The `writes` variant
+    already named one (`frontend/ConcurrencyChecker.py`, "unlisted write effect") and eight
+    corpus files (0459 0460 0461 0720 0721 0723 0724 0725).
+  · NAMED EXTENSION, still open after it lands: element-wise preservation for `array`/`map`
+    fields. Corpus 0459 is exactly that shape (`self.disk[i] = v` in a method that declares
+    nothing).
+
+**2. `bin/check-trusted-frame-honesty.py` MEASURES THE WRONG SET.** Its MODEL-VISIBLE
+predicate is "`@mutable_state` class", and it reports 0/0 and 0/96. A class can emit a
+`type c = { mutable a: int; ... }` record WITHOUT that decorator — both frame probes do —
+and that is exactly the population where routes 8/9/10 bite. Widen the predicate to "the
+class has an emitted record" before trusting another 0.
+
+**3. The `#@`-attachment vein has one unswept surface left**: `Module1_Ingestor._assign`'s
+`elif nxt is None: pass` (a module-level trailing `#@` at indent 0 is ignored "as libcst").
+The `process()` EOF guard covers the common shape; whether it covers all of them was not
+measured.
+
+**4. Unchanged from #33** and untouched by this window: avatar-frame INHERITED 7,
+`computed-rhs-erasure` 2, the `dropped-mutation` residues (1/50/9/0),
+`proof2why3`'s `term` family, the heterogeneous-list-literal 15.
+
+## SWEPT AND CLEAN — do not re-derive
+
+* the `match` surface: `_py_stmt_match` reads `subject` and every case's `pattern`, `guard`
+  AND `body`. A MAPPING pattern (`case {"a": 1}`) is a LOUD `unsupported` in `pure_ast` and
+  a KEYWORD class pattern (`case Ctor(x=0)`) is a LOUD syntax error, so
+  `_match_pattern_to_ir`'s hard-coded `kwd_attrs=[]` can never silently drop a constraint.
+* `global` is modelled (`module_collect` collects `written_via_global`). `import`,
+  `import from`, `type X = ...`, a nested `class` and a nested `def` inside a body are
+  dropped as STATEMENTS, but each was probed with a FALSE contract and each is INERT.
+* the contract EXPRESSION grammar: five false contracts over `\forall`, `\exists`, `or`,
+  `==>` and `\old` all correctly FAIL.
+
+## INSTRUMENT FACTS #34 ADDS
+
+1. **BOTH FIDELITY SCRIPTS EXIT 1, AND HAVE ALL WINDOW.** `check-self-annotate-sync.sh`
+   (2 diverged un-trusted bodies: `expressions._handle_var_expr`,
+   `stmt_control_flow._handle_for_stmt`) and `self-annotate-mirror-check.sh` (3 mirrors,
+   4 mirror-only defs incl. `_materialize_bridge`) produce output that is BYTE-IDENTICAL
+   at HEAD, at f408c9e3 and at the window-start e4d0a209. Long-standing, not a regression —
+   but the honest reading of "fidelity green" is "no NEW divergence", and that is what can
+   be verified. Baseline logs: `scratchpad/w7/sync_base.log`, `mirror_base.log`.
+2. **`src/pycsl_lib` is 92 files L3-tc GREEN and 12 that do NOT type-check** — `dc`,
+   `iomod`, `json/{__init__,decoder,encoder,scanner,tool}`, `os/UnixInodeFileSystem`,
+   `proc`, `re/_engine`, `subproc`, `tmpf`. #33 named two of the twelve. The set is
+   BYTE-IDENTICAL at f408c9e3 and after every #34 change
+   (`scratchpad/w7/l3lib_{base,nl}.log`). `os/UnixInodeFileSystem.py`, the flagship
+   body-verified stdlib file, fails on `unbound function or predicate symbol
+   'dir_find_free_prefix'` and has been failing since before this window.
+3. A REFUSAL is measurable on the byte-diff plane for free: a refused file emits no `.mlw`,
+   so "819 of 819 present and byte-identical" also proves no corpus file was refused.
+4. `scratchpad/w7/` layout: `base/` = worktree at f408c9e3 (window baseline), `wt/` =
+   worktree at HEAD for measuring while the main tree proves (symlink `.venv` into it or
+   `byte-diff-sweep.sh` emits 0 files), `proofs/` = every log + `.rc`, `probes/` = every
+   false-contract probe, `pr.sh` = the detached whole-file proof driver.
+
+## VERIFICATION BASELINE #34 LEAVES
+
+Corpus byte-diff vs f408c9e3: **1 file, 1 line** (0208's ghost update; everything else
+byte-identical). Mirror L3-tc **53/53**. IR conformance BOTH corpora (38 OK / 0 MISMATCH,
+10/10 drivers byte-stable across PYTHONHASHSEED). dropped-mutation 1/50/9/0 ·
+shadowed-selfcalls 14 · yield-erasure 2 · computed-rhs-erasure 2/0 · frame-honesty 0/0 and
+0/96 · mirror-signature-drift 0 · mirror-field-parity 7 known/0 new · avatar-frame-parity
+0 same-file / 7 inherited · emitted-vacuity `--emit` 8 known / 0 input-blind ·
+untrusted-emitted 849 emitted / 0 re-abstracted · doc-coherency OK. Whole-file proofs
+rc=0 `Verification SUCCESS`: mirror `desugar.py`, mirror `Module6_WhyMLTranspiler.py`,
+`src/pycsl_lib/csys/__init__.py`. Witnesses added: **0973** (`except*` refused), **0974**
+(async contract refused), **0975** (misplaced directive refused), **0976** (directive
+anchoring — NEGATIVE-TESTED twice), **0977** (`nonlocal` refused). `python-reference/0111`
+marked `pycsl-expected: FAIL`; `pycsl-reference/0208` un-marked because it now proves.
+
 # HANDOFF — #33 (2026-09-02, WINDOW 3): **447 -> 451 markers, and the four extra markers
 # bought THREE PROVED FALSE POSTCONDITIONS being made impossible, TWO NEW GATE PLANES, a
 # DEAD CI GATE RESTORED, and both frame-honesty populations driven to zero.** The window's
