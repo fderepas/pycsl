@@ -36,6 +36,26 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ### #43 STATE (2026-09-03, relaunch after the #34-#42 `529 Overloaded` outage) — READ FIRST
 
+**ROUTES #14, #16, #17, #18 ALSO FOUND AND CLOSED THIS RELAUNCH; #15 FOUND AND PRICED.**
+Eighteen routes are now enumerated across #33/#34/#43 and seventeen are closed. Metric
+451 -> 455, every +4 an HONEST re-trust or an honest new trusted stub. See the handoff for
+each. The three highest-value carry-forwards:
+
+  1. **THE OWED PROOF BATTERY** (handoff addendum 3 lists all nine files and their status).
+     The array/map extension may be banked only when `a_expr` AND `a_pure` are both rc=0.
+  2. **ROUTE #15** (constructor contracts discarded) is the top BUILD item — mirror-inert,
+     two additive IR fields, 13 corpus re-proofs. `bin/check-clause-survival.py` 4 -> 0 is
+     its acceptance test.
+  3. **ONE VALUE-MODEL CAPABILITY RETIRES THREE REFUSALS**: a length-carrying, REBINDABLE
+     sequence local reopens routes #13 (list mutators), #17 (list `del`) and #18 (array
+     local reassignment). Highest leverage item in the value-model track.
+
+**THE METHOD TO START WITH NEXT WINDOW**: grep Module 6 for every site that emits `()` for
+a whole statement and probe each with a false contract. That census produced routes #17 and
+#18 back to back, and both had a prose soundness argument written beside them. A no-op
+lowering with a comment asserting it is sound is the highest-yield thing to probe here.
+
+
 **ROUTE #13 (2026-09-03) — THE THIRTEENTH DEMONSTRATED UNSOUNDNESS, AND IT DEFEATED #34's
 FRAME-PRESERVATION FIX.** A mutating METHOD CALL on a `self.<field>` collection
 (`self.xs.reverse()`, `self.xs.append(v)`) was ERASED from the model — a nullary abstract

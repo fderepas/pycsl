@@ -1,3 +1,94 @@
+# HANDOFF ADDENDUM 3 — #43, ROUTES #17 and #18, and THE PROOF BATTERY THAT IS OWED.
+# **EIGHTEEN routes enumerated across #33/#34/#43; seventeen closed.** Metric 451 -> 455.
+
+## THE METHOD THAT FOUND #17 AND #18 — use it first next window
+
+Stop probing one shape at a time. **`grep` Module 6 for every site that emits `()` for a
+whole statement, then probe each with a contract false of the program.** That single census
+produced routes #17 and #18 back to back, and both had a comment beside them ASSERTING
+soundness:
+
+  · route #17, `_handle_del_subscript_stmt` — its own docstring calls the blanket `del`
+    no-op "UNSOUND ... a severity-1 fail-OPEN" for dicts and then keeps it for "list
+    `del a[i]`, a self-field, an unknown receiver".
+  · route #18, `_emit_array_local_reassign` — "other shapes fall through to a no-op
+    (soundness depends on the caller treating the array as opaque after this point —
+    typically handled by `\trusted` upstream)".
+
+**A no-op lowering with a prose soundness argument beside it is the single highest-yield
+thing to probe in this codebase.** Two for two.
+
+## ROUTE #17 — `del <list>[i]` is a no-op
+
+    xs: List[int] = [1, 2, 3]; del xs[0]; return xs[0]
+    #@ ensures \result == 1        [+] Verification SUCCESS!      (Python returns 2)
+
+Emitted `(); 1`. Worse than the dict case it was split from: Python's list `del` SHIFTS
+every later element left and SHRINKS the sequence, so the no-op is wrong about EVERY index.
+The DICT half correctly FAILS the analogous probe, which is what localises it.
+REFUSED. Witness **0985**. Corpus byte-identical; `pycsl_lib` unchanged; the WL-05c dict
+locks 0854-0857 keep their verdicts.
+
+## ROUTE #18 — reassigning an array LOCAL is a no-op
+
+    xs: List[int] = [1, 2]; xs = g(); return xs[0]     # g -> [9,9]; Python 9
+    xs: List[int] = [1, 2]; xs = ys;  return xs[0]     # ys a PARAMETER; Python ys[0]
+
+both `[+] Verification SUCCESS!` under `#@ ensures \result == 1`. The second is the sharper
+one — an ALIASING reassignment from an unconstrained parameter, dropped, so the model
+answers every later read from the old literal. REFUSED. Witnesses **0986**, **0987**.
+
+## THREE ROUTES NOW NAME ONE REOPENING CAPABILITY
+
+Route #13 (list mutators on a field) needs the length in the value model; route #17 (list
+`del`) needs the length and a shift; route #18 needs the local to be REBINDABLE. One
+capability — **a length-carrying, rebindable sequence local (`ref (array int)` plus its
+length, or a real `seq`)** — retires all three refusals. That is the highest-leverage
+value-model item in the backlog and is worth more than any of the three individually.
+
+## WHAT THE FIDELITY AND VACUITY PLANES CAUGHT — read this before editing the live emitter
+
+Routes #16 and #18 both edited a live method that is CONVERTED in the mirror.
+`check-self-annotate-sync.sh` reported two NEW divergences; `check-emitted-vacuity --emit`
+independently reported the SAME fault from the other side (the mirror's
+`_emit_array_local_reassign` ignoring an input the live body had started using). One fault,
+two planes, two vocabularies — lesson (bf) exactly.
+
+THREE THINGS THE SYNC TAUGHT, all measured:
+  1. `any(<genexp>)` over a `\trusted` predicate is an L3-tc
+     `unbound function or predicate symbol` — the any/all bounded fold needs a pure symbol.
+     Use an explicit loop.
+  2. A SET-returning `\trusted` stub has no value-model type here. Route #16's two helpers
+     became ONE boolean-returning helper (metric 454 -> 455 — an honest trusted stub for a
+     call-graph worklist fixpoint).
+  3. **A verbatim live->mirror copy CLOBBERS the mirror's stronger annotation.** The mirror
+     declares `val_ir: "ExprIR"` where the live tree says `Dict[str, Any]`; copying the
+     whole `def` replaced it and the file stopped type-checking.
+     **Copy the BODY, keep the mirror's SIGNATURE.**
+
+## THE PROOF BATTERY THAT IS OWED — the first thing to do next window
+
+Only THREE mirror emissions moved across all of this relaunch's emitter work, plus the two
+the route-#13 re-trusts moved and the three the route-#12 `raises` line moved. Compare
+`scratchpad/w8/manifest_head_r14.md5` against a fresh sweep to re-derive it.
+
+  IN FLIGHT (detached, `scratchpad/w7/pr2.sh`, 28800 s cap):
+    module6_whyml/expressions.py   (a_expr)  — the array battery's 12th file
+    frontend/pure_ast.py           (a_pure)  — the array battery's 13th, AND route #13
+  NOT STARTED:
+    audit_proof.py                 — route #13 re-trust
+    frontend/Module3_Weaver.py     — route #12, one `raises` line on an UNCALLED val
+    frontend/__init__.py           — route #12, same
+    frontend/ir_resolve.py         — route #12, same
+    frontend/desugar.py            — route #16 sync (16 goals, minutes)
+    module6_whyml/statements.py    — route #18 sync (3886 goals)
+    Module6_WhyMLTranspiler.py     — moved by the statements sync (862 goals)
+
+**The array/map extension may be banked only when a_expr AND a_pure are both rc=0.**
+Everything else about it is already gated: corpus byte-diff re-derived independently
+(exactly the 26 files) and re-proved fresh (26/26), all non-proof planes green,
+`frontend/Module5_IREmitter.py` (a_m5) rc=0 with 2088 Valid and zero bad goals.
+
 # HANDOFF ADDENDUM 2 — #43, ROUTES #14, #15, #16. **Sixteen routes are now enumerated
 # across #33/#34/#43; fifteen are closed.** Metric 451 -> 454, every +3 an HONEST re-trust.
 
