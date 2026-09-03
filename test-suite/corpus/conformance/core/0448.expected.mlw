@@ -25,6 +25,8 @@ module PyCSL_Program
 
   let functionanalyzer__visit_FunctionDef (self: functionanalyzer) (node: int) : int
     ensures  { (result >= 0) } (* linear *)
+    ensures  { self.count = old self.count }
+    ensures  { self.functionanalyzer__depth = old self.functionanalyzer__depth }
   =
     1
 

@@ -9,6 +9,7 @@ module PyCSL_Program
 
   let c__get (self: c) : int
     ensures  { (result = self.v) }
+    ensures  { self.v = old self.v }
   =
     self.v
 

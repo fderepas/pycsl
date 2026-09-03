@@ -14,16 +14,21 @@ module PyCSL_Program
 
   let base__get (self: base) : int
     ensures  { (result = self.base_start) }
+    ensures  { self.base_start = old self.base_start }
   =
     self.base_start
 
   let sub__get (self: sub) : int
     ensures  { (result = self.sub_start) }
+    ensures  { self.extra = old self.extra }
+    ensures  { self.sub_start = old self.sub_start }
   =
     self.sub_start
 
   let sub__total (self: sub) : int
     ensures  { (result >= 0) } (* linear *)
+    ensures  { self.extra = old self.extra }
+    ensures  { self.sub_start = old self.sub_start }
   =
     (self.sub_start + self.extra)
 

@@ -14,12 +14,14 @@ module PyCSL_Program
   let base__f (self: base) (x: int) : int
     requires { (x >= 0) }
     ensures  { (result >= x) } (* linear *)
+    ensures  { self.base_v = old self.base_v }
   =
     (x + self.base_v)
 
   let sub__f (self: sub) (x: int) : int
     requires { (x >= 5) }
     ensures  { (result >= x) } (* linear *)
+    ensures  { self.sub_v = old self.sub_v }
   =
     (x + self.sub_v)
 

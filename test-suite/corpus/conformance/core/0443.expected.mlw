@@ -20,6 +20,8 @@ module PyCSL_Program
 
   let sub__room (self: sub) : int
     ensures  { (result >= 0) } (* linear *)
+    ensures  { self.cap = old self.cap }
+    ensures  { self.sub_size = old self.sub_size }
   =
     (self.cap + self.sub_size)
 
