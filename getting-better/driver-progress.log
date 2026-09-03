@@ -793,3 +793,4 @@ FINAL VERIFIED STATE: markers 532 · grep-substring 557 · offset 25 · ledger 3
 01:57 #34: frame-preservation fix measured LANDABLE — corpus 48/50 unchanged + 2 genuine route-#10 repairs (0721,0723) then 50/50; mirror MODEL-VISIBLE offender ConcurrencyChecker._walk_body REPAIRED (honest #@ assigns self.warnings); fidelity byte-identical to baseline. Owed: ~10 mirror re-proofs. Banked 2c49b731
 02:01 #34: ir_resolve mirror re-proof rc=0 SUCCESS (793 goals). pure_ast still in its vacuity phase (3106 goals all Valid, 0 Unknown). ConcurrencyChecker proof started for the frame repair.
 02:03 #34: ConcurrencyChecker mirror re-proof rc=0 SUCCESS (the honest #@ assigns self.warnings frame repair proves). pure_ast + pycsl mirror proofs still in their vacuity phase.
+02:54 #34: pycsl.py mirror re-proof rc=0 SUCCESS. pure_ast at 1h40m (all 3106 goals Valid, 0 Unknown; in the vacuity phase); frontend/__init__ running.
