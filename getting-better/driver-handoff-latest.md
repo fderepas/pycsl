@@ -1,3 +1,61 @@
+# ===================== START HERE — #43 -> next window =====================
+#
+# ARRAY/MAP EXTENSION: **BANKED, 13/13.** (One qualifier: `o_pure2` confirms `pure_ast` at
+# HEAD, because route #20 moved that emission afterwards. It is queued.)
+#
+# TEN ROUTES FOUND THIS RELAUNCH (#12-#21), NINE CLOSED. Metric 451 -> 456.
+#
+# ## THE THREE THINGS TO DO FIRST
+#
+# 1. **DRAIN THE PROOF QUEUE.** `scratchpad/w8/queue_{owed,final_pure,scf,irs}.sh` run
+#    autonomously and write marker files into `scratchpad/w7/proofs/`
+#    (`OWED_DONE` -> `FINAL_DONE` -> `SCF_DONE` -> `IRS_DONE`). Green so far, ZERO bad goals
+#    in every one: a_expr(20125) a_m5(2088) a_pure(3373) o_desugar(18) o_ap(44) o_m3w(284).
+#    If a relaunch finds them dead, re-launch with `scratchpad/w7/pr2.sh <mirror> <tag>`.
+#
+# 2. **PROBE A GREEN RATCHET.** Two of them were hiding live unsoundnesses this relaunch
+#    (`CTXBIND = 50` -> route #20, `TRYFINAL = 9` -> route #21), each one probe away. What
+#    is left un-probed: `yield-erasure`'s 2 and the two `_uses_pyast_parser`-gated no-op
+#    candidates — all three need a MIRROR-INTERNAL false-contract probe, which does not
+#    exist yet and is worth building.
+#
+# 3. **ROUTE #15** — constructor contracts, the one route found and not closed. Mirror-inert,
+#    two additive IR fields, and **its riskiest assumption is already measured** (the
+#    checking function proves in Why3 and discriminates: `scratchpad/w8/spike15/`).
+#    Acceptance test: `bin/check-clause-survival.py` 4 -> 0.
+#
+# ## THE METHOD THAT PRODUCED SEVEN OF THE TEN
+#
+# **Probe the thing with a prose soundness argument written beside it.** `grep` Module 6 for
+# every site that emits `()` for a whole statement; take each ratchet's own description of
+# its population and build the smallest program with that shape; then put a contract on it
+# that is FALSE of the program and RUN Python to check. Routes #13, #16, #17, #18, #19, #20
+# and #21 all came from a comment or a counter that asserted safety.
+#
+# ## THREE HABITS THIS RELAUNCH PAID FOR
+#
+# * **Ask what the instrument iterated over.** "13-file battery complete" was 10 of 13;
+#   "avatar-frame 7" was the ratchet, not the measurement; `byte-diff-sweep.sh` covered 27%
+#   of the corpus. Use `scratchpad/w8/pyref_sweep.sh` for the other 73%.
+# * **`grep` the mirror before editing a live body.** The fidelity plane caught three
+#   live/mirror desyncs here. When syncing: **copy the BODY, keep the mirror's SIGNATURE**
+#   (a verbatim copy clobbered `val_ir: "ExprIR"` and stopped a file type-checking).
+# * **Re-run the exploit probe after every narrowing.** Route #19's refusal silently never
+#   fired once, because `_mutable_state_classes` holds `whyml_ident(name.lower())` and the
+#   check compared the raw `self_type`. A refusal that never fires looks exactly like one
+#   that works.
+#
+# ## SETTLED, DO NOT RE-DERIVE
+#
+# The metric has no uncounted escape hatch in its scope (`\abstract`: 14 tree-wide, 0 in the
+# mirror; `#@ assume` is not a keyword). UB-7.1's `_MUTATING_METHODS` was widened — it had
+# been a fail-open masked by route #14's refusal. #34's frame-preservation fix still bites
+# (re-probed). Argument binding, inheritance/override dispatch, chained comparison, walrus,
+# the Module-5 handler field coverage, the Module5->Module6 IR-key boundary (111 tags), and
+# clause survival for loop/class-invariant/assert/check directives are all CLEAN.
+#
+# ==========================================================================
+
 # HANDOFF ADDENDUM 7 — #43: **THE ARRAY/MAP FRAME EXTENSION IS BANKED. 13 of 13.**
 
 Every mirror whose emission the extension changed is rc=0 `Verification SUCCESS` with ZERO
