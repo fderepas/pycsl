@@ -91,7 +91,7 @@
 # Now held by `bin/check-bespoke-model-drift.py`, which enumerates all 25 and fingerprints
 # their bodies.
 #
-# ## SEVEN NEW PLANES
+# ## EIGHT NEW PLANES
 #
 #     bin/check-mirror-loop-annotations.py          ratchet 330 lines / 5 files
 #         Per-file floor on the mirror's IN-BODY `#@` directives (loop invariant/variant,
@@ -110,6 +110,15 @@
 #         The one failure mode where every green light is real and the conclusion is still
 #         wrong. Fingerprints each bespoke-modelled body and names the `_emit_..._bespoke`
 #         function that must move with it. Negative-tested by replaying #28's mistake.
+#     bin/check-ir-field-coverage.py                4 unread fields (all read + classified)
+#         THE CAMPAIGN'S OWN DEFECT CLASS, MADE MECHANICAL: "a lowering reads some of a
+#         node's fields and silently drops the rest". 101 IR classes, 224 fields; for each,
+#         does its Module 6 handler ever mention the field? The 4 hits are 3 location
+#         fields (the ADT carries no location payload) and `allow_iteration_mutation`
+#         (a Module-4 directive). **It has a stated blind spot: 25 classes lowered inside
+#         the `t == "<Kind>"` dispatcher are NOT checked.** A fallback for them was built,
+#         produced ten hits, ALL TEN were false positives (three refuted by end-to-end
+#         probes), and it was REMOVED — see the note in the script before rebuilding it.
 #     bin/check-swallowed-exceptions.py             141 -> 137 static, 4 firing (baselined)
 #         The first BEHAVIOURAL plane: it watches what the emitter actually CATCHES during
 #         a real 53-mirror emission (`sys.monitoring` EXCEPTION_HANDLED), not what the
