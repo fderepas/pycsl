@@ -1,0 +1,86 @@
+    # ROUTE #36 (relaunch #45) — REFUSE a `for` target that is READ OUTSIDE ITS LOOP.
+    #
+    #   Python leaves the loop variable bound to its LAST value; the emission opens
+    #   `let i = ref (!_idx_i) in` INSIDE the body, so the name is shadowed for the
+    #   loop's duration and the OUTER `i` still holds its pre-loop value afterwards.
+    #   MEASURED in the default hoare model, no flags:
+    #
+    #       i = 0
+    #       for i in range(3): pass
+    #       return i        #@ ensures \result == 0   -> PROVED. Python returns 2.
+    #
+    #   Witness `pycsl-reference/1024`.
+    #
+    #   THE EXPLOIT NEEDS THE NAME TO BE LIVE OUTSIDE THE LOOP. A fresh loop target
+    #   read afterwards is an unbound Why3 name and already fails closed, which is why
+    #   this refusal is narrow: it fires only when the target is read somewhere the
+    #   loop's own subtree does not cover.
+    #
+    #   WHY NOT WRITE THE VALUE BACK. That is the capability, and it is the recorded
+    #   reopening: bind the OUTER ref in the body (`i := !_idx_i`) instead of shadowing
+    #   it, which reproduces Python exactly INCLUDING the never-ran case, where the
+    #   variable keeps its previous value. It is not done here because it moves EVERY
+    #   for-loop emission in both corpora and in the mirror — a whole-file re-proof of
+    #   `expressions.py` (20125 goals, ~4h) among others — for a shape the corpus does
+    #   not contain. A refusal that costs nothing is the right first move; the write-back
+    #   is a funded increment of its own.
+    for _f36 in ir_data.get("functions", []):
+        _fors36 = []
+        _st36 = [_f36.get("body", [])]
+        while _st36:
+            _n36 = _st36.pop()
+            if isinstance(_n36, dict):
+                if _n36.get("stmt") == "For" and isinstance(_n36.get("target"), str):
+                    _fors36.append(_n36)
+                _st36.extend(_n36.values())
+            elif isinstance(_n36, (list, tuple)):
+                _st36.extend(_n36)
+        for _fr36 in _fors36:
+            _tgt36 = _fr36["target"]
+            # Every `Var` read in the function EXCEPT those inside this loop's own
+            # subtree (its body, its iterable and its loop contracts).
+            _inside36 = set()
+            _si36 = [_fr36]
+            while _si36:
+                _x36 = _si36.pop()
+                if isinstance(_x36, dict):
+                    _inside36.add(id(_x36))
+                    _si36.extend(_x36.values())
+                elif isinstance(_x36, (list, tuple)):
+                    _si36.extend(_x36)
+            _leak36 = False
+            _so36 = [_f36.get("body", [])]
+            while _so36 and not _leak36:
+                _y36 = _so36.pop()
+                if isinstance(_y36, dict):
+                    if id(_y36) in _inside36:
+                        continue
+                    # A PYTHON `assert` IS DROPPED BY MODULE 6 — it lowers to `()`,
+                    # MEASURED on `python-reference/0177`, whose `assert i == 5` after
+                    # a `break` loop emits nothing at all. A read the emission does not
+                    # contain cannot carry a false proof, so it is not a leak, and
+                    # counting it would fail a PASSING corpus test for no soundness
+                    # gain. THE EXCLUSION IS COUPLED TO THAT LOWERING: if a Python
+                    # `assert` ever becomes a real proof obligation, this line must go
+                    # with it, or 0177's shape becomes exploitable again in silence.
+                    # (A `#@ assert` contract directive is a different node and is NOT
+                    # excluded.)
+                    if _y36.get("stmt") == "Assert":
+                        continue
+                    if (_y36.get("type") == "Var"
+                            and _y36.get("name") == _tgt36):
+                        _leak36 = True
+                        break
+                    _so36.extend(_y36.values())
+                elif isinstance(_y36, (list, tuple)):
+                    _so36.extend(_y36)
+            if _leak36:
+                from errors import PyCSLSemanticError as _PyCSLSemErr36
+                raise _PyCSLSemErr36(
+                    f"the `for` target {_tgt36!r} is read OUTSIDE its loop (ROUTE "
+                    f"#36): Python leaves a loop variable bound to its LAST value, "
+                    f"but the emission binds the target inside the loop body and the "
+                    f"outer name keeps its PRE-loop value, so a contract that is "
+                    f"FALSE of the program becomes provable. Read the value inside "
+                    f"the loop, or copy it to another name before the loop ends.",
+                    stage="whyml-emit", code="PYCSL-R36-LOOP-VAR-LEAK")
