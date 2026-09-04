@@ -66,6 +66,17 @@
 # lost — it is that the model gets to DECIDE A BRANCH on a value it invented.
 # `grep -n 'return "0"'` in `module6_whyml/expressions.py` lists the remaining candidates.
 #
+# ## THE THIRD RULE, and it cost me a wrong handoff entry
+#
+# **A PLAUSIBLE STORY THAT FITS THE EVIDENCE YOU HAVE IS NOT A FINDING.** I recorded five
+# failing tests as a completeness regression — they document themselves as PROVING, they
+# failed one-at-a-time on a quiet box, and "somebody slowed them down without updating the
+# tests" fits all of that. It was wrong: the configured Alt-Ergo did not exist, so the
+# suite had been running on one prover. What broke the story was BISECTING to the commit
+# that INTRODUCED one of them and finding it failing there too — a test cannot regress
+# before it exists. Twenty minutes of bisect against a day of the next window chasing a
+# phantom.
+#
 # ## THE OTHER RULE, four instances in one window
 #
 # **A GATE THAT CANNOT DISTINGUISH "NOTHING IS WRONG" FROM "I LOOKED AT NOTHING" IS NOT A
@@ -207,11 +218,19 @@
 #                          THE REMAINING 30, all diagnosed in `scratchpad/w9/fail_causes.txt`:
 #                            11  `Why3 Coq library not found` — the `#@ proof rocq` bridge
 #                                CANNOT BE REPLAYED in this environment at all.
-#                             9  SMT timeout/unknown, and FIVE of those document themselves
-#                                as PROVING (0932, 0943, 0944, 0948, 0949). They still fail
-#                                re-run ONE AT A TIME ON A QUIET BOX, so it is not job
-#                                contention — it is a real completeness regression nobody
-#                                had recorded. Not an unsoundness; a timeout is fail-closed.
+#                             9  SMT timeout/unknown — **RETRACTED AND EXPLAINED.** I first
+#                                recorded these as "a completeness regression nobody had
+#                                recorded", because five of them say "STATUS — PROVES." in
+#                                their own docstrings and they failed even one-at-a-time on
+#                                a quiet box. THERE IS NO REGRESSION. `config/agents-config
+#                                .json` and `_DEFAULT_PROVERS` named **Alt-Ergo 2.6.2** and
+#                                this switch has **2.6.3**, so every DEFAULT run — the whole
+#                                suite — proved with **Z3 ALONE**. TEN of the thirty
+#                                failures pass once Alt-Ergo is present. Fixed, plus a loud
+#                                banner when a configured prover does not resolve.
+#                                What led me out of the wrong story was BISECTING: 0943
+#                                fails at the very commit that INTRODUCED it, which cannot
+#                                be a regression and therefore had to be the environment.
 #                             1  `0540` — its docstring says it should be a PARSE ERROR and
 #                                what it produces is `UNEXPECTED PIPELINE ERROR: 'str'
 #                                object has no attribute 'get'`, an INTERNAL CRASH on the
@@ -220,11 +239,12 @@
 #
 # ## THE THREE THINGS TO DO FIRST, NEXT WINDOW
 #
-#   1. **The five self-documented-PROVES tests that now time out** (0932, 0943, 0944,
-#      0948, 0949). A completeness regression, fail-closed, and the only remaining red
-#      that is a defect in the TOOL rather than in the environment or a test. Start by
-#      bisecting which change slowed them: they claim "STATUS — PROVES." in their own
-#      docstrings, so they proved once. Then `0540`'s internal crash on the refusal path.
+#   1. **`0540`'s internal crash on the refusal path.** Its docstring says it should be a
+#      PARSE ERROR for the un-implemented `#@ datatype Option[T]` syntax; what it produces
+#      is `UNEXPECTED PIPELINE ERROR: 'str' object has no attribute 'get'`. A crash is only
+#      fail-closed while nothing catches it, and the remaining L3-tc/pipeline failures
+#      (0700, 0701, python-reference 0043/0048/0079/0080/0082/0095/0110) are the rest of
+#      that list. Each is individually diagnosed in `scratchpad/w9/fail_causes.txt`.
 #   2. **Probe with the guard rule.** `grep -n 'return "0"'` in
 #      `module6_whyml/expressions.py` still lists ~12 literal-0 fall-throughs. Four of them
 #      became routes #22/#24/#25/#26/#27 this window. Consume the value in an `if`, never
