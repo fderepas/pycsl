@@ -1,0 +1,1 @@
+Delegate to a sub agent the task to run the self-tcb-reduction-driver SL loop for 96 hours. Your job is to make sure the sub agents runs the self-tcb-reduction-driver SL loop for 96 hours without stoping.

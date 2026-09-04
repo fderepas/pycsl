@@ -1,0 +1,23 @@
+gate(#44): NEW PLANE — bin/check-getattr-erasure.py, the route #22 regression gate (and its first version was vacuous)
+
+Classifies every _lower_getattr fall-through by WHY the field did not
+resolve: DECLARED (record type known AND declares the name — the
+route-#22 unsoundness) PINNED AT 0; ABSENT (known record, name genuinely
+not a field — the default IS what Python returns) ratchet 7; UNKNOWN
+(object type Any/object/non-record mixin, so the default is a guess)
+ratchet 19. 26 sites over the mirror's 53 files.
+
+The first classifier called a site DECLARED iff the type had a field
+list, never testing whether the NAME was in it — and since the new guard
+returns before the fall-through for exactly that case, the pin was
+unreachable by construction. Caught by the negative test: disabling the
+guard gave ABSENT 8 where DECLARED 1 was expected. Now tests
+_field_label(type, name) in labels, and the negative test names the site:
+"*** ROUTE #22 IS BACK *** frontend/Module5_IREmitter.py: node.index".
+
+A static scan cannot tell DECLARED from ABSENT — that needs the emitter's
+own record model — so the gate drives the real emission behind an
+env-gated stderr line. Verified inert: mirror and pycsl-reference corpus
+emissions both byte-identical with the hook in place.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

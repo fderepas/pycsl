@@ -1602,6 +1602,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ ensures True
     #@ assigns ir_stmts
     def _py_stmt_augassign(self, stmt: ast.AugAssign, ir_stmts: List[int]) -> None:
+        _aa_refuse = False
+        _aa_kind = ""
         if isinstance(stmt.target, ast.Name):
             ir_stmts.append({"stmt": "AugAssign", "target": stmt.target.id,
                              "op": self._py_op_to_str(stmt.op), "value": self._py_expr_to_ir(stmt.value)})
@@ -1610,6 +1612,24 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
               stmt.target.value.id == 'self'):
             ir_stmts.append({"stmt": "FieldAugAssign", "object": "self", "field": stmt.target.attr,
                              "op": self._py_op_to_str(stmt.op), "value": self._py_expr_to_ir(stmt.value)})
+        elif (isinstance(stmt.target, ast.Attribute)
+              and isinstance(stmt.target.value, ast.Name)
+              and stmt.target.value.id in self._cur_func_symtab):
+            # (#44) ROUTE #23(b) — `p.f op= v` on a record-typed PARAMETER or LOCAL.
+            # This arm did not exist, and an `elif` chain with no `else` DROPS what it
+            # does not match: `e = E(); e.v += 5; return e.v` under `#@ ensures
+            # \result == 0` printed "Verification SUCCESS" while Python returns 5. The
+            # plain twin `e.v = e.v + 5` was ALREADY handled (the `FieldAssign` arm
+            # directly above, added for exactly this fail-open on the plain form) and
+            # correctly FAILS — so the augmented spelling was the only way through.
+            # Desugared to that same proven arm, exactly as `c[k] op= v` is desugared to
+            # the `ArraySet` arm below: `p.f = (p.f) op v`.
+            ir_stmts.append({
+                "stmt": "FieldAssign", "object": stmt.target.value.id,
+                "field": stmt.target.attr,
+                "value": {"type": "BinOp", "op": self._py_op_to_str(stmt.op),
+                          "left": self._py_expr_to_ir(stmt.target),
+                          "right": self._py_expr_to_ir(stmt.value)}})
         elif isinstance(stmt.target, ast.Subscript):
             # `c[k] op= v` — desugar to a subscript store of `(c[k]) op v` (the proven
             # ArraySet path). Output-side slice-discrimination (the `_py_expr_subscript`
@@ -1624,6 +1644,79 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     "index": slice_ir,
                     "value": {"type": "BinOp", "op": self._py_op_to_str(stmt.op),
                               "left": read_ir, "right": self._py_expr_to_ir(stmt.value)}})
+            else:
+                _aa_kind = "a SLICE target `a[lo:hi] op= v`"
+                _aa_refuse = True
+            # fall through to the shared refusal below
+        else:
+            _t = stmt.target
+            # NOTE the formatting: f-strings, not `%`. A `%` operator anywhere in this
+            # LIVE function's source makes the self-annotation preamble emit its
+            # `pycsl_div`/`pycsl_mod` helpers into every mirror that imports this module,
+            # which moved two mirror emissions for no reason at all. Measured, then
+            # avoided.
+            if isinstance(_t, ast.Attribute) and isinstance(_t.value, ast.Subscript):
+                _aa_kind = f"a field of a SUBSCRIPTED base, `a[i].{_t.attr} op= v`"
+            elif isinstance(_t, ast.Attribute) and isinstance(_t.value, ast.Attribute):
+                _aa_kind = (f"a field of a NESTED attribute base, "
+                            f"`x.y.{_t.attr} op= v`")
+            elif isinstance(_t, ast.Attribute):
+                _aa_kind = (f"a field of a base that is not a local, parameter or "
+                            f"`self`, `<global>.{_t.attr} op= v`")
+            else:
+                # A literal rather than `type(_t).__name__`: the reflective form lowers to
+                # `int_to_string (get___name__ (py_type _t))` in the self-annotation model
+                # and `_t` is an `emit_ir` there, not an int — an L3-tc rejection. The
+                # remaining shapes are the tuple/list/starred targets, which Python itself
+                # rejects for an augmented assignment ("illegal expression for augmented
+                # assignment"), so the branch is unreachable from parseable source and the
+                # name adds nothing.
+                _aa_kind = "a target shape this lowering does not model"
+            _aa_refuse = True
+        if _aa_refuse:
+            # (#44) ROUTE #23 — FAIL CLOSED on an augmented store this lowering cannot
+            # model. `_py_stmt_augassign` was an `if/elif/elif` with NO `else`, so every
+            # target shape outside the three it named was SILENTLY DROPPED — the exact
+            # structural defect this campaign has now found twenty-three times.
+            # MEASURED: a `List[<record>]` element `self.items[0].v += 5` emitted a body
+            # containing only the READ, and `#@ ensures \result == 0` printed
+            # "Verification SUCCESS" while Python returns 5 (corpus witness 0993).
+            #
+            # THE CONTROL IS WHAT MAKES IT A GAP RATHER THAN A LIMITATION: the PLAIN twin
+            # `a[i].f = v` is ALREADY refused here, by `_py_stmt_assign`, with the reason
+            # spelled out (a `List[<record>]` element is emitted PURE/immutable — Why3
+            # forbids a mutable element inside `array` — so there is no sound `<-`
+            # write-back). The augmented form inherits that boundary and now inherits its
+            # refusal. Two spellings of one mutation, one refused and one silently
+            # dropped, is the shape this campaign keeps finding.
+            #
+            # CENSUS (AST scan of both corpora, `src/pycsl`, `src/self-annotate/src`,
+            # `src/pycsl_lib` and `tests/`): 1310 augmented assignments — 1208 Name, 77
+            # `self.f`, 25 `a[k]`, all modelled. Exactly TWO fall off the end:
+            # `pure_ast._merge_str_constants`'s `out[-1].value += v.value` (the LIVE
+            # emitter, never lowered; the MIRROR's copy of that function is `\trusted`
+            # with a `pass` body, so it is not lowered either — which refutes the ratchet
+            # comment's claim that refusing this "would reject pure_ast.py itself") and
+            # one in `tests/to_annotate/`. ZERO in either corpus. Byte-inert by
+            # measurement, not by hope.
+            #
+            # REOPENING CAPABILITY (the subscript-base case): a sound write-back for a
+            # mutable object reached through a subscript — the same one
+            # `_py_stmt_assign`'s refusal names, and the same one routes #13/#17/#18 need.
+            from errors import PyCSLSemanticError
+            raise PyCSLSemanticError(
+                f"augmented assignment to {_aa_kind} is not modelled: this lowering "
+                f"handles `x op= v`, `self.f op= v`, `p.f op= v` (p a local/param) and "
+                f"`a[k] op= v`, and SILENTLY DROPPED everything else — so the mutation "
+                f"vanished from the model while the run still reported 'All contracts "
+                f"formally proven'. Measured: `self.items[0].v += 5` then "
+                f"`ensures \\result == 0` proved, while Python returns 5. Rewrite it as "
+                f"an explicit assignment (`a[i] = Record(...)`, or mutate a local record "
+                f"and store it back), which is the same repair the plain `a[i].f = v` "
+                f"form already asks for.",
+                stage="ir-emit",
+                code="PYCSL-WHYML-AUGASSIGN-UNMODELLED",
+            )
 
     # stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket): `ir_stmts` is a
     # caller-visible mutable `ref (seq stmt_ir)` param (the None-returning + `#@ assigns

@@ -1,0 +1,35 @@
+FOUND(#44): UNSOUNDNESS ROUTE #22 — getattr on a DECLARED field is erased to the default, and it proves a false postcondition
+
+expressions._lower_getattr's fall-through emits the `default` argument
+(or a fabricated 0 for the 2-arg form) whenever the earlier record-field
+branches miss. Its comment claims this "never proves false".
+
+PROBE: a class with a declared `self.a: int = 7`, and
+
+    def get(self): v = getattr(self, "a", 0); if v: return 7; return 0
+
+under `#@ ensures \result == 0` prints "Verification SUCCESS" while
+Python returns 7. The emission is unambiguous: `type c = { mutable a: int }`
+declares the field, and the body lowers to `let v = ref 0 in v := 0` —
+the read is gone and the `if` is decided by a constant. CONTROL: the same
+file with `v = self.a` correctly FAILS. The 2-arg `getattr(self, "a")`
+also proves, and there the code fabricates a 0 out of nothing.
+
+CENSUS (env-gated counter on the fall-through, over the mirror's 53 files
+and both corpora): 28 sites in the mirror, 1 in the corpus.
+  20  self.<runtime cache> — genuinely NOT a declared field; faithful,
+      but by luck, because the emitter never checks
+   5  objects of unknown static type (Any / object) — presence unknowable
+   2  THE DEFECT: a known record type that DOES declare the field —
+      Module5_IREmitter `node.index` on CtorPayload, and
+      stmt_control_flow `getattr(stmt, "finalbody", None)` on TryStmt,
+      whose emitted record reads `mutable finalbody: array emit_ir`.
+      That one lowers route #21's own refusal to
+      `if ((if (0 <> 0) && true then 1 else 0) <> 0) then raise ...`
+      — DEAD CODE. The whole-file proof has been verifying a version of
+      _handle_try_stmt in which last night's unsoundness fix cannot fire.
+   1  corpus (python-reference/0078) — NON-literal name, unaffected.
+
+Demonstration only; fix follows.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

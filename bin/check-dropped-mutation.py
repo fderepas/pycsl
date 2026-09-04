@@ -179,8 +179,29 @@ ROOTS = [
 #   PARSER every file goes through. REOPENING CAPABILITY: a sound write-back for a mutable
 #   object reached through a subscript — the same one `_py_stmt_assign`'s refusal names.
 #   Until then this is a RECORDED fail-open, not an unnoticed one.
+#
+# (#44) *** THAT RECORDED FAIL-OPEN WAS EXPLOITABLE, AND THE PREMISE OF ITS EXCUSE WAS
+# FALSE. *** ROUTE #23. `self.items[0].v += 5` emitted a body containing ONLY the read, and
+# `#@ ensures \result == 0` printed "Verification SUCCESS" while Python returns 5 (corpus
+# witness 0993). `_py_stmt_augassign` was an `if/elif/elif` with NO `else`, so every target
+# shape outside the three it named vanished — and a SECOND shape, `p.f op= v` on a
+# record-typed local or parameter, was exploitable the same way (witness 0994) even though
+# its plain twin `p.f = v` had been handled since the earlier fail-open on that form.
+#
+# The excuse above claimed refusing this "would reject pure_ast.py itself for every mirror
+# that imports it". CHECKED, AND IT DOES NOT: the single site is the LIVE
+# `pure_ast._merge_str_constants`, which is never lowered, and the MIRROR's copy of that
+# function is `\trusted` with a `pass` body, so it is not lowered either. The refusal cost
+# nothing. AST census over both corpora, `src/pycsl`, `src/self-annotate/src`,
+# `src/pycsl_lib` and `tests/`: 1310 augmented assignments, 1208 Name + 77 `self.f` +
+# 25 `a[k]` all modelled, exactly TWO falling off the end (that `pure_ast` site and one in
+# `tests/to_annotate/`), ZERO in either corpus.
+#
+# So DROPPED is now a HARD ZERO: `p.f op= v` became a CAPABILITY (desugared to the proven
+# `FieldAssign` arm) and every remaining shape is REFUSED with a diagnostic. An augmented
+# store can no longer vanish silently.
 # --------------------------------------------------------------------------------------
-MAX_DROPPED = 1
+MAX_DROPPED = 0
 
 # CTXBIND ratchet — `with <expr> as X`. Measured at the tree that introduced this gate:
 # 10 in `src/self-annotate/src` (every one inside a `\trusted` function — `_sha256_file`,
@@ -225,13 +246,22 @@ def _classify_augassign(node: ast.AugAssign):
         if isinstance(t.value, ast.Name) and t.value.id == "self":
             return "HANDLED", "FieldAugAssign -> self.<f>"
         if isinstance(t.value, ast.Name):
-            return "DROPPED", "augmented store to `<name>.%s` — no branch matches" % t.attr
-        return "DROPPED", "augmented store through a non-Name base `.%s`" % t.attr
+            # (#44) ROUTE #23(b): `p.f op= v` on a local/param is now DESUGARED to the
+            # plain `FieldAssign` arm (corpus witnesses 0994/0995). It used to be dropped
+            # and proved `\result == 0` where Python returned 5. A base that is NOT in the
+            # function symbol table (a module-global singleton) keeps its documented
+            # no-op, the same boundary `_classify_assign` records for the plain form —
+            # this scan has no symbol table, so it reports the modelled case.
+            return "HANDLED", "FieldAssign (read-modify-write) -> <name>.%s" % t.attr
+        return "REFUSED", ("augmented store through a non-Name base `.%s` "
+                           "(PYCSL-WHYML-AUGASSIGN-UNMODELLED)" % t.attr)
     if isinstance(t, ast.Subscript):
         if isinstance(t.slice, ast.Slice):
-            return "DROPPED", "augmented store to a SLICE `a[lo:hi] op= v`"
+            return "REFUSED", ("augmented store to a SLICE `a[lo:hi] op= v` "
+                               "(PYCSL-WHYML-AUGASSIGN-UNMODELLED)")
         return "HANDLED", "ArraySet (read-modify-write)"
-    return "DROPPED", "augmented store to a %s target" % type(t).__name__
+    return "REFUSED", ("augmented store to a %s target "
+                       "(PYCSL-WHYML-AUGASSIGN-UNMODELLED)" % type(t).__name__)
 
 
 def _classify_assign(node: ast.Assign):
