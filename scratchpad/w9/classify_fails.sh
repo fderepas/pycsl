@@ -5,8 +5,17 @@ grep "^  - " scratchpad/w9/suite_final.log | sed 's/^  - //' | sort -u > scratch
 : > scratchpad/w9/fail_causes.txt
 while read -r n; do
   suite="${n%%/*}"; name="${n#*/}"
-  f=$(find "test-suite/corpus/$suite" -name "$name.py" | head -1)
-  [ -z "$f" ] && { echo -e "$n\tFILE-NOT-FOUND" >> scratchpad/w9/fail_causes.txt; continue; }
+  # (#44) DUPLICATE BASENAMES ARE REAL AND THE FIRST VERSION OF THIS SCRIPT GOT THEM
+  # WRONG. `run-reference-tests.sh` reports a failure as `<suite>/<basename>`, and the
+  # python-reference corpus has SEVEN files sharing three basenames across stdlib
+  # subdirectories (ast/json/marshal `dump_call_proves`, json/marshal
+  # `loads_call_proves`, base64/codecs `encode_call_proves`, ...). `find ... | head -1`
+  # picked ast/marshal — which PASS — and the script duly reported four failures as
+  # "PROVES-ALONE (suite harness/flag difference)", inventing an instrument discrepancy
+  # that did not exist. Resolve ALL matches and report each.
+  mapfile -t fs < <(find "test-suite/corpus/$suite" -name "$name.py" | sort)
+  [ ${#fs[@]} -eq 0 ] && { echo -e "$n\tFILE-NOT-FOUND" >> scratchpad/w9/fail_causes.txt; continue; }
+  for f in "${fs[@]}"; do
   flags=$(grep -m1 '^# pycsl-flags:' "$f" 2>/dev/null | sed 's/^# pycsl-flags://')
   out=$(timeout 120 .venv/bin/python3 src/pycsl/pycsl.py $flags "$f" 2>&1)
   if   echo "$out" | grep -q 'C-extension deny-list';        then c="IMPORT-DENYLIST"
@@ -17,6 +26,7 @@ while read -r n; do
   elif echo "$out" | grep -q 'Unknown';                      then c="SMT-UNKNOWN"
   elif echo "$out" | grep -q 'Verification SUCCESS';         then c="PROVES-ALONE (suite harness/flag difference)"
   else c="OTHER: $(echo "$out"|tail -1|cut -c1-70)"; fi
-  echo -e "$n\t$c" >> scratchpad/w9/fail_causes.txt
+  echo -e "${f#test-suite/corpus/}\t$c" >> scratchpad/w9/fail_causes.txt
+  done
 done < scratchpad/w9/failing_names.txt
 echo DONE >> scratchpad/w9/fail_causes.txt

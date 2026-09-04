@@ -4799,3 +4799,5 @@ Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_an0qvi7c.mlw", l
 Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_an0qvi7c.mlw", line 3419, characters 31-35: unused variable self
 Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_an0qvi7c.mlw", line 3419, characters 51-55: unused variable node
 Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_an0qvi7c.mlw", line 3421, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

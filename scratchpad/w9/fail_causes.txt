@@ -1,101 +1,109 @@
-pycsl-reference/0211	ROCQ-LIB-ABSENT
-pycsl-reference/0212	ROCQ-LIB-ABSENT
-pycsl-reference/0213	ROCQ-LIB-ABSENT
-pycsl-reference/0214	ROCQ-LIB-ABSENT
-pycsl-reference/0215	ROCQ-LIB-ABSENT
-pycsl-reference/0216	ROCQ-LIB-ABSENT
-pycsl-reference/0217	ROCQ-LIB-ABSENT
-pycsl-reference/0218	ROCQ-LIB-ABSENT
-pycsl-reference/0219	ROCQ-LIB-ABSENT
-pycsl-reference/0220	ROCQ-LIB-ABSENT
-pycsl-reference/0226	SMT-UNKNOWN
-pycsl-reference/0484	SMT-UNKNOWN
-pycsl-reference/0540	PIPELINE-ERROR: 'str' object has no attribute 'get'
-pycsl-reference/0700	L3-TC-TYPE-ERROR
-pycsl-reference/0701	PIPELINE-ERROR: cannot inline call to 'f.echo': method 'fmt__echo' not found.
-pycsl-reference/0714	ROCQ-LIB-ABSENT
-pycsl-reference/0766	SMT-UNKNOWN
-pycsl-reference/0932_token_kind_concreteness	SMT-TIMEOUT
-pycsl-reference/0938_spec_genexp_all_any	SMT-UNKNOWN
-pycsl-reference/0943_pyval_list_walker	SMT-TIMEOUT
-pycsl-reference/0944_pyval_list_walker_crosscall	SMT-TIMEOUT
-pycsl-reference/0948_pyval_flatten	SMT-TIMEOUT
-pycsl-reference/0949_pyval_flatten_nohead	SMT-TIMEOUT
-python-reference/0043	L3-TC-TYPE-ERROR
-python-reference/0048	L3-TC-TYPE-ERROR
-python-reference/0079	L3-TC-TYPE-ERROR
-python-reference/0080	PIPELINE-ERROR: Class 'Meta' (line 7): non-trivial `__new__` is rejected under UB-7.6.
-python-reference/0082	OTHER: [-] Verification FAILED or INCOMPLETE. Check the solver output.
-python-reference/0095	L3-TC-TYPE-ERROR
-python-reference/0110	L3-TC-TYPE-ERROR
-python-reference/ARRAY_call_fails	IMPORT-DENYLIST
-python-reference/ARRAY_call_proves	IMPORT-DENYLIST
-python-reference/CFUNCTYPE_call_fails	IMPORT-DENYLIST
-python-reference/CFUNCTYPE_call_proves	IMPORT-DENYLIST
-python-reference/CopyComPointer_call_fails	IMPORT-DENYLIST
-python-reference/CopyComPointer_call_proves	IMPORT-DENYLIST
-python-reference/DllCanUnloadNow_call_fails	IMPORT-DENYLIST
-python-reference/DllCanUnloadNow_call_proves	IMPORT-DENYLIST
-python-reference/DllGetClassObject_call_fails	IMPORT-DENYLIST
-python-reference/DllGetClassObject_call_proves	IMPORT-DENYLIST
-python-reference/FormatError_call_fails	IMPORT-DENYLIST
-python-reference/FormatError_call_proves	IMPORT-DENYLIST
-python-reference/GetLastError_call_fails	IMPORT-DENYLIST
-python-reference/GetLastError_call_proves	IMPORT-DENYLIST
-python-reference/POINTER_call_fails	IMPORT-DENYLIST
-python-reference/POINTER_call_proves	IMPORT-DENYLIST
-python-reference/PYFUNCTYPE_call_fails	IMPORT-DENYLIST
-python-reference/PYFUNCTYPE_call_proves	IMPORT-DENYLIST
-python-reference/WINFUNCTYPE_call_fails	IMPORT-DENYLIST
-python-reference/WINFUNCTYPE_call_proves	IMPORT-DENYLIST
-python-reference/WinError_call_fails	IMPORT-DENYLIST
-python-reference/WinError_call_proves	IMPORT-DENYLIST
-python-reference/addressof_call_fails	IMPORT-DENYLIST
-python-reference/addressof_call_proves	IMPORT-DENYLIST
-python-reference/alignment_call_fails	IMPORT-DENYLIST
-python-reference/alignment_call_proves	IMPORT-DENYLIST
-python-reference/byref_call_fails	IMPORT-DENYLIST
-python-reference/byref_call_proves	IMPORT-DENYLIST
-python-reference/cast_call_fails	IMPORT-DENYLIST
-python-reference/cast_call_proves	IMPORT-DENYLIST
-python-reference/create_string_buffer_call_fails	IMPORT-DENYLIST
-python-reference/create_string_buffer_call_proves	IMPORT-DENYLIST
-python-reference/create_unicode_buffer_call_fails	IMPORT-DENYLIST
-python-reference/create_unicode_buffer_call_proves	IMPORT-DENYLIST
-python-reference/dllist_call_fails	IMPORT-DENYLIST
-python-reference/dllist_call_proves	IMPORT-DENYLIST
-python-reference/dump_call_fails	PROVES-ALONE (suite harness/flag difference)
-python-reference/dump_call_proves	PROVES-ALONE (suite harness/flag difference)
-python-reference/encode_call_fails	OTHER: unbound type symbol 'array'
-python-reference/encode_call_proves	OTHER: unbound type symbol 'array'
-python-reference/find_library_call_fails	IMPORT-DENYLIST
-python-reference/find_library_call_proves	IMPORT-DENYLIST
-python-reference/find_msvcrt_call_fails	IMPORT-DENYLIST
-python-reference/find_msvcrt_call_proves	IMPORT-DENYLIST
-python-reference/get_errno_call_fails	IMPORT-DENYLIST
-python-reference/get_errno_call_proves	IMPORT-DENYLIST
-python-reference/get_last_error_call_fails	IMPORT-DENYLIST
-python-reference/get_last_error_call_proves	IMPORT-DENYLIST
-python-reference/loads_call_fails	PROVES-ALONE (suite harness/flag difference)
-python-reference/loads_call_proves	PROVES-ALONE (suite harness/flag difference)
-python-reference/memmove_call_fails	IMPORT-DENYLIST
-python-reference/memmove_call_proves	IMPORT-DENYLIST
-python-reference/memoryview_at_call_fails	IMPORT-DENYLIST
-python-reference/memoryview_at_call_proves	IMPORT-DENYLIST
-python-reference/memset_call_fails	IMPORT-DENYLIST
-python-reference/memset_call_proves	IMPORT-DENYLIST
-python-reference/pointer_call_fails	IMPORT-DENYLIST
-python-reference/pointer_call_proves	IMPORT-DENYLIST
-python-reference/resize_call_fails	IMPORT-DENYLIST
-python-reference/resize_call_proves	IMPORT-DENYLIST
-python-reference/set_errno_call_fails	IMPORT-DENYLIST
-python-reference/set_errno_call_proves	IMPORT-DENYLIST
-python-reference/set_last_error_call_fails	IMPORT-DENYLIST
-python-reference/set_last_error_call_proves	IMPORT-DENYLIST
-python-reference/sizeof_call_fails	IMPORT-DENYLIST
-python-reference/sizeof_call_proves	IMPORT-DENYLIST
-python-reference/string_at_call_fails	IMPORT-DENYLIST
-python-reference/string_at_call_proves	IMPORT-DENYLIST
-python-reference/wstring_at_call_fails	IMPORT-DENYLIST
-python-reference/wstring_at_call_proves	IMPORT-DENYLIST
+pycsl-reference/0211.py	ROCQ-LIB-ABSENT
+pycsl-reference/0212.py	ROCQ-LIB-ABSENT
+pycsl-reference/0213.py	ROCQ-LIB-ABSENT
+pycsl-reference/0214.py	ROCQ-LIB-ABSENT
+pycsl-reference/0215.py	ROCQ-LIB-ABSENT
+pycsl-reference/0216.py	ROCQ-LIB-ABSENT
+pycsl-reference/0217.py	ROCQ-LIB-ABSENT
+pycsl-reference/0218.py	ROCQ-LIB-ABSENT
+pycsl-reference/0219.py	ROCQ-LIB-ABSENT
+pycsl-reference/0220.py	ROCQ-LIB-ABSENT
+pycsl-reference/0226.py	SMT-UNKNOWN
+pycsl-reference/0484.py	SMT-UNKNOWN
+pycsl-reference/0540.py	PIPELINE-ERROR: 'str' object has no attribute 'get'
+pycsl-reference/0700.py	L3-TC-TYPE-ERROR
+pycsl-reference/0701.py	PIPELINE-ERROR: cannot inline call to 'f.echo': method 'fmt__echo' not found.
+pycsl-reference/0714.py	ROCQ-LIB-ABSENT
+pycsl-reference/0766.py	SMT-TIMEOUT
+pycsl-reference/0932_token_kind_concreteness.py	SMT-TIMEOUT
+pycsl-reference/0938_spec_genexp_all_any.py	SMT-UNKNOWN
+pycsl-reference/0943_pyval_list_walker.py	SMT-TIMEOUT
+pycsl-reference/0944_pyval_list_walker_crosscall.py	SMT-TIMEOUT
+pycsl-reference/0948_pyval_flatten.py	SMT-TIMEOUT
+pycsl-reference/0949_pyval_flatten_nohead.py	SMT-TIMEOUT
+python-reference/0043.py	L3-TC-TYPE-ERROR
+python-reference/0048.py	L3-TC-TYPE-ERROR
+python-reference/0079.py	L3-TC-TYPE-ERROR
+python-reference/0080.py	PIPELINE-ERROR: Class 'Meta' (line 7): non-trivial `__new__` is rejected under UB-7.6.
+python-reference/0082.py	OTHER: [-] Verification FAILED or INCOMPLETE. Check the solver output.
+python-reference/0095.py	L3-TC-TYPE-ERROR
+python-reference/0110.py	L3-TC-TYPE-ERROR
+python-reference/stdlib/ctypes/ARRAY_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/ARRAY_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/CFUNCTYPE_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/CFUNCTYPE_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/CopyComPointer_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/CopyComPointer_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/DllCanUnloadNow_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/DllCanUnloadNow_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/DllGetClassObject_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/DllGetClassObject_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/FormatError_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/FormatError_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/GetLastError_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/GetLastError_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/POINTER_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/POINTER_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/PYFUNCTYPE_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/PYFUNCTYPE_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/WINFUNCTYPE_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/WINFUNCTYPE_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/WinError_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/WinError_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/addressof_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/addressof_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/alignment_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/alignment_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/byref_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/byref_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/cast_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/cast_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/create_string_buffer_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/create_string_buffer_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/create_unicode_buffer_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/create_unicode_buffer_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/dllist_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/dllist_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ast/dump_call_fails.py	PROVES-ALONE (suite harness/flag difference)
+python-reference/stdlib/json/dump_call_fails.py	PIPELINE-ERROR: call to 'dump' passes 1 positional argument(s) but parameter 'fp' has 
+python-reference/stdlib/marshal/dump_call_fails.py	PROVES-ALONE (suite harness/flag difference)
+python-reference/stdlib/ast/dump_call_proves.py	PROVES-ALONE (suite harness/flag difference)
+python-reference/stdlib/json/dump_call_proves.py	PIPELINE-ERROR: call to 'dump' passes 1 positional argument(s) but parameter 'fp' has 
+python-reference/stdlib/marshal/dump_call_proves.py	PROVES-ALONE (suite harness/flag difference)
+python-reference/stdlib/base64/encode_call_fails.py	OTHER: unbound type symbol 'array'
+python-reference/stdlib/codecs/encode_call_fails.py	OTHER: unbound type symbol 'array'
+python-reference/stdlib/base64/encode_call_proves.py	OTHER: unbound type symbol 'array'
+python-reference/stdlib/codecs/encode_call_proves.py	OTHER: unbound type symbol 'array'
+python-reference/stdlib/ctypes/find_library_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/find_library_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/find_msvcrt_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/find_msvcrt_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/get_errno_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/get_errno_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/get_last_error_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/get_last_error_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/json/loads_call_fails.py	OTHER: this expression raises unlisted exception JSONDecodeError
+python-reference/stdlib/marshal/loads_call_fails.py	PROVES-ALONE (suite harness/flag difference)
+python-reference/stdlib/json/loads_call_proves.py	OTHER: this expression raises unlisted exception JSONDecodeError
+python-reference/stdlib/marshal/loads_call_proves.py	PROVES-ALONE (suite harness/flag difference)
+python-reference/stdlib/ctypes/memmove_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/memmove_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/memoryview_at_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/memoryview_at_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/memset_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/memset_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/pointer_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/pointer_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/resize_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/resize_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/set_errno_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/set_errno_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/set_last_error_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/set_last_error_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/sizeof_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/sizeof_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/string_at_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/string_at_call_proves.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/wstring_at_call_fails.py	IMPORT-DENYLIST
+python-reference/stdlib/ctypes/wstring_at_call_proves.py	IMPORT-DENYLIST
 DONE
