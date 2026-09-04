@@ -1,0 +1,41 @@
+gate(#44): NEW PLANE — bin/check-ir-field-coverage.py, the campaign's own defect class made mechanical
+
+*A lowering reads some of a node's fields and silently drops the rest.*
+Routes #12 through #21, and #22 and #28, are all instances, and every one
+was found BY HAND by reading a handler and noticing a field name that never
+appears in it.
+
+This does it mechanically: `ir_schema.py` declares 101 `StmtIR`/`ExprIR`
+subclasses with 224 fields; for each, find the Module 6 handler that lowers
+it and report every field whose name never appears in THAT handler.
+
+THE FOUR HITS, each read and classified, none a live erasure:
+  `ForStmt.line` / `ForStmt.lineno` / `WhileStmt.line` — location metadata,
+      and the emitted ADT carries no location payload at all, so no contract
+      can reference them (the refutation #43 already established).
+  `ForStmt.allow_iteration_mutation` — a MODULE-4 directive, consumed by the
+      UB-7.1 detector in `pycsl.py` and threaded by Modules 3 and 5. Module 6
+      has no business reading it; grep confirms all four consumers.
+
+A hit is a CANDIDATE, not a verdict — which is why the ratchet holds the SET
+of (class, field) pairs rather than a count. A new unread field in an
+existing handler is the interesting event, and a count would hide it behind
+a coincidental removal elsewhere.
+
+TWO THINGS THE INSTRUMENT ADMITS ABOUT ITSELF, because a blind spot that
+reports "clean" is the failure this campaign keeps finding:
+  * Searching the WHOLE of Module 6 (the first version) reported ZERO unread
+    fields for the entire schema. A name appearing somewhere says nothing
+    about whether the handler for THAT node reads it — route #21's
+    `finalbody` would have been invisible. Now scoped per handler.
+  * The name-based matcher cannot identify a handler for 25 of the 101
+    classes (they are lowered inside the `t == "<Kind>"` dispatcher in
+    `_expr_to_whyml`), so their fields are NOT checked. It was 40 before the
+    matcher learned the un-underscored expression convention
+    (`BinOpExpr` -> `_handle_binop_expr`). The count is printed on every run.
+
+NEGATIVE-TESTED by replaying route #21: renaming the `finalbody` reads
+inside `_handle_try_stmt` makes it report
+"1 NEW unread IR field(s): TryStmt.finalbody [handler(s): _handle_try_stmt]".
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

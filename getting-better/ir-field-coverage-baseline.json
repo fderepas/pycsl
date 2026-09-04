@@ -1,0 +1,19 @@
+{
+  "generic_skipped": [
+    "args",
+    "body",
+    "func",
+    "name",
+    "op",
+    "target",
+    "test",
+    "type",
+    "value"
+  ],
+  "unread": [
+    "ForStmt.allow_iteration_mutation   [handler(s): _handle_for_stmt]",
+    "ForStmt.line   [handler(s): _handle_for_stmt]",
+    "ForStmt.lineno   [handler(s): _handle_for_stmt]",
+    "WhileStmt.line   [handler(s): _handle_while_stmt]"
+  ]
+}
