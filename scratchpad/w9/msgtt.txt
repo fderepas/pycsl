@@ -1,0 +1,26 @@
+FIX(#44): four recognizers caught `Exception` where they meant `_PVWBail` — tightened, byte-inert, measured over both corpora first
+
+`recognize_pyval_flatten`, `recognize_pyval_list_search`,
+`recognize_pyval_list_walker` and `recognize_pyval_string_walker` each end
+in `except Exception:` whose only purpose is to absorb their OWN `_PVWBail`
+decline signal. Spelled that broadly, they also absorbed a TypeError,
+AttributeError or KeyError from a genuine bug — silently downgrading the
+emission to the generic lowering, which routes #22 and #24 showed can be an
+ERASING one.
+
+MEASURED BEFORE TIGHTENING, not after: ran the EXCEPTION_HANDLED probe over
+the 53 mirrors AND the full 820-file pycsl-reference corpus. In both sweeps
+these four handlers catch `_PVWBail` and nothing else, so narrowing them
+cannot turn a working decline into a crash. That was the whole risk and it
+is the reason the corpus sweep was worth the twenty minutes.
+
+MEASURED AFTER: all 53 mirror emissions BYTE-IDENTICAL, pycsl-reference
+820/820 BYTE-IDENTICAL, python-reference 2208/9 with zero changed, fidelity
+2 DIVERGED (the pre-existing pair), mirror-coverage 550/41.
+
+`check-swallowed-exceptions` goes 141 broad handlers -> 137, and firing
+broad handlers 8 -> 4 (the four remaining spell `except _PVWBail:` already
+and are flagged only because their enclosing function contains another
+broad handler elsewhere). Re-baselined.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

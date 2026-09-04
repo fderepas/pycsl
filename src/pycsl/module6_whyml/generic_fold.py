@@ -33575,7 +33575,14 @@ def recognize_pyval_string_walker(
     `_ind_short_name`). Empty by default → identical to the pre-C2 behaviour."""
     try:
         return _recognize_pyval_string_walker(func, sibling_walkers or set())
-    except Exception:
+    # (#44) TIGHTENED from `except Exception:`. This handler exists to absorb the
+    # recognizer's OWN `_PVWBail` decline signal, and spelling it broadly meant it
+    # also absorbed a TypeError/AttributeError/KeyError from a genuine bug — silently
+    # downgrading the emission to the generic lowering, which routes #22/#24 showed
+    # can be an ERASING one. MEASURED over the 53 mirrors AND the 820-file
+    # pycsl-reference corpus (`bin/check-swallowed-exceptions.py`): this handler only
+    # ever catches `_PVWBail`, so the narrowing is byte-inert.
+    except _PVWBail:
         return None
 
 
@@ -33910,7 +33917,14 @@ def recognize_pyval_list_walker(
     pre-C1b behaviour (any cross-call bails)."""
     try:
         return _recognize_pyval_list_walker(func, sibling_walkers or set())
-    except Exception:
+    # (#44) TIGHTENED from `except Exception:`. This handler exists to absorb the
+    # recognizer's OWN `_PVWBail` decline signal, and spelling it broadly meant it
+    # also absorbed a TypeError/AttributeError/KeyError from a genuine bug — silently
+    # downgrading the emission to the generic lowering, which routes #22/#24 showed
+    # can be an ERASING one. MEASURED over the 53 mirrors AND the 820-file
+    # pycsl-reference corpus (`bin/check-swallowed-exceptions.py`): this handler only
+    # ever catches `_PVWBail`, so the narrowing is byte-inert.
+    except _PVWBail:
         return None
 
 
@@ -34184,7 +34198,14 @@ def recognize_pyval_list_search(
                "selfname": name, "siblings": set(sibling_walkers or set()) - {name},
                "ident": lambda x: x}
         return _pvl_search_parse(func, ctx)
-    except Exception:
+    # (#44) TIGHTENED from `except Exception:`. This handler exists to absorb the
+    # recognizer's OWN `_PVWBail` decline signal, and spelling it broadly meant it
+    # also absorbed a TypeError/AttributeError/KeyError from a genuine bug — silently
+    # downgrading the emission to the generic lowering, which routes #22/#24 showed
+    # can be an ERASING one. MEASURED over the 53 mirrors AND the 820-file
+    # pycsl-reference corpus (`bin/check-swallowed-exceptions.py`): this handler only
+    # ever catches `_PVWBail`, so the narrowing is byte-inert.
+    except _PVWBail:
         return None
 
 
@@ -34256,7 +34277,14 @@ def recognize_pyval_flatten(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     Returns {param, head} or None. Never raises."""
     try:
         return _recognize_pyval_flatten(func)
-    except Exception:
+    # (#44) TIGHTENED from `except Exception:`. This handler exists to absorb the
+    # recognizer's OWN `_PVWBail` decline signal, and spelling it broadly meant it
+    # also absorbed a TypeError/AttributeError/KeyError from a genuine bug — silently
+    # downgrading the emission to the generic lowering, which routes #22/#24 showed
+    # can be an ERASING one. MEASURED over the 53 mirrors AND the 820-file
+    # pycsl-reference corpus (`bin/check-swallowed-exceptions.py`): this handler only
+    # ever catches `_PVWBail`, so the narrowing is byte-inert.
+    except _PVWBail:
         return None
 
 
