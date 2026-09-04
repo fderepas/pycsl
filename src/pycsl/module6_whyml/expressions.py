@@ -10200,9 +10200,44 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # default path, and a type disagreement at the use site is an L3-tc
                 # rejection (WL-02), never a silent coercion.
                 return f"self.{self._field_label(self._current_self_type, name_ir['value'])}"
-        # Dynamic-config / unknown-field path: emit the default. getattr returns
-        # `default` for an absent attribute, so this is sound (the real runtime
-        # value is opaque; any contract depending on it fails to prove).
+        # (#44) ROUTE #22 — THE DECLARED-FIELD GUARD, AND WHY THE COMMENT BELOW WAS
+        # FALSE WITHOUT IT. The fall-through emits the DEFAULT, justified by "getattr
+        # returns `default` for an ABSENT attribute". That licence holds only while the
+        # attribute really is absent, and nothing here checked. MEASURED (corpus probe
+        # scratchpad/w9/probes/g1.py): a class declaring `self.a: int = 7` emits
+        # `type c = { mutable a: int }`, and `v = getattr(self, "a", 0); if v: return 7;
+        # return 0` under `#@ ensures \result == 0` printed "Verification SUCCESS" while
+        # Python returns 7 — the body lowered to `let v = ref 0 in v := 0`, so the read
+        # was GONE and the guard was decided by a constant. The identical file with
+        # `v = self.a` correctly FAILS. So the default is a WRONG value, not an unknown
+        # one — exactly what #33 recorded about `_refine_tuple_return_type` ("folded to
+        # the LITERAL 0 ... a WRONG value, not an unknown one") without generalising it.
+        # THE FIX IS THE COMMENT'S OWN LICENCE, TURNED INTO A MACHINE CHECK: a field the
+        # emitted record DECLARES is present, so `getattr(o, "f", d)` IS `o.f` and must
+        # lower as the real read. `_emitted_record_field_labels` is the per-class oracle
+        # (the earlier `_all_record_fields` branch is a UNION over all classes, and is
+        # additionally gated on `@mutable_state`, which is why the corpus was left out).
+        # Absence still takes the default: a name the record does NOT declare is
+        # genuinely missing at runtime too. Unknown object type is neither, and is left
+        # to the default and COUNTED — see bin/check-getattr-erasure.py.
+        if (isinstance(obj_ir, dict) and obj_ir.get("type") == "Var"
+                and isinstance(name_ir, dict) and name_ir.get("type") == "String"):
+            _ga_obj = obj_ir.get("name", "")
+            _ga_st = getattr(self, "_current_symbol_table", {}) or {}
+            _ga_ty = _ga_st.get(_ga_obj)
+            if _ga_obj == "self" and not _ga_ty:
+                _ga_ty = getattr(self, "_current_self_type", None)
+            if _ga_ty:
+                _ga_rec = str(_ga_ty).lower()
+                _ga_labels = (getattr(self, "_emitted_record_field_labels", {})
+                              or {}).get(_ga_rec)
+                if _ga_labels:
+                    _ga_lbl = self._field_label(_ga_rec, name_ir.get("value", ""))
+                    if _ga_lbl in _ga_labels:
+                        return f"{whyml_ident(_ga_obj)}.{_ga_lbl}"
+        # Dynamic-config / ABSENT-field path: emit the default. getattr returns
+        # `default` for an absent attribute, so this is sound WHEN THE GUARD ABOVE HAS
+        # ESTABLISHED ABSENCE (the record type is known and does not declare the name).
         # For a NON-scalar default (dict/list/set literal) the lowered form is a
         # map/array, which would mismatch the enclosing local's int-typed `ref`
         # slot (first-assignment inference sees a `Call` RHS, not a collection

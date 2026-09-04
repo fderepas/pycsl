@@ -502,7 +502,23 @@ class ControlFlowStmtMixin:
         # function — whose body is never lowered — stays exempt. CENSUS: 4 sites in the
         # whole tree; the one in the mirror (`pycsl._run_proofs`) is `\trusted`, so this is
         # byte-inert.
-        if getattr(stmt, "finalbody", None) and handlers:
+        # (#44) ROUTE #22 MADE THIS GUARD REAL, AND THAT IS WHY IT IS SPELLED THIS WAY.
+        # It used to read `if getattr(stmt, "finalbody", None) and handlers:`, and
+        # `_lower_getattr` erased that read to the literal `0` in the self-annotation
+        # model — so the refusal lowered to `if (0 <> 0) && true`, DEAD CODE, and the
+        # mirror's whole-file proof was verifying a `_handle_try_stmt` in which this very
+        # refusal could not fire. With the declared-field guard in `_lower_getattr` the
+        # read is faithful, and the TRUTHINESS TEST then has to be spelled the way the
+        # `orelse` block below already spells its own: bind the statement list with the
+        # `to_dict()` comprehension first, and test THAT. `finalbody` is an
+        # `array emit_ir` in the model, so the int-truthiness form `x <> 0` and
+        # `iter_length` (which takes `array int`) are both L3-tc rejections on it —
+        # WL-02 fail-closed, a type disagreement surfaces rather than being coerced.
+        # `finalbody` is a REQUIRED dataclass field of `TryStmt`, so the old `getattr`
+        # default was pure defensiveness and is not lost. Computed once and reused by
+        # the `finally` emission at the end of the method.
+        _final = [s.to_dict() for s in stmt.finalbody]
+        if _final and handlers:
             raise PyCSLIRError(
                 "a `try ... except ... finally:` is not modelled: this lowering reads the "
                 "try BODY and the HANDLERS and neither the `finally` nor the `else` block, "
@@ -672,7 +688,6 @@ class ControlFlowStmtMixin:
         # residue is measured rather than invisible. REOPENING CAPABILITY: run the block on
         # the handler arms and on a `Return_t` re-raise arm, which needs the function's
         # return-exception name at this point in the emitter.
-        _final = [s.to_dict() for s in stmt.finalbody]
         if _final and not handlers and "raise" not in body_str:
             _final_str = self._stmts_to_whyml(_final, local_refs, declared_refs,
                                               indent, in_loop)
