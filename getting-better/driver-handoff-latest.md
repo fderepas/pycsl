@@ -148,6 +148,53 @@
 # * The metric has not moved: **markers 456 / grep 481** across all four routes. Three of
 #   the four were closed WITHOUT a re-trust, two of them as capabilities.
 #
+# ## CLOSING STATE OF #44 — every plane green, and here are the numbers
+#
+#   metric                 markers 456 / grep 481 — UNCHANGED across all seven routes.
+#                          Three closed as CAPABILITIES, none needed a re-trust.
+#   proofs                 6 of 6 rc=0, zero bad goals: stmt_control_flow 12294,
+#                          Module5_IREmitter 2109, pure_ast 3372, ir_resolve 793,
+#                          frontend/__init__ 684, pycsl 735. The MANIFEST says those six
+#                          are the complete set (all 53 mirrors emitted from a worktree at
+#                          `afbc6803` and byte-diffed against HEAD -> exactly six moved).
+#   corpora                pycsl-reference 820/820 and python-reference 2142/2142
+#                          byte-identical to the pre-#44 tree, apart from 0611/0612
+#                          (route #28) and the eleven new witnesses. Refusal set identical.
+#   mirror L3-tc           53/53
+#   fidelity               2 DIVERGED — `_handle_var_expr`, `_handle_for_stmt` — the
+#                          pre-existing pair, byte-identical to #43's baseline log
+#   ratchets               dropped-mutation 0/51/10/0 (DROPPED 1 -> 0) ·
+#                          computed-rhs 1/0 (2 -> 1) · avatar-frame 0/7 (the honest
+#                          number) · getattr-erasure DECLARED 0 PINNED / 7 / 19 ·
+#                          bespoke-model-drift 27 · mirror-loop-annotations 330/5 ·
+#                          trusted-raises 2/68 · mirror-coverage 550/41 · yield 2 ·
+#                          shadowed 14 · frame-honesty 0/1 and 0/94 · clause-survival 2
+#   conformance            core 38/0, front-end 38/0, determinism 10/10
+#   vacuity (--emit)       no NEW erasure
+#   reference suite        3042/3144. The 102 failures are PRE-EXISTING and identical
+#                          test-for-test to #43's; classified in
+#                          `scratchpad/w9/fail_causes.txt`. TWO THIRDS of the red is one
+#                          decision (64 = `import ctypes` on the C-extension deny-list),
+#                          11 are `Why3 Coq library not found` (the `#@ proof rocq` bridge
+#                          CANNOT BE REPLAYED in this environment at all), and two are
+#                          one-line TEST defects already diagnosed (json.dump arity;
+#                          json.loads raising an unlisted JSONDecodeError).
+#                          **No handoff in this campaign had said the suite was red.**
+#
+# ## THE THREE THINGS TO DO FIRST, NEXT WINDOW
+#
+#   1. **Take the two one-line json test fixes** (above). Cheap, and they shrink a red CI.
+#      Then decide what to do about the 64-test ctypes deny-list family: either mark them
+#      expected-FAIL or lift the deny-list for the stub-only path. Leaving 64 tests red
+#      and calling the tree green is the thing this window objected to.
+#   2. **Probe with the guard rule.** `grep -n 'return "0"'` in
+#      `module6_whyml/expressions.py` still lists ~12 literal-0 fall-throughs. Four of them
+#      became routes #22/#24/#25/#26/#27 this window. Consume the value in an `if`, never
+#      read it.
+#   3. **Run `bin/check-bespoke-model-drift.py --list` BEFORE touching any Module-5 or
+#      comprehension handler.** 27 mirror methods have hand-written models. Route #28
+#      caught me editing one with the warning in front of me.
+#
 # ==========================================================================
 
 # ===================== START HERE — #43 -> next window =====================
