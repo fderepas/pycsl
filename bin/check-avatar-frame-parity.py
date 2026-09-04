@@ -143,12 +143,32 @@ MAX_SAME_FILE = 0
 # (#43) LOWERED 7 -> 1. The 7 was never a census: it was the RATCHET, and the OK line
 # below used to print `args.max_*` rather than the measured counts, so a handoff that
 # copied that line recorded the ratchet as though it were a measurement (#34's closing
-# baseline says "avatar-frame-parity 0 same-file / 7 inherited"). Measured here, twice at
-# HEAD and once at 13c4860b, all three agreeing: 0 same-file and 1 INHERITED
-# (`pycsl.mlw::_py_stmts_to_ir`, declared in `frontend/Module5_IREmitter.py` — the
-# four-file segment described above). The OK line now prints BOTH the measurement and the
-# ratchet so the two can never be confused again.
-MAX_INHERITED = 1
+# baseline says "avatar-frame-parity 0 same-file / 7 inherited"). The OK line now prints
+# BOTH the measurement and the ratchet so the two can never be confused again.
+#
+# (#44) *** AND THE 1 THAT REPLACED IT WAS NOT A MEASUREMENT EITHER. *** #43 lowered this
+# to 1 on the strength of three runs "twice at HEAD, once at 13c4860b, all three
+# agreeing". They agreed because all three `--emit-dir` arguments pointed at directories
+# WITH NO MIRROR EMISSIONS IN THEM: `scratchpad/w8/emit_head3` holds 820 CORPUS `.mlw`
+# files (no `self__` avatar exists in a corpus emission), and `mirror43b` / `mirror_now`
+# hold ZERO `.mlw` files at all. The gate scanned 0 avatars, correctly found 0 frameless
+# ones, and printed a green 0 — which reads exactly like a tightening.
+#
+# So the gate has been RED, not green, since that commit: emitted properly (all 53 mirrors,
+# `--import-path src/pycsl`) it scans 83 avatars and measures 0 SAME-FILE / 7 INHERITED,
+# identically at HEAD and at the pre-#44 tree. Restored to the MEASURED 7.
+#
+# THE INSTRUMENT FIX MATTERS MORE THAN THE CONSTANT, and it is below in `main`: a run that
+# scans ZERO avatars now FAILS instead of passing. An instrument aimed at the wrong input
+# reports zero, and zero is indistinguishable from success — the same failure mode as a
+# refusal that never fires (#43), a probe that deletes nothing (#44), and a pin that cannot
+# trip (#44). A plane must be able to tell "nothing is wrong" from "I looked at nothing".
+MAX_INHERITED = 7
+
+# Below this many avatars in the whole emit dir, the directory is not a mirror emission and
+# the run is REFUSED. Measured: a correct sweep of the 53 mirrors scans 83. A corpus emit
+# dir scans 0. There is no legitimate middle ground near zero.
+MIN_AVATARS_SCANNED = 1
 
 _AVATAR = re.compile(r"^\s*val self__([A-Za-z0-9_]+)_\d+ ")
 
@@ -229,10 +249,22 @@ def main() -> int:
                     inherited.append((mlw, key, declaring[0]))
                     break
 
+    mlw_count = len([f for f in os.listdir(args.emit_dir) if f.endswith(".mlw")])
     print("[*] avatar-frame-parity: %d abstract `self__` avatar(s) scanned across %d "
           "emitted mirror(s); %d SAME-FILE frameless-yet-declared, %d INHERITED "
           "frameless-yet-declared."
-          % (scanned, len(os.listdir(args.emit_dir)), len(same_file), len(inherited)))
+          % (scanned, mlw_count, len(same_file), len(inherited)))
+
+    # (#44) THE ZERO-INPUT GUARD. See MAX_INHERITED's note: three runs against directories
+    # holding no mirror emissions produced a green 0 that was then written into a ratchet
+    # and a handoff. A green verdict must never be reachable by looking at nothing.
+    if scanned < MIN_AVATARS_SCANNED:
+        print("[!] avatar-frame-parity: SCANNED %d AVATARS in %r (%d .mlw file(s)). "
+              "That is not a mirror emission — a corpus emit dir contains no `self__` "
+              "avatar, and an empty dir contains nothing at all. REFUSING to report a "
+              "verdict: emit the 53 mirrors with `--import-path src/pycsl` first."
+              % (scanned, args.emit_dir, mlw_count))
+        return 2
     for mlw, key in sorted(same_file):
         print("    SAME-FILE  %-44s %s" % (mlw, key))
     for mlw, key, src in sorted(inherited):

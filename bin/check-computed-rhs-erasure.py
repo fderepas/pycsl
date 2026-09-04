@@ -129,6 +129,8 @@ MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 MAX_RHS_ERASED = 1
 MAX_PARAM_MATERIALIZED = 0
 
+MIN_EMITTED_MIRRORS = 40   # a correct sweep emits 53; a corpus/empty dir yields 0
+
 _BLOCK = re.compile(
     r"^  (?:let(?: rec)?(?: partial)?(?: function)?|val|with)\s+([A-Za-z0-9_']+)[^\n]*\n"
     r"(?:(?!^  (?:let|val|with|type|exception|axiom|goal|lemma|predicate|function)\b).*\n)*",
@@ -275,11 +277,29 @@ def main():
         tmp = tempfile.mkdtemp(prefix="rhs-erasure-", dir=os.path.join(ROOT, "scratchpad"))
         emit_all(tmp)
         edir = tmp
+    _n_mlw = len(glob.glob(os.path.join(edir, "*.mlw"))) if os.path.isdir(edir) else 0
     try:
         rhs, param = scan(edir, args.verbose)
     finally:
         if tmp is not None:
             shutil.rmtree(tmp, ignore_errors=True)
+
+# (#44) THE ZERO-INPUT GUARD. A gate given an `--emit-dir` that holds no mirror emissions
+# — an empty directory, a stale one, or a CORPUS emit dir — measures nothing and reports a
+# clean bill of health. That is not hypothetical: #43 lowered
+# `check-avatar-frame-parity.py`'s INHERITED ratchet from 7 to 1 on the strength of three
+# such runs ("twice at HEAD, once at 13c4860b, all three agreeing"), all three pointed at
+# directories with zero mirror `.mlw` files in them, and left that plane RED for a whole
+# relaunch while the handoff recorded it as tightened. Worse, this gate's own green line
+# then reads "N < ratchet — lower the constant", i.e. it actively invites the mistake.
+# So: a run that finds no emitted mirror REFUSES to report a verdict (exit 2).
+    if _n_mlw < MIN_EMITTED_MIRRORS:
+        print("[!] computed-rhs-erasure: found %d emitted mirror(s) in %r, expected at "
+              "least %d. That is not a mirror emission — REFUSING to report a verdict "
+              "rather than call it green (and rather than invite lowering the ratchet to "
+              "0). Emit the mirrors with `--import-path src/pycsl` first."
+              % (_n_mlw, edir, MIN_EMITTED_MIRRORS))
+        return 2
 
     print("[*] computed-rhs-erasure: %d converted method(s) with a COMPUTED RHS erased to "
           "0; %d with a PARAM-FIELD materialised as a fresh constant array."

@@ -184,8 +184,27 @@ def main() -> int:
             os.rmdir(scratch)
 
 
+MIN_EMITTED_MIRRORS = 40   # a correct sweep emits 53; a corpus/empty dir yields 0
+
+# (#44) THE ZERO-INPUT GUARD. A gate given an `--emit-dir` that holds no mirror emissions
+# — an empty directory, a stale one, or a CORPUS emit dir — measures nothing and reports a
+# clean bill of health. That is not hypothetical: #43 lowered
+# `check-avatar-frame-parity.py`'s INHERITED ratchet from 7 to 1 on the strength of three
+# such runs ("twice at HEAD, once at 13c4860b, all three agreeing"), all three pointed at
+# directories with zero mirror `.mlw` files in them, and left that plane RED for a whole
+# relaunch while the handoff recorded it as tightened. Worse, this gate's own green line
+# then reads "N < ratchet — lower the constant", i.e. it actively invites the mistake.
+# So: a run that finds no emitted mirror REFUSES to report a verdict (exit 2).
+
+
 def _run(args, emit_dir) -> int:
     defs = emitted_defs(emit_dir)
+    if len(defs) < MIN_EMITTED_MIRRORS:
+        print("[!] yield-erasure: found %d emitted mirror(s) in %r, expected at least %d. "
+              "That is not a mirror emission — REFUSING to report a verdict rather than "
+              "call it green. Emit the mirrors with `--import-path src/pycsl` first."
+              % (len(defs), emit_dir, MIN_EMITTED_MIRRORS))
+        return 2
     gens = collect_generators()
     bad_value, bad_void, modelled = [], [], []
     for rel, qual, meth, v, z in gens:

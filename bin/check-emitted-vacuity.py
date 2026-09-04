@@ -319,6 +319,9 @@ def live_param_name(p):
     return p[2:] if p.startswith("v_") else p
 
 
+MIN_EMITTED_MIRRORS = 40   # a correct sweep emits 53; an un-emitted tree yields 0
+
+
 def main():
     if "--emit" in sys.argv:
         files = [os.path.join(r, f) for r, _, fs in os.walk(MIRROR_ROOT)
@@ -330,10 +333,12 @@ def main():
             input="\n".join(files), text=True, check=False)
 
     full, partial, input_blind = [], [], []
+    _n_mlw = 0
     for root, _dirs, files in os.walk(MIRROR_ROOT):
         for fn in sorted(files):
             if not fn.endswith(".mlw"):
                 continue
+            _n_mlw += 1
             mlw = os.path.join(root, fn)
             live = os.path.join(root.replace(MIRROR_ROOT, LIVE_ROOT, 1),
                                 fn[:-4] + ".py")
@@ -370,6 +375,22 @@ def main():
                         and all((not uses(live_param_name(p), lbody))
                                 or (not uses(p, wbody)) for p in real):
                     input_blind.append((rel, wname, pyname, sorted(self_fields), real))
+
+    # (#44) THE ZERO-INPUT GUARD. Without `--emit` this gate reads whatever `.mlw` files
+    # happen to sit beside the mirror sources; if there are none it compares nothing and
+    # prints a clean bill of health — and its green line then invites DELETING the
+    # KNOWN_ERASURES entries as "no longer erased", which would destroy the very record
+    # that makes the plane meaningful. That failure mode was already known as an
+    # instrument fact ("without --emit it is a false green"); this makes it MECHANICAL
+    # instead of something a driver has to remember. The same hole existed in
+    # check-avatar-frame-parity, check-yield-erasure and check-computed-rhs-erasure, and
+    # in the first of those it had already cost a ratchet and a relaunch. Zero must never
+    # look like success.
+    if _n_mlw < MIN_EMITTED_MIRRORS:
+        print("[!] emitted-vacuity: found %d emitted mirror .mlw file(s) beside the "
+              "mirror sources, expected at least %d. REFUSING to report a verdict: "
+              "re-run with --emit." % (_n_mlw, MIN_EMITTED_MIRRORS))
+        return 2
 
     new = [r for r in full + partial if r[1] not in KNOWN_ERASURES]
     known = [r for r in full + partial if r[1] in KNOWN_ERASURES]
