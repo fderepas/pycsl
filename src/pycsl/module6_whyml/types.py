@@ -99,10 +99,17 @@ class TypeInferenceMixin:
             self._known_collection_sizes.pop(target, None)
             self._known_collection_elements.pop(target, None)
             return
+        # ROUTE #34: the mutation/alias pre-pass in `_reset_function_state` has already
+        # decided which names may be folded at all. A name it marked is never registered,
+        # so the read falls through to the real array — which the emission models
+        # faithfully.
+        _u_el = getattr(self, "_fold_unsafe_elems", ())
+        _u_sz = getattr(self, "_fold_unsafe_sizes", ())
         vt = val_ir.get("type", "")
         if vt in ("ArrayLit", "Tuple"):
             elts = val_ir.get("elts", [])
-            self._known_collection_sizes[target] = len(elts)
+            if target not in _u_sz:
+                self._known_collection_sizes[target] = len(elts)
             # WL-04c (wrong-lowering-to-fix.md §WL-04 record LITERAL residual): a LOCAL
             # bound from a `List[<record>]` LITERAL of full-arity, content-faithful
             # record CONSTRUCTORS (`a = [Point(1, 2), Point(3, 4)]`) is a record-array
@@ -133,26 +140,29 @@ class TypeInferenceMixin:
             else:
                 elem_map = {i: str(int(e["value"])) for i, e in enumerate(elts)
                             if e.get("type") == "Number" and isinstance(e.get("value"), (int, float))}
-            if elem_map:
+            if elem_map and target not in _u_el:
                 self._known_collection_elements[target] = elem_map
         elif vt == "String" and isinstance(val_ir.get("value"), str):
-            self._known_collection_sizes[target] = len(val_ir["value"])
+            if target not in _u_sz:
+                self._known_collection_sizes[target] = len(val_ir["value"])
         elif vt == "DictLit":
             keys = val_ir.get("keys", [])
-            self._known_collection_sizes[target] = len(keys)
+            if target not in _u_sz:
+                self._known_collection_sizes[target] = len(keys)
             elem_map = {}
             for k, v in zip(keys, val_ir.get("values", [])):
                 if (k.get("type") == "Number" and isinstance(k.get("value"), (int, float)) and
                         v.get("type") == "Number" and isinstance(v.get("value"), (int, float))):
                     elem_map[int(k["value"])] = str(int(v["value"]))
-            if elem_map:
+            if elem_map and target not in _u_el:
                 self._known_collection_elements[target] = elem_map
         elif vt == "SetLit":
             elts = val_ir.get("elts", [])
             unique_vals = {int(e["value"]) if (e.get("type") == "Number" and
                            isinstance(e.get("value"), (int, float))) else id(e)
                            for e in elts}
-            self._known_collection_sizes[target] = len(unique_vals)
+            if target not in _u_sz:
+                self._known_collection_sizes[target] = len(unique_vals)
 
     @staticmethod
     def _val_is_bool(val_ir: ValIRBoolView) -> bool:

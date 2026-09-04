@@ -1653,6 +1653,26 @@ for an unconditionally bound local, the sidecar `X_len` ref for an append target
 the truthiness is **refused** (`PYCSL-R31-UNMODELLED-LIST-TRUTHINESS`). Witness `1016` proves
 the faithful capability in both directions.
 
+**The two constant folds are a CACHE, and until relaunch #45 they had no invalidation.**
+`_known_collection_elements[a] = {0: "5"}` is written when the literal is bound and was
+never removed when `a` was written to, so the read folded to the literal whatever happened
+in between. `a = [5]; a[0] = 9; return a[0]` proved `\result == 5` (route #34, witness
+`1017`); so did an alias then a store (`b = a; b[0] = 9`, `1018`), an alias then an append
+(`1019`), a slice assignment (`1020`) and a CALLEE that mutates the list it was handed
+(`1021`). The emitted WhyML for every one of those stores is *faithful* — `let b = a in
+b[0] <- 9` really does mutate `a`, because Why3 arrays are references. It is the read that
+never consulted it.
+
+`_reset_function_state` now runs a **pre-pass over the whole function body** and refuses to
+register a fold for any name it sees mutated or aliased anywhere: an indexed / slice / `del`
+store, an assignment of the bare name to another name, any method call on the name, or the
+name passed to a call that is not one of a short list of non-mutating builtins. The pre-pass
+is required rather than tidy — sequential invalidation would still fold a read that sits
+*before* the store in a loop body, because on every iteration but the first the store has
+already happened. A plain indexed store poisons only the ELEMENT fold (it does not change the
+length), which keeps the deliberate dict-store size tracking working. Witness `1022` shows the
+fix removes the wrong answer without removing the right one: `\result == 9` now proves.
+
 **The two constant folds are valid only for a single, unconditional binding.** Both maps are
 keyed by the local's *name* alone and were written in emission order, so a name bound to a
 literal in one arm of a conditional handed its size and its contents to every path:

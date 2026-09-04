@@ -589,6 +589,75 @@ class FunctionEmissionMixin:
         # and the set is per-function like the two maps it guards.
         self._rebound_collections = set()
         self._known_collection_elements = {}
+        # ROUTE #34 (relaunch #45) — A CONSTANT FOLD IS A CACHE AND THIS ONE HAD NO
+        # INVALIDATION. The two maps above answer `len(a)` and `a[i]` from the literal
+        # `a` was bound to, and NOTHING removed the entry when `a` was mutated. MEASURED
+        # in the default hoare model, three lines of Python:
+        #
+        #     a = [5]; a[0] = 9; return a[0]     #@ ensures \result == 5   -> PROVED
+        #
+        # Python returns 9. Four more shapes proved false contracts the same way: an
+        # ALIAS then a store (`b = a; b[0] = 9`), an alias then an append, a SLICE
+        # assignment (`a[0:1] = [9]`), and a CALLEE that mutates the list it was passed.
+        # The WhyML for the store is FAITHFUL in every one of them — `let b = a in
+        # b[0] <- 9` really does mutate `a`, because Why3 arrays are references. It is
+        # the READ that never consults it, because the fold answers first.
+        # Witnesses `pycsl-reference/1017`-`1021`.
+        #
+        # THE SCAN IS A PRE-PASS, NOT SEQUENTIAL INVALIDATION, and that is required
+        # rather than tidy: in a LOOP the store is emitted after the read but happens
+        # before it on every iteration but the first, so poisoning as the emitter walks
+        # would still fold the read. This walks the WHOLE function body first and
+        # refuses to register a fold for any name it sees mutated or aliased ANYWHERE.
+        #
+        # A plain `ArraySet` changes an ELEMENT, not the LENGTH, so it poisons only the
+        # element fold — which keeps the deliberate dict-store size tracking in
+        # `_handle_array_set_stmt` working. Everything else poisons both.
+        self._fold_unsafe_elems: Set[str] = set()
+        self._fold_unsafe_sizes: Set[str] = set()
+        # Builtins that CANNOT mutate the list they are handed (`sorted`/`list` copy).
+        _R34_SAFE_CALLS = frozenset((
+            "len", "sum", "min", "max", "sorted", "any", "all", "abs", "print",
+            "str", "int", "float", "bool", "list", "tuple", "set", "dict",
+            "enumerate", "zip", "range", "reversed", "repr", "type", "id"))
+        _r34_stack: List[Any] = [func.get("body", [])]
+        while _r34_stack:
+            _n34 = _r34_stack.pop()
+            if isinstance(_n34, dict):
+                _st34 = _n34.get("stmt")
+                _base34 = _n34.get("array")
+                if (_st34 in ("ArraySet", "ArraySliceSet", "DelSubscript",
+                              "GhostArraySet")
+                        and isinstance(_base34, dict)
+                        and _base34.get("type") == "Var"):
+                    self._fold_unsafe_elems.add(_base34.get("name"))
+                    if _st34 != "ArraySet":
+                        self._fold_unsafe_sizes.add(_base34.get("name"))
+                if _st34 == "Assign":
+                    _v34 = _n34.get("value")
+                    if isinstance(_v34, dict) and _v34.get("type") == "Var":
+                        # `b = a` ALIASES in Python: every mutation through `b` is a
+                        # mutation of `a`, and the model's `let b = a in` says so.
+                        self._fold_unsafe_elems.add(_v34.get("name"))
+                        self._fold_unsafe_sizes.add(_v34.get("name"))
+                if _n34.get("type") == "Call":
+                    _f34 = _n34.get("func")
+                    if isinstance(_f34, str):
+                        if "." in _f34:
+                            # ANY method call on the name, not just a known mutator:
+                            # the safe list is the short one and getting it wrong is
+                            # a false proof, not a missed fold.
+                            _recv34 = _f34.split(".", 1)[0]
+                            self._fold_unsafe_elems.add(_recv34)
+                            self._fold_unsafe_sizes.add(_recv34)
+                        if _f34.rsplit(".", 1)[-1] not in _R34_SAFE_CALLS:
+                            for _a34 in (_n34.get("args") or []):
+                                if isinstance(_a34, dict) and _a34.get("type") == "Var":
+                                    self._fold_unsafe_elems.add(_a34.get("name"))
+                                    self._fold_unsafe_sizes.add(_a34.get("name"))
+                _r34_stack.extend(_n34.values())
+            elif isinstance(_n34, (list, tuple)):
+                _r34_stack.extend(_n34)
         self._current_symbol_table = symbol_table
         # Formal-parameter names ONLY — Module5 exposes this as a
         # distinct field because `symbol_table` is polluted with loop
