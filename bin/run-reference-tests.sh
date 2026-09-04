@@ -179,7 +179,15 @@ RESET='\033[0m'
 entries=()   # parallel arrays: entry i = file path; suite/name derived on read
 for dir in "${TEST_DIRS[@]}"; do
     py_files=()
-    for f in "$dir"/0*.py; do
+    # (#45) THE GLOB USED TO BE `0*.py`. The corpus crossed 1000 in relaunch #44, so
+    # `1000_module_global_field_store_erasure.py` and `1001_..._faithful.py` — route
+    # #28's OWN negative witnesses, written by the very window that fixed this harness
+    # so a negative witness could FAIL — had never been executed by the suite, and
+    # neither would any witness added after them. A regression gate that silently stops
+    # growing with the corpus reports the same green whether the new files pass or not.
+    # (`bin/byte-diff-sweep.sh` had the identical blind spot; both were found on the
+    # same day by asking what the instrument iterated over.)
+    for f in "$dir"/*.py; do
         [ -f "$f" ] && py_files+=("$f")
     done
     if [ -d "$dir/stdlib" ]; then
@@ -205,6 +213,19 @@ for dir in "${TEST_DIRS[@]}"; do
 done
 
 echo "[*] $((${#entries[@]})) tests across ${#TEST_DIRS[@]} suite(s); jobs=$JOBS (cores=$CORES)"
+
+# (#45) ZERO-INPUT / SHRINKING-INPUT GUARD (the #44 rule: a gate that cannot distinguish
+# "nothing is wrong" from "I looked at nothing" is not a gate). A full run discovers 3000+
+# tests; anything below this floor means the glob, the corpus path or a --start-at filter
+# has silently emptied the run, and a green on that is not a pass. Skipped when the caller
+# asked for a SUBSET (--start-at / --stop-at / --python / --pycsl), which are the only
+# legitimate ways to run fewer.
+if [ -z "$STOP_AT" ] && [ "$START_AT" = "0" ] \
+   && [ "${#TEST_DIRS[@]}" -eq 2 ] && [ "${#entries[@]}" -lt 3000 ]; then
+    echo "[!] run-reference-tests: only ${#entries[@]} tests discovered for a FULL run."
+    echo "    The corpus glob or path is broken. NOT A PASS."
+    exit 2
+fi
 
 RESULTS_DIR="$(mktemp -d)"
 export RESULTS_DIR PYCSL
