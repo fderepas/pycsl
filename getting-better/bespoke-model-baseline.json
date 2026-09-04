@@ -1,0 +1,102 @@
+{
+  "exception_model.py::-.all_phase1_exceptions": {
+    "emitter": "_emit_sorted_const_set_bespoke",
+    "fingerprint": "cb4907aca2dd2f3b"
+  },
+  "frontend/Module3_Weaver.py::PyCSLWeaver._act_guard": {
+    "emitter": "_emit_act_guard_bespoke",
+    "fingerprint": "ce3d880fa8e173ef"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._build_overload_param_guard": {
+    "emitter": "_emit_build_overload_param_guard_bespoke",
+    "fingerprint": "a5a68f12310da0c2"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._emit_ghost_assign": {
+    "emitter": "_emit_emit_ghost_assign_bespoke",
+    "fingerprint": "fb38af8168ba4444"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._is_final_annotation": {
+    "emitter": "_emit_is_final_annotation_bespoke",
+    "fingerprint": "5e6802a8f08794e1"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._is_namedtuple_class": {
+    "emitter": "_emit_base_recognizer_bespoke",
+    "fingerprint": "508ba7f826a6ea6b"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._is_overload_stub": {
+    "emitter": "_emit_is_overload_stub_bespoke",
+    "fingerprint": "a11d7ac9da647eb1"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._is_protocol_class": {
+    "emitter": "_emit_base_recognizer_bespoke",
+    "fingerprint": "f133871db9252ff2"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._is_typeddict_class": {
+    "emitter": "_emit_base_recognizer_bespoke",
+    "fingerprint": "296a5d2ea9016dc1"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_expr_boolop": {
+    "emitter": "_emit_py_expr_boolop_bespoke",
+    "fingerprint": "3b8ab962a5800a6a"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_expr_compare": {
+    "emitter": "_emit_py_expr_compare_bespoke",
+    "fingerprint": "7c719655553c3bf5"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_expr_dict": {
+    "emitter": "_emit_py_expr_dict_bespoke",
+    "fingerprint": "186ae46f56b68b54"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_expr_dictcomp": {
+    "emitter": "_emit_py_expr_dictcomp_bespoke",
+    "fingerprint": "cd5d352f8a79f699"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_expr_genexp": {
+    "emitter": "_emit_py_expr_genexp_bespoke",
+    "fingerprint": "6dced5501a83de5d"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_expr_lambda": {
+    "emitter": "_emit_py_expr_lambda_bespoke",
+    "fingerprint": "ed6215caaa35ffd7"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_expr_listcomp": {
+    "emitter": "_emit_py_expr_listcomp_bespoke",
+    "fingerprint": "078d9eea2a96d1bb"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_expr_setcomp": {
+    "emitter": "_emit_py_expr_setcomp_bespoke",
+    "fingerprint": "c12941f1a423e766"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_stmt_assign": {
+    "emitter": "_emit_py_stmt_assign_bespoke",
+    "fingerprint": "92314ecf96ba5754"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_stmt_delete": {
+    "emitter": "_emit_py_stmt_delete_bespoke",
+    "fingerprint": "4443e375e3e4ff34"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_stmt_match": {
+    "emitter": "_emit_py_stmt_match_bespoke",
+    "fingerprint": "04e567ef01061408"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_stmt_try": {
+    "emitter": "_emit_py_stmt_try_bespoke",
+    "fingerprint": "0b6ebdc80b6e989e"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_stmt_with": {
+    "emitter": "_emit_py_stmt_with_bespoke",
+    "fingerprint": "a0e33aa3076c396c"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._should_skip_method": {
+    "emitter": "_emit_should_skip_method_bespoke",
+    "fingerprint": "31deb5f4ae01192c"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._synthesize_overload_guard": {
+    "emitter": "_emit_synthesize_overload_guard_bespoke",
+    "fingerprint": "df9eb7762b732a84"
+  },
+  "proof2why3/from_lean_json.py::-._strip_const_name": {
+    "emitter": "_emit_str_pair_lookup_bespoke",
+    "fingerprint": "d4f75ccac7d61551"
+  }
+}

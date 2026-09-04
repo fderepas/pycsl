@@ -28,3 +28,27 @@
 2	src/self-annotate/src/module6_whyml/expressions.py
 2	src/self-annotate/src/module6_whyml/functions.py
 2	src/self-annotate/src/module6_whyml/identifiers.py
+2	src/self-annotate/src/module6_whyml/ir_scanner.py
+2	src/self-annotate/src/module6_whyml/irx.py
+2	src/self-annotate/src/module6_whyml/preamble.py
+2	src/self-annotate/src/module6_whyml/scc.py
+2	src/self-annotate/src/module6_whyml/statements.py
+2	src/self-annotate/src/module6_whyml/stmt_control_flow.py
+2	src/self-annotate/src/module6_whyml/struct_format.py
+2	src/self-annotate/src/module6_whyml/types.py
+2	src/self-annotate/src/proof2why3/__init__.py
+2	src/self-annotate/src/proof2why3/canonical.py
+2	src/self-annotate/src/proof2why3/crosscheck.py
+2	src/self-annotate/src/proof2why3/crosscheck_ir.py
+2	src/self-annotate/src/proof2why3/emit_why3.py
+2	src/self-annotate/src/proof2why3/extract.py
+2	src/self-annotate/src/proof2why3/extract_lean_meta.py
+2	src/self-annotate/src/proof2why3/from_lean_json.py
+2	src/self-annotate/src/proof2why3/from_sexp.py
+2	src/self-annotate/src/proof2why3/ir.py
+2	src/self-annotate/src/proof2why3/normalize.py
+2	src/self-annotate/src/proof2why3/parser.py
+2	src/self-annotate/src/proof2why3/sertop.py
+2	src/self-annotate/src/proof_axiom_allowlist.py
+2	src/self-annotate/src/pycsl.py
+DONE
