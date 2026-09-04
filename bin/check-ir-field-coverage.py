@@ -37,6 +37,19 @@ matcher can identify — they are lowered inside the big `t == "<Kind>"` dispatc
 `_expr_to_whyml` rather than by a per-node method. Their fields are NOT checked. The first
 version of the matcher missed FORTY, which is why the count is reported on every run.
 
+A FALLBACK FOR THOSE 25 WAS BUILT, MEASURED AND REMOVED — recorded so nobody rebuilds it.
+`dispatcher_blocks()` collected every `if <x> == "<Kind>":` region and treated it as the
+handler. It took the blind spot from 25 to 6 and produced TEN new hits, and ALL TEN ARE
+FALSE POSITIVES: `SumExpr.base/lo/hi` are read in `expr_ghost_spec_ops.py`,
+`RaiseStmt.exc_value` in `_STMT_IR_CTORS`, `ForallItemsExpr.key/val/map` through
+`_csl_forall_items`, and `SliceExpr.lower`, `SetCompExpr.elt` and
+`DictCompExpr.generators` were each PROBED END-TO-END with a contract false of the program
+(`scratchpad/w9/probes/n1..n3.py`: a lower-bounded slice, a set comprehension with a
+non-identity element, a dict comprehension over a generator) and all three correctly FAIL.
+The cause is structural: a `t == "<Kind>"` region is often a GUARD inside some other
+recognizer, not the lowering. A baseline of ten false positives trains the reader to
+ignore the gate, which is worse than the blind spot it closes.
+
 USAGE
     bin/check-ir-field-coverage.py             # check against the baseline
     bin/check-ir-field-coverage.py --update    # re-baseline (after reading each new one)
@@ -102,6 +115,42 @@ def handlers_for(cls, handlers):
              f"_handle_{flat}", f"_handle_{flatstem}", f"_handle_{flatstem}_expr",
              f"_handle_{flatstem}_stmt", f"_emit_{flatstem}", f"_emit_{flatstem}_expr"}
     return {k: v for k, v in handlers.items() if k in cands}
+
+
+def dispatcher_blocks(srcs):
+    """{IR kind string: source text} for every `if <x> == "<Kind>":` block in Module 6.
+
+    Twenty-five of the 101 schema classes have no per-node handler method — they are
+    lowered inside the big `t == "<Kind>"` dispatcher in `_expr_to_whyml`. Without this
+    fallback the matcher reports them as covered, which is the blind spot that makes an
+    instrument worse than none. Every `ast.If` whose test compares anything to the kind
+    string contributes its whole source range, so a kind handled in several places is the
+    union of them."""
+    out = {}
+    for path, src in srcs.items():
+        try:
+            tree = ast.parse(src)
+        except SyntaxError:
+            continue
+        lines = src.split("\n")
+        for n in ast.walk(tree):
+            if not isinstance(n, ast.If):
+                continue
+            kinds = set()
+            for cmp_ in ast.walk(n.test):
+                if isinstance(cmp_, ast.Compare):
+                    for c in [cmp_.left] + list(cmp_.comparators):
+                        if isinstance(c, ast.Constant) and isinstance(c.value, str):
+                            kinds.add(c.value)
+                elif isinstance(cmp_, ast.Constant) and isinstance(cmp_.value, str):
+                    kinds.add(cmp_.value)
+            if not kinds:
+                continue
+            end = getattr(n, "end_lineno", n.lineno)
+            body = "\n".join(lines[n.lineno - 1:end]) + "\n"
+            for k in kinds:
+                out[k] = out.get(k, "") + body
+    return out
 
 def schema_fields():
     """{class name: [field names]} for every StmtIR/ExprIR subclass."""
