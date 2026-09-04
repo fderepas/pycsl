@@ -983,7 +983,29 @@ def _run_why3_prove(base_cmd: "List[str]", prover: str, timelimit: str,
     for sel in (goal_selectors or []):
         cmd += ["-g", sel]
     cmd += [mlw_filename]
-    return subprocess.run(cmd, capture_output=True, text=True)
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    # (#44) A CONFIGURED PROVER THAT DOES NOT EXIST MUST NOT BE SILENT. why3 answers a
+    # `-P Alt-Ergo,2.6.2,` it cannot resolve with one line on stderr — "No prover in
+    # ~/.why3.conf corresponds to ..." — and returns; the dispatcher then simply proceeds
+    # with whatever provers DID resolve. That is a run with fewer instruments than the one
+    # that was asked for, and it looks exactly like a run that legitimately could not
+    # prove a goal.
+    # MEASURED: `config/agents-config.json` and `_DEFAULT_PROVERS` below both name
+    # Alt-Ergo **2.6.2**, and this switch has **2.6.3**. Every DEFAULT run — the entire
+    # reference suite included — has therefore been proving with Z3 ALONE, and TEN of the
+    # suite's thirty remaining failures pass the moment Alt-Ergo is actually present
+    # (0226, 0484, 0714, 0766, 0932, 0938, 0943, 0944, 0948, 0949 — five of which say
+    # "STATUS — PROVES." in their own docstrings). The campaign's mirror proofs were
+    # unaffected only because they pass `--provers` explicitly, which is why nobody saw it.
+    if "No prover in" in (r.stderr or "") and "corresponds to" in (r.stderr or ""):
+        for _ln in r.stderr.split("\n"):
+            if "No prover in" in _ln and "corresponds to" in _ln:
+                print(f"[!] CONFIGURED PROVER NOT AVAILABLE — {_ln.strip()}")
+        print(f"[!]     Requested `{prover}`; this run is proceeding with FEWER PROVERS "
+              f"than configured, so an unproven goal here may mean the prover is missing "
+              f"rather than the goal is hard. Fix the version in "
+              f"`config/agents-config.json` / `--provers`, or install the prover.")
+    return r
 
 
 def _dispatch_provers(base_cmd: "List[str]", provers: List[str], timelimit: str,
@@ -1315,7 +1337,13 @@ def _resolve_runtime_config(args: argparse.Namespace) -> Tuple[str, List[str]]:
 
     memory_model = args.memory_model or _config.get("memory-model", "hoare")
 
-    _DEFAULT_PROVERS = ["Alt-Ergo,2.6.2,", "Z3,4.13.3,"]
+    # (#44) 2.6.2 -> 2.6.3. The pinned version did not exist in the installed opam
+    # switch, so `why3` answered "No prover ... corresponds to Alt-Ergo,2.6.2," and every
+    # default run proceeded with Z3 ALONE — including the whole reference suite, where TEN
+    # of the thirty remaining failures pass once Alt-Ergo is actually present. This
+    # constant is ENVIRONMENT-COUPLED by nature; the loud banner in `_run_why3_prove` is
+    # what makes the next mismatch visible instead of silent.
+    _DEFAULT_PROVERS = ["Alt-Ergo,2.6.3,", "Z3,4.13.3,"]
     if args.prover is not None:
         provers = [args.prover]
     elif args.provers is not None:
