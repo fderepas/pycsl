@@ -1643,9 +1643,23 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     stage="ir-emit",
                     code="PYCSL-WHYML-PARAM-COLLECTION-MUT",
                 )
-            # else: base is a Name NOT in the symbol table (a module-global singleton
-            # field store, `g.v = n`) — keep the prior no-op (byte-identical; separate
-            # boundary from the record/list PARAM class handled above).
+            else:
+                # (#44) ROUTE #28 — THE MODULE-GLOBAL SINGLETON STORE WAS A SILENT NO-OP,
+                # and it PROVED A FALSE POSTCONDITION. `g = C()` at module level emits a
+                # real global mutable record (`let g : c = { v = 0 }`), so `g.v = n` has
+                # always been expressible; it was simply never emitted. MEASURED (corpus
+                # witness 1000): `g.v = 7; return g.v` under `#@ requires g.v == 0` /
+                # `#@ ensures \result == 0` printed "Verification SUCCESS" while Python
+                # returns 7. The store vanished and the read returned the initialiser.
+                # This was the LAST arm of `_py_stmt_assign` with no branch, recorded as a
+                # "separate boundary (HAPPY ownership tests 0611-0613), byte-identical" —
+                # a documented no-op, never probed. Emitting the real `FieldAssign` is a
+                # CAPABILITY, not a refusal: Module 6 lowers it to `g.v <- n`, and a
+                # function that writes a global without declaring it in `#@ assigns` is
+                # then rejected BY WHY3's frame check rather than silently believed.
+                ir_stmts.append({"stmt": "FieldAssign", "object": target.value.id,
+                                 "field": target.attr,
+                                 "value": self._py_expr_to_ir(stmt.value)})
         elif isinstance(target, ast.Subscript):
             array_ir = self._py_expr_to_ir(target.value)
             slice_node = target.slice

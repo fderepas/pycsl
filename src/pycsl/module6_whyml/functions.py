@@ -2726,7 +2726,16 @@ class FunctionEmissionMixin:
             PyCSLSemanticError` (the out-of-scope diagnostic; the f-string message +
             `type().__name__` reflection + kwargs are dropped — a raise takes only the
             exc NAME, and the raise path does not reach `ensures`).
-          - else (Name base not in symtab, module-global) -> no-op.
+          - else (a Name base NOT in the symtab, i.e. a module-global singleton) ->
+            SFieldAssign (name_of (avalue_of target)) (name_of target) value, the SAME
+            construction as the symtab arm. (#44) ROUTE #28: this arm used to be a NO-OP
+            in both the live emitter and this model, and the no-op PROVED A FALSE
+            POSTCONDITION (`g.v = 7; return g.v` under `ensures \result == 0`, corpus
+            witness 1000). *** AND THIS DOCSTRING'S LINE IS THE POINT: the model is a
+            HAND-SYNTHESIZED lowering keyed on the method NAME, so changing the live body
+            alone left mirror-sync GREEN, L3-tc GREEN and the mirror emission
+            BYTE-IDENTICAL while the model silently stopped being the body. Nothing but
+            reading the emitted `.mlw` catches that. Both had to move together. ***
           - Subscript (`is_sub target`): slice (`is_slice (sindex_of target)`) ->
             SArraySliceSet (disp (svalue_of target)) <lower iropt_ir> <upper iropt_ir>
             value (lower defaults to IrNum 0 when absent, upper stays IrONone — the
@@ -2768,7 +2777,10 @@ class FunctionEmissionMixin:
             " (SFieldAssign (name_of (avalue_of target)) (name_of target) value)",
             "       else if not (is_var (avalue_of target)) then",
             "         raise PyCSLSemanticError",
-            "       else ())",
+            # (#44) ROUTE #28 — the module-global arm, previously `else ()`.
+            "       else",
+            "         ir_stmts := Seq.snoc !ir_stmts"
+            " (SFieldAssign (name_of (avalue_of target)) (name_of target) value))",
             "    else if is_sub target then",
             "      (if is_slice (sindex_of target) then",
             "         (let lower = (match sliceN_lower_of (sindex_of target) with",
