@@ -13,6 +13,14 @@ well-formed, it type-checks, and it proves.
 A top-level handler that exits non-zero is fail-closed and fine. A mid-pipeline one that
 continues is not.
 
+HOW MUCH THE REST OF THE BATTERY SEES, measured rather than asserted. Injecting a
+`TypeError` inside `recognize_pyval_list_search`'s try block moves exactly ONE of the 53
+mirror emissions (`proof2why3/from_sexp`). So a byte-diff CAN catch it — as an unexplained
+one-file diff, with no diagnosis, and only while someone is comparing against a baseline;
+a latent fault introduced together with its baseline is invisible. L3-tc and the whole-file
+proof stay GREEN either way, because the generic path it falls through to is well-formed.
+This gate names the function and the exception type instead.
+
 WHAT IT MEASURES, and it is BEHAVIOURAL rather than static — which is the point. Two sets:
 
   STATIC   every broad handler (`except:` / `except Exception` / `except BaseException`)
@@ -230,8 +238,12 @@ def main():
               f"firing(s). A broad `except Exception` that swallows turns an INTERNAL "
               f"ERROR into a recognizer decline, and a decline falls through to the "
               f"generic lowering — which routes #22 and #24 showed can be an ERASING one. "
-              f"Nothing else in the battery can see it: the emission is well-formed, "
-              f"type-checks and proves.")
+              f"MEASURED: an injected TypeError inside "
+              f"`recognize_pyval_list_search` moves exactly ONE mirror emission, so a "
+              f"byte-diff CAN see it — as an unexplained diff, with no diagnosis, and "
+              f"only while someone compares against a baseline. L3-tc and the proof stay "
+              f"GREEN either way, because the generic path is well-formed. This gate "
+              f"names the function and the exception.")
         for k in new_firings:
             print(f"      {k}")
         return 1
