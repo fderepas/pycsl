@@ -520,6 +520,19 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     #   correctly FAILED under hoare. Same for `\array_eq` and `\permutation`.
     #   Witnesses 1004-1008.
     #
+    #   `\length2d` and `\valid2d` are in the set on the SAME EVIDENCE minus the
+    #   exploit: a mechanical census of every `self._value_semantic` gate in Module 6
+    #   (scratchpad `vs_census.py`) shows `_handle_length2d_expr` and
+    #   `_handle_valid2d_expr` with the identical `if value_semantic: <formula> ...
+    #   return "true"` shape, masked TODAY only by `unbound type symbol 'matrix'` —
+    #   the same accident that masks `\sum`. Refusing them makes them fail-closed BY
+    #   DESIGN rather than by an unrelated bug a completeness fix could remove at any
+    #   time. The census found NO other literal fall-through: the one remaining
+    #   `return "true"` (`_handle_separated_expr`, under the VALUE model) is sound,
+    #   because Why3's region typing rejects an aliased array application outright
+    #   ("This application creates an illegal alias" — probed), so two array
+    #   parameters really are always separated there.
+    #
     #   WHY REFUSE RATHER THAN EMIT `false`. `false` is fail-closed in a POSTCONDITION
     #   and fail-OPEN in a PRECONDITION — `requires { false }` makes every goal of the
     #   function vacuously provable — so swapping the literal trades one unsoundness
@@ -540,9 +553,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     #   `\permutation` needs an uninterpreted predicate over (loc, len) pairs and
     #   `\sum` a heap-indexed recursive function. Until those exist, this refuses.
     if memory_model in ("typed", "store"):
-        _r29_tags = ("IsSorted", "ArrayEq", "Permutation", "Sum")
+        _r29_tags = ("IsSorted", "ArrayEq", "Permutation", "Sum",
+                     "Length2D", "Valid2D")
         _r29_names = {"IsSorted": "\\is_sorted", "ArrayEq": "\\array_eq",
-                      "Permutation": "\\permutation", "Sum": "\\sum"}
+                      "Permutation": "\\permutation", "Sum": "\\sum",
+                      "Length2D": "\\length2d", "Valid2D": "\\valid2d"}
         _r29_hit = None
         _r29_stack = [ir_data]
         while _r29_stack:

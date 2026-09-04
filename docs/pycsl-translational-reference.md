@@ -1827,8 +1827,8 @@ see `docs/framing-lemma-demonstration.md` and drivers 0537–0539.
 
 #### The four array atoms are VALUE-MODEL ONLY — refused under `typed` / `store`
 
-The four lowerings above — `\is_sorted`, `\array_eq`, `\permutation` and `\sum` —
-are stated for the **value-semantic** memory models (`hoare`, the default, and
+The lowerings above — `\is_sorted`, `\array_eq`, `\permutation` and `\sum`, and
+equally `\length2d` and `\valid2d` — are stated for the **value-semantic** memory models (`hoare`, the default, and
 `concurrent`). Under the heap models (`--memory-model typed` and `--memory-model
 store`) an array is a `loc` base plus a length companion and the element read is
 `Map.get !int_mem (base + i)`, so none of the four formulas above is even well-typed:
@@ -1854,6 +1854,17 @@ A faithful heap lowering is expressible and is the recorded reopening capability
 and `\array_eq` is the same shape over two bases plus their `_len` companions.
 `\permutation` needs an uninterpreted predicate over `(loc, len)` pairs and `\sum` a
 heap-indexed recursive function.
+
+`\length2d` and `\valid2d` are refused on the same grounds one step earlier:
+`_handle_length2d_expr` and `_handle_valid2d_expr` carry the identical
+`if value_semantic: <formula>` / `return "true"` shape, and were masked under a heap
+model only by `unbound type symbol 'matrix'` — an unrelated missing `use` that a
+completeness fix could remove at any time. Pins `pycsl-reference/1009`–`1010`.
+
+The one `return "true"` that is **sound** and stays is `\separated` under the *value*
+model: Why3's region typing rejects an aliased array application outright ("This
+application creates an illegal alias"), so two array parameters there really are
+always separated.
 
 #### `\is_ctor(x, Ctor)`
 
