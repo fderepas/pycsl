@@ -1,0 +1,12 @@
+{
+  "allowed": [
+    "src/pycsl/module6_whyml/generic_fold.py::recognize_csl_str_cata::_PVWBail",
+    "src/pycsl/module6_whyml/generic_fold.py::recognize_pyval_flatten::_PVWBail",
+    "src/pycsl/module6_whyml/generic_fold.py::recognize_pyval_list_search::_PVWBail",
+    "src/pycsl/module6_whyml/generic_fold.py::recognize_pyval_list_walker::_PVWBail",
+    "src/pycsl/module6_whyml/generic_fold.py::recognize_pyval_string_walker::_PVWBail",
+    "src/pycsl/module6_whyml/generic_fold.py::recognize_term_flatten_arrow::_PVWBail",
+    "src/pycsl/module6_whyml/generic_fold.py::recognize_term_isinstance_transform::_PVWBail",
+    "src/pycsl/module6_whyml/generic_fold.py::recognize_term_list_build::_PVWBail"
+  ]
+}

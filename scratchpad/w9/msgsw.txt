@@ -1,0 +1,51 @@
+gate(#44): NEW PLANE — bin/check-swallowed-exceptions.py, and four recognizers catch `Exception` where they mean `_PVWBail`
+
+THE HAZARD. The emitter is full of recognizers that DECLINE by returning
+None, and a decline falls through to a coarser lowering. That is the
+design. But a broad `except Exception:` that swallows turns an INTERNAL
+ERROR into the same decline — so a bug inside a faithful recognizer
+silently downgrades the emission to the generic path, and this campaign has
+now shown twenty-eight times that a generic path can be an ERASING one.
+
+WHAT IT MEASURES, and it is BEHAVIOURAL rather than static:
+  STATIC   141 broad swallowing handlers (`except:` / `except Exception` /
+           `except BaseException`, body only pass/continue/bare-return/
+           return-of-a-constant, never re-raising) across 137 functions in
+           `src/pycsl`.
+  DYNAMIC  every exception CAUGHT AND NOT RE-RAISED inside `src/pycsl`
+           during a real emission of all 53 mirrors, via `sys.monitoring`'s
+           EXCEPTION_HANDLED event.
+
+THE BASELINE IS NOT ZERO AND THAT IS THE FINDING. Eight recognizers in
+`generic_fold.py` catch their own `_PVWBail` decline signal, and FOUR spell
+it `except Exception:` — `recognize_pyval_flatten`,
+`recognize_pyval_list_search`, `recognize_pyval_list_walker`,
+`recognize_pyval_string_walker`. Those four swallow a TypeError, an
+AttributeError or a KeyError from a genuine bug exactly as they swallow
+their own bail. Tightening them to `except _PVWBail:` is a four-line
+byte-inert change, left as a named item for the next window.
+
+Everything else that fires is designed control flow, and each was read to
+confirm it: CPython's own `NodeVisitor` deprecation shim in
+`pure_ast.visit_Constant` (156302x), the parser's backtracking `_try`
+combinator (1724x), `GeneratorExit` in two iterator helpers, and
+`auto_trust._check_witness_vals` catching `SyntaxError` (7x) — that last one
+is fail-closed, because a `by` witness violating a class invariant makes
+Why3 REJECT the type declaration.
+
+HOW MUCH THE REST OF THE BATTERY SEES — MEASURED, NOT ASSERTED, and it
+corrects my own first draft of this message. Injecting a TypeError inside
+`recognize_pyval_list_search` moves exactly ONE of the 53 mirror emissions
+(`proof2why3/from_sexp`). So a byte-diff CAN catch it — as an unexplained
+one-file diff, with no diagnosis, and only while someone is comparing
+against a baseline; a latent fault introduced together with its baseline is
+invisible. L3-tc and the proof stay GREEN either way.
+
+NEGATIVE-TESTED with exactly that injection: the gate reports
+"1 NEW broad swallowing firing(s):
+ generic_fold.py::recognize_pyval_list_search::TypeError", and returns to
+green on restore. (The first attempt injected the fault OUTSIDE the try
+block and the gate stayed green — correctly, and a reminder that a negative
+test has to fail for the RIGHT reason.)
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
