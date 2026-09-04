@@ -1,128 +1,130 @@
 # ===================== START HERE — #45 -> next window =====================
 #
-# **SIX ROUTES FOUND, FOUR CLOSED, TWO HANDED OVER OPEN WITH THEIR COST PRICED.**
-# Every one of them proves a contract that is FALSE of its own program in the
-# DEFAULT `hoare` model with no flags — this window's routes are not spec-atom or
-# heap-model or mirror-internal shapes, they are ordinary Python.
+# **EIGHT ROUTES FOUND, ALL EIGHT CLOSED, AND EVERY ONE OF THEM PROVES A CONTRACT
+# THAT IS FALSE OF ITS OWN PROGRAM.** Six of the eight are ORDINARY PYTHON in the
+# DEFAULT `hoare` model with no flags — not spec atoms, not heap models, not
+# mirror-internal shapes.
 #
-#   #29  CLOSED  `\is_sorted` / `\array_eq` / `\permutation` (and `\sum`,
-#                `\length2d`, `\valid2d`) erased to `ensures { true }` under
-#                `--memory-model typed|store`.               witnesses 1004-1010
-#   #30  CLOSED  an UNINTERPRETED `match` pattern lowered to an irrefutable arm.
-#                `case [1, 2]:` on an int subject took the arm.  witnesses 1011-1012
-#   #31  CLOSED  `if <list local>:` was `true` for EVERY list. `[]` is FALSY.
-#                                                              witnesses 1015-1016
-#   #32/#33 CLOSED  the `len()` and element constant-folds were BRANCH-blind.
-#                                                              witnesses 1013-1014
-#   #34  CLOSED  the same two folds were MUTATION-blind: `a = [5]; a[0] = 9;
-#                return a[0]` proved `\result == 5`.           witnesses 1017-1022
-#   #35  **OPEN**  `x = 0 or 5` proves `x == 1`. Python gives 5.
-#   #36  **OPEN**  `i = 0; for i in range(3): pass; return i` proves 0. Python 2.
+#   #29  `\is_sorted` / `\array_eq` / `\permutation` (and `\sum`, `\length2d`,
+#        `\valid2d`) erased to `ensures { true }` under `--memory-model
+#        typed|store`. A DESCENDING array proved sorted.        1004-1010
+#   #30  an UNINTERPRETED `match` pattern lowered to an irrefutable arm; three
+#        mechanisms, one mistake. `case [1,2]:` on an int took the arm. 1011-1012
+#   #31  `if <list local>:` was `true` for EVERY list. `[]` is FALSY.   1015-1016
+#   #32/#33  the `len()` and element constant-folds were BRANCH-blind.  1013-1014
+#   #34  the same folds were MUTATION-blind. `a = [5]; a[0] = 9; return a[0]`
+#        proved `\result == 5`. Five shapes.                            1017-1022
+#   #35  `x = 0 or 5` proved `x == 1`. Python's `and`/`or` return an OPERAND.
+#        SIXTEEN mirror re-proofs paid: 62428 Valid, 0 bad.             1023-1024
+#   #36  `i = 0; for i in range(3): pass; return i` proved 0. Python 2.  1025-1026
 #
-# ## THE TWO OPEN ROUTES ARE THE FIRST ITEM, AND THEY ARE PRICED
+# ## WHAT TO DO FIRST
 #
-# `getting-better/open-routes/` holds, for each: the FALSE reproduction (which
-# proves at HEAD), the TRUE reproduction (which does not), the fix that was built
-# and reverted, the enumerated obstacles, and the named capability. **The
-# reproductions are deliberately NOT in the corpus** — a witness for an OPEN route
-# proves, and since #44 the harness counts a proving expected-FAIL test as an
-# XPASS FAILURE. Move each into `pycsl-reference/1023`+ in the increment that
-# closes it.
+# 1. **THE ROUTE-#36 RESIDUE.** `for x in <sequence>` followed by a read of `x`
+#    STILL yields the pre-loop value. The index-valued case is closed by a
+#    write-back in the binder; the general one is not, because the outer ref takes
+#    its type from the FIRST assignment to that name and the binder does not have
+#    that type. MEASURED: an unconditional write-back is mirror L3-tc 51/53, an
+#    `any int` havoc 52/53. Get the declared type to the binder and it is a
+#    one-line extension. It is a LIVE unsoundness, reproduced in
+#    `getting-better/open-routes/`.
+# 2. **THE MISSING-`use` FAMILY, and it is coupled to #29.** `unbound type symbol
+#    'array'` / `'matrix'` / `unbound function or predicate symbol 'String.length'`
+#    are one bug: the emitter writes a term needing a Why3 theory into a module
+#    that never pulled it. #44 fixed ONE instance. **Those unbound symbols were the
+#    only thing standing between three erased spec atoms and a live false proof** —
+#    they are refused now (#29), so the completeness work is finally safe to do.
+#    Doing it in the other order would have shipped a soundness regression as a bug
+#    fix.
+# 3. **RUN THE LANGUAGE CENSUS BEFORE THE EMITTER CENSUS.** See below.
 #
-#   #35 costs **19 whole-file mirror re-proofs** (expressions.py at 20125 goals
-#       among them) AND needs a fix the naive version gets wrong: `_to_bool`
-#       returns a Why3 **bool** from most of its branches and an **int** from
-#       exactly one (`({x} <> 0)`, its default), so selecting on the raw operand
-#       emits `bool <> 0` — measured, mirror L3-tc 53/53 -> 40/53 and the spike
-#       proof `frontend/module_collect` failed on it. PYTHON-BOOLISHNESS AND WHY3
-#       TYPING ARE DIFFERENT QUESTIONS; the fix needs both tests plus a recursion
-#       through nested `and`/`or` (without it, `a == 0 and b == 3 and c == 1` is
-#       misclassified and six real corpus files get refused).
-#   #36 costs **14** of them, and the obvious refusal BREAKS THE MIRROR: reading a
-#       loop variable after its loop is an idiom the emitter itself uses
-#       throughout, so 14 of 53 files stop emitting. The narrowing "only when the
-#       target is pre-assigned" was tried and REFUTED by a second reproduction.
-#       The capability is to bind the OUTER ref in the body (`i := !_idx_i`)
-#       instead of shadowing it.
-#   They overlap heavily in the files they touch — do them in ONE increment.
+# ## THE METHOD THAT PRODUCED FIVE OF THE EIGHT — it is cheap and it is different
+#
+# **ASK WHAT PYTHON DOES THAT A HOARE MODEL MIGHT NOT, not what the emitter falls
+# through to.** The emitter census finds ERASURES; the language census finds
+# MISSING SEMANTICS. A batch of six probes — object aliasing, `a = b = []`,
+# simultaneous tuple swap, `or`/`and` value semantics, the loop-variable leak,
+# augmented list assignment through an alias — produced #34, #35 and #36 in about
+# thirty minutes, after four census passes over Module 6 had produced none of them.
+# WRITE THE PROGRAM, RUN IT IN PYTHON, AND PUT A CONTRACT ON IT THAT CONTRADICTS
+# WHAT PYTHON PRINTED. Forty-odd such probes are in `scratchpad/p2/`; the ones that
+# came back fail-closed are listed in the progress log so nobody repeats them.
+#
+# The emitter census still works and produced #29/#30: run the SHAPE as a QUERY
+# over the whole tree instead of reading handlers. `scratchpad/lit_census2.py`
+# (every bare `return "<literal>"` in Module 6 — 39 functions, 63 returns) and
+# `scratchpad/vs_census.py` (every `self._value_semantic` gate) are reusable, and
+# both tell you the search was EXHAUSTIVE, which reading never can.
 #
 # ## TWO GATES HAD THE SAME BLIND SPOT AND BOTH ARE FIXED
 #
 # `bin/byte-diff-sweep.sh` and `bin/run-reference-tests.sh` both globbed `0*.py`.
 # The corpus crossed 1000 in #44, so **route #28's own witnesses had never been
 # byte-diffed and had never been RUN**, and neither would any witness added after
-# them. Both now glob `*.py` and both have a zero-input guard (exit 2 below a
-# floor), each negative-tested against an empty tree. Suite discovery 3144 -> 3167.
-# THIS QUALIFIES #44's HEADLINE: "3124/3144 with ZERO XPASS" was true of the files
-# the harness could see.
+# them. Both now glob `*.py` with a zero-input guard, each negative-tested against
+# an empty tree. Suite discovery 3144 -> 3171. This QUALIFIES #44's headline:
+# "3124/3144 with ZERO XPASS" was true of the files the harness could see.
 #
-# ## THE METHOD THAT PRODUCED FIVE OF THE SIX — use it first, it is cheap
+# ## THE PLACEMENT LESSON, which decided the cost of three separate routes
 #
-# **ASK WHAT PYTHON DOES THAT A HOARE MODEL MIGHT NOT, not what the emitter falls
-# through to.** The emitter census finds ERASURES; the language census finds
-# MISSING SEMANTICS. A batch of six such probes (object aliasing, `a = b = []`,
-# simultaneous tuple swap, `or`/`and` value semantics, loop-variable leak,
-# augmented list assignment through an alias) produced #34, #35 and #36 in about
-# thirty minutes, after four census passes over Module 6 had produced none of them.
-# Write the program, RUN IT IN PYTHON, and put a contract on it that contradicts
-# what Python printed.
+# **A FIX PLACED WHERE THE DEFECT IS VISIBLE IS NOT NECESSARILY WHERE THE DECISION
+# IS MADE, AND THE DIFFERENCE IS MEASURED IN WHOLE-FILE RE-PROOFS.**
+#   * #31's first version put the refusal where the old `return "true"` was and
+#     broke the mirror's own emission — because that branch PREEMPTS the faithful
+#     `Array.length <> 0` branch below it, which is exactly why `true` was answered
+#     where a faithful length already existed.
+#   * #30's first version raised at the two Module 6 sites; both are `\trusted`
+#     mirror stubs, so `check-trusted-raises-honesty` went 68 -> 71 and FAILED.
+#     Rewritten as a POISON MARKER turned into a refusal by
+#     `pycsl.py::_run_pipeline` — which already raises and is already in that
+#     plane's population — it costs the trust surface nothing. The markers are also
+#     UNBOUND WHY3 SYMBOLS (verified with `why3 prove --type-only`), so an emission
+#     that escaped the check is REJECTED rather than proved: defence in depth by
+#     construction.
+#   * #36 went from "fourteen re-proofs" to "zero" purely by narrowing WHERE the
+#     write-back fires.
 #
-# The emitter census still works and produced #29/#30: run the SHAPE as a query
-# over the whole tree rather than reading handlers. `scratchpad/lit_census2.py`
-# (every bare `return "<literal>"` in Module 6: 39 functions, 63 returns) and
-# `scratchpad/vs_census.py` (every `self._value_semantic` gate) are both reusable
-# and both told me the search was EXHAUSTIVE, which reading never can.
+# ## THE PRICE OF A MODULE 6 LOWERING CHANGE, now a measured quantity
 #
-# ## THREE THINGS THAT COST ME TIME AND WILL COST YOU TIME
+# Route #35 moved 16 of the 53 mirror emissions. All sixteen were re-proved:
+# **rc=0 everywhere, ZERO bad goals, 62428 Valid, 8h18m wall at two concurrent**
+# (`getting-better/proofs45/`). Every file with a previously recorded goal count
+# came back at EXACTLY that count — expressions at #43's 20125, stmt_control_flow
+# at #44's 12294, Module5_IREmitter 2109, pure_ast 3372. A cost/scale boundary of
+# this size is payable inside one window; it is no longer a reason not to try.
+#
+# ## THREE THINGS THAT COST ME TIME
 #
 # 1. **A PROBE THAT FAILS IS EVIDENCE ABOUT THAT PROBE.** Two attempts at #32
-#    failed for unrelated reasons — an array-bounds VC and `unbound function or
-#    predicate symbol 'a_len'` — and both look exactly like "the tool is sound
-#    here". The route was three lines of Python away.
-# 2. **FAIL-CLOSED BY ACCIDENT IS NOT FAIL-CLOSED.** `\sum`, `\length2d` and
-#    `\valid2d` were masked only by a missing `use array.Array` / `use
-#    string.String` / `matrix` — the same bug class #44 fixed once for abstract
-#    ops. A completeness fix would have made them live. There are MORE of these:
-#    `if s:` on a `str` local dies on `unbound function or predicate symbol
-#    'String.length'` today.
-# 3. **A FIX PLACED WHERE THE DEFECT IS VISIBLE IS NOT NECESSARILY WHERE THE
-#    DECISION IS MADE.** #31's first version put the refusal where the old
-#    `return "true"` was and broke the mirror's own emission, because that branch
-#    PREEMPTS the faithful `Array.length <> 0` branch below it — which is exactly
-#    why `true` was answered where a faithful length already existed.
-#
-# ## THE CHOKE-POINT PATTERN THIS WINDOW ADDED, and it costs nothing
-#
-# Four of the six fixes are refusals raised in `pycsl.py::_run_pipeline`, either
-# on the resolved IR or by scanning the emitted WhyML for a POISON MARKER returned
-# from a Module 6 handler. WHY: the handlers are `\trusted` mirror stubs, so a
-# `raise` in their live bodies moves `check-trusted-raises-honesty` (MEASURED:
-# SILENT 68 -> 71, and the plane FAILED the first version of #30's fix), and
-# declaring `#@ raises` on a stub is a caller-wide cascade. `_run_pipeline`
-# already raises and is already in that plane's population. THE MARKERS ARE ALSO
-# UNBOUND WHY3 SYMBOLS — verified with `why3 prove --type-only` — so an emission
-# that escaped the pipeline check is rejected by the type-checker rather than
-# proved. Defence in depth BY CONSTRUCTION, which is the thing lesson 2 above says
-# you cannot get by accident.
+#    failed for unrelated reasons — an array-bounds VC and an `unbound … 'a_len'` —
+#    and both look exactly like "the tool is sound here". The route was three lines
+#    of Python away.
+# 2. **FAIL-CLOSED BY ACCIDENT IS NOT FAIL-CLOSED.** See item 2 above.
+# 3. **A MEASUREMENT TAKEN WHILE ITS SUBJECT IS CHANGING IS NOT A MEASUREMENT.** I
+#    left the reference suite running while editing `src/pycsl` and had to kill it;
+#    later I killed a second run 27% in, on purpose, because the tree was about to
+#    change. THE SUITE BELONGS AT THE END, on the final tree.
 #
 # ## STATE AT HANDOFF
 #
-#   metric            markers 456 / grep 481 — UNCHANGED across all six routes
-#   corpora           pycsl-reference: every pre-existing emission byte-identical;
-#                     python-reference 2206/2208 with exactly THREE files moved,
-#                     all three already red (0048 L3-tc, 0192/0196 XFAIL)
-#   mirror            53/53 emitted, 53/53 L3-tc, ONE emission moved
-#                     (`stmt_control_flow`, route #31, strictly more faithful) and
-#                     its re-proof `w45_scf2` is the ONLY proof owed
+#   metric            markers 456 / grep 481 — UNCHANGED across all eight routes
+#   corpora           pycsl-reference: the only pre-existing emissions that moved
+#                     are 0447/0453/0885/0887 (route #35), all four still prove.
+#                     python-reference 2206/2208 with three moved, all three
+#                     already red (0048 L3-tc, 0192/0196 XFAIL).
+#   mirror            53/53 emitted, 53/53 L3-tc, and the 16 files route #35 moved
+#                     are all re-proved. NOTHING IS OWED.
 #   fidelity          2 DIVERGED — the pre-existing `_handle_var_expr` /
 #                     `_handle_for_stmt` pair, unchanged
 #   planes            all nineteen rc=0 plus doc-coherency
-#   docs              `docs/pycsl-translational-reference.md` gained §T.5.12(c)
-#                     (match-pattern partiality), §T.5.13 (list-local truthiness
-#                     and the two folds) and the array-atom heap-model note. The
-#                     docs were PART of the defect in #29 and #30: they stated the
-#                     value-model formula as THE lowering and were silent about
-#                     the model in which it was erased.
+#   witnesses         1000-1026 all behave as declared, ZERO XPASS, re-run at HEAD
+#   docs              `docs/pycsl-translational-reference.md` gained §T.5.12b
+#                     (and/or value semantics), §T.5.12c (the loop variable),
+#                     §T.5.13 (list-local truthiness and the two folds), the
+#                     match-pattern partiality note and the array-atom heap-model
+#                     note. THE DOCS WERE PART OF THE DEFECT in #29 and #30: they
+#                     stated the value-model formula as THE lowering and were
+#                     silent about the model in which it was erased.
 #
 # ==========================================================================
 
