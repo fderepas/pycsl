@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """check-mirror-loop-annotations.py — a RATCHET on the self-annotation mirror's
-`#@ loop invariant` / `#@ loop variant` lines.
+in-body proof-support directives.
 
 WHY THIS EXISTS (driver window 3, relaunch #44). Route #21's mirror sync copied the
 LIVE emitter body over the mirror body — the documented "copy the BODY, keep the
@@ -52,6 +52,21 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 BASELINE = os.path.join(ROOT, "getting-better", "mirror-loop-annotations.json")
 
+# The directive kinds that live INSIDE a function body, and are therefore the ones a
+# verbatim body copy from the live emitter can strip. A contract clause
+# (`requires`/`ensures`/`assigns`) sits ABOVE the `def` and survives a body copy; these
+# do not. All of them are pure proof support: they change no emitted behaviour, so
+# their count may rise freely and a fall is always worth a look.
+IN_BODY_KINDS = (
+    "loop invariant",   # the route-#21 casualty
+    "loop variant",
+    "assert",           # prove-and-assume (4 live ones in frontend/pure_ast.py)
+    "check",            # prove-and-discard
+    "reveal",           # opt into a callee's definition contract at this site
+    "label",            # program-point annotation
+    "ghost",            # ghost declarations/updates
+)
+
 
 def count_file(path):
     """Count `#@ loop invariant` / `#@ loop variant` directive lines in one file."""
@@ -62,8 +77,10 @@ def count_file(path):
             if not s.startswith("#@"):
                 continue
             body = s[2:].strip()
-            if body.startswith("loop invariant") or body.startswith("loop variant"):
-                n += 1
+            for kind in IN_BODY_KINDS:
+                if body == kind or body.startswith(kind + " "):
+                    n += 1
+                    break
     return n
 
 
@@ -128,7 +145,7 @@ def main():
         print(f"[-] MIRROR LOOP ANNOTATIONS DROPPED in {len(drops)} file(s):")
         for path, floor, now in drops:
             print(f"      {path}: {floor} -> {now}   ({floor - now} line(s) LOST)")
-        print("[-] A `#@ loop invariant` / `#@ loop variant` line is never a liability.")
+        print("[-] An in-body proof-support directive is never a liability.")
         print("    A drop is either a body copy that stripped the mirror's own")
         print("    annotations (the route-#21 defect) or a deliberate `\\trusted`")
         print("    conversion / loop deletion. If deliberate, re-run with --update.")
