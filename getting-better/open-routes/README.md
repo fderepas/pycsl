@@ -7,6 +7,17 @@ Each file PROVES a contract that is FALSE of its own program, at HEAD, in the DE
 would be an **XPASS**, which the harness has counted as a failure since relaunch #44.
 Move each file into the corpus in the SAME increment that closes its route.
 
+## ROUTE #35 — CLOSED (relaunch #45, later the same window). Kept for the record.
+
+The obstacle described below was real and the fix that overcame it is in
+`module6_whyml/expressions.py`: separate PYTHON-BOOLISHNESS (does `1`/`0` already
+encode the Python value faithfully?) from WHY3 TYPING (may this operand be selected
+raw, or must it be wrapped back to an int?). `left_b == f"({left} <> 0)"` is the
+precise second test. Mirror L3-tc came back 53/53, sixteen mirror emissions moved,
+and their re-proofs were run. Witnesses are now `pycsl-reference/1023`-`1024`.
+
+### The original entry, unedited:
+
 ## ROUTE #35 — `and`/`or` in a VALUE position return a boolean, not the operand
 
     x = 0 or 5      # Python: 5     model: 1

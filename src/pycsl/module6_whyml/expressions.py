@@ -5447,10 +5447,78 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             right_b = self._to_bool(right, expr["right"])
             if self._in_spec:
                 return f"({left_b} {op} {right_b})"
-            # In body context, Python's and/or return int. Use if-then-else
-            # to convert bool result back to int, avoiding abstract vals
-            # that can't handle mixed bool/int args.
-            return f"(if {left_b} {op} {right_b} then 1 else 0)"
+            # ROUTE #35 (relaunch #45) — PYTHON'S `and`/`or` RETURN AN OPERAND, NOT A
+            # BOOLEAN, and the comment that used to sit here ("In body context, Python's
+            # and/or return int") was the mistake in one line. `x = 0 or 5` is 5 in
+            # Python; the emission was `if (0 <> 0) || (5 <> 0) then 1 else 0`, i.e. 1,
+            # so `#@ ensures \result == 1` PROVED. Witness `pycsl-reference/1023`.
+            # The lowering is CORRECT IN A CONDITION and WRONG IN A VALUE, and nothing
+            # here knows which consumer it has — so the value-preserving form is emitted
+            # wherever the result is not already a Python bool, and it is equally correct
+            # in a condition (`_to_bool` then tests the SELECTED operand's truthiness,
+            # which is the truthiness Python would have tested).
+            #
+            # TWO SEPARATE QUESTIONS, and the first version of this fix conflated them
+            # and emitted `bool <> 0` (mirror L3-tc 53/53 -> 40/53).
+            #
+            #   PYTHON-BOOLISHNESS decides whether `1`/`0` is ALREADY faithful. It is,
+            #   for an operand whose Python value is a bool — a comparison, a `not`, a
+            #   bool literal, a quantifier, a bool-returning builtin, or an `and`/`or`
+            #   of those. THE RECURSION THROUGH NESTED `and`/`or` IS LOAD-BEARING: the
+            #   both-boolean branch returns the INT `if … then 1 else 0`, so
+            #   `a == 0 and b == 3 and c == 1` would otherwise look mixed. That shape is
+            #   ordinary corpus code (0290, 0900, 0901, 0935, python-reference
+            #   0158/0161) and an earlier version refused all six.
+            #
+            #   WHY3 TYPING decides whether an operand may be selected RAW. `_to_bool`
+            #   returns EXACTLY `(<x> <> 0)` when and only when it coerced an INT
+            #   expression; every other branch hands back a Why3 BOOL (a comparison,
+            #   `Array.length … <> 0`, `hval_truthy …`, `py_isinstance_…_op`, an
+            #   inductive predicate). That string equality is the precise test, and
+            #   anything else is wrapped back to an int before selection.
+            _pybool = [True, True]
+            _bi = 0
+            for _side in ("left", "right"):
+                _bst = [expr[_side]]
+                while _bst:
+                    _bn = _bst.pop()
+                    if not isinstance(_bn, dict):
+                        _pybool[_bi] = False
+                        break
+                    _bt, _bo = _bn.get("type"), _bn.get("op")
+                    if _bt == "BinOp" and _bo in ("and", "or"):
+                        _bst.append(_bn.get("left"))
+                        _bst.append(_bn.get("right"))
+                        continue
+                    if _bt == "BinOp" and _bo in ("==", "!=", "<", ">", "<=", ">=",
+                                                  "in", "not in"):
+                        continue
+                    if _bt == "UnaryOp" and _bo == "not":
+                        continue
+                    if _bt in ("Bool", "Compare", "Exists", "Forall", "SetMem",
+                               "SetSubset", "SetEq", "MapEq", "HasKey"):
+                        continue
+                    if _bt in ("Old", "At"):
+                        _bst.append(_bn.get("expr", {}))
+                        continue
+                    if (_bt == "Call" and isinstance(_bn.get("func"), str)
+                            and (_bn["func"] in ("isinstance", "hasattr", "any", "all")
+                                 or _bn["func"] in getattr(self, "_inductive_preds", ()))):
+                        continue
+                    _pybool[_bi] = False
+                    break
+                _bi += 1
+            if _pybool[0] and _pybool[1]:
+                # Python returns True/False, and `1`/`0` is the faithful int encoding of
+                # exactly that. UNCHANGED — the ordinary `a == b or c == d` shape.
+                return f"(if {left_b} {op} {right_b} then 1 else 0)"
+            _l_val = left if left_b == f"({left} <> 0)" else f"(if {left_b} then 1 else 0)"
+            _r_val = right if right_b == f"({right} <> 0)" else f"(if {right_b} then 1 else 0)"
+            if op == "||":
+                return (f"(let __or_l = {_l_val} in "
+                        f"if __or_l <> 0 then __or_l else {_r_val})")
+            return (f"(let __and_l = {_l_val} in "
+                    f"if __and_l <> 0 then {_r_val} else __and_l)")
         if raw_op in ("in", "not in"):
             return self._emit_membership(raw_op, expr, left, right, local_refs,
                                           invariant_ctx, subst)

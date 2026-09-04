@@ -1634,6 +1634,47 @@ for that — refusal is the only sound total answer.
 
 ---
 
+### §T.5.12b  `and` / `or` in a VALUE position return the OPERAND
+
+Python's `and` and `or` are **selection**, not conjunction: `0 or 5` is `5` and `3 and 7`
+is `7`. Until relaunch #45 the emitter lowered them in a body as
+`if <l> ∧ <r> then 1 else 0` under a comment reading "In body context, Python's and/or
+return int", so `x = 0 or 5` proved `x == 1` (route #35, witness
+`pycsl-reference/1023`). The lowering is **correct in a condition and wrong in a value**,
+and nothing at the emission site knows which consumer it has, so the value-preserving
+form is emitted wherever the result is not already a Python bool — and it is equally
+correct in a condition, because the truthiness then tested is that of the *selected*
+operand, which is the operand Python would have tested.
+
+$$\mathcal{T}_e\llbracket \texttt{a or b} \rrbracket
+= \texttt{(let l = } a' \texttt{ in if l <> 0 then l else } b' \texttt{)}$$
+$$\mathcal{T}_e\llbracket \texttt{a and b} \rrbracket
+= \texttt{(let l = } a' \texttt{ in if l <> 0 then } b' \texttt{ else l)}$$
+
+**Two separate questions decide $a'$ and whether the rule fires at all**, and conflating
+them is how the first attempt emitted `bool <> 0` and took mirror L3-tc from 53/53 to
+40/53:
+
+* **Python-boolishness** decides whether `1`/`0` is *already* faithful. It is, when the
+  operand's Python value is a bool — a comparison, a `not`, a bool literal, a
+  quantifier, a bool-returning builtin (`isinstance`/`hasattr`/`any`/`all`), an inductive
+  predicate, or an `and`/`or` of those. The recursion through nested `and`/`or` is
+  load-bearing: the both-boolean case emits the *int* `if … then 1 else 0`, so
+  `a == 0 and b == 3 and c == 1` would otherwise look mixed. Both operands boolish →
+  the emission is **unchanged**, which is why the ordinary `a == b or c == d` shape does
+  not move.
+* **Why3 typing** decides whether an operand may be selected raw. `_to_bool` returns
+  exactly `(<x> <> 0)` when — and only when — it coerced an *int* expression; every
+  other branch hands back a Why3 *bool* (`Array.length … <> 0`, `hval_truthy …`,
+  `py_isinstance_…_op`, a comparison). So $a' = a$ under that string equality and
+  $a' = $ `(if <a as bool> then 1 else 0)` otherwise. A boolean operand's int encoding is
+  faithful because Python's `True` **is** `1`.
+
+The string-operand and `emit_ir`-operand cases above already selected the operand; this
+is the general case catching up with them.
+
+---
+
 ### §T.5.13  List locals: truthiness, `len`, and the constant folds
 
 A list LOCAL is lowered to a Why3 `array int`, and three facts about it are answered from

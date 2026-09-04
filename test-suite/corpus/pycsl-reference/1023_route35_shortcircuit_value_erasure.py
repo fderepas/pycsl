@@ -1,8 +1,3 @@
-# ROUTE #35 IS OPEN AS OF RELAUNCH #45. This file is a REPRODUCTION, not a corpus
-# test: it PROVES today and its contract is FALSE of the program, so adding it to
-# the corpus would be an XPASS (a suite failure) rather than a witness. Move it to
-# `test-suite/corpus/pycsl-reference/1023_...` in the SAME increment that closes the
-# route.
 """Test 1023 — ROUTE #35 negative witness: `and`/`or` in a VALUE position returned
 a boolean instead of the selected OPERAND.
 
