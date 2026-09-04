@@ -10220,6 +10220,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # Absence still takes the default: a name the record does NOT declare is
         # genuinely missing at runtime too. Unknown object type is neither, and is left
         # to the default and COUNTED — see bin/check-getattr-erasure.py.
+        import os as _os
+        import sys as _sys
         if (isinstance(obj_ir, dict) and obj_ir.get("type") == "Var"
                 and isinstance(name_ir, dict) and name_ir.get("type") == "String"):
             _ga_obj = obj_ir.get("name", "")
@@ -10235,6 +10237,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _ga_lbl = self._field_label(_ga_rec, name_ir.get("value", ""))
                     if _ga_lbl in _ga_labels:
                         return f"{whyml_ident(_ga_obj)}.{_ga_lbl}"
+        # THE RESIDUE, MEASURED RATHER THAN ASSUMED. Reaching here means the read was
+        # NOT resolved to a declared field, and there are two very different reasons:
+        # ABSENT (the object's record type is known and does not declare the name — the
+        # default is then genuinely what Python returns) and UNKNOWN (the object's static
+        # type is `Any`/`object`/unresolved, so neither presence nor absence can be
+        # established, and the default is a guess). `bin/check-getattr-erasure.py` runs
+        # the emission with PYCSL_GETATTR_CENSUS=1 and ratchets the two populations apart,
+        # with the DECLARED count pinned at 0 — that is the route-#22 regression gate.
+        # Env-gated, so it costs nothing and emits nothing on a normal run.
+        if _os.environ.get("PYCSL_GETATTR_CENSUS"):
+            _ga_o = obj_ir.get("name", "?") if isinstance(obj_ir, dict) else "?"
+            _ga_n = (name_ir.get("value") if isinstance(name_ir, dict)
+                     and name_ir.get("type") == "String" else "<nonliteral>")
+            _ga_t = (getattr(self, "_current_symbol_table", {}) or {}).get(_ga_o)
+            if _ga_o == "self" and not _ga_t:
+                _ga_t = getattr(self, "_current_self_type", None)
+            _ga_lbls = (getattr(self, "_emitted_record_field_labels", {})
+                        or {}).get(str(_ga_t).lower()) if _ga_t else None
+            if _ga_lbls is None:
+                _ga_cls = "UNKNOWN"      # no field list for this type at all
+            elif (_ga_n != "<nonliteral>"
+                  and self._field_label(str(_ga_t).lower(), _ga_n) in _ga_lbls):
+                _ga_cls = "DECLARED"     # the record DECLARES it — must never happen
+            else:
+                _ga_cls = "ABSENT"       # known record, name genuinely not a field
+            _sys.stderr.write("GETATTR_FALLTHROUGH\t%s\t%s\t%s\t%s\n" % (
+                _ga_cls, _ga_o, _ga_t, _ga_n))
         # Dynamic-config / ABSENT-field path: emit the default. getattr returns
         # `default` for an absent attribute, so this is sound WHEN THE GUARD ABOVE HAS
         # ESTABLISHED ABSENCE (the record type is known and does not declare the name).
