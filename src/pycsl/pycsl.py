@@ -690,6 +690,23 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     #   escaped this check is rejected by the type-checker instead of proved —
     #   defence in depth BY CONSTRUCTION, not the accidental fail-closure that
     #   route #29 turned out to be relying on.
+    if "R31_UNMODELLED_LIST_TRUTHINESS" in _mlw:
+        # ROUTE #31 (relaunch #45) — the Python truthiness of a list local whose
+        # LENGTH the model does not carry. `_to_bool` used to answer `true` for
+        # EVERY array local ("always allocated"), and an EMPTY list is FALSY, so
+        # `a = []; if a: return 1; return 2` proved `\result == 1` in the default
+        # model while Python returns 2 (witness 1015). The faithful answers — the
+        # literal size for an unconditionally bound local, the sidecar `X_len` for
+        # an append target — are emitted where they exist; this is the residue.
+        from errors import PyCSLSemanticError as _PyCSLSemErr31
+        raise _PyCSLSemErr31(
+            "the truthiness of a list local in this module is not interpreted "
+            "(ROUTE #31): the model does not carry that list's length here, and "
+            "`true` — which is what the emitter used to answer, on the grounds "
+            "that the array is always allocated — is FALSE of an empty list, "
+            "which Python treats as falsy. Compare against `len(...)` explicitly, "
+            "or bind the list unconditionally to a literal so its size is known.",
+            stage="whyml-emit", code="PYCSL-R31-UNMODELLED-LIST-TRUTHINESS")
     if "R30_UNINTERPRETED_PATTERN" in _mlw:
         from errors import PyCSLSemanticError as _PyCSLSemErr30
         raise _PyCSLSemErr30(

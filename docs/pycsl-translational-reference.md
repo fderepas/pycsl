@@ -1634,6 +1634,41 @@ for that — refusal is the only sound total answer.
 
 ---
 
+### §T.5.13  List locals: truthiness, `len`, and the constant folds
+
+A list LOCAL is lowered to a Why3 `array int`, and three facts about it are answered from
+emitter-side metadata rather than from the array: its **truthiness** (`_array_locals`), its
+**length** (`_known_collection_sizes`) and its **elements** (`_known_collection_elements`).
+All three were unsound until relaunch #45 and all three are now bounded.
+
+**Truthiness.** `if <list local>:` used to emit `true` for every array local, on the stated
+grounds that the array is *always allocated*. Allocation is not truthiness: `[]` is **falsy**
+in Python, so `a = []; if a: return 1; return 2` proved `\result == 1` from the emission
+`if true then 1 else 2` while Python returns 2 (route #31, witness `pycsl-reference/1015`).
+`Array.length a <> 0` is not the repair on its own — an empty list literal lowers to the
+placeholder `Array.make 1024 0`, so the Why3 length of the one case that matters is 1024. The
+faithful answers are now emitted where the model has them: the statically known literal size
+for an unconditionally bound local, the sidecar `X_len` ref for an append target, and
+`Array.length <> 0` for an array-typed parameter or element-typed local. Where none applies
+the truthiness is **refused** (`PYCSL-R31-UNMODELLED-LIST-TRUTHINESS`). Witness `1016` proves
+the faithful capability in both directions.
+
+**The two constant folds are valid only for a single, unconditional binding.** Both maps are
+keyed by the local's *name* alone and were written in emission order, so a name bound to a
+literal in one arm of a conditional handed its size and its contents to every path:
+
+    if c == 0: a = [9, 9, 9]          if c == 0: a = [7]
+    else:      a = [1, 2]             else:      a = [9]
+    return len(a)     -> folded 2     return a[0]     -> folded 9
+    Python (c == 0):  3               Python (c == 0): 7
+
+Both proved (routes #32 / #33, witnesses `1013` / `1014`). A second binding of the same target
+now **poisons** both maps, and the read falls through to the real array — which, for a name
+bound only inside the arms, Why3 correctly rejects as out of scope. Recording the last literal
+seen, which is what the emitter did, is the one answer that is wrong on every path but one.
+
+---
+
 ## §T.6  Expression Translation ($\mathcal{T}_e$)
 
 _Corresponds to `annotations.md` §3._

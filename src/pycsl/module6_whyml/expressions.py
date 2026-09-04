@@ -436,6 +436,9 @@ from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
 # emitted WhyML for `R30_UNINTERPRETED_PATTERN` and refuses.
 _R30_POISON_EXPR = "pycsl_R30_UNINTERPRETED_PATTERN"
 _R30_POISON_PAT = "Pycsl_R30_UNINTERPRETED_PATTERN"
+# ROUTE #31, same mechanism: the Python truthiness of a list local whose LENGTH the
+# model does not carry. See `_to_bool`.
+_R31_POISON_EXPR = "pycsl_R31_UNMODELLED_LIST_TRUTHINESS"
 
 class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     """Expression-emission dispatch: every IR expression-shape `_handle_*_expr`
@@ -690,7 +693,36 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     in getattr(self, "_mutable_state_classes", set())):
                 return f"(Seq.length {whyml_str} <> 0)"
             if name in self._array_locals:
-                return "true"
+                # ROUTE #31 (relaunch #45). This was `return "true"`, with the comment
+                # "Array locals can't be compared with <> 0; emit true (always
+                # allocated)". ALLOCATION IS NOT TRUTHINESS: an EMPTY list is FALSY in
+                # Python. MEASURED in the default hoare model, no flags —
+                # `a = []; if a: return 1; return 2` under `#@ ensures \result == 1`
+                # PROVED, from the emission `if true then 1 else 2`, while Python
+                # returns 2. Witness `pycsl-reference/1015`.
+                #
+                # `Array.length <> 0` is NOT the repair on its own: an empty list
+                # literal lowers to the PLACEHOLDER `Array.make 1024 0`, so the Why3
+                # length of the one case that matters is 1024. The faithful length is
+                # the one `len()` already uses — the literal size for an unconditionally
+                # bound local, the sidecar `X_len` ref for an append target — and where
+                # neither is available the answer is unknown, so it is REFUSED (the
+                # marker is turned into a message by `pycsl.py::_run_pipeline`).
+                # ORDER MATTERS AND IT ALREADY DID: this branch preempts the
+                # `Array.length <> 0` branch below for every name that is in BOTH
+                # sets, which is why `true` was answered even where a faithful
+                # length was available. It now RETURNS only when it has a faithful
+                # answer and otherwise FALLS THROUGH, so the array-typed branches
+                # below get their chance; the refusal is the last word, after them.
+                # (The mirror's own `stmt_control_flow.py` is the case that proved
+                # this necessary — refusing here broke its emission outright.)
+                if name in getattr(self, "_current_append_targets", set()):
+                    return f"(!{whyml_ident(name)}_len <> 0)"
+                _r31_sizes = getattr(self, "_known_collection_sizes", {})
+                if (name in _r31_sizes
+                        and name not in getattr(self, "_rebound_collections", set())
+                        and isinstance(_r31_sizes[name], int)):
+                    return "true" if _r31_sizes[name] else "false"
             # no-more-int emitter L4c: a list/array-typed var (`array int`, e.g. the
             # `rest: List[...]` param) is truthy iff non-empty — `Array.length x <> 0`,
             # the faithful Python list-truthiness — not the int `x <> 0` (a type error
@@ -733,6 +765,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if (name in getattr(self, "_emit_ir_local_vars", set())
                     or self._is_emit_ir_expr(ir_expr)):
                 return "true"
+            # ROUTE #31, the last word: an array local that reached here has no
+            # modelled length at all, and the historical answer `true` is FALSE of an
+            # empty list. Refuse rather than invent a branch decision.
+            if name in self._array_locals:
+                return _R31_POISON_EXPR
         # parser-vein gap-1b (Optional-truthiness-in-condition): an `Optional[OBJECT]`
         # `<e>` (a record-payload option — `_Tok`, NO `__bool__`) in a boolean condition
         # (`if <e>:`/`while <e>:`/`and`/`or`/`not <e>`) is Python-true iff `<e> is not

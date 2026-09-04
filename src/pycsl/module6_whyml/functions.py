@@ -583,6 +583,11 @@ class FunctionEmissionMixin:
         # discriminant; a bare `return <local>` threads into the Optional[str] union arm.
         self._option_str_return_vars: Set[str] = set()
         self._known_collection_sizes = {}
+        # ROUTES #32/#33: names bound to a collection literal MORE THAN ONCE in
+        # this function. Their fold is poisoned in `_track_collection_metadata`
+        # (a per-arm binding is indistinguishable from a rebinding from there),
+        # and the set is per-function like the two maps it guards.
+        self._rebound_collections = set()
         self._known_collection_elements = {}
         self._current_symbol_table = symbol_table
         # Formal-parameter names ONLY — Module5 exposes this as a

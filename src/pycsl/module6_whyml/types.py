@@ -59,7 +59,46 @@ class TypeInferenceMixin:
     """
 
     def _track_collection_metadata(self, target: str, val_ir: Dict[str, Any]) -> None:
-        """Update _known_collection_sizes/_elements for constant-folding of len/sum/index."""
+        """Update _known_collection_sizes/_elements for constant-folding of len/sum/index.
+
+        ROUTES #32 and #33 (relaunch #45) — REBINDING POISONS THE FOLD. These two
+        maps are consulted by `_handle_len_call` and the indexed-read fold, and
+        they were populated in EMISSION ORDER with no branch or scope discipline,
+        so a local bound to a literal in ONE ARM of a conditional handed its size
+        and its contents to EVERY path. MEASURED in the default hoare model:
+
+            if c == 0: a = [9, 9, 9]        if c == 0: a = [7]
+            else:      a = [1, 2]           else:      a = [9]
+            return len(a)                   return a[0]
+
+        with `#@ requires c == 0`, the first proved `\result == 2` (Python: 3) and
+        the second proved `\result == 9` (Python: 7). The emissions are the tell —
+        Why3 warns "unused variable a" once PER ARM and the body is the bare
+        constant, so the model has no `a` after the `if` at all and still answers
+        questions about it. Witnesses `pycsl-reference/1013`-`1014`.
+
+        THE FOLD IS ONLY VALID FOR A SINGLE, UNCONDITIONAL BINDING, and this
+        function cannot see conditionals — but it CAN see that a name was bound
+        twice, which is what a per-arm binding looks like from here. So a second
+        binding of the same target REMOVES both entries and blacklists the name:
+        the consumers then fall through to the real array (`Array.length` / an
+        `Array.get`), which is faithful, or to a refusal. Recording the LAST
+        literal, which is what the code did, is the one answer that is wrong on
+        every path but one.
+        """
+        _rb = getattr(self, "_rebound_collections", None)
+        if _rb is None:
+            _rb = self._rebound_collections = set()
+        if target in _rb:
+            self._known_collection_sizes.pop(target, None)
+            self._known_collection_elements.pop(target, None)
+            return
+        if (target in self._known_collection_sizes
+                or target in self._known_collection_elements):
+            _rb.add(target)
+            self._known_collection_sizes.pop(target, None)
+            self._known_collection_elements.pop(target, None)
+            return
         vt = val_ir.get("type", "")
         if vt in ("ArrayLit", "Tuple"):
             elts = val_ir.get("elts", [])
