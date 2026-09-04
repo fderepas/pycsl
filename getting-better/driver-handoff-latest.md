@@ -199,10 +199,15 @@
 #                          shadowed 14 · frame-honesty 0/1 and 0/94 · clause-survival 2
 #   conformance            core 38/0, front-end 38/0, determinism 10/10
 #   vacuity (--emit)       no NEW erasure
-#   reference suite        **3114/3144 — up from 3042/3144. 102 failures -> 30.**
+#   reference suite        **3124/3144 — up from 3042/3144. 102 failures -> 20, ZERO XPASS.**
+#                          ZERO XPASS is the number that matters: the harness used to
+#                          report an expected-FAIL test that PROVED as a PASS, so all 241
+#                          negative witnesses — including every route witness this campaign
+#                          has written — were unenforceable. Fixed; now XPASS is red and
+#                          counts as a failure, and the current measurement is zero.
 #                          The 102 were PRE-EXISTING and identical test-for-test to #43's,
 #                          and no handoff in this campaign had said the suite was red.
-#                          72 of them are now fixed:
+#                          82 of them are now fixed:
 #                            64  the whole `stdlib/ctypes` family, which needed
 #                                `--allow-unverified-imports` in its flags line. The tests
 #                                are about the ctypes STUB CONTRACTS; the deny-list has its
@@ -215,9 +220,13 @@
 #                                declaring `array int` with no `use array.Array`, because
 #                                `needs_array` is computed before any body is emitted) plus
 #                                a driver declaring `-> int` for a bytes return.
+#                            10  the missing prover (see the retraction below). Nothing in
+#                                the code was wrong with these at all.
 #                          THE REMAINING 30, all diagnosed in `scratchpad/w9/fail_causes.txt`:
-#                            11  `Why3 Coq library not found` — the `#@ proof rocq` bridge
-#                                CANNOT BE REPLAYED in this environment at all.
+#                            10  `Why3 Coq library not found` (0211-0220) — the
+#                                `#@ proof rocq` bridge CANNOT BE REPLAYED in this
+#                                environment at all, which means this campaign has never
+#                                exercised it. Worth the next window's attention on its own.
 #                             9  SMT timeout/unknown — **RETRACTED AND EXPLAINED.** I first
 #                                recorded these as "a completeness regression nobody had
 #                                recorded", because five of them say "STATUS — PROVES." in
@@ -235,7 +244,9 @@
 #                                what it produces is `UNEXPECTED PIPELINE ERROR: 'str'
 #                                object has no attribute 'get'`, an INTERNAL CRASH on the
 #                                refusal path. Worth fixing on its own terms.
-#                             9  L3-tc type errors and pipeline errors, individually listed.
+#                             9  L3-tc type errors and pipeline errors, individually listed
+#                                (0700, 0701, python-reference 0043/0048/0079/0080/0082/
+#                                0095/0110). Every one is fail-closed.
 #
 # ## THE THREE THINGS TO DO FIRST, NEXT WINDOW
 #
