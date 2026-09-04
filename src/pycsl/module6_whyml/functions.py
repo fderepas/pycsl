@@ -613,6 +613,58 @@ class FunctionEmissionMixin:
         # A plain `ArraySet` changes an ELEMENT, not the LENGTH, so it poisons only the
         # element fold — which keeps the deliberate dict-store size tracking in
         # `_handle_array_set_stmt` working. Everything else poisons both.
+        # ROUTE #36 (relaunch #45) — `for` TARGETS THAT ARE READ OUTSIDE THEIR LOOP.
+        # Python leaves a loop variable bound to its LAST value; the emission binds the
+        # target INSIDE the body (`let i = ref (!_idx_i) in`), so the OUTER name keeps its
+        # pre-loop value and `i = 0; for i in range(3): pass; return i` proved
+        # `\result == 0` where Python returns 2. The exploit needs the name to be READ
+        # somewhere the loop's own subtree does not cover; a target read only inside its
+        # loop is already faithful, and a FRESH target read afterwards is an unbound Why3
+        # name that fails closed. So the set is computed here, once per function, and
+        # `_handle_for_stmt` HAVOCS the outer ref after the loop for members of it —
+        # the same sound over-approximation the tuple-target binder already uses
+        # ("Why3 must then prove the body for EVERY value").
+        self._loop_targets_read_outside: Set[str] = set()
+        _f36 = func
+        _fors36 = []
+        _st36 = [_f36.get("body", [])]
+        while _st36:
+            _n36 = _st36.pop()
+            if isinstance(_n36, dict):
+                if _n36.get("stmt") == "For" and isinstance(_n36.get("target"), str):
+                    _fors36.append(_n36)
+                _st36.extend(_n36.values())
+            elif isinstance(_n36, (list, tuple)):
+                _st36.extend(_n36)
+        for _fr36 in _fors36:
+            _tgt36 = _fr36["target"]
+            _inside36 = set()
+            _si36 = [_fr36]
+            while _si36:
+                _x36 = _si36.pop()
+                if isinstance(_x36, dict):
+                    _inside36.add(id(_x36))
+                    _si36.extend(_x36.values())
+                elif isinstance(_x36, (list, tuple)):
+                    _si36.extend(_x36)
+            _so36 = [_f36.get("body", [])]
+            while _so36:
+                _y36 = _so36.pop()
+                if isinstance(_y36, dict):
+                    if id(_y36) in _inside36:
+                        continue
+                    # A Python `assert` is DROPPED by Module 6 (it lowers to `()`,
+                    # measured on `python-reference/0177`), so a read inside one is not
+                    # a leak. Coupled to that lowering: if a Python `assert` ever becomes
+                    # a real obligation, this line goes with it.
+                    if _y36.get("stmt") == "Assert":
+                        continue
+                    if (_y36.get("type") == "Var" and _y36.get("name") == _tgt36):
+                        self._loop_targets_read_outside.add(_tgt36)
+                        break
+                    _so36.extend(_y36.values())
+                elif isinstance(_y36, (list, tuple)):
+                    _so36.extend(_y36)
         self._fold_unsafe_elems: Set[str] = set()
         self._fold_unsafe_sizes: Set[str] = set()
         # Builtins that CANNOT mutate the list they are handed (`sorted`/`list` copy).

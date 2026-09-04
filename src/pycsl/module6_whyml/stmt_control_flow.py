@@ -1447,9 +1447,46 @@ class ControlFlowStmtMixin:
                     if re.search(r"\b" + re.escape(_tw) + r"\b", inner_body):
                         _ftl.append(f"{bind_indent}let {_tw} = any int in")
                 return _ftl
+            # ROUTE #36 (relaunch #45) — WRITE THE LOOP VARIABLE BACK TO THE OUTER REF.
+            # Python leaves a loop variable bound to its LAST value; the binder below
+            # opens an INNER `let`, so the name is shadowed for the loop's duration and
+            # the OUTER ref keeps its PRE-loop value afterwards. MEASURED in the default
+            # hoare model: `i = 0; for i in range(3): pass; return i` proved
+            # `\result == 0` while Python returns 2, and the version WITHOUT the
+            # pre-assignment proves it too, because Module 6 declares the target as an
+            # outer ref either way. Witnesses `pycsl-reference/1025`-`1026`.
+            #
+            # The assignment goes BEFORE the `let`, so it names the OUTER ref rather than
+            # the shadowing one, and it reproduces Python EXACTLY — including the
+            # never-ran case, where the variable keeps whatever it had. It uses
+            # `elem_expr`, the same term the binder is about to bind, so it is well-typed
+            # for every element type (an `any int` havoc is NOT: the target ref is
+            # `emit_ir`-typed in the mirror's own `stmt_control_flow.py`, which took
+            # L3-tc to 52/53 in the first version of this fix).
+            #
+            # ONLY for a target the function reads OUTSIDE its loop — the set computed
+            # once per function in `_reset_function_state`. A target read only inside its
+            # loop is already faithful, and a FRESH target read afterwards is an unbound
+            # Why3 name that fails closed, so this keeps every other for-loop emission
+            # byte-identical.
+            # SCOPED TO THE INDEX-VALUED LOOP (`for i in range(...)`), where
+            # `elem_expr` IS the counter and is therefore int-typed like the outer ref.
+            # A general element write-back is NOT well-typed: the outer ref takes its
+            # type from the FIRST assignment to that name, which need not be the loop's
+            # element type — measured, writing back unconditionally took mirror L3-tc to
+            # 51/53 on `expressions.py` and `functions.py`, and an `any int` havoc took
+            # it to 52/53 on `stmt_control_flow.py` (whose target ref is `emit_ir`).
+            # THE RESIDUE IS RECORDED RATHER THAN HIDDEN: `for x in <sequence>` followed
+            # by a read of `x` still gives the pre-loop value. Closing it needs the outer
+            # ref's declared type at this point, which the binder does not have.
+            _r36_wb = ([f"{bind_indent}{safe_target} := {elem_expr};"]
+                       if target in getattr(self, "_loop_targets_read_outside", ())
+                       and not getattr(self, "_for_target_is_pyval", False)
+                       and elem_expr.strip() == f"!{idx}"
+                       else [])
             if getattr(self, "_for_target_is_pyval", False):
                 return [f"{bind_indent}let {safe_target} = ({elem_expr}) in"]
-            return [f"{bind_indent}let {safe_target} = ref ({elem_expr}) in"]
+            return _r36_wb + [f"{bind_indent}let {safe_target} = ref ({elem_expr}) in"]
 
         if has_cont:
             while_parts.append(f"{inner_indent}try")
@@ -1487,6 +1524,24 @@ class ControlFlowStmtMixin:
             idx_decl = (f"{loop_indent}let {_len_hoist[0]} = {_len_hoist[1]} in\n"
                         f"{idx_decl}")
 
+        if has_direct_ret and not self._has_early_ret and not in_loop:
+            rest_code = self._stmts_to_whyml(
+                rest, local_refs, declared_refs, indent + "  ", in_loop)
+            inner = idx_decl
+            if rest_code:
+                inner += ";\n" + rest_code
+            func_ret = self._func_return_type
+            if func_ret == "unit":
+                return (f"{indent}try\n{inner}\n"
+                        f"{indent}with Return_void -> () end")
+            return (f"{indent}try\n{inner}\n"
+                    f"{indent}with Return r -> r end")
+        # ROUTE #36 (relaunch #45): the loop body binds the target with an INNER
+        # `let`, so the OUTER ref still holds its pre-loop value after the loop.
+        # Python leaves it at its LAST value. Where the target is read outside the
+        # loop, HAVOC the outer ref instead of leaving the stale one — the sound
+        # over-approximation, and the same device the tuple-target binder above uses.
+        # The set is computed once per function in `_reset_function_state`.
         if has_direct_ret and not self._has_early_ret and not in_loop:
             rest_code = self._stmts_to_whyml(
                 rest, local_refs, declared_refs, indent + "  ", in_loop)

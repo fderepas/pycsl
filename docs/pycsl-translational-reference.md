@@ -1675,6 +1675,38 @@ is the general case catching up with them.
 
 ---
 
+### §T.5.12c  The `for` loop variable survives the loop
+
+Python leaves a loop variable bound to its **last** value, and to its previous value when
+the loop body never ran. The binder opens the target with an inner `let` inside the loop
+body, so the name is shadowed for the loop's duration and the OUTER ref kept its pre-loop
+value afterwards:
+
+    i = 0
+    for i in range(3):
+        pass
+    return i        # Python: 2      model, before relaunch #45: 0
+
+That proved `\result == 0` (route #36, witness `pycsl-reference/1025`), and so did the
+same program **without** the `i = 0` (witness `1026`) — Module 6 declares the target as an
+outer ref whether or not the source pre-assigns it, so the leak needs no stale value.
+The binder now assigns the outer ref immediately **before** opening the inner `let`, which
+reproduces Python exactly, never-ran case included.
+
+**Scope, stated rather than implied.** The write-back fires only for a target the function
+reads OUTSIDE its loop (a target read only inside is already faithful; a fresh target read
+afterwards is an unbound Why3 name and fails closed), and only for an **index-valued**
+loop, where the bound term IS the counter and is therefore int-typed like the outer ref.
+A general element write-back is not well-typed: the outer ref takes its type from the
+first assignment to that name, which need not be the loop's element type — measured, an
+unconditional write-back took mirror L3-tc to 51/53 and an `any int` havoc to 52/53 (the
+mirror's own `stmt_control_flow.py` has an `emit_ir`-typed loop target). So
+`for x in <sequence>` followed by a read of `x` still yields the pre-loop value: a
+recorded residue, needing the outer ref's declared type at the binder, which it does not
+have.
+
+---
+
 ### §T.5.13  List locals: truthiness, `len`, and the constant folds
 
 A list LOCAL is lowered to a Why3 `array int`, and three facts about it are answered from

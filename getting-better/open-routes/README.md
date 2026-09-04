@@ -64,6 +64,26 @@ Reconcile the two tests as above, then pay the 19 re-proofs. Estimated 8-12h wal
 two concurrent proofs. This is a COST/SCALE boundary in the §A.3 sense, not a
 correctness one — every piece is expressible and the obstacles are enumerated here.
 
+## ROUTE #36 — CLOSED for the index-valued loop (relaunch #45). Kept for the record.
+
+The refusal described below was the wrong instrument and the entry stands as a record of
+why. What landed instead is a WRITE-BACK in the binder: assign the OUTER ref immediately
+before opening the inner `let`. It reproduces Python exactly, never-ran case included, it
+is scoped to targets the function reads outside their loop AND to index-valued loops
+(where the bound term is the counter and is int-typed like the outer ref), and it moves
+**zero** mirror emissions and **zero** corpus emissions — so it cost no re-proofs at all,
+against the fourteen the refusal implied. Witnesses `pycsl-reference/1025`-`1026`.
+
+RESIDUE, recorded rather than hidden: `for x in <sequence>` followed by a read of `x`
+still yields the pre-loop value. A general element write-back is NOT well-typed — the
+outer ref takes its type from the FIRST assignment to that name, which need not be the
+loop's element type. Measured: an unconditional write-back took mirror L3-tc to 51/53
+(`expressions.py`, `functions.py`) and an `any int` havoc to 52/53 (`stmt_control_flow.py`,
+whose loop target ref is `emit_ir`). Closing the residue needs the outer ref's declared
+type at the binder, which it does not have.
+
+### The original entry, unedited:
+
 ## ROUTE #36 — the `for` loop variable does not survive the loop
 
     i = 0
