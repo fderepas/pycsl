@@ -9018,3 +9018,5 @@ Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_53bo5di9.mlw", l
 Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_53bo5di9.mlw", line 4548, characters 69-73: unused variable node
 Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_53bo5di9.mlw", line 4553, characters 72-76: unused variable node
 Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_53bo5di9.mlw", line 4558, characters 67-71: unused variable node
+
+[+] Verification SUCCESS! All contracts formally proven.

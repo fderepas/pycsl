@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/pure_ast.py'...
+[*] Memory model: hoare
+[*] Import 'typing.List': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Import 'typing.Tuple': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Import 'inspect.cleandoc': external module, no local source found — skipping
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
