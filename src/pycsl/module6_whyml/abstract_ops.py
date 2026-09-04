@@ -323,6 +323,30 @@ class AbstractOpsMixin:
         abs_lines.append("")
         for line in reversed(abs_lines):
             out.insert(insert_idx, line)
+        # (#44) PULL `use array.Array` WHEN AN ABSTRACT OP IS THE ONLY THING THAT NEEDS IT.
+        # The preamble's `needs_array` is computed BEFORE any function body is emitted
+        # (`Module6_WhyMLTranspiler` resets `self._abstract_ops` right after
+        # `_emit_preamble`), so it cannot see an op a body registers later. When the ONLY
+        # `array` in a module is such an op, the emitted file declares
+        # `val base64_encode_1 (x0: int) : array int` with no `use array.Array` above it,
+        # and L3-tc rejects it with "unbound type symbol 'array'". MEASURED: exactly four
+        # `python-reference` tests fail for this and nothing else
+        # (`stdlib/{base64,codecs}/encode_call_*`), and the fix moves exactly those four
+        # emissions — pycsl-reference 820/820 and all 53 mirror emissions byte-identical.
+        # FAIL-CLOSED AND BYTE-INERT, on the same footing as the LATE `str_hash_op`
+        # RECOVERY above: it fires only when a DECLARATION JUST EMITTED mentions an
+        # `array` type and the module has no `use array.Array`, which is an L3-tc
+        # rejection today. Placed HERE, inside this `\trusted` mirror method, rather than
+        # in a new helper: a new live method with no mirror counterpart is not `\trusted`,
+        # it is ABSENT, and `bin/check-mirror-coverage.py` counts it (550 -> 551).
+        _use_arr = "  use array.Array"
+        if _use_arr not in out and any(" array" in l for l in abs_lines):
+            _last_use = None
+            for _i, _l in enumerate(out):
+                if _l.startswith("  use "):
+                    _last_use = _i
+            if _last_use is not None:
+                out.insert(_last_use + 1, _use_arr)
 
     def _insert_array_init_use(self, out: List[str]) -> None:
         """tierA-listfield-impl.md: pull `array.Init` in ONLY when the gated

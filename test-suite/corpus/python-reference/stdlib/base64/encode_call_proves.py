@@ -7,7 +7,10 @@ import base64  # noqa: F401
 
 #@ requires True
 #@ ensures True
-def use_encode(x: int) -> int:
+# (#44) `base64.encode` / `codecs.encode` return BYTES, which the model carries
+# as `array int`. The driver declared `-> int` and returned the call into it,
+# which is an L3-tc rejection once the emitter stops losing the `array` type.
+def use_encode(x: int) -> list:
     return base64.encode(x)
 
 
