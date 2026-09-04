@@ -1,7 +1,8 @@
 # ===================== START HERE — #45 -> next window =====================
 #
-# **EIGHT ROUTES FOUND, ALL EIGHT CLOSED, AND EVERY ONE OF THEM PROVES A CONTRACT
-# THAT IS FALSE OF ITS OWN PROGRAM.** Six of the eight are ORDINARY PYTHON in the
+# **EIGHT ROUTES FOUND, ALL EIGHT CLOSED, AND EVERY ONE OF THEM PROVED A CONTRACT
+# THAT IS FALSE OF ITS OWN PROGRAM.** `getting-better/open-routes/` holds NO open
+# route at handoff. Six of the eight are ORDINARY PYTHON in the
 # DEFAULT `hoare` model with no flags — not spec atoms, not heap models, not
 # mirror-internal shapes.
 #
@@ -16,18 +17,24 @@
 #        proved `\result == 5`. Five shapes.                            1017-1022
 #   #35  `x = 0 or 5` proved `x == 1`. Python's `and`/`or` return an OPERAND.
 #        SIXTEEN mirror re-proofs paid: 62428 Valid, 0 bad.             1023-1024
-#   #36  `i = 0; for i in range(3): pass; return i` proved 0. Python 2.  1025-1026
+#   #36  `i = 0; for i in range(3): pass; return i` proved 0. Python 2. The
+#        SEQUENCE half (`for x in a`) proved it too and is closed as well, at zero
+#        emission cost in both halves.                                1025-1027
 #
 # ## WHAT TO DO FIRST
 #
-# 1. **THE ROUTE-#36 RESIDUE.** `for x in <sequence>` followed by a read of `x`
-#    STILL yields the pre-loop value. The index-valued case is closed by a
-#    write-back in the binder; the general one is not, because the outer ref takes
-#    its type from the FIRST assignment to that name and the binder does not have
-#    that type. MEASURED: an unconditional write-back is mirror L3-tc 51/53, an
-#    `any int` havoc 52/53. Get the declared type to the binder and it is a
-#    one-line extension. It is a LIVE unsoundness, reproduced in
-#    `getting-better/open-routes/`.
+# 1. **THE LAST SLIVER OF #36.** A loop over a NON-int sequence, or one whose
+#    target carries a non-int type, still leaks the pre-loop value. The two closed
+#    halves pin BOTH types before writing back — the target is in none of the
+#    non-int local classes AND the iterable is a `list`-typed formal parameter (or
+#    the loop is index-valued). To go further you need the outer ref's DECLARED
+#    WhyML type at the binder, which it does not have. MEASURED, so you do not
+#    repeat them: an unconditional write-back is mirror L3-tc 51/53, an `any int`
+#    havoc 52/53, "restrict to targets not assigned elsewhere" 51/53 and four
+#    emissions moved, and a REFUSAL breaks 14 of the 53 mirror files outright.
+#    AND BEWARE `_current_array1d_params`: it is EMPTY at the binder for a plain
+#    `a: list` parameter, so a condition keyed on it never fires while every plane
+#    stays green and the exploit keeps proving.
 # 2. **THE MISSING-`use` FAMILY, and it is coupled to #29.** `unbound type symbol
 #    'array'` / `'matrix'` / `unbound function or predicate symbol 'String.length'`
 #    are one bug: the emitter writes a term needing a Why3 theory into a module
@@ -117,7 +124,13 @@
 #   fidelity          2 DIVERGED — the pre-existing `_handle_var_expr` /
 #                     `_handle_for_stmt` pair, unchanged
 #   planes            all nineteen rc=0 plus doc-coherency
-#   witnesses         1000-1026 all behave as declared, ZERO XPASS, re-run at HEAD
+#   suite             3152/3171, ZERO XPASS (was 3124/3144 with 20 failures at
+#                     #44; `0540` is fixed and 27 previously-invisible tests now
+#                     run). The 19 that remain are #44's list minus 0540: ten
+#                     Rocq-replay tests that cannot run in this switch, and nine
+#                     named L3-tc/pipeline errors. All fail-closed.
+#   witnesses         1000-1027 all behave as declared, ZERO XPASS, re-run at HEAD
+#                     (28/28 on the `--start-at 1000` subset)
 #   docs              `docs/pycsl-translational-reference.md` gained §T.5.12b
 #                     (and/or value semantics), §T.5.12c (the loop variable),
 #                     §T.5.13 (list-local truthiness and the two folds), the
