@@ -2048,12 +2048,37 @@ class ControlFlowStmtMixin:
             return " | ".join(self._render_match_pattern(a, top)
                               for a in pat.get("alternatives", []))
         if p == "Constructor":
+            # ROUTE #30, second mechanism. An UNDECLARED constructor name was
+            # rendered verbatim into the Why3 arm head, and Why3 reads a lowercase
+            # identifier that is not a known constructor as a fresh VARIABLE
+            # PATTERN — i.e. an IRREFUTABLE catch-all. MEASURED in the default
+            # hoare model: `match x: case str(): return 1 / case _: return 2`
+            # emitted `match x with | str -> 1 | _ -> 2` and proved
+            # `\result == 1` where Python returns 2. Witness
+            # `pycsl-reference/1012`. A pattern is only a pattern if its head is a
+            # constructor the emission DECLARED.
+            _ctor = pat["ctor"]
+            if _ctor not in getattr(self, "_constructors", {}):
+                # POISON MARKER rather than a `raise` — see the note on
+                # `_R30_POISON_EXPR` in `expressions.py`: a `raise` in a live body
+                # whose mirror is a `\trusted` stub moves the
+                # trusted-raises-honesty ratchet, and declaring `#@ raises` on the
+                # stub is a caller-wide cascade. `pycsl.py::_run_pipeline` turns
+                # the marker into the refusal, and Why3 rejects it as an unknown
+                # CONSTRUCTOR if an emission ever escapes that check.
+                from module6_whyml.expressions import _R30_POISON_PAT as _p30
+                return _p30
             sub = [self._render_match_pattern(cp) for cp in pat.get("captures", [])]
-            body = pat["ctor"] + ("".join(" " + s for s in sub) if sub else "")
+            body = _ctor + ("".join(" " + s for s in sub) if sub else "")
             if top or not sub:
                 return body
             return f"({body})"
-        return "_"
+        # ROUTE #30, third mechanism, closed on the same argument: an unrecognized
+        # pattern kind rendered as `_` is an IRREFUTABLE arm in a native Why3 match
+        # exactly as `true` was in the if-chain. A `Sequence` arm beside a
+        # constructor arm took this path.
+        from module6_whyml.expressions import _R30_POISON_PAT as _p30b
+        return _p30b
 
     def _match_subject_union_info(self, stmt: Dict[str, Any]) -> Optional[Tuple[str, Dict[str, Any]]]:
         """typing-engagement ty1 C9 — if the match subject is a `Var` whose

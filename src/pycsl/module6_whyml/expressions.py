@@ -427,6 +427,16 @@ from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
 
 
+# ROUTE #30 (relaunch #45) — the poison markers for an UNINTERPRETED `match`
+# pattern. `_R30_POISON_EXPR` stands where an arm CONDITION would go and
+# `_R30_POISON_PAT` where an arm PATTERN would go; both are unbound Why3 symbols
+# (the pattern one starts uppercase so Why3 reads it as an unknown CONSTRUCTOR
+# and rejects it, rather than as a fresh variable binder — which is precisely the
+# irrefutable-catch-all defect this closes). `pycsl.py::_run_pipeline` scans the
+# emitted WhyML for `R30_UNINTERPRETED_PATTERN` and refuses.
+_R30_POISON_EXPR = "pycsl_R30_UNINTERPRETED_PATTERN"
+_R30_POISON_PAT = "Pycsl_R30_UNINTERPRETED_PATTERN"
+
 class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     """Expression-emission dispatch: every IR expression-shape `_handle_*_expr`
     handler routed via `_EXPR_DISPATCH` on the facade, plus the orchestration
@@ -1034,7 +1044,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"(HInt {self._coerce_to_int(low)})"
 
     def _match_pattern_cond(self, pat: Dict[str, Any], subject: str, local_refs: Set[str]) -> str:
-        """Generate a WhyML boolean condition for a match pattern."""
+        """Generate a WhyML boolean condition for a match pattern.
+
+        ROUTE #30 (relaunch #45). This used to end in a bare `return "true"` for
+        EVERY kind it did not recognize. `Module5_IREmitter._py_pattern_to_ir`
+        emits SEVEN kinds — `Value`, `Wildcard`, `Capture`, `Or`, `Sequence`,
+        `Constructor` and `Unknown` — so the three unhandled ones lowered to an
+        UNCONDITIONALLY TRUE arm condition and the arm was taken in the model
+        whatever the subject was. MEASURED in the DEFAULT hoare model with no
+        flags: `match x: case [1, 2]: return 1 / case _: return 2` with
+        `#@ requires x == 5` proved `#@ ensures \result == 1` while Python
+        returns 2, because the emission was literally `if true then 1 else 2`.
+        Witness `pycsl-reference/1011`.
+
+        `"false"` IS NOT THE FIX. It is unsound in the other direction: on a
+        subject the pattern really does match, `false` skips the arm and the
+        model takes a LATER one, so a contract false of the program is provable
+        again with the arms swapped. The condition for an uninterpreted pattern
+        is neither `true` nor `false` — it is UNKNOWN, and a boolean has no
+        room for that — so the only sound answer is to REFUSE.
+        """
         kind = pat.get("pattern", "Unknown")
         if kind == "Wildcard":
             return "true"
@@ -1048,7 +1077,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         elif kind == "Or":
             alts = [self._match_pattern_cond(a, subject, local_refs) for a in pat.get("alternatives", [])]
             return " || ".join(alts) if alts else "true"
-        return "true"
+        # A POISON MARKER, not a `raise`, and the reason is a PLANE. Raising here
+        # would put a `raise` in a live body whose mirror counterpart is a
+        # `\trusted` stub, which `bin/check-trusted-raises-honesty.py` counts
+        # (SILENT 68 -> 71): an emitted `val` with no `raises` tells Why3 the call
+        # has ONE exit path. Declaring `#@ raises` on the stub instead is a
+        # CASCADE — every mirror caller of the val needs the clause too (see the
+        # 32-method fixpoint note in `Module2_Parser._err`). So the marker is
+        # returned and `pycsl.py::_run_pipeline` — which already raises, and is
+        # already in the plane's population — turns it into the refusal.
+        # The marker is ALSO an unbound Why3 symbol, so an emission that somehow
+        # escaped the pipeline check is rejected by the type-checker rather than
+        # proved. That is defence in depth BY CONSTRUCTION, not the accidental
+        # fail-closure route #29 relied on.
+        return _R30_POISON_EXPR
 
     def _emit_membership(self, op: str, expr: Dict[str, Any], left: str, right: str,
                           local_refs: Set[str], invariant_ctx: bool,

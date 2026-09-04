@@ -1603,6 +1603,35 @@ constructor is a Why3 error (no `_` is synthesized for an exhaustive constructor
 **Implementation:** `_handle_match_stmt` (the variant branch dispatches on the subject's IR being
 a known variant type; `_match_pattern_to_ir` produces the `Constructor` pattern IR).
 
+**(c) Every other pattern kind is REFUSED — $\mathcal{T}_s$ is partial here.**
+
+`Module5_IREmitter._py_pattern_to_ir` emits **seven** pattern kinds. Lowering (a) interprets
+`Value`, `Wildcard`, `Capture` and `Or`; lowering (b) interprets `Constructor` **when its head
+names a constructor the emission declared**. Everything else — sequence patterns
+(`case [1, 2]:`, `case [*rest]:`), mapping patterns (`case {"k": v}:`), class patterns on a type
+that is not a `#@ datatype` (`case str():`), as-patterns over any of those, and the `Unknown`
+residue — is rejected with `PYCSL-R30-UNINTERPRETED-PATTERN`.
+
+Until relaunch #45 they were not rejected; they were **erased**, and the erasure was a false
+proof rather than a lost fact:
+
+* lowering (a) ended in a bare `return "true"`, so an uninterpreted arm got an
+  **unconditionally true** condition and was taken whatever the subject was. In the DEFAULT
+  `hoare` model with no flags, `match x: case [1, 2]: return 1 / case _: return 2` under
+  `#@ requires x == 5` proved `#@ ensures \result == 1` from the emission `if true then 1
+  else 2`, while Python returns 2 (route #30, witness `pycsl-reference/1011`);
+* lowering (b) wrote an **undeclared** constructor name verbatim into the arm head, and Why3
+  reads a lowercase identifier that is not a known constructor as a fresh **variable binder** —
+  an irrefutable catch-all. `case str():` emitted `match x with | str -> 1 | _ -> 2` and proved
+  the same false contract (witness `1012`). Its own fall-through, a bare `_`, was the third
+  instance of the identical mistake.
+
+**Neither literal can be repaired by flipping it.** An always-`false` condition (or a
+never-matching pattern) is unsound in the other direction: on a subject the pattern really does
+match, the model takes a *later* arm, so the same false-contract proof returns with the arms
+swapped. The condition for an uninterpreted pattern is **unknown**, and a boolean has no room
+for that — refusal is the only sound total answer.
+
 ---
 
 ## §T.6  Expression Translation ($\mathcal{T}_e$)

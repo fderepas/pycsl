@@ -650,7 +650,60 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         strict_hash_eq_consistency=getattr(args, "strict_hash_eq_consistency", False),
         check_behavioral_subtyping=getattr(args, "check_behavioral_subtyping", False),
     )
-    return transpiler.transpile()
+    _mlw = transpiler.transpile()
+
+    # ROUTE #30 (relaunch #45) — REFUSE an UNINTERPRETED `match` pattern.
+    #
+    #   `module6_whyml/expressions.py::_match_pattern_cond` used to end in a bare
+    #   `return "true"` for every pattern kind it did not recognize, and
+    #   `Module5_IREmitter._py_pattern_to_ir` emits SEVEN kinds (`Value`,
+    #   `Wildcard`, `Capture`, `Or`, `Sequence`, `Constructor`, `Unknown`). So an
+    #   arm whose pattern was not interpreted got an UNCONDITIONALLY TRUE
+    #   condition and was taken in the model whatever the subject was. MEASURED in
+    #   the DEFAULT hoare model with no flags: `match x: case [1, 2]: return 1 /
+    #   case _: return 2` under `#@ requires x == 5` PROVED `\result == 1` while
+    #   Python returns 2, from the emission `if true then 1 else 2`.
+    #   Witness 1011.
+    #
+    #   A SECOND MECHANISM, same route: a match with any `Constructor` arm takes
+    #   the NATIVE Why3 match path, and `_render_match_pattern` wrote the
+    #   constructor name verbatim. Why3 reads a lowercase identifier that is not a
+    #   known constructor as a fresh VARIABLE BINDER — an irrefutable catch-all —
+    #   so `case str():` emitted `match x with | str -> 1 | _ -> 2` and proved the
+    #   same false contract. Witness 1012. Its own fall-through, a bare `_`, was
+    #   the third instance of the identical mistake.
+    #
+    #   `false` / `_`-with-a-guard IS NOT THE FIX. Refusing the arm is unsound in
+    #   the other direction: on a subject the pattern really does match, the model
+    #   takes a LATER arm and the same false-contract proof returns with the arms
+    #   swapped. The condition for an uninterpreted pattern is UNKNOWN, and a
+    #   boolean has no room for that, so the only sound answer is to REFUSE.
+    #
+    #   WHY THE MARKER RATHER THAN A `raise` AT THE SITE. Both handlers are
+    #   `\trusted` mirror stubs; a `raise` in their live bodies moves
+    #   `check-trusted-raises-honesty` (SILENT 68 -> 71), because an emitted `val`
+    #   with no `raises` tells Why3 the call has ONE exit path — and declaring
+    #   `#@ raises` on a stub is a caller-wide cascade (the 32-method fixpoint
+    #   noted in `Module2_Parser._err`). `_run_pipeline` already raises and is
+    #   already in that plane's population, so the refusal costs the trust surface
+    #   nothing. The marker is ALSO an unbound Why3 symbol, so an emission that
+    #   escaped this check is rejected by the type-checker instead of proved —
+    #   defence in depth BY CONSTRUCTION, not the accidental fail-closure that
+    #   route #29 turned out to be relying on.
+    if "R30_UNINTERPRETED_PATTERN" in _mlw:
+        from errors import PyCSLSemanticError as _PyCSLSemErr30
+        raise _PyCSLSemErr30(
+            "a `match` pattern in this module is not interpreted (ROUTE #30): "
+            "its arm has no faithful lowering, and every literal stand-in makes "
+            "a contract that is FALSE of the program provable — an always-true "
+            "condition takes the arm whatever the subject is, an always-false "
+            "one skips it even when Python matches, and an undeclared "
+            "constructor name becomes a Why3 VARIABLE pattern, which matches "
+            "everything. Supported today: a literal pattern, `_`, a capture, an "
+            "or-pattern of those, and a constructor pattern of a declared "
+            "`#@ datatype`. Sequence, mapping, class and as-patterns are not.",
+            stage="whyml-emit", code="PYCSL-R30-UNINTERPRETED-PATTERN")
+    return _mlw
 
 
 def _why3_typecheck(mlw_filename: str):
