@@ -11,6 +11,10 @@
     "emitter": "_emit_build_overload_param_guard_bespoke",
     "fingerprint": "a5a68f12310da0c2"
   },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._csl_to_ir": {
+    "emitter": "_emit_pyx_dispatcher_bespoke",
+    "fingerprint": "58e0f5b114ef58de"
+  },
   "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._emit_ghost_assign": {
     "emitter": "_emit_emit_ghost_assign_bespoke",
     "fingerprint": "fb38af8168ba4444"
@@ -66,6 +70,10 @@
   "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_expr_setcomp": {
     "emitter": "_emit_py_expr_setcomp_bespoke",
     "fingerprint": "c12941f1a423e766"
+  },
+  "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_expr_to_ir": {
+    "emitter": "_emit_pyx_dispatcher_bespoke",
+    "fingerprint": "34bf6ea4df799c5f"
   },
   "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_stmt_assign": {
     "emitter": "_emit_py_stmt_assign_bespoke",

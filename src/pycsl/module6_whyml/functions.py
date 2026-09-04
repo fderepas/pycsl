@@ -2485,27 +2485,6 @@ class FunctionEmissionMixin:
         lowered = [s for s in lowered if s and s.strip() and s.strip() != "true"]
         return lowered or ["true"]
 
-    def _bespoke_census(self, emitter: str, func: "Dict[str, Any]") -> None:
-        """(#44) Record that this mirror method's WhyML model is HAND-SYNTHESIZED.
-
-        A bespoke lowering is keyed on the method NAME, not derived from the body, so
-        changing the live body (and dutifully syncing the mirror) leaves mirror-sync,
-        L3-tc and the whole-file proof ALL GREEN while the model silently stops being the
-        body. Route #28 walked into exactly that: after a live+mirror edit the emission was
-        BYTE-IDENTICAL across all 53 mirrors — and the byte-identical emission WAS the
-        symptom, because a real body change that moves nothing means the model is not
-        derived from the body.
-
-        `bin/check-bespoke-model-drift.py` drives the emission with
-        PYCSL_BESPOKE_CENSUS=1, reads these lines, and holds a FINGERPRINT of each
-        bespoke-modelled method's live body. Env-gated: emits nothing on a normal run.
-        """
-        import os as _os3
-        import sys as _sys3
-        if _os3.environ.get("PYCSL_BESPOKE_CENSUS"):
-            _sys3.stderr.write("BESPOKE\t%s\t%s\t%s\n" % (
-                emitter, func.get("self_type") or "-", func.get("name") or "-"))
-
     def _is_py_stmt_try(self, func: Dict[str, Any]) -> bool:
         """STry + except_handler + handler_list increment (self-tcb-reduction M5,
         C-bucket): True iff `func` is the Module5 mirror's `_py_stmt_try` handler and
@@ -4376,58 +4355,48 @@ class FunctionEmissionMixin:
         # mutex/extend handler — bespoke (the generic lowering int-erases the weave-injected
         # mutex attrs + no-ops the extend). Corpus-inert.
         if self._is_py_stmt_with(func):
-            self._bespoke_census("_emit_py_stmt_with_bespoke", func)
             return self._emit_py_stmt_with_bespoke(func)
         # SGhostArraySet/SGhostAssign increment (self-tcb-reduction M5, C-bucket): the
         # `_emit_ghost_assign` RETURN-stmt-dict handler (isinstance-on-CSL-class dispatch).
         # Corpus-inert.
         if self._is_emit_ghost_assign(func):
-            self._bespoke_census("_emit_emit_ghost_assign_bespoke", func)
             return self._emit_emit_ghost_assign_bespoke(func)
         # _py_expr_lambda increment (self-tcb-reduction M5, C-bucket): the lambda-expr
         # handler (param-name compaction + body -> the gated IrLambda ctor). Corpus-inert.
         if self._is_py_expr_lambda(func):
-            self._bespoke_census("_emit_py_expr_lambda_bespoke", func)
             return self._emit_py_expr_lambda_bespoke(func)
         # base bool-recognizers (self-tcb-reduction M5, C-bucket): the class-base existence
         # recognizers (TypedDict/NamedTuple/Protocol) -> the concrete bases_has_name fold.
         _brt = self._base_recognizer_target(func)
         if _brt is not None:
-            self._bespoke_census("_emit_base_recognizer_bespoke", func)
             return self._emit_base_recognizer_bespoke(func, _brt)
         # functiondef-node wall: `_should_skip_method` -> faithful dunder (str_startswith/
         # endswith_op over func_name_ast) + @property (decorator_has_name) lowering.
         # Corpus-inert.
         if self._is_should_skip_method(func):
-            self._bespoke_census("_emit_should_skip_method_bespoke", func)
             return self._emit_should_skip_method_bespoke(func)
         # functiondef-node cluster: `_build_overload_param_guard` -> the faithful per-arg
         # isinstance-guard fold (build_overload_guard_acc over func_args_ast node).
         # Corpus-inert.
         if self._is_build_overload_param_guard(func):
-            self._bespoke_census("_emit_build_overload_param_guard_bespoke", func)
             return self._emit_build_overload_param_guard_bespoke(func)
         # functiondef-node cluster: `_synthesize_overload_guard` -> the guarded-postcondition
         # synthesizer over `func_csl_ensures_ast node`, returning the canonical `array emit_ir`.
         # Corpus-inert.
         if self._is_synthesize_overload_guard(func):
-            self._bespoke_census("_emit_synthesize_overload_guard_bespoke", func)
             return self._emit_synthesize_overload_guard_bespoke(func)
         # functiondef-node cluster: `_is_overload_stub` -> the faithful @overload-decorator
         # scan (decorator_has_name_or_attr) + body[0] Pass/Expr-Ellipsis discrimination
         # (is_pass_node/is_expr_ellipsis_node over psl_nth 0 (func_body_ast node)). Corpus-inert.
         if self._is_is_overload_stub(func):
-            self._bespoke_census("_emit_is_overload_stub_bespoke", func)
             return self._emit_is_overload_stub_bespoke(func)
         # csl_clause (Module3 mirror): `_act_guard` -> the certified `act_guard_fold None
         # (act_clauses_of act)` — the `given`-clause filter+`.expr`-project+`IrBinOp "and"`
         # fold over the real csl_clause list (IrBoolC 1 if none). Corpus-inert.
         if self._is_act_guard(func):
-            self._bespoke_census("_emit_act_guard_bespoke", func)
             return self._emit_act_guard_bespoke(func)
         # _is_final_annotation bool-recognizer -> is_final_ann_prog. Corpus-inert.
         if self._is_final_annotation(func):
-            self._bespoke_census("_emit_is_final_annotation_bespoke", func)
             return self._emit_is_final_annotation_bespoke(func)
         # module-const-str-pairs first-match lookup (self-tcb-reduction): a
         # `for src, dst in NAME: if x == src: return dst; return x` scan over a
@@ -4435,7 +4404,6 @@ class FunctionEmissionMixin:
         # Corpus-inert (recognizer-gated on the exact shape over a str-pair const).
         _spl = self._recognize_str_pair_lookup(func)
         if _spl is not None:
-            self._bespoke_census("_emit_str_pair_lookup_bespoke", func)
             return self._emit_str_pair_lookup_bespoke(func, _spl[0], _spl[1])
         # module-const-str-sets `sorted(NAME)` (self-tcb-reduction): a whole-body
         # `return sorted(NAME)` over a collected string set/frozenset const -> the
@@ -4443,34 +4411,26 @@ class FunctionEmissionMixin:
         # Corpus-inert (recognizer-gated on the exact shape over a str-set const).
         _scs = self._recognize_sorted_const_set(func)
         if _scs is not None:
-            self._bespoke_census("_emit_sorted_const_set_bespoke", func)
             return self._emit_sorted_const_set_bespoke(func, _scs)
         # dict/comprehension increments (gated-emit_ir-ctor): IrDictLit (dual compaction) /
         # IrListComp / IrSetComp / IrDictComp (fixed-child + trusted generators). Corpus-inert.
         if self._is_py_expr_dict(func):
-            self._bespoke_census("_emit_py_expr_dict_bespoke", func)
             return self._emit_py_expr_dict_bespoke(func)
         if self._is_py_expr_genexp(func):
-            self._bespoke_census("_emit_py_expr_genexp_bespoke", func)
             return self._emit_py_expr_genexp_bespoke(func)
         if self._is_py_expr_listcomp(func):
-            self._bespoke_census("_emit_py_expr_listcomp_bespoke", func)
             return self._emit_py_expr_listcomp_bespoke(func)
         if self._is_py_expr_setcomp(func):
-            self._bespoke_census("_emit_py_expr_setcomp_bespoke", func)
             return self._emit_py_expr_setcomp_bespoke(func)
         if self._is_py_expr_dictcomp(func):
-            self._bespoke_census("_emit_py_expr_dictcomp_bespoke", func)
             return self._emit_py_expr_dictcomp_bespoke(func)
         # _py_expr_compare increment (self-tcb-reduction M5, C-bucket): the ast-LIST-HEAD
         # expr handler (`expr.ops[0]`/`expr.comparators[0]`) -> IrBinOp. Corpus-inert.
         if self._is_py_expr_compare(func):
-            self._bespoke_census("_emit_py_expr_compare_bespoke", func)
             return self._emit_py_expr_compare_bespoke(func)
         # _py_expr_boolop increment (self-tcb-reduction M5, C-bucket): the LEFT-FOLD expr
         # handler (`values[1:]` fold -> left-nested IrBinOp via boolop_fold). Corpus-inert.
         if self._is_py_expr_boolop(func):
-            self._bespoke_census("_emit_py_expr_boolop_bespoke", func)
             return self._emit_py_expr_boolop_bespoke(func)
         # L2 DISPATCH-EXPANSION (self-tcb-reduction, `_py_expr_to_ir`): the TYPE-KEYED
         # HANDLER dispatcher -> a total `match pyx_view expr with | PEx_<Cls> _p ->
@@ -4487,7 +4447,6 @@ class FunctionEmissionMixin:
         # lowering int-erases the target dispatch, the symtab membership, and the Tuple
         # compaction). Corpus-inert.
         if self._is_py_stmt_assign(func):
-            self._bespoke_census("_emit_py_stmt_assign_bespoke", func)
             return self._emit_py_stmt_assign_bespoke(func)
         # STry + except_handler + handler_list increment (self-tcb-reduction M5,
         # C-bucket): the `_py_stmt_try` accumulator-loop handler is emitted by a bespoke
@@ -4495,18 +4454,15 @@ class FunctionEmissionMixin:
         # stmt.handlers: handlers.append({rec})` record-list-building loop end-to-end).
         # Corpus-inert (fires only for the named mirror method under `_uses_stmt_ir`).
         if self._is_py_stmt_try(func):
-            self._bespoke_census("_emit_py_stmt_try_bespoke", func)
             return self._emit_py_stmt_try_bespoke(func)
         # SDelSubscript increment (self-tcb-reduction M5, C-bucket): the `_py_stmt_delete`
         # loop-append-to-OUTER handler (per-element Seq.snoc onto ir_stmts) — bespoke.
         if self._is_py_stmt_delete(func):
-            self._bespoke_census("_emit_py_stmt_delete_bespoke", func)
             return self._emit_py_stmt_delete_bespoke(func)
         # SMatch + match_case + match_case_list increment (self-tcb-reduction M5,
         # C-bucket): the `_py_stmt_match` accumulator-loop handler — sibling of the try
         # bespoke, same record-list-emission capability. Corpus-inert.
         if self._is_py_stmt_match(func):
-            self._bespoke_census("_emit_py_stmt_match_bespoke", func)
             return self._emit_py_stmt_match_bespoke(func)
         # bigger-build.md Phase 1: if the body is the A-unit generic-fold
         # catamorphism (recognizer, fail-closed), emit the type-derived

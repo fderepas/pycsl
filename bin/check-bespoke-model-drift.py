@@ -52,10 +52,62 @@ MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 BASELINE = os.path.join(ROOT, "getting-better", "bespoke-model-baseline.json")
 
 
+# The driver the census runs in a subprocess. It MONKEY-PATCHES every `_emit_*_bespoke`
+# method at runtime and then emits one mirror file.
+#
+# WHY A WRAPPER AND NOT A HOOK IN THE EMITTER. The first version of this gate added a
+# `_bespoke_census` helper to `module6_whyml/functions.py`. It was env-gated and emitted
+# nothing — and it still cost something real: `bin/check-mirror-coverage.py` went
+# 550 -> 551, because a live function with no mirror counterpart is not `\trusted`, it is
+# ABSENT, and the headline `\trusted` count structurally cannot see it. #43 recorded that
+# exact hazard ("converting a `\trusted` stub is progress, and quietly adding an unmirrored
+# live helper beside it now is not") and this gate walked straight into it. Wrapping from
+# OUTSIDE keeps `src/pycsl` byte-for-byte unchanged, so the plane costs the perimeter
+# nothing — and it is still a MEASUREMENT of the real dispatch, not a static guess about
+# it. A static parse of the dispatcher would have been the tempting alternative and is the
+# wrong one: the `_is_*` recognizers are not uniform (some return a tuple, some match on
+# `endswith`, some on a table), so a static reader would silently miss members — and an
+# incomplete census is the "I looked at nothing" failure this campaign keeps finding.
+_DRIVER = r"""
+import os, sys, types
+ROOT = sys.argv[1]
+target = sys.argv[2]
+sys.path.insert(0, os.path.join(ROOT, "src", "pycsl"))
+import module6_whyml.functions as F
+recs = []
+for _cls in [c for c in vars(F).values() if isinstance(c, type)]:
+    for _nm in list(vars(_cls)):
+        if not (_nm.startswith("_emit_") and _nm.endswith("_bespoke")):
+            continue
+        _orig = getattr(_cls, _nm)
+        def _mk(orig, nm):
+            def wrapper(self, func, *a, **k):
+                try:
+                    recs.append((nm, str(func.get("self_type") or "-"),
+                                 str(func.get("name") or "-")))
+                except Exception:
+                    pass
+                return orig(self, func, *a, **k)
+            return wrapper
+        setattr(_cls, _nm, _mk(_orig, _nm))
+sys.argv = ["pycsl.py", target, "--import-path", os.path.join(ROOT, "src", "pycsl"),
+            "--no-proof", "--no-typecheck"]
+import pycsl
+try:
+    pycsl.main()
+except SystemExit:
+    pass
+except Exception:
+    pass
+for r in recs:
+    sys.stderr.write("BESPOKE\t%s\t%s\t%s\n" % r)
+"""
+
+
 def census():
-    """{(mirror-rel-path, class, method): emitter} — driven from the real emission."""
+    """{(mirror-rel-path, class, method): emitter} — driven from the REAL emission, with
+    the bespoke emitters wrapped from outside so `src/pycsl` is not touched."""
     env = dict(os.environ)
-    env["PYCSL_BESPOKE_CENSUS"] = "1"
     env["PYTHONHASHSEED"] = "0"
     rows = {}
     targets = []
@@ -65,11 +117,9 @@ def census():
                 targets.append(os.path.join(root, fn))
     for path in targets:
         try:
-            r = subprocess.run(
-                [sys.executable, os.path.join(ROOT, "src", "pycsl", "pycsl.py"), path,
-                 "--import-path", os.path.join(ROOT, "src", "pycsl"),
-                 "--no-proof", "--no-typecheck"],
-                capture_output=True, text=True, timeout=900, env=env, cwd=ROOT)
+            r = subprocess.run([sys.executable, "-c", _DRIVER, ROOT, path],
+                               capture_output=True, text=True, timeout=900,
+                               env=env, cwd=ROOT)
         except subprocess.TimeoutExpired:
             continue
         for line in r.stderr.split("\n"):
