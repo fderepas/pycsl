@@ -1,4 +1,18 @@
-# OPEN ROUTES — exploited, reproduced, NOT closed (relaunch #45)
+# OPEN ROUTES — exploited, reproduced, NOT closed
+
+## CURRENTLY OPEN: exactly one — the ROUTE #36 RESIDUE
+
+`route36-residue-sequence-loop-var.py`. `x = 0; for x in a: pass; return x` proves
+`\result == 0` while Python returns the LAST element. The INDEX-valued case is closed
+(witnesses 1025/1026); the SEQUENCE case is not, because a general element write-back
+needs the outer ref's declared type, which the binder does not have. The three
+measurements that pin the obstacle are in the file's header.
+
+Everything else in this directory is CLOSED and is kept as a record of how.
+
+---
+
+# The original heading and entries (relaunch #45)
 
 Everything in this directory is a **live unsoundness with a working reproduction**.
 Each file PROVES a contract that is FALSE of its own program, at HEAD, in the DEFAULT
