@@ -21,7 +21,7 @@
 #      frameless ones, and printed a green 0 — which reads exactly like a tightening.
 #      Restored to the measured 7 and the whole `--emit-dir` gate family is now guarded.
 #
-# ## FOUR NEW UNSOUNDNESS ROUTES, #22-#25 (three closed, #25 open)
+# ## SEVEN NEW UNSOUNDNESS ROUTES, #22-#28 — ALL SEVEN CLOSED
 #
 #   #22  `getattr(obj, "field")` on a DECLARED record field was erased to the DEFAULT
 #        (or, for the 2-arg form, a fabricated 0). Proved `\result == 0` where Python
@@ -37,20 +37,24 @@
 #   #24  A call whose CALLEE is not a plain name (`type(self)(...)`) erased to the LITERAL
 #        `0`. CLOSED with an APPLIED `val opaque_dynamic_call`. `computed-rhs-erasure`
 #        **2 -> 1**. Witness 0996.
-#   #25  **OPEN, DEMONSTRATED, NOT YET FIXED.** A generator expression bound to a local
-#        and consumed in a guard: `g = (i for i in [1,2,3]); if g: return 7; return 0`
-#        proves `\result == 0` while Python returns 7 (a generator object is ALWAYS
-#        truthy; the literal `0` never is). Probe: `scratchpad/w9/probes/g3.py`.
-#        The site is `expressions.py`'s `if t in ("UnknownPyExpr", "GenExp"): return "0"`,
-#        whose comment argues "GenExp stays exactly as inert as it was" — inert is not
-#        sound. PLANNED FIX and why it must be narrow: an AST census finds 711 generator
-#        expressions tree-wide but only **ONE** bound to a NAME
-#        (`src/pycsl_lib/json/tool.py:98`); all the rest are inline argument positions
-#        (`sum(... for ...)`, `any`, `all`). Making the fallback opaque unconditionally
-#        moves ~101 mirror+corpus emissions and buys many re-proofs. Make it opaque ONLY
-#        for the ASSIGNMENT-RHS position — byte-inert for every inline site, closes the
-#        route, and touches exactly one tree site to re-measure.
-#        The `Slice` sibling (`s = a[1:3]; if s:`) was probed too and correctly FAILS.
+#   #25  A GENERATOR EXPRESSION bound to a local and consumed in a guard:
+#        `g = (i for i in [1,2,3]); if g: return 7` proved `\result == 0`. Witness 0997.
+#   #26  A NON-EMPTY SET LITERAL, `s = {1,2,3}; if s:` — emitted `let s = ref 0 in` with
+#        NO STORE AT ALL. Witness 0998.
+#   #27  A NON-EMPTY TUPLE LITERAL, `x = (1,2); if x:` — emitted `x := 0`. Witness 0999.
+#        #25/#26/#27 are ONE defect: a local whose initialiser the model cannot represent
+#        is bound to the literal `0`, which is decidably FALSE in a guard while the Python
+#        object is ALWAYS truthy. CLOSED by ONE refusal in `_to_bool`, placed first.
+#        BOTH HOOK METHODS ARE `\trusted` IN THE MIRROR, so it cost no re-proof at all.
+#        Byte-inert by an AST census that finds ZERO such boolean uses tree-wide.
+#   #28  A MODULE-GLOBAL singleton field store `g.v = n` was a SILENT NO-OP: `g.v = 7;
+#        return g.v` proved `\result == 0` while Python returns 7. It was never a
+#        modelling limit — `g = C()` already emits `let g : c = { v = 0 }` — so it CLOSED
+#        AS A CAPABILITY (witness 1001 proves the true result; 1000 is the false one).
+#        Found by a mechanical census (`scratchpad/w9/census_noelse.py`): of 44 Module-5
+#        handlers, THREE end in an `if/elif` chain with no `else`. `_py_stmt_augassign`
+#        was #23; `_py_stmt_annassign`'s two drops were PROBED AND REFUTED; this was the
+#        third. **Its mirror half is the structural rule firing live — see below.**
 #
 # ## THE RULE THAT FOUND #22, #24 AND #25 — use it first
 #
@@ -73,7 +77,21 @@
 # KNOWN_ERASURES". All four now exit 2 below a minimum emitted-mirror count.
 # **Always run the negative test, and check it fails for the RIGHT REASON.**
 #
-# ## THREE NEW PLANES
+# ## THE TRAP #28 CAUGHT ME IN — read this before touching any Module-5 handler
+#
+# 25 converted mirror methods get their WhyML from a HAND-WRITTEN `_emit_<X>_bespoke`
+# function keyed on the METHOD NAME, not from the generic lowering. I had already grepped
+# `_emit_py_.*_bespoke` and SEEN `_emit_py_stmt_assign_bespoke`, then changed the live body
+# and synced the mirror anyway. Result: mirror-sync GREEN, L3-tc GREEN, whole-file proof
+# GREEN, mirror emission BYTE-IDENTICAL across all 53 — and the emitted model still read
+# `else ()` where the source now appended a `FieldAssign`.
+#
+# **THE BYTE-IDENTICAL EMISSION IS THE TELL.** A real change to a body whose model is
+# DERIVED from it MUST move the emission. If it does not, the model is hand-written.
+# Now held by `bin/check-bespoke-model-drift.py`, which enumerates all 25 and fingerprints
+# their bodies.
+#
+# ## SIX NEW PLANES
 #
 #     bin/check-mirror-loop-annotations.py          ratchet 330 lines / 5 files
 #         Per-file floor on the mirror's IN-BODY `#@` directives (loop invariant/variant,
@@ -88,6 +106,16 @@
 #         exploitable, not sound by argument either, so held by a ratchet.
 #     the zero-input guard   in avatar-frame-parity, yield-erasure, computed-rhs-erasure
 #                            and emitted-vacuity (see above)
+#     bin/check-bespoke-model-drift.py              25 methods / 23 hand-written models
+#         The one failure mode where every green light is real and the conclusion is still
+#         wrong. Fingerprints each bespoke-modelled body and names the `_emit_..._bespoke`
+#         function that must move with it. Negative-tested by replaying #28's mistake.
+#     bin/check-trusted-raises-honesty.py           ratchet 68 SILENT / 2 declared
+#         The sibling question frame-honesty never asked: is a `\trusted` stub honest about
+#         what the live body RAISES? An emitted `val` with no `raises` tells Why3 the call
+#         has ONE exit path. PROBED and classified as a TRUST SURFACE, not a route — the
+#         obvious exploit correctly FAILS, because such a claim is the REVIEWER's, which is
+#         what `\trusted` means. A number to publish and shrink.
 #
 # ## HOW TO RUN THE PLANES (all of them need the opam PATH)
 #
