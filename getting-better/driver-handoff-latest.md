@@ -91,7 +91,7 @@
 # Now held by `bin/check-bespoke-model-drift.py`, which enumerates all 25 and fingerprints
 # their bodies.
 #
-# ## SIX NEW PLANES
+# ## SEVEN NEW PLANES
 #
 #     bin/check-mirror-loop-annotations.py          ratchet 330 lines / 5 files
 #         Per-file floor on the mirror's IN-BODY `#@` directives (loop invariant/variant,
@@ -110,6 +110,14 @@
 #         The one failure mode where every green light is real and the conclusion is still
 #         wrong. Fingerprints each bespoke-modelled body and names the `_emit_..._bespoke`
 #         function that must move with it. Negative-tested by replaying #28's mistake.
+#     bin/check-swallowed-exceptions.py             141 -> 137 static, 4 firing (baselined)
+#         The first BEHAVIOURAL plane: it watches what the emitter actually CATCHES during
+#         a real 53-mirror emission (`sys.monitoring` EXCEPTION_HANDLED), not what the
+#         source says. A broad `except Exception:` that swallows turns an INTERNAL ERROR
+#         into a recognizer decline, and a decline falls through to the generic lowering —
+#         which routes #22/#24 showed can be an ERASING one. It found FOUR recognizers
+#         catching `Exception` where they meant `_PVWBail`; those are now tightened, after
+#         measuring over BOTH corpora that they never catch anything else.
 #     bin/check-trusted-raises-honesty.py           ratchet 68 SILENT / 2 declared
 #         The sibling question frame-honesty never asked: is a `\trusted` stub honest about
 #         what the live body RAISES? An emitted `val` with no `raises` tells Why3 the call
