@@ -60,6 +60,16 @@ from errors import PyCSLIRError
 # consumed by `frontend/monomorphize.apply_monomorphization` (the step-5 IR-resolution
 # pass): COLLECT concrete instantiations, EMIT name-mangled specialized copies with
 # substituted contracts, GT3/GT4 loud-fails. See docs/ir.md §10.
+# *** ONE KEY, TWO PRODUCERS, TWO SHAPES — read this before consuming `type_params`
+# off a type_decl. *** The dict shape above is the RECORD (class) shape only. A
+# `#@ datatype Option[T]` writes the SAME KEY on a `kind == "variant"` type_decl as a
+# list of BARE NAMES (`["T"]`, `Module5_IREmitter`, A5d), consumed by
+# `module6_whyml/preamble._fmt_variant` to emit a POLYMORPHIC Why3 variant
+# (`type option 'a = Nothing | Just 'a`). The two are NOT interchangeable: reading a
+# variant's list as the dict shape crashed monomorphization with `'str' object has no
+# attribute 'get'` on every parametric datatype (pycsl-reference/0540; fixed relaunch
+# #45 by skipping variant decls, which are not monomorphization candidates at all).
+# Any new consumer must branch on `decl["kind"]` first.
 IR_VERSION = "1.4"
 ACCEPTED_IR_VERSIONS = frozenset({"1.0", "1.1", "1.2", "1.3", "1.4"})
 

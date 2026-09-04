@@ -16,5 +16,19 @@ emit_one() {
     mv "$ROOT/test-suite/corpus/pycsl-reference/$name.mlw" "$OUT/$name.mlw"
 }
 export -f emit_one
-ls "$ROOT"/test-suite/corpus/pycsl-reference/0*.py | xargs -P "$JOBS" -I{} bash -c 'emit_one "$@"' _ {} "$OUT" "$ROOT" "$PY"
-echo "emitted $(ls "$OUT" 2>/dev/null | wc -l) into $OUT ($JOBS jobs)"
+# (#45) THE GLOB USED TO BE `0*.py`. The corpus crossed 1000 in relaunch #44, so
+# `1000_module_global_field_store_erasure.py` and `1001_..._faithful.py` — route #28's
+# OWN witnesses — were silently outside every byte-diff this plane has ever run, and
+# every witness added from here on would have been too. A sweep that stops growing with
+# the corpus reports the same green whether the new files are inert or not.
+SRC=$(ls "$ROOT"/test-suite/corpus/pycsl-reference/*.py)
+NSRC=$(printf '%s\n' "$SRC" | wc -l)
+# Zero-input / shrinking-input guard (the #44 rule: a gate that cannot tell "nothing is
+# wrong" from "I looked at nothing" is not a gate). 900 is below the measured 931 at #45
+# and the corpus only grows; a drop past it means the glob or the corpus path is broken.
+if [ "$NSRC" -lt 900 ]; then
+  echo "[!] byte-diff-sweep: only $NSRC source file(s) matched — the corpus glob is broken. NOT A PASS." >&2
+  exit 2
+fi
+printf '%s\n' "$SRC" | xargs -P "$JOBS" -I{} bash -c 'emit_one "$@"' _ {} "$OUT" "$ROOT" "$PY"
+echo "emitted $(ls "$OUT" 2>/dev/null | wc -l) of $NSRC source file(s) into $OUT ($JOBS jobs)"
