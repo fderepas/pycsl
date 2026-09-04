@@ -1700,10 +1700,20 @@ loop, where the bound term IS the counter and is therefore int-typed like the ou
 A general element write-back is not well-typed: the outer ref takes its type from the
 first assignment to that name, which need not be the loop's element type — measured, an
 unconditional write-back took mirror L3-tc to 51/53 and an `any int` havoc to 52/53 (the
-mirror's own `stmt_control_flow.py` has an `emit_ir`-typed loop target). So
-`for x in <sequence>` followed by a read of `x` still yields the pre-loop value: a
-recorded residue, needing the outer ref's declared type at the binder, which it does not
-have.
+mirror's own `stmt_control_flow.py` has an `emit_ir`-typed loop target).
+
+The **sequence** case is admitted on a pair of conditions that pin *both* types instead of
+guessing one: the target is in none of the non-int local classes `_typed_local_vars`
+excludes from the integer `ref 0` pre-declaration (so its outer ref really is an `int`
+ref), **and** the iterable is a formal parameter whose symbol type is `list` (so its
+element really is an `int`). Witness `pycsl-reference/1027`. Note that
+`_current_array1d_params` is *not* the right source for the second half — it is empty at
+the binder for a plain `a: list` parameter, so a version keyed on it never fires while
+looking exactly as though it does.
+
+What remains open is a loop over a NON-int sequence, or one whose target carries a
+non-int type: there the two types can still disagree and the binder has no way to compare
+them.
 
 ---
 

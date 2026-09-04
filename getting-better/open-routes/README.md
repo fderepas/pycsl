@@ -1,14 +1,21 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: exactly one — the ROUTE #36 RESIDUE
+## CURRENTLY OPEN: none.
 
-`route36-residue-sequence-loop-var.py`. `x = 0; for x in a: pass; return x` proves
-`\result == 0` while Python returns the LAST element. The INDEX-valued case is closed
-(witnesses 1025/1026); the SEQUENCE case is not, because a general element write-back
-needs the outer ref's declared type, which the binder does not have. The three
-measurements that pin the obstacle are in the file's header.
+The ROUTE #36 RESIDUE (`x = 0; for x in a: pass; return x`) was closed later the same
+window and its reproduction moved into the corpus as `pycsl-reference/1027`. The
+obstacle — a general element write-back needs the outer ref's DECLARED TYPE, which the
+binder does not have — was got round by pinning BOTH types instead of guessing one: the
+target is in none of the non-int local classes (so its outer ref is the integer `ref 0`
+pre-declaration) AND the iterable is a formal parameter whose symbol type is `list` (so
+its element is an `int`). Zero mirror emissions moved, zero corpus emissions moved,
+L3-tc 53/53.
 
-Everything else in this directory is CLOSED and is kept as a record of how.
+WHAT IS STILL NOT COVERED, and it is narrower than the old residue: a loop over a
+NON-int sequence, or one whose target carries a non-int type. There the two types can
+genuinely disagree and the binder still has no way to compare them.
+
+Everything in this directory is CLOSED and is kept as a record of how.
 
 ---
 

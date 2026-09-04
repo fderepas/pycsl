@@ -1479,10 +1479,39 @@ class ControlFlowStmtMixin:
             # THE RESIDUE IS RECORDED RATHER THAN HIDDEN: `for x in <sequence>` followed
             # by a read of `x` still gives the pre-loop value. Closing it needs the outer
             # ref's declared type at this point, which the binder does not have.
+            # THE SECOND SAFE CASE (relaunch #45): a loop over an `array int`
+            # PARAMETER whose target is a PLAIN INT local. `_typed_local_vars`
+            # excludes a name from the integer `ref 0` pre-declaration exactly when
+            # it carries a non-int WhyML type, so a target in NONE of those sets is
+            # an int ref; and an `array int` param's element is an int. Both halves
+            # are needed — the type mismatch this guards against is between the
+            # OUTER REF and the ELEMENT, and knowing only one of them is not enough.
+            _r36_typed = set()
+            for _tset in ("_array_locals", "_dict_locals", "_string_local_vars",
+                          "_seq_locals", "_ghost_tuple_vars", "_option_tuple_vars",
+                          "_option_str_return_vars", "_pyval_locals",
+                          "_emit_ir_local_vars", "_array_elem_types",
+                          "_inline_array_temps", "_record_array_locals"):
+                _tv = getattr(self, _tset, None)
+                if _tv:
+                    _r36_typed |= set(_tv)
+            _r36_int_local = target not in _r36_typed
+            # The iterable is an `array int` PARAMETER: a formal parameter whose
+            # symbol type is `list`. (`_current_array1d_params` is NOT the right
+            # source here — measured empty at this point for a plain `a: list`
+            # param, which is why the first version of this widening silently
+            # never fired.)
+            _r36_iname = iter_ir.get("name") if isinstance(iter_ir, dict) else None
+            _r36_int_iter = (
+                isinstance(iter_ir, dict) and iter_ir.get("type") == "Var"
+                and _r36_iname in getattr(self, "_current_params", set())
+                and getattr(self, "_current_symbol_table", {}).get(_r36_iname) == "list"
+                and _r36_iname not in getattr(self, "_array2d_params", set()))
             _r36_wb = ([f"{bind_indent}{safe_target} := {elem_expr};"]
                        if target in getattr(self, "_loop_targets_read_outside", ())
                        and not getattr(self, "_for_target_is_pyval", False)
-                       and elem_expr.strip() == f"!{idx}"
+                       and (elem_expr.strip() == f"!{idx}"
+                            or (_r36_int_local and _r36_int_iter))
                        else [])
             if getattr(self, "_for_target_is_pyval", False):
                 return [f"{bind_indent}let {safe_target} = ({elem_expr}) in"]
