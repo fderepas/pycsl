@@ -105,8 +105,28 @@ MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 #         module6_whyml/functions.py      _refine_tuple_return_type ['_saved_*' x4]
 #   (B) PARAM-FIELD MATERIALISED ......... 0  — HARD 0. `_attach_loop_contracts` is the
 #       only known instance and it is (correctly) still `\trusted`.
+#   (#44) 2 -> 1, and the one that left was an UNSOUNDNESS, not merely a coarse model.
+#       ROUTE #24. `unparse_inner`'s `type(self)(_avoid_backslashes=True)` reached the
+#       generic expression fall-through for a call whose CALLEE is not a plain name, and
+#       that arm returned the LITERAL `0`. A literal is a WRONG value, not an unknown one,
+#       and it is observable the moment anything TESTS the result: `o = type(self)()` then
+#       `if o: return 7` proved `\result == 0` while Python returns 7, because an object
+#       is always truthy and `0` never is (corpus witness 0996). Note WHICH read exposed
+#       it — a plain field read `o.v` did NOT prove, because the getter is abstract. The
+#       defect was never that the value is lost; it is that the model got to DECIDE A
+#       BRANCH on it. Now an APPLIED program `val opaque_dynamic_call`, so Why3 gives each
+#       application a fresh unconstrained result and nothing about it proves in EITHER
+#       direction — which is what the erasure's own comment had always claimed.
+#       Census: exactly ONE site tree-wide and ZERO in either corpus.
+#       The remaining 1 is `_handle_field_get_expr`'s `_pg2 = getattr(self,
+#       "_property_getters", None)`, and route #22 established its status precisely:
+#       `_property_getters` is NOT a declared field of the emitted record, so
+#       `bin/check-getattr-erasure.py` classifies it ABSENT — the default IS what Python
+#       returns for an absent attribute. It is a MODELLING GAP (the mirror proves a
+#       `_handle_field_get_expr` whose property-getter branch is dead), not a false value.
+#       REOPENING CAPABILITY: model `_property_getters` as a real record field.
 # --------------------------------------------------------------------------------------
-MAX_RHS_ERASED = 2
+MAX_RHS_ERASED = 1
 MAX_PARAM_MATERIALIZED = 0
 
 _BLOCK = re.compile(

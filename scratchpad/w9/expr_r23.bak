@@ -15448,30 +15448,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _ent = (_cnt.get(_ce.get("name"))
                     if isinstance(_ce, dict) and _ce.get("type") == "Var" else None)
             if _ent is None:
-                # (#44) ROUTE #24 — AN ERASURE MUST BE OPAQUE, NEVER A LITERAL. This arm
-                # is reached when a call's CALLEE is not a plain name and no recognizer
-                # claims it — `type(self)(...)`, `self.fns[0]()`, a computed constructor.
-                # It used to return the literal `0`, and a literal is a WRONG value rather
-                # than an unknown one, which is observable the moment anything TESTS the
-                # result. MEASURED (corpus witness 0996): `o = type(self)()` then `if o:
-                # return 7` under `#@ ensures \result == 0` printed "Verification SUCCESS"
-                # while Python returns 7 — an object is always truthy, `0` never is. The
-                # control `o = C()` (a real constructor) correctly FAILS, which localises
-                # it to this fall-through rather than to the contract.
-                # The same erasure with a plain field READ (`return o.v`) did NOT prove,
-                # because `get_v` is an abstract getter — so the defect is not that the
-                # value is lost, it is that the model gets to DECIDE a branch on it.
-                # An APPLIED program `val` is the honest form: Why3 gives each application
-                # a fresh unconstrained result, so nothing about the value can be proven
-                # in either direction, and a `val` CONSTANT would have been wrong for a
-                # different reason (two distinct calls would be provably EQUAL).
-                # CENSUS: exactly ONE site tree-wide — `pure_ast._Unparser.unparse_inner`'s
-                # `type(self)(_avoid_backslashes=True)`, which is what
-                # `bin/check-computed-rhs-erasure.py` has been counting — and ZERO in
-                # either corpus, so this is corpus-inert by measurement.
-                self._add_abstract_op(
-                    "val opaque_dynamic_call (u: int) : int")
-                return "(opaque_dynamic_call 0)"
+                return "0"
             _test_ir, _cls_a, _cls_b = _ent
             _arms = []
             for _cn in (_cls_a, _cls_b):

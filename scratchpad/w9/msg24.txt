@@ -1,0 +1,58 @@
+CLOSED(#44): ROUTE #24 — an erasure to the LITERAL 0 is one `if` away from a false proof; computed-rhs-erasure 2 -> 1
+
+The generic expression fall-through for a call whose CALLEE is not a plain
+name — `type(self)(...)`, `self.fns[0]()`, a constructor chosen at runtime
+— returned `"0"` when no recognizer claimed it.
+
+PROBE (corpus witness 0996): `o = type(self)()` then `if o: return 7;
+return 0` under `#@ ensures \result == 0` printed "Verification SUCCESS"
+while Python returns 7. The emitted body was `let o = ref 0 in o := 0;
+if (!o <> 0) then ...` — an object is ALWAYS truthy in Python and the
+literal `0` never is, so the model took the branch Python cannot take.
+
+CONTROL: `o = C()`, a statically named constructor, always FAILED that
+contract — which localises the defect to the fall-through, not the
+contract.
+
+THE TRANSFERABLE PART IS *WHICH READ EXPOSED IT*. The same erasure with a
+plain field read (`return o.v`) did NOT prove, because the getter is
+abstract and the result unconstrained. The defect was never that the
+constructed value is lost. It is that the model got to DECIDE A BRANCH on
+a value it had invented. An erasure to an opaque value cannot do that; an
+erasure to a literal is one `if` away from a false proof — which is now
+the third route in this window resting on exactly that distinction (#22's
+`getattr` default, #33's `_refine_tuple_return_type` note, and this).
+
+FIXED as an APPLIED program `val opaque_dynamic_call (u: int) : int`:
+Why3 gives each APPLICATION a fresh unconstrained result, so nothing about
+the value proves in either direction — which is what the erasure's own
+comment had always claimed. A `val` CONSTANT would have been wrong for a
+different reason: two distinct dynamic calls would then be provably EQUAL.
+
+NOT MADE A CAPABILITY, deliberately: `type(self)` is the RUNTIME class,
+which under inheritance need not be the statically known one, so lowering
+it to that class's record constructor would trade a demonstrated
+unsoundness for a subtler one.
+
+GATES:
+  census             exactly ONE site tree-wide (`pure_ast._Unparser.
+                     unparse_inner`, which is what computed-rhs-erasure
+                     was counting), ZERO in either corpus
+  pycsl-reference    820/820 BYTE-IDENTICAL (+ witness 0996)
+  python-reference   2142/2142 BYTE-IDENTICAL, refusal set identical
+  mirror emission    ONE file, pure_ast, TWO lines: the `val` declaration
+                     and `unparser := 0` becoming
+                     `unparser := (opaque_dynamic_call 0)`
+  mirror L3-tc       pure_ast ✓
+  fidelity           2 DIVERGED, the pre-existing pair
+  conformance        core 38/0, front-end 38/0, determinism 10/10
+  computed-rhs       ratchet 2 -> 1, and the remaining 1 is classified:
+                     `_pg2 = getattr(self, "_property_getters", None)` is
+                     ABSENT under route #22's gate — a modelling gap, not
+                     a false value. Reopening capability recorded.
+  metric             UNCHANGED — markers 456 / grep 481
+  witness 0996       negative-tested: PROVED at the parent, FAILS here
+
+OWED: a pure_ast whole-file re-proof (3373 goals).
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
