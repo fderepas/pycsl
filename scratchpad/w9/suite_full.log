@@ -16,6 +16,4 @@ front-end-only: no core/Module6/prover module in sys.modules (import-based, no s
 determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1)
   [0;32m[OK][0m front-end-only conformance
 [0;32m[+] IR conformance: both corpora pass — front-end<->core contract intact.[0m
-[*] 3137 tests across 2 suite(s); jobs=3 (cores=12)
-bin/run-reference-tests.sh: line 69: /tmp/tmp.JFmtGFPqFZ/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0218_py_: No such file or directory
-bin/run-reference-tests.sh: line 69: /tmp/tmp.JFmtGFPqFZ/_home_fabrice_git_pycsl_test_suite_corpus_pycsl_reference_0219_py_: No such file or directory
+[*] 3141 tests across 2 suite(s); jobs=3 (cores=12)

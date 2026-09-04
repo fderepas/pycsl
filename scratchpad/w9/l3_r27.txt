@@ -1,0 +1,17 @@
+2	src/self-annotate/src/Module6_WhyMLTranspiler.py
+2	src/self-annotate/src/__init__.py
+2	src/self-annotate/src/audit_proof.py
+2	src/self-annotate/src/audit_proof_reverify.py
+2	src/self-annotate/src/core_ir_semantic.py
+2	src/self-annotate/src/errors.py
+2	src/self-annotate/src/exception_model.py
+2	src/self-annotate/src/frontend/ConcurrencyChecker.py
+2	src/self-annotate/src/frontend/Module1_Ingestor.py
+2	src/self-annotate/src/frontend/Module2_Parser.py
+2	src/self-annotate/src/frontend/Module3_Weaver.py
+2	src/self-annotate/src/frontend/Module5_IREmitter.py
+2	src/self-annotate/src/frontend/__init__.py
+2	src/self-annotate/src/frontend/desugar.py
+2	src/self-annotate/src/frontend/exec_splice.py
+2	src/self-annotate/src/frontend/import_classifier.py
+2	src/self-annotate/src/frontend/ir_inline.py

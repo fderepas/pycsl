@@ -460,6 +460,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         safe_target = whyml_ident(target)
         val_ir = stmt.value.to_dict()
         vt = val_ir.get("type", "")
+        # (#44) ROUTES #25/#26/#27 — RECORD AN ERASED-TRUTHY BINDING. These three RHS kinds
+        # lower to the literal `0`, which is harmless to READ and unsound to TEST (see the
+        # note on `_erased_truthy_locals` in functions.py). Recorded here and refused in
+        # `_to_bool`; the binding itself is left exactly as it was, so nothing that merely
+        # holds or projects such a local changes by a byte. Re-binding the same name to
+        # anything else CLEARS the record, so `x = (1,2); x = 5; if x:` is unaffected.
+        if (vt in ("GenExp", "UnknownPyExpr")
+                or (vt in ("SetLit", "Tuple", "MkTuple") and val_ir.get("elts"))):
+            self._erased_truthy_locals[target] = vt
+        else:
+            self._erased_truthy_locals.pop(target, None)
         # todict-reflection-plan.md R1: `d = <node>.to_dict()` binds `d` as a typed-node
         # ALIAS (record the receiver dotted-name), and emits NOTHING — `d` is never a
         # real value; every later `d.get(key)` routes to `node.<field>`

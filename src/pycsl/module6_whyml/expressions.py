@@ -492,6 +492,42 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         Other expressions (int) need `<> 0` coercion."""
         t = ir_expr.get("type", "")
         op = ir_expr.get("op", "")
+        # (#44) ROUTES #25/#26/#27 — REFUSE THE TRUTHINESS OF AN ERASED LOCAL. Placed
+        # FIRST so no later recognizer can quietly coerce it. A local bound to a generator
+        # expression, a non-empty set literal or a non-empty tuple literal is emitted as
+        # the literal `0`; `0 <> 0` is decidably FALSE while the Python object is ALWAYS
+        # truthy, so `if g: return 7` proved `\result == 0` where Python returns 7 (corpus
+        # witnesses 0997/0998/0999). The controls localise it exactly: `if 1 in s`,
+        # `if x[0] == 1` and every field read off such a local FAIL correctly, because a
+        # projection off the erased value is abstract. Only the GUARD decides.
+        # Refused rather than made opaque: an opaque binding is better behaviour, but it
+        # moves every one of the 261 non-empty set literals and every tuple binding in the
+        # tree, while the unsoundness lives entirely at the guard. CENSUS
+        # (`scratchpad/w9/census_erased_guard.py`, an AST scan of both corpora,
+        # `src/pycsl`, `src/self-annotate/src`, `src/pycsl_lib` and `tests/`): ZERO locals
+        # of these kinds are used as a boolean anywhere in the tree, so this is byte-inert
+        # by measurement.
+        if t == "Var" and not self._in_spec:
+            _etk = getattr(self, "_erased_truthy_locals", {}).get(ir_expr.get("name"))
+            if _etk:
+                from errors import PyCSLSemanticError
+                _kindname = {"GenExp": "a generator expression",
+                             "UnknownPyExpr": "an expression the model does not represent",
+                             "SetLit": "a non-empty set literal",
+                             "Tuple": "a non-empty tuple literal",
+                             "MkTuple": "a non-empty tuple literal"}.get(_etk, _etk)
+                raise PyCSLSemanticError(
+                    f"the truthiness of `{ir_expr.get('name')}` is not modelled: it is "
+                    f"bound to {_kindname}, which this lowering emits as the literal `0`. "
+                    f"Testing it would be decidably FALSE in the model while the Python "
+                    f"object is ALWAYS truthy — measured, `if <it>: return 7` proved "
+                    f"`\\result == 0` where Python returns 7. Reading the value is fine "
+                    f"(every projection off it is abstract); only the guard is unsound. "
+                    f"Test something the model carries instead — `len(...) > 0`, a "
+                    f"membership `k in ...`, or an element.",
+                    stage="whyml",
+                    code="PYCSL-WHYML-ERASED-TRUTHINESS",
+                )
         # (#32) MAP TRUTHINESS, FAITHFULLY. Python's `if <dict-or-set>:` is NON-EMPTINESS,
         # and a Why3 `map k (option v)` CAN state it exactly — `exists k. m[k] <> None` —
         # so this needs no over-approximation and no axiom: one `val function` with a

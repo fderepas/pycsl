@@ -491,6 +491,19 @@ class FunctionEmissionMixin:
         # the IR-reflection into typed field access. Empty for every non-reflecting
         # function → byte-identical.
         self._todict_aliases: Dict[str, str] = {}
+        # (#44) ROUTES #25/#26/#27 — THE ERASED-TRUTHY LOCALS. A local whose initialiser
+        # the model cannot represent is bound to the LITERAL `0` (or, for a set literal,
+        # left as `ref 0` with no store at all). Reading such a local is harmless — every
+        # projection off it is abstract, and the field/index/membership probes all FAIL
+        # correctly. CONSUMING IT AS A BOOLEAN is not: `0` is decidably FALSE while the
+        # Python object it stands for is ALWAYS truthy, so the model takes a branch the
+        # program cannot. Measured, each proving `\result == 0` where Python returns 7:
+        #     g = (i for i in [1,2,3]);  if g:   -> corpus witness 0997
+        #     s = {1, 2, 3};             if s:   -> corpus witness 0998
+        #     x = (1, 2);                if x:   -> corpus witness 0999
+        # Map target -> the source RHS kind, so `_to_bool` can refuse by name and say what
+        # it was. Empty for every function that binds no such local -> byte-identical.
+        self._erased_truthy_locals: Dict[str, str] = {}
         # typed-ir-for-b-ceiling.md §26: `X = getattr(self, "<field>", {})` binds a
         # local aliasing a dict/set self-field (the emitter's `known_sizes =
         # getattr(self, "_known_collection_sizes", {})` / `st = getattr(self,
