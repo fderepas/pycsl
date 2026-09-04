@@ -506,6 +506,65 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # passes and their order are unchanged, so emission stays byte-identical.
     imported_names = _ir_resolve(ir_data, unified_ast, args.file, deep=args.deep, import_paths=args.import_path)
 
+    # ROUTE #29 (relaunch #45) — REFUSE the four array spec atoms under a HEAP memory
+    # model, because Module 6 ERASES them there and a FALSE CONTRACT PROVES.
+    #
+    #   `module6_whyml/expressions.py` lowers `\is_sorted`, `\array_eq` and
+    #   `\permutation` as `if self._value_semantic: <real formula>` with the
+    #   fall-through `return "true"`, and `\sum` with the fall-through `return "0"`.
+    #   `_value_semantic` is `memory_model in ("hoare", "concurrent")`, so the WHOLE
+    #   typed/store family took the fall-through and the postcondition emitted as
+    #   `ensures { true }`. MEASURED: `#@ ensures \is_sorted(arr, 0, 3)` on a function
+    #   that writes 3, 2, 1 — strictly DESCENDING — printed "Verification SUCCESS! All
+    #   contracts formally proven." under BOTH --memory-model typed and store, and
+    #   correctly FAILED under hoare. Same for `\array_eq` and `\permutation`.
+    #   Witnesses 1004-1008.
+    #
+    #   WHY REFUSE RATHER THAN EMIT `false`. `false` is fail-closed in a POSTCONDITION
+    #   and fail-OPEN in a PRECONDITION — `requires { false }` makes every goal of the
+    #   function vacuously provable — so swapping the literal trades one unsoundness
+    #   for another. Refusing is sound in every clause position.
+    #
+    #   WHY HERE RATHER THAN IN THE FOUR HANDLERS. The choke point rule: the four
+    #   handlers are CONVERTED mirror methods, so a `raise` in their bodies would need
+    #   a `#@ raises` on them and on `_expr_to_whyml`, re-proving a 20125-goal file to
+    #   restate a refusal the pipeline can make once, before emission, on the resolved
+    #   IR. This scans the wire IR for the four `type` tags and is a pure add on a
+    #   `\trusted` mirror method — no mirror body moves, no re-proof is owed, and no
+    #   new def is introduced (which would move the mirror-coverage ratchet).
+    #
+    #   THE CAPABILITY THIS DEFERS, recorded rather than silently dropped: a faithful
+    #   heap lowering of these atoms is expressible — `\is_sorted(a, lo, hi)` is
+    #   `forall i. lo <= i < hi-1 -> Map.get !int_mem (a+i) <= Map.get !int_mem (a+i+1)`
+    #   and `\array_eq` is the same shape over two bases plus the `_len` companions.
+    #   `\permutation` needs an uninterpreted predicate over (loc, len) pairs and
+    #   `\sum` a heap-indexed recursive function. Until those exist, this refuses.
+    if memory_model in ("typed", "store"):
+        _r29_tags = ("IsSorted", "ArrayEq", "Permutation", "Sum")
+        _r29_names = {"IsSorted": "\\is_sorted", "ArrayEq": "\\array_eq",
+                      "Permutation": "\\permutation", "Sum": "\\sum"}
+        _r29_hit = None
+        _r29_stack = [ir_data]
+        while _r29_stack:
+            _r29_n = _r29_stack.pop()
+            if isinstance(_r29_n, dict):
+                if _r29_n.get("type") in _r29_tags:
+                    _r29_hit = _r29_n.get("type")
+                    break
+                _r29_stack.extend(_r29_n.values())
+            elif isinstance(_r29_n, (list, tuple)):
+                _r29_stack.extend(_r29_n)
+        if _r29_hit is not None:
+            from errors import PyCSLSemanticError as _PyCSLSemErr29
+            raise _PyCSLSemErr29(
+                f"the array spec atom `{_r29_names[_r29_hit]}` is not interpreted "
+                f"under the {memory_model!r} memory model (ROUTE #29): its Module 6 "
+                f"lowering is gated on the value-semantic models and would ERASE to a "
+                f"literal here, making a contract that is FALSE of the program "
+                f"provable. Use the default `--memory-model hoare` (or `concurrent`), "
+                f"where the atom lowers to its real quantified formula.",
+                stage="whyml-emit", code="PYCSL-R29-HEAP-SPEC-ERASURE")
+
     # 07-1143 R4: the Soundness Ledger is a provenance view of the fully-resolved IR
     # (after imports/inheritance/composition), so it runs here and short-circuits before
     # WhyML emission / proving.

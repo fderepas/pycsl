@@ -1825,6 +1825,36 @@ see `docs/framing-lemma-demonstration.md` and drivers 0537–0539.
 
 **Implementation:** `_handle_permutation_expr`; preamble `_AXIOM_REGISTRY`/`_AXIOM_FUNCTIONS`.
 
+#### The four array atoms are VALUE-MODEL ONLY — refused under `typed` / `store`
+
+The four lowerings above — `\is_sorted`, `\array_eq`, `\permutation` and `\sum` —
+are stated for the **value-semantic** memory models (`hoare`, the default, and
+`concurrent`). Under the heap models (`--memory-model typed` and `--memory-model
+store`) an array is a `loc` base plus a length companion and the element read is
+`Map.get !int_mem (base + i)`, so none of the four formulas above is even well-typed:
+they are written over a Why3 `array int` value.
+
+Until relaunch #45 the emitter did not say so. Each handler was written
+`if self._value_semantic: <the formula above>` with a **fall-through literal** —
+`true` for the three predicates and `0` for `\sum` — so under `typed`/`store` a
+postcondition `\is_sorted(arr, 0, 3)` emitted as `ensures { true }` and **a contract
+false of the program was provable** (route #29; witnesses
+`pycsl-reference/1004`–`1008`). $\mathcal{T}$ is now **partial** here: the pipeline
+REFUSES all four atoms under a heap model with `PYCSL-R29-HEAP-SPEC-ERASURE`, before
+emission, on the resolved IR.
+
+`false` was **not** an acceptable substitute for the erased literal: it is fail-closed
+in an `ensures` and fail-**open** in a `requires`, where `requires { false }` makes
+every goal of the function vacuously provable. Only a refusal is sound in every clause
+position.
+
+A faithful heap lowering is expressible and is the recorded reopening capability:
+`\is_sorted(a, lo, hi)` is
+`forall i. lo <= i < hi - 1 -> Map.get !int_mem (a + i) <= Map.get !int_mem (a + i + 1)`,
+and `\array_eq` is the same shape over two bases plus their `_len` companions.
+`\permutation` needs an uninterpreted predicate over `(loc, len)` pairs and `\sum` a
+heap-indexed recursive function.
+
 #### `\is_ctor(x, Ctor)`
 
 $$\mathcal{T}_e\llbracket \texttt{\\is\_ctor(x, Ctor)} \rrbracket
