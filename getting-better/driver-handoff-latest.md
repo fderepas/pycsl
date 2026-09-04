@@ -171,22 +171,43 @@
 #                          shadowed 14 · frame-honesty 0/1 and 0/94 · clause-survival 2
 #   conformance            core 38/0, front-end 38/0, determinism 10/10
 #   vacuity (--emit)       no NEW erasure
-#   reference suite        3042/3144. The 102 failures are PRE-EXISTING and identical
-#                          test-for-test to #43's; classified in
-#                          `scratchpad/w9/fail_causes.txt`. TWO THIRDS of the red is one
-#                          decision (64 = `import ctypes` on the C-extension deny-list),
-#                          11 are `Why3 Coq library not found` (the `#@ proof rocq` bridge
-#                          CANNOT BE REPLAYED in this environment at all), and two are
-#                          one-line TEST defects already diagnosed (json.dump arity;
-#                          json.loads raising an unlisted JSONDecodeError).
-#                          **No handoff in this campaign had said the suite was red.**
+#   reference suite        **3114/3144 — up from 3042/3144. 102 failures -> 30.**
+#                          The 102 were PRE-EXISTING and identical test-for-test to #43's,
+#                          and no handoff in this campaign had said the suite was red.
+#                          72 of them are now fixed:
+#                            64  the whole `stdlib/ctypes` family, which needed
+#                                `--allow-unverified-imports` in its flags line. The tests
+#                                are about the ctypes STUB CONTRACTS; the deny-list has its
+#                                own dedicated test (`pycsl-reference/0400`).
+#                             4  the json stub tests — `json.dump(x)` called with one arg
+#                                where `fp` has no default and the result returned into an
+#                                `int`; `json.loads` raising JSONDecodeError and TypeError
+#                                that the driver never declared. The STUBS were right.
+#                             4  base64/codecs `encode` — an EMITTER bug (an abstract op
+#                                declaring `array int` with no `use array.Array`, because
+#                                `needs_array` is computed before any body is emitted) plus
+#                                a driver declaring `-> int` for a bytes return.
+#                          THE REMAINING 30, all diagnosed in `scratchpad/w9/fail_causes.txt`:
+#                            11  `Why3 Coq library not found` — the `#@ proof rocq` bridge
+#                                CANNOT BE REPLAYED in this environment at all.
+#                             9  SMT timeout/unknown, and FIVE of those document themselves
+#                                as PROVING (0932, 0943, 0944, 0948, 0949). They still fail
+#                                re-run ONE AT A TIME ON A QUIET BOX, so it is not job
+#                                contention — it is a real completeness regression nobody
+#                                had recorded. Not an unsoundness; a timeout is fail-closed.
+#                             1  `0540` — its docstring says it should be a PARSE ERROR and
+#                                what it produces is `UNEXPECTED PIPELINE ERROR: 'str'
+#                                object has no attribute 'get'`, an INTERNAL CRASH on the
+#                                refusal path. Worth fixing on its own terms.
+#                             9  L3-tc type errors and pipeline errors, individually listed.
 #
 # ## THE THREE THINGS TO DO FIRST, NEXT WINDOW
 #
-#   1. **Take the two one-line json test fixes** (above). Cheap, and they shrink a red CI.
-#      Then decide what to do about the 64-test ctypes deny-list family: either mark them
-#      expected-FAIL or lift the deny-list for the stub-only path. Leaving 64 tests red
-#      and calling the tree green is the thing this window objected to.
+#   1. **The five self-documented-PROVES tests that now time out** (0932, 0943, 0944,
+#      0948, 0949). A completeness regression, fail-closed, and the only remaining red
+#      that is a defect in the TOOL rather than in the environment or a test. Start by
+#      bisecting which change slowed them: they claim "STATUS — PROVES." in their own
+#      docstrings, so they proved once. Then `0540`'s internal crash on the refusal path.
 #   2. **Probe with the guard rule.** `grep -n 'return "0"'` in
 #      `module6_whyml/expressions.py` still lists ~12 literal-0 fall-throughs. Four of them
 #      became routes #22/#24/#25/#26/#27 this window. Consume the value in an `if`, never
