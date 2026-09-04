@@ -1,0 +1,4 @@
+XPASS  test-suite/corpus/python-reference/0178.py
+XPASS  test-suite/corpus/python-reference/0211.py
+XPASS  test-suite/corpus/python-reference/0177.py
+DONE

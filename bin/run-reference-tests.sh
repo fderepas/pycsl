@@ -57,8 +57,25 @@ if [ "${1:-}" = "--worker" ]; then
     expect_fail=$(grep -m1 '^# pycsl-expected: FAIL' "$py_file" 2>/dev/null)
 
     output=$($PYCSL $extra_flags "$py_file" 2>&1)
+    # (#44) XPASS IS A FAILURE. This branch used to read `if SUCCESS -> PASS` FIRST, so a
+    # `# pycsl-expected: FAIL` test that started PROVING was reported as a PASS and the
+    # suite got GREENER. That makes the corpus's 241 NEGATIVE WITNESSES unenforceable:
+    # every route witness in this campaign (0980-1001 and the eighteen before them) is an
+    # expected-FAIL file whose whole purpose is to prove that a false contract no longer
+    # verifies — and if the unsoundness came back, the suite would have said PASS.
+    # A negative witness that cannot fail is not a test.
+    # MEASURED at the time of the fix: exactly THREE expected-FAIL tests prove today
+    # (python-reference 0177/0178/0211), and all three are CAPABILITY GAINS whose contracts
+    # are TRUE of their programs — break, continue and generic classes became supported
+    # after they were written. They are re-marked `pycsl-expected: PASS` in the same
+    # increment. Scanned with BOTH prover sets (the config asks for an Alt-Ergo that is not
+    # installed) and the set is the same three, so no soundness witness proves.
     if echo "$output" | grep -q "Verification SUCCESS"; then
-        status=PASS
+        if [ -n "$expect_fail" ]; then
+            status=XPASS
+        else
+            status=PASS
+        fi
     elif [ -n "$expect_fail" ]; then
         status=XFAIL
     elif [ -z "$output" ]; then
@@ -214,6 +231,7 @@ for py_file in "${entries[@]}"; do
     case "$status" in
         PASS)  echo -e "${GREEN}[PASS]${RESET} $name"; ((passed++)) ;;
         XFAIL) echo -e "${GREEN}[XFAIL]${RESET} $name (expected failure)"; ((passed++)) ;;
+        XPASS) echo -e "${RED}[XPASS]${RESET} $name (expected FAIL but PROVED — a negative witness that no longer fails)"; ((failed++)); errors+=("$suite/$name (XPASS)"); failed_files+=("$py_file") ;;
         SKIP)  echo -e "${YELLOW}[SKIP]${RESET} $name (no output)"; ((failed++)); errors+=("$suite/$name (no output)"); failed_files+=("$py_file") ;;
         FAIL)  echo -e "${RED}[FAIL]${RESET} $name"; ((failed++)); errors+=("$suite/$name"); failed_files+=("$py_file") ;;
         *)     echo -e "${RED}[FAIL]${RESET} $name (no result)"; ((failed++)); errors+=("$suite/$name (no result)"); failed_files+=("$py_file") ;;
