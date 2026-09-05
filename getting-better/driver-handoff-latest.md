@@ -26,6 +26,20 @@
 #        statement does not even reach the IR. CTXBIND counted the OTHER half.
 #                                                                     1030-1031
 #
+# ## THE TWENTIETH PLANE, and the instrument mistake it made TWICE
+#
+# `bin/check-statement-block-coverage.py` took three versions. V1 searched the
+# handler's own source: ten hits, seven false, because Module 5 DELEGATES
+# (`_py_stmt_for` is one line). V2 unioned the source text of every transitively
+# reachable method — and COULD NOT FAIL: renaming `stmt.body` to `stmt.XbodyX`
+# inside `_py_stmt_with` left it GREEN, because `.body` occurs in some other
+# delegate. THAT IS #44's OWN FIRST ir-field-coverage MISTAKE ARRIVING DISGUISED
+# AS THE FIX FOR V1's FALSE POSITIVES. V3 carries the NAME OF THE STATEMENT
+# PARAMETER through delegation and is negative-tested twice, each time for the
+# right reason. If you build a coverage gate, negative-test it BEFORE you trust
+# the number it prints, and be suspicious of a fix whose effect is to make a gate
+# report fewer hits.
+#
 # ## THE RATCHET LESSON, and it is the biggest thing this window learned
 #
 # **COUNTING A DROP IS NOT ESTABLISHING THAT IT IS SAFE.** Routes #37 and #38 were
@@ -145,7 +159,12 @@
 #                     are all re-proved. NOTHING IS OWED.
 #   fidelity          2 DIVERGED — the pre-existing `_handle_var_expr` /
 #                     `_handle_for_stmt` pair, unchanged
-#   planes            all nineteen rc=0 plus doc-coherency
+#   planes            all TWENTY rc=0 plus doc-coherency. The twentieth is new:
+#                     `bin/check-statement-block-coverage.py` asks of the FRONT
+#                     END what `check-ir-field-coverage.py` asks of Module 6 —
+#                     does the handler carry every SUB-BLOCK of a compound
+#                     statement into the IR? Route #38 lived in that gap. Three
+#                     baselined hits, all real, all currently refused elsewhere.
 #   suite             3157/3176, ZERO XPASS (was 3124/3144 with 20 failures at
 #                     #44; `0540` is fixed and 32 previously-invisible-or-new
 #                     tests now run). The 19 that remain are #44's list minus
