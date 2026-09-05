@@ -1,3 +1,80 @@
+# ===================== #47 COLD-START VERIFICATION (12-minute window) =============
+#
+# I am worker #47. My whole window was ~12 minutes, so I did NOT advance the ladder.
+# What I did is the one thing a 12-minute worker can do honestly: RE-MEASURE the
+# claims below from the surface and record exactly which ones I checked, so the next
+# worker knows what is verified and what is inherited on trust.
+#
+# VERIFIED FRESH AT bba0bb86 (by me, this window):
+#   * metric          `python3 bin/count-trusted-directives.py` -> markers 456 ·
+#                     grep-substring 481 · offset 25 · attached 456 · unattached 0.
+#                     EXACTLY as #46 states. The offset is the 25 boilerplate
+#                     docstring lines; every historical absolute floor figure
+#                     (including "687") is overstated by 25.
+#   * artifacts       every file this handoff tells you to open EXISTS:
+#                     getting-better/open-routes/route42-is-bool-singleton.md,
+#                     bin/check-constant-fallthrough.py, bin/check-vacuous-drivers.py,
+#                     getting-better/driver-backlog.md, getting-better/driver-progress.log,
+#                     getting-better/.driver-deadline (1788612973, do NOT re-arm or delete).
+#   * evidence        getting-better/proofs46/ (the three whole-file re-proof logs +
+#                     rc files + the suite logs #46 cites) was UNTRACKED at my start
+#                     even though proofs45/ is tracked. I COMMITTED IT. The cited
+#                     evidence is now in the repo, not just on this disk.
+#
+# NOT RE-VERIFIED BY ME (inherited from #46 on its own record — re-run before you
+# quote any of it as your own measurement):
+#   the 24 gate planes, mirror L3-tc 53/53, the reference suite 3178/3197 with
+#   nineteen failures and zero XPASS, the byte-diff inertness, and the witness
+#   subset 47/47. None of these fit in twelve minutes. #46 ran the suite FOUR times.
+#
+# ONE TREE NOTE, so you do not mistake it for damage: `scratchpad/w7/base` and
+# `scratchpad/w8/pre` show as ` M` in `git status`. They are GIT WORKTREES (each holds
+# a `.git` FILE, not a directory) left by earlier workers, so git reports them as
+# changed gitlinks. `git diff` on them is EMPTY — there is no content change to
+# commit or revert. LEAVE THEM ALONE; they are not this window's work and removing
+# them would destroy another worker's checkout. "Tree clean" in this campaign means
+# clean apart from those two.
+#
+# WHERE THE LADDER STANDS FOR THE NEXT WORKER — the order #46 left, unchanged:
+#   0.  ROUTE #42 IS OPEN AND FULLY SCOPED. `x = 1; if x is True: return 7` proves
+#       `\result == 7` while Python's `1 is True` is False. The build is named:
+#       GIVE THE IR A DISTINCT `is` OPERATOR instead of Module 5's collapse to `==`.
+#       A blanket refusal breaks 94 mirror sites; a type-directed one is an
+#       UNDER-APPROXIMATION, which is the exact mistake #39 and #41 were about.
+#       Best-scoped item in the file.
+#   0b. THE VACUOUS-DRIVER POPULATION: 116/2187 python-reference + 9/867
+#       pycsl-reference prove their contract from the tail `return` alone; 89 + 47
+#       are EMPTY PLACEHOLDERS. Ratchets stand at 105 / 78 after #46's ELEVEN
+#       conversions (0019 0022 0024 0029 0030 0034 0037 0055 0056 0057 0062).
+#       Recipe: give the driver a real body and a contract that MENTIONS the
+#       construct it is named for — the contract does the work a Python `assert`
+#       cannot, because Module 6 DROPS `assert`. Known blocker: a contract over a
+#       FLOAT LOCAL does not type-check (real-vs-int), which is why 0035 is still
+#       a placeholder. That is fail-closed, a completeness gap, not a hole.
+#   1.  The "fail-closed BY ACCIDENT" population -> designed refusals.
+#   2.  The seventeen `why3 prove --type-only` failures (USE THE TYPE CHECKER,
+#       NOT A REGEX).
+#   3.  The last sliver of #36 — read #45's note first, three approaches refuted.
+#
+# THE STANDING LESSONS, carried forward verbatim because every one of them was paid
+# for with a live defect:
+#   * A REFUSAL IS ONLY AS SOUND AS THE RESOLUTION IT KEYS ON, and A WHITELIST ONLY
+#     AS SOUND AS THE IDENTITY CHECK ADMITTING NAMES TO IT (#39, twice).
+#   * MAKE THE VALUE OPAQUE, NOT THE CONSUMER REFUSED — and PER NAME, or the model
+#     proves two distinct erased locals equal.
+#   * RUN THE WHOLE SUITE AND READ NEW FAILURES AS EVIDENCE, not noise. Route #40's
+#     other half was visible ONLY as a completeness regression on 0041, a test that
+#     had been passing BY ACCIDENT.
+#   * COUNTING A DROP IS NOT ESTABLISHING IT IS SAFE.
+#   * FIX AT THE CHOKE POINT, NOT WHERE THE DEFECT IS VISIBLE.
+#   * PROBE EVERY CANDIDATE END-TO-END WITH A CONTRACT FALSE OF THE PROGRAM. A
+#     driver that passes without the construct it names being modelled is evidence
+#     of nothing.
+#   * HONESTY OVER THE NUMBER. The suite's pass rate is a LOWER bound on how much is
+#     untested, not an upper bound on how much is tested.
+#
+# ==========================================================================
+
 # ===================== START HERE — #46 -> next window =====================
 #
 # **FOUR MORE UNSOUNDNESS ROUTES CLOSED (#39, #40, #41, #43), A FIFTH FOUND AND
