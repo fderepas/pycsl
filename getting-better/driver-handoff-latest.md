@@ -115,14 +115,17 @@
 #    which today fail closed only BY ACCIDENT on a Why3 type error. This is the
 #    single best-scoped item in the file.
 #
-# 0b. **AUDIT THE `python-reference` DRIVERS FOR VACUOUS PASSES.** This window found
-#    TWO drivers passing WITHOUT the construct they name being modelled at all —
-#    `0209` ("the async with statement", whose `\result == 0` was true for unrelated
-#    reasons) and `0044` ("numbers.Complex", whose two `assert`s are DROPPED and
-#    which returns 0 regardless). Both were found by accident, as fallout from an
-#    unrelated fix. The audit is mechanizable and the question is exact: FOR EACH
-#    DRIVER, DOES ITS CONTRACT STILL HOLD IF THE NAMED CONSTRUCT IS DELETED? 510
-#    top-level drivers; a pass rate is worth nothing until this is run once.
+# 0b. **THE VACUOUS-DRIVER POPULATION IS NOW MEASURED, AND IT IS 116.**
+#    `bin/check-vacuous-drivers.py` (the twenty-fourth plane, built this window)
+#    reports **116 of 2187 annotated `python-reference` functions (5%) and 9 of 867
+#    in `pycsl-reference` (1%)** whose contract follows from their tail `return`
+#    alone — so their PASS says nothing about the construct they are named for. The
+#    window found TWO of them by ACCIDENT (`0209` "the async with statement" and
+#    `0044` "numbers.Complex"), each as fallout from an unrelated fix, and each had
+#    been hiding a live defect. THE LIST IS THE WORK ITEM: run the gate with
+#    `--verbose` and give each driver a contract that mentions what it tests. Every
+#    one you fix lowers the ratchet, and the ones that then FAIL are the next routes.
+#    The proxy is conservative in one direction only, so 116 is a lower bound.
 #
 # 1. **CONVERT THE "FAIL-CLOSED BY ACCIDENT" POPULATION INTO DESIGNED REFUSALS.**
 #    This window ran ~100 probes; roughly a third of the ones that closed did so on
@@ -247,7 +250,7 @@
 #                     mirror-loop-annotations 330/5 · mirror-signature-drift 0 ·
 #                     untrusted-emitted 861/845/0 · refusal-reachability 0 ·
 #                     internal-crash-free 0 · constant-fallthrough 8/10 ·
-#                     doc-coherency OK
+#                     vacuous-drivers 116/9 · doc-coherency OK
 #   suite             **3178/3197, NINETEEN failures, ZERO XPASS — and the nineteen
 #                     are EXACTLY #45's nineteen, test for test** (ten Rocq-replay
 #                     tests that cannot execute in this opam switch at all, plus
