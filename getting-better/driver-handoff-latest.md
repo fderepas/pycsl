@@ -248,17 +248,19 @@
 #                     untrusted-emitted 861/845/0 · refusal-reachability 0 ·
 #                     internal-crash-free 0 · constant-fallthrough 8/10 ·
 #                     doc-coherency OK
-#   suite             **3175/3194, NINETEEN failures, ZERO XPASS — and the nineteen
+#   suite             **3178/3197, NINETEEN failures, ZERO XPASS — and the nineteen
 #                     are EXACTLY #45's nineteen, test for test** (ten Rocq-replay
 #                     tests that cannot execute in this opam switch at all, plus
 #                     0700/0701 and python-reference 0043/0048/0079/0080/0082/0095/
 #                     0110). Against #45's close, 3158/3177 with nineteen becomes
-#                     3175/3194 with the SAME nineteen. Run TWICE: the first run
-#                     (3171/3192, twenty-one) is what FOUND route #40's residue, and
-#                     the difference between the two runs is exactly the two names
-#                     that fix resolved. The suite re-runs its own failures serially,
-#                     so none is load-induced.
-#   witnesses         1033-1049, SEVENTEEN, every one PROVING a contract FALSE of its
+#                     3178/3197 with the SAME nineteen — TWENTY more tests discovered
+#                     and every pre-existing outcome unchanged. Run THREE TIMES:
+#                     3171/3192 (twenty-one — the run that FOUND route #40's
+#                     residue), 3175/3194 and 3178/3197. The only names that ever
+#                     moved are the two that fix and the `0209`/`0044` markings
+#                     resolved. The suite re-runs its own failures serially, so none
+#                     is load-induced.
+#   witnesses         1033-1052, TWENTY, every one PROVING a contract FALSE of its
 #                     own program at its parent commit and failing closed at HEAD.
 #                     The witness-subset suite (`--pycsl --start-at 1000`) is 47/47
 #                     with ZERO XPASS, and the three POSITIVE controls pass: 1034
