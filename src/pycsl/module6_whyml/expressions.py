@@ -15210,6 +15210,47 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # isinstance below; un-converted kinds fall through to the legacy dict
         # body (`node.to_dict()`). Byte-identical at every kind conversion.
         if not expr: return ""
+        # ROUTE #40 (relaunch #46) — THE `...` LITERAL IS NOT THE INTEGER ZERO.
+        #
+        #   Module 5 lowers `...` to `{"type":"Number","value":0,"py_ellipsis":True}`
+        #   (`_py_expr_constant`), and relaunch #12 FLAGGED that as "a silent
+        #   WRONG-VALUE erasure ... left alone deliberately". It was never PROBED, and
+        #   it is exploitable FIVE ways in the default hoare model with no flags —
+        #   because the model does not merely lose the value, it CONFLATES `...` WITH
+        #   THE INTEGER 0, which every comparison then decides the wrong way:
+        #
+        #     x = ...; if x: return 7          -> `\result == 0` PROVED. Python: 7.
+        #     if ...: return 7                 -> `\result == 0` PROVED. Python: 7.
+        #     x = ...; if x == 0: return 7     -> `\result == 7` PROVED. Python: 0.
+        #     x = 0;   if x is ...: return 7   -> `\result == 7` PROVED. Python: 0.
+        #     x = ...; return x + 5            -> `\result == 5` PROVED. Python: TypeError.
+        #     return ...                       -> `\result == 0` PROVED. Python: Ellipsis.
+        #
+        #   Witnesses 1036-1040.
+        #
+        #   THE FIX IS AN OPAQUE VALUE, NOT A REFUSAL, and that choice is what makes it
+        #   affordable. `val function pycsl_ellipsis : int` with NO defining axiom is the
+        #   honest model of "a value this model does not represent": every one of the six
+        #   goals above becomes UNDECIDABLE instead of decided-wrongly, so all six
+        #   fail closed, and nothing that merely HOLDS or PASSES a `...` is refused.
+        #   A refusal would have cost the two CONCRETE mirror methods that use `...` in
+        #   a value position (`pure_ast._Unparser.visit_Constant`, `pure_ast.atom`) and
+        #   bought nothing they do not already get from opacity.
+        #
+        #   PLACED AT THE TOP OF `_expr_to_whyml`, before the typed normalization,
+        #   because `NumberExpr` is a frozen dataclass with a single `value` field —
+        #   `expr_from_dict` DROPS the marker, so any lower placement cannot see it.
+        #   `_expr_to_whyml` is `\trusted` in the mirror (its body is `return ""`), so
+        #   editing it costs no mirror-body sync and no whole-file re-proof — the
+        #   choke-point rule paying for itself again.
+        #
+        #   THE ONE FAITHFUL CONSUMER IS UNTOUCHED: `_py_expr_constant`'s own
+        #   `expr.value is ...` guard is recognized upstream of here, as
+        #   `(is_pvellipsis <pyconst_val>)`, by the `==`/`!=` recognizer that keys on
+        #   the DICT shape — it never calls this method on the marker node.
+        if isinstance(expr, dict) and expr.get("py_ellipsis"):
+            self._add_abstract_op("val function pycsl_ellipsis : int")
+            return "pycsl_ellipsis"
         node = expr_from_dict(expr) if isinstance(expr, dict) else expr
         # TIER3-P1 fail-closed boundary (`triage-ranked-tcb-tier3.md` Phase-1 prereq):
         # the eleven upstream/out-of-registry tags (`ir_schema.IR_TAG_ALIASES`) are

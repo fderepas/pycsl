@@ -1799,6 +1799,46 @@ them.
 
 ---
 
+### §T.5.12d  The `...` literal is an OPAQUE value, not the integer 0
+
+Module 5 lowers `...` to `{"type": "Number", "value": 0, "py_ellipsis": True}` — it has
+no IR node of its own. Relaunch #12 recorded that as "a silent WRONG-VALUE erasure ...
+left alone deliberately" and never probed it. The erasure is not a *loss*, it is a
+**conflation**: `...` became the *literal* integer 0, so every comparison against 0
+decided the wrong way. All six of these proved a contract that is FALSE of the program
+(route #40, witnesses `1036`–`1040`):
+
+| program | model said | Python does |
+|---|---|---|
+| `x = ...; if x:` | `!x <> 0` — false | `bool(Ellipsis)` is **True** |
+| `if ...:` | false | **True** |
+| `x = ...; if x == 0:` | **true** | `Ellipsis == 0` is False |
+| `x = 0; if x is ...:` | **true** | `0 is Ellipsis` is False |
+| `x = ...; x + 5` | `5` | `TypeError` |
+| `return ...` | `0` | returns `Ellipsis` |
+
+$\mathcal{T}_e$ now emits an **opaque** `val function pycsl_ellipsis : int` with no
+defining axiom, so every one of those goals is undecidable instead of decided wrongly.
+Nothing that merely holds, passes or returns a `...` is refused — only claims *about its
+integer value* stop being provable.
+
+**Why opacity rather than a refusal.** Two concrete methods in the self-annotation mirror
+use `...` in a value position (`pure_ast._Unparser.visit_Constant`, `pure_ast.atom`), both
+in the *comparison* position that witness `1038` exploits, and no syntactic test separates
+them from the exploit. Opacity closes both at once and makes the mirror's own model
+*more* faithful: `value is ...` lowers to `!value = pycsl_ellipsis` instead of
+`!value = 0`. The one faithful consumer is untouched — `_py_expr_constant`'s own
+`expr.value is ...` is recognized upstream as `(is_pvellipsis <pyconst_val>)`.
+
+**The general shape, and it is the reason to read this section:** a Python *singleton*
+modelled as an integer literal is indistinguishable from that integer inside the model.
+`None` is lowered to `0` on the same terms and has the same three exploits
+(`None == 0`, `<int> is None`, `None + 5`); that residue is recorded in the driver
+backlog with its reopening capability (a tagged value model), because `None`-as-`0` is
+load-bearing across the whole emitter in a way `...` is not.
+
+---
+
 ### §T.5.13  List locals: truthiness, `len`, and the constant folds
 
 A list LOCAL is lowered to a Why3 `array int`, and three facts about it are answered from

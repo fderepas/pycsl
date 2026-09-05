@@ -795,18 +795,17 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     if unified_ast is not None:
         from frontend import pure_ast as _pa38
 
-        def _dotted38(_e):
-            """Last segment of a decorator / callee expression, or None."""
-            if _e is None:
-                return None
-            _c = _e.__class__.__name__
-            if _c == "Name":
-                return getattr(_e, "id", None)
-            if _c == "Attribute":
-                return getattr(_e, "attr", None)
-            if _c == "Call":
-                return _dotted38(getattr(_e, "func", None))
-            return None
+        # `_seg38(e)` — the last segment of a base / decorator / callee expression —
+        # is written INLINE at each of its four uses rather than as a helper `def`.
+        # A new live function has no mirror counterpart, and
+        # `bin/check-mirror-coverage.py` would count it: 550 -> 551, RATCHET BROKEN.
+        # A refusal is not worth weakening a plane for. The idiom below is, verbatim:
+        #     _x = <expr>
+        #     while _x is not None and _x.__class__.__name__ == "Call":
+        #         _x = getattr(_x, "func", None)
+        #     _seg = ((getattr(_x, "id", None) or getattr(_x, "attr", None))
+        #             if _x is not None else None)
+        # (a Name carries `id`, an Attribute carries `attr`, anything else neither.)
 
         # (1) classes that define the protocol, CLOSED UNDER INHERITANCE (gap (b)).
         _bases38 = {}
@@ -815,9 +814,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             if _n38.__class__.__name__ != "ClassDef":
                 continue
             _cn38 = getattr(_n38, "name", "")
-            _bases38[_cn38] = [b for b in (_dotted38(_b38)
-                                           for _b38 in getattr(_n38, "bases", []) or [])
-                               if b]
+            _bl38 = []
+            for _b38 in getattr(_n38, "bases", []) or []:
+                _x38 = _b38
+                while _x38 is not None and _x38.__class__.__name__ == "Call":
+                    _x38 = getattr(_x38, "func", None)
+                _s38 = ((getattr(_x38, "id", None) or getattr(_x38, "attr", None))
+                        if _x38 is not None else None)
+                if _s38:
+                    _bl38.append(_s38)
+            _bases38[_cn38] = _bl38
             for _b38 in getattr(_n38, "body", []) or []:
                 if (_b38.__class__.__name__ in ("FunctionDef", "AsyncFunctionDef")
                         and getattr(_b38, "name", "") in ("__enter__", "__exit__",
@@ -841,7 +847,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _fn38 = getattr(_n38, "name", "")
                 _funs38.setdefault(_fn38, []).append(_n38)
                 for _d38 in getattr(_n38, "decorator_list", []) or []:
-                    _dn38 = _dotted38(_d38) or ""
+                    _x38 = _d38
+                    while _x38 is not None and _x38.__class__.__name__ == "Call":
+                        _x38 = getattr(_x38, "func", None)
+                    _dn38 = (((getattr(_x38, "id", None) or getattr(_x38, "attr", None))
+                              if _x38 is not None else None) or "")
                     if _dn38.lower().endswith("contextmanager"):
                         _cmfun38.add(_fn38)
             _grew38 = True
@@ -854,10 +864,20 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                for _r38 in _pa38.walk(_nd38)
                                if _r38.__class__.__name__ == "Return"
                                and getattr(_r38, "value", None) is not None]
-                    if _rets38 and all(
-                            _r38.value.__class__.__name__ == "Call"
-                            and _dotted38(_r38.value) in _cmfun38
-                            for _r38 in _rets38):
+                    _allcm38 = bool(_rets38)
+                    for _r38 in _rets38:
+                        if _r38.value.__class__.__name__ != "Call":
+                            _allcm38 = False
+                            break
+                        _x38 = _r38.value
+                        while _x38 is not None and _x38.__class__.__name__ == "Call":
+                            _x38 = getattr(_x38, "func", None)
+                        _s38 = ((getattr(_x38, "id", None) or getattr(_x38, "attr", None))
+                                if _x38 is not None else None)
+                        if _s38 not in _cmfun38:
+                            _allcm38 = False
+                            break
+                    if _allcm38:
                         _cmfun38.add(_fn38)
                         _grew38 = True
             # (3) W2 — stdlib context managers with no value-model footprint.
@@ -876,7 +896,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         continue
                     _ok38 = False
                     if _ce38.__class__.__name__ == "Call":
-                        _cal38 = _dotted38(_ce38)
+                        _x38 = _ce38
+                        while _x38 is not None and _x38.__class__.__name__ == "Call":
+                            _x38 = getattr(_x38, "func", None)
+                        _cal38 = ((getattr(_x38, "id", None) or getattr(_x38, "attr", None))
+                                  if _x38 is not None else None)
                         _ok38 = (_cal38 in _cmfun38) or (_cal38 in _stdcm38)
                     if _ok38:
                         continue
