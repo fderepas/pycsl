@@ -840,7 +840,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         if _cm38:
             # (2) W1 — the CM-PRODUCING in-file functions, as a fixpoint.
             _funs38 = {}
-            _cmfun38 = {"nullcontext", "_nullcontext"}
+            _cmfun38 = {"nullcontext", "_nullcontext"} - _cm38
             for _n38 in _pa38.walk(unified_ast):
                 if _n38.__class__.__name__ not in ("FunctionDef", "AsyncFunctionDef"):
                     continue
@@ -852,7 +852,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _x38 = getattr(_x38, "func", None)
                     _dn38 = (((getattr(_x38, "id", None) or getattr(_x38, "attr", None))
                               if _x38 is not None else None) or "")
-                    if _dn38.lower().endswith("contextmanager"):
+                    if _dn38.lower().endswith("contextmanager") and _fn38 not in _cm38:
                         _cmfun38.add(_fn38)
             _grew38 = True
             while _grew38:
@@ -877,7 +877,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         if _s38 not in _cmfun38:
                             _allcm38 = False
                             break
-                    if _allcm38:
+                    if _allcm38 and _fn38 not in _cm38:
                         _cmfun38.add(_fn38)
                         _grew38 = True
             # (3) W2 — stdlib context managers with no value-model footprint.
@@ -901,7 +901,14 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _x38 = getattr(_x38, "func", None)
                         _cal38 = ((getattr(_x38, "id", None) or getattr(_x38, "attr", None))
                                   if _x38 is not None else None)
-                        _ok38 = (_cal38 in _cmfun38) or (_cal38 in _stdcm38)
+                        # A name that IS a context-manager class is never allow-listed,
+                        # whatever else carries that name. Without this, a class called
+                        # `closing` or `suppress` that defines `__enter__` would be waved
+                        # through by the W2 stdlib list purely because the list matches on
+                        # the LAST SEGMENT — the allowlist would be laundering the exact
+                        # thing it is meant to exclude.
+                        _ok38 = (_cal38 not in _cm38
+                                 and ((_cal38 in _cmfun38) or (_cal38 in _stdcm38)))
                     if _ok38:
                         continue
                     from errors import PyCSLSemanticError as _PyCSLSemErr38

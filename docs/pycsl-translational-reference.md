@@ -1672,6 +1672,20 @@ an executor, `nullcontext`, `suppress`, `closing`, `redirect_std*`).
 A file that defines no such class is untouched, which is what keeps the 33 `with <lock>:`
 critical sections in `pycsl-reference` working (witness `1034`).
 
+**A name that IS a context-manager class is never allow-listed, by W1 or by W2.** W2 has
+to match on the callee's *last segment* — the same manager is written `open(...)`,
+`tempfile.NamedTemporaryFile(...)` and `contextlib.closing(...)` — so a user class named
+`closing` that defines `__enter__`/`__exit__` matched the allowlist and was let through:
+the allowlist was laundering the exact thing it exists to exclude, and `\result == 0`
+proved where Python returns 5 (witness `1047`).
+
+**Known residue.** W1 keys on a *simple* method name across the whole unified AST, so if
+one class's `foo` is a `@contextmanager` and another's is not, `with self.foo()` on the
+second is still allow-listed. Making that class-aware is the next tightening; it is not a
+one-liner, because `pure_ast` genuinely defines `block` twice — once as a plain method and
+once as a `@contextmanager` — so an "every definition must qualify" rule would refuse the
+mirror's own 14 `with self.block()` sites outright.
+
 **The neighbouring ratchet had been counting the other half of this for two windows.**
 `bin/check-dropped-mutation.py`'s `CTXBIND = 51` records "`with … as X` — the binding is
 not read". The binding is the visible half; the protocol *calls* are the half that carries
