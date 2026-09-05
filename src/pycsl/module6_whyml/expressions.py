@@ -15254,6 +15254,35 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if isinstance(expr, dict) and expr.get("py_ellipsis"):
             self._add_abstract_op("val function pycsl_ellipsis : int")
             return "pycsl_ellipsis"
+        # ROUTE #40's RESIDUE, and the FULL SUITE is what surfaced it. The literal
+        # `...` is only half of the singleton; the BUILTIN NAME `Ellipsis` is the
+        # other half, and it lowered to the literal `0` too. So:
+        #
+        #     x = 0;   if x is Ellipsis: return 7   ->  `\result == 7` PROVED
+        #                                              (`0 = 0`). Python returns 0.
+        #     x = ...; if x is Ellipsis: return 0   ->  NOT provable after the
+        #                                              literal half was made opaque,
+        #                                              even though it is TRUE.
+        #
+        # Before route #40 the second one proved BY ACCIDENT — `0 = 0` — which is
+        # exactly why `python-reference/0041` was green while the first shape was a
+        # live false proof. Lowering the NAME to the SAME opaque constant fixes both
+        # at once and is the faithful model: `... is Ellipsis` becomes
+        # `pycsl_ellipsis = pycsl_ellipsis` (TRUE, a capability restored) and
+        # `<int> is Ellipsis` becomes `0 = pycsl_ellipsis` (undecidable, sound).
+        # Guarded on the name not being a local/param, so a program that shadows
+        # `Ellipsis` is untouched.
+        # THE PRIMARY FIX IS THE AST REWRITE in `frontend/desugar.py::normalize_stores`
+        # (the choke point: `\trusted`, so no mirror sync and no re-proof). This branch
+        # is the SECOND line, and it is not dead code: the core-only conformance path
+        # feeds GOLDEN IR straight into Module 6 without the front end, so a `Var
+        # "Ellipsis"` can reach here with no desugar pass in front of it.
+        if (isinstance(expr, dict) and expr.get("type") == "Var"
+                and expr.get("name") == "Ellipsis"
+                and "Ellipsis" not in (local_refs or set())
+                and "Ellipsis" not in getattr(self, "_current_symbol_table", {})):
+            self._add_abstract_op("val function pycsl_ellipsis : int")
+            return "pycsl_ellipsis"
         # ROUTE #41 (relaunch #46) — READING AN ERASED LOCAL, not just testing it.
         #
         #   Routes #25/#26/#27 established that a local bound to a generator

@@ -1844,6 +1844,15 @@ them from the exploit. Opacity closes both at once and makes the mirror's own mo
 `!value = 0`. The one faithful consumer is untouched — `_py_expr_constant`'s own
 `expr.value is ...` is recognized upstream as `(is_pvellipsis <pyconst_val>)`.
 
+**Both spellings of the singleton are covered.** `Ellipsis` — the builtin *name* for the
+same object — went through `_py_expr_name`, which returned a bare
+`{"type": "Number", "value": 0}` carrying none of the literal's marker, so `x is Ellipsis`
+still answered `0 = 0` and `x = 0; if x is Ellipsis:` proved (witness `1048`).
+`frontend/desugar.py::normalize_stores` now rewrites the Load-context name into the
+literal — semantically exact, since they denote the same object — so route #40's opacity
+covers both. `... is Ellipsis` proves (witness `1049`, and `python-reference/0041`), and
+`<int> is Ellipsis` does not. The rewrite is skipped if the module *binds* the name.
+
 **The general shape, and it is the reason to read this section:** a Python *singleton*
 modelled as an integer literal is indistinguishable from that integer inside the model.
 `None` is lowered to `0` on the same terms and has the same three exploits

@@ -364,6 +364,52 @@ def normalize_stores(tree: ast.AST) -> None:
        it is a `Constant` or a `Name` — both share their object, so the aliasing Python
        guarantees (`a = b = []` binds ONE list) is preserved. For anything else a fresh
        temporary is bound first, so the RHS is evaluated exactly once, as Python does."""
+    # (#46) ROUTE #40's RESIDUE — THE BUILTIN NAME `Ellipsis` IS THE SAME SINGLETON AS
+    # THE `...` LITERAL, and Module 5 lowered the NAME to a bare `{"type":"Number",
+    # "value":0}` with none of the `py_ellipsis` marker the literal carries. So the
+    # opaque-value fix that closed `...` did not reach `x is Ellipsis`, and the model
+    # still answered `0 = 0`:
+    #     x = 0;   if x is Ellipsis: return 7   ->  `\result == 7` PROVED. Python: 0.
+    #     x = ...; if x is Ellipsis: return 0   ->  the TRUE contract stopped proving
+    #                                              once the literal half became opaque
+    #                                              (`python-reference/0041`).
+    # Rewriting the NAME into the LITERAL here is SEMANTICALLY EXACT — `Ellipsis` and
+    # `...` denote the same object — and it is the CHOKE POINT: one AST rewrite in a
+    # `\trusted` front-end pass, instead of editing `_py_expr_name`, which is a
+    # CONVERTED mirror method whose body change would owe a mirror sync and a
+    # 2109-goal re-proof to say the same thing.
+    # SKIPPED ENTIRELY if the module binds the name itself (an assignment, a parameter,
+    # an import or a def/class called `Ellipsis`), so a program that shadows the builtin
+    # keeps its own meaning.
+    _ell_bound = False
+    for _n in ast.walk(tree):
+        if isinstance(_n, ast.Name) and isinstance(_n.ctx, (ast.Store, ast.Del)) \
+                and _n.id == "Ellipsis":
+            _ell_bound = True
+        elif isinstance(_n, ast.arg) and _n.arg == "Ellipsis":
+            _ell_bound = True
+        elif isinstance(_n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) \
+                and _n.name == "Ellipsis":
+            _ell_bound = True
+        elif isinstance(_n, ast.alias) and (_n.asname or _n.name) == "Ellipsis":
+            _ell_bound = True
+    if not _ell_bound:
+        for _n in ast.walk(tree):
+            for _f, _v in list(ast.iter_fields(_n)):
+                if isinstance(_v, ast.Name) and isinstance(_v.ctx, ast.Load) \
+                        and _v.id == "Ellipsis":
+                    _c = ast.Constant(value=Ellipsis, kind=None)
+                    ast.copy_location(_c, _v)
+                    ast.fix_missing_locations(_c)
+                    setattr(_n, _f, _c)
+                elif isinstance(_v, list):
+                    for _i, _e in enumerate(_v):
+                        if isinstance(_e, ast.Name) and isinstance(_e.ctx, ast.Load) \
+                                and _e.id == "Ellipsis":
+                            _c = ast.Constant(value=Ellipsis, kind=None)
+                            ast.copy_location(_c, _e)
+                            ast.fix_missing_locations(_c)
+                            _v[_i] = _c
     protected = set()
     for node in ast.walk(tree):
         if (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
