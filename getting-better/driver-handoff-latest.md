@@ -1,6 +1,6 @@
 # ===================== START HERE — #45 -> next window =====================
 #
-# **EIGHT ROUTES FOUND, ALL EIGHT CLOSED, AND EVERY ONE OF THEM PROVED A CONTRACT
+# **TEN ROUTES FOUND, ALL TEN CLOSED, AND EVERY ONE OF THEM PROVED A CONTRACT
 # THAT IS FALSE OF ITS OWN PROGRAM.** `getting-better/open-routes/` holds NO open
 # route at handoff. Six of the eight are ORDINARY PYTHON in the
 # DEFAULT `hoare` model with no flags — not spec atoms, not heap models, not
@@ -20,6 +20,28 @@
 #   #36  `i = 0; for i in range(3): pass; return i` proved 0. Python 2. The
 #        SEQUENCE half (`for x in a`) proved it too and is closed as well, at zero
 #        emission cost in both halves.                                1025-1027
+#   #37  a `try ... else:` whose ELSE BLOCK RETURNS was DROPPED — the emission had
+#        no trace of it. The TRYFINAL ratchet COUNTED the drop.       1028-1029
+#   #38  a `with` over a user context manager dropped the WHOLE protocol; the
+#        statement does not even reach the IR. CTXBIND counted the OTHER half.
+#                                                                     1030-1031
+#
+# ## THE RATCHET LESSON, and it is the biggest thing this window learned
+#
+# **COUNTING A DROP IS NOT ESTABLISHING THAT IT IS SAFE.** Routes #37 and #38 were
+# both sitting under a GREEN ratchet that had been counting them, or counting the
+# harmless half of them, for two windows:
+#   * `TRYFINAL = 10` counted "a `try/else` whose block is not emitted". Route #21
+#     had ALREADY proved, for the `finally` half of the SAME counter in the SAME
+#     handler, that such a drop can be exploitable — and refused it. The `else` half
+#     was left counted.
+#   * `CTXBIND = 51` counts "`with ... as X` — the binding is not read". The binding
+#     is the VISIBLE half; the PROTOCOL CALLS are the half that carries the state
+#     change, and nothing counted or established those.
+# Every remaining ratchet deserves the same treatment. The unprobed ones are
+# `yield-erasure` 2, `getattr-erasure` UNKNOWN 19, `shadowed-selfcalls` 14,
+# `trusted-raises-honesty` 68, `computed-rhs-erasure` 1, `clause-survival` 2,
+# `avatar-frame` INHERITED 7, `mirror-field-parity` 7 and `ir-field-coverage` 4.
 #
 # ## WHAT TO DO FIRST
 #
