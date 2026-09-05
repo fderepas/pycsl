@@ -253,7 +253,8 @@
 #   fidelity          check-self-annotate-sync + self-annotate-mirror-check output
 #                     BYTE-IDENTICAL to HEAD at every step (the pre-existing
 #                     `_handle_var_expr` / `_handle_for_stmt` pair, unchanged)
-#   planes            all rc=0, plus the new twenty-third. mirror-coverage 550/41 ·
+#   planes            ALL TWENTY-FOUR rc=0, two of them new this window
+#                     (constant-fallthrough, vacuous-drivers). mirror-coverage 550/41 ·
 #                     trusted-raises-honesty 68 · dropped-mutation 0/51/11/0 ·
 #                     emitted-vacuity 8 known · computed-rhs-erasure 1/0 ·
 #                     bespoke-model-drift 27 · ir-field-coverage 4 ·
@@ -275,7 +276,12 @@
 #                     residue), 3175/3194 and 3178/3197. The only names that ever
 #                     moved are the two that fix and the `0209`/`0044` markings
 #                     resolved. The suite re-runs its own failures serially, so none
-#                     is load-induced.
+#                     is load-induced. RUN FOUR TIMES in all; the last was after the
+#                     nine driver conversions and cost nothing.
+#   re-proofs         ALL THREE OWED WHOLE-FILE RE-PROOFS ARE IN, rc=0, ZERO bad
+#                     goals: Module5_IREmitter 2109 Valid, pure_ast 3372 Valid,
+#                     statements 17109 Valid. The first two are EXACTLY the counts
+#                     recorded at #45. NOTHING IS OWED.
 #   witnesses         1033-1052, TWENTY, every one PROVING a contract FALSE of its
 #                     own program at its parent commit and failing closed at HEAD.
 #                     The witness-subset suite (`--pycsl --start-at 1000`) is 47/47
