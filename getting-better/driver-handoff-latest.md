@@ -133,6 +133,12 @@
 #    "3178/3197 PASSED" IS PADDED BY EXACTLY THAT MANY. State it plainly when you
 #    quote a pass rate: THE SUITE'S NUMBER IS A LOWER BOUND ON HOW MUCH IS UNTESTED,
 #    NOT AN UPPER BOUND ON HOW MUCH IS TESTED.
+#    **NINE ARE ALREADY DONE, so the shape of the work is on the record**: 0022, 0024,
+#    0029, 0034, 0037, 0055, 0056, 0057 and 0062 were given real bodies and real
+#    contracts, all nine prove, and PYTHON WAS RUN ON ALL NINE. The recipe is always
+#    the same — THE CONTRACT DOES THE WORK THE `assert` COULD NOT, because a Python
+#    `assert` is DROPPED by Module 6, which is exactly why the old bodies could have
+#    contained anything at all. Ratchets are already lowered to 107 / 80.
 #
 # 1. **CONVERT THE "FAIL-CLOSED BY ACCIDENT" POPULATION INTO DESIGNED REFUSALS.**
 #    This window ran ~100 probes; roughly a third of the ones that closed did so on
