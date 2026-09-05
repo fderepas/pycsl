@@ -89,6 +89,15 @@
 # `trusted-raises-honesty` 68, `computed-rhs-erasure` 1, `clause-survival` 2,
 # `avatar-frame` INHERITED 7, `mirror-field-parity` 7 and `ir-field-coverage` 4.
 #
+# ## THE WINDOW IN ONE LINE
+#
+# Ten unsoundness routes, all closed and all witnessed; five internal crashes on
+# refusal paths, all fixed; two gate blind spots that had hidden every corpus file
+# numbered 1000+ from BOTH the byte-diff and the reference suite; three new planes;
+# sixteen whole-file mirror re-proofs paid at 62428 Valid and zero bad goals; and
+# the `\trusted` metric UNCHANGED at 456 throughout, because not one of these fixes
+# needed a new trust stub.
+#
 # ## WHAT TO DO FIRST
 #
 # 1. **THE LAST SLIVER OF #36.** A loop over a NON-int sequence, or one whose
