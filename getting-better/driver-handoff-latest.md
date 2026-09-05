@@ -107,6 +107,23 @@
 #
 # ## WHAT TO DO FIRST
 #
+# 0. **OPEN ROUTE #42 IS SITTING IN `getting-better/open-routes/` WITH ITS
+#    REPRODUCERS AND ITS BUILD.** `<int> is True` / `is False` proves a contract
+#    false of the program. The build named there — a DISTINCT `is` operator in the
+#    IR instead of Module 5's collapse to `==`, plus a return type for intra-module
+#    calls — also unblocks the object-identity shapes (`[1] is [1]`, `C() is C()`),
+#    which today fail closed only BY ACCIDENT on a Why3 type error. This is the
+#    single best-scoped item in the file.
+#
+# 0b. **AUDIT THE `python-reference` DRIVERS FOR VACUOUS PASSES.** This window found
+#    TWO drivers passing WITHOUT the construct they name being modelled at all —
+#    `0209` ("the async with statement", whose `\result == 0` was true for unrelated
+#    reasons) and `0044` ("numbers.Complex", whose two `assert`s are DROPPED and
+#    which returns 0 regardless). Both were found by accident, as fallout from an
+#    unrelated fix. The audit is mechanizable and the question is exact: FOR EACH
+#    DRIVER, DOES ITS CONTRACT STILL HOLD IF THE NAMED CONSTRUCT IS DELETED? 510
+#    top-level drivers; a pass rate is worth nothing until this is run once.
+#
 # 1. **CONVERT THE "FAIL-CLOSED BY ACCIDENT" POPULATION INTO DESIGNED REFUSALS.**
 #    This window ran ~100 probes; roughly a third of the ones that closed did so on
 #    a Why3 TYPE ERROR or an `unbound ... symbol`, not on a refusal and not on an
