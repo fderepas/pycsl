@@ -126,6 +126,13 @@
 #    `--verbose` and give each driver a contract that mentions what it tests. Every
 #    one you fix lowers the ratchet, and the ones that then FAIL are the next routes.
 #    The proxy is conservative in one direction only, so 116 is a lower bound.
+#    **AND THE SHARPER NUMBER IS WORSE: 89 + 47 of those are EMPTY PLACEHOLDERS** — a
+#    docstring and a single `return <literal>`, exercising nothing.
+#    `python-reference/0034` is "Integer literals" and its whole body is
+#    `"""Ref 2.6.1: Integer literals."""; return 0`. THE HEADLINE
+#    "3178/3197 PASSED" IS PADDED BY EXACTLY THAT MANY. State it plainly when you
+#    quote a pass rate: THE SUITE'S NUMBER IS A LOWER BOUND ON HOW MUCH IS UNTESTED,
+#    NOT AN UPPER BOUND ON HOW MUCH IS TESTED.
 #
 # 1. **CONVERT THE "FAIL-CLOSED BY ACCIDENT" POPULATION INTO DESIGNED REFUSALS.**
 #    This window ran ~100 probes; roughly a third of the ones that closed did so on
@@ -250,7 +257,7 @@
 #                     mirror-loop-annotations 330/5 · mirror-signature-drift 0 ·
 #                     untrusted-emitted 861/845/0 · refusal-reachability 0 ·
 #                     internal-crash-free 0 · constant-fallthrough 8/10 ·
-#                     vacuous-drivers 116/9 · doc-coherency OK
+#                     vacuous-drivers 116/9 trivial + 89/47 empty · doc-coherency OK
 #   suite             **3178/3197, NINETEEN failures, ZERO XPASS — and the nineteen
 #                     are EXACTLY #45's nineteen, test for test** (ten Rocq-replay
 #                     tests that cannot execute in this opam switch at all, plus
