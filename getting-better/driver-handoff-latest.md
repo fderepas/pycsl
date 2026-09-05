@@ -26,6 +26,24 @@
 #        statement does not even reach the IR. CTXBIND counted the OTHER half.
 #                                                                     1030-1031
 #
+# ## TWO INTERNAL CRASHES ON REFUSAL PATHS, both fixed, and how to find the next
+#
+# `0540` (the item this window opened on) and an unknown `#@ proof` citation both
+# raised an INTERNAL error instead of the refusal they carry — an IR-key collision
+# in one, a missing `PyCSLIRError` import in the other. Both were found the same
+# way: **RUN A CONSTRUCT THAT IS SUPPOSED TO BE REFUSED AND READ WHAT ACTUALLY
+# COMES OUT.** `bin/check-refusal-reachability.py` now makes the second shape
+# mechanical (hard 0, exhaustive over `src/pycsl`); the first shape has no gate
+# and is the obvious next one to build.
+#
+# The `#@ proof` probe also answered the trust question behind the whole bridge,
+# which is worth more than the fix: A CITATION CANNOT INJECT AN ARBITRARY AXIOM.
+# The body comes from a FIXED IN-EMITTER registry of 78 entries, not from the
+# cited `.proofs/` directory, so a driver author cannot make their own Rocq file's
+# statement into a Why3 axiom. That matters because the ten Rocq-replay tests
+# (0211-0220) cannot execute in this opam switch at all, so the replay half of the
+# bridge is unexercised and the registry half is carrying the trust meanwhile.
+#
 # ## THE TWENTIETH PLANE, and the instrument mistake it made TWICE
 #
 # `bin/check-statement-block-coverage.py` took three versions. V1 searched the
