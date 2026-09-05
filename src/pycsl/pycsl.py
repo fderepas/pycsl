@@ -749,54 +749,153 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     #   the emitted `_unparser` record is empty, which is exactly the precondition
     #   relaunch #43 wrote down for converting `_Unparser.__init__`. Refusing it here
     #   would break the mirror outright and buy nothing today.)
+    # ROUTE #39 (relaunch #46) — ROUTE #38's REFUSAL WAS A BLACKLIST OVER AN
+    # UNDER-APPROXIMATE CLASS RESOLUTION, AND TWO ORDINARY SHAPES WALKED PAST IT.
+    #
+    #   #38 keyed on "the `with` context expression is a Call to a class that
+    #   DEFINES `__enter__`/`__exit__`, or a Name bound by a plain `Assign` to
+    #   such a call". BOTH halves of that resolution are partial, and each gap is
+    #   a full re-run of #38's own exploit in the default hoare model, no flags:
+    #
+    #     (a) AN ANNOTATED ASSIGNMENT.  `c: CM = CM()` is an `AnnAssign`, not an
+    #         `Assign`, so the binding census never saw it.  MEASURED:
+    #             c: CM = CM()
+    #             with c: pass
+    #             return c.n        #@ ensures \result == 0  -> PROVED. Python: 5.
+    #         Emission: `let c = { n = 0 } in (); c.n`.  Witness 1033.
+    #     (b) AN INHERITED PROTOCOL.  `class CM(Base)` where `Base` — not `CM` —
+    #         defines `__enter__`/`__exit__`.  The class scan only looked at each
+    #         ClassDef's own body, so `CM` was never in the set.  Same emission,
+    #         same false proof.  Witness 1035.
+    #
+    #   THE FIX IS A WHITELIST, NOT A WIDER BLACKLIST, because the enumeration of
+    #   ways to name a value is open-ended and the previous shape had already been
+    #   wrong twice.  ONCE THE FILE DEFINES A CONTEXT-MANAGER CLASS AT ALL, every
+    #   `with` in it must be positively recognized or it is refused:
+    #
+    #     W1  a call to an in-file `@contextmanager` GENERATOR, or to an in-file
+    #         function whose returns are all such calls (`delimit_if` returns
+    #         `self.delimit(...)` or `_nullcontext()`; `require_parens` returns
+    #         `delimit_if(...)`).  This is a FIXPOINT, not a one-level test.
+    #         The generator case is NOT thereby sound — `check-yield-erasure`'s
+    #         ratchet of 2 records that `_unparser.block` drops its indent/dedent
+    #         — it is the pre-existing, ratcheted status quo #38 deliberately left
+    #         alone, and narrowing it here would break 52 mirror sites and buy
+    #         nothing today.
+    #     W2  a call to one of a small set of stdlib context managers whose effect
+    #         is entirely outside the value model (`open`, `tempfile.*`, `os.fdopen`,
+    #         `io.StringIO`, an executor, `nullcontext`).
+    #
+    #   A file that defines no `__enter__`/`__exit__` is untouched, so all 33
+    #   `with <lock>:` critical sections in `pycsl-reference` and the whole mirror
+    #   keep working exactly as before.  CENSUS behind that claim: mirror 52 `with`
+    #   items, every one W1 or W2; pycsl-reference 33 bare `Name(lock_*)` plus the
+    #   three route-#20/#38 witnesses; python-reference 3, all already
+    #   `pycsl-expected: FAIL`; `pycsl_lib` 1, in a file with no CM class.
     if unified_ast is not None:
         from frontend import pure_ast as _pa38
+
+        def _dotted38(_e):
+            """Last segment of a decorator / callee expression, or None."""
+            if _e is None:
+                return None
+            _c = _e.__class__.__name__
+            if _c == "Name":
+                return getattr(_e, "id", None)
+            if _c == "Attribute":
+                return getattr(_e, "attr", None)
+            if _c == "Call":
+                return _dotted38(getattr(_e, "func", None))
+            return None
+
+        # (1) classes that define the protocol, CLOSED UNDER INHERITANCE (gap (b)).
+        _bases38 = {}
         _cm38 = set()
         for _n38 in _pa38.walk(unified_ast):
-            if _n38.__class__.__name__ == "ClassDef":
-                for _b38 in getattr(_n38, "body", []) or []:
-                    if (_b38.__class__.__name__ in ("FunctionDef", "AsyncFunctionDef")
-                            and getattr(_b38, "name", "") in ("__enter__", "__exit__")):
-                        _cm38.add(getattr(_n38, "name", ""))
+            if _n38.__class__.__name__ != "ClassDef":
+                continue
+            _cn38 = getattr(_n38, "name", "")
+            _bases38[_cn38] = [b for b in (_dotted38(_b38)
+                                           for _b38 in getattr(_n38, "bases", []) or [])
+                               if b]
+            for _b38 in getattr(_n38, "body", []) or []:
+                if (_b38.__class__.__name__ in ("FunctionDef", "AsyncFunctionDef")
+                        and getattr(_b38, "name", "") in ("__enter__", "__exit__",
+                                                            "__aenter__", "__aexit__")):
+                    _cm38.add(_cn38)
+        _grew38 = True
+        while _grew38:
+            _grew38 = False
+            for _cn38, _bs38 in _bases38.items():
+                if _cn38 not in _cm38 and any(_b38 in _cm38 for _b38 in _bs38):
+                    _cm38.add(_cn38)
+                    _grew38 = True
+
         if _cm38:
-            # `v = C(...)` bindings, so `with v:` resolves to its class.
-            _bind38 = {}
+            # (2) W1 — the CM-PRODUCING in-file functions, as a fixpoint.
+            _funs38 = {}
+            _cmfun38 = {"nullcontext", "_nullcontext"}
             for _n38 in _pa38.walk(unified_ast):
-                if _n38.__class__.__name__ == "Assign":
-                    _v38 = getattr(_n38, "value", None)
-                    if (_v38 is not None and _v38.__class__.__name__ == "Call"
-                            and getattr(_v38, "func", None) is not None
-                            and _v38.func.__class__.__name__ == "Name"
-                            and getattr(_v38.func, "id", "") in _cm38):
-                        for _t38 in getattr(_n38, "targets", []) or []:
-                            if _t38.__class__.__name__ == "Name":
-                                _bind38[getattr(_t38, "id", "")] = _v38.func.id
+                if _n38.__class__.__name__ not in ("FunctionDef", "AsyncFunctionDef"):
+                    continue
+                _fn38 = getattr(_n38, "name", "")
+                _funs38.setdefault(_fn38, []).append(_n38)
+                for _d38 in getattr(_n38, "decorator_list", []) or []:
+                    _dn38 = _dotted38(_d38) or ""
+                    if _dn38.lower().endswith("contextmanager"):
+                        _cmfun38.add(_fn38)
+            _grew38 = True
+            while _grew38:
+                _grew38 = False
+                for _fn38, _nodes38 in _funs38.items():
+                    if _fn38 in _cmfun38:
+                        continue
+                    _rets38 = [_r38 for _nd38 in _nodes38
+                               for _r38 in _pa38.walk(_nd38)
+                               if _r38.__class__.__name__ == "Return"
+                               and getattr(_r38, "value", None) is not None]
+                    if _rets38 and all(
+                            _r38.value.__class__.__name__ == "Call"
+                            and _dotted38(_r38.value) in _cmfun38
+                            for _r38 in _rets38):
+                        _cmfun38.add(_fn38)
+                        _grew38 = True
+            # (3) W2 — stdlib context managers with no value-model footprint.
+            _stdcm38 = {
+                "open", "NamedTemporaryFile", "TemporaryDirectory", "TemporaryFile",
+                "fdopen", "StringIO", "BytesIO", "ThreadPoolExecutor",
+                "ProcessPoolExecutor", "suppress", "redirect_stdout", "redirect_stderr",
+                "closing",
+            }
             for _n38 in _pa38.walk(unified_ast):
                 if _n38.__class__.__name__ not in ("With", "AsyncWith"):
                     continue
                 for _it38 in getattr(_n38, "items", []) or []:
                     _ce38 = getattr(_it38, "context_expr", None)
-                    _cls38 = None
                     if _ce38 is None:
                         continue
-                    if (_ce38.__class__.__name__ == "Call"
-                            and getattr(_ce38, "func", None) is not None
-                            and _ce38.func.__class__.__name__ == "Name"):
-                        _cls38 = getattr(_ce38.func, "id", None)
-                    elif _ce38.__class__.__name__ == "Name":
-                        _cls38 = _bind38.get(getattr(_ce38, "id", ""))
-                    if _cls38 in _cm38:
-                        from errors import PyCSLSemanticError as _PyCSLSemErr38
-                        raise _PyCSLSemErr38(
-                            f"a `with` statement uses {_cls38!r}, a class that defines "
-                            f"`__enter__`/`__exit__` (ROUTE #38): the context-manager "
-                            f"PROTOCOL is not modelled at all — neither method is "
-                            f"called, the statement does not even reach the IR, and a "
-                            f"contract that is FALSE of the program becomes provable "
-                            f"(measured: an `__exit__` that writes `self.n` left the "
-                            f"field at its initial value in the model). Call the "
-                            f"setup/teardown explicitly around the block.",
-                            stage="whyml-emit", code="PYCSL-R38-CONTEXT-MANAGER-DROPPED")
+                    _ok38 = False
+                    if _ce38.__class__.__name__ == "Call":
+                        _cal38 = _dotted38(_ce38)
+                        _ok38 = (_cal38 in _cmfun38) or (_cal38 in _stdcm38)
+                    if _ok38:
+                        continue
+                    from errors import PyCSLSemanticError as _PyCSLSemErr38
+                    raise _PyCSLSemErr38(
+                        "a `with` statement in a file that defines a context-manager "
+                        "class (%s) uses a context expression this build cannot "
+                        "positively recognize as modelled (ROUTE #38/#39): the "
+                        "context-manager PROTOCOL is not modelled at all — neither "
+                        "`__enter__` nor `__exit__` is called, the statement does not "
+                        "even reach the IR, and a contract that is FALSE of the "
+                        "program becomes provable (measured: an `__exit__` that writes "
+                        "`self.n` left the field at its initial value in the model, "
+                        "under a plain `c = CM()`, an annotated `c: CM = CM()` and an "
+                        "INHERITED protocol alike). Call the setup/teardown explicitly "
+                        "around the block."
+                        % ", ".join(sorted(_cm38)),
+                        stage="whyml-emit", code="PYCSL-R38-CONTEXT-MANAGER-DROPPED")
+
 
     # ROUTE #37 (relaunch #45) — REFUSE a `try ... else:` whose ELSE BLOCK JUMPS OUT.
     #

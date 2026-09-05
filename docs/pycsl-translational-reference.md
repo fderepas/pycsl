@@ -1647,10 +1647,30 @@ The context-manager **protocol** is not modelled at all. Neither `__enter__` nor
     return c.n            # `#@ ensures \result == 0` PROVED; Python gives 5
 
 The emission was `let c = { n = 0 } in (); c.n` (route #38, witness
-`pycsl-reference/1030`). A `with` whose context expression is an instance of a class that
-**defines** `__enter__`/`__exit__` is now refused
-(`PYCSL-R38-CONTEXT-MANAGER-DROPPED`). Call the setup and teardown explicitly around the
-block.
+`pycsl-reference/1030`). Call the setup and teardown explicitly around the block.
+
+**The refusal is a WHITELIST, because the first version — a blacklist over "does this
+class define `__enter__`/`__exit__`" — was walked past twice by ordinary code (route #39,
+witnesses `1033` and `1035`):**
+
+* `c: CM = CM()` is an `AnnAssign`, and the name-binding census read plain `Assign` nodes
+  only, so the name resolved to no class at all;
+* `class CM(Base)` with the protocol on `Base` was never in the set, because the class scan
+  read each `ClassDef`'s own body and did not close over inheritance.
+
+Both re-ran route #38's exploit verbatim and proved `\result == 0` where Python gives 5.
+The enumeration of ways to *name* a value is open-ended, so the current rule is positive:
+**once the unified AST defines a class carrying `__enter__`/`__exit__`/`__aenter__`/
+`__aexit__` — closed under inheritance — every `with` in it is refused
+(`PYCSL-R38-CONTEXT-MANAGER-DROPPED`) unless its context expression is positively
+recognized**, namely a call to (W1) an in-file `@contextmanager` generator, or an in-file
+function whose returns are all such calls (a *fixpoint*: `require_parens` returns
+`delimit_if(…)` returns `self.delimit(…)`); or (W2) one of a small set of stdlib context
+managers with no value-model footprint (`open`, `tempfile.*`, `os.fdopen`, `io.StringIO`,
+an executor, `nullcontext`, `suppress`, `closing`, `redirect_std*`).
+
+A file that defines no such class is untouched, which is what keeps the 33 `with <lock>:`
+critical sections in `pycsl-reference` working (witness `1034`).
 
 **The neighbouring ratchet had been counting the other half of this for two windows.**
 `bin/check-dropped-mutation.py`'s `CTXBIND = 51` records "`with … as X` — the binding is
