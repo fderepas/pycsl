@@ -230,7 +230,24 @@ MAX_CTXBIND = 51
 # WITH handlers is now REFUSED in Module 6's statement lowering, so every site this counter
 # still sees is inside a `\trusted`/`\abstract` function or a `pycsl-expected: FAIL`
 # witness. The +1 is corpus 0990, the witness itself.
-MAX_TRYFINAL = 10
+# (#45) 10 -> 11, and as in #43 the +1 IS THE WITNESS ITSELF. Route #37 established
+# that the `else` half of this residue was exploitable on exactly the same terms route
+# #21 established for the `finally` half: `_handle_try_stmt` appends a lowered `else` to
+# the try body only when that lowering carries no `raise`, and a `return` lowers to
+# `raise (Return ...)`, so an else block that RETURNS was DROPPED IN SILENCE — measured,
+# `try: x = 1 / except ValueError: return 3 / else: return 2 / return 1` proved
+# `\result == 1` while Python returns 2. A `try ... else:` whose else block jumps out is
+# now REFUSED in `pycsl.py::_run_pipeline` (`PYCSL-R37-TRY-ELSE-DROPPED`), so the emission
+# for that shape no longer exists to be wrong. The +1 is `pycsl-reference/1028`, the
+# negative witness, which this STATIC classifier still counts because it reads the source
+# and cannot see that the pipeline refuses the file.
+#
+# WHAT THIS COUNTER NOW MEANS, stated because its meaning has changed twice: every site
+# it sees is inside a `\trusted`/`\abstract` function, a `pycsl-expected: FAIL` witness,
+# or a shape the pipeline REFUSES. Counting a drop was never the same as establishing
+# that it is safe — that is the whole lesson of #21 and #37, and this ratchet is the one
+# that carried both of them while staying green.
+MAX_TRYFINAL = 11
 
 # DANGLING ratchet — a HARD 0. See the class list above. Measured across
 # pycsl-reference, python-reference, the negative corpus, the mirror, `src/pycsl_lib` and

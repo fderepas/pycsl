@@ -690,6 +690,76 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     #   escaped this check is rejected by the type-checker instead of proved —
     #   defence in depth BY CONSTRUCTION, not the accidental fail-closure that
     #   route #29 turned out to be relying on.
+    # ROUTE #37 (relaunch #45) — REFUSE a `try ... else:` whose ELSE BLOCK JUMPS OUT.
+    #
+    #   Route #21 established that the `TRYFINAL` residue was not merely counted but
+    #   EXPLOITABLE, and refused the `finally`-with-handlers half in
+    #   `_handle_try_stmt`. THE `else` HALF WAS LEFT COUNTED AND UNREFUSED, and it is
+    #   exploitable on exactly the same terms. `_handle_try_stmt` appends the lowered
+    #   else to the try body only when `"raise" not in _else_str` — and a `return`
+    #   lowers to `raise (Return ...)`, so an else block that RETURNS is DROPPED IN
+    #   SILENCE. MEASURED in the default hoare model, no flags:
+    #
+    #       try:     x = 1
+    #       except ValueError: return 3
+    #       else:    return 2          <-- absent from the emission entirely
+    #       return 1                  #@ ensures \result == 1  -> PROVED
+    #
+    #   Python runs the `else` when the body raises nothing, so it returns 2.
+    #   Witness `pycsl-reference/1028`.
+    #
+    #   THE RATCHET WAS GREEN THE WHOLE TIME. `check-dropped-mutation` classifies
+    #   this shape as TRYFINAL and its ratchet stands at 10 — the drop was COUNTED,
+    #   and counting a drop is not the same as establishing that it is safe. That is
+    #   #43's own lesson ("probe a green ratchet") applied to the ratchet #43 left.
+    #
+    #   REFUSED HERE rather than in `_handle_try_stmt`, which is a CONVERTED mirror
+    #   method: a raise added there needs a mirror body sync and a whole-file re-proof
+    #   of `stmt_control_flow` (12294 goals) to state a refusal the pipeline can make
+    #   once, before emission, for nothing. `_run_pipeline` already raises.
+    #
+    #   SCOPE: an else that CANNOT jump out is still emitted (#33's capability, kept).
+    #   The IR test is a conservative approximation of the emitter's own `"raise" not
+    #   in <lowered else>`: `return`/`raise`/`break`/`continue` are what put a `raise`
+    #   in the lowered text. A non-jumping else whose lowering contained `raise` for
+    #   some other reason would still be dropped — no such shape is known, and none
+    #   exists in either corpus or the mirror, where `try ... else:` does not occur AT
+    #   ALL (measured by an AST census over all four trees).
+    for _f37 in ir_data.get("functions", []):
+        _s37 = [_f37.get("body", [])]
+        _hit37 = None
+        while _s37 and _hit37 is None:
+            _n37 = _s37.pop()
+            if isinstance(_n37, dict):
+                if _n37.get("stmt") == "Try" and _n37.get("orelse"):
+                    _j37 = [_n37.get("orelse")]
+                    while _j37:
+                        _x37 = _j37.pop()
+                        if isinstance(_x37, dict):
+                            if _x37.get("stmt") in ("Return", "Raise", "Break",
+                                                    "Continue"):
+                                _hit37 = _f37.get("name", "?")
+                                break
+                            _j37.extend(_x37.values())
+                        elif isinstance(_x37, (list, tuple)):
+                            _j37.extend(_x37)
+                    if _hit37 is not None:
+                        break
+                _s37.extend(_n37.values())
+            elif isinstance(_n37, (list, tuple)):
+                _s37.extend(_n37)
+        if _hit37 is not None:
+            from errors import PyCSLSemanticError as _PyCSLSemErr37
+            raise _PyCSLSemErr37(
+                f"the `else:` block of a `try` in {_hit37!r} jumps out (ROUTE #37): "
+                f"Module 6 appends a lowered `else` to the try body only when that "
+                f"lowering contains no `raise`, and a `return`/`raise`/`break`/"
+                f"`continue` lowers to one — so the block would be DROPPED and the "
+                f"run would still report 'All contracts formally proven' for a "
+                f"contract that is FALSE of the program. An `else:` that cannot jump "
+                f"out IS modelled; move the jump after the `try`, or fold the block "
+                f"into the end of the try body.",
+                stage="whyml-emit", code="PYCSL-R37-TRY-ELSE-DROPPED")
     if "R31_UNMODELLED_LIST_TRUTHINESS" in _mlw:
         # ROUTE #31 (relaunch #45) — the Python truthiness of a list local whose
         # LENGTH the model does not carry. `_to_bool` used to answer `true` for

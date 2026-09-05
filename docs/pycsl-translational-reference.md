@@ -1634,6 +1634,34 @@ for that — refusal is the only sound total answer.
 
 ---
 
+### §T.5.11b  `try ... else:` — modelled, unless the block jumps out
+
+Python runs a `try`'s `else:` clause when the body completed **without** an exception,
+which is the same point as "the end of the try body" provided the block cannot itself
+raise into the handlers. $\mathcal{T}_s$ appends the lowered `else` to the try body on
+exactly that condition — no `raise` anywhere in the lowering.
+
+**A `return` lowers to `raise (Return …)`.** So an `else:` that returns fails that test
+and was, until relaunch #45, **dropped in silence**:
+
+    try:     x = 1
+    except ValueError: return 3
+    else:    return 2        # absent from the emission entirely
+    return 1                 # `#@ ensures \result == 1` PROVED; Python returns 2
+
+(route #37, witness `pycsl-reference/1028`). The block is now **refused**
+(`PYCSL-R37-TRY-ELSE-DROPPED`) when it contains a `return`/`raise`/`break`/`continue`; an
+`else:` that cannot jump out is still emitted, and witness `1029` holds that capability in
+place.
+
+**The ratchet was green throughout, and that is the lesson rather than the bug.**
+`bin/check-dropped-mutation.py` classifies this shape as `TRYFINAL` and the counter stood
+at 10: the drop was *counted*. Route #21 had already established, for the `finally` half of
+the same counter, that a counted drop can be exploitable — and refused it. The `else` half
+was left counted and unrefused on identical evidence.
+
+---
+
 ### §T.5.12b  `and` / `or` in a VALUE position return the OPERAND
 
 Python's `and` and `or` are **selection**, not conjunction: `0 or 5` is `5` and `3 and 7`
