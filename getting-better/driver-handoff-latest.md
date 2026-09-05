@@ -26,15 +26,29 @@
 #        statement does not even reach the IR. CTXBIND counted the OTHER half.
 #                                                                     1030-1031
 #
-# ## TWO INTERNAL CRASHES ON REFUSAL PATHS, both fixed, and how to find the next
+# ## FIVE INTERNAL CRASHES ON REFUSAL PATHS, all fixed, and now a gate for them
 #
-# `0540` (the item this window opened on) and an unknown `#@ proof` citation both
-# raised an INTERNAL error instead of the refusal they carry — an IR-key collision
-# in one, a missing `PyCSLIRError` import in the other. Both were found the same
-# way: **RUN A CONSTRUCT THAT IS SUPPOSED TO BE REFUSED AND READ WHAT ACTUALLY
-# COMES OUT.** `bin/check-refusal-reachability.py` now makes the second shape
-# mechanical (hard 0, exhaustive over `src/pycsl`); the first shape has no gate
-# and is the obvious next one to build.
+# The window opened on ONE diagnosed crash (`0540`) and closed with FIVE:
+#   * `0540` — an IR-KEY COLLISION reached before the refusal (`type_params`
+#     written by two producers with two incompatible shapes).
+#   * an unknown `#@ proof` citation — `PyCSLIRError` never imported in
+#     `module6_whyml/preamble.py`.
+#   * python-reference 0202 / 0203 / 0204 — `pure_ast.parse` raises
+#     `PyCSLSyntaxError`, a subclass of the BUILTIN `SyntaxError` and not of
+#     `PyCSLError`, so it walked past `main`'s handler.
+# All five were found the same way: **RUN A CONSTRUCT THAT IS SUPPOSED TO BE
+# REFUSED AND READ WHAT ACTUALLY COMES OUT.** The reason they survived is
+# structural: a `# pycsl-expected: FAIL` driver passes the reference suite whether
+# it refuses cleanly or dies on an `AttributeError`, so the population most likely
+# to crash is exactly the one the suite cannot inspect.
+#
+# TWO GATES NOW COVER THEM. `bin/check-internal-crash-free.py` (hard 0, 960
+# pycsl-reference drivers in 34s) is the behavioural one and it found the last
+# three the hour it was built, by being pointed at the OTHER corpus — do that
+# after any front-end change, it is a two-minute one-off. Measured clean over the
+# mirror (53) and `src/pycsl_lib` too. `bin/check-refusal-reachability.py` (hard 0)
+# is the static half: a `raise PyCSL*Error` whose name is unbound where it is
+# raised.
 #
 # The `#@ proof` probe also answered the trust question behind the whole bridge,
 # which is worth more than the fix: A CITATION CANNOT INJECT AN ARBITRARY AXIOM.
@@ -177,7 +191,9 @@
 #                     are all re-proved. NOTHING IS OWED.
 #   fidelity          2 DIVERGED — the pre-existing `_handle_var_expr` /
 #                     `_handle_for_stmt` pair, unchanged
-#   planes            all TWENTY-ONE rc=0 plus doc-coherency. Two are new. The
+#   planes            all TWENTY-TWO rc=0 plus doc-coherency. Three are new:
+#                     statement-block-coverage, refusal-reachability and
+#                     internal-crash-free. The
 #                     twenty-first, `bin/check-refusal-reachability.py`, is a HARD
 #                     0 on a `raise PyCSL*Error` whose exception NAME is unbound
 #                     where it is raised — a refusal that reports "UNEXPECTED
