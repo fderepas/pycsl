@@ -1634,6 +1634,40 @@ for that — refusal is the only sound total answer.
 
 ---
 
+### §T.5.10b  `with` over a USER-DEFINED context manager is REFUSED
+
+The context-manager **protocol** is not modelled at all. Neither `__enter__` nor
+`__exit__` is called, and the statement does not even reach the IR — Module 5 inlines the
+`with` body and drops the header, so `with c: pass` arrives at Module 6 as a bare `Pass`:
+
+    class CM:
+        def __init__(self):        self.n = 0
+        def __exit__(self, *a):    self.n = 5
+    c = CM(); with c: pass
+    return c.n            # `#@ ensures \result == 0` PROVED; Python gives 5
+
+The emission was `let c = { n = 0 } in (); c.n` (route #38, witness
+`pycsl-reference/1030`). A `with` whose context expression is an instance of a class that
+**defines** `__enter__`/`__exit__` is now refused
+(`PYCSL-R38-CONTEXT-MANAGER-DROPPED`). Call the setup and teardown explicitly around the
+block.
+
+**The neighbouring ratchet had been counting the other half of this for two windows.**
+`bin/check-dropped-mutation.py`'s `CTXBIND = 51` records "`with … as X` — the binding is
+not read". The binding is the visible half; the protocol *calls* are the half that carries
+the state change.
+
+**Scope.** A `@contextmanager` GENERATOR is not refused, and witness `1031` pins that: all
+52 `with` statements in the self-annotation mirror are generator CMs (`self.block()`,
+`self.delimit()`) or builtins (`open`, `tempfile`, `os`), none of which has the protocol
+*methods*. That is a scoping decision, not a soundness claim —
+`bin/check-yield-erasure.py`'s ratchet of 2 records that `_Unparser.block` drops its
+indent/dedent and that the `with` body is modelled nowhere for it. It is unobservable only
+while the emitted `_unparser` record is empty, which is precisely why converting
+`_Unparser.__init__` must arrive together with a context-manager protocol model.
+
+---
+
 ### §T.5.11b  `try ... else:` — modelled, unless the block jumps out
 
 Python runs a `try`'s `else:` clause when the body completed **without** an exception,

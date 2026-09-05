@@ -690,6 +690,88 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     #   escaped this check is rejected by the type-checker instead of proved —
     #   defence in depth BY CONSTRUCTION, not the accidental fail-closure that
     #   route #29 turned out to be relying on.
+    # ROUTE #38 (relaunch #45) — REFUSE a `with` over a USER-DEFINED context manager.
+    #
+    #   The WHOLE `with` protocol is absent from the model: neither `__enter__` nor
+    #   `__exit__` is called, and Module 5 does not even carry the statement into the
+    #   IR (the `with` body is inlined and the header disappears — a `with c: pass`
+    #   arrives as a bare `Pass`). MEASURED in the default hoare model, no flags:
+    #
+    #       class CM:
+    #           def __init__(self): self.n = 0
+    #           def __enter__(self): return 0
+    #           def __exit__(self, a, b, c): self.n = 5; return 0
+    #       c = CM()
+    #       with c: pass
+    #       return c.n          #@ ensures \result == 0   -> PROVED. Python gives 5.
+    #
+    #   The emission is `let c = { n = 0 } in (); c.n`. Witness
+    #   `pycsl-reference/1030`.
+    #
+    #   THE NEIGHBOURING RATCHET HAS BEEN COUNTING HALF OF THIS FOR TWO WINDOWS:
+    #   `check-dropped-mutation`'s CTXBIND = 51 records "`with ... as X` — the binding
+    #   is not read". The binding is the visible half; the PROTOCOL CALLS are the
+    #   half that carries the state change, and nothing counted or established those.
+    #
+    #   THE REFUSAL IS NARROW BY NECESSITY, not by taste. The mirror uses `with` in 52
+    #   places, and every one of them is a `@contextmanager` GENERATOR (`self.block()`,
+    #   `self.delimit()`) or a builtin (`open`, `tempfile`, `os`) — measured by an AST
+    #   census. A generator CM has no `__enter__`/`__exit__` METHODS to look for, so
+    #   keying the refusal on a class that DEFINES them leaves all 52 alone. (The
+    #   generator case is NOT thereby sound — `yield-erasure`'s ratchet of 2 records
+    #   that `_unparser.block` drops its indent/dedent — but it is unobservable while
+    #   the emitted `_unparser` record is empty, which is exactly the precondition
+    #   relaunch #43 wrote down for converting `_Unparser.__init__`. Refusing it here
+    #   would break the mirror outright and buy nothing today.)
+    if unified_ast is not None:
+        from frontend import pure_ast as _pa38
+        _cm38 = set()
+        for _n38 in _pa38.walk(unified_ast):
+            if _n38.__class__.__name__ == "ClassDef":
+                for _b38 in getattr(_n38, "body", []) or []:
+                    if (_b38.__class__.__name__ in ("FunctionDef", "AsyncFunctionDef")
+                            and getattr(_b38, "name", "") in ("__enter__", "__exit__")):
+                        _cm38.add(getattr(_n38, "name", ""))
+        if _cm38:
+            # `v = C(...)` bindings, so `with v:` resolves to its class.
+            _bind38 = {}
+            for _n38 in _pa38.walk(unified_ast):
+                if _n38.__class__.__name__ == "Assign":
+                    _v38 = getattr(_n38, "value", None)
+                    if (_v38 is not None and _v38.__class__.__name__ == "Call"
+                            and getattr(_v38, "func", None) is not None
+                            and _v38.func.__class__.__name__ == "Name"
+                            and getattr(_v38.func, "id", "") in _cm38):
+                        for _t38 in getattr(_n38, "targets", []) or []:
+                            if _t38.__class__.__name__ == "Name":
+                                _bind38[getattr(_t38, "id", "")] = _v38.func.id
+            for _n38 in _pa38.walk(unified_ast):
+                if _n38.__class__.__name__ not in ("With", "AsyncWith"):
+                    continue
+                for _it38 in getattr(_n38, "items", []) or []:
+                    _ce38 = getattr(_it38, "context_expr", None)
+                    _cls38 = None
+                    if _ce38 is None:
+                        continue
+                    if (_ce38.__class__.__name__ == "Call"
+                            and getattr(_ce38, "func", None) is not None
+                            and _ce38.func.__class__.__name__ == "Name"):
+                        _cls38 = getattr(_ce38.func, "id", None)
+                    elif _ce38.__class__.__name__ == "Name":
+                        _cls38 = _bind38.get(getattr(_ce38, "id", ""))
+                    if _cls38 in _cm38:
+                        from errors import PyCSLSemanticError as _PyCSLSemErr38
+                        raise _PyCSLSemErr38(
+                            f"a `with` statement uses {_cls38!r}, a class that defines "
+                            f"`__enter__`/`__exit__` (ROUTE #38): the context-manager "
+                            f"PROTOCOL is not modelled at all — neither method is "
+                            f"called, the statement does not even reach the IR, and a "
+                            f"contract that is FALSE of the program becomes provable "
+                            f"(measured: an `__exit__` that writes `self.n` left the "
+                            f"field at its initial value in the model). Call the "
+                            f"setup/teardown explicitly around the block.",
+                            stage="whyml-emit", code="PYCSL-R38-CONTEXT-MANAGER-DROPPED")
+
     # ROUTE #37 (relaunch #45) — REFUSE a `try ... else:` whose ELSE BLOCK JUMPS OUT.
     #
     #   Route #21 established that the `TRYFINAL` residue was not merely counted but
