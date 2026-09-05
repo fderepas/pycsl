@@ -159,7 +159,14 @@
 #                     are all re-proved. NOTHING IS OWED.
 #   fidelity          2 DIVERGED — the pre-existing `_handle_var_expr` /
 #                     `_handle_for_stmt` pair, unchanged
-#   planes            all TWENTY rc=0 plus doc-coherency. The twentieth is new:
+#   planes            all TWENTY-ONE rc=0 plus doc-coherency. Two are new. The
+#                     twenty-first, `bin/check-refusal-reachability.py`, is a HARD
+#                     0 on a `raise PyCSL*Error` whose exception NAME is unbound
+#                     where it is raised — a refusal that reports "UNEXPECTED
+#                     PIPELINE ERROR" and delivers none of its message. The
+#                     window found TWO crashes on refusal paths by hand (0540 and
+#                     an unknown `#@ proof` citation); this makes the second shape
+#                     exhaustive. The twentieth is:
 #                     `bin/check-statement-block-coverage.py` asks of the FRONT
 #                     END what `check-ir-field-coverage.py` asks of Module 6 —
 #                     does the handler carry every SUB-BLOCK of a compound
