@@ -11,6 +11,13 @@
 #        never in #38's class set because the scan read each ClassDef's own body.
 #        Both re-ran #38's exploit VERBATIM and proved `\result == 0` where Python
 #        returns 5.                                   witnesses 1033 / 1035, 1034 ctl
+#        AND THEN THE WHITELIST I WROTE TO FIX IT LAUNDERED THE SAME THING: W2
+#        matches the callee's LAST SEGMENT (it must — `open`, `tempfile.X`,
+#        `contextlib.closing`), so a USER class named `closing` that defines
+#        `__enter__`/`__exit__` was waved through, and `g.v = 0; with closing():
+#        pass; return g.v` proved `\result == 0` where Python returns 5.
+#        A WHITELIST IS ONLY AS SOUND AS THE IDENTITY CHECK THAT ADMITS NAMES TO
+#        IT.                                                       witness 1047
 #   #40  THE `...` LITERAL WAS THE INTEGER ZERO. Flagged by relaunch #12 as "a
 #        silent WRONG-VALUE erasure ... left alone deliberately" and NEVER PROBED.
 #        SIX shapes proved a false contract: `if x:`, `if ...:`, `x == 0`,
@@ -157,8 +164,14 @@
 #                     guard going `!value = 0` -> `!value = pycsl_ellipsis` (MORE
 #                     faithful than what it replaced), and
 #                     `val function pycsl_erased_map_prefixes : int` declared in
-#                     statements.mlw (no body moved). All three whole-file re-proofs
-#                     were launched detached; see `getting-better/proofs46/`.
+#                     statements.mlw (no body moved). ALL THREE RE-PROOFS WERE RUN.
+#                     `Module5_IREmitter` rc=0 **2109 Valid / 0 bad** and `pure_ast`
+#                     rc=0 **3372 Valid / 0 bad**, each EXACTLY the goal count
+#                     recorded for it at #45 — and `pure_ast` is the one carrying a
+#                     real body change, so it is the re-proof that had something to
+#                     say. `statements.py` was still running at handoff; its change
+#                     is a single UNUSED `val function` declaration, which cannot
+#                     move a VC. Logs + rc files: `getting-better/proofs46/`.
 #   mirror L3-tc      53/53 (106 hits over 53 files), re-measured after every route
 #   fidelity          check-self-annotate-sync + self-annotate-mirror-check output
 #                     BYTE-IDENTICAL to HEAD at every step (the pre-existing
@@ -174,8 +187,14 @@
 #                     untrusted-emitted 861/845/0 · refusal-reachability 0 ·
 #                     internal-crash-free 0 · constant-fallthrough 8/10 ·
 #                     doc-coherency OK
-#   witnesses         1033-1046, fourteen, every one PROVING a contract FALSE of its
-#                     own program at its parent commit and failing closed at HEAD
+#   witnesses         1033-1047, FIFTEEN, every one PROVING a contract FALSE of its
+#                     own program at its parent commit and failing closed at HEAD.
+#                     The witness-subset suite (`--pycsl --start-at 1000`) is 47/47
+#                     with ZERO XPASS, and the three POSITIVE controls pass: 1034
+#                     (a file with no CM class, so #39's whitelist is not armed and
+#                     the 33 `with <lock>` critical sections are untouched), 1031
+#                     (the `@contextmanager` generator #38 deliberately left) and
+#                     1029 (a non-jumping `try ... else`, #33's kept capability).
 #   docs              `docs/pycsl-translational-reference.md` §T.5.10b REWRITTEN (the
 #                     `with` refusal restated as the whitelist it now is, with both
 #                     bypasses named), plus new §T.5.12d (the `...` literal) and
