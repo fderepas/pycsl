@@ -1,9 +1,14 @@
 # ===================== START HERE — #46 -> next window =====================
 #
-# **THREE MORE UNSOUNDNESS ROUTES (#39, #40, #41), ALL CLOSED, ALL NEGATIVE-TESTED
-# END-TO-END, AND ALL THREE ARE THE SAME MISTAKE IN THREE DIFFERENT PLACES.** The
-# metric is UNCHANGED at markers 456 / grep 481 / offset 25 — not one of these
-# needed a new trust stub. Fourteen witnesses added (1033-1046).
+# **FOUR MORE UNSOUNDNESS ROUTES CLOSED (#39, #40, #41, #43), A FIFTH FOUND AND
+# SCOPED (#42), AND ALL OF THEM ARE THE SAME MISTAKE IN DIFFERENT PLACES.** Every
+# one is negative-tested end to end: each witness PROVES a contract FALSE of its own
+# program at its parent commit and fails closed at HEAD. The metric is UNCHANGED at
+# markers 456 / grep 481 / offset 25 throughout — not one of these needed a new trust
+# stub, because a refusal and an opaque value both cost the trust surface nothing.
+# TWENTY witnesses added (1033-1052), TWO new planes (the twenty-third and
+# twenty-fourth), THREE whole-file re-proofs rc=0 with zero bad goals, and ELEVEN
+# empty placeholder drivers converted into real proof obligations.
 #
 #   #39  ROUTE #38's OWN REFUSAL WAS WALKED PAST BY TWO LINES OF ORDINARY PYTHON.
 #        `c: CM = CM()` is an `AnnAssign`, and #38's binding census read plain
