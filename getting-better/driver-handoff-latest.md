@@ -190,14 +190,14 @@
 #                     does the handler carry every SUB-BLOCK of a compound
 #                     statement into the IR? Route #38 lived in that gap. Three
 #                     baselined hits, all real, all currently refused elsewhere.
-#   suite             3157/3176, ZERO XPASS (was 3124/3144 with 20 failures at
-#                     #44; `0540` is fixed and 32 previously-invisible-or-new
+#   suite             3158/3177, ZERO XPASS (was 3124/3144 with 20 failures at
+#                     #44; `0540` is fixed and 33 previously-invisible-or-new
 #                     tests now run). The 19 that remain are #44's list minus
 #                     0540: ten Rocq-replay tests that cannot execute in this
 #                     opam switch at all, and nine named L3-tc/pipeline errors.
 #                     All fail-closed. Log: `getting-better/proofs45/`.
-#   witnesses         1000-1031 all behave as declared, ZERO XPASS, re-run at HEAD
-#                     (32/32 on the `--start-at 1000` subset)
+#   witnesses         1000-1032 all behave as declared, ZERO XPASS, re-run at HEAD
+#                     (33/33 on the `--start-at 1000` subset)
 #   docs              `docs/pycsl-translational-reference.md` gained §T.5.12b
 #                     (and/or value semantics), §T.5.12c (the loop variable),
 #                     §T.5.13 (list-local truthiness and the two folds), the
