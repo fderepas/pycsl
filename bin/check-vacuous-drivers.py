@@ -60,11 +60,18 @@ OTHER = re.compile(r"^#@\s+(requires|assigns|loop|\\variant|raises|ensures|act|"
 
 # Measured 2026-09-05 (relaunch #46) on the tree at commit b161b4a5.
 RATCHETS = {"python-reference": 116, "pycsl-reference": 9}
+# THE SHARPER SUB-POPULATION: a function whose ENTIRE body is a docstring plus a single
+# `return <literal>`. It is not merely "proved from the tail return" — it EXERCISES
+# NOTHING. `python-reference/0034` ("Integer literals"), `0038` ("Objects, values and
+# types") and `0051` ("Instance methods") are literally `'''Ref 2.6.1: ...'''; return 0`.
+# These are UNIMPLEMENTED PLACEHOLDERS that count as passing tests, and the headline
+# "3178/3197 passed" is padded by exactly this many.
+EMPTY_RATCHETS = {"python-reference": 89, "pycsl-reference": 47}
 MIN_FUNCS = {"python-reference": 2000, "pycsl-reference": 800}
 
 
 def scan(root):
-    trivial, total = [], 0
+    trivial, empty, total = [], [], 0
     for dp, dn, fn in os.walk(root):
         dn[:] = [d for d in dn if d not in ('.git', '__pycache__')]
         for f in sorted(fn):
@@ -83,6 +90,12 @@ def scan(root):
                 if not isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     continue
                 total += 1
+                _b = [s2 for s2 in n.body
+                      if not (isinstance(s2, ast.Expr)
+                              and isinstance(s2.value, ast.Constant))]
+                if (len(_b) == 1 and isinstance(_b[0], ast.Return)
+                        and isinstance(_b[0].value, ast.Constant)):
+                    empty.append("%s::%s" % (os.path.relpath(p, ROOT), n.name))
                 i = n.lineno - 2
                 block = []
                 while i >= 0 and lines[i].lstrip().startswith("#@"):
@@ -104,7 +117,7 @@ def scan(root):
                 v = body[-1].value
                 if isinstance(v, ast.Constant) and v.value == want:
                     trivial.append("%s::%s" % (os.path.relpath(p, ROOT), n.name))
-    return trivial, total
+    return trivial, empty, total
 
 
 def main():
@@ -115,7 +128,7 @@ def main():
     rc = 0
     for suite, ratchet in sorted(RATCHETS.items()):
         root = os.path.join(ROOT, "test-suite", "corpus", suite)
-        trivial, total = scan(root)
+        trivial, empty, total = scan(root)
         if total < MIN_FUNCS[suite]:
             print("[!] vacuous-drivers: only %d annotated function(s) found in %s — the "
                   "corpus path is broken. NOT A PASS." % (total, suite), file=sys.stderr)
@@ -126,6 +139,22 @@ def main():
         if args.verbose:
             for t in trivial:
                 print("        %s" % t)
+        eratchet = EMPTY_RATCHETS[suite]
+        print("[*] vacuous-drivers: %-18s %4d of them are EMPTY PLACEHOLDERS — a "
+              "docstring and a single `return <literal>`, exercising nothing "
+              "(ratchet %d)." % (suite, len(empty), eratchet))
+        if args.verbose:
+            for e in empty:
+                print("        EMPTY %s" % e)
+        if len(empty) > eratchet:
+            print("[!] vacuous-drivers: %s EMPTY RATCHET BROKEN — %d > %d. A NEW driver "
+                  "was added whose whole body is `return <literal>`. It exercises "
+                  "nothing and it counts as a passing test."
+                  % (suite, len(empty), eratchet), file=sys.stderr)
+            rc = 1
+        elif len(empty) < eratchet:
+            print("    %s EMPTY is BELOW its ratchet (%d < %d) — lower the constant."
+                  % (suite, len(empty), eratchet))
         if len(trivial) > ratchet:
             print("[!] vacuous-drivers: %s RATCHET BROKEN — %d > %d. A NEW driver proves "
                   "its contract from its tail `return` alone, so its PASS says nothing "
