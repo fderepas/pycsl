@@ -16,7 +16,7 @@ front-end-only: no core/Module6/prover module in sys.modules (import-based, no s
 determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1)
   [0;32m[OK][0m front-end-only conformance
 [0;32m[+] IR conformance: both corpora pass — front-end<->core contract intact.[0m
-[*] 3171 tests across 2 suite(s); jobs=6 (cores=12)
+[*] 3176 tests across 2 suite(s); jobs=6 (cores=12)
 --- pycsl-reference ---
 [0;32m[PASS][0m 0001
 [0;32m[PASS][0m 0002
@@ -972,6 +972,11 @@ determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1)
 [0;32m[PASS][0m 1024_route35_shortcircuit_value_faithful
 [0;32m[XFAIL][0m 1025_route36_loop_var_leak (expected failure)
 [0;32m[XFAIL][0m 1026_route36_loop_var_leak_no_preassign (expected failure)
+[0;32m[XFAIL][0m 1027_route36_sequence_loop_var_leak (expected failure)
+[0;32m[XFAIL][0m 1028_route37_try_else_return_dropped (expected failure)
+[0;32m[PASS][0m 1029_route37_try_else_no_jump_faithful
+[0;32m[XFAIL][0m 1030_route38_context_manager_dropped (expected failure)
+[0;32m[PASS][0m 1031_route38_generator_cm_still_modelled
 --- python-reference ---
 [0;32m[PASS][0m 0001
 [0;32m[PASS][0m 0002
@@ -3213,7 +3218,7 @@ determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1)
   [0;31m[CONFIRMED FAIL][0m 0110
 
 ===============================
- Results: 3152/3171 passed
+ Results: 3157/3176 passed
 ===============================
 Failed/skipped (confirmed):
   - pycsl-reference/0211
