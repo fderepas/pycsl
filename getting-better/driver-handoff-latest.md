@@ -189,6 +189,30 @@
 #    later I killed a second run 27% in, on purpose, because the tree was about to
 #    change. THE SUITE BELONGS AT THE END, on the final tree.
 #
+# ## SETTLED THIS WINDOW, DO NOT RE-DERIVE
+#
+# * `#@ assigns <region>` on a CONCRETE function is NOT a checked obligation: the
+#   region clause is not emitted and WHY3'S INFERRED EFFECTS carry the frame. A
+#   function declaring `assigns a[0..1]` and writing `a[2]` verifies, AND a caller
+#   relying on the stale `a[2]` correctly FAILS. Wrong region = documentation
+#   error, not a soundness hole. The `clause-survival` deficit on 0661/0662 is the
+#   same benign kind.
+# * `#@ \trusted` on a DRIVER's own function is an unpoliced frame, by design: a
+#   stub declaring `assigns \nothing` while writing lets its caller keep the stale
+#   value. That IS what `\trusted` means. The architecture in one sentence: for a
+#   CONCRETE function the frame is INFERRED and conservative; for a
+#   `\trusted`/`\abstract` one it is DECLARED and trusted.
+# * Precondition obligations ARE enforced at call sites (probed four ways,
+#   including `\forall` preconditions and class invariants).
+# * `#@ no_exception` correctly refuses an unguarded division and an unguarded
+#   index.
+# * Loop-contract soundness: a false invariant, a non-decreasing variant, a missing
+#   variant and a wrong `\old` all FAIL.
+# * A Python `assert` is DROPPED by Module 6. Sound for partial correctness (the
+#   model considers MORE paths than Python), and route #36's leak scan depends on
+#   it — if Python asserts ever become real obligations, that exclusion goes too.
+# * ~60 further language probes, all fail-closed, are listed in the progress log.
+#
 # ## STATE AT HANDOFF
 #
 #   metric            markers 456 / grep 481 — UNCHANGED across all eight routes
