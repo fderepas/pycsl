@@ -177,8 +177,8 @@
 # ## STATE AT HANDOFF
 #
 #   metric            markers 456 / grep 481 / offset 25 — UNCHANGED across all
-#                     three routes and the new plane. A refusal and an opaque value
-#                     both cost the trust surface nothing.
+#                     three routes, their residues and the new plane. A refusal and
+#                     an opaque value both cost the trust surface nothing.
 #   corpora           pycsl-reference: byte-diff against the worktree-at-HEAD set is
 #                     the FOURTEEN NEW WITNESSES AND NOTHING ELSE. Zero pre-existing
 #                     emission moved, across all three routes.
@@ -211,7 +211,17 @@
 #                     untrusted-emitted 861/845/0 · refusal-reachability 0 ·
 #                     internal-crash-free 0 · constant-fallthrough 8/10 ·
 #                     doc-coherency OK
-#   witnesses         1033-1047, FIFTEEN, every one PROVING a contract FALSE of its
+#   suite             **3175/3194, NINETEEN failures, ZERO XPASS — and the nineteen
+#                     are EXACTLY #45's nineteen, test for test** (ten Rocq-replay
+#                     tests that cannot execute in this opam switch at all, plus
+#                     0700/0701 and python-reference 0043/0048/0079/0080/0082/0095/
+#                     0110). Against #45's close, 3158/3177 with nineteen becomes
+#                     3175/3194 with the SAME nineteen. Run TWICE: the first run
+#                     (3171/3192, twenty-one) is what FOUND route #40's residue, and
+#                     the difference between the two runs is exactly the two names
+#                     that fix resolved. The suite re-runs its own failures serially,
+#                     so none is load-induced.
+#   witnesses         1033-1049, SEVENTEEN, every one PROVING a contract FALSE of its
 #                     own program at its parent commit and failing closed at HEAD.
 #                     The witness-subset suite (`--pycsl --start-at 1000`) is 47/47
 #                     with ZERO XPASS, and the three POSITIVE controls pass: 1034
