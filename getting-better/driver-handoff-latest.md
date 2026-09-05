@@ -22,6 +22,13 @@
 #        silent WRONG-VALUE erasure ... left alone deliberately" and NEVER PROBED.
 #        SIX shapes proved a false contract: `if x:`, `if ...:`, `x == 0`,
 #        `<int> is ...`, `x + 5`, `return ...`.          witnesses 1036-1040
+#        AND THE BUILTIN NAME `Ellipsis` IS THE SAME SINGLETON AND WAS ALSO THE
+#        INTEGER ZERO — `x = 0; if x is Ellipsis: return 7` proved `\result == 7`.
+#        **THE FULL SUITE IS WHAT SURFACED THAT**, as a NEW failure on
+#        `python-reference/0041`: a TRUE contract that had been proving BY ACCIDENT
+#        (`0 = 0`) stopped proving once half the singleton became opaque. THE
+#        COMPLETENESS REGRESSION WAS THE VISIBLE END OF A LIVE SOUNDNESS HOLE, and
+#        nothing else in the battery could see it.       witnesses 1048 / 1049
 #   #41  ROUTES #25/#26/#27 REFUSED THE GUARD AND NOTHING ELSE. The same erased
 #        local (a generator expression / non-empty set / non-empty tuple) was
 #        exploitable through `== 0`, `< 1` and `+ 5`; and the EMPTY tuple was
@@ -60,6 +67,23 @@
 # is NOT a fall-through and is not counted** — routes #22/#24 lived there, and the
 # instruments for those are `check-getattr-erasure` and `check-computed-rhs-erasure`,
 # which watch the real emission.
+#
+# ## THE MEASUREMENT LESSON, and it is the one to carry
+#
+# **RUN THE WHOLE SUITE, AND READ THE NEW FAILURES AS EVIDENCE ABOUT THE FIX, NOT AS
+# NOISE.** Route #40 landed with five witnesses behaving, a ZERO corpus byte-diff,
+# three whole-file re-proofs at exactly their historical goal counts, and every gate
+# green. It was still HALF A FIX. The only instrument that could see the other half
+# was the full reference suite, and what it produced was not a failure of route #40
+# but a COMPLETENESS regression — `python-reference/0041` — whose cause was that the
+# test had been passing BY ACCIDENT all along. A targeted battery cannot find that
+# shape, because the shape is "something that used to be true for the wrong reason".
+#
+# The corollary, from `python-reference/0209`: **a reference driver that PASSES
+# WITHOUT THE CONSTRUCT IT NAMES BEING MODELLED is not evidence of anything.** 0209
+# is "the async with statement" and its `\result == 0` was true for reasons entirely
+# unrelated to `async with`. The suite cannot tell you that; only reading the driver
+# can. It is now `# pycsl-expected: FAIL`.
 #
 # ## WHAT TO DO FIRST
 #
