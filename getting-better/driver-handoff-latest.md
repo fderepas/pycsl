@@ -138,7 +138,16 @@
 #    contracts, all nine prove, and PYTHON WAS RUN ON ALL NINE. The recipe is always
 #    the same — THE CONTRACT DOES THE WORK THE `assert` COULD NOT, because a Python
 #    `assert` is DROPPED by Module 6, which is exactly why the old bodies could have
-#    contained anything at all. Ratchets are already lowered to 107 / 80.
+#    contained anything at all. Ratchets are already lowered to 105 / 78 (ELEVEN
+#    conversions: 0019, 0022, 0024, 0029, 0030, 0034, 0037, 0055, 0056, 0057, 0062).
+#    ONE ATTEMPT WAS REVERTED RATHER THAN LANDED RED, and its diagnosis is the useful
+#    part: **a contract over a FLOAT LOCAL does not type-check today**. `a = 1.5;
+#    b = 1.5e0; if a == b: return 1` under `#@ ensures \result == 1` is rejected with
+#    "This expression has type real, but is expected to have type int", and so is a
+#    version that merely BINDS four float locals and returns an integer computed
+#    without them. Fail-closed (a type error, never a false proof); a COMPLETENESS
+#    gap in the float local's integration with the int return model. That is why
+#    0035 "Floating-point literals" is still a placeholder.
 #
 # 1. **CONVERT THE "FAIL-CLOSED BY ACCIDENT" POPULATION INTO DESIGNED REFUSALS.**
 #    This window ran ~100 probes; roughly a third of the ones that closed did so on
