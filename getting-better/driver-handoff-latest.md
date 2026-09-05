@@ -34,6 +34,26 @@
 #        exploitable through `== 0`, `< 1` and `+ 5`; and the EMPTY tuple was
 #        outside the record entirely, so `() == 0` proved.  witnesses 1041-1046
 #
+#   #43  A COMPLEX LITERAL WAS THE INTEGER ZERO. `_py_expr_constant` lowers a
+#        complex constant to `int(value.real)` — imaginary part DISCARDED, real part
+#        TRUNCATED — and there is no complex model anywhere, so the model gets an
+#        ordinary integer and DECIDES on it. `3j == 0` proved (Python: False),
+#        `(1+2j) == 1` proved (Python: False) and `if 3j:` proved the branch NOT
+#        taken (Python: `bool(3j)` is True).            witnesses 1050-1052
+#        REFUSED rather than made opaque, ON A MEASUREMENT: the whole repository
+#        contains EXACTLY ONE complex literal.
+#
+#   **AND ONE FOUND, SCOPED AND LEFT OPEN: #42.** `x = 1; if x is True: return 7`
+#   proves `\result == 7` while Python's `1 is True` is False (and `x == True` is
+#   CORRECT, which localizes it to `is`). Module 5 collapses `ast.Is` to `==` and
+#   Module 6 int-encodes `bool`, so the two become one operator on a bool literal.
+#   NOT closed: a blanket refusal breaks the mirror (94 sites, twelve of them the
+#   tri-state `classify(...) is not False` idiom inside the mirror's own
+#   `module6_whyml/functions.py`), and the type-directed version is an
+#   UNDER-APPROXIMATION — the exact mistake #39 and #41 were about. Fully scoped in
+#   `getting-better/open-routes/route42-is-bool-singleton.md`, with the reopening
+#   capability named: GIVE THE IR A DISTINCT `is` OPERATOR.
+#
 # ## THE ONE LESSON, and it is worth more than the three routes
 #
 # **A REFUSAL IS ONLY AS SOUND AS THE RESOLUTION IT KEYS ON, AND AN ERASURE IS ONLY
