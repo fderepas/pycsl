@@ -1864,6 +1864,15 @@ The `_to_bool` refusal of §T.5.13 is kept: with opacity the guard would merely 
 *undecidable*, and a refusal that names the cause is a better answer than a silent
 "cannot prove".
 
+**The EMPTY literal is recorded too** (witness `1046`). Routes #25/#26/#27 recorded a
+local only when the set/tuple literal was non-empty, and that guard is exactly right for
+*truthiness* — an empty container **is** falsy, so `0` is the faithful truth value. It is
+wrong for the *value*: `() == 0` is False in Python and the literal `0` made it decidably
+true. The record now carries a `#empty` suffix that `_to_bool` skips, so the truthiness
+stays faithful and unrefused while the opaque read fires on every recorded name. The
+price is measured and accepted: `x = (); if x:` no longer proves, because the read is
+opaque.
+
 ---
 
 ### §T.5.13  List locals: truthiness, `len`, and the constant folds

@@ -466,9 +466,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `_to_bool`; the binding itself is left exactly as it was, so nothing that merely
         # holds or projects such a local changes by a byte. Re-binding the same name to
         # anything else CLEARS the record, so `x = (1,2); x = 5; if x:` is unaffected.
-        if (vt in ("GenExp", "UnknownPyExpr")
-                or (vt in ("SetLit", "Tuple", "MkTuple") and val_ir.get("elts"))):
+        # (#46) ROUTE #41 — THE `elts` GUARD BELOW IS RIGHT FOR TRUTHINESS AND WRONG
+        # FOR THE VALUE. An EMPTY tuple/set IS falsy, so `0` is the correct truth
+        # value and #44 rightly excluded it from the truthiness refusal — but `() == 0`
+        # is FALSE in Python and the literal `0` makes it decidably TRUE (witness
+        # 1046). So the record is now made for the EMPTY literals too, under a
+        # `#empty` suffix: `_to_bool` skips those (their truthiness is faithful) while
+        # the route-#41 opaque READ in `_expr_to_whyml` fires on every recorded name.
+        # One dict, two consumers — deliberately NOT a second attribute, which would
+        # move `bin/check-mirror-field-parity.py` and owe a mirror field declaration.
+        if vt in ("GenExp", "UnknownPyExpr"):
             self._erased_truthy_locals[target] = vt
+        elif vt in ("SetLit", "Tuple", "MkTuple"):
+            self._erased_truthy_locals[target] = (
+                vt if val_ir.get("elts") else vt + "#empty")
         else:
             self._erased_truthy_locals.pop(target, None)
         # todict-reflection-plan.md R1: `d = <node>.to_dict()` binds `d` as a typed-node

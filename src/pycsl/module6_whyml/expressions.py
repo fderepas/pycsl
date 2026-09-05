@@ -522,7 +522,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # by measurement.
         if t == "Var" and not self._in_spec:
             _etk = getattr(self, "_erased_truthy_locals", {}).get(ir_expr.get("name"))
-            if _etk:
+            # (#46) an EMPTY set/tuple literal is recorded too (route #41 needs the
+            # VALUE opaque), but its TRUTHINESS is faithful — Python agrees the empty
+            # container is falsy — so the `#empty` suffix is skipped here.
+            if _etk and not _etk.endswith("#empty"):
                 from errors import PyCSLSemanticError
                 _kindname = {"GenExp": "a generator expression",
                              "UnknownPyExpr": "an expression the model does not represent",
