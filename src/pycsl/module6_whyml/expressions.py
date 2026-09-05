@@ -15251,6 +15251,40 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if isinstance(expr, dict) and expr.get("py_ellipsis"):
             self._add_abstract_op("val function pycsl_ellipsis : int")
             return "pycsl_ellipsis"
+        # ROUTE #41 (relaunch #46) — READING AN ERASED LOCAL, not just testing it.
+        #
+        #   Routes #25/#26/#27 established that a local bound to a generator
+        #   expression, a non-empty set literal or a non-empty tuple literal is emitted
+        #   as the LITERAL `0`, and refused its TRUTHINESS in `_to_bool`. The refusal
+        #   was placed where the defect was VISIBLE — the guard — and not where the
+        #   erasure IS, so the same locals stayed exploitable through every OTHER
+        #   consumer. MEASURED at parent c37f0059, default hoare model, no flags:
+        #
+        #     x = (i for i in [1,2,3]); if x == 0: return 7   -> `\result == 7` PROVED
+        #     x = {1,2,3};              if x == 0: return 7   -> PROVED
+        #     x = (1,2);                if x == 0: return 7   -> PROVED
+        #     x = (i for i in [1,2,3]); if x < 1:  return 7   -> PROVED
+        #     x = <any of the three>;   return x + 5          -> `\result == 5` PROVED
+        #
+        #   Python returns 0 from every guard (a generator/set/tuple is neither equal
+        #   to nor ordered against 0) and raises `TypeError` on the arithmetic.
+        #   Witnesses 1041-1045.
+        #
+        #   THE FIX IS THE SAME ONE ROUTE #40 USED, AND FOR THE SAME REASON: make the
+        #   VALUE opaque instead of patching consumers one at a time. A per-name
+        #   `val function pycsl_erased_<x> : int` with no defining axiom makes every
+        #   consumer undecidable at once — and PER-NAME matters, because one shared
+        #   constant would let the model prove `x == y` for two distinct erased locals,
+        #   trading one unsoundness for another.
+        #
+        #   THE BINDING IS LEFT ALONE (`x := 0` still), so nothing about the statement
+        #   emission moves; only a READ of such a name changes. `_erased_truthy_locals`
+        #   is cleared on rebinding, so `x = (1,2); x = 5; return x` is untouched.
+        if (isinstance(expr, dict) and expr.get("type") == "Var"
+                and expr.get("name") in getattr(self, "_erased_truthy_locals", {})):
+            _e41 = whyml_ident(expr["name"])
+            self._add_abstract_op("val function pycsl_erased_%s : int" % _e41)
+            return "pycsl_erased_%s" % _e41
         node = expr_from_dict(expr) if isinstance(expr, dict) else expr
         # TIER3-P1 fail-closed boundary (`triage-ranked-tcb-tier3.md` Phase-1 prereq):
         # the eleven upstream/out-of-registry tags (`ir_schema.IR_TAG_ALIASES`) are

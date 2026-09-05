@@ -1839,6 +1839,33 @@ load-bearing across the whole emitter in a way `...` is not.
 
 ---
 
+### §T.5.12e  An ERASED local is opaque on every read, not just in a guard
+
+A local bound to a **generator expression**, a **non-empty set literal**, a **non-empty
+tuple literal** or an expression the model does not represent is emitted as the literal
+`0`. Routes #25/#26/#27 refused its **truthiness** in `_to_bool`. That refusal was placed
+where the defect was *visible* — the guard — and not where the erasure *is*, so every
+other consumer of the same local stayed exploitable (route #41, witnesses `1041`–`1045`):
+
+    x = (i for i in [1,2,3]); if x == 0: return 7   # `\result == 7` PROVED; Python: 0
+    x = {1,2,3};              if x == 0: return 7   # PROVED; Python: 0
+    x = (1,2);                if x == 0: return 7   # PROVED; Python: 0
+    x = (i for i in [1,2,3]); if x  < 1: return 7   # PROVED; Python: TypeError
+    x = (1,2);                return x + 5          # `\result == 5` PROVED; Python: TypeError
+
+$\mathcal{T}_e$ now lowers a **read** of such a name to a per-name opaque
+`val function pycsl_erased_<x> : int` with no defining axiom, which closes all five at
+once. **Per-name matters**: one shared constant would let the model prove `x == y` for
+two distinct erased locals, trading one unsoundness for another. The **binding** is
+untouched (`x := 0` still), so no statement emission moves, and `_erased_truthy_locals`
+is cleared on rebinding, so `x = (1,2); x = 5; return x` is unaffected.
+
+The `_to_bool` refusal of §T.5.13 is kept: with opacity the guard would merely be
+*undecidable*, and a refusal that names the cause is a better answer than a silent
+"cannot prove".
+
+---
+
 ### §T.5.13  List locals: truthiness, `len`, and the constant folds
 
 A list LOCAL is lowered to a Why3 `array int`, and three facts about it are answered from
