@@ -425,7 +425,33 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
 
     # [Modules 1-3] Ingest, Parse, and Weave
     ingestor = Module1_Ingestor(source_code)
-    extracted_data = ingestor.process()
+    # (#45) A PARSE FAILURE MUST BE A REFUSAL, NOT A CRASH. `pure_ast.parse` raises
+    # `PyCSLSyntaxError`, a subclass of the builtin `SyntaxError` and NOT of
+    # `PyCSLError`, so it escaped `main`'s `except PyCSLError` and surfaced as
+    # `[!] UNEXPECTED PIPELINE ERROR: <python message>`. Three python-reference
+    # drivers did exactly that — 0202 ("unexpected token in expression"), 0203
+    # ("mapping match pattern not yet implemented") and 0204 ("expected ')'") — and
+    # ALL THREE ARE `# pycsl-expected: FAIL`, which is the population the reference
+    # suite cannot tell a clean refusal from a crash in. Found by running
+    # `bin/check-internal-crash-free.py`, the gate built for `0540`, over the OTHER
+    # corpus.
+    #
+    # WRAPPED HERE rather than in `Module1_Ingestor.process`: that method's mirror
+    # counterpart is a `\trusted` stub, and a `raise` in its live body moves
+    # `check-trusted-raises-honesty` (68 -> 69) and — measured — moves THREE mirror
+    # emissions (Module3_Weaver, frontend/__init__, ir_resolve), owing three
+    # whole-file re-proofs to restate a refusal `_run_pipeline` can make for
+    # nothing. `_run_pipeline` already raises and is already in that plane's
+    # population. Same choke-point rule as routes #29/#30/#31/#35/#37/#38.
+    #
+    # The message is preserved verbatim; only the exception class changes.
+    try:
+        extracted_data = ingestor.process()
+    except PyCSLError:
+        raise
+    except SyntaxError as _exc_parse:
+        from errors import PyCSLParseError as _PyCSLParseErr45
+        raise _PyCSLParseErr45(str(_exc_parse), stage="parse") from _exc_parse
 
     parser_mod = Module2_Parser()
     weaver = Module3_Weaver(source_code, extracted_data, parser_mod)

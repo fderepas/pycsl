@@ -28,6 +28,15 @@ crashes is never correct, whatever the driver was trying to do.
 It is deliberately NOT limited to expected-FAIL drivers. A crash in a driver that is
 supposed to PASS is louder, but the suite catches that one; the ones the suite cannot
 see are exactly the expected-FAIL population.
+
+RUN IT OVER `python-reference` TOO, ONCE, AND IT PAID IMMEDIATELY. The first such run
+found THREE more — 0202, 0203 and 0204, all `# pycsl-expected: FAIL` — where
+`pure_ast.parse` raised `PyCSLSyntaxError`, a subclass of the builtin `SyntaxError` and
+NOT of `PyCSLError`, so it escaped `main`'s `except PyCSLError` and came out as
+`[!] UNEXPECTED PIPELINE ERROR`. `_run_pipeline` now converts it to a `PyCSLParseError`
+with the message preserved verbatim. This gate stays scoped to `pycsl-reference` for
+speed (960 drivers, 34s); the python-reference sweep is a two-minute one-off worth
+repeating after any front-end change.
 """
 import argparse
 import os
