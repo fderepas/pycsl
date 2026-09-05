@@ -749,6 +749,51 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     #   the emitted `_unparser` record is empty, which is exactly the precondition
     #   relaunch #43 wrote down for converting `_Unparser.__init__`. Refusing it here
     #   would break the mirror outright and buy nothing today.)
+    # ROUTE #43 (relaunch #46) — REFUSE A COMPLEX LITERAL. It was the integer zero.
+    #
+    #   `_py_expr_constant` lowers `isinstance(expr.value, complex)` to
+    #   `{"type": "Number", "value": int(expr.value.real)}` — the imaginary part is
+    #   DISCARDED and the real part is TRUNCATED TO AN INT. There is no complex model
+    #   anywhere in the pipeline, so what the model gets is an ordinary integer that
+    #   every comparison then decides on. MEASURED in the default hoare model, no
+    #   flags, with Python run to confirm each right-hand column:
+    #
+    #     x = 3j;     if x == 0: return 7   ->  `\result == 7` PROVED. `3j == 0` is False.
+    #     x = 1 + 2j; if x == 1: return 7   ->  PROVED.  `(1+2j) == 1` is False.
+    #     x = 3j;     if x:      return 7   ->  `\result == 0` PROVED. `bool(3j)` is True.
+    #
+    #   Witnesses 1050-1052. THIS IS THE WINDOW'S GENERAL SHAPE A FOURTH TIME: a Python
+    #   value the model cannot represent, lowered to an INTEGER LITERAL, is not merely
+    #   lost — it is DECIDABLE, and decided wrongly.
+    #
+    #   REFUSED RATHER THAN MADE OPAQUE, and the reason is a measurement: the whole
+    #   tree contains exactly ONE complex literal (`python-reference/0044`, an
+    #   `assert`-only coverage driver, now `pycsl-expected: FAIL`), so opacity would
+    #   buy no program anything, while a refusal says the true thing — PyCSL models no
+    #   complex arithmetic at all, and `c.real`/`c.imag` are not modelled either.
+    #   Placed HERE for the choke-point reason routes #29/#30/#37/#38 were: the
+    #   producer `_py_expr_constant` is a CONVERTED mirror method, so a raise in its
+    #   body would owe a mirror body sync and a 2109-goal re-proof to state a refusal
+    #   the pipeline can make once, before emission, and `_run_pipeline` already
+    #   raises and is already in `check-trusted-raises-honesty`'s population.
+    if unified_ast is not None:
+        from frontend import pure_ast as _pa43
+        for _n43 in _pa43.walk(unified_ast):
+            if (_n43.__class__.__name__ == "Constant"
+                    and isinstance(getattr(_n43, "value", None), complex)):
+                from errors import PyCSLSemanticError as _PyCSLSemErr43
+                raise _PyCSLSemErr43(
+                    "a COMPLEX literal (%r) has no model (ROUTE #43): "
+                    "`_py_expr_constant` lowers it to `int(value.real)`, so the "
+                    "imaginary part is DISCARDED, the real part is TRUNCATED, and the "
+                    "result is an ordinary integer the model then DECIDES on — "
+                    "measured, `x = 3j; if x == 0: return 7` proved `\\result == 7` "
+                    "while Python's `3j == 0` is False, and `if x:` proved the branch "
+                    "NOT taken while `bool(3j)` is True. PyCSL models no complex "
+                    "arithmetic; use two reals."
+                    % (getattr(_n43, "value", None),),
+                    stage="whyml-emit", code="PYCSL-R43-COMPLEX-LITERAL-ERASED")
+
     # ROUTE #39 (relaunch #46) — ROUTE #38's REFUSAL WAS A BLACKLIST OVER AN
     # UNDER-APPROXIMATE CLASS RESOLUTION, AND TWO ORDINARY SHAPES WALKED PAST IT.
     #

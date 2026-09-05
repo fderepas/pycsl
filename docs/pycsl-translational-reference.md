@@ -1862,6 +1862,29 @@ load-bearing across the whole emitter in a way `...` is not.
 
 ---
 
+### §T.5.12f  A COMPLEX literal is REFUSED
+
+`_py_expr_constant` lowered `isinstance(expr.value, complex)` to
+`{"type": "Number", "value": int(expr.value.real)}`: the imaginary part **discarded**, the
+real part **truncated to an int**. There is no complex model anywhere in the pipeline, so
+the model received an ordinary integer and then *decided* on it (route #43, witnesses
+`1050`–`1052`):
+
+| program | model | Python |
+|---|---|---|
+| `x = 3j; if x == 0:` | taken | `3j == 0` is **False** |
+| `x = 1 + 2j; if x == 1:` | taken | `(1+2j) == 1` is **False** |
+| `x = 3j; if x:` | **not** taken | `bool(3j)` is **True** |
+
+A complex literal anywhere in the unified AST is now refused
+(`PYCSL-R43-COMPLEX-LITERAL-ERASED`). **Refused rather than made opaque, on a
+measurement**: the whole repository contains exactly *one* complex literal
+(`python-reference/0044`, an `assert`-only coverage driver, now `pycsl-expected: FAIL`),
+so opacity would buy no program anything, while the refusal says the true thing — PyCSL
+models no complex arithmetic, and `c.real` / `c.imag` are not modelled either.
+
+---
+
 ### §T.5.12e  An ERASED local is opaque on every read, not just in a guard
 
 A local bound to a **generator expression**, a **non-empty set literal**, a **non-empty
