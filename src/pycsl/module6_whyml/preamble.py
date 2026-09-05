@@ -3777,6 +3777,16 @@ class PreambleEmissionMixin:
             if qn in already_axioms:
                 continue
             if qn not in self._AXIOM_REGISTRY:
+                # (#45) `PyCSLIRError` IS NOT IMPORTED IN THIS MODULE. The refusal
+                # below has been raising `NameError: name 'PyCSLIRError' is not
+                # defined` — an INTERNAL CRASH on a refusal path, reported as
+                # `[!] UNEXPECTED PIPELINE ERROR` instead of the message it was
+                # written to give. This is the SECOND instance of that shape this
+                # window: `pycsl-reference/0540`, the item the window opened on, was
+                # the first. Fail-closed either way (exit 1), but a crash is only
+                # fail-closed while nothing catches it, and it tells the user
+                # nothing.
+                from errors import PyCSLIRError
                 raise PyCSLIRError(
                     f"#@ proof {qn}: not in Module6 axiom registry. "
                     f"Either add the axiom body to _AXIOM_REGISTRY or run "
