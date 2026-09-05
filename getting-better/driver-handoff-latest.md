@@ -146,13 +146,14 @@
 #   fidelity          2 DIVERGED — the pre-existing `_handle_var_expr` /
 #                     `_handle_for_stmt` pair, unchanged
 #   planes            all nineteen rc=0 plus doc-coherency
-#   suite             3152/3171, ZERO XPASS (was 3124/3144 with 20 failures at
-#                     #44; `0540` is fixed and 27 previously-invisible tests now
-#                     run). The 19 that remain are #44's list minus 0540: ten
-#                     Rocq-replay tests that cannot run in this switch, and nine
-#                     named L3-tc/pipeline errors. All fail-closed.
-#   witnesses         1000-1027 all behave as declared, ZERO XPASS, re-run at HEAD
-#                     (28/28 on the `--start-at 1000` subset)
+#   suite             3157/3176, ZERO XPASS (was 3124/3144 with 20 failures at
+#                     #44; `0540` is fixed and 32 previously-invisible-or-new
+#                     tests now run). The 19 that remain are #44's list minus
+#                     0540: ten Rocq-replay tests that cannot execute in this
+#                     opam switch at all, and nine named L3-tc/pipeline errors.
+#                     All fail-closed. Log: `getting-better/proofs45/`.
+#   witnesses         1000-1031 all behave as declared, ZERO XPASS, re-run at HEAD
+#                     (32/32 on the `--start-at 1000` subset)
 #   docs              `docs/pycsl-translational-reference.md` gained §T.5.12b
 #                     (and/or value semantics), §T.5.12c (the loop variable),
 #                     §T.5.13 (list-local truthiness and the two folds), the
