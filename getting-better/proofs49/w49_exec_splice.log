@@ -1,0 +1,196 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/exec_splice.py'...
+[*] Memory model: hoare
+[*] Imported class from 'errors': PyCSLParseError (record + 0 method stub(s) + 2 helper(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 76, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.01s, 16714 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 77, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.01s, 16770 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 74, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.06s, 335996 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 81, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.00s, 4362 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 81, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.00s, 5069 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 80, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 16453 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 84, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.00s, 4366 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 84, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.00s, 5430 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 83, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 17688 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 91, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.00s, 5512 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 87, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 24584 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 118, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 7926 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 118, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 30059 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 114, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.28s, 701921 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 159, characters 59-73:
+Sub-goal variant decrease of goal slookup'vc.
+Prover result is: Valid (0.00s, 8084 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 170, characters 34-50:
+Sub-goal variant decrease of goal sappend'vc.
+Prover result is: Valid (0.00s, 8058 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 180, characters 68-86:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.00s, 8104 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 181, characters 24-42:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.00s, 8376 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 177, characters 14-85:
+Sub-goal postcondition of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 30308 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 185, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.01s, 28310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 185, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.07s, 372464 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 185, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.06s, 332285 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 204, characters 52-73:
+Sub-goal variant decrease of goal pdict_to_sdict'vc.
+Prover result is: Valid (0.00s, 8058 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 243, characters 32-36:
+Sub-goal postcondition of goal _contains_exec__node'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 264, characters 7-30:
+Sub-goal precondition of goal _contains_exec__walk'vc.
+Prover result is: Valid (0.00s, 2898 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 266, characters 18-41:
+Sub-goal variant decrease of goal _contains_exec__walk'vc.
+Prover result is: Valid (0.01s, 29440 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 266, characters 18-41:
+Sub-goal precondition of goal _contains_exec__walk'vc.
+Prover result is: Valid (0.01s, 2916 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 267, characters 19-43:
+Sub-goal variant decrease of goal _contains_exec__walk'vc.
+Prover result is: Valid (0.01s, 29440 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 267, characters 19-43:
+Sub-goal precondition of goal _contains_exec__walk'vc.
+Prover result is: Valid (0.00s, 2916 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 263, characters 32-36:
+Sub-goal postcondition of goal _contains_exec__walk'vc.
+Prover result is: Valid (0.00s, 2898 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 274, characters 27-49:
+Sub-goal variant decrease of goal _contains_exec__walkd'vc.
+Prover result is: Valid (0.01s, 32158 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 274, characters 27-49:
+Sub-goal precondition of goal _contains_exec__walkd'vc.
+Prover result is: Valid (0.00s, 2907 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 274, characters 65-91:
+Sub-goal variant decrease of goal _contains_exec__walkd'vc.
+Prover result is: Valid (0.01s, 32227 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 274, characters 65-91:
+Sub-goal precondition of goal _contains_exec__walkd'vc.
+Prover result is: Valid (0.00s, 2916 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 271, characters 32-36:
+Sub-goal postcondition of goal _contains_exec__walkd'vc.
+Prover result is: Valid (0.00s, 2898 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 280, characters 21-43:
+Sub-goal variant decrease of goal _contains_exec__walkl'vc.
+Prover result is: Valid (0.01s, 30364 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 280, characters 21-43:
+Sub-goal precondition of goal _contains_exec__walkl'vc.
+Prover result is: Valid (0.00s, 2850 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 280, characters 59-82:
+Sub-goal variant decrease of goal _contains_exec__walkl'vc.
+Prover result is: Valid (0.01s, 30433 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 280, characters 59-82:
+Sub-goal precondition of goal _contains_exec__walkl'vc.
+Prover result is: Valid (0.00s, 2859 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 277, characters 32-36:
+Sub-goal postcondition of goal _contains_exec__walkl'vc.
+Prover result is: Valid (0.00s, 2898 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 284, characters 4-29:
+Sub-goal precondition of goal _contains_exec'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 283, characters 32-36:
+Sub-goal postcondition of goal _contains_exec'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 291, characters 15-19:
+Sub-goal postcondition of goal _is_constant_exec'vc.
+Prover result is: Valid (0.00s, 3029 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 291, characters 15-19:
+Sub-goal postcondition of goal _is_constant_exec'vc.
+Prover result is: Valid (0.00s, 3018 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 301, characters 15-19:
+Sub-goal postcondition of goal splice_constant_exec'vc.
+Prover result is: Valid (0.01s, 2898 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 243, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 277, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 271, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 263, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 283, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 285, characters 32-36: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 285, characters 53-57: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 291, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_5s2ud1v5.mlw", line 301, characters 15-19: unused variable result

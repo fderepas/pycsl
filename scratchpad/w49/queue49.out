@@ -1,0 +1,2 @@
+scratchpad/w49/pr.sh: line 6: 1461165 Killed                     PYTHONHASHSEED=0 timeout "$t" python3 -u src/pycsl/pycsl.py "$f" --import-path src/pycsl --provers "Alt-Ergo,2.6.3,,Z3,4.13.3," > getting-better/proofs49/$n.log 2>&1
+scratchpad/w49/pr.sh: line 6: 1461158 Killed                     PYTHONHASHSEED=0 timeout "$t" python3 -u src/pycsl/pycsl.py "$f" --import-path src/pycsl --provers "Alt-Ergo,2.6.3,,Z3,4.13.3," > getting-better/proofs49/$n.log 2>&1
