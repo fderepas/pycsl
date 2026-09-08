@@ -134,3 +134,41 @@ not.
 * Both-branches-`None` does not leak (the record survives).
 * The four shapes route #44 closes (witnesses `1053`–`1055` are route #42's; route #44's are
   `1058`–`1061`) are unaffected — they are all straight-line.
+
+## RELAUNCH #49 BUILT THE PRE-SCAN, AND IT WORKS — BUT ITS OPACITY IS THE WRONG TYPE
+
+The pre-scan designed by #48 was implemented in full (patch:
+`scratchpad/w49/r46_prescan.patch`, 234 lines, against `90fed0c9`) and MEASURED. What it does:
+
+* **BOTH reproducers fail closed.** `j1_none_branch_leak.py` (the `None` join) goes from
+  `[+] SUCCESS` to `FAILED`, and `nan_branch_leak2.py` (the NaN join) is refused outright.
+* **The NaN half needed a SECOND device, and route #45 is why.** Making an ambiguous name's
+  VALUE opaque does not close `x == x` — an opaque int is still equal to itself. So the
+  pre-scan marks NaN-ambiguity distinctly (`AMBIG#nan`, INCLUDING names that inherit the taint
+  through arithmetic, since IEEE 754 makes every operation with a NaN operand NaN) and the
+  comparison is REFUSED (`PYCSL-WHYML-AMBIGUOUS-NAN-COMPARISON`).
+* **Controls hold**: `x = None; y = None; x == y` still proves (the shared-singleton control),
+  and `x = None; if x:` still proves `\result == 0` (the faithful-truthiness control).
+
+**WHY IT IS NOT LANDED: the per-name opaque is an INT, and ambiguous locals are not all ints.**
+Measured on the mirror emission (all 53 files emit, 7 move, 73 lines):
+
+    frontend/Module2_Parser  3   frontend/Module5_IREmitter  5   frontend/pure_ast 14
+    module6_whyml/expressions 7  module6_whyml/statements 18     module6_whyml/stmt_control_flow 9
+    module6_whyml/types 17
+
+and the `types.py` and `Module2_Parser` hunks are ILL-TYPED — `pycsl_erased_receiver_name`
+(an `int`) fed into `str_eq_op` and `str_concat_op`, which is the EXACT type error the "sticky
+record" variant hit and which #48 recorded as the reason a type gate is load-bearing. The gate
+IS there (`symbol_table` type in `int`/`bool`/`Any`/unset) and it is NOT ENOUGH: an unannotated
+str local carries the tag `Any`, so the symbol table cannot distinguish it from an int local.
+
+**THAT MEASUREMENT IS WHAT FOUND ROUTE #50** (`getting-better/open-routes/route50-*.md`): the
+poisoned `receiver_name` is an `Optional[str]`, and reading why its emission was a string sent
+me to `if receiver_name is None or field_name is None:` → `if false || false`.
+
+**THE TWO ROUTES SHARE ONE REPAIR.** Route #50's reopening capability is a STRING-typed opaque
+`val function pycsl_none_str : string`; the pre-scan's per-name opaque needs exactly the same
+thing one name at a time (`pycsl_erased_str_<n> : string`). Neither should be built without the
+other, and the type a local's opaque must take is the WhyML type the emitter ALREADY gives its
+`ref` (`ref ""` vs `ref 0`), not the symbol table's Python tag — that is the measured lesson.
