@@ -1,4 +1,5 @@
-# OPEN ROUTE #46 — route #44's `None` record is FLOW-INSENSITIVE, and a BRANCH walks past it
+# OPEN ROUTE #46 — THE ERASED-LOCALS RECORD IS FLOW-INSENSITIVE, AND A BRANCH WALKS PAST IT
+# (it now carries TWO route's facts: route #44's `None` and route #45's NaN)
 
 **Found 2026-09-08 by relaunch #48 while closing route #44, at commit `c9bb23b2`.
 NOT CLOSED — the residue is measured, and the obvious repair was BUILT and REFUTED.**
@@ -56,11 +57,42 @@ used to REFUSE; route #44's are used to DECIDE.**
 
 A real JOIN at `_handle_if_stmt`: save the record before the branches, emit each branch from
 the saved state, and merge by UNION (a name recorded in EITHER branch stays recorded after
-the join, and its `_to_bool` arm must then become opaque rather than `false`, because
-falsiness is no longer certain). The cost is honest and was measured: `_handle_if_stmt` is
+the join, and its `_to_bool` arm must then become opaque rather than decided — `false` for
+`None` and `true` for NaN are both PATH facts, and after a join neither is certain). ONE
+build closes it for BOTH routes, which is the argument for doing it rather than patching
+each record kind. The cost is honest and was measured: `_handle_if_stmt` is
 an UNTRUSTED mirror method, so the build owes a verbatim mirror body sync, an extension of
 its `assigns` clause to include `_erased_truthy_locals` (the frame plane will demand it),
 and a whole-file re-proof of `module6_whyml/stmt_control_flow.py`.
+
+## IT AFFECTS ROUTE #45's NaN RECORD TOO — same dict, same join, second demonstration
+
+```python
+#@ requires c > 0
+#@ ensures \result == 7
+#@ assigns \nothing
+def f(c: int) -> int:
+    if c > 0:
+        x = float("nan")
+    else:
+        x = 1
+    if x == x:            # Python with c > 0: `nan == nan` is False -> f(1) returns 0
+        return 7
+    return 0
+```
+PROVES at `230c9a43`, i.e. WITH route #45's fix in place. The `else` branch's `x = 1` clears
+the NaN record the `then` branch set, so the guard falls through to ordinary int
+reflexivity. Reproducer: `scratchpad/w48/probe/nan_branch_leak2.py`.
+
+**The `else` branch's TYPE matters, and that is worth knowing before building the join.**
+The same shape with `x = 1.0` in the `else` FAILS CLOSED — a float-typed `x` routes through
+the `real` comparison path, which does not decide reflexivity either. So the leak needs the
+other branch to bind something the model types as `int`. That is luck, not design.
+
+**What does NOT leak, measured:** `x = float("nan"); x = x; if x == x:` fails closed,
+because route #45's recognizer descends a `Var` RHS and re-records the name. Propagation
+through arithmetic and through a plain re-binding both work; it is only the JOIN that does
+not.
 
 ## What is NOT affected, so the residue is not overstated
 

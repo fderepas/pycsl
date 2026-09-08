@@ -5,7 +5,9 @@
   * **`route46-none-branch-join.md`** — route #44's `None` record is flow-insensitive, so
     a `None` bound in ONE branch of an `if` and something else in the other walks past it.
     The obvious repair (a STICKY record) was BUILT and REFUTED TWICE, both times measured;
-    read that section before re-attempting it.
+    read that section before re-attempting it. IT NOW CARRIES TWO ROUTES' FACTS — route
+    #45's NaN record leaks through the same join (`if c > 0: x = float("nan") else: x = 1`
+    then `x == x` PROVES), so ONE join build closes both.
 
 CLOSED BY RELAUNCH #48, kept here as the record of how:
 
