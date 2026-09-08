@@ -24,7 +24,7 @@ def test_floating_point_literals(x: float) -> int:
     The precondition also exercises the CHAINED COMPARISON in a clause, which relaunch #48
     made mean the conjunction it reads as (§T.5.12j) — before that it was
     `((1.49 < x) < 1.51)` and type-rejected."""
-    if x > 1.490 and x < 151e-2:
+    if x > 1.490 and x < 1.40:
         return 0
     return 1
 

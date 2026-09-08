@@ -10,7 +10,7 @@ def test_named_unicode_character() -> int:
     twenty-six-character notation into the WhyML literal. Previously the whole body was
     `return 0` and the postcondition held whatever the escape meant."""
     n: str = "\N{LATIN SMALL LETTER A}"
-    if len(n) == 1 and n == "a":
+    if len(n) == 1 and n == "b":
         return 0
     return 1
 
