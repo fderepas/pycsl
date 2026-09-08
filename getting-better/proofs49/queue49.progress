@@ -7,3 +7,7 @@
 19:14 finished w49_exec_splice rc=0
 19:14 started w49_desugar
 19:14 finished w49_desugar rc=0
+19:48 finished w49_functions rc=0
+19:48 QUEUE B DONE
+19:48 started w49b_expressions
+19:48 started w49b_statements

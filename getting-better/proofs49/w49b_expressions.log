@@ -1,0 +1,14 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/expressions.py'...
+[*] Memory model: hoare
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1604: UserWarning: Function 'expressionemissionmixin___dv_store_value': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(func.get("body", []) or [], union_vars, func.get("name", "?"))
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:99: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union__dotted_ensures_suffix_3'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+[*] Imported class from 'ir_schema': AtExpr (record + 0 method stub(s) + 18 helper(s))
+[*] Imported class from 'ir_schema': IfExprExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': NamedExprExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': OldExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': UnaryOpExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'errors': PyCSLSemanticError (record + 0 method stub(s) + 2 helper(s))
+[*] Imported from 'module6_whyml.identifiers': ['op_translate', 'whyml_ident', 'stable_hash'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
