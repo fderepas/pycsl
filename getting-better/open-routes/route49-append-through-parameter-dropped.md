@@ -64,6 +64,23 @@ cross-call `append` is silently dropped.
 Reproducers: `scratchpad/w48/probe/w1_append_param.py`, `y1_append_nothing.py`,
 `y2_append_method.py`, and the control `x7_elem_write.py`.
 
+## THE PLANE THAT SHOULD HAVE CAUGHT IT DID NOT, AND ITS LIMIT IS HONEST
+
+`bin/check-dropped-mutation.py` reports **0 dropped** at the same commit where this route
+proves, and that is not a bug in the plane: its stated population is Module 5's
+ASSIGNMENT-FAMILY statements — "a shape no branch matches produces no IR at all". Route #49
+is a MODULE 6 lowering of a `.append` CALL. The statement IS in the IR; it is the LOWERING
+that writes a local copy. So the two are disjoint by construction, and the campaign has no
+instrument for the second half.
+
+**REOPENING CAPABILITY FOR THE INSTRUMENT** (worth more than the route): a plane that
+enumerates, for each list/dict/set MUTATOR method (`append`, `pop`, `insert`, `clear`,
+`extend`, `remove`, `add`, `discard`, `update`, `setdefault`, …), how Module 6 lowers it
+when the RECEIVER is a formal PARAMETER, and classifies each as CALLER-VISIBLE / REFUSED /
+DROPPED. Route #49 is exactly one cell of that table — `append` DROPPED while its four
+siblings were REFUSED — and the table is what makes the asymmetry visible without probing
+each one by hand.
+
 ## REOPENING CAPABILITY
 
 **REFUSE it**, exactly as `pop`/`insert`/`clear`/`extend` are already refused — a designed
