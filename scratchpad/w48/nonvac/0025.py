@@ -8,7 +8,7 @@ def test_hexadecimal_character() -> int:
     the obligation: it holds only if the front end decodes the escape rather than
     carrying the four-character notation through. Previously the body was `return 0`."""
     h = "\x41"
-    if len(h) == 1 and h == "A":
+    if len(h) == 1 and h == "B":
         return 0
     return 1
 

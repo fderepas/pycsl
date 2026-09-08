@@ -9,7 +9,7 @@ def test_string_prefixes() -> int:
     body was `return 0` and the postcondition held whatever the prefix meant."""
     plain = "\n"
     raw = r"\n"
-    if len(plain) == 1 and len(raw) == 2:
+    if len(plain) == 1 and len(raw) == 3:
         return 0
     return 1
 

@@ -12,7 +12,7 @@ def test_binding_of_names() -> int:
     x = x + 1
     y = x
     x = 99
-    if x == 99 and y == 2:
+    if x == 99 and y == 3:
         return 0
     return 1
 

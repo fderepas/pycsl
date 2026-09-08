@@ -10,7 +10,7 @@ def test_string_literal_concatenation() -> int:
     understood at all."""
     a = "ab" "cd"
     b = "abcd"
-    if a == b and len(a) == 4:
+    if a == b and len(a) == 5:
         return 0
     return 1
 
