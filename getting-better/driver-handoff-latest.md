@@ -1,3 +1,130 @@
+# ===================== START HERE — #48 (INTERIM, window 4 in progress) ==========
+#
+# THIS BLOCK IS WRITTEN MID-WINDOW so a cold restart loses nothing. It is rewritten
+# at the window's end with final numbers. Everything below the "#47" heading is the
+# previous history, unchanged.
+#
+# ## WHAT THIS WINDOW HAS DONE SO FAR
+#
+# **ROUTE #42 CLOSED AND FULLY BANKED**, and FOUR MORE ROUTES FOUND (#44, #45, #47,
+# #48, #49 — five open at their discovery, two of them since fixed and staged), TWO
+# NEW PLANES WRITTEN (the 25th and 26th), one CAPABILITY landed, and TWENTY-THREE
+# vacuous drivers converted.
+#
+#   ROUTE #42 — `<int> is True` proved `\result == 7` where Python says False.
+#     CLOSED at `bee3564c`, banked at `d7ce974c`. `is` was given its OWN IR OPERATOR
+#     (`ast.Is` -> `"is"`), narrowed back to `==`/`!=` in `Module5_IREmitter.
+#     generate_json` carrying the ADDITIVE `py_is` marker, and the bool-singleton test
+#     is WHITELISTED in `_expr_to_whyml` — admitted only when the emitter can SHOW the
+#     operand is a Python `bool`. Witnesses 1053-1057. ALL FOUR PLANES GREEN: fidelity
+#     unchanged, corpus byte-diff 0 over 863, suite 3183/3202 ZERO XPASS with the same
+#     nineteen failures, and the ONE changed mirror re-proved rc=0 at 2109 goals —
+#     EXACTLY the count #46 recorded for it.
+#
+#   ROUTE #44 — `None` WAS THE INTEGER ZERO. Four shapes, and the fourth needs no
+#     branch: the CONTRACT `#@ ensures \result == None` PROVED for a function returning
+#     0. Landed at `c8a58cc9`. Route #41's opaque-value device with a SHARED constant
+#     (`None` really is one object, so `x = None; y = None; x == y` must stay provable),
+#     truthiness kept FAITHFUL as `false`, and a faithful `\result != None` arm GATED ON
+#     THE PYTHON RETURN ANNOTATION — the WhyML type alone would have fired on an
+#     `Optional[_Tok]` return degenerated to `int` and handed callers a false guarantee.
+#     Witnesses 1058-1064.
+#
+#   ROUTE #45 — NaN BREAKS THE REFLEXIVITY OF `==`, AND OPACITY CANNOT FIX IT. This is
+#     the first route whose repair could NOT be "make the value opaque": the value was
+#     ALREADY opaque and an opaque constant is still equal to itself. NaN's comparison
+#     semantics are TOTALLY DETERMINED, so the lowering is EXACT — which makes this the
+#     campaign's first repair that increases COMPLETENESS as well as soundness (three
+#     true contracts that could not be discharged now prove). Landed at `49a7334a`.
+#     Witnesses 1065-1069.
+#
+#   CAPABILITY — a CHAINED COMPARISON in a `#@` clause now means the CONJUNCTION. It had
+#     never meant anything: `0 <= x <= 3` lowered to `((0 <= x) <= 3)`, type-rejected.
+#     MEASURED BYTE-INERT on both planes (0 of 875 corpus, 0 of 53 mirrors), so it cost
+#     no re-proof. `pycsl-reference/0969`'s docstring claimed the opposite and is
+#     corrected in place. Landed `4f734829`, witnesses 1074-1075.
+#
+# ## WHAT IS STAGED AND NOT YET LANDED — READ THIS FIRST ON A COLD START
+#
+# THREE routes are FIXED, WITNESSED and MEASURED but deliberately NOT in the tree,
+# because the #44/#45 mirror re-proof queue was still running and three of their six
+# mirrors overlap it. The patches and witnesses are on disk:
+#
+#   * `/tmp/w48spike/r47.patch`  — route #47 (getattr default), applies to
+#     `src/pycsl/module6_whyml/expressions.py`. Witnesses `/tmp/w48spike/107*_route47*.py`
+#     (also in the `/tmp/pycsl-w48-spike` worktree's corpus).
+#   * route #48 (seeded collection) — the patch text is inline in the spike worktree
+#     `/tmp/pycsl-w48-spike`; witnesses 1076-1079 in its corpus.
+#   * `/tmp/w48spike/r49.patch` — route #49 (append through a parameter), applies to
+#     `src/pycsl/module6_whyml/statements.py`. Witnesses 1080-1082 in the
+#     `/tmp/pycsl-w48-chain` worktree's corpus, plus the REWRITTEN `0406.py`/`0407.py`
+#     there (they are the only two corpus files the refusal costs).
+#   * `/tmp/w48spike/apply_docs.py` — the §T.5.12k/l/m doc sections for all three.
+#
+#   IF THE WORKTREES ARE GONE, all three are fully specified in
+#   `getting-better/open-routes/route4{7,8,9}-*.md` with their measurements.
+#
+#   MEASURED FOR ALL THREE TOGETHER: corpus byte-diff ZERO (except the two rewritten
+#   detector drivers), mirror emission SIX files (desugar, exec_splice, expressions,
+#   functions, statements, stmt_control_flow), all six L3-tc GREEN, mirror-coverage
+#   550/41, metric 456/481/25. Every witness negative-tested BOTH ways.
+#
+# ## THE TWO NEW PLANES
+#
+#   `bin/check-singleton-constant-lowering.py` (25th) — every `if` keyed on an IR NODE
+#   KIND whose body answers a Why3 CONSTANT. That is the shape behind routes #40, #41,
+#   #42, #43 and #44. IT FOUND ROUTE #47 WITHIN MINUTES OF BEING WRITTEN, and then it
+#   caught its own author: routes #44 and #45 each added an arm and the plane went RED
+#   on both (both faithful, both now classified with the corpus control that holds them).
+#
+#   `bin/check-param-mutator-visibility.py` (26th) — EXECUTABLE, not static. For each
+#   (receiver type, mutator) cell it GENERATES a driver whose caller asserts the
+#   collection is unchanged after a mutating call — a contract FALSE of the program —
+#   and runs the real pipeline: raises => REFUSED, proves => DROPPED, fails =>
+#   CALLER-VISIBLE. Ten cells; exactly ONE is DROPPED (`a.append(1)`, route #49) against
+#   five REFUSED siblings and four CALLER-VISIBLE write forms.
+#
+# ## THE METHOD THAT FOUND #48 AND #49, and it is the transferable part
+#
+# **GREP THE EMITTER FOR ITS OWN SOUNDNESS CLAIMS AND PROBE EACH ONE.**
+# `grep -rn "sound over-approx\|fails-safe\|always-present\|sound under-approx"
+# src/pycsl/module6_whyml/` gives about thirty; most are gated to mirror-only shapes, and
+# the corpus-reachable ones are a short list. The FIRST one probed was route #48, whose
+# comment claimed "a sound under-approximation ... never proves falsely" — the exact
+# claim the measurement refutes. The second was route #49.
+#
+# ## OTHER MEASURED FINDINGS RECORDED THIS WINDOW
+#
+#   * `check-dropped-mutation`'s population is DISJOINT from route #49 (Module 5
+#     statements vs a Module 6 lowering) — the 26th plane exists because of it.
+#   * the vacuous-driver EMPTY classifier had a FALSE-POSITIVE CLASS: 39 of its 47
+#     pycsl-reference "empty placeholders" carry real proof obligations (inductive
+#     predicates, cited recursive lemmas, string-containment logic terms, refusal tests).
+#     Tightened to the conjunction; 47 -> 8, python-reference unchanged at 55.
+#   * TWO fail-closed completeness gaps, both recorded IN the drivers that hit them:
+#     `needs_string` misses files whose strings come only from UNANNOTATED locals, so
+#     `concat` is unbound and every contract over a concatenation fails (0031); and float
+#     EQUALITY in a program guard is not modelled, only the orderings (0035).
+#   * ~60 shapes probed across ten families with NO finding — the list is in
+#     `getting-better/driver-progress.log` so nobody re-probes them. Notably the
+#     division/modulo model is FAITHFUL to Python's FLOORED semantics, not Euclidean.
+#
+# ## STATE
+#
+#   metric            markers 456 / grep 481 / offset 25 — UNCHANGED all window. A
+#                     refusal, a whitelist and an opaque value all cost the trust
+#                     surface nothing.
+#   planes            the full static battery is rc=0 on the landed tree (twenty
+#                     scripts, listed in the progress log), plus the two new ones.
+#   fidelity          sync 2 DIVERGED / mirror-check 3 drifted — BYTE-IDENTICAL to
+#                     HEAD's own runs, i.e. the pre-existing pair and trio.
+#   vacuous ratchets  python-reference 105/78 -> 82/55, pycsl-reference 9/47 -> 9/8.
+#   OWED              the #44/#45 mirror re-proof queue (5 files) was still running when
+#                     this block was written; then routes #47/#48/#49 land with their own
+#                     6-file queue; then ONE full reference suite over everything.
+#
+# ==========================================================================
+
 # ===================== #47 COLD-START VERIFICATION (12-minute window) =============
 #
 # I am worker #47. My whole window was ~12 minutes, so I did NOT advance the ladder.
