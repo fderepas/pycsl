@@ -1,3 +1,11 @@
+# CLOSED — ROUTE #47 — CLOSED by relaunch #48 at `5342bea1`. Witnesses `pycsl-reference/1070`-`1073`.
+#
+# The entry below is kept VERBATIM as the record of how it was found, measured and
+# scoped. Everything it says about the DEFECT still holds; everything it says about the
+# route being open no longer does.
+
+---
+
 # OPEN ROUTE #47 — `getattr(o, <absent>, {})` IS THE INTEGER ZERO, and so is the
 # no-default form that Python answers with an AttributeError
 

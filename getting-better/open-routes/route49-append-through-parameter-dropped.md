@@ -1,3 +1,11 @@
+# CLOSED — ROUTE #49 — CLOSED by relaunch #48 at `dfa01b0d`, BOTH shapes. Witnesses `pycsl-reference/1080`-`1084`.
+#
+# The entry below is kept VERBATIM as the record of how it was found, measured and
+# scoped. Everything it says about the DEFECT still holds; everything it says about the
+# route being open no longer does.
+
+---
+
 # OPEN ROUTE #49 — IN-PLACE GROWTH OF A LIST **PARAMETER** IS INVISIBLE TO THE CALLER
 # (TWO SHAPES: `a.append(x)` and `a += [x]`)
 

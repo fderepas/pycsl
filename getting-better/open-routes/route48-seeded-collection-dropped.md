@@ -1,3 +1,11 @@
+# CLOSED — ROUTE #48 — CLOSED by relaunch #48 at `5342bea1`. Witnesses `pycsl-reference/1076`-`1079`.
+#
+# The entry below is kept VERBATIM as the record of how it was found, measured and
+# scoped. Everything it says about the DEFECT still holds; everything it says about the
+# route being open no longer does.
+
+---
+
 # OPEN ROUTE #48 — a SEEDED `Counter` / `OrderedDict` / `defaultdict` drops its seed, and
 # the empty map's missing-key default is then DECIDED ON
 

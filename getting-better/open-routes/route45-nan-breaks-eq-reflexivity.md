@@ -1,3 +1,11 @@
+# CLOSED — ROUTE #45 — CLOSED by relaunch #48 at `49a7334a`. Witnesses `pycsl-reference/1065`-`1069`.
+#
+# The entry below is kept VERBATIM as the record of how it was found, measured and
+# scoped. Everything it says about the DEFECT still holds; everything it says about the
+# route being open no longer does.
+
+---
+
 # OPEN ROUTE #45 — `float("nan") == itself` proves, and OPACITY CANNOT FIX IT
 
 **Found 2026-09-08 by relaunch #48, at commit `0f3906bd`. NOT CLOSED — measured, scoped,

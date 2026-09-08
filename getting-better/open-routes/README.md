@@ -1,37 +1,32 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: routes #45, #46, #47, #48 and #49, all found by relaunch #48.
+## CURRENTLY OPEN: ONE — route #46, found by relaunch #48 while closing route #44.
 
-  * **`route45-nan-breaks-eq-reflexivity.md`** — `x = float("nan"); if x == x:` proves a
-    contract false of its program. NOT the same shape as #40/#41/#43/#44: the value is
-    ALREADY opaque and an opaque constant is still equal to itself, so the campaign's
-    standing opaque-value repair does not apply. The faithful repair is named and is a
-    COMPLETENESS WIN as well as a soundness one.
   * **`route46-none-branch-join.md`** — route #44's `None` record is flow-insensitive, so
     a `None` bound in ONE branch of an `if` and something else in the other walks past it.
     The obvious repair (a STICKY record) was BUILT and REFUTED TWICE, both times measured;
     read that section before re-attempting it.
-  * **`route47-getattr-default-erasure.md`** — `getattr(o, <absent>, {})` is the integer
-    `0`, and so is `getattr(o, <absent>)`, which in Python raises `AttributeError` and has
-    no value at all. FOUND BY `bin/check-singleton-constant-lowering.py` within minutes of
-    that plane being written, which is the argument for the plane.
-  * **`route48-seeded-collection-dropped.md`** — `Counter([1,1,2])[1] == 0` proves; the
-    seed is dropped and the empty map's missing-key default is the decidable integer 0.
-    Found by READING THE EMITTER'S OWN SOUNDNESS CLAIMS and probing each: the comment
-    said "a seeded iterable is modelled as empty (a sound under-approximation ... never
-    proves falsely)", and that is precisely the claim the measurement refutes.
-  * **`route49-append-through-parameter-dropped.md`** — `a.append(x)` on a list PARAMETER
-    is appended to a local SNAPSHOT, the callee gets no `writes` clause, and the caller
-    therefore PROVES the length unchanged. `append` is the odd one out of its own family:
-    `pop`/`insert`/`clear`/`extend` are already refused, element and dict writes ARE
-    caller-visible, and the same-function case is faithful.
+
+CLOSED BY RELAUNCH #48, kept here as the record of how:
+
+  * **#42** (`<int> is True`) — `is` was given its own IR operator and the bool-singleton
+    test is whitelisted. Witnesses `pycsl-reference/1053`-`1057`. `bee3564c`.
+  * **#44** (`None` was the integer 0, including the CONTRACT `ensures \result == None`
+    proving for a function returning 0) — a shared opaque, faithful truthiness, and a
+    return-annotation-gated faithful arm. Witnesses `1058`-`1064`. `c8a58cc9`.
+  * **#45** (NaN breaks the reflexivity of `==`) — an EXACT lowering, because NaN's
+    comparison semantics are totally determined. Witnesses `1065`-`1069`. `49a7334a`.
+  * **#47** (a `getattr` default, and the no-default form Python answers with an
+    `AttributeError`, were the integer 0) — an opaque keyed on the default's IR hash.
+    Witnesses `1070`-`1073`. `5342bea1`.
+  * **#48** (a SEEDED `Counter`/`OrderedDict`/`defaultdict` dropped its seed and the empty
+    map's missing-key default was DECIDED on) — an opaque keyed on the seed's IR hash, with
+    the FACTORY form deliberately untouched. Witnesses `1076`-`1079`. `5342bea1`.
+  * **#49** (in-place growth of a list PARAMETER was modelled as ABSENT, in BOTH the
+    `.append` and the `+=` shape) — refused, making the mutator family consistent.
+    Witnesses `1080`-`1084`. `dfa01b0d`.
 
 
-ROUTE #42 (`<int> is True` proved a contract FALSE of its program) was CLOSED by
-relaunch #48 at commit `bee3564c` — `is` was given its own IR operator and the
-bool-singleton test is now whitelisted. Its witnesses moved into the corpus as
-`pycsl-reference/1053`-`1057`. `route42-is-bool-singleton.md` is kept, with a CLOSED
-header on top of the original entry, as the record of how.
 
 The ROUTE #36 RESIDUE (`x = 0; for x in a: pass; return x`) was closed later the same
 window and its reproduction moved into the corpus as `pycsl-reference/1027`. The
