@@ -1,6 +1,6 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: routes #45, #46 and #47, all found by relaunch #48.
+## CURRENTLY OPEN: routes #45, #46, #47 and #48, all found by relaunch #48.
 
   * **`route45-nan-breaks-eq-reflexivity.md`** — `x = float("nan"); if x == x:` proves a
     contract false of its program. NOT the same shape as #40/#41/#43/#44: the value is
@@ -15,6 +15,11 @@
     `0`, and so is `getattr(o, <absent>)`, which in Python raises `AttributeError` and has
     no value at all. FOUND BY `bin/check-singleton-constant-lowering.py` within minutes of
     that plane being written, which is the argument for the plane.
+  * **`route48-seeded-collection-dropped.md`** — `Counter([1,1,2])[1] == 0` proves; the
+    seed is dropped and the empty map's missing-key default is the decidable integer 0.
+    Found by READING THE EMITTER'S OWN SOUNDNESS CLAIMS and probing each: the comment
+    said "a seeded iterable is modelled as empty (a sound under-approximation ... never
+    proves falsely)", and that is precisely the claim the measurement refutes.
 
 
 ROUTE #42 (`<int> is True` proved a contract FALSE of its program) was CLOSED by
