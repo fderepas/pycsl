@@ -475,7 +475,30 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # the route-#41 opaque READ in `_expr_to_whyml` fires on every recorded name.
         # One dict, two consumers — deliberately NOT a second attribute, which would
         # move `bin/check-mirror-field-parity.py` and owe a mirror field declaration.
-        if vt in ("GenExp", "UnknownPyExpr"):
+        # (#48) ROUTE #44 — `None` WAS THE INTEGER ZERO, AND THAT IS THE FIFTH TIME.
+        #   `x = None` bound the local to the literal `0`, so `x == 0` was decidably TRUE
+        #   in the model and is False in Python, and `x + 5` proved `\result == 5` where
+        #   Python raises `TypeError`. Recorded through the SAME dict routes #25/#26/#27
+        #   and #41 use, under the `#empty` suffix so `_to_bool` leaves it alone —
+        #   `bool(None)` IS False, so the literal `0` is the FAITHFUL truth value and only
+        #   the VALUE needs to be opaque. `_expr_to_whyml` turns a READ of such a name into
+        #   the SHARED `pycsl_none`; shared and not per-name because `None` really is ONE
+        #   object, so `x = None; y = None; x == y` must (and does) stay provable.
+        #
+        #   THE RECORD IS LINEAR, NOT STICKY, AND THAT IS A MEASURED CHOICE. Rebinding
+        #   clears it, exactly as route #41 established, so a `None` bound in ONE branch of
+        #   an `if` and something else in the other leaks past it (witness: the reproducer
+        #   in `getting-better/open-routes/route46-none-branch-join.md`). The sticky
+        #   alternative — never clear a `None` record — was BUILT AND MEASURED and is
+        #   REJECTED because it introduces a NEW unsoundness of its own: `_to_bool` reads
+        #   the same dict, so a `cls = None; cls = <str>; if cls:` guard collapsed to the
+        #   literal `false` on a path where the string is non-empty (measured in the
+        #   `module6_whyml/types.py` mirror emission). The truth `bool(x) is False` is only
+        #   valid on the path that bound `None`, and a flow-INSENSITIVE record cannot say
+        #   that. The reopening capability is a real join at `_handle_if_stmt`.
+        if vt == "None":
+            self._erased_truthy_locals[target] = "None#empty"
+        elif vt in ("GenExp", "UnknownPyExpr"):
             self._erased_truthy_locals[target] = vt
         elif vt in ("SetLit", "Tuple", "MkTuple"):
             self._erased_truthy_locals[target] = (

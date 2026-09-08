@@ -522,6 +522,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # by measurement.
         if t == "Var" and not self._in_spec:
             _etk = getattr(self, "_erased_truthy_locals", {}).get(ir_expr.get("name"))
+            # (#48) ROUTE #44: `bool(None)` IS False, so the truthiness of a `None`-bound
+            # local is FAITHFUL as `false` — DECIDED, not opaque, and not refused. Only the
+            # VALUE is opaque. Without this arm `x = None; if x:` stops proving
+            # `\result == 0`, a completeness loss on a shape the model gets exactly right
+            # (corpus control 1064).
+            if _etk == "None#empty":
+                return "false"
             # (#46) an EMPTY set/tuple literal is recorded too (route #41 needs the
             # VALUE opaque), but its TRUTHINESS is faithful — Python agrees the empty
             # container is falsy — so the `#empty` suffix is skipped here.
@@ -5055,6 +5062,52 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     and getattr(self, "_current_self_type", None)
                     in getattr(self, "_mutable_state_classes", set())):
                 return "false" if raw_op == "==" else "true"
+            # (#48) ROUTE #44 — THE `is None` FALL-THROUGH DECIDED AGAINST THE INTEGER 0.
+            #
+            #   Every recognizer above models a `None` test FAITHFULLY, each for a shape
+            #   whose optionality the model actually carries. What sat underneath them was
+            #   neither a refusal nor an opaque value: the comparison fell through to
+            #   `op_translate` with the `None` node lowered to the literal `0`, so
+            #   `<int> is None` became `!x = 0` — DECIDED, and decided the wrong way:
+            #
+            #     x = 0; if x is None: return 7   -> `\result == 7` PROVED. Python: 0
+            #     #@ ensures \result == None   (on `-> int`, body `return 0`)
+            #                                     -> PROVED. Python: `0 == None` is False
+            #
+            #   The second is the worse of the two and the one to remember: a CONTRACT
+            #   false of its program proves DIRECTLY, no branch involved — any function
+            #   returning 0 could carry it and be "verified" (witnesses 1059 / 1061).
+            #
+            #   TWO ARMS, and the order matters. First the FAITHFUL one: a `\result` whose
+            #   function DECLARES a plain scalar return can never be the `None` singleton,
+            #   so `\result != None` is `true` and `\result == None` is `false` —
+            #   semantically exact, and it is what `pycsl-reference/0229` had been getting
+            #   only BY ACCIDENT, as `result <> 0`. Then the OPAQUE one: everything else
+            #   compares against `pycsl_none`, which has no defining axiom, so the guard
+            #   becomes undecidable instead of wrong. `None == None` still proves — both
+            #   sides are the one singleton, which is exactly Python's answer.
+            #   The faithful arm is gated on the PYTHON RETURN ANNOTATION and not on the
+            #   WhyML return type alone, and that gate is load-bearing: an
+            #   `Optional[_Tok]` return DEGENERATES to the WhyML type `int`, so
+            #   `_func_return_type` alone would have fired on `_Parser.accept_op`
+            #   (`ensures \result != None ==> self.i > \old(self.i)`) and lowered its
+            #   antecedent to `true` — handing every CALLER an unconditional guarantee that
+            #   is FALSE on the `return None` path. MEASURED: that is exactly what the first
+            #   draft emitted into the `Module5_IREmitter` and `Module3_Weaver` mirrors.
+            if (isinstance(_nn, dict) and _nn.get("type") == "Result"
+                    and getattr(self, "_func_return_type", None) in (
+                        "int", "str", "float", "bool", "bytes")
+                    and getattr(self, "_module_method_return_annotations", {}).get(
+                        getattr(self, "_current_emitting_func", "") or "") in (
+                        "int", "str", "float", "bool", "bytes")):
+                return "false" if raw_op == "==" else "true"
+            self._add_abstract_op("val function pycsl_none : int")
+            if isinstance(_nn, dict) and _nn.get("type") == "None":
+                _o44 = "pycsl_none"
+            else:
+                _o44 = self._expr_to_whyml(_nn, local_refs, invariant_ctx, subst)
+            _c44 = f"({_o44} = pycsl_none)"
+            return _c44 if raw_op == "==" else f"(not {_c44})"
         op = op_translate(raw_op)
         # no-more-int Stage D: float arithmetic/comparison is over Why3 `real` (RealInfix
         # `+.`/`-.`/`*.`/`/.`/`<.`/…), not int. Both operands must be float; a mixed float/int
@@ -15377,6 +15430,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         #   THE BINDING IS LEFT ALONE (`x := 0` still), so nothing about the statement
         #   emission moves; only a READ of such a name changes. `_erased_truthy_locals`
         #   is cleared on rebinding, so `x = (1,2); x = 5; return x` is untouched.
+        # (#48) ROUTE #44 — A READ OF A `None`-BOUND LOCAL IS OPAQUE. Route #41's device,
+        #   one singleton later: `val function pycsl_none : int` with NO defining axiom.
+        #   SHARED, not per-name, and that is the whole difference from #41: an erased
+        #   generator and an erased tuple are DIFFERENT objects, so one constant would let
+        #   the model prove `x == y` for two of them — but `None` really is ONE object, so
+        #   the shared constant is the faithful model, and corpus control 1063 is what says
+        #   so (a per-name constant would make `x = None; y = None; x == y` undecidable
+        #   while Python is certain it is True). The BINDING is untouched (`x := 0` still),
+        #   so no statement emission moves; only a read changes.
+        if (isinstance(expr, dict) and expr.get("type") == "Var"
+                and getattr(self, "_erased_truthy_locals", {}).get(
+                    expr.get("name")) == "None#empty"):
+            self._add_abstract_op("val function pycsl_none : int")
+            return "pycsl_none"
         if (isinstance(expr, dict) and expr.get("type") == "Var"
                 and expr.get("name") in getattr(self, "_erased_truthy_locals", {})):
             _e41 = whyml_ident(expr["name"])
