@@ -15254,6 +15254,71 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if isinstance(expr, dict) and expr.get("py_ellipsis"):
             self._add_abstract_op("val function pycsl_ellipsis : int")
             return "pycsl_ellipsis"
+        # ROUTE #42 (relaunch #48) — THE BOOL-SINGLETON WHITELIST. `pycsl.py` narrowed
+        # the distinct `is`/`is not` IR operator back to `==`/`!=` and left the ADDITIVE
+        # `py_is` marker on the node; this is the ONE consumer that reads it.
+        #
+        #   Python's `X is True` is object identity against the `True` SINGLETON, so it
+        #   is False for every genuine `int` — `1 is True` is False — while `X == True`
+        #   is value equality and is True for `1`. Module 6 int-encodes `bool`, so both
+        #   would emit `X = 1` and the model would DECIDE the identity test wrongly (see
+        #   the four measured programs in `pycsl.py`'s route-#42 note).
+        #
+        #   WHITELIST, NOT BLACKLIST — the exact lesson routes #39 and #41 were about. A
+        #   type-directed REFUSAL ("refuse when the operand is an int-typed Var") is an
+        #   UNDER-APPROXIMATION: it leaves every Call-valued and every unannotated
+        #   operand unrefused, which is a blacklist keyed on a partial resolution and is
+        #   how #38's refusal got walked past twice. So the rule is inverted: `X is
+        #   <bool literal>` is admitted ONLY when the emitter can SHOW `X` is a Python
+        #   `bool` — a bool literal, a comparison/membership result, a `not`, or a local
+        #   the symbol table types `bool`. Everything else is REFUSED, fail-closed by
+        #   design, and the refusal names what it could not show.
+        #
+        #   BLAST RADIUS, MEASURED at HEAD before the build: ZERO `X is True/False` sites
+        #   in either corpus (every grep hit is prose in a docstring), ZERO in
+        #   `src/pycsl_lib`, and the mirror's eighteen tri-state sites all sit in
+        #   BESPOKE-modelled methods (`generic_fold.py`'s `(bool, bool)` `Optional[bool]`
+        #   lowerings) which never reach this handler. The refusal therefore costs no
+        #   program that exists anything, and buys the four exploits their fail-closed.
+        if (isinstance(expr, dict) and expr.get("py_is")
+                and expr.get("type") == "BinOp"):
+            _r42_l, _r42_r = expr.get("left"), expr.get("right")
+            _r42_other = None
+            if isinstance(_r42_l, dict) and _r42_l.get("type") == "Bool":
+                _r42_other = _r42_r
+            elif isinstance(_r42_r, dict) and _r42_r.get("type") == "Bool":
+                _r42_other = _r42_l
+            if _r42_other is not None:
+                _r42_ok = False
+                if isinstance(_r42_other, dict):
+                    _r42_t = _r42_other.get("type")
+                    if _r42_t == "Bool":
+                        _r42_ok = True                     # `True is True`
+                    elif (_r42_t == "BinOp" and _r42_other.get("op") in (
+                            "==", "!=", "<", "<=", ">", ">=", "in", "not in")):
+                        _r42_ok = True                     # a comparison yields a bool
+                    elif _r42_t == "UnaryOp" and _r42_other.get("op") == "not":
+                        _r42_ok = True                     # `not X` yields a bool
+                    elif (_r42_t == "Var"
+                          and getattr(self, "_current_symbol_table", {}).get(
+                              _r42_other.get("name")) == "bool"):
+                        _r42_ok = True                     # a `bool`-typed local/param
+                if not _r42_ok:
+                    from errors import PyCSLSemanticError as _R42Err
+                    raise _R42Err(
+                        "an IDENTITY test against a `bool` literal "
+                        "(`X is True` / `X is False`) is refused unless the emitter can "
+                        "SHOW `X` is a Python `bool` (ROUTE #42). `is` is object "
+                        "identity against a SINGLETON, so `X is True` is False for every "
+                        "genuine int — Python's `1 is True` is False — while PyCSL "
+                        "int-encodes `bool`, which would make the model decide the test "
+                        "as VALUE equality and prove the wrong branch: measured, "
+                        "`x = 1; if x is True: return 7` proved `\\result == 7` where "
+                        "Python returns 0. Here `X` is a `%s` the emitter cannot type as "
+                        "`bool`. Write `X == True`, or annotate `X` as `bool`."
+                        % (_r42_other.get("type")
+                           if isinstance(_r42_other, dict) else type(_r42_other).__name__,),
+                        stage="whyml-emit", code="PYCSL-R42-IS-BOOL-SINGLETON")
         # ROUTE #40's RESIDUE, and the FULL SUITE is what surfaced it. The literal
         # `...` is only half of the singleton; the BUILTIN NAME `Ellipsis` is the
         # other half, and it lowered to the literal `0` too. So:

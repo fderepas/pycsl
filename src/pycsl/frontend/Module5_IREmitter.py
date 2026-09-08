@@ -1543,7 +1543,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         ast.Eq: "==", ast.NotEq: "!=", ast.Lt: "<", ast.LtE: "<=", ast.Gt: ">", ast.GtE: ">=",
         ast.USub: "-", ast.UAdd: "+", ast.Not: "not", ast.Invert: "~",
         ast.In: "in", ast.NotIn: "not in",
-        ast.Is: "==", ast.IsNot: "!=",
+        # ROUTE #42 (relaunch #48) — `is` GETS ITS OWN IR OPERATOR. It used to map to
+        # `==`/`!=` here, and together with Module 6's bool-as-int convention that made
+        # `is` and `==` THE SAME OPERATOR on a bool literal: `x = 1; if x is True:`
+        # proved `\result == 7` while Python's `1 is True` is False. Identity is not
+        # equality, and the IR must be able to say so. `pycsl.py::_run_pipeline` narrows
+        # the distinct op back to `==`/`!=` for every downstream consumer (carrying it as
+        # the ADDITIVE `py_is` marker, so the corpus emission is byte-inert), and Module
+        # 6's `_handle_binop` reads that marker to WHITELIST the bool-singleton test.
+        ast.Is: "is", ast.IsNot: "is not",
         ast.BitAnd: "&", ast.BitOr: "|", ast.BitXor: "^",
         ast.LShift: "<<", ast.RShift: ">>", ast.Pow: "**",
     }
@@ -6038,4 +6046,64 @@ class Module5_IREmitter:
         normalize_stores(self.tree)
         emitter = PyCSLToJSONEmitter()
         emitter.visit(desugar_chained_comparisons(self.tree))
+        # ROUTE #42 (relaunch #48) — `is` IS NOT `==`, AND THE BOOL SINGLETON PROVED IT.
+        #
+        #   `_PY_OP_MAP` used to map `ast.Is`/`ast.IsNot` straight onto `"=="`/`"!="`, and
+        #   Module 6's documented bool-as-int convention rewrites a `Bool` literal operand
+        #   of `==`/`!=` to `1`/`0`. Each convention is defensible alone; together they
+        #   made `is` and `==` THE SAME OPERATOR on a bool literal, and Python says they
+        #   are not. MEASURED in the default hoare model, no flags, with Python run to
+        #   confirm every right-hand column:
+        #
+        #     x = 1; if x is True:     return 7  -> `\result == 7` PROVED. Python gives 0.
+        #     x = 0; if x is False:    return 7  -> `\result == 7` PROVED. Python gives 0.
+        #     x = 1; if x is not True: return 7  -> `\result == 0` PROVED. Python gives 7.
+        #     x = 1; if x == True:     return 7  -> PROVED, and CORRECT — the control that
+        #                                           localizes the defect to `is`.
+        #
+        #   THIS IS THE CAMPAIGN'S GENERAL SHAPE A FIFTH TIME: A PYTHON SINGLETON MODELLED
+        #   AS AN INTEGER LITERAL IS INDISTINGUISHABLE FROM THAT INTEGER INSIDE THE MODEL
+        #   (route #40 was `Ellipsis`, route #43 the complex literal, the `None` residue a
+        #   third). A genuine `int` is never the `True` singleton, so `<int> is True` is
+        #   False in Python for EVERY int, 1 included.
+        #
+        #   THE FIX IS THE ONE THE ROUTE FILE NAMED: GIVE THE IR A DISTINCT `is` OPERATOR
+        #   (`_PY_OP_MAP` now maps `ast.Is` -> `"is"`, `ast.IsNot` -> `"is not"`) and
+        #   narrow it back HERE, where the identity fact survives as the ADDITIVE `py_is`
+        #   key. The narrowing is deliberately SHAPE-PRESERVING: every existing recognizer
+        #   — the `is None` union/optional-carrier paths, the `is Ellipsis` PVEllipsis arm,
+        #   `_optfield_guard_name`, `recognize_collect_field_sites`, every `op == "=="`
+        #   test in Module 6, `ir_scanner`, `auto_trust`, `types` — sees EXACTLY the string
+        #   it saw before, and no existing consumer reads `py_is`, so THE CORPUS EMISSION
+        #   IS BYTE-INERT BY CONSTRUCTION (the `py_ellipsis` precedent of route #40).
+        #
+        #   PLACED HERE, IN `generate_json`, FOR THE REASON THE CHAINED-COMPARISON
+        #   NORMALIZATION ABOVE IS: it is the SINGLE CHOKE POINT both Module 5 entry paths
+        #   go through. The first draft of this pass sat in `pycsl.py::_run_pipeline` and
+        #   MEASURABLY MISSED the `ir_resolve.resolve` dependency sub-pipeline, which runs
+        #   its own `Module5_IREmitter(...)` — four mirror emissions changed, and two
+        #   bespoke recognizers (`recognize_collect_field_sites`, `_frame_trigger_term`)
+        #   silently fell back to abstract `val` stubs because their `!=` shape had become
+        #   `is not` in the imported module's IR. `generate_json` is `\trusted` in the
+        #   mirror, so this placement also costs no mirror-body sync.
+        #
+        #   THE REFUSAL ITSELF IS NOT HERE, AND THAT PLACEMENT IS LOAD-BEARING. A
+        #   frontend-level refusal walks EVERY function, including the eighteen
+        #   `classify(...) is not False` / `r is True` tri-state sites in the mirror's own
+        #   `module6_whyml/functions.py` — sites whose `Optional[bool]` IS modelled, by the
+        #   bespoke `(bool, bool)` lowerings in `module6_whyml/generic_fold.py`, and which
+        #   a blanket refusal would break outright. Those bespoke bodies never reach the
+        #   generic expression lowering, so the whitelist lives in `expressions.py`'s
+        #   `_expr_to_whyml`, where it sees exactly the sites the generic path decides.
+        def _r42_normalize_identity_ops(_n: Any) -> None:
+            if isinstance(_n, dict):
+                if _n.get("type") == "BinOp" and _n.get("op") in ("is", "is not"):
+                    _n["op"] = "==" if _n.get("op") == "is" else "!="
+                    _n["py_is"] = True
+                for _v in _n.values():
+                    _r42_normalize_identity_ops(_v)
+            elif isinstance(_n, list):
+                for _v in _n:
+                    _r42_normalize_identity_ops(_v)
+        _r42_normalize_identity_ops(emitter.program_ir)
         return json.dumps(emitter.program_ir, indent=indent)
