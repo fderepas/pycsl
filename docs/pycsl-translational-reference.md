@@ -1885,6 +1885,66 @@ models no complex arithmetic, and `c.real` / `c.imag` are not modelled either.
 
 ---
 
+### §T.5.12g  `is` is NOT `==`, and the bool singleton proved it
+
+`_PY_OP_MAP` mapped `ast.Is` -> `"=="` and `ast.IsNot` -> `"!="`, so by the time
+$\mathcal{T}_e$ saw a comparison the distinction between *identity* and *equality* was
+already gone. Separately, `_handle_binop`'s documented **bool-as-int convention** rewrites
+a `Bool` literal operand of `==`/`!=` to `1`/`0` (this is what makes the formal-test idiom
+`#@ ensures \result == True` lower correctly against an int-encoded `\result`). Each
+convention is defensible alone. Together they made `is` and `==` *the same operator* on a
+bool literal, and Python says they are not — `is` is object identity against a **singleton**,
+and a genuine `int` is never the `True` object (route #42, witnesses `1053`-`1055`):
+
+| program | model | Python |
+|---|---|---|
+| `x = 1; if x is True:` | taken | `1 is True` is **False** |
+| `x = 0; if x is False:` | taken | `0 is False` is **False** |
+| `x = 1; if x is not True:` | **not** taken | `1 is not True` is **True** |
+| `x = 1; if x == True:` | taken | `1 == True` is **True** — *correct*, the control |
+
+The last row is what localizes the defect: value equality was right all along.
+
+**The IR now has a distinct `is` operator.** `ast.Is` lowers to `"is"` and `ast.IsNot` to
+`"is not"`, and `Module5_IREmitter.generate_json` — the single choke point *both* Module 5
+entry paths go through, `pycsl.py`'s pipeline and `ir_resolve.resolve`'s dependency
+sub-pipeline — narrows the op back to `"=="`/`"!="` while recording the identity fact in an
+**additive** `py_is` key. Every existing recognizer (the `is None` union and
+optional-carrier paths, the `is Ellipsis` `PVEllipsis` arm, `_optfield_guard_name`,
+`recognize_collect_field_sites`, every `op == "=="` test in Module 6, `ir_scanner`,
+`auto_trust`, `types`) therefore sees exactly the string it saw before, and the corpus
+emission is byte-inert **by construction** — the same additive-marker device route #40 used
+for `py_ellipsis`.
+
+`_expr_to_whyml` is the one consumer of `py_is`, and it applies a **whitelist**:
+`X is True` / `X is False` is admitted only when the emitter can *show* `X` is a Python
+`bool` — a bool literal, a comparison or membership result, a `not`, or a local the symbol
+table types `bool`. Everything else is refused (`PYCSL-R42-IS-BOOL-SINGLETON`). The
+whitelist direction is the point: a type-directed *blacklist* ("refuse when the operand is
+an int-typed `Var`") closes the table above and leaves every `Call`-valued and every
+unannotated operand unrefused — an under-approximation keyed on a partial resolution, which
+is precisely the mistake routes #39 and #41 were about. Witness `1057` exercises the
+admitted arm, so a later narrowing of the whitelist to nothing goes red rather than passing
+as a "fix".
+
+The refusal sits in $\mathcal{T}_e$ and **not** in the front end, and that placement is
+load-bearing: a front-end refusal walks every function, including the eighteen
+`classify(...) is not False` / `r is True` tri-state sites in the self-annotation mirror's
+own `module6_whyml/functions.py`. Those sites' `Optional[bool]` *is* modelled — by the
+bespoke `(bool, bool)` lowerings in `module6_whyml/generic_fold.py` — and their bodies never
+reach the generic expression lowering, so the whitelist sees exactly the sites the generic
+path actually decides.
+
+**Residue, stated rather than implied.** Only the *bool* singleton is closed. `is` against
+anything else still narrows to `==`: `is None` keeps its own load-bearing handling, `is ...`
+/ `is Ellipsis` fail closed through route #40's opacity, `x is y` on equal small ints agrees
+with CPython's constant folding, and the object-identity shapes (`[1] is [1]`, `C() is C()`)
+fail closed only *by accident*, on a Why3 type error rather than a refusal. A completeness
+fix could remove that accident at any time. Carrying `py_is` all the way into a genuine
+identity relation is the reopening capability.
+
+---
+
 ### §T.5.12e  An ERASED local is opaque on every read, not just in a guard
 
 A local bound to a **generator expression**, a **non-empty set literal**, a **non-empty

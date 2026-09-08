@@ -2,6 +2,12 @@
 
 ## CURRENTLY OPEN: none.
 
+ROUTE #42 (`<int> is True` proved a contract FALSE of its program) was CLOSED by
+relaunch #48 at commit `bee3564c` — `is` was given its own IR operator and the
+bool-singleton test is now whitelisted. Its witnesses moved into the corpus as
+`pycsl-reference/1053`-`1057`. `route42-is-bool-singleton.md` is kept, with a CLOSED
+header on top of the original entry, as the record of how.
+
 The ROUTE #36 RESIDUE (`x = 0; for x in a: pass; return x`) was closed later the same
 window and its reproduction moved into the corpus as `pycsl-reference/1027`. The
 obstacle — a general element write-back needs the outer ref's DECLARED TYPE, which the

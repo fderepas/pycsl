@@ -1,3 +1,58 @@
+# ROUTE #42 — CLOSED by relaunch #48 at commit `bee3564c`
+
+**STATUS: CLOSED.** `is` was given its own IR operator exactly as the reopening
+capability below named, and the bool-singleton test is now WHITELISTED rather than
+collapsed onto `==`. The four programs below now behave as follows:
+
+| program | at `0f3906bd` | at `bee3564c` |
+|---|---|---|
+| `x = 1; if x is True: return 7` | proves `\result == 7` | REFUSED, `PYCSL-R42-IS-BOOL-SINGLETON` |
+| `x = 0; if x is False: return 7` | proves `\result == 7` | REFUSED |
+| `x = 1; if x is not True: return 7` | proves `\result == 0` | REFUSED |
+| `x = 1; if x == True: return 7` | proves — correct | proves — unchanged |
+| `b: bool; if b is True:` (new control) | proves | proves — the whitelist's admitted arm |
+
+The witnesses are now in the corpus: `pycsl-reference/1053`-`1055` (negative,
+`# pycsl-expected: FAIL`) and `1056`/`1057` (controls, expected PASS). Each negative
+witness PROVES its false contract at the parent commit and fails closed at the child —
+verified by running both trees.
+
+**How, in three sentences.** `_PY_OP_MAP` now maps `ast.Is` -> `"is"` / `ast.IsNot` ->
+`"is not"`; `Module5_IREmitter.generate_json` — the single choke point BOTH Module 5 entry
+paths go through — narrows the op back to `"=="`/`"!="` and leaves the ADDITIVE `py_is`
+marker, so every existing recognizer sees the string it saw before and the corpus emission
+is byte-inert by construction; `expressions._expr_to_whyml` is the one consumer of that
+marker and admits `X is <bool literal>` only when it can SHOW `X` is a Python `bool`.
+
+**Two placement facts that were MEASURED, not argued, and that the next worker should
+carry:**
+
+1. The narrowing had to go in `generate_json`, not in `pycsl.py::_run_pipeline`. The
+   pipeline draft MISSED `ir_resolve.resolve`'s dependency sub-pipeline, which constructs
+   its own `Module5_IREmitter`. Four mirror emissions changed and two bespoke recognizers
+   (`recognize_collect_field_sites`, `_frame_trigger_term`) silently fell back to abstract
+   `val` stubs, because their `!=` shape had become `is not` in the IMPORTED module's IR.
+   A "byte-inert" claim taken from the corpus sweep alone would not have seen it — the
+   corpus sweep was 0 for BOTH drafts. THE MIRROR EMISSION DIFF IS WHAT CAUGHT IT.
+2. The REFUSAL had to go in Module 6's generic lowering, not the front end. The eighteen
+   mirror sites this file warned about are all in BESPOKE-modelled methods
+   (`generic_fold.py`'s `(bool, bool)` `Optional[bool]` lowerings) which never reach the
+   generic path — so the "blanket refusal breaks 94 mirror sites" fear was correct about a
+   FRONT-END refusal and wrong about a LOWERING-level one. Measured:
+   `module6_whyml/functions.py`'s emission is byte-identical after the change.
+
+**RESIDUE, and it is deliberately left open.** Only the BOOL singleton is closed. `is`
+against anything else still narrows to `==`. `is None` keeps its own load-bearing handling;
+`is ...`/`is Ellipsis` fail closed through route #40's opacity; `x is y` on equal small ints
+agrees with CPython; and the object-identity shapes (`[1] is [1]`, `C() is C()`) still fail
+closed only BY ACCIDENT, on a Why3 type error. The reopening capability for THAT is now
+one step shorter than it was: the `py_is` marker already reaches `_expr_to_whyml`, so a
+genuine identity relation has a place to be built.
+
+---
+
+# The original entry, kept verbatim as the record of how it was found
+
 # OPEN ROUTE #42 — `<int> is True` / `<int> is False` proves a contract FALSE of the program
 
 **Found 2026-09-05 by relaunch #46, at commit `21c9c335`. NOT CLOSED — scoped, measured,
