@@ -146,21 +146,80 @@ class TypeInferenceMixin:
             if target not in _u_sz:
                 self._known_collection_sizes[target] = len(val_ir["value"])
         elif vt == "DictLit":
+            # (#49) ROUTE #54 — A DICT LITERAL HAD TWO MODELS AND THEY DISAGREED. The MAP
+            #   is faithful (`map_update_some` in source order, so a repeated key's LAST
+            #   value wins, exactly Python); this fold never consulted it and counted the
+            #   SYNTACTIC entries, comparing keys by their source form. Python compares
+            #   dict keys by VALUE and `True == 1`, `"\x61" == "a"`. MEASURED at
+            #   `383ec4e5`, all three `[+] Verification SUCCESS` and all three false of the
+            #   program (`scratchpad/w49/probeinv/d1.py`, `d2.py`, `d4.py`):
+            #       len({1: 10, True: 20}) proved 2      -- Python 1
+            #       {1: 10, True: 20}[1]   proved 10     -- Python 20 (the second wins)
+            #       len({"a": 10, "\x61": 20}) proved 2 -- Python 1
+            #   THE FIX IS TO GIVE THE FOLD PYTHON'S OWN KEY EQUALITY: normalise each
+            #   literal key to its VALUE (a `Bool` key is the int 1/0 — that is the whole
+            #   of the first witness), then count the DISTINCT ones and let a later entry
+            #   overwrite an earlier one, which is what the map already does.
+            #   CENSUS, so the cost is known: ZERO dict literals anywhere in this tree —
+            #   mirror, live, `src/pycsl_lib`, both corpora — have two equal keys, so this
+            #   is byte-inert by measurement and buys the exploits their fail-closed.
+            #   STATED RESIDUE: a literal with a NON-CONSTANT key (13 in the mirror, 2 in
+            #   the corpora) still takes `len(keys)`, because two variables may be equal
+            #   and the fold cannot know; withholding the size there is a separate,
+            #   measurable change and is recorded in the route file rather than smuggled in.
             keys = val_ir.get("keys", [])
+            _r54_norm = []
+            for _r54_k in keys:
+                if not isinstance(_r54_k, dict):
+                    _r54_norm = None
+                    break
+                _r54_t = _r54_k.get("type")
+                if _r54_t == "Number" and isinstance(_r54_k.get("value"), (int, float)):
+                    _r54_norm.append(("n", _r54_k["value"]))
+                elif _r54_t == "Bool":
+                    _r54_norm.append(("n", 1 if _r54_k.get("value") else 0))
+                elif _r54_t == "String" and isinstance(_r54_k.get("value"), str):
+                    _r54_norm.append(("s", _r54_k["value"]))
+                else:
+                    _r54_norm = None
+                    break
             if target not in _u_sz:
-                self._known_collection_sizes[target] = len(keys)
+                self._known_collection_sizes[target] = (
+                    len(set(_r54_norm)) if _r54_norm is not None else len(keys))
             elem_map = {}
             for k, v in zip(keys, val_ir.get("values", [])):
-                if (k.get("type") == "Number" and isinstance(k.get("value"), (int, float)) and
-                        v.get("type") == "Number" and isinstance(v.get("value"), (int, float))):
-                    elem_map[int(k["value"])] = str(int(v["value"]))
+                _r54_kv = None
+                if k.get("type") == "Number" and isinstance(k.get("value"), (int, float)):
+                    _r54_kv = int(k["value"])
+                elif k.get("type") == "Bool":
+                    _r54_kv = 1 if k.get("value") else 0
+                if (_r54_kv is not None
+                        and v.get("type") == "Number"
+                        and isinstance(v.get("value"), (int, float))):
+                    elem_map[_r54_kv] = str(int(v["value"]))
+                elif _r54_kv is not None:
+                    # a key the fold CAN normalise whose VALUE it cannot: it must still
+                    # shadow any earlier entry at the same key, or the fold answers a value
+                    # Python has overwritten (witness d2).
+                    elem_map.pop(_r54_kv, None)
             if elem_map and target not in _u_el:
                 self._known_collection_elements[target] = elem_map
         elif vt == "SetLit":
+            # (#49) ROUTE #54's set twin: `id(e)` makes every non-numeric element distinct,
+            # so `{"a", "\x61"}` counted 2 where Python counts 1. String elements are
+            # normalised by VALUE on the same terms as the dict keys above; anything else
+            # keeps its per-node identity (an over-count that stays as a stated residue).
             elts = val_ir.get("elts", [])
-            unique_vals = {int(e["value"]) if (e.get("type") == "Number" and
-                           isinstance(e.get("value"), (int, float))) else id(e)
-                           for e in elts}
+            unique_vals = set()
+            for e in elts:
+                if e.get("type") == "Number" and isinstance(e.get("value"), (int, float)):
+                    unique_vals.add(("n", e["value"]))
+                elif e.get("type") == "Bool":
+                    unique_vals.add(("n", 1 if e.get("value") else 0))
+                elif e.get("type") == "String" and isinstance(e.get("value"), str):
+                    unique_vals.add(("s", e["value"]))
+                else:
+                    unique_vals.add(("id", id(e)))
             if target not in _u_sz:
                 self._known_collection_sizes[target] = len(unique_vals)
 

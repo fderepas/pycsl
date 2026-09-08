@@ -2105,6 +2105,38 @@ refused.
 
 ---
 
+### §T.5.12q  A dict literal had two models, and the reader used the wrong one
+
+`len({1: 10, True: 20})` is **1** in Python — `True` hashes and compares equal to `1`, so the
+second entry overwrites the first — and `d[1]` is **20**. The model proved 2 and 10
+respectively (route #54, witnesses `1095`–`1099`). The emitted body shows both models at once:
+
+```whyml
+    let d = ref (map_update_some (map_update_some (const (None: option int)) 1 10) 1 20) in
+    2                       (* <- `len(d)`, folded from the LITERAL's entry count *)
+```
+
+The **map is faithful**: two updates at the same key in source order, the later winning,
+exactly Python. The **constant fold** that answers `len(d)` and `d[k]` never consulted it —
+it counted the literal's syntactic entries and matched keys by their source form, so
+`True` and `1`, and `"\x61"` and `"a"`, were different keys to it.
+
+$\mathcal{T}$ now gives the fold **Python's own key equality**: each literal key is normalised
+to its value (a `Bool` key is the int `1`/`0`), the size is the count of DISTINCT normalised
+keys, and a later entry SHADOWS an earlier one at the same key — which is what the map was
+already doing. The repair is EXACT rather than fail-closed: `len(...) == 1` and `d[1] == 20`
+both failed before and prove now.
+
+**This is route #48 mirrored.** There a seeded collection dropped its seed; here the seed is
+kept in the map and dropped by the reader. The rule that catches both: *a fold over a literal
+is sound only where the fold's key equality is the model's key equality.*
+
+**Stated residue**: a dict literal with a NON-CONSTANT key (13 in the mirror, 2 in the
+corpora) still takes the syntactic count, because two variables may be equal and the fold
+cannot know. Withholding the size there is a separate, measurable change.
+
+---
+
 ### §T.5.12j  A chained comparison in a `#@` clause is a CONJUNCTION
 
 `0 <= x <= 3` inside a `requires`, an `ensures`, a `loop invariant` or a class invariant was
