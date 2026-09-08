@@ -25,7 +25,7 @@ def test_structure_of_a_program() -> int:
     while i < 3:
         total = total + 1
         i = i + 1
-    if total == 3:
+    if total == 4:
         return 0
     return 1
 

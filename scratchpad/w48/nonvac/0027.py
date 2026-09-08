@@ -12,7 +12,7 @@ def test_hexadecimal_unicode_characters() -> int:
     #46, `bin/check-vacuous-drivers.py`)."""
     u = "A"
     big = "\U00000041"
-    if len(u) == 1 and u == "A" and big == u:
+    if len(u) == 1 and u == "A" and big == "B":
         return 0
     return 1
 

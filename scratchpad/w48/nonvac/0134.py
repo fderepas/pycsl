@@ -14,7 +14,7 @@ def test_literals_and_object_identity() -> int:
     a = "abc"
     b = "abc"
     c = "abd"
-    if a == b and len(a) == 3 and a != c:
+    if a == b and len(a) == 3 and a == c:
         return 0
     return 1
 

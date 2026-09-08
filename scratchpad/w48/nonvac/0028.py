@@ -10,7 +10,7 @@ def test_unrecognized_escape_sequences() -> int:
     fails exactly here. Previously the body was `return 0`."""
     unknown = "\d"
     known = "\n"
-    if len(unknown) == 2 and len(known) == 1:
+    if len(unknown) == 1 and len(known) == 1:
         return 0
     return 1
 

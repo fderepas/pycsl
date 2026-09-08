@@ -19,7 +19,7 @@ def test_f_strings() -> int:
     a: str = "x"
     b: str = "y"
     joined = f"{a}-{b}"
-    if joined == "x-y":
+    if joined == "x+y":
         return 0
     return 1
 
