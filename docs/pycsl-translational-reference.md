@@ -1885,6 +1885,106 @@ models no complex arithmetic, and `c.real` / `c.imag` are not modelled either.
 
 ---
 
+### §T.5.12k  A `getattr` DEFAULT was the integer 0, and so was the no-default form
+
+`_lower_getattr`'s absent-attribute path coerced a **non-scalar default** to the literal
+`0`, and the comment justified it as "the dict/list content is then unmodeled (fails-safe)".
+It is not fails-safe: an *unmodelled* value is undecidable and the integer `0` is
+**decidable**, so the model did not lose the default — it *decided* with it (route #47,
+witnesses `1070`–`1073`):
+
+| program | model | Python |
+|---|---|---|
+| `d = getattr(c, "missing", {}); if d == 0:` | taken | `{} == 0` is **False** |
+| `d = getattr(c, "missing", []); if d == 0:` | taken | `[] == 0` is **False** |
+| `d = getattr(c, "missing"); if d == 0:` | taken | **AttributeError** — no value at all |
+
+The third row is the worst: Python produces no value there, and `if len(args_ir) <= 2:
+return "0"` fabricated a zero out of nothing.
+
+Route #22 (§T.5.12b, witness `0991`) closed the case where the attribute **is declared** and
+deliberately left ABSENCE alone. That was right about *which* value is returned and silent
+about *how that value is modelled*.
+
+Both paths now answer an opaque `val function` with no defining axiom, **keyed on the
+default's own IR hash**. The granularity is a semantic decision each time, and this is its
+third distinct answer in this family: route #41 needed **per-name** constants (two erased
+locals are different objects), route #44 needed a **shared** one (`None` is one object), and
+here two *syntactically identical* defaults denote equal values — `{} == {}` and
+`{1: 2} == {1: 2}` are both True in Python — so they must share a constant and stay provably
+equal, while `{} == []` and `{1: 2} == {3: 4}` must become undecidable rather than decided.
+
+The no-default form is made **opaque rather than refused, on a measurement**:
+`bin/check-getattr-erasure.py` reports ABSENT 7 / UNKNOWN 19, and for an object of *unknown*
+static type the attribute may well exist, so a refusal would break nineteen sites to state
+something true of at most seven. **Residue, stated:** opacity models "some value" where
+Python has none, so a contract about the `AttributeError` itself is still not expressible.
+
+---
+
+### §T.5.12l  A SEEDED collection drops its seed, and the empty map's default is DECIDED
+
+`Counter(...)`, `OrderedDict(...)` and `defaultdict(f, seed)` all reduced to
+`(const (None: option int))`, and the comment called it "a sound under-approximation:
+content that depends on the seed fails to prove, never proves falsely". That is the one
+claim the coercion could not make. `(const None)` is not an *unknown* map, it is the
+**empty** one, and the model's missing-key default is the integer `0` — so a dropped seed is
+not merely lost: every read of a seeded key becomes the decidable `0` (route #48, witnesses
+`1076`–`1079`):
+
+| program | model | Python |
+|---|---|---|
+| `c = Counter([1,1,2]); if c[1] == 0:` | taken | `c[1]` is **2** |
+| `d = OrderedDict([(1,5)]); if d[1] == 0:` | taken | `d[1]` is **5** |
+| `d = defaultdict(int, {1:5}); if d[1] == 0:` | taken | `d[1]` is **5** |
+
+**The factory form is untouched, and that is the point.** An empty `Counter()` and a
+`defaultdict(int)` really do answer `0` for a missing key, so the empty-map model is
+*faithful* for them — `pycsl-reference/0498` is the driver that says so and it must keep
+proving. Only a construction that carries a **seed** becomes opaque, keyed on the seed's own
+IR hash for the reason §T.5.12k's is keyed on the default's. `defaultdict`'s *first*
+argument is a factory and its *second* is a seed, so the two are treated differently inside
+one constructor — witness `1078` is what pins the argument position.
+
+Census of the whole tree: eleven mentions of the three names and **not one live site carries
+a seed**, so this is byte-inert *by measurement*, not by construction.
+
+---
+
+### §T.5.12m  `a.append(x)` on a list PARAMETER was invisible to the caller
+
+Python passes a list argument by reference, so an `append` inside a callee must be visible
+to the caller. It was not (route #49, witnesses `1080`–`1082`):
+
+```whyml
+  let g (a: array int) : unit
+    requires { true } ensures { true }
+  =
+    let a = ref (snapshot a) in        (* a LOCAL COPY *)
+    a := Seq.snoc !a 1                 (* appended to the COPY *)
+```
+
+`g` carries **no `writes` clause at all**, so Why3 knows `a` is unchanged across the call and
+the caller proves `Array.length a = 0` afterwards. The mutation is not un-modelled, it is
+modelled as **absent** — and the callee could even declare `assigns \nothing` while doing it,
+with nothing catching the frame lie, because the model and the declaration agree with each
+other and both disagree with Python.
+
+**`append` was the odd one out of its own family**, which is what makes a refusal the right
+answer rather than a fifth special case: `pop`, `insert`, `clear`, `extend` and `remove` on a
+list parameter were already REFUSED; `a[0] = v`, `d[k] = v`, `s.add` and `s.discard` through
+a parameter are CALLER-VISIBLE; and a LOCAL list's appends are faithful (`1082`). So the
+refusal is keyed on the receiver being a **formal parameter**, never on `.append` itself.
+
+`bin/check-param-mutator-visibility.py` is the plane that makes this table visible without
+probing each cell by hand: it *generates* a driver per cell whose caller asserts the
+collection is unchanged — a contract false of the program — and runs the real pipeline, so
+"proves" means DROPPED. `bin/check-dropped-mutation.py` does not overlap it: that plane's
+population is Module 5's assignment-family statements, where a statement produces no IR at
+all, and here the statement *is* in the IR and it is the lowering that copies.
+
+---
+
 ### §T.5.12j  A chained comparison in a `#@` clause is a CONJUNCTION
 
 `0 <= x <= 3` inside a `requires`, an `ensures`, a `loop invariant` or a class invariant was
