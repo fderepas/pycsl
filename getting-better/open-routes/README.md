@@ -1,6 +1,6 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: TWO — routes #45 and #46, both found by relaunch #48.
+## CURRENTLY OPEN: routes #45, #46 and #47, all found by relaunch #48.
 
   * **`route45-nan-breaks-eq-reflexivity.md`** — `x = float("nan"); if x == x:` proves a
     contract false of its program. NOT the same shape as #40/#41/#43/#44: the value is
@@ -11,6 +11,10 @@
     a `None` bound in ONE branch of an `if` and something else in the other walks past it.
     The obvious repair (a STICKY record) was BUILT and REFUTED TWICE, both times measured;
     read that section before re-attempting it.
+  * **`route47-getattr-default-erasure.md`** — `getattr(o, <absent>, {})` is the integer
+    `0`, and so is `getattr(o, <absent>)`, which in Python raises `AttributeError` and has
+    no value at all. FOUND BY `bin/check-singleton-constant-lowering.py` within minutes of
+    that plane being written, which is the argument for the plane.
 
 
 ROUTE #42 (`<int> is True` proved a contract FALSE of its program) was CLOSED by
