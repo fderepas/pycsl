@@ -537,6 +537,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # (#46) an EMPTY set/tuple literal is recorded too (route #41 needs the
             # VALUE opaque), but its TRUTHINESS is faithful — Python agrees the empty
             # container is falsy — so the `#empty` suffix is skipped here.
+            # (#49) ROUTE #46 — an AMBIGUOUS name is neither decided nor refused. Its
+            # truthiness falls through to the default `<> 0` coercion over the per-name
+            # OPAQUE the read site gives it, which is undecidable — the only sound answer
+            # when the binding depends on the path. Refusing instead would break every
+            # `x = None ... x = <int> ... if x:` in the tree for a fact the model can
+            # simply decline to know.
+            if _etk in ("AMBIG", "AMBIG#nan"):
+                _etk = None
             if _etk and not _etk.endswith("#empty"):
                 from errors import PyCSLSemanticError
                 _kindname = {"GenExp": "a generator expression",
@@ -4798,6 +4806,52 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _r45_stack.append(_r45_n.get("expr"))
             if _r45_nan:
                 return "true" if raw_op == "!=" else "false"
+            # (#49) ROUTE #46 — A COMPARISON WITH A **POSSIBLY**-NaN OPERAND IS REFUSED.
+            #   The `_erased_truthy_locals` record is flow-INSENSITIVE, so a name bound to
+            #   `float("nan")` in one branch of an `if` and to an int in the other carries
+            #   no usable NaN fact after the join — and route #45 established that the
+            #   campaign's opaque-value repair CANNOT close this shape, because an opaque
+            #   constant is still EQUAL TO ITSELF. Measured at 90fed0c9, `\result == 7`
+            #   PROVED where Python returns 0:
+            #       if c > 0: x = float("nan")   else: x = 1     then  `if x == x:`
+            #   The pre-scan in `_reset_function_state` marks such a name `AMBIG#nan`
+            #   (including names that INHERIT the taint through arithmetic — IEEE 754 makes
+            #   every operation with a NaN operand NaN, so `y = x + 1` is possibly-NaN too).
+            #   A comparison over one is REFUSED rather than answered: `true`/`false` would
+            #   be a path fact, and no opaque INT can express "not equal to itself".
+            #   BYTE-INERT BY MEASUREMENT — not one function in either corpus or in the
+            #   mirror binds a name to NaN on one path and to something else on another.
+            _r46_amb = False
+            _r46_stack = [_r45_seed_l, _r45_seed_r]
+            while _r46_stack:
+                _r46_n = _r46_stack.pop()
+                if not isinstance(_r46_n, dict):
+                    continue
+                _r46_t = _r46_n.get("type")
+                if _r46_t == "Var":
+                    if (getattr(self, "_erased_truthy_locals", {}).get(
+                            _r46_n.get("name")) == "AMBIG#nan"):
+                        _r46_amb = True
+                elif _r46_t == "BinOp" and _r46_n.get("op") in (
+                        "+", "-", "*", "/", "div", "%", "**"):
+                    _r46_stack.append(_r46_n.get("left"))
+                    _r46_stack.append(_r46_n.get("right"))
+                elif _r46_t == "UnaryOp" and _r46_n.get("op") in ("-", "+"):
+                    _r46_stack.append(_r46_n.get("expr"))
+            if _r46_amb:
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    "a comparison over a value that may be NaN on one path and an "
+                    "ordinary number on another is not modelled: NaN is the one Python "
+                    "value whose `==` is NOT reflexive, and every value model makes `=` "
+                    "reflexive, so the model would answer this comparison with a fact "
+                    "that holds on only one path — measured, `if c > 0: x = float(\"nan\") "
+                    "else: x = 1` then `if x == x: return 7` PROVED `\\result == 7` where "
+                    "Python returns 0. Bind the NaN on every path (then the comparison "
+                    "lowers EXACTLY), or test `math.isnan(...)` instead.",
+                    stage="whyml",
+                    code="PYCSL-WHYML-AMBIGUOUS-NAN-COMPARISON",
+                )
         # #5 (pyval `or {}` / `or []` default, self-tcb-reduction Tier-5): `<pyval> or {}`
         # (the legacy `registry = self.f.get(k) or {}` default) lowers to a FAITHFUL
         # keep-if-map-else-empty projection over the heterogeneous carrier —
@@ -5152,9 +5206,47 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # `Optional[str]` local (the emitter's `self_field_name = None; … = <str>`).
             # Same sound always-present model (empty-string "" is the absent sentinel; both
             # `if` arms type-check). @mutable_state-gated → byte-identical elsewhere.
+            # (#49) ROUTE #50 — "SOUND ALWAYS-PRESENT" WAS NEITHER. The arm below used to
+            #   answer the literal `false`, and the comment above it called that a sound
+            #   model. A model APPROXIMATES a branch; this DELETED one — `if false then
+            #   <the None path>` makes the path Python actually takes unreachable, so every
+            #   contract was proved over a STRICT SUBSET of the reachable states. MEASURED
+            #   at `90fed0c9` (`scratchpad/w49/route50/r50.py`): `\result == 7` PROVED
+            #   where Python returns 0, and the same file WITHOUT `@mutable_state` fails
+            #   closed, which localises the gate exactly. It is live in the mirror:
+            #   `module6_whyml/types.py`'s `if receiver_name is None or field_name is
+            #   None:` emitted `if ((if false || false then 1 else 0) <> 0)`.
+            #   Now a REAL test against the opaque absent-sentinel the binding uses
+            #   (`statements.py`, same route): decidable where the binding is linear,
+            #   undecidable after a join — the fact the model actually has.
             if (self._is_string_expr(_nn)
                     and getattr(self, "_current_self_type", None)
                     in getattr(self, "_mutable_state_classes", set())):
+                # THREE ANSWERS, and which one is right is a question about the BINDING,
+                # not about the type. `_rec50` is the same `_erased_truthy_locals` record
+                # routes #41/#44/#46 keep: `None#empty` means the name is bound to `None`
+                # RIGHT HERE (the record is linear), `AMBIG` means the pre-scan saw it
+                # bound to `None` on one path and to something else on another, and no
+                # record at all means the function never binds it to `None`.
+                _rec50 = getattr(self, "_erased_truthy_locals", {}).get(
+                    _nn.get("name")) if isinstance(_nn, dict) else None
+                if _rec50 == "None#empty":
+                    # FAITHFUL and DECIDED: the name IS the None singleton here.
+                    return "true" if raw_op == "==" else "false"
+                if _rec50 == "AMBIG":
+                    self._add_abstract_op("val function pycsl_none_str : string")
+                    self._add_abstract_op(
+                        "val str_eq_op (a b: string) : bool\n"
+                        "    ensures { result <-> (a = b) }")
+                    _s50 = self._expr_to_whyml(_nn, local_refs, invariant_ctx, subst)
+                    _c50 = f"(str_eq_op {_s50} pycsl_none_str)"
+                    return _c50 if raw_op == "==" else f"(not {_c50})"
+                # NEVER BOUND TO `None` IN THIS FUNCTION: the always-present answer is
+                # right, and keeping it is what makes this build byte-inert everywhere the
+                # defect is not. RESIDUE, stated rather than hidden: a local bound from a
+                # CALL that returns `Optional[str]` is not `None`-bound syntactically, so
+                # it still reads as always-present — a different route, recorded in
+                # `getting-better/open-routes/route50-str-optional-always-present.md`.
                 return "false" if raw_op == "==" else "true"
             # (#48) ROUTE #44 — THE `is None` FALL-THROUGH DECIDED AGAINST THE INTEGER 0.
             #
@@ -15609,6 +15701,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (isinstance(expr, dict) and expr.get("type") == "Var"
                 and getattr(self, "_erased_truthy_locals", {}).get(
                     expr.get("name")) == "None#empty"):
+            # (#49) ROUTE #50 — THE OPAQUE MUST CARRY THE LOCAL'S OWN TYPE. `pycsl_none` is
+            #   an `int`; a str-typed local reading it lands in `str_eq_op`/`str_concat_op`
+            #   and Why3 TYPE-REJECTS the file. That type error is what made the
+            #   straight-line half of route #50 fail closed BY ACCIDENT, and it is the same
+            #   error route #46's pre-scan hit. A str local reads the STRING sentinel its
+            #   own binding uses, so the two agree and `s is None` stays provable where the
+            #   binding is linear (control `scratchpad/w49/route50/r50e.py`).
+            if (expr.get("name") in getattr(self, "_string_local_vars", set())
+                    and getattr(self, "_current_self_type", None)
+                    in getattr(self, "_mutable_state_classes", set())):
+                self._add_abstract_op("val function pycsl_none_str : string")
+                return "pycsl_none_str"
             self._add_abstract_op("val function pycsl_none : int")
             return "pycsl_none"
         # (#48) ROUTE #45: a NaN-bound local is EXCLUDED from route #41's per-name opaque.
@@ -15619,6 +15723,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and getattr(self, "_erased_truthy_locals", {}).get(
                     expr.get("name")) != "NaN"):
             _e41 = whyml_ident(expr["name"])
+            # (#49) ROUTES #46/#50 — THE OPAQUE MUST CARRY THE LOCAL'S OWN WhyML TYPE, and
+            #   that type is the one the emitter ALREADY gave its `ref` (`ref ""` vs
+            #   `ref 0`), never the symbol table's Python tag: an unannotated str local is
+            #   tagged `Any`, which is indistinguishable from an int local. MEASURED — the
+            #   first spelling of route #46's pre-scan fed `pycsl_erased_receiver_name`
+            #   (an `int`) into `str_eq_op` and `str_concat_op` in the `types.py` and
+            #   `Module2_Parser` mirrors, which is the SAME type error the "sticky record"
+            #   variant hit and the reason a type gate is load-bearing here.
+            if (expr.get("name") in getattr(self, "_string_local_vars", set())
+                    and getattr(self, "_current_self_type", None)
+                    in getattr(self, "_mutable_state_classes", set())):
+                self._add_abstract_op(
+                    "val function pycsl_erased_str_%s : string" % _e41)
+                return "pycsl_erased_str_%s" % _e41
             self._add_abstract_op("val function pycsl_erased_%s : int" % _e41)
             return "pycsl_erased_%s" % _e41
         node = expr_from_dict(expr) if isinstance(expr, dict) else expr

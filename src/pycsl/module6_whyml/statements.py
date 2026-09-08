@@ -558,7 +558,34 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 _r45_stack.append(_r45_n.get("right"))
             elif _r45_t == "UnaryOp" and _r45_n.get("op") in ("-", "+"):
                 _r45_stack.append(_r45_n.get("expr"))
-        if _r45_nan:
+        # (#49) ROUTE #46 — AN `AMBIG` MARK IS OWNED BY THE PRE-SCAN AND SURVIVES EVERY
+        # REBINDING. The pre-scan in `_reset_function_state` already knows the name is
+        # bound to `None`/NaN on one path and to something else on another; the linear
+        # recorder below must not narrow that back to whichever binding it happens to be
+        # emitting, in EITHER direction (recording `None#empty` would re-decide the
+        # truthiness, and the `pop` would restore the leak this closes).
+        # (#49) ROUTE #46 — A NAME THAT ALREADY HAS A FAITHFUL OPTIONAL CARRIER NEEDS
+        # NOTHING FROM THIS ROUTE, AND THE PRE-SCAN CANNOT KNOW THAT: `_optional_union_
+        # locals` (an annotated `Optional[T]`, a real union), `_iropt_ir_local_vars` /
+        # `_emit_ir_local_vars` (`IrONone`) and `_iropt_str_local_vars` (`IrSNone`) each
+        # model `None` EXACTLY, so the degeneration this route closes — a `None` that
+        # becomes the literal `0` or the `""` sentinel — cannot arise for them. Their
+        # registries are populated AFTER `_reset_function_state` returns, so the mark is
+        # DROPPED here instead, at the first assignment the recorder sees, which is the
+        # earliest point that both the mark and the registries exist. MEASURED, and this is
+        # why the gate is not optional: every ambiguous name in the `pure_ast` mirror is in
+        # one of these four sets, and without this the read site handed them
+        # `pycsl_erased_lower : int` where an `emit_ir` was expected — L3-tc ✗ on FOUR
+        # mirror files.
+        if (self._erased_truthy_locals.get(target) in ("AMBIG", "AMBIG#nan")
+                and (target in getattr(self, "_optional_union_locals", set())
+                     or target in getattr(self, "_iropt_ir_local_vars", set())
+                     or target in getattr(self, "_iropt_str_local_vars", set())
+                     or target in getattr(self, "_emit_ir_local_vars", set()))):
+            self._erased_truthy_locals.pop(target, None)
+        if self._erased_truthy_locals.get(target) in ("AMBIG", "AMBIG#nan"):
+            pass
+        elif _r45_nan:
             self._erased_truthy_locals[target] = "NaN"
         elif vt == "None":
             self._erased_truthy_locals[target] = "None#empty"
@@ -655,10 +682,27 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # i-feel-good.md I-B: `x = None` where x is a string local (an Optional[str], the
         # emitter's `self_field_name = None`) → "" (the absent sentinel), so the `ref ""`
         # string local stays string-typed. @mutable_state-gated → byte-identical elsewhere.
+        # (#49) ROUTE #50 — `""` IS NOT `None`, AND USING IT AS THE ABSENT SENTINEL DECIDED
+        #   TWO THINGS THE MODEL CANNOT KNOW. `s = None` on a str local emitted `s := ""`,
+        #   so `s == ""` became decidably TRUE where Python's `None == ""` is False, and the
+        #   `is None` twin in `expressions.py` returned the literal `false`, DELETING the
+        #   branch Python takes. MEASURED at `90fed0c9`, both proving `\result == 7` where
+        #   Python returns 0 (`scratchpad/w49/route50/r50.py`, `r50b.py`).
+        #   The file already KNEW this: the `iropt_str` carrier two hunks above says in so
+        #   many words that `""` "cannot be told apart from a genuinely EMPTY string" and
+        #   uses a real `IrSNone`. That carrier is narrowly classified (a local bound into
+        #   an `irconst` slot); this is the residue it does not cover.
+        #   THE REPAIR IS TYPE-PRESERVING, which is why it is this small: an OPAQUE STRING
+        #   constant with no defining axiom. The local stays a `ref string`, `s == ""`
+        #   becomes undecidable (correct — the model does not know it is not the empty
+        #   string), and `s is None` becomes a REAL test against that constant: still
+        #   DECIDABLE where the binding is linear, and undecidable after a join, which is
+        #   exactly the fact the model has.
         if (vt == "None" and target in getattr(self, "_string_local_vars", set())
                 and getattr(self, "_current_self_type", None)
                 in getattr(self, "_mutable_state_classes", set())):
-            val = '""'
+            self._add_abstract_op("val function pycsl_none_str : string")
+            val = "pycsl_none_str"
         # self-ir-schema.md IR2: `x = None` where x is an emit_ir local (an
         # `Optional[StmtIR]`, the emitter's `tail_ret = None`) → `(IrOther "")` (the emit_ir
         # absent sentinel), so the `ref (IrOther "")` stays emit_ir-typed. @mutable_state.

@@ -97,6 +97,19 @@ BASELINE = {
     ("_match_pattern_cond", '"Wildcard"', "true"):
         "route #30's repair, not its defect: a `case _:` wildcard genuinely matches "
         "everything. The kinds that do NOT are refused above it.",
+    ("_handle_binop", '"None#empty"', "true|false"):
+        "route #50 (relaunch #49): `x is None` on a STRING-typed local under a live "
+        "`None#empty` record. The record is LINEAR, so it says the name is bound to the "
+        "None singleton RIGHT HERE -- a fact, not an approximation -- and the DECIDED "
+        "answer is the faithful one. What this arm REPLACES is the defect: the same "
+        "position used to answer the literal `false` for EVERY string operand, deleting "
+        "the branch Python takes (`if false then <the None path>`), which is why "
+        "`scratchpad/w49/route50/r50.py` proved `\\result == 7` where Python returns 0. "
+        "The two cases this arm does NOT decide are the ones the model cannot know: an "
+        "`AMBIG` name (bound to None on one path and to something else on another) gets "
+        "the opaque `str_eq_op x pycsl_none_str`, and a name never bound to None keeps "
+        "the always-present `false`. Corpus controls 1087 (decided, proves) and 1085 "
+        "(ambiguous, fails closed).",
     ("_to_bool", '"None#empty"', "false"):
         "route #44: `bool(None)` IS False, so this is the FAITHFUL truth value, not an "
         "erasure — the VALUE of a `None`-bound local is opaque (`pycsl_none`) and only "

@@ -504,6 +504,149 @@ class FunctionEmissionMixin:
         # Map target -> the source RHS kind, so `_to_bool` can refuse by name and say what
         # it was. Empty for every function that binds no such local -> byte-identical.
         self._erased_truthy_locals: Dict[str, str] = {}
+        # (#49) ROUTE #46 — THE AMBIGUITY PRE-SCAN. The record above is LINEAR: written
+        # when an assignment is EMITTED and cleared when the name is rebound. That is
+        # exactly right for route #41's facts (which are only ever used to REFUSE) and
+        # WRONG for routes #44/#45's, which are used to DECIDE: `bool(x) is False` and
+        # `x is the None singleton` are PATH facts, and a flow-INSENSITIVE record cannot
+        # carry a path fact. Measured, both halves, at 90fed0c9:
+        #     if c > 0: x = None       else: x = 5   then `if x == 0: return 7` -> PROVED
+        #     if c > 0: x = float("nan") else: x = 1 then `if x == x: return 7` -> PROVED
+        # Python returns 0 from both (`None == 0` is False; `nan == nan` is False). The
+        # `else` branch's assignment CLEARS the record the `then` branch set, so the guard
+        # after the join reads the ordinary `!x` and decides on the literal `0`.
+        # THE REPAIR IS FLOW-INSENSITIVE ON PURPOSE, and that is why it is cheap: walk the
+        # body ONCE before emitting it and mark every name that is bound to a `None`/NaN
+        # RHS on SOME path and to something else on SOME OTHER path. Such a name is
+        # AMBIGUOUS for the whole function, so its VALUE is made opaque (route #41's
+        # per-name device, which the read site already applies to any recorded name) and
+        # its TRUTHINESS is left UNDECIDED — the exact half the "sticky record" variant got
+        # wrong: `_to_bool` reads this same dict, so a sticky `None` record collapsed
+        # `cls = None; cls = <str>; if cls:` to the literal `false` on a path where the
+        # string is non-empty.
+        # THE TYPE GATE IS LOAD-BEARING, and it is the second thing the sticky variant got
+        # wrong: a `str`-typed name cannot become an opaque INT (measured — the read then
+        # fed `pycsl_erased_<name>` into `str_eq_op`, a Why3 TYPE ERROR), so AMBIG applies
+        # only where the symbol table types the name int-ish or does not type it at all
+        # (`Any` is the tag an unannotated local actually carries — measured, not assumed).
+        # Other types stay a stated, narrower residue.
+        # SPELLED AS AN INLINE EXPLICIT-STACK WALK, not as a helper `def`: a nested
+        # function moves `bin/check-mirror-coverage.py`, and this method is `\trusted` in
+        # the mirror, so as written the build costs NO body sync, NO model and NO fidelity
+        # divergence.
+        _amb_st = func.get("symbol_table") or {}
+        # THE WALK CARRIES A NESTING DEPTH, and that is what keeps this build from
+        # poisoning the whole tree. If EVERY binding of a name sits at the TOP LEVEL of the
+        # function body, the existing LINEAR record is already exact — emission order is
+        # execution order, so at any point the record reflects the last binding that ran,
+        # and `x = None; x = 5; if x == 0:` needs no help and must not lose its precision
+        # (measured: marking it ambiguous costs `x is None` its faithful DECIDED answer,
+        # corpus control `1087`). Ambiguity needs a CONDITIONAL binding — a branch, a loop
+        # body, a handler — so a name is a candidate only when at least one of its
+        # bindings is nested.
+        _amb_asgs = []
+        _amb_stack = [(body_stmts, 0)]
+        while _amb_stack:
+            _amb_n, _amb_d = _amb_stack.pop()
+            if isinstance(_amb_n, list):
+                for _amb_i in _amb_n:
+                    _amb_stack.append((_amb_i, _amb_d))
+                continue
+            if not isinstance(_amb_n, dict):
+                continue
+            if (_amb_n.get("stmt") == "Assign"
+                    and isinstance(_amb_n.get("target"), str)):
+                _amb_kinds = set()
+                _amb_vars = set()
+                _amb_rs = [_amb_n.get("value")]
+                while _amb_rs:
+                    _amb_r = _amb_rs.pop()
+                    if not isinstance(_amb_r, dict):
+                        continue
+                    _amb_rt = _amb_r.get("type")
+                    if _amb_rt == "None":
+                        _amb_kinds.add("NONE")
+                    elif _amb_rt == "Call":
+                        _amb_f = _amb_r.get("func")
+                        if _amb_f == "math.nan":
+                            _amb_kinds.add("NAN")
+                        elif _amb_f == "float":
+                            _amb_a = (_amb_r.get("args") or [None])[0]
+                            if (isinstance(_amb_a, dict)
+                                    and _amb_a.get("type") == "String"
+                                    and str(_amb_a.get("value", "")).strip().lower()
+                                        .lstrip("+-") == "nan"):
+                                _amb_kinds.add("NAN")
+                            else:
+                                _amb_kinds.add("OTHER")
+                        else:
+                            _amb_kinds.add("OTHER")
+                    elif _amb_rt == "Attribute":
+                        if (_amb_r.get("attr") == "nan"
+                                and str((_amb_r.get("value") or {}).get("name", ""))
+                                    == "math"):
+                            _amb_kinds.add("NAN")
+                        else:
+                            _amb_kinds.add("OTHER")
+                    elif _amb_rt == "Var":
+                        # PROPAGATION, and it is IEEE 754's rule: every arithmetic
+                        # operation with a NaN operand is NaN, so a name built out of a
+                        # possibly-NaN name is itself possibly-NaN. Recorded as a
+                        # DEPENDENCY and resolved by the fixpoint below, because the
+                        # source name's own status may not be known yet.
+                        _amb_vars.add(_amb_r.get("name"))
+                    elif _amb_rt == "BinOp" and _amb_r.get("op") in (
+                            "+", "-", "*", "/", "div", "%", "**"):
+                        _amb_rs.append(_amb_r.get("left"))
+                        _amb_rs.append(_amb_r.get("right"))
+                        continue
+                    elif _amb_rt == "UnaryOp" and _amb_r.get("op") in ("-", "+"):
+                        _amb_rs.append(_amb_r.get("expr"))
+                        continue
+                    else:
+                        _amb_kinds.add("OTHER")
+                if not _amb_kinds and not _amb_vars:
+                    _amb_kinds.add("OTHER")
+                _amb_asgs.append((_amb_n.get("target"), _amb_kinds, _amb_vars, _amb_d))
+            for _amb_v in _amb_n.values():
+                if isinstance(_amb_v, (list, dict)):
+                    _amb_stack.append((_amb_v, _amb_d + 1))
+        _amb_status = {}
+        _amb_nested = set()
+        for _amb_t, _amb_k, _amb_vs, _amb_d in _amb_asgs:
+            if _amb_d > 0:
+                _amb_nested.add(_amb_t)
+            _amb_status.setdefault(_amb_t, set()).update(_amb_k)
+            if _amb_vs and not _amb_k:
+                # a pure copy/arithmetic binding contributes OTHER only once the fixpoint
+                # says the source is not NaN — seed it as OTHER so a plain `y = x` never
+                # LOSES the ambiguity it inherits below.
+                _amb_status[_amb_t].add("OTHER")
+        _amb_changed = True
+        while _amb_changed:
+            _amb_changed = False
+            for _amb_t, _amb_k, _amb_vs, _amb_d in _amb_asgs:
+                for _amb_src in _amb_vs:
+                    if "NAN" in _amb_status.get(_amb_src, ()):
+                        if "NAN" not in _amb_status.get(_amb_t, ()):
+                            _amb_status.setdefault(_amb_t, set()).add("NAN")
+                            _amb_changed = True
+        for _amb_nm in sorted(_amb_status):
+            if _amb_nm not in _amb_nested:
+                continue
+            _amb_k = _amb_status[_amb_nm]
+            if len(_amb_k) < 2:
+                continue
+            if "NAN" in _amb_k:
+                # A NaN-AMBIGUOUS name: the campaign's opaque-value device CANNOT close
+                # this one, and route #45 is where that was established — an opaque
+                # constant is still EQUAL TO ITSELF, so `x == x` stays decidably true
+                # while Python's answer on the NaN path is False. The value is still made
+                # opaque (the read site does that for every recorded name); the COMPARISON
+                # is refused in `_expr_to_whyml`.
+                self._erased_truthy_locals[_amb_nm] = "AMBIG#nan"
+            elif "NONE" in _amb_k:
+                self._erased_truthy_locals[_amb_nm] = "AMBIG"
         # typed-ir-for-b-ceiling.md §26: `X = getattr(self, "<field>", {})` binds a
         # local aliasing a dict/set self-field (the emitter's `known_sizes =
         # getattr(self, "_known_collection_sizes", {})` / `st = getattr(self,

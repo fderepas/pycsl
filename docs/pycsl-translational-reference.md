@@ -1985,6 +1985,84 @@ all, and here the statement *is* in the IR and it is the lowering that copies.
 
 ---
 
+### §T.5.12n  `Optional[str]`: `None` was the empty string, and `is None` was `false`
+
+A `None` bound to a **string-typed local** inside a `@mutable_state` class emitted `s := ""`,
+and `x is None` on a string operand answered the **literal `false`** (route #50, witnesses
+`1085`–`1088`). The comment above that arm called it "a sound always-present model". It is
+neither: a model *approximates* a branch, and this **deleted** one —
+
+```whyml
+    if ((if false || false then 1 else 0) <> 0) then begin   (* the `is None` early return *)
+      raise (Return__union__field_type_of_1 Arm_1_None)      (* ...now unreachable *)
+```
+
+— so every contract over that function was proved on a **strict subset** of the reachable
+states. That emission is from the `module6_whyml/types.py` mirror, i.e. the defect was live in
+PyCSL's own self-annotation, not only in user code.
+
+The repair is **type-preserving**, which is why it is small: an opaque `val function
+pycsl_none_str : string` with no defining axiom is the absent sentinel, so the local stays a
+`ref string`. `is None` then has **three** answers, keyed on the BINDING rather than on the
+type:
+
+| binding at the guard | lowering | why |
+|---|---|---|
+| a live `None` record (linear) | `true` / `false` | the name **is** the singleton here — a fact |
+| `AMBIG` (see §T.5.12o) | `(str_eq_op x pycsl_none_str)` | the model does not know which path ran |
+| never bound to `None` | `false` / `true` | the always-present answer, unchanged and byte-inert |
+
+`s == ""` becomes undecidable rather than decidably true, which is the correct answer: the
+model does not know the local is not the empty string. The linear case is a **completeness
+gain** (`1087` failed before this change and proves now): the old read handed a str local the
+INT opaque `pycsl_none`, which Why3 type-rejected — fail-closed by type accident.
+
+**Stated residue**: a local bound from a CALL that returns `Optional[str]` is not
+syntactically `None`-bound, so it still reads as always-present.
+
+---
+
+### §T.5.12o  The erased-locals record is flow-insensitive, and a branch walks past it
+
+Routes #41/#44/#45 record a local whose binding the model cannot represent — a generator, a
+non-empty tuple, `None`, a NaN — and key their lowerings on that record. The record is
+**linear**: written when the assignment is emitted, cleared when the name is rebound. That is
+exactly right for facts used to REFUSE and wrong for facts used to DECIDE, because
+`bool(x) is False` and `x is the None singleton` are **path** facts (route #46, witnesses
+`1089`–`1091`):
+
+```python
+    if c > 0: x = None          # then-branch records `None`
+    else:     x = 5             # else-branch CLEARS the record
+    if x == 0: return 7         # reads the ordinary `!x`, which the model holds at 0
+```
+
+$\mathcal{T}$ now walks the function body **once before emitting it** and marks every name
+bound to `None`/NaN on some path and to something else on another as `AMBIG`: its value is
+the per-name opaque, its truthiness is left undecided, and the linear recorder may not
+overwrite the mark.
+
+Three things about the scan are load-bearing, each of them measured rather than argued:
+
+* **It carries a nesting DEPTH.** If every binding of a name is at the top level of the body,
+  emission order is execution order and the linear record is already exact, so it is left
+  alone (`1090`). Ambiguity needs a *conditional* binding.
+* **The opaque carries the local's own WhyML type** (`ref ""` → `string`, `ref 0` → `int`),
+  never the symbol table's Python tag: an unannotated str local is tagged `Any`. The first
+  spelling fed `pycsl_erased_receiver_name : int` into `str_eq_op`.
+* **A name that already has a faithful optional carrier is skipped** — `_optional_union_locals`,
+  `_iropt_ir_local_vars`, `_iropt_str_local_vars`, `_emit_ir_local_vars` each model `None`
+  exactly, so the degeneration this route closes cannot arise for them. Every ambiguous name
+  in the `pure_ast` mirror is one of these.
+
+**The NaN half is a REFUSAL, and route #45 is why**: making the value opaque cannot close
+`x == x`, because an opaque constant is still equal to itself. A comparison over a
+possibly-NaN name is rejected (`PYCSL-WHYML-AMBIGUOUS-NAN-COMPARISON`), and the taint follows
+arithmetic — IEEE 754 makes every operation with a NaN operand NaN, so `y = x + 1` is
+possibly-NaN too.
+
+---
+
 ### §T.5.12j  A chained comparison in a `#@` clause is a CONJUNCTION
 
 `0 <= x <= 3` inside a `requires`, an `ensures`, a `loop invariant` or a class invariant was
