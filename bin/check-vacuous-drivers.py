@@ -31,6 +31,20 @@ irrelevant to the proof. Python `assert`s are DROPPED by Module 6 (a settled fac
 campaign), so the extremely common `x = <construct>; assert <property>; return 0` shape is
 exactly this.
 
+EMPTY PLACEHOLDER is the CONJUNCTION of two things, and relaunch #48 made it so on a
+measurement. A driver is EMPTY when its body is a docstring plus a single
+`return <literal>` **AND** it is TRIVIALLY DISCHARGED by the criteria above. The old test
+looked at the BODY ONLY and took no account of the CONTRACT, which flagged 39
+`pycsl-reference` drivers whose obligation is entirely in the contract and is anything but
+trivial — `#@ ensures even(4)` over an inductive predicate (0562), a `\forall` over a
+recursive datatype discharged by a cited recursive lemma (0565), `#@ requires n in h` as a
+string-containment logic term (0604), and the refusal tests whose whole subject is that the
+pipeline REJECTS the file (0397, 0400). Calling those "exercising nothing" was FALSE, and it
+made that suite's ratchet unmovable for a reason that had nothing to do with the drivers.
+Measured effect of the conjunction: pycsl-reference 47 -> 8; python-reference 55 -> 55 (its
+placeholders really are `ensures \result == <lit>` over `return <lit>`); and ZERO functions
+in either corpus are body-empty with no `#@` block at all, so nothing falls through.
+
 IT IS A RATCHET, NOT A HARD ZERO, and on purpose. The measured population is large — the
 `python-reference` corpus was written as COVERAGE, not as proof obligations — and deleting
 it wholesale would lose the crash/refusal coverage those drivers do provide (that coverage
@@ -66,7 +80,7 @@ RATCHETS = {"python-reference": 82, "pycsl-reference": 9}
 # types") and `0051` ("Instance methods") are literally `'''Ref 2.6.1: ...'''; return 0`.
 # These are UNIMPLEMENTED PLACEHOLDERS that count as passing tests, and the headline
 # "3178/3197 passed" is padded by exactly this many.
-EMPTY_RATCHETS = {"python-reference": 55, "pycsl-reference": 47}
+EMPTY_RATCHETS = {"python-reference": 55, "pycsl-reference": 8}
 MIN_FUNCS = {"python-reference": 2000, "pycsl-reference": 800}
 
 
@@ -93,9 +107,26 @@ def scan(root):
                 _b = [s2 for s2 in n.body
                       if not (isinstance(s2, ast.Expr)
                               and isinstance(s2.value, ast.Constant))]
-                if (len(_b) == 1 and isinstance(_b[0], ast.Return)
-                        and isinstance(_b[0].value, ast.Constant)):
-                    empty.append("%s::%s" % (os.path.relpath(p, ROOT), n.name))
+                # (#48) EMPTY IS NOW A SUBSET OF TRIVIALLY-DISCHARGED, and the reason is
+                # a measured FALSE-POSITIVE CLASS. The old test looked at the BODY ONLY —
+                # "a docstring and a single `return <literal>`" — and took no account of
+                # the CONTRACT. That flagged 39 `pycsl-reference` drivers whose obligation
+                # is entirely in the contract and is anything but trivial: `#@ ensures
+                # even(4)` over an inductive predicate (0562), `\forall x: Nat;
+                # to_int(x) >= 0` discharged by a cited recursive lemma (0565), `#@ requires
+                # n in h` as a string-containment logic term (0604), and the refusal tests
+                # (0397 ctypes, 0400 flag-gated) whose whole subject is that the pipeline
+                # ACCEPTS or REJECTS the file. Calling those "EMPTY PLACEHOLDERS —
+                # exercising nothing" was FALSE, and it made the pycsl-reference ratchet
+                # unmovable for a reason that had nothing to do with the drivers.
+                # The honest test is the conjunction: the body is empty AND the contract is
+                # discharged by the tail `return` alone. Measured effect: pycsl-reference
+                # 47 -> 8, python-reference 55 -> 55 (its placeholders really are
+                # `ensures \result == <lit>` over `return <lit>`), and ZERO functions in
+                # either corpus are body-empty with no `#@` block at all, so nothing falls
+                # through the conjunction.
+                _is_empty_body = (len(_b) == 1 and isinstance(_b[0], ast.Return)
+                                  and isinstance(_b[0].value, ast.Constant))
                 i = n.lineno - 2
                 block = []
                 while i >= 0 and lines[i].lstrip().startswith("#@"):
@@ -117,6 +148,8 @@ def scan(root):
                 v = body[-1].value
                 if isinstance(v, ast.Constant) and v.value == want:
                     trivial.append("%s::%s" % (os.path.relpath(p, ROOT), n.name))
+                    if _is_empty_body:
+                        empty.append("%s::%s" % (os.path.relpath(p, ROOT), n.name))
     return trivial, empty, total
 
 
@@ -141,7 +174,8 @@ def main():
                 print("        %s" % t)
         eratchet = EMPTY_RATCHETS[suite]
         print("[*] vacuous-drivers: %-18s %4d of them are EMPTY PLACEHOLDERS — a "
-              "docstring and a single `return <literal>`, exercising nothing "
+              "docstring and a single `return <literal>` UNDER a contract the tail return "
+              "alone discharges, so the body exercises nothing "
               "(ratchet %d)." % (suite, len(empty), eratchet))
         if args.verbose:
             for e in empty:
