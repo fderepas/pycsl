@@ -68,6 +68,20 @@ CASES = [
     ("dict", "a[1] = 5",      "True", "return a[1]", "\\result == 0"),
     ("set",  "a.add(3)",      "True", "return 1 if 3 in a else 0", "\\result == 0"),
     ("set",  "a.discard(3)",  "True", "return 1 if 3 in a else 0", "\\result == 1"),
+    # (#48) the second batch, added in the same window the plane was written: the
+    # remaining ordinary mutators of each receiver type. A table with four cells is a
+    # sample; a table with seventeen is a census of the surface Python programs actually
+    # use, and the cost is one pipeline run per cell.
+    ("list", "a.sort()",      "\\length(a) == 2", "return len(a)", "\\result == 2"),
+    ("list", "a.reverse()",   "\\length(a) == 2", "return len(a)", "\\result == 2"),
+    ("list", "a += [1]",      "\\length(a) == 2", "return len(a)", "\\result == 2"),
+    ("dict", "a.update({1: 5})", "True", "return a[1]", "\\result == 0"),
+    ("dict", "a.pop(1)",      "True", "return a[1]", "\\result == 0"),
+    ("dict", "a.setdefault(1, 5)", "True", "return a[1]", "\\result == 0"),
+    ("dict", "del a[1]",      "True", "return a[1]", "\\result == 0"),
+    ("set",  "a.update({3})", "True", "return 1 if 3 in a else 0", "\\result == 0"),
+    ("set",  "a.remove(3)",   "True", "return 1 if 3 in a else 0", "\\result == 1"),
+    ("set",  "a.clear()",     "True", "return 1 if 3 in a else 0", "\\result == 1"),
 ]
 
 DRIVER = '''_ = 0  # anchor
@@ -107,6 +121,21 @@ BASELINE = {
     ("dict", "a[1] = 5"):       "CALLER-VISIBLE",
     ("set",  "a.add(3)"):       "CALLER-VISIBLE",
     ("set",  "a.discard(3)"):   "CALLER-VISIBLE",
+    ("list", "a.sort()"):       "REFUSED",
+    ("list", "a.reverse()"):    "REFUSED",
+    # ROUTE #49's SECOND SHAPE, OPEN AND RECORDED — the same defect as `append` but through
+    # the AUGMENTED-ASSIGNMENT handler, which is a different statement kind with its own
+    # path to the seq-promotion snapshot, so the `append` refusal does not reach it. FOUND
+    # BY EXTENDING THIS TABLE FROM TEN CELLS TO SEVENTEEN, in the hour after the plane was
+    # written. Flip to "REFUSED" with the other one.
+    ("list", "a += [1]"):       "DROPPED",
+    ("dict", "a.update({1: 5})"):   "REFUSED",
+    ("dict", "a.pop(1)"):       "REFUSED",
+    ("dict", "a.setdefault(1, 5)"): "REFUSED",
+    ("dict", "del a[1]"):       "CALLER-VISIBLE",
+    ("set",  "a.update({3})"):  "REFUSED",
+    ("set",  "a.remove(3)"):    "CALLER-VISIBLE",
+    ("set",  "a.clear()"):      "REFUSED",
 }
 
 

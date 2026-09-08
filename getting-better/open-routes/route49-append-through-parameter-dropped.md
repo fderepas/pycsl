@@ -1,4 +1,5 @@
-# OPEN ROUTE #49 — `a.append(x)` ON A LIST **PARAMETER** IS INVISIBLE TO THE CALLER
+# OPEN ROUTE #49 — IN-PLACE GROWTH OF A LIST **PARAMETER** IS INVISIBLE TO THE CALLER
+# (TWO SHAPES: `a.append(x)` and `a += [x]`)
 
 **Found 2026-09-08 by relaunch #48, at commit `c85526c4`, by the same method that found
 route #48: read the emitter's own soundness claims and probe each.** The claim here is
@@ -63,6 +64,33 @@ cross-call `append` is silently dropped.
 
 Reproducers: `scratchpad/w48/probe/w1_append_param.py`, `y1_append_nothing.py`,
 `y2_append_method.py`, and the control `x7_elem_write.py`.
+
+## SECOND SHAPE, found by the twenty-sixth plane the hour it was written
+
+`a += [1]` on a list parameter is the SAME defect through the AUGMENTED-ASSIGNMENT handler
+— a different statement kind with its own path to the seq-promotion snapshot — so the
+`.append` refusal does not reach it. MEASURED: `def g(a): a += [1]` then `g(a); return
+len(a)` proves `\result == 2` where Python returns 3, and it still proved with the
+`.append` refusal in place.
+
+HOW IT WAS FOUND is the transferable part. `bin/check-param-mutator-visibility.py` had TEN
+cells when it was written and `.append` was its only DROPPED one. Extending the table to
+SEVENTEEN — the remaining ordinary mutators of each receiver type, at one pipeline run per
+cell — turned up this second DROPPED cell within the hour. **A table with four cells is a
+sample; a table with seventeen is a census of the surface Python programs actually use.**
+
+Its refusal is gated on the target being a **collection**, not merely a parameter, and that
+distinction is the whole correctness of the arm: `a += 1` on an INT parameter is FAITHFUL
+as a local update, because Python integers are immutable and the caller genuinely does not
+see it. Witness 1084 holds that half.
+
+**COST, and it is one driver more than the append half.** `pycsl-reference/0619` demonstrates
+the length-additive law `\length(\result) == \length(a) + \length(b)` on `a += b` where `a`
+is a PARAMETER. Its own contract was never wrong — it speaks only about `\result` — but the
+SHAPE it demonstrated is this route, so it is rewritten onto a LOCAL accumulator
+(`c = []; c += a; c += b; return c`), which proves the same law. TWO rewrites that do NOT
+work are recorded so nobody retries them: `return a + b` and `c = a[:]; c += b` both fail to
+discharge the length law.
 
 ## THE PLANE THAT SHOULD HAVE CAUGHT IT DID NOT, AND ITS LIMIT IS HONEST
 
