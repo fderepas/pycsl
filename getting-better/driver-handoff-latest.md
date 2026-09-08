@@ -1,3 +1,111 @@
+# ===================== START HERE — #49 (INTERIM, window 4 in progress) ==========
+#
+# WRITTEN MID-WINDOW so a cold restart loses nothing. #48's block follows unchanged
+# below and is still the reference for everything before 18:16 UTC on 2026-09-08.
+#
+# ## STATE
+#
+#   HEAD            b0e9b284 (tree clean)
+#   metric          markers 456 / grep 481 / offset 25 — UNCHANGED all window, and that
+#                   is the expected shape: a refusal, a whitelist and an opaque value
+#                   all cost the trust surface nothing. The ladder puts soundness
+#                   routes above stub conversion; this window is paying that ladder.
+#   IN FLIGHT       queue C (getting-better/proofs49/, `scratchpad/w49/queue49c.sh`) —
+#                   the SIX mirrors routes #46/#50 move, concurrency TWO, detached under
+#                   setsid; and reference suite run 1 at jobs=3
+#                   (getting-better/proofs49/suite49_run1.*). BOTH started AFTER the
+#                   landing commit 5f57a95d, so both describe the final tree.
+#
+# ## WHAT #49 DID
+#
+#   ROUTE #46 CLOSED — open since #48, and #48 had BUILT AND REFUTED the obvious repair
+#     (a sticky record). The landed repair is #48's designed AMBIGUITY PRE-SCAN plus
+#     three things #48 could not have known without building it, each MEASURED:
+#       * it carries a NESTING DEPTH. A name whose bindings are ALL at the top level of
+#         the body keeps the existing linear record — emission order IS execution order
+#         there — so `x = None; x = 5` loses nothing (witness 1090). Ambiguity needs a
+#         CONDITIONAL binding. Without this the fix poisons the whole tree.
+#       * the per-name opaque carries the LOCAL'S OWN WhyML type (`ref ""` vs `ref 0`),
+#         NEVER the symbol table's Python tag: an unannotated str local is tagged `Any`.
+#         The first spelling emitted `pycsl_erased_receiver_name : int` into `str_eq_op`
+#         — L3-tc ✗ on FOUR mirrors.
+#       * a name that ALREADY has a faithful optional carrier is skipped
+#         (`_optional_union_locals`, `_iropt_ir_local_vars`, `_iropt_str_local_vars`,
+#         `_emit_ir_local_vars`). EVERY ambiguous name in the pure_ast mirror is one of
+#         these, which is why pure_ast does not move at all.
+#       The NaN half is a REFUSAL whose taint FOLLOWS ARITHMETIC (IEEE 754), because
+#       route #45 established that opacity cannot close `x == x`.
+#
+#   ROUTE #50 FOUND AND CLOSED — `Optional[str]` was modelled as NEVER None, with `None`
+#     as the EMPTY STRING. `@mutable_state`-gated, so it is LIVE IN THE MIRROR:
+#     `module6_whyml/types.py`'s `if receiver_name is None or field_name is None:`
+#     emitted `if ((if false || false then 1 else 0) <> 0)` — the branch Python takes,
+#     DELETED. Repair: a type-PRESERVING opaque `pycsl_none_str`, and `is None` now has
+#     THREE answers keyed on the BINDING (decided under a live linear record, opaque
+#     under AMBIG, unchanged always-present where the function never binds None).
+#     Witness 1087 is a COMPLETENESS GAIN — it FAILED at the parent by TYPE ACCIDENT
+#     (the int opaque in a string context) and proves now. Second such repair after #45.
+#
+#   HOW #50 WAS FOUND IS THE TRANSFERABLE PART, and it is a NEW method for this campaign:
+#     **MEASURE A FIX AND READ THE DIFF IT PRODUCES.** #50 did not come from probing a
+#     soundness claim. Route #46's first spelling poisoned an ambiguous local with an INT
+#     opaque; the mirror emission diff showed `pycsl_erased_receiver_name` inside
+#     `str_eq_op`, which sent me to read that file's emission AT HEAD — and the defect
+#     was one line away.
+#
+#   ROUTE #51 FOUND (OPEN) — a `-> str` annotation contradicted by a `return None` is
+#     BELIEVED, and route #50's always-present answer decides with it:
+#     `s = self.pick(c); if s is None:` PROVES `\result == 7` where Python returns 0.
+#     Census: 10 mirror sites, 3 live, ZERO corpus — but only ONE mirror site is `-> str`
+#     (`stmt_control_flow::_try_union_is_none_match`); the nine `-> int` ones fail closed
+#     (control q4). Recommendation recorded: refuse the lie in Module 4, SCOPED TO
+#     `-> str`, blast radius one file.
+#     `getting-better/open-routes/route51-scalar-annotation-lie.md`
+#
+#   A GATE WAS RED AT HEAD AND NOBODY HAD LOOKED — `bin/check-trusted-raises-honesty.py`
+#     reported 69 > 68 because route #49's refusal was the 69th SILENT stub and #48's
+#     battery ran BEFORE #47/#48/#49 landed. Fixed by MEASURING rather than shrugging:
+#     rows now say `SILENT/refusal` vs `SILENT` (36 of 69 are refusals — a raise that
+#     REJECTS THE FILE is not an exit path of a lowering), and the bump to 70 is itemised
+#     per stub. LESSON: re-run the battery AFTER the last landing of a window, not before.
+#
+# ## WHAT IS OWED (and what is already banked)
+#
+#   BANKED at the final tree, rc=0 `[+] Verification SUCCESS`: `functions`, `exec_splice`,
+#   `desugar` (queue B, all three proved BEFORE the landing and their emission does NOT
+#   move under it — verified by the 53-file mirror emission diff). `pure_ast` and `sertop`
+#   keep #48's standing verdicts for the same reason, re-verified this window.
+#   OWED: the SIX movers, in queue C right now — expressions, statements, Module5_IREmitter,
+#   stmt_control_flow, types, Module2_Parser. Plus the reference suite verdict.
+#
+# ## LADDER FOR THE NEXT RELAUNCH
+#
+#   1. Read `getting-better/proofs49/queue49.progress` FIRST and record the six verdicts.
+#      If a mover FAILS, that is the honest cost of making a deleted branch reachable and
+#      it must be worked, not hidden.
+#   2. Route #51 — the recommendation is written and scoped; build it.
+#   3. The `is None` residue class more broadly: route #50 fixed the LOCAL, #51 is the
+#      CALL, and the FIELD (`self.f = None`) is still unprobed for the string case
+#      (route #44 recorded the int case as residue).
+#   4. Then the vacuous-driver ratchets (pycsl-reference 9/8, python-reference 82/55 —
+#      note #48's tightening; the remaining 55 are mostly async/metaclass/import-machinery
+#      constructs PyCSL does not model, so treat them as a CERTIFIED-BOUNDARY class rather
+#      than as work, and say so explicitly rather than leaving the ratchet looking lazy).
+#   5. Then the seventeen why3 --type-only failures and #36's last sliver.
+#
+# ## PROBED THIS WINDOW WITH NO FINDING (do not re-probe)
+#
+#   erased-local projections (tuple index, `len` of a set/tuple, set membership, dict
+#   literal read); chained comparisons in PROGRAM code (route #33's desugar handles them
+#   — the `types.py` comment claiming otherwise is about the MIRROR path and is stale);
+#   `round`/`int()` on floats and string ordering (all type-rejected); negative indexing
+#   (`a[-1]` lowers to `a[len-1]`, faithful); `True + True`; recursion without a variant
+#   (termination IS checked — `Cannot prove termination`); a non-terminating `while`
+#   (Why3 emits a `termination` sub-goal and it is Unknown, so the run FAILS); two
+#   comprehensions / generators / sets / tuples compared to each other (route #41's
+#   per-name opacity holds); `abs`/`max`/`min` (`abs` is an ABSTRACT val with no contract
+#   — a stated completeness gap, not a route).
+#
 # ===================== START HERE — #48 (INTERIM, window 4 in progress) ==========
 #
 # THIS BLOCK IS WRITTEN MID-WINDOW so a cold restart loses nothing. It is rewritten
