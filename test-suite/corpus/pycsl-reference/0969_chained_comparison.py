@@ -10,9 +10,14 @@ over-approximates the THEN branch but UNDER-approximates the ELSE: every state w
 and `a > 3` takes Python's else and the model's then, so the else branch was proved over a
 strict SUBSET of the reachable states.
 
-It was also an internal disagreement: the `#@` ANNOTATION grammar has always expanded chains
-correctly (corpus 0865 emits `ensures { ((0 <= result) && (result < 256)) }`), so the two
-halves of the same file meant different things by `a <= b <= c`.
+It was also an internal disagreement, though NOT the one this docstring used to claim.
+CORRECTED BY RELAUNCH #48, on a measurement: the `#@` ANNOTATION grammar did NOT expand
+chains — `0 <= x <= 3` in a clause lowered LEFT-ASSOCIATIVELY to `((0 <= x) <= 3)`, a bool
+compared to an int, which Why3 type-rejects. The cited 0865 does not show otherwise: it is
+written in the ALREADY-EXPANDED form `0 <= \\result and \\result < 256`. So before #48 the
+two halves of the same file did disagree, but by the chain meaning NOTHING in a clause
+rather than meaning the conjunction. Witnesses 1074 (the capability) and 1075 (its
+refutation) close that half; see `docs/pycsl-translational-reference.md` §T.5.12j.
 
 EVERY POSTCONDITION BELOW IS A NEGATIVE TEST of the old behaviour — measured, with the pass
 removed, as `Verification FAILED` (7 non-Valid goals):

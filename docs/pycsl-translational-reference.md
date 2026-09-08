@@ -1885,6 +1885,37 @@ models no complex arithmetic, and `c.real` / `c.imag` are not modelled either.
 
 ---
 
+### §T.5.12j  A chained comparison in a `#@` clause is a CONJUNCTION
+
+`0 <= x <= 3` inside a `requires`, an `ensures`, a `loop invariant` or a class invariant was
+lowered **left-associatively** to `((0 <= x) <= 3)` — a `bool` compared to an `int`. Why3
+type-rejects that, so the clause failed *closed* rather than proving something wrong; but it
+did not mean what it reads as, and `0 <= i <= 3` is the canonical loop-invariant idiom.
+The unsound direction was probed first and is closed too: `ensures False == False == True`
+emits `((0 = 0) = 1)` and is type-rejected on the same grounds.
+
+$\mathcal{T}_e$ now rewrites a comparison whose **left operand is itself a comparison** into
+the conjunction Python means: `a op1 b op2 c` becomes `(a op1 b) ∧ (b op2 c)`.
+
+**The expansion is safe in a clause in a way it is not in program code**, and that is why it
+needs no machinery. §T.5.11's `desugar_chained_comparisons` (route #33) has to bind the
+middle operand with a walrus, because Python evaluates it **exactly once** and a program
+operand may have effects; a contract expression is *pure by construction*, so mentioning the
+middle operand twice is semantically free — no temporary, no purity allow-list.
+
+**Measured byte-inert on both planes** — 0 of 875 corpus emissions and 0 of 53 mirror
+emissions — because not one `#@` clause in the tree writes a chain, precisely *because* it
+never worked. Every existing clause is already in the expanded `0 <= i and i <= n` form.
+Witnesses `1074` (the capability, in both a `requires`/`ensures` pair and a `loop invariant`)
+and `1075` (its refutation: the same chain on a body that violates it must still fail, so
+the expansion is not collapsing to `true`).
+
+`pycsl-reference/0969`'s docstring used to assert that "the `#@` annotation grammar has
+always expanded chains correctly", citing `0865`. That was false and is corrected in place:
+`0865` is written in the already-expanded form.
+
+---
+
 ### §T.5.12h  `None` is NOT the integer 0 in a VALUE position
 
 `None` lowers to the literal `0`, and that is the **Optional convention** the whole

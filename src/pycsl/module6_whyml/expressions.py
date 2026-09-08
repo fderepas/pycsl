@@ -4709,6 +4709,45 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # to_dict() is faithful for its purposes.
         expr = node.to_dict()
         raw_op = expr["op"]
+        # (#48) A CHAINED COMPARISON INSIDE A `#@` CLAUSE MEANT NOTHING, AND ONLY THE WHY3
+        #   TYPE CHECKER WAS STOPPING IT. `0 <= i <= 3` in a `requires`, an `ensures` or a
+        #   `loop invariant` was lowered LEFT-ASSOCIATIVELY to `((0 <= !i) <= 3)` — a bool
+        #   compared to an int. Why3 rejects that, so the clause failed CLOSED rather than
+        #   proving something wrong; but it did not mean what it reads as, and
+        #   `0 <= i <= 3` is THE canonical loop-invariant idiom. Probed for the unsound
+        #   direction first: `ensures False == False == True` emits `((0 = 0) = 1)` and is
+        #   type-rejected too, so the bool-chain shape is closed as well.
+        #
+        #   Module 5's `desugar_chained_comparisons` (route #33) fixes exactly this for
+        #   PROGRAM code and does not reach contract expressions, which come from Module 2's
+        #   own grammar. `pycsl-reference/0969`'s docstring asserts that "the `#@` ANNOTATION
+        #   grammar has always expanded chains correctly" and cites 0865 — MEASURED FALSE:
+        #   0865 is written in the already-expanded form `0 <= \result and \result < 256`,
+        #   and a real chain has never worked in a clause. That docstring is corrected in the
+        #   same increment.
+        #
+        #   THE EXPANSION IS SAFE HERE IN A WAY IT IS NOT IN PROGRAM CODE, and that is why it
+        #   can be this small. Route #33 needed a walrus to bind the middle operand because
+        #   Python evaluates it EXACTLY ONCE and a program operand may have effects. A
+        #   contract expression is PURE by construction, so mentioning the middle operand
+        #   twice is semantically free — no temporary, no allow-list.
+        #
+        #   MEASURED BYTE-INERT, corpus AND mirrors, 0 files of 875 and 0 of 53: not one
+        #   `#@` clause in the whole tree writes a chain, precisely because it never worked.
+        #   So this costs no re-proof and buys the idiom.
+        _R33_CMP = ("==", "!=", "<", "<=", ">", ">=")
+        if (raw_op in _R33_CMP
+                and (self._in_spec or getattr(self, "_in_loop_spec", False))
+                and isinstance(expr.get("left"), dict)
+                and expr["left"].get("type") == "BinOp"
+                and expr["left"].get("op") in _R33_CMP):
+            _r33_conj = {
+                "type": "BinOp", "op": "and",
+                "left": expr["left"],
+                "right": {"type": "BinOp", "op": raw_op,
+                          "left": expr["left"].get("right"),
+                          "right": expr.get("right")}}
+            return self._expr_to_whyml(_r33_conj, local_refs, invariant_ctx, subst)
         # (#48) ROUTE #45 — EVERY COMPARISON WITH A NaN OPERAND IS DETERMINED, AND NONE OF
         #   THEM IS REFLEXIVE. See the long note in `statements.py`'s NaN recognizer for
         #   the mechanism and for why the campaign's opaque-value repair cannot be used
