@@ -529,6 +529,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # (corpus control 1064).
             if _etk == "None#empty":
                 return "false"
+            # (#48) ROUTE #45: `bool(float("nan"))` is TRUE — NaN is not zero — so a
+            # NaN-bound local's truthiness is FAITHFUL as `true`. The opposite of the
+            # `None` arm above, and the reason the record carries no `#empty` suffix.
+            if _etk == "NaN":
+                return "true"
             # (#46) an EMPTY set/tuple literal is recorded too (route #41 needs the
             # VALUE opaque), but its TRUTHINESS is faithful — Python agrees the empty
             # container is falsy — so the `#empty` suffix is skipped here.
@@ -4704,6 +4709,56 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # to_dict() is faithful for its purposes.
         expr = node.to_dict()
         raw_op = expr["op"]
+        # (#48) ROUTE #45 — EVERY COMPARISON WITH A NaN OPERAND IS DETERMINED, AND NONE OF
+        #   THEM IS REFLEXIVE. See the long note in `statements.py`'s NaN recognizer for
+        #   the mechanism and for why the campaign's opaque-value repair cannot be used
+        #   here. IEEE 754 makes every ordering and `==` on a NaN operand False and `!=`
+        #   True, whatever the other operand is, so this lowering is EXACT.
+        if raw_op in ("==", "!=", "<", "<=", ">", ">="):
+            _r45_seed_l = expr.get("left")
+            _r45_seed_r = expr.get("right")
+            # ROUTE #45 NaN RECOGNIZER, written as an INLINE explicit-stack walk and NOT as a
+            # helper method: relaunch #46 recorded, and route #42 re-measured in this very
+            # window, that a new LIVE def with no mirror counterpart breaks
+            # `bin/check-mirror-coverage.py`'s 550 ratchet. Two uses, two copies, ratchet held.
+            # IEEE 754: every arithmetic operation with a NaN operand is NaN, so arithmetic
+            # PROPAGATES; a comparison yields a bool, so it does not.
+            _r45_stack = [_r45_seed_l, _r45_seed_r]
+            _r45_nan = False
+            while _r45_stack and not _r45_nan:
+                _r45_n = _r45_stack.pop()
+                if not isinstance(_r45_n, dict):
+                    continue
+                _r45_t = _r45_n.get("type")
+                if _r45_t == "Call":
+                    _r45_f = _r45_n.get("func")
+                    if _r45_f in ("math.nan", "float"):
+                        if _r45_f == "math.nan":
+                            _r45_nan = True
+                        else:
+                            _r45_a = (_r45_n.get("args") or [None])[0]
+                            if (isinstance(_r45_a, dict)
+                                    and _r45_a.get("type") == "String"
+                                    and str(_r45_a.get("value", "")).strip().lower()
+                                        .lstrip("+-") == "nan"):
+                                _r45_nan = True
+                elif _r45_t == "Var":
+                    if (getattr(self, "_erased_truthy_locals", {}).get(
+                            _r45_n.get("name")) == "NaN"
+                            or _r45_n.get("name") == "math.nan"):
+                        _r45_nan = True
+                elif _r45_t == "Attribute":
+                    if (_r45_n.get("attr") == "nan"
+                            and str((_r45_n.get("value") or {}).get("name", "")) == "math"):
+                        _r45_nan = True
+                elif _r45_t == "BinOp" and _r45_n.get("op") in (
+                        "+", "-", "*", "/", "div", "%", "**"):
+                    _r45_stack.append(_r45_n.get("left"))
+                    _r45_stack.append(_r45_n.get("right"))
+                elif _r45_t == "UnaryOp" and _r45_n.get("op") in ("-", "+"):
+                    _r45_stack.append(_r45_n.get("expr"))
+            if _r45_nan:
+                return "true" if raw_op == "!=" else "false"
         # #5 (pyval `or {}` / `or []` default, self-tcb-reduction Tier-5): `<pyval> or {}`
         # (the legacy `registry = self.f.get(k) or {}` default) lowers to a FAITHFUL
         # keep-if-map-else-empty projection over the heterogeneous carrier —
@@ -15444,8 +15499,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     expr.get("name")) == "None#empty"):
             self._add_abstract_op("val function pycsl_none : int")
             return "pycsl_none"
+        # (#48) ROUTE #45: a NaN-bound local is EXCLUDED from route #41's per-name opaque.
+        # Its value is ALREADY opaque (`py_float_1`), and #45's repair is about the
+        # COMPARISON, not the value — renaming the opaque would move emissions for no gain.
         if (isinstance(expr, dict) and expr.get("type") == "Var"
-                and expr.get("name") in getattr(self, "_erased_truthy_locals", {})):
+                and expr.get("name") in getattr(self, "_erased_truthy_locals", {})
+                and getattr(self, "_erased_truthy_locals", {}).get(
+                    expr.get("name")) != "NaN"):
             _e41 = whyml_ident(expr["name"])
             self._add_abstract_op("val function pycsl_erased_%s : int" % _e41)
             return "pycsl_erased_%s" % _e41

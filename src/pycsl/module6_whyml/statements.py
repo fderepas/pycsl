@@ -496,7 +496,71 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         #   `module6_whyml/types.py` mirror emission). The truth `bool(x) is False` is only
         #   valid on the path that bound `None`, and a flow-INSENSITIVE record cannot say
         #   that. The reopening capability is a real join at `_handle_if_stmt`.
-        if vt == "None":
+        # (#48) ROUTE #45 — NaN IS THE ONE PYTHON VALUE WHOSE `==` IS NOT REFLEXIVE.
+        #   `x = float("nan")` has no model, so it lowered to an abstract
+        #   `val py_float_1 (x0: int) : int` — an opaque INT — and the guard `x == x`
+        #   became `!x = !x`, i.e. REFLEXIVITY OF `=`, which every value model has and
+        #   which NaN alone breaks. MEASURED: `x = float("nan"); if x == x: return 7`
+        #   proved `\result == 7` while Python returns 0 (witness 1065), and the same
+        #   through one arithmetic step, `y = x + 1; y == y` (witness 1066).
+        #
+        #   THE CAMPAIGN'S STANDING REPAIR DOES NOT APPLY, and that is the part worth
+        #   carrying. Routes #40/#41/#44 all closed a wrong-value erasure by making the
+        #   VALUE OPAQUE. Here the value is ALREADY opaque and it is STILL equal to
+        #   itself: an opaque constant satisfies `c = c`. Opacity does not repair a broken
+        #   equivalence relation.
+        #
+        #   WHAT DOES: NaN's comparison semantics are TOTALLY DETERMINED — every ordering
+        #   and `==` is False and `!=` is True, whatever the other operand, INCLUDING the
+        #   same NaN — so the lowering is EXACT rather than merely refused, and this fix
+        #   is a COMPLETENESS WIN as well: `x != x`, `if x:` and `x < 1`, all TRUE of the
+        #   program and all unprovable before, now prove (witnesses 1067-1069).
+        #
+        #   Recorded WITHOUT the `#empty` suffix and given its own `_to_bool` arm, because
+        #   `bool(float("nan"))` is TRUE — NaN is not zero — the exact opposite of `None`.
+        # ROUTE #45 NaN RECOGNIZER, written as an INLINE explicit-stack walk and NOT as a
+        # helper method: relaunch #46 recorded, and route #42 re-measured in this very
+        # window, that a new LIVE def with no mirror counterpart breaks
+        # `bin/check-mirror-coverage.py`'s 550 ratchet. Two uses, two copies, ratchet held.
+        # IEEE 754: every arithmetic operation with a NaN operand is NaN, so arithmetic
+        # PROPAGATES; a comparison yields a bool, so it does not.
+        _r45_stack = [val_ir]
+        _r45_nan = False
+        while _r45_stack and not _r45_nan:
+            _r45_n = _r45_stack.pop()
+            if not isinstance(_r45_n, dict):
+                continue
+            _r45_t = _r45_n.get("type")
+            if _r45_t == "Call":
+                _r45_f = _r45_n.get("func")
+                if _r45_f in ("math.nan", "float"):
+                    if _r45_f == "math.nan":
+                        _r45_nan = True
+                    else:
+                        _r45_a = (_r45_n.get("args") or [None])[0]
+                        if (isinstance(_r45_a, dict)
+                                and _r45_a.get("type") == "String"
+                                and str(_r45_a.get("value", "")).strip().lower()
+                                    .lstrip("+-") == "nan"):
+                            _r45_nan = True
+            elif _r45_t == "Var":
+                if (getattr(self, "_erased_truthy_locals", {}).get(
+                        _r45_n.get("name")) == "NaN"
+                        or _r45_n.get("name") == "math.nan"):
+                    _r45_nan = True
+            elif _r45_t == "Attribute":
+                if (_r45_n.get("attr") == "nan"
+                        and str((_r45_n.get("value") or {}).get("name", "")) == "math"):
+                    _r45_nan = True
+            elif _r45_t == "BinOp" and _r45_n.get("op") in (
+                    "+", "-", "*", "/", "div", "%", "**"):
+                _r45_stack.append(_r45_n.get("left"))
+                _r45_stack.append(_r45_n.get("right"))
+            elif _r45_t == "UnaryOp" and _r45_n.get("op") in ("-", "+"):
+                _r45_stack.append(_r45_n.get("expr"))
+        if _r45_nan:
+            self._erased_truthy_locals[target] = "NaN"
+        elif vt == "None":
             self._erased_truthy_locals[target] = "None#empty"
         elif vt in ("GenExp", "UnknownPyExpr"):
             self._erased_truthy_locals[target] = vt
