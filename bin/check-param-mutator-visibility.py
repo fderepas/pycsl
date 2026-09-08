@@ -12,9 +12,8 @@ inside the callee is visible to the caller. A lowering has exactly three honest 
                   and it is a fail-OPEN: the mutation is not merely un-modelled, it is
                   modelled as ABSENT.**
 
-ROUTE #49 is one cell of this table, and AT THE COMMIT THAT INTRODUCES THIS PLANE IT IS
-STILL OPEN — the baseline records `append -> DROPPED` explicitly, so the gate is green about
-a defect it has NAMED rather than silently red. `a.append(x)` on a list PARAMETER is DROPPED — `g(a);
+ROUTE #49 was TWO cells of this table and both are now CLOSED. `a.append(x)` on a list
+PARAMETER was DROPPED — `g(a);
 return len(a)` proved `\result == 0` where Python returns 1 — while its four siblings
 `pop` / `insert` / `clear` / `extend` were already REFUSED and the element write `a[0] = v`
 and dict write `d[k] = v` were already CALLER-VISIBLE. Nothing in the campaign made that
@@ -105,13 +104,7 @@ def f(a: {ann}) -> int:
 # with no matching cell, is a FAILURE.
 # ---------------------------------------------------------------------------
 BASELINE = {
-    # ROUTE #49, OPEN AND RECORDED, NOT CLASSIFIED-SAFE.
-    # getting-better/open-routes/route49-append-through-parameter-dropped.md.
-    # `append` is the ONE cell of this table that is DROPPED, and this entry exists so the
-    # plane is GREEN while the route is open rather than silently red. FLIP IT TO
-    # "REFUSED" when the refusal lands — the plane is then the thing that notices if it
-    # ever regresses, which is the whole reason to write the table down.
-    ("list", "a.append(1)"):    "DROPPED",
+    ("list", "a.append(1)"):    "REFUSED",
     ("list", "a.pop()"):        "REFUSED",
     ("list", "a.insert(0, 1)"): "REFUSED",
     ("list", "a.clear()"):      "REFUSED",
@@ -123,12 +116,7 @@ BASELINE = {
     ("set",  "a.discard(3)"):   "CALLER-VISIBLE",
     ("list", "a.sort()"):       "REFUSED",
     ("list", "a.reverse()"):    "REFUSED",
-    # ROUTE #49's SECOND SHAPE, OPEN AND RECORDED — the same defect as `append` but through
-    # the AUGMENTED-ASSIGNMENT handler, which is a different statement kind with its own
-    # path to the seq-promotion snapshot, so the `append` refusal does not reach it. FOUND
-    # BY EXTENDING THIS TABLE FROM TEN CELLS TO SEVENTEEN, in the hour after the plane was
-    # written. Flip to "REFUSED" with the other one.
-    ("list", "a += [1]"):       "DROPPED",
+    ("list", "a += [1]"):       "REFUSED",
     ("dict", "a.update({1: 5})"):   "REFUSED",
     ("dict", "a.pop(1)"):       "REFUSED",
     ("dict", "a.setdefault(1, 5)"): "REFUSED",

@@ -2160,6 +2160,34 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         in_loop: bool,
     ) -> str:
         target = stmt.target
+        # (#48) ROUTE #49, SECOND SHAPE — `a += [x]` ON A LIST PARAMETER, found by the
+        #   TWENTY-SIXTH PLANE the same hour it was written. `.append` was the cell the
+        #   plane's first ten found; extending its table to seventeen cells turned up a
+        #   SECOND DROPPED one, and it is the same defect through a different statement
+        #   kind, so the `.append` refusal above does not reach it. MEASURED: `def g(a):
+        #   a += [1]` then `g(a); return len(a)` proved `\result == 2` where Python
+        #   returns 3 (witness 1083).
+        #
+        #   GATED ON THE TARGET BEING A COLLECTION, not merely a parameter, and that
+        #   distinction is the whole correctness of this arm: `a += 1` on an INT parameter
+        #   is FAITHFUL as a local update, because Python integers are immutable and the
+        #   caller genuinely does not see it. Only a list target is passed by reference.
+        #   A LOCAL list's `+=` is faithful too and keeps proving.
+        if (target in set(getattr(self, "_formal_params", []) or [])
+                and (target in getattr(self, "_seq_locals", set())
+                     or target in getattr(self, "_array_locals", set()))
+                and target not in getattr(self, "_stmt_seq_mut_params", set())):
+            from errors import PyCSLSemanticError as _R49B
+            raise _R49B(
+                "in-place `%s=` on list parameter '%s' is out of scope: Python `a += b` "
+                "on lists is an IN-PLACE extend, so the caller's list grows, and this "
+                "lowering grows a local snapshot with no `writes {%s}` frame — measured, "
+                "`g(a); return len(a)` proved the length UNCHANGED where Python had grown "
+                "it. Build the result in a LOCAL and return it (`c = []; c += a; c += b; "
+                "return c` proves the length-additive law), or use `a.append`/`extend` on "
+                "a local." % (stmt.op, target, target),
+                stage="module6-whyml",
+                code="PYCSL-WHYML-PARAM-LIST-AUGASSIGN")
         safe_target = whyml_ident(target)
         _val_d = stmt.value.to_dict()
         val = self._expr_to_whyml(_val_d, local_refs)
@@ -2442,6 +2470,45 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 # TAG via the stmt_ir constructor (SPass / SReturn …) — NOT the pre-feature
                 # `_coerce_to_int` erasure to `0`. Keyed on the param being a stmt-seq-mut
                 # param → corpus-inert.
+                # (#48) ROUTE #49 — `append` TO A LIST PARAMETER WAS INVISIBLE TO THE
+                #   CALLER. Python passes a list BY REFERENCE, so the append must be
+                #   visible; the seq-promotion shadow `let a = ref (snapshot a)` appends to
+                #   a LOCAL COPY and the callee carries NO `writes` clause, so Why3 knows
+                #   `a` is unchanged across the call. MEASURED: `g(a); return len(a)` proved
+                #   `\result == 0` where Python returns 1, through a plain function AND
+                #   through a method, and just as readily with the callee declaring
+                #   `assigns \nothing` — the model and that declaration agree with each
+                #   other and both disagree with Python, so the frame plane cannot see it
+                #   either (witnesses 1080/1081).
+                #
+                #   REFUSED, and the refusal is what makes the family CONSISTENT rather
+                #   than adding a fifth special case: `pop`, `insert`, `clear`, `extend`
+                #   and `remove` on a list parameter were ALREADY refused, while `a[0] = v`,
+                #   `d[k] = v`, `s.add` and `s.discard` through a parameter are already
+                #   CALLER-VISIBLE. `append` was the one cell of that table that was
+                #   DROPPED — `bin/check-param-mutator-visibility.py` is the plane that
+                #   tabulates it.
+                #
+                #   KEYED ON THE RECEIVER BEING A FORMAL PARAMETER, never on `.append`
+                #   itself: a LOCAL list's appends are faithful and must keep proving
+                #   (witness 1082), and that is the shape most ordinary Python uses. The
+                #   statement-IR append model (`_stmt_seq_mut_params`) has a real
+                #   `writes {p}` frame and is exempt by construction.
+                if (arr_name in set(getattr(self, "_formal_params", []) or [])
+                        and arr_name not in getattr(self, "_stmt_seq_mut_params", set())):
+                    from errors import PyCSLSemanticError as _R49
+                    raise _R49(
+                        "in-place `append` to list parameter '%s' is out of scope: Python "
+                        "passes a list argument BY REFERENCE, so the append must be "
+                        "VISIBLE to the caller, and this lowering appends to a local "
+                        "snapshot with no `writes {%s}` frame — measured, `g(a); "
+                        "return len(a)` proved the length UNCHANGED where Python had "
+                        "grown it. `pop`, `insert`, `clear`, `extend` and `remove` on a "
+                        "list parameter are refused on the same grounds. Build the list "
+                        "in a LOCAL and RETURN it (`a = f(a)`), which is faithfully "
+                        "modelled and proves." % (arr_name, arr_name),
+                        stage="module6-whyml",
+                        code="PYCSL-WHYML-PARAM-LIST-APPEND")
                 if arr_name in getattr(self, "_stmt_seq_mut_params", set()):
                     raw_arg = (val["args"][0].to_dict()
                                if hasattr(val["args"][0], "to_dict")
