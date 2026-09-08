@@ -60,7 +60,47 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 LIVE = os.path.join(ROOT, "src", "pycsl")
 
-MAX_SILENT = 68
+# RATCHET HISTORY, itemised so a bump is never a shrug:
+#   68  first measurement (#44).
+#   70  (#49) TWO REFUSALS were added by the campaign itself and BOTH are deliberate
+#       fail-closed devices, each landed with witnesses that prove a contract FALSE of its
+#       program at the parent commit:
+#         `_handle_augassign_stmt`  route #49 — `a += [1]` on a list PARAMETER was dropped
+#         `_handle_binop`           route #46 — a comparison over a possibly-NaN name
+#       Both raise `PyCSLSemanticError`, i.e. they REJECT THE FILE; neither adds an exit
+#       path to a lowering. The rows are tagged `SILENT/refusal` so this stays visible.
+#       NOT bumped for anything else: the non-refusal population is unchanged at 68.
+MAX_SILENT = 70
+
+
+# (#49) THE REFUSAL CLASS. Every `raise` this campaign ADDS to the emitter is a REFUSAL —
+# a `PyCSL*Error` that ABORTS the whole pipeline and rejects the file — and a refusal is
+# not an exit path of the modelled computation: no caller observes it, because there is no
+# run. That is a different thing from a `raise` the emitter uses as control flow, and the
+# ratchet was measuring them as one. Both are still counted (nothing is hidden and the
+# SILENT number does not move), but each row now says which it is, so the next reader can
+# tell a growing refusal surface — which is the campaign WORKING — from a growing
+# unchecked-control-flow surface, which is the thing this plane exists to shrink.
+_REFUSAL_PREFIXES = ("PyCSL", "_PyCSL")
+
+
+def _raise_kinds(fn_node):
+    """The set of exception NAMES raised directly in this function (`<bare>` for a
+    bare `raise`)."""
+    ks = set()
+    for x in ast.walk(fn_node):
+        if not isinstance(x, ast.Raise):
+            continue
+        e = x.exc
+        nm = None
+        if isinstance(e, ast.Call) and isinstance(e.func, ast.Name):
+            nm = e.func.id
+        elif isinstance(e, ast.Call) and isinstance(e.func, ast.Attribute):
+            nm = e.func.attr
+        elif isinstance(e, ast.Name):
+            nm = e.id
+        ks.add(nm or "<bare>")
+    return ks
 
 
 def raising_live_functions():
@@ -80,7 +120,11 @@ def raising_live_functions():
                     continue
                 if any(isinstance(x, ast.Raise) for x in ast.walk(n)):
                     out.setdefault(n.name, set()).add(os.path.relpath(path, ROOT))
+                    KINDS.setdefault(n.name, set()).update(_raise_kinds(n))
     return out
+
+
+KINDS = {}
 
 
 def directive_block(lines, lineno):
@@ -135,7 +179,11 @@ def main():
           f"SILENT (the emitted `val` tells Why3 the call CANNOT raise).")
     if args.verbose or len(silent) > args.max_silent:
         for rel, name, livefile in sorted(silent):
-            print(f"    SILENT    {rel:44s} {name:38s} live: {livefile}")
+            _k = KINDS.get(name, set())
+            _tag = ("SILENT/refusal" if _k and all(
+                any(x.startswith(pfx) for pfx in _REFUSAL_PREFIXES) for x in _k)
+                else "SILENT")
+            print(f"    {_tag:15s} {rel:44s} {name:38s} live: {livefile}")
     if len(silent) > args.max_silent:
         print(f"[-] trusted-raises-honesty: SILENT RATCHET BROKEN — {len(silent)} > "
               f"{args.max_silent}. A `\\trusted` stub with no `#@ raises` asserts that its "
