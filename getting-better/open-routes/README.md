@@ -1,6 +1,6 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: routes #45, #46, #47 and #48, all found by relaunch #48.
+## CURRENTLY OPEN: routes #45, #46, #47, #48 and #49, all found by relaunch #48.
 
   * **`route45-nan-breaks-eq-reflexivity.md`** — `x = float("nan"); if x == x:` proves a
     contract false of its program. NOT the same shape as #40/#41/#43/#44: the value is
@@ -20,6 +20,11 @@
     Found by READING THE EMITTER'S OWN SOUNDNESS CLAIMS and probing each: the comment
     said "a seeded iterable is modelled as empty (a sound under-approximation ... never
     proves falsely)", and that is precisely the claim the measurement refutes.
+  * **`route49-append-through-parameter-dropped.md`** — `a.append(x)` on a list PARAMETER
+    is appended to a local SNAPSHOT, the callee gets no `writes` clause, and the caller
+    therefore PROVES the length unchanged. `append` is the odd one out of its own family:
+    `pop`/`insert`/`clear`/`extend` are already refused, element and dict writes ARE
+    caller-visible, and the same-function case is faithful.
 
 
 ROUTE #42 (`<int> is True` proved a contract FALSE of its program) was CLOSED by
