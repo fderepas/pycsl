@@ -77,3 +77,37 @@ _advance_past_referenced_axiom_decls` (`-> int`).
 a refusal there buys nothing and costs nine re-annotations; the `-> str` half is the live route
 and has exactly one mirror site to fix. That keeps the repair honest and its blast radius one
 file.
+
+## SHAPE (b), FOUND MINUTES LATER AND WORSE — THE FIELD NEEDS NO LIE AT ALL
+
+`scratchpad/w49/probe50/q5.py`, `[+] Verification SUCCESS` at `b0e9b284`:
+
+```python
+@mutable_state
+@dataclass
+class C:
+    name: str = ""
+
+    #@ requires True
+    #@ ensures \result == 7        # <-- FALSE: with `o.name = None`, Python returns 0
+    #@ assigns \nothing
+    def probe(self) -> int:
+        if self.name is None:
+            return 0
+        return 7
+
+o = C(); o.name = None; assert o.probe() == 0     # runs, and holds
+```
+
+There is no annotation lie here and no branch join: a `dataclass` field hint is not enforced
+by Python, the caller simply stores `None`, and the always-present arm answers `false` from
+the field's declared TYPE. **The common thread of routes #50, #51(a) and #51(b) is one
+sentence: the model decides `is None` from a TYPE where only a BINDING could justify it.**
+
+**The field case is the expensive one and the cost must be measured before it is built.**
+Nothing establishes a field's non-None-ness — its value comes from outside the function — so
+the sound answer is the opaque `str_eq_op self.<f> pycsl_none_str`, i.e. UNDECIDABLE. The
+emitter's own code leans on such guards (`self._current_self_type = None` in
+`_reset_function_state`, read back as `is None` elsewhere), so this will move mirror emission
+and may cost whole-file proofs. That is honest work, not a hidden cost, and it is the reason
+this shape is RECORDED here rather than landed in the same increment as #50.
