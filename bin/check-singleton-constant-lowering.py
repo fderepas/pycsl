@@ -97,6 +97,18 @@ BASELINE = {
     ("_match_pattern_cond", '"Wildcard"', "true"):
         "route #30's repair, not its defect: a `case _:` wildcard genuinely matches "
         "everything. The kinds that do NOT are refused above it.",
+    ("_to_bool", '"None#empty"', "false"):
+        "route #44: `bool(None)` IS False, so this is the FAITHFUL truth value, not an "
+        "erasure — the VALUE of a `None`-bound local is opaque (`pycsl_none`) and only "
+        "its truthiness is decided. Corpus control 1064 is the driver that holds it; a "
+        "future change that made this opaque would turn a true contract unprovable and "
+        "1064 would go red.",
+    ("_to_bool", '"NaN"', "true"):
+        "route #45: `bool(float(\"nan\"))` IS True — NaN is not zero — so this is the "
+        "FAITHFUL truth value and the exact OPPOSITE of the `None` arm above. Corpus "
+        "control 1068 is the driver that holds it. Three different truthiness answers now "
+        "live in one dict (refuse for a generator, `false` for `None`, `true` for NaN), "
+        "and that is a semantic distinction, not an inconsistency.",
     ("_expr_to_whyml", '"UnknownPyExpr|GenExp"', "0"):
         "route #41, dict-shaped: the same arm as UnknownPyExprExpr above, extended to "
         "GenExp for R2a parity. Closed at the BINDING, not here — see that entry.",
