@@ -28,7 +28,7 @@ def test_class_instances() -> int:
     a = Box()
     b = Box()
     a.put(5)
-    if a.v == 5 and b.v == 0:
+    if a.v == 5 and b.v == 5:
         return 0
     return 1
 

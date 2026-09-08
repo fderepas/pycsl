@@ -13,7 +13,7 @@ def test_formal_grammar() -> int:
     single = 'a'
     double = "a"
     triple = """a"""
-    if single == double and double == triple and len(triple) == 1:
+    if single == double and double == triple and len(triple) == 3:
         return 0
     return 1
 

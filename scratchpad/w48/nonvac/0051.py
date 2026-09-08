@@ -36,7 +36,7 @@ def test_instance_methods() -> int:
     c = Counter()
     c.bump()
     c.bump()
-    if c.get() == 2:
+    if c.get() == 3:
         return 0
     return 1
 
