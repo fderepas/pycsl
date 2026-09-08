@@ -1,6 +1,17 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: none.
+## CURRENTLY OPEN: TWO — routes #45 and #46, both found by relaunch #48.
+
+  * **`route45-nan-breaks-eq-reflexivity.md`** — `x = float("nan"); if x == x:` proves a
+    contract false of its program. NOT the same shape as #40/#41/#43/#44: the value is
+    ALREADY opaque and an opaque constant is still equal to itself, so the campaign's
+    standing opaque-value repair does not apply. The faithful repair is named and is a
+    COMPLETENESS WIN as well as a soundness one.
+  * **`route46-none-branch-join.md`** — route #44's `None` record is flow-insensitive, so
+    a `None` bound in ONE branch of an `if` and something else in the other walks past it.
+    The obvious repair (a STICKY record) was BUILT and REFUTED TWICE, both times measured;
+    read that section before re-attempting it.
+
 
 ROUTE #42 (`<int> is True` proved a contract FALSE of its program) was CLOSED by
 relaunch #48 at commit `bee3564c` — `is` was given its own IR operator and the
