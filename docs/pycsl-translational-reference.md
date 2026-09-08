@@ -1885,6 +1885,101 @@ models no complex arithmetic, and `c.real` / `c.imag` are not modelled either.
 
 ---
 
+### §T.5.12h  `None` is NOT the integer 0 in a VALUE position
+
+`None` lowers to the literal `0`, and that is the **Optional convention** the whole
+union/carrier machinery is built on: `x is None` on a `Union`-typed local is a constructor
+check, on an `iropt_ir`/`iropt_str` carrier it is a `match` on the absent arm, on an
+`option`-returning call it is a `None`/`Some` discriminant, and a dozen more recognizers sit
+above the fall-through. Under that convention the model is internally consistent. What was
+not consistent is what happened when NONE of those recognizers fired (route #44, witnesses
+`1058`–`1064`):
+
+| program | model | Python |
+|---|---|---|
+| `x = None; if x == 0:` | taken | `None == 0` is **False** |
+| `x = 0; if x is None:` | taken | `0 is None` is **False** |
+| `x = None; return x + 5` | `\result == 5` | **TypeError** — no value at all |
+| `#@ ensures \result == None` on `-> int`, body `return 0` | **PROVED** | `0 == None` is **False** |
+
+The fourth needs no branch and no unusual body: any function returning `0` could carry that
+contract and be "verified", because `\result == None` lowered to `result = 0`. A contract
+that is false of its own program, proving directly, is the worst end of this family.
+
+**A read of a `None`-bound local is now the opaque `val function pycsl_none : int`** — route
+#41's device one singleton later — and the `is None` fall-through compares against that same
+constant. Two things about the granularity, because it is a semantic decision each time and
+not a convention:
+
+* **Shared, not per-name.** Route #41 needed per-name constants because an erased generator
+  and an erased tuple are *different objects*, so one constant would let the model prove
+  `x == y` for two of them. `None` really is one object, so the shared constant is faithful
+  and keeps `x = None; y = None; x == y` provable — Python's answer (`1063`).
+* **Truthiness stays decided.** `bool(None)` *is* `False`, so the literal `0` is the correct
+  truth value; `_to_bool` answers `false` rather than refusing or going opaque (`1064`).
+  Route #41 refuses there because a generator is always truthy while the model reads `0` —
+  the opposite situation. One dict, three different truthiness answers, and the record's
+  suffix is what distinguishes them.
+
+The fall-through takes a **faithful arm first**: a `\result` whose function declares a plain
+scalar return can never be the `None` singleton, so `\result != None` is `true` and
+`\result == None` is `false`. `pycsl-reference/0229` had been discharging that clause only
+*by accident*, as `result <> 0`. **That arm is gated on the Python return annotation and not
+on the WhyML return type**, and the gate is load-bearing: an `Optional[τ]` return degenerates
+to the WhyML type `int`, so the WhyML type alone would have fired on
+`_Parser.accept_op` (`ensures \result != None ==> self.i > \old(self.i)`) and handed every
+*caller* an unconditional guarantee that is false on its `return None` path.
+
+**Residue, stated rather than implied.** The record is *linear* — rebinding clears it — so a
+`None` bound in one branch of an `if` and something else in the other walks past it. That is
+`getting-better/open-routes/route46-none-branch-join.md`, which also records the *sticky*
+repair that was built and refuted twice: `_to_bool` reads the same dict, and
+"`bool(x)` is `False`" is a **path** fact that a flow-insensitive record cannot carry.
+
+---
+
+### §T.5.12i  NaN breaks the reflexivity of `==`, and opacity cannot repair it
+
+`float(<str>)` has no model and lowers to an abstract `val py_float_1 (x0: int) : int` — an
+opaque **int**. So `x = float("nan"); if x == x:` emitted `!x = !x`, which is *reflexivity of
+`=`*: every value model has it, and NaN is the one Python value that does not (route #45,
+witnesses `1065`–`1069`).
+
+| program | model | Python |
+|---|---|---|
+| `x = float("nan"); if x == x:` | taken | `nan == nan` is **False** |
+| `x = float("nan"); y = x + 1; if y == y:` | taken | still NaN — **False** |
+
+**This is the first route in the campaign whose standing repair does not apply.** §T.5.12d,
+§T.5.12e and §T.5.12h all closed a wrong-value erasure by making the value *opaque*. Here the
+value was already opaque and was still equal to itself: an opaque constant satisfies `c = c`.
+Opacity does not repair a broken equivalence relation.
+
+What repairs it is that NaN's comparison semantics are **totally determined**: every ordering
+and `==` is False and `!=` is True, whatever the other operand, *including the same NaN*. So
+$\mathcal{T}_e$ lowers a comparison with a NaN operand **exactly** — `false` for `== < <= >
+>=`, `true` for `!=` — rather than refusing it or making it undecidable. **The fix therefore
+improves completeness as well as soundness**, which is the opposite of the usual trade:
+`x != x`, `if x:` and `x < 1` are all *true* of the program, all unprovable before, and all
+prove now (`1067`–`1069`).
+
+Two details that are decisions rather than conventions:
+
+* **Arithmetic propagates; comparisons do not.** IEEE 754 makes every arithmetic operation
+  with a NaN operand NaN, so `y = x + 1` records `y` as NaN too (`1066`). A comparison yields
+  a `bool`, so it stops the propagation. A fix that recognized only the direct `float("nan")`
+  local would have been the same mistake one operator later — the lesson `1044` records for
+  route #41 and `1054` for route #42.
+* **`bool(float("nan"))` is `True`** — NaN is not zero — the exact opposite of `None` in
+  §T.5.12h, and the third distinct truthiness answer the one erased-locals dict now carries
+  (refuse for a generator, `false` for `None`, `true` for NaN).
+
+A genuinely `float`-annotated operand is **not** affected: `f(a: float) -> if a == a` already
+failed closed, because that routes through the `real` comparison path. The defect was
+confined to the `float(<str>)` constructor's degeneration to `int`.
+
+---
+
 ### §T.5.12g  `is` is NOT `==`, and the bool singleton proved it
 
 `_PY_OP_MAP` mapped `ast.Is` -> `"=="` and `ast.IsNot` -> `"!="`, so by the time
