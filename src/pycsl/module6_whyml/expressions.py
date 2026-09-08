@@ -15615,6 +15615,82 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                           and getattr(self, "_current_symbol_table", {}).get(
                               _r42_other.get("name")) == "bool"):
                         _r42_ok = True                     # a `bool`-typed local/param
+            # (#49) ROUTE #52 — `is` BETWEEN TWO VALUE-TYPED OPERANDS. Route #42 fixed the
+            #   `bool` SINGLETON and left the general narrowing to `==` in place, which is
+            #   exactly right for an object whose `__eq__` is the DEFAULT one: for such a
+            #   type equality IS identity, and that is why the enum / sentinel / class-object
+            #   idioms this tree uses are modelled correctly. It is WRONG for a type with
+            #   VALUE equality. MEASURED at `5d74b620` (`scratchpad/w49/probeinv/s1.py`):
+            #       a = "a"; b = a + "b"; c = "ab";  if b is c: return 7
+            #   PROVED `\result == 7` where Python returns 0 — `b` is built at run time and
+            #   is a different object from the literal `c`, but the two strings are EQUAL and
+            #   the model compares values.
+            #   THIS IS A BLACKLIST AND THAT IS A DELIBERATE, MEASURED DEPARTURE FROM ROUTE
+            #   #42's WHITELIST RULE. The whitelist form — admit only where the emitter can
+            #   SHOW equality implies identity — would have to refuse the SIX non-singleton
+            #   `is` sites in the whole tree (`operator_precedence is not _Precedence.FACTOR`,
+            #   `stmt.origin is not _ABSENT`, `type(C) is Meta`, and three `Ellipsis`/
+            #   `NotImplemented` tests), every one of which the `==` lowering gets RIGHT,
+            #   because nothing here can show a name is identity-typed. So the refusal is
+            #   keyed on what CAN be shown — a value-equality TYPE — and the residue is
+            #   stated rather than hidden: an unannotated local holding a string is not
+            #   refused. Census in getting-better/open-routes/route52-*.md: ZERO value-typed
+            #   `is` sites in either corpus, in the mirror or in src/pycsl_lib, so this costs
+            #   nothing that exists and closes the measured exploit.
+            _R52_VALUE_TYPES = ("str", "int", "float", "bytes", "tuple", "list",
+                                "dict", "set", "frozenset")
+            _R52_VALUE_KINDS = ("String", "Number", "Bytes", "Tuple", "MkTuple",
+                                "SetLit", "DictLit", "ListLit", "ArrayLit")
+            # `x is x` IS TRUE IN PYTHON FOR EVERY TYPE — identity is reflexive and the
+            # same name denotes the same object — so the SAME-VARIABLE shape is admitted
+            # whatever its type. Corpus control 1094; without this exemption the refusal
+            # takes a test the model gets exactly right.
+            # THE SINGLETON FAMILY IS NOT THIS ROUTE'S BUSINESS and must be let through:
+            # `x is None`, `x is Ellipsis` and `x is NotImplemented` are identity tests
+            # against a real singleton, modelled faithfully by routes #40/#44/#50
+            # DOWNSTREAM of here — and this handler runs FIRST, so without the exemption
+            # the refusal swallows every `is None` on a string local. MEASURED, and this is
+            # exactly how it was caught: the first spelling refused SEVEN mirror files (46
+            # of 53 emitted) rather than the zero the census predicted.
+            _r52_singleton = False
+            for _r52_s in (_r42_l, _r42_r):
+                if not isinstance(_r52_s, dict):
+                    continue
+                if (_r52_s.get("type") == "None" or _r52_s.get("py_ellipsis")
+                        or (_r52_s.get("type") == "Var"
+                            and _r52_s.get("name") in ("Ellipsis", "NotImplemented"))):
+                    _r52_singleton = True
+            _r52_same = (isinstance(_r42_l, dict) and isinstance(_r42_r, dict)
+                         and _r42_l.get("type") == "Var" and _r42_r.get("type") == "Var"
+                         and _r42_l.get("name") == _r42_r.get("name"))
+            _r52_bad = None
+            for _r52_side in ((_r42_l, _r42_r)
+                              if not (_r52_same or _r52_singleton) else ()):
+                if not isinstance(_r52_side, dict):
+                    continue
+                _r52_t = _r52_side.get("type")
+                if _r52_t in _R52_VALUE_KINDS:
+                    _r52_bad = _r52_t
+                elif (_r52_t == "Var"
+                      and getattr(self, "_current_symbol_table", {}).get(
+                          _r52_side.get("name")) in _R52_VALUE_TYPES):
+                    _r52_bad = getattr(self, "_current_symbol_table", {}).get(
+                        _r52_side.get("name"))
+            if _r52_bad is not None and _r42_other is None:
+                from errors import PyCSLSemanticError as _R52Err
+                raise _R52Err(
+                    "an IDENTITY test (`is` / `is not`) over a VALUE-typed operand "
+                    "(here: `%s`) is not modelled: PyCSL narrows `is` to `==`, which is "
+                    "faithful only where equality IS identity — a class instance, an enum "
+                    "member, a sentinel object. `str`, `int`, `tuple` and the other "
+                    "value types have equality WITHOUT identity, so the model would "
+                    "decide the test as VALUE equality: measured, `a = \"a\"; "
+                    "b = a + \"b\"; c = \"ab\"; if b is c: return 7` proved "
+                    "`\\result == 7` where Python returns 0, because `b` is built at run "
+                    "time and is a different object. Write `==` if you mean equality; "
+                    "identity of value-typed objects is not part of this model."
+                    % (_r52_bad,),
+                    stage="whyml-emit", code="PYCSL-R52-IS-VALUE-TYPED")
                 if not _r42_ok:
                     from errors import PyCSLSemanticError as _R42Err
                     raise _R42Err(

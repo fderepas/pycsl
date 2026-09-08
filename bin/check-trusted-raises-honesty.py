@@ -84,7 +84,21 @@ MAX_SILENT = 70
 _REFUSAL_PREFIXES = ("PyCSL", "_PyCSL")
 
 
-def _raise_kinds(fn_node):
+def _alias_map(tree):
+    """{local alias: original name} for `from errors import PyCSLSemanticError as _R49`.
+    The campaign's refusals are spelled with such aliases — measured: route #49's
+    `_handle_augassign_stmt` raises `_R49`/`_R49B` and was tagged as ordinary control flow
+    until this map existed."""
+    out = {}
+    for n in ast.walk(tree):
+        if isinstance(n, ast.ImportFrom):
+            for a in n.names:
+                if a.asname:
+                    out[a.asname] = a.name
+    return out
+
+
+def _raise_kinds(fn_node, aliases=None):
     """The set of exception NAMES raised directly in this function (`<bare>` for a
     bare `raise`)."""
     ks = set()
@@ -99,7 +113,8 @@ def _raise_kinds(fn_node):
             nm = e.func.attr
         elif isinstance(e, ast.Name):
             nm = e.id
-        ks.add(nm or "<bare>")
+        nm = nm or "<bare>"
+        ks.add((aliases or {}).get(nm, nm))
     return ks
 
 
@@ -120,7 +135,8 @@ def raising_live_functions():
                     continue
                 if any(isinstance(x, ast.Raise) for x in ast.walk(n)):
                     out.setdefault(n.name, set()).add(os.path.relpath(path, ROOT))
-                    KINDS.setdefault(n.name, set()).update(_raise_kinds(n))
+                    KINDS.setdefault(n.name, set()).update(
+                        _raise_kinds(n, _alias_map(tree)))
     return out
 
 

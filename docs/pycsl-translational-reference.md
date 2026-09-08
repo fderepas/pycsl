@@ -2063,6 +2063,48 @@ possibly-NaN too.
 
 ---
 
+### §T.5.12p  `is` between two VALUE-typed operands is not identity
+
+Route #42 gave `is` its own IR operator, narrowed it back to `==`/`!=` at the
+`generate_json` choke point carrying the additive `py_is` marker, and whitelisted exactly one
+shape: an identity test against a `bool` LITERAL. Everything else still lowers to `==`
+(route #52, witnesses `1092`–`1093`):
+
+```python
+    a: str = "a"
+    b: str = a + "b"        # built at RUN time — a fresh object
+    c: str = "ab"           # a compile-time constant
+    if b is c:              # Python: False.   Model: str equality -> True
+```
+
+For an object whose `__eq__` is the DEFAULT one, equality **is** identity, and that is why the
+enum-member, sentinel and class-object idioms this tree uses are modelled correctly. For a
+type with VALUE equality — `str`, `int`, `float`, `bytes`, `tuple`, `list`, `dict`, `set`,
+`frozenset` — it is not, and the model decided the test as equality.
+
+$\mathcal{T}_e$ now REFUSES an identity test where either operand can be SHOWN value-typed —
+a literal of such a type, or a name the symbol table types as one — with two exemptions that
+are part of the semantics rather than concessions:
+
+* **`x is x`** is True in Python for every type (identity is reflexive, and one name denotes
+  one object), so the same-variable shape is admitted whatever its type (`1093`).
+* **the SINGLETON family** — `x is None`, `x is Ellipsis`, `x is NotImplemented` — is modelled
+  faithfully by §T.5.12n and routes #40/#44 *downstream* of this handler, so it is let
+  through. The first spelling omitted this and took SEVEN of the fifty-three mirror files out
+  of emission altogether (46 of 53) against a census that predicted zero: the census says
+  where to look, the measurement is the gate.
+
+**This refusal is a BLACKLIST, and that is a departure from route #42's whitelist rule made on
+a measurement.** The whitelist form — admit only where the emitter can SHOW equality implies
+identity — would have to refuse all six non-singleton `is` sites in the tree
+(`operator_precedence is not _Precedence.FACTOR`, `stmt.origin is not _ABSENT`,
+`type(C) is Meta`, and three `Ellipsis`/`NotImplemented` tests), every one of which the `==`
+lowering gets right, because nothing in the emitter can show a name is identity-typed. The
+residue is therefore stated rather than hidden: an *unannotated* local holding a string is not
+refused.
+
+---
+
 ### §T.5.12j  A chained comparison in a `#@` clause is a CONJUNCTION
 
 `0 <= x <= 3` inside a `requires`, an `ensures`, a `loop invariant` or a class invariant was
