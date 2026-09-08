@@ -112,14 +112,6 @@ BASELINE = {
     ("_expr_to_whyml", '"UnknownPyExpr|GenExp"', "0"):
         "route #41, dict-shaped: the same arm as UnknownPyExprExpr above, extended to "
         "GenExp for R2a parity. Closed at the BINDING, not here — see that entry.",
-    ("_lower_getattr", '"DictLit|ArrayLit|SetLit|Call"', "0"):
-        "ROUTE #47, OPEN AND RECORDED, NOT CLASSIFIED-SAFE. "
-        "getting-better/open-routes/route47-getattr-default-erasure.md: `getattr(o, "
-        "<absent>, {})` really does return the default at runtime, but this coercion "
-        "models that default as the INTEGER 0, so `d == 0` is DECIDED where Python says "
-        "`{} == 0` is False. MEASURED, proves at 4289185b. This entry exists so the plane "
-        "stays green while the route is open; DELETE IT when the opaque per-kind default "
-        "lands, and the plane will then be the thing that notices if it regresses.",
     ("_emit_term_retval", '"Bool"', "true|false"):
         "a `#@ proof`-bridge term whose value IS the bool literal -- faithful.",
 }

@@ -8737,6 +8737,44 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # insertion order is not modelled. The `not in _record_types` guard
             # lets a user-defined/imported class of the same name (e.g. corpus
             # 0441's `Counter`) fall through to `_call_record_constructor`.
+            #
+            # (#48) ROUTE #48 — "NEVER PROVES FALSELY" WAS THE ONE CLAIM THIS COMMENT
+            #   COULD NOT MAKE. `(const None)` is not an UNKNOWN map, it is the EMPTY one,
+            #   and the model's missing-key default is the integer `0`. So a dropped SEED
+            #   is not merely lost: every read of a seeded key becomes the decidable `0`,
+            #   and a guard against `0` is decided the wrong way. MEASURED:
+            #
+            #     c = Counter([1,1,2]);        if c[1] == 0: return 7  -> PROVED. c[1] is 2
+            #     d = OrderedDict([(1,5)]);    if d[1] == 0: ...       -> PROVED. d[1] is 5
+            #     d = defaultdict(int,{1:5});  if d[1] == 0: ...       -> PROVED. d[1] is 5
+            #
+            #   THE FACTORY FORM IS UNTOUCHED AND THAT IS THE POINT: an EMPTY `Counter()`
+            #   and a `defaultdict(int)` really do answer `0` for a missing key, so the
+            #   empty-map model is FAITHFUL for them — `pycsl-reference/0498` is the driver
+            #   that says so, and it must keep proving. Only a construction that carries a
+            #   SEED becomes opaque, and the opaque is keyed on the SEED's own IR hash for
+            #   the reason route #47's is keyed on the default's: two constructions from
+            #   the same seed denote EQUAL maps and must stay provably equal, two from
+            #   different seeds must not.
+            #
+            #   CENSUS: eleven mentions of these three names across `src/pycsl`,
+            #   `src/self-annotate/src`, `src/pycsl_lib` and both corpora, and NOT ONE live
+            #   site carries a seed (the live constructions are two `defaultdict(list)` in
+            #   `frontend/ir_resolve.py` and 0498's `defaultdict(int)`, both factory form;
+            #   `stdlib/collections/counter_proves.py` is `\trusted` under `--no-proof`).
+            #   So this is byte-inert BY MEASUREMENT, not by construction.
+            _r48_args = expr.get("args") or []
+            _r48_seed = None
+            if func_name in ("Counter", "OrderedDict") and _r48_args:
+                _r48_seed = _r48_args[0]
+            elif func_name == "defaultdict" and len(_r48_args) > 1:
+                _r48_seed = _r48_args[1]
+            if _r48_seed is not None:
+                _r48 = "pycsl_seeded_map_%d" % (
+                    stable_hash(repr(_r48_seed)) & 0xffffffff)
+                self._add_abstract_op(
+                    "val function %s : map int (option int)" % _r48)
+                return _r48
             return "(const (None: option int))"
         if func_name == "list" and len(args) <= 1:
             # `list(X)` where X already lowered to an `array int` expression
@@ -10616,11 +10654,46 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # to an opaque `0` — the dict/list content is then unmodeled (a `.get`
         # chain on the result will not prove; fails-safe). A scalar int/bool
         # default passes through faithfully.
+        # (#48) ROUTE #47 — THE DEFAULT WAS THE INTEGER ZERO, AND SO WAS THE NO-DEFAULT
+        #   FORM THAT PYTHON ANSWERS WITH AN AttributeError. The comment above calls the
+        #   coercion "fails-safe: the dict/list content is then unmodeled". It is not: an
+        #   UNMODELLED value is undecidable and the integer `0` is DECIDABLE, so the model
+        #   did not lose the default, it DECIDED with it. MEASURED, all three:
+        #
+        #     d = getattr(c, "missing", {}); if d == 0: return 7  -> PROVED. `{} == 0` False
+        #     d = getattr(c, "missing", []); if d == 0: return 7  -> PROVED. `[] == 0` False
+        #     d = getattr(c, "missing");     if d == 0: return 7  -> PROVED. AttributeError
+        #
+        #   Route #22 (witness 0991) closed the case where the attribute IS DECLARED —
+        #   correctly, about WHICH value is returned — and said nothing about HOW that
+        #   value is MODELLED. This is that omission, and it is the campaign's general
+        #   shape a SIXTH time (routes #40 `...`, #41 erased locals, #42 the bool
+        #   singleton, #43 the complex literal, #44 `None`).
+        #
+        #   THE OPAQUE IS KEYED ON THE DEFAULT'S OWN IR, not on its kind and not shared,
+        #   and the granularity is a semantic decision exactly as it was in #41 (per-name)
+        #   and #44 (shared): two SYNTACTICALLY IDENTICAL defaults denote equal values —
+        #   `{} == {}` and `{1: 2} == {1: 2}` are both True in Python — so they must share
+        #   a constant and stay provably equal, while `{} == []` and `{1: 2} == {3: 4}` are
+        #   False and must become undecidable rather than decided. Hashing the default's
+        #   IR gives exactly that partition.
+        #
+        #   THE NO-DEFAULT FORM IS MADE OPAQUE RATHER THAN REFUSED, on a measurement:
+        #   `bin/check-getattr-erasure.py` reports ABSENT 7 / UNKNOWN 19 sites, and for an
+        #   object of UNKNOWN static type the attribute may well exist, so a refusal would
+        #   break nineteen sites to state something true of at most seven. RESIDUE, stated:
+        #   opacity models "some value" where Python has NO value at all, so a contract
+        #   about the AttributeError itself is still not expressible here.
         if len(args_ir) <= 2:
-            return "0"
+            _r47 = "pycsl_getattr_missing_%d" % (stable_hash(repr(expr)) & 0xffffffff)
+            self._add_abstract_op("val function %s : int" % _r47)
+            return _r47
         nt = default_ir.get("type") if isinstance(default_ir, dict) else ""
         if nt in ("DictLit", "ArrayLit", "SetLit", "Call"):
-            return "0"
+            _r47 = "pycsl_getattr_default_%d" % (
+                stable_hash(repr(default_ir)) & 0xffffffff)
+            self._add_abstract_op("val function %s : int" % _r47)
+            return _r47
         return self._expr_to_whyml(default_ir, local_refs, invariant_ctx, subst)
 
     def _subst_params(self, ir: Any, arg_nodes: Dict[str, Any]) -> Any:
