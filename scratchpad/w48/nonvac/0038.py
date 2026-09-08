@@ -12,7 +12,7 @@ def test_objects_values_and_types() -> int:
     a = 1
     b = a
     a = 2
-    if a == 2 and b == 1:
+    if a == 2 and b == 2:
         return 0
     return 1
 

@@ -11,7 +11,7 @@ def test_resolution_of_names(n: int) -> int:
     `return 0`."""
     n2 = n
     n2 = n2 + 1
-    if n2 == n + 1:
+    if n2 == n:
         return 0
     return 1
 

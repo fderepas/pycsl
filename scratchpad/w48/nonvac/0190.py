@@ -1,6 +1,6 @@
 """Test 0190 — Python Reference 8.4.4: finally clause"""
 _ = 0  # anchor
-#@ ensures \result == 3
+#@ ensures \result == 1
 #@ assigns \nothing
 def test_finally_clause() -> int:
     """Ref 8.4.4: the `finally` clause runs on EVERY way out of the `try` — including the

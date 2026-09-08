@@ -1,6 +1,6 @@
 """Test 0189 — Python Reference 8.4.3: else clause"""
 _ = 0  # anchor
-#@ ensures \result == 3
+#@ ensures \result == 99
 #@ assigns \nothing
 def test_else_clause() -> int:
     """Ref 8.4.3: the `else` clause of a `try` runs ONLY when the `try` block completed
