@@ -6095,15 +6095,22 @@ class Module5_IREmitter:
         #   a blanket refusal would break outright. Those bespoke bodies never reach the
         #   generic expression lowering, so the whitelist lives in `expressions.py`'s
         #   `_expr_to_whyml`, where it sees exactly the sites the generic path decides.
-        def _r42_normalize_identity_ops(_n: Any) -> None:
-            if isinstance(_n, dict):
-                if _n.get("type") == "BinOp" and _n.get("op") in ("is", "is not"):
-                    _n["op"] = "==" if _n.get("op") == "is" else "!="
-                    _n["py_is"] = True
-                for _v in _n.values():
-                    _r42_normalize_identity_ops(_v)
-            elif isinstance(_n, list):
-                for _v in _n:
-                    _r42_normalize_identity_ops(_v)
-        _r42_normalize_identity_ops(emitter.program_ir)
+        #   WRITTEN AS AN INLINE EXPLICIT-STACK WALK, NOT A NESTED `def`, and that is not
+        #   a style choice: relaunch #46 recorded that a nested `def` inside a refusal broke
+        #   `bin/check-mirror-coverage.py` 550 -> 551, because a new LIVE function has no
+        #   mirror counterpart and the plane counts it. MEASURED AGAIN HERE — the first
+        #   draft of this pass was a nested `def` and the ratchet broke exactly that way,
+        #   with `val module5_iremitter___r42_normalize_identity_ops` appearing in the
+        #   `frontend/__init__` and `frontend/ir_resolve` mirror emissions.
+        _r42_stack: List[Any] = [emitter.program_ir]
+        while _r42_stack:
+            _r42_n = _r42_stack.pop()
+            if isinstance(_r42_n, dict):
+                if (_r42_n.get("type") == "BinOp"
+                        and _r42_n.get("op") in ("is", "is not")):
+                    _r42_n["op"] = "==" if _r42_n.get("op") == "is" else "!="
+                    _r42_n["py_is"] = True
+                _r42_stack.extend(_r42_n.values())
+            elif isinstance(_r42_n, list):
+                _r42_stack.extend(_r42_n)
         return json.dumps(emitter.program_ir, indent=indent)
