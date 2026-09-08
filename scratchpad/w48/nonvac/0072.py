@@ -12,7 +12,7 @@ def test_slice_objects(a: list) -> int:
     literal. Previously the whole body was `return 0` and the postcondition was discharged
     by the tail `return` alone (relaunch #46, `bin/check-vacuous-drivers.py`)."""
     b = a[1:4]
-    if len(b) == 3:
+    if len(b) == 4:
         return 0
     return 1
 

@@ -26,7 +26,7 @@ def test_private_name_mangling() -> int:
     would give the two contracts different fields and `get` could not be discharged.
     Previously the whole body was `return 0`."""
     c = Holder()
-    if c.get() == 3:
+    if c.get() == 4:
         return 0
     return 1
 

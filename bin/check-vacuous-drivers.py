@@ -59,14 +59,14 @@ OTHER = re.compile(r"^#@\s+(requires|assigns|loop|\\variant|raises|ensures|act|"
                    r"complete|disjoint|no_exception)\b")
 
 # Measured 2026-09-05 (relaunch #46) on the tree at commit b161b4a5.
-RATCHETS = {"python-reference": 84, "pycsl-reference": 9}
+RATCHETS = {"python-reference": 82, "pycsl-reference": 9}
 # THE SHARPER SUB-POPULATION: a function whose ENTIRE body is a docstring plus a single
 # `return <literal>`. It is not merely "proved from the tail return" — it EXERCISES
 # NOTHING. `python-reference/0034` ("Integer literals"), `0038` ("Objects, values and
 # types") and `0051` ("Instance methods") are literally `'''Ref 2.6.1: ...'''; return 0`.
 # These are UNIMPLEMENTED PLACEHOLDERS that count as passing tests, and the headline
 # "3178/3197 passed" is padded by exactly this many.
-EMPTY_RATCHETS = {"python-reference": 57, "pycsl-reference": 47}
+EMPTY_RATCHETS = {"python-reference": 55, "pycsl-reference": 47}
 MIN_FUNCS = {"python-reference": 2000, "pycsl-reference": 800}
 
 
