@@ -80,9 +80,18 @@ BASELINE = {
         "the reflection model constructs as present. STATED SCOPE, and it is a claim about "
         "the CONTRACTS rather than about the lowering: it is sound for the type-safety+frame "
         "contracts the mirror carries, because deleting a branch cannot make an `ensures "
-        "True` false and neither arm writes a self-field. A mirror method with a real "
-        "`ensures` reaching this arm would break that argument -- and nothing checks that "
-        "today, which is the named follow-up.",
+        "True` false. MEASURED at `42a4f84b` rather than assumed: the emitter was "
+        "instrumented and the whole 53-file mirror emitted "
+        "(`scratchpad/w49/always_present_trace.{txt,patch}`), and these arms fire at "
+        "exactly NINE sites in SEVEN methods -- `_field_type_from_annotation`, "
+        "`_handle_lambda_expr`, `_handle_array_slice_set_stmt`, "
+        "`_handle_critical_section_stmt`, `_handle_return_stmt`, `_handle_match_stmt`, "
+        "`_try_union_is_none_match` -- and EVERY ONE of the seven carries `#@ ensures "
+        "True`. So the scope claim holds today, by measurement, and would be broken by "
+        "giving any of those seven a real postcondition. THE FRAME HALF IS STILL "
+        "UNCHECKED and is the named follow-up: a self-field write on the branch the model "
+        "DELETES is invisible to the `assigns` proof, because the proof only sees the "
+        "paths the model kept.",
     ("_to_bool", "_emit_ir_local_vars+_is_emit_ir_expr", "true"):
         "the truthiness twin of the emit_ir always-present arm above, on the same stated "
         "scope and with the same named follow-up.",
