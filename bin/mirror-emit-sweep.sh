@@ -27,9 +27,13 @@ OUT="$1"; mkdir -p "$OUT"; JOBS=$(half_cpu_jobs)
 
 emit_one() {
   f="$1"; OUT="$2"; ROOT="$3"; PY="$4"
-  # Flatten the mirror's directory structure into one basename-keyed .mlw, the same key
-  # byte-diff-compare.py uses for the corpus. Mirror basenames are unique (checked below).
-  name=$(basename "$f" .py)
+  # Flatten the mirror's directory structure into one path-keyed .mlw so
+  # byte-diff-compare.py can diff two output directories the way it does for the corpus.
+  # KEY BY RELATIVE PATH, NOT BASENAME (relaunch #51). The mirror has FOUR `__init__.py`
+  # files (src/, frontend/, proof2why3/, module6_whyml/), so a basename key is NOT
+  # injective — 53 files collapse to 50 keys. Any ad-hoc mirror byte-diff that flattened
+  # by basename was silently comparing the wrong pairs, or overwriting, for those files.
+  name=$(printf '%s' "${f#"$ROOT/src/self-annotate/src/"}" | sed 's/\.py$//; s#/#__#g')
   # SAFETY (relaunch #51, a near-miss paid for in my own tree). The emitter writes its
   # `--keep-mlw` output NEXT TO THE SOURCE, so this sweep transiently creates and deletes
   # files inside `src/self-annotate/`, WHICH IS A TRACKED DIRECTORY. A blind `rm -f` there
@@ -59,11 +63,14 @@ if [ "$NSRC" -lt 45 ]; then
   exit 2
 fi
 
-# Basename collision guard: the flattened key must be injective, or two mirror files would
-# silently overwrite each other's emission and the diff would compare the wrong pair.
-NUNIQ=$(printf '%s\n' "$SRC" | xargs -n1 basename | sort -u | wc -l)
-if [ "$NUNIQ" -ne "$NSRC" ]; then
-  echo "[!] mirror-emit-sweep: $NSRC file(s) but only $NUNIQ distinct basename(s) — the" >&2
+# Injectivity guard: the flattened key must be one-to-one, or two mirror files would
+# silently overwrite each other's emission and the diff would compare the wrong pair while
+# reporting a confident zero. The key is the relative path with `/` -> `__`, which is
+# injective by construction; this re-checks it rather than trusting the construction,
+# because the FIRST version of this script keyed on basename and 53 files collapsed to 50.
+NKEY=$(printf '%s\n' "$SRC" | sed "s#^$ROOT/src/self-annotate/src/##; s/\.py$//; s#/#__#g" | sort -u | wc -l)
+if [ "$NKEY" -ne "$NSRC" ]; then
+  echo "[!] mirror-emit-sweep: $NSRC file(s) but only $NKEY distinct key(s) — the" >&2
   echo "    flattened key is not injective and emissions would overwrite each other." >&2
   echo "    NOT A PASS." >&2
   exit 2
@@ -72,7 +79,7 @@ fi
 # THE SOURCE MANIFEST, same contract as the corpus sweep: without it byte-diff-compare.py
 # cannot tell a mirror file ADDED since the baseline (benign) from one whose REFUSAL
 # BECAME AN EMISSION (a soundness loss, and exactly how route #42 stayed hidden).
-printf '%s\n' "$SRC" | xargs -n1 basename | sed 's/\.py$/.mlw/' | sort > "$OUT/SOURCES.txt"
+printf '%s\n' "$SRC" | sed "s#^$ROOT/src/self-annotate/src/##; s/\.py$//; s#/#__#g; s/$/.mlw/" | sort > "$OUT/SOURCES.txt"
 
 printf '%s\n' "$SRC" | xargs -P "$JOBS" -I {} bash -c 'emit_one "$@"' _ {} "$OUT" "$ROOT" "$PY"
 
