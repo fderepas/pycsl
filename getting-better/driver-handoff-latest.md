@@ -147,6 +147,20 @@
 #           (`run-reference-tests.sh --worker {}` under xargs).
 #   4. Route #55 owes NOTHING — measured byte-inert on both planes.
 #
+# ## IN FLIGHT WHEN #50 STOPPED (12:41 UTC) — COLLECT THESE FIRST
+#
+#   `w49d_expressions` (started 10:55) and `w49d_statements` (10:59) — queue D's last two
+#   and the two slowest mirrors in the tree; neither has EVER completed in this campaign
+#   (killed at 55m in queue B, at 30m in queue C). Their 8h `timeout` is intact.
+#   Queue E (`scratchpad/w51/queue51e.sh`) is armed and waits on `QUEUE49D_DONE`; it runs
+#   `w51_scf` then `w51_cis`.
+#   Reference suite RUN 6 (started 12:08) exists to CONFIRM THE ROUTE #42 RE-FIX:
+#   `1053`/`1054`/`1055` must have gone from XPASS back to CONFIRMED FAIL, leaving the
+#   standing nineteen and rc=1. If run 6 shows any OTHER new failure, suspect the route
+#   #42 re-fix first and bisect against `4e64f588` (the commit just before it).
+#   The route #42 fix is ALREADY PROVED BYTE-INERT ON THE MIRROR (0 of 53 move), so the
+#   two in-flight proofs are NOT superseded by it and their verdicts stand for HEAD.
+#
 # ## LADDER FOR THE NEXT RELAUNCH
 #
 #   1. Read `getting-better/proofs49/queue49.progress` FIRST and record every verdict.
@@ -154,7 +168,11 @@
 #      and it must be worked, not hidden.** `w51_scf` is the one to watch: 75 lines of a
 #      VERIFIED method and its caller change shape and a previously-DELETED branch
 #      becomes reachable.
-#   2. Land the `0206` driver; probe `0188` (`except*`) rather than assuming it.
+#   2. `0206` IS LANDED (ratchets 82->81 and 55->54). Still to do: probe `0188`
+#      (`except*`) rather than assuming it, and WIRE THE PLANES into
+#      `bin/run-reference-tests.sh` — all are green at HEAD so it is green-to-green, and
+#      it is the standing fix for the failure mode that let route #42 sit reopened for a
+#      whole window. Do it when NO suite is live: the runner re-invokes ITSELF per test.
 #   3. `0700` — lift `_field_default` out of its nested scope so BOTH construction paths
 #      consult one function. **Budget for mirroring the lifted helper in the same
 #      increment**: a new top-level def moves `check-mirror-coverage`, which is exactly
