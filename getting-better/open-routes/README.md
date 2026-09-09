@@ -1,6 +1,54 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: ONE — route #46, found by relaunch #48 while closing route #44.
+## CURRENTLY OPEN: FOUR — #46, #53, #56, #57.
+##   (#56 and #57 both have a BUILT AND MEASURED repair, staged but not landed.)
+
+  * **`route56-optional-union-local-read-sentinel.md`** (relaunch #51) — a `None`
+    Optional-union LOCAL reads back as the carrier's ZERO, so `x == 0` proves where Python
+    answers False, and `x + 1` proves where Python RAISES. Bounded to the `int` carrier:
+    `str`/`float` fail closed on a Why3 TYPE ACCIDENT, which is exactly why routes #50/#51
+    probed this class at `str` and found nothing. REPAIR BUILT AND MEASURED (route #44's
+    existing `pycsl_none` opaque in the non-Some arm; no new model, ledger stays 3); it
+    moves ONE mirror emission. Witnesses + landing sequence: `getting-better/staged-route56/`.
+
+  * **`route57-dict-get-no-default-is-zero.md`** (relaunch #51) — **the most reachable
+    route in this ledger**: `d.get(k)` on a missing key is the codomain's ZERO, not `None`.
+    #56 needs an `Optional` mutable local, a shape the corpus has ZERO of; this needs
+    `d.get(k)`. Decides at BOTH the `int` and `str` codomains, because `.get` picks its
+    sentinel FROM the codomain type and is therefore type-correct everywhere. The zero is
+    borrowed from the SUBSCRIPT read's placeholder, justified as "proven dead under
+    `#@ no_exception KeyError`" — coherent for `d[k]`, which RAISES, and inapplicable to
+    `.get`, which never raises. REPAIR BUILT AND MEASURED SIX WAYS (all four shapes close,
+    `d.get(k, v)` still proves, the subscript path deliberately untouched); it moves SEVEN
+    mirror emissions, so it owes a re-proof battery. `getting-better/staged-route57/`.
+
+  * **`route53-float-is-a-real.md`** (relaunch #49, re-confirmed live at HEAD by #51) —
+    `τ(float) = real`, so `0.1 + 0.2 == 0.3` proves. Repair decided (make the float
+    arithmetic bridge a deterministic opaque and route the SPEC path through the same
+    symbol); measured cost is `0517`'s non-negativity clause. The tempting refinement
+    (IEEE-true SIGN clauses) is REFUTED for `*`: the clauses meet at `a = 0.0` and decide
+    `r = 0.0`, but Python's `0.0 * float("inf")` is `nan`.
+
+  * **`route46-none-branch-join.md`** — route #44's `None` record is flow-insensitive, so
+    a `None` bound in ONE branch of an `if` and something else in the other walks past it.
+    The obvious repair (a STICKY record) was BUILT and REFUTED TWICE, both times measured;
+    read that section before re-attempting it. IT CARRIES TWO ROUTES' FACTS — route
+    #45's NaN record leaks through the same join, so ONE join build closes both.
+
+### THE FAMILY #44 / #56 / #57 SHARE, AND THE RULE FOR TELLING IT FROM A HARMLESS TWIN
+
+All three are **FAITHFUL STORAGE, ERASING READ**. The model really does carry a distinct
+absent value — `map 'k (option 'v)` with a genuine `None`, a variant with a real
+`Arm_*_None` — and a `match … | None -> <literal>` arm throws it away AT THE POINT OF USE.
+An auditor who checks the REPRESENTATION finds it faithful and concludes the class is safe.
+`bin/check-collapsed-option-reads.py` (the 31st plane) now enumerates every such arm.
+
+The rule that separates the fatal ones from the nine benign ones, written after probing all
+of them: **a ghost SPEC construct may DEFINE its absent-key answer** — `\map_get(d, k)`
+returns 0 for an absent key and says so on two normative surfaces — **because it is a
+spec-language primitive with no Python counterpart to contradict. A BODY lowering may not**,
+because there the absent value is Python's `None`.
+
 
   * **`route46-none-branch-join.md`** — route #44's `None` record is flow-insensitive, so
     a `None` bound in ONE branch of an `if` and something else in the other walks past it.
