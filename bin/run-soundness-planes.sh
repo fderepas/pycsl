@@ -62,13 +62,14 @@ PLANES=(
     check-emit-ir-arm-postconditions.py
     check-singleton-constant-lowering.py
     check-type-keyed-value-sentinels.py
+    check-collapsed-option-reads.py
     check-constant-fallthrough.py
     check-dropped-mutation.py
     check-ir-field-coverage.py
     check-statement-block-coverage.py
     check-vacuous-drivers.py
 )
-MIN_PLANES=17
+MIN_PLANES=18
 
 ran=0
 failed=()
