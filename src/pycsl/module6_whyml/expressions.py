@@ -13444,7 +13444,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if _pay_rec is not None:
                 _sentinel = self._record_default_literal(_pay_rec)
             else:
-                _sentinel = "0"
+                # ROUTE #56: the `int` carrier is the one where this arm DECIDES. The
+                # sentinel and the comparand have the same Why3 type, so `| _ -> 0` made a
+                # `None` Optional-union local and a genuine `0` THE SAME TERM: `x == 0`
+                # proved where Python answers False, and `x + 1` proved `\result == 1`
+                # where Python raises TypeError. The `str` and `real` carriers fail closed
+                # on a Why3 TYPE ACCIDENT rather than a guard, which is precisely why
+                # routes #50/#51 probed this class at `str` and found nothing.
+                # Answer route #44's EXISTING `None` opaque instead of a type-keyed zero:
+                # same type, no new model, no new axiom, and `pycsl_none = 0` is UNDECIDED
+                # rather than true. Witnesses 1108-1111; the `is None` guard (1109) and the
+                # `x == 5` precision control both still prove.
+                self._add_abstract_op("val function pycsl_none : int")
+                _sentinel = "pycsl_none"
         return (f"(match {operand} with {some_ctor} _v -> _v "
                 f"| _ -> {_sentinel} end)")
 
