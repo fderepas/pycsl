@@ -16,3 +16,7 @@
 08:55 SUITE run2 rc=143
 09:28 SUITE run3 rc=143
 10:04 SUITE run4 rc=143
+10:17 finished w49d_m5ir rc=0
+10:17 started w49d_types
+10:40 finished w49d_scf rc=143
+10:40 started w49d_m2p
