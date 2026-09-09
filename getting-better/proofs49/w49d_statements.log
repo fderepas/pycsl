@@ -68828,3 +68828,5 @@ Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_uv05zb9j.mlw", 
 Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_uv05zb9j.mlw", line 2702, characters 15-19: unused variable result
 Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_uv05zb9j.mlw", line 2768, characters 15-19: unused variable result
 Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_uv05zb9j.mlw", line 2847, characters 19-21: unused variable ir
+
+[+] Verification SUCCESS! All contracts formally proven.
