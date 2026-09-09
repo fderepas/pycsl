@@ -320,10 +320,11 @@
 #   (killed at 55m in queue B, at 30m in queue C). Their 8h `timeout` is intact.
 #   Queue E (`scratchpad/w51/queue51e.sh`) is armed and waits on `QUEUE49D_DONE`; it runs
 #   `w51_scf` then `w51_cis`.
-#   Reference suite RUN 6 (started 12:08) exists to CONFIRM THE ROUTE #42 RE-FIX:
-#   `1053`/`1054`/`1055` must have gone from XPASS back to CONFIRMED FAIL, leaving the
-#   standing nineteen and rc=1. If run 6 shows any OTHER new failure, suspect the route
-#   #42 re-fix first and bisect against `4e64f588` (the commit just before it).
+#   Reference suite RUN 6 **IS IN AND IT CONFIRMS THE ROUTE #42 RE-FIX**: rc=1,
+#   **3232/3251, ZERO XPASS** (run 5 had three), pass count up by exactly three, and the
+#   confirmed-failure list is now EXACTLY the standing nineteen. Run 6 carries FIVE
+#   landings on top of run 5 and introduced ZERO new failures — the nineteen are the same
+#   nineteen, name for name. Nothing further is owed on the suite plane.
 #   The route #42 fix is ALREADY PROVED BYTE-INERT ON THE MIRROR (0 of 53 move), so the
 #   two in-flight proofs are NOT superseded by it and their verdicts stand for HEAD.
 #
