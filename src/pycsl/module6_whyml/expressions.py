@@ -5241,12 +5241,42 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _s50 = self._expr_to_whyml(_nn, local_refs, invariant_ctx, subst)
                     _c50 = f"(str_eq_op {_s50} pycsl_none_str)"
                     return _c50 if raw_op == "==" else f"(not {_c50})"
-                # NEVER BOUND TO `None` IN THIS FUNCTION: the always-present answer is
-                # right, and keeping it is what makes this build byte-inert everywhere the
-                # defect is not. RESIDUE, stated rather than hidden: a local bound from a
-                # CALL that returns `Optional[str]` is not `None`-bound syntactically, so
-                # it still reads as always-present — a different route, recorded in
-                # `getting-better/open-routes/route50-str-optional-always-present.md`.
+                # (#50) ROUTE #51 — THE THIRD ANSWER NEEDED A BINDING AND HAD ONLY A TYPE.
+                #   What stood here answered the always-present `false` for EVERY
+                #   string-typed operand the record does not mention, and called that
+                #   "right" because the function never binds the name to `None`. A
+                #   function cannot bind what it does not have. Measured at `51a771c4`,
+                #   each proving a contract FALSE of its own program with the Python
+                #   assert run and holding:
+                #     (a) `s = self.pick(c)`, `pick` declares `-> str` and returns `None`
+                #         (`scratchpad/w49/probe50/q2.py`)
+                #     (b) `self.name is None`, a `str`-declared FIELD a caller set to
+                #         `None` (`scratchpad/w49/probe50/q5.py`)
+                #     (c) `def probe(self, s: str)` … `if s is None:` — a PARAMETER, and
+                #         it is the CHEAPEST of the three: no annotation lie, no field
+                #         store, no call, no branch join (`scratchpad/w51/p1.py`)
+                #   ALWAYS-PRESENT IS A CLAIM ABOUT A BINDING, so it is made only about a
+                #   name this function BINDS (`_r51_bound_names`, collected by the same
+                #   route-#46 pre-scan walk). A parameter, a `self.<f>` field and every
+                #   non-name operand get the opaque — the SAME `pycsl_none_str` device
+                #   route #50 installed one arm above, so this adds no new model.
+                #   THE INT PATH ALREADY ANSWERS THIS WAY and the string path was the odd
+                #   one out: `s: int` … `s is None` and the `bool` spelling both FAIL
+                #   CLOSED at HEAD (they reach route #44's opaque `pycsl_none`).
+                #   CONTROL: `scratchpad/w51/p2.py` is (b) with `@mutable_state` removed
+                #   and fails closed, which localises the gate exactly.
+                if not (isinstance(_nn, dict) and _nn.get("type") == "Var"
+                        and _nn.get("name") in getattr(self, "_r51_bound_names", set())):
+                    self._add_abstract_op("val function pycsl_none_str : string")
+                    self._add_abstract_op(
+                        "val str_eq_op (a b: string) : bool\n"
+                        "    ensures { result <-> (a = b) }")
+                    _s51 = self._expr_to_whyml(_nn, local_refs, invariant_ctx, subst)
+                    _c51 = f"(str_eq_op {_s51} pycsl_none_str)"
+                    return _c51 if raw_op == "==" else f"(not {_c51})"
+                # BOUND HERE AND NEVER TO `None`: the always-present answer is right, and
+                # keeping it is what makes this build byte-inert everywhere the defect is
+                # not.
                 return "false" if raw_op == "==" else "true"
             # (#48) ROUTE #44 — THE `is None` FALL-THROUGH DECIDED AGAINST THE INTEGER 0.
             #

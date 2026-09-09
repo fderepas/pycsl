@@ -544,6 +544,25 @@ class FunctionEmissionMixin:
         # corpus control `1087`). Ambiguity needs a CONDITIONAL binding — a branch, a loop
         # body, a handler — so a name is a candidate only when at least one of its
         # bindings is nested.
+        # (#50) ROUTE #51 — THE NAMES THIS FUNCTION ACTUALLY BINDS. Route #50 gave the
+        # string `is None` fall-through two BINDING-justified answers (decided under a
+        # live `None` record, opaque under `AMBIG`) and left a third — the always-present
+        # `false` — justified by nothing but the operand's TYPE. Measured at `51a771c4`,
+        # three ways to reach that third answer with NO binding at all, each proving a
+        # contract false of its own program:
+        #     (a) `s = self.pick(c)` where `pick` declares `-> str` and returns `None`
+        #     (b) `self.name is None` on a `str`-declared dataclass FIELD a caller set
+        #     (c) `def probe(self, s: str)` … `if s is None:` — a PARAMETER, no lie at all
+        # (b) and (c) contain no annotation lie to refuse: a field hint and a parameter
+        # hint are both unenforced by Python and the caller is simply outside the
+        # function. So the fix is at the ARM, and it is one sentence — ALWAYS-PRESENT IS
+        # A CLAIM ABOUT A BINDING, so it may only be made about a name this function
+        # BINDS. A parameter, a field and any non-name operand get the opaque instead.
+        # THE MODEL ALREADY PAYS THIS COST AT `int` AND THE STRING PATH WAS THE ODD ONE
+        # OUT: `def probe(self, s: int)` … `s is None` FAILS CLOSED today (it reaches
+        # route #44's opaque `pycsl_none`), and so does the `bool` spelling. This makes
+        # `str` consistent with a model the tree has already been paying for.
+        self._r51_bound_names: Set[str] = set()
         _amb_asgs = []
         _amb_stack = [(body_stmts, 0)]
         while _amb_stack:
@@ -554,6 +573,14 @@ class FunctionEmissionMixin:
                 continue
             if not isinstance(_amb_n, dict):
                 continue
+            if (_amb_n.get("stmt") in ("Assign", "AugAssign", "AnnAssign", "For", "With")
+                    and isinstance(_amb_n.get("target"), str)):
+                # (#50) ROUTE #51 — collected in the SAME walk (no second traversal, and
+                # no nested `def`, which would move `bin/check-mirror-coverage.py`).
+                # Deliberately the BINDING forms only: an over-broad set here would hand
+                # the always-present answer back to a name that is not bound at all,
+                # which is the defect.
+                self._r51_bound_names.add(_amb_n["target"])
             if (_amb_n.get("stmt") == "Assign"
                     and isinstance(_amb_n.get("target"), str)):
                 _amb_kinds = set()

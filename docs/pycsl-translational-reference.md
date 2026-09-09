@@ -2137,6 +2137,67 @@ cannot know. Withholding the size there is a separate, measurable change.
 
 ---
 
+### §T.5.12r  `is None` was decided from a TYPE where only a BINDING could justify it
+
+Route #50 established that a string `is None` test has more than one right answer and that
+*which* answer is right is a question about the **binding**, not about the type. It gave the
+arm two binding-justified answers — DECIDED under a live linear `None` record, OPAQUE under
+route #46's `AMBIG` — and left a third, the always-present `false`, for a name the function
+never binds to `None`. That third answer was justified by nothing but the operand's type, and
+there are three ways to reach it with **no binding in the function at all** (route #51,
+witnesses `1100`–`1102`):
+
+| shape | the operand | why the model had no binding fact |
+|---|---|---|
+| (a) | a local bound from a CALL whose `-> str` is contradicted by `return None` | the callee's real return set |
+| (b) | a `str`-declared dataclass FIELD a caller stored `None` into | a field's value comes from outside the method |
+| (c) | a `str`-declared PARAMETER a caller passed `None` | a parameter's value comes from outside the function |
+
+Shape (c) is the cheapest reproduction in the class and needs no lie at all — a Python type
+hint is not enforced, so the caller simply passes `None`:
+
+```python
+    def probe(self, s: str) -> int:
+        if s is None: return 0
+        return 7                   #@ ensures \result == 7   <- PROVED. Python returns 0.
+```
+
+$\mathcal{T}$ now makes the always-present answer only about a name the function actually
+**binds** (collected by route #46's existing pre-scan walk). A parameter, a `self.<f>` field
+and every non-name operand get the same type-preserving `pycsl_none_str` opaque that route #50
+installed one arm above, so this adds **no new model**.
+
+**The `int` path already answered this way and `str` was the odd one out.** The `s: int` and
+`s: bool` spellings of the same file FAIL CLOSED today — they reach route #44's opaque
+`pycsl_none` — so this makes the string path consistent with a model the tree has been paying
+for all along, rather than introducing a new cost.
+
+**It is live in the mirror, in the emitter's own contract parser.** `expect_name(self,
+val: str = None)` declares `str` and DEFAULTS TO `None`, so its guard emitted
+
+```whyml
+    (if true && (not (at_name self (cons py_val empty))) then 1 else 0)   (* before *)
+    (if (not (str_eq_op py_val pycsl_none_str)) && (not (…)) then 1 else 0)   (* after *)
+```
+
+— the `val is not None` conjunct was the literal `true`, i.e. **deleted**, and every
+`expect_name()` call with no argument takes exactly that path.
+
+**Measured**: 1 of 53 mirror emissions moves (2 lines, the file above), all 53 still emit and
+all 53 type-check; 0 of 903 pre-existing corpus emissions move; both fidelity planes
+byte-identical. Witness `1102` is the precision guard that keeps this a **narrowing** rather
+than a retreat — a local bound to a literal in the same function still gets the DECIDED
+answer, and a repair that made every string `is None` opaque would lose it.
+
+**Stated residue**: shape (a) is closed separately, by refusing the annotation lie itself
+(`PYCSL-SEM-RETANN`), because a local bound from a call *is* a bound name — only a
+trustworthy callee annotation can justify deciding with it. A callee that returns `None`
+IMPLICITLY, by falling off the end, has no `return None` for that check to see; it fails
+closed today, but by a TYPE ACCIDENT (Why3 expects `()` where a `string` is supplied) rather
+than by design.
+
+---
+
 ### §T.5.12j  A chained comparison in a `#@` clause is a CONJUNCTION
 
 `0 <= x <= 3` inside a `requires`, an `ensures`, a `loop invariant` or a class invariant was

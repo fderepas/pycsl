@@ -170,3 +170,67 @@ the class is `@mutable_state`, and route #50 already wrote the sentence that con
 the arm two binding-justified answers (`None#empty` decided, `AMBIG` opaque) and left the
 third — the always-present `false` — justified by nothing but the type. Shapes (a), (b) and
 (c) are the three ways to reach it with no binding at all.
+
+---
+
+# STATUS — INCREMENT 1 LANDED (shapes (b) and (c) CLOSED); shape (a) is increment 2
+
+**LANDED**: the Module 6 root fix. The always-present answer is now made only about a name
+the function actually BINDS (`_r51_bound_names`, collected by route #46's existing pre-scan
+walk — same traversal, no nested `def`, so no mirror-coverage movement). A PARAMETER, a
+`self.<f>` FIELD and every non-name operand get the same type-preserving `pycsl_none_str`
+opaque route #50 installed one arm above: **no new model**.
+
+Shapes (b) and (c) FAIL CLOSED. Shape (a) still proves, and that is correct rather than a
+miss — `s = self.pick(c)` *is* a bound local, so only a trustworthy callee annotation can
+justify deciding with it. That is increment 2.
+
+## MEASURED, FRESH FROM THE SURFACE
+
+  * mirror emission — **1 of 53 moves** (2 lines), all 53 still emit, **L3-tc 53/53**
+  * corpus byte-diff — **0 of 903** pre-existing emissions move; only the two new route
+    witnesses `1100`/`1101` do, which is what they are for
+  * both fidelity planes **byte-identical to HEAD's own runs** (each is RED at HEAD and is
+    used differentially — that is why every handoff says "byte-identical", never "rc=0")
+  * route #50's witnesses all still behave: `1085`/`1086`/`1088` FAIL, and `1087` — the
+    COMPLETENESS GAIN — still PROVES
+  * `1102` is the PRECISION GUARD: a local bound to a literal in the same function keeps its
+    DECIDED answer, so this is a narrowing and not a retreat
+  * metric UNCHANGED (markers 456 / grep 481 / offset 25); raises-honesty rc=0 at 70;
+    mirror-coverage rc=0 at 550/41; doc-coherency rc=0; doc §T.5.12r
+  * OWED: the whole-file re-proof of `frontend/Module2_Parser` — the one mirror this moves.
+
+## THE MOVED LINE IS THE ROUTE, IN THE EMITTER'S OWN CONTRACT PARSER
+
+`Module2_Parser::_ContractParser.expect_name(self, val: str = None)` — a parameter whose
+declared type is contradicted by **its own default**. Its guard
+
+```python
+    if not self.at_name() or (val is not None and not self.at_name(val)):
+```
+
+emitted the `val is not None` conjunct as the literal `true` — the conjunct **deleted** — and
+every `expect_name()` call with no argument passes `None`, so the deleted conjunct is the
+COMMON PATH, not a corner case. Third route running (#46, #50, #51) that turned out to be
+live in the mirror rather than merely constructible.
+
+## INCREMENT 2 IS BUILT AND HELD BACK, WITH ITS COST MEASURED
+
+`_check_scalar_return_annotation` (`PYCSL-SEM-RETANN`) refuses a `-> str` contradicted by an
+explicit `return None`; q2 is refused by it. Held back because its TRUE blast radius is one
+VERIFIED (not `\trusted`) mirror method — `stmt_control_flow::_try_union_is_none_match`,
+whose `-> str` contradicts both its own body and the LIVE signature (`-> Any`) — and
+correcting that annotation owes a full re-proof of that file.
+
+**A FALSE POSITIVE WAS FOUND IN THE CHECK BEFORE IT COULD BE BELIEVED.** The first census
+said FOUR functions break; two were `core_ir_semantic::_lemma_calls_trusted` (live AND
+mirror), which returns the EMPTY STRING and whose only bare `return` is the early exit of a
+NESTED `walk` helper. A nested `def` has its own returns and its own annotation, and the
+check now refuses to descend into one. True blast radius: **one** function.
+
+**RESIDUE**: a callee that returns `None` IMPLICITLY, by falling off the end, has no
+`return None` for the check to see (`scratchpad/w51/q6.py`). It fails closed today but by a
+TYPE ACCIDENT — the missing-return path makes Why3 expect `()` where a `string` is supplied
+— not by anything that intends to. The same accident makes `\result != None` on a lying
+`-> str` fail (`scratchpad/w51/p3.py`). If either accident is ever fixed, this check must
+grow the fall-through arm with it.
