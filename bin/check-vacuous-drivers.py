@@ -73,14 +73,21 @@ OTHER = re.compile(r"^#@\s+(requires|assigns|loop|\\variant|raises|ensures|act|"
                    r"complete|disjoint|no_exception)\b")
 
 # Measured 2026-09-05 (relaunch #46) on the tree at commit b161b4a5.
-RATCHETS = {"python-reference": 82, "pycsl-reference": 9}
+# (#50) 82 -> 81 and (below) 55 -> 54: `0206` (Ref 8.8.1, multiple inheritance) was an
+# EMPTY PLACEHOLDER and is now a real driver. It was in the 53-strong "certified boundary"
+# class by assumption and REFUTED by measurement — a full 2x2 shows PyCSL models the MRO
+# faithfully AND discriminatingly (with the bases reversed the OTHER answer proves and the
+# first one fails closed), so the contract is a real claim about method resolution rather
+# than one the tail `return` discharges. See getting-better/vacuous-driver-classification.md
+# for the remaining 54, all named and grouped.
+RATCHETS = {"python-reference": 81, "pycsl-reference": 9}
 # THE SHARPER SUB-POPULATION: a function whose ENTIRE body is a docstring plus a single
 # `return <literal>`. It is not merely "proved from the tail return" — it EXERCISES
 # NOTHING. `python-reference/0034` ("Integer literals"), `0038` ("Objects, values and
 # types") and `0051` ("Instance methods") are literally `'''Ref 2.6.1: ...'''; return 0`.
 # These are UNIMPLEMENTED PLACEHOLDERS that count as passing tests, and the headline
 # "3178/3197 passed" is padded by exactly this many.
-EMPTY_RATCHETS = {"python-reference": 55, "pycsl-reference": 8}
+EMPTY_RATCHETS = {"python-reference": 54, "pycsl-reference": 8}
 MIN_FUNCS = {"python-reference": 2000, "pycsl-reference": 800}
 
 

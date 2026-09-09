@@ -67,5 +67,7 @@ grow silently, and the number should stop being read as debt.
 
 ## THE HONEST HEADLINE
 
-Of 55, **53 are a certified boundary**, **1 is refuted and convertible** (`0206`), and
-**1 is unprobed** (`0188`). The ratchet is not lazy; it was simply never explained.
+Of the original 55, **53 are a certified boundary**, **1 was refuted and is now CONVERTED**
+(`0206`, landed), and **1 is unprobed** (`0188`). The ratchet is not lazy; it was simply
+never explained — and the one entry that turned out not to belong in it was found by testing
+the assumption rather than repeating it.
