@@ -18,6 +18,33 @@
 #
 # ## WHAT #50 DID
 #
+#   **THE HEADLINE: ROUTE #42 HAD BEEN REOPENED AND WAS LIVE AT HEAD FOR A WHOLE
+#   WINDOW.** The first reference suite to COMPLETE since route #52 landed reported
+#   THREE XPASS — `1053`/`1054`/`1055`, route #42's own negative witnesses, PROVING.
+#   An XPASS on a route witness is the harness saying a CLOSED SOUNDNESS ROUTE IS OPEN.
+#   Bisected to `223424b9` (route #52); verified NOT this window's doing (it proves at
+#   the window-start HEAD too). RE-CLOSED at `62931366`.
+#     THE CAUSE WAS DEAD CODE, NOT A CHANGE OF POLICY, and reading the code is what
+#     showed it: route #42's refusal had been left in the file NESTED INSIDE route #52's
+#     `if` body, AFTER that body's unconditional `raise`, under a guard requiring
+#     `_r42_other is None` while the body dereferences `_r42_other`. Unreachable twice
+#     over; it could not have run even with the raise removed. A merge accident.
+#     HOW IT PASSED EVERY PLANE — and this is the transferable part: route #52 landed on
+#     a recorded "corpus byte-diff ZERO over 887", which was TRUE AND USELESS. **A
+#     REFUSED file emits no `.mlw` at all, so it has NO BASELINE COUNTERPART, and a
+#     diff-the-common-files sweep reports zero changes while a REFUSAL HAS BECOME AN
+#     EMISSION** — the one direction that can only ever be a soundness loss. The mirror
+#     half of that plane guards this ("all 53 still emit"); the corpus half never did.
+#     FIXED AS A PLANE, not just as a route: `bin/byte-diff-compare.py` (`681acc25`)
+#     reports and fails on MOVED / GONE / **APPEARED**, `byte-diff-sweep.sh` now writes a
+#     SOURCES.txt manifest so an ADDED corpus file is told apart from a refusal-turned-
+#     emission exactly, and it is NEGATIVE-TESTED AGAINST THE REAL REGRESSION: pointed at
+#     the route-#42-closed corpus vs the route-#42-reopened one it flags all three
+#     witnesses and returns 1. It would have caught route #52 at landing time.
+#     WHY IT SURVIVED A WINDOW: the XPASS rule worked perfectly and was NEVER ASKED. No
+#     suite had completed since #52 landed. **A signal nobody collects is not a signal**
+#     — the third time this campaign has paid for that sentence.
+#
 #   ROUTE #51 CLOSED ON ALL THREE SHAPES, and the third shape was NEW. Route #50 gave
 #     the string `is None` arm two BINDING-justified answers and left a third — the
 #     always-present `false` — justified by nothing but the operand's TYPE. Three ways
