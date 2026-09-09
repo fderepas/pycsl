@@ -1,3 +1,120 @@
+# ===================== START HERE — #51 (INTERIM, window 5 in progress) =========
+#
+# WRITTEN MID-WINDOW so a cold restart loses nothing. #50's block follows unchanged
+# below, then #49's. Both are still the reference for everything before 12:44 UTC on
+# 2026-09-09.
+#
+# ## STATE
+#
+#   HEAD            53ac770a (tracked tree CLEAN; the only untracked non-scratchpad
+#                   entry is a 0-byte file `str` in the repo root, dated Sep 8 19:48 —
+#                   the PREVIOUS window's stray, not mine, left alone deliberately)
+#   metric          markers 456 / grep 481 / offset 25 / unattached 0 — UNCHANGED, which
+#                   is the expected shape for a window paying the soundness ladder.
+#                   **EXPECT IT TO GO UP**, see the L1 item below: `_handle_for_stmt`
+#                   is honestly `\trusted` work and 456 -> 457 is the CORRECT outcome.
+#   IN FLIGHT       `w49d_expressions` (from 10:55), `w49d_statements` (from 10:59),
+#                   queue E armed behind QUEUE49D_DONE, reference-suite run 6 (from
+#                   12:08). ALL FOUR VERIFIED ALIVE at 13:30. DO NOT RELAUNCH THEM.
+#
+# ## THE TWO HEADLINES
+#
+#   **1. THE L1 FIDELITY PLANE IS RED AT HEAD AND HAS BEEN FOR A LONG TIME.**
+#   `bin/check-self-annotate-sync.sh` exits 1 in the MAIN tree. Two CONVERTED (un-
+#   `\trusted`, contract-carrying) mirror methods have bodies that are strict SUBSETS of
+#   the live emitter. Full record: `getting-better/open-routes/finding-L1-fidelity-plane-
+#   red-at-head.md`. Measured by AST statement count, not by the plane's own truncated
+#   diff, which UNDERSTATES the gap tenfold:
+#       `_handle_var_expr`   42 of 48 live statements   — a straight DELETION. **FIXED**
+#                            in a worktree by re-inserting the 21 live lines verbatim
+#                            (`_iropt_ir_local_vars`, `_optional_union_locals`); plane
+#                            goes diverged=2 -> diverged=1. NOT LANDED: `w49d_expressions`
+#                            is proving that very file.
+#       `_handle_for_stmt`   **71 of 342** live statements. The attractive "the mirror
+#                            legitimately DECOMPOSED it via `_classify_iterable`"
+#                            hypothesis is REFUTED — `_classify_iterable` exists in LIVE
+#                            too, at class level (`stmt_control_flow.py:337`), and live
+#                            already calls it (`:1169`). No allowlist exists in the plane;
+#                            `_handle_for_stmt` appears NOWHERE in driver-progress.log. It
+#                            was never argued for, it was never looked at.
+#   Also found: **`bin/sync-mirror-bodies.py` DOES NOT RUN** — it imports `libcst`, which
+#   is in neither the system python nor `.venv`. The campaign's mirror-resync tool has
+#   been unusable for an unknown time, which is a plausible reason a body drifted to 21%.
+#
+#   **2. ROUTE #56 FOUND AND ITS REPAIR BUILT, MEASURED AND STAGED.** A `None`
+#   Optional-union LOCAL read back as the carrier's ZERO.
+#   `getting-better/open-routes/route56-optional-union-local-read-sentinel.md`.
+#   TWO shapes, both verified against real Python: `x: Optional[int] = None; if x == 0:`
+#   proves `\result == 0` where Python returns 9; and the worse one,
+#   `return x + 1`, proves `\result == 1` where Python RAISES TypeError. The storage is
+#   faithful (`Arm_0_None` is a real constructor); the VALUE-READ projection erases it.
+#   BOUNDED: the `int` carrier ALONE — `str` and `float` fail closed on a Why3 TYPE
+#   ACCIDENT, which is exactly why routes #50/#51 probed this class at `str` and found
+#   nothing. REPAIR: answer route #44's EXISTING `pycsl_none` opaque in the non-Some arm.
+#   No new model, no new axiom, ledger stays 3. Measured: both routes close, the `x == 5`
+#   precision control and the `is None` guard both still prove.
+#
+# ## WHAT IS STAGED AND WHY IT IS NOT LANDED
+#
+#   Everything below is BLOCKED ON SUITE RUN 6, which imports the LIVE emitter per test,
+#   so no `src/pycsl` edit may land while it runs (runs 2/3/4 of window #50 died of
+#   exactly this). Nothing here is speculative; each is measured.
+#     a. Route #56's repair + its FOUR corpus witnesses — `getting-better/staged-route56/`
+#        carries the files AND the ordered landing sequence. READ THAT README FIRST.
+#     b. The L1 `_handle_var_expr` re-sync (also blocked on `w49d_expressions`).
+#     c. Route #53's float repair — see below.
+#     d. WIRING the collector into `bin/run-reference-tests.sh`. Blocked on the L1 red,
+#        NOT on the suite: wiring a gate that fails is not wiring it.
+#
+# ## ROUTE #53 (float is an exact real) — RE-CONFIRMED LIVE, REPAIR DECIDED
+#
+#   Both recorded witnesses still prove at HEAD. The defect is ONE `ensures`: the float
+#   arithmetic bridge was `val float_add_op (a b: real) : real ensures {{ result = a +. b }}`,
+#   which PINS it to the reals. REPAIR: make it a deterministic opaque
+#   (`val function`, no ensures) and route the SPEC path through the SAME symbol.
+#   Measured: route closes, congruence survives (`ensures \result == x + x` still proves).
+#   COST, stated honestly: `0517`'s `#@ ensures \result >= 0.0` no longer proves — an
+#   opaque tells you nothing about ordering. The obvious refinement (add IEEE-true SIGN
+#   clauses) was **REFUTED for `*`**: `a >= 0 /\ b >= 0 -> r >= 0` and its siblings meet
+#   at `a = 0.0` and DECIDE `r = 0.0`, but Python's `0.0 * float("inf")` is `nan`.
+#   NEW GENERAL LESSON: a conjunction of inequality axioms decides an EQUALITY where their
+#   antecedents overlap — check any "harmless bound" at the boundary, not in the interior.
+#
+# ## WHAT LANDED THIS WINDOW
+#
+#   * `bin/run-soundness-planes.sh` (29th) — a COLLECTOR running all 17 pure-static lower
+#     bounds in ~2 min. Negative-tested rc=1 (a red plane) and rc=2 (population shrinks
+#     below MIN_PLANES even when every plane that ran was GREEN).
+#   * `bin/check-type-keyed-value-sentinels.py` (30th) — type-keyed arms answering a VALUE
+#     constant, the gap route #56 lived in. 4 sites, all classified WITH THEIR MEASURED
+#     CARRIER. Negative-tested both ways.
+#   * `check-getattr-erasure` MAX_UNKNOWN 19 -> 24, JUSTIFIED not bumped: the delta is
+#     exactly route #47's five own corpus witnesses, and the plane's `--mirror-only` view
+#     reports 19/19 rc=0. DECLARED stays pinned 0.
+#
+# ## LADDER FOR THE NEXT RELAUNCH
+#
+#   1. Collect `suite49_run6.rc` FIRST — 1053/1054/1055 must be CONFIRMED FAIL. Then
+#      `w49d_expressions` / `w49d_statements`, then queue E's `w51_scf` / `w51_cis`.
+#   2. Land route #56 by `getting-better/staged-route56/README.md`. The step NOT yet done
+#      is the L3 byte-diff: the mirror DOES carry Optional locals, so it is not obviously
+#      byte-inert and may owe mirror re-proofs.
+#   3. Land the L1 `_handle_var_expr` re-sync; then DECIDE `_handle_for_stmt` — port 271
+#      statements, or re-`\trusted` it and let the metric rise to 457. Do not leave it
+#      counted as verified.
+#   4. Then wire the collector into `bin/run-reference-tests.sh` (green-to-green once L1
+#      is green), when NO suite is live — the runner re-invokes ITSELF per test.
+#   5. Route #53's float opaque; `0700`; #36's last sliver.
+#
+# ## PROBED THIS WINDOW WITH NO FINDING (do not re-probe)
+#
+#   The other THREE members of the value-sentinel class all FAIL CLOSED, measured:
+#   `expressions.py:6557` and `:8309` (an omitted argument whose param default is `None`,
+#   filled with `""`/`0.0`) — `def g(s: str = None)` called as `g()` leaves BOTH goals
+#   Unknown, including the TRUE one; and `:13378` `_union_local_field_projection` — a
+#   field read through a `None` union local dies with a Why3 usage error. So the
+#   value-sentinel class has exactly ONE live member and it is route #56.
+#
 # ===================== START HERE — #50 (INTERIM, window 5 in progress) =========
 #
 # WRITTEN MID-WINDOW so a cold restart loses nothing. #49's block follows unchanged
