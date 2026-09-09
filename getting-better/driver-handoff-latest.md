@@ -55,6 +55,51 @@
 #   No new model, no new axiom, ledger stays 3. Measured: both routes close, the `x == 5`
 #   precision control and the `is None` guard both still prove.
 #
+# ## 3. ROUTE #57 FOUND — AND IT IS THE MOST REACHABLE ROUTE IN THE LEDGER
+#
+#   `d.get(k)` ON A MISSING KEY IS THE INTEGER ZERO, NOT `None`.
+#   `getting-better/open-routes/route57-dict-get-no-default-is-zero.md`.
+#   Route #56 needs an `Optional` mutable local, a shape the corpus contains ZERO of.
+#   This one needs `d.get(k)` — everyday Python. `d: Dict[int,int] = {1: 2}` with
+#   `if d.get(5) == 0:` proves `\result == 1` where Python returns 0; and
+#   `v = d.get(5); return v + 1` proves 1 where Python RAISES TypeError.
+#   MECHANISM: the map IS `map 'k (option 'v)` with a real `None`; the READ collapses it
+#   (`| None -> 0`). SAME family as #44 and #56 — faithful storage, erasing read.
+#   THE SHARP PART: the zero comes from `_dv_missing_default`, justified in its own
+#   docstring as "proven dead under `#@ no_exception KeyError`". That is coherent for a
+#   SUBSCRIPT, which RAISES. **`.get` NEVER RAISES.** Nothing can make the arm dead.
+#   BROADER THAN #56: it decides at the `str` codomain too, because `.get` picks its
+#   sentinel FROM the codomain type and is therefore type-correct at every codomain —
+#   whereas #56 was masked at `str` by a Why3 TYPE ACCIDENT.
+#   REPAIR SPIKED, SIX MEASUREMENTS: all four route shapes close; `d.get(k, v)` still
+#   proves (NO precision cost); the missing-key SUBSCRIPT is deliberately UNTOUCHED
+#   (that is the documented opt-in exception stance, not this route).
+#   COST NOT MEASURED and expected to be REAL — `.get` is used heavily by the emitter's
+#   own source, so unlike #56 this is unlikely to be byte-inert on the mirror.
+#
+# ## 4. SUITE RUN 6 — ROUTE #42's RE-FIX IS CONFIRMED
+#
+#   `1053`/`1054`/`1055` are back at **XFAIL**; they were XPASS in run 5, which is how
+#   window #50 found a closed route live at HEAD. Both controls (`1056`, `1057`) PASS, so
+#   the restored refusal does not swallow route #52's own arm. Final `.rc` and the
+#   confirmed-failure list: see the progress log.
+#
+# ## THREE PLANES LANDED, AND TWO OF THEM CAME OUT OF THE ROUTES
+#
+#   * `bin/run-soundness-planes.sh` (29th) — a COLLECTOR for the 18 pure-static lower
+#     bounds, ~2 min. rc=2 if fewer than MIN_PLANES ran EVEN IF ALL WERE GREEN.
+#   * `bin/check-type-keyed-value-sentinels.py` (30th) — type-keyed arms answering a VALUE
+#     constant. Two recognizers: the dict-`.get` form (route #56's spelling) AND the
+#     if/elif CHAIN form, which is how route #57's site is written and which the first
+#     recognizer was blind to. A plane that only finds the spelling its first route used
+#     is not a plane.
+#   * `bin/check-collapsed-option-reads.py` (31st) — every `| None -> <literal>` arm, the
+#     shape #44, #56 and #57 all share. Scoped to LITERAL answers, not all ~353 `| None ->`
+#     arms, because the rest are None-PRESERVING and listing them would bury the nine.
+#   * AND `check-self-annotate-mirror-sync.py` (the L1 plane) was HARDENED: it could
+#     print "OK: all 0 ... are verbatim copies" and exit 0 on a broken population.
+#     MIN_CHECKED=700 now, rc=2 on a shortfall. It also now prints the SIZE of each gap.
+#
 # ## WHAT IS STAGED AND WHY IT IS NOT LANDED
 #
 #   Everything below is BLOCKED ON SUITE RUN 6, which imports the LIVE emitter per test,
@@ -62,6 +107,9 @@
 #   exactly this). Nothing here is speculative; each is measured.
 #     a. Route #56's repair + its FOUR corpus witnesses — `getting-better/staged-route56/`
 #        carries the files AND the ordered landing sequence. READ THAT README FIRST.
+#     a2. Route #57's repair + its FOUR corpus witnesses — `getting-better/staged-route57/`,
+#        same shape. #56 and #57 are BOTH in `expressions.py` and both reuse the SAME two
+#        existing opaques, so land them together.
 #     b. The L1 `_handle_var_expr` re-sync (also blocked on `w49d_expressions`).
 #     c. Route #53's float repair — see below.
 #     d. WIRING the collector into `bin/run-reference-tests.sh`. Blocked on the L1 red,
