@@ -1,3 +1,167 @@
+# ===================== START HERE — #50 (INTERIM, window 5 in progress) =========
+#
+# WRITTEN MID-WINDOW so a cold restart loses nothing. #49's block follows unchanged
+# below and is still the reference for everything before 08:39 UTC on 2026-09-09.
+#
+# ## STATE
+#
+#   HEAD            dcfea38c (tree clean apart from in-flight battery logs)
+#   metric          markers 456 / grep 481 / offset 25 / unattached 0 — UNCHANGED all
+#                   window, and that is the EXPECTED shape: two soundness routes closed,
+#                   a refusal, an opaque and a whitelist, and none of them costs the
+#                   trust surface anything. The ladder puts soundness routes above stub
+#                   conversion; this window is paying that ladder, like #49 before it.
+#   IN FLIGHT       queue D (`scratchpad/w49/queue49d.sh`) — the six owed movers,
+#                   concurrency TWO, detached; queue E (`scratchpad/w51/queue51e.sh`) —
+#                   armed to start on QUEUE49D_DONE with the two re-proofs route #51
+#                   owes; reference suite run 5.
+#
+# ## WHAT #50 DID
+#
+#   ROUTE #51 CLOSED ON ALL THREE SHAPES, and the third shape was NEW. Route #50 gave
+#     the string `is None` arm two BINDING-justified answers and left a third — the
+#     always-present `false` — justified by nothing but the operand's TYPE. Three ways
+#     reach it with no binding at all: (a) a local from a CALL whose `-> str` is
+#     contradicted by `return None`, (b) a `str`-declared FIELD, and (c) — found this
+#     window, and the CHEAPEST in the whole class — a `str`-declared PARAMETER, which
+#     needs no annotation lie, no field store, no call and no branch join.
+#     TWO INCREMENTS, because the shapes do not share a repair:
+#       * Module 6: always-present is now a claim about a name the function BINDS
+#         (`_r51_bound_names`, collected in route #46's EXISTING pre-scan walk).
+#         Parameters, `self.<f>` fields and non-name operands get the SAME
+#         `pycsl_none_str` opaque #50 installed one arm above — NO NEW MODEL.
+#       * Module 4: `PYCSL-SEM-RETANN` refuses a `-> str` that can `return None`,
+#         because a call-bound local IS a bound name and only a TRUE annotation can
+#         justify deciding with it. Closing (a) by weakening the caller would have been
+#         the wrong repair.
+#     THE `int` PATH ALREADY ANSWERED THIS WAY — `s: int` and `s: bool` both fail closed
+#     at HEAD (route #44's opaque) — so `str` was the odd one out, not a new cost.
+#     LIVE IN THE MIRROR TWICE, and the second is the serious one:
+#       * `Module2_Parser::expect_name(self, val: str = None)` — a parameter contradicted
+#         by ITS OWN DEFAULT — emitted `val is not None` as the literal `true`, i.e.
+#         DELETED, and every no-argument call takes that path.
+#       * `stmt_control_flow::_try_union_is_none_match` declared `-> str` and returned
+#         `None`, so its `return None` emitted as `raise (Return_str "")` — NONE AS THE
+#         EMPTY STRING ON THE RETURN PATH, route #50's defect in the one place #50 did
+#         not reach — and its caller `_handle_if_stmt`'s `if union_match is not None:`
+#         emitted as `if true then begin`. The fall-back-to-the-normal-lowering path was
+#         DELETED, so every proof of the emitter's own if-statement handler ran over a
+#         STRICT SUBSET of its reachable states.
+#
+#   ROUTE #55 FOUND **AND** CLOSED, by following the 27th plane's OWN NAMED FOLLOW-UP.
+#     `bin/check-type-keyed-constant-answers.py` justified the dict/set present-guard
+#     with a claim about the CONTRACTS ("deleting a branch cannot make an `ensures True`
+#     false") and its baseline said NOTHING CHECKS IT. A real postcondition breaks it:
+#     `ensures \result == 7` PROVES for a body returning 0 on the empty-dict path,
+#     because `if d:` emits as the literal `true`. Set proves too; list fails closed.
+#     THE REPAIR IS THE SHAPE, NOT THE TYPE — the justification was RIGHT about the
+#     shape it described and the arm had outgrown it. `true` is kept only where the
+#     guard is the LEFT CONJUNCT of an `and` whose other conjunct is a membership test
+#     on the SAME name (an empty map makes that test False anyway, so `true` is EXACT);
+#     everything else gets a per-name opaque.
+#     THE BLUNT REPAIR WAS BUILT FIRST AND REFUSED, and refusing it WAS the finding:
+#     opaque-everywhere moved the ONE live site (`expressions.py`, `if subst and name in
+#     subst:`), losing precision to correct nothing and owing a re-proof of one of the
+#     two slowest mirrors. Shape-sensitive: **0 of 53 mirrors and 0 of 905 corpus move,
+#     so NO re-proof is owed at all.**
+#
+#   THE 27th PLANE THEN CAUGHT ITS OWN STALENESS — it refused to go green, reporting the
+#     NEW `[_r55_subsumed_name]` arm as unclassified AND the old dict/set entry as
+#     matching no arm. Both are written; it now records **ZERO OPEN for the first time
+#     this campaign**, because route #51's entry moved OPEN -> CLOSED in the same
+#     increment. A plane that finds a route and then refuses to let its own repair go
+#     unclassified is the shape every plane here should have.
+#
+#   LADDER ITEM 5 RE-MEASURED AND IT IS **ONE FILE, NOT SEVENTEEN**. `why3 --type-only`
+#     over all 907 emitted modules gives 21 failures (the growth over the handoff's 17 is
+#     entirely route witnesses added since). TWENTY carry `pycsl-expected: FAIL`, for
+#     which an ill-typed emission IS the fail-closed mechanism. The ONE real gap is
+#     `0700` — and it is the driver for the fix that is missing: `_field_default` is a
+#     NESTED helper consulted only by the IN-FUNCTION record constructor, while `0700`
+#     constructs at MODULE level via `_emit_module_globals`, which still writes the int
+#     default. Fails closed (completeness, not soundness). VERIFIED PRE-EXISTING at the
+#     window-start HEAD in an isolated worktree.
+#
+#   LADDER ITEM 4 DISCHARGED BY CLASSIFICATION, and one of the 55 was REFUTED as a
+#     boundary. All 55 python-reference placeholders named and partitioned exactly
+#     (0 unclassified, 0 phantoms). 53 are a CERTIFIED BOUNDARY. **`0206` is not**: a
+#     full 2x2 shows PyCSL models the MRO faithfully AND discriminatingly.
+#
+# ## WHAT IS OWED
+#
+#   1. Queue D's six mover verdicts, and queue E's two (`w51_scf`, `w51_cis`). Note
+#      `w49d_scf` was DELIBERATELY left running against the SUPERSEDED
+#      `stmt_control_flow`: if the new one fails, that verdict is what localises it.
+#   2. The reference-suite verdict (run 5; runs 2/3/4 were each killed because I landed
+#      while they ran — see the lesson below).
+#   3. Land the `0206` real driver (body staged at `scratchpad/w51/mro/m1.py`); ratchet
+#      55 -> 54.
+#   4. `frontend/Module2_Parser` and `core_ir_semantic` re-proofs are covered by queue D
+#      and queue E respectively. Route #55 owes NOTHING — measured byte-inert.
+#
+# ## LADDER FOR THE NEXT RELAUNCH
+#
+#   1. Read `getting-better/proofs49/queue49.progress` FIRST and record every verdict.
+#      **If a mover FAILS, that is the honest cost of making a deleted branch reachable
+#      and it must be worked, not hidden.** `w51_scf` is the one to watch: 75 lines of a
+#      VERIFIED method and its caller change shape and a previously-DELETED branch
+#      becomes reachable.
+#   2. Land the `0206` driver; probe `0188` (`except*`) rather than assuming it.
+#   3. `0700` — lift `_field_default` out of its nested scope so BOTH construction paths
+#      consult one function. **Budget for mirroring the lifted helper in the same
+#      increment**: a new top-level def moves `check-mirror-coverage`, which is exactly
+#      the ratchet that caught route #51's two new Module 4 functions.
+#   4. Keep mining `bin/check-type-keyed-constant-answers.py`. It has now produced TWO
+#      routes (#51 via its OPEN entry, #55 via its named follow-up). The method that
+#      works: take an arm's stated justification, write the contract it says cannot
+#      break, and run the Python. The emit_ir always-present family's FRAME half is
+#      still named-and-unchecked, and the `ensures` half of THAT family is measured
+#      safe only because all seven reaching methods carry `#@ ensures True` — giving any
+#      of them a real postcondition would break it.
+#   5. #36's last sliver (three approaches already refuted — read #45's note first).
+#
+# ## PROBED THIS WINDOW WITH NO FINDING (do not re-probe)
+#
+#   The `is None` residue class at EVERY remaining simple type — a `bytes`, `float`,
+#   `list` and RECORD/dataclass-declared field, all `@mutable_state`-gated, ALL FAIL
+#   CLOSED; so the class #44 (int) / #50 (str local) / #51 (str call/field/param) covers
+#   is now closed at the simple types. Route #51 at the TUPLE type (`_ghost_tuple_vars`)
+#   — does not reproduce in either the lying `-> Tuple[int,int]` or honest
+#   `Optional[Tuple[...]]` spelling, and this one is worth remembering because the arm
+#   LOOKS like #51's and the Module 4 refusal (scoped to `-> str`) genuinely does NOT
+#   cover it: the reason it is safe is not the refusal. The FRAME half of the 27th
+#   plane's named follow-up (a `self.<field>` write on the DELETED branch under
+#   `assigns \nothing`) — fails closed; it is the ENSURES half that was live.
+#
+# ## LESSONS BANKED THIS WINDOW (all paid for in my own process)
+#
+#   * **A LONG BATTERY AND A LANDING CANNOT SHARE A TREE.** The reference suite spawns a
+#     fresh subprocess per test that imports the LIVE emitter, so ANY edit to
+#     `src/pycsl` after it starts contaminates it. Runs 2, 3 and 4 were each killed for
+#     this. Either land nothing while it runs, or run it last. Whole-file mirror proofs
+#     are NOT affected the same way (python imports the emitter once, at process start),
+#     which is why queue D's in-flight children stayed valid across two landings.
+#   * **NEVER `git stash` WHILE A DETACHED BATTERY WRITES INTO A TRACKED PATH.** An
+#     earlier `git add -A getting-better/` had made the in-flight proof logs TRACKED; the
+#     stash then unlinked the inode `w49d_m5ir`'s running proof holds open. The `.rc`
+#     verdict still lands (pr.sh reopens for the echo) but the log content is frozen.
+#     Add specific files, never `-A`, into a directory a battery is writing to.
+#   * **A RED SIGNAL INSIDE AN ACCEPTED TOTAL IS NOT A SIGNAL** — `0700` has been failing
+#     inside the standing suite-failure count, with a docstring saying it PROVES, since
+#     the fix it documents landed on the other path. Same shape as #49's discovery that
+#     `check-trusted-raises-honesty` was RED at HEAD with nobody looking.
+#   * **CHECK A NEW CHECK FOR FALSE POSITIVES BEFORE BELIEVING ITS CENSUS.** #51's Module
+#     4 refusal first reported four breaking functions; two were a nested helper's early
+#     `return` in a function that returns the EMPTY STRING. True radius: one.
+#   * **MEASURE A FIX AND READ THE DIFF IT PRODUCES** (#49's method, and it paid twice
+#     more): it is what found route #50's live mirror site, what turned route #55's blunt
+#     repair into a REFUSED one, and what corrected route #55's own census from "zero
+#     live sites" to one.
+#   * **THE FIDELITY PLANES ARE RED AT HEAD AND ARE USED DIFFERENTIALLY.** Both
+#     `check-self-annotate-sync.sh` and `self-annotate-mirror-check.sh` return rc=1 on a
+#     clean tree. That is why every handoff says "byte-identical to HEAD's own runs" and
+#     never "rc=0". Do not read rc=1 as a regression; diff the output against HEAD's.
+#
 # ===================== START HERE — #49 (INTERIM, window 4 in progress) ==========
 #
 # WRITTEN MID-WINDOW so a cold restart loses nothing. #48's block follows unchanged
