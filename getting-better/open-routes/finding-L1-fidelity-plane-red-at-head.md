@@ -117,3 +117,52 @@ exactly the ones whose call sites were removed — the two planes' blind spots l
 Whichever is taken, it must be taken with the batteries stopped: `w49d_expressions` and
 `w49d_statements` are proving these very files, and editing a file mid-proof produces a
 verdict that certifies a superseded artefact (the `w49d_scf` lesson, window #50).
+
+## THE TWO DIVERGENCES ARE NOT THE SAME KIND, AND THE PLANE'S REPORT UNDERSTATES ONE OF
+## THEM BY AN ORDER OF MAGNITUDE
+
+Measured by AST statement count (`ast.walk`, counting `ast.stmt` nodes) rather than by the
+plane's normalized text diff:
+
+    method                live stmts   mirror stmts   mirror is
+    _handle_var_expr           48           42        87% of live
+    _handle_for_stmt          342           71        **21% of live**
+
+The plane reports `_handle_for_stmt` as "26 missing lines". It is missing **271 of 342
+statements**. The plane's diff is normalized and truncated, so **its report understates
+severity, and a reader who trusts the line count will mis-triage this.** That is a defect
+in the plane worth fixing in its own right: a fidelity plane should report the SIZE of the
+gap, not a truncated sample of it.
+
+### `_handle_var_expr` — A DELETION, AND IT IS FIXED
+
+Two whole branches (`_iropt_ir_local_vars`, `_optional_union_locals`) were simply absent.
+Re-inserting the 21 live lines verbatim brings the method to byte-parity and takes the
+plane from `diverged=2` to `diverged=1` (measured in an isolated worktree). This is a
+clean, surgical repair.
+
+### `_handle_for_stmt` — NOT A DELETION AND NOT A REFACTOR EITHER
+
+The first hypothesis was that the mirror had legitimately DECOMPOSED the live method, with
+`_classify_iterable` carrying the split — and the mirror's `_classify_iterable` IS a
+`\trusted` stub (`return ("", "", False)`), which would be the honest technique.
+
+**That hypothesis is refuted.** `_classify_iterable` exists in the LIVE emitter too, at
+CLASS level (`src/pycsl/module6_whyml/stmt_control_flow.py:337`), and the live
+`_handle_for_stmt` already CALLS it (`:1169`). So the split is not the mirror's doing and
+does not account for the gap. After delegating exactly what live delegates, the mirror
+still carries 71 of the emitter's 342 statements.
+
+There is **no allowlist, exemption or baseline mechanism in
+`check-self-annotate-mirror-sync.py`** (grep for ALLOW/EXEMPT/KNOWN/baseline returns
+nothing), and **no mention of `_handle_for_stmt` anywhere in
+`getting-better/driver-progress.log`**. So this divergence has never been argued for; it
+has simply never been looked at.
+
+### THE HONEST DISPOSITION
+
+`_handle_for_stmt` cannot be called body-verified at 71/342 statements. The choices narrow
+to (a) port 271 statements and re-prove the tree's slowest mirror, or (b) re-`\trusted` it
+and pay ONE marker (456 -> 457). **(b) is the honest disposition and the metric going UP is
+the correct outcome** — the campaign's number is supposed to measure the trust surface, and
+the trust surface was always this big; only the bookkeeping said otherwise.
