@@ -52,12 +52,19 @@ MIN_SITES = 8
 
 BASELINE = {
     ("expr_ghost_collections.py", "0"):
-        "UNPROBED — `_handle_map_get_expr`, the GHOST/SPEC map read "
-        "(`match Map.get d k with | Some v_ -> v_ | None -> 0 end`). It is the spec-side "
-        "twin of route #57's body-side read and is hard-coded rather than type-keyed, so "
-        "neither the 27th nor the 30th plane can see it. WHAT WOULD REACH IT: a `#@` "
-        "contract that reads a map element through the ghost `MapGet` IR node. Measure it "
-        "at the `int` codomain FIRST — that is the carrier route #56 decided at.",
+        "FAITHFUL — and it is the instructive one, because it is the SAME SHAPE as route "
+        "#57 and is SOUND. `_handle_map_get_expr` lowers the GHOST contract builtin "
+        "`\\map_get(d, k)` (surface syntax at `Module2_Parser.py:2274`), and answering 0 "
+        "for an absent key is its DEFINED SEMANTICS, documented on two normative surfaces: "
+        "`docs/pycsl-concrete-syntax-reference.md:525` (\"Returns the value stored at key "
+        "`k` in dict `d`, or 0 if absent\") and `test-suite/annotations.md:1590`/`:1765`, "
+        "the latter spelling out this exact WhyML. **THE DISTINCTION THAT MATTERS: a ghost "
+        "SPEC construct may DEFINE its absent-key answer, because it is a spec-language "
+        "primitive with no Python counterpart to contradict. A BODY lowering may not, "
+        "because there the absent value is Python's `None` and answering 0 makes a false "
+        "claim about a real program.** Route #57 is the same `| None -> 0` in the second "
+        "position, undocumented and contradicting `.get`. Probed by relaunch #51: the two "
+        "reachable spec shapes fail closed anyway.",
     ("expressions.py", "(HInt 0)"):
         "COLLAPSING-DEAD, ARGUMENT STATED: the `hval` value model's absent-key sentinel. "
         "`hval` is a TAGGED union (HInt/HStr/...), so an `(HInt 0)` answer is "
