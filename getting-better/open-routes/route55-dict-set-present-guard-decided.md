@@ -94,3 +94,34 @@ in seven methods, all `ensures True` — but the dict/set arm has not been count
    rather than retreats.
 3. **Opaque the guard.** An abstract `bool` keyed on the map, undecidable both ways. Cheapest,
    and consistent with the `pycsl_none_str` device, but buys no precision.
+
+---
+
+## CENSUS TAKEN (2026-09-09) — **ZERO live sites in this tree**
+
+An AST census over `src/self-annotate/src`, `src/pycsl` and both corpora, counting `if <x>:` /
+`if not <x>:` truthiness guards where `<x>` is a dict/set-typed PARAMETER, a local bound to a
+dict/set literal or `dict()`/`set()`, or a dict/set-declared `self.<field>`, inside a
+`@mutable_state` class:
+
+    src/self-annotate/src   0        src/pycsl   0        both corpora   0
+
+**So route #55 is a live unsoundness of the LANGUAGE with no current instance in this tree**,
+and that is a real finding rather than an anticlimax — it is the opposite of routes #46/#50/#51,
+each of which turned out to be live in the mirror. Two consequences, and they pull in
+opposite directions:
+
+  * a repair is very likely **byte-inert on both planes**, so its cost is near zero and none
+    of the three candidates has to fight for its place on cost grounds;
+  * but the repair defends FUTURE programs rather than correcting any proof that exists
+    today, so it must not be sold as fixing a live defect. Route #55 is a language defect a
+    user reaches with an ordinary dict parameter and an ordinary postcondition.
+
+**Caveat, stated so the number is not over-trusted**: this is a SYNTACTIC census. The arm the
+27th plane records keys on the emitter's SYMBOL TABLE, so a name the symbol table types as a
+dict/set without a syntactic dict/set annotation or literal — a `getattr(self, "_x", {})`
+alias, for instance — would not be counted here. The exact site count needs the emitter
+instrumentation the plane used for the emit_ir twin
+(`scratchpad/w49/always_present_trace.patch`), run over the 53-file mirror emission. That
+measurement is OWED before any repair lands, because the census says where to look and only
+the measurement is the gate.
