@@ -15767,6 +15767,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                           _r52_side.get("name")) in _R52_VALUE_TYPES):
                     _r52_bad = getattr(self, "_current_symbol_table", {}).get(
                         _r52_side.get("name"))
+            # (#50) ROUTE #42 WAS REOPENED BY ROUTE #52, AND THE CAUSE WAS THIS ARM
+            #   BECOMING DEAD CODE. The refusal below is route #42's, unchanged in
+            #   substance; what route #52 did to it was STRUCTURAL, not a change of
+            #   policy. It had come to sit INSIDE route #52's `if` body and AFTER that
+            #   body's unconditional `raise`, so it was unreachable twice over — and the
+            #   guard it sat under requires `_r42_other is None` while the message itself
+            #   dereferences `_r42_other`, which is the tell.
+            #   MEASURED at `4e64f588`: `1053`/`1054`/`1055` — route #42's OWN negative
+            #   witnesses — were XPASSING, i.e. `<int> is True` proved a contract false of
+            #   its program again. Bisected to `223424b9`; they fail closed at `5f57a95d`
+            #   and at every earlier commit tested.
+            #   THE TWO REFUSALS ARE NOT ALTERNATIVES AND MUST NOT BE NESTED. #42's is a
+            #   WHITELIST over the bool SINGLETON (admit only where the emitter can SHOW
+            #   the operand is a Python `bool`); #52's is a BLACKLIST over VALUE-typed
+            #   operands. They are disjoint by construction — #52's guard already excludes
+            #   the bool-literal case — so #42's goes FIRST, at its own level, and #52's
+            #   keeps its own job and its two semantic exemptions untouched.
+            if _r42_other is not None and not _r42_ok:
+                from errors import PyCSLSemanticError as _R42Err
+                raise _R42Err(
+                    "an IDENTITY test against a `bool` literal "
+                    "(`X is True` / `X is False`) is refused unless the emitter can "
+                    "SHOW `X` is a Python `bool` (ROUTE #42). `is` is object "
+                    "identity against a SINGLETON, so `X is True` is False for every "
+                    "genuine int — Python's `1 is True` is False — while PyCSL "
+                    "int-encodes `bool`, which would make the model decide the test "
+                    "as VALUE equality and prove the wrong branch: measured, "
+                    "`x = 1; if x is True: return 7` proved `\\result == 7` where "
+                    "Python returns 0. Here `X` is a `%s` the emitter cannot type as "
+                    "`bool`. Write `X == True`, or annotate `X` as `bool`."
+                    % (_r42_other.get("type")
+                       if isinstance(_r42_other, dict) else type(_r42_other).__name__,),
+                    stage="whyml-emit", code="PYCSL-R42-IS-BOOL-SINGLETON")
             if _r52_bad is not None and _r42_other is None:
                 from errors import PyCSLSemanticError as _R52Err
                 raise _R52Err(
@@ -15782,22 +15815,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     "identity of value-typed objects is not part of this model."
                     % (_r52_bad,),
                     stage="whyml-emit", code="PYCSL-R52-IS-VALUE-TYPED")
-                if not _r42_ok:
-                    from errors import PyCSLSemanticError as _R42Err
-                    raise _R42Err(
-                        "an IDENTITY test against a `bool` literal "
-                        "(`X is True` / `X is False`) is refused unless the emitter can "
-                        "SHOW `X` is a Python `bool` (ROUTE #42). `is` is object "
-                        "identity against a SINGLETON, so `X is True` is False for every "
-                        "genuine int — Python's `1 is True` is False — while PyCSL "
-                        "int-encodes `bool`, which would make the model decide the test "
-                        "as VALUE equality and prove the wrong branch: measured, "
-                        "`x = 1; if x is True: return 7` proved `\\result == 7` where "
-                        "Python returns 0. Here `X` is a `%s` the emitter cannot type as "
-                        "`bool`. Write `X == True`, or annotate `X` as `bool`."
-                        % (_r42_other.get("type")
-                           if isinstance(_r42_other, dict) else type(_r42_other).__name__,),
-                        stage="whyml-emit", code="PYCSL-R42-IS-BOOL-SINGLETON")
         # ROUTE #40's RESIDUE, and the FULL SUITE is what surfaced it. The literal
         # `...` is only half of the singleton; the BUILTIN NAME `Ellipsis` is the
         # other half, and it lowered to the literal `0` too. So:

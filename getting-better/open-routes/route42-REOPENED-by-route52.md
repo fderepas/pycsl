@@ -100,3 +100,50 @@ The byte-diff sweep must fail when a corpus file that emitted NO `.mlw` on the b
 emits one on the candidate side. That is a two-line change to the comparison and it is the
 only reason this route survived a landing that was, in every other respect, carefully
 measured.
+
+---
+
+# STATUS — RE-CLOSED (2026-09-09). The cause was DEAD CODE, not a change of policy.
+
+Reading the code made the diagnosis sharper than the bisect alone could. Route #42's refusal
+had not been *replaced* by route #52's blacklist — it had been left in the file and made
+**unreachable twice over**:
+
+```python
+            if _r52_bad is not None and _r42_other is None:      # <- requires _r42_other None
+                raise _R52Err(...)                               # <- unconditional
+                if not _r42_ok:                                  # <- DEAD: after a raise
+                    raise _R42Err(... _r42_other.get("type") ...) # <- and derefs _r42_other
+```
+
+The guard requires `_r42_other is None` while the body dereferences `_r42_other`: the arm
+could not have run even if the `raise` above it were removed. That is the tell, and it is why
+this reads as a merge/indentation accident rather than a decision.
+
+**THE FIX**: route #42's refusal is restored at its own level, guarded by
+`_r42_other is not None and not _r42_ok`, and placed AHEAD of route #52's blacklist. The two
+are disjoint by construction — #52's guard already excludes the bool-literal case — so #52
+keeps its own job and both its semantic exemptions (`x is x`, and the
+None/Ellipsis/NotImplemented singleton family) untouched.
+
+## MEASURED AT THE RE-CLOSED TREE
+
+  * `1053`/`1054`/`1055` are REFUSED again, each by **route #42's own message**, and
+    `1092` is still refused by **route #52's own message** while `1093` still PROVES — so
+    the two refusals are localised to their own routes and neither swallowed the other
+  * mirror emission **0 of 53 move**, all 53 emit, **L3-tc 53/53** — which also means queue
+    D's in-flight `expressions`/`statements` proofs are NOT superseded by this fix
+  * corpus: **3 files stop emitting** (exactly `1053`/`1054`/`1055` — that IS the fix) and
+    **0 files move**; compared in BOTH directions this time
+  * both fidelity planes byte-identical to HEAD's own runs
+  * metric UNCHANGED 456/481/25/0; mirror-coverage, raises-honesty, type-keyed,
+    vacuous-drivers, emit-ir-arm-postconditions and doc-coherency all rc=0
+
+## STILL OWED — THE PLANE FIX
+
+The corpus byte-diff must fail when a file that emitted NO `.mlw` on the baseline side emits
+one on the candidate side. Until that exists, the same class of regression can land again
+with a green measurement. The comparison is currently an AD-HOC DRIVER PROCEDURE, not a
+script — `bin/byte-diff-sweep.sh` only EMITS into a directory and the diffing is done by
+whoever runs it, which is precisely why the direction nobody thought to check was never
+checked.
