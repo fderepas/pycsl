@@ -30,5 +30,10 @@ if [ "$NSRC" -lt 900 ]; then
   echo "[!] byte-diff-sweep: only $NSRC source file(s) matched — the corpus glob is broken. NOT A PASS." >&2
   exit 2
 fi
+# THE SOURCE MANIFEST. Without it, `byte-diff-compare.py` cannot tell a corpus file that
+# was ADDED since the baseline (benign) from one whose REFUSAL BECAME AN EMISSION (a
+# soundness loss, and how route #42 was reopened under a green byte-diff). One line here
+# makes that distinction exact instead of a judgement call.
+printf '%s\n' "$SRC" | xargs -n1 basename > "$OUT/SOURCES.txt"
 printf '%s\n' "$SRC" | xargs -P "$JOBS" -I{} bash -c 'emit_one "$@"' _ {} "$OUT" "$ROOT" "$PY"
 echo "emitted $(ls "$OUT" 2>/dev/null | wc -l) of $NSRC source file(s) into $OUT ($JOBS jobs)"
