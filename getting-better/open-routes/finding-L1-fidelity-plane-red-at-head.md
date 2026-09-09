@@ -128,6 +128,13 @@ plane's normalized text diff:
     _handle_var_expr           48           42        87% of live
     _handle_for_stmt          342           71        **21% of live**
 
+CORRECTION (relaunch #51, after hardening the plane to print the gap itself): the
+plane's OWN normalized statement measure — now printed on a `SIZE:` line — gives
+`_handle_var_expr` 21 of 23 (91%) and `_handle_for_stmt` **37 of 99 (37%)**. That is
+the figure the plane emits and therefore the one to quote; the 21%/87% above come
+from counting every nested `ast.stmt` and measure a different thing. Both are honest
+and both are an order of magnitude worse than "26 missing lines".
+
 The plane reports `_handle_for_stmt` as "26 missing lines". It is missing **271 of 342
 statements**. The plane's diff is normalized and truncated, so **its report understates
 severity, and a reader who trusts the line count will mis-triage this.** That is a defect

@@ -30,7 +30,8 @@
 #                            (`_iropt_ir_local_vars`, `_optional_union_locals`); plane
 #                            goes diverged=2 -> diverged=1. NOT LANDED: `w49d_expressions`
 #                            is proving that very file.
-#       `_handle_for_stmt`   **71 of 342** live statements. The attractive "the mirror
+#       `_handle_for_stmt`   **37 of 99** by the plane's own normalized measure
+#                            (71 of 342 counting every nested ast.stmt). The attractive "the mirror
 #                            legitimately DECOMPOSED it via `_classify_iterable`"
 #                            hypothesis is REFUTED — `_classify_iterable` exists in LIVE
 #                            too, at class level (`stmt_control_flow.py:337`), and live
