@@ -24,11 +24,19 @@ and stays exact, because there Python really does answer the supplied default.
     1112  d.get(5) == 0          int codomain    SUCCESS -> FAILED   route closed
     1113  d.get(5) + 1           int codomain    SUCCESS -> FAILED   route closed
     1114  d.get(5) == ""         str codomain    SUCCESS -> FAILED   route closed
-    1115  d.get(5, 7) == 7       positive control    MEASUREMENT IN FLIGHT at the time
-                                                     this file was written — the box is
-                                                     saturated by suite run 6 and two
-                                                     mirror proofs. **It must be SUCCESS.
-                                                     Do not land the repair without it.**
+    1114b d.get("zz") == 0       str KEYS        SUCCESS -> FAILED   route closed
+    1115  d.get(5, 7) == 7       positive control    SUCCESS -> **SUCCESS** (unchanged)
+    ----  d[5] == 0              subscript path      SUCCESS -> **SUCCESS** (unchanged),
+                                                     which is CORRECT and deliberate: the
+                                                     missing-key SUBSCRIPT is the
+                                                     language's documented opt-in
+                                                     exception stance (`#@ no_exception
+                                                     KeyError`), not this route, and the
+                                                     repair must not silently annex it.
+
+**ALL SIX MEASUREMENTS ARE IN AND THE REPAIR IS EXACTLY SURGICAL**: every one-argument
+`.get` shape closes, at BOTH measured codomains and with both int and string keys; the
+explicit-default form keeps proving; the subscript path is untouched.
 
 ## THE COST IS NOT MEASURED AND IS EXPECTED TO BE REAL
 
