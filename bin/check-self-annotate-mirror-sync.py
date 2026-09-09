@@ -40,6 +40,9 @@ import difflib
 # Every mirror `.py` under here is checked against its `src/pycsl/` counterpart (same relative
 # path — the mirror follows the live layout, including `frontend/` and `module6_whyml/`).
 MIRROR_ROOT = "src/self-annotate/src"
+
+# Zero-input floor; see the guard in main(). Measured 840 at 0d08d412.
+MIN_CHECKED = 700
 LIVE_ROOT = "src/pycsl"
 
 
@@ -198,7 +201,7 @@ def class_constants(path):
 
 
 def main():
-    diverged = 0
+    diverged = 0   # a COUNT of diverged methods (relaunch #51); it used to be a 0/1 flag
     checked = 0
     const_checked = 0
     for root, _dirs, files in os.walk(MIRROR_ROOT):
@@ -224,14 +227,30 @@ def main():
                     what = ("signature" if msig != lsig else "body")
                     print(f"DIVERGED: {rel}::{name} — un-trusted mirror {what} != live emitter "
                           f"{what}:")
+                    # REPORT THE SIZE OF THE GAP, NOT ONLY A SAMPLE OF IT (relaunch #51).
+                    # This plane used to print at most 30 diff lines and nothing else, so
+                    # `_handle_for_stmt` — which carries 71 of the live emitter's 342
+                    # statements — read as "26 missing lines" and was very nearly
+                    # mis-triaged as the same kind of thing as a 4-line deletion. A
+                    # fidelity plane that understates its own finding tenfold is a plane
+                    # that gets ignored.
+                    _ln, _mn = len(lstmts), len(mstmts)
+                    _pct = (100.0 * _mn / _ln) if _ln else 0.0
+                    print(f"  SIZE: live {_ln} stmt(s) vs mirror {_mn} stmt(s) — "
+                          f"the mirror carries {_pct:.0f}% of the live body")
                     if msig != lsig:
                         print(f"  live   params: {lsig[0]} defaults {lsig[1]}")
                         print(f"  mirror params: {msig[0]} defaults {msig[1]}")
-                    for dl in list(difflib.unified_diff(
-                            lstmts, mstmts, "live", "mirror", lineterm=""))[:30]:
+                    _full = list(difflib.unified_diff(
+                        lstmts, mstmts, "live", "mirror", lineterm=""))
+                    for dl in _full[:30]:
                         print("  " + dl)
+                    if len(_full) > 30:
+                        print(f"  ... {len(_full) - 30} further diff line(s) NOT SHOWN "
+                              f"(sample truncated at 30; the SIZE line above is the "
+                              f"measurement, this is only an illustration)")
                     print("  ---")
-                    diverged = 1
+                    diverged += 1
                 else:
                     checked += 1
             # --- class-level constants -------------------------------------------------
@@ -250,21 +269,42 @@ def main():
                 if extra:
                     print(f"DIVERGED CONST: {rel}::{cname} — key(s) in the MIRROR but NOT in "
                           f"live (the mirror must be a SUBSET): {sorted(extra)}")
-                    diverged = 1
+                    diverged += 1
                 elif not mkeys and not lkeys and mval != lval:
                     print(f"DIVERGED CONST: {rel}::{cname} — scalar value differs:")
                     print(f"  live  : {lval[:200]}")
                     print(f"  mirror: {mval[:200]}")
-                    diverged = 1
+                    diverged += 1
                 else:
                     const_checked += 1
+
+    # ZERO-INPUT / SHRINKING-INPUT GUARD (relaunch #51). THE #44 RULE: a gate that cannot
+    # tell "nothing is wrong" from "I looked at nothing" is not a gate. Until now this
+    # plane — one of the THREE disjoint oracle planes the whole campaign rests on — would
+    # print OK and exit 0 having checked ZERO functions if MIRROR_ROOT, LIVE_ROOT or the
+    # mirror/live path correspondence ever broke. Demonstrated, not hypothesised: pointing
+    # MIRROR_ROOT one directory deeper makes every `lpath` miss, and the plane reports
+    # "OK: all 0 un-trusted ... functions are verbatim copies" and exits 0.
+    # 840 were checked at 0d08d412; 700 is a floor well below that which the mirror only
+    # grows past. A drop through it means the population is broken, NOT that it is clean.
+    if checked < MIN_CHECKED:
+        print(f"[!] mirror-sync: only {checked} un-trusted function(s) were compared, "
+              f"expected at least {MIN_CHECKED}. The mirror/live path correspondence is "
+              f"broken. THIS IS A REFUSAL, NOT A PASS.")
+        sys.exit(2)
 
     if diverged == 0:
         print(f"OK: all {checked} un-trusted self-annotate mirror functions (self-methods, "
               f"module-level helpers, and pycsl.py driver functions) are verbatim copies of "
               f"the live source; {const_checked} class-level constants are subsets of live "
               f"(no mirror-only key, no differing value)")
-    sys.exit(diverged)
+        sys.exit(0)
+    # `diverged` is a COUNT now, but the EXIT CODE stays 1 for any divergence: 2 already
+    # means "zero-input refusal" across this campaign's planes, and leaking a count into
+    # the exit status would collide with it the moment a third method drifts.
+    print(f"[!] mirror-sync: {diverged} divergence(s) over {checked} verbatim-checked "
+          f"un-trusted function(s). Read the SIZE line of each, not the diff sample.")
+    sys.exit(1)
 
 
 if __name__ == "__main__":
