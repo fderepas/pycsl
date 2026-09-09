@@ -25,11 +25,18 @@ measurement I am not willing to degrade.
    `[+] SUCCESS` to `[-] FAILED`, the `x == 5` precision control still proves, and the
    `is None` guard still proves.
 3. `git mv` these three files into `test-suite/corpus/pycsl-reference/`.
-4. Run the L3 byte-inertness plane — `bin/byte-diff-sweep.sh` twice plus
-   `bin/byte-diff-compare.py`, which since `681acc25` fails on MOVED / GONE / **APPEARED**.
-   This is the step that is NOT yet done and it is the one that could still change the
-   verdict: the mirror does carry `Optional`-annotated locals, so the repair is NOT
-   obviously byte-inert and may owe mirror re-proofs.
+4. L3 byte-inertness. **THE MIRROR HALF IS NOW MEASURED** with the new
+   `bin/mirror-emit-sweep.sh` + `bin/byte-diff-compare.py`, baseline = a clean worktree at
+   `37403f79`, 53 emitted of 53 on both sides:
+
+       ROUTE #56 ALONE:  1 MOVED — `frontend/Module5_IREmitter` — 0 GONE, 0 APPEARED.
+
+   So route #56 owes exactly ONE mirror re-proof, of a file this campaign already re-proved
+   GREEN this window (`w49d_m5ir` rc=0 at 10:17, 96 minutes). **DO NOT LAND IT TOGETHER
+   WITH ROUTE #57**: measured together the two move EIGHT mirrors (adding auto_trust,
+   expressions, functions, preamble, statements, stmt_control_flow, types), so landing
+   them as one increment would hold a cheap soundness closure hostage to an expensive one.
+   The CORPUS half of L3 is the remaining step.
 5. Re-run `bin/run-soundness-planes.sh` and the 30th plane
    (`bin/check-type-keyed-value-sentinels.py`, whose baseline already carries #56's entry).
 
