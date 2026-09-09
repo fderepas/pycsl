@@ -125,3 +125,60 @@ instrumentation the plane used for the emit_ir twin
 (`scratchpad/w49/always_present_trace.patch`), run over the 53-file mirror emission. That
 measurement is OWED before any repair lands, because the census says where to look and only
 the measurement is the gate.
+
+---
+
+## THE BLUNT REPAIR WAS BUILT, MEASURED, AND **DELIBERATELY NOT LANDED**
+## (2026-09-09; patch kept at `scratchpad/w51/r55.patch`)
+
+Candidate (3) — replace the constant with a PER-NAME opaque bool (route #41's device;
+spelled `val function pycsl_nonempty_<name> : bool`, a nullary val rather than a predicate
+over the map because the map's WhyML type varies by site and Why3 has no polymorphic abstract
+val to key on it) — was built and it WORKS: all three false proofs (`f2`, `c2`, `c3`) fail
+closed under it, and the three controls stay closed.
+
+**Then the emission diff was read, and it changed the conclusion.** This is the same method
+that found route #50: *measure a fix and read the diff it produces.*
+
+    mirror emission: 1 of 53 moves — `module6_whyml/expressions.py`, THREE lines
+
+So the syntactic census's own caveat was right and the number ZERO was wrong: there IS one
+live site, reached through the SYMBOL TABLE rather than through a syntactic dict annotation.
+It is this, in the emitter's own expression lowering:
+
+```python
+    if subst and name in subst:
+```
+
+```whyml
+    if (let __and_l = (if true then 1 else 0) in                       (* before *)
+        if __and_l <> 0 then (if (match Map.get subst !name with Some _ -> true | None -> false end) ...
+    if (let __and_l = (if pycsl_nonempty_subst then 1 else 0) in ...   (* after  *)
+```
+
+**And at THAT site the constant is HARMLESS.** `true and (name in subst)` is equivalent to
+`name in subst`, which is exactly what Python computes — if `subst` is empty then
+`name in subst` is False anyway, so the short-circuit changes nothing. The justification
+recorded in the 27th plane ("the `in` does the real check") is **correct about the shape it
+describes**; what is wrong is that the arm ALSO fires OUTSIDE that shape, on the bare guard,
+which is what `c2` demonstrated.
+
+**Landing the blunt opaque would therefore**: fix nothing that is live, LOSE PRECISION at the
+one live site (an opaque left conjunct can be false where `name in subst` is true, so the
+guard weakens), and owe a whole-file re-proof of `module6_whyml/expressions.py` — one of the
+two slowest mirrors in the tree. That is a bad trade and it is recorded as a REFUSED repair,
+not as an oversight.
+
+## RECOMMENDED REPAIR (for the next stretch): MAKE THE ARM MATCH ITS OWN JUSTIFICATION
+
+Keep the constant `true` exactly where the justification holds — the guard is the LEFT
+CONJUNCT of an `and` whose remaining conjunct is a membership test on the SAME name, so the
+following check subsumes it — and answer the per-name OPAQUE on the bare guard. Then:
+
+  * the one live mirror site keeps its current emission **byte-identical**, so no re-proof is
+    owed at all, and
+  * `f2`/`c2`/`c3` fail closed, because none of them has a subsuming `in`.
+
+This needs the PARENT context at the `_to_bool` call (the `and` lowering, not the leaf), which
+is why it is a real build rather than a one-line change; it is the honest shape of the fix and
+its blast radius is measured in advance at ZERO.
