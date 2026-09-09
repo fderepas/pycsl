@@ -868,6 +868,50 @@ def _check_lemma(func, trusted_funcs) -> None:
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
+def _returns_literal_none(body) -> bool:
+    found = [False]
+
+    def walk(node):
+        if found[0]:
+            return
+        if isinstance(node, dict):
+            if node.get("stmt") in ("FunctionDef", "AsyncFunctionDef", "Lambda"):
+                return
+            if node.get("stmt") == "Return":
+                v = node.get("value")
+                if v is None or (isinstance(v, dict)
+                                 and v.get("type") in ("None", "CSLNone")):
+                    found[0] = True
+                    return
+            for x in node.values():
+                walk(x)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(body)
+    return found[0]
+
+#@ requires True
+#@ ensures True
+#@ assigns \nothing
+def _check_scalar_return_annotation(func) -> None:
+    if func.get("return_annotation") != "str":
+        return
+    if not _returns_literal_none(func.get("body", []) or []):
+        return
+    name = func.get("name", "<anonymous>")
+    raise PyCSLSemanticError(
+        f"function '{name}' is annotated `-> str` but can `return None`. Python "
+        f"does not enforce the hint and the model BELIEVES it: a caller's "
+        f"`<result> is None` test is then DECIDED false and the branch the program "
+        f"actually takes is deleted from the proof. Annotate `-> Optional[str]` "
+        f"(the model carries that faithfully) or remove the `return None`.",
+        code="PYCSL-SEM-RETANN")
+
+#@ requires True
+#@ ensures True
+#@ assigns \nothing
 def _check_mutable_defaults(func) -> None:
     if func.get("has_mutable_default"):
         raise PyCSLSemanticError(

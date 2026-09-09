@@ -234,3 +234,57 @@ TYPE ACCIDENT — the missing-return path makes Why3 expect `()` where a `string
 — not by anything that intends to. The same accident makes `\result != None` on a lying
 `-> str` fail (`scratchpad/w51/p3.py`). If either accident is ever fixed, this check must
 grow the fall-through arm with it.
+
+---
+
+# STATUS — INCREMENT 2 LANDED: ROUTE #51 IS CLOSED ON ALL THREE SHAPES
+
+Shape (a) is closed the OTHER WAY ROUND from (b)/(c) — by refusing the lie, not by weakening
+the caller. A local bound from a call *is* a bound name, so the emitter should keep deciding
+with it; what makes that honest is the callee's annotation being TRUE. Module 4's
+`_check_scalar_return_annotation` (`PYCSL-SEM-RETANN`) refuses a function annotated `-> str`
+that can `return None`, scoped to `-> str` because the `-> int` spelling already fails closed.
+
+## AND THE LIE WAS LIVE IN THE EMITTER'S OWN `if`-STATEMENT HANDLER
+
+`stmt_control_flow::_try_union_is_none_match` declared `-> str` and returned `None`. TWO
+things followed, and the second is the serious one:
+
+  * its `return None` emitted as `raise (Return_str "")` — **`None` AS THE EMPTY STRING, on
+    the RETURN path**. That is route #50's exact defect in the one place route #50 did not
+    reach: #50 fixed the LOCAL binding, and nothing was looking at the RETURN.
+  * its caller `_handle_if_stmt`'s `if union_match is not None:` emitted as
+
+        if true then begin
+
+    — so the "the pattern does not apply, fall back to the normal `if` lowering" path was
+    **DELETED**, and every proof of the emitter's own if-statement handler ran over a STRICT
+    SUBSET of its reachable states.
+
+Correcting the annotation to `Optional[str]` makes the return a faithful union
+(`Arm_0_None` / `Arm_0_0 string`) and the caller's test a real discriminant.
+
+## MEASURED, BOTH INCREMENTS, FRESH FROM THE SURFACE AT THE LANDED TREE
+
+  * mirror emission — **3 of 53 move vs HEAD**, all 53 still emit, **L3-tc 53/53**:
+    `frontend/Module2_Parser` (2 lines, increment 1), `module6_whyml/stmt_control_flow`
+    (75 lines, increment 2), `core_ir_semantic` (98 lines — the two new Module 4 functions,
+    mirrored as VERIFIED bodies with trivial contracts, NOT as `\trusted` stubs)
+  * corpus byte-diff — **0 of 905** move for increment 2; 0 of 903 pre-existing for
+    increment 1 (only its own two witnesses)
+  * both fidelity planes **byte-identical to HEAD's own runs**
+  * metric UNCHANGED — markers 456 / grep 481 / offset 25 / unattached 0. Mirroring the new
+    Module 4 code as verified bodies rather than `\trusted` stubs is what keeps it flat.
+  * `mirror-coverage` rc=0 at 550/41 — it BROKE FIRST (552 > 550) and that is how the
+    mirroring debt was noticed at all: two new live functions with no mirror counterpart are
+    ABSENT, not trusted, so the headline count cannot see them. The ratchet caught it.
+  * raises-honesty rc=0 at 70; doc-coherency rc=0; doc §T.5.12r
+  * witnesses `1100` (param), `1101` (field), `1103` (the annotation lie) all FAIL CLOSED and
+    `1102` (the precision guard) PROVES; route #50's `1085`–`1088` all still behave
+
+## OWED — THREE WHOLE-FILE MIRROR RE-PROOFS
+
+`frontend/Module2_Parser`, `module6_whyml/stmt_control_flow`, `core_ir_semantic`. The second
+is the one to watch: 75 lines of a VERIFIED (not `\trusted`) method and its caller change
+shape, and a previously-deleted branch becomes reachable. **If it fails, that is the honest
+cost of making a deleted branch reachable and it must be worked, not hidden.**

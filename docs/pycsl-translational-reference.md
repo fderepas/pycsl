@@ -2189,12 +2189,32 @@ byte-identical. Witness `1102` is the precision guard that keeps this a **narrow
 than a retreat — a local bound to a literal in the same function still gets the DECIDED
 answer, and a repair that made every string `is None` opaque would lose it.
 
-**Stated residue**: shape (a) is closed separately, by refusing the annotation lie itself
-(`PYCSL-SEM-RETANN`), because a local bound from a call *is* a bound name — only a
-trustworthy callee annotation can justify deciding with it. A callee that returns `None`
-IMPLICITLY, by falling off the end, has no `return None` for that check to see; it fails
-closed today, but by a TYPE ACCIDENT (Why3 expects `()` where a `string` is supplied) rather
-than by design.
+**Shape (a) is closed the other way round — by refusing the lie, not by weakening the
+caller.** A local bound from a call *is* a bound name, so $\mathcal{T}$ should keep deciding
+with it; what makes that decision honest is the callee's annotation being TRUE. Module 4's
+`PYCSL-SEM-RETANN` therefore refuses a function annotated `-> str` that can `return None`,
+scoped to `-> str` because the `-> int` spelling already fails closed.
+
+**And that lie was live in the emitter's own `if`-statement handler.**
+`stmt_control_flow::_try_union_is_none_match` declared `-> str` and returned `None`, so its
+`return None` emitted as `raise (Return_str "")` — **`None` as the empty string, on the
+RETURN path**, which is route #50's defect in the one place route #50 did not reach — and its
+caller's `if union_match is not None:` emitted as
+
+```whyml
+    if true then begin                      (* before *)
+    if (not (match !union_match with Arm_0_None -> true | _ -> false end)) then begin
+```
+
+The "the pattern does not apply, fall back to the normal `if` lowering" path was **deleted**,
+so every proof of `_handle_if_stmt` ran over a strict subset of its reachable states.
+Correcting the annotation to `Optional[str]` makes the return a faithful union and the
+caller's test a real discriminant: 1 of 53 mirror emissions moves (75 lines, that file), all
+53 emit and type-check, and 0 of 905 corpus emissions move.
+
+**Stated residue**: a callee that returns `None` IMPLICITLY, by falling off the end, has no
+`return None` for that check to see; it fails closed today, but by a TYPE ACCIDENT (Why3
+expects `()` where a `string` is supplied) rather than by design.
 
 ---
 

@@ -714,7 +714,7 @@ class ControlFlowStmtMixin:
     #@ assigns self._in_spec
     def _try_union_is_none_match(self, stmt: "ExprIR", rest: List[Dict[str, Any]],
                                  local_refs: Set[str], declared_refs: Set[str],
-                                 indent: str, in_loop: bool) -> str:
+                                 indent: str, in_loop: bool) -> Optional[str]:
         """typing-engagement ty1 C5 — detect `if x is None:` / `if x is not None:`
         where `x` is a Union-typed variable, and lower to a constructor-pattern
         `match` (Why3 forbids `=` on algebraic types in a program `if`). Returns
