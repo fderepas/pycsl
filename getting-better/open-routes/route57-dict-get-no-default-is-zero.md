@@ -82,9 +82,16 @@ exception exists.
     README:906-909) and is the same position taken for `IndexError`, `ZeroDivisionError`
     and the rest — so it is NOT claimed here as a new route. It is recorded because it is
     the path whose justification `.get` borrowed.
-  * The `str` codomain answers `""` and the `hval` codomain `(HInt 0)`; those were not
-    probed for decidability and MUST be measured separately rather than assumed — route
-    #56's whole lesson is that a class safe at one carrier can be open at another.
+  * **THE `str` CODOMAIN IS ALSO LIVE — MEASURED, NOT ASSUMED, AND THIS MAKES #57
+    STRICTLY BROADER THAN #56.** `d: Dict[int, str] = {1: "a"}` with `if d.get(5) == "":`
+    proves `\result == 1` where Python returns 0. So does the string-KEY form,
+    `d: Dict[str, int] = {"a": 2}` with `d.get("zz") == 0`.
+    **AND THE REASON IS THE POINT.** Route #56 was confined to the `int` carrier because
+    its sentinel (`""` for a str carrier) was ILL-TYPED against the comparand and died on
+    a Why3 type error — a type ACCIDENT that masked it. Here there is no such accident:
+    the `.get` lowering picks the sentinel FROM THE CODOMAIN TYPE ν, so it is
+    type-correct by construction at every codomain, and every codomain decides.
+    The `hval` codomain `(HInt 0)` remains unprobed and must not be assumed either way.
 
 ## CANDIDATE REPAIR
 
