@@ -69,3 +69,51 @@ was never faithful to begin with.
     **If it does not prove, that is the honest cost of making a converted method faithful
     and it must be worked, not hidden** — the alternative is to re-`\trusted` the method,
     which RAISES the trust surface and must be recorded as such.
+
+## AND IT IS NOT TWO BODIES — IT IS A WHOLE UNMIRRORED MACHINERY CLUSTER
+
+Every helper the missing branches call is absent from the mirror ENTIRELY (counts are
+`grep -rc` over `module6_whyml/`, live vs mirror):
+
+    _union_local_read_projection   live 4   mirror 0
+    _string_char_iter              live 2   mirror 0
+    _enumerate_seq_recv            live 4   mirror 0
+    _classbody_psl_recv            live 3   mirror 0
+    _keyword_iter_recv             live 4   mirror 0
+    _tparam_iter_recv              live 5   mirror 0
+    _split_call_recv_sep           live 9   mirror 0
+    _hval_items_recv               live 6   mirror 0
+    _zip_irlist_recv               live 6   mirror 0
+    iropt_val                      live 6   mirror 0
+
+**THE DISTINCTION THAT MATTERS, AND IT IS THE WHOLE POINT.** A method that is simply
+UNMIRRORED is honestly outside the verified set, and the campaign already counts those:
+`check-mirror-coverage.py` is GREEN at 550 unmirrored defs / 41 unmirrored files, which is
+its accepted ratchet. That is fine — it is a measured, declared gap.
+
+What is NOT fine is a method sitting in the CONVERTED (verified) column whose real body
+branches into that unmirrored machinery, with the branches simply deleted from the copy we
+prove. `_handle_var_expr` and `_handle_for_stmt` are counted as body-verified and are not.
+`check-mirror-coverage` cannot see this, because the helpers it counts as unmirrored are
+exactly the ones whose call sites were removed — the two planes' blind spots line up.
+
+## THE FOUR OPTIONS, WITH THEIR HONEST COSTS
+
+  (a) **Mirror the whole helper cluster and re-sync both bodies.** The most faithful and by
+      far the most work: ten helper families, and a re-proof of the two SLOWEST mirrors in
+      the tree (`expressions.py` and `stmt_control_flow.py`, each >2h).
+  (b) **Re-`\trusted` the two methods.** Honest, cheap, and it RAISES the trust surface by
+      two markers (456 -> 458). The campaign's own rule says an honest increase beats a
+      false verification, so this is a legitimate outcome, not a defeat.
+  (c) **Sync the bodies faithfully and let the unmirrored helpers become `\trusted` stubs**
+      — the mirror's normal technique for a call it does not verify (the existing
+      `self__<m>` avatar machinery, which `check-avatar-frame-parity` and
+      `check-shadowed-selfcalls` already police). Cost: roughly ten new `\trusted` stubs, so
+      the metric rises to about 466, and the two methods STAY converted with bodies that are
+      genuinely the emitter's. **This is the campaign's normal move and the recommended one.**
+  (d) Declare the divergence an accepted exception. **REJECTED** — that is exactly what has
+      been happening implicitly, and it is what left an L-plane red without anyone knowing.
+
+Whichever is taken, it must be taken with the batteries stopped: `w49d_expressions` and
+`w49d_statements` are proving these very files, and editing a file mid-proof produces a
+verdict that certifies a superseded artefact (the `w49d_scf` lesson, window #50).
