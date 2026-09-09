@@ -49,7 +49,18 @@ CORPUS = os.path.join(ROOT, "test-suite", "corpus", "pycsl-reference")
 
 # Ratchets, measured at the route-#22 closure (#44).
 MAX_ABSENT = 7
-MAX_UNKNOWN = 19
+# UNKNOWN was 19 at the route-#22 closure and this plane went RED at `5342bea1` (routes
+# #47/#48 closing) without anyone noticing, because the plane is driver-run and nobody ran
+# it — found at HEAD by relaunch #51. THE DELTA IS EXACTLY THE FIVE SITES ROUTE #47 ADDED
+# TO THE CORPUS AS ITS OWN WITNESSES: `1070_route47_getattr_default_dict` (`c.missing`),
+# `1071_route47_getattr_default_list` (`c.missing`), `1072_route47_getattr_no_default`
+# (`c.missing`) and `1073_route47_same_default_equal` (`c.missing` AND `c.other`). Those
+# files exist PRECISELY to be `getattr` sites, so an UNKNOWN there is the witness doing its
+# job, not erasure creeping back. CONFIRMED BY THE PLANE'S OWN INSTRUMENT rather than by
+# arithmetic: `--mirror-only` reports UNKNOWN 19/19 and rc=0 at the same HEAD, so the
+# mirror population has not moved at all. `DECLARED` stays pinned at 0 — that is the half
+# that would mean route #22 is back, and it has not budged.
+MAX_UNKNOWN = 24
 
 
 def emit_and_collect(path, import_path=None):
