@@ -87,17 +87,38 @@
 #     (0 unclassified, 0 phantoms). 53 are a CERTIFIED BOUNDARY. **`0206` is not**: a
 #     full 2x2 shows PyCSL models the MRO faithfully AND discriminatingly.
 #
+# ## VERDICTS BANKED (updated 3be29ec8)
+#
+#   THREE of the six owed movers are IN, all rc=0, and all cover the LANDED tree:
+#     `w49d_m5ir`   rc=0  10:17  Module5_IREmitter  (started before the landings, but its
+#                                emission is byte-identical across both, so it counts)
+#     `w49d_m2p`    rc=0  10:55  Module2_Parser     (started AFTER both landings — so the
+#                                branch route #51 made REACHABLE does not break its proof)
+#     `w49d_types`  rc=0  10:58  types.py           (route #50's OWN file, after both)
+#   `w49d_scf` rc=143 — KILLED BY ME at 2h00, deliberately: it was certifying the
+#     SUPERSEDED `stmt_control_flow` and occupying one of only two queue slots, blocking
+#     both the rest of queue D and queue E (which is where the LIVE file gets proved).
+#     Re-run it ONLY if `w51_scf` fails, where its diagnostic value is unchanged.
+#
 # ## WHAT IS OWED
 #
-#   1. Queue D's six mover verdicts, and queue E's two (`w51_scf`, `w51_cis`). Note
-#      `w49d_scf` was DELIBERATELY left running against the SUPERSEDED
-#      `stmt_control_flow`: if the new one fails, that verdict is what localises it.
-#   2. The reference-suite verdict (run 5; runs 2/3/4 were each killed because I landed
-#      while they ran — see the lesson below).
-#   3. Land the `0206` real driver (body staged at `scratchpad/w51/mro/m1.py`); ratchet
-#      55 -> 54.
-#   4. `frontend/Module2_Parser` and `core_ir_semantic` re-proofs are covered by queue D
-#      and queue E respectively. Route #55 owes NOTHING — measured byte-inert.
+#   1. `w49d_expressions` and `w49d_statements` (queue D, started 10:55/10:59 — the two
+#      slow ones, killed at 55m in queue B and at 30m in queue C, never yet finished in
+#      this campaign), then queue E's `w51_scf` and `w51_cis`.
+#      **`w51_scf` IS THE ONE TO WATCH**: 75 lines of a VERIFIED (not `\trusted`) method
+#      and its caller change shape and a previously-DELETED branch becomes reachable.
+#      If it FAILS that is the honest cost and must be worked, not hidden.
+#   2. The reference-suite verdict (run 5, launched 10:06 on the stable tree and still
+#      running at 11:22 — it is progressing, not stuck; runs 2/3/4 were each killed
+#      because I landed while they ran, see the lesson below).
+#   3. **STAGED, NOT LANDED — both touch what a live suite reads, which is the only
+#      reason they are not in:**
+#        a. the `0206` real driver (body at `scratchpad/w51/mro/m1.py`), ratchet 55 -> 54;
+#        b. wiring the planes into `bin/run-reference-tests.sh`. ALL of them are green at
+#           the landed tree, so this is green-to-green with no remediation. It must NOT be
+#           done while a suite is live: the runner re-invokes ITSELF per test
+#           (`run-reference-tests.sh --worker {}` under xargs).
+#   4. Route #55 owes NOTHING — measured byte-inert on both planes.
 #
 # ## LADDER FOR THE NEXT RELAUNCH
 #
@@ -119,6 +140,25 @@
 #      safe only because all seven reaching methods carry `#@ ensures True` — giving any
 #      of them a real postcondition would break it.
 #   5. #36's last sliver (three approaches already refuted — read #45's note first).
+#
+# ## THE 28th PLANE LANDED THIS WINDOW
+#
+#   `bin/check-emit-ir-arm-postconditions.py`. The 27th plane's justification for the
+#   emit_ir always-present family is CONDITIONAL, not structural — sound only while all
+#   seven reaching methods carry `#@ ensures True` — and its own text names that as the
+#   way to break it. Nothing failed if you did. Now something does. Negative-tested BOTH
+#   ways before landing (rc=1 on a real postcondition, rc=2 when the instance count moves).
+#   The two planes COMPOSE: the 27th owns the arms, the 28th owns the methods.
+#
+# ## AND THE PLANES THEMSELVES ARE MOSTLY UNWIRED — read this before trusting a green
+#
+#   `bin/run-reference-tests.sh` gates on EXACTLY ONE plane: `doc-coherency`. Every other
+#   lower bound here — trusted-directives, mirror-coverage, raises-honesty,
+#   vacuous-drivers, type-keyed-constant-answers, both fidelity planes, and the new 28th —
+#   is DRIVER-RUN, i.e. fires only when a relaunch remembers. That is the mechanism behind
+#   two of this campaign's own surprises: #49 found raises-honesty RED AT HEAD with nobody
+#   looking, and #50 found the 27th plane's baseline STALE only because it happened to
+#   change the arm. **A lower bound nobody runs is not a lower bound, it is a note.**
 #
 # ## PROBED THIS WINDOW WITH NO FINDING (do not re-probe)
 #
