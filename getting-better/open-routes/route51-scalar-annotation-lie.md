@@ -111,3 +111,62 @@ emitter's own code leans on such guards (`self._current_self_type = None` in
 `_reset_function_state`, read back as `is None` elsewhere), so this will move mirror emission
 and may cost whole-file proofs. That is honest work, not a hidden cost, and it is the reason
 this shape is RECORDED here rather than landed in the same increment as #50.
+
+---
+
+# SHAPE (c) — THE PARAMETER, AND IT IS THE CHEAPEST OF THE THREE
+# (found 2026-09-09 by relaunch #50, probing the residue class the ladder named)
+
+`scratchpad/w51/p1.py`, `[+] Verification SUCCESS` at `51a771c4`:
+
+```python
+@mutable_state
+@dataclass
+class C:
+    tag: int = 0
+
+    #@ requires True
+    #@ ensures \result == 7        # <-- FALSE: `o.probe(None)` returns 0 in Python
+    #@ assigns \nothing
+    def probe(self, s: str) -> int:
+        if s is None:
+            return 0
+        return 7
+
+o = C(); assert o.probe(None) == 0     # runs, and holds
+```
+
+No annotation lie, no field store, no branch join, no call. A `str`-annotated PARAMETER is
+enough. It is the cheapest reproduction in the whole class and it needs the least from the
+attacker: one parameter and one `is None`.
+
+**CONTROL `scratchpad/w51/p2.py`** — shape (b) with the `@mutable_state` decorator REMOVED:
+fails closed. So the gate is exactly `@mutable_state`, for the field shape as for the local
+shape, and the three shapes are one defect.
+
+## THE CLASS, RE-STATED WITH ALL THREE MEMBERS MEASURED AT `51a771c4`
+
+| shape | operand of `is None` | verdict | what the model needed and did not have |
+|---|---|---|---|
+| (a) `q2.py` | a LOCAL bound from a CALL whose `-> str` is contradicted by `return None` | **PROVES a false contract** | the callee's real return set |
+| (b) `q5.py` | a FIELD `self.name` declared `str`, stored `None` by a caller | **PROVES a false contract** | nothing establishes a field's non-None-ness |
+| (c) `p1.py` | a PARAMETER declared `str`, passed `None` by a caller | **PROVES a false contract** | nothing establishes a parameter's non-None-ness |
+| control `q1.py` | callee declares the HONEST `Optional[str]` | fails closed | — |
+| control `q4.py` | the same lie at `-> int` | fails closed (reaches route #44's opaque) | — |
+| control `p2.py` | shape (b) without `@mutable_state` | fails closed | — |
+
+## WHAT THIS DOES TO THE RECOMMENDATION ABOVE
+
+The recorded recommendation — REFUSE THE LIE in Module 4, scoped to `-> str` — fixes shape
+(a) ONLY. Shapes (b) and (c) contain **no lie to refuse**: a `dataclass` field hint and a
+parameter hint are both unenforced by Python, and the caller is simply outside the function.
+Landing the Module-4 refusal alone would close the cheapest reproduction's SIBLING and leave
+the cheapest one open, which is not a closure.
+
+**THE ROOT IS THE ARM, NOT THE ANNOTATION.** `module6_whyml/expressions.py`'s string
+`is None` fall-through answers the literal `false` whenever the operand is string-typed and
+the class is `@mutable_state`, and route #50 already wrote the sentence that condemns it:
+*which answer is right is a question about the BINDING, not about the type.* Route #50 gave
+the arm two binding-justified answers (`None#empty` decided, `AMBIG` opaque) and left the
+third — the always-present `false` — justified by nothing but the type. Shapes (a), (b) and
+(c) are the three ways to reach it with no binding at all.
