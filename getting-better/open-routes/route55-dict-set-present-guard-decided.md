@@ -182,3 +182,42 @@ following check subsumes it — and answer the per-name OPAQUE on the bare guard
 This needs the PARENT context at the `_to_bool` call (the `and` lowering, not the leaf), which
 is why it is a real build rather than a one-line change; it is the honest shape of the fix and
 its blast radius is measured in advance at ZERO.
+
+---
+
+# STATUS — CLOSED (2026-09-09). The repair is the SHAPE, not the type.
+
+The recommended repair above was built and landed. `true` is answered only where this
+truthiness test is the **LEFT CONJUNCT of an `and` whose other conjunct is a membership test
+on the SAME name** — there an empty map makes that test False anyway, so `true` is EXACT
+rather than an over-approximation — and every other dict/set present-guard gets a per-name
+opaque `bool` (route #41's device, spelled as a nullary `val function` because the map's
+WhyML type varies by site and Why3 has no polymorphic abstract val to key on it).
+
+The mark is made at the `and` lowering, where the PARENT is visible, and consumed at the leaf
+in `_to_bool`; that is why it is a real build rather than a one-line change, and it is what
+makes the repair byte-inert.
+
+## MEASURED AT THE LANDED TREE
+
+  * mirror emission — **0 of 53 move**; the one live site (`module6_whyml/expressions.py`,
+    `if subst and name in subst:`) is byte-identical, so **NO re-proof is owed**
+  * corpus byte-diff — **0 of 905** pre-existing emissions move
+  * both fidelity planes byte-identical to HEAD's own runs
+  * L3-tc inherited 53/53 (the emission is byte-identical to a set already measured 53/53)
+  * metric UNCHANGED — markers 456 / grep 481 / offset 25 / unattached 0
+  * `mirror-coverage` rc=0 at 550/41; raises-honesty rc=0 at 70; doc-coherency rc=0;
+    doc §T.5.12s
+  * witnesses `1104` (dict) / `1105` (set) / `1106` (list control) FAIL CLOSED, and `1107`
+    (the subsumption precision guard) PROVES — negative-tested BOTH ways: it proves with the
+    exemption and FAILS without it
+
+## THE 27th PLANE FOUND THIS AND THEN CAUGHT ITS OWN STALENESS
+
+`bin/check-type-keyed-constant-answers.py` is where the route came from — its baseline named
+the risk and said nothing checked it. When the lowering changed, the SAME plane refused to go
+green: it reported the new `[_r55_subsumed_name]` arm as unclassified AND the old
+`[_current_self_type+_current_symbol_table+_mutable_state_classes]` entry as matching no arm
+("the lowering changed and the classification is stale"). Both are now written, and the
+plane records **0 OPEN** for the first time this campaign — route #51's entry moved from OPEN
+to CLOSED in the same increment.

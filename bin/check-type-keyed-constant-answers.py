@@ -51,14 +51,17 @@ D = os.path.join(ROOT, "src", "pycsl", "module6_whyml")
 BASELINE = {
     ("_handle_binop", "_current_self_type+_is_string_expr+_mutable_state_classes",
      "false|true"):
-        "OPEN -- ROUTE #51. This is route #50's third answer, the always-present `false` "
-        "kept for a name the function never binds to `None`, and it is exactly as far as "
-        "a SYNTACTIC binding fact reaches. It is WRONG for a local bound from a call that "
-        "returns None while declaring `-> str` (shape (a)) and for a `self.<str-field>` a "
-        "caller stores None into (shape (b)); both PROVE a contract false of their "
-        "program. Recorded with its census and a scoped recommendation in "
-        "getting-better/open-routes/route51-scalar-annotation-lie.md. Kept as an entry "
-        "rather than removed so this plane stays green about a defect it NAMES.",
+        "CLOSED -- ROUTE #51. The fact is now a BINDING, and only a binding: the "
+        "always-present `false` is answered only for a name the function actually BINDS "
+        "(`_r51_bound_names`, collected by route #46's pre-scan walk). The three shapes "
+        "that reached it with no binding at all -- a `self.<str-field>` a caller stores "
+        "None into, a `str`-declared PARAMETER a caller passes None, and a local bound "
+        "from a call whose `-> str` is contradicted by `return None` -- are respectively "
+        "opaque, opaque, and REFUSED in Module 4 (`PYCSL-SEM-RETANN`). Witnesses "
+        "`1100`/`1101`/`1103` fail closed and `1102` is the precision guard that a bound "
+        "local KEEPS its decided answer. The lie was live in the emitter's own if-handler: "
+        "`_try_union_is_none_match` declared `-> str` and returned None, so its caller's "
+        "`if union_match is not None:` emitted as `if true then begin`.",
     ("_handle_binop", "_current_emitting_func+_func_return_type+"
      "_module_method_return_annotations", "false|true"):
         "route #44's FAITHFUL arm: `\\result` in a function whose PYTHON return annotation "
@@ -95,13 +98,27 @@ BASELINE = {
     ("_to_bool", "_emit_ir_local_vars+_is_emit_ir_expr", "true"):
         "the truthiness twin of the emit_ir always-present arm above, on the same stated "
         "scope and with the same named follow-up.",
-    ("_to_bool", "_current_self_type+_current_symbol_table+_mutable_state_classes", "true"):
-        "`if <dict/set param>:` as a PRESENT-guard before a membership test. The dict/set "
-        "is modelled as a `map` with no int value, so the default `<> 0` coercion is a TYPE "
-        "ERROR rather than a wrong answer, and `true` is the over-approximation that lets "
-        "the real check -- the `in` that follows -- happen. Same stated scope as the "
-        "emit_ir arms: an EMPTY dict is falsy in Python, so a contract that depends on the "
-        "else branch would be proved over a subset. @mutable_state-gated.",
+    ("_to_bool", "_r55_subsumed_name", "true"):
+        "ROUTE #55, CLOSED -- and this entry is what the old one SHOULD have said. The "
+        "previous entry keyed on [_current_self_type+_current_symbol_table+"
+        "_mutable_state_classes] justified `true` for EVERY dict/set present-guard with "
+        "the words `the over-approximation that lets the real check -- the `in` that "
+        "follows -- happen`, and NAMED the risk it was taking (`an EMPTY dict is falsy in "
+        "Python, so a contract that depends on the else branch would be proved over a "
+        "subset`). That risk is REAL and this plane's own text is how it was found: with a "
+        "real postcondition instead of `ensures True`, `\\result == 7` PROVED for a body "
+        "returning 0 on the empty-dict path (witnesses `1104` dict, `1105` set; `1106` "
+        "list fails closed because a list carries a length model). The justification was "
+        "RIGHT ABOUT THE SHAPE IT DESCRIBED and the arm fired well OUTSIDE it -- on a BARE "
+        "guard there is no `in` that follows at all. So the guard is now the SHAPE ITSELF: "
+        "`true` is answered only when this truthiness test is the LEFT CONJUNCT of an "
+        "`and` whose other conjunct is a membership test on the SAME name, where an empty "
+        "map makes that test False anyway and `true` is EXACT rather than an "
+        "over-approximation. Everything else gets a per-name opaque. MEASURED: the ONE "
+        "live site in the 53-file mirror (`expressions.py`: `if subst and name in subst:`) "
+        "has exactly this shape, so 0 of 53 mirror emissions and 0 of 905 corpus emissions "
+        "move and NO re-proof is owed; witness `1107` is the precision guard and is "
+        "negative-tested both ways.",
     ("_to_bool", "_current_self_type+_mutable_state_classes", "true"):
         "`if sl.get(\"lower\"):` -- a present-guard on an emit_ir SUB-NODE projection "
         "(`svalue_of`/`object_of`/`sindex_of`/`arg0_of`), i.e. the same always-present "

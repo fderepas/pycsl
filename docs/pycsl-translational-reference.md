@@ -2218,6 +2218,52 @@ expects `()` where a `string` is supplied) rather than by design.
 
 ---
 
+### §T.5.12s  `if <dict>:` was decided TRUE, and the justification described a shape the arm outgrew
+
+A dict/set is modelled as a `map` with no int value, so the usual `<> 0` truthiness coercion
+would be a Why3 TYPE ERROR. $\mathcal{T}$ answered the literal `true` instead, justified — in
+the emitter's own comment and in `bin/check-type-keyed-constant-answers.py`'s baseline — as
+*"the over-approximation that lets the real check, the `in` that follows, happen"*. The same
+baseline NAMED the risk it was taking: *"an EMPTY dict is falsy in Python, so a contract that
+depends on the else branch would be proved over a subset."*
+
+It does. With a real postcondition instead of `ensures True` (route #55, witnesses
+`1104`–`1107`):
+
+```python
+    def probe(self, d: Dict[int, int]) -> int:   #@ ensures \result == 7
+        if d: return 7
+        return 0                    # `o.probe({})` returns 0 in Python. PROVED anyway.
+```
+
+```whyml
+    if true then begin raise (Return 7) end else begin raise (Return 0) end
+```
+
+The arm Python takes for an empty dict is **unreachable**, so the postcondition is proved over
+a STRICT SUBSET of the reachable states. This is §T.5.12r's sentence at a different type and a
+different connective: **decided from a TYPE where only a value fact could justify it.** The
+`set` spelling proves too; a `list` fails closed, because a list carries a length model.
+
+**The justification was right about the shape it described, and the arm had outgrown it.** On
+a BARE guard there is no `in` that follows at all. So the guard is now the shape itself:
+`true` is answered only where this truthiness test is the **left conjunct of an `and` whose
+other conjunct is a membership test on the same name** — there an empty map makes that test
+False anyway, so `true` is EXACT rather than an over-approximation — and every other dict/set
+present-guard gets a per-name opaque `bool`.
+
+**Measured, and the measurement is why the repair has this shape rather than a blunter one.**
+The blunt version (opaque everywhere) was built first and REFUSED after reading its emission
+diff: it moved the one live site in the tree — `module6_whyml/expressions.py`'s
+`if subst and name in subst:` — where `true and (name in subst)` is exactly what Python
+computes, so the blunt fix would have LOST precision to correct nothing and owed a re-proof of
+one of the two slowest mirrors. The shape-sensitive repair leaves that site byte-identical:
+**0 of 53 mirror emissions and 0 of 905 corpus emissions move, and no re-proof is owed.**
+Witness `1107` is the precision guard and is negative-tested both ways — it proves with the
+subsumption exemption and fails without it.
+
+---
+
 ### §T.5.12j  A chained comparison in a `#@` clause is a CONJUNCTION
 
 `0 <= x <= 3` inside a `requires`, an `ensures`, a `loop invariant` or a class invariant was

@@ -618,12 +618,48 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # self-tcb-reduction T1.a: `if subst:` on a dict/set param (an `Optional[Dict]` modeled as
         # `map` — None ≡ empty) is the present-guard before `name in subst`; a sound over-approx
         # for the type-safety+frame contract is `true` (the `in` does the real check). @mutable_state.
+        # (#50) ROUTE #55 — `true` WAS NOT AN OVER-APPROXIMATION, IT DELETED A BRANCH.
+        #   The comment above justifies the constant with a claim about the CONTRACTS
+        #   ("sound for the type-safety+frame contract") rather than about the lowering,
+        #   and `bin/check-type-keyed-constant-answers.py` records in as many words that
+        #   NOTHING CHECKS that claim. It does not survive a real postcondition. Measured
+        #   at `e5549ee0` (`scratchpad/w51/frame/f2.py`), with the Python assert run:
+        #
+        #       def probe(self, d: Dict[int, int]) -> int:   #@ ensures \result == 7
+        #           if d: return 7
+        #           return 0                    # `o.probe({})` returns 0. PROVED anyway.
+        #
+        #   emitted as `if true then ... else ...`, so the arm Python takes for an EMPTY
+        #   dict is UNREACHABLE and the postcondition is proved over a STRICT SUBSET of the
+        #   reachable states. Same sentence as routes #50/#51 at a different type and a
+        #   different connective: DECIDED FROM A TYPE where only a value fact could justify
+        #   it. The `set` spelling proves too; a `list` fails closed (it carries a length
+        #   model); and it is `@mutable_state`-gated exactly as #50 and #51 were.
+        #   THE STATED PURPOSE SURVIVES. The constant existed so that "the real check —
+        #   the `in` that follows — happens", and a map has no int value so the default
+        #   `<> 0` coercion would be a TYPE ERROR. An OPAQUE bool keeps both: the `in`
+        #   still emits, the type error is still avoided, and the guard simply stops being
+        #   decided. (The `in` is not even required — measured: the arm fires on the bare
+        #   guard, so the justification did not describe the arm that existed.)
+        #   PER-NAME, which is route #41's device and is what keeps it CONSISTENT: two
+        #   guards on the same name agree, two different names do not have to. Spelled as
+        #   a nullary `val function` rather than a predicate over the map because the map's
+        #   WhyML type varies by site (`map int (option int)`, `map string (option hval)`,
+        #   …) and Why3 has no polymorphic abstract val to key on it.
         if (t == "Var"
                 and getattr(self, "_current_self_type", None)
                 in getattr(self, "_mutable_state_classes", set())
                 and getattr(self, "_current_symbol_table", {}).get(ir_expr.get("name"))
                 in ("dict", "set", "frozenset")):
-            return "true"
+            if ir_expr.get("name") == getattr(self, "_r55_subsumed_name", None):
+                # SUBSUMED: this guard is the left conjunct of an `and` whose other
+                # conjunct is a membership test on the SAME name, so `true` is FAITHFUL —
+                # an empty map makes that test False anyway. Keeping it is what makes this
+                # build byte-inert at the only site in the tree that has the shape.
+                return "true"
+            _n55 = whyml_ident(ir_expr["name"])
+            self._add_abstract_op(f"val function pycsl_nonempty_{_n55} : bool")
+            return f"pycsl_nonempty_{_n55}"
         # self-tcb-reduction Tier-5 (union/match cluster): truthiness of a nested-map local
         # (`if not vinfo:` where vinfo : `map string (option hval)`) — a `map` has no int
         # value, so the default `<> 0` is a type error. Python's `not <empty map>` guards the
@@ -5715,7 +5751,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return (f"(let __and_l = {left} in "
                         f'if (not (str_eq_op (kind_of __and_l) "")) '
                         f"then {right} else __and_l)")
+            # (#50) ROUTE #55 — THE SUBSUMPTION MARK. `_to_bool`'s dict/set present-guard
+            #   arm used to answer the literal `true` for EVERY such guard, justified by
+            #   "the `in` that follows does the real check". That justification is exactly
+            #   right for the shape it describes and the arm fired well outside it: on a
+            #   BARE guard there is no `in` that follows, and `ensures \result == 7` then
+            #   proves for a body returning 0 on the empty-dict path (route #55, witnesses
+            #   `1104`-`1106`). So the mark is made HERE, where the parent `and` is
+            #   visible, and the leaf keeps `true` only when it is genuinely subsumed:
+            #   `if subst and name in subst:` — an EMPTY `subst` makes `name in subst`
+            #   False anyway, so the short-circuit changes nothing and `true` is faithful.
+            #   MEASURED: this is the ONE live site in the 53-file mirror
+            #   (`module6_whyml/expressions.py`), so the build is byte-inert there and owes
+            #   NO re-proof — the blunt opaque, which was built first, moved it and would
+            #   have LOST precision to fix nothing.
+            _r55_prev = getattr(self, "_r55_subsumed_name", None)
+            _r55_l, _r55_r = expr.get("left"), expr.get("right")
+            self._r55_subsumed_name = None
+            if (op == "&&" and isinstance(_r55_l, dict) and isinstance(_r55_r, dict)
+                    and _r55_l.get("type") == "Var" and _r55_l.get("name")
+                    and _r55_r.get("type") == "BinOp" and _r55_r.get("op") == "in"
+                    and isinstance(_r55_r.get("right"), dict)
+                    and _r55_r["right"].get("type") == "Var"
+                    and _r55_r["right"].get("name") == _r55_l.get("name")):
+                self._r55_subsumed_name = _r55_l["name"]
             left_b = self._to_bool(left, expr["left"])
+            self._r55_subsumed_name = _r55_prev
             right_b = self._to_bool(right, expr["right"])
             if self._in_spec:
                 return f"({left_b} {op} {right_b})"
