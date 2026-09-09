@@ -61,13 +61,14 @@ PLANES=(
     check-type-keyed-constant-answers.py
     check-emit-ir-arm-postconditions.py
     check-singleton-constant-lowering.py
+    check-type-keyed-value-sentinels.py
     check-constant-fallthrough.py
     check-dropped-mutation.py
     check-ir-field-coverage.py
     check-statement-block-coverage.py
     check-vacuous-drivers.py
 )
-MIN_PLANES=16
+MIN_PLANES=17
 
 ran=0
 failed=()
