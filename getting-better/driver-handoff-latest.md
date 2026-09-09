@@ -79,10 +79,29 @@
 #
 # ## 4. SUITE RUN 6 — ROUTE #42's RE-FIX IS CONFIRMED
 #
-#   `1053`/`1054`/`1055` are back at **XFAIL**; they were XPASS in run 5, which is how
-#   window #50 found a closed route live at HEAD. Both controls (`1056`, `1057`) PASS, so
-#   the restored refusal does not swallow route #52's own arm. Final `.rc` and the
-#   confirmed-failure list: see the progress log.
+#   FINAL: **rc=1, 3232/3251, EXACTLY the standing NINETEEN** confirmed failures
+#   (0211-0220, 0700, 0701, 0043, 0048, 0079, 0080, 0082, 0095, 0110). `1053`/`1054`/
+#   `1055` are back at **XFAIL** and ABSENT from the failure list; they were XPASS in
+#   run 5, which is how window #50 found a closed route live at HEAD. Both controls
+#   (`1056`, `1057`) PASS, so the restored refusal does not swallow route #52's own arm.
+#   **NO new failure anywhere in 3251 tests**, so nothing this window landed regressed
+#   anything. Artifacts committed at `962d1eaa`.
+#
+# ## L3 IS NOW EXECUTABLE ON THE MIRROR, AND IT SEPARATED THE TWO REPAIRS' COSTS
+#
+#   `bin/mirror-emit-sweep.sh` (new) + `bin/byte-diff-compare.py`, 53 of 53 emitted on
+#   every side, baseline = a clean worktree at `37403f79`:
+#       ROUTE #56 ALONE          1 MOVED (`frontend/Module5_IREmitter`), 0 GONE, 0 APPEARED
+#       ROUTE #56 + #57 TOGETHER 8 MOVED (adds auto_trust, expressions, functions,
+#                                preamble, statements, stmt_control_flow, types)
+#   **SO LAND THEM SEPARATELY.** Together, a cheap soundness closure is held hostage to
+#   an expensive one. #56 owes ONE re-proof, of a file already re-proved green this
+#   window (`w49d_m5ir` rc=0). And because #56 does NOT move `expressions`/`statements`,
+#   landing it does NOT supersede the two in-flight proofs of those files.
+#   THE SWEEP'S OWN GUARD CAUGHT A DEFECT IN THE METHOD EVERY PREVIOUS WINDOW USED:
+#   53 mirror files, only 50 distinct BASENAMES (the four `__init__.py`). A
+#   basename-flattened mirror diff compares the wrong pairs while reporting zero. The key
+#   is now the relative path with `/` -> `__`.
 #
 # ## THREE PLANES LANDED, AND TWO OF THEM CAME OUT OF THE ROUTES
 #
