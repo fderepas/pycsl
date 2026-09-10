@@ -38,16 +38,32 @@
 #   `w51g2_expressions` from 08:21 — THE RELAUNCH after the type fix; it is long past the
 #                       one-minute failure point, so the fix holds under a real run
 #   `w51h_cis_trusted`  the disposition test, at HEAD, under setsid -> `$SCRATCH/cis2.rc`
-#   SLOW-PLANE BATTERY  ten planes -> `$SCRATCH/planes-battery.log` (see below)
-#   SUITE run7          `getting-better/proofs49/suite51_run7.{log,rc}` — the gate on this
-#                       generation's three landings
+#
+#   **THE SLOW-PLANE BATTERY AND SUITE run7 WERE KILLED BY ME, NOT BY A GATE.** Running
+#   them on top of the four proofs took the box to 13 of 15 GB with SWAP FULL, and the
+#   kernel began killing processes. The OOM killer picks the LARGEST RSS, and those were
+#   `why3` workers at ~850 MB EACH inside the four owed movers — the exact way a previous
+#   window lost `w49_expressions`/`w49_statements` to rc=137. I shed the RE-RUNNABLE and
+#   kept the IRREPLACEABLE. All four survived. **MEASURED CEILING FOR THIS BOX: about
+#   FOUR whole-file proofs and NOTHING ELSE. Do not start a third battery class.**
+#     * suite run7 — ABANDONED, no `.rc` was ever written so there is NO verdict to read;
+#       its partial log is `suite51_run7.ABANDONED.log` (untracked). **RE-RUN IT** once
+#       the proofs are done: it is the owed gate on routes #53/#58 and the #57 type fix.
+#       The accepted baseline is 19 confirmed failures (0211-0220 "Rocq-required",
+#       0700/0701 a recorded finding, seven python-reference gaps); run 6 was 3232/3251.
+#       **A NEW NAME in that list is a regression — the count alone is not.**
+#     * plane battery — ABANDONED after ONE result: `check-getattr-erasure` **GREEN**
+#       (window #51 had found it RED, so that stale ratchet is already repaired). The
+#       other nine are unrun. `$SCRATCH/planes-battery.log`.
 #
 #   QUEUE G SO FAR: autotrust 0, types 0, functions 0, preamble 0, expressions 1 (the type
 #   error — fixed and relaunched as w51g2), scf + statements still live.
 #
 # ## THE LADDER FOR THE NEXT RELAUNCH, IN ORDER
 #
-#   1. **COLLECT** the six above. `w51g2_expressions` rc=0 means route #57 is fully
+#   0. **NOTHING MAY BE LAUNCHED UNTIL THE FOUR PROOFS FINISH.** See the memory ceiling
+#      above; run `free -g` before starting anything.
+#   1. **COLLECT** the four above. `w51g2_expressions` rc=0 means route #57 is fully
 #      re-proved. SUITE run7 is the gate on #53/#58; the accepted baseline is 19 confirmed
 #      failures (0211-0220 are "Rocq-required", 0700/0701 a recorded finding, and seven
 #      python-reference gaps) — **a NEW name in that list is a regression, the count alone
@@ -66,7 +82,7 @@
 #      against the original's EIGHT — consistent, NOT a verdict. **The previous attempt
 #      DIED WITHOUT AN `.rc` because it was a plain Bash-tool child; this one is setsid'd.**
 #      If it holds, land the marker: 456 -> 457 is the CORRECT direction.
-#   4. **WIRE THE UNRUN PLANES.** Twelve of the thirty planes in `bin/` are not in
+#   4. **RUN THE NINE REMAINING SLOW PLANES, THEN WIRE THEM.** Twelve of the thirty are not in
 #      `run-soundness-planes.sh`. The exclusion is DELIBERATE and right (they self-emit or
 #      drive the prover, minutes each) — they "belong in a DRIVER BATTERY", which is what
 #      the in-flight battery is. Read `$SCRATCH/planes-battery.log`, work any RED, and
@@ -121,7 +137,7 @@
 #
 # ## STATE
 #
-#   HEAD `c84ef515` · tracked tree CLEAN apart from two long-standing GITLINKS
+#   HEAD `49d368a7`+ · tracked tree CLEAN apart from two long-standing GITLINKS
 #   (`scratchpad/w7/base`, `scratchpad/w8/pre` are registered WORKTREES, not dirt) and a
 #   0-byte stray `str` in the repo root left by an earlier window. `src/self-annotate` 0.
 #   METRIC markers 456 · grep 481 · offset 25 · unattached 0 — UNCHANGED all window, the
