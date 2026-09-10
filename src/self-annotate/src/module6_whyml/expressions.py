@@ -264,6 +264,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if nu and nu.startswith("map "):
             return f"(const (None: option ({nu})))"
         return ""
+    # SHADOWED-SELFCALL REPAIR: `_dv_absent_opaque` below ends `return
+    # self._dv_missing_default(nu)`, and that is this method's ONLY reachable call site in
+    # the mirror (the other three live sites sit inside trusted-stub methods and never reach
+    # emission). Without the opt-in marker that call lowered to the receiver-less abstract
+    # `val self__dv_missing_default_1`, so the caller saw an UNCONSTRAINED string where the
+    # body computes a typed placeholder — a LOST CONVERSION, and the one RED on
+    # `check-shadowed-selfcalls` (15 > 14). Ordering was measured and REFUTED as the cause
+    # (see `39f00d6f`); the real difference from the four working siblings in this file
+    # (`_whyml_string_literal`, `_array_coerce_arg`, `_coerce_to_int`, `_field_label`) is
+    # simply that they carry this marker and this one did not. `-> str` is already in the
+    # concrete-route RETURN-TYPE allowlist, and the callee calls nothing, so no recursive
+    # group forms. Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
