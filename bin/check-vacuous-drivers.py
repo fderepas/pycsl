@@ -100,7 +100,17 @@ def scan(root):
                 continue
             p = os.path.join(dp, f)
             src = open(p, encoding="utf-8", errors="replace").read()
-            if "# pycsl-expected: FAIL" in src:
+            # ANCHORED, AND DELIBERATELY THE SAME TEST bin/run-reference-tests.sh USES
+            # (gen #4). The unanchored `in src` matched the marker ANYWHERE, docstrings
+            # included — and 13 pycsl-reference drivers describe their TWIN in prose
+            # (`Twin: 0814 (# pycsl-expected: FAIL)`). Those 13 were therefore SKIPPED by
+            # this vacuity census while run-reference-tests.sh, which greps
+            # `^# pycsl-expected: FAIL`, correctly treats them as expected-PASS: a driver
+            # simultaneously REQUIRED TO PROVE and EXEMPT from the vacuity ratchet. Two
+            # gates disagreeing about the same marker is the worst version of this — each
+            # one looks green on its own. The anchored form is the one to converge on
+            # because it is what actually decides pass/fail for the suite.
+            if any(l.startswith("# pycsl-expected: FAIL") for l in src.split("\n")):
                 continue
             try:
                 tree = ast.parse(src)

@@ -189,7 +189,12 @@ def main():
                     continue
                 rel = os.path.relpath(path, MIRROR)
                 row = (rel, n.name, sorted(raising[n.name])[0])
-                if any("#@ raises" in b for b in blk):
+                # ANCHORED TOO (gen #4). The `\trusted` test three lines up was hardened to
+                # require the `#@` prefix; this one was left behind in the same pass, and it
+                # is the same hazard one directive over — a justification comment that NAMES
+                # `#@ raises` in prose moves a genuinely SILENT stub into `declared`, which
+                # SHRINKS the population the MAX_SILENT ratchet is guarding.
+                if any(b.strip().startswith("#@") and "raises" in b for b in blk):
                     declared.append(row)
                 else:
                     silent.append(row)
