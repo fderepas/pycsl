@@ -28,3 +28,12 @@
 13:57 SUITE run6 rc=1
 14:03 started w51f_m5ir (route #56's one owed mover)
 15:08 finished w49d_statements rc=0
+15:42 finished w49d_expressions rc=0
+15:42 QUEUE D DONE
+15:43 started w51_scf
+15:43 started w51_cis
+15:44 finished w51f_m5ir rc=0
+15:44 QUEUE F DONE
+15:56 finished w51_cis rc=1
+17:21 finished w51_scf rc=0
+17:21 QUEUE E DONE
