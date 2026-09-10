@@ -192,7 +192,13 @@ def _declared_assigns(path: str):
                 block.append(line)
             else:
                 break
-        assigns = [l for l in block if "#@ assigns" in l]
+        # THE DIRECTIVE, NOT A PROSE MENTION (gen #4) — the same repair applied to the four
+        # `\trusted` classifiers this window, one directive over. `block` is built by walking
+        # UPWARD (`reversed(...)`), so `assigns[0]` is the match NEAREST the `def`: a
+        # justification comment that merely quotes `#@ assigns \nothing` while sitting below
+        # the real `#@ assigns self._x` would be read as the frame, and the method would be
+        # dropped from the census with its frameless avatar never reported.
+        assigns = [l for l in block if l.strip().startswith("#@") and "assigns" in l]
         if assigns:
             out[node.name] = "\\nothing" not in assigns[0]
     return out

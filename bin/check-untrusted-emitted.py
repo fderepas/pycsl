@@ -126,14 +126,43 @@ def emit(path):
     return text
 
 
+# A mirror function whose PYTHON name is also a WhyML keyword (`src/self-annotate/src/
+# module6_whyml/statements.py` really does contain two nested `def rec`). For these the
+# class-mangling prefix is MANDATORY, because otherwise the bare keyword in `let rec ...`
+# — which appears in essentially every emitted file — matches and the function is reported
+# LET, the benign verdict, whatever the emitter actually did. bin/count-trusted-directives.py
+# carries the same set for the same reason; this plane was missing it.
+WHYML_KEYWORDS = {"rec", "function", "constant", "predicate", "ghost", "lemma", "type",
+                  "val", "let", "with", "partial", "ref", "old", "result"}
+
+
 def classify(name, text):
     b = re.escape(name)
+    pre = r"[\w']*__" if name in WHYML_KEYWORDS else r"(?:[\w']*__)?"
     # `with <name>` is a mutual-recursion member of a `let rec … with …` group — a real
     # definition. Omitting it reported 10 false ABSENTs for the converted `_Parser` nest.
+    # MANGLING-AWARE PREFIX (gen #4). The bare `[\w']*` here made both searches SUFFIX
+    # matches over the whole `.mlw`, so any function whose name merely ENDED another
+    # definition's name was reported LET — the benign verdict — whatever the emitter had
+    # actually done with it. Demonstrated: classify("foo", "let barfoo (x:int):int") == LET.
+    #
+    # THE OBVIOUS FIX IS WRONG AND WAS MEASURED BEFORE IT WAS BELIEVED. Replacing the
+    # wildcard with a plain `\b` took the plane from "0 unexpectedly absent" to 668 NOT
+    # EMITTED lines, because the wildcard is LOAD-BEARING: `classify` is called with the
+    # bare PYTHON name while the emitted definition carries the CLASS MANGLING
+    # (`_ContractParser.cur` -> `let _contractparser__cur`). The prefix must therefore be
+    # allowed, but only when it really is a mangling — i.e. when it ENDS IN `__`. That
+    # keeps `_contractparser__cur` matching `cur` and stops `barfoo` matching `foo`.
+    #
+    # For a name that is itself a WhyML KEYWORD the prefix is made MANDATORY (see
+    # WHYML_KEYWORDS above), because `let rec ...` appears in nearly every emitted file and
+    # would otherwise match a function named `rec` — of which the mirror has two.
+    # bin/count-trusted-directives.py documents this trap and defends against it; this
+    # sibling plane did not.
     if re.search(r"\b(let (rec |partial )?|with )"
-                 r"(function |predicate |lemma |ghost )?[\w']*" + b + r"\b", text):
+                 r"(function |predicate |lemma |ghost )?" + pre + b + r"\b", text):
         return "LET"
-    if re.search(r"\bval (function |predicate |ghost )?[\w']*" + b + r"\b", text):
+    if re.search(r"\bval (function |predicate |ghost )?" + pre + b + r"\b", text):
         return "VAL"
     return "ABSENT"
 
