@@ -344,3 +344,45 @@ than a new refusal would be, and the R2 diagnostic is the template its message s
 **FOLLOW-UP FOR THE NEXT RELAUNCH:** R3's other spelling — `self.x = p` (p a mutable local)
 followed by `p[...] = ...`, i.e. the STORE direction rather than the READ direction probed
 here — is not yet measured. The staged guard fires on `b = self.d`, not on `self.d = b`.
+
+## R3's STORE DIRECTION IS BROKEN TOO — A FIFTH CARRIER, ALSO UNCOVERED
+
+The follow-up recorded above, measured. This is the spelling the ownership doc names
+verbatim (`self.x = p` then later mutate `p`):
+
+```python
+    #@ ensures \result == 1        # FALSE of the program — and it PROVES
+    def probe(self) -> int:
+        p: Dict[int, int] = {1: 1}
+        self.d = p                 # STORE the local into the field
+        p[1] = 2                   # then mutate the local
+        return self.d[1]           # CPython: 2
+```
+
+Reproduced twice; the true twin (`\result == 2`) fails. Emission:
+
+```whyml
+let p = ref (map_update_some (const (None: option int)) 1 1) in
+self.d <- !p;                          (* the field gets a COPY of p's value *)
+p := map_update_some !p 1 2;           (* p's own ref moves on *)
+(match Map.get self.d 1 with ...)      (* the field never saw it *)
+```
+
+**THE STAGED GUARD DOES NOT FIRE**, because it inspects a LOCAL BINDING whose RHS is a dict;
+here the assignment TARGET is a field. Third carrier the repair misses, after the getter
+return.
+
+### THE CARRIER TALLY, KEPT HONEST
+
+    BROKEN, covered by the staged patch:      local->local, symmetric, chained, field->local
+    BROKEN, NOT covered:                      getter return (`m = self.get()`)
+                                              field store  (`self.d = p`, then mutate p)
+    SAFE (undecided):                         callee mutates a dict parameter
+    SAFE by a type accident only:             the whole `set` carrier
+
+**Six broken carriers, four covered.** The staged patch is worth landing for the reduction,
+and route #59 stays OPEN until the two Call/field-target carriers are closed too. Both share
+one cause with the four already handled — the binding copies a pure map — so a single
+generalisation ("a dict-valued binding whose RHS is not a FRESH construction, where either
+side is later mutated") should close all six. It must be measured against the MIRROR, not
+the corpus: every version of this repair so far has had a clean corpus diff.
