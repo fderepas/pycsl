@@ -61,3 +61,4 @@
 13:06 QUEUE G DONE
 13:08 started w52c_statements (OWED re-proof at the POST-SYNC body — the 13-statement _wrap_body_with_return_catch)
 13:12 started w52d_expressions (OWED re-proof at the POST-MARKER tree — the #@ sibling_concrete on _dv_missing_default). w51g2 is kept running deliberately as the PRE-marker control.
+13:31 SUITE run8 rc=1

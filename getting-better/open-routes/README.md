@@ -1,6 +1,17 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **NONE.** Every route in this ledger is CLOSED at `cf35437f`.
+## CURRENTLY OPEN: **ONE — #59.**
+##
+##   * **`route59-dict-assignment-is-a-value-copy.md`** — **OPEN, found 2026-09-10 (gen #4).**
+##     `b = a` on a `Dict` lowers to `let b = ref !a`, a fresh ref holding a COPY, so a
+##     mutation through `b` is invisible through `a`. `a[1] == 1` PROVES where CPython says
+##     2. BOTH directions measured; the true twin fails, so it is a route and not a gap.
+##     **The `List` carrier of the identical program is CORRECT**, which is what makes it
+##     sharp: lists alias via a shared mutable array, dicts copy a pure map. Carriers still
+##     to probe and the repair shapes are in the file.
+##
+## (the note below predates that find and is kept for its lesson)
+## PREVIOUSLY: **NONE.** Every route in this ledger is CLOSED at `cf35437f`.
 ##
 ##   #46 was the last entry still advertised as open, and it had ALREADY been closed on
 ##   2026-09-08 by `5f57a95d` (witnesses 1089-1091); only this file was stale. Verified

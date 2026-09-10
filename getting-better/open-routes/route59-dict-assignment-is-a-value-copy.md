@@ -1,0 +1,83 @@
+# ROUTE #59 — A DICT ASSIGNMENT IS A VALUE COPY, SO ALIASED MUTATION IS INVISIBLE
+
+**STATUS: OPEN.** Found 2026-09-10 (gen #4). Reproduced twice at HEAD, mechanism read off
+the emission, ground truth confirmed against CPython.
+
+## THE ROUTE
+
+```python
+#@ ensures \result == 1          # FALSE of the program — and it PROVES
+def f() -> int:
+    a: Dict[int, int] = {1: 1}
+    b: Dict[int, int] = a
+    b[1] = 2
+    return a[1]
+```
+
+CPython: `a is b` is `True`, so `b[1] = 2` mutates the one shared dict and `a[1]` is **2**.
+The model proves `a[1] == 1`.
+
+**BOTH DIRECTIONS MEASURED, which is what makes this a route rather than a gap:**
+
+    \result == 1   FALSE of the program   ->  **PROVES**   (the unsoundness)
+    \result == 2   TRUE  of the program   ->  fails        (so it is not merely incomplete)
+
+## THE MECHANISM, READ OFF THE EMITTED WhyML
+
+```whyml
+let a = ref (map_update_some (const (None: option int)) 1 1) in
+let b = ref !a in                     (* a NEW ref holding a COPY of a's VALUE *)
+b := map_update_some !b 1 2;          (* updates b's own ref; a is untouched *)
+(match Map.get !a 1 with | Some v_ -> v_ | None -> 0 end)
+```
+
+A Python dict is modelled as a PURE Why3 `map` held in a `ref`. `b = a` lowers to
+`let b = ref !a` — a fresh reference initialised with the *value* of `a`. Mutation through
+`b` writes `b`'s own cell. In Python both names denote the SAME object.
+
+## WHAT MAKES THIS SHARP: THE LIST CARRIER IS CORRECT
+
+The identical program over a `List[int]` is FAITHFUL — measured in the same session:
+
+```python
+a: List[int] = [1];  b: List[int] = a;  b[0] = 2;  return a[0]
+```
+    \result == 2   TRUE   ->  PROVES        \result == 1   FALSE  ->  fails
+
+So this is not "reference semantics are unmodelled". Lists alias correctly (a shared
+mutable `array`); dicts do not (a copied pure `map`). **The two collection types have
+DIFFERENT aliasing semantics in the model and only one of them matches Python** — which is
+exactly why probing the carriers of a working construct pays, and why the list result alone
+would have been a false reassurance.
+
+Callee mutation is ALSO correct for lists: `g(a)` where `g` does `x[0] = 2` under
+`#@ assigns x[0..1]` proves `a[0] == 2` and refuses `a[0] == 1`.
+
+## WHY NOTHING CAUGHT IT
+
+* the CORPUS cannot see it — this is a semantic divergence, not an emission change;
+* `check-param-mutator-visibility` measures a mutation made by a CALLEE, not aliasing
+  between two locals in one frame;
+* the mirror does not exercise it: the emitter's own dicts are not aliased and re-mutated
+  this way, so every mirror proof stays green;
+* and it fails in the SILENT direction — the false claim proves rather than the true claim
+  failing, so no gate goes red.
+
+## CARRIERS NOT YET PROBED — DO THESE FIRST
+
+The generator that found this says to probe every carrier before scoping a repair:
+dict-through-a-CALL (a callee mutating a dict parameter), dict FIELD (`self.d = other`),
+nested dict, dict aliased then read through a THIRD name, and the `set` carrier if one
+exists. The `List` carrier is measured and correct.
+
+## CANDIDATE REPAIR — NOT YET COSTED
+
+Two shapes, and the cheap one may not be available:
+1. lower a dict-to-dict local assignment as a REFERENCE bind (share the ref) rather than
+   `ref !a`, matching the list/array treatment; or
+2. REFUSE the aliasing assignment outright, which fails closed and costs only programs that
+   alias a dict — the fails-closed direction the campaign prefers when a model is wrong.
+
+**COST NOT MEASURED. Do not land either without the corpus byte-diff and the mirror
+re-proof battery**: dict locals are common in the emitter itself, so option 1 in particular
+is very unlikely to be byte-inert.
