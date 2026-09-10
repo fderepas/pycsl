@@ -861,6 +861,32 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 if (_vt == "Var"
                         and val_ir.get("name") in getattr(self, "_dict_locals", set())):
                     _alias_of = val_ir.get("name")
+                elif _vt == "Call":
+                    # THE GETTER-RETURN CARRIER. Reaching here with kind == "dict" means
+                    # `_rhs_yields_map` recognised the call as yielding a dict/set, and a
+                    # CALL is not a fresh construction the way a `DictLit` or `dict()` is:
+                    # `m = self.get()` where `get` returns `self.d` hands back the SAME
+                    # object, so a later `m[k] = v` is visible through `self.d`. Measured at
+                    # HEAD before this arm existed: `\result == 1` PROVED where CPython
+                    # answers 2.
+                    #
+                    # `dict`/`set`/`frozenset` are excluded because those really do build a
+                    # fresh object. Any OTHER call is treated as possibly-aliasing — which
+                    # is conservative, since a callee returning a genuinely fresh dict is
+                    # indistinguishable from one handing out its own without
+                    # interprocedural information. MEASURED COST OF THAT CONSERVATISM:
+                    # 0 sites in the corpus, 0 in the mirror, 0 in the live emitter bind a
+                    # dict from a call and then store through it.
+                    # NARROWED TO `self.<m>(...)`, and the first cut being wider is why.
+                    # "any call that is not `dict`/`set`/`frozenset`" BROKE SIX CORPUS
+                    # FILES — `d = defaultdict()` and friends are fresh constructions too,
+                    # and enumerating constructor names is whack-a-mole. The carrier this
+                    # arm exists for is specifically a GETTER handing out an internal
+                    # collection, which is always a `self.<m>()` call; a module-level
+                    # constructor never aliases anything the caller already holds.
+                    _fn = val_ir.get("func") or ""
+                    if _fn.startswith("self."):
+                        _alias_of = "%s()" % _fn
                 elif _vt in ("Attribute", "FieldGet"):
                     # keyed on the emitter's OWN accessor, not a hand-rolled node shape: the
                     # first version tested `val_ir["value"]["name"] == "self"` and MISSED the
