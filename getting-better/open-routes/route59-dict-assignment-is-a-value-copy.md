@@ -423,3 +423,24 @@ That is PyCSL's own emitter using exactly the reference semantics its ownership 
 no mirror counterpart, so no proof is affected today. It does mean the generalised refusal
 must be gated on the MUTATION-AFTER-STORE ordering rather than mere co-occurrence, or it
 would refuse the emitter's own source the moment that method were mirrored.
+
+## IS THE ROUTE CONFINED TO THE `hoare` MEMORY MODEL? NO — THE OTHERS CANNOT EMIT A DICT
+
+Worth asking, because if another model already handled aliasing correctly the repair would
+be "use that model" rather than "refuse". Measured on witness 1125:
+
+    --memory-model hoare   ->  PROVES the false claim   (the route)
+    --memory-model typed   ->  emission error: `unbound type symbol 'option'`
+    --memory-model store   ->  emission error: `unbound type symbol 'option'`
+
+The other two are not failing closed on the ALIASING; they cannot emit a dict AT ALL,
+because their preambles never bring the `option` type into scope and a dict lowers to
+`map <k> (option <v>)`. So the route is confined to `hoare` only in the sense that `hoare`
+is the only model that can express the program — no alternative model to adopt, and the
+repair stands as scoped.
+
+**A SMALL SEPARATE FINDING, RECORDED SO IT IS NOT LOST:** the `typed` and `store` memory
+models cannot emit ANY dict-valued code. That is a completeness gap in those models
+(a missing preamble import), not a soundness one, and it is not route #59's business — but
+it does mean any future measurement that varies the memory model must not read their failure
+as a fails-closed result. It is an emission error, several stages before the prover.
