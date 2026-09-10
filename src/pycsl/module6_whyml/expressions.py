@@ -5692,16 +5692,61 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # truncation) — consistent with the int/float-mixing boundary. Only
                 # FLOOR division `//` (raw_op "div") stays integer below (WL-01).
                 # (Both-float `/` was already handled by the float block above.)
-                if self._in_spec:
-                    return f"(from_int {left} /. from_int {right})"
-                # Body: `from_int` is a logic symbol (unusable in a program/non-ghost
-                # term), so the int→real lift AND the division are bundled into one
-                # abstract `val` whose `ensures` pins the exact real value. The int
-                # operands stay int program terms; `from_int`/`/.` live only in the
-                # logical `ensures`.
+                # ROUTE #58 — int/int TRUE DIVISION was an EXACT REAL division, so it
+                # decided orderings Python answers the other way: `1 / 3 >
+                # 0.3333333333333333` PROVED, while in Python those are the SAME binary64
+                # value and the comparison is False. Over the exact reals one third really
+                # is greater than that terminating decimal. The same bridge was, right
+                # next door, INCOMPLETE: `1 / 3 == 0.3333333333333333` is TRUE of the
+                # program and did NOT prove. Unsound one way, incomplete the other.
+                #
+                # TWO INT LITERALS ARE FOLDED exactly as CPython folds them, and rendered
+                # through the SAME normalization the float-literal leaf uses (`repr` of the
+                # binary64 value, or `<int>.0` when integral). THAT rendering is what makes
+                # the fold sound instead of a finer-grained rerun of the same bug: the
+                # shortest round-trip repr is INJECTIVE on doubles and ORDER-PRESERVING
+                # (two distinct doubles differ by at least one ulp, so their half-ulp
+                # rounding intervals are disjoint), and a float LITERAL in the source goes
+                # through the identical normalization — `0.10000000000000001` emits as
+                # `0.1`. So a folded quotient and a literal compare in the model exactly as
+                # the two doubles compare in Python. Witness 1123 is the control: it FAILED
+                # before this change and PASSES after, i.e. the repair also RECOVERED
+                # completeness rather than only failing closed.
+                #
+                # Kept INLINE rather than factored into a helper deliberately: a new live
+                # method would be a live-only function the mirror does not model, moving
+                # the `check-mirror-coverage` ratchet. `_handle_binop` is `\trusted` in the
+                # mirror, so inline code here costs neither the ratchet nor the metric.
+                _l58 = expr.get("left") or {}
+                _r58 = expr.get("right") or {}
+                _lv58 = _l58.get("value") if isinstance(_l58, dict) else None
+                _rv58 = _r58.get("value") if isinstance(_r58, dict) else None
+                if (isinstance(_l58, dict) and _l58.get("type") == "Number"
+                        and isinstance(_r58, dict) and _r58.get("type") == "Number"
+                        and isinstance(_lv58, int) and not isinstance(_lv58, bool)
+                        and isinstance(_rv58, int) and not isinstance(_rv58, bool)
+                        and _rv58 != 0):
+                    try:
+                        _q58 = _lv58 / _rv58
+                    except (ZeroDivisionError, OverflowError, ValueError):
+                        _q58 = None
+                    if _q58 is not None and _q58 == _q58 and \
+                            _q58 not in (float("inf"), float("-inf")):
+                        _t58 = (repr(_q58) if not float(_q58).is_integer()
+                                else f"{int(_q58)}.0")
+                        # An EXPONENT rendering (`1e-20`) is not the decimal shape the
+                        # literal leaf emits, so refuse the fold and fall through to the
+                        # uninterpreted bridge, which fails closed.
+                        if not any(_c58 in _t58 for _c58 in ("e", "E", "n", "i")):
+                            return f"({_t58})" if _t58.startswith("-") else _t58
+                # Any other operand shape — a parameter, a local, a call — cannot be
+                # folded: representability is a property of the VALUE, and the bridge is
+                # declared over all `a b: int` before any value is known. One UNINTERPRETED
+                # DETERMINISTIC symbol, so nothing exact is decided (the ordering through
+                # parameters now fails closed, witness 1122) while `\result == a / b` still
+                # closes by congruence (witness 1124).
                 self._add_abstract_op(
-                    "val float_truediv_op (a b: int) : real\n"
-                    "    ensures { result = (from_int a /. from_int b) }")
+                    "val function float_truediv_op (a b: int) : real")
                 return f"(float_truediv_op {left} {right})"
             if self._in_spec:
                 # WL-01: Python `//` is FLOORED division. Emit the sign-of-divisor

@@ -232,20 +232,27 @@ Python `/` is **true division** and ALWAYS returns a `float` — even on integer
 operands (`5 / 2 == 2.5`). It is a DIFFERENT operator from floor division `//`
 (above) and must NOT be conflated. In a body **and** in a contract, `a / b`
 lowers to a **real** division: both int operands are lifted to `real` via
-`real.FromInt` (`from_int`) and divided over the reals with `real.RealInfix`
-(`/.`). The imports `use real.RealInfix` / `use real.FromInt` are triggered by
+`real.FromInt` (`from_int`). The VALUE is NOT an exact real division (route #58):
+two int LITERALS are folded to the binary64 quotient CPython computes, rendered by the
+same `repr` normalization as a float literal, and every other operand shape lowers to
+one uninterpreted deterministic `val function float_truediv_op (a b: int) : real`. The imports `use real.RealInfix` / `use real.FromInt` are triggered by
 `IRScanner.uses_true_division` (a BinOp with IR op `"/"`; `//` is IR op `"div"`).
 
 - **Contract (`_in_spec`):** `from_int a /. from_int b` (a `real` term;
   `from_int` is a pure logic symbol, admissible in the logical context).
 - **Body:** `from_int` is a logic symbol and is not usable in a program
   (non-ghost) term, so the int→real lift and the division are bundled into one
-  abstract `val` whose `ensures` pins the exact real value:
+  abstract `val`. Since ROUTE #58 that `val` is UNINTERPRETED and DETERMINISTIC —
+  it no longer pins an exact real value, because doing so decided orderings the
+  language answers the other way:
 
 ```whyml
-  val float_truediv_op (a b: int) : real
-    ensures { result = (from_int a /. from_int b) }
+  val function float_truediv_op (a b: int) : real
 ```
+
+  and two INT LITERALS never reach it at all: they are FOLDED to the binary64
+  quotient CPython computes, rendered by the same `repr` normalization a float
+  literal uses (`5 / 2` emits `2.5`, `1 / 3` emits `0.3333333333333333`).
 
 Because a `/` result is a `real`, using it at `int` type (e.g. `-> int` with
 `#@ ensures \result == 2`) is a **real-vs-int type error** — fail-closed, never

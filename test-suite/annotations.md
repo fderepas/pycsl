@@ -796,10 +796,13 @@ def _pack_uint16_be(v: int) -> list: ...
 
 **Note (`/` is TRUE division — WL-02, FIXED):** `/` in a body **and** in a
 contract is Python's TRUE division and ALWAYS yields a `float` (`real`), even on
-integer operands (`5 / 2 == 2.5`). It lowers to a real division — int operands
-lifted via `real.FromInt` (`from_int`) and divided with `real.RealInfix` (`/.`);
-a body `/` bridges through `val float_truediv_op (a b: int) : real ensures
-{ result = from_int a /. from_int b }`. A `/` result used at `int` type is a
+integer operands (`5 / 2 == 2.5`). Two INT LITERALS are FOLDED to the binary64
+quotient CPython computes, rendered by the same `repr` normalization a float
+literal uses (`5 / 2` emits `2.5`); every other operand shape lowers to one
+UNINTERPRETED DETERMINISTIC `val function float_truediv_op (a b: int) : real`
+(route #58 — dividing over the EXACT reals decided `1 / 3 > 0.3333333333333333`,
+which is False in Python because the two are the same binary64 value). A `/`
+result used at `int` type is a
 real-vs-int **type error** (fail-closed) — never a silent integer truncation. To
 assert an integer quotient, use `//` (floored integer division). Previously `/`
 mapped to the floored integer `div`, which unsoundly proved `5 / 2 == 2`.

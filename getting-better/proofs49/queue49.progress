@@ -50,3 +50,4 @@
 08:00 finished w51g_expressions rc=1
 08:00 started w51h_cis_trusted (disposition test, at HEAD adf2eda5)
 08:00 started w51g_statements
+08:21 started w51g2_expressions (route #57 mover, RELAUNCH after the b6186687 type fix)

@@ -1,19 +1,24 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: TWO — #46 and #58.
+## CURRENTLY OPEN: ONE — #46.
 ##   (#53, #56 and #57 were CLOSED AND LANDED by relaunch #51 on 2026-09-10; their
 ##    entries below are kept as the record of how, and are marked CLOSED in place.
 ##    #58 was found by probing #53's OWN REPAIR for the gap it leaves.)
 
-  * **`route58-int-truediv-is-exact-real.md`** — **OPEN, found 2026-09-10 while closing
-    #53.** int/int TRUE DIVISION keeps its own bridge, `val float_truediv_op (a b: int)
+  * **`route58-int-truediv-is-exact-real.md`** — **CLOSED, found AND closed 2026-09-10,
+    while closing #53.** int/int TRUE DIVISION keeps its own bridge, `val float_truediv_op (a b: int)
     : real ensures { result = from_int a /. from_int b }`, on a different code path from
     float-operand arithmetic (that path tests that BOTH operands are floats, so it never
     fires for `1 / 3`). It still divides over the EXACT reals, so
     **`1 / 3 > 0.3333333333333333` PROVES** while Python answers False — the two are the
     same binary64 value. Same defect as #53, one costume over.  THE COST IS DIFFERENT AND
     THAT IS WHY IT IS ITS OWN ROUTE: the fix retires `5 / 2 == 2.5`, which two NORMATIVE
-    surfaces use as the headline example of the WL-02 true-division fix.
+    surfaces use as the headline example of the WL-02 true-division fix. THAT COST DID NOT
+    MATERIALISE: folding two int LITERALS to the binary64 quotient (rendered by the same
+    `repr` normalization a float literal uses, which is injective and order-preserving on
+    doubles) keeps ALL of 0813 while the unsound orderings fail closed — and it RECOVERED
+    `1 / 3 == 0.3333333333333333`, true of the program, which the exact-real model could
+    not prove. Witnesses 1121-1124.
 
   * **`route56-optional-union-local-read-sentinel.md`** — **CLOSED `b9217158`** (relaunch
     #51, 2026-09-10). Kept as the record of how. The route as found: a `None`

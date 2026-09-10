@@ -598,10 +598,18 @@ unary       ::= UNARY_OP unary
 - `/` (TRUE division) maps — in a body **and** in a contract — to Python's
   **true/float** semantics: it ALWAYS yields a `real` (float), even on integer
   operands (`5 / 2 == 2.5`). The lowering lifts both int operands to `real` via
-  `real.FromInt` (`from_int`) and divides over the reals (`real.RealInfix` `/.`);
-  a body `/` bridges through `val float_truediv_op (a b: int) : real ensures
-  { result = from_int a /. from_int b }`. Because the result is a `real`, a `/`
-  used at `int` type (e.g. `#@ ensures \result == 2` with `-> int`) is a
+  `real.FromInt` (`from_int`). Since ROUTE #58 the VALUE is no longer an exact real
+  division: two INT LITERALS are FOLDED exactly as CPython folds them and rendered
+  through the same `repr` normalization the float-literal leaf uses (`5 / 2` emits
+  `2.5`, `1 / 3` emits `0.3333333333333333`), and ANY other operand shape lowers to
+  one uninterpreted deterministic `val function float_truediv_op (a b: int) : real`.
+  Dividing over the exact reals had DECIDED orderings the language answers the other
+  way — `1 / 3 > 0.3333333333333333` proved, though in Python the two are the SAME
+  binary64 value — while being INCOMPLETE on `1 / 3 == 0.3333333333333333`, which is
+  true and did not prove. Folding fixes both: the shortest round-trip repr is
+  injective and order-preserving on doubles, so a folded quotient and a literal
+  compare exactly as the doubles do. Because the result is still a `real`, a `/`
+  used at `int` type (e.g. `#@ ensures \result == 2` with `-> int`) remains a
   real-vs-int **type error** — fail-closed, never a silent integer truncation.
   (WL-02, FIXED — previously `/` mapped to the floored integer `div`, which
   unsoundly proved `5 / 2 == 2`. To assert an integer quotient, use `//`.)

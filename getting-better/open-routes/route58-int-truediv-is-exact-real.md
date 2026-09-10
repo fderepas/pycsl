@@ -1,3 +1,52 @@
+# ROUTE #58 — **CLOSED** 2026-09-10 by relaunch #51 (generation #3), the same window
+# that found it. int/int TRUE DIVISION WAS AN EXACT REAL DIVISION, SO IT DECIDED A
+# COMPARISON PYTHON ANSWERS THE OTHER WAY.
+#
+# ## HOW IT WAS CLOSED — AND IT IS BETTER IN ALL THREE DIRECTIONS, NOT A TRADE
+#
+# TWO INT LITERALS ARE FOLDED exactly as CPython folds them, and rendered through the
+# SAME normalization the float-literal leaf uses (`repr` of the binary64 value, or
+# `<int>.0` when integral). EVERY OTHER OPERAND SHAPE — a parameter, a local, a call —
+# goes to one UNINTERPRETED DETERMINISTIC `val function float_truediv_op (a b: int)
+# : real`, spec path and body path alike.
+#
+# WHY FOLDING IS SOUND rather than the same bug at a finer scale, which was the
+# make-or-break question: the shortest round-trip `repr` is INJECTIVE on doubles and
+# ORDER-PRESERVING (two distinct doubles differ by at least one ulp, so their half-ulp
+# rounding intervals are disjoint), and a float LITERAL in the source goes through the
+# IDENTICAL normalization — measured: `0.10000000000000001` emits as `0.1`. So a folded
+# quotient and a literal compare in the model exactly as the two doubles compare in
+# Python. Had literals been emitted verbatim, folding would have been unsound and the
+# design would have had to change.
+#
+# THE OUTCOME, all measured:
+#   * the UNSOUNDNESS closes  — 1121 (literal) and 1122 (through parameters) both PROVED
+#     at HEAD and now FAIL CLOSED.
+#   * COMPLETENESS is RECOVERED — 1123 (`1 / 3 == 0.3333333333333333`, TRUE in Python)
+#     FAILED at HEAD and now PROVES. The old model was unsound one way and incomplete the
+#     other; the new one is right both ways.
+#   * NOTHING IS LOST — 0813, the WL-02 POSITIVE regression lock, keeps ALL FIVE clauses
+#     (`5/2 == 2.5`, `1/2 == 0.5`, `7/2 == 3.5`, `4/2 == 2.0`, and the `//` int guard).
+#     The projected cost of retiring them did not materialise, because folding preserves
+#     exactly the cases where the exact-real answer was already right.
+#   * 0814, the expected-FAIL negative lock, still FAILS (its claim is a real-vs-int TYPE
+#     error, untouched by any value-level change).
+#
+# MEASURED L3: corpus 2 of 919 emissions move (0813, 0814 — and the diff is exactly the
+# fold: `(float_truediv_op 5 2)` becomes `2.5`), mirrors 0 of 53, BYTE-INERT in all three
+# directions. Ledger 3. Metric 456/481/25/0 unchanged.
+#
+# KEPT INLINE, NOT FACTORED INTO A HELPER, and that was a deliberate call: a new live
+# method would be a live-only function the mirror does not model, moving the
+# `check-mirror-coverage` ratchet. The first attempt DID add a helper and the plane went
+# RED within minutes — the same trap the previous handoff recorded for `_dv_absent_opaque`.
+# `_handle_binop` is `\trusted` in the mirror, so inline code there costs neither the
+# ratchet nor the metric.
+#
+# WITNESSES: 1121 (FAIL), 1122 (FAIL), 1123 (PASS — was FAILING), 1124 (PASS, congruence).
+#
+# ===================== the original report follows, unchanged ====================
+#
 # OPEN ROUTE #58 — int/int TRUE DIVISION IS AN EXACT REAL DIVISION, SO IT DECIDES A
 # COMPARISON PYTHON ANSWERS THE OTHER WAY
 # (found 2026-09-10 by relaunch #51 generation #3, WHILE CLOSING ROUTE #53, by probing
@@ -109,6 +158,7 @@ The WL-02 property itself stays locked NEGATIVELY by 0814.
 
 ## STATUS
 
+CLOSED (see the header). The original status line as written when it was found:
 OPEN. Reproduction above, live at the tree with #53 landed. Repair scoped (make the bridge
 one uninterpreted deterministic symbol, exactly as #53 did) but its L3 corpus cost is
 UNMEASURED — the `5 / 2` shape appears in the corpus and each occurrence must be found and
