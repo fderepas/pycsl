@@ -48,6 +48,8 @@ MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 CORPUS = os.path.join(ROOT, "test-suite", "corpus", "pycsl-reference")
 
 # Ratchets, measured at the route-#22 closure (#44).
+MIN_TARGET_FILES = 40   # true population 64; a floor on the INPUT, not a ratchet (gen #4)
+
 MAX_ABSENT = 7
 # UNKNOWN was 19 at the route-#22 closure and this plane went RED at `5342bea1` (routes
 # #47/#48 closing) without anyone noticing, because the plane is driver-run and nobody ran
@@ -117,6 +119,19 @@ def main():
     for cls, *_ in rows:
         counts[cls] = counts.get(cls, 0) + 1
 
+    # ZERO-INPUT / SHRINKING-INPUT GUARD (gen #4, the #44 rule). Every verdict below is an
+    # UPPER bound (DECLARED pinned at 0, ABSENT and UNKNOWN at ratchets), so an EMPTY sweep
+    # satisfies all three and this plane printed
+    # "[+] getattr-erasure: OK — DECLARED 0 (pinned), ABSENT 0/7, UNKNOWN 0/24". Its own
+    # emit_and_collect returns [] on any emission failure OR timeout, so a broken toolchain
+    # produces exactly that. This is the plane window #51 found RED at HEAD with nobody
+    # looking; it should not also be able to go green with nothing looked at.
+    # True population: 64 files. 40 is a floor well below it.
+    if len(targets) < MIN_TARGET_FILES:
+        print(f"[!] getattr-erasure: REFUSING — only {len(targets)} file(s) were scanned, "
+              f"expected at least {MIN_TARGET_FILES}. The emission failed, timed out, or "
+              f"the target list is broken. THIS IS A REFUSAL, NOT A PASS.")
+        return 2
     print(f"[*] getattr-erasure: {len(rows)} fall-through site(s) over "
           f"{len(targets)} file(s) — "
           f"DECLARED {counts['DECLARED']} · ABSENT {counts['ABSENT']} · "

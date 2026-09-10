@@ -49,6 +49,8 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
+MIN_MODELS = 18   # true population 27; a floor on the INPUT, not a ratchet (gen #4)
+
 BASELINE = os.path.join(ROOT, "getting-better", "bespoke-model-baseline.json")
 
 
@@ -232,6 +234,21 @@ def main():
 
     for k, e in added:
         print(f"[+] NEW bespoke-modelled method: {k} <- {e} (re-baseline with --update)")
+    # ZERO-INPUT GUARD (gen #4, the #44 rule). `moved` is the only thing that sets a
+    # failing return code, so an EMPTY census passes: the driver swallows every exception
+    # (`except SystemExit: pass` / `except Exception: pass`) and skips on
+    # `subprocess.TimeoutExpired`, so if emission broke for all 53 mirrors `cur` would be
+    # {}, `moved` would be [], and this plane would print
+    # "[+] bespoke-model-drift: OK — 0 hand-written model(s), no body moved without its
+    # model." `gone` would list every method and change nothing, because `gone` is printed
+    # and never consulted. True population: 27 hand-synthesized models. 18 is a floor.
+    if len(cur) < MIN_MODELS:
+        print(f"[!] bespoke-model-drift: REFUSING — the census found only {len(cur)} "
+              f"hand-synthesized model(s), expected at least {MIN_MODELS}. Emission "
+              f"failed or timed out for most of the mirror, so `moved` being empty means "
+              f"nothing. THIS IS A REFUSAL, NOT A PASS.")
+        return 2
+
     for k in gone:
         print(f"[~] no longer bespoke-modelled: {k} (re-baseline with --update)")
 
