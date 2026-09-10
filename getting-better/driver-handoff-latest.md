@@ -223,6 +223,14 @@
 #      `check-untrusted-emitted`'s regex with a plain `\b` — exactly what the analysis said
 #      — produced **668 phantom NOT-EMITTED lines**, because the wildcard carries the CLASS
 #      MANGLING. Measure the repair, not only the defect.
+#   0. **AN EMISSION FAILURE IS NOT A SEMANTIC RESULT.** This bit three times in one
+#      window: `--memory-model typed/store` dying on `unbound type symbol 'option'` (they
+#      cannot emit ANY dict), a `Tuple[int,int]` LOCAL ANNOTATION dying (unsupported
+#      annotation, nothing to do with tuples), and the `set` alias carrier dying (the shape
+#      does not lower). Each reads exactly like "fails closed" and none of them is a
+#      statement about semantics. **A probe that dies BEFORE the prover must be re-run in a
+#      second spelling before its failure counts** — and where it still dies, record it as
+#      a TYPE ACCIDENT with a reopening capability, never as a guard.
 #   2. **A PROVER TIMEOUT ON A NEGATIVE WITNESS CAN BE THE REPAIR WORKING — READ THE
 #      EMISSION.** Route #56's field probe timed out at 22s; trying to prove harder hit a
 #      900-second wall with NO verdict, and reading the emitted `.mlw` settled it in
