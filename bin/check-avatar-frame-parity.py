@@ -168,7 +168,15 @@ MAX_INHERITED = 7
 # Below this many avatars in the whole emit dir, the directory is not a mirror emission and
 # the run is REFUSED. Measured: a correct sweep of the 53 mirrors scans 83. A corpus emit
 # dir scans 0. There is no legitimate middle ground near zero.
-MIN_AVATARS_SCANNED = 1
+MIN_AVATARS_SCANNED = 60   # gen #4: was 1, against a TRUE POPULATION OF 83. Its own note
+                           # two lines up said "a correct sweep of the 53 mirrors scans 83"
+                           # and then set the floor to the literal-zero case, so a sweep
+                           # that emitted ONE mirror, or in which 82 of the 83 avatars
+                           # regressed out of existence, cleared it. A guard that only
+                           # catches zero does not catch the shape it is written for. 60 is
+                           # comfortably below 83 and far above any truncated emission.
+                           # Compare check-computed-rhs-erasure and check-emitted-vacuity,
+                           # which both floor at 40 against a true 53.
 
 _AVATAR = re.compile(r"^\s*val self__([A-Za-z0-9_]+)_\d+ ")
 

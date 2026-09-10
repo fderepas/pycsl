@@ -66,7 +66,15 @@ def run_one(path):
         out = subprocess.run(cmd, capture_output=True, text=True, timeout=300,
                              env=env, cwd=ROOT)
     except subprocess.TimeoutExpired:
-        return None
+        # A TIMEOUT IS NOT A CLEAN RUN (gen #4, the #44 rule at per-file granularity).
+        # This returned None, and None is exactly what a file that emitted cleanly returns,
+        # so a driver that HUNG was counted as one that passed — while the summary still
+        # reported it among the "%d driver(s) run through the front end". The plane's whole
+        # claim is that no corpus driver crashes the emitter internally, and an emission
+        # that never finishes is not evidence for that claim in either direction.
+        # MIN_FILES guards the INPUT count and cannot see this, because the file was there;
+        # it was the RUN that did not complete.
+        return ("__TIMEOUT__", os.path.basename(path))
     blob = (out.stdout or "") + (out.stderr or "")
     if "UNEXPECTED PIPELINE ERROR" in blob:
         detail = ""
@@ -96,9 +104,21 @@ def main():
     with ThreadPoolExecutor(max_workers=args.jobs) as ex:
         results = [r for r in ex.map(run_one, files) if r is not None]
 
+    timeouts = [r[1] for r in results if r[0] == "__TIMEOUT__"]
+    results = [r for r in results if r[0] != "__TIMEOUT__"]
+
     print("[*] internal-crash-free: %d pycsl-reference driver(s) run through the "
-          "front end + Module 6 (emission only); %d produced an INTERNAL CRASH."
-          % (len(files), len(results)))
+          "front end + Module 6 (emission only); %d produced an INTERNAL CRASH; "
+          "%d TIMED OUT and were therefore NOT CHECKED."
+          % (len(files), len(results), len(timeouts)))
+    if timeouts:
+        for t in sorted(timeouts):
+            print("    TIMEOUT  %s" % t)
+        print("[!] internal-crash-free: REFUSING — %d driver(s) did not finish emitting "
+              "within the per-file limit, so this plane has no evidence about them either "
+              "way. A silent None for these is what made a hung emission read as a pass. "
+              "THIS IS A REFUSAL, NOT A PASS." % len(timeouts))
+        return 2
     for name, detail in sorted(results):
         print("    CRASH  %-52s %s" % (name, detail))
     if results:
