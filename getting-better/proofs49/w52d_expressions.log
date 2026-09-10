@@ -81469,3 +81469,5 @@ Warning, file "/tmp/.pycsl_uubv5ana.mlw", line 4277, characters 15-19: unused va
 Warning, file "/tmp/.pycsl_uubv5ana.mlw", line 4389, characters 15-19: unused variable result
 Warning, file "/tmp/.pycsl_uubv5ana.mlw", line 4498, characters 23-27: unused variable self
 Warning, file "/tmp/.pycsl_uubv5ana.mlw", line 4513, characters 19-21: unused variable ir
+
+[+] Verification SUCCESS! All contracts formally proven.
