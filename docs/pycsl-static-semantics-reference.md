@@ -190,11 +190,23 @@ specification logic's type universe:
                                  operators now apply to runtime str, not only ghost strings.
                                  NB no char type: s[i] is a length-1 string, so no ord / code
                                  points / lexicographic char ordering — see the limitations *)
-τ(float)          = real      (* Why3 real.RealInfix — was the unsound τ(float)=int. Float
-                                 literals are real constants; +/-/*//​ and </<=/>/>= lower to the
-                                 RealInfix `+.`/`-.`/`*.`/`/.`/`<.`… (arithmetic in a body bridges
-                                 through `val float_*_op : real`). Mixed float/int arithmetic is
-                                 out of scope; transcendentals stay opaque ops over real *)
+τ(float)          = real      (* Why3 real — was the unsound τ(float)=int. Float literals
+                                 are real constants and </<=/>/>= lower to RealInfix `<.`… BUT
+                                 ARITHMETIC IS UNINTERPRETED (route #53): +/-/*// go through ONE
+                                 DETERMINISTIC ABSTRACT symbol `val function float_*_op (a b:
+                                 real) : real`, in the SPEC path and the BODY path alike — NOT
+                                 through RealInfix `+.`/`-.`/`*.`/`/.`.
+                                 WHY: a Python float is IEEE 754 binary64 and Why3's `real` is the
+                                 EXACT real, so lowering `+` to `+.` DECIDED `0.1 + 0.2 == 0.3`,
+                                 which is FALSE of the program — and decided the ordering too
+                                 (`<= 0.3` proved). Uninterpreted means no exact-real value, sign
+                                 or ordering is decidable; DETERMINISTIC means `\result == x + x`
+                                 still proves by congruence. The cost is COMPLETENESS in one
+                                 direction (a bound like `\result >= 0.0` no longer proves; see
+                                 corpus 0517) and it is NOT repairable by a sign clause, whose
+                                 antecedent ranges over the `real` and cannot see NaN. Witnesses
+                                 1117-1120. Mixed float/int arithmetic is out of scope;
+                                 transcendentals stay opaque ops over real *)
 τ(list)           = list
 τ(List)           = list      (* typing.List alias *)
 τ(List[T])        = list      (* parametric list — element type opaque *)

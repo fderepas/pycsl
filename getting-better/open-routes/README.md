@@ -1,8 +1,19 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: TWO — #46 and #53.
-##   (#56 and #57 were CLOSED AND LANDED by relaunch #51 on 2026-09-10; their entries
-##    below are kept as the record of how, and are marked CLOSED in place.)
+## CURRENTLY OPEN: TWO — #46 and #58.
+##   (#53, #56 and #57 were CLOSED AND LANDED by relaunch #51 on 2026-09-10; their
+##    entries below are kept as the record of how, and are marked CLOSED in place.
+##    #58 was found by probing #53's OWN REPAIR for the gap it leaves.)
+
+  * **`route58-int-truediv-is-exact-real.md`** — **OPEN, found 2026-09-10 while closing
+    #53.** int/int TRUE DIVISION keeps its own bridge, `val float_truediv_op (a b: int)
+    : real ensures { result = from_int a /. from_int b }`, on a different code path from
+    float-operand arithmetic (that path tests that BOTH operands are floats, so it never
+    fires for `1 / 3`). It still divides over the EXACT reals, so
+    **`1 / 3 > 0.3333333333333333` PROVES** while Python answers False — the two are the
+    same binary64 value. Same defect as #53, one costume over.  THE COST IS DIFFERENT AND
+    THAT IS WHY IT IS ITS OWN ROUTE: the fix retires `5 / 2 == 2.5`, which two NORMATIVE
+    surfaces use as the headline example of the WL-02 true-division fix.
 
   * **`route56-optional-union-local-read-sentinel.md`** — **CLOSED `b9217158`** (relaunch
     #51, 2026-09-10). Kept as the record of how. The route as found: a `None`
@@ -25,8 +36,12 @@
     `d.get(k, v)` still proves, the subscript path deliberately untouched); it moves SEVEN
     mirror emissions, so it owes a re-proof battery. `getting-better/staged-route57/`.
 
-  * **`route53-float-is-a-real.md`** (relaunch #49, re-confirmed live at HEAD by #51) —
-    `τ(float) = real`, so `0.1 + 0.2 == 0.3` proves. Repair decided (make the float
+  * **`route53-float-is-a-real.md`** — **CLOSED** (relaunch #51, 2026-09-10). Kept as the
+    record of how. The route as found: `τ(float) = real`, so `0.1 + 0.2 == 0.3` proves.
+    Closed by ONE uninterpreted DETERMINISTIC symbol for the float arithmetic bridge, used
+    by the SPEC and BODY paths alike. MEASURED cost: 2 of 916 corpus emissions, 0 of 53
+    mirrors (byte-inert), and exactly ONE clause — 0517's `\result >= 0.0`, a COMPLETENESS
+    loss stated in its own docstring. Witnesses 1117-1120. Repair originally decided (make the float
     arithmetic bridge a deterministic opaque and route the SPEC path through the same
     symbol); measured cost is `0517`'s non-negativity clause. The tempting refinement
     (IEEE-true SIGN clauses) is REFUTED for `*`: the clauses meet at `a = 0.0` and decide

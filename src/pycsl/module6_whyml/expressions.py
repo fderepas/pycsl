@@ -5402,11 +5402,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                        "*": ("*.", "mul"), "/": ("/.", "div")}
             if raw_op in _FARITH and _lf and _rf:  # arithmetic: both operands float
                 rop, nm = _FARITH[raw_op]
-                if self._in_spec:
-                    return f"({left} {rop} {right})"
+                # ROUTE #53 — a Python `float` is IEEE 754 binary64, NOT the exact real.
+                # The old bridge carried `ensures { result = (a +. b) }` and the SPEC path
+                # emitted `(left +. right)` outright, so the model DECIDED float arithmetic
+                # over the exact reals and `0.1 + 0.2 == 0.3` PROVED — an equality the
+                # program refutes. It is now ONE uninterpreted, DETERMINISTIC symbol used by
+                # BOTH the spec and the body path: `val function float_add_op (a b: real)`.
+                # Deterministic is what keeps `\result == x + x` provable (both sides are
+                # the same term, closed by congruence); uninterpreted is what stops any
+                # exact-real fact — a value, a sign, an ordering — from being decided.
+                # NO SIGN CLAUSE is added: `a >= 0 -> b >= 0 -> result >= 0` reads as
+                # IEEE-true but the antecedent ranges over the REAL, which does not
+                # distinguish NaN, and the same shape was already measured to refute for
+                # `*` (`0.0 * inf` is `nan`, not `0.0`). The cost is COMPLETENESS, one
+                # direction only, and it is recorded in the route file.
                 self._add_abstract_op(
-                    f"val float_{nm}_op (a b: real) : real\n"
-                    f"    ensures {{ result = (a {rop} b) }}")
+                    f"val function float_{nm}_op (a b: real) : real")
                 return f"(float_{nm}_op {left} {right})"
             # comparison/equality: either operand float (the other is `\result` or a real)
             _FCMP = {"<": "<.", "<=": "<=.", ">": ">.", ">=": ">=."}
