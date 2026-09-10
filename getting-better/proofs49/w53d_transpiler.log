@@ -8354,3 +8354,5 @@ Warning, file "/tmp/.pycsl_6051wvdu.mlw", line 3446, characters 98-104: unused v
 Warning, file "/tmp/.pycsl_6051wvdu.mlw", line 3450, characters 40-44: unused variable self
 Warning, file "/tmp/.pycsl_6051wvdu.mlw", line 3450, characters 67-73: unused variable val_ir
 Warning, file "/tmp/.pycsl_6051wvdu.mlw", line 3452, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -70,3 +70,6 @@
 17:36 started w53b_scf (OWED after landing staged-L1 + staged-route59)
 17:36 started w53c_statements (OWED after landing staged-L1 + staged-route59)
 17:36 started w53d_transpiler (OWED after landing staged-L1 + staged-route59)
+17:58 finished w53d_transpiler rc=0
+19:37 finished w53b_scf rc=0
+20:18 finished w53c_statements rc=0
