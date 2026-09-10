@@ -292,6 +292,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ requires True
     #@ ensures True
     #@ assigns self._abstract_ops, self._obj_state_written
+    def _dv_absent_opaque(self, nu: str) -> str:
+        """ROUTE #57: the `None ->` arm for a ONE-ARGUMENT `.get`, where Python's answer is
+        genuinely `None` rather than an unreachable placeholder.
+
+        `_dv_missing_default` above is the SUBSCRIPT read's placeholder and its
+        justification is that `d[k]` RAISES on a missing key, so under
+        `#@ no_exception KeyError` the arm is dead and the value only has to type-check.
+        **`d.get(k)` never raises.** It is total and returns `None`, so nothing can ever
+        make this arm dead and its value IS the model's answer. Reusing the subscript's
+        zero there made `d.get(5) == 0` prove where Python answers False, and
+        `d.get(5) + 1` prove `\result == 1` where Python raises TypeError.
+
+        Answer the campaign's EXISTING `None` opaques instead — route #44's `pycsl_none`
+        for an int codomain, route #50's `pycsl_none_str` for a string one — so the read is
+        UNDECIDED rather than wrong. No new model, no new axiom, ledger stays 3.
+
+        Codomains that are not scalar (hval, seq, map, array, emit_ir) keep the existing
+        placeholder DELIBERATELY: they were NOT measured, and route #56's lesson is that a
+        carrier must be measured rather than assumed. The TWO-argument form `d.get(k, v)`
+        never reaches here and stays EXACT, because there Python really does answer `v` —
+        witness 1115 pins that boundary.
+        """
+        if nu == "string":
+            self._add_abstract_op("val function pycsl_none_str : string")
+            return "pycsl_none_str"
+        if nu in (None, "", "int"):
+            self._add_abstract_op("val function pycsl_none : int")
+            return "pycsl_none"
+        return self._dv_missing_default(nu)
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _dv_store_value(self, nu: Optional[str], val_expr: str) -> str:
         """The value stored at `d[k] = val`: a `seq int` snapshots the array
         (ownership-discipline §3), a string/nested-map value passes through
