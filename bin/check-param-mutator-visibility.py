@@ -138,7 +138,24 @@ def classify(ann, mut, pre, tail, post, keep):
             capture_output=True, text=True, timeout=600).stdout
     except subprocess.TimeoutExpired:
         return "TIMEOUT", path
-    if "PIPELINE ERROR" in out or "ERROR:" in out:
+    # A BROKEN ENVIRONMENT IS NOT A VERDICT (gen #4). This used to read
+    # `if "PIPELINE ERROR" in out or "ERROR:" in out`, and pycsl prints
+    # `[!] ERROR: 'why3' command not found` when why3 is off PATH — so running this plane
+    # without why3 classified ALL TWENTY cases REFUSED, moved six of them off their
+    # baseline, and returned 1. MEASURED: rc=1 with six spurious CHG lines without why3,
+    # rc=0 with every case at its baseline with it. A plane that reports a RATCHET BREAK
+    # because a tool is missing is worse than one that skips, because the six CHG lines
+    # name real cases and read exactly like a regression from whatever landed most
+    # recently — which is how this cost an investigation.
+    #
+    # The rest of the battery already treats a missing why3 as SKIP-NOT-FAIL; this now
+    # matches. And the bare `"ERROR:"` substring is dropped rather than reordered: every
+    # genuine refusal carries `PIPELINE ERROR` (verified against the `list a.sort()` and
+    # `dict a.pop(1)` cases), so the extra test bought nothing and only widened the ways a
+    # non-refusal could be read as one.
+    if "'why3' command not found" in out or "why3 command not found" in out:
+        return "NO-WHY3", path
+    if "PIPELINE ERROR" in out:
         return "REFUSED", path
     if "Verification SUCCESS" in out:
         return "DROPPED", path
@@ -164,6 +181,15 @@ def main():
         print("[!] param-mutator-visibility: 0 case(s) — that is not a measurement. "
               "NOT A PASS.", file=sys.stderr)
         return 2
+
+    # SKIP-NOT-FAIL when why3 is unavailable, matching the rest of the battery. Without
+    # this the missing tool is laundered into six spurious "baseline CHANGED" lines.
+    nowhy3 = [r for r in results if r[2] == "NO-WHY3"]
+    if nowhy3:
+        print("[*] param-mutator-visibility: skipped — why3 is not on PATH, so pycsl "
+              "could not run (%d of %d case(s)). A missing tool is NOT a verdict."
+              % (len(nowhy3), len(results)))
+        return 0
 
     dropped = [r for r in results if r[2] == "DROPPED"]
     changed = [r for r in results
