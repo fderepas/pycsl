@@ -60,6 +60,8 @@ import ast
 import json
 import os
 import re
+import io
+import tokenize
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -179,6 +181,45 @@ def module6_sources():
     return out
 
 
+def _code_only(src):
+    """`src` with COMMENTS and DOCSTRINGS removed, ordinary string literals KEPT.
+
+    THE ORACLE MUST NOT BE SATISFIABLE BY PROSE (gen #4). "Is this IR field READ by its
+    own handler?" was decided by a regex over the handler's raw source, comments and
+    docstrings included — so a note that merely NAMES the field
+    (`# we deliberately do not lower .finalbody here`) marked it READ. That is the route
+    #21 class this plane exists to catch, switched off by a sentence about itself.
+
+    Ordinary string literals are deliberately KEPT: a dict key `"finalbody"` really is a
+    read, and the regex looks for exactly that spelling. Only a STRING IN STATEMENT
+    POSITION — a docstring — is dropped.
+
+    MEASURED when this landed: ZERO fields were being counted as read on the strength of a
+    comment alone, so this changes no verdict today. It is closed because the next comment
+    to mention a field name would have done it silently.
+
+    Falls back to the raw source if the extracted body does not tokenize on its own; a
+    fidelity gate must never crash on a snippet it cannot parse.
+    """
+    out, prev_nl = [], True
+    try:
+        toks = list(tokenize.generate_tokens(io.StringIO(src).readline))
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return src
+    for t in toks:
+        if t.type == tokenize.COMMENT:
+            continue
+        if t.type == tokenize.STRING and prev_nl:
+            continue
+        out.append(t)
+        prev_nl = t.type in (tokenize.NEWLINE, tokenize.NL,
+                             tokenize.INDENT, tokenize.DEDENT)
+    try:
+        return tokenize.untokenize(out)
+    except (ValueError, tokenize.TokenError):
+        return src
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -199,7 +240,7 @@ def main():
         if not hs:
             unmatched.append(cls)
             continue
-        blob = "\n".join(hs.values())
+        blob = _code_only("\n".join(hs.values()))
         for f in flds:
             if f in TOO_GENERIC:
                 skipped_generic += 1
