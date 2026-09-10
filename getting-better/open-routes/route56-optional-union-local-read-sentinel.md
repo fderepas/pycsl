@@ -106,3 +106,43 @@ None for them (`expressions.py:13424`, `:13428`).
 the test's shape against a whitelist, and emits `warnings.warn` — explicitly "not an
 error" (`:1690-1694`). It never blocks emission and says nothing about reads. There is no
 `no_exception`/UB trigger covering a value read of `None`.
+
+---
+
+## THE CARRIER CENSUS IS COMPLETE (gen #4, 2026-09-10)
+
+#56 was found at the `int` carrier of an Optional **LOCAL**, and it was found by probing the
+CARRIERS of a closed route — so the same generator has to be pointed at #56 itself. The
+three places an `Optional[int]` can live are the local, the parameter and the field. All
+three are now measured.
+
+  **LOCAL**   — the route. Closed by answering the non-Some arm with route #44's existing
+                `val function pycsl_none : int`.
+  **PARAM**   — FAILS CLOSED, on a Why3 TYPE ACCIDENT. `def f(x: Optional[int])` makes the
+                parameter a generated union type and `x == 0` dies with "This expression has
+                type PyCSL_Program._union_f_0". So #56's defect really is confined to the
+                local, and the confinement is an accident rather than a guard — the same
+                shape that confined it away from `str` and that this file already warns about.
+  **FIELD**   — **COVERED BY #56's OWN REPAIR**, verified in the emission rather than argued.
+                `self.v: Optional[int] = None` with `if self.v is None: if self.v == 0:`
+                lowers to
+
+                    val function pycsl_none : int
+                    ...
+                    if (self.v = pycsl_none) then begin
+                      if (self.v = 0) then begin
+
+                `pycsl_none` is UNINTERPRETED, so `pycsl_none = 0` is undecided, so
+                `result = 0` is unprovable. Undecided rather than wrong — exactly what the
+                repair is for.
+
+## THE LESSON THIS PROBE PAID FOR
+
+**A PROVER TIMEOUT ON A NEGATIVE WITNESS CAN BE THE REPAIR WORKING — READ THE EMISSION, NOT
+ONLY THE VERDICT.** The field probe returned `Timeout (22.02s, 54850674 steps)` and was
+recorded as INCONCLUSIVE, correctly: a timeout is not a fails-closed verdict, and must never
+be filed as one. Trying to settle it by proving harder was the wrong move and failed — a
+whole-file `why3 prove --timelimit 180` was still running at its 900-second wall cap with no
+verdict at all. Reading the emitted WhyML settled it in seconds, because the question was
+never "can the solver close this goal" but "which arm did the lowering choose". The solver
+was thrashing precisely BECAUSE the answer is an opaque it cannot decide.
