@@ -1,3 +1,61 @@
+# ===================== START HERE — #51 (FINAL, 2026-09-10 07:17 UTC) ============
+#
+# ## WHAT TO COLLECT FIRST, AND WHERE IT LIVES
+#
+#   1. **QUEUE G** — `scratchpad/w49/queue51g.sh`, started 07:07, detached, concurrency
+#      TWO, 8h timeouts. Route #57's SEVEN owed movers. Verdicts land in
+#      `getting-better/proofs49/w51g_*.rc` and `queue49.progress`.
+#      ALREADY IN: `w51g_autotrust` rc=0. Order: autotrust, types, functions, preamble,
+#      scf, then **expressions and statements LAST as a pair** (each ~3-4h).
+#      **IF ONE FAILS THAT IS THE HONEST COST OF ROUTE #57 AND MUST BE WORKED, NOT HIDDEN.**
+#      DO NOT RELAUNCH IT — it is setsid'd and survives worker turnover.
+#
+#   2. **THE `w51_cis` DISPOSITION TEST** — running OUTSIDE the repo, in the worktree
+#      `/tmp/claude-1000/-home-fabrice-git-pycsl/72fe2917-7b27-4e52-98dc-bfc0f750b42c/scratchpad/wt-cis`,
+#      writing to `<that scratchpad>/cis_trusted.rc` and `cis_trusted.log`.
+#      THE HYPOTHESIS: mark `_returns_literal_none` `\trusted` and ALL EIGHT termination
+#      goals die with the nested `walk` it encloses. INTERIM at 07:17: 20+ minutes
+#      elapsed, **ZERO timeouts logged**, against EIGHT in the original `w51_cis`.
+#      CONSISTENT WITH the hypothesis but NOT a verdict — do not record it as one until
+#      the `.rc` exists. **If it holds, land the `\trusted` marker and the metric goes
+#      456 -> 457, which is the CORRECT direction**: the trust surface was always that
+#      big, only the bookkeeping said otherwise.
+#
+# ## THE ONE PLANE STILL RED, AND IT IS THE IMPORTANT ONE
+#
+#   `check-self-annotate-mirror-sync` — 2 divergences over 841 verbatim-checked functions.
+#   `_handle_var_expr` is FIXED AND MEASURED in `scratchpad/wt-l1b` (divergences 2 -> 1,
+#   **17 of 18 planes green, NO ratchet movement**). It was deliberately NOT landed with
+#   route #57: combining an EMITTER change with a MIRROR change would destroy attribution
+#   if the shared `expressions.py` re-proof failed — the bisect route #42 cost. **Land it
+#   AFTER queue G, with its own re-proof.**
+#   `_handle_for_stmt` remains at 37 of 99 normalized statements while counted as
+#   VERIFIED. Decide it: port the missing statements, or re-`\trusted` it and let the
+#   metric rise. Do not leave it counted as verified.
+#
+# ## A LESSON THIS WINDOW PAID FOR TWICE — RUN THE COLLECTOR AFTER EVERY LANDING
+#
+#   `bash bin/run-soundness-planes.sh` (18 planes, ~2 min). Within MINUTES of route #57
+#   landing it caught `check-mirror-coverage` RED at 551 > 550: I had added a new
+#   top-level `_dv_absent_opaque` to the live emitter and not mirrored it. The previous
+#   handoff had WARNED about exactly that shape and I walked into it anyway — the only
+#   reason it cost minutes instead of a window is that the plane was RUN.
+#   THE FIX WAS NOT TO RAISE THE RATCHET. The plane's own message is the argument:
+#   "a live function with no mirror counterpart is not `\trusted`, it is ABSENT: it
+#   carries no marker, so the headline count cannot see it." An unmirrored function is
+#   INVISIBLE to the metric, strictly worse than a `\trusted` one. It was mirrored as a
+#   VERIFIED body, at no metric cost.
+#
+# ## STATE
+#
+#   HEAD 800daa67 · tracked tree CLEAN · `src/self-annotate` dirty 0 · 0 stray `.bak`
+#   under `src/` or `bin/` · 0 untracked `.mlw` under `src/self-annotate`.
+#   METRIC markers 456 · grep-substring 481 · offset 25 · unattached 0 — stable across
+#   three samples, UNCHANGED all window, which is the expected shape when the work is
+#   routes, refusals and opaques. Window deadline 1789288757 (~73h left at 07:00).
+#
+# ===================== the earlier #51 blocks follow ============================
+#
 # ===================== START HERE — #51 (UPDATED 2026-09-10 07:08 UTC) ===========
 #
 # ## TWO SOUNDNESS ROUTES CLOSED AND LANDED THIS WINDOW, BOTH WITH THEIR COSTS MEASURED
