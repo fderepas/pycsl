@@ -385,3 +385,40 @@ this is modelled rather than merely refused, and there is no hash-collision rout
 Cross-type `int == str` fails closed.
 
 **DO NOT RE-PROBE THESE FOUR.**
+
+---
+
+## THE MISSING-KEY SUBSCRIPT LOOKS EXACTLY LIKE A ROUTE AND IS NOT ONE (gen #4)
+
+Recorded because it presents with every symptom of a route and would cost a future
+generation an afternoon.
+
+    d: Dict[int,int] = {1: 1};  return d[5]
+    `\result == 0`  ->  **PROVES**.  CPython RAISES KeyError.
+    `\result == 1`  ->  fails.
+
+A claim false of the program proving is the exact signature this campaign hunts. But it is
+**DOCUMENTED, INTENTIONAL AND OPT-IN**, so it is a CERTIFIED BOUNDARY:
+
+`docs/pycsl-static-semantics-reference.md` §2.1.13 defines the obligation set as
+`active(f) = no_exception_set(f) ∪ (no_exception_all(f) ? KNOWN_EXCEPTIONS : ∅)`. With no
+`#@ no_exception` directive, `active(f) = ∅` and **no implicit-exception obligation is
+imposed at all** — "ambient mode, preserving backward compatibility ... The CLI flag is off
+by default and treated as opt-in; ambient mode is the default per workplan §11.3."
+
+**AND THE MACHINERY IS CORRECT WHEN ASKED.** Measured:
+
+    return d[5]  with  `#@ no_exception KeyError`   ->  FAILS   (it cannot prove 5 is present)
+    return d[1]  with  `#@ no_exception KeyError`   ->  PROVES
+
+So the placeholder is not a modelling error; it is the value of a read whose
+exception-freedom the author did not ask to be checked. This is also exactly what route
+#57's docstring meant by "proven dead under `#@ no_exception KeyError`, the ambient default
+otherwise", and it is why #57 deliberately left the SUBSCRIPT path untouched while fixing
+`.get`: `.get` never raises, so there is no directive that could ever discharge it.
+
+**THE STRENGTHENING ALREADY EXISTS**: `--strict-no-exception-propagation`. The boundary
+closes if that becomes the default, and the cost of doing so is the interesting open
+question — not the placeholder itself.
+
+**DO NOT FILE THIS AS A ROUTE.**
