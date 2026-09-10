@@ -202,3 +202,57 @@ shares the copy-on-assign lowering. The staged repair already covers it: its gua
 `_field_type_of(...) in ("dict", "set", "frozenset")` and the `_dict_locals` membership that
 `_rhs_yields_map` populates for sets too. Re-run these two probes after any change to set
 lowering.
+
+---
+
+## THE RETURN CARRIER IS ALSO BROKEN, AND THE STAGED REPAIR DOES **NOT** COVER IT
+
+Found by probing the staged repair for the gap it leaves — the discipline that produced
+route #58 an hour after #53. It pays again here.
+
+```python
+@mutable_state
+@dataclass
+class C:
+    d: Dict[int, int] = field(default_factory=dict)
+
+    def get(self) -> Dict[int, int]:
+        return self.d                 # hands out the INTERNAL dict
+
+    #@ ensures \result == 1           # FALSE of the program — and it PROVES
+    def probe(self) -> int:
+        self.d[1] = 1
+        m: Dict[int, int] = self.get()
+        m[1] = 2
+        return self.d[1]              # CPython: 2
+```
+
+Reproduced twice. Both directions measured: `\result == 1` PROVES, `\result == 2` fails.
+
+Emission:
+
+```whyml
+self.d <- map_update_some self.d 1 1;
+let m = ref (self_get_0 ()) in        (* a FRESH ref over the RETURNED VALUE *)
+m := map_update_some !m 1 2;          (* writes m's own cell *)
+(match Map.get self.d 1 with ...)     (* self.d never saw it *)
+```
+
+**WHY THE STAGED GUARD MISSES IT.** That guard fires when the RHS of the binding is a bare
+`Var` or a `self.<field>` read. Here the RHS is a **Call**, so nothing matches — the same
+copy-on-bind happens one syntactic step away. Exactly the shape of route #58 relative to
+#53: *a repair covers the PATH it edits, not the SEMANTICS it means to fix.*
+
+**THIS MATTERS FOR ANYONE ABOUT TO LAND `staged-route59/`:** landing it closes the ALIAS
+ASSIGNMENT carriers and DOES NOT CLOSE THE ROUTE. Handing out an internal collection from a
+getter is one of the most common patterns in real Python, so this carrier is arguably more
+reachable than the one the repair was built for.
+
+**EXTENDING THE REPAIR.** The same mutation gate applies — refuse a binding whose RHS is a
+call returning a dict/set when a later statement stores through the bound name. The
+information needed is already at hand: `_first_assign_kind` returns "dict" for such a call
+(via `_rhs_yields_map`'s Call branch and the module return-type map), so the guard only has
+to stop keying on the RHS *node kind* and key on "kind == dict AND the RHS is not a fresh
+construction" instead — a `DictLit`, `dict()`/`set()` Call, or a comprehension being the
+fresh cases. **That inversion must be measured against the mirror before it is believed:
+the read-only-rebind lesson says the corpus will stay clean while the mirror decides.**

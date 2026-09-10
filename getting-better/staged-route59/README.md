@@ -1,5 +1,11 @@
 # STAGED — the ROUTE #59 repair (built, fully measured, NOT landed)
 
+> **PARTIAL. LANDING THIS DOES NOT CLOSE ROUTE #59.** It closes the ALIAS ASSIGNMENT
+> carriers. The RETURN carrier — a getter handing out an internal dict, `m = self.get()`
+> then `m[k] = v` — is ALSO broken and is NOT covered, because this guard keys on the RHS
+> being a bare name or field read and that RHS is a Call. Measured and reproduced; see the
+> route file. Land this for the reduction it gives, but do not mark the route closed.
+
 `route59-refuse-mutated-dict-alias.patch`, generated against `7cb5bbdc`.
 Two files, +86 lines, no deletions.
 
