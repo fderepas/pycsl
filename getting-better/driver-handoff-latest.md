@@ -2,10 +2,12 @@
 #
 # ## WHAT IS TRUE RIGHT NOW
 #
-#   metric   markers **458** · grep 483 · offset 25 · unattached 0
-#   fidelity **1 divergence over 886** (`_handle_var_expr`)
-#   planes   **17 of 18**, the RED being that divergence. `--slow` adds 13 (see below).
+#   metric   markers **459** · grep 484 · offset 25 · unattached 0
+#   fidelity **ZERO divergences over 887** — the L-plane is GREEN
+#   planes   **ALL 18 GREEN.** `--slow` adds 13 more, incl. the new mirror-type-only.
 #   ledger   **ONE OPEN ROUTE: #59**, partially repaired.
+#   OWED     `w54a_expressions`, the whole-file re-proof of the repaired L1 half. It is
+#            the ONLY outstanding proof; everything else is collected at rc=0.
 #   tree     clean. Two long-standing GITLINKS (`scratchpad/w7/base`, `scratchpad/w8/pre`
 #            are registered WORKTREES) and a 0-byte stray `str` in the repo root are
 #            pre-existing and are NOT dirt.
@@ -17,7 +19,16 @@
 #   independently re-checked: it writes 10 self fields, all 10 covered by the declared 25).
 #   That is the metric 457 -> 458 and the fidelity 2 -> 1.
 #
-#   **REVERTED: staged-L1's EXPRESSIONS half. IT IS ILL-TYPED.** `_handle_var_expr`'s
+#   **STAGED-L1's EXPRESSIONS HALF: REVERTED, THEN REPAIRED AND RE-LANDED.** The fix is
+#   `#@ sibling_concrete` on a new `\trusted` mirror stub for
+#   `_union_local_read_projection`. **THE STUB ALONE DOES NOT WORK** — measured — because
+#   the untyped avatar is synthesized FROM THE CALL SITE, not from the presence of a
+#   same-named method; the marker is what routes the call to the typed stub. Its frame is
+#   RE-DERIVED from the live body's transitive closure across all of `src/pycsl`
+#   (`_abstract_ops`, `_obj_state_written`), because `\nothing` on a `\trusted` stub is an
+#   ASSUMPTION, not a check. That is the metric 458 -> 459 and the fidelity 1 -> 0.
+#
+#   The original failure, kept because it is the lesson of the window: `_handle_var_expr`'s
 #   restored block calls `_union_local_read_projection`, **which the mirror does not model
 #   at all**, so Module 6 synthesizes an untyped avatar that defaults to `int` and
 #   `raise (Return_str !_proj)` does not type-check. Adding a `\trusted` stub with the real
