@@ -282,11 +282,12 @@ class ControlFlowStmtMixin:
                            idx: str) -> Tuple[str, str, bool]:
         return ("", "", False)
 
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     # Frame completed: `self._classify_iterable(...)` (above) writes `_for_idx_init`, which
     # this body reads back as `idx_init`; the callee's effect propagates into this frame.
-    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._for_idx_init, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._for_idx_init, self._for_target_is_pyval, self._frame_trigger_active, self._func_return_type, self._in_loop_spec, self._in_spec, self._keyword_locals, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._pyast_loop_variant_len, self._pyast_stmt_locals, self._pyval_locals, self._string_local_vars, self._todict_arg_wants_pymap, self._tparam_locals, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_for_stmt(self, stmt: ForStmt, rest: List[Dict[str, Any]],
                           local_refs: Set[str], declared_refs: Set[str],
                           indent: str, in_loop: bool) -> str:

@@ -1022,6 +1022,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return whyml_ident(name)
         if name in self._record_locals:
             return whyml_ident(name)
+        if name in getattr(self, "_iropt_ir_local_vars", set()):
+            # OPTIONAL-NODE LOCAL (relaunch #11): a VALUE read of an `iropt_ir` carrier
+            # local where an `emit_ir` is required (`_subscript_item`'s `return lower`)
+            # projects through the DEFINED total `iropt_val`. The two positions that must
+            # NOT go through here are handled before ever reaching a Var read: an
+            # `iropt_ir` PAYLOAD SLOT binds the carrier itself (`expressions.
+            # _call_irnode_constructor`), and a carrier-to-carrier chained-assignment alias
+            # copies it (`statements._handle_assign_stmt`) — so an absent optional child is
+            # never turned into a present sentinel node.
+            return f"(iropt_val !{whyml_ident(name)})"
+        if name in getattr(self, "_optional_union_locals", set()):
+            # tool-feature-5 (giants read-projection): a VALUE read of a mutable
+            # Optional-union local `x` (a `ref _union_*`) projects the carrier of its
+            # Some-arm (`match !x with Arm_i_0 _v -> _v | _ -> <sentinel>`) so `x` used as
+            # its underlying τ (a string key, an emit_ir arg) type-checks. The `is None`
+            # guard uses the RAW `!x` (handled in `_handle_binop`); the assignment TARGET
+            # is not a read; so only value reads project. Sentinel picks the carrier's
+            # zero (string "", emit_ir `IrOther ""`, real 0.0, else 0).
+            _proj = self._union_local_read_projection(name)
+            if _proj is not None:
+                return _proj
         # K7 (pyval-chained `.get`, self-tcb-reduction Tier-5): a pyval chain local is
         # `let`-bound IMMUTABLE (single-assignment), so a read is the BARE name — never
         # the `!x` deref (which would type-clash: it is not a ref). Comes before the

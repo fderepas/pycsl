@@ -721,6 +721,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             parts.append(f"{indent}{len_name} := !{len_name} + 1")
         return ";\n".join(parts)
 
+    # ROUTE #59: the live body now REFUSES a MUTATED dict alias (`b = a` followed by a store
+    # through either name), because Python binds a second name to the SAME object while the
+    # model copies. A `\trusted` stub carrying no `#@ raises` ASSERTS THAT ITS LIVE
+    # COUNTERPART CANNOT RAISE — that is exactly what `check-trusted-raises-honesty`
+    # measures — so the marker is declared here rather than letting the assumption go
+    # quietly false.
+    #@ raises PyCSLSemanticError when True
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True

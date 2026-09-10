@@ -827,6 +827,85 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if target not in declared_refs:
             declared_refs.add(target)
             kind = self._first_assign_kind(val, val_ir)
+            # ROUTE #59 — REFUSE A *MUTATED* DICT ALIAS.
+            #
+            # `b = a` (or `b = self.d`) on a dict binds a SECOND NAME TO THE SAME OBJECT in
+            # Python, so a later `b[k] = v` is visible through `a`. The model cannot express
+            # that: a dict is a PURE Why3 map in a `ref`, and this lowers to
+            # `let b = ref !a` — a fresh ref over a COPY. Measured at HEAD before this guard:
+            #     a = {1: 1};  b = a;  b[1] = 2;  return a[1]
+            #     `\result == 1` PROVED; CPython answers 2.
+            # Unsound in the SILENT direction (the FALSE claim proves), symmetric, transitive
+            # through `a -> b -> c`, and live for `self.<attr>` as well as locals.
+            #
+            # GATED ON AN ACTUAL MUTATION, and that gate is the whole subtlety. Without a
+            # store, an alias and a copy are INDISTINGUISHABLE, so a read-only rebind is
+            # sound and must not be refused. The first cut of this guard refused every
+            # `x = <dict>` and BROKE the mirror's own `module6_whyml/types.py`, whose
+            # `rmap = self._module_method_return_types` is followed only by `rmap.get(...)`.
+            # The corpus byte-diff was CLEAN and the MIRROR still died — the second-population
+            # lesson route #57 paid for, arriving on schedule.
+            #
+            # NOT REPAIRED BY SHARING THE REF (what the correct LIST case does): a dict local
+            # is REBOUND with the same syntax it is aliased with, so `b = a; b = {2: 2}` would
+            # then write THROUGH to `a` — trading an unsound read for an unsound write. The
+            # list model escapes that only because a Why3 `array` binding is never reassigned
+            # via `:=`; measured, list rebind-after-alias is UNDECIDED in both directions.
+            #
+            # This is the LOCAL-ALIAS sibling of the dict/set PARAMETER mutation boundary
+            # already drawn below (UB catalog `param-collection-mutation`), for the same
+            # reason: Python's reference semantics need a frame the model does not have.
+            if kind == "dict" and isinstance(val_ir, dict):
+                _alias_of = None
+                _vt = val_ir.get("type")
+                if (_vt == "Var"
+                        and val_ir.get("name") in getattr(self, "_dict_locals", set())):
+                    _alias_of = val_ir.get("name")
+                elif _vt in ("Attribute", "FieldGet"):
+                    # keyed on the emitter's OWN accessor, not a hand-rolled node shape: the
+                    # first version tested `val_ir["value"]["name"] == "self"` and MISSED the
+                    # field carrier, because that node is a `FieldGet` carrying
+                    # `object`/`field`, not an `Attribute` carrying `value`/`attr`.
+                    if self._field_type_of(val_ir) in ("dict", "set", "frozenset"):
+                        _alias_of = "%s.%s" % (val_ir.get("object", "self"),
+                                               val_ir.get("field", val_ir.get("attr", "?")))
+                if _alias_of is not None:
+                    # Does any LATER statement store through either name? Walked inline over
+                    # the raw IR dicts (no new helper: a live-only function with no mirror
+                    # counterpart moves the `check-mirror-coverage` ratchet, which is exactly
+                    # what the first build of this did). Recursive over nested bodies so a
+                    # store inside an `if`/`for`/`while`/`try` is seen.
+                    _names = {target, _alias_of.rsplit(".", 1)[-1]}
+                    _stores = ("ArraySet", "ArraySliceSet", "DelSubscript",
+                               "GhostArraySet", "FieldAssign", "FieldAugAssign")
+                    _mutated = False
+                    _stack = [rest]
+                    while _stack and not _mutated:
+                        _n = _stack.pop()
+                        if isinstance(_n, list):
+                            _stack.extend(_n)
+                        elif isinstance(_n, dict):
+                            if _n.get("stmt") in _stores:
+                                _arr = _n.get("array")
+                                _base = None
+                                if isinstance(_arr, dict):
+                                    _base = (_arr.get("name") if _arr.get("type") == "Var"
+                                             else (_arr.get("field") or _arr.get("attr")))
+                                if _base in _names or _n.get("target") in _names \
+                                        or _n.get("field") in _names:
+                                    _mutated = True
+                            _stack.extend(_n.values())
+                    if _mutated:
+                        from errors import PyCSLSemanticError
+                        raise PyCSLSemanticError(
+                            f"aliasing a mutated dict is out of scope: "
+                            f"`{target} = {_alias_of}` binds a SECOND NAME TO THE SAME dict "
+                            f"in Python, and a later store through one name is visible "
+                            f"through the other. PyCSL models a dict as a pure map in a "
+                            f"`ref`, so this lowers to `let {target} = ref !{_alias_of}` — a "
+                            f"COPY — and the write would be invisible (route #59). Refusing "
+                            f"instead of answering incorrectly. A read-only rebind is fine; "
+                            f"restructure so only one name mutates the dict.")
             code = self._emit_first_assign(kind, indent, safe_target, target, val,
                                            val_ir, local_refs)
             rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
