@@ -98,6 +98,13 @@ MIN_PLANES=18
 # on `emit_dir` and therefore never ran in the per-run battery. Measured at the tree this
 # was added on: stale 0.
 #
+# `check-mirror-type-only` is here because it belongs here by this file's own taxonomy — it
+# EMITS, so it is not a "pure static analysis" plane — but it is the cheapest gate in the
+# repo when it reuses the shared emission (~10s) and it has TWICE been the difference
+# between a green battery and a four-hour whole-file proof reporting the same thing:
+# route #57's ill-typed landing, and the staged-L1 landing. **A MIRROR EDIT MUST BE
+# TYPE-CHECKED BEFORE IT IS PROVED**, and the fast set cannot do it without emitting.
+#
 # `check-clause-survival` is still NOT here, and the reason is specific rather than
 # incidental: its `--emit-dir` wants a freshly emitted CORPUS (bin/byte-diff-sweep.sh), not
 # the mirror. Handing it this directory would silently compare the wrong population.
@@ -114,10 +121,11 @@ SLOW_PLANES=(
     check-param-mutator-visibility.py
     check-avatar-frame-parity.py
     count-trusted-directives.py
+    check-mirror-type-only.py
 )
 # Planes that take the shared mirror emission. Anything not listed runs bare, exactly as
 # before.
-EMIT_DIR_PLANES=" check-computed-rhs-erasure.py check-yield-erasure.py check-shadowed-selfcalls.py check-trusted-frame-honesty.py check-avatar-frame-parity.py count-trusted-directives.py "
+EMIT_DIR_PLANES=" check-computed-rhs-erasure.py check-yield-erasure.py check-shadowed-selfcalls.py check-trusted-frame-honesty.py check-avatar-frame-parity.py count-trusted-directives.py check-mirror-type-only.py "
 SHARED_EMIT=""
 
 if [ "${1:-}" = "--slow" ] || [ "${PYCSL_SOUNDNESS_PLANES_SLOW:-0}" = "1" ]; then
