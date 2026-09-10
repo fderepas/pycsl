@@ -117,6 +117,8 @@ def main() -> int:
     if "--emit-dir" in argv:
         emit_dir = argv[argv.index("--emit-dir") + 1]
 
+    matched_mlw = 0
+
     markers = 0
     grep_hits = 0
     offset_lines = []
@@ -169,8 +171,23 @@ def main() -> int:
             unattached.append((rel, i + 1, lines[i].strip()[:70]))
 
         if emit_dir:
-            mlw = os.path.join(emit_dir, rel.replace("/", "__")[:-3] + ".mlw")
+            # TWO NAMING CONVENTIONS EXIST IN THIS REPO AND THEY DISAGREE (gen #4). This
+            # plane mapped a source to its emission with `replace("/", "__")` — TWO
+            # underscores — while every OTHER --emit-dir consumer
+            # (check-yield-erasure, check-shadowed-selfcalls, check-trusted-frame-honesty,
+            # check-computed-rhs-erasure, check-avatar-frame-parity) uses
+            # `replace(os.sep, "_")` — ONE. So no single directory could feed them all, and
+            # the failure was SILENT IN BOTH DIRECTIONS: measured, the single-underscore
+            # directory made check-yield-erasure report 0 generators against a true 3 (a
+            # FALSE GREEN) and check-trusted-frame-honesty report "RATCHET BROKEN — 48 > 0"
+            # (a FALSE RED). Accept either spelling here so a shared emission is possible.
+            _stem = rel[:-3]
+            for _cand in (_stem.replace("/", "__"), _stem.replace(os.sep, "_")):
+                mlw = os.path.join(emit_dir, _cand + ".mlw")
+                if os.path.exists(mlw):
+                    break
             if os.path.exists(mlw):
+                matched_mlw += 1
                 txt = open(mlw).read()
                 for name in trusted_defs:
                     let = _emitted_as(txt, LET_DECL, name)
@@ -190,7 +207,21 @@ def main() -> int:
     for u in unattached:
         print(f"    [!] UNATTACHED marker (annotates nothing): {u}")
     if emit_dir:
-        print(f"    stale (trusted but emitted as a definition): {len(stale)}")
+        # A STALE COUNT OF 0 FROM AN EMPTY DIRECTORY IS NOT A PASS (gen #4, the #44 rule).
+        # DEMONSTRATED before this guard existed: pointing --emit-dir at an EMPTY directory
+        # printed "stale ...: 0" and "[+] trusted-directives: OK", indistinguishable from a
+        # clean sweep of all 53 mirrors. The whole point of this half of the plane is to
+        # catch a `\trusted` marker that is not actually taking effect, and it was reporting
+        # success for having opened no files at all.
+        if matched_mlw < MIN_MIRROR_FILES:
+            print(f"[!] trusted-directives: REFUSING — --emit-dir matched only "
+                  f"{matched_mlw} of {len(_mirror_files)} mirror source(s); expected at "
+                  f"least {MIN_MIRROR_FILES}. The directory is empty, stale, or uses a "
+                  f"naming convention this plane does not recognise. "
+                  f"THIS IS A REFUSAL, NOT A PASS.")
+            sys.exit(2)
+        print(f"    stale (trusted but emitted as a definition): {len(stale)} "
+              f"(over {matched_mlw} matched emission(s))")
         for s in stale:
             print(f"      [!] {s}")
     bad = bool(unattached) or bool(stale)

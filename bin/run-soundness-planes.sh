@@ -83,9 +83,24 @@ MIN_PLANES=18
 # red at HEAD with nobody looking, which is exactly the failure this script was written
 # to end for the fast set.
 #
-# `check-avatar-frame-parity` and `check-clause-survival` are still NOT here: they REQUIRE
-# an `--emit-dir` argument and so cannot be run bare by this loop. That is a real gap and
-# it is named rather than hidden.
+# ONE EMISSION, SHARED. Six of these accept `--emit-dir` and each was otherwise emitting
+# all 53 mirrors for itself. `--slow` now emits ONCE into a temp dir and hands it to those
+# six, which both shortens the set and makes every one of them see the SAME emission —
+# planes that disagree because they each emitted separately is a failure this repo has
+# already had (see the note in check-avatar-frame-parity.py about three `--emit-dir`
+# arguments pointing at different directories and "agreeing").
+#
+# `check-avatar-frame-parity` joins the set for the first time as a result: it REQUIRES an
+# `--emit-dir` and so could not be run bare by this loop at all.
+#
+# `count-trusted-directives` runs a SECOND time here with the dir, because its stale-marker
+# half — "is a `\trusted`-marked function nonetheless emitted as a definition?" — is gated
+# on `emit_dir` and therefore never ran in the per-run battery. Measured at the tree this
+# was added on: stale 0.
+#
+# `check-clause-survival` is still NOT here, and the reason is specific rather than
+# incidental: its `--emit-dir` wants a freshly emitted CORPUS (bin/byte-diff-sweep.sh), not
+# the mirror. Handing it this directory would silently compare the wrong population.
 SLOW_PLANES=(
     check-getattr-erasure.py
     check-computed-rhs-erasure.py
@@ -97,13 +112,50 @@ SLOW_PLANES=(
     check-bespoke-model-drift.py
     check-internal-crash-free.py
     check-param-mutator-visibility.py
+    check-avatar-frame-parity.py
+    count-trusted-directives.py
 )
+# Planes that take the shared mirror emission. Anything not listed runs bare, exactly as
+# before.
+EMIT_DIR_PLANES=" check-computed-rhs-erasure.py check-yield-erasure.py check-shadowed-selfcalls.py check-trusted-frame-honesty.py check-avatar-frame-parity.py count-trusted-directives.py "
+SHARED_EMIT=""
 
 if [ "${1:-}" = "--slow" ] || [ "${PYCSL_SOUNDNESS_PLANES_SLOW:-0}" = "1" ]; then
     PLANES+=("${SLOW_PLANES[@]}")
     # The refusal guard scales with the set, or `--slow` would silently weaken it.
     MIN_PLANES=$((MIN_PLANES + ${#SLOW_PLANES[@]}))
     echo "[*] soundness-planes: --slow, adding ${#SLOW_PLANES[@]} prover/emission plane(s) (~20 min)"
+    SHARED_EMIT="$(mktemp -d "${TMPDIR:-/tmp}/pycsl-planes-emit.XXXXXX")"
+    trap 'rm -rf "$SHARED_EMIT"' EXIT
+    # THE FILE NAMING IS LOAD-BEARING AND IT IS NOT OBVIOUS. Every consumer maps a `.mlw`
+    # back to its source with `os.path.relpath(src, MIRROR)[:-3].replace(os.sep, "_")` —
+    # ONE underscore. `scratchpad/w49/emit-mirrors.sh` writes TWO (`${rel//\//__}`), and
+    # feeding that directory to these planes is not a loud failure: measured, it makes
+    # check-yield-erasure report 0 generators where a bare run reports 3 (A FALSE GREEN)
+    # and check-trusted-frame-honesty report "RATCHET BROKEN — 48 > 0" (A FALSE RED).
+    # That is precisely the hazard check-avatar-frame-parity.py's own header warns about,
+    # three --emit-dir arguments pointing at directories and "agreeing". So the emission is
+    # inlined here with the right convention rather than delegated to a helper whose
+    # convention can drift out from under it.
+    _py="$PROJECT_ROOT/.venv/bin/python3"; [ -x "$_py" ] || _py=python3
+    while IFS= read -r _src; do
+        _rel="${_src#"$PROJECT_ROOT/src/self-annotate/src/"}"
+        _name="${_rel%.py}"; _name="${_name//\//_}"
+        rm -f "${_src%.py}.mlw"
+        (cd "$PROJECT_ROOT" && PYTHONHASHSEED=0 "$_py" src/pycsl/pycsl.py "$_src" \
+            --import-path "$PROJECT_ROOT/src/pycsl" --no-proof --keep-mlw) >/dev/null 2>&1
+        [ -f "${_src%.py}.mlw" ] && mv "${_src%.py}.mlw" "$SHARED_EMIT/$_name.mlw"
+    done < <(find "$PROJECT_ROOT/src/self-annotate/src" -name '*.py' | sort)
+    NEMIT=$(ls "$SHARED_EMIT"/*.mlw 2>/dev/null | wc -l)
+    # A SHARED EMISSION THAT SILENTLY CAME UP SHORT WOULD WEAKEN SIX PLANES AT ONCE, so it
+    # gets the same #44 treatment as everything else: refuse rather than run them on it.
+    if [ "$NEMIT" -lt 40 ]; then
+        echo "[!] soundness-planes: REFUSING — the shared mirror emission produced only"
+        echo "    $NEMIT .mlw file(s), expected at least 40. Six --slow planes would have"
+        echo "    been fed a truncated population. THIS IS A REFUSAL, NOT A PASS."
+        exit 2
+    fi
+    echo "[*] soundness-planes: shared mirror emission ready ($NEMIT .mlw) — six plane(s) will use it"
 fi
 
 ran=0
@@ -114,7 +166,11 @@ for p in "${PLANES[@]}"; do
         echo "    MISSING  $p"
         continue
     fi
-    out="$(cd "$PROJECT_ROOT" && python3 "bin/$p" 2>&1)"
+    if [ -n "$SHARED_EMIT" ] && [[ "$EMIT_DIR_PLANES" == *" $p "* ]]; then
+        out="$(cd "$PROJECT_ROOT" && python3 "bin/$p" --emit-dir "$SHARED_EMIT" 2>&1)"
+    else
+        out="$(cd "$PROJECT_ROOT" && python3 "bin/$p" 2>&1)"
+    fi
     rc=$?
     ran=$((ran + 1))
     if [ "$rc" -eq 0 ]; then
