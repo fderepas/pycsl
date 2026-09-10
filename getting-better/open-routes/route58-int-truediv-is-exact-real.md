@@ -163,3 +163,37 @@ OPEN. Reproduction above, live at the tree with #53 landed. Repair scoped (make 
 one uninterpreted deterministic symbol, exactly as #53 did) but its L3 corpus cost is
 UNMEASURED — the `5 / 2` shape appears in the corpus and each occurrence must be found and
 re-stated, which is the real work here.
+
+---
+
+## IS THERE A THIRD PATH? MEASURED, AND THE ANSWER IS NO (gen #4, 2026-09-10)
+
+#58 exists because #53's repair guards on BOTH operands being float, so `1 / 3` — two INTS
+— took a different bridge. The obvious next question, and the one the generator that found
+#58 demands be asked: **#53 covers float⊗float and #58 covers int⊗int, so what covers
+MIXED?** If mixed operands reached a third bridge, that bridge would still be dividing over
+the exact reals and the route would be open for a third time.
+
+MEASURED:
+
+  `1.0 / 3  > 0.3333333333333333`   ->  emission dies: "This expression has type real,
+                                        but is expected to have type int"
+  `1 / 3.0  > 0.3333333333333333`   ->  identical type error
+  `1.0 + 2`  (a plain mixed ADD)    ->  identical type error
+
+CONTROLS, which are what make the above meaningful rather than a broken probe:
+
+  `1.0 / 3.0 > 0.3333333333333333`  ->  reaches the prover and FAILS CLOSED (#53 holding)
+  `1 / 3     > 0.3333333333333333`  ->  reaches the prover and FAILS CLOSED (#58 holding)
+
+**THERE IS NO THIRD PATH BECAUSE THE MIXED PATH DOES NOT TYPE-CHECK AT ALL**, and not only
+for division — a mixed `+` dies the same way. Python promotes int to float silently and
+constantly, so this is a real COMPLETENESS gap in the subset; here it happens to be what
+makes #53 and #58 jointly exhaustive over everything reachable.
+
+**CERTIFIED BOUNDARY, AND FRAGILE FOR THE USUAL REASON.** It is a Why3 TYPE ACCIDENT, not a
+guard. **REOPENING CAPABILITY:** whoever implements int→float promotion — an obvious and
+desirable completeness fix — reopens routes #53 and #58 in the same commit unless the
+promoted operand is routed through the SAME uninterpreted deterministic float symbol #53
+installed. That is the check to run against any such change, and it is cheap: re-run
+witnesses 1117-1124 plus the two mixed shapes above.
