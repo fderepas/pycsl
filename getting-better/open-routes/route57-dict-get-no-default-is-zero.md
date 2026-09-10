@@ -105,3 +105,45 @@ opaques (route #50's `pycsl_none_str` already exists for `string`).
 **COST NOT YET MEASURED.** `.get` is used heavily by the emitter itself, so this is very
 unlikely to be byte-inert on the mirror and will probably owe mirror re-proofs. That
 measurement is the next step and it must not be skipped.
+
+---
+
+## THE NON-SCALAR CODOMAINS ARE NOW MEASURED (gen #4, 2026-09-10)
+
+The landed repair deliberately left `hval` / `seq` / `map` / `array` / `emit_ir` on the old
+`_dv_missing_default` placeholder, with the honest note that "they were NOT measured, and
+route #56's lesson is that a carrier must be measured rather than assumed". That sentence
+was the whole reason to probe them. **They are measured now, and they FAIL CLOSED.**
+
+Probes run (each a `# pycsl-expected: FAIL` shape whose contract is FALSE of the program):
+
+  * `Dict[int, List[int]]`, missing key, via `len(d.get(5)) == 0` — Python `len(None)`
+    RAISES. Emission dies: *"This expression has type seq.Seq.seq int, but is expected to
+    have type int"*.
+  * the same through a declared local `v: List[int] = d.get(5)`, then `len(v) == 0`, and
+    again through `v[0] == 0`. Same type error, same place.
+  * `Dict[int, Dict[int, int]]`, missing key, via `v[2] == 0` — *"This expression has type
+    int -> option.Option.option int"*.
+
+**THE CONTROL IS WHAT MAKES THIS PRECISE, AND IT MOVES THE BOUNDARY OFF `.get` ENTIRELY.**
+A plain SUBSCRIPT on the same type — `v: List[int] = d[1]; return v[0]`, with no `.get`
+anywhere — fails with the IDENTICAL type error. So this is not a property of the `.get`
+lowering at all: **a dict whose VALUE type is non-scalar is not readable from corpus Python
+in the first place.** The placeholder those codomains carry cannot be reached from source,
+which is why leaving it in place was harmless — but the reason is not the one the note
+guessed.
+
+**CLASSIFICATION: CERTIFIED BOUNDARY, and a FRAGILE one.** It is a Why3 TYPE ACCIDENT, not
+a guard — and this campaign has already paid for that distinction twice (route #56 was
+confined to the `int` carrier by exactly such an accident, and route #57 exists because
+`.get` picks its sentinel from the codomain and so has NO such accident). A `SAFE-TYPED`
+verdict is not protection.
+
+**REOPENING CAPABILITY — the condition to watch, stated so it can be checked mechanically:**
+the moment `Dict[K, V]` with a non-scalar `V` becomes READABLE (subscript or `.get`) without
+a Why3 type error, every one of these codomains inherits route #57's original defect
+immediately, because `_dv_missing_default` still answers them with a total placeholder
+(`(Seq.empty: seq int)`, `(const (None: option ...))`, `(HInt 0)`, `(IrOther "")`) where
+Python answers `None`. Anyone who lifts that type limitation MUST route the one-argument
+`.get` arm through an opaque for the new codomain in the same change, exactly as the
+`int`/`str` arms already are.
