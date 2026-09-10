@@ -62,7 +62,12 @@ def signatures(path, skip_trusted=False):
         while i >= 0 and (src[i].strip().startswith("#")
                           or src[i].strip().startswith("@")
                           or src[i].strip() == ""):
-            if "\\trusted" in src[i]:
+            # THE DIRECTIVE, NOT A PROSE MENTION (gen #4) — same repair as in
+            # check-self-annotate-mirror-sync.py, same defect, same 46 functions. A
+            # justification comment that merely NAMES the marker used to make this
+            # plane treat a converted, emitted-and-proved method as an
+            # intentionally-divergent stub and skip it.
+            if src[i].strip().startswith("#@") and "\\trusted" in src[i]:
                 return True
             i -= 1
         return False

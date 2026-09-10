@@ -178,7 +178,12 @@ def main():
                 if not isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     continue
                 blk = directive_block(lines, n.lineno)
-                if not any("\\trusted" in b for b in blk):
+                # THE DIRECTIVE, NOT A PROSE MENTION (gen #4). The polarity here is the
+                # SAFE one — a prose mention ADDS a converted method to the audited
+                # `\\trusted` population rather than hiding one — but it still
+                # mis-reports which stubs are assumed and can move the MAX_SILENT
+                # ratchet for a reason that is not about trust at all.
+                if not any(b.strip().startswith("#@") and "\\trusted" in b for b in blk):
                     continue
                 if n.name not in raising:
                     continue

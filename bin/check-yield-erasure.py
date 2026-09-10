@@ -88,7 +88,10 @@ def _is_trusted(lines, fn) -> bool:
         st = lines[i].strip()
         if not (st.startswith("#") or st.startswith("@") or st == ""):
             return False
-        if "\\trusted" in st:
+        # THE DIRECTIVE, NOT A PROSE MENTION (gen #4). Skipping on a prose mention
+        # hid 46 mirror functions from this plane; the polarity here is the dangerous
+        # one (a `continue`), so every one of them was UNCHECKED for yield erasure.
+        if st.startswith("#@") and "\\trusted" in st:
             return True
         i -= 1
     return False
