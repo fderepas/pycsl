@@ -139,6 +139,11 @@ def collect_generators():
                     v, z = _own_yields(n)
                     if v or z:
                         out.append((rel, (cls + "." if cls else "") + n.name, n.name, v, z))
+                else:
+                    # DESCEND THROUGH COMPOUND STATEMENTS (gen #4): a generator nested inside
+                    # a `try:` / `if:` / `with:` body was invisible to this plane entirely.
+                    for sub in ("body", "orelse", "finalbody", "handlers"):
+                        walk(getattr(n, sub, []) or [], cls)
         walk(tree.body, None)
     return out
 

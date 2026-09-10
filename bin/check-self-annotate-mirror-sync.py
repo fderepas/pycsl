@@ -164,6 +164,20 @@ def methods(path):
                 _walk(child, qn + ".")        # nested closures
             elif isinstance(child, ast.ClassDef):
                 _walk(child, prefix + child.name + ".")
+            else:
+                # DESCEND THROUGH COMPOUND STATEMENTS (gen #4). This recursion used to stop
+                # at anything that was not a `def` or a `class`, so a closure nested inside a
+                # `try:` / `if:` / `with:` / `for:` body was INVISIBLE to this plane — which
+                # contradicts this function's own docstring, that promises the pycsl.py driver
+                # functions "and their nested closures". Found by cross-checking the plane's
+                # trusted-function count (455) against the authoritative marker count from
+                # bin/count-trusted-directives.py (457, all attached): the two missing were
+                # `_is_false_goal` and `_gate_vacuity_then_succeed`, both closures inside a
+                # `try:` in pycsl.py. Both happen to be `\trusted`, so nothing was being
+                # mis-verified today — but a NON-trusted closure added inside any compound
+                # statement would have been silently exempt from verbatim checking, and the
+                # prefix is kept unchanged here so qualified names are unaffected.
+                _walk(child, prefix)
 
     _walk(tree, "")
     return out

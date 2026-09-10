@@ -89,6 +89,14 @@ def signatures(path, skip_trusted=False):
             elif isinstance(child, ast.ClassDef):
                 out.add(("class", f"{prefix}{child.name}", 0))
                 walk(child, prefix=f"{prefix}{child.name}.")
+            else:
+                # DESCEND THROUGH COMPOUND STATEMENTS (gen #4), same repair as in
+                # check-self-annotate-mirror-sync.py: a `def` nested inside a `try:` / `if:` /
+                # `with:` / `for:` body was invisible to this walk. Both sides are walked the
+                # same way so it produced no FALSE drift, only silent lost coverage.
+                for sub in ("body", "orelse", "finalbody", "handlers"):
+                    for item in getattr(child, sub, []) or []:
+                        walk(item, prefix=prefix)
     walk(tree)
     return out
 
