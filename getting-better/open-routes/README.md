@@ -505,3 +505,30 @@ logic.** #44/#50/#51/#56/#57 are `None` and sentinels; #53/#58 are floats as exa
 
 That is a useful place to point the next generation: **probe representations, not the
 proof engine.** The engine has now been measured and it holds.
+
+---
+
+## NESTED CONTAINERS AND TUPLES (gen #4) — PROBED, NO FINDING
+
+Closing out the "still unprobed" list rather than leaving it to look like an opportunity.
+
+    NESTED CONTAINERS — a list inside a list, mutated through the inner binding:
+      a = [1];  outer = [a];  a[0] = 9;  return outer[0][0]      CPython: 9
+      -> emission TYPE ERROR, both directions.
+
+    Consistent with the boundary already recorded on route #57: a container whose ELEMENT
+    or VALUE type is itself a container does not lower. Fails closed, by the same TYPE
+    ACCIDENT, and it inherits the same reopening capability — if nested containers are ever
+    given a lowering, the R1 "storing a list in a dict and keeping the original" case from
+    `docs/pycsl-ownership-discipline.md` §2 becomes reachable and must be re-probed.
+
+    TUPLES:
+      `a, b = (1, 2);  return a + b`  with `#@ ensures \result == 3`   ->  **PROVES**
+
+    **AND A CORRECTION TO MY OWN FIRST ATTEMPT**, recorded because the failure mode is
+    easy to misread as a finding: annotating the tuple LOCAL (`t: Tuple[int, int] = (1, 2)`)
+    produces a type error. That is an unsupported LOCAL ANNOTATION, not a tuple defect —
+    unpacking itself is fine. A probe that dies on emission has to be re-run in a second
+    spelling before its failure means anything about the semantics.
+
+**DO NOT RE-PROBE THESE.**
