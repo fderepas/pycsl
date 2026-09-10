@@ -366,3 +366,22 @@ which sits with the already-recorded `2 ** -1 == 0`: exponentiation is opaque ou
 simple positive cases. Safe direction, no route.
 
 **DO NOT RE-PROBE THESE NINE.**
+
+---
+
+## TYPE-CONFUSION AND KEY-HASHING PROBES (gen #4) — PROBED, NO FINDING
+
+PyCSL coerces string literals to ints via `stable_hash` in several lowering paths, so
+type confusion and key collision are the natural places to look for a route. Both
+directions on each.
+
+    1 == "1"                       FALSE of the program  ->  fails closed
+    len({"a": 1, "b": 2}) == 2     TRUE                  ->  **PROVES**
+    len({"a": 1, "b": 2}) == 1     FALSE                 ->  fails
+    {"a": 1, "b": 2}["a"] == 2     FALSE (it is 1)       ->  fails
+
+**Two distinct string keys are genuinely DISTINCT in the model** — the true twin proves, so
+this is modelled rather than merely refused, and there is no hash-collision route here.
+Cross-type `int == str` fails closed.
+
+**DO NOT RE-PROBE THESE FOUR.**
