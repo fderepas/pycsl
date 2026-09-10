@@ -569,3 +569,59 @@ inside an `if`/`for`/`while`/`try` after the store is not seen, so that narrower
 answered rather than refused. An UNDER-refusal is the safe direction for a repair (it never
 rejects a sound program) but it leaves part of the carrier open, and that must be said out
 loud rather than discovered later.
+
+## A SEVENTH CARRIER, FOUND BY PROBING THE SIXTH CARRIER'S PLANNED REPAIR (gen #5)
+
+**ONE LOCAL DICT STORED INTO TWO FIELDS.** Witness `1132_route59_one_local_two_fields.py`.
+
+    p: Dict[int,int] = {1: 1}
+    self.d = p
+    self.e = p
+    self.d[1] = 2
+    return self.e[1]          # CPython answers 2;  `\result == 1` **PROVES**
+
+BOTH DIRECTIONS MEASURED and STABLE over repeated runs: the FALSE claim (`== 1`) proves
+Valid in 0.01s; the TRUE twin (`== 2`) is Unknown. Unsound in the SILENT direction, like
+every other carrier of this route.
+
+**THE EMITTED WhyML STATES THE MECHANISM OUTRIGHT** — this is the clearest evidence the
+route has produced:
+
+    type c = { mutable d: map int (option int); mutable e: map int (option int) }
+    ...
+    self.d <- !p;                             (* copy #1 of a PURE value *)
+    self.e <- !p;                             (* copy #2, independent    *)
+    self.d <- map_update_some self.d 1 2;     (* rebuilds ONLY self.d    *)
+    Map.get self.e 1                          (* = Some 1                *)
+
+A dict field is a PURE `map`. Storing one local into two fields makes two independent
+values, and a store through one field cannot be seen through the other.
+
+**WHY THIS MATTERS FOR THE SIXTH CARRIER'S REPAIR — READ BEFORE BUILDING IT.** The repair
+scoped in the section above watches for the stored LOCAL being mutated afterwards
+(`self.d = p` ... `p[1] = 2`). **That guard does not fire here**: `p` is never touched
+again. The mutation is a FIELD subscript store and the read is through a DIFFERENT FIELD.
+So the planned sixth-carrier repair would close carrier 6 and leave carrier 7 wide open.
+The hazard is not "the local is mutated later" — it is that **a field store COPIES, so any
+two names for one dict diverge**, whichever name is written through.
+
+**THE DIRECT FIELD-TO-FIELD SPELLING IS SAFE, MEASURED.** `self.d = {1:1}; self.e = self.d;
+self.d[1] = 2; return self.e[1]` is Unknown in BOTH directions — undecided, not proven. So
+carrier 7 needs the intermediate local; that is what makes it a distinct shape rather than
+a restatement of the field store.
+
+## THE DICT/LIST ASYMMETRY NOW HAS ITS MECHANISM NAMED (gen #5)
+
+The LIST twin of the field store — `p: List[int] = [1]; self.l = p; p[0] = 2;
+return self.l[0]` — **FAILS CLOSED, and the reason is WHY3'S OWN REGION TYPING**, not
+anything PyCSL does:
+
+    This expression prohibits further usage of the variable p or any function that
+    depends on it
+
+A list lowers to an `array`, which is REGION-TYPED, so Why3's alias discipline REFUSES the
+aliasing store outright. A dict lowers to a pure `map`, which has no region, so the same
+aliasing store is silently a copy. **That is the whole of the dict/list asymmetry**, and it
+predicts the shape of every future carrier: the route can only live where the value model is
+a pure Why3 value. It also explains why lists have been correct in every carrier probed
+without anyone having written a list-aliasing guard — Why3 was doing it.

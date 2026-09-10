@@ -25,3 +25,13 @@ that lists — which are CORRECT today — had been broken to get there.
 If a repair lands that covers only four, land 1125-1128 and 1131 and hold 1129/1130 until
 the generalisation, so the suite stays green and the two open carriers stay visible in the
 route file rather than as a red test nobody can act on.
+
+## ADDED gen #5 — AN EIGHTH DRIVER, 1132
+
+    1132  one_local_two_fields        p = {1:1}; self.d = p; self.e = p;
+                                      self.d[1] = 2; read self.e[1]      **NOT COVERED**
+
+Found by probing the SIXTH carrier's planned repair before building it. That repair watches
+for the stored local being mutated afterwards; here the local is never touched again, so the
+guard would not fire. Hold it with 1129/1130 until a repair covers the field store as a
+COPY (whichever name is written through), not merely as a later-mutated local.
