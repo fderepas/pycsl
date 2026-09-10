@@ -73,6 +73,29 @@
 #   and a dict aliased ACROSS a function boundary in the other direction (caller mutates,
 #   callee reads).**
 #
+#
+# ## THE LANDING PLAN FOR THE NEXT RELAUNCH — BOTH STAGED PATCHES, MEASURED TO COMPOSE
+#
+#   Verified at HEAD: **each patch applies cleanly, and they apply TOGETHER with no
+#   overlap.** They touch disjoint files:
+#
+#     staged-L1        mirror expressions.py, mirror stmt_control_flow.py
+#     staged-route59   LIVE statements.py, mirror statements.py
+#
+#   **COMBINED THEY OWE EXACTLY FOUR WHOLE-FILE MIRROR RE-PROOFS** — expressions.py,
+#   stmt_control_flow.py, statements.py, and Module6_WhyMLTranspiler.py (the caller whose
+#   VCs move once `_handle_assign_stmt` declares it can raise). **Four is precisely this
+#   box's measured ceiling**, so land both, launch all four, and start NOTHING else —
+#   no suite, no `--slow` battery, no plane emission — until they report. Gen #3 lost work
+#   to exactly that over-subscription.
+#
+#   Expected after landing both: fidelity **0 divergences over 887**, all 18 planes GREEN
+#   for the first time in this campaign, metric **457 -> 458**. Route #59 goes from OPEN to
+#   PARTIALLY REPAIRED (alias carriers closed, the RETURN carrier still open).
+#
+#   **CHECK LIVENESS BY CPU, NOT BY LOG MTIME.** `w51g2_expressions` went four hours
+#   without writing a log line and finished rc=0; killing it as hung would have thrown
+#   away six hours. `ps -eo etime,time,pcpu,rss` on the `why3` children is the real signal.
 # ===================================================================================
 #
 #
