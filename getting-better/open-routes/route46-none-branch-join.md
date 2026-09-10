@@ -1,7 +1,41 @@
+# ROUTE #46 — **CLOSED 2026-09-08 by relaunch #49, commit `5f57a95d`** ("ROUTES #46 AND
+# #50 — the erased-locals record could not carry a path fact, and Optional[str] was
+# modelled as never-None"). Witnesses `1089`, `1090`, `1091` are in the corpus.
+#
+# THE ERASED-LOCALS RECORD WAS FLOW-INSENSITIVE AND A BRANCH WALKED PAST IT
+# (it carried TWO routes' facts: route #44's `None` and route #45's NaN)
+#
+# ## THIS FILE WAS STALE FOR TWO DAYS AND SAID "NOT CLOSED" THE WHOLE TIME
+#
+# The closure landed on 2026-09-08 and neither this file nor `open-routes/README.md` was
+# updated, so the ledger still advertised #46 as the campaign's last OPEN route. Relaunch
+# #51 generation #3 caught it on 2026-09-10 by running the FRESHNESS PRECONDITION before
+# building — re-reproduce at HEAD, never inherit a status line — and found both
+# reproducers already dead. **RE-MEASURE, NEVER INHERIT.** This is the third stale entry
+# this window (#56 and #57 were the others), and each one would have cost the next
+# relaunch a re-derivation of work already done.
+#
+# ## VERIFIED AT HEAD (`cf35437f`, 2026-09-10), BOTH HALVES AND FOUR VARIANTS
+#
+#     j1   the `None` join, `if x == 0` after the branches      FAILS CLOSED
+#     j2   the NaN join, `if x == x` after the branches         REFUSED outright, with a
+#          diagnostic naming the exact measured leak and offering two ways to write it
+#     v2   the same `None` join with the BRANCHES SWAPPED       FAILS CLOSED
+#     v3   ARITHMETIC on the joined `None` (Python raises)      FAILS CLOSED
+#     v4   the `else` branch binding a `bool` rather than int   FAILS CLOSED
+#     v1   `if not x:` — TRUE of the program (f(1) == 7)        STILL PROVES
+#
+# v1 is the one that matters for judging the repair: the route is closed WITHOUT the
+# model losing the true truthiness fact, so this is a fail-closed fix and not a refusal
+# blanket. `scratchpad/w51g3/r46/`.
+#
+# ===================== the original report follows, unchanged ====================
+#
 # OPEN ROUTE #46 — THE ERASED-LOCALS RECORD IS FLOW-INSENSITIVE, AND A BRANCH WALKS PAST IT
 # (it now carries TWO route's facts: route #44's `None` and route #45's NaN)
 
 **Found 2026-09-08 by relaunch #48 while closing route #44, at commit `c9bb23b2`.
+Its status line as written then — superseded by the header above:
 NOT CLOSED — the residue is measured, and the obvious repair was BUILT and REFUTED.**
 
 ## The demonstration (default `hoare` model, no flags, Python run to confirm)

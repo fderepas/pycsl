@@ -1,6 +1,19 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: ONE — #46.
+## CURRENTLY OPEN: **NONE.** Every route in this ledger is CLOSED at `cf35437f`.
+##
+##   #46 was the last entry still advertised as open, and it had ALREADY been closed on
+##   2026-09-08 by `5f57a95d` (witnesses 1089-1091); only this file was stale. Verified
+##   at HEAD by re-reproducing both halves plus four variants — see its file.
+##   THREE STALE ENTRIES WERE CORRECTED IN ONE WINDOW (#56, #57, #46). The rule that
+##   catches them costs one command: RE-REPRODUCE AT HEAD BEFORE BUILDING, never inherit
+##   a status line.
+##
+##   An empty OPEN list is NOT a floor — it means the hunt must now GENERATE candidates
+##   rather than work a queue. The two productive generators this window: probe every
+##   CARRIER of a closed route (that is how #56's bool carrier and #57 were found), and
+##   probe every OTHER CODE PATH that reaches the same semantics as a repair just landed
+##   (that is how #58 was found, one hour after #53 closed).
 ##   (#53, #56 and #57 were CLOSED AND LANDED by relaunch #51 on 2026-09-10; their
 ##    entries below are kept as the record of how, and are marked CLOSED in place.
 ##    #58 was found by probing #53's OWN REPAIR for the gap it leaves.)
@@ -52,11 +65,13 @@
     (IEEE-true SIGN clauses) is REFUTED for `*`: the clauses meet at `a = 0.0` and decide
     `r = 0.0`, but Python's `0.0 * float("inf")` is `nan`.
 
-  * **`route46-none-branch-join.md`** — route #44's `None` record is flow-insensitive, so
-    a `None` bound in ONE branch of an `if` and something else in the other walks past it.
-    The obvious repair (a STICKY record) was BUILT and REFUTED TWICE, both times measured;
-    read that section before re-attempting it. IT CARRIES TWO ROUTES' FACTS — route
-    #45's NaN record leaks through the same join, so ONE join build closes both.
+  * **`route46-none-branch-join.md`** — **CLOSED `5f57a95d`** (relaunch #49, 2026-09-08;
+    the ledger did not record it until 2026-09-10). The route as found: route #44's
+    `None` record is flow-insensitive, so a `None` bound in ONE branch of an `if` and
+    something else in the other walked past it, and route #45's NaN record leaked through
+    the same join. Verified dead at HEAD across both halves and four variants, with the
+    TRUE truthiness fact still provable — a fail-closed fix, not a refusal blanket.
+    Witnesses 1089-1091.
 
 ### THE FAMILY #44 / #56 / #57 SHARE, AND THE RULE FOR TELLING IT FROM A HARMLESS TWIN
 
