@@ -1,3 +1,121 @@
+# ===================== START HERE — #49/#51 (gen #3, 2026-09-10 08:30 UTC) =======
+#
+# ## WHAT THIS GENERATION DID — THREE ITEMS, ALL LANDED AND ALL MEASURED
+#
+#   **ROUTE #53 CLOSED (`adf2eda5`).** A Python `float` was modelled as the EXACT real,
+#   so `0.1 + 0.2 == 0.3` PROVED. The bridge carried `ensures { result = (a +. b) }` and
+#   the SPEC path did not use the bridge at all — it emitted `(left +. right)` outright.
+#   Both are now ONE UNINTERPRETED DETERMINISTIC symbol used by spec and body alike.
+#   Uninterpreted stops any exact-real value/sign/ordering being decided; DETERMINISTIC
+#   keeps `\result == x + x` provable by congruence (witness 1120 is that control — the
+#   cheap non-deterministic `val` would also have closed the route and would have made
+#   float arithmetic say NOTHING). L3: 2 of 916 corpus emissions, 0 of 53 mirrors.
+#   Whole cost = ONE clause, 0517's `\result >= 0.0`, a COMPLETENESS loss stated in
+#   0517's own docstring. Witnesses 1117-1120.
+#
+#   **ROUTE #58 FOUND AND CLOSED (`cf35437f`)** — found by probing #53's OWN repair for
+#   the gap it leaves. int/int TRUE DIVISION had its own bridge on a DIFFERENT code path
+#   (the float path requires BOTH operands float, so `1 / 3` never reached it) and still
+#   divided over the exact reals: `1 / 3 > 0.3333333333333333` PROVED while Python
+#   answers False, the two being the SAME binary64 value. Closed by FOLDING two int
+#   literals exactly as CPython folds them, rendered through the SAME `repr`
+#   normalization the float-literal leaf uses; every other operand shape is uninterpreted.
+#   **BETTER IN ALL THREE DIRECTIONS, NOT A TRADE:** the unsound orderings fail closed
+#   (1121, 1122), 0813 keeps ALL FIVE clauses, and 1123 — `1 / 3 == 0.3333333333333333`,
+#   TRUE in Python — FAILED at HEAD and now PROVES, so completeness was RECOVERED.
+#
+#   **ROUTE #57's LANDING DEFECT FIXED (`b6186687`) — QUEUE G EARNED ITS KEEP.**
+#   `w51g_expressions` came back rc=1 in ONE MINUTE: a TYPE ERROR, not a timeout.
+#   `_dv_absent_opaque(self, nu: str)` tested `nu in (None, "", "int")`; `nu` is declared
+#   `str`, so the mirror types it as a Why3 `string` and the `None` lowers through the
+#   `None -> "0"` leaf to the INT `0`, emitting `str_eq_op nu 0`. **The expressions
+#   mirror was ILL-TYPED at HEAD from the moment route #57 landed**, and the CORPUS
+#   COULD NOT SEE IT (#57's 910/910 byte-inertness was correctly measured and is still
+#   true). Fixed with the idiom the SIBLING already used — `_dv_missing_default` tests
+#   absence by TRUTHINESS and never mentions `None` — so it now reads
+#   `if not nu or nu == "int"`. Corpus byte-inert 919/919, so behaviour-identical.
+#
+# ## IN FLIGHT — DO NOT RELAUNCH, ALL FOUR VERIFIED ALIVE AT 08:30
+#
+#   `w51g_scf`          (from 07:5x, ~30 min in)   route #57 mover
+#   `w51g_statements`   (from 08:00, ~30 min in)   route #57 mover
+#   `w51g2_expressions` (from 08:21)  THE RELAUNCH after the type fix — it is now past
+#                       the 1-minute failure point, so the fix holds under a real run.
+#   `w51h_cis_trusted`  (from 08:00)  the disposition test, RELAUNCHED at HEAD under
+#                       setsid. **THE PREVIOUS RUN DIED WITHOUT WRITING ITS `.rc`** —
+#                       it was a plain Bash-tool child and went with the worker turn.
+#                       Verdicts -> `$SCRATCH/cis2.rc`, log `cis2.log`.
+#
+#   QUEUE G SO FAR: autotrust rc=0, types rc=0, functions rc=0, preamble rc=0,
+#   expressions rc=1 (the type error, now fixed and relaunched), scf + statements live.
+#
+# ## THE LADDER FOR THE NEXT RELAUNCH
+#
+#   1. **COLLECT** scf, statements, w51g2_expressions and cis2. If `w51g2_expressions`
+#      comes back rc=0, route #57's repair is fully re-proved and the type fix holds.
+#   2. **THE `w51_cis` DISPOSITION.** Hypothesis: marking `_returns_literal_none`
+#      `\trusted` kills all EIGHT termination goals — six are its nested untyped `walk`,
+#      one is itself, and the eighth is `_check_scalar_return_annotation`, which CALLS it
+#      and inherits the failure from the inlined body. If it holds, LAND the marker: the
+#      metric goes 456 -> 457 and **that is the CORRECT direction** — the trust surface
+#      was always that big, only the bookkeeping said otherwise.
+#   3. **LAND THE L1 `_handle_var_expr` RE-SYNC** — built and measured in
+#      `$SCRATCH/wt-l1b` (divergences 2 -> 1, 17 of 18 planes green, no ratchet
+#      movement). STILL BLOCKED until `w51g2_expressions` returns, because a mirror
+#      change to `expressions.py` mid-proof destroys the attribution of route #57's
+#      re-proof — the bisect route #42 cost.
+#   4. **DECIDE `_handle_for_stmt`** — 37 of 99 normalized statements while counted as
+#      VERIFIED. Blocked the same way on `w51g_scf`. Port the missing statements or
+#      re-`\trusted` it and let the metric rise; do not leave it counted as verified.
+#   5. **ROUTE #46** is now the ONLY open route in the ledger. Its obvious repair (a
+#      STICKY record) was BUILT and REFUTED TWICE, both times measured — read that
+#      section before re-attempting. It carries TWO routes' facts: route #45's NaN record
+#      leaks through the same join, so ONE join build closes both.
+#
+# ## PROBED THIS GENERATION WITH NO FINDING — DO NOT RE-PROBE
+#
+#   After #53/#58 landed, the OTHER paths reaching float semantics were swept and ALL
+#   fail closed: float `*`, `-`, `/`, unary negation of a computed float, the SPEC-side
+#   `*` with a literal operand, a float LIST ELEMENT, and a float RECORD FIELD (all with
+#   contracts false of the program). The repair is uniform across carrier, operator and
+#   spec/body context. `scratchpad/w51g3/paths/`.
+#
+# ## LESSONS THIS GENERATION PAID FOR
+#
+#   * **A repair covers the PATH it edits, not the SEMANTICS it means to fix.** Route #58
+#     existed because #53's guard requires BOTH operands float. After closing a route,
+#     probe the other paths that reach the same semantics BEFORE recording it closed.
+#     Routes #50/#51 paid this at `str`; #53 paid it at int/int division.
+#   * **When a route says "fails closed", check WHICH DIRECTION was measured.** #53's
+#     file recorded the float ordering as fails-closed, having measured only the TRUE
+#     direction (`> 0.3`). The FALSE direction (`<= 0.3`) PROVED. Unsound where it
+#     asserts something false, incomplete where it asserts something true — exactly the
+#     wrong way round. Witness 1119.
+#   * **A byte-inert corpus does NOT mean a change is safe.** The mirror is a SECOND
+#     population with a STRICTER type discipline, because the emitter's own code must be
+#     written in the subset it models. Route #57 was correctly measured byte-inert and
+#     still left the expressions mirror ill-typed.
+#   * **Before adding a live emitter helper, check whether the ENCLOSING method is
+#     already `\trusted` in the mirror.** If it is, INLINE — a new live-only function
+#     moves the `check-mirror-coverage` ratchet. My first #58 build added a helper and
+#     that plane went RED within minutes; the same trap the last handoff recorded for
+#     `_dv_absent_opaque`, walked into again. The fix is NEVER to raise the ratchet.
+#   * **RUN `bash bin/run-soundness-planes.sh` AFTER EVERY LANDING** (18 planes, ~2 min).
+#     It is what caught the ratchet above, within minutes rather than within a window.
+#
+# ## STATE
+#
+#   HEAD `cf35437f` · tracked tree CLEAN apart from two long-standing GITLINKS
+#   (`scratchpad/w7/base`, `scratchpad/w8/pre` are registered WORKTREES, not dirt;
+#   they have shown as ` M` for many windows). `src/self-annotate` dirty 0.
+#   METRIC markers 456 · grep-substring 481 · offset 25 · unattached 0 — stable across
+#   3 samples and UNCHANGED all window, the expected shape when the work is routes.
+#   PLANES 17 of 18; the one RED is `check-self-annotate-mirror-sync` at 2 divergences
+#   over 841, PRE-EXISTING and unchanged (items 3 and 4 above are its two halves).
+#   LEDGER 3. Window deadline 1789288757 (~72h left at 08:30).
+#
+# ===================== the earlier blocks follow ============================
+#
 # ===================== START HERE — #51 (FINAL, 2026-09-10 07:17 UTC) ============
 #
 # ## WHAT TO COLLECT FIRST, AND WHERE IT LIVES
