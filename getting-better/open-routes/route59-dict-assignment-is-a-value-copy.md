@@ -106,6 +106,32 @@ Two shapes, and the cheap one may not be available:
 2. REFUSE the aliasing assignment outright, which fails closed and costs only programs that
    alias a dict — the fails-closed direction the campaign prefers when a model is wrong.
 
-**COST NOT MEASURED. Do not land either without the corpus byte-diff and the mirror
-re-proof battery**: dict locals are common in the emitter itself, so option 1 in particular
-is very unlikely to be byte-inert.
+## THE COST IS MEASURED, AND IT IS ZERO ON BOTH GATED POPULATIONS
+
+Scanning for the alias assignment — an `x = y` whose RHS is a dict-typed local, or an
+`x = self.<attr>` whose target is later subscript-stored:
+
+    CORPUS   0 files, 0 sites      (over the whole test-suite corpus)
+    MIRROR   0 files, 0 sites      (over all 53 self-annotate mirrors)
+    LIVE     1 file,  1 site       src/pycsl/module6_whyml/statements.py
+                                   ::_mark_string_seq_locals   `svt = self._seq_value_types`
+
+**So a REFUSAL (option 2) is corpus-byte-inert BY MEASUREMENT, not by construction, and
+owes no mirror re-proof either** — nothing in either gated population performs the
+assignment it would refuse. That is an unusually cheap repair for a soundness route, and
+it is the campaign's preferred direction when a model is known to be wrong.
+
+The single LIVE site is emitter source, not a program the emitter lowers, so a refusal at
+lowering time does not touch it. It matters only for option 1 (make the assignment a real
+reference bind), and only if `_mark_string_seq_locals` is ever mirrored — it is not today.
+
+**WHAT A REFUSAL DOES AND DOES NOT BUY.** It cannot make any currently-failing program
+prove; it converts a WRONG ANSWER into NO ANSWER for programs nobody has written yet. That
+is the whole point — the defect is that the model answers confidently and incorrectly, and
+the corpus being empty of the shape is exactly why it went unnoticed for so long rather
+than a reason to leave it.
+
+**STILL REQUIRED BEFORE LANDING** (the byte-inert-corpus lesson: the mirror is a SECOND,
+stricter population, and route #57 was correctly byte-inert AND ill-typed): run the corpus
+byte-diff and at least a `why3 prove --type-only` on the mirrors, and confirm the emitted
+`.mlw` set is unchanged rather than assuming it from the site count.
