@@ -1,3 +1,49 @@
+# ===================== START HERE — #51 (UPDATED 2026-09-10 07:00 UTC) ===========
+#
+# ## EVERY BATTERY THIS CAMPAIGN WAS WAITING ON HAS REACHED A VERDICT
+#
+#   w49d_statements   rc=0 (4h09)  |  w49d_expressions  rc=0
+#       THE TWO SLOWEST MIRRORS IN THE TREE. Each was killed at 55m in queue B and at
+#       30m in queue C; NEITHER HAD EVER REACHED A VERDICT IN THIS CAMPAIGN. With these
+#       two, ALL SIX owed movers from routes #46/#50 are banked.
+#   w51_scf           rc=0         — the one the handoff said to watch (route #51
+#       reshaped 75 lines of a VERIFIED method and its caller, making a previously
+#       DELETED branch reachable). It proves; that cost was not owed after all.
+#   w51f_m5ir         rc=0         — ROUTE #56's one owed re-proof. The repair HOLDS.
+#   w51_cis           rc=1         — see below. Being worked, not hidden.
+#
+# ## OPERATIONAL — TWO WORKERS WERE LIVE ON THIS BRANCH AND THAT IS RESOLVED
+#
+#   The previous window's session (#50) was still alive alongside this one; its commits
+#   `905e3eab` / `309d8bf4` sit on top of `d3c047aa`. It banked w49d_statements, warned
+#   that its queue E was still armed, and STOOD DOWN. Nothing it armed needs relaunching.
+#   No measurement was contaminated (its last code landing 12:08, #51's first commit
+#   12:51); the only duplication was run 6's verdict, recorded twice.
+#
+# ## w51_cis rc=1 — core_ir_semantic, EIGHT TERMINATION GOALS
+#
+#   It is the FIRST-EVER proof of that file, so this is a first measurement, NOT a
+#   regression. All 8 unproven goals are TERMINATION: 6x `walk`, 1x
+#   `_returns_literal_none`, 1x `_check_scalar_return_annotation` — the last two being
+#   exactly ROUTE #51's two new Module 4 functions.
+#   CAUSE: `walk` is a NESTED recursion over an UNTYPED parameter
+#   (`def _returns_literal_none(body) -> bool:` has no annotation) descending through
+#   `node.values()` and list elements with no well-founded measure. Why3 cannot prove a
+#   structural walk terminates when the thing walked has no type to measure. Timeouts at
+#   30s / 50M+ steps — the prover grinding, not refuting.
+#   Both functions are un-`\trusted` and carry contracts, so they are COUNTED AS VERIFIED
+#   while their termination is unproved — the same shape as the L1 finding below.
+#
+# ## ROUTE #56 IS CLOSED AND LANDED (`b9217158`), RE-PROOF GREEN
+#
+#   A `None` Optional-union LOCAL read back as the carrier's zero. Fixed by answering
+#   route #44's EXISTING `pycsl_none` opaque in the non-Some arm — no new model, no new
+#   axiom, ledger stays 3. Witnesses 1108-1111 all verified against the landed tree.
+#   L3 corpus BYTE-INERT (906/906, 0/0/0); L3 mirror exactly 1 MOVED, and that mover
+#   (`w51f_m5ir`) has since PROVED rc=0.
+#
+# ===================== the earlier #51 block follows ============================
+#
 # ===================== START HERE — #51 (INTERIM, window 5 in progress) =========
 #
 # WRITTEN MID-WINDOW so a cold restart loses nothing. #50's block follows unchanged
