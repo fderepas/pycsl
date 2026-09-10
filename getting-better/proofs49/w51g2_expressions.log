@@ -81465,3 +81465,5 @@ Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp2/.pycsl_3xywgfy3.mlw",
 Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp2/.pycsl_3xywgfy3.mlw", line 4390, characters 15-19: unused variable result
 Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp2/.pycsl_3xywgfy3.mlw", line 4499, characters 23-27: unused variable self
 Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp2/.pycsl_3xywgfy3.mlw", line 4514, characters 19-21: unused variable ir
+
+[+] Verification SUCCESS! All contracts formally proven.
