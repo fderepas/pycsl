@@ -427,6 +427,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _handle_binop(self, node: int, local_refs: int, invariant_ctx: bool=False, subst: int=None) -> str:
         return ""
 
+    # THE CALLEE L1's `_handle_var_expr` RE-SYNC NEEDS. Without a mirror model, Module 6
+    # synthesizes the receiver-less avatar `val self__union_local_read_projection_1
+    # (x0: int) : int` — BOTH SIDES DEFAULTING TO int — and `raise (Return_str !_proj)` is
+    # then ill-typed. `#@ sibling_concrete` is what makes the call route to THIS stub
+    # (typed `-> Optional[str]`) instead of to the synthesized avatar; the stub alone was
+    # tried first and does NOT fix it, because the avatar is synthesized from the CALL
+    # SITE, not from the presence of a same-named method.
+    # FRAME RE-DERIVED FROM THE LIVE BODY, not assumed. A `\trusted` stub's `assigns` is
+    # ASSUMED and never checked, so `\nothing` here would have been a FALSE ASSUMPTION:
+    # the live body writes no `self` field DIRECTLY, but it reaches `_add_abstract_op` and
+    # `_record_default_literal`, whose transitive closure writes `_abstract_ops` and
+    # `_obj_state_written`. Measured across all of `src/pycsl`, not read off this file.
+    #@ sibling_concrete
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns self._abstract_ops, self._obj_state_written
+    def _union_local_read_projection(self, name: str) -> Optional[str]:
+        return None
+
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -1022,6 +1042,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return whyml_ident(name)
         if name in self._record_locals:
             return whyml_ident(name)
+        if name in getattr(self, "_iropt_ir_local_vars", set()):
+            # OPTIONAL-NODE LOCAL (relaunch #11): a VALUE read of an `iropt_ir` carrier
+            # local where an `emit_ir` is required (`_subscript_item`'s `return lower`)
+            # projects through the DEFINED total `iropt_val`. The two positions that must
+            # NOT go through here are handled before ever reaching a Var read: an
+            # `iropt_ir` PAYLOAD SLOT binds the carrier itself (`expressions.
+            # _call_irnode_constructor`), and a carrier-to-carrier chained-assignment alias
+            # copies it (`statements._handle_assign_stmt`) — so an absent optional child is
+            # never turned into a present sentinel node.
+            return f"(iropt_val !{whyml_ident(name)})"
+        if name in getattr(self, "_optional_union_locals", set()):
+            # tool-feature-5 (giants read-projection): a VALUE read of a mutable
+            # Optional-union local `x` (a `ref _union_*`) projects the carrier of its
+            # Some-arm (`match !x with Arm_i_0 _v -> _v | _ -> <sentinel>`) so `x` used as
+            # its underlying τ (a string key, an emit_ir arg) type-checks. The `is None`
+            # guard uses the RAW `!x` (handled in `_handle_binop`); the assignment TARGET
+            # is not a read; so only value reads project. Sentinel picks the carrier's
+            # zero (string "", emit_ir `IrOther ""`, real 0.0, else 0).
+            _proj = self._union_local_read_projection(name)
+            if _proj is not None:
+                return _proj
         # K7 (pyval-chained `.get`, self-tcb-reduction Tier-5): a pyval chain local is
         # `let`-bound IMMUTABLE (single-assignment), so a read is the BARE name — never
         # the `!x` deref (which would type-clash: it is not a ref). Comes before the
