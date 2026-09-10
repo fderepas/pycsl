@@ -451,3 +451,29 @@ already carries a `self._bounded_int` notion and a `bounded_int` first-assign ki
 in the corpus.
 
 **DO NOT RE-PROBE THESE NINE.**
+
+---
+
+## THE CORE MACHINERY: FRAME ENFORCEMENT AND `\old` (gen #4) — PROBED, NO FINDING
+
+Probed because everything else in this campaign leans on it. The `\trusted` ledger, the
+frame-honesty planes and every "the mirror proves its own frame" argument are worth nothing
+if `assigns` is not actually enforced on a VERIFIED method.
+
+    FRAME, write OUTSIDE the declared assigns:
+      `#@ assigns self.x` with a body writing self.x AND self.y   ->  **FAILS**  (caught)
+      `#@ assigns self.x, self.y` with the same body              ->  **PROVES** (control)
+
+    `\old`, in a postcondition:
+      `#@ ensures \old(self.x) == self.x`  after  self.x = self.x + 1   ->  **FAILS**
+      `#@ ensures \old(self.x) + 1 == self.x`  after the same           ->  **PROVES**
+
+**Both are MODELLED, not merely refusing** — each false claim fails AND its true twin
+proves, which is the only pair that distinguishes a working check from a check that always
+says no. A frame lie is caught, and `\old` genuinely captures the PRE-state rather than
+aliasing the post-state.
+
+This is the reassuring result the campaign's own structure depends on, and it is recorded
+here so that "is `assigns` actually enforced?" never has to be re-asked from scratch.
+
+**DO NOT RE-PROBE THESE FOUR.**
