@@ -87,11 +87,31 @@
 #      owed, measured: `core_ir_semantic.mlw` emitted at `adf2eda5` (where the rc=0 was
 #      obtained) and at HEAD is BYTE-IDENTICAL at 2997 lines. **METRIC IS NOW 457.**
 #
-#   4. **RUN THE NINE REMAINING SLOW PLANES, THEN WIRE THEM.** Twelve of the thirty are not in
-#      `run-soundness-planes.sh`. The exclusion is DELIBERATE and right (they self-emit or
-#      drive the prover, minutes each) — they "belong in a DRIVER BATTERY", which is what
-#      the in-flight battery is. Read `$SCRATCH/planes-battery.log`, work any RED, and
-#      consider a `--slow` flag on the collector so the next driver runs them by name.
+#   4. ~~**RUN THE NINE REMAINING SLOW PLANES**~~ **ALL NINE RUN. EIGHT GREEN, ONE RED.**
+#      GREEN: trusted-frame-honesty (0 model-visible frame lies; ratchets 0/1 and 0/94),
+#      computed-rhs-erasure, yield-erasure, untrusted-emitted (864 un-trusted, 848 emitted
+#      as definitions, 0 re-abstracted), swallowed-exceptions, bespoke-model-drift,
+#      internal-crash-free, param-mutator-visibility, and getattr-erasure (which window
+#      #51 had found RED — that stale ratchet is already repaired).
+#      **RED: `check-shadowed-selfcalls`, 15 > allowed 14.** A LOST CONVERSION, NOT an
+#      unsoundness — an unconstrained abstract result over-approximates exactly as a
+#      `\trusted` stub does — but the proof was paid for and no caller sees the body.
+#      BISECTED: 14 (green) at `37403f79`, 15 at `11eb06a0` (that tree + a docs-only
+#      commit), so it is THIS WINDOW's and NOT from gen #3's code. NAMED by diffing the
+#      verbose lists: **`_dv_missing_default`, shadowed by route #57's `_dv_absent_opaque`**,
+#      which ends by returning it. **MY REPAIR WAS BUILT, MEASURED AND REFUTED** — see
+#      `39f00d6f`: renaming so the callee sorts first DID reorder the emission (callee
+#      1248, caller 1317) and the plane STILL said 15 with a byte-identical set, so
+#      ORDERING IS NOT THE CAUSE. Narrowed for the next probe: the mirror has EXACTLY ONE
+#      call site (the other three live ones are inside `\trusted` methods and never reach
+#      emission), concrete sibling application demonstrably works in the SAME file for
+#      `field_label`/`coerce_to_int`/`array_coerce_arg`/`is_float_expr`, and the failing
+#      call is in RETURN position (`raise (Return_str ...)`) — start there.
+#      **DO NOT RE-BASELINE.** The fix is "make the caller see the body", never "raise the
+#      allowance". Still worth WIRING the nine into the collector behind a `--slow` flag:
+#      they cost ~2 min EACH, not the "minutes each ... session-scale" the exclusion
+#      comment implies, so the whole set is ~20 minutes.
+#
 #   5. **ROUTES: ZERO OPEN.** The hunt must now GENERATE candidates. The two generators
 #      that actually produced results here are written at the top of `open-routes/README.md`.
 #
@@ -142,7 +162,7 @@
 #
 # ## STATE
 #
-#   HEAD `d036e101` · tracked tree CLEAN apart from two long-standing GITLINKS
+#   HEAD `39f00d6f` · tracked tree CLEAN apart from two long-standing GITLINKS
 #   (`scratchpad/w7/base`, `scratchpad/w8/pre` are registered WORKTREES, not dirt) and a
 #   0-byte stray `str` in the repo root left by an earlier window. `src/self-annotate` 0.
 #   METRIC markers **457** · grep 482 · offset 25 · unattached 0 — it rose by ONE when
