@@ -280,3 +280,19 @@ carriers this gives the whole comparison, and it is clean:
 OF SIX CARRIERS.** That is the sharpest statement of route #59, and none of it would have
 been visible from probing a single carrier: the very first list probe came back FAITHFUL and
 would have been read as "reference semantics are modelled" had the census stopped there.
+
+## THE RETURN CARRIER'S POPULATION COUNT — ZERO EVERYWHERE
+
+Scanning for "a method whose body returns `self.<attr>` where that attribute is dict/set
+typed": **0 in `src/pycsl`, 0 in the mirror, 0 in the corpus.**
+
+Two consequences, and both matter for whoever extends the repair:
+  * no mirror proof is currently false on account of this carrier — checked, not assumed,
+    because a live instance inside the self-annotation would outrank the route itself;
+  * extending the guard to cover it should be BYTE-INERT on both gated populations, exactly
+    as the alias-carrier repair measured. That does not remove the obligation to MEASURE it
+    — the first build of the alias repair had a clean corpus diff and still killed the
+    mirror.
+
+So both halves of route #59 are, today, defects nobody has tripped. That is the argument
+for fixing them now rather than after someone writes the obvious Python.
