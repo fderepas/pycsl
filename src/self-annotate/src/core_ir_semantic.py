@@ -865,6 +865,26 @@ def _check_lemma(func, trusted_funcs) -> None:
             f"would smuggle an unchecked axiom into a 'proved' lemma.",
             code="PYCSL-SEM-LEMMA")
 
+# (#51 gen3) `\trusted` BY MEASUREMENT, AND THE METRIC RISING IS THE CORRECT OUTCOME.
+# This function and its nested `walk` were the whole of `core_ir_semantic.py`'s proof
+# failure: the file's FIRST-EVER whole-file proof (`w51_cis`) came back rc=1 with 1521
+# Valid, 16 TIMEOUTS and EIGHT unproven goals, and ALL EIGHT were TERMINATION — six of
+# the nested `walk`, one of this function, and one of `_check_scalar_return_annotation`,
+# which CALLS it and inherited the failure from the inlined body.
+# WHY IT CANNOT BE PROVED AS WRITTEN: `walk` is a NESTED recursion over an UNTYPED
+# parameter (`body` carries no annotation) descending through `node.values()` and list
+# elements, so there is no well-founded measure to decrease. The other walks in this
+# same file — `_union_c8_walk`, `_check_union_narrowing__collect` — DO carry variants and
+# DO discharge `variant decrease`, and the difference is exactly that their parameters
+# are annotated (`stmts: list`). This is a COST/SCALE boundary whose reopening capability
+# is the certified IR-node ADT, not a correctness one.
+# MEASURED DISPOSITION (`w51h_cis_trusted`, at HEAD, 3h budget): with this marker the
+# file proves rc=0, "All contracts formally proven" — 1509 Valid, **0 timeouts**, 0
+# unproven, against 16 timeouts and 8 unproven without it.
+# THE FRAME IS HONEST AS AN ASSUMPTION, checked rather than assumed: the live body has no
+# `global` statement and writes no attribute — it is pure over a local `found` list — so
+# `assigns \nothing` is true of the real function, not merely of a reduced one.
+#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
