@@ -1,3 +1,65 @@
+# ============ START HERE — gen #4 FINAL HEADLINE: ROUTE #59 =========================
+#
+# ## THE LEDGER IS NO LONGER EMPTY. ONE OPEN ROUTE, AND ITS REPAIR IS BUILT AND STAGED.
+#
+#   **ROUTE #59 — a dict assignment is a VALUE COPY, so aliased mutation vanishes.**
+#
+#       a: Dict[int,int] = {1: 1};  b = a;  b[1] = 2;  return a[1]
+#       `\result == 1` **PROVES**.  CPython answers **2**.
+#
+#   `b = a` lowers to `let b = ref !a` — a fresh ref over a COPY of a pure Why3 map.
+#   BOTH DIRECTIONS MEASURED (the true twin FAILS), so it is a route, not a gap.
+#   Unsound in the SILENT direction — the FALSE claim proves — which is why no gate
+#   went red and why it survived this long.
+#
+#   **THE LIST CARRIER OF THE IDENTICAL PROGRAM IS CORRECT.** Lists alias through a
+#   shared mutable `array`; dicts copy a pure `map`. The list result alone would have
+#   been a FALSE REASSURANCE — that asymmetry is the whole reason to probe carriers.
+#
+#   CARRIER CENSUS (all both-ways): BROKEN at local->local, SYMMETRIC (mutate either
+#   name, read the other), CHAINS through `a -> b -> c`, and the FIELD carrier
+#   `b = self.d`. SAFE at the CALL carrier — a callee mutating a dict PARAMETER is
+#   undecided, not wrong (and the List equivalent there is fully faithful).
+#
+#   **THE REPAIR IS BUILT, FULLY MEASURED AND STAGED: `getting-better/staged-route59/`.**
+#   It refuses a MUTATED alias only; a read-only rebind stays legal, because without a
+#   store an alias and a copy are indistinguishable. Corpus byte-diff ZERO, mirror moves
+#   exactly 2 files, battery 1/18 RED (the pre-existing one), all 53 mirrors type-clean,
+#   metric unchanged. **IT OWES TWO MIRROR RE-PROOFS** — `statements.py` and its caller
+#   `Module6_WhyMLTranspiler.py`. Sequence and full measurements in that directory's
+#   README. Landing it CLOSES the route.
+#
+# ## THE FOUR THINGS THAT BUILD TAUGHT, AND THEY GENERALISE
+#
+#   1. **A BYTE-INERT CORPUS IS NOT EVIDENCE OF SAFETY.** My first cut refused every dict
+#      rebind. Corpus byte-diff CLEAN; the MIRROR died on a read-only
+#      `rmap = self._module_method_return_types` in `types.py`. Route #57's
+#      second-population lesson, arriving exactly on schedule.
+#   2. **DO NOT ADD A LIVE-ONLY HELPER.** It moved `check-mirror-coverage` 550 -> 552
+#      within minutes. The handoff already warned about this from route #58's first
+#      build AND IT STILL CAUGHT ME. Inline the logic; add no `def`.
+#   3. **DO NOT CHANGE A LIVE SIGNATURE whose mirror stub is `\trusted`** —
+#      `check-mirror-signature-drift` 0 -> 1. Move the code to a method that already has
+#      what it needs.
+#   4. **A `\trusted` STUB WITH NO `#@ raises` ASSERTS ITS LIVE COUNTERPART CANNOT RAISE.**
+#      Adding a `raise` broke `check-trusted-raises-honesty` (70 -> 71 silent). The fix is
+#      to DECLARE `#@ raises`, not to find a quieter place for the raise.
+#
+# ## HOW THE ROUTE WAS FOUND — A GENERATOR THAT WORKS, USE IT AGAIN
+#
+#   Probe a REFERENCE-SEMANTICS construct at every CARRIER, in BOTH directions. Lists
+#   came back faithful; dicts did not. The same sweep also mapped, with no finding:
+#   signed `//` and `%` faithful in ALL FOUR sign quadrants (the highest-yield route
+#   location in any Python verifier — Python floors, C/SMT truncate); string `len`/`==`
+#   modelled while ordering/concat/indexing are opaque both ways; and route #54's
+#   duplicate-key collapse genuinely modelled at `str` and `int` keys.
+#   **Still unprobed and worth it: `set` aliasing, nested dict/list, tuple identity,
+#   and a dict aliased ACROSS a function boundary in the other direction (caller mutates,
+#   callee reads).**
+#
+# ===================================================================================
+#
+#
 # ===================== AMENDMENT — gen #4, later in the same session ================
 #
 # The block below is still accurate; this records what landed AFTER it was written.
