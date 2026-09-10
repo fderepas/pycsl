@@ -113,7 +113,18 @@ BASELINE = 14          # (relaunch #30) RE-BASELINED because the ANALYSIS GOT SH
                        # — a RATCHET, only lower it
 MIRROR_COUNT = 52      # mirrors that emit a .mlw; a smaller population is NOT a pass
 
-_DEF = re.compile(r'^  (?:let rec|let|with) ([A-Za-z_0-9]+)', re.M)
+# THE MODIFIERS ARE NOT THE NAME (gen #4). This captured the first word after
+# `let`/`with`, so `let function foo` recorded the definition's name as "function" and
+# `foo` was never recorded at all. Measured on a 53-mirror emission: 1575 definitions were
+# missing from `defs`, 159 of them carrying the `__` class mangling. A definition missing
+# from `defs` makes `hit` empty, and an empty `hit` takes the
+# `continue  # the callee really is a \trusted stub — expected` branch — so a CONVERTED
+# method emitted as `let function <cls>__<meth>` could never be reported as shadowed,
+# which is the exact verdict this plane exists to produce. `check-untrusted-emitted.py`
+# already spells the modifiers out in its own matcher; this one did not.
+_DEF = re.compile(r"^  (?:let rec|let|with)\s+"
+                  r"(?:function |predicate |lemma |ghost |partial )*"
+                  r"([A-Za-z_0-9']+)", re.M)
 # INSTRUMENT REPAIR (relaunch #30, lesson (bd) again). The pattern was `self__` — TWO
 # underscores — which matches the avatar of a method whose own name starts with `_`
 # (`_deref` -> `val self___deref_1`, `_str_literal_helper` -> `val self__str_literal_helper_1`)

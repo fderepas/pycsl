@@ -60,7 +60,13 @@ def _defs(root):
                 tree = ast.parse(open(p, encoding="utf-8").read())
             except (SyntaxError, UnicodeDecodeError):
                 continue
-            names = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+            # `ast.AsyncFunctionDef` too (gen #4). It was omitted, so an async def counted
+            # as neither live nor mirrored and simply left the coverage census. Measured
+            # today: 0 async defs in src/pycsl and 0 in the mirror, so this changes nothing
+            # now — it is closed because the first `async def` added to the emitter would
+            # have been invisible to the coverage ratchet with nothing to announce it.
+            names = {n.name for n in ast.walk(tree)
+                     if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
             if names or rel not in out:
                 out.setdefault(rel, set()).update(names)
     return out
