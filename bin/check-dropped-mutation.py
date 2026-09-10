@@ -153,6 +153,7 @@ warnings.filterwarnings("ignore", category=SyntaxWarning)
 
 _STMT_LEVEL = ("assert", "assume", "ghost", "loop", "label", "reveal", "unfold", "havoc")
 
+MIN_STATEMENTS = 20000   # true population ~31460; a floor on the INPUT, not a ratchet (gen #4)
 ROOTS = [
     "test-suite/corpus/pycsl-reference",
     "test-suite/corpus/python-reference",
@@ -423,6 +424,22 @@ def main() -> int:
                     counts["DANGLING"] += 1
                     dangling.append((full, line, kinds))
 
+    # ZERO-INPUT / SHRINKING-INPUT GUARD (gen #4, the #44 rule). Every ratchet below is an
+    # UPPER bound, so an EMPTY scan satisfies all of them and this plane printed
+    # "[+] dropped-mutation: OK" with rc=0 — while also advising "lower the constant",
+    # i.e. inviting a ratchet to be TIGHTENED on the basis of nothing at all. The roots are
+    # skipped individually with `if not os.path.isdir(root): continue`, so a moved or
+    # partially-checked-out tree produces exactly that. DEMONSTRATED before it was fixed:
+    # with ROOTS pointed at two nonexistent paths the plane reported 0 statements scanned
+    # and returned 0. True population ~31460 statements; 20000 is a floor well below that
+    # which the corpus only grows past, and it guards the POPULATION rather than any
+    # ratchet TARGET, so it never fights the campaign's own direction.
+    _scanned = sum(counts.values())
+    if _scanned < MIN_STATEMENTS:
+        print("[!] dropped-mutation: REFUSING — only %d statement(s) scanned, expected at "
+              "least %d. The scan roots are missing or the tree is partial. THIS IS A "
+              "REFUSAL, NOT A PASS." % (_scanned, MIN_STATEMENTS))
+        return 2
     print("[*] dropped-mutation: %d statement(s) scanned — "
           "%d HANDLED, %d NORMALIZED, %d REFUSED, %d DROPPED, %d CTXBIND, %d TRYFINAL, "
           "%d DANGLING."

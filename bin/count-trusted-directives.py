@@ -57,6 +57,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIRROR = os.path.join(ROOT, "src/self-annotate/src")
+MIN_MIRROR_FILES = 40   # true population 53; a floor on the INPUT, never on the metric (gen #4)
 
 # A MARKER is a `#@` line whose first token is `\trusted`. Anything else that merely
 # contains the substring is prose.
@@ -123,7 +124,19 @@ def main() -> int:
     attached = 0
     stale = []
 
-    for f in sorted(glob.glob(os.path.join(MIRROR, "**/*.py"), recursive=True)):
+    # ZERO-INPUT GUARD (gen #4, the #44 rule). This plane owns the campaign's HEADLINE
+    # number and had no floor of any kind: a broken glob, a moved MIRROR or a partial
+    # checkout printed "[+] trusted-directives: OK" with `markers 0`, which reads as total
+    # success for a campaign whose whole goal is to drive markers DOWN. The guard is on the
+    # POPULATION (mirror .py files, a stable ~53) and deliberately NOT on the marker count,
+    # because that count is SUPPOSED to fall and a floor there would fight the work.
+    _mirror_files = sorted(glob.glob(os.path.join(MIRROR, "**/*.py"), recursive=True))
+    if len(_mirror_files) < MIN_MIRROR_FILES:
+        print("[!] trusted-directives: REFUSING — only %d mirror .py file(s) found under "
+              "%s, expected at least %d. THIS IS A REFUSAL, NOT A PASS."
+              % (len(_mirror_files), MIRROR, MIN_MIRROR_FILES))
+        sys.exit(2)
+    for f in _mirror_files:
         rel = os.path.relpath(f, MIRROR)
         src = open(f).read()
         lines = src.split("\n")
