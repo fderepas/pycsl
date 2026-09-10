@@ -1,3 +1,71 @@
+# ====== START HERE — gen #4 FINAL STATE (read this block, then the ones below) =======
+#
+# ## WHAT IS TRUE RIGHT NOW
+#
+#   metric   markers **458** · grep 483 · offset 25 · unattached 0
+#   fidelity **1 divergence over 886** (`_handle_var_expr`)
+#   planes   **17 of 18**, the RED being that divergence. `--slow` adds 13 (see below).
+#   ledger   **ONE OPEN ROUTE: #59**, partially repaired.
+#   tree     clean. Two long-standing GITLINKS (`scratchpad/w7/base`, `scratchpad/w8/pre`
+#            are registered WORKTREES) and a 0-byte stray `str` in the repo root are
+#            pre-existing and are NOT dirt.
+#
+# ## WHAT LANDED, AND THE ONE THING THAT DID NOT
+#
+#   **LANDED: staged-route59** (refuse a MUTATED dict alias) and **staged-L1's scf half**
+#   (`_handle_for_stmt` re-`\trusted`, frame RE-DERIVED from the live body and
+#   independently re-checked: it writes 10 self fields, all 10 covered by the declared 25).
+#   That is the metric 457 -> 458 and the fidelity 2 -> 1.
+#
+#   **REVERTED: staged-L1's EXPRESSIONS half. IT IS ILL-TYPED.** `_handle_var_expr`'s
+#   restored block calls `_union_local_read_projection`, **which the mirror does not model
+#   at all**, so Module 6 synthesizes an untyped avatar that defaults to `int` and
+#   `raise (Return_str !_proj)` does not type-check. Adding a `\trusted` stub with the real
+#   `-> Optional[str]` signature was tried and MEASURED — it does NOT fix it. Fixing this
+#   is a real build, not a one-liner, and it is the reason fidelity is 1 rather than 0.
+#
+#   **HOW IT GOT IN, BECAUSE THIS IS THE LESSON OF THE WHOLE WINDOW.** I landed L1 on
+#   fidelity + planes + metric + corpus byte-diff. All were GREEN — including ALL 18
+#   PLANES and a 0-file corpus byte-diff — while the mirror was ill-typed. That is route
+#   #57's landing defect reproduced exactly, by the same worker that had banked the lesson
+#   ("run `why3 prove --type-only` on any mirror edit") four hours earlier and skipped it.
+#
+#   **THE SYSTEMIC FIX IS IN: `bin/check-mirror-type-only.py`**, wired into `--slow` and
+#   into EMIT_DIR_PLANES so it reuses the shared emission (~10s). Demonstrated both ways —
+#   rc=0 on this tree, rc=1 with the ill-typed half re-applied, naming the exact line.
+#   **RUN `bash bin/run-soundness-planes.sh --slow` BEFORE LANDING ANY MIRROR EDIT.**
+#
+# ## IN FLIGHT — THREE RE-PROOFS, LAUNCHED 17:36 ON THE LANDED TREE
+#
+#   `w53b_scf`          owed by L1's scf half
+#   `w53c_statements`   owed by route59's `#@ raises` on `_handle_assign_stmt`
+#   `w53d_transpiler`   owed because it CALLS `_handle_assign_stmt`, so its VCs moved
+#
+#   **THEY ARE UNAFFECTED BY THE EXPRESSIONS REVERT**, checked not assumed: mirrors are
+#   emitted with `--import-path src/pycsl`, so imports resolve against the LIVE emitter and
+#   one mirror file's emission never depends on another's.
+#   `w53a_expressions` is rc=1 and is EXPECTED — it is the ill-typed run described above.
+#   After the revert, expressions.py is byte-identical to the tree `w52d_expressions`
+#   proved rc=0, so **it owes nothing**.
+#
+# ## THE LADDER FOR THE NEXT RELAUNCH
+#
+#   1. **COLLECT** w53b / w53c / w53d. If any fails, that is the honest cost of the landing
+#      and it must be worked, not hidden.
+#   2. **FIX staged-L1's expressions half** — model `_union_local_read_projection` in the
+#      mirror so the avatar is string-typed. The naive `\trusted` stub is already REFUTED,
+#      so start by reading how another `Optional[str]`-returning mirror stub gets its
+#      avatar typed. Gate with `check-mirror-type-only` FIRST, then the whole-file proof.
+#      Landing it takes fidelity to 0 and the battery to 18/18.
+#   3. **GENERALISE THE #59 REPAIR** to the two uncovered carriers (getter-return and
+#      field-store). Already costed at ZERO on both gated populations. That CLOSES the
+#      route; the partial patch that landed does not.
+#   4. **PROBE R3 ACROSS A CALL BOUNDARY** — the one #59 carrier still unmeasured.
+#   5. Then the witnesses in `staged-route59/witnesses/` per their README.
+#
+# ===================================================================================
+#
+#
 # ============ START HERE — gen #4 FINAL HEADLINE: ROUTE #59 =========================
 #
 # ## THE LEDGER IS NO LONGER EMPTY. ONE OPEN ROUTE, AND ITS REPAIR IS BUILT AND STAGED.
