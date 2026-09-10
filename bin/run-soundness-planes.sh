@@ -71,6 +71,41 @@ PLANES=(
 )
 MIN_PLANES=18
 
+# THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
+#
+# These ten self-emit the mirror or drive the prover, so they do not belong in a per-run
+# gate — but "not in the per-run gate" had quietly become "nobody runs them at all", and
+# A SIGNAL NOBODY COLLECTS IS NOT A SIGNAL. The cost was also overstated by the note
+# above: measured on this box they are ~2 minutes EACH and several share the same mirror
+# emission, so the whole set is ~20 minutes, not the "session-scale" the exclusion implied.
+# What that gap cost, concretely: window #51 found `check-getattr-erasure` RED on a stale
+# ratchet, and generation #3 found `check-shadowed-selfcalls` RED at 15 — both had been
+# red at HEAD with nobody looking, which is exactly the failure this script was written
+# to end for the fast set.
+#
+# `check-avatar-frame-parity` and `check-clause-survival` are still NOT here: they REQUIRE
+# an `--emit-dir` argument and so cannot be run bare by this loop. That is a real gap and
+# it is named rather than hidden.
+SLOW_PLANES=(
+    check-getattr-erasure.py
+    check-computed-rhs-erasure.py
+    check-yield-erasure.py
+    check-shadowed-selfcalls.py
+    check-untrusted-emitted.py
+    check-trusted-frame-honesty.py
+    check-swallowed-exceptions.py
+    check-bespoke-model-drift.py
+    check-internal-crash-free.py
+    check-param-mutator-visibility.py
+)
+
+if [ "${1:-}" = "--slow" ] || [ "${PYCSL_SOUNDNESS_PLANES_SLOW:-0}" = "1" ]; then
+    PLANES+=("${SLOW_PLANES[@]}")
+    # The refusal guard scales with the set, or `--slow` would silently weaken it.
+    MIN_PLANES=$((MIN_PLANES + ${#SLOW_PLANES[@]}))
+    echo "[*] soundness-planes: --slow, adding ${#SLOW_PLANES[@]} prover/emission plane(s) (~20 min)"
+fi
+
 ran=0
 failed=()
 echo "[*] soundness-planes: running ${#PLANES[@]} driver-run lower bound(s)"
