@@ -1106,7 +1106,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if nu == "string":
             self._add_abstract_op("val function pycsl_none_str : string")
             return "pycsl_none_str"
-        if nu in (None, "", "int"):
+        # `not nu` rather than `nu in (None, "", "int")`. THE TUPLE FORM MADE THIS FILE'S
+        # OWN MIRROR ILL-TYPED and cost route #57 its `expressions` re-proof: `nu` is
+        # declared `str`, so the mirror types it as a Why3 `string`, and the `None` in the
+        # tuple lowers through the `None -> "0"` leaf to the INT `0` — emitting
+        # `str_eq_op nu 0`, "This expression has type int, but is expected to have type
+        # string". The corpus never saw it (byte-inert), and only the whole-file MIRROR
+        # proof did. The sibling `_dv_missing_default` above already had the typed idiom:
+        # it tests absence by TRUTHINESS (`if nu and nu.startswith(...)`) and never
+        # mentions `None`. Same set — `nu` is only ever None, "" or a type tag.
+        if not nu or nu == "int":
             self._add_abstract_op("val function pycsl_none : int")
             return "pycsl_none"
         return self._dv_missing_default(nu)
