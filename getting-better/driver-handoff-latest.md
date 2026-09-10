@@ -4,7 +4,11 @@
 #
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0
 #   fidelity **ZERO divergences over 887** — the L-plane is GREEN
-#   planes   **ALL 18 GREEN.** `--slow` adds 13 more, incl. the new mirror-type-only.
+#   planes   **ALL 31 GREEN under `--slow` — NOT ONE RED.** That includes the fidelity
+#            plane (RED at HEAD for a long time before this window), `check-shadowed-
+#            selfcalls` (the campaign's named RED, 15 -> 14), and the new
+#            `check-mirror-type-only`. Log: `proofs49/w54b_slow_planes_all_green.log`.
+#            **RUN IT WITH why3 ON PATH** or several planes cannot say anything.
 #   ledger   **ONE OPEN ROUTE: #59 — FIVE of its SIX carriers now REFUSE.**
 #            Closed: local->local, symmetric, chained, field->local, and the GETTER-RETURN
 #            (`m = self.get()`). Open: the FIELD STORE (`self.d = p`, then mutate `p`).
