@@ -1410,17 +1410,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         )
         return lines
 
-    # Still \trusted (bucket 3). Blocker: the body uses f-strings with literal
-    # segments (`f"    try\n{body_code}\n    with Return_void -> () end"`).
-    # pycsl lowers f-string literal segments to hashed INTs (the "f-strings
-    # hash" limitation), so the body's `str_concat` receives an int where a
-    # string is expected → WhyML type error. The typed-schema refactor does not
-    # address this (it's a string-lowering limitation, not an Any-typed dict
-    # blocker). A real postcondition (`ensures \result == "    try\n" ^ body_code
-    # ^ "\n    with Return_void -> () end"`) is expressible in the contract
-    # grammar, but the BODY cannot be verified against it without restructuring
-    # the f-strings into explicit `+` concatenation — which would diverge from
-    # the real source (forbidden by the Phase-C "copy exactly" rule).
+    # THE NOTE THAT USED TO SIT HERE SAID "Still \\trusted (bucket 3)" AND WAS BOTH STALE
+    # AND ACTIVELY HARMFUL (gen #4). Stale, because this method carries no `#@ \\trusted`
+    # directive: it is emitted as a real definition and PROVED. Harmful, because the two
+    # fidelity planes decided "is this an intentionally-divergent stub?" by looking for the
+    # TEXT `\\trusted` anywhere in this block — so the note itself switched verbatim
+    # checking OFF for this method, and the mirror body silently fell FIVE DISPATCH ARMS
+    # behind the live emitter (8 statements against 13: the `option (...)` opttuple arm,
+    # the `pyconst_val` tuple arm, `emit_ir`, `term` and `_union_*`, every one of them
+    # falling through to the generic `Return r -> r`). The body below is now the live
+    # emitter's, verbatim. The planes were repaired in the same window to key on the `#@`
+    # DIRECTIVE rather than on prose, so a comment can no longer disable them.
     #@ requires True
     #@ ensures True
     #@ assigns self._abstract_ops, self._obj_state_written
@@ -1433,6 +1433,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         arity = self._current_tuple_arity
         if return_type == "unit":
             return f"    try\n{body_code}\n    with Return_void -> () end"
+        if return_type.startswith("option ("):
+            # Optional-tuple return: catch the dedicated `Return_opttuple_<arity>`
+            # exception, whose `option (τ...)` payload is handed straight back
+            # (immutable — no materialize). Parallel to the `Return_<arity>` tuple arm.
+            suffix = return_type[len("option "):].replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
+            return f"    try\n{body_code}\n    with Return_opttuple_{suffix} r -> r end"
+        if return_type.startswith("(") and "pyconst_val" in return_type:
+            # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a tuple return with a
+            # `pyconst_val` slot (`_classify_literal_value`'s `(string, pyconst_val, emit_ir)`)
+            # is caught by the DEDICATED payload-typed `Return_tup_<slots>` exception (raised by
+            # `_handle_return_stmt`, declared in the pyconst_val theory), whose tuple payload is
+            # handed straight back. Gated on `pyconst_val in return_type` -> corpus + every other
+            # mirror byte-identical.
+            _suffix = (return_type.replace("(", "").replace(")", "")
+                       .replace(" ", "").replace(",", "_"))
+            return f"    try\n{body_code}\n    with Return_tup_{_suffix} r -> r end"
         if arity > 0:
             return f"    try\n{body_code}\n    with Return_{arity} r -> r end"
         if return_type == "array int":
@@ -1467,6 +1483,24 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # back (no materialize needed — `string` is immutable). Structured so a later
             # `Return_<T>` generalization (real/record) extends this branch.
             return f"    try\n{body_code}\n    with Return_str r -> r end"
+        if return_type == "emit_ir":
+            # Return_emit_ir infra: an emit_ir-returning function (a recursive `_csl_*`-
+            # style dispatcher building/returning a `{"type": K}` IR-node) with an
+            # early/in-loop return raises `Return_emit_ir <emit_ir>`; the catch hands the
+            # node payload straight back (immutable — no materialize needed), the same
+            # shape as the Return_str arm just above.
+            return f"    try\n{body_code}\n    with Return_emit_ir r -> r end"
+        if return_type == "term":
+            # TERM CARRIER (L13): a `term`-returning method's early/in-loop return is caught
+            # by its dedicated `Return_term`; immutable payload, so no materialize.
+            return f"    try\n{body_code}\n    with Return_term r -> r end"
+        if return_type.startswith("_union_"):
+            # value-model campaign incr5 (primitive c): a synthesized-union (`Optional[X]`)
+            # return with an early/in-loop return is caught by its dedicated
+            # `Return_<variant>` exception (declared in preamble.py; raised by
+            # `_handle_return_stmt`). The payload is the already-injected variant value
+            # (`Arm_N_0 <v>` / `Arm_N_None`), handed straight back — parallel to Return_str.
+            return f"    try\n{body_code}\n    with Return_{return_type} r -> r end"
         return f"    try\n{body_code}\n    with Return r -> r end"
 
     #@ requires True
