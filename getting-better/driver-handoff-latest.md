@@ -1,3 +1,128 @@
+# ===================== AMENDMENT — gen #4, later in the same session ================
+#
+# The block below is still accurate; this records what landed AFTER it was written.
+# TWENTY-NINE COMMITS TOTAL. Metric UNMOVED all generation at markers 457 · grep 482 ·
+# offset 25 · unattached 0 — correct, because every increment was an oracle repair, a
+# fidelity re-sync or a boundary record, and none of those add or remove trust surface.
+#
+# ## THE BATTERY NOW RUNS ALL THIRTY PLANES IN ONE COMMAND, AND IT IS GREEN BUT ONE
+#
+#   `bash bin/run-soundness-planes.sh --slow` — 18 fast + 12 prover/emission planes off
+#   ONE shared mirror emission. **29 green, 1 RED**, and the RED is mirror-sync at the 2
+#   divergences the staged L1 patch repairs. Log: `getting-better/proofs49/
+#   w52b_slow_planes_run1.log`. First time `check-avatar-frame-parity` has EVER been
+#   collected by the loop (it REQUIRES an --emit-dir), and first time
+#   `count-trusted-directives`' stale-marker half has run (stale 0 over 53 matched).
+#
+#   **THE WIRING NEARLY SHIPPED A BUG AND THAT IS THE FINDING.** Two file-naming
+#   conventions exist: five consumers use `replace(os.sep, "_")`, `count-trusted-directives`
+#   used `replace("/", "__")`. Feeding the wrong one is SILENT IN BOTH DIRECTIONS —
+#   measured: yield-erasure reports 0 generators against a true 3 (FALSE GREEN),
+#   computed-rhs 0 against 1 (FALSE GREEN), frame-honesty "RATCHET BROKEN — 48 > 0"
+#   (FALSE RED). Fixed both ways and gated: bare-vs-shared now byte-identical for every
+#   plane runnable both ways.
+#
+# ## THE GUARD SWEEP IS COMPLETE — EVERY PLANE TOUCHED NOW FLOORS ITS *INPUT*
+#
+#   Ratchets bound OUTPUT (upper bounds), so an EMPTY run satisfies them all. Fixed, each
+#   with the refusal DEMONSTRATED firing at rc=2 and normal output byte-identical:
+#     * five planes SELF-BASELINED and returned 0 when their baseline file was missing —
+#       three of them in the per-run battery. Pre-fix, a hidden baseline printed
+#       "[+] baseline written" and rc=0.
+#     * `check-dropped-mutation` (IN the battery) scanned 0 statements, printed OK, AND
+#       advised "lower the constant" — inviting a ratchet to be tightened on nothing.
+#     * `count-trusted-directives`, which owns the headline number, printed OK with
+#       `markers 0`. Its stale half printed "stale: 0" from an EMPTY directory.
+#     * `check-getattr-erasure` (found RED at HEAD in window #51) and
+#       `check-bespoke-model-drift` (whose `gone` list never set a return code) both
+#       passed on an empty population.
+#     * `check-internal-crash-free` counted a TIMEOUT as a clean run — both returned None.
+#       Now listed, counted and refused. Measured: 0 of 1051 today.
+#     * `check-avatar-frame-parity` floored at MIN_AVATARS_SCANNED = 1 against a TRUE 83.
+#       Raised to 60; a truncated 5-mirror emission now REFUSES where it used to PASS.
+#   **GUARDS ARE ON THE POPULATION, NEVER ON THE METRIC** — a floor on the marker count
+#   would fight the campaign's own direction, and that is written into the comments so a
+#   later window does not "helpfully" convert them into ratchets.
+#
+#   Also: `check-ir-field-coverage` decided "is this field READ?" by regex over handler
+#   source INCLUDING COMMENTS (measured: 0 fields affected today, closed anyway), and
+#   printed "25 class(es) with NO identifiable handler" while ignoring it — a QUARTER of
+#   the IR schema unaudited and able to grow silently, since handler matching is BY NAME.
+#   `unmatched` is now baselined at 25 and ratcheted; a class newly losing its handler
+#   fails and is named.
+#
+# ## TWO CERTIFIED BOUNDARIES, BOTH FROM THE CAMPAIGN'S OWN ROUTE GENERATORS
+#
+#   * **Route #57's non-scalar codomains** (`seq`/`map`/`hval`/`emit_ir`), which #57 left
+#     explicitly UNMEASURED. All fail closed — but the CONTROL moves the boundary off
+#     `.get` entirely: a plain SUBSCRIPT on `Dict[K, List[int]]` fails identically, so a
+#     dict with a non-scalar VALUE type is not readable from corpus Python at all.
+#   * **There is no THIRD float path.** #53 guards both-float, #58 folds both-int, so what
+#     covers MIXED? Nothing needs to: `1.0 / 3`, `1 / 3.0` and even `1.0 + 2` do not
+#     type-check, while both-float and both-int controls reach the prover and fail closed.
+#   * **Route #56's carrier census is complete**: LOCAL was the route; PARAM fails closed
+#     on a type accident (`_union_f_0`); FIELD is COVERED BY #56's OWN REPAIR — the
+#     emission reads `if (self.v = pycsl_none)` against an UNINTERPRETED symbol.
+#   All three are FRAGILE — Why3 type accidents, not guards — and each carries a
+#   mechanically checkable reopening capability in its route file.
+#
+# ## THE TWO LESSONS THAT COST THE MOST
+#
+#   1. **THE OBVIOUS FIX FOR A LOOSE MATCH IS OFTEN LOAD-BEARING.** Anchoring
+#      `check-untrusted-emitted`'s regex with a plain `\b` — exactly what the analysis said
+#      — produced **668 phantom NOT-EMITTED lines**, because the wildcard carries the CLASS
+#      MANGLING. Measure the repair, not only the defect.
+#   2. **A PROVER TIMEOUT ON A NEGATIVE WITNESS CAN BE THE REPAIR WORKING — READ THE
+#      EMISSION.** Route #56's field probe timed out at 22s; trying to prove harder hit a
+#      900-second wall with NO verdict, and reading the emitted `.mlw` settled it in
+#      seconds. The solver was thrashing precisely BECAUSE the answer is an opaque.
+#      A timeout is never to be filed as "fails closed".
+#
+# ## IN FLIGHT
+#
+#   `w51g2_expressions`  the last route-#57 mover, live since 08:21.
+#   `w52c_statements`    **the OWED post-sync re-proof**, launched 13:1x. `w51g_statements`
+#                        rc=0 was collected but proved the PRE-SYNC body (it emitted at
+#                        08:00; the re-sync landed ~11:20), so it does NOT discharge that
+#                        debt — this run does.
+#   `suite49_run8`       still going. Baseline 19 confirmed failures, run 6 was 3232/3251.
+#                        **A NEW NAME is a regression; the count alone is not.**
+#
+# ## STILL OWED
+#
+#   * `expressions.py` whole-file re-proof (the `#@ sibling_concrete` marker moved it; the
+#     live w51g2 run predates the marker and will NOT cover it).
+#   * `statements.py` — w52c is running now.
+#   * the staged L1 patch, and then ITS re-proofs of expressions + stmt_control_flow.
+#
+# ## VERIFIED-BUT-UNFIXED, FOR THE NEXT RELAUNCH — RE-VERIFY EACH BEFORE ACTING
+#
+#   * `doc-coherency.py:191` — `_DISTINCTIVE` counts a directive as documented on a bare
+#     word-boundary match, and contains ordinary English (`proof`, `shared`, `critical`,
+#     `variant`, `trusted`, `requires`, `ensures`). Effectively vacuous for those.
+#     **Left alone deliberately: the reference suite invokes it and a run was live.**
+#   * `check-param-mutator-visibility.py:141` — verdict by grepping pycsl STDOUT; the
+#     `ERROR:` test runs BEFORE the DROPPED test, and DROPPED is the unsound bucket.
+#   * `check-ir-field-coverage.py:72` — `TOO_GENERIC` exempts `value`/`body`/`target` BY
+#     NAME, i.e. the payload-carrying fields (41 field-instances skipped).
+#   * `check-constant-fallthrough.py:140` — baseline keyed on BARE FUNCTION NAME, no file,
+#     no line; and its DECIDING/INERT sets miss literals like `"2"`, `"(-1)"`, `PNone`.
+#   * `check-collapsed-option-reads.py:117` — key is `(filename, literal)`, so once a pair
+#     is classified every later occurrence in that file is accepted unbounded.
+#   * `check-refusal-reachability.py:69` — scope keyed on the `PyCSL` NAME PREFIX, and it
+#     walks only `ast.FunctionDef` (no async, no module-level raise).
+#   * `check-swallowed-exceptions.py:116` — ANY `raise` anywhere in the handler subtree
+#     exonerates it, including inside a nested `def`.
+#   * `check-mirror-coverage.py:63` — flat name sets per file, so class structure is
+#     discarded and `ast.AsyncFunctionDef` is never collected.
+#   * `check-shadowed-selfcalls.py:166` — `hit[0]` off a SET, so with two same-named
+#     definitions in one `.mlw` the reported `concrete` count is nondeterministic.
+#   * NO population guard yet: `check-refusal-reachability`, `check-mirror-field-parity`,
+#     `check-mirror-signature-drift`, `check-untrusted-emitted`, `check-trusted-frame-honesty`.
+#
+# ===================================================================================
+#
+#
 # ===================== START HERE — #49 (gen #4, 2026-09-10) =========================
 #
 # ## THE HEADLINE: THE ONE RED PLANE IS BROKEN, AND THE ORACLES THEMSELVES WERE THE VEIN
