@@ -72,6 +72,41 @@ operands would cover `5 / 2` and miss every non-literal, i.e. it would make the 
 honesty depend on whether the programmer wrote a constant. NOT MEASURED, NOT ATTEMPTED —
 recorded here so the next window does not rediscover the idea and spend the window on it.
 
+
+## THE EXACT SHAPE OF THE DEFECT, MEASURED IN BOTH DIRECTIONS
+
+Probed at the tree with #53 landed (`scratchpad/w51g3/r53/td*.py`):
+
+    td3  literal `1 / 3`, `\result > 0.3333333333333333`      PROVES   <-- FALSE in Python
+    td4  PARAMETERS a==1, b==3, `\result > 0.333...3`          PROVES   <-- FALSE in Python
+    td5  PARAMETERS a==2, b==3, `\result == 0.666...6`         FAILS    <-- TRUE in Python
+    0813 literal `5 / 2 == 2.5` (and 1/2, 7/2, 4/2)             PROVES   <-- TRUE in Python
+
+**td4 IS THE ONE THAT MATTERS.** The route is NOT literal constant-folding: it reaches
+through PARAMETERS, so any contract that puts an ordering on a computed quotient — the
+everyday `#@ ensures \result > 0.5` over `a / b` — is decided over the exact reals.
+
+**td5 SHOWS THE MODEL IS ALREADY INCOMPLETE HERE**, which sharpens what the repair costs.
+The exact-real quotient and the binary64 quotient agree EXACTLY when the quotient is
+REPRESENTABLE. So today's lowering is:
+
+    * SOUND and complete   when the quotient is representable  (0813's four cases)
+    * UNSOUND              on orderings, where exact and binary64 straddle the literal (td3, td4)
+    * already INCOMPLETE   on equalities with a non-representable quotient (td5)
+
+The model cannot tell the three apart, because representability is a property of the VALUE
+and the bridge is declared over all `a b: int` before any value is known.
+
+## MEASURED BLAST RADIUS (emission diff, not source grep)
+
+    corpus emissions containing `float_truediv_op`    2 — 0813 and 0814, and NOTHING else
+    mirror emissions containing `float_truediv_op`    0 — BYTE-INERT
+
+0814 is `# pycsl-expected: FAIL` and stays failing (its claim is a real-vs-int TYPE error,
+which survives any value-level change). So the entire cost sits in 0813, the WL-02 POSITIVE
+regression lock, whose four exact-value clauses a plain uninterpreted bridge would retire.
+The WL-02 property itself stays locked NEGATIVELY by 0814.
+
 ## STATUS
 
 OPEN. Reproduction above, live at the tree with #53 landed. Repair scoped (make the bridge

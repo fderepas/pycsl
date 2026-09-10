@@ -1,0 +1,1055 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/preamble.py'...
+[*] Memory model: hoare
+[*] Imported from 'module6_whyml.identifiers': ['whyml_ident'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 84, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.01s, 23676 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 85, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.01s, 23704 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 82, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.05s, 248208 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 89, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.00s, 6210 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 89, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.00s, 6917 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 88, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 22745 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 92, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.00s, 6214 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 92, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.00s, 7278 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 91, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 23980 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 99, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.00s, 7360 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 95, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 30876 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 126, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.00s, 9774 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 126, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 37589 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 122, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.15s, 514312 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 167, characters 59-73:
+Sub-goal variant decrease of goal slookup'vc.
+Prover result is: Valid (0.01s, 9932 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 178, characters 34-50:
+Sub-goal variant decrease of goal sappend'vc.
+Prover result is: Valid (0.00s, 9906 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 188, characters 68-86:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.00s, 9952 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 189, characters 24-42:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.00s, 10224 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 185, characters 14-85:
+Sub-goal postcondition of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 37492 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 193, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.01s, 35198 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 193, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.05s, 64 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 193, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.08s, 313074 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 212, characters 52-73:
+Sub-goal variant decrease of goal pdict_to_sdict'vc.
+Prover result is: Valid (0.00s, 9906 steps).
+
+File "/home/fabrice/.opam/framac-coq8/share/why3/stdlib/set.mlw", line 538, characters 14-30:
+Sub-goal postcondition of goal eq'refn'vc.
+Prover result is: Valid (0.01s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 259, characters 24-85:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__gtype'vc.
+Prover result is: Valid (0.01s, 15448 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 259, characters 24-85:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__gtype'vc.
+Prover result is: Valid (0.00s, 15300 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 266, characters 24-85:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__gfunc'vc.
+Prover result is: Valid (0.01s, 15448 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 266, characters 24-85:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__gfunc'vc.
+Prover result is: Valid (0.01s, 15300 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 272, characters 78-137:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__gtd'vc.
+Prover result is: Valid (0.00s, 15148 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 273, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__gtd'vc.
+Prover result is: Valid (0.01s, 15420 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 279, characters 84-143:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__gci'vc.
+Prover result is: Valid (0.01s, 15148 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 280, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__gci'vc.
+Prover result is: Valid (0.01s, 15420 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 284, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___class_inv_refs_axiom_func__leaf'vc.
+Prover result is: Valid (0.01s, 5324 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 284, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___class_inv_refs_axiom_func__leaf'vc.
+Prover result is: Valid (0.00s, 5324 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 290, characters 17-80:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__v'vc.
+Prover result is: Valid (0.01s, 5324 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 290, characters 84-148:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__v'vc.
+Prover result is: Valid (0.01s, 56824 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 290, characters 84-148:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__v'vc.
+Prover result is: Valid (0.00s, 5333 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 291, characters 18-83:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__v'vc.
+Prover result is: Valid (0.01s, 56796 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 291, characters 18-83:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__v'vc.
+Prover result is: Valid (0.00s, 5324 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 288, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___class_inv_refs_axiom_func__v'vc.
+Prover result is: Valid (0.01s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 299, characters 8-68:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__dfold'vc.
+Prover result is: Valid (0.02s, 60910 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 299, characters 8-68:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__dfold'vc.
+Prover result is: Valid (0.01s, 5341 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 299, characters 72-139:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__dfold'vc.
+Prover result is: Valid (0.02s, 60904 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 299, characters 72-139:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__dfold'vc.
+Prover result is: Valid (0.01s, 5350 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 295, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___class_inv_refs_axiom_func__dfold'vc.
+Prover result is: Valid (0.01s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 303, characters 18-78:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__lfold'vc.
+Prover result is: Valid (0.02s, 59964 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 303, characters 18-78:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__lfold'vc.
+Prover result is: Valid (0.00s, 5267 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 303, characters 82-146:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__lfold'vc.
+Prover result is: Valid (0.01s, 60033 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 303, characters 82-146:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__lfold'vc.
+Prover result is: Valid (0.01s, 5276 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 301, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___class_inv_refs_axiom_func__lfold'vc.
+Prover result is: Valid (0.01s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 309, characters 114-181:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__tdfold'vc.
+Prover result is: Valid (0.00s, 5271 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 311, characters 11-76:
+Sub-goal variant decrease of goal preambleemissionmixin___class_inv_refs_axiom_func__tdfold'vc.
+Prover result is: Valid (0.02s, 63174 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 311, characters 11-76:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func__tdfold'vc.
+Prover result is: Valid (0.01s, 5393 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 305, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___class_inv_refs_axiom_func__tdfold'vc.
+Prover result is: Valid (0.00s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 318, characters 98-165:
+Sub-goal precondition of goal preambleemissionmixin___class_inv_refs_axiom_func'vc.
+Prover result is: Valid (0.01s, 5333 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 314, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___class_inv_refs_axiom_func'vc.
+Prover result is: Valid (0.01s, 5324 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 327, characters 79-139:
+Sub-goal variant decrease of goal preambleemissionmixin___collect_critical_mutexes__gstmt'vc.
+Prover result is: Valid (0.01s, 15164 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 328, characters 24-84:
+Sub-goal variant decrease of goal preambleemissionmixin___collect_critical_mutexes__gstmt'vc.
+Prover result is: Valid (0.01s, 15436 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 328, characters 24-84:
+Sub-goal variant decrease of goal preambleemissionmixin___collect_critical_mutexes__gstmt'vc.
+Prover result is: Valid (0.01s, 15300 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 334, characters 80-141:
+Sub-goal variant decrease of goal preambleemissionmixin___collect_critical_mutexes__gmutex'vc.
+Prover result is: Valid (0.01s, 15164 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 335, characters 24-85:
+Sub-goal variant decrease of goal preambleemissionmixin___collect_critical_mutexes__gmutex'vc.
+Prover result is: Valid (0.01s, 15436 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 335, characters 24-85:
+Sub-goal variant decrease of goal preambleemissionmixin___collect_critical_mutexes__gmutex'vc.
+Prover result is: Valid (0.01s, 15300 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 338, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___collect_critical_mutexes__leaf'vc.
+Prover result is: Valid (0.01s, 5324 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 349, characters 86-145:
+Sub-goal variant decrease of goal preambleemissionmixin___collect_critical_mutexes__v'vc.
+Prover result is: Valid (0.02s, 56796 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 349, characters 86-145:
+Sub-goal precondition of goal preambleemissionmixin___collect_critical_mutexes__v'vc.
+Prover result is: Valid (0.01s, 5324 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 349, characters 27-85:
+Sub-goal precondition of goal preambleemissionmixin___collect_critical_mutexes__v'vc.
+Prover result is: Valid (0.00s, 5333 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 350, characters 18-76:
+Sub-goal variant decrease of goal preambleemissionmixin___collect_critical_mutexes__v'vc.
+Prover result is: Valid (0.01s, 56796 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 350, characters 18-76:
+Sub-goal precondition of goal preambleemissionmixin___collect_critical_mutexes__v'vc.
+Prover result is: Valid (0.00s, 5324 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 347, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___collect_critical_mutexes__v'vc.
+Prover result is: Valid (0.01s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 358, characters 74-136:
+Sub-goal variant decrease of goal preambleemissionmixin___collect_critical_mutexes__dfold'vc.
+Prover result is: Valid (0.02s, 60876 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 358, characters 74-136:
+Sub-goal precondition of goal preambleemissionmixin___collect_critical_mutexes__dfold'vc.
+Prover result is: Valid (0.00s, 5341 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 358, characters 18-73:
+Sub-goal variant decrease of goal preambleemissionmixin___collect_critical_mutexes__dfold'vc.
+Prover result is: Valid (0.01s, 61091 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 358, characters 18-73:
+Sub-goal precondition of goal preambleemissionmixin___collect_critical_mutexes__dfold'vc.
+Prover result is: Valid (0.00s, 5350 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 354, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___collect_critical_mutexes__dfold'vc.
+Prover result is: Valid (0.01s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 362, characters 89-148:
+Sub-goal variant decrease of goal preambleemissionmixin___collect_critical_mutexes__lfold'vc.
+Prover result is: Valid (0.01s, 60005 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 362, characters 89-148:
+Sub-goal precondition of goal preambleemissionmixin___collect_critical_mutexes__lfold'vc.
+Prover result is: Valid (0.01s, 5267 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 362, characters 33-88:
+Sub-goal variant decrease of goal preambleemissionmixin___collect_critical_mutexes__lfold'vc.
+Prover result is: Valid (0.01s, 61106 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 362, characters 33-88:
+Sub-goal precondition of goal preambleemissionmixin___collect_critical_mutexes__lfold'vc.
+Prover result is: Valid (0.00s, 5276 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 360, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___collect_critical_mutexes__lfold'vc.
+Prover result is: Valid (0.01s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 367, characters 146-205:
+Sub-goal variant decrease of goal preambleemissionmixin___collect_critical_mutexes__ffold'vc.
+Prover result is: Valid (0.02s, 60005 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 367, characters 146-205:
+Sub-goal precondition of goal preambleemissionmixin___collect_critical_mutexes__ffold'vc.
+Prover result is: Valid (0.01s, 5267 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 367, characters 44-121:
+Sub-goal precondition of goal preambleemissionmixin___collect_critical_mutexes__ffold'vc.
+Prover result is: Valid (0.00s, 5293 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 364, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___collect_critical_mutexes__ffold'vc.
+Prover result is: Valid (0.00s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 371, characters 87-168:
+Sub-goal precondition of goal preambleemissionmixin___collect_critical_mutexes'vc.
+Prover result is: Valid (0.00s, 5337 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 369, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___collect_critical_mutexes'vc.
+Prover result is: Valid (0.00s, 5362 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 10600 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 10609 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9693 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9530 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9539 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 8623 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9530 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9539 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 8623 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 8460 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 8469 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 7553 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 10414 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 10423 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9507 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9344 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9353 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.00s, 8437 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9344 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9353 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 8437 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 8274 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 8283 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.00s, 7367 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 10328 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 10337 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9421 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9258 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9267 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 8351 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9258 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9267 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 8351 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 8188 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 8197 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.00s, 7281 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 10142 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 10151 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9235 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9072 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9081 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.00s, 8165 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9072 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 9081 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.00s, 8165 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 8002 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.01s, 8011 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___emit_preamble_helpers'vc.
+Prover result is: Valid (0.00s, 6389 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 497, characters 83-141:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gsvt'vc.
+Prover result is: Valid (0.01s, 15148 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 498, characters 24-82:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gsvt'vc.
+Prover result is: Valid (0.01s, 15420 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 505, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gbody'vc.
+Prover result is: Valid (0.01s, 15432 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 511, characters 79-138:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gstmt'vc.
+Prover result is: Valid (0.00s, 15164 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 512, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gstmt'vc.
+Prover result is: Valid (0.00s, 15436 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 512, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gstmt'vc.
+Prover result is: Valid (0.00s, 15300 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 519, characters 24-82:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gval'vc.
+Prover result is: Valid (0.01s, 15432 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 526, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gtype'vc.
+Prover result is: Valid (0.00s, 15448 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 526, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gtype'vc.
+Prover result is: Valid (0.00s, 15300 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 533, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gname'vc.
+Prover result is: Valid (0.00s, 15448 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 533, characters 24-83:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gname'vc.
+Prover result is: Valid (0.01s, 15300 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 539, characters 73-133:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gsv'vc.
+Prover result is: Valid (0.01s, 15164 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 540, characters 24-84:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gsv'vc.
+Prover result is: Valid (0.01s, 15436 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 540, characters 24-84:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__gsv'vc.
+Prover result is: Valid (0.01s, 15300 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 543, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___func_returns_string_seq__leaf'vc.
+Prover result is: Valid (0.01s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 543, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___func_returns_string_seq__leaf'vc.
+Prover result is: Valid (0.01s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 555, characters 17-76:
+Sub-goal precondition of goal preambleemissionmixin___func_returns_string_seq__v'vc.
+Prover result is: Valid (0.00s, 5324 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 555, characters 80-140:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__v'vc.
+Prover result is: Valid (0.01s, 56824 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 555, characters 80-140:
+Sub-goal precondition of goal preambleemissionmixin___func_returns_string_seq__v'vc.
+Prover result is: Valid (0.01s, 5333 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 556, characters 18-79:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__v'vc.
+Prover result is: Valid (0.01s, 56796 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 556, characters 18-79:
+Sub-goal precondition of goal preambleemissionmixin___func_returns_string_seq__v'vc.
+Prover result is: Valid (0.00s, 5324 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 553, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___func_returns_string_seq__v'vc.
+Prover result is: Valid (0.00s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 564, characters 8-64:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__dfold'vc.
+Prover result is: Valid (0.01s, 60910 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 564, characters 8-64:
+Sub-goal precondition of goal preambleemissionmixin___func_returns_string_seq__dfold'vc.
+Prover result is: Valid (0.00s, 5341 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 564, characters 68-131:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__dfold'vc.
+Prover result is: Valid (0.01s, 60904 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 564, characters 68-131:
+Sub-goal precondition of goal preambleemissionmixin___func_returns_string_seq__dfold'vc.
+Prover result is: Valid (0.00s, 5350 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 560, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___func_returns_string_seq__dfold'vc.
+Prover result is: Valid (0.01s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 568, characters 18-74:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__lfold'vc.
+Prover result is: Valid (0.01s, 59964 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 568, characters 18-74:
+Sub-goal precondition of goal preambleemissionmixin___func_returns_string_seq__lfold'vc.
+Prover result is: Valid (0.00s, 5267 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 568, characters 78-138:
+Sub-goal variant decrease of goal preambleemissionmixin___func_returns_string_seq__lfold'vc.
+Prover result is: Valid (0.01s, 60033 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 568, characters 78-138:
+Sub-goal precondition of goal preambleemissionmixin___func_returns_string_seq__lfold'vc.
+Prover result is: Valid (0.00s, 5276 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 566, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___func_returns_string_seq__lfold'vc.
+Prover result is: Valid (0.00s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 574, characters 97-158:
+Sub-goal precondition of goal preambleemissionmixin___func_returns_string_seq'vc.
+Prover result is: Valid (0.00s, 5247 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 570, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___func_returns_string_seq'vc.
+Prover result is: Valid (0.01s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 586, characters 24-95:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gtype'vc.
+Prover result is: Valid (0.01s, 15448 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 586, characters 24-95:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gtype'vc.
+Prover result is: Valid (0.01s, 15300 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 593, characters 24-95:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gfunc'vc.
+Prover result is: Valid (0.01s, 15448 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 593, characters 24-95:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gfunc'vc.
+Prover result is: Valid (0.01s, 15300 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 600, characters 24-95:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gname'vc.
+Prover result is: Valid (0.00s, 15448 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 600, characters 24-95:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gname'vc.
+Prover result is: Valid (0.00s, 15300 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 606, characters 81-151:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gobj'vc.
+Prover result is: Valid (0.00s, 15164 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 607, characters 24-94:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gobj'vc.
+Prover result is: Valid (0.01s, 15436 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 607, characters 24-94:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gobj'vc.
+Prover result is: Valid (0.01s, 15300 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 613, characters 82-151:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gmg'vc.
+Prover result is: Valid (0.01s, 15148 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 614, characters 24-93:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__gmg'vc.
+Prover result is: Valid (0.01s, 15420 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 620, characters 83-154:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__ginds'vc.
+Prover result is: Valid (0.00s, 15148 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 621, characters 24-95:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__ginds'vc.
+Prover result is: Valid (0.01s, 15420 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 629, characters 11-82:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__ginmg'vc.
+Prover result is: Valid (0.01s, 64820 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 629, characters 11-82:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__ginmg'vc.
+Prover result is: Valid (0.01s, 5407 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 625, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__ginmg'vc.
+Prover result is: Valid (0.01s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 636, characters 103-175:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__leaf'vc.
+Prover result is: Valid (0.00s, 5789 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 637, characters 98-170:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__leaf'vc.
+Prover result is: Valid (0.00s, 5819 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 632, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__leaf'vc.
+Prover result is: Valid (0.01s, 5766 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 641, characters 17-93:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__v'vc.
+Prover result is: Valid (0.00s, 5324 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 641, characters 97-174:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__v'vc.
+Prover result is: Valid (0.01s, 56824 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 641, characters 97-174:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__v'vc.
+Prover result is: Valid (0.00s, 5333 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 642, characters 18-96:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__v'vc.
+Prover result is: Valid (0.01s, 56796 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 642, characters 18-96:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__v'vc.
+Prover result is: Valid (0.00s, 5324 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 639, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__v'vc.
+Prover result is: Valid (0.00s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 650, characters 8-81:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__dfold'vc.
+Prover result is: Valid (0.01s, 60910 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 650, characters 8-81:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__dfold'vc.
+Prover result is: Valid (0.01s, 5341 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 650, characters 85-165:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__dfold'vc.
+Prover result is: Valid (0.01s, 60904 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 650, characters 85-165:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__dfold'vc.
+Prover result is: Valid (0.00s, 5350 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 646, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__dfold'vc.
+Prover result is: Valid (0.00s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 654, characters 18-91:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__lfold'vc.
+Prover result is: Valid (0.01s, 59964 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 654, characters 18-91:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__lfold'vc.
+Prover result is: Valid (0.00s, 5267 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 654, characters 95-172:
+Sub-goal variant decrease of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__lfold'vc.
+Prover result is: Valid (0.01s, 60033 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 654, characters 95-172:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__lfold'vc.
+Prover result is: Valid (0.01s, 5276 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 652, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func__lfold'vc.
+Prover result is: Valid (0.00s, 5315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 661, characters 111-191:
+Sub-goal precondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func'vc.
+Prover result is: Valid (0.01s, 5256 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 656, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___inductive_refs_global_or_axiom_func'vc.
+Prover result is: Valid (0.00s, 5324 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 668, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___inductive_sig_whyml'vc.
+Prover result is: Valid (0.00s, 5368 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 682, characters 20-35:
+Sub-goal loop invariant init of goal preambleemissionmixin___inductive_sig_whyml'vc.
+Prover result is: Valid (0.00s, 5603 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 684, characters 23-52:
+Sub-goal index in array bounds of goal preambleemissionmixin___inductive_sig_whyml'vc.
+Prover result is: Valid (0.01s, 8070 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 683, characters 18-61:
+Sub-goal loop variant decrease of goal preambleemissionmixin___inductive_sig_whyml'vc.
+Prover result is: Valid (0.02s, 84468 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 682, characters 20-35:
+Sub-goal loop invariant preservation of goal preambleemissionmixin___inductive_sig_whyml'vc.
+Prover result is: Valid (0.02s, 84294 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 683, characters 18-61:
+Sub-goal loop variant decrease of goal preambleemissionmixin___inductive_sig_whyml'vc.
+Prover result is: Valid (0.02s, 90662 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 682, characters 20-35:
+Sub-goal loop invariant preservation of goal preambleemissionmixin___inductive_sig_whyml'vc.
+Prover result is: Valid (0.02s, 90488 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 683, characters 18-61:
+Sub-goal loop variant decrease of goal preambleemissionmixin___inductive_sig_whyml'vc.
+Prover result is: Valid (0.02s, 89984 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 682, characters 20-35:
+Sub-goal loop invariant preservation of goal preambleemissionmixin___inductive_sig_whyml'vc.
+Prover result is: Valid (0.01s, 89810 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 668, characters 15-19:
+Sub-goal postcondition of goal preambleemissionmixin___inductive_sig_whyml'vc.
+Prover result is: Valid (0.01s, 5641 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 733, characters 8-78:
+Sub-goal variant decrease of goal preambleemissionmixin___mutex_inv_params__fold'vc.
+Prover result is: Valid (0.01s, 15011 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 736, characters 32-36:
+Sub-goal postcondition of goal preambleemissionmixin___mutex_inv_params'vc.
+Prover result is: Valid (0.01s, 5315 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 243, characters 20-23: unused variable sep
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 243, characters 34-36: unused variable xs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 247, characters 27-30: unused variable sep
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 247, characters 41-42: unused variable i
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 249, characters 20-21: unused variable s
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 249, characters 32-35: unused variable sep
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 284, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 301, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 295, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 288, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 305, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 314, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 338, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 360, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 354, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 347, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 364, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 369, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 372, characters 53-57: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 372, characters 83-85: unused variable ir
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 374, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 376, characters 52-56: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 376, characters 82-97: unused variable inductive_decls
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 378, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 380, characters 51-55: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 382, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 384, characters 57-61: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 384, characters 87-96: unused variable functions
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 384, characters 110-113: unused variable out
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 384, characters 130-144: unused variable declared_types
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 388, characters 45-49: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 388, characters 75-80: unused variable needs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 388, characters 88-99: unused variable module_name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 390, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 392, characters 52-56: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 392, characters 82-84: unused variable ir
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 394, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 396, characters 56-60: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 396, characters 86-91: unused variable needs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 398, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 404, characters 8-15: unused variable out_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 400, characters 53-57: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 469, characters 69-73: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 469, characters 99-104: unused variable needs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 471, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 473, characters 50-54: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 473, characters 80-85: unused variable needs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 473, characters 93-104: unused variable module_name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 475, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 477, characters 49-53: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 479, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 481, characters 47-51: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 481, characters 77-87: unused variable type_decls
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 483, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 485, characters 61-65: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 487, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 489, characters 51-55: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 491, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 543, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 566, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 560, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 553, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 570, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 577, characters 64-68: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 577, characters 94-109: unused variable inductive_decls
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 579, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 625, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 632, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 652, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 646, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 639, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 656, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 671, characters 8-17: unused variable types_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 666, characters 51-55: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 668, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 701, characters 53-57: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 701, characters 83-88: unused variable mutex
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 701, characters 99-106: unused variable inv_str
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 703, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 736, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 739, characters 60-64: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 739, characters 90-92: unused variable ir
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 743, characters 51-55: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 743, characters 81-90: unused variable functions
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 743, characters 104-114: unused variable all_bodies
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 745, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 747, characters 50-54: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 747, characters 80-84: unused variable expr
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 747, characters 92-96: unused variable repl
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 749, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 243, characters 20-23: unused variable sep
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 243, characters 34-36: unused variable xs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 247, characters 27-30: unused variable sep
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 247, characters 41-42: unused variable i
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 249, characters 20-21: unused variable s
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 249, characters 32-35: unused variable sep
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 284, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 301, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 295, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 288, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 305, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 314, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 338, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 360, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 354, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 347, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 364, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 369, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 372, characters 53-57: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 372, characters 83-85: unused variable ir
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 374, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 376, characters 52-56: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 376, characters 82-97: unused variable inductive_decls
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 378, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 380, characters 51-55: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 382, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 384, characters 57-61: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 384, characters 87-96: unused variable functions
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 384, characters 110-113: unused variable out
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 384, characters 130-144: unused variable declared_types
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 388, characters 45-49: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 388, characters 75-80: unused variable needs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 388, characters 88-99: unused variable module_name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 390, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 392, characters 52-56: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 392, characters 82-84: unused variable ir
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 394, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 396, characters 56-60: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 396, characters 86-91: unused variable needs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 398, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 404, characters 8-15: unused variable out_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 400, characters 53-57: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 402, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 469, characters 69-73: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 469, characters 99-104: unused variable needs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 471, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 473, characters 50-54: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 473, characters 80-85: unused variable needs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 473, characters 93-104: unused variable module_name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 475, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 477, characters 49-53: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 479, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 481, characters 47-51: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 481, characters 77-87: unused variable type_decls
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 483, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 485, characters 61-65: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 487, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 489, characters 51-55: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 491, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 543, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 566, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 560, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 553, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 570, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 577, characters 64-68: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 577, characters 94-109: unused variable inductive_decls
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 579, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 625, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 632, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 652, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 646, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 639, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 656, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 671, characters 8-17: unused variable types_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 666, characters 51-55: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 668, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 701, characters 53-57: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 701, characters 83-88: unused variable mutex
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 701, characters 99-106: unused variable inv_str
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 703, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 736, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 739, characters 60-64: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 739, characters 90-92: unused variable ir
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 743, characters 51-55: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 743, characters 81-90: unused variable functions
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 743, characters 104-114: unused variable all_bodies
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 745, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 747, characters 50-54: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 747, characters 80-84: unused variable expr
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 747, characters 92-96: unused variable repl
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_u12kv1xr.mlw", line 749, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

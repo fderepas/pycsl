@@ -41,3 +41,12 @@
 07:07 started w51g_types
 07:10 finished w51g_autotrust rc=0
 07:11 started w51g_functions
+07:49 finished w51g_types rc=0
+07:49 started w51g_preamble
+07:59 finished w51g_preamble rc=0
+07:59 started w51g_scf
+07:59 finished w51g_functions rc=0
+07:59 started w51g_expressions
+08:00 finished w51g_expressions rc=1
+08:00 started w51h_cis_trusted (disposition test, at HEAD adf2eda5)
+08:00 started w51g_statements

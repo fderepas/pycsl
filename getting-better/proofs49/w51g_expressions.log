@@ -1,0 +1,69 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/expressions.py'...
+[*] Memory model: hoare
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1686: UserWarning: Function 'expressionemissionmixin___dv_store_value': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(func.get("body", []) or [], union_vars, func.get("name", "?"))
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:100: UserWarning: GT1: Union arm `Any` refused (opaque, operation-barren) in variant '_union__dotted_ensures_suffix_3'. The arm was dropped from the synthesized variant; the static plane discharges C2/C3 against non-`Any` arms only.
+  _check_union_gt1(ir)
+[*] Imported class from 'ir_schema': AtExpr (record + 0 method stub(s) + 18 helper(s))
+[*] Imported class from 'ir_schema': IfExprExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': NamedExprExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': OldExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'ir_schema': UnaryOpExpr (record + 0 method stub(s) + 0 helper(s))
+[*] Imported class from 'errors': PyCSLSemanticError (record + 0 method stub(s) + 2 helper(s))
+[*] Imported from 'module6_whyml.identifiers': ['op_translate', 'whyml_ident', 'stable_hash'] (trusted stubs)
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 669, characters 17-19: unused variable x0
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 670, characters 17-19: unused variable x0
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 724, characters 20-23: unused variable sep
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 724, characters 34-36: unused variable xs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 734, characters 27-30: unused variable sep
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 734, characters 41-42: unused variable i
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 784, characters 49-53: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 784, characters 81-85: unused variable decl
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 789, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 836, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 906, characters 52-56: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 906, characters 84-88: unused variable args
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 906, characters 105-114: unused variable func_name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 908, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 910, characters 85-89: unused variable expr
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 910, characters 97-101: unused variable args
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 910, characters 118-127: unused variable func_name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 910, characters 138-148: unused variable local_refs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 910, characters 156-169: unused variable invariant_ctx
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 910, characters 177-182: unused variable subst
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 912, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 915, characters 89-93: unused variable args
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 915, characters 110-119: unused variable func_name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 915, characters 130-140: unused variable kwargs_map
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 915, characters 148-157: unused variable kwargs_ir
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 917, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 922, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 985, characters 52-56: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 985, characters 84-88: unused variable args
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 985, characters 105-116: unused variable param_types
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 987, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 993, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 1087, characters 8-14: unused variable prefix
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 1044, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 1126, characters 87-91: unused variable expr
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 1126, characters 99-103: unused variable args
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 1126, characters 120-129: unused variable func_name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 1126, characters 140-150: unused variable local_refs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 1126, characters 158-171: unused variable invariant_ctx
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 1126, characters 179-184: unused variable subst
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 1128, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 1133, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 1176, characters 87-101: unused variable result_ensures
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 1176, characters 115-116: unused variable n
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 1176, characters 124-135: unused variable param_types
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 1176, characters 152-162: unused variable field_spec
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 1178, characters 15-19: unused variable result
+File "/home/fabrice/git/pycsl/scratchpad/w49/tmp/.pycsl_57nntvna.mlw", line 1229, characters 24-25:
+This expression has type int, but is expected to have type string
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.
