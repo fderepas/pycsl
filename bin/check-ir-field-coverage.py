@@ -224,7 +224,19 @@ def main():
         for u in unread:
             print(f"    UNREAD  {u}")
 
-    if args.update or not os.path.exists(BASELINE):
+    # THE #44 RULE, APPLIED TO THE BASELINE ITSELF (gen #4). This branch used to read
+    # `if args.update or not os.path.exists(BASELINE)`, so a MISSING ratchet file made the
+    # plane WRITE whatever it happened to measure and return 0 — a gate that cannot tell
+    # "nothing regressed" from "I had nothing to compare against", which is the exact
+    # failure mode this campaign's own #44 rule names. A ratchet that silently re-arms
+    # itself at the current value is not a ratchet. Self-baselining is now reachable ONLY
+    # through the explicit `--update`, and a missing baseline is a REFUSAL (exit 2, the
+    # campaign-wide zero-input code) rather than a pass.
+    if not args.update and not os.path.exists(BASELINE):
+        print(f"[!] ir-field-coverage: REFUSING — the baseline {BASELINE} is missing. "
+              f"THIS IS A REFUSAL, NOT A PASS. Re-create it deliberately with --update.")
+        return 2
+    if args.update:
         with open(BASELINE, "w") as fh:
             json.dump({"unread": sorted(unread), "generic_skipped": sorted(TOO_GENERIC)},
                       fh, indent=2, sort_keys=True)
