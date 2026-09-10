@@ -117,7 +117,19 @@
 #
 #   Expected after landing both: fidelity **0 divergences over 887**, all 18 planes GREEN
 #   for the first time in this campaign, metric **457 -> 458**. Route #59 goes from OPEN to
-#   PARTIALLY REPAIRED (alias carriers closed, the RETURN carrier still open).
+#   PARTIALLY REPAIRED (alias carriers closed; the GETTER-RETURN and FIELD-STORE carriers
+#   still open).
+#
+#   **THE WITNESSES ARE STAGED TOO — `getting-better/staged-route59/witnesses/`, ids
+#   1125-1131 — AND THEY LAND *AFTER* THE REPAIR, NEVER BEFORE.** Six are expected-FAIL
+#   negatives that PROVE at HEAD (verified), and `run-reference-tests.sh` treats an
+#   expected-FAIL driver that starts proving as a finding, so copying them in now turns the
+#   suite red for a defect the route file already records. If only the PARTIAL patch lands,
+#   land 1125-1128 and 1131 and HOLD 1129/1130 for the generalisation.
+#   **1131 is the LIST positive control and it is the one that makes the set honest**:
+#   without it, a repair could satisfy all six negatives by refusing every collection
+#   binding, and nothing would notice that lists — correct today — had been broken to get
+#   there. Verified at HEAD: 1125 proves (the route), 1131 proves (the control).
 #
 #   **CHECK LIVENESS BY CPU, NOT BY LOG MTIME.** `w51g2_expressions` went four hours
 #   without writing a log line and finished rc=0; killing it as hung would have thrown
