@@ -1,9 +1,11 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: FOUR — #46, #53, #56, #57.
-##   (#56 and #57 both have a BUILT AND MEASURED repair, staged but not landed.)
+## CURRENTLY OPEN: TWO — #46 and #53.
+##   (#56 and #57 were CLOSED AND LANDED by relaunch #51 on 2026-09-10; their entries
+##    below are kept as the record of how, and are marked CLOSED in place.)
 
-  * **`route56-optional-union-local-read-sentinel.md`** (relaunch #51) — a `None`
+  * **`route56-optional-union-local-read-sentinel.md`** — **CLOSED `b9217158`** (relaunch
+    #51, 2026-09-10). Kept as the record of how. The route as found: a `None`
     Optional-union LOCAL reads back as the carrier's ZERO, so `x == 0` proves where Python
     answers False, and `x + 1` proves where Python RAISES. Bounded to the `int` carrier:
     `str`/`float` fail closed on a Why3 TYPE ACCIDENT, which is exactly why routes #50/#51
@@ -11,7 +13,8 @@
     existing `pycsl_none` opaque in the non-Some arm; no new model, ledger stays 3); it
     moves ONE mirror emission. Witnesses + landing sequence: `getting-better/staged-route56/`.
 
-  * **`route57-dict-get-no-default-is-zero.md`** (relaunch #51) — **the most reachable
+  * **`route57-dict-get-no-default-is-zero.md`** — **CLOSED `d7796dbf`** (relaunch #51,
+    2026-09-10). Kept as the record of how. The route as found: **the most reachable
     route in this ledger**: `d.get(k)` on a missing key is the codomain's ZERO, not `None`.
     #56 needs an `Optional` mutable local, a shape the corpus has ZERO of; this needs
     `d.get(k)`. Decides at BOTH the `int` and `str` codomains, because `.get` picks its
