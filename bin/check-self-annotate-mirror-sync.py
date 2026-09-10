@@ -136,7 +136,21 @@ def methods(path):
         while i >= 0 and (src[i].strip().startswith("#")
                           or src[i].strip().startswith("@")
                           or src[i].strip() == ""):
-            if "\\trusted" in src[i]:
+            # THE DIRECTIVE, NOT A PROSE MENTION (gen #4). This used to test
+            # `"\\trusted" in src[i]` over the WHOLE block, so any justification comment
+            # that merely NAMED the marker — `# Still \\trusted (bucket 3). Blocker: ...`
+            # — made this plane treat a genuinely un-trusted, EMITTED-AND-PROVED method as
+            # an intentionally-divergent stub and skip it. Measured at the tree this was
+            # fixed on: 46 functions were skipped with NO `#@ \\trusted` directive above
+            # them, and ONE of the 46 was REALLY DIVERGENT
+            # (`StatementEmissionMixin._wrap_body_with_return_catch`, mirror 8 statements
+            # against the live emitter's 13 — five whole dispatch arms missing). A
+            # fidelity oracle that a COMMENT can switch off is not an oracle, and this is
+            # the second time this same block has hidden a real divergence (the first was
+            # the opposite polarity: plain `#` comments were not walked at all, so a real
+            # marker separated from the `def` by a note stopped being seen). Requiring the
+            # `#@` prefix fixes both directions at once. Verbatim-checked 840 -> 886.
+            if src[i].strip().startswith("#@") and "\\trusted" in src[i]:
                 trusted = True
             i -= 1
         return trusted
@@ -285,8 +299,12 @@ def main():
     # mirror/live path correspondence ever broke. Demonstrated, not hypothesised: pointing
     # MIRROR_ROOT one directory deeper makes every `lpath` miss, and the plane reports
     # "OK: all 0 un-trusted ... functions are verbatim copies" and exits 0.
-    # 840 were checked at 0d08d412; 700 is a floor well below that which the mirror only
-    # grows past. A drop through it means the population is broken, NOT that it is clean.
+    # 840 were checked at 0d08d412 and 885 after gen #4 repaired `_trusted_above` (a PROSE
+    # mention of the marker in a justification comment was switching this plane off for 46
+    # functions); 700 is a floor well below that which the mirror only grows past. It stays
+    # a COLLAPSE DETECTOR rather than a ratchet on purpose: legitimately marking a method
+    # `#@ \trusted` LOWERS this count, so a tight floor would fire on correct work.
+    # A drop through it means the population is broken, NOT that it is clean.
     if checked < MIN_CHECKED:
         print(f"[!] mirror-sync: only {checked} un-trusted function(s) were compared, "
               f"expected at least {MIN_CHECKED}. The mirror/live path correspondence is "
