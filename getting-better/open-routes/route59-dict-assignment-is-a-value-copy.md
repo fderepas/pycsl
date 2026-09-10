@@ -386,3 +386,40 @@ one cause with the four already handled — the binding copies a pure map — so
 generalisation ("a dict-valued binding whose RHS is not a FRESH construction, where either
 side is later mutated") should close all six. It must be measured against the MIRROR, not
 the corpus: every version of this repair so far has had a clean corpus diff.
+
+## COSTING THE GENERALISED REPAIR — AND A FALSE POSITIVE I HAD TO CORRECT IN MY OWN SCAN
+
+The generalisation that would close all six carriers has two new parts. Both are costed at
+ZERO on the two GATED populations:
+
+    RHS is a CALL returning a dict, bound then mutated
+        LIVE 0 · MIRROR 0 · CORPUS 0
+    TARGET is a FIELD (`self.d = p`), the local mutated AFTER the store
+        LIVE 1 · MIRROR 0 · CORPUS 0
+
+**THE MIRROR NUMBER STARTED OUT AS 1 AND WAS WRONG.** My first scan asked "is this local
+mutated anywhere in the function?" and flagged
+`module6_whyml/functions.py::_refine_tuple_return_type`, which is NOT `\trusted` — i.e. a
+VERIFIED mirror method apparently exercising the route. That would have outranked the route
+itself. Reading the body killed it:
+
+    _st = dict(symtab)          # a FRESH dict
+    _st[_k] = _ty               # mutated BEFORE
+    self._current_symbol_table = _st
+
+The mutation precedes the store, so it is not the carrier at all. **An order-insensitive
+scan over-reports a data-flow property, and the over-report was in the most alarming
+direction.** Re-run with statement ordering, the mirror count is 0. Lesson recorded because
+the same shape of scan is used all over this campaign to cost repairs.
+
+**THE ONE LIVE SITE IS REAL AND IS NOT MIRRORED**:
+
+    src/pycsl/module6_whyml/functions.py::_prescan_pyval_locals
+        L1180  self._pyval_locals = pyval
+        L1195  pyval.add(tgt)          # relies on Python aliasing so the field sees it
+
+That is PyCSL's own emitter using exactly the reference semantics its ownership discipline
+(R3) rejects. It is correct Python and it is not modelled — and `_prescan_pyval_locals` has
+no mirror counterpart, so no proof is affected today. It does mean the generalised refusal
+must be gated on the MUTATION-AFTER-STORE ordering rather than mere co-occurrence, or it
+would refuse the emitter's own source the moment that method were mirrored.
