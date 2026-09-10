@@ -485,7 +485,30 @@ already refuses R2 mutable defaults. Alias assignment is the same hazard reached
 different syntax, and it is the one still answered instead of refused.
 
 
-## ONE CARRIER STILL UNPROBED — R3 ACROSS A CALL BOUNDARY
+## R3 ACROSS A CALL BOUNDARY — MEASURED, AND SAFE. **THE CENSUS IS NOW COMPLETE.**
+
+    def store(self, x: Dict[int,int]) -> None:  self.d = x
+    p = {1: 1};  self.store(p);  p[1] = 2;  return self.d[1]      CPython: 2
+
+    `\result == 1` (FALSE) -> fails      `\result == 2` (TRUE) -> fails
+
+Both directions fail, so it is UNDECIDED rather than wrong. **The call boundary is
+consistently safe** — whether the callee MUTATES a dict parameter or STORES it into a
+field, the model declines to decide instead of answering incorrectly. That is a real
+pattern rather than a coincidence of two probes, and it is what makes the six broken
+carriers a crisp set: every one of them is an assignment WITHIN a single frame.
+
+### FINAL CARRIER TALLY
+
+    BROKEN (6)   local->local · symmetric · chained a->b->c · field->local (`b = self.d`)
+                 · getter return (`m = self.get()`) · field store (`self.d = p`)
+    COVERED (4)  by the landed patch: the first four
+    OPEN (2)     getter return, field store — the generalisation closes them, costed at ZERO
+    SAFE         callee mutates a dict param · callee stores a dict param into a field
+                 (both UNDECIDED) · the whole `set` carrier (by a TYPE ACCIDENT only)
+    CORRECT      every List carrier, including slice-copy and callee mutation
+
+## (historical) THE NOTE THAT USED TO SAY THIS WAS UNPROBED
 
 Named so it is not mistaken for covered ground. Every other carrier in this file has been
 measured; this one has not:
