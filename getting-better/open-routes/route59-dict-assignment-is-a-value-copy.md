@@ -444,3 +444,29 @@ models cannot emit ANY dict-valued code. That is a completeness gap in those mod
 (a missing preamble import), not a soundness one, and it is not route #59's business — but
 it does mean any future measurement that varies the memory model must not read their failure
 as a fails-closed result. It is an emission error, several stages before the prover.
+
+## `del` AND `.pop()` AS ALIAS MUTATIONS — BOTH FAIL CLOSED, AND ONE IS AN EXPLICIT REFUSAL
+
+Probed because the staged guard's mutation gate lists STATEMENT kinds
+(`ArraySet`, `ArraySliceSet`, `DelSubscript`, ...), so a mutating METHOD CALL through the
+alias could slip past it. Measured:
+
+    a = {1:1, 2:2};  b = a;  del b[1];    read len(a)   ->  emission type error (closed)
+    a = {1:1, 2:2};  b = a;  b.pop(1);    read len(a)   ->  **EXPLICIT REFUSAL**
+
+The `.pop()` refusal is worth quoting, because it is the same reasoning as route #59 arrived
+at independently and already written into the emitter:
+
+    `b.pop(...)` MUTATES its receiver in place, and no certified lowering models it: the
+    call becomes an abstract operation that takes NEITHER the receiver NOR a `writes`
+    clause, so the mutation would be SILENTLY ABSENT from the model while the run still
+    reported 'All contracts formally proven' ...
+
+**SO THE GUARD'S STATEMENT-KIND GATE IS HARMLESS HERE**: a mutating method call cannot reach
+a lowered program at all, and `del` cannot lower either. `DelSubscript` is in the gate anyway,
+so if `del` is ever given a lowering the guard already covers it.
+
+This also strengthens the case that #59's repair belongs: the emitter ALREADY refuses
+in-place receiver mutation for exactly the "silently absent from the model" reason, and
+already refuses R2 mutable defaults. Alias assignment is the same hazard reached by a
+different syntax, and it is the one still answered instead of refused.
