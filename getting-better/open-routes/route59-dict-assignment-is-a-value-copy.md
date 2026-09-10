@@ -63,12 +63,40 @@ Callee mutation is ALSO correct for lists: `g(a)` where `g` does `x[0] = 2` unde
 * and it fails in the SILENT direction — the false claim proves rather than the true claim
   failing, so no gate goes red.
 
-## CARRIERS NOT YET PROBED — DO THESE FIRST
+## THE CARRIER CENSUS — DONE (gen #4, same session)
 
-The generator that found this says to probe every carrier before scoping a repair:
-dict-through-a-CALL (a callee mutating a dict parameter), dict FIELD (`self.d = other`),
-nested dict, dict aliased then read through a THIRD name, and the `set` carrier if one
-exists. The `List` carrier is measured and correct.
+Every one measured in BOTH directions.
+
+    **BROKEN — the false claim PROVES:**
+      b = a;  b[1] = 2;  return a[1]              the original witness
+      b = a;  a[1] = 2;  return b[1]              **SYMMETRIC** — it breaks whichever
+                                                  name is mutated and whichever is read
+      a -> b -> c;  c[1] = 2;  return a[1]        **CHAINS** through three names
+      b = self.d;  b[1] = 2;  return self.d[1]    **THE FIELD CARRIER**, i.e. a dict
+                                                  ATTRIBUTE aliased into a local
+
+    **SAFE — fails closed in BOTH directions (a completeness gap, not a route):**
+      g(a) where g does x[1] = 2, then return a[1]    the CALL carrier
+
+So the route is NOT "dict mutation is unmodelled". It is specific to the ALIAS ASSIGNMENT,
+and within that it is symmetric, transitive through chains, and reaches `self.<attr>` as
+well as locals. A callee mutating a dict PARAMETER is undecided rather than wrong, which is
+the safe direction — and notably the `List` parameter equivalent is fully FAITHFUL, so the
+list/dict asymmetry shows up at the call boundary too.
+
+## THE PATTERN EXISTS IN THE LIVE EMITTER — EXACTLY ONCE
+
+A scan of `src/pycsl` for "alias a dict-typed local or `self.<attr>` into a name, then
+subscript-store through that name" finds **one** site:
+
+    src/pycsl/module6_whyml/statements.py::_mark_string_seq_locals
+        svt = self._seq_value_types      then      svt[...] = ...
+
+**It is NOT in the mirror at all** (no `_mark_string_seq_locals` there), so no mirror proof
+is currently asserting something false on account of it — checked, because a live instance
+inside the self-annotation would have been a much sharper finding than the route itself.
+But it does mean repair option 1 changes real emitter behaviour at that site, and the
+corpus byte-diff will see it. That is the first thing to measure when costing the repair.
 
 ## CANDIDATE REPAIR — NOT YET COSTED
 
