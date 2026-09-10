@@ -65,3 +65,8 @@
 14:31 finished w51g2_expressions rc=0
 17:06 finished w52c_statements rc=0
 17:30 finished w52d_expressions rc=0
+17:36 started w53a_expressions (OWED after landing staged-L1 + staged-route59)
+17:36 finished w53a_expressions rc=1
+17:36 started w53b_scf (OWED after landing staged-L1 + staged-route59)
+17:36 started w53c_statements (OWED after landing staged-L1 + staged-route59)
+17:36 started w53d_transpiler (OWED after landing staged-L1 + staged-route59)
