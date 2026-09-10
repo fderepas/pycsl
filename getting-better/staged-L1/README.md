@@ -47,3 +47,64 @@ re-prove `expressions.py` -> land only if that proof is rc=0.**
 bigger lie than this one was, and it is NOT addressed here. Port the missing statements or
 re-`\trusted` it and let the metric rise 456 -> 457. Do not leave it counted as verified.
 Blocked the same way on `w51g_scf`.
+
+---
+
+# THE SECOND HALF — `_handle_for_stmt`, DECIDED (generation #3)
+
+`l1-both-halves-var-expr-and-for-stmt.patch` supersedes the single-half patch above and
+takes the fidelity L-plane to **ZERO divergences**.
+
+## THE DECISION, AND WHY IT WENT THAT WAY
+
+The mirror's `_handle_for_stmt` carried **37 of 99** live top-level statements — measured
+another way, **99 source lines against 754**, and **789 AST nodes against 4059**. It was
+un-`\trusted`, i.e. COUNTED AS VERIFIED.
+
+Porting the missing body is a session-scale build with low landing confidence (it must not
+merely be copied but PROVE, frame included). Re-`\trusted`-ing it is honest, cheap, and the
+metric rises 456 -> 457 — **the correct direction**: the trust surface was always this big
+and only the bookkeeping said otherwise. **DECIDED: re-`\trusted`.**
+
+## THE TRAP THAT DECISION WALKS INTO, AND IT IS NOT OBVIOUS
+
+**Going BACKWARDS from verified to `\trusted` is NOT free, because it converts a PROVEN
+frame into an ASSUMED one.** The `assigns` clause on the verified mirror was proven — but
+proven *of the 37% body*, which genuinely writes only 3 `self` fields. As a `\trusted`
+stub that same clause becomes an ASSUMPTION about the REAL emitter, and the real emitter
+writes more.
+
+Measured on the live body: `_handle_for_stmt` writes **10** `self.<field>`s, and **SEVEN
+were absent** from the declared frame —
+
+    _for_target_is_pyval   _in_loop_spec        _keyword_locals    _pyast_loop_variant_len
+    _pyast_stmt_locals     _pyval_locals        _tparam_locals
+
+Marking it `\trusted` without widening would therefore have introduced a FALSE ASSUMPTION
+in the very increment that was supposed to make the file honest. The frame is widened to
+25 fields and the result TYPE-CHECKS (`L3-tc ✓`), so all seven are in scope.
+
+**GENERAL RULE, worth carrying: when a partially-modelled VERIFIED method is re-`\trusted`,
+its `assigns` must be RE-DERIVED FROM THE LIVE BODY, never inherited from the proof that
+covered the subset.**
+
+## MEASURED (combined, both halves)
+
+    fidelity            0 divergence(s)  — the L-plane is GREEN
+    18-plane collector  ALL 18 GREEN
+    metric              markers 456 -> 457 (grep 482, offset 25, unattached 0)
+    mirror emissions    exactly 2 MOVED — expressions.mlw (half one) and
+                        stmt_control_flow.mlw (half two); 0 GONE, 0 APPEARED
+    corpus              INERT BY CONSTRUCTION — `git diff --name-only` touches ONLY
+                        `src/self-annotate/`, so the live emitter is byte-identical
+
+## WHAT LANDING OWES
+
+Two whole-file re-proofs, one per moved mirror: `module6_whyml/expressions.py` and
+`module6_whyml/stmt_control_flow.py`. Both were being proved by queue G for OTHER reasons
+at staging time, which is why this is staged rather than landed.
+
+**A widened frame on a trusted stub makes its effect BIGGER, so callers assume LESS. That
+is the conservative direction, but it can still cost a caller that relied on one of the
+seven fields surviving the call — the `stmt_control_flow.py` re-proof is what measures it,
+and it must be run before this lands.**
