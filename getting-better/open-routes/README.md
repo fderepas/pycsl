@@ -318,3 +318,36 @@ particular is where route #53's twin defect would live, since a concrete order o
 or truncated string representation decides comparisons Python answers the other way.
 
 **DO NOT RE-PROBE THESE TEN.**
+
+---
+
+## SIGNED `//` AND `%` ARE FAITHFUL IN ALL FOUR QUADRANTS (gen #4) — PROBED, NO FINDING
+
+The highest-yield place to look for a route in any Python verifier, because Python FLOORS
+toward negative infinity while C and most SMT integer theories TRUNCATE toward zero, and
+`%` takes the sign of the DIVISOR rather than the dividend. Nine probes, both directions.
+
+    python: -7//2 = -4   -7%2 = 1   7//-2 = -4   7%-2 = -1
+
+      -7 // 2 == -4   (Python, true)  -> PROVES      -7 // 2 == -3  (C, false)  -> fails
+      -7 %  2 ==  1   (Python, true)  -> PROVES      -7 %  2 == -1  (C, false)  -> fails
+       7 // -2 == -4  (Python, true)  -> PROVES       7 // -2 == -3 (C, false)  -> fails
+       7 %  -2 == -1  (Python, true)  -> PROVES       7 %  -2 ==  1 (C, false)  -> fails
+
+**MODELLED, not merely refused, in every quadrant** — each C-semantics claim fails AND each
+Python-semantics twin proves. This is a genuinely reassuring result rather than an absence
+of evidence, and it is only meaningful because both columns were run.
+
+Gen #3 had probed `5 // 0` and `5 % 0` (both fail closed). NEGATIVE OPERANDS were not
+covered by that, which is why this was worth doing: division by zero and division by a
+negative are different code paths reaching the same operator, and "a repair covers the PATH
+it edits" cuts both ways when deciding what has actually been checked.
+
+One completeness gap alongside it, recorded rather than left loose:
+
+      (-2) ** 3 == -8   TRUE of the program  ->  does not prove
+
+which sits with the already-recorded `2 ** -1 == 0`: exponentiation is opaque outside the
+simple positive cases. Safe direction, no route.
+
+**DO NOT RE-PROBE THESE NINE.**
