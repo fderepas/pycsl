@@ -5,9 +5,21 @@
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0
 #   fidelity **ZERO divergences over 887** — the L-plane is GREEN
 #   planes   **ALL 18 GREEN.** `--slow` adds 13 more, incl. the new mirror-type-only.
-#   ledger   **ONE OPEN ROUTE: #59**, partially repaired.
+#   ledger   **ONE OPEN ROUTE: #59 — FIVE of its SIX carriers now REFUSE.**
+#            Closed: local->local, symmetric, chained, field->local, and the GETTER-RETURN
+#            (`m = self.get()`). Open: the FIELD STORE (`self.d = p`, then mutate `p`).
 #   OWED     `w54a_expressions`, the whole-file re-proof of the repaired L1 half. It is
-#            the ONLY outstanding proof; everything else is collected at rc=0.
+#            the ONLY outstanding proof; everything else is collected at rc=0. It stays
+#            VALID despite the later getter-return commit, because that commit only ADDS A
+#            RAISE and so cannot alter emitted content — all 53 mirrors still emit.
+#
+#   **THE SIXTH CARRIER IS A MEASURED REFUTATION, NOT AN UNTRIED ITEM.** Two
+#   implementations were built and both fail, and the obstacle is WHERE the guard must
+#   live: `_handle_fieldassign_stmt` is VERIFIED VERBATIM by the mirror, unlike
+#   `_handle_assign_stmt` (a `\trusted` stub), which is why the alias guard was cheap.
+#   A recursive `.pop()` walk is refused by PyCSL's OWN ownership discipline; a flat
+#   mirrorable scan emits but is ILL-TYPED. Full write-up, with the trade each remaining
+#   option makes, is in the route file.
 #   tree     clean. Two long-standing GITLINKS (`scratchpad/w7/base`, `scratchpad/w8/pre`
 #            are registered WORKTREES) and a 0-byte stray `str` in the repo root are
 #            pre-existing and are NOT dirt.
