@@ -37,7 +37,14 @@
 #   `w51g_statements`   route #57 mover, from 08:00
 #   `w51g2_expressions` from 08:21 — THE RELAUNCH after the type fix; it is long past the
 #                       one-minute failure point, so the fix holds under a real run
-#   `w51h_cis_trusted`  the disposition test, at HEAD, under setsid -> `$SCRATCH/cis2.rc`
+#   `w51h_cis_trusted`  **DONE, rc=0, LANDED as item 3.**
+#
+#   **MEMORY IS THE BINDING CONSTRAINT AND THREE PROOFS SATURATE THIS BOX.** At 10:43 the
+#   three above alone held it at 13 of 15 GB with 1 GB available — `why3` workers run
+#   ~850 MB EACH. Nothing else may be started until they finish; `free -g` first. Note the
+#   background tasks that got killed were the HARNESS proactively stopping MY lightweight
+#   waiter shells, NOT the kernel OOM killer touching the detached proofs, so the movers
+#   themselves are not what gets picked off — but do not test that.
 #
 #   **THE SLOW-PLANE BATTERY AND SUITE run7 WERE KILLED BY ME, NOT BY A GATE.** Running
 #   them on top of the four proofs took the box to 13 of 15 GB with SWAP FULL, and the
@@ -162,7 +169,7 @@
 #
 # ## STATE
 #
-#   HEAD `39f00d6f` · tracked tree CLEAN apart from two long-standing GITLINKS
+#   HEAD `0bd47e0e` · tracked tree CLEAN apart from two long-standing GITLINKS
 #   (`scratchpad/w7/base`, `scratchpad/w8/pre` are registered WORKTREES, not dirt) and a
 #   0-byte stray `str` in the repo root left by an earlier window. `src/self-annotate` 0.
 #   METRIC markers **457** · grep 482 · offset 25 · unattached 0 — it rose by ONE when
