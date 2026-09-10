@@ -57,12 +57,41 @@ the same shape as this window's L1 fidelity finding: a method sitting in the ver
 column on a claim the planes do not actually establish. The honest options are to prove
 it, or to stop counting it.
 
+## CORRECTION — I CLASSIFIED THIS TOO HARSHLY ON FIRST READING, AND THE FILE ITSELF
+## REFUTES THE HARSH VERSION
+
+My first classification said "no amount of prover time discharges a termination VC for a
+recursion with no decreasing measure" and called it a flat CORRECTNESS boundary. Reading
+the proof log further refutes that, and the refutation is in the SAME FILE:
+
+    Sub-goal variant decrease of goal _union_c8_walk__d'vc
+    Sub-goal variant decrease of goal _union_c8_walk__cases'vc
+    Sub-goal variant decrease of goal _check_union_narrowing__collect'vc
+
+`core_ir_semantic` contains OTHER structural walks that emit `variant decrease` goals —
+i.e. they HAVE variants, and the machinery for giving a walk a well-founded measure is
+present and working in this very file. So "the model cannot do this" is false.
+
+**THE ACTUAL DIFFERENCE IS THE PARAMETER TYPE.** `_union_c8_walk(stmts: list,
+union_vars: set, fname: str)` is fully annotated and walks a TYPED, HOMOGENEOUS structure.
+`_returns_literal_none(body)` is annotated NOWHERE, and its nested `walk(node)` is
+HETEROGENEOUS by construction — it branches on `isinstance(node, dict)` versus
+`isinstance(node, list)` and recurses into both, so even typing the outer `body: list`
+would not give the inner `walk` a measure, because `walk`'s argument alternates between a
+dict, a list and a scalar as it descends.
+
 ## CLASSIFICATION (§A.3's two-way test, applied freshly)
 
-**CORRECTNESS boundary, with a NAMED and ALREADY-BANKED reopening capability.** It is not
-a cost/scale wall that a bigger budget pays: no amount of prover time discharges a
-termination VC for a recursion with no decreasing measure, and the 30s timeouts at 50M+
-steps are the symptom of exactly that, not of a hard-but-tractable goal.
+**A COST/SCALE boundary, NOT a correctness one — revised after the correction above.**
+The technique is present and proving in the same file; what is missing is a TYPE on the
+walked value. Under §A.3's test that is squarely the cost/scale side: it is a real,
+bounded piece of work (give the walk a typed, measurable argument), not something the
+value model cannot express. A funded window is exactly the budget that pays it.
+
+What makes it more than a one-line annotation is that `walk` is HETEROGENEOUS: it descends
+through dict values AND list elements AND stops at scalars. Giving it a measure means
+giving it a single type that covers all three — which is precisely what the certified
+IR-node ADT is for.
 
 **THE REOPENING CAPABILITY IS SPECIFIC AND IT EXISTS**: type `walk`'s parameter at the
 CERTIFIED IR-NODE ADT (the tier-1/2/3 ADT foundation this campaign banked) and give it the
