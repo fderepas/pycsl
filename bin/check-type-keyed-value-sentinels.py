@@ -80,7 +80,13 @@ BASELINE = {
 
     # --- found by the if/elif CHAIN recognizer (added relaunch #51) -------------------
     ("expressions.py", "_dv_missing_default", "emit_ir|string", "'0'"):
-        "**OPEN — ROUTE #57.** This is the `None ->` arm of a dict read. Its own docstring "
+        "CLOSED (route #57, relaunch #51) — and the entry is KEPT because the site is "
+        "still here and still answers a zero: it remains the SUBSCRIPT read's placeholder, "
+        "where the justification is sound (`d[k]` RAISES, so under `#@ no_exception "
+        "KeyError` the arm is genuinely dead). What changed is that the ONE-ARGUMENT `.get` "
+        "no longer routes through it — that path now calls `_dv_absent_opaque`, which "
+        "answers route #44's `pycsl_none` / route #50's `pycsl_none_str`. Witnesses "
+        "1112-1115. THE ORIGINAL ENTRY, for the record:  **ROUTE #57.** This is the `None ->` arm of a dict read. Its own docstring "
         "justifies the zero as \"proven dead under `#@ no_exception KeyError`\" — coherent "
         "for a SUBSCRIPT, which RAISES on a missing key, and INAPPLICABLE to `.get`, which "
         "never raises and returns `None`. `d.get(5) == 0` proves where Python answers "
