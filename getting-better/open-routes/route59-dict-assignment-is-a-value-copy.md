@@ -279,6 +279,19 @@ carriers this gives the whole comparison, and it is clean:
     getter returns internal     undecided (safe)              **UNSOUND**
     rebind after alias          undecided (safe)              (would break if ref shared)
 
+    slice copy `b = a[0:1]`     CORRECT (see below)            (dict slicing has no analogue)
+
+**AND THE COMPLEMENT DIRECTION IS ALSO CORRECT FOR LISTS.** `b = a[0:1]` must produce an
+INDEPENDENT list in Python — the mirror image of #59, where sharing rather than copying
+would be the defect:
+
+    a = [1];  b = a[0:1];  b[0] = 9;  return a[0]      CPython: 1
+    \result == 9  (FALSE, i.e. aliased)  -> fails      \result == 1  (TRUE) -> **PROVES**
+
+So the model copies where Python copies and shares where Python shares, for lists, in every
+carrier probed. The dict/list asymmetry really is about the DICT's copy-on-bind and nothing
+more general.
+
 **LISTS ARE NEVER WRONG — they are either faithful or undecided. DICTS ARE WRONG IN THREE
 OF SIX CARRIERS.** That is the sharpest statement of route #59, and none of it would have
 been visible from probing a single carrier: the very first list probe came back FAITHFUL and
