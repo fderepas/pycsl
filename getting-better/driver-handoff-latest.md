@@ -59,6 +59,18 @@
 #   FRESH construction"), and it must be measured against the MIRROR — the corpus will
 #   stay clean while the mirror decides.
 #
+#   **THE GENERALISATION IS ALREADY COSTED, AND IT IS FREE.** Both uncovered carriers are
+#   ZERO on the two gated populations: a Call RHS bound then mutated is 0 live / 0 mirror
+#   / 0 corpus; a field-target store whose local is mutated AFTER it is 0 mirror / 0 corpus
+#   / 1 live (`_prescan_pyval_locals`, which has no mirror counterpart). **So building the
+#   full six-carrier repair should cost no more than the partial one already did** — the
+#   best available next increment, and it would CLOSE the route.
+#   **GATE IT ON MUTATION-AFTER-STORE ORDERING, not co-occurrence.** My first costing scan
+#   ignored statement order and flagged a VERIFIED mirror method
+#   (`_refine_tuple_return_type`) as exercising the route; its `_st = dict(symtab)` is a
+#   FRESH dict mutated BEFORE the store. An order-insensitive scan over-reports, and it
+#   over-reported in the most alarming direction possible.
+#
 # ## THE FOUR THINGS THAT BUILD TAUGHT, AND THEY GENERALISE
 #
 #   1. **A BYTE-INERT CORPUS IS NOT EVIDENCE OF SAFETY.** My first cut refused every dict
