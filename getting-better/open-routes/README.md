@@ -287,3 +287,34 @@ the never-ran case, where the variable keeps its previous value. It moves every
 for-loop emission that reads its target afterwards — the same 14 mirror files — so it
 carries the same 14 whole-file re-proofs. Do it in the same funded increment as #35;
 the two overlap heavily in the files they touch.
+
+---
+
+## THE STRING MODEL'S BOUNDARY, MAPPED (gen #4, 2026-09-10) — PROBED, NO FINDING
+
+Ten probes, every one run in BOTH directions, because "fails closed" without its true twin
+does not distinguish a MODEL from a REFUSAL — the check route #53's file was caught having
+skipped.
+
+    MODELLED (false claim FAILS, true twin PROVES):
+      len("abc") == 3          true -> PROVES        len("abc") == 4     false -> fails
+      "abc" == "abc"           true -> PROVES        "abc" == "abd"      false -> fails
+
+    OPAQUE — fails closed in BOTH directions, i.e. a COMPLETENESS GAP, not a guard:
+      "a" < "b"                true -> FAILS         "b" < "a"           false -> fails
+      "ab" + "cd" == "abcd"    true -> FAILS         ... == "abcd_"      false -> fails
+      "abc"[0] == "a"          true -> FAILS         "abc"[0] == "b"     false -> fails
+
+So string EQUALITY and LENGTH are genuinely decided, while string ORDERING, CONCATENATION
+and INDEXING are uninterpreted. That is the safe configuration and there is no route here.
+It also explains the previously recorded gap `"abc"[10:20] == ""` (true, does not prove):
+slicing sits on the same opaque side as indexing, and is not a separate defect.
+
+**REOPENING CAPABILITY — the thing to check if anyone makes these concrete.** Ordering,
+concatenation and indexing are exactly the operations a completeness pass would want to
+implement, and they are currently safe BECAUSE they are uninterpreted. Anyone giving them
+a concrete model must re-run the FALSE column above in the same change: string ordering in
+particular is where route #53's twin defect would live, since a concrete order on a hashed
+or truncated string representation decides comparisons Python answers the other way.
+
+**DO NOT RE-PROBE THESE TEN.**
