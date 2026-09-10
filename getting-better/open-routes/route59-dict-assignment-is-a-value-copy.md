@@ -528,3 +528,44 @@ as usual, and read the EMISSION rather than trusting a timeout.
 It was left unprobed only because the box was saturated with two owed re-proofs and a plane
 battery at the time; it is cheap (one small driver) and should be the first thing measured
 when a slot frees.
+
+---
+
+## THE SIXTH CARRIER (FIELD STORE) — TWO IMPLEMENTATIONS BUILT AND BOTH REFUTED
+
+Five of six carriers are closed on HEAD. The sixth, `self.d = p` then mutate `p`, is NOT,
+and it is not for want of trying. Recorded so the next attempt starts where this one
+stopped rather than repeating it.
+
+**THE OBSTACLE IS NOT THE GUARD, IT IS WHERE THE GUARD HAS TO LIVE.** The natural home is
+`_handle_fieldassign_stmt`, and **the mirror VERIFIES that method VERBATIM** (it is
+un-`\trusted`). So any code added to it must itself be mirrorable, type-check, and prove.
+The alias-assignment guard had no such constraint: its home, `_handle_assign_stmt`, is a
+`\trusted` mirror stub, which is why that one was cheap.
+
+    ATTEMPT 1 — a recursive walk of `rest` with an explicit `_stack` and `.pop()`.
+      Works in the live emitter; the carrier refuses. **The MIRROR REFUSES TO MODEL IT:**
+      "`_stack.pop(...)` MUTATES its receiver in place, and no certified lowering models
+      it ... Rewrite the mutation as an indexed store, or mark the enclosing function
+      `#@ \trusted`." PyCSL's own ownership discipline blocks the port.
+
+    ATTEMPT 2 — a FLAT scan of `rest` (no nesting, no mutation), to stay mirrorable.
+      The carrier still refuses and the mirror now EMITS — but the emission is ILL-TYPED
+      ("has type int, but is expected to have type string"), caught in ten seconds by
+      `check-mirror-type-only`.
+
+**THE REMAINING OPTIONS, AND THE TRADE EACH MAKES:**
+  * make the flat scan type-check — the type error is in the spliced body, so this is a
+    modelling problem in the mirror, not a design problem in the guard. Cheapest next step,
+    and `check-mirror-type-only` makes the loop fast.
+  * re-`\trusted` `_handle_fieldassign_stmt`. Cost: metric +1, its `assigns` becomes an
+    ASSUMPTION that must be re-derived from the live body, and **a currently-CHECKED body
+    stops being checked**. That is trading a verified method for a closed carrier — the
+    ladder does rank soundness above conversion, but it should be a deliberate decision,
+    not a side effect of the easiest path.
+
+**ALSO NOTE, if the flat scan is revived:** it under-refuses by design. A mutation nested
+inside an `if`/`for`/`while`/`try` after the store is not seen, so that narrower shape stays
+answered rather than refused. An UNDER-refusal is the safe direction for a repair (it never
+rejects a sound program) but it leaves part of the carrier open, and that must be said out
+loud rather than discovered later.
