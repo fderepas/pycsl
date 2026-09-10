@@ -16,10 +16,24 @@
 #   shared mutable `array`; dicts copy a pure `map`. The list result alone would have
 #   been a FALSE REASSURANCE — that asymmetry is the whole reason to probe carriers.
 #
-#   CARRIER CENSUS (all both-ways): BROKEN at local->local, SYMMETRIC (mutate either
-#   name, read the other), CHAINS through `a -> b -> c`, and the FIELD carrier
-#   `b = self.d`. SAFE at the CALL carrier — a callee mutating a dict PARAMETER is
-#   undecided, not wrong (and the List equivalent there is fully faithful).
+#   CARRIER CENSUS, ALL BOTH-WAYS — **SIX BROKEN, and the staged patch covers FOUR**:
+#     covered      local->local · SYMMETRIC (mutate either, read the other) · CHAINED
+#                  `a->b->c` · FIELD-INTO-LOCAL `b = self.d`
+#     NOT covered  GETTER RETURN `m = self.get()` (RHS is a Call)
+#                  FIELD STORE   `self.d = p` then mutate `p` (TARGET is a field)
+#     SAFE         a callee mutating a dict PARAMETER (undecided; the List equivalent
+#                  there is fully faithful) · the whole `set` carrier, BY A TYPE ACCIDENT
+#
+#   **AND #59 IS RULE R1/R3 OF A DISCIPLINE THIS PROJECT ALREADY WROTE DOWN.**
+#   `docs/pycsl-ownership-discipline.md` declares shared mutable aliasing (R1) and
+#   mutate-through-alias of a stored object (R3) REJECTED / out of scope. Its sibling R2
+#   (mutable default arguments) is **ENFORCED** — the emitter raises a PIPELINE ERROR
+#   naming "ownership discipline R2" and there is a corpus witness. R1 and R3 are
+#   documented and NOT enforced, so the tool answers inside them. That also QUALIFIES the
+#   doc's claim that the snapshot semantics "never proves a false postcondition": true
+#   only while the boundary is ENFORCED. **So the repair is not a new restriction — it
+#   does for R1/R3 exactly what the emitter already does for R2**, which is a far easier
+#   thing to justify landing.
 #
 #   **THE REPAIR IS BUILT, FULLY MEASURED AND STAGED: `getting-better/staged-route59/`.**
 #   It refuses a MUTATED alias only; a read-only rebind stays legal, because without a
