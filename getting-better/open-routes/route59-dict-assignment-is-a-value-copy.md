@@ -135,3 +135,45 @@ than a reason to leave it.
 stricter population, and route #57 was correctly byte-inert AND ill-typed): run the corpus
 byte-diff and at least a `why3 prove --type-only` on the mirrors, and confirm the emitted
 `.mlw` set is unchanged rather than assuming it from the site count.
+
+---
+
+## OPTION 1 (SHARE THE REF) IS REFUTED BEFORE BUILDING — READ THIS FIRST
+
+The obvious principled fix is to make the dict case do what the LIST case already does.
+Side by side, from the emitted WhyML:
+
+    LIST  (correct)                       DICT  (broken)
+    let a = Array.make 1 1 in             let a = ref (map_update_some ...) in
+    let b = a in        <-- SHARES        let b = ref !a in   <-- NEW ref, COPIED value
+    b[0] <- 2;                            b := map_update_some !b 1 2;
+    a[0]                                  Map.get !a 1
+
+So "emit `let b = a` and share the ref" looks like a two-line change. **IT IS NOT SAFE, and
+the reason is the mirror image of the defect itself.**
+
+A Python dict local is REBOUND with the same syntax it is aliased with:
+
+    a = {1: 1};  b = a;  b = {2: 2}      # rebinding b — `a` is UNCHANGED, a[1] is still 1
+
+If `b` and `a` share one ref, the rebinding `b := ...` writes THROUGH to `a`, and the model
+would then be wrong in the opposite direction — it would report `a` changed when Python says
+it did not. Trading an unsound read for an unsound write is not a repair.
+
+**THE LIST MODEL DOES NOT HAVE THIS PROBLEM, AND THAT WAS MEASURED TOO** rather than
+assumed. `a = [1]; b = a; b = [3]; return a[0]` — true of the program is 1:
+
+    \result == 1   TRUE   ->  fails          \result == 3   FALSE  ->  fails
+
+Both directions fail, so list rebinding-after-aliasing is UNDECIDED, not wrong. The list
+model gets away with sharing because a Why3 `array` binding is not reassigned through `:=`;
+the dict model, built on a `ref`, would be.
+
+**CONCLUSION: take option 2, the REFUSAL.** It is not merely the cheaper repair or the
+campaign's stylistic preference for failing closed — it is the one that does not create a
+second defect while closing the first. Any future attempt at option 1 must handle REBINDING
+in the same change, and must re-run the four BROKEN carriers above plus this rebinding pair
+in both directions.
+
+This is the "probe your own repair for the gap it leaves" discipline (the one that found
+route #58 an hour after #53) applied BEFORE the build rather than after it.
