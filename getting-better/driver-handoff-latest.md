@@ -95,9 +95,21 @@
 #   location in any Python verifier — Python floors, C/SMT truncate); string `len`/`==`
 #   modelled while ordering/concat/indexing are opaque both ways; and route #54's
 #   duplicate-key collapse genuinely modelled at `str` and `int` keys.
-#   **Still unprobed and worth it: `set` aliasing, nested dict/list, tuple identity,
-#   and a dict aliased ACROSS a function boundary in the other direction (caller mutates,
-#   callee reads).**
+#   **AND THE STRUCTURAL RESULT THAT SHOULD AIM THE NEXT GENERATION.** The Hoare-logic core
+#   was probed and it HOLDS, each in both directions: frame enforcement (a write outside
+#   `assigns` FAILS, the correct frame PROVES), `\old` (captures the PRE-state),
+#   CLASS INVARIANTS (ASSUMED at entry — confirmed by a postcondition unprovable without
+#   it — and CHECKED at exit), PRECONDITION DISCHARGE at the call site, and POSTCONDITION
+#   FLOW to the caller. Also: NO integer wraparound, string keys genuinely distinct,
+#   signed `//`/`%` faithful in all four quadrants.
+#   **So every route this campaign has ever found lives in the VALUE MODEL, not the logic**
+#   — #44/#50/#51/#56/#57 are `None`/sentinels, #53/#58 are floats-as-exact-reals, #54 is
+#   dict-literal key collapse, #59 is reference-vs-value semantics. **PROBE
+#   REPRESENTATIONS, NOT THE PROOF ENGINE.** The engine has been measured.
+#
+#   Set aliasing is probed (fails closed, by a type accident). Still unprobed and worth it:
+#   nested dict/list containers, tuple identity, and `del d[k]` / `.pop()` as alias
+#   mutations.
 #
 #
 # ## THE LANDING PLAN FOR THE NEXT RELAUNCH — BOTH STAGED PATCHES, MEASURED TO COMPOSE
