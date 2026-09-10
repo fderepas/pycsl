@@ -486,4 +486,22 @@ inspection.
 This is the reassuring result the campaign's own structure depends on, and it is recorded
 here so that "is `assigns` actually enforced?" never has to be re-asked from scratch.
 
-**DO NOT RE-PROBE THESE SEVEN.**
+    INTER-PROCEDURAL CONTRACTS:
+      `g` requires x > 0, caller does `g(-1)`     ->  **FAILS**  (precondition discharged
+                                                                  AT THE CALL SITE)
+      the same caller doing `g(5)`                ->  **PROVES**
+      caller's `\result == 5` proved only from
+        the callee's `ensures \result == x`       ->  **PROVES** (the postcondition FLOWS)
+
+**DO NOT RE-PROBE THESE TEN.**
+
+### THE STRUCTURAL CONCLUSION, WHICH IS WORTH MORE THAN ANY ONE OF THEM
+
+Frames, `\old`, class invariants, precondition discharge and postcondition flow are ALL
+sound, each verified in both directions. **So every route this campaign has found lives in
+the VALUE MODEL — how a Python value is represented — and none of them live in the Hoare
+logic.** #44/#50/#51/#56/#57 are `None` and sentinels; #53/#58 are floats as exact reals;
+#54 is dict-literal key collapse; #59 is reference vs value semantics for collections.
+
+That is a useful place to point the next generation: **probe representations, not the
+proof engine.** The engine has now been measured and it holds.
