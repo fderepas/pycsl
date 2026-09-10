@@ -38,7 +38,25 @@ and stays exact, because there Python really does answer the supplied default.
 `.get` shape closes, at BOTH measured codomains and with both int and string keys; the
 explicit-default form keeps proving; the subscript path is untouched.
 
-## THE COST IS NOT MEASURED AND IS EXPECTED TO BE REAL
+## THE COST IS NOW MEASURED — SEVEN MIRRORS, AND IT IS REAL
+
+`bin/mirror-emit-sweep.sh` + `byte-diff-compare.py`, baseline = a clean worktree at the
+post-route-#56 HEAD, 53 of 53 emitted on both sides:
+
+    ROUTE #57 ALONE:  7 MOVED — auto_trust, expressions, functions, preamble,
+                      statements, stmt_control_flow, types — 0 GONE, 0 APPEARED.
+
+That is exactly the 8 measured for #56+#57 together minus the 1 that was #56's, so the
+separation arithmetic checks out against an independent measurement rather than being
+assumed. **0 APPEARED matters most**: no file that was refused has become an emission,
+which is the one direction that can only ever be a soundness loss.
+
+SEVEN mirror re-proofs are therefore owed, and two of them (`expressions`, `statements`)
+are the slowest in the tree — each has taken ~3-4h and neither had EVER completed before
+this window. Budget a multi-hour battery, and do NOT land this while anything else needs
+those two files' verdicts.
+
+## THE ORIGINAL NOTE ON COST
 
 `.get` is used heavily by the emitter's own source, so unlike route #56 this is very
 unlikely to be byte-inert on the mirror. Run `bin/byte-diff-sweep.sh` twice plus
