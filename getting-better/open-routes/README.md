@@ -9,6 +9,32 @@
 ##   catches them costs one command: RE-REPRODUCE AT HEAD BEFORE BUILDING, never inherit
 ##   a status line.
 ##
+##   A THIRD GENERATOR, and the structural fact behind it (gen #4, 2026-09-10):
+##   **PROBE THE ORACLES, NOT ONLY THE EMITTER.** The planes that decide whether a route
+##   is closed are themselves programs with defects. Ten were found and fixed in one
+##   window, two of them hiding live findings — a fidelity plane that a PROSE COMMENT
+##   switched off for 46 functions (one genuinely divergent), and two gates testing the
+##   same `# pycsl-expected: FAIL` marker differently, which left 13 drivers required to
+##   prove AND exempt from the vacuity census.
+##
+##   **AND THE ONE ACCIDENT WORTH KNOWING BY NAME.** Carrier censuses of routes #44/#56
+##   this window found the SAME mechanism confining three of them:
+##
+##       LOCAL   the carrier where the routes were FOUND (the sentinel type-checks)
+##       PARAM   fails closed — `Optional[T]` becomes a generated `_union_f_0` and the
+##               comparison dies with "has type PyCSL_Program._union_f_0"
+##       RETURN  fails closed — identically, `_union_g_0`
+##       FIELD   NOT a union at all: it lowers to a plain carrier read against the
+##               opaque, `if (self.v = pycsl_none)`, i.e. genuinely COVERED by the repair
+##
+##   So the param and return carriers of the whole `None` family are guarded by ONE Why3
+##   TYPE ACCIDENT, not by four independent decisions — and a `SAFE-TYPED` verdict is an
+##   accident, never a guard. **REOPENING CAPABILITY, STATED ONCE FOR THE FAMILY:** any
+##   change that makes a generated `Optional` union COMPARABLE to its carrier reopens the
+##   param and return carriers of #44 and #56 SIMULTANEOUSLY. That is one condition to
+##   watch rather than several, and it is cheap to check — re-run the carrier probes in
+##   `route56-optional-union-local-read-sentinel.md`.
+##
 ##   An empty OPEN list is NOT a floor — it means the hunt must now GENERATE candidates
 ##   rather than work a queue. The two productive generators this window: probe every
 ##   CARRIER of a closed route (that is how #56's bool carrier and #57 were found), and
