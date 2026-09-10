@@ -177,3 +177,28 @@ in both directions.
 
 This is the "probe your own repair for the gap it leaves" discipline (the one that found
 route #58 an hour after #53) applied BEFORE the build rather than after it.
+
+---
+
+## THE `set` CARRIER — PROBED, FAILS CLOSED, BUT ONLY BY A TYPE ACCIDENT
+
+A `set` is modelled by the same `map`-in-a-`ref` machinery as a dict, so it is the obvious
+sibling carrier. Probed two spellings of the mutation, both directions:
+
+    a: Set[int] = {1};  b = a;  b.add(2);   then  `2 in a`   -> emission dies on a type error
+    a: Set[int] = {1};  b = a;  b |= {2};   then  `2 in a`   -> emission dies on a type error
+                                                                (both the true and false twin)
+
+CPython says `2 in a` is **True** in both cases — the alias mutates the one shared set.
+
+So the set carrier is NOT currently a route, and the reason is that the aliased-set mutation
+does not lower at all. **That is a type ACCIDENT, not a guard**, and it is the third one this
+generation has had to write down as such (see also the `Optional` union carriers and the
+mixed int/float arithmetic boundary).
+
+**REOPENING CAPABILITY:** the moment an aliased set becomes mutable-and-lowerable — `.add`
+through a second name, or `|=` — the set carrier inherits route #59 immediately, because it
+shares the copy-on-assign lowering. The staged repair already covers it: its guard tests
+`_field_type_of(...) in ("dict", "set", "frozenset")` and the `_dict_locals` membership that
+`_rhs_yields_map` populates for sets too. Re-run these two probes after any change to set
+lowering.
