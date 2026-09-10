@@ -39,3 +39,5 @@
 17:21 QUEUE E DONE
 07:07 started w51g_autotrust
 07:07 started w51g_types
+07:10 finished w51g_autotrust rc=0
+07:11 started w51g_functions
