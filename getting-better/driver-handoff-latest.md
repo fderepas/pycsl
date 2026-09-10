@@ -1,3 +1,60 @@
+# ===================== START HERE — #51 (UPDATED 2026-09-10 07:08 UTC) ===========
+#
+# ## TWO SOUNDNESS ROUTES CLOSED AND LANDED THIS WINDOW, BOTH WITH THEIR COSTS MEASURED
+#
+#   **ROUTE #56 — CLOSED (`b9217158`), RE-PROOF GREEN.** A `None` Optional-union LOCAL
+#   read back as the carrier's zero. L3 corpus BYTE-INERT; L3 mirror 1 mover, and that
+#   mover (`w51f_m5ir`) has since proved rc=0. Witnesses 1108-1111.
+#
+#   **ROUTE #57 — CLOSED (`d7796dbf`), SEVEN RE-PROOFS IN FLIGHT AS QUEUE G.**
+#   `d.get(k)` on a missing key was the codomain's ZERO, not `None`. THE MOST REACHABLE
+#   ROUTE IN THE LEDGER — #56 needs an `Optional` mutable local (the corpus has ZERO);
+#   this needed `d.get(k)`. L3 corpus BYTE-INERT (910/910, 0/0/0); L3 mirror 7 movers,
+#   0 GONE, 0 APPEARED. Witnesses 1112-1115.
+#
+#   BOTH fixes reuse EXISTING opaques (`pycsl_none`, `pycsl_none_str`). No new model, no
+#   new axiom, LEDGER STAYS 3. Metric unchanged at markers 456 / grep 481 / offset 25 / 0.
+#
+#   THE FAMILY: #44, #56 and #57 are ONE defect in three costumes — **FAITHFUL STORAGE,
+#   ERASING READ**. The model carries a genuine absent value (`map 'k (option 'v)`, a real
+#   `Arm_*_None`) and a `match … | None -> <literal>` arm throws it away AT THE POINT OF
+#   USE, so an auditor who checks the REPRESENTATION finds it faithful.
+#   `bin/check-collapsed-option-reads.py` (31st plane) now enumerates every such arm, and
+#   the rule for telling the fatal from the benign is written into it: **a ghost SPEC
+#   construct may DEFINE its absent-key answer (`\map_get` does, and says so on two
+#   normative surfaces); a BODY lowering may not.**
+#
+# ## IN FLIGHT — DO NOT RELAUNCH
+#
+#   QUEUE G (`scratchpad/w49/queue51g.sh`), started 07:07, concurrency TWO, detached,
+#   8h timeouts: `w51g_autotrust`, `w51g_types`, `w51g_functions`, `w51g_preamble`,
+#   `w51g_scf`, then `w51g_expressions` and `w51g_statements` LAST as a pair (each ~3-4h).
+#   These are route #57's seven owed movers. **If one FAILS that is the honest cost of the
+#   repair and must be worked, not hidden.**
+#
+# ## THE TWO THINGS STILL OWED, IN PRIORITY ORDER
+#
+#   1. **`w51_cis` rc=1 — core_ir_semantic, 8 TERMINATION goals.** Diagnosed in
+#      `getting-better/open-routes/finding-w51cis-termination-of-an-untyped-walk.md`, and
+#      RE-CLASSIFIED there from correctness to COST/SCALE after the same file refuted my
+#      first reading: other walks in it (`_union_c8_walk`, `_check_union_narrowing__collect`)
+#      DO carry variants and DO discharge `variant decrease` goals. The difference is the
+#      PARAMETER TYPE — those are annotated (`stmts: list`), `_returns_literal_none(body)`
+#      is annotated nowhere and its nested `walk` is heterogeneous (dict|list|scalar).
+#      A disposition test was running at the time of writing: mark `_returns_literal_none`
+#      `\trusted` and re-prove, on the hypothesis that all 8 goals die with the nested
+#      walk. **If it works the metric goes UP 456 -> 457 and that is the CORRECT direction.**
+#   2. **THE L1 FIDELITY PLANE IS STILL RED** — `_handle_for_stmt` carries 37 of the live
+#      emitter's 99 normalized statements while being counted as VERIFIED. The
+#      `_handle_var_expr` half is FIXED AND MEASURED in a worktree
+#      (`scratchpad/wt-l1b`): divergences 2 -> 1, 841 checked, and **17 of 18 planes green
+#      with NO ratchet movement**. It was deliberately NOT landed with route #57, because
+#      combining an EMITTER change with a MIRROR change would destroy attribution if the
+#      shared `expressions.py` re-proof failed — the bisect that route #42 cost.
+#      Land it AFTER queue G, with its own re-proof.
+#
+# ===================== the earlier #51 blocks follow ============================
+#
 # ===================== START HERE — #51 (UPDATED 2026-09-10 07:00 UTC) ===========
 #
 # ## EVERY BATTERY THIS CAMPAIGN WAS WAITING ON HAS REACHED A VERDICT
