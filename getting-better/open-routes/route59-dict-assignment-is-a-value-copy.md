@@ -299,3 +299,48 @@ Two consequences, and both matter for whoever extends the repair:
 
 So both halves of route #59 are, today, defects nobody has tripped. That is the argument
 for fixing them now rather than after someone writes the obvious Python.
+
+---
+
+## ROUTE #59 IS RULE **R1/R3** OF A DISCIPLINE THIS PROJECT ALREADY WROTE DOWN — AND ONLY **R2** IS ENFORCED
+
+`docs/pycsl-ownership-discipline.md` §2 lists what is **rejected (out of scope)**:
+
+    (R1) Shared mutable aliasing.  "Two live references to one mutable object, both written
+         (`a = b; a.append(1); b.append(2)`; or storing a list in a dict *and* keeping the
+         original and mutating both). The interleaving is observable and not value-expressible."
+    (R2) Mutable default arguments (`def f(x, acc=[])`) — a hidden cross-call shared object.
+    (R3) Mutate-through-alias of a stored object — `self.x = p` then later `p.append(...)`
+         expecting `self.x` to change.
+
+**Route #59 IS R1, and its field/return carriers ARE R3.** So the defect is not that the
+boundary was never considered — it is that **the boundary is DOCUMENTED BUT NOT ENFORCED**,
+and the tool answers inside it anyway.
+
+**R2 IS ENFORCED. MEASURED:**
+
+    def g(x: List[int] = []) -> int: ...
+    [!] PIPELINE ERROR: Mutable default argument in function 'g': a list/dict/set default
+        is a single object shared across all calls (a shared-aliasing bug) and is outside
+        PyCSL's value-semantics boundary (ownership discipline R2). Use a `None` sentinel...
+
+There is even a corpus witness for it, marked `# pycsl-expected: FAIL`. So one of the three
+rules refuses, and the other two — the ones route #59 lives in — silently return
+"Verification SUCCESS" on a false postcondition.
+
+**THIS ALSO QUALIFIES A SOUNDNESS CLAIM THE DOC MAKES.** §3 states the snapshot semantics is
+"a **sound under-approximation**: it never proves a false postcondition, because it models
+*less* sharing than Python has". Measured, that sentence holds only WHEN THE BOUNDARY IS
+ENFORCED. It is not, for R1/R3, and `\result == 1` proves where CPython answers 2. An
+under-approximation of sharing is sound only if programs that exceed it are REFUSED; if they
+are accepted, modelling less sharing is exactly how a false postcondition gets proved.
+
+**WHAT THIS CHANGES ABOUT THE REPAIR — IT IS NOT A NEW RESTRICTION.** The staged patch does
+for R1/R3 precisely what the emitter already does for R2: refuse, with a diagnostic naming
+the discipline. It removes no capability the project ever claimed to have; it makes an
+already-declared boundary honest. That is a considerably easier thing to justify landing
+than a new refusal would be, and the R2 diagnostic is the template its message should follow.
+
+**FOLLOW-UP FOR THE NEXT RELAUNCH:** R3's other spelling — `self.x = p` (p a mutable local)
+followed by `p[...] = ...`, i.e. the STORE direction rather than the READ direction probed
+here — is not yet measured. The staged guard fires on `b = self.d`, not on `self.d = b`.
