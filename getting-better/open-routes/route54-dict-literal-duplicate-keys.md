@@ -62,3 +62,33 @@ CENSUS BEFORE BUILDING: a dict literal with two keys that are equal-but-differen
 is pathological, so the population is expected to be zero — but the FOLD ITSELF is used by
 every `len(<dict literal>)` and every `<dict literal>[k]` in the tree, so option (2)'s blast
 radius is large and option (1)'s is zero. Measure both before choosing.
+
+---
+
+## CARRIER CENSUS — PROBED, NO FINDING (gen #4, 2026-09-10)
+
+The generator that found #56's bool carrier says to probe every CARRIER of a closed route.
+Pointed at #54 (a dict literal carrying TWO models that disagreed on EQUAL keys), at the
+key types the original work did not name. **The repair holds, and it holds in BOTH
+directions — which is the check route #53's file failed to make and paid for.**
+
+  `{"a": 1, "a": 2}["a"] == 1`   FALSE of the program  ->  FAILS.   fails closed
+  `{"a": 1, "a": 2}["a"] == 2`   TRUE  of the program  ->  PROVES.  faithful
+  `len({"a": 1, "a": 2}) == 1`   TRUE  of the program  ->  PROVES.  faithful
+  `{1: 5, 1: 6}[1] == 5`         FALSE of the program  ->  FAILS.   fails closed
+
+So duplicate-key collapse is MODELLED at both the `str` and `int` key carriers, not merely
+refused: the true twins prove. That is a stronger result than "fails closed" and it is why
+both directions were run.
+
+  `len({1: 5, 1.0: 6}) == 2`     FALSE of the program  ->  emission dies, "This expression
+                                 has type real, but is expected to have type int"
+
+The float/int key identity (Python collapses `1` and `1.0` to one entry) is therefore
+unreachable, by the SAME type limitation recorded on route #58: float keys do not lower.
+Fails closed, but by a type ACCIDENT rather than by the model — so it inherits #58's
+reopening capability verbatim. Gen #3 had already probed the BOOL/INT key identity
+(`len({1: 5, True: 6}) == 2`) and found it fails closed with its true twin proving; this
+extends that census to `str`, `int` and `float` keys.
+
+**DO NOT RE-PROBE THESE FIVE.**
