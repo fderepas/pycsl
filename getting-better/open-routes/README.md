@@ -7,8 +7,12 @@
 ##     mutation through `b` is invisible through `a`. `a[1] == 1` PROVES where CPython says
 ##     2. BOTH directions measured; the true twin fails, so it is a route and not a gap.
 ##     **The `List` carrier of the identical program is CORRECT**, which is what makes it
-##     sharp: lists alias via a shared mutable array, dicts copy a pure map. Carriers still
-##     to probe and the repair shapes are in the file.
+##     sharp: lists alias via a shared mutable array, dicts copy a pure map. Carrier census
+##     DONE: broken at local->local, symmetric, chained, the FIELD carrier, and the RETURN
+##     carrier (a getter handing out `self.d`); SAFE at the call boundary and, by a type
+##     accident only, at `set`. **A PARTIAL repair is staged at `getting-better/staged-route59/`
+##     — it closes the ALIAS carriers and does NOT close the route**, because the RETURN
+##     carrier's RHS is a Call and the guard keys on a bare name or field read.
 ##
 ## (the note below predates that find and is kept for its lesson)
 ## PREVIOUSLY: **NONE.** Every route in this ledger is CLOSED at `cf35437f`.

@@ -1,6 +1,9 @@
 # ROUTE #59 — A DICT ASSIGNMENT IS A VALUE COPY, SO ALIASED MUTATION IS INVISIBLE
 
-**STATUS: OPEN — REPAIR BUILT, FULLY MEASURED, STAGED AT `getting-better/staged-route59/`, NOT LANDED.** Found 2026-09-10 (gen #4). Reproduced twice at HEAD, mechanism read off
+**STATUS: OPEN. A PARTIAL REPAIR IS BUILT, FULLY MEASURED AND STAGED AT
+`getting-better/staged-route59/` — NOT LANDED, AND LANDING IT DOES NOT CLOSE THIS ROUTE.**
+It closes the ALIAS ASSIGNMENT carriers. The RETURN carrier (a getter handing out an
+internal dict) is measured broken and is NOT covered — see the section near the end. Found 2026-09-10 (gen #4). Reproduced twice at HEAD, mechanism read off
 the emission, ground truth confirmed against CPython.
 
 ## THE ROUTE
