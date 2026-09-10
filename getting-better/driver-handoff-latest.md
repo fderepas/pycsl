@@ -27,7 +27,23 @@
 #   exactly 2 files, battery 1/18 RED (the pre-existing one), all 53 mirrors type-clean,
 #   metric unchanged. **IT OWES TWO MIRROR RE-PROOFS** — `statements.py` and its caller
 #   `Module6_WhyMLTranspiler.py`. Sequence and full measurements in that directory's
-#   README. Landing it CLOSES the route.
+#   README.
+#
+#   **BUT THE REPAIR IS PARTIAL — LANDING IT DOES NOT CLOSE THE ROUTE.** Probing my own
+#   repair for the gap it leaves (the #58 discipline) found a carrier it misses:
+#
+#       def get(self) -> Dict[int,int]: return self.d     # a getter handing out the
+#       m = self.get();  m[1] = 2;  return self.d[1]      # INTERNAL dict. CPython: 2
+#
+#   `\result == 1` PROVES. The guard keys on the RHS being a bare name or field read;
+#   here it is a **Call**, so nothing fires — the same copy-on-bind ONE SYNTACTIC STEP
+#   AWAY, exactly #58 relative to #53. Emission: `let m = ref (self_get_0 ())`.
+#   **Handing out an internal collection from a getter is one of the most common patterns
+#   in real Python, so this carrier is arguably MORE reachable than the one the repair was
+#   built for.** Land the patch for the reduction it gives; do NOT mark #59 closed.
+#   The extension is scoped in the route file (key on "kind == dict AND the RHS is not a
+#   FRESH construction"), and it must be measured against the MIRROR — the corpus will
+#   stay clean while the mirror decides.
 #
 # ## THE FOUR THINGS THAT BUILD TAUGHT, AND THEY GENERALISE
 #
