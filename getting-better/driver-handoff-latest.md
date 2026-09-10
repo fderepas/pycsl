@@ -35,18 +35,28 @@
 #   rc=0 on this tree, rc=1 with the ill-typed half re-applied, naming the exact line.
 #   **RUN `bash bin/run-soundness-planes.sh --slow` BEFORE LANDING ANY MIRROR EDIT.**
 #
-# ## IN FLIGHT — THREE RE-PROOFS, LAUNCHED 17:36 ON THE LANDED TREE
+# ## NOTHING IS IN FLIGHT. EVERY OWED PROOF IS COLLECTED AND rc=0.
 #
-#   `w53b_scf`          owed by L1's scf half
-#   `w53c_statements`   owed by route59's `#@ raises` on `_handle_assign_stmt`
-#   `w53d_transpiler`   owed because it CALLS `_handle_assign_stmt`, so its VCs moved
+#   `w53b_scf`        rc=0    owed by L1's scf half
+#   `w53c_statements` rc=0    owed by route59's `#@ raises` on `_handle_assign_stmt`
+#   `w53d_transpiler` rc=0    owed because it CALLS `_handle_assign_stmt`, so its VCs moved
+#                             — this is the risk the staged README flagged, and it holds
+#   `w52c_statements` rc=0 · `w52d_expressions` rc=0 (earlier)
+#   `w51g*` route #57's whole mover set, rc=0
 #
-#   **THEY ARE UNAFFECTED BY THE EXPRESSIONS REVERT**, checked not assumed: mirrors are
-#   emitted with `--import-path src/pycsl`, so imports resolve against the LIVE emitter and
-#   one mirror file's emission never depends on another's.
-#   `w53a_expressions` is rc=1 and is EXPECTED — it is the ill-typed run described above.
-#   After the revert, expressions.py is byte-identical to the tree `w52d_expressions`
-#   proved rc=0, so **it owes nothing**.
+#   **So every mirror this generation touched has a WHOLE-FILE PROOF at its current
+#   content.** `w53a_expressions` is rc=1 and EXPECTED — the ill-typed staged-L1 half,
+#   since reverted; after the revert expressions.py is byte-identical to the tree
+#   `w52d_expressions` proved rc=0, so it owes nothing.
+#
+#   FINAL BATTERY: `--slow`, **31 planes, 30 GREEN**, the one RED being the single
+#   mirror-sync divergence above. Log: `getting-better/proofs49/w53e_slow_planes_final.log`.
+#
+#   **RUN THE BATTERY WITH why3 ON PATH** (`export PATH=$HOME/.opam/framac-coq8/bin:$PATH`).
+#   Without it `check-param-mutator-visibility` used to report SIX cases off-baseline and
+#   rc=1 — a missing tool laundered into what looked exactly like a regression from the
+#   most recent landing. That is fixed (it now skips), but several planes still need why3
+#   to say anything at all.
 #
 # ## THE LADDER FOR THE NEXT RELAUNCH
 #
