@@ -256,3 +256,27 @@ to stop keying on the RHS *node kind* and key on "kind == dict AND the RHS is no
 construction" instead — a `DictLit`, `dict()`/`set()` Call, or a comprehension being the
 fresh cases. **That inversion must be measured against the mirror before it is believed:
 the read-only-rebind lesson says the corpus will stay clean while the mirror decides.**
+
+## THE LIST CONTROL FOR THE RETURN CARRIER — SAFE, AND IT COMPLETES THE PICTURE
+
+The same getter-hands-out-an-internal-collection shape at the `List` carrier:
+
+    m = self.get();  m[0] = 9;  return self.a[0]      CPython: 9
+    \result == 9  TRUE  -> fails        \result == 1  FALSE -> fails
+
+Both directions fail, so it is UNDECIDED rather than wrong. Combined with the earlier
+carriers this gives the whole comparison, and it is clean:
+
+    carrier                     List                          Dict
+    ------------------------    --------------------------    --------------------------
+    local alias, then mutate    CORRECT (true twin proves)    **UNSOUND** (false proves)
+    symmetric / chained         CORRECT                       **UNSOUND**
+    field aliased into a local  (n/a, same as above)          **UNSOUND**
+    callee mutates a param      CORRECT (true twin proves)    undecided (safe)
+    getter returns internal     undecided (safe)              **UNSOUND**
+    rebind after alias          undecided (safe)              (would break if ref shared)
+
+**LISTS ARE NEVER WRONG — they are either faithful or undecided. DICTS ARE WRONG IN THREE
+OF SIX CARRIERS.** That is the sharpest statement of route #59, and none of it would have
+been visible from probing a single carrier: the very first list probe came back FAITHFUL and
+would have been read as "reference semantics are modelled" had the census stopped there.
