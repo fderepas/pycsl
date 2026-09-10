@@ -422,3 +422,32 @@ closes if that becomes the default, and the cost of doing so is the interesting 
 question — not the placeholder itself.
 
 **DO NOT FILE THIS AS A ROUTE.**
+
+---
+
+## INTEGER BIT OPERATIONS AND ARBITRARY PRECISION (gen #4) — PROBED, NO FINDING
+
+The soundness risk in this area is FIXED-WIDTH WRAPAROUND: Python ints are unbounded, and a
+model that silently truncates to 64 bits would decide overflow comparisons the other way.
+Nine probes, both directions where a false twin exists.
+
+    MODELLED (true claim proves):
+      (1 << 70) > 0    -> PROVES     ** no wraparound; arbitrary precision preserved **
+      (1 << 3) == 8    -> PROVES
+      (6 & 3) == 2     -> PROVES
+      (6 | 1) == 7     -> PROVES
+      ~5 == -6         -> PROVES     (and `~5 == -5`, false, fails)
+
+    OPAQUE — fails closed in BOTH directions (a completeness gap, not a guard):
+      -8 >> 1 == -4    TRUE  -> fails       -8 >> 1 == 4   FALSE -> fails
+
+So the only gap is ARITHMETIC RIGHT SHIFT ON A NEGATIVE operand, and it is undecided rather
+than wrong. `(1 << 70) <= 0` — the wraparound signature — fails, which is the result that
+mattered: a 64-bit truncation would have proved it.
+
+**REOPENING CAPABILITY:** if a bounded-int mode is ever made the default (the emitter
+already carries a `self._bounded_int` notion and a `bounded_int` first-assign kind), re-run
+`(1 << 70) > 0` and `(1 << 70) <= 0` FIRST — that pair is the cheapest wraparound detector
+in the corpus.
+
+**DO NOT RE-PROBE THESE NINE.**
