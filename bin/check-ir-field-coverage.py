@@ -279,14 +279,33 @@ def main():
         return 2
     if args.update:
         with open(BASELINE, "w") as fh:
-            json.dump({"unread": sorted(unread), "generic_skipped": sorted(TOO_GENERIC)},
+            json.dump({"unread": sorted(unread),
+                       "generic_skipped": sorted(TOO_GENERIC),
+                       "unmatched": sorted(unmatched)},
                       fh, indent=2, sort_keys=True)
             fh.write("\n")
         print(f"[+] ir-field-coverage: baseline written ({len(unread)} unread field(s))")
         return 0
 
     with open(BASELINE) as fh:
-        base = set(json.load(fh)["unread"])
+        _b = json.load(fh)
+        base = set(_b["unread"])
+        # A CLASS WITH NO IDENTIFIABLE HANDLER HAS ITS WHOLE FIELD SET SKIPPED, and that
+        # was printed and then ignored (gen #4). 25 of the 101 schema classes are in that
+        # state, so a quarter of the population is unaudited — acceptable as a recorded
+        # baseline, NOT acceptable as something that can grow in silence. `handlers_for`
+        # matches by NAME, so an ordinary emitter rename removes a class from this census
+        # with nothing to announce it, and the plane keeps printing OK.
+        base_unmatched = set(_b.get("unmatched", []))
+    new_unmatched = [c for c in sorted(unmatched) if c not in base_unmatched]
+    if new_unmatched:
+        print(f"[-] ir-field-coverage: {len(new_unmatched)} class(es) NEWLY have no "
+              f"identifiable handler, so every field they declare has just left the "
+              f"census unexamined. This is usually a rename in Module 6 — re-point the "
+              f"handler match rather than re-baselining.")
+        for c in new_unmatched:
+            print(f"      {c}")
+        return 1
     new = [u for u in unread if u not in base]
     gone = [u for u in sorted(base) if u not in set(unread)]
     for u in gone:
