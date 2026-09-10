@@ -71,17 +71,22 @@
 #   2. **LAND `getting-better/staged-L1/l1-both-halves-var-expr-and-for-stmt.patch`.**
 #      It takes the fidelity L-PLANE — RED at HEAD for a long time — to **ZERO
 #      divergences**, with **ALL 18 PLANES GREEN** and the metric 456 -> **457**. It is
-#      MIRROR-ONLY, so corpus-inert BY CONSTRUCTION. It owes exactly TWO whole-file
+#      MIRROR-ONLY, so corpus-inert BY CONSTRUCTION. **Its measured numbers were taken
+#      BEFORE item 3 landed, so re-read them as: fidelity 2/840 -> 0, metric 457 -> 458.**
+#      It owes exactly TWO whole-file
 #      re-proofs, `expressions.py` and `stmt_control_flow.py` — the two files queue G is
 #      proving right now, which is the only reason it is staged rather than landed.
 #      **APPLY IT ONLY AFTER `w51g2_expressions` AND `w51g_scf` HAVE RECORDED VERDICTS.**
-#   3. **THE `w51_cis` DISPOSITION.** Hypothesis: `\trusted` on `_returns_literal_none`
-#      kills all EIGHT termination goals (six are its nested untyped `walk`, one is
-#      itself, and the eighth is `_check_scalar_return_annotation`, which CALLS it and
-#      inherits the failure from the inlined body). INTERIM: 1509 Valid, **0 timeouts**
-#      against the original's EIGHT — consistent, NOT a verdict. **The previous attempt
-#      DIED WITHOUT AN `.rc` because it was a plain Bash-tool child; this one is setsid'd.**
-#      If it holds, land the marker: 456 -> 457 is the CORRECT direction.
+#   3. ~~**THE `w51_cis` DISPOSITION.**~~ **DONE AND LANDED (`d036e101`).** rc=0.
+#      Without the marker: 1521 Valid + **16 TIMEOUTS** + 8 unproven. With
+#      `_returns_literal_none` marked `\trusted`: 1509 Valid, **0 timeouts**, 0 unproven,
+#      "All contracts formally proven". A SINGLE marker cleared EIGHT goals because
+#      `_check_scalar_return_annotation` CALLS it and had inherited the failure from the
+#      inlined body. Frame CHECKED not assumed (the live body is pure — no `global`, no
+#      attribute write — so `assigns \nothing` is honest as an ASSUMPTION). No re-proof
+#      owed, measured: `core_ir_semantic.mlw` emitted at `adf2eda5` (where the rc=0 was
+#      obtained) and at HEAD is BYTE-IDENTICAL at 2997 lines. **METRIC IS NOW 457.**
+#
 #   4. **RUN THE NINE REMAINING SLOW PLANES, THEN WIRE THEM.** Twelve of the thirty are not in
 #      `run-soundness-planes.sh`. The exclusion is DELIBERATE and right (they self-emit or
 #      drive the prover, minutes each) — they "belong in a DRIVER BATTERY", which is what
@@ -137,14 +142,16 @@
 #
 # ## STATE
 #
-#   HEAD `49d368a7`+ · tracked tree CLEAN apart from two long-standing GITLINKS
+#   HEAD `d036e101` · tracked tree CLEAN apart from two long-standing GITLINKS
 #   (`scratchpad/w7/base`, `scratchpad/w8/pre` are registered WORKTREES, not dirt) and a
 #   0-byte stray `str` in the repo root left by an earlier window. `src/self-annotate` 0.
-#   METRIC markers 456 · grep 481 · offset 25 · unattached 0 — UNCHANGED all window, the
-#   expected shape when the work is routes. **It should become 457 when item 2 lands, and
-#   that RISE IS CORRECT.**
+#   METRIC markers **457** · grep 482 · offset 25 · unattached 0 — it rose by ONE when
+#   item 3 landed, and **THAT RISE IS THE CORRECT DIRECTION**: the trust surface was
+#   always that big and only the bookkeeping said otherwise. It should rise to **458**
+#   when item 2 (the staged L1 patch) lands, for the same reason.
 #   PLANES 17 of 18; the one RED is `check-self-annotate-mirror-sync` (2 divergences over
-#   841), PRE-EXISTING — and item 2 is the fix that takes it to 0.
+#   **840** — 841 before item 3, because a newly-`\trusted` function correctly leaves
+#   verbatim checking), PRE-EXISTING — and item 2 is the fix that takes it to 0.
 #   LEDGER 3. Window deadline 1789288757 (~71h left at 09:00).
 #
 # ===================== the earlier blocks follow ============================
