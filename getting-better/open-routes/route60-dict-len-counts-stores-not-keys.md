@@ -66,13 +66,36 @@ store is REFUSED (it type-errors reaching for `Array.length`). **A store is what
 tracker**, so adding a mutation to a function makes an unmodellable read answerable — and
 answerable with a constant. A guard that fires *more* the *less* the function does.
 
+## CARRIERS 6 AND 7 — CONTROL FLOW, NOT KEY EQUALITY (added minutes later, same session)
+
+The first census framed this as a key-equality defect. **It is worse than that: the tracker
+counts SYNTACTIC STORE SITES, so it is wrong even when every key is distinct.**
+
+| # | shape | model | CPython | verdict |
+|---|-------|-------|---------|---------|
+| 6 | `d={1:1}; if c>0: d[2]=2; len(d)` | 2 (for ALL `c`) | 1 when `c<=0` | **BROKEN** (`F1`) |
+| 7 | `d={}; for i in range(n): d[i]=i; len(d)` | **1 (for ALL `n`)** | `n` | **BROKEN** (`F2`) |
+
+**CARRIER 7 IS THE MOST DAMAGING SHAPE IN THE ROUTE**, because building a dict in a loop and
+then asking its size is one of the commonest idioms in Python. The store site inside the loop
+body is counted ONCE, so `len(d)` folds to `1` no matter how many iterations run — the emitted
+body even warns `unused variable i`. `\result == 1` proves Valid with `requires n > 0`.
+
+Carrier 6 makes the same point on a branch: a store the run never executes is still counted.
+
+**THIS INVALIDATES THE "CARRIERS 1-3 COULD BE FOLDED EXACTLY" READING BELOW.** Exact folding
+would have to be sound under key equality AND reachability AND iteration count. Only the
+last line of the section below survives: the fold has to become a REFUSAL, or a real
+`Map`-cardinality model. Refusal is the only cheap correct answer, and the safe direction.
+
 ## CARRIER 4 CANNOT BE FIXED BY FOLDING AT ALL
 
 `d[k] = 2` with `k` a parameter: whether the length grows is undecidable at emission. Any
 constant is wrong on some input. So the repair cannot be "make the fold smarter" the way
 #54's was — the fold has to become a REFUSAL (or a real `Map`-cardinality model) for every
-store whose key is not a literal provably distinct from all keys already tracked. Carriers
-1–3 could in principle be folded exactly; 4 and 5 cannot.
+store whose key is not a literal provably distinct from all keys already tracked. Carriers 1-3 looked foldable
+until carriers 6 and 7 (above) showed the fold is also blind to reachability and iteration
+count; 4 and 5 were never foldable. REFUSAL is the only cheap correct answer.
 
 ## WHAT IS NOT YET MEASURED (next steps, in order)
 
