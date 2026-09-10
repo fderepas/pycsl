@@ -473,7 +473,17 @@ proves, which is the only pair that distinguishes a working check from a check t
 says no. A frame lie is caught, and `\old` genuinely captures the PRE-state rather than
 aliasing the post-state.
 
+    CLASS INVARIANTS (`#@ class invariant self.x >= 0`), all three directions:
+      body sets `self.x = -1`, breaking it                    ->  **FAILS**  (CHECKED at exit)
+      body sets `self.x = 5`, preserving it                   ->  **PROVES**
+      `#@ ensures \result >= 0` for `return self.x`,
+        which can only hold if the invariant is ASSUMED       ->  **PROVES** (ASSUMED at entry)
+
+So the invariant is both ASSUMED on entry and CHECKED on exit — the correct discipline, and
+the assume half is confirmed by a postcondition that is unprovable without it rather than by
+inspection.
+
 This is the reassuring result the campaign's own structure depends on, and it is recorded
 here so that "is `assigns` actually enforced?" never has to be re-asked from scratch.
 
-**DO NOT RE-PROBE THESE FOUR.**
+**DO NOT RE-PROBE THESE SEVEN.**
