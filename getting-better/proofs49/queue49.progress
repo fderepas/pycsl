@@ -59,3 +59,4 @@
 11:48 SUITE run8 started (owed gate on routes #53/#58, the #57 type fix, and gen #4's plane changes)
 13:06 finished w51g_statements rc=0
 13:06 QUEUE G DONE
+13:08 started w52c_statements (OWED re-proof at the POST-SYNC body — the 13-statement _wrap_body_with_return_catch)
