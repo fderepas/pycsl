@@ -1,6 +1,6 @@
 # ROUTE #59 — A DICT ASSIGNMENT IS A VALUE COPY, SO ALIASED MUTATION IS INVISIBLE
 
-**STATUS: OPEN.** Found 2026-09-10 (gen #4). Reproduced twice at HEAD, mechanism read off
+**STATUS: OPEN — REPAIR BUILT, FULLY MEASURED, STAGED AT `getting-better/staged-route59/`, NOT LANDED.** Found 2026-09-10 (gen #4). Reproduced twice at HEAD, mechanism read off
 the emission, ground truth confirmed against CPython.
 
 ## THE ROUTE
