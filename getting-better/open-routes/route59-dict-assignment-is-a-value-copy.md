@@ -483,3 +483,25 @@ This also strengthens the case that #59's repair belongs: the emitter ALREADY re
 in-place receiver mutation for exactly the "silently absent from the model" reason, and
 already refuses R2 mutable defaults. Alias assignment is the same hazard reached by a
 different syntax, and it is the one still answered instead of refused.
+
+
+## ONE CARRIER STILL UNPROBED — R3 ACROSS A CALL BOUNDARY
+
+Named so it is not mistaken for covered ground. Every other carrier in this file has been
+measured; this one has not:
+
+```python
+    def store(self, x: Dict[int, int]) -> None:
+        self.d = x                 # callee STORES the caller's dict into a field
+
+    p = {1: 1};  self.store(p);  p[1] = 2;  return self.d[1]      # CPython: 2
+```
+
+It combines the two carriers that behave DIFFERENTLY on their own — the call boundary,
+which is SAFE (undecided), and the field store, which is BROKEN — so its outcome is not
+predictable from either and it has to be run rather than reasoned about. Both directions,
+as usual, and read the EMISSION rather than trusting a timeout.
+
+It was left unprobed only because the box was saturated with two owed re-proofs and a plane
+battery at the time; it is cheap (one small driver) and should be the first thing measured
+when a slot frees.
