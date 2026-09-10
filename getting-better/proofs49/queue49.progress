@@ -56,3 +56,4 @@
 11:38 started w52a --fun probe on statementemissionmixin___wrap_body_with_return_catch (targeted, --fun trusts the rest)
 11:38 finished w52a rc=0 — "Verification SUCCESS! All contracts formally proven". The honest 13-statement body PROVES; the old note's claim that f-string literal segments make it unverifiable is REFUTED. Whole-file statements.py re-proof still owed.
 11:47 finished w51g_scf rc=0
+11:48 SUITE run8 started (owed gate on routes #53/#58, the #57 type fix, and gen #4's plane changes)

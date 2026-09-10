@@ -1,3 +1,158 @@
+# ===================== START HERE — #49 (gen #4, 2026-09-10) =========================
+#
+# ## THE HEADLINE: THE ONE RED PLANE IS BROKEN, AND THE ORACLES THEMSELVES WERE THE VEIN
+#
+#   `check-shadowed-selfcalls` **15 -> 14** (bypassing sites 120 -> 119), **WITHOUT
+#   re-baselining**. Gen #3's return-position lead was the wrong axis and its ordering
+#   hypothesis was already refuted; the actual difference was that all four
+#   demonstrably-working siblings in the same file carry `#@ sibling_concrete` and
+#   `_dv_missing_default` did not. One marker. The abstract avatar
+#   `val self__dv_missing_default_1` is no longer declared at all and the call is now
+#   `raise (Return_str (expressionemissionmixin___dv_missing_default self nu))`.
+#
+#   That fix then opened the real vein. **EIGHT ORACLE DEFECTS FOUND AND FIXED**, in the
+#   planes the whole campaign's trust rests on. The defect class, in one sentence:
+#   **an oracle whose classification is keyed on text the audited artifact controls,
+#   where a false positive silently REDUCES what the oracle examines.**
+#
+# ## WHAT LANDED — THIRTEEN COMMITS
+#
+#   1. `b4e9c762` shadowed-selfcalls 15 -> 14 (above). OWES an expressions re-proof.
+#   2. `bc6691b0` **THE FIDELITY ORACLE COULD BE SWITCHED OFF BY A COMMENT.**
+#      `_trusted_above` tested for the TEXT `\trusted` anywhere above a `def`, and
+#      justification comments NAME the marker constantly. 46 functions were being skipped
+#      with no `#@ \trusted` directive. **ONE WAS REALLY DIVERGENT.**
+#   3. `0d05e62e` the same hole in THREE more planes — `self-annotate-mirror-check.sh`
+#      (the SECOND fidelity script), `check-yield-erasure.py` (both lost-coverage
+#      polarity) and `check-trusted-raises-honesty.py` (over-count). Deltas all null and
+#      reported as null.
+#   4. `f08bd325` **THE DIVERGENCE ITSELF.** `_wrap_body_with_return_catch` carried 8 of
+#      the live emitter's 13 statements — FIVE dispatch arms missing (`option (...)`
+#      opttuple, `pyconst_val` tuple, `emit_ir`, `term`, `_union_*`), all falling through
+#      to the generic `Return r -> r`. Re-synced verbatim. Fidelity 3 -> 2 over 886.
+#   5. `0f47f946` the walkers could not see a `def` nested in a `try:`/`if:`/`with:`.
+#      Found by cross-checking the planes' trusted count (455) against the authoritative
+#      marker count (457). They now agree at 457.
+#   6. `9456111e` the re-synced honest body **PROVES** (targeted `--fun`, rc=0). That
+#      also REFUTES the old note claiming f-string literal segments made it unverifiable.
+#   7. `1b483029` the ten prover/emission planes wired into the collector behind
+#      `--slow`, with MIN_PLANES scaling. Default path byte-identical.
+#   8. `6c3b0efa` **TWO GATES DISAGREED ABOUT THE SAME MARKER.**
+#      `run-reference-tests.sh` greps `^# pycsl-expected: FAIL` (anchored);
+#      `check-vacuous-drivers.py` used `in src` (unanchored). 13 pycsl-reference drivers
+#      name their TWIN's marker in a docstring, so they were REQUIRED TO PROVE and
+#      simultaneously EXEMPT from the vacuity census. Census 894 -> 936, nothing new found.
+#   9. `8f34b05a` **FIVE RATCHETS SELF-BASELINED AND RETURNED 0** when their baseline
+#      file was missing; THREE are in the per-run battery. Demonstrated both ways: pre-fix
+#      a hidden baseline gave rc=0 "[+] baseline written", post-fix rc=2 REFUSING.
+#  10. `9f2ec980` `check-untrusted-emitted.classify()` was a SUFFIX match
+#      (`classify("foo","let barfoo...")=="LET"`) and matched WhyML keywords;
+#      `check-avatar-frame-parity` read `#@ assigns` as a substring.
+#  11. `3359d9b6` COLLECTED `w51g_scf` rc=0.
+#
+# ## THE LESSON THAT COST THE MOST, AND MUST BE CARRIED
+#
+#   **THE OBVIOUS FIX FOR A LOOSE MATCH IS OFTEN LOAD-BEARING.** Anchoring
+#   `check-untrusted-emitted`'s regex with a plain `\b` — exactly what the analysis said
+#   to do — took the plane from "0 unexpectedly absent" to **668 phantom NOT EMITTED
+#   lines**, because the wildcard carries the CLASS MANGLING (`_ContractParser.cur` ->
+#   `let _contractparser__cur`). The right repair allows the prefix only when it really
+#   is a mangling (`(?:[\w']*__)?`). MEASURE THE REPAIR, NOT ONLY THE DEFECT.
+#
+#   Corollaries banked this generation:
+#   * **A plane's own count is a testable claim.** Cross-checking the planes' trusted
+#     count against `bin/count-trusted-directives.py` is what found item 5. Do it again
+#     after any plane change.
+#   * **Report null deltas as null.** Five of the eight holes were EMPTY today. Saying so
+#     is what makes the two that were not (items 2/4 and 8) believable.
+#   * **`why3 prove --type-only` on the emitted mirror is a ~10-second gate** that would
+#     have caught route #57's ill-typed landing. Run it on any mirror edit before
+#     spending four hours on a whole-file proof.
+#   * **`--fun <MANGLED-NAME>` gives an early proof signal in minutes**, and fails closed
+#     with the list of valid names if you pass the Python name. Use it before committing
+#     a mirror body change; state its limit (it TRUSTS every other function).
+#
+# ## IN FLIGHT — DO NOT RELAUNCH, COLLECT THEM
+#
+#   `w51g_statements`    live since 08:00. **ITS VERDICT IS AT THE PRE-SYNC BODY**, so
+#                        statements.py owes a re-proof either way (see OWED below).
+#   `w51g2_expressions`  live since 08:21. Also pre-dates commit 1's marker.
+#   `suite49_run8`       started 11:48 under a memory watchdog that sheds ONLY the suite.
+#                        Baseline 19 confirmed failures; run 6 was 3232/3251.
+#                        **A NEW NAME in the failure list is a regression; the count alone
+#                        is not.**
+#   MEMORY: with two movers + the suite the box sat at 6-8 GB available, comfortable.
+#   Gen #3's ceiling (about four whole-file proofs and NOTHING else) still stands.
+#
+# ## OWED — THE HONEST DEBT LIST
+#
+#   * `expressions.py` whole-file re-proof (commit 1 moved it).
+#   * `statements.py` whole-file re-proof (commit 4 moved it). The targeted `--fun` run
+#     says the changed function proves; that is NOT the whole-file gate.
+#   * The staged L1 patch still owes ITS OWN `expressions.py` + `stmt_control_flow.py`
+#     re-proofs after it lands — `w51g_scf`'s rc=0 is at the pre-L1 tree.
+#
+# ## THE LADDER FOR THE NEXT RELAUNCH, IN ORDER
+#
+#   1. **COLLECT** `w51g_statements`, `w51g2_expressions`, `suite49_run8`.
+#   2. **LAND `getting-better/staged-L1/l1-both-halves-var-expr-and-for-stmt.patch`.**
+#      It takes fidelity to ZERO divergences and the metric 457 -> 458. Read its numbers
+#      as: fidelity **2/886 -> 0/887** (gen #3 measured 2/840, before this generation's
+#      oracle repairs widened the population). Apply only after the two movers report.
+#   3. **RE-PROVE `expressions.py` and `statements.py`** — the debt above. Two at a time.
+#   4. **RUN `bash bin/run-soundness-planes.sh --slow`** (~20 min, newly possible). It is
+#      the first time the ten prover/emission planes can be collected in one command,
+#      and two of them have been found RED-at-HEAD-with-nobody-looking in past windows.
+#   5. **THE ORACLE VEIN IS NOT EXHAUSTED.** A read-only sweep produced a ranked candidate
+#      list; eight were verified and fixed, and the following are VERIFIED-BUT-UNFIXED,
+#      each with its line already confirmed by hand:
+#        - `check-ir-field-coverage.py:213` decides "field is READ" by a regex over
+#          handler source INCLUDING COMMENTS — a comment naming the field switches it off.
+#          Also `TOO_GENERIC` (line 72) exempts `value`/`body`/`target` BY NAME, i.e. the
+#          payload-carrying fields, and `unmatched` classes never affect the return code.
+#        - `check-param-mutator-visibility.py:141` decides the verdict by grepping pycsl's
+#          STDOUT for `ERROR:` / `Verification SUCCESS`. The `DROPPED` bucket — the whole
+#          point of the plane — is the one a text change can empty.
+#        - `check-internal-crash-free.py:68` treats a TIMEOUT as a clean run (returns
+#          None), and detects crashes only by the literal banner `UNEXPECTED PIPELINE
+#          ERROR`.
+#        - `doc-coherency.py:191` counts a directive as documented on a bare word-boundary
+#          match, and `_DISTINCTIVE` contains ordinary English — `proof`, `shared`,
+#          `critical`, `variant`, `trusted`, `requires`, `ensures`. Effectively vacuous
+#          for those. **Do not touch this one while a suite run is live** — the suite
+#          invokes it.
+#        - NO zero-input guard at all: `check-getattr-erasure.py`,
+#          `check-bespoke-model-drift.py` (whose `gone` list never sets a return code),
+#          `check-dropped-mutation.py` (**in the per-run battery**; all roots missing =>
+#          every ratchet satisfied => green), `check-refusal-reachability.py`,
+#          `check-mirror-field-parity.py`, `check-mirror-signature-drift.py`,
+#          `count-trusted-directives.py` itself, `check-trusted-frame-honesty.py`.
+#        - `check-avatar-frame-parity.py:171` sets `MIN_AVATARS_SCANNED = 1` against a
+#          true population of 83.
+#      **VERIFY EACH ONE YOURSELF BEFORE ACTING — one of the sweep's confident
+#      recommendations was measurably wrong (see THE LESSON above).**
+#   6. **ROUTES: still ZERO OPEN.** The generators are at the top of
+#      `getting-better/open-routes/README.md`. Note this generation's finding suggests a
+#      THIRD generator: probe the ORACLES, not only the emitter.
+#
+# ## STATE
+#
+#   HEAD `9f2ec980` (plus collection commits) · tracked tree CLEAN apart from two
+#   long-standing GITLINKS (`scratchpad/w7/base`, `scratchpad/w8/pre` are registered
+#   WORKTREES, not dirt) and a 0-byte stray `str` in the repo root from an earlier window.
+#   `src/self-annotate` dirty 0 · stray `.bak` 0.
+#   METRIC markers **457** · grep 482 · offset 25 · unattached 0 — **UNMOVED all
+#   generation, which is correct**: every increment here was an ORACLE repair or a
+#   fidelity re-sync, and neither adds or removes trust surface. It should rise to 458
+#   when the staged L1 patch lands.
+#   PLANES 17 of 18. The one RED is `check-self-annotate-mirror-sync` at **2 divergences
+#   over 886** (`_handle_var_expr`, `_handle_for_stmt`) — exactly the pair the staged L1
+#   patch repairs. `check-shadowed-selfcalls` is GREEN at 14 for the first time.
+#   LEDGER 3. Deadline 1789288757 (Sun Sep 13 08:39:17 UTC 2026).
+#
+# ===================== the earlier blocks follow ============================
+#
+#
 # ===================== START HERE — #49/#51 (gen #3 FINAL, 2026-09-10 09:00 UTC) =====
 #
 # ## WHAT LANDED THIS GENERATION — FIVE COMMITS OF SUBSTANCE
