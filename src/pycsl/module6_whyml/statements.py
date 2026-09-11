@@ -2025,6 +2025,31 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     length_expr = f"(Array.length {arr_e})"
                     pred = self._maybe_emit_no_exception_assert(
                         ("subscript", "write"), [length_expr, index_expr])
+                    # (#49) ROUTE #64 — a `bytes`/`bytearray` element store ALSO raises
+                    # `ValueError` when the value is outside [0, 256). There was no trigger
+                    # for it, so `#@ no_exception \all` proved for
+                    # `b = bytearray([1]); b[0] = 999`, which CPython refuses to run. The
+                    # documented "byte cannot hold a value outside [0,256)" TYPE-LEVEL
+                    # guarantee was justified by "no bytes/bytearray PARAMETER element write
+                    # is emitted" — a statement about PARAMETERS defending a claim about
+                    # BYTES, while a LOCAL write is emitted and faithful.
+                    #
+                    # Keyed on the RECEIVER's type so plain lists are untouched: their
+                    # elements are ordinary ints and must not acquire a byte-range
+                    # obligation. Both receiver shapes the surrounding code already
+                    # recognises are handled — a bare name via the symbol table, and a
+                    # self-field via `_field_type_of`.
+                    _r64_bt = None
+                    if arr_type == "Var":
+                        _r64_bt = getattr(self, "_current_symbol_table", {}).get(
+                            arr.get("name"))
+                    elif arr_type in ("Attribute", "FieldGet"):
+                        _r64_bt = self._field_type_of(arr)
+                    if _r64_bt in ("bytes", "bytearray"):
+                        _r64_pred = self._maybe_emit_no_exception_assert(
+                            ("subscript", "write_bytes"), [val_expr])
+                        if _r64_pred:
+                            pred = f"{pred} {_r64_pred}" if pred else _r64_pred
                     if pred:
                         code = f"{indent}{pred} {body}"
                     else:

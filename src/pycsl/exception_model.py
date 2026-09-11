@@ -167,6 +167,25 @@ TRIGGERS: Dict[Tuple[str, Optional[str]], List[Trigger]] = {
     # length via the same machinery that supports `\length(arr)`.
     ("subscript", "read"):  [("IndexError", "in_bounds ({0}) ({1})")],
     ("subscript", "write"): [("IndexError", "in_bounds ({0}) ({1})")],
+    # (#49) ROUTE #64 — AN ELEMENT STORE TO A `bytes`/`bytearray` RECEIVER also raises
+    # `ValueError` when the value is out of [0, 256). There was no entry for this at all,
+    # so `#@ no_exception \all` — which expands to the whole KNOWN_EXCEPTIONS set, and
+    # `ValueError` IS in it — PROVED for `b = bytearray([1]); b[0] = 999; return b[0]`,
+    # which raises `ValueError: byte must be in range(0, 256)` in CPython. Measured that
+    # the machinery itself works: `a // 0` under `no_exception ZeroDivisionError` does NOT
+    # prove and `a // b` with `requires b != 0` DOES, so this was a missing ROW, not a
+    # broken mechanism.
+    #
+    # A SEPARATE KEY, not a second trigger on ("subscript", "write"): that key is shared
+    # with plain lists, whose elements are ordinary ints and must NOT acquire a byte-range
+    # obligation. The emitter selects this key only when the receiver's type is known to be
+    # `bytes`/`bytearray`. {0} is the stored VALUE.
+    # INLINE, like the `map_get` row above and deliberately NOT a new entry in
+    # PREDICATE_LIBRARY: that library is emitted WHOLESALE into the preamble of every unit
+    # declaring `no_exception`, so adding a predicate there moved 31 corpus emissions by one
+    # inert definition line — measured. An inline condition keeps the repair byte-inert on
+    # every program that does not actually store into a bytes receiver.
+    ("subscript", "write_bytes"): [("ValueError", "0 <= {0} /\\ {0} < 256")],
 
     # Dict access — inline `Map.get d k <> None` rather than a separate
     # predicate, mirroring the existing ghost-dict vocabulary so we don't

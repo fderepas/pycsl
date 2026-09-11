@@ -496,6 +496,45 @@ class FunctionEmissionMixin:
                                       if isinstance(v, (dict, list)))
                 elif isinstance(_r63_n, list):
                     _r63_stack.extend(_r63_n)
+        # (#49) ROUTE #64 — TEACH THE SYMBOL TABLE THAT A CONSTRUCTOR-BOUND LOCAL IS BYTES.
+        # A `bytes`/`bytearray` receiver needs a `ValueError` obligation on an element store
+        # (the value must be in [0, 256)); the trigger row exists in `exception_model`, but
+        # the emitter could never select it, because `b = bytearray([1])` left `b` typed
+        # `"Any"` in the symbol table — the front-end maps every bytes ANNOTATION to `"list"`
+        # and infers nothing from a constructor CALL. The only receivers ever typed `bytes`
+        # were PARAMETERS, whose element writes are rejected, which is precisely why the
+        # documented justification ("no bytes/bytearray PARAMETER element write is emitted")
+        # looked like it covered the guarantee.
+        #
+        # Recorded into `_current_symbol_table`, which this method ALREADY declares in its
+        # mirror `assigns` — so no new field, no frame change, no fidelity divergence.
+        # Narrow: only a local bound DIRECTLY from a `bytes(...)`/`bytearray(...)` call, and
+        # only when the name has no more specific type already.
+        # GATED ON THE FUNCTION ACTUALLY DECLARING `no_exception`. The refinement exists
+        # ONLY to let the trigger be selected, and the symbol table is read by many other
+        # type-keyed decisions — refining it unconditionally moved 31 corpus emissions and
+        # one mirror emission, measured. Under this gate the change cannot be observed by
+        # any program that does not opt in to `no_exception`, which is what a targeted
+        # exception-model fix should cost: nothing.
+        _r64_c = func.get("contracts", {}) or {}
+        _r64_on = bool(_r64_c.get("no_exception")) or bool(_r64_c.get("no_exception_all"))
+        _r64_st = func.get("symbol_table")
+        if _r64_on and isinstance(_r64_st, dict):
+            _r64_work = list(func.get("body", []) or [])
+            while _r64_work:
+                _r64_n = _r64_work.pop()
+                if isinstance(_r64_n, dict):
+                    if (_r64_n.get("stmt") == "Assign"
+                            and isinstance(_r64_n.get("target"), str)):
+                        _r64_v = _r64_n.get("value")
+                        if (isinstance(_r64_v, dict) and _r64_v.get("type") == "Call"
+                                and _r64_v.get("func") in ("bytes", "bytearray")
+                                and _r64_st.get(_r64_n["target"]) in (None, "Any")):
+                            _r64_st[_r64_n["target"]] = _r64_v["func"]
+                    _r64_work.extend(v for v in _r64_n.values()
+                                     if isinstance(v, (dict, list)))
+                elif isinstance(_r64_n, (list, tuple)):
+                    _r64_work.extend(_r64_n)
         self._bounded_int = func.get("bounded_int")
         # `no_exception` context for VC injection. `_current_no_exception`
         # is the set of exception names whose triggers must produce an
