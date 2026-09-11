@@ -1,3 +1,107 @@
+# ====== START HERE — gen #5 (IN PROGRESS) — read this block first =================
+#
+# ## WHAT IS TRUE RIGHT NOW
+#
+#   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED, and that
+#            is the EXPECTED shape of a window that pays the soundness ladder. A route
+#            found, repaired and witnessed costs the trust surface nothing.
+#   planes   **ALL 31 GREEN under `--slow`**, re-verified AFTER the landing and again
+#            after the corpus grew. **RUN IT WITH why3 ON PATH**
+#            (`export PATH=$HOME/.opam/framac-coq8/bin:$PATH`) or several planes cannot
+#            say anything, and one of them used to launder a missing why3 into six
+#            phantom "ratchet broken" lines.
+#   ledger   **ROUTE #60 FOUND AND CLOSED this generation.** Route #59 remains OPEN and
+#            has GROWN: a SEVENTH carrier was found. Nothing else is open.
+#   tree     clean, every increment committed. The two GITLINKS (`scratchpad/w7/base`,
+#            `scratchpad/w8/pre` — registered worktrees) and the 0-byte stray `str` in the
+#            repo root are PRE-EXISTING and are NOT dirt.
+#   OWED     **NOTHING.** No proof, no battery, no sweep is in flight.
+#
+# ## WHAT THIS GENERATION DID
+#
+#   **ROUTE #60 — `len()` ON A DICT COUNTED STORE SITES, NOT DISTINCT KEYS. CLOSED.**
+#   `d={1:1}; d[1]=2; len(d)` proved 2; CPython answers 1. The fold was a SYNTACTIC count
+#   of store sites, blind to FIVE independent things: key equality, a symbolic store key,
+#   the CALLER's dict (a store on a dict PARAMETER folded `len` to 1 — the incoming dict
+#   was never consulted), REACHABILITY (a store under `if c > 0:` counted unconditionally)
+#   and ITERATION COUNT (a store in a LOOP counted ONCE, so
+#   `d={}; for i in range(n): d[i]=i; len(d)` proved `\result == 1` for EVERY n — the
+#   commonest dict idiom in Python). Seven carriers, each measured in BOTH directions.
+#   Repaired as a WHITELIST (route #42's rule), witnesses `1133`-`1142`, all 31 planes
+#   green, byte-inert over BOTH corpora, metric unchanged.
+#     **HOW IT WAS FOUND, because the method transfers:** not by probing `len`. I probed
+#     `len({"a":1,"b":2})` for an unrelated reason and the emission warned **"unused
+#     variable d"** — the length was a constant, the map never read. One warning in a
+#     passing run was the whole route. READ THE EMITTED WhyML, not just the verdict.
+#
+#   **ROUTE #59 HAS A SEVENTH CARRIER**, found by probing the SIXTH carrier's PLANNED
+#   REPAIR before building it: `p={1:1}; self.d=p; self.e=p; self.d[1]=2; return self.e[1]`
+#   proves 1, CPython answers 2. The planned repair watches for the stored LOCAL being
+#   mutated afterwards — here `p` is never touched again, so it would NOT have fired. It
+#   would have closed carrier 6 and left carrier 7 wide open.
+#
+#   **A GATE WAS BROKEN AND IS FIXED.** `bin/byte-diff-sweep.sh` swept only
+#   `pycsl-reference`, leaving `test-suite/corpus/python-reference` — **2217 files and a
+#   LIVE PROVED SUITE** — outside every byte-diff this campaign has ever run. Route #60's
+#   first (blunt) repair was byte-inert on pycsl-reference AND broke `python-reference/
+#   0050.py`, a proved driver. The sweep now covers both (second corpus in a `pyref/`
+#   SUBDIRECTORY, so `--emit-dir` consumers see an unchanged population). Demonstrated
+#   both ways: with the blunt repair re-applied the new compare reports
+#   `MOVED pyref__0050.mlw`.
+#
+# ## LESSONS THIS GENERATION PAID FOR
+#
+#   * **READ THE EMITTED WhyML, INCLUDING THE WARNINGS, ON A PASSING RUN.** "unused
+#     variable d" was route #60. A verdict of PROVED tells you nothing about WHY.
+#   * **PROBE THE PLANNED REPAIR BEFORE BUILDING IT**, not only after. Route #59's
+#     carrier 7 was found that way, and it invalidated the scoped repair on paper for
+#     the cost of two probes.
+#   * **CHECK WHICH SIDE OF THE MIRROR A GUARD'S HOME SITS ON BEFORE COSTING IT.** Route
+#     #60's two homes are `\trusted` stubs, so the repair was cheap; route #59's carrier-6
+#     home is verified VERBATIM, which is the whole reason that one is hard.
+#   * **A "byte-inert corpus" is only as good as the population swept.** Ask WHICH corpus,
+#     and check the glob. This is the third time this defect class has appeared.
+#   * An EMISSION FAILURE is not a semantic result (object-typed locals do not emit at
+#     all — the local hoist emits `let b = ref 0`, so the object-aliasing carrier is
+#     unreachable rather than correct: a TYPE ACCIDENT, not a guard).
+#
+# ## PROBED THIS GENERATION WITH NO FINDING — DO NOT RE-PROBE
+#
+#   * **Class invariants ARE inherited and enforced on SUBCLASS methods**, measured in
+#     BOTH directions (a Sub method setting `self.v = -5` FAILS under Base's invariant and
+#     PROVES with it removed). A base method cannot assume a fact a subclass may falsify.
+#   * `--check-behavioral-subtyping` (Liskov) is OPT-IN, like the missing-key subscript.
+#   * OBJECT aliasing (`b = a` on a class instance): object-typed locals do not emit in
+#     ANY spelling tried (annotated local, parameter, unannotated). Fails closed.
+#   * Route #59's LIST twin of the field store FAILS CLOSED, and the MECHANISM IS NAMED:
+#     Why3's own REGION TYPING refuses it ("prohibits further usage of the variable p").
+#     A list is an `array` (region-typed, so Why3 catches aliasing); a dict is a pure
+#     `map` (no region, so aliasing silently becomes a copy). **That is the whole of the
+#     dict/list asymmetry**, and it predicts where the route can live at all.
+#   * The DIRECT field-to-field dict spelling (`self.e = self.d`) is Unknown in BOTH
+#     directions — safe. Carrier 7 needs the intermediate local.
+#   * Route #60's edges all REFUSE independently: `del` then `len`, `\length` in a SPEC
+#     position, and the SET twin. `len(s)` on a set is forbidden by annotations.md anyway.
+#   * `len` on a LIST is correctly undecided under a conditional append (both directions
+#     Unknown) — lists use a real runtime sidecar ref, not a fold.
+#
+# ## THE LADDER FOR THE NEXT RELAUNCH
+#
+#   1. **ROUTE #59, CARRIERS 6 AND 7 (the field store).** The NEW IDEA, not yet tried:
+#      generation #4 refuted putting the guard in `_handle_fieldassign_stmt` (verified
+#      VERBATIM by the mirror — a recursive `.pop()` walk is refused by PyCSL's own
+#      ownership discipline, a flat scan emits ILL-TYPED). **But route #60 just landed a
+#      repair using a DIFFERENT SHAPE: do the ANALYSIS in `_reset_function_state`'s
+#      pre-pass — which is a `\trusted` stub, so it is cheap and unconstrained — and let
+#      the enforcement fall out of it.** That pre-pass already walks the whole function
+#      body and already knows nesting. Try the #59 field-store guard there before
+#      concluding anything; the refutation on record is about the OTHER home.
+#   2. The residuals in the route #60 file (an exactly-computable size that is refused
+#      anyway; a provably-once-reachable nested store).
+#   3. Keep probing REPRESENTATIONS, not the proof engine — the Hoare-logic core was
+#      measured sound by gen #4 and every route ever found lives in the value model.
+#
+# ===================================================================================
 # ====== START HERE — gen #4 FINAL STATE (read this block, then the ones below) =======
 #
 # ## WHAT IS TRUE RIGHT NOW
