@@ -20,7 +20,8 @@
 #            "CURRENTLY OPEN: ONE — #59" line in `open-routes/README.md` was corrected
 #            (re-reproduced at HEAD first: #59 now gives an explicit refusal naming itself).
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED.
-#   planes   **ALL 33 GREEN** (`--slow`, rc=0, clean tree). **EXPORT why3 FIRST:**
+#   planes   **ALL 34 GREEN** (`--slow`, rc=0, clean tree) — **THE COUNT IS NOW 34, NOT 33**:
+#            this generation ADDED `check-value-differential.py`. **EXPORT why3 FIRST:**
 #            `export PATH=$HOME/.opam/framac-coq8/bin:$PATH`.
 #   conform  **IR conformance 38/38, 0 MISMATCH** — run deliberately, per gen #6's lesson.
 #   corpora  **0 newly-refused files across 1645 corpus files + the mirror**, and the guard
@@ -132,6 +133,36 @@
 #   `.get`, `IRScanner.*`, `self.ir.get`) carry NO axiom — the standing warning is CONFIRMED
 #   and now cheap to re-check.
 #
+# ## A NEW PLANE LANDED: `check-value-differential.py` — USE IT, AND GROW IT
+#
+#   **The most serious defect class this campaign finds is NOT an exception hole.** It is a
+#   FALSE POSTCONDITION ABOUT ORDINARY, TOTAL PYTHON — no `no_exception`, no opt-in. Routes
+#   #53, #58, #73, #74 and #76 are ALL that shape, and every one was found by a
+#   hand-written probe. `test-suite/value-differential/` + `bin/check-value-differential.py`
+#   make it MECHANICAL, and they **curate nothing**: each driver states a literal in its own
+#   `#@ ensures \result == <int>` and RUNS ITSELF under `__main__`, so the expected value is
+#   MEASURED by CPython on every run rather than asserted by whoever wrote the driver.
+#   RED = (claim disagrees with CPython) + (PyCSL PROVES).
+#
+#   Seeded with 12 drivers, **6 AGREE (all prove) / 6 DISAGREE (all correctly refused)**.
+#   Population guard per the #44 rule (rc=2 unless BOTH populations exist, since the gate is
+#   otherwise satisfiable by refusing everything); parsing is FAIL-CLOSED; a missing why3
+#   REFUSES rather than reporting green.
+#
+#   **IT IS NEGATIVE-TESTED ON A REAL PROGRAM, and that is what makes a green run mean
+#   something.** `python3 bin/check-value-differential.py --negative-test` runs a driver
+#   whose `#@ \trusted` stub carries an ASSUMED `ensures` (the documented opt-in mechanism,
+#   NOT a route), letting PyCSL prove `\result == 99` where CPython computes 1 — and it
+#   FAILS unless the plane rules that UNSOUND. Verified firing. **Re-run that after any
+#   change to the plane.** The standing run skips the `negative-test/` subdirectory.
+#
+#   **GROWING IT IS THE CHEAPEST ROUTE-DETECTION WORK AVAILABLE.** Every raising-free Python
+#   operation whose value the model could plausibly get wrong is one more permanent,
+#   self-measuring check. The seed pins floor-division/modulo with a NEGATIVE DIVISOR (where
+#   Why3's Euclidean `div`/`mod`, which `OP_MAP`'s comments still name, genuinely disagrees
+#   with Python), `and`/`or` returning an OPERAND rather than a bool, and container
+#   truthiness.
+#
 # ## THE LADDER FOR THE NEXT RELAUNCH
 #
 #   1. **THE SPEC PLANE IS THE SOFT TARGET, AND THAT IS THIS GENERATION'S AIMING
@@ -152,8 +183,10 @@
 #   3. **The remaining half of the abstract-op audit is a CLASSIFICATION audit, not an axiom
 #      audit** — recognizers that mis-MODEL a call without emitting any clause. Three shapes
 #      probed clean; the vein is not exhausted.
-#   4. **Grow `test-suite/no-exception-differential/`** — still the cheapest route detector
-#      in the tree, and it curates nothing (each driver runs itself under CPython).
+#   4. **Grow BOTH differential corpora** — `no-exception-differential/` (40 drivers) and the
+#      new `value-differential/` (12). They curate nothing, so every driver added is a
+#      permanent self-measuring check. The VALUE one is the newer and thinner of the two and
+#      is aimed squarely at the campaign's most serious defect class.
 #   5. The gen-#5 claim backlog, still largely unmined: the module-GLOBAL singleton field
 #      store `g.v = n`; the module-const dict fold's invalidation omitting MUTATION.
 #
