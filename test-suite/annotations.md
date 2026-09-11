@@ -965,6 +965,19 @@ PyCSL supports three memory models, selected via `--memory-model`:
 Arrays are independent value-typed entities. `arr[i] <- v` mutates only `arr`.
 No aliasing is possible. `\separated` is trivially true.
 
+**SCOPE — THIS IS A STATEMENT ABOUT `array`, NOT ABOUT COLLECTIONS IN GENERAL (route #63,
+relaunch #55).** The barrier behind it is Why3's REGION TYPING, which rejects an aliased
+array application outright (`This application creates an illegal alias`). Measured: it
+fires for lists — `f(xs, xs)` on two `List[int]` parameters really is refused — and it
+CANNOT fire for a `dict`/`set`, which lowers to a PURE `map`. A pure value has no region,
+so nothing rejects the aliased call. A `@mutable_state` helper mutating one set argument
+and reading the other proved `\result == 0` for a call that returns 7 in CPython, with the
+aliasing entirely inside the proven unit (`u: Set[int] = set(); return self.helper(u, u)`).
+Passing the SAME dict/set in two or more argument positions of one call is now REFUSED;
+negative witness `1147`, positive control `1148`. Read the sentence above as: arrays are
+separated because Why3 enforces it, and for a dict/set the separation is enforced by that
+refusal rather than by the model.
+
 ### Typed model
 Arrays are references (locations) into a global typed heap `int_mem : ref (map loc int)`.
 `\valid(arr, n)` asserts the region is allocated.

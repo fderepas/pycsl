@@ -431,6 +431,71 @@ class FunctionEmissionMixin:
                                        if isinstance(v, (dict, list)))
                     elif isinstance(_r62_n, list):
                         _r62_st.extend(_r62_n)
+        # (#49) ROUTE #63 — "NO ALIASING IS POSSIBLE" IS TRUE FOR LISTS AND FALSE FOR SETS.
+        # `annotations.md` §5 says "Arrays are independent value-typed entities ... No
+        # aliasing is possible", and the `\separated`-is-`true` lowering is justified by a
+        # REAL mechanism: Why3's region typing rejects an aliased array application outright
+        # ("This application creates an illegal alias"). MEASURED, that mechanism fires for
+        # lists — `f(xs, xs)` on two `List[int]` params really is refused by Why3 — and it
+        # CANNOT fire for a dict/set, which lowers to a PURE `map`. A pure value has no
+        # region, so there is nothing for the alias discipline to reject. The claim is a
+        # statement about `array` that had been generalised to all collections.
+        #
+        # The exploit needs no external caller:
+        #     def helper(self, s: Set[int], t: Set[int]) -> int:   # requires 1 not in t
+        #         s.add(1)                                          # ensures \result == 0
+        #         if 1 in t: return 7
+        #         return 0
+        #     def caller2(self) -> int:                             # ensures \result == 0
+        #         u: Set[int] = set()
+        #         return self.helper(u, u)                          # CPython returns 7
+        # `[+] All contracts formally proven`, true twin does not prove.
+        #
+        # NOT COVERED BY THE ROUTE #62 GUARD ABOVE, and the reason is the pattern this
+        # generation kept meeting: that guard keys on a contract-NAMED FORMAL, and here the
+        # aliased name is a LOCAL while the caller's contract names only `\result`. It is
+        # also outside that block's `_formals` gate entirely — `caller2` has no parameters.
+        #
+        # REFUSE THE SHAPE WHOSE POST-STATE THE BY-VALUE MODEL CANNOT REPRESENT: the SAME
+        # dict/set-typed name in TWO OR MORE argument positions of one call. No callee
+        # resolution is needed, and every single-occurrence call — which is what the
+        # mirror's reflecting handlers do — is untouched.
+        if whyml_ident(str(func.get("self_type") or "").lower()) in getattr(
+                self, "_mutable_state_classes", set()):
+            _r63_stack = list(body_stmts or [])
+            while _r63_stack:
+                _r63_n = _r63_stack.pop()
+                if isinstance(_r63_n, dict):
+                    if isinstance(_r63_n.get("func"), str):
+                        _r63_seen: Dict[str, int] = {}
+                        for _r63_a in (_r63_n.get("args") or []):
+                            if (isinstance(_r63_a, dict)
+                                    and _r63_a.get("type") == "Var"
+                                    and _st.get(_r63_a.get("name")) in (
+                                        "set", "dict", "frozenset")):
+                                _r63_seen[_r63_a["name"]] = _r63_seen.get(
+                                    _r63_a["name"], 0) + 1
+                        for _r63_nm in sorted(_r63_seen):
+                            if _r63_seen[_r63_nm] >= 2:
+                                raise PyCSLIRError(
+                                    "`" + str(_r63_n.get("func")) + "(...)` is passed the "
+                                    "SAME dict/set `" + _r63_nm + "` in more than one "
+                                    "argument position. In Python those two parameters are "
+                                    "ONE object, so a mutation through either is visible "
+                                    "through the other; PyCSL models a dict/set as a pure "
+                                    "map passed BY VALUE, and unlike a list there is no "
+                                    "region for Why3's alias discipline to reject the call "
+                                    "with, so the callee would see two INDEPENDENT copies "
+                                    "and the contract would be checked against a post-state "
+                                    "the program never reaches (route #63). Measured: a "
+                                    "helper mutating one argument and reading the other "
+                                    "proved `\\result == 0` for a call that returns 7. Pass "
+                                    "one of them a copy, or restructure so only one name "
+                                    "reaches the callee.")
+                    _r63_stack.extend(v for v in _r63_n.values()
+                                      if isinstance(v, (dict, list)))
+                elif isinstance(_r63_n, list):
+                    _r63_stack.extend(_r63_n)
         self._bounded_int = func.get("bounded_int")
         # `no_exception` context for VC injection. `_current_no_exception`
         # is the set of exception names whose triggers must produce an
