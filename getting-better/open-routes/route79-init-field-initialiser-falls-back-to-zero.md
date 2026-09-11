@@ -80,7 +80,36 @@ captured shape, raise rather than silently omitting it, so the allocation site c
 back to `0` for a field the constructor demonstrably sets. Keep the captured (params-only) shape
 exactly as it is — the k03 control proves it is faithful and it carries the corpus.
 
-**BLAST RADIUS IS NOT YET MEASURED AND MUST BE, BEFORE BUILDING.** Unlike #77 and #78 (both
+## BLAST RADIUS: **MEASURED, AND IT IS LARGE — THIS SETTLES THE REPAIR DIRECTION**
+
+An AST census over `test-suite/corpus/`, `src/self-annotate/`, `src/pycsl/` and
+`src/pycsl_lib/`, applying the live capture rule (`names and (names & pset) and names <= pset`)
+to every `self.<field> = <rhs>` in every `__init__`:
+
+    __init__ methods scanned       : 293
+    self.<field> = ... assignments : 703
+    NOT captured (the #79 shape)   : 489      <-- 70%
+    by root: corpus 158 · mirror 85 · src/pycsl 122 · src/pycsl_lib 124
+
+**SEVENTY PERCENT OF CONSTRUCTOR FIELD INITIALISERS IN THE REPOSITORY ARE OUTSIDE THE CAPTURE
+SHAPE**, including 158 in the verified corpus and 85 in the self-annotation mirror. (This is an
+over-approximation of the *exploitable* set — many of those classes are never lowered as records,
+and many fields are never read in a clause — but the order of magnitude is not in doubt.)
+
+**THEREFORE A BLANKET REFUSAL IS REFUTED BEFORE IT IS BUILT.** It would be a completeness
+regression across the corpus and the mirror at once, and it would almost certainly fail the
+byte-inertness and whole-file-proof planes. The measurement pays for itself by killing the
+obvious repair cheaply.
+
+**THE REPAIR THAT SURVIVES THE MEASUREMENT** is the one the comment already *claims* is
+happening: for an omitted field, emit an **UNCONSTRAINED** value rather than the literal `0`.
+That is genuinely "sound, just less precise" — it makes `\result == 0` unprovable (closing the
+route) while leaving every program that does not depend on the field's value exactly as it is.
+The cost to price next is whether an unconstrained field breaks existing proofs that silently
+depend on the `0` (a real risk given 85 mirror sites), which is a whole-file-proof question and
+is the next thing to measure.
+
+**(superseded note) BLAST RADIUS IS NOT YET MEASURED AND MUST BE, BEFORE BUILDING.** Unlike #77 and #78 (both
 measured at zero), this shape is idiomatic and the corpus is very likely to contain it. The
 census to run first is: every `__init__` in `test-suite/corpus/`, `src/self-annotate/`,
 `src/pycsl/` and `src/pycsl_lib/` that assigns a field from an RHS naming anything outside the
