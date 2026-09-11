@@ -103,7 +103,55 @@ The CALL carrier fails closed with a pipeline refusal, which is consistent with 
   list/set/dict asymmetry seen from a third angle. #63 says a list *cannot* alias two
   parameters; #81 says a list *can* alias two locals and the model then loses `append`.
 
-## REPAIR SHAPE (not yet built)
+## THE MECHANISM, LOCATED EXACTLY (gen #8 attempted the repair and found the real site)
+
+**THE ALIAS IS LOST BECAUSE AN APPENDED-TO LIST IS *SEQ-PROMOTED*.** A list local that is
+`append`ed to is promoted to a growable `ref (seq int)` (`self._seq_locals`), and
+`_handle_assign_stmt` dispatches such a target **before** reaching route #59's alias guard:
+
+    # statements.py, well above the #59 dict-alias refusal
+    if target in self._seq_locals:
+        return self._handle_seq_assign(stmt, rest, local_refs, declared_refs, indent, in_loop)
+
+`_handle_seq_assign` then emits `let b = ref <init> in ...` — **a COPY of the seq value**, with
+its own length. Why3 says so on the exploit run itself:
+
+    Warning, ... line 11: unused variable b_len
+
+`b_len` is the alias's OWN length variable, unused because `len(a)` reads `a`'s. That is the
+whole route in one warning, exactly as `unused variable xs` was for #77.
+
+**THIS ALSO EXPLAINS WHY ONLY `append` IS LIVE.** Seq-promotion is triggered by `append`, so
+only an appended-to list takes the `_handle_seq_assign` path at all; the other mutators never
+get there because they are refused earlier. The fence and the leak have the same cause.
+
+## REPAIR SHAPE (ATTEMPTED AND BACKED OUT — READ THIS BEFORE RE-TRYING)
+
+**GEN #8 BUILT A GUARD IN THE WRONG PLACE AND BACKED IT OUT. Do not repeat it.** The first
+attempt added a list arm next to route #59's dict-alias refusal in `_handle_assign_stmt`. It
+**never fires**, because the `self._seq_locals` dispatch above returns long before that point —
+all four exploit carriers still PROVED with the guard in. The attempt was reverted rather than
+left in the tree, and #81 re-verified as still reproducing at HEAD.
+
+**THE CORRECT SITE IS `_handle_seq_assign`**: refuse when a seq local's initialiser is a bare
+`Var` naming another list/seq local (checking BOTH names, since both mutation directions
+prove).
+
+**AND THE COST IS NOT NIL — MY EARLIER "ONE-HOUR CLOSE" ESTIMATE WAS WRONG.** The mirror's
+`_handle_seq_assign` is a **VERBATIM CONVERTED body, not a `\trusted` stub**, so the repair
+owes a mirror sync AND a whole-file `module6_whyml/statements.py` mirror re-proof (historically
+~40-60 min, and it has hit `rc=137` OOM in past windows — run it alone). That is the #77 cost
+profile, not the #78 one.
+
+**THE LESSON FROM THE FAILED ATTEMPT, WHICH IS THE REUSABLE PART: THE `\trusted`-STUB COST
+CHECK IS NECESSARY BUT NOT SUFFICIENT — YOU MUST ALSO CONFIRM *WHICH FUNCTION ACTUALLY HANDLES
+THE CONSTRUCT* BEFORE PRICING THE REPAIR.** I priced #81 off `_handle_assign_stmt` (whose
+mirror IS `\trusted`, hence "one-hour close") without first confirming that the construct
+reaches it. It does not. **One `R81DEBUG` print at the candidate site, before writing the
+guard, would have caught this in two minutes** — and that is now the recommended first step for
+any Module-6 repair: instrument the site and prove the construct arrives there.
+
+## THE ORIGINAL REPAIR SKETCH (superseded by the section above)
 
 The honest options, in the campaign's usual order of preference:
 1. **Refuse** a length-changing mutation (`append`, and the same family `insert`/`pop`/
