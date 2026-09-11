@@ -25,10 +25,12 @@
 #   planes   **ALL 32 GREEN under `--slow`** (19 in the fast set), re-run after every
 #            landing. The 32nd is NEW this generation: `check-trigger-rows-live.py`.
 #            **RUN IT WITH why3 ON PATH** (`export PATH=$HOME/.opam/framac-coq8/bin:$PATH`).
-#   suite    **3293/3312, ZERO XPASS**, failure set BYTE-FOR-BYTE identical to the
-#            `suite49_run8` baseline (3249/3268, same 19). The suite grew by 44 drivers —
+#   suite    **3299/3318, ZERO XPASS**, failure set BYTE-FOR-BYTE identical to the
+#            `suite49_run8` baseline (3249/3268, same 19). The suite grew by FIFTY drivers —
 #            all this generation's route witnesses — and every one passes. rc=1 IS the
-#            baseline condition. Log: `getting-better/proofs49/suite55_run4.{log,rc}`.
+#            baseline condition. Log: `getting-better/proofs49/suite55_run5.{log,rc}`.
+#            Also verified independently: all 55 witnesses in the 1125-1179 range re-run
+#            one by one against the final tree, 55 correct / 0 mismatched.
 #            ZERO XPASS is the strongest available statement that no previously-closed
 #            route reopened; it is the check that caught #42 reopening for a whole window.
 #   tree     clean, every increment committed. The two GITLINKS (`scratchpad/w7/base`,
