@@ -9182,7 +9182,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         "val char_code_at (s: string) (i: int) : int\n"
                         "    ensures { 0 <= result < 256 }\n"
                         "    ensures { result = Char.code (Char.get s i) }")
-                    return f"(char_code_at {base} {idx})"
+                    # (#49) ROUTE #67 — `s[i]` raises `IndexError` out of range, and this
+                    # path carried no obligation while the ARRAY read was wired all along.
+                    # Both `ensures` above are UNCONDITIONAL in `i`, so the val also asserts
+                    # a TOTALITY Python does not have; the assert is what makes the claim
+                    # conditional again at every use site.
+                    return self._wrap_with_no_exception_assert(
+                        ("subscript", "read_str"), [base, idx],
+                        f"(char_code_at {base} {idx})")
                 self._add_abstract_op(
                     "val ord_op (c: string) : int\n"
                     "    ensures { 0 <= result < 256 }\n"

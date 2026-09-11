@@ -199,6 +199,12 @@ TRIGGERS: Dict[Tuple[str, Optional[str]], List[Trigger]] = {
     # `#@ no_exception \all` PROVED for `chr(-1)`. WIRED rather than refused: the bound is
     # exact, so `chr(65)` still discharges.
     ("call", "chr"): [("ValueError", "0 <= {0} /\\ {0} < 1114112")],
+    # (#49) ROUTE #67 — a STRING subscript read raises `IndexError` out of range, and went
+    # down the `char_code_at` path that no row covered while the ARRAY read (below) was
+    # wired all along. `{0}` is the string, `{1}` the index. `in_bounds` is already in
+    # PREDICATE_LIBRARY, and an `assert` is a LOGIC context, so `String.length` is legal
+    # here even though it is not in a program term.
+    ("subscript", "read_str"): [("IndexError", "in_bounds (String.length {0}) ({1})")],
 
     # Dict access — inline `Map.get d k <> None` rather than a separate
     # predicate, mirroring the existing ghost-dict vocabulary so we don't
