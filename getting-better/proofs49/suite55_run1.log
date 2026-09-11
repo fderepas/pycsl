@@ -3309,3 +3309,44 @@ determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1)
 [*] Re-running 19 failure(s) serially to rule out load-induced timeouts...
   [0;31m[CONFIRMED FAIL][0m 0211
   [0;31m[CONFIRMED FAIL][0m 0212
+  [0;31m[CONFIRMED FAIL][0m 0213
+  [0;31m[CONFIRMED FAIL][0m 0214
+  [0;31m[CONFIRMED FAIL][0m 0215
+  [0;31m[CONFIRMED FAIL][0m 0216
+  [0;31m[CONFIRMED FAIL][0m 0217
+  [0;31m[CONFIRMED FAIL][0m 0218
+  [0;31m[CONFIRMED FAIL][0m 0219
+  [0;31m[CONFIRMED FAIL][0m 0220
+  [0;31m[CONFIRMED FAIL][0m 0700
+  [0;31m[CONFIRMED FAIL][0m 0701
+  [0;31m[CONFIRMED FAIL][0m 0043
+  [0;31m[CONFIRMED FAIL][0m 0048
+  [0;31m[CONFIRMED FAIL][0m 0079
+  [0;31m[CONFIRMED FAIL][0m 0080
+  [0;31m[CONFIRMED FAIL][0m 0082
+  [0;31m[CONFIRMED FAIL][0m 0095
+  [0;31m[CONFIRMED FAIL][0m 0110
+
+===============================
+ Results: 3267/3286 passed
+===============================
+Failed/skipped (confirmed):
+  - pycsl-reference/0211
+  - pycsl-reference/0212
+  - pycsl-reference/0213
+  - pycsl-reference/0214
+  - pycsl-reference/0215
+  - pycsl-reference/0216
+  - pycsl-reference/0217
+  - pycsl-reference/0218
+  - pycsl-reference/0219
+  - pycsl-reference/0220
+  - pycsl-reference/0700
+  - pycsl-reference/0701
+  - python-reference/0043
+  - python-reference/0048
+  - python-reference/0079
+  - python-reference/0080
+  - python-reference/0082
+  - python-reference/0095
+  - python-reference/0110
