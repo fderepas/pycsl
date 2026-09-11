@@ -22,8 +22,9 @@
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED all
 #            generation, and that is the EXPECTED shape of a window paying the soundness
 #            ladder. Four repairs, all refusals or whitelists; none costs the trust surface.
-#   planes   **ALL 32 GREEN under `--slow`** (19 in the fast set), re-run after every
-#            landing. The 32nd is NEW this generation: `check-trigger-rows-live.py`.
+#   planes   **ALL 33 GREEN under `--slow`** (19 in the fast set), re-run after every
+#            landing. TWO are NEW this generation: `check-trigger-rows-live.py` and
+#            `check-no-exception-differential.py`.
 #            **RUN IT WITH why3 ON PATH** (`export PATH=$HOME/.opam/framac-coq8/bin:$PATH`).
 #   suite    **3299/3318, ZERO XPASS**, failure set BYTE-FOR-BYTE identical to the
 #            `suite49_run8` baseline (3249/3268, same 19). The suite grew by FIFTY drivers —
@@ -187,12 +188,19 @@
 #   of the exceptions this table happens to model" — which is NOT what the directive says
 #   and NOT what a user will assume.
 #
-#   **BUILD THE COMPLETENESS GATE NEXT.** `bin/check-trigger-rows-live.py` (added this
-#   window) scans FROM the table and checks every row is consulted or refused; it cannot see
-#   a MISSING row, and said so on every one of the carriers above. The complementary scan —
-#   from the EMITTED operations back to the table — is the other half, and "EMITS" is the
-#   load-bearing word: an operation that is merely ACCEPTED and then erased (route #71) must
-#   count as emitting nothing and so must be refused, not silently discharged.
+#   **THE COMPLETENESS GATE IS BUILT.** `bin/check-trigger-rows-live.py` scans FROM the
+#   table and cannot see a MISSING row — it reported green on every one of the carriers
+#   above. `bin/check-no-exception-differential.py` (NEW) scans from the other side and
+#   **CURATES NOTHING**: each driver in `test-suite/no-exception-differential/` declares
+#   `#@ no_exception \all` and RUNS ITSELF under `__main__`, so CPython's behaviour is
+#   MEASURED rather than listed, and RED means "CPython raises and PyCSL proves".
+#     **ITS POPULATION GUARD IS THE PART TO PRESERVE.** A gate of this shape is trivially
+#     satisfiable by refusing every program, so it FAILS unless the corpus holds BOTH a
+#     raising driver AND a non-raising one that actually PROVES (9 and 9 today, all nine
+#     returners proving). Never "fix" a red by deleting the returner that proves.
+#     **GROW THE CORPUS** — it can only be wrong by being too small, and every new raising
+#     Python operation added to it is a permanent check. It SKIPs when why3 is absent,
+#     because a missing tool is not a finding.
 #
 # ## THE SHARPEST UNFINISHED THREAD — A FALSE AXIOM CLASS, NOT A ROUTE
 #
