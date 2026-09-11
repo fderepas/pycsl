@@ -3,8 +3,8 @@
 # ## WHAT IS TRUE RIGHT NOW
 #
 #   ledger   **EMPTY. NO OPEN ROUTE.** Route #59 is fully closed (all seven carriers), and
-#            #60 through #66 were each FOUND AND CLOSED this generation.
-#            SEVEN new routes found and closed, plus #59 finished.
+#            #60 through #67 were each FOUND AND CLOSED this generation.
+#            EIGHT new routes found and closed, plus #59 finished.
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED all
 #            generation, and that is the EXPECTED shape of a window paying the soundness
 #            ladder. Four repairs, all refusals or whitelists; none costs the trust surface.
@@ -98,6 +98,25 @@
 #   proves); `int(<str>)` is REFUSED because it lowers to an opaque val. **`chr` was worse
 #   than a missing row** — `val chr_op` carried `ensures { String.length result = 1 }`
 #   UNCONDITIONALLY, a TOTALITY Python does not have, which every consumer inherited.
+#
+#   **#67 — A STRING SUBSCRIPT READ CARRIED NO `IndexError` OBLIGATION.** `ord(s[5])` on
+#   `"ab"` proved under `no_exception \all`. The ARRAY read was wired all along — the same
+#   batch confirms a symbolic list index, a bytearray index and `1 // (a - a)` all correctly
+#   FAIL to discharge — but a STRING read goes down `char_code_at`, which no row covered.
+#   WIRED with the exact bound, so `ord(s[1])` still proves.
+#
+# ## THE SHARPEST UNFINISHED THREAD — A FALSE AXIOM CLASS, NOT A ROUTE
+#
+#   `val char_code_at` and `val chr_op` BOTH carry `ensures` clauses that are UNCONDITIONAL
+#   in an argument Python constrains. Routes #66/#67 injected obligations at the USE SITES,
+#   which closes the holes — **but neither val was changed.** A `val` with a TOTAL contract
+#   on a PARTIAL Python function is a FALSE AXIOM in the preamble: available to every proof
+#   in the unit, whether or not anyone wrote `no_exception`. That makes it strictly worse
+#   than a missing trigger, and both were found BY ACCIDENT while probing something else.
+#   **AUDIT EVERY ABSTRACT `val` WHOSE `ensures` IS UNCONDITIONAL IN AN ARGUMENT PYTHON
+#   CONSTRAINS** — the mechanical form: for each `_add_abstract_op` string, ask whether
+#   Python's operation is TOTAL over the declared argument types; if not, the `ensures` needs
+#   a `requires`, or the obligation must be injected at every call site.
 #
 # ## THE NEW PLANE, AND THE WAY IT CAUGHT ITSELF
 #
