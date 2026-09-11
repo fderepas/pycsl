@@ -75,6 +75,24 @@ guard is an unexploited route with a signpost on it.** Grep for them.
 | e03 — the TRUE twin of the len carrier | `\result == 1` | 1 | refused (Timeout) |
 | e04 — `del xs[:]; return len(xs)` | `\result == 3` | **0** | **PROVED** ❌ |
 
+### AND IT ESCALATES PAST THE POSTCONDITION — IT DISCHARGES A `requires` AT A CALL SITE
+
+```python
+#@ requires x == 1
+def g(x: int) -> int: return x
+
+#@ ensures \result == 1
+def f() -> int:
+    xs: List[int] = [1, 2, 3]
+    del xs[0:2]
+    return g(xs[0])          # CPython calls g(3) — the precondition is FALSE at runtime
+```
+
+**PROVED.** This is the same escalation route #76 had, and it is what lifts #77 above "a
+postcondition nobody would write": the stale value is handed to a *callee's* precondition and
+discharges it, so the defect propagates across the call graph rather than staying local to the
+clause.
+
 The true twin failing in **both** carriers is the point: the emitter does not merely fail to
 know the answer, it proves the *wrong* one and refuses the right one.
 
@@ -85,7 +103,10 @@ know the answer, it proves the *wrong* one and refuses the right one.
 | LOCAL list, `del xs[i:j]`, element read | **PROVES the false claim** — the exploit |
 | LOCAL list, `del xs[i:j]`, `len()` read | **PROVES the false claim** — second carrier |
 | LOCAL list, `del xs[:]` (full clear) | **PROVES the false claim** — third carrier |
+| LOCAL list, `del xs[0:n]` with a **DYNAMIC** bound | **PROVES the false claim** — the erasure is not a constant-fold artefact |
 | SELF-FIELD list, `del self.xs[0:2]` | refused (Timeout) — fails closed, **not** by a guard |
+| `del xs[0:4:2]` (extended slice, with a step) | PIPELINE ERROR — fails closed |
+| `xs[0:2] = [9]` (the slice-ASSIGN sibling) | refused (Timeout) — see residue (c) |
 | `del name` (`x = 1; del x; return x`) | **PROVES `\result == 1`**; CPython raises `UnboundLocalError` — see residue (a) |
 | `del d[1:2]` on a dict | **PROVES `\result == 1`**; CPython raises `KeyError` — see residue (a) |
 | `del obj.attr` then read the attr | refused (Unknown) |
@@ -154,7 +175,11 @@ traded for an old one. Refuse explicitly instead.
     VC-volume reduction. It must be covered by the same refusal as the local carrier, not left
     to the clock.
   * **(c) THE SLICE-ASSIGN SIBLING `xs[i:j] = [...]` IS A SEPARATE IR NODE** (`ArraySliceSet`)
-    on a different code path and is NOT covered by this route's repair. Probed separately.
+    on a different code path and is NOT covered by this route's repair. **MEASURED: refused,
+    but by a Timeout** — the same resource verdict as residue (b), not a guard. **Reopening
+    condition:** identical to (b) — any prover upgrade or VC-volume reduction. Re-probe
+    `scratchpad/w58/r77/e06_slice_assign.py` (claim `\result == 1`, CPython 9) after any such
+    change.
 
 ## WITNESSES
 
