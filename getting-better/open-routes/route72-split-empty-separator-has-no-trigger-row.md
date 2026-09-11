@@ -50,3 +50,19 @@ undecidable symbolic separator.
 `"a b".split(" ")[5]` (an `IndexError` on the result) is a SEPARATE shape and is currently an
 EMISSION-FAIL, so it is unreachable rather than safe — retry it if the split-element path
 ever lowers.
+
+## STATUS: **CLOSED**
+
+Refused under a `ValueError`/`\all` `no_exception` context unless the separator is a
+NON-EMPTY string LITERAL. That keeps `s.split(" ")` working (control `1174`), refuses the
+definitely-raising `s.split("")` and also refuses an undecidable SYMBOLIC separator — the
+conservative direction, since the separator is hashed away and no condition can be written
+over it.
+
+**REFUSES THE CLAIM, NOT THE OPERATION:** `s.split("")` WITHOUT a `no_exception` context
+still emits and proves, exactly as before. Measured.
+
+### GATES
+All 32 planes green; fidelity 887/887 verbatim; mirror type-clean and byte-inert; both
+corpora byte-inert; metric unchanged at 459. Witnesses `1173` (negative, anti-vacuity
+verified both ways by disabling the guard) and `1174` (positive control).

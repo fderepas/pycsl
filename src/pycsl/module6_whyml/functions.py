@@ -664,6 +664,33 @@ class FunctionEmissionMixin:
                                     "under `#@ no_exception ValueError` reported "
                                     "'All contracts formally proven'. Drop `ValueError` "
                                     "from the context, or validate the string yourself.")
+                        # (#49) ROUTE #72 — `str.split(sep)` raises `ValueError` on an
+                        # EMPTY separator, has no trigger row, and hashes `sep` to an int
+                        # before it reaches an opaque val (`s_split_1 313406155`), so — as
+                        # with `float(<str>)` — there is nothing faithful to inject.
+                        # CONSERVATIVE: allow only a NON-EMPTY string LITERAL separator, so
+                        # the common `s.split(" ")` keeps working while both the
+                        # definitely-raising `s.split("")` and an undecidable symbolic
+                        # separator are refused.
+                        if (_r65_key == ("attr_call", "split")
+                                and (_r65_all or "ValueError" in _r65_named)):
+                            _r72_a = (_r65_n.get("args") or [None])[0]
+                            _r72_ok = (isinstance(_r72_a, dict)
+                                       and _r72_a.get("type") == "String"
+                                       and isinstance(_r72_a.get("value"), str)
+                                       and _r72_a["value"] != "")
+                            if not _r72_ok:
+                                raise PyCSLIRError(
+                                    "`" + _r65_f + "(...)` raises `ValueError` in Python on "
+                                    "an EMPTY separator, and this function claims "
+                                    "`#@ no_exception` over `ValueError`. There is no "
+                                    "trigger row for `split`, and the separator is HASHED TO "
+                                    "AN INT before it reaches an opaque `val`, so no "
+                                    "faithful obligation can be injected and the claim "
+                                    "proved vacuously (route #72). Measured: "
+                                    "`\"ab\".split(\"\")` reported 'All contracts formally "
+                                    "proven'. Pass a non-empty string LITERAL separator, or "
+                                    "drop `ValueError` from the context.")
                         _r65_exc = _R65_ORPHANS.get(_r65_key)
                         if _r65_exc is not None and (_r65_all or _r65_exc in _r65_named):
                             raise PyCSLIRError(
