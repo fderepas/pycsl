@@ -1,6 +1,58 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **ONE — #77.**
+## CURRENTLY OPEN: **THREE — #78, #79, #80.**  (#77 is CLOSED, see below.)
+##
+##   **ALL THREE WERE FOUND BY ONE GENERATOR, AND THE GENERATOR IS #77's OWN LESSON:**
+##   **A PROSE CARVE-OUT IN THE MODULE UPSTREAM OF A GUARD IS AN UNEXPLOITED ROUTE WITH A
+##   SIGNPOST ON IT.** A census of comments admitting a construct is unmodelled / dropped /
+##   "a sound under-approximation" / "stays a no-op", sitting next to code that then emits
+##   nothing, returned ten ranked candidates; the top four were probed and THREE were live.
+##   Every claim was re-measured independently before being believed (rule (o)).
+##
+##   **TWO OF THE THREE ARE GUARDED BY A SENTENCE ASSERTING THE ERASURE IS SOUND, AND BOTH
+##   SENTENCES ARE FALSE.** #78's says "a sound under-approximation"; #79's says "sound, just
+##   less precise". Neither is: each emits a definite literal (an EMPTY array, a literal 0),
+##   and the emitter then proves definite facts from it. An under-approximation would be an
+##   unconstrained value. **TREAT ANY COMMENT ASSERTING AN ERASURE IS SOUND AS AN UNPROVEN
+##   LEMMA — it is checkable in one probe.**
+##
+##   * **#78 — A SEEDED `deque(...)` IS MODELLED AS EMPTY**, every argument discarded
+##     (`route78-seeded-deque-is-modelled-empty.md`). `deque([1,2,3])` then `len` proves
+##     `\result == 0`; CPython returns 3. True twin REFUSED. It also DISCHARGES a callee's
+##     `requires`, and the element read `dq[0]` is a second carrier. The EMPTY `deque()`
+##     control is FAITHFUL and bounds the repair. Blast radius of refusing the seeded form
+##     MEASURED AT ZERO (the only corpus use is `deque()`; the mirror has none).
+##   * **#79 — AN `__init__` FIELD INITIALISER OUTSIDE THE CAPTURE SHAPE BECOMES A LITERAL 0**
+##     (`route79-init-field-initialiser-falls-back-to-zero.md`). **THE WIDEST-REACHING ROUTE
+##     THIS GENERATION**: it needs only `self.n = len(items)`. Three carriers proved
+##     (`len(items)`, a module const, another `self` field); the params-only control is
+##     FAITHFUL IN BOTH DIRECTIONS and bounds it exactly. **Blast radius NOT yet measured and
+##     MUST be before building — this shape is idiomatic, so a blanket refusal may cost real
+##     completeness; emitting an UNCONSTRAINED value (what the comment already claims) is
+##     likely the better repair and should be priced first.**
+##   * **#80 — `del obj.attr` IS ERASED AND A CLASS-ATTRIBUTE FALLBACK MAKES IT TOTAL**
+##     (`route80-del-attribute-is-erased-class-fallback.md`). This is **#77's residue (a),
+##     UPGRADED BY MEASUREMENT**: #77 filed `del obj.attr` as out of scope "because the
+##     program raises", but Python falls back to the CLASS attribute, so it returns 5 where
+##     PyCSL proves 10. **LESSON: "out of scope because it raises" IS ITSELF A CLAIM ABOUT
+##     PYTHON AND MUST BE PROBED, NOT REASONED ABOUT.** One language feature turned a
+##     written-off residue into a live route.
+##
+##   **#77 — A SLICE DELETE `del xs[i:j]` WAS ERASED TO `Pass` — FOUND AND CLOSED 2026-09-11
+##   (gen #8).** File: `route77-slice-delete-is-an-erased-no-op.md`.
+##
+##       xs: List[int] = [1, 2, 3]
+##       del xs[0:2]
+##       return xs[0]          #@ ensures \result == 1   <-- CPython returns 3. PyCSL PROVED.
+##
+##   ROUTE #17's DEFECT ONE STEP OVER, WITH THE STEP CROSSING A MODULE BOUNDARY — #17's guard
+##   is a Module-6 BLOCKLIST keyed on the emitted string (`code.strip() == "()"`), and
+##   `Module5_IREmitter._py_stmt_delete` dropped the slice form to `{"stmt": "Pass"}` one
+##   stage earlier, so the guard never saw it. Three carriers proved a false claim and the
+##   TRUE TWIN OF EACH was refused; the stale value also DISCHARGED A CALLEE'S `requires`.
+##   Closed by refusing at the site that ERASES it. Gates: mirror-sync 887/887 verbatim,
+##   type-only 53/53, byte-inert over BOTH corpora against a pre-repair worktree baseline
+##   (971/971 and 2204/2204, 0 MOVED/GONE/APPEARED), metric unchanged. Witnesses 1194-1197.
 ##
 ##   **#77 — A SLICE DELETE `del xs[i:j]` IS ERASED TO `Pass` AND THE READ IS THEN
 ##   CONSTANT-FOLDED — FOUND AND REPRODUCED 2026-09-11 (gen #8), BOTH DIRECTIONS
