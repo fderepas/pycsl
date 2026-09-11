@@ -5399,6 +5399,206 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _o44 = self._expr_to_whyml(_nn, local_refs, invariant_ctx, subst)
             _c44 = f"({_o44} = pycsl_none)"
             return _c44 if raw_op == "==" else f"(not {_c44})"
+        # (#49) ROUTE #76 — `==` ON A CLASS INSTANCE IS STRUCTURAL; PYTHON'S IS IDENTITY.
+        #   A class instance is modelled as a Why3 RECORD, and Why3's logic `=` on a record
+        #   is equality of the FIELD VALUES. Python's `==` on a class that defines no
+        #   `__eq__` is `object.__eq__`, i.e. IDENTITY. So two DISTINCT objects with equal
+        #   fields are `=` in the model and `!=` in the program, and
+        #       #@ ensures \result == x
+        #       def dup(x: C) -> C:  return C(x.v)
+        #   PROVED while CPython answers False — a FALSE POSTCONDITION about ordinary TOTAL
+        #   Python (the #69 class: no `no_exception`, no opt-in). It also discharges a
+        #   `requires a == b` at a call site where the precondition is False at runtime.
+        #   This is the DUAL of routes #42/#52, which found `is` decided by VALUE equality;
+        #   `is` got its own IR operator there, but the `==` side was never examined and the
+        #   spec grammar has no `is` at all, so there is no identity machinery to reuse.
+        #
+        #   THE GUARD IS AN ALLOWLIST, NOT A BLOCKLIST, and that is deliberate. A blocklist
+        #   keyed on syntax is defeated by moving the hazard one step (banked six times);
+        #   an allowlist keyed on syntax FAILS CLOSED when the hazard moves. Two blocklist
+        #   shapes were built and REFUTED BY MEASUREMENT BEFORE A LINE OF EITHER LANDED:
+        #     * "refuse when the function body CONSTRUCTS" — defeated one call deeper
+        #       (`return mk(x.v)` with the ctor inside `mk` still PROVES);
+        #     * "lower to an uninterpreted `obj_eq` + reflexivity" — Why3's RECORD
+        #       EXTENSIONALITY collapses `{v = x.v}` and `x` anyway, so any equality-derived
+        #       predicate inherits the defect.
+        #
+        #   ALLOWED, because each is faithful under Python's own rules:
+        #     1. a NamedTuple / TypedDict — Python's `==` there really IS structural;
+        #     2. two SYNTACTICALLY IDENTICAL pure READ PATHS — same object, trivially;
+        #     3. `\result` against a pure READ PATH when EVERY `return` in the function
+        #        returns exactly that path — the accessor idiom (`return self.toks[self.i]`),
+        #        which returns THE object in the slot rather than a copy.
+        #   A READ PATH excludes a Call: a constructor builds a NEW object every time it is
+        #   evaluated, so `mk() == C(1)` is False in Python even though both sides read alike.
+        #   A class defining its OWN `__eq__` is refused outright: Module 5 skips dunders for
+        #   body emission, so the user's definition is DISCARDED and the model silently
+        #   substitutes structural equality for it.
+        #   Written INLINE as explicit-stack walks, NOT as helper methods: a new LIVE def
+        #   with no mirror counterpart breaks `bin/check-mirror-coverage.py`'s ratchet (the
+        #   same constraint the route #45 NaN recognizer above records).
+        if raw_op in ("==", "!=") and getattr(self, "_in_spec", False):
+            _r76_rts = getattr(self, "_record_types", {}) or {}
+            _r76_l = expr.get("left")
+            _r76_r = expr.get("right")
+            _r76_cls = None
+            for _r76_side in (_r76_l, _r76_r):
+                if not isinstance(_r76_side, dict):
+                    continue
+                _r76_t = _r76_side.get("type")
+                _r76_c = None
+                if _r76_t == "Result":
+                    _r76_ret = getattr(self, "_func_return_type", None)
+                    if isinstance(_r76_ret, str):
+                        for _r76_cn, _r76_ci in _r76_rts.items():
+                            if isinstance(_r76_ci, dict) and (
+                                    _r76_ci.get("whyml_name") == _r76_ret
+                                    or _r76_cn.lower() == _r76_ret.lower()):
+                                _r76_c = _r76_cn
+                                break
+                elif _r76_t == "Var":
+                    _r76_ty = (getattr(self, "_current_symbol_table", {}) or {}).get(
+                        _r76_side.get("name", ""))
+                    if isinstance(_r76_ty, str) and _r76_ty in _r76_rts:
+                        _r76_c = _r76_ty
+                elif _r76_t == "Call":
+                    _r76_fn = _r76_side.get("func")
+                    if isinstance(_r76_fn, str) and _r76_fn in _r76_rts:
+                        _r76_c = _r76_fn
+                elif _r76_t == "Subscript":
+                    # An ELEMENT of a `List[<record>]` is a class instance too, and the
+                    # first cut of this guard MISSED it: `#@ ensures a[0] == a[1]` on a
+                    # `List[C]` with equal fields PROVED while CPython answers False.
+                    # Found by probing this repair for the gap it leaves, before landing.
+                    _r76_ct = _r76_side.get("value")
+                    _r76_wn = None
+                    if isinstance(_r76_ct, dict):
+                        if _r76_ct.get("type") == "Var":
+                            _r76_wn = (getattr(self, "_record_array_params", {})
+                                       or {}).get(_r76_ct.get("name"))
+                        elif _r76_ct.get("type") == "FieldGet":
+                            _r76_wn = (getattr(self, "_record_array_fields", {})
+                                       or {}).get(_r76_ct.get("field"))
+                    if isinstance(_r76_wn, str):
+                        for _r76_cn3, _r76_ci3 in _r76_rts.items():
+                            if isinstance(_r76_ci3, dict) and (
+                                    _r76_ci3.get("whyml_name") == _r76_wn
+                                    or _r76_cn3.lower() == _r76_wn.lower()):
+                                _r76_c = _r76_cn3
+                                break
+                if _r76_c:
+                    _r76_cls = _r76_c
+                    break
+            if _r76_cls is not None:
+                _r76_info = _r76_rts.get(_r76_cls, {}) or {}
+                if not (_r76_info.get("is_namedtuple") or _r76_info.get("is_typeddict")):
+                    _r76_has_eq = any(
+                        isinstance(_r76_td, dict)
+                        and _r76_td.get("name") == _r76_cls
+                        and _r76_td.get("has_eq")
+                        for _r76_td in (self.ir.get("type_decls", []) or []))
+                    import json as _r76_json
+                    # The compared object is produced by the SPINE of the expression (the
+                    # container chain), never by the INDEX — `a[len(a) - 1]` still reads a
+                    # SLOT, so an arithmetic index is harmless. Only a Call on the spine
+                    # CONSTRUCTS, and a construction is a NEW object every evaluation.
+                    _r76_READ = ("Var", "FieldGet", "Subscript", "Attribute",
+                                 "Number", "Str", "Result")
+                    _r76_other = None
+                    if isinstance(_r76_l, dict) and _r76_l.get("type") == "Result":
+                        _r76_other = _r76_r
+                    elif isinstance(_r76_r, dict) and _r76_r.get("type") == "Result":
+                        _r76_other = _r76_l
+                    _r76_readpath = True
+                    _r76_stack = [_r76_other if _r76_other is not None else _r76_l]
+                    while _r76_stack:
+                        _r76_n = _r76_stack.pop()
+                        if not isinstance(_r76_n, dict):
+                            continue
+                        if _r76_n.get("type") not in _r76_READ:
+                            _r76_readpath = False
+                            break
+                        for _r76_k in ("value", "object"):
+                            if isinstance(_r76_n.get(_r76_k), dict):
+                                _r76_stack.append(_r76_n[_r76_k])
+                    _r76_same = False
+                    if _r76_readpath:
+                        # `a[-k]` and `a[\length(a) - k]` NAME THE SAME CELL, hence the same
+                        # object; the spec and the body are free to spell it either way
+                        # (corpus lock 0934 spells the clause one way and the body the
+                        # other). Canonicalize the negative-literal index onto one form
+                        # before comparing, so the allowlist is not defeated by SPELLING.
+                        _r76_cands = [_r76_l, _r76_r]
+                        _r76_cef = getattr(self, "_current_emitting_func", None)
+                        _r76_nret = 0
+                        if _r76_other is not None:
+                            for _r76_f in (self.ir.get("functions", []) or []):
+                                if (isinstance(_r76_f, dict)
+                                        and _r76_f.get("name") == _r76_cef):
+                                    _r76_sstack = list(_r76_f.get("body") or [])
+                                    while _r76_sstack:
+                                        _r76_st = _r76_sstack.pop()
+                                        if not isinstance(_r76_st, dict):
+                                            continue
+                                        if _r76_st.get("stmt") == "Return":
+                                            _r76_cands.append(_r76_st.get("value"))
+                                            _r76_nret += 1
+                                        for _r76_bk in ("body", "orelse",
+                                                        "finalbody", "handlers"):
+                                            _r76_sub = _r76_st.get(_r76_bk)
+                                            if isinstance(_r76_sub, list):
+                                                _r76_sstack.extend(_r76_sub)
+                        _r76_keys = []
+                        for _r76_e in _r76_cands:
+                            _r76_ne = _r76_e
+                            if (isinstance(_r76_e, dict)
+                                    and _r76_e.get("type") == "Subscript"):
+                                _r76_ix = _r76_e.get("index")
+                                _r76_ct = _r76_e.get("value")
+                                _r76_cn2 = None
+                                if isinstance(_r76_ct, dict):
+                                    if _r76_ct.get("type") == "Var":
+                                        _r76_cn2 = _r76_ct.get("name")
+                                    elif _r76_ct.get("type") == "FieldGet":
+                                        _r76_cn2 = "%s.%s" % (_r76_ct.get("object"),
+                                                              _r76_ct.get("field"))
+                                if (isinstance(_r76_ix, dict)
+                                        and _r76_ix.get("type") == "BinOp"
+                                        and _r76_ix.get("op") == "-"
+                                        and isinstance(_r76_ix.get("left"), dict)
+                                        and _r76_ix["left"].get("type") == "ArrayLen"
+                                        and _r76_ix["left"].get("var") == _r76_cn2
+                                        and isinstance(_r76_ix.get("right"), dict)
+                                        and _r76_ix["right"].get("type") == "Number"):
+                                    _r76_ne = dict(_r76_e)
+                                    _r76_ne["index"] = {
+                                        "type": "UnaryOp", "op": "-",
+                                        "expr": {"type": "Number",
+                                                 "value": _r76_ix["right"].get("value")}}
+                            _r76_keys.append(
+                                _r76_json.dumps(_r76_ne, sort_keys=True, default=str))
+                        if _r76_keys[0] == _r76_keys[1]:
+                            _r76_same = True
+                        elif _r76_other is not None and _r76_nret:
+                            _r76_okey = _r76_keys[1] if _r76_other is _r76_r else _r76_keys[0]
+                            _r76_same = all(_r76_rk == _r76_okey
+                                            for _r76_rk in _r76_keys[2:])
+                    if _r76_has_eq or not _r76_same:
+                        from errors import PyCSLSemanticError
+                        raise PyCSLSemanticError(
+                            "comparing class instances with `==`/`!=` in a `#@` clause is "
+                            "out of scope for class `%s`: PyCSL models an instance as a "
+                            "Why3 RECORD, whose `=` is equality of the FIELD VALUES, while "
+                            "Python's `==` on this class is %s. Two DISTINCT objects with "
+                            "equal fields would be EQUAL in the model and UNEQUAL in the "
+                            "program, so the clause could be proved while the program "
+                            "refutes it (route #76). %s"
+                            % (_r76_cls,
+                               ("the `__eq__` you defined, which is NOT emitted (Module 5 "
+                                "skips dunders) and is silently replaced by structural "
+                                "equality" if _r76_has_eq else "IDENTITY (`object.__eq__`)"),
+                               "Compare the FIELDS you mean (`a.f == b.f`), or use a "
+                               "NamedTuple, whose `==` really is structural."))
         op = op_translate(raw_op)
         # no-more-int Stage D: float arithmetic/comparison is over Why3 `real` (RealInfix
         # `+.`/`-.`/`*.`/`/.`/`<.`/…), not int. Both operands must be float; a mixed float/int
