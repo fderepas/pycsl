@@ -3,8 +3,10 @@
 # ## WHAT IS TRUE RIGHT NOW
 #
 #   ledger   **EMPTY. NO OPEN ROUTE.** Route #59 is fully closed (all seven carriers), and
-#            #60 through #70 were each FOUND AND CLOSED this generation.
-#            **ELEVEN new routes found and closed**, plus #59 finished.
+#            #60 through #71 were each FOUND AND CLOSED this generation.
+#            **TWELVE new routes found and closed**, plus #59 finished.
+#            FIVE of them (#64, #65, #66, #68, #71) are in the EXCEPTION model, which was
+#            an untouched surface at the start of this window.
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED all
 #            generation, and that is the EXPECTED shape of a window paying the soundness
 #            ladder. Four repairs, all refusals or whitelists; none costs the trust surface.
@@ -141,6 +143,18 @@
 #   suffix the way the `ensures` suffix already is) is recorded in the route file.
 #     **THE MIRROR IS NOT EXPOSED TODAY AND I CHECKED RATHER THAN ASSUMED:** all 459
 #     `\trusted` markers carry `requires True`. Fragile safety, not a guarantee.
+#
+#   **#71 — AN ERASED OPERATION TRIVIALLY SATISFIES `no_exception`.** `t.remove(5)` on a
+#   collection PARAMETER inside `@mutable_state` lowers to `()`, and an operation with no
+#   emission site cannot carry an obligation, so `no_exception \all` discharged over a body
+#   emitted as `(); 0` while CPython raises `KeyError`.
+#     **THE PRINCIPLE IS WORTH MORE THAN THE CARRIER, AND IT INVERTS A FAMILIAR ARGUMENT.**
+#     A dropped mutation is normally defended as FAIL-CLOSED because the POST-STATE claim
+#     becomes unprovable — an argument about POSTCONDITIONS. For `no_exception` the erasure
+#     makes the claim EASIER, not harder. **EVERY ERASURE IN THE COMPILER IS A
+#     `no_exception` HOLE BY CONSTRUCTION**, and the others are on record: the `with`-body
+#     erasure, the `emit_ir` in-place store no-op, the list-`del` no-op. Ask of each: "what
+#     does `no_exception \all` say about this body once the operation is gone?"
 #
 # ## THE SHARPEST UNFINISHED THREAD — A FALSE AXIOM CLASS, NOT A ROUTE
 #
@@ -294,8 +308,13 @@
 #
 # ## THE LADDER FOR THE NEXT RELAUNCH
 #
-#   0. **THE EXCEPTION MODEL IS A FRESH, BARELY-SCRATCHED SURFACE.** Route #64 came from it
-#      and took one probe. `exception_model.TRIGGERS` is a SHORT TABLE — every row is a
+#   0. **THE EXCEPTION MODEL PRODUCED FIVE ROUTES AND IS STILL NOT EXHAUSTED.** #64 (a
+#      missing row), #65 (four rows consulted by NOTHING, one a `true` tautology), #66
+#      (three more missing rows), #68 (two more, one of them a row that existed and was
+#      never injected), #71 (an ERASED operation). Six probes, six findings — the
+#      per-operation approach is NOT converging, and route #66's named completeness gate
+#      (relate the table to what the emitter EMITS, not merely ACCEPTS) is worth more than
+#      any further individual repair. `exception_model.TRIGGERS` is a SHORT TABLE — every row is a
 #      claim that those are the only ways an IR operation can raise, and the `\all` form
 #      turns each omission into a false proof. Walk the table against Python's real
 #      behaviour: `IndexError` on a NEGATIVE index past the start, `KeyError` on `.pop`
