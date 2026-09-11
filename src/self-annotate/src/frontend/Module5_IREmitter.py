@@ -2057,6 +2057,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #     tgt)) (py_expr_to_ir (sindex_of tgt))` (IrSub array + index projectors); every
     #     other target appends `SPass`.
     # Verbatim body port of the LIVE `_py_stmt_delete` (dead ast.Index branch dropped).
+    # (#49) ROUTE #77: the SLICE arm `is_sub tgt && is_slice (sindex_of tgt)` is the
+    # err-divergence arm — `raise PyCSLSemanticError` (message DROPPED, a raise takes the
+    # exc NAME only; the raise path never reaches `ensures`), the `_csl_proj` pattern.
+    #@ raises PyCSLSemanticError when True
     #@ requires True
     #@ ensures True
     #@ assigns ir_stmts
@@ -2065,6 +2069,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             slice_node = getattr(tgt, "slice", None)
             if isinstance(slice_node, ast.Index):  # py<3.9 wrapper
                 slice_node = slice_node.value
+            if isinstance(tgt, ast.Subscript) and isinstance(slice_node, ast.Slice):
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    "`del <seq>[i:j]` (a SLICE delete) is not modelled: Python's slice "
+                    "`del` REMOVES a whole range, shifting every later element left and "
+                    "SHRINKING the sequence, and the lowering here was a NO-OP, so the "
+                    "model would keep the original sequence while the run still reported "
+                    "'All contracts formally proven'. Measured: `xs = [1, 2, 3]; "
+                    "del xs[0:2]; return xs[0]` proved `\\result == 1` while Python "
+                    "returns 3. Rewrite the deletion as an explicit shift loop, or delete "
+                    "the elements one at a time from a dict/set.",
+                    stage="ir-emit",
+                    code="PYCSL-M5-SLICE-DELETE-UNMODELLED",
+                )
             if isinstance(tgt, ast.Subscript) and not isinstance(slice_node, ast.Slice):
                 ir_stmts.append({
                     "stmt": "DelSubscript",

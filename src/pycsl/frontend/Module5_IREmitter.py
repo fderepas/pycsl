@@ -1910,10 +1910,56 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # dict/set PARAMETER → the WL-05 caller-visible-mutation REJECTION (fail-closed).
         # A `del name` / `del obj.attr` (rebinding / attribute delete) stays the
         # unmodelled no-op it always was — out of the collection-mutation scope.
+        #
+        # (#49) ROUTE #77 — THE SLICE FORM WAS ROUTE #17's DEFECT ONE STEP OVER, AND THE
+        # STEP CROSSED THIS MODULE BOUNDARY. Route #17 closed the ELEMENT delete with a
+        # refusal in `module6_whyml/statements.py`, but that guard is a BLOCKLIST KEYED ON
+        # THE EMITTED STRING (`if code.strip() == "()"`), and the slice form never reached
+        # it: the `else` arm below dropped `del seq[i:j]` to a literal `Pass`, byte-
+        # indistinguishable from a user's `pass`, one stage EARLIER than the guard. So the
+        # guard and the hazard lived in different modules and the blocklist failed OPEN.
+        # MEASURED, before this refusal:
+        #     xs: List[int] = [1, 2, 3]
+        #     del xs[0:2]
+        #     return xs[0]
+        #     #@ ensures \result == 1      <-- FALSE OF THE PROGRAM (Python returns 3)
+        #     [+] Verification SUCCESS! All contracts formally proven.
+        # Why3 printed `unused variable xs` on that same run: the delete is erased and the
+        # read is then constant-folded, so the list never reaches the solver. THREE carriers
+        # proved a false claim (the element read, the `len()` read, and `del xs[:]`) and the
+        # TRUE TWIN OF EACH WAS REFUSED, and the stale value also DISCHARGED A CALLEE'S
+        # `requires` at a call site, so the defect propagated across the call graph.
+        # REFUSED rather than modelled, for route #17's reason: Python's slice `del` shifts
+        # every later element left and SHRINKS the sequence, so a faithful model needs the
+        # length as part of the value model, and a wrong shift is worse than no shift.
+        # The guard only RAISES or FALLS THROUGH — it never alters emitted text — and a
+        # census found ZERO slice-deletes in either corpus, in the mirror, in `src/pycsl/`
+        # and in `src/pycsl_lib/`, so it is byte-inert BY CONSTRUCTION.
+        # NOTE the one-token alternative that was REJECTED BY MEASUREMENT: merely dropping
+        # the `not isinstance(slice_node, ast.Slice)` conjunct would route the slice form
+        # into the `DelSubscript` path and let #17's refusal fire, but for a LOCAL DICT
+        # receiver that path does NOT fall through to the `()` no-op — it emits a faithful
+        # `map_update_none` keyed on a coerced slice, i.e. it would MODEL `del d[i:j]` as a
+        # key delete where CPython raises `KeyError`. That trades an old wrong model for a
+        # new one. Refuse explicitly instead.
         for tgt in stmt.targets:
             slice_node = getattr(tgt, "slice", None)
             if isinstance(slice_node, ast.Index):  # py<3.9 wrapper
                 slice_node = slice_node.value
+            if isinstance(tgt, ast.Subscript) and isinstance(slice_node, ast.Slice):
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    "`del <seq>[i:j]` (a SLICE delete) is not modelled: Python's slice "
+                    "`del` REMOVES a whole range, shifting every later element left and "
+                    "SHRINKING the sequence, and the lowering here was a NO-OP, so the "
+                    "model would keep the original sequence while the run still reported "
+                    "'All contracts formally proven'. Measured: `xs = [1, 2, 3]; "
+                    "del xs[0:2]; return xs[0]` proved `\\result == 1` while Python "
+                    "returns 3. Rewrite the deletion as an explicit shift loop, or delete "
+                    "the elements one at a time from a dict/set.",
+                    stage="ir-emit",
+                    code="PYCSL-M5-SLICE-DELETE-UNMODELLED",
+                )
             if isinstance(tgt, ast.Subscript) and not isinstance(slice_node, ast.Slice):
                 ir_stmts.append({
                     "stmt": "DelSubscript",
@@ -1921,8 +1967,9 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     "index": self._py_expr_to_ir(slice_node),
                 })
             else:
-                # `del name` / `del obj.attr` / `del seq[i:j]` (slice delete) — stays the
+                # `del name` / `del obj.attr` (rebinding / attribute delete) — stays the
                 # unmodelled no-op it always was (outside the dict/set item-delete scope).
+                # The SLICE form no longer reaches here: it is refused above, route #77.
                 ir_stmts.append({"stmt": "Pass"})
 
     def _py_stmt_match(self, stmt: Any, ir_stmts: List[Dict[str, Any]]) -> None:

@@ -3583,6 +3583,7 @@ class FunctionEmissionMixin:
             f" (ir_stmts: ref (seq stmt_ir)) : unit",
             "    requires { true }",
             "    ensures  { true }",
+            "    raises { PyCSLSemanticError -> true }",
             "    writes { ir_stmts }",
             "  =",
             "    let ts = del_targets_ast stmt in",
@@ -3591,6 +3592,14 @@ class FunctionEmissionMixin:
             "      invariant { 0 <= !_i <= Seq.length ts }",
             "      variant { Seq.length ts - !_i }",
             "      let tgt = Seq.get ts !_i in",
+            # (#49) ROUTE #77 — the SLICE arm is the err-divergence arm. `_py_stmt_delete`
+            # now REFUSES `del <seq>[i:j]` instead of dropping it to `Pass`; this models
+            # that raise faithfully (`_csl_proj`'s pattern — the message is dropped, a
+            # raise carries the exception NAME only, and the raise path never reaches
+            # `ensures`).
+            "      (if is_sub tgt && is_slice (sindex_of tgt) then begin",
+            "         raise PyCSLSemanticError",
+            "       end);",
             "      (if is_sub tgt && not (is_slice (sindex_of tgt)) then",
             f"         ir_stmts := Seq.snoc !ir_stmts (SDelSubscript"
             f" ({disp_e} (svalue_of tgt)) ({disp_e} (sindex_of tgt)))",
