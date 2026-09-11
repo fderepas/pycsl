@@ -1414,7 +1414,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ ensures True
     #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     #@ requires_method _field_type_of: (self, attr_ir: ExprIR) -> str
-    #@   assigns \nothing
     def _slice_array_or_opaque(self, node: "ExprIR", arr: str, sl: "ExprIR",
                                local_refs: Set[str], invariant_ctx: bool,
                                subst: Optional[Dict[str, str]]) -> str:

@@ -1,0 +1,34 @@
+[*] IR conformance — core corpus (golden IR -> WhyML, no front-end)
+[+] core-only conformance: 38 OK / 0 MISMATCH (38 goldens) — front-end NOT imported
+  [0;32m[OK][0m core-only conformance
+[*] IR conformance — front-end corpus (source -> resolved IR, no prover)
+[*] Imported from 'multi_file_lib.arith': ['double_int'] (trusted stubs)
+[*] Imported from 'multi_file_lib.arith': ['double_int', 'triple_int'] (trusted stubs)
+[*] Imported from 'multi_file_lib.arith': ['double_int'] (trusted stubs, module-qualified)
+[*] Imported from 'multi_file_lib.deep_mid': ['double_plus_one'] (trusted stubs)
+[*] Imported from 'multi_file_lib.circ_a': ['func_a'] (trusted stubs)
+[*] Imported class from 'multi_file_lib.base_counter': Counter (record + 1 method stub(s) + 0 helper(s))
+[*] Imported from 'multi_file_lib.base_counter': ['Counter'] (trusted stubs)
+[*] Imported class from 'multi_file_lib.base_store': Store (record + 1 method stub(s) + 0 helper(s))
+[*] Imported base class from 'multi_file_lib.visitor_base': NodeVisitor (record + 2 method stub(s))
+  0549: MISMATCH — IR content differs from golden
+      VAL .functions[1].line: derived=49 golden=48
+      LEN .functions[1].method_deps[0].assigns: derived=1 golden=0
+      VAL .functions[2].line: derived=57 golden=56
+      VAL .functions[4].line: derived=49 golden=48
+      LEN .functions[4].method_deps[0].assigns: derived=1 golden=0
+  0553: MISMATCH — IR content differs from golden
+      VAL .functions[0].line: derived=27 golden=26
+      LEN .functions[0].method_deps[0].assigns: derived=1 golden=0
+front-end conformance: 36 OK / 2 MISMATCH (38 goldens; 0 version-skew)
+front-end-only: no core/Module6/prover module in sys.modules (import-based, no subprocess for the conformance check)
+determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1)
+  [0;31m[FAIL][0m front-end-only conformance
+[0;31m[!] IR conformance FAILED — the IR contract (docs/ir.md §10) regressed.[0m
+
+[!] IR conformance failed. Either the core no longer re-derives the golden
+    WhyML (core-only corpus), or the front-end no longer produces the canonical
+    IR (front-end-only corpus). The IR is frozen at v1.1 (docs/ir.md §10): a
+    deliberate shape change requires an IR_VERSION/ACCEPTED_IR_VERSIONS bump and
+    refreshed goldens. Run ./bin/run-conformance.sh for the per-corpus detail.
+    Skip this gate temporarily with PYCSL_SKIP_CONFORMANCE_CHECK=1.

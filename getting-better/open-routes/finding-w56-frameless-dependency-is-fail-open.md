@@ -61,7 +61,36 @@ that can honestly declare `#@   assigns \nothing`:
 `0549`, `0550`, `0553` (`depends_method emit`), plus the mirror's `requires_method
 _field_type_of` and `_seq_operand`.
 
-**COST NOT PAID HERE:** two of the five live in mirrored files, so landing this owes a
-whole-file re-proof each, against the MEASURED BOX CEILING of about four whole-file proofs.
-That is a COST boundary, not a correctness one — it is exactly what a funded window should
-pay, and it was not started rather than started and left half-done.
+## THE REPAIR WAS BUILT, GATED, AND THEN REVERTED — AND THE REASON IS THE USEFUL PART
+
+**The estimated cost was wrong in BOTH directions, and only measurement found either.**
+
+*Cheaper than estimated:* I had recorded this as owing a whole-file mirror re-proof. In fact
+`_extract_mixin_directives` is a **`\trusted` STUB in the mirror** (body `return []`) — the
+cheap side — and the mirror's emission with the frame added is **BYTE-IDENTICAL** (293231
+bytes). No re-proof was owed at all.
+
+*More expensive than estimated:* the built repair passed **everything**: 33 planes green,
+**both** corpora fully byte-inert (969/969 and 2204/2204, 0 moved / 0 gone / 0 appeared),
+all four mixin drivers correct. Then `run-reference-tests.sh` aborted at its **leading gate**:
+
+    IR CONFORMANCE FAILED — 0549 MISMATCH, 0553 MISMATCH
+
+Those two drivers carry **FROZEN IR GOLDENS** in `test-suite/corpus/conformance/`, and the
+`#@   assigns \nothing` the repair forces into their dependency windows changes the derived
+IR.
+
+**THE LESSON: A GREEN BYTE-DIFF DOES NOT COVER THE IR.** Byte-inertness is about emitted
+WhyML; the conformance gate is about the IR one stage earlier. A landing can be perfectly
+byte-inert on both corpora and still break a frozen contract.
+
+**WHY REVERTED RATHER THAN REFRESHED.** The tool's own message requires an
+`IR_VERSION`/`ACCEPTED_IR_VERSIONS` bump plus refreshed goldens for a deliberate change, and
+"refresh the baseline until the gate is green" is precisely the banked lesson *never
+re-baseline a ratchet to make it green*. Decisively, **this hole is not currently
+exploitable** (a composed mixin with a writing provider does not emit), so this is DEFENSIVE
+HARDENING — which does not justify unilaterally editing a frozen contract.
+
+**TRUE COST, NOW MEASURED:** landing this requires refreshing the IR goldens of 0549 and 0553
+(and the version-bump question that raises). That is a decision about a frozen contract, not
+a worker's unilateral call. The build itself is straightforward and is described above.

@@ -19,7 +19,6 @@ _ = 0  # anchor
 class MapOps:
     #@ depends_method emit: (self, x: int) -> int
     #@   ensures \result >= 0
-    #@   assigns \nothing
     #@ provides handle_get
     #@ ensures \result >= 0
     #@ assigns \nothing

@@ -14349,7 +14349,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"(let {target} = ref {v} in !{target})"
 
     #@ requires_method _field_type_of: (self, attr_ir: ExprIR) -> str
-    #@   assigns \nothing
     def _slice_array_or_opaque(self, node: "ExprIR", arr: str, sl: "ExprIR",
                                local_refs: Set[str], invariant_ctx: bool,
                                subst: Optional[Dict[str, str]]) -> str:
