@@ -27,11 +27,12 @@
 #            959/959 with 3 MOVED. #74: pyref 2204/2204 inert, pycsl-ref 963/963 with 3
 #            MOVED — and 1181, the REAL-`str` positive control, did NOT move, so the genuine
 #            predicate path is untouched at the BYTE level, not merely at the verdict level.
-#   suite    **3306/3325, ZERO XPASS**, failure set BYTE-FOR-BYTE identical to the
+#   suite    **3312/3331, ZERO XPASS**, failure set BYTE-FOR-BYTE identical to the
 #            suite55_run5 baseline (19, diffed not eyeballed). rc=1 IS the baseline
-#            condition. Run TWICE — `proofs49/suite56_run1.*` gated #73 at 3302/3321, and
-#            `suite56_run2.*` gates #74 at 3306/3325. The suite grew by SEVEN drivers this
-#            generation, all route witnesses, and every one passes.
+#            condition. Run THREE times — `proofs49/suite56_run1.*` gated #73 at 3302/3321,
+#            `suite56_run2.*` gated #74 at 3306/3325, `suite56_run3.*` gates #75 at
+#            3312/3331. The suite grew by THIRTEEN drivers this generation, all route
+#            witnesses, and every one passes.
 #   OWED     **NOTHING.** No proof, battery or sweep in flight.
 #   tree     clean, every increment committed. The two GITLINKS (`scratchpad/w7/base`,
 #            `scratchpad/w8/pre`) and the 0-byte stray `str` in the repo root are
