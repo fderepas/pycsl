@@ -3,11 +3,13 @@
 # ## WHAT IS TRUE RIGHT NOW
 #
 #   ledger   **EMPTY. NO OPEN ROUTE.** Route #59 is fully closed (all seven carriers), and
-#            #60, #61, #62, #63 and #64 were each FOUND AND CLOSED this generation.
+#            #60, #61, #62, #63, #64 and #65 were each FOUND AND CLOSED this generation.
+#            SIX new routes found and closed, plus #59 finished.
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED all
 #            generation, and that is the EXPECTED shape of a window paying the soundness
 #            ladder. Four repairs, all refusals or whitelists; none costs the trust surface.
-#   planes   **ALL 31 GREEN under `--slow`**, re-run after every landing.
+#   planes   **ALL 32 GREEN under `--slow`** (19 in the fast set), re-run after every
+#            landing. The 32nd is NEW this generation: `check-trigger-rows-live.py`.
 #            **RUN IT WITH why3 ON PATH** (`export PATH=$HOME/.opam/framac-coq8/bin:$PATH`).
 #   suite    **3267/3286, ZERO XPASS.** The 19 confirmed failures are EXACTLY the baseline
 #            set (`suite49_run8` was 3249/3268, same 19). All 18 new witnesses pass.
@@ -74,6 +76,35 @@
 #   `PREDICATE_LIBRARY`, which is emitted WHOLESALE into every `no_exception` unit's preamble
 #   and moved 31 corpus emissions by one inert line (diagnosed by DIFFING a moved file rather
 #   than accepting the diff, then inlined like the `map_get` row).
+#
+#   **#65 — FOUR ROWS OF THE EXCEPTION TRIGGER TABLE WERE CONSULTED BY NOTHING.** Found by
+#   following #64's row INTO the emitter instead of stopping at the table. Every
+#   `no_exception` obligation is injected through two helpers, and the only op-keys they are
+#   ever passed are `("binop", <op>)`, `("subscript", read|write|write_bytes)` and
+#   `("map_get", None)`. So `("call","divmod")`, `("attr_call","index")`,
+#   `("attr_call","pop")` and `("call","next")` were DEAD — and `divmod`'s row carries a REAL
+#   condition, so `divmod(a,0)` proved under `no_exception ZeroDivisionError` while CPython
+#   raises. `.index`'s condition was the literal `"true"`: `xs.index(5)` (absent) and
+#   `xs.index(1)` (present) gave IDENTICAL verdicts — a row that LOOKS like coverage and
+#   provides none, which is worse than a missing one. The control that makes it crisp: `d[5]`
+#   under `no_exception KeyError` correctly does NOT prove, through the WIRED `map_get` row.
+#   Closed by REFUSING all four under a matching `no_exception` context (divmod lowers to a
+#   fully opaque val, so there is nothing faithful to inject), plus a NEW PLANE.
+#
+# ## THE NEW PLANE, AND THE WAY IT CAUGHT ITSELF
+#
+#   `bin/check-trigger-rows-live.py` — every `TRIGGERS` row must be CONSULTED at an injection
+#   site or REFUSED outright, and no row may discharge on a `"true"` condition. Demonstrated
+#   both ways.
+#     **ITS FIRST VERSION SCANNED RAW TEXT AND READ THIS REPO'S OWN COMMENT AS EVIDENCE.**
+#     The big explanatory comment in `functions.py` names both injector helpers and then
+#     lists the very op-keys they do NOT consult; the plane counted that as consultation and
+#     reported GREEN with the refusal deliberately removed. **A gate that counts its own
+#     documentation as coverage is worse than no gate** — and it is precisely the defect
+#     class the plane exists to catch. Fixed by tokenizing out comments and requiring
+#     `injector(`, a real call rather than a mention. It also surfaced a second false
+#     positive: `("binop", raw_op)` uses a VARIABLE key, so a literal-only scan called all
+#     seven arithmetic rows dead.
 #
 # ## THE STRUCTURAL RESULT — THE AIMING INSTRUCTION FOR THE NEXT GENERATION
 #
