@@ -51,6 +51,22 @@ def f() -> int:
 | n01_elem | `b.append(9)`, read the **ELEMENT** `a[1]` | `\result == 1` | **9** | **PROVED** ❌ |
 | n01_param | append through a **CALL** `g(a)` | `\result == 2` | 3 | refused (PIPELINE ERROR) |
 | **#59's control** | `b[0] = 2`, read `a[0]` (ELEMENT STORE) | — | — | **FAITHFUL** ✅ |
+| p06 | **`a.append(3)`, read `len(b)`** — the REVERSE direction | `\result == 2` | **3** | **PROVED** ❌ |
+| p03 | the same append via a **SELF-FIELD** alias (`b = self.xs`) | `\result == 2` | 3 | refused |
+| p04 | `b.insert(0, 9)` on the alias | `\result == 1` | 9 | refused (PIPELINE ERROR) |
+| p05 | `b.clear()` on the alias | `\result == 2` | 0 | refused (PIPELINE ERROR) |
+| p01 | **SET** alias + `b.add(2)` | `\result == 1` | 2 | refused |
+| p02 | **DICT** alias + `b[2] = 5` | `\result == 1` | 2 | refused (PIPELINE ERROR) |
+
+**THE ROUTE IS NARROWER AND SHARPER THAN IT FIRST LOOKED, AND THAT MAKES THE REPAIR SMALL.**
+The alias loses the append in **BOTH mutation directions** (mutate the alias and read the
+original; mutate the original and read the alias), and it loses both the LENGTH and the
+CONTENTS. But **every neighbouring operation is already refused**: `insert` and `clear` are
+pipeline refusals (the route #13/#17 list-mutator family), the SET alias is fenced (route #63)
+and the DICT alias is fenced (route #59's own repair). The SELF-FIELD carrier also fails closed.
+**So the live surface is exactly `append` on a LOCAL-to-LOCAL list alias** — which is why the
+blast-radius census below comes out at a single site. Check `pop` / `remove` / `extend` on an
+alias before building, since those were not individually probed.
 
 Two carriers prove a false claim, and the true twin of the headline one is refused — so it is a
 route, not a gap. **The element READ carrier (n01_elem) is the sharper of the two**: the alias
