@@ -2,12 +2,13 @@
 #
 # ## THE ONE-PARAGRAPH SUMMARY
 #
-#   TWO new soundness routes (#73, #74) found and closed, and ONE INHERITED GATE FOUND
-#   DEFECTIVE AND FIXED. **BOTH ROUTES ARE ONE DEFECT**: an OPAQUE ORACLE SHADOWING CODE THE
-#   USER WROTE — #73 keyed on a literal STRING, #74 on a method NAME — and both are the #69
-#   class, the serious one: a FALSE POSTCONDITION about ordinary TOTAL Python, needing no
-#   `no_exception` and no opt-in of any kind. **#74 WAS FOUND BY PROBING #73's REPAIR**, and
-#   its own second carrier was found by probing the repair for #74 before landing it.
+#   THREE new soundness routes (#73, #74, #75) found and closed, and ONE INHERITED GATE
+#   FOUND DEFECTIVE AND FIXED. **ALL THREE ROUTES ARE ONE DEFECT**: a HAND-ADDED ORACLE
+#   KEYED ON A NAME BEATS THE DEFINITION THE USER WROTE — #73 keyed on a literal STRING,
+#   #74 on a method NAME, #75 on a BUILTIN name — and all are the #69 class, the serious
+#   one: a FALSE POSTCONDITION about ordinary TOTAL Python, needing no `no_exception` and
+#   no opt-in of any kind. **EACH WAS FOUND BY PROBING THE PREVIOUS ONE'S REPAIR**, and
+#   #75 was closed with ONE STRUCTURAL GUARD FOR THE WHOLE CLASS rather than a third patch.
 #   Beyond that, three probe batches (36 drivers) aimed at the exception model found NOTHING,
 #   which is itself the result: the gen-#5 handoff's five unworked abstract-`val` leads are
 #   NOT live routes, and the exception model's obligations do NOT stop at the frame. The
@@ -15,11 +16,11 @@
 #
 # ## WHAT IS TRUE RIGHT NOW
 #
-#   ledger   **EMPTY. NO OPEN ROUTE.** #73 and #74 found and closed this generation.
+#   ledger   **EMPTY. NO OPEN ROUTE.** #73, #74 and #75 found and closed this generation.
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED, the expected
 #            shape of a window paying the soundness ladder. The repair is a refusal.
-#   planes   **ALL 33 GREEN under `--slow`**, run THREE times this generation (the gate
-#            change, the #73 repair, the #74 repair). **RUN WITH why3 ON PATH**
+#   planes   **ALL 33 GREEN under `--slow`**, run FOUR times this generation (the gate
+#            change and each of the three repairs). **RUN WITH why3 ON PATH**
 #            (`export PATH=$HOME/.opam/framac-coq8/bin:$PATH`).
 #   corpora  **BOTH byte-inert** against a pre-repair baseline for EACH repair, except
 #            exactly that repair's own witnesses. #73: pyref 2204/2204 inert, pycsl-ref
@@ -130,6 +131,45 @@
 #   object locals ever start emitting, re-measure it: the name-match branch would be reached
 #   with `func_name` not starting with `self.`, and the registry key would not be built.
 #
+# ## ROUTE #75 — THE CLASS, AND THE ONE GUARD THAT CLOSES IT
+#
+#   Python lets a module SHADOW A BUILTIN. When it does, `_call_named_builtins`' name tests
+#   fire on the user's own function and hand the call an abstract `val` whose `ensures` is
+#   an AXIOM about the BUILTIN. THREE CARRIERS, each a complete runnable program:
+#
+#       def ord(c: str) -> int: return 9999        ->  `\result < 256`  PROVED (CPython 9999)
+#       def len(x: str) -> int: return -5          ->  `\result >= 0`   PROVED (CPython -5)
+#       def min(a: int, b: int) -> int: return 99  ->  `\result <= 1`   PROVED (CPython 99)
+#
+#   **NOT carriers, MEASURED rather than assumed: `bool`, `repr`, `hash`.** That
+#   non-uniformity is the whole argument for the shape of the fix: a guard written as a LIST
+#   OF NAMES would be stepped around by the next name in the table.
+#
+#   **HOW IT WAS FOUND — BY ENUMERATING THE CLASS, NOT BY PROBING A THIRD INSTANCE.** A
+#   script over `expressions.py` maps every `_add_abstract_op` carrying an `ensures` back to
+#   the nearest name test. That yields TWELVE guards: decode, any, min, sorted, list, ord,
+#   chr, repr, bool, hasattr, `get` (= #73) and the rsplit predicate set (= #74). **Two of
+#   the twelve were already known routes, which is what made the enumeration worth trusting.**
+#
+#   **THE REPAIR IS ONE GUARD AT THE ENTRY OF `_call_named_builtins`:** a BARE name that
+#   resolves to a user-defined function falls through to it. All three true twins now PROVE
+#   where none did before. Witnesses 1182-1187.
+#
+#   **THE BYTE-DIFF FOUND A FOURTH CARRIER THE CENSUS MISSED — READ THE MOVED FILES.**
+#   `0449` moved unexpectedly. It is a SECURITY driver proving that a `try/except` wrapper
+#   around `ast.literal_eval` is TOTAL, and it declares `literal_eval` itself with
+#   `#@ \abstract` + `raises ValueError` / `raises SyntaxError`. The call site had been
+#   emitting `val literal_eval_op (s: 'a) : int` — **AN ORACLE WITH NO CONTRACT AT ALL** —
+#   instead of the user's own declaration. So the class covers `\abstract` DECLARATIONS too,
+#   not just builtins. VERIFIED rather than assumed: 0449 still PASSES, and its OWN
+#   documented anti-vacuity claim still holds (narrowing the catch to `(ValueError,)` makes
+#   verification FAIL), so the security proof now runs against the real bounded-raises
+#   declaration instead of a contract-free oracle.
+#     **CENSUS LESSON:** my census grepped `^def <builtin-name>(` and missed this, because
+#     the shadowed name was `literal_eval` — not a builtin at all. **The oracle table is
+#     wider than any name list I can enumerate by hand; the byte-diff over BOTH corpora is
+#     what caught it.**
+#
 # ## THE INHERITED GATE WAS A FALSE-POSITIVE GENERATOR — FIXED
 #
 #   `bin/check-no-exception-differential.py` (gen #5's new plane) ruled RED on
@@ -210,11 +250,13 @@
 #      STILL UNMEASURED: `preamble.py:9081` emits `axiom hash_eq_consistent_<cls>` for any user class defining
 #      both `__eq__` and `__hash__`, which Python does not enforce (labelled UB-7.2 and
 #      switchable, so it is a known assumption rather than a hidden one).
-#      **AND THE GENERAL FORM, which is now the sharpest instruction in this file: EVERY
-#      HAND-ADDED ORACLE KEYED ON A NAME — a literal string, a method name, a key — IS A
-#      CANDIDATE FOR SHADOWING SOMETHING THE USER WROTE. Both of this generation's routes
-#      were that, and neither needed any opt-in. Enumerate the name-keyed branches in
-#      `_call_named_builtins` and ask of each: what if the user defined this?**
+#      **THE GENERAL FORM IS NOW A CLOSED CLASS WITH ONE GUARD (#75), BUT ONLY FOR BARE
+#      NAMES.** The guard at the entry of `_call_named_builtins` covers a bare `f(...)`
+#      resolving to a user function; #74 covers `self.<m>(...)` at its own site. **STILL
+#      UNGUARDED AND WORTH PROBING NEXT: the DOTTED spellings the enumeration listed —
+#      `func_name.endswith(".to_dict")`, `.copy`, `.findall`, `.split`, `.get`, and the
+#      CLASS-NAME-keyed `IRScanner.*` and `self.ir.get` oracles, which are mirror-domain
+#      names asserted over every program PyCSL compiles, exactly as `get_arity_field` was.**
 #   3. The gen-#5 claim backlog, still largely unmined: a frameless `#@ depends_method`; the
 #      module-GLOBAL singleton field store `g.v = n`; the module-const dict fold's
 #      invalidation omitting MUTATION; the `is` blacklist's unannotated-local hole; `return`
