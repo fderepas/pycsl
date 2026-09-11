@@ -1,6 +1,25 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **THREE — #78, #79, #80.**  (#77 is CLOSED, see below.)
+## CURRENTLY OPEN: **FOUR — #78, #79, #80, #81.**  (#77 is CLOSED, see below.)
+##
+##   * **#81 — A LIST ALIAS TRACKS ELEMENT STORES BUT LOSES A LENGTH-CHANGING MUTATION**
+##     (`route81-list-alias-loses-length-changing-mutation.md`). `a=[1,2]; b=a; b.append(3);
+##     return len(a)` proves `\result == 2`; CPython returns 3. TRUE twin REFUSED. The
+##     ELEMENT read is a second and sharper carrier (`a[1]` proves 1 where CPython gives 9):
+##     the alias is wrong about the CONTENTS, not just the length. The CALL carrier fails
+##     closed.
+##     **IT REFUTES A REASSURING SENTENCE IN A CLOSED ROUTE'S OWN FILE.** Route #59 closed
+##     the dict case and localised itself with a section headed "WHAT MAKES THIS SHARP: THE
+##     LIST CARRIER IS CORRECT", concluding "lists alias correctly (a shared ref)". That
+##     measurement is real and still true — **but it covers only an ELEMENT STORE.** The list
+##     model is an `array int` PLUS A SEPARATE LENGTH; a store goes through the shared ref, a
+##     length change does not.
+##     **THE LESSON, AND IT GENERALISES FURTHEST OF ANYTHING THIS GENERATION: A CLOSED
+##     ROUTE'S "THIS CARRIER IS CORRECT" CONTROL IS EVIDENCE ABOUT THE OPERATION IT RAN, NOT
+##     ABOUT THE TYPE.** The campaign already banks "probe every CARRIER of a closed route";
+##     add **"probe every OPERATION on the carrier that was declared safe"**. A control is a
+##     measurement, not a theorem, and its scope is exactly the program that was run.
+##
 ##
 ##   **ALL THREE WERE FOUND BY ONE GENERATOR, AND THE GENERATOR IS #77's OWN LESSON:**
 ##   **A PROSE CARVE-OUT IN THE MODULE UPSTREAM OF A GUARD IS AN UNEXPLOITED ROUTE WITH A
