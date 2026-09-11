@@ -1,3 +1,175 @@
+# ====== START HERE — gen #6 FINAL STATE — read this block first ==================
+#
+# ## THE ONE-PARAGRAPH SUMMARY
+#
+#   ONE new soundness route (#73) found and closed, and ONE INHERITED GATE FOUND DEFECTIVE
+#   AND FIXED. Route #73 is the #69 class — the serious one: a FALSE POSTCONDITION about
+#   ordinary TOTAL Python, needing no `no_exception` and no opt-in of any kind. Beyond that,
+#   three probe batches (36 drivers) aimed at the exception model found NOTHING, which is
+#   itself the result: the gen-#5 handoff's five unworked abstract-`val` leads are NOT live
+#   routes, and the exception model's obligations do NOT stop at the frame. The metric never
+#   moved (459) and was never supposed to.
+#
+# ## WHAT IS TRUE RIGHT NOW
+#
+#   ledger   **EMPTY. NO OPEN ROUTE.** #73 found and closed this generation.
+#   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED, the expected
+#            shape of a window paying the soundness ladder. The repair is a refusal.
+#   planes   **ALL 33 GREEN under `--slow`**, run twice this generation (once for the gate
+#            change, once for the #73 repair). **RUN WITH why3 ON PATH**
+#            (`export PATH=$HOME/.opam/framac-coq8/bin:$PATH`).
+#   corpora  **BOTH byte-inert** against a pre-repair baseline, except EXACTLY the three
+#            #73 witnesses — which are the drivers written to exercise the repair, so their
+#            emission MUST change. python-reference 2204/2204 inert; pycsl-reference 959/959
+#            with 3 MOVED, 0 GONE, 0 APPEARED.
+#   tree     clean, every increment committed. The two GITLINKS (`scratchpad/w7/base`,
+#            `scratchpad/w8/pre`) and the 0-byte stray `str` in the repo root are
+#            PRE-EXISTING and are NOT dirt.
+#
+# ## ROUTE #73 — AN OPAQUE ORACLE SHADOWED A USER-DEFINED FUNCTION
+#
+#   A complete, runnable program, nothing opted into beyond an ordinary postcondition:
+#
+#       #@ ensures \result == d
+#       def get(k: str, d: int) -> int:  return d
+#
+#       #@ ensures \result >= 0
+#       def f() -> int:                  return get("arity", -1)
+#
+#   **CPython answers -1. PyCSL proved `\result >= 0`.**
+#
+#   CAUSE: `_lower_dict_get_call` (expressions.py) fired on `func_name == "get" and
+#   len(args) == 2` whenever the FIRST ARGUMENT was the literal string `"arity"`, emitting
+#   `val get_arity_field (x0: int) (x1: int) : int ensures { result >= 0 }`. The code's OWN
+#   COMMENT concedes it — "an assumed, trusted-stub-shaped contract" firing for "ANY
+#   `.get("arity", ...)` call the tool can't type" — and its justification is a DOMAIN
+#   CONVENTION OF THE SELF-ANNOTATION MIRROR, asserted globally BY KEY NAME over every
+#   program PyCSL compiles. An `ensures` on an abstract `val` is an AXIOM.
+#
+#   **THE EMITTED DIFF IS THE WHOLE ROUTE IN FIVE LINES**, and it is worth looking at:
+#       before:  (get_arity_field 1684615666 (- 1))     <- "arity" HASHED TO AN INT, handed
+#                                                          to an oracle axiomatised >= 0;
+#                                                          the user's function is ABSENT
+#       after:   (get "arity" (- 1))                    <- the real call
+#   (The string-hashed-to-an-int shape is the same one #68 and #72 found.)
+#
+#   **THE OBVIOUS GUARD WAS MEASURED AND REFUTED BEFORE IT LANDED.** Refusing on a negative
+#   default is defeated by moving the hazard one step:
+#       def get(k, d): return -5   /   get("arity", 0)   -> CPython -5, `>= 0` PROVED.
+#   That is the SIXTH instance of "a guard keyed on a syntactic location is defeated by
+#   moving the hazard one step" — and the FIRST caught BEFORE landing rather than after.
+#   The measurement RELOCATED the defect: the key string and the default are red herrings;
+#   the fault is an oracle SHADOWING a user function.
+#
+#   **THE LANDED GUARD IS STRUCTURAL, NOT SYNTACTIC.** `func_name == "get"` arises two ways:
+#   a CHAINED `<expr>.get("arity", d)` carrying a `receiver` (the shape the oracle exists
+#   for — `expr_ghost_spec_ops.py`, receiver kind untypable) and a BARE two-argument call
+#   with NO receiver (the carrier). The oracle now requires a receiver. **A bare call cannot
+#   acquire one**, so there is no one-step-over spelling.
+#
+#   **THE POSITIVE CONTROL IS THE STRONGEST EVIDENCE.** Witness 1176 — the TRUE claim
+#   `\result == -1` about the same program — now PROVES where it did NOT before. The repair
+#   did not merely refuse; it RESTORED the honest lowering so the user's own proved contract
+#   is reachable at the call site again. Witnesses: 1175 (negative), 1176 (positive control),
+#   1177 (the spelling that refuted the sign-of-default guard).
+#
+#   **RETAINED BOUNDARY, recorded at the site and in the route file:** with a receiver
+#   present this still asserts `result >= 0` of a value read from a dict PyCSL cannot type —
+#   the mirror's domain convention, not a property of Python. REOPENING CAPABILITY: emit the
+#   non-negativity as an OBLIGATION at the `Array.make` site instead of an axiom on the
+#   getter, which costs the mirror a proof it currently gets for free.
+#
+# ## THE INHERITED GATE WAS A FALSE-POSITIVE GENERATOR — FIXED
+#
+#   `bin/check-no-exception-differential.py` (gen #5's new plane) ruled RED on
+#   `CPython RAISES + PyCSL PROVES`, with NO notion of WHICH exceptions the contract claims.
+#   **`\all` expands to `KNOWN_EXCEPTIONS` — FIVE names** (ZeroDivisionError, IndexError,
+#   KeyError, ValueError, StopIteration) — not to every exception Python has. A body aborting
+#   with AssertionError, TypeError, AttributeError, OverflowError or RecursionError violates
+#   NOTHING its contract said, and the plane would have called it UNSOUND.
+#     **WHY THIS MATTERS: it is how a gate of this shape DIES.** Its whole value is that its
+#     corpus GROWS, and a gate that cries wolf gets quieted by DELETING the offending driver.
+#   FIXED: the driver now runs through a wrapper reporting the exception CLASS; the
+#   `#@ no_exception` spec is parsed for what it actually claims; the two are matched with the
+#   model's own subclass relation (so a claim over `OSError` is violated by a raised
+#   `FileNotFoundError`). **FAIL-CLOSED**: an unnameable failure is recorded `?` and treated
+#   as IN SCOPE, keeping the old conservative verdict.
+#     **OUT-OF-SCOPE ABORTS ARE PRINTED ON EVERY RUN, never fatal and NEVER SILENT** — that
+#     population is the honest measure of how much weaker `\all` is than its name.
+#     **NEGATIVE-TESTED, because narrowing a gate is exactly the change that silently
+#     disables one**: with route #66's `chr` row commented out, d05 measures
+#     `raised=ValueError, in_scope=True, proves=True` and the plane reports UNSOUND. The
+#     class check does NOT soften a genuine route.
+#   **CORPUS GROWN 18 -> 39** (28 raisers, 11 returners of which 10 prove, 1 out of scope,
+#   1 incomplete). d30-d33 are standing checks on the moved hazard: the same raising
+#   operation in a CALLEE, a LOOP body, a TAKEN BRANCH, and behind a slicing call.
+#
+# ## PROBED THIS GENERATION WITH NO FINDING — DO NOT RE-PROBE
+#
+#   * **ALL FIVE unworked abstract-`val` leads from the gen-#5 handoff are DEAD.** Measured:
+#     the bare `s[5]` spelling (which gen #5 could not reach — it EMISSION-FAILed there and
+#     EMITS here), `s[5:6]`, LOCAL `set.remove`/`set.discard` of an absent element (the
+#     `map_update_none` lead), `"a b".split(" ")[5]` (the `str_split_elem_op` lead). All
+#     refuse. `struct_pack_i1a1`/`i18` carry no `requires` but their siblings' guard is a
+#     CALL-SITE VC for `struct.error`, which is NOT in KNOWN_EXCEPTIONS — no route available.
+#   * **THE OBLIGATION DOES NOT STOP AT THE FRAME.** A `1//0`, an explicit `raise`, and a
+#     `[::0]` slice placed in a CALLEE all still refuse, as do a raise in a LOOP body and in
+#     a TAKEN BRANCH. The "one call deeper" move does NOT defeat the exception model.
+#   * Negative indices past the start (`xs[-10]`, `ord(s[-10])`), `d.pop(missing)`,
+#     true-division and modulo by zero, `"abc".index("z")`, `xs.pop(7)`, `int("10", 1)`,
+#     wrong-length tuple unpack — all refuse. (`xs[-1]` proves, the positive control.)
+#   * **`assert` IS A GENUINE NO-OP — the documentation is TRUE, and I checked rather than
+#     assumed.** I suspected the `assert` no-op was an ASSUMPTION (which would let a false
+#     assert prove anything, with no opt-in — the worst shape available). IT IS NOT: after
+#     `assert a == 1` with `a == 0`, the FALSE claim `\result == 99` does NOT prove, and
+#     `assert False` does not either, while the TRUE claim does. Route #16's "lowered to
+#     `()`, NEITHER CHECKED NOR ASSUMED" is confirmed in both directions. A body that aborts
+#     with AssertionError satisfying `no_exception \all` is a CERTIFIED BOUNDARY, not a
+#     route: AssertionError is deliberately outside the model. Pinned as driver d39.
+#
+# ## LESSONS BANKED THIS GENERATION
+#
+#   * **VERIFY A DELEGATED CLAIM'S SCOPE, NOT JUST ITS HEADLINE** — again (route #70 banked
+#     it first). The audit that surfaced #73 reported the carrier as the DOTTED
+#     `cfg.get("arity", -1)`. Measured: an untyped receiver AND a `Dict`-typed receiver both
+#     emit ZERO occurrences. The live carrier is the BARE call. The headline was right and
+#     the location was wrong, and only measuring separated them.
+#   * **PROBE THE GUARD YOU ARE ABOUT TO WRITE, NOT ONLY THE ONE YOU WROTE.** The
+#     sign-of-default guard for #73 was refuted before a line of it landed. That is cheaper
+#     than the five times gen #5 discovered it afterwards.
+#   * **A ZERO-INPUT GUARD EARNED ITS KEEP.** The worktree-at-HEAD~3 baseline sweep failed
+#     reproducibly (1 of 1101 emitted, vs 960 for the same script in the main tree) and
+#     `byte-diff-compare` REFUSED to report green over an empty baseline. Do not work around
+#     that by lowering `--min-files`. Build the baseline by swapping the ONE changed file in
+#     the main tree, **with the restore in a shell `trap`** so the tree self-heals even if
+#     the turn dies — which also isolates the repair perfectly.
+#   * **A GATE'S FALSE POSITIVES ARE A SOUNDNESS CONCERN, not a cosmetic one**, whenever the
+#     gate's value depends on its corpus growing.
+#
+# ## THE LADDER FOR THE NEXT RELAUNCH
+#
+#   1. **GROW `test-suite/no-exception-differential/` — it is now the cheapest route
+#      detector in the tree** and it found #73's neighbourhood by making probing mechanical.
+#      Every new raising Python operation added is a permanent check. It curates nothing.
+#   2. **THE `_add_abstract_op` AUDIT IS NOT FINISHED, and #73 shows where the yield is:**
+#      not in the `ensures` clauses that model Python operations (a full pass over those
+#      found them sound — see the inventory in the gen-#6 audit), but in the HAND-ADDED
+#      ORACLES keyed on a literal string, a method NAME, or a domain convention. Two leads
+#      remain UNMEASURED: (a) the 0/1 predicate ops at `expressions.py:8863-8899` match on
+#      METHOD-NAME SUFFIX with the receiver ERASED, so a user class defining
+#      `def isdigit(self) -> int: return 7` may get `ensures { result = 0 || result = 1 }`
+#      asserted about a 7 — the same shadowing shape as #73, NOT yet witnessed; (b)
+#      `preamble.py:9081` emits `axiom hash_eq_consistent_<cls>` for any user class defining
+#      both `__eq__` and `__hash__`, which Python does not enforce (labelled UB-7.2 and
+#      switchable, so it is a known assumption rather than a hidden one).
+#   3. The gen-#5 claim backlog, still largely unmined: a frameless `#@ depends_method`; the
+#      module-GLOBAL singleton field store `g.v = n`; the module-const dict fold's
+#      invalidation omitting MUTATION; the `is` blacklist's unannotated-local hole; `return`
+#      inside a `try` with a catch-all handler.
+#
+# ===================================================================================
+#
+#
 # ====== START HERE — gen #5 FINAL STATE — read this block first ==================
 #
 # ## THE ONE-PARAGRAPH SUMMARY
