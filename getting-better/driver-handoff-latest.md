@@ -60,7 +60,33 @@
 #      with no mechanism and no driver. THAT LIST IS THE NEXT GENERATION'S BACKLOG** — see
 #      the ladder below.
 #
-# ## THE PATTERN, SEEN FOUR TIMES IN ONE GENERATION
+# ## THE STRUCTURAL RESULT — THE AIMING INSTRUCTION FOR THE NEXT GENERATION
+#
+#   **WHY3 ENFORCES FRAMES AND SEPARATION FOR EVERYTHING IT MODELS AS A REGION, AND
+#   ENFORCES NOTHING FOR A PURE TERM. EVERY ROUTE THIS GENERATION FOUND LIVES ON THE PURE
+#   SIDE.** Measured on both sides, not inferred.
+#
+#   REGION SIDE — Why3 itself refuses, no PyCSL guard involved:
+#     * a false `assigns \nothing` on a function mutating an ARRAY PARAM
+#       ("This function has side effects, it cannot be used as pure")
+#     * a false `assigns \nothing` on a method writing a SELF FIELD
+#       ("this expression produces an unlisted write effect")
+#     * an aliased array application `f(xs, xs)`
+#       ("This application creates an illegal alias")
+#     * nested-list inner aliasing, three spellings, all type-rejected
+#
+#   PURE SIDE — every one was a ROUTE: #59 (a dict binding COPIES), #60 and #61 (a dict
+#   SIZE folds to a constant), #63 (two set params alias with no barrier).
+#
+#   A list is an `array` and a self field is a mutable record field — REGIONS, policed by
+#   Why3. A dict/set is a pure `map` — no region, nothing to police, and PyCSL's own
+#   hand-written guards are the only thing standing there. **So: ask of any construct "is
+#   this a REGION or a PURE VALUE?" If pure, every guard is hand-written — and every
+#   hand-written guard this generation was keyed on a location that could be stepped
+#   around.** That is where to aim, beside gen #4's "probe representations, not the proof
+#   engine".
+#
+# ## THE PATTERN, SEEN FIVE TIMES IN ONE GENERATION
 #
 #   **A GUARD KEYED ON A SYNTACTIC LOCATION IS DEFEATED BY MOVING THE HAZARD ONE STEP.**
 #   #59's planned repair watched the local — the hazard moved to a second FIELD. #60's fold
