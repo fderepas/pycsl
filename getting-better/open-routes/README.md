@@ -1,6 +1,36 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **NONE.** The ledger is EMPTY at HEAD.
+## CURRENTLY OPEN: **ONE — #77.**
+##
+##   **#77 — A SLICE DELETE `del xs[i:j]` IS ERASED TO `Pass` AND THE READ IS THEN
+##   CONSTANT-FOLDED — FOUND AND REPRODUCED 2026-09-11 (gen #8), BOTH DIRECTIONS
+##   MEASURED, REPAIR SCOPED, NOT YET LANDED.** File:
+##   `route77-slice-delete-is-an-erased-no-op.md`.
+##
+##       xs: List[int] = [1, 2, 3]
+##       del xs[0:2]
+##       return xs[0]          #@ ensures \result == 1   <-- CPython returns 3. PyCSL PROVES.
+##
+##   The #69 class, the serious one: a FALSE POSTCONDITION about ordinary TOTAL Python,
+##   no `no_exception` and no opt-in. **IT IS ROUTE #17's DEFECT ONE STEP OVER, AND THE
+##   STEP CROSSES A MODULE BOUNDARY** — #17 closed the ELEMENT delete with a blocklist in
+##   Module 6 keyed on the emitted string (`code.strip() == "()"`), but
+##   `Module5_IREmitter._py_stmt_delete` drops the SLICE form to `{"stmt": "Pass"}` one
+##   stage earlier, so Module 6 never sees a delete to refuse. The guard and the hazard
+##   ended up in different modules.
+##
+##   **THE NEW EDGE ON GEN #7's LESSON: THE ESCAPE HATCH WAS WRITTEN DOWN IN A COMMENT.**
+##   Module 5's `else` branch names `del seq[i:j]` in prose, four lines under a docstring
+##   that calls the blanket no-op "UNSOUND ... a severity-1 fail-OPEN". **A PROSE CARVE-OUT
+##   IN THE MODULE UPSTREAM OF A GUARD IS AN UNEXPLOITED ROUTE WITH A SIGNPOST ON IT.**
+##   That is a generator, not just a warning — grep for the next one.
+##
+##   Three carriers prove a false claim (element read, `len()` read, `del xs[:]`), and the
+##   TRUE twin of each is REFUSED, which is what makes it a route rather than a gap.
+##   Blast radius of a refusal measured at ZERO (no slice-delete in either corpus, the
+##   mirror, `src/pycsl/` or `src/pycsl_lib/`). Repair owes a Module5 MIRROR re-proof —
+##   the honest cost, stated in the route file with the re-usable `_csl_proj`
+##   err-divergence pattern that pays step 2 of it.
 ##
 ##   **#59 IS CLOSED** — closed by gen #5 at `0bd9109e` (all seven carriers refuse),
 ##   witnesses `1125`-`1132` landed in the corpus by `3af2b851`. This file advertised it
