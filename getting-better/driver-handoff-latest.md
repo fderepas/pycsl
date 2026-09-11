@@ -1,3 +1,240 @@
+# ====== START HERE — gen #8 FINAL STATE — read this block first ==================
+#
+# ## THE ONE-PARAGRAPH SUMMARY
+#
+#   FIVE new soundness routes — **#77 found AND CLOSED AND FULLY GATED; #78, #79, #80 and
+#   #81 found, reproduced BOTH DIRECTIONS, and recorded OPEN with their repairs PRICED BY
+#   MEASUREMENT.** All five are the #69 class, the serious one: a FALSE POSTCONDITION about
+#   ordinary TOTAL Python, no `no_exception` and no opt-in. **FOUR OF THE FIVE CAME FROM TWO
+#   GENERATORS THAT WERE WRITTEN DOWN BEFORE THEY PAID** — a census of PROSE CARVE-OUTS
+#   upstream of a guard (#78/#79/#80), and "probe every OPERATION on a carrier a closed route
+#   declared safe" (#81). #77 is route #17's defect one step over, with the step CROSSING A
+#   MODULE BOUNDARY. The metric never moved (459) and was never supposed to: the repairs are
+#   refusals.
+#
+# ## WHAT IS TRUE RIGHT NOW
+#
+#   ledger   **FOUR OPEN: #78, #79, #80, #81.** #77 closed and FULLY GATED this generation.
+#   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED.
+#   planes   **ALL 34 GREEN, rc=0** (`--slow`). **EXPORT why3 FIRST:**
+#            `export PATH=$HOME/.opam/framac-coq8/bin:$PATH`.
+#   conform  **IR conformance 38/38 core + 38/38 front-end, 0 MISMATCH**, determinism 10/10.
+#   proof    **w58_m5ir rc=0 — 2108 goals Valid, ZERO unproved.** The whole-file Module5
+#            mirror re-proof #77's repair owed. 52 min wall.
+#   corpora  **byte-inert over BOTH** vs a pre-repair worktree baseline: pycsl-ref 971/971,
+#            python-ref 2204/2204, 0 MOVED / 0 GONE / 0 APPEARED.
+#   tree     clean, every increment committed. The two GITLINKS (`scratchpad/w7/base`,
+#            `scratchpad/w8/pre`) and the 0-byte stray `str` in the repo root are
+#            PRE-EXISTING and are NOT dirt.
+#
+# ## THE GENERATOR — THIS IS THE MOST REUSABLE THING THIS GENERATION PRODUCED
+#
+#   **A PROSE CARVE-OUT IN THE MODULE UPSTREAM OF A GUARD IS AN UNEXPLOITED ROUTE WITH A
+#   SIGNPOST ON IT.** Census comments that ADMIT a construct is unmodelled / dropped /
+#   erased / "stays a no-op" / "out of scope" / "a sound under-approximation", sitting next
+#   to code that then emits nothing, a `Pass`, `()` or an empty literal. Ten ranked
+#   candidates; the top four gave THREE LIVE ROUTES; three more probed clean. That hit rate
+#   is the honest one, and the vein is NOT exhausted — six candidates remain unprobed.
+#
+#   **THE SECOND GENERATOR, AND IT PAID ON ITS FIRST USE: PROBE EVERY *OPERATION* ON A
+#   CARRIER A CLOSED ROUTE DECLARED SAFE.** The campaign already banks "probe every CARRIER of
+#   a closed route". #81 adds the orthogonal axis. A closed route's "this carrier is correct"
+#   control is **evidence about the OPERATION it ran, not about the TYPE** — a control is a
+#   measurement, not a theorem. Applied to route #59's list control it found #81; applied to
+#   route #76's record control it found NOTHING (record aliasing is undecided in both
+#   directions). Both outcomes are useful and both are recorded.
+#
+#   **THE SHARPEST SUB-LESSON: A COMMENT ASSERTING AN ERASURE IS SOUND IS AN UNPROVEN
+#   LEMMA, AND IT IS CHECKABLE IN ONE PROBE.** #78's says "a sound under-approximation";
+#   #79's says "sound, just less precise". **BOTH ARE FALSE**, and identically so: each
+#   emits a DEFINITE LITERAL (an EMPTY array; a literal `0`) that the emitter then proves
+#   definite facts from. A real under-approximation is an UNCONSTRAINED value. Grep for
+#   "sound", "under-approximation", "less precise", "conservative" in comments next to an
+#   erasure — every hit is a candidate.
+#
+# ## ROUTE #77 — CLOSED AND FULLY GATED
+#
+#       xs: List[int] = [1, 2, 3]
+#       del xs[0:2]
+#       return xs[0]        #@ ensures \result == 1   <-- CPython returns 3. PyCSL PROVED.
+#
+#   Why3 prints `unused variable xs` on that run: the delete is erased and the read is then
+#   constant-folded. THREE carriers proved a false claim (element read, `len()` read,
+#   `del xs[:]`), the TRUE TWIN OF EACH was REFUSED, a DYNAMIC bound `del xs[0:n]` is erased
+#   identically, and the stale value DISCHARGES A CALLEE'S `requires` at a call site.
+#
+#   **WHY THE EXISTING GUARD MISSED IT, AND THIS IS THE STRUCTURAL POINT:** route #17 closed
+#   the ELEMENT delete with a Module-6 refusal that is a **BLOCKLIST KEYED ON THE EMITTED
+#   STRING** (`if code.strip() == "()"`). `Module5_IREmitter._py_stmt_delete` drops the SLICE
+#   form to `{"stmt": "Pass"}` ONE STAGE EARLIER, byte-indistinguishable from a user's
+#   `pass`. **The guard and the hazard ended up in different modules.** Gen #7's "a blocklist
+#   keyed on syntax fails OPEN" is now confirmed ACROSS A MODULE BOUNDARY, which is why six
+#   generations of reading Module 6 never found it.
+#
+#   CLOSED by refusing at the site that ERASES it. GATES, all green: mirror-sync rc=0 (**887
+#   un-trusted mirror functions verbatim**), signature drift 0, mirror coverage OK,
+#   **mirror type-only 53/53 with 0 ILL-TYPED** (rule (j)), **byte-inert over BOTH corpora**
+#   against a pre-repair worktree baseline (pycsl-ref 971/971, python-ref 2204/2204, 0
+#   MOVED / 0 GONE / 0 APPEARED), **IR conformance 38/38 core + 38/38 front-end, 0 MISMATCH,
+#   determinism 10/10** (run deliberately, rule (m)). Witnesses 1194-1197.
+#   A ONE-TOKEN ALTERNATIVE WAS REFUTED BY MEASUREMENT BEFORE LANDING: dropping the
+#   `not isinstance(slice_node, ast.Slice)` conjunct routes the slice into the `DelSubscript`
+#   path, but for a LOCAL DICT receiver that path emits a faithful `map_update_none` keyed on
+#   a coerced slice — modelling `del d[i:j]` as a key delete where CPython raises KeyError.
+#   It trades an old wrong model for a new one. Knowing this saves rebuilding it.
+#
+# ## THE THREE OPEN ROUTES, EACH WITH ITS REPAIR ALREADY PRICED
+#
+#   * **#78 SEEDED `deque(...)` IS MODELLED AS EMPTY**, every argument discarded.
+#     `deque([1,2,3])` then `len` proves `\result == 0`; CPython 3; TRUE twin REFUSED. The
+#     element read `dq[0]` is a second carrier and it ESCALATES to a `requires` discharge.
+#     **The EMPTY `deque()` control is FAITHFUL and bounds the repair** (the role `@dataclass`
+#     played for #76). **BLAST RADIUS OF REFUSING THE SEEDED FORM: MEASURED AT ZERO** — the
+#     only corpus use is `deque()`, the mirror has none. **This is the cheapest of the three
+#     to close and should go first.** Residue: `appendleft`/`popleft`/`pop` refuse today, but
+#     by an unrecognised-method fallback, not a guard — reopening condition recorded.
+#   * **#79 AN `__init__` FIELD INITIALISER OUTSIDE THE CAPTURE SHAPE BECOMES A LITERAL 0.**
+#     **THE WIDEST-REACHING ROUTE THIS GENERATION — it needs only `self.n = len(items)`.**
+#     Three carriers proved (`len(items)`, a module const, another `self` field). **The
+#     params-only control `self.x = n + 1` is FAITHFUL IN BOTH DIRECTIONS**, bounding the
+#     defect exactly to RHSs naming something outside the parameter set — the same set the
+#     existing capture rule already computes.
+#     **ITS BLAST RADIUS IS MEASURED AND IT REFUTES THE OBVIOUS REPAIR: 489 of 703 (70%)
+#     constructor field initialisers repo-wide are outside the capture shape** (corpus 158 ·
+#     mirror 85 · src/pycsl 122 · src/pycsl_lib 124). A blanket refusal is therefore OFF THE
+#     TABLE. **The repair that survives is to emit an UNCONSTRAINED value for the omitted
+#     field instead of the literal 0 — which is exactly what the false comment already claims
+#     the code does.** Next thing to price: whether an unconstrained field breaks proofs that
+#     silently depend on the 0 (85 mirror sites). Census script banked at
+#     `getting-better/route77-80-witnesses/r79-blast-radius-census.py` — RE-RUN IT, it reads
+#     the live capture rule so it stays honest if that rule changes.
+#   * **#80 `del obj.attr` IS ERASED AND A CLASS-ATTRIBUTE FALLBACK MAKES IT TOTAL.**
+#     Proves `\result == 10` where CPython returns 5; true twin REFUSED. Same erasure site as
+#     #77. **THIS IS #77's OWN RESIDUE (a), UPGRADED BY MEASUREMENT — I WROTE THAT RESIDUE
+#     MYSELF FOUR HOURS EARLIER AND IT WAS HALF WRONG.** #77 filed `del obj.attr` as out of
+#     scope "because the program raises"; Python's class-attribute fallback keeps it total.
+#     **LESSON: "OUT OF SCOPE BECAUSE IT RAISES" IS ITSELF A CLAIM ABOUT PYTHON AND MUST BE
+#     PROBED, NOT REASONED ABOUT.** `del name` genuinely raises and stays route #71's class.
+#
+#   * **#81 A LIST ALIAS TRACKS ELEMENT STORES BUT LOSES `append`.**
+#     `a=[1,2]; b=a; b.append(3); return len(a)` proves `\result == 2`; CPython 3; TRUE twin
+#     REFUSED. The ELEMENT read is a second and sharper carrier (`a[1]` proves 1 where CPython
+#     gives 9 — the alias is wrong about the CONTENTS, not just the length), and the REVERSE
+#     mutation direction proves too.
+#     **IT REFUTES A REASSURING SENTENCE IN A CLOSED ROUTE'S OWN FILE.** Route #59 localised
+#     itself with a section headed "WHAT MAKES THIS SHARP: THE LIST CARRIER IS CORRECT",
+#     concluding "lists alias correctly (a shared ref)". That measurement is REAL AND STILL
+#     TRUE — but it covers only an ELEMENT STORE. The list model is an `array int` PLUS A
+#     SEPARATE LENGTH: a store goes through the shared ref, a length change does not.
+#     **THE MUTATOR FAMILY IS ENUMERATED, SO THE REPAIR IS A SINGLE-METHOD GUARD:**
+#     `insert`/`clear`/`pop`/`remove`/`extend` on an aliased list are ALL already PIPELINE
+#     REFUSALS; **`append` is the only live one, and it is live precisely BECAUSE it is the
+#     operation the array+length model was built to support.** The fence holds everywhere the
+#     model was absent and leaks at the one place it was present.
+#     **BLAST RADIUS CENSUSED AT ONE SITE** — and that site is `1131_route59_list_control_
+#     faithful.py`, #59's OWN control witness, which does an element STORE and so is NOT hit.
+#     **This is a one-hour close and it is fully specified in its route file.**
+#
+# ## A BROKEN TOOL PATH ROOT-CAUSED AND FIXED — USE THE CLEAN BASELINE METHOD AGAIN
+#
+#   Gen #6 recorded that the worktree byte-diff baseline "FAILED, reproducibly emitting 1 of
+#   1101", and worked around it by SWAPPING THE CHANGED FILE IN THE MAIN TREE. **THE CAUSE IS
+#   `bin/byte-diff-sweep.sh` RUNNING `$ROOT/.venv/bin/python3` WHILE `.venv/` IS GITIGNORED**,
+#   so a fresh worktree has no interpreter and every emission fails. **The fix is one line —
+#   `ln -s <main>/.venv <worktree>/.venv` after `git worktree add`** — and with it the
+#   worktree baseline emitted 972/1120 and 2204/2217, EXACTLY matching the main tree. This
+#   matters beyond tidiness: the file-swap workaround MUTATES SOURCE, which cannot be done
+#   while a whole-file mirror proof is reading the tree.
+#
+# ## A PLANE GREW, AND READING ITS PARSER CAUGHT TWO DEFECTS IN MY OWN ADDITIONS
+#
+#   `test-suite/value-differential/` **22 -> 36 drivers** (7 new AGREE / 7 new DISAGREE, so
+#   the population guard keeps teeth both ways). New axis: semantic subtleties of TOTAL
+#   Python where a plausible model differs — `**` binding tighter than unary minus, CHAINED
+#   comparison (operands chosen so the left-associative reading DISAGREES), a NEGATIVE repeat
+#   count, slice upper-bound CLAMPING, negative indexing, `not` on an int, `//`
+#   left-associativity.
+#   **LESSON: WHEN ADDING TO A SELF-MEASURING PLANE, READ THE PLANE'S PARSER FIRST.**
+#   `_cpython_value` does `int(out)`, so a driver whose `__main__` prints a BOOL raises
+#   ValueError and is classified RAISED = "out of scope, never fatal" — it would have
+#   **SILENTLY EXCUSED ITSELF** and measured nothing. Four of mine would have. A corpus of
+#   self-excusing drivers is indistinguishable from a growing one. (Two more of mine
+#   duplicated v16/v22 exactly; an md5 census now confirms 0 duplicates across all 36.)
+#
+# ## THE BATTERY CAUGHT ME, AND THE DISTINCTION IT FORCED IS WORTH BANKING
+#
+#   The 34-plane battery came back **33 green / 1 RED**, and the RED was
+#   **`check-bespoke-model-drift.py`** — the one plane in the repo built for exactly the change
+#   #77 makes. Its docstring describes the trap precisely: for a method whose WhyML is
+#   HAND-WRITTEN rather than derived from the body, editing the live body and dutifully syncing
+#   the mirror leaves **mirror-sync GREEN, L3-tc GREEN, the whole-file proof GREEN (it proves
+#   the OLD model), and the emission BYTE-IDENTICAL** — "and the model has silently stopped
+#   being the body". Relaunch #44 walked into exactly that on `_py_stmt_assign` (route #28)
+#   **with the warning in front of it**.
+#
+#   **I DID NOT RE-BASELINE ON SIGHT.** I discharged the plane's own stated confirmation step —
+#   READ THE EMITTED `.mlw` — by diffing the mirror emission against a pre-repair copy saved
+#   hours earlier. The model MOVED and moved correctly: the contract gained
+#   `raises { PyCSLSemanticError -> true }` and the body gained the `begin raise
+#   PyCSLSemanticError end` arm, with the loop invariant and variant untouched. And because the
+#   bespoke edit preceded the proof, **w58_m5ir proved the NEW model.** Only then `--update`,
+#   whose diff is **exactly one fingerprint** with the other 26 hand-synthesized models
+#   untouched. Battery re-run in full: **34/34, rc=0.**
+#
+#   **THE DISTINCTION, STATED ONCE SO THE NEXT GENERATION DOES NOT HAVE TO REDERIVE IT:**
+#   rule (k) bars re-baselining a ratchet to HIDE AN UNFIXED DEFECT. It does NOT bar
+#   discharging a NOTIFICATION gate whose documented workflow IS re-blessing after you have
+#   verified the co-change. **The test that separates the two is whether you can SHOW THE
+#   ARTIFACT MOVED. If you cannot, you are hiding something.**
+#
+# ## PROBED THIS GENERATION WITH NO FINDING — DO NOT RE-PROBE
+#
+#   * **#76's record-FIELD carrier** (`\result.p == \result.q`) still dies on the SAME
+#     `c @rho` vs `int` type accident in BOTH directions — fail-closed-by-accident, not by a
+#     guard, reopening condition unchanged. ADJACENT FACT: the spec grammar REJECTS a CHAINED
+#     field read (`\result.p.v` -> "unexpected trailing input"), so the class-typed field
+#     family cannot be spelled two levels deep in a clause (completeness, not soundness).
+#   * **The module-GLOBAL singleton field store `g.v = n` IS FAITHFUL** — true claim proves,
+#     false refused. (Already closed as route #28; confirmed at HEAD, not inherited.)
+#   * **The module-const dict/list fold's MUTATION invalidation is FAIL-CLOSED** —
+#     `CONST["a"] = 2` and `CONST[0] = 9` are an explicit PIPELINE REFUSAL. Both of these
+#     clear the last two items of the gen-#5 claim backlog.
+#   * **The `@mutable_state` set-param mutation observed through a LOCAL ACTUAL** — the
+#     census's strongest remaining lead — is a PIPELINE ERROR. Not live.
+#   * **A dropped `global` declaration**: `global G; G = 5; return G` claiming the stale 1 is
+#     REFUSED. `ast.Global` really has no handler entry, but the store retargets a fresh local
+#     and the stale read does not prove, so the missing `else` is a LATENT structural defect,
+#     not a live route today. Reopening: any change making a dropped `global` store alias the
+#     module variable.
+#   * **`...` lowered to integer 0**: `x = ...; return x + 0` is REFUSED and CPython RAISES,
+#     so it is out of scope for the value plane in this spelling.
+#   * Of the 16 value-differential probes, EIGHT constructs fail closed (incomplete, not
+#     unsound): `2**3**2`, slice lower-clamp, `range` step len, `"abc".count("")`,
+#     `(-2)**3`, `0**0`, `[0]*-2`, and `s[::-1]` (a pipeline refusal).
+#
+# ## THE LADDER FOR THE NEXT RELAUNCH
+#
+#   1. **CLOSE #78 FIRST — it is the cheapest close available.** Blast radius measured at
+#      ZERO, the empty-`deque()` control already bounds it, and the repair is one guarded
+#      raise in the same function family #77 just touched. CHECK WHETHER `_py_expr_call`'s
+#      MIRROR COUNTERPART IS `\trusted` before scoping the proof cost — if it is, the body
+#      change is proof-free and this is a one-hour close.
+#   2. **THEN #81 — ALSO A ONE-HOUR CLOSE, AND FULLY SPECIFIED.** Single-method guard on
+#      `append` over a local-to-local list alias (both binding orders). Blast radius measured
+#      at ONE site which the guard does not hit. No re-derivation needed.
+#   3. **THEN #80** — same erasure site as #77, so the repair is the same shape; census
+#      `del <name>.<attr>` for blast radius first.
+#   4. **THEN #79, THE UNCONSTRAINED-VALUE REPAIR**, not a refusal (measured: 70%). Price the
+#      85 mirror sites before building.
+#   5. **KEEP MINING THE CARVE-OUT CENSUS — SIX CANDIDATES REMAIN UNPROBED**, including the
+#      annotated-store-inside-`__init__` drop, the `emit_ir[k] = v` no-op (mirror-domain), the
+#      silently-ignored mixin directives, and the missing `else` in the statement dispatch.
+#   6. Grow BOTH differential corpora further; the value one is now 36 and is aimed squarely
+#      at the campaign's most serious defect class.
+#
+# ===================================================================================
+#
+#
 # ====== START HERE — gen #7 FINAL STATE — read this block first ==================
 #
 # ## THE ONE-PARAGRAPH SUMMARY
