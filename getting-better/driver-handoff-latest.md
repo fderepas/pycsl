@@ -3,7 +3,7 @@
 # ## WHAT IS TRUE RIGHT NOW
 #
 #   ledger   **EMPTY. NO OPEN ROUTE.** Route #59 is fully closed (all seven carriers), and
-#            #60, #61, #62 and #63 were each FOUND AND CLOSED this generation.
+#            #60, #61, #62, #63 and #64 were each FOUND AND CLOSED this generation.
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED all
 #            generation, and that is the EXPECTED shape of a window paying the soundness
 #            ladder. Four repairs, all refusals or whitelists; none costs the trust surface.
@@ -59,6 +59,21 @@
 #      **A claim-mining sweep produced 72 falsifiable claims, 26 of them bare ASSERTIONs
 #      with no mechanism and no driver. THAT LIST IS THE NEXT GENERATION'S BACKLOG** — see
 #      the ladder below.
+#
+#   **#64 — `no_exception \all` PROVED FOR A PROGRAM THAT RAISES.** A NEW FAMILY: the
+#   EXCEPTION model, not the value model. `b = bytearray([1]); b[0] = 999` verifies under the
+#   strongest no-exception claim while CPython raises `ValueError: byte must be in
+#   range(0, 256)`. Not excusable as partial correctness — `no_exception` is a POSITIVE claim
+#   about runtime behaviour and `ValueError` IS in `KNOWN_EXCEPTIONS`. The MECHANISM works
+#   (`a // 0` under `no_exception ZeroDivisionError` correctly fails, `requires b != 0`
+#   correctly proves) — the trigger ROW was missing. Two things the measurement forced
+#   mid-build, both instructive: the receiver type was `"Any"` because the front-end maps
+#   every bytes ANNOTATION to `"list"` and infers nothing from a constructor CALL, so only
+#   PARAMETERS were ever typed bytes — and their writes are rejected, which is exactly why
+#   the documented justification looked true; and the first spelling added a predicate to
+#   `PREDICATE_LIBRARY`, which is emitted WHOLESALE into every `no_exception` unit's preamble
+#   and moved 31 corpus emissions by one inert line (diagnosed by DIFFING a moved file rather
+#   than accepting the diff, then inlined like the `map_get` row).
 #
 # ## THE STRUCTURAL RESULT — THE AIMING INSTRUCTION FOR THE NEXT GENERATION
 #
@@ -139,7 +154,15 @@
 #
 # ## THE LADDER FOR THE NEXT RELAUNCH
 #
-#   1. **WORK THE CLAIM BACKLOG — it is pre-ranked and it has produced 3 routes already.**
+#   0. **THE EXCEPTION MODEL IS A FRESH, BARELY-SCRATCHED SURFACE.** Route #64 came from it
+#      and took one probe. `exception_model.TRIGGERS` is a SHORT TABLE — every row is a
+#      claim that those are the only ways an IR operation can raise, and the `\all` form
+#      turns each omission into a false proof. Walk the table against Python's real
+#      behaviour: `IndexError` on a NEGATIVE index past the start, `KeyError` on `.pop`
+#      vs `del` vs subscript, `ValueError` on `int("abc")` / `.index` (its row is literally
+#      a `"true"` PLACEHOLDER), `StopIteration` on `next` (also a `"true"` marker),
+#      `OverflowError`, `TypeError` — and anything raising that PyCSL lowers at all.
+#   1. **WORK THE CLAIM BACKLOG — it is pre-ranked and it has produced 4 routes already.**
 #      Highest-value unmeasured items, in order:
 #        a. **"No aliasing is possible" in the Hoare model** (annotations.md §5;
 #           `\separated` lowered to literal `true`). The single biggest structural claim in
