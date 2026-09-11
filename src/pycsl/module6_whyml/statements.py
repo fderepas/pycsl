@@ -2223,7 +2223,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                      ": map int (option int)\n")
                     + "    ensures { result = Map.set m k None }")
                 safe = whyml_ident(var_name)
+                # (#49) ROUTE #66 — `del d[k]` raises `KeyError` when `k` is ABSENT, and the
+                # operation carried no obligation, so `#@ no_exception KeyError` proved for
+                # `d = {1:1}; del d[5]`. The lowering itself is faithful; only the exception
+                # obligation was missing.
+                _r66_pred = self._maybe_emit_no_exception_assert(
+                    ("subscript", "del"), [f"!{safe}", k])
                 code = f"{indent}{safe} := map_update_none !{safe} {k}"
+                if _r66_pred:
+                    code = f"{indent}{_r66_pred} {safe} := map_update_none !{safe} {k}"
         # (#43) ROUTE #17 — THE LIST HALF OF WL-05c, LEFT OPEN WHEN THE DICT HALF WAS
         # FIXED. The docstring above calls the blanket no-op "UNSOUND ... a severity-1
         # fail-OPEN" and then keeps it for "list `del a[i]`, a self-field, an unknown

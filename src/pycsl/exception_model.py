@@ -186,6 +186,13 @@ TRIGGERS: Dict[Tuple[str, Optional[str]], List[Trigger]] = {
     # inert definition line — measured. An inline condition keeps the repair byte-inert on
     # every program that does not actually store into a bytes receiver.
     ("subscript", "write_bytes"): [("ValueError", "0 <= {0} /\\ {0} < 256")],
+    # (#49) ROUTE #66 — `del d[k]` on a LOCAL dict raises `KeyError` when the key is absent.
+    # The operation lowers FAITHFULLY (`d := map_update_none !d k`) and carried no obligation
+    # at all, so `#@ no_exception KeyError` PROVED for `d = {1:1}; del d[5]`. Same condition
+    # the `("attr_call", "pop")` row already carries. WIRED rather than refused, because
+    # unlike `divmod`/`int(str)` the receiver here is a real modelled map, so the obligation
+    # is faithful and a correct program still discharges it.
+    ("subscript", "del"): [("KeyError", "Map.get {0} {1} <> None")],
 
     # Dict access — inline `Map.get d k <> None` rather than a separate
     # predicate, mirroring the existing ghost-dict vocabulary so we don't

@@ -587,6 +587,33 @@ class FunctionEmissionMixin:
                             _r65_key = ("attr_call", _r65_f.rsplit(".", 1)[1])
                         else:
                             _r65_key = ("call", _r65_f)
+                        # (#49) ROUTE #66 — `int(<str>)` raises `ValueError` on a
+                        # non-numeric string and has NO trigger row at all. It lowers to an
+                        # OPAQUE `val str_to_int (s: string) : int`, so unlike `del d[k]`
+                        # (which has a faithful map condition and is WIRED) there is nothing
+                        # truthful to inject here — refuse instead of discharging a claim
+                        # nothing checks. `int` of a NUMBER is untouched: it cannot raise.
+                        if (_r65_f == "int" and (_r65_all or "ValueError" in _r65_named)):
+                            _r66_a = (_r65_n.get("args") or [None])[0]
+                            _r66_isstr = False
+                            if isinstance(_r66_a, dict):
+                                if _r66_a.get("type") == "String":
+                                    _r66_isstr = True
+                                elif (_r66_a.get("type") == "Var"
+                                      and _st.get(_r66_a.get("name")) == "str"):
+                                    _r66_isstr = True
+                            if _r66_isstr:
+                                raise PyCSLIRError(
+                                    "`int(<str>)` raises `ValueError` in Python on a "
+                                    "non-numeric string, and this function claims "
+                                    "`#@ no_exception` over `ValueError`. There is no "
+                                    "trigger row for this operation at all, and it lowers "
+                                    "to an OPAQUE `val str_to_int`, so no faithful "
+                                    "obligation can be injected and the claim proved "
+                                    "vacuously (route #66). Measured: `return int(\"abc\")` "
+                                    "under `#@ no_exception ValueError` reported "
+                                    "'All contracts formally proven'. Drop `ValueError` "
+                                    "from the context, or validate the string yourself.")
                         _r65_exc = _R65_ORPHANS.get(_r65_key)
                         if _r65_exc is not None and (_r65_all or _r65_exc in _r65_named):
                             raise PyCSLIRError(
