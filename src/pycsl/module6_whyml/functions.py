@@ -7331,6 +7331,43 @@ class FunctionEmissionMixin:
 
         out: Dict[str, List[Dict[str, Any]]] = {}
         for func in functions:
+            # (#49) ROUTE #70 — DO NOT PROPAGATE A POSTCONDITION WITHOUT ITS PRECONDITION.
+            # The dotted-call stub built from this map carries the callee's `ensures` and
+            # there is no requires suffix anywhere in the emitter, so a callee declaring
+            # `requires x > 0` / `ensures \result > 0` handed the CALLER an UNCONDITIONAL
+            # `ensures { result > 0 }`. Measured: a `\trusted` method with exactly that
+            # contract, called as `self.pos_only(-5)`, let the caller prove
+            # `ensures \result > 0` while CPython returns -5.
+            #
+            # Dropping BOTH clauses is fail-closed (an opaque stub concludes nothing) — the
+            # imported-class-method path already does that correctly. Keeping the
+            # postcondition while losing the precondition is the ONE combination that is
+            # always unsound, because it turns a conditional guarantee into an unconditional
+            # one. So when the callee has a precondition this map propagates nothing.
+            #
+            # The precondition is generally NOT renderable here in any case: this map's own
+            # docstring explains that PARAM-referencing clauses are excluded because the stub
+            # renames params to x0,x1,… — and a precondition is almost always about params.
+            #
+            # CONSERVATIVE BY CONSTRUCTION: a clause is treated as trivial only if it is a
+            # recognised true literal. Failing to recognise a trivial one merely loses some
+            # ensures propagation (completeness); failing to recognise a NON-trivial one
+            # would be unsound, so the default must be "non-trivial".
+            _r70_reqs = func.get("contracts", {}).get("requires", []) or []
+            _r70_guarded = False
+            for _r70_r in _r70_reqs:
+                if not isinstance(_r70_r, dict):
+                    _r70_guarded = True
+                    break
+                _r70_t = _r70_r.get("type")
+                _r70_v = _r70_r.get("value", _r70_r.get("id"))
+                if not ((_r70_t in ("Bool", "Constant", "NameConstant") and _r70_v is True)
+                        or (_r70_t in ("Name", "Var") and _r70_v in ("True", "true"))
+                        or (_r70_t == "Number" and _r70_v == 1)):
+                    _r70_guarded = True
+                    break
+            if _r70_guarded:
+                continue
             kept = [e for e in (func.get("contracts", {}).get("ensures", []) or [])
                     if result_only(e) is True]
             if kept:
