@@ -351,6 +351,50 @@ class FunctionEmissionMixin:
         # compared the raw `self_type` and silently never fired).
         if _formals and whyml_ident(str(func.get("self_type") or "").lower()) in getattr(
                 self, "_mutable_state_classes", set()):
+            # (#49) ROUTE #71 — AN ERASED OPERATION TRIVIALLY SATISFIES `no_exception`.
+            # A collection-PARAMETER mutation in a `@mutable_state` class lowers to `()`.
+            # The exception model injects obligations at EMISSION SITES, so an operation the
+            # emitter DROPS has no site and cannot carry one — `#@ no_exception \all`
+            # discharges over a body that does nothing. Measured: `t.remove(5)` on a set
+            # formal proved `no_exception \all` with the emitted body literally `(); 0`,
+            # while CPython raises `KeyError`.
+            #
+            # THIS INVERTS THE USUAL READING OF AN ERASURE. A dropped mutation is normally
+            # argued FAIL-CLOSED because the POST-STATE claim becomes unprovable — an
+            # argument about POSTCONDITIONS. For `no_exception` it runs the other way: the
+            # erasure makes the claim EASIER. Every documented erasure in this compiler is a
+            # `no_exception` hole by the same construction.
+            #
+            # Gated on the function actually claiming the exception the dropped operation
+            # could raise, so nothing else can observe it. `.add`/`.discard` cannot raise and
+            # are not listed; `.remove`/`.pop` raise `KeyError` on a missing element.
+            _r71_c = func.get("contracts", {}) or {}
+            _r71_all = bool(_r71_c.get("no_exception_all"))
+            _r71_named = set(_r71_c.get("no_exception", []) or [])
+            if _r71_all or ("KeyError" in _r71_named):
+                _r71_work = list(body_stmts or [])
+                while _r71_work:
+                    _r71_n = _r71_work.pop()
+                    if isinstance(_r71_n, dict):
+                        _r71_f = _r71_n.get("func")
+                        if (isinstance(_r71_f, str) and "." in _r71_f
+                                and _r71_f.rsplit(".", 1)[1] in ("remove", "pop")
+                                and _r71_f.rsplit(".", 1)[0] in _formals):
+                            raise PyCSLIRError(
+                                "`" + _r71_f + "(...)` can raise `KeyError` in Python, and "
+                                "this function claims `#@ no_exception` over it — but the "
+                                "mutation of a by-value collection PARAMETER inside a "
+                                "`@mutable_state` class is lowered to a NO-OP, so the "
+                                "operation is not emitted at all and cannot carry an "
+                                "exception obligation. The claim would discharge over a body "
+                                "that does nothing (route #71). Measured: `t.remove(5)` "
+                                "proved `no_exception \\all` with the emitted body `(); 0`. "
+                                "Return the updated collection instead, or drop the "
+                                "exception from the `no_exception` context.")
+                        _r71_work.extend(v for v in _r71_n.values()
+                                         if isinstance(v, (dict, list)))
+                    elif isinstance(_r71_n, (list, tuple)):
+                        _r71_work.extend(_r71_n)
             _named = set()
             _cst = [func.get("contracts", {}) or {}]
             while _cst:

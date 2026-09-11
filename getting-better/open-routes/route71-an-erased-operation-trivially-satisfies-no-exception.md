@@ -67,3 +67,30 @@ In the same `\trusted` pre-pass that already carries the #62/#63/#65 guards: whe
 declares `no_exception` covering `KeyError` (or `\all`), refuse a collection-parameter
 mutation that would be erased. The operation cannot raise in the model precisely because it
 does not exist there, and that is not a fact a soundness claim may rest on.
+
+## STATUS: **CLOSED**
+
+Refused in the same `\trusted` pre-pass that carries the #62/#63/#65 guards: a `.remove`/
+`.pop` on a collection FORMAL inside a `@mutable_state` class, in a function declaring
+`no_exception` over `KeyError` (or `\all`). `.add`/`.discard` cannot raise and are not listed.
+
+**DELIBERATELY NARROW — IT REFUSES THE CLAIM, NOT THE BOUNDARY.** The collection-parameter
+no-op is a documented boundary with its own reopening capability, and route #71 is not the
+place to change it. Witness `1172` pins that: the IDENTICAL body WITHOUT a `no_exception`
+context still emits and proves. Only the `no_exception` claim over an erased operation is
+refused.
+
+### GATES
+All 32 planes green; fidelity 887/887 verbatim; mirror type-clean and byte-inert; both
+corpora byte-inert; metric unchanged at 459. Witnesses `1171` (negative, anti-vacuity
+verified in both directions by disabling the guard) and `1172` (positive control).
+
+### THE FOLLOW-UP THIS LEAVES — AND IT IS THE GENERAL FORM, NOT THIS CARRIER
+
+The guard closes ONE erasure. The PRINCIPLE is that **every erasure is a `no_exception` hole
+by construction**, and the compiler has others on record: the `with`-body erasure, the
+`emit_ir` in-place store no-op, and the `del`-on-a-list no-op that route #17 refused. Each
+should be re-read with the question *"what does `no_exception \all` say about this body once
+the operation is gone?"* — and the systematic answer is the completeness gate route #66
+already named: relate the trigger table to the operations the emitter actually lowers, where
+"lowers" must mean EMITS, not merely ACCEPTS.
