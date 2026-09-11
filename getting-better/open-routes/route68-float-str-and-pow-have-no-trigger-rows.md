@@ -1,0 +1,55 @@
+# OPEN ROUTE #68 — TWO MORE LOWERED OPERATIONS WITH NO TRIGGER ROW
+# (found 2026-09-11 by relaunch #55, at `a97da69e`)
+
+## THE CARRIERS — both `[+] Verification SUCCESS` under `#@ no_exception \all`
+
+```python
+    x = float("abc")      # CPython: ValueError: could not convert string to float
+    return 0 ** (-1)      # CPython: ZeroDivisionError: 0.0 cannot be raised to a negative power
+```
+
+Both lower to OPAQUE abstract operations with no `ensures` at all, so neither is a false
+axiom — but neither carries an exception obligation either:
+
+    float("abc")  ~>  val py_float_1 (x0: int) : int
+    0 ** (-1)     ~>  val function py_pow (x: int) (y: int) : int
+
+**NOTE WHAT `float("abc")` DOES TO ITS ARGUMENT.** The emitted call is
+`py_float_1 1824800645` — the STRING WAS HASHED TO AN INT before being handed to an
+opaque val. The argument is not merely unmodelled; it is gone. (That is the documented
+string-hash path, not a new defect, but it is why no condition over the string is available
+at this site and why refusal is the only honest repair here.)
+
+## THE CONTROL, MEASURED IN THE SAME BATCH
+
+`a % (a - a)` under `#@ no_exception \all` — **does NOT discharge.** The `("binop", "mod")`
+row is wired and bites on a symbolic zero divisor. So the machinery is working and these two
+operations are simply outside it.
+
+## THIS IS THE FIFTH AND SIXTH CARRIER OF ONE PATTERN
+
+Routes #64, #65, #66, #67 and now #68 are all the same underlying fact: **nothing relates
+`exception_model.TRIGGERS` to the set of operations the emitter actually lowers.** Found so
+far, each by a separate probe:
+
+| operation | exception | state before |
+|-----------|-----------|--------------|
+| `bytes`/`bytearray` element store | `ValueError` | no row (#64) |
+| `divmod`, `.index`, `.pop`, `next` | various | rows present, consulted by NOTHING (#65) |
+| `del d[k]`, `int(<str>)`, `chr(n)` | `KeyError`/`ValueError` | no row (#66) |
+| string subscript read | `IndexError` | no row (#67) |
+| `float(<str>)`, `**` | `ValueError`/`ZeroDivisionError` | no row (#68) |
+
+**PATCHING ONE OPERATION AT A TIME IS NOT CONVERGING.** Six probes, six findings. The
+honest reading is that `#@ no_exception \all` currently means "none of the exceptions this
+table happens to model", and the gap between that and what the directive SAYS is the real
+defect. The completeness gate named in route #66 — enumerate what the emitter LOWERS and
+check each has a row — is worth more than any further individual repair.
+
+## THE REPAIR SHAPE
+
+  * `float(<str>)` — **REFUSE** under a `ValueError` context. The argument is hashed away, so
+    there is no faithful condition to inject; same posture as `int(<str>)`.
+  * `**` — **WIRE** it. Python raises `ZeroDivisionError` exactly when the base is `0` and the
+    exponent is negative, and BOTH operands are available at the call site, so the condition
+    `not (base = 0 /\ exp < 0)` is exact and a correct program still discharges.
