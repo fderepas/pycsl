@@ -3,10 +3,11 @@
 # ## WHAT IS TRUE RIGHT NOW
 #
 #   ledger   **EMPTY. NO OPEN ROUTE.** Route #59 is fully closed (all seven carriers), and
-#            #60 through #71 were each FOUND AND CLOSED this generation.
-#            **TWELVE new routes found and closed**, plus #59 finished.
-#            FIVE of them (#64, #65, #66, #68, #71) are in the EXCEPTION model, which was
-#            an untouched surface at the start of this window.
+#            #60 through #72 were each FOUND AND CLOSED this generation.
+#            **THIRTEEN new routes found and closed**, plus #59 finished.
+#            **SIX of them (#64, #65, #66, #68, #71, #72) are ONE DEFECT in the EXCEPTION
+#            model** wearing six numbers — see below. That surface was untouched at the
+#            start of this window and EVERY probe aimed at it found something.
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED all
 #            generation, and that is the EXPECTED shape of a window paying the soundness
 #            ladder. Four repairs, all refusals or whitelists; none costs the trust surface.
@@ -155,6 +156,30 @@
 #     `no_exception` HOLE BY CONSTRUCTION**, and the others are on record: the `with`-body
 #     erasure, the `emit_ir` in-place store no-op, the list-`del` no-op. Ask of each: "what
 #     does `no_exception \all` say about this body once the operation is gone?"
+#
+#   **#72 — `str.split("")` RAISES AND HAS NO ROW.** The separator is HASHED TO AN INT
+#   before reaching an opaque val, so nothing can be written over it; refused unless the
+#   separator is a non-empty literal.
+#
+# ## THE SIX EXCEPTION-MODEL ROUTES ARE ONE DEFECT — READ THIS BEFORE PROBING MORE
+#
+#   `#64` a missing row · `#65` FOUR rows consulted by NOTHING (one a `"true"` tautology) ·
+#   `#66` three missing rows · `#68` three more (one a row that existed and was never
+#   injected) · `#71` an ERASED operation · `#72` another missing row.
+#
+#   **SIX PROBES, SIX FINDINGS. The per-operation approach is NOT converging**, and each new
+#   carrier RAISES the value of the fix rather than lowering it. The single underlying fact:
+#   **nothing relates `exception_model.TRIGGERS` to the set of operations the emitter
+#   actually EMITS.** Until that gate exists, `#@ no_exception \all` must be read as "none
+#   of the exceptions this table happens to model" — which is NOT what the directive says
+#   and NOT what a user will assume.
+#
+#   **BUILD THE COMPLETENESS GATE NEXT.** `bin/check-trigger-rows-live.py` (added this
+#   window) scans FROM the table and checks every row is consulted or refused; it cannot see
+#   a MISSING row, and said so on every one of the carriers above. The complementary scan —
+#   from the EMITTED operations back to the table — is the other half, and "EMITS" is the
+#   load-bearing word: an operation that is merely ACCEPTED and then erased (route #71) must
+#   count as emitting nothing and so must be refused, not silently discharged.
 #
 # ## THE SHARPEST UNFINISHED THREAD — A FALSE AXIOM CLASS, NOT A ROUTE
 #
