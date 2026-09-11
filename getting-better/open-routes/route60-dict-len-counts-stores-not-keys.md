@@ -107,3 +107,70 @@ count; 4 and 5 were never foldable. REFUSAL is the only cheap correct answer.
    probably refused, but "probably" is not a measurement.
 4. Whether `\length` / the dict truthiness guard (`if d:`) share the tracker — route #55 is
    the truthiness neighbour and may be the same cache.
+
+## STATUS: **CLOSED** at `612013d2` (repair) + `30a4f5e7` (witnesses)
+
+**REPAIRED AS A WHITELIST, per route #42's rule** — the size fold survives a store only
+where the emitter can SHOW the post-store size:
+
+  * the name is bound EXACTLY ONCE, to a TOP-LEVEL dict literal (excludes carrier 5, the
+    parameter — a dict param has no literal binding, and the `else` branch that INVENTED a
+    size of 1 for such a name is gone);
+  * EVERY store to it is at the function's TOP LEVEL (excludes carriers 6 and 7 — a store
+    inside an `if`/`for`/`while`/`try` is not counted at all, so reachability and iteration
+    count are never in question);
+  * EVERY store key is a LITERAL (excludes carrier 4 — a symbolic key is undecidable at
+    emission, so no constant is defensible);
+  * the literal's keys and the store keys are PAIRWISE DISTINCT under **Python's own key
+    equality** — route #54's normalisation, so a `Bool` key is the int `1`/`0` (excludes
+    carriers 1, 2 and 3).
+
+Anything else is added to the EXISTING `_fold_unsafe_sizes` channel in
+`_reset_function_state`, is therefore never registered by `_track_collection_metadata`, and
+`len(d)` falls through and FAILS CLOSED — the same behaviour `len(d)` on a dict parameter
+WITHOUT a store already had. No new emitter attribute, so no declared frame changed.
+
+**BOTH EDIT HOMES ARE `\trusted` MIRROR STUBS** (`_handle_array_set_stmt`,
+`_reset_function_state`), so the fidelity cost is zero — the opposite of route #59's sixth
+carrier, whose home is verified verbatim. That asymmetry is worth carrying forward: check
+which side of the mirror a guard's home sits on BEFORE costing the repair.
+
+### GATES
+
+  * ALL **31 PLANES GREEN** under `--slow` with `why3` on PATH (includes the fidelity plane
+    and `check-mirror-type-only`).
+  * **BYTE-INERT ON BOTH CORPORA**: 923/923 `pycsl-reference` and 2204/2204
+    `python-reference`, zero differing, zero APPEARED, zero GONE. Because every corpus
+    emission is byte-identical, no corpus proof outcome can change by construction.
+  * Metric UNCHANGED at markers 459 / grep 484 / offset 25 / unattached 0 — correct, the
+    repair adds and removes no `\trusted`.
+  * Witnesses `1133`-`1142`, **anti-vacuity verified in BOTH directions**: each of the seven
+    negatives PROVES with the two emitter files checked out to the pre-repair commit and
+    REFUSES with the repair restored.
+
+### THE GATE DEFECT THIS ROUTE EXPOSED — MORE TRANSFERABLE THAN THE ROUTE
+
+The first repair attempted here was a blunt one (poison the size fold on EVERY dict store).
+It measured **byte-inert over "the whole corpus"** — and that was TRUE AND INCOMPLETE.
+`bin/byte-diff-sweep.sh` globs ONLY `test-suite/corpus/pycsl-reference/*.py`. The whole
+`test-suite/corpus/python-reference` tree — **2217 files, a live proved suite** — is outside
+every byte-diff this plane has ever run. The blunt repair broke `python-reference/0050.py`,
+a PROVED driver, and the byte-diff could not see it. Measured both ways: `0050` proves at
+HEAD and is refused under the blunt patch.
+
+That is route #52's lesson in a new place (*a green byte-diff that examined the wrong
+population is not evidence*), and it is a live gap in the plane set right now — the
+whitelist that landed is byte-inert on `python-reference` too, but only because I swept it
+BY HAND. **A plane that sweeps `python-reference` does not exist. That is the named
+follow-up.**
+
+### RESIDUALS, STATED RATHER THAN HIDDEN
+
+  * A dict whose literal has a repeated key and is then stored to (`d={1:1,2:2}; d[1]=9`)
+    has an exactly computable size (2) and is nonetheless REFUSED. Completeness loss in the
+    safe direction; a follow-up could compute `len(set(keys))` instead of incrementing.
+  * A store nested in control flow is refused even when it is provably reachable exactly
+    once. Same direction, same remedy available.
+  * `del`, a SPEC-position `\length`, and the SET twin all REFUSE independently of this
+    repair (measured), so the route's extent really was body-position dict `len` after at
+    least one store.

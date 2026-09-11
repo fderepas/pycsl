@@ -780,9 +780,12 @@ class FunctionEmissionMixin:
         # would still fold the read. This walks the WHOLE function body first and
         # refuses to register a fold for any name it sees mutated or aliased ANYWHERE.
         #
-        # A plain `ArraySet` changes an ELEMENT, not the LENGTH, so it poisons only the
-        # element fold — which keeps the deliberate dict-store size tracking in
-        # `_handle_array_set_stmt` working. Everything else poisons both.
+        # A plain `ArraySet` poisons only the element fold — which keeps the deliberate
+        # dict-store size tracking in `_handle_array_set_stmt` working. Everything else
+        # poisons both. NOTE (ROUTE #60, see the whitelist further down this method): the
+        # justification this sentence used to carry — "an ArraySet changes an ELEMENT,
+        # not the LENGTH" — is true for LISTS and FALSE for DICTS, because `d[k] = v`
+        # adds a key whenever `k` is absent. The dict case is now whitelisted below.
         # ROUTE #36 (relaunch #45) — `for` TARGETS THAT ARE READ OUTSIDE THEIR LOOP.
         # Python leaves a loop variable bound to its LAST value; the emission binds the
         # target INSIDE the body (`let i = ref (!_idx_i) in`), so the OUTER name keeps its

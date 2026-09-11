@@ -2528,8 +2528,29 @@ store, an assignment of the bare name to another name, any method call on the na
 name passed to a call that is not one of a short list of non-mutating builtins. The pre-pass
 is required rather than tidy — sequential invalidation would still fold a read that sits
 *before* the store in a loop body, because on every iteration but the first the store has
-already happened. A plain indexed store poisons only the ELEMENT fold (it does not change the
-length), which keeps the deliberate dict-store size tracking working. Witness `1022` shows the
+already happened. A plain indexed store poisons only the ELEMENT fold, which keeps the
+deliberate dict-store size tracking working.
+
+**"An indexed store does not change the length" is TRUE FOR LISTS AND FALSE FOR DICTS**, and
+that premise — which is what this paragraph used to assert — was route #60. `a[0] = 9` leaves
+`len(a)` alone; `d[k] = v` ADDS A KEY whenever `k` is absent. The size tracker resolved it by
+incrementing on every store SITE, so it was blind to key equality (`d={1:1}; d[1]=2` folded 2,
+Python 1), to a SYMBOLIC store key (undecidable at emission), to the CALLER's dict (a store on
+a dict PARAMETER folded `len` to 1 while Python answers caller-size + 0 or 1), to REACHABILITY
+(a store under `if c > 0:` counted unconditionally) and to ITERATION COUNT (a store in a loop
+body counted ONCE, so `d={}; for i in range(n): d[i]=i; len(d)` proved `\result == 1` for
+every n). Seven carriers each proved a FALSE claim while the true twin stayed Unknown.
+
+$\mathcal{T}$ now gives the dict-store tracker a WHITELIST, per route #42's rule: the size
+fold survives stores only where the emitter can SHOW the post-store size — the name bound
+EXACTLY ONCE to a top-level dict literal, EVERY store at the function's TOP LEVEL (so
+reachability and iteration count are not in question), EVERY store key a LITERAL, and the
+literal's keys and the store keys PAIRWISE DISTINCT under Python's own key equality (the same
+normalisation route #54 gave the literal fold, so `{1:1}` then `d[True]=2` is a repeat).
+Anything else is added to `_fold_unsafe_sizes` in `_reset_function_state`, never registered by
+`_track_collection_metadata`, and `len(d)` falls through and FAILS CLOSED — which is what
+`len(d)` on a dict parameter WITHOUT a store already did. Negative witnesses `1133`-`1139`,
+positive controls `1140`-`1142`. Byte-inert over both corpora. Witness `1022` shows the
 fix removes the wrong answer without removing the right one: `\result == 9` now proves.
 
 **The two constant folds are valid only for a single, unconditional binding.** Both maps are
