@@ -1,5 +1,16 @@
 # ====== START HERE — gen #5 FINAL STATE — read this block first ==================
 #
+# ## THE ONE-PARAGRAPH SUMMARY
+#
+#   Thirteen soundness routes (#60-#72) were found and closed, route #59 was finished, two
+#   GATES were found broken and fixed, and one new plane was added. The metric never moved
+#   (459) and it was never supposed to: every repair is a refusal, a whitelist or a wired
+#   obligation, and none of them converts a `\trusted` stub. Six of the thirteen are ONE
+#   defect in the exception model. The single highest-value thing the next generation can
+#   build is the completeness gate named in route #66 — see "THE SIX EXCEPTION-MODEL ROUTES"
+#   below. The second is the abstract-`val` false-axiom audit, which produced #69 and still
+#   has unworked leads.
+#
 # ## WHAT IS TRUE RIGHT NOW
 #
 #   ledger   **EMPTY. NO OPEN ROUTE.** Route #59 is fully closed (all seven carriers), and

@@ -16,3 +16,4 @@ front-end-only: no core/Module6/prover module in sys.modules (import-based, no s
 determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1)
   [0;32m[OK][0m front-end-only conformance
 [0;32m[+] IR conformance: both corpora pass — front-end<->core contract intact.[0m
+[*] 3318 tests across 2 suite(s); jobs=4 (cores=12)
