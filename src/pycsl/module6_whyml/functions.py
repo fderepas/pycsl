@@ -385,6 +385,52 @@ class FunctionEmissionMixin:
                         _bst.extend(v for v in _bn.values() if isinstance(v, (dict, list)))
                     elif isinstance(_bn, list):
                         _bst.extend(_bn)
+            # (#49) ROUTE #62 — THE SAME NO-OP, ONE CALL AWAY. The guard above keys on
+            # "this function's own contract", and that is exactly what a caller can step
+            # around: put the mutation in a helper whose contract names nothing, observe it
+            # from a caller whose contract names the parameter it passed in, and the helper
+            # is still lowered to a NO-OP while the caller's `ensures` proves. Measured:
+            #     def helper(self, s: Set[int]) -> None:  s.add(1)      # contract: True
+            #     #@ requires 1 not in s
+            #     #@ ensures  1 not in s                                 # FALSE of Python
+            #     def caller(self, s: Set[int]) -> None:  self.helper(s)
+            # `[+] All contracts formally proven`; CPython answers False. The true twin
+            # (`ensures 1 in s`) does NOT prove, so it is unsound in the SILENT direction.
+            #
+            # CHECKED FROM THE CALLER'S FRAME, which is the frame that can actually see the
+            # hazard. Conservative by design: it does not try to resolve the callee and ask
+            # whether it mutates. Resolving would need a new unit-wide map, hence a new
+            # field and a new declared frame in the mirror; and a callee that does NOT
+            # mutate today may tomorrow, so keying on the callee's current body would
+            # re-create the same "guard names a location" defect one level down.
+            for _r62_p in sorted(_named & _formals):
+                _r62_st = list(body_stmts or [])
+                while _r62_st:
+                    _r62_n = _r62_st.pop()
+                    if isinstance(_r62_n, dict):
+                        if isinstance(_r62_n.get("func"), str):
+                            for _r62_a in (_r62_n.get("args") or []):
+                                if (isinstance(_r62_a, dict)
+                                        and _r62_a.get("type") == "Var"
+                                        and _r62_a.get("name") == _r62_p):
+                                    raise PyCSLIRError(
+                                        "the collection PARAMETER `" + _r62_p + "`, which "
+                                        "this function's contract NAMES, is passed to `"
+                                        + str(_r62_n.get("func")) + "(...)`. A dict/set "
+                                        "parameter is by-value in this model, and inside a "
+                                        "`@mutable_state` class an in-place mutation of one "
+                                        "is lowered to a NO-OP instead of being refused, so "
+                                        "a mutation in the CALLEE would be invisible here "
+                                        "while this function's contract still proved "
+                                        "(route #62). Measured: a helper whose body is "
+                                        "`s.add(1)` and whose own contract names nothing "
+                                        "let `#@ ensures 1 not in s` prove in the caller. "
+                                        "Return the updated collection from the callee, or "
+                                        "drop the parameter from this contract.")
+                        _r62_st.extend(v for v in _r62_n.values()
+                                       if isinstance(v, (dict, list)))
+                    elif isinstance(_r62_n, list):
+                        _r62_st.extend(_r62_n)
         self._bounded_int = func.get("bounded_int")
         # `no_exception` context for VC injection. `_current_no_exception`
         # is the set of exception names whose triggers must produce an
