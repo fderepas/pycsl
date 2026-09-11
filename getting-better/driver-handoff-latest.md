@@ -210,6 +210,14 @@
 #   * (e) route #52's stated hole ("an unannotated local holding a string is not refused")
 #     does not reproduce: the guard fires when EITHER operand is value-typed, so a sibling
 #     literal is enough. Its diagnostic quotes the exact exploit, independently rebuilt.
+#   * (b) the frameless `#@ depends_method` is **INCONCLUSIVE, not cleared.** Two findings
+#     about the METHOD even so: `#@ compose_from` has NO Python runtime counterpart, so a
+#     differential driver for mixins MUST use real inheritance (`class Facade(CoreEmit,
+#     MapOps)`) or CPython raises AttributeError and there is no ground truth; and my driver
+#     failed UPSTREAM (the provider's own `emit'vc` was unproven, since it writes
+#     `program_ir` with no frame), so "both directions fail" was NOT safety. NEXT SPELLING:
+#     make `emit` verify with a correct frame, leave the `depends_method` DECLARATION
+#     frameless, then ask whether `handle_get` can still carry `assigns \nothing`.
 
 #
 #   * **ALL FIVE unworked abstract-`val` leads from the gen-#5 handoff are DEAD.** Measured:
