@@ -1,18 +1,20 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **ONE — #59.**
+## CURRENTLY OPEN: **NONE.** The ledger is EMPTY at HEAD.
 ##
-##   * **`route59-dict-assignment-is-a-value-copy.md`** — **OPEN, found 2026-09-10 (gen #4).**
-##     `b = a` on a `Dict` lowers to `let b = ref !a`, a fresh ref holding a COPY, so a
-##     mutation through `b` is invisible through `a`. `a[1] == 1` PROVES where CPython says
-##     2. BOTH directions measured; the true twin fails, so it is a route and not a gap.
-##     **The `List` carrier of the identical program is CORRECT**, which is what makes it
-##     sharp: lists alias via a shared mutable array, dicts copy a pure map. Carrier census
-##     DONE: broken at local->local, symmetric, chained, the FIELD carrier, and the RETURN
-##     carrier (a getter handing out `self.d`); SAFE at the call boundary and, by a type
-##     accident only, at `set`. **A PARTIAL repair is staged at `getting-better/staged-route59/`
-##     — it closes the ALIAS carriers and does NOT close the route**, because the RETURN
-##     carrier's RHS is a Call and the guard keys on a bare name or field read.
+##   **#59 IS CLOSED** — closed by gen #5 at `0bd9109e` (all seven carriers refuse),
+##   witnesses `1125`-`1132` landed in the corpus by `3af2b851`. This file advertised it
+##   as OPEN with "a partial repair staged" for four generations; that line was STALE and
+##   is corrected here (gen #7, 2026-09-11). **RE-REPRODUCED AT HEAD BEFORE EDITING**, per
+##   this file's own rule:
+##     * local->local alias (`a={1:1}; b=a; b[1]=2; return a[1]`, `\result == 1`) — now an
+##       EXPLICIT PIPELINE REFUSAL whose diagnostic names route #59 and explains the copy.
+##     * the RETURN carrier (a getter handing out `self.d`, then mutating the handout) —
+##       does not emit; fails closed.
+##   `getting-better/staged-route59/` is EMPTY of live work: its witnesses moved into the
+##   corpus at `3af2b851`. Do not rebuild the "partial repair" — the full one landed.
+##
+##   Routes #73, #74 and #75 (gen #6) are also CLOSED; so are #45-#58, #60-#72.
 ##
 ## (the note below predates that find and is kept for its lesson)
 ## PREVIOUSLY: **NONE.** Every route in this ledger is CLOSED at `cf35437f`.

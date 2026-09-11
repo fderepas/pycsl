@@ -1,10 +1,12 @@
 # ROUTE #59 — A DICT ASSIGNMENT IS A VALUE COPY, SO ALIASED MUTATION IS INVISIBLE
 
-**STATUS: OPEN. A PARTIAL REPAIR IS BUILT, FULLY MEASURED AND STAGED AT
-`getting-better/staged-route59/` — NOT LANDED, AND LANDING IT DOES NOT CLOSE THIS ROUTE.**
-It closes the ALIAS ASSIGNMENT carriers. The RETURN carrier (a getter handing out an
-internal dict) is measured broken and is NOT covered — see the section near the end. Found 2026-09-10 (gen #4). Reproduced twice at HEAD, mechanism read off
-the emission, ground truth confirmed against CPython.
+**STATUS: CLOSED at `0bd9109e` — ALL SEVEN CARRIERS REFUSE.** Witnesses `1125`-`1132`
+landed in the corpus at `3af2b851`; `getting-better/staged-route59/` holds nothing live.
+See the `## STATUS: **CLOSED**` section near the end of this file for the carrier table
+and the gates. **RE-VERIFIED AT HEAD `b0892c9e` (gen #7, 2026-09-11):** the local->local
+alias exploit below is now an explicit pipeline refusal that names this route, and the
+RETURN carrier does not emit. Found 2026-09-10 (gen #4); the header above this line
+formerly read "OPEN ... a partial repair is staged", which was stale for four generations.
 
 ## THE ROUTE
 
