@@ -210,14 +210,21 @@
 #   * (e) route #52's stated hole ("an unannotated local holding a string is not refused")
 #     does not reproduce: the guard fires when EITHER operand is value-typed, so a sibling
 #     literal is enough. Its diagnostic quotes the exact exploit, independently rebuilt.
-#   * (b) the frameless `#@ depends_method` is **INCONCLUSIVE, not cleared.** Two findings
-#     about the METHOD even so: `#@ compose_from` has NO Python runtime counterpart, so a
-#     differential driver for mixins MUST use real inheritance (`class Facade(CoreEmit,
-#     MapOps)`) or CPython raises AttributeError and there is no ground truth; and my driver
-#     failed UPSTREAM (the provider's own `emit'vc` was unproven, since it writes
-#     `program_ir` with no frame), so "both directions fail" was NOT safety. NEXT SPELLING:
-#     make `emit` verify with a correct frame, leave the `depends_method` DECLARATION
-#     frameless, then ask whether `handle_get` can still carry `assigns \nothing`.
+#   * (b) the frameless `#@ depends_method` is **CONFIRMED FAIL-OPEN — see
+#     `open-routes/finding-w56-frameless-dependency-is-fail-open.md`.** Driver 0968's OWN
+#     DOCSTRING describes the experiment; I ran it on 0968's shape and BOTH halves reproduce:
+#     frame DECLARED + caller weakened to `assigns \nothing` -> Why3 REJECTS; frame REMOVED
+#     + the same weakened caller -> **PROVES**. The 2026 fix made the frame DECLARABLE, NOT
+#     REQUIRED. **NOT called a route**, because no false VALUE claim is reachable: a composed
+#     mixin whose provider actually WRITES a field does not emit at all (four spellings, four
+#     emission/typing non-results). **So it is harmless by TYPE ACCIDENT, not by a guard** —
+#     the day a composed mixin can have a writing provider, this is a live route, and the
+#     acceptance half is already measured. Repair scoped + censused (require `#@ assigns` in
+#     every dependency window; five real sites, all effect-free); NOT landed because two are
+#     MIRRORED and owe a whole-file re-proof each against the ~4-proof box ceiling.
+#     Also learned: `#@ compose_from` has NO Python runtime counterpart, so any future
+#     mixin DIFFERENTIAL driver must use real inheritance or CPython raises AttributeError
+#     and there is no ground truth to compare against.
 
 #
 #   * **ALL FIVE unworked abstract-`val` leads from the gen-#5 handoff are DEAD.** Measured:
