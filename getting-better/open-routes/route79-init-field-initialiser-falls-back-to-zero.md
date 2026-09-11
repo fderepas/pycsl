@@ -73,14 +73,7 @@ i.e. it **skips checking the constructor contract** while leaving every allocati
 wrong literal. So the erasure and the decision not to check it are in different modules, which
 is structurally the same "guard and hazard in different modules" fact that #77 recorded.
 
-## THE REPAIR, SCOPED
-
-Fail CLOSED at the capture site: when an `__init__` assigns a field whose RHS is **outside** the
-captured shape, raise rather than silently omitting it, so the allocation site can never fall
-back to `0` for a field the constructor demonstrably sets. Keep the captured (params-only) shape
-exactly as it is — the k03 control proves it is faithful and it carries the corpus.
-
-## BLAST RADIUS: **MEASURED, AND IT IS LARGE — THIS SETTLES THE REPAIR DIRECTION**
+## THE REPAIR — BLAST RADIUS **MEASURED**, AND IT SETTLES THE DIRECTION
 
 An AST census over `test-suite/corpus/`, `src/self-annotate/`, `src/pycsl/` and
 `src/pycsl_lib/`, applying the live capture rule (`names and (names & pset) and names <= pset`)
@@ -109,14 +102,14 @@ The cost to price next is whether an unconstrained field breaks existing proofs 
 depend on the `0` (a real risk given 85 mirror sites), which is a whole-file-proof question and
 is the next thing to measure.
 
-**(superseded note) BLAST RADIUS IS NOT YET MEASURED AND MUST BE, BEFORE BUILDING.** Unlike #77 and #78 (both
-measured at zero), this shape is idiomatic and the corpus is very likely to contain it. The
-census to run first is: every `__init__` in `test-suite/corpus/`, `src/self-annotate/`,
-`src/pycsl/` and `src/pycsl_lib/` that assigns a field from an RHS naming anything outside the
-parameter set. **If that census is large, a blanket refusal is a completeness regression with a
-real cost, and the honest alternative is to emit an UNCONSTRAINED value for the omitted field
-(genuinely "less precise") rather than a literal 0 — which is what the comment already claims
-the code does.** That alternative is likely the better repair and should be priced first.
+**A FAIL-CLOSED REFUSAL AT THE CAPTURE SITE WAS THE FIRST REPAIR SCOPED, AND THE CENSUS ABOVE
+REFUTED IT** before a line was written. Recording that here rather than deleting it: the obvious
+repair for #77 and #78 (refuse the unmodelled shape) does NOT transfer to #79, because #77's and
+#78's blast radii were zero and #79's is 70%. **The reflex "refuse what you cannot model" is
+correct only when the census says the construct is rare — measure first, every time.**
+
+Re-run the census with `getting-better/route77-80-witnesses/r79-blast-radius-census.py`; it
+applies the live capture rule directly, so it stays honest if that rule changes.
 
 ## WITNESSES
 
