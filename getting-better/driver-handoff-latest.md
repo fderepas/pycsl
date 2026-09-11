@@ -3,7 +3,7 @@
 # ## WHAT IS TRUE RIGHT NOW
 #
 #   ledger   **EMPTY. NO OPEN ROUTE.** Route #59 is fully closed (all seven carriers), and
-#            #60, #61, #62 were each FOUND AND CLOSED this generation.
+#            #60, #61, #62 and #63 were each FOUND AND CLOSED this generation.
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED all
 #            generation, and that is the EXPECTED shape of a window paying the soundness
 #            ladder. Four repairs, all refusals or whitelists; none costs the trust surface.
@@ -35,6 +35,16 @@
 #   **#62 — the `@mutable_state` collection-param NO-OP escaped its guard ONE CALL AWAY.**
 #   Mutation in a helper whose contract names nothing, observed from a caller whose contract
 #   names the parameter it passed in. Second guard added in the CALLER's frame.
+#
+#   **#63 — "NO ALIASING IS POSSIBLE" IS TRUE FOR LISTS AND FALSE FOR SETS.** The biggest
+#   structural claim in the tree, refuted by a SELF-CONTAINED file: `caller2()` binds a LOCAL
+#   set, passes it as BOTH arguments to a helper that mutates one and reads the other, and
+#   proves `\result == 0` for a function CPython answers 7 on. The claim's cited mechanism is
+#   Why3 REGION TYPING, and it is real — `f(xs, xs)` on two LIST params really is refused with
+#   Why3's own `This application creates an illegal alias`. It simply cannot apply to a
+#   dict/set, which lowers to a PURE `map`: a pure value has no region. Guard: refuse the same
+#   dict/set name in two or more argument positions of one call. `annotations.md` §5 corrected
+#   to carry its scope.
 #
 # ## THE TWO METHODS THAT FOUND THEM — USE BOTH AGAIN
 #
