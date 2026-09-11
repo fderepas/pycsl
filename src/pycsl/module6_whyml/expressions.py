@@ -8752,6 +8752,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         methods / isinstance / set / sorted / any / all / dict / list / join /
         str|repr|int|bool|abs / sum / hasattr. Returns the WhyML string, or None to fall
         through to the generic call path. (Extracted verbatim from `_handle_call_expr`.)"""
+        # (#49) ROUTE #75 — A NAME-KEYED ORACLE MUST NOT BEAT THE DEFINITION THE USER WROTE.
+        # This is ONE guard for a CLASS of defect that had already been patched twice
+        # locally: #73 (an oracle keyed on the literal string "arity" replacing a
+        # user-defined `get`) and #74 (an oracle keyed on a str-predicate METHOD NAME
+        # replacing a user-defined method). #75 is the same fault keyed on a BUILTIN NAME.
+        # Python lets a module shadow a builtin, and when it does, THIS function's name
+        # tests fire on the user's own function and hand the call an abstract `val` whose
+        # `ensures` is an AXIOM about the BUILTIN's behaviour. MEASURED, three carriers,
+        # each a complete runnable program whose TRUE twin does NOT prove (so the user's
+        # function is genuinely REPLACED, not merely widened):
+        #     def ord(c: str) -> int: return 9999   ->  `\result < 256`  PROVED (CPython 9999)
+        #     def len(x: str) -> int: return -5     ->  `\result >= 0`   PROVED (CPython -5)
+        #     def min(a: int, b: int) -> int: return 99 -> `\result <= 1` PROVED (CPython 99)
+        # NOT carriers, measured rather than assumed: `bool`, `repr`, `hash`. The
+        # non-uniformity is exactly why this guard is STRUCTURAL and not a list of names —
+        # a per-name guard would be stepped around by the next name in the table, which is
+        # the failure mode this campaign has hit repeatedly.
+        # FALL THROUGH rather than refuse, so the user's real function and its proved
+        # contract are reachable — the same choice #73 and #74 made, and the reason their
+        # positive controls (the TRUE claim proving again) pass.
+        # Scoped to BARE names: a dotted call is resolved elsewhere, and #74 already guards
+        # the `self.<m>` spelling at its own site.
+        if (isinstance(func_name, str) and "." not in func_name
+                and func_name in getattr(self, "_module_method_return_types", {})):
+            return None
         # no-more-int-3 A1 T1.2 (param-form) — `.get(k[, default])` on a
         # dict-typed Var receiver: faithful match against `Map.get`, NOT an
         # opaque `d_get_2` abstract op (which severs the result from the
