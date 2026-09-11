@@ -1,0 +1,9 @@
+/home/fabrice/git/pycsl/src/pycsl/core_ir_semantic.py:1604: UserWarning: Function 'statementemissionmixin___dv_store_value': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(func.get("body", []) or [], union_vars, func.get("name", "?"))
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl/src/self-annotate/src/module6_whyml/statements.py'...
+[*] Memory model: hoare
+[*] Imported class from 'module6_whyml.stmt_control_flow': ControlFlowStmtMixin (record + 31 method stub(s) + 0 helper(s))
+[*] Imported class from 'errors': PyCSLSemanticError (record + 0 method stub(s) + 2 helper(s))
+[*] Imported from 'module6_whyml.identifiers': ['op_translate', 'whyml_ident', 'safe_mutex_name', 'safe_exc_name', 'stable_hash'] (trusted stubs)
+[*] Imported from 'ir_schema': ['stmt_from_dict'] (trusted stubs)
+[+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).

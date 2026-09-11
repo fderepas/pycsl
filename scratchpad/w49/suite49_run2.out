@@ -1,0 +1,1 @@
+Terminated                 bash bin/run-reference-tests.sh --jobs 3 > getting-better/proofs49/suite49_run2.log 2>&1

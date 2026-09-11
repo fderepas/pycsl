@@ -1,0 +1,170 @@
+diff --git a/docs/pycsl-translational-reference.md b/docs/pycsl-translational-reference.md
+index 270c0cf0..164ffbdb 100644
+--- a/docs/pycsl-translational-reference.md
++++ b/docs/pycsl-translational-reference.md
+@@ -2137,6 +2137,67 @@ cannot know. Withholding the size there is a separate, measurable change.
+ 
+ ---
+ 
++### §T.5.12r  `is None` was decided from a TYPE where only a BINDING could justify it
++
++Route #50 established that a string `is None` test has more than one right answer and that
++*which* answer is right is a question about the **binding**, not about the type. It gave the
++arm two binding-justified answers — DECIDED under a live linear `None` record, OPAQUE under
++route #46's `AMBIG` — and left a third, the always-present `false`, for a name the function
++never binds to `None`. That third answer was justified by nothing but the operand's type, and
++there are three ways to reach it with **no binding in the function at all** (route #51,
++witnesses `1100`–`1102`):
++
++| shape | the operand | why the model had no binding fact |
++|---|---|---|
++| (a) | a local bound from a CALL whose `-> str` is contradicted by `return None` | the callee's real return set |
++| (b) | a `str`-declared dataclass FIELD a caller stored `None` into | a field's value comes from outside the method |
++| (c) | a `str`-declared PARAMETER a caller passed `None` | a parameter's value comes from outside the function |
++
++Shape (c) is the cheapest reproduction in the class and needs no lie at all — a Python type
++hint is not enforced, so the caller simply passes `None`:
++
++```python
++    def probe(self, s: str) -> int:
++        if s is None: return 0
++        return 7                   #@ ensures \result == 7   <- PROVED. Python returns 0.
++```
++
++$\mathcal{T}$ now makes the always-present answer only about a name the function actually
++**binds** (collected by route #46's existing pre-scan walk). A parameter, a `self.<f>` field
++and every non-name operand get the same type-preserving `pycsl_none_str` opaque that route #50
++installed one arm above, so this adds **no new model**.
++
++**The `int` path already answered this way and `str` was the odd one out.** The `s: int` and
++`s: bool` spellings of the same file FAIL CLOSED today — they reach route #44's opaque
++`pycsl_none` — so this makes the string path consistent with a model the tree has been paying
++for all along, rather than introducing a new cost.
++
++**It is live in the mirror, in the emitter's own contract parser.** `expect_name(self,
++val: str = None)` declares `str` and DEFAULTS TO `None`, so its guard emitted
++
++```whyml
++    (if true && (not (at_name self (cons py_val empty))) then 1 else 0)   (* before *)
++    (if (not (str_eq_op py_val pycsl_none_str)) && (not (…)) then 1 else 0)   (* after *)
++```
++
++— the `val is not None` conjunct was the literal `true`, i.e. **deleted**, and every
++`expect_name()` call with no argument takes exactly that path.
++
++**Measured**: 1 of 53 mirror emissions moves (2 lines, the file above), all 53 still emit and
++all 53 type-check; 0 of 903 pre-existing corpus emissions move; both fidelity planes
++byte-identical. Witness `1102` is the precision guard that keeps this a **narrowing** rather
++than a retreat — a local bound to a literal in the same function still gets the DECIDED
++answer, and a repair that made every string `is None` opaque would lose it.
++
++**Stated residue**: shape (a) is closed separately, by refusing the annotation lie itself
++(`PYCSL-SEM-RETANN`), because a local bound from a call *is* a bound name — only a
++trustworthy callee annotation can justify deciding with it. A callee that returns `None`
++IMPLICITLY, by falling off the end, has no `return None` for that check to see; it fails
++closed today, but by a TYPE ACCIDENT (Why3 expects `()` where a `string` is supplied) rather
++than by design.
++
++---
++
+ ### §T.5.12j  A chained comparison in a `#@` clause is a CONJUNCTION
+ 
+ `0 <= x <= 3` inside a `requires`, an `ensures`, a `loop invariant` or a class invariant was
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index c9bf0c11..d179c249 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -5241,12 +5241,42 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+                     _s50 = self._expr_to_whyml(_nn, local_refs, invariant_ctx, subst)
+                     _c50 = f"(str_eq_op {_s50} pycsl_none_str)"
+                     return _c50 if raw_op == "==" else f"(not {_c50})"
+-                # NEVER BOUND TO `None` IN THIS FUNCTION: the always-present answer is
+-                # right, and keeping it is what makes this build byte-inert everywhere the
+-                # defect is not. RESIDUE, stated rather than hidden: a local bound from a
+-                # CALL that returns `Optional[str]` is not `None`-bound syntactically, so
+-                # it still reads as always-present — a different route, recorded in
+-                # `getting-better/open-routes/route50-str-optional-always-present.md`.
++                # (#50) ROUTE #51 — THE THIRD ANSWER NEEDED A BINDING AND HAD ONLY A TYPE.
++                #   What stood here answered the always-present `false` for EVERY
++                #   string-typed operand the record does not mention, and called that
++                #   "right" because the function never binds the name to `None`. A
++                #   function cannot bind what it does not have. Measured at `51a771c4`,
++                #   each proving a contract FALSE of its own program with the Python
++                #   assert run and holding:
++                #     (a) `s = self.pick(c)`, `pick` declares `-> str` and returns `None`
++                #         (`scratchpad/w49/probe50/q2.py`)
++                #     (b) `self.name is None`, a `str`-declared FIELD a caller set to
++                #         `None` (`scratchpad/w49/probe50/q5.py`)
++                #     (c) `def probe(self, s: str)` … `if s is None:` — a PARAMETER, and
++                #         it is the CHEAPEST of the three: no annotation lie, no field
++                #         store, no call, no branch join (`scratchpad/w51/p1.py`)
++                #   ALWAYS-PRESENT IS A CLAIM ABOUT A BINDING, so it is made only about a
++                #   name this function BINDS (`_r51_bound_names`, collected by the same
++                #   route-#46 pre-scan walk). A parameter, a `self.<f>` field and every
++                #   non-name operand get the opaque — the SAME `pycsl_none_str` device
++                #   route #50 installed one arm above, so this adds no new model.
++                #   THE INT PATH ALREADY ANSWERS THIS WAY and the string path was the odd
++                #   one out: `s: int` … `s is None` and the `bool` spelling both FAIL
++                #   CLOSED at HEAD (they reach route #44's opaque `pycsl_none`).
++                #   CONTROL: `scratchpad/w51/p2.py` is (b) with `@mutable_state` removed
++                #   and fails closed, which localises the gate exactly.
++                if not (isinstance(_nn, dict) and _nn.get("type") == "Var"
++                        and _nn.get("name") in getattr(self, "_r51_bound_names", set())):
++                    self._add_abstract_op("val function pycsl_none_str : string")
++                    self._add_abstract_op(
++                        "val str_eq_op (a b: string) : bool\n"
++                        "    ensures { result <-> (a = b) }")
++                    _s51 = self._expr_to_whyml(_nn, local_refs, invariant_ctx, subst)
++                    _c51 = f"(str_eq_op {_s51} pycsl_none_str)"
++                    return _c51 if raw_op == "==" else f"(not {_c51})"
++                # BOUND HERE AND NEVER TO `None`: the always-present answer is right, and
++                # keeping it is what makes this build byte-inert everywhere the defect is
++                # not.
+                 return "false" if raw_op == "==" else "true"
+             # (#48) ROUTE #44 — THE `is None` FALL-THROUGH DECIDED AGAINST THE INTEGER 0.
+             #
+diff --git a/src/pycsl/module6_whyml/functions.py b/src/pycsl/module6_whyml/functions.py
+index d98819f9..5f380dd6 100644
+--- a/src/pycsl/module6_whyml/functions.py
++++ b/src/pycsl/module6_whyml/functions.py
+@@ -544,6 +544,25 @@ class FunctionEmissionMixin:
+         # corpus control `1087`). Ambiguity needs a CONDITIONAL binding — a branch, a loop
+         # body, a handler — so a name is a candidate only when at least one of its
+         # bindings is nested.
++        # (#50) ROUTE #51 — THE NAMES THIS FUNCTION ACTUALLY BINDS. Route #50 gave the
++        # string `is None` fall-through two BINDING-justified answers (decided under a
++        # live `None` record, opaque under `AMBIG`) and left a third — the always-present
++        # `false` — justified by nothing but the operand's TYPE. Measured at `51a771c4`,
++        # three ways to reach that third answer with NO binding at all, each proving a
++        # contract false of its own program:
++        #     (a) `s = self.pick(c)` where `pick` declares `-> str` and returns `None`
++        #     (b) `self.name is None` on a `str`-declared dataclass FIELD a caller set
++        #     (c) `def probe(self, s: str)` … `if s is None:` — a PARAMETER, no lie at all
++        # (b) and (c) contain no annotation lie to refuse: a field hint and a parameter
++        # hint are both unenforced by Python and the caller is simply outside the
++        # function. So the fix is at the ARM, and it is one sentence — ALWAYS-PRESENT IS
++        # A CLAIM ABOUT A BINDING, so it may only be made about a name this function
++        # BINDS. A parameter, a field and any non-name operand get the opaque instead.
++        # THE MODEL ALREADY PAYS THIS COST AT `int` AND THE STRING PATH WAS THE ODD ONE
++        # OUT: `def probe(self, s: int)` … `s is None` FAILS CLOSED today (it reaches
++        # route #44's opaque `pycsl_none`), and so does the `bool` spelling. This makes
++        # `str` consistent with a model the tree has already been paying for.
++        self._r51_bound_names: Set[str] = set()
+         _amb_asgs = []
+         _amb_stack = [(body_stmts, 0)]
+         while _amb_stack:
+@@ -554,6 +573,14 @@ class FunctionEmissionMixin:
+                 continue
+             if not isinstance(_amb_n, dict):
+                 continue
++            if (_amb_n.get("stmt") in ("Assign", "AugAssign", "AnnAssign", "For", "With")
++                    and isinstance(_amb_n.get("target"), str)):
++                # (#50) ROUTE #51 — collected in the SAME walk (no second traversal, and
++                # no nested `def`, which would move `bin/check-mirror-coverage.py`).
++                # Deliberately the BINDING forms only: an over-broad set here would hand
++                # the always-present answer back to a name that is not bound at all,
++                # which is the defect.
++                self._r51_bound_names.add(_amb_n["target"])
+             if (_amb_n.get("stmt") == "Assign"
+                     and isinstance(_amb_n.get("target"), str)):
+                 _amb_kinds = set()

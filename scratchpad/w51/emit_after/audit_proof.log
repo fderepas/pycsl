@@ -1,0 +1,4 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-w51/src/self-annotate/src/audit_proof.py'...
+[*] Memory model: hoare
+[*] Imported from 'audit_proof_reverify': ['verify_lean_file', 'verify_rocq_file'] (trusted stubs)
+[+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).

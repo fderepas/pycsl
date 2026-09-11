@@ -1,0 +1,71 @@
+[*] IR conformance — core corpus (golden IR -> WhyML, no front-end)
+[+] core-only conformance: 38 OK / 0 MISMATCH (38 goldens) — front-end NOT imported
+  [0;32m[OK][0m core-only conformance
+[*] IR conformance — front-end corpus (source -> resolved IR, no prover)
+[*] Imported from 'multi_file_lib.arith': ['double_int'] (trusted stubs)
+[*] Imported from 'multi_file_lib.arith': ['double_int', 'triple_int'] (trusted stubs)
+[*] Imported from 'multi_file_lib.arith': ['double_int'] (trusted stubs, module-qualified)
+[*] Imported from 'multi_file_lib.deep_mid': ['double_plus_one'] (trusted stubs)
+[*] Imported from 'multi_file_lib.circ_a': ['func_a'] (trusted stubs)
+[*] Imported class from 'multi_file_lib.base_counter': Counter (record + 1 method stub(s) + 0 helper(s))
+[*] Imported from 'multi_file_lib.base_counter': ['Counter'] (trusted stubs)
+[*] Imported class from 'multi_file_lib.base_store': Store (record + 1 method stub(s) + 0 helper(s))
+[*] Imported base class from 'multi_file_lib.visitor_base': NodeVisitor (record + 2 method stub(s))
+front-end conformance: 38 OK / 0 MISMATCH (38 goldens; 0 version-skew)
+front-end-only: no core/Module6/prover module in sys.modules (import-based, no subprocess for the conformance check)
+determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1)
+  [0;32m[OK][0m front-end-only conformance
+[0;32m[+] IR conformance: both corpora pass — front-end<->core contract intact.[0m
+[*] 47 tests across 1 suite(s); jobs=3 (cores=12)
+--- pycsl-reference ---
+[0;32m[XFAIL][0m 1000_module_global_field_store_erasure (expected failure)
+[0;32m[PASS][0m 1001_module_global_field_store_faithful
+[0;32m[XFAIL][0m 1002_parametric_datatype_false_payload (expected failure)
+[0;32m[PASS][0m 1003_parametric_datatype_faithful
+[0;32m[XFAIL][0m 1004_route29_is_sorted_typed_erasure (expected failure)
+[0;32m[XFAIL][0m 1005_route29_is_sorted_store_erasure (expected failure)
+[0;32m[XFAIL][0m 1006_route29_array_eq_typed_erasure (expected failure)
+[0;32m[XFAIL][0m 1007_route29_permutation_typed_erasure (expected failure)
+[0;32m[XFAIL][0m 1008_route29_sum_typed_erasure (expected failure)
+[0;32m[XFAIL][0m 1009_route29_length2d_typed_erasure (expected failure)
+[0;32m[XFAIL][0m 1010_route29_valid2d_typed_erasure (expected failure)
+[0;32m[XFAIL][0m 1011_route30_sequence_pattern_always_matches (expected failure)
+[0;32m[XFAIL][0m 1012_route30_undeclared_ctor_pattern_always_matches (expected failure)
+[0;32m[XFAIL][0m 1013_route32_len_fold_branch_insensitive (expected failure)
+[0;32m[XFAIL][0m 1014_route33_element_fold_branch_insensitive (expected failure)
+[0;32m[XFAIL][0m 1015_route31_empty_list_truthiness (expected failure)
+[0;32m[PASS][0m 1016_route31_empty_list_truthiness_faithful
+[0;32m[XFAIL][0m 1017_route34_element_fold_survives_write (expected failure)
+[0;32m[XFAIL][0m 1018_route34_alias_store (expected failure)
+[0;32m[XFAIL][0m 1019_route34_alias_append (expected failure)
+[0;32m[XFAIL][0m 1020_route34_slice_assign (expected failure)
+[0;32m[XFAIL][0m 1021_route34_callee_mutates (expected failure)
+[0;32m[PASS][0m 1022_route34_write_then_read_faithful
+[0;32m[XFAIL][0m 1023_route35_shortcircuit_value_erasure (expected failure)
+[0;32m[PASS][0m 1024_route35_shortcircuit_value_faithful
+[0;32m[XFAIL][0m 1025_route36_loop_var_leak (expected failure)
+[0;32m[XFAIL][0m 1026_route36_loop_var_leak_no_preassign (expected failure)
+[0;32m[XFAIL][0m 1027_route36_sequence_loop_var_leak (expected failure)
+[0;32m[XFAIL][0m 1028_route37_try_else_return_dropped (expected failure)
+[0;32m[PASS][0m 1029_route37_try_else_no_jump_faithful
+[0;32m[XFAIL][0m 1030_route38_context_manager_dropped (expected failure)
+[0;32m[PASS][0m 1031_route38_generator_cm_still_modelled
+[0;32m[XFAIL][0m 1032_unknown_proof_citation_refused (expected failure)
+[0;32m[XFAIL][0m 1033_route39_annassign_cm_bypass (expected failure)
+[0;32m[PASS][0m 1034_route39_lock_with_still_modelled
+[0;32m[XFAIL][0m 1035_route39_inherited_cm_bypass (expected failure)
+[0;32m[XFAIL][0m 1036_route40_ellipsis_truthiness (expected failure)
+[0;32m[XFAIL][0m 1037_route40_ellipsis_eq_zero (expected failure)
+[0;32m[XFAIL][0m 1038_route40_int_is_ellipsis (expected failure)
+[0;32m[XFAIL][0m 1039_route40_ellipsis_arithmetic (expected failure)
+[0;32m[XFAIL][0m 1040_route40_ellipsis_returned (expected failure)
+[0;32m[XFAIL][0m 1041_route41_genexp_eq_zero (expected failure)
+[0;32m[XFAIL][0m 1042_route41_setlit_eq_zero (expected failure)
+[0;32m[XFAIL][0m 1043_route41_tuple_eq_zero (expected failure)
+[0;32m[XFAIL][0m 1044_route41_erased_ordering (expected failure)
+[0;32m[XFAIL][0m 1045_route41_erased_arithmetic (expected failure)
+[0;32m[XFAIL][0m 1046_route41_empty_tuple_eq_zero (expected failure)
+
+===============================
+ Results: 47/47 passed
+===============================

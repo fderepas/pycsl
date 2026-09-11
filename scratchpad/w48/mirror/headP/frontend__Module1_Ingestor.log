@@ -1,0 +1,4 @@
+[*] Parsing and Semantic Analysis for '/tmp/pycsl-w48-head/src/self-annotate/src/frontend/Module1_Ingestor.py'...
+[*] Memory model: hoare
+[*] Imported class from 'errors': PyCSLParseError (record + 0 method stub(s) + 2 helper(s))
+[+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).

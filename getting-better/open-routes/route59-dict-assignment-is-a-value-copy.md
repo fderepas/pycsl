@@ -625,3 +625,52 @@ aliasing store is silently a copy. **That is the whole of the dict/list asymmetr
 predicts the shape of every future carrier: the route can only live where the value model is
 a pure Why3 value. It also explains why lists have been correct in every carrier probed
 without anyone having written a list-aliasing guard — Why3 was doing it.
+
+## STATUS: **CLOSED** at `0bd9109e` — ALL SEVEN CARRIERS REFUSE
+
+Carriers 6 (field store then mutate the local) and 7 (one local into two fields) are
+closed, and with them the route. Witnesses `1125`-`1132` have moved out of
+`staged-route59/` into the corpus, where the reference suite watches them.
+
+**THE REFUTATION ON RECORD WAS ABOUT THE HOME, NOT THE GUARD.** Generation #4 built two
+implementations in `_handle_fieldassign_stmt` and both failed — the mirror VERIFIES that
+method VERBATIM, so a recursive `.pop()` walk is refused by PyCSL's own ownership
+discipline and a flat mirrorable scan emits ILL-TYPED. **`_reset_function_state` is a
+`\trusted` mirror stub**, so both the analysis and the refusal fit there with no
+mirrorability constraint at all. That is the same shape route #60's repair had just
+landed, which is how the idea arrived.
+
+**THE GATE IS TWO LIVE NAMES, NOT "THE LOCAL IS MUTATED LATER."** That distinction is
+carrier 7's whole lesson. The guard refuses a field store of a dict local when the local
+SURVIVES the store (is read again) **or** is stored into a SECOND field, AND either name
+is subsequently subscript-stored or deleted. So:
+
+  * `p={1:1}; self.d=p; p[1]=2`                     — REFUSED (carrier 6)
+  * `p={1:1}; self.d=p; self.e=p; self.d[1]=2`      — REFUSED (carrier 7)
+  * `p={1:1}; self.d=p; if c>0: p[1]=2`             — REFUSED (the nested mutation the
+    refuted flat scan would have MISSED — the body is linearised recursively)
+  * `p={}; self.d=p; self.d[1]=2`                   — **PROVES**, and must: `p` is never
+    read again, so the copy is indistinguishable from the alias and refusing it would be
+    an over-refusal.
+
+### GATES
+
+  * ALL **31 PLANES GREEN** under `--slow` with why3 on PATH.
+  * Mirror **53/53 emitted, 0 ill-typed** — route #59's FIRST cut broke the mirror while
+    the corpus byte-diff was clean, so this is the plane that matters here.
+  * **Byte-inert on BOTH corpora** (933 + 2204, zero differing / appeared / gone).
+  * Metric UNCHANGED at 459. All seven carriers refuse; the LIST control `1131` still
+    PROVES, which is what stops a repair from satisfying the negatives by refusing every
+    collection binding.
+
+### A RATCHET DEFECT THIS REPAIR EXPOSED — WORTH MORE THAN THE CARRIER
+
+`check-mirror-coverage` had been printing **"549 < ratchet 550 — lower the constant"** and
+nobody had. That single slot of slack was not free: route #60's repair added ONE nested
+helper `def` to `_reset_function_state`, silently consumed it, and **the full 31-plane
+battery stayed GREEN** because the comparison is `>`. It surfaced only when this repair
+added two more and reached 552.
+
+**A RATCHET WITH HEADROOM CANNOT SEE THE FIRST REGRESSION THAT USES IT UP.** Fixed at the
+truth rather than the baseline: both repairs were rewritten to use NO nested `def`, the
+count is back to 549, and the constant is tightened to 549 so the next one is caught.

@@ -1,0 +1,4 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-w51/src/self-annotate/src/proof2why3/normalize.py'...
+[*] Memory model: hoare
+[*] Import 're.sub': external module, no local source found — skipping
+[+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).

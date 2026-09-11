@@ -1,0 +1,4 @@
+[*] Parsing and Semantic Analysis for '/tmp/pycsl-w48-head/src/self-annotate/src/module6_whyml/functions.py'...
+[*] Memory model: hoare
+[*] Imported from 'module6_whyml.identifiers': ['whyml_ident'] (trusted stubs)
+[+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).

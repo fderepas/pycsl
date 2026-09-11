@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/tmp/pycsl-w48-head/src/self-annotate/src/frontend/ir_resolve.py'...
+[*] Memory model: hoare
+[*] Imported class from 'frontend.Module1_Ingestor': Module1_Ingestor (record + 1 method stub(s) + 13 helper(s))
+[*] Imported class from 'frontend.Module3_Weaver': Module3_Weaver (record + 26 method stub(s) + 18 helper(s))
+[*] Imported class from 'frontend.Module5_IREmitter': Module5_IREmitter (record + 1 method stub(s) + 214 helper(s))
+[+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).

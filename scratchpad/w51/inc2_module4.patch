@@ -1,0 +1,100 @@
+diff --git a/src/pycsl/core_ir_semantic.py b/src/pycsl/core_ir_semantic.py
+index aad45aad..99bfd4e9 100644
+--- a/src/pycsl/core_ir_semantic.py
++++ b/src/pycsl/core_ir_semantic.py
+@@ -81,6 +81,7 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
+         _check_subscript_assignments(func)
+         _check_checkpoints(func)
+         _check_mutable_defaults(func)
++        _check_scalar_return_annotation(func)
+         _check_acts(func)
+         _check_ghost_string_ops(func)
+         _check_diverges(func)
+@@ -1039,6 +1040,87 @@ def _check_lemma(func, trusted_funcs) -> None:
+             code="PYCSL-SEM-LEMMA")
+ 
+ 
++# --- (#50) ROUTE #51 shape (a): a `-> str` contradicted by `return None` -------
++
++def _returns_literal_none(body) -> bool:
++    """True iff the IR body contains an EXPLICIT ``return None`` (or a bare ``return``,
++    which is the same value). The mirror image of ``_lemma_returns_value``."""
++    found = [False]
++
++    def walk(node):
++        if found[0]:
++            return
++        if isinstance(node, dict):
++            # A NESTED `def` HAS ITS OWN RETURNS AND ITS OWN ANNOTATION, and not
++            # excluding it is a FALSE POSITIVE this check was measured making:
++            # `core_ir_semantic._lemma_calls_trusted(body, trusted) -> str` returns
++            # the empty string, never `None` — its only bare `return` is the early
++            # exit of the nested `walk` helper. Two of the four census hits were
++            # this same shape.
++            if node.get("stmt") in ("FunctionDef", "AsyncFunctionDef", "Lambda"):
++                return
++            if node.get("stmt") == "Return":
++                v = node.get("value")
++                if v is None or (isinstance(v, dict)
++                                 and v.get("type") in ("None", "CSLNone")):
++                    found[0] = True
++                    return
++            for x in node.values():
++                walk(x)
++        elif isinstance(node, list):
++            for x in node:
++                walk(x)
++
++    walk(body)
++    return found[0]
++
++
++def _check_scalar_return_annotation(func) -> None:
++    """(#50) ROUTE #51 shape (a) — REFUSE A `-> str` THAT RETURNS `None`.
++
++    A Python return annotation is not enforced at run time, and the model BELIEVES it.
++    Route #50 left `is None` on a string with a third answer — the always-present
++    `false` — for a name the function never binds to `None`, and route #51's Module 6
++    half narrowed that to names the function actually BINDS. A local bound from a CALL
++    *is* such a name, so the caller may soundly decide with it ONLY IF the callee's
++    annotation is true. Measured at `27cf17b1` (`scratchpad/w49/probe50/q2.py`):
++
++        def pick(self, c: int) -> str:      # declares `str`
++            if c > 0: return "a"
++            return None                     # and returns None anyway
++
++        s = self.pick(c)
++        if s is None: return 0
++        return 7                            # `\result == 7` PROVED. Python returns 0.
++
++    So the refusal is what MAKES the caller's decision honest; it is not a separate
++    tidiness rule. SCOPED TO `-> str` DELIBERATELY, and the scope was measured, not
++    guessed: the `-> int` spelling of the same file FAILS CLOSED today (it reaches
++    route #44's opaque `pycsl_none`), so a refusal there would buy nothing and cost
++    nine mirror re-annotations. Census at `27cf17b1`: ten mirror functions declare a
++    scalar return and `return None`, and exactly ONE is `-> str`.
++
++    RESIDUE, STATED RATHER THAN HIDDEN: a callee that returns `None` IMPLICITLY, by
++    falling off the end, has no `return None` for this check to see
++    (`scratchpad/w51/q6.py`). It fails closed today, but by a TYPE ACCIDENT — the
++    missing-return path makes Why3 expect `()` where a `string` is supplied — not by
++    anything that intends to. Recorded in the route file; if that accident is ever
++    fixed, this check must grow the fall-through arm with it.
++    """
++    if func.get("return_annotation") != "str":
++        return
++    if not _returns_literal_none(func.get("body", []) or []):
++        return
++    name = func.get("name", "<anonymous>")
++    raise PyCSLSemanticError(
++        f"function '{name}' is annotated `-> str` but can `return None`. Python "
++        f"does not enforce the hint and the model BELIEVES it: a caller's "
++        f"`<result> is None` test is then DECIDED false and the branch the program "
++        f"actually takes is deleted from the proof. Annotate `-> Optional[str]` "
++        f"(the model carries that faithfully) or remove the `return None`.",
++        code="PYCSL-SEM-RETANN")
++
++
+ # --- mutable default argument (front-end-resolved flag) ----------------------
+ 
+ def _check_mutable_defaults(func) -> None:
