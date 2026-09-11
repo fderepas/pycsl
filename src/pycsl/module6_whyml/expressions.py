@@ -8861,7 +8861,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if "." in func_name and func_name.rsplit(".", 1)[-1] in (
                 "islower", "isupper", "isalpha", "isdigit", "isspace",
                 "istitle", "isalnum", "isnumeric", "isdecimal",
-                "isidentifier", "startswith", "endswith"):
+                "isidentifier", "startswith", "endswith") and not (
+                    # (#49) ROUTE #74 — THIS 0/1 ORACLE MUST NOT SHADOW A METHOD THE USER
+                    # DEFINED. The match above is on the METHOD-NAME SUFFIX ALONE and the
+                    # receiver is ERASED (the emitted val takes NO parameters at all, so
+                    # nothing ties the axiom to any object). `_call_named_builtins` is
+                    # consulted BEFORE `_handle_dotted_call`, so for a user class whose
+                    # method happens to carry one of these twelve ordinary English names
+                    # the oracle WON over the real method. MEASURED, a complete program:
+                    #     class C:
+                    #         #@ ensures \result == 7
+                    #         def isdigit(self) -> int:   return 7
+                    #         #@ ensures \result <= 1     <-- PROVED. CPython answers 7.
+                    #         def g(self) -> int:         return self.isdigit()
+                    # The emission carried BOTH `val self_isdigit_0 () : int ensures
+                    # { ((result = 0) || (result = 1)) }` AND the user's real
+                    # `let c__isdigit (self: c) : int`, with the call site using the first
+                    # and the second sitting there unused. Anti-vacuity both ways: the TRUE
+                    # claim `\result == 7` did NOT prove.
+                    # This is the READ/PREDICATE twin of routes #13/#14, which keyed their
+                    # guard on the same structural tell (an abstract op that does not take
+                    # its receiver has been cut loose from it); there the erasure DELETED an
+                    # effect, here it ASSERTS A FALSE FACT.
+                    # FALL THROUGH rather than refuse, so the real method and its contract
+                    # are reachable -- the same choice route #73 made, where the positive
+                    # control (the TRUE claim proving again) is what showed the repair had
+                    # restored the honest lowering instead of merely suppressing a claim.
+                    # CENSUS: ZERO methods with any of the twelve names are defined in
+                    # `src/` or `test-suite/`, so this is byte-inert by construction.
+                    func_name.startswith("self.")
+                    and self._current_self_type is not None
+                    and whyml_ident(
+                        f"{self._current_self_type}__{func_name[len('self.'):]}")
+                    in getattr(self, "_module_method_return_types", {})):
             pname = whyml_ident(func_name.replace(".", "_")) + f"_{len(args)}"
             ens = "ensures { ((result = 0) || (result = 1)) }"
             if args:

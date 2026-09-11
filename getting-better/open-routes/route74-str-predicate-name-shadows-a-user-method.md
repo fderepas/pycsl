@@ -1,7 +1,6 @@
 # ROUTE #74 — a str-predicate NAME match shadows a user-defined class method
 
-**STATUS: OPEN — found in generation #6, repair scoped and censused, landing deferred only
-because the reference suite was reading the tree when it was found.**
+**STATUS: CLOSED** (found and repaired in generation #6).
 
 ## THE CARRIER
 
@@ -88,3 +87,45 @@ leaves): this closes the `self.<m>` spelling. The `obj.<m>()` spelling on a loca
 class is believed unreachable (gen #5 measured that object-typed locals do not emit in any
 spelling — a TYPE ACCIDENT, not a guard), but that is exactly the kind of accident that
 stops holding, and it must be re-measured rather than assumed.
+
+
+## THE LANDED REPAIR, AND WHAT MEASUREMENT ADDED
+
+The guard falls through (does not refuse) when the call resolves to a user-defined method,
+keyed the same way the `-> NoReturn` check already keys:
+`whyml_ident(f"{self._current_self_type}__{method}") in self._module_method_return_types`.
+
+**THE EMITTED RESULT IS THE POINT — THE FALSE AXIOM IS REPLACED, NOT MERELY SUPPRESSED:**
+
+```
+val self_isdigit_0 () : int
+  ensures { (result = 7) }      <- was: ensures { ((result = 0) || (result = 1)) }
+```
+
+The stub now carries the CALLEE'S OWN verified postcondition (propagated by route #70's
+machinery, since the callee has a trivial precondition). So `\result <= 1` fails because 7
+is not <= 1, and `\result == 7` proves.
+
+**A SECOND CARRIER WAS FOUND BY PROBING THE ARGUMENTS PATH.** `startswith`/`endswith` take
+arguments and go down a different branch, emitting
+`val self_startswith_1 (x0: int) : int ensures { ((result = 0) || (result = 1)) }`. With the
+guard removed it PROVED `\result <= 1` for a method returning 9. A guard closing only the
+zero-argument spelling would have left it open — witness 1180.
+
+## GATES
+
+* Anti-vacuity demonstrated BOTH DIRECTIONS by removing the guard: 1178 and 1180 both PROVE
+  with it off, both fail with it on.
+* **Positive controls, two of them:** 1179 (the user's true claim now proves) and 1181 (a
+  REAL `str.isdigit()` still discharges `<= 1`, so the repair did not blanket-remove the
+  predicate model — without it 1178 would pass for the wrong reason).
+* Blast radius censused at ZERO before landing: no method with any of the twelve names is
+  defined anywhere in `src/` or `test-suite/`.
+
+## RESIDUAL, MEASURED RATHER THAN ASSUMED
+
+The `obj.<m>()` spelling on a local of a user class (`c = C(); c.isdigit()`) does NOT prove.
+That matches gen #5's finding that object-typed locals do not emit in any spelling — it is a
+TYPE ACCIDENT rather than a guard, and it is recorded as such: if object locals ever start
+emitting, this spelling must be re-measured, because the name-match branch would be reached
+with `func_name` not starting with `self.` and the registry key would not be built.
