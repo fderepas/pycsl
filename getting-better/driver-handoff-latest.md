@@ -1,3 +1,161 @@
+# ====== START HERE — gen #7 FINAL STATE — read this block first ==================
+#
+# ## THE ONE-PARAGRAPH SUMMARY
+#
+#   ONE new soundness route, **#76**, found and CLOSED and FULLY GATED, and the gen-#6
+#   ladder's item 2 (**the `_add_abstract_op` ENSURES audit**) FINISHED and found CLEAN.
+#   #76 is the **DUAL of routes #42/#52**: those found `is` decided by VALUE equality
+#   (`is` too WEAK) and gave it its own IR operator; **the `==` side of that same coin was
+#   never examined**. `==` on a class instance emits Why3's logic `=`, which on a record is
+#   equality of the FIELD VALUES, while Python's `==` with no `__eq__` is IDENTITY — so
+#   `#@ ensures \result == x` PROVED for `dup(x) = C(x.v)` where CPython answers False.
+#   It is the #69 class, the serious one: a FALSE POSTCONDITION about ordinary TOTAL
+#   Python, no `no_exception` and no opt-in — and it also DISCHARGED a `requires` at a call
+#   site whose precondition is False at runtime. The metric never moved (459) and was never
+#   supposed to: the repair is a refusal.
+#
+# ## WHAT IS TRUE RIGHT NOW
+#
+#   ledger   **EMPTY. NO OPEN ROUTE.** #76 found and closed this generation. The stale
+#            "CURRENTLY OPEN: ONE — #59" line in `open-routes/README.md` was corrected
+#            (re-reproduced at HEAD first: #59 now gives an explicit refusal naming itself).
+#   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED.
+#   planes   **ALL 33 GREEN** (`--slow`, rc=0, clean tree). **EXPORT why3 FIRST:**
+#            `export PATH=$HOME/.opam/framac-coq8/bin:$PATH`.
+#   conform  **IR conformance 38/38, 0 MISMATCH** — run deliberately, per gen #6's lesson.
+#   corpora  **0 newly-refused files across 1645 corpus files + the mirror**, and the guard
+#            only RAISES or FALLS THROUGH — it never alters emitted text — so it is
+#            **byte-inert BY CONSTRUCTION**, not merely by sampling.
+#   suite    **3318/3337, ZERO XPASS**, rc=1 (the baseline condition). The 19 failures were
+#            **DIFFED against suite56_run3, not eyeballed, and are BYTE-FOR-BYTE IDENTICAL**.
+#            Baseline 3312/3331 -> 3318/3337: all six new witnesses pass, failure set frozen.
+#   OWED     **NOTHING.** No proof, battery or sweep in flight.
+#   tree     clean, every increment committed. The two GITLINKS (`scratchpad/w7/base`,
+#            `scratchpad/w8/pre`) and the 0-byte stray `str` in the repo root are
+#            PRE-EXISTING and are NOT dirt.
+#
+# ## THE ONE LESSON THAT GENERALISES FURTHEST THIS GENERATION
+#
+#   **AN ALLOWLIST KEYED ON SYNTAX FAILS CLOSED WHEN THE HAZARD MOVES; A BLOCKLIST KEYED ON
+#   SYNTAX FAILS OPEN.** This campaign has banked "a guard keyed on a syntactic location is
+#   defeated by moving the hazard one step" SIX times and kept treating it as a warning.
+#   It is not a warning — it is an instruction to INVERT THE POLARITY. #76's guard is an
+#   allowlist and every one-step-over move (ctor one call deeper, ctor via a local, ctor as
+#   the operand, the list-element carrier) lands OUTSIDE it and is refused for free.
+#
+#   TWO BLOCKLIST DESIGNS WERE REFUTED BY MEASUREMENT BEFORE EITHER LANDED:
+#     * "refuse when the body CONSTRUCTS" — `return mk(x.v)`, ctor one call deeper, PROVED;
+#     * "uninterpreted `obj_eq` + reflexivity" — **Why3's RECORD EXTENSIONALITY** already
+#       derives `{v = x.v} = x`, so any equality-derived predicate inherits the defect, and
+#       without reflexivity the five reference locks stop proving. No setting of that dial
+#       works. Knowing this saves the next generation from rebuilding it.
+#
+# ## ROUTE #76 IN SIX LINES (full file: `open-routes/route76-...md`)
+#
+#       class C:
+#           v: int
+#           def __init__(self, v: int) -> None: self.v = v
+#       #@ ensures \result == x          # PyCSL: SUCCESS.  CPython: dup(a) == a is False
+#       def dup(x: C) -> C: return C(x.v)
+#
+#   True twin (`!=`) FAILS, so it is a route and not a gap. **`@dataclass`/NamedTuple is
+#   FAITHFUL** (Python GENERATES a structural `__eq__` there) — that control is what bounds
+#   the route instead of over-refusing everything, the same role the List carrier played
+#   for #59. Closed by a fail-closed allowlist admitting: a NamedTuple/TypedDict; two
+#   syntactically identical pure READ PATHS; and `\result` against a read path when EVERY
+#   return is that path (the accessor idiom five reference locks carry). A read path
+#   excludes a Call — a constructor makes a NEW object every evaluation. `a[-k]` and
+#   `a[\length(a)-k]` are canonicalized onto one form so the allowlist is not defeated by
+#   SPELLING (lock 0934 spells the clause one way and its body the other — caught by
+#   RUNNING the locks, not by reading them).
+#
+# ## PROBING MY OWN REPAIR FOUND A LIVE GAP, BEFORE LANDING — DO THIS EVERY TIME
+#
+#   The first cut resolved a class-typed operand through `\result`, a typed local/param and
+#   a ctor Call only. It MISSED the `List[<record>]` ELEMENT: `#@ ensures a[0] == a[1]`
+#   still PROVED. One probe, found before landing. Witness 1193.
+#
+# ## PROBED THIS GENERATION WITH NO FINDING — DO NOT RE-PROBE
+#
+#   * **The ENTIRE BODY PLANE for class-instance comparison is held by ONE shared Why3
+#     type accident** (`c @rho` vs `int`). NINE dunder carriers enumerated mechanically
+#     (`__eq__`, `__ne__`, `__lt__`, `__bool__`, `__len__`, `__contains__`, `__getitem__`,
+#     `__add__`, plus a control) — every one dies with the SAME message. So do `is` and
+#     `is not` on two class instances, and the ORDERING operators `<`/`<=` in a SPEC.
+#     **That is a SAFE-TYPED verdict, i.e. a type accident and never a guard.** ONE
+#     reopening condition covers them all: any change making a class record type usable in
+#     an int context (an unboxing, a `__bool__`/`__len__` lowering) reopens ALL of them at
+#     once, and #76's guard covers only `==`/`!=`.
+#   * **The value-level escalation of #76 fails closed by Why3's OWN REGION TYPING** —
+#     `setv(dup(x)); return x.v` comes back Unknown, because a logic `=` between two
+#     records does not make them the same REGION. Same mechanism as #59's return carrier.
+#   * **The QUANTIFIED carrier of #76 is covered for free** — `\forall`/`\exists` with
+#     `a[k] == x` inside are caught, because the guard keys on the BINOP, not the clause.
+#   * **`axiom hash_eq_consistent_<cls>` (gen-#6 ladder item 2b) is UNREACHABLE, not merely
+#     switchable.** Both `<cls>_hash_` and `<cls>_eq_` are DEAD SYMBOLS: `hash(a)` lowers to
+#     an unrelated `val hash_1 (x0: int) : int` and type-rejects the class argument, and
+#     `a == b` goes to the record `=`. Reading WHY it does not reach `<cls>_eq_` is exactly
+#     how #76 was found.
+#   * **The CLASSIFICATION oracles do not yield a false proof in the shapes probed.**
+#     `ir_scanner.py`'s `.split` / `IRScanner.find_*` / `collect_*` array-vs-dict rules are
+#     mirror-domain conventions applied to every program (the #73/#74 shape), but a
+#     misclassification produces a TYPE ERROR or an unprovable goal: the true claim proves,
+#     both false twins fail. Three shapes probed — NOT a proof the class is empty.
+#
+# ## THE `_add_abstract_op` ENSURES AUDIT IS FINISHED AND CLEAN — WITH A ONE-LINE RE-CHECK
+#
+#   An `ensures` on an abstract `val` IS an axiom (how #73/#74 were found). Across the whole
+#   emitter there are **exactly TWO sites** that attach one, and they are the zero-arity and
+#   n-arity arms of ONE generic fallback. Their clause is **CALLEE-CONTRACT PROPAGATION,
+#   backed by a real VC** — measured: a method whose declared `#@ ensures \result == 7` is
+#   false of its body fails its OWN `c__m'vc`, so the file fails closed.
+#       grep -rn "_add_abstract_op(" src/pycsl/module6_whyml/ | grep -i ensures
+#   **should return exactly two lines. A THIRD is a live route until proven otherwise.**
+#   The dotted/class-name oracles gen #6 flagged (`.to_dict`, `.copy`, `.findall`, `.split`,
+#   `.get`, `IRScanner.*`, `self.ir.get`) carry NO axiom — the standing warning is CONFIRMED
+#   and now cheap to re-check.
+#
+# ## THE LADDER FOR THE NEXT RELAUNCH
+#
+#   1. **THE SPEC PLANE IS THE SOFT TARGET, AND THAT IS THIS GENERATION'S AIMING
+#      INSTRUCTION.** The BODY plane is broadly protected by Why3's type checker (nine
+#      dunders, `is`, the orderings — all one accident); the SPEC plane has no such
+#      constraint, which is the ONLY reason #76 lives there. For any construct that fails
+#      closed in a body, **re-probe its SPEC-plane spelling** before believing it is safe.
+#   2. **#76's THREE RESIDUES**, each with its reopening condition in the route file:
+#      (a) `@dataclass` is now OVER-REFUSED — a completeness regression, zero corpus cost
+#      today; fix is to thread `is_dataclass` from Module 5 (MIRRORED, so it owes a
+#      re-proof). (b) the record-FIELD carrier `b.p == b.q` is held ONLY by the type
+#      accident and the guard does NOT see it — one more resolver branch
+#      (`FieldGet` -> receiver class -> `field_types[field]`) closes it. (c) the value model
+#      has NO object identity and the spec grammar has NO `is` (measured: `\result is x`
+#      does not parse) — the complete fix is an opaque per-object identity slot, whose blast
+#      radius is EVERY record emission and therefore hundreds of re-proofs, **beyond the
+#      measured box ceiling**. That is a COST boundary with a measured reason, not a guess.
+#   3. **The remaining half of the abstract-op audit is a CLASSIFICATION audit, not an axiom
+#      audit** — recognizers that mis-MODEL a call without emitting any clause. Three shapes
+#      probed clean; the vein is not exhausted.
+#   4. **Grow `test-suite/no-exception-differential/`** — still the cheapest route detector
+#      in the tree, and it curates nothing (each driver runs itself under CPython).
+#   5. The gen-#5 claim backlog, still largely unmined: the module-GLOBAL singleton field
+#      store `g.v = n`; the module-const dict fold's invalidation omitting MUTATION.
+#
+# ## PROCESS LESSONS PAID FOR THIS GENERATION
+#
+#   * **DO NOT EDIT SOURCE WHILE A GATE BATTERY RUNS.** A 33-plane battery was DISCARDED and
+#     re-run because source changed mid-flight: a mixed-tree verdict is worthless.
+#   * **RE-REPRODUCE A STATUS LINE BEFORE EDITING IT, AND VERIFY YOUR OWN CENSUS READING.**
+#     The census first looked like five `Tok == None` hits; the "None" was the UNRESOLVED
+#     CLASS, not the None literal. They were `\result == <subscript>` — the SAME SHAPE as
+#     the exploit. A blanket refusal would have broken five reference locks. One extra
+#     dump separated them.
+#   * **CHECK A REGRESSION AGAINST ITS BASELINE BEFORE CALLING IT ONE.** Lock 0901 fails
+#     with the guard AND without it — pre-existing, verified by re-running with the guard
+#     removed rather than assumed either way.
+#
+# ===================================================================================
+#
+#
 # ====== START HERE — gen #6 FINAL STATE — read this block first ==================
 #
 # ## THE ONE-PARAGRAPH SUMMARY
