@@ -3,8 +3,8 @@
 # ## WHAT IS TRUE RIGHT NOW
 #
 #   ledger   **EMPTY. NO OPEN ROUTE.** Route #59 is fully closed (all seven carriers), and
-#            #60, #61, #62, #63, #64 and #65 were each FOUND AND CLOSED this generation.
-#            SIX new routes found and closed, plus #59 finished.
+#            #60 through #66 were each FOUND AND CLOSED this generation.
+#            SEVEN new routes found and closed, plus #59 finished.
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED all
 #            generation, and that is the EXPECTED shape of a window paying the soundness
 #            ladder. Four repairs, all refusals or whitelists; none costs the trust surface.
@@ -91,6 +91,14 @@
 #   Closed by REFUSING all four under a matching `no_exception` context (divmod lowers to a
 #   fully opaque val, so there is nothing faithful to inject), plus a NEW PLANE.
 #
+#   **#66 — OPERATIONS PyCSL LOWERS WITH NO TRIGGER ROW AT ALL.** Three carriers:
+#   `del d[k]` on an absent key (`KeyError`), `int("abc")` (`ValueError`) and `chr(-1)`
+#   (`ValueError`) all proved under `no_exception`. `del` and `chr` were WIRED with faithful
+#   conditions and DISCRIMINATE (absent fails / present proves; `chr(-1)` fails / `chr(65)`
+#   proves); `int(<str>)` is REFUSED because it lowers to an opaque val. **`chr` was worse
+#   than a missing row** — `val chr_op` carried `ensures { String.length result = 1 }`
+#   UNCONDITIONALLY, a TOTALITY Python does not have, which every consumer inherited.
+#
 # ## THE NEW PLANE, AND THE WAY IT CAUGHT ITSELF
 #
 #   `bin/check-trigger-rows-live.py` — every `TRIGGERS` row must be CONSULTED at an injection
@@ -163,6 +171,17 @@
 #     were still running 13h later, armed to kill this generation's suite to protect proofs
 #     that had finished. Killed. Match on the script path AND exclude your own PID.
 #
+# ## THE TRAP THAT NEARLY COST A TEN-WAY FALSE "NO FINDING"
+#
+#   An audit of ten raising operations under `#@ no_exception \all` returned TEN clean
+#   "refused/failed" verdicts. Every one was `ERROR: 'why3' command not found` — the
+#   classification loop had run without `export PATH=$HOME/.opam/framac-coq8/bin:$PATH`.
+#   **A MISSING TOOL LAUNDERED INTO WHAT READ EXACTLY LIKE TEN CONFIRMED SAFE BOUNDARIES.**
+#   With why3 present, one of the ten PROVED (that is route #66's `chr` carrier). Generation
+#   #4 hit the identical trap from the other side. **ASSERT `which why3` AT THE TOP OF EVERY
+#   PROBE LOOP**, and treat any batch that comes back uniformly negative as suspect until the
+#   tool is confirmed.
+#
 # ## PROBED THIS GENERATION WITH NO FINDING — DO NOT RE-PROBE
 #
 #   * Class invariants ARE inherited and enforced on SUBCLASS methods (both directions).
@@ -177,6 +196,10 @@
 #     argument does NOT cover (slot-to-slot `a[0]=a[1]`, a NAMED row in the literal, and the
 #     field version) ALL type-reject, on both the int (matrix) and str (seq) leaf.
 #   * `len` on a LIST is correctly undecided under a conditional append (real sidecar ref).
+#   * Nine of the ten audited raising operations are covered or unreachable: `list.pop()`
+#     on empty / `list.remove(absent)` / a `[::0]` slice are REFUSED; `"ab"[5:6]` / `min([])`
+#     / `max([])` are EMISSION-FAIL; and `xs[5]` / `d[5]` / `bytes([300])` correctly do NOT
+#     discharge, through the WIRED `in_bounds` and `map_get` rows.
 #   * Route #60's edges REFUSE independently: `del` then `len`, `\length` in a SPEC
 #     position, the SET twin, and dict/set COMPREHENSION sizes.
 #   * Route #61's ELEMENT fold is faithful (`d[a]` with `a==b` proves 2). Only size broke.
