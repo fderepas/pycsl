@@ -3,8 +3,8 @@
 # ## WHAT IS TRUE RIGHT NOW
 #
 #   ledger   **EMPTY. NO OPEN ROUTE.** Route #59 is fully closed (all seven carriers), and
-#            #60 through #67 were each FOUND AND CLOSED this generation.
-#            EIGHT new routes found and closed, plus #59 finished.
+#            #60 through #69 were each FOUND AND CLOSED this generation.
+#            **TEN new routes found and closed**, plus #59 finished.
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED all
 #            generation, and that is the EXPECTED shape of a window paying the soundness
 #            ladder. Four repairs, all refusals or whitelists; none costs the trust surface.
@@ -104,6 +104,27 @@
 #   batch confirms a symbolic list index, a bytearray index and `1 // (a - a)` all correctly
 #   FAIL to discharge — but a STRING read goes down `char_code_at`, which no row covered.
 #   WIRED with the exact bound, so `ord(s[1])` still proves.
+#
+#   **#68 — `float(<str>)`, `**` AND THE LONG-DEAD SHIFT ROWS.** `0 ** -1` and `1 << -1` both
+#   proved under `no_exception \all`. The shift one matters most: `non_neg_shift` had been in
+#   the table for ages and `check-trigger-rows-live` called it LIVE, because ONE binop site
+#   passes a DYNAMIC op-key and the plane approves a whole KIND from one. The bitwise/power
+#   path is a different site and never wrapped. Fixed by making the assumption TRUE (that
+#   path now wraps), not by weakening the check.
+#
+#   **#69 — `ord()` OF A NON-ASCII STRING. THE MOST SERIOUS OF THE TEN.** `return ord("€")`
+#   proved `#@ ensures \result < 256` while CPython answers 8364 — **with no `no_exception`,
+#   no exception, and no opt-in of any kind.** Every other route this generation needed the
+#   user to ask for something; this one is a false postcondition about ordinary TOTAL Python.
+#     **MY FIRST DIAGNOSIS WAS WRONG AND THAT IS THE INSTRUCTIVE PART.** I assumed the
+#     `ensures { 0 <= result < 256 }` on `ord_op` was the defect and widened it. **It changed
+#     nothing** — because the literal `"€"` is emitted as its UTF-8 BYTES (`"\xe2\x82\xac"`,
+#     three bytes) and Why3's `Char.code` is 0..255 by that theory's own axioms, so the bound
+#     follows from the OTHER `ensures` regardless. `ord` reads the first BYTE.
+#     **AND THE MODEL IS INTERNALLY INCONSISTENT:** `len("€") == 1` PROVES (correct, folded
+#     from the Python literal) while `ord("€") < 256` PROVES (wrong). One operation uses code
+#     points, the other bytes, on the same literal in the same function — which is why the
+#     repair refuses `ord` rather than the literal.
 #
 # ## THE SHARPEST UNFINISHED THREAD — A FALSE AXIOM CLASS, NOT A ROUTE
 #
@@ -224,6 +245,35 @@
 #   * Route #61's ELEMENT fold is faithful (`d[a]` with `a==b` proves 2). Only size broke.
 #   * An IMPLICIT None return from a scalar-annotated function type-errors (fails closed).
 #   * The DIRECT `@mutable_state` param-mutation case is already guarded and fires.
+#
+# ## THE ABSTRACT-`val` AUDIT — DONE ONCE, AND IT HAS UNWORKED LEADS
+#
+#   The "audit every abstract `val`" follow-up was RUN (288 `_add_abstract_op` call sites,
+#   179 distinct declarations, plus 31 ensures-bearing `val`s written straight into
+#   `preamble.py`). Route #69 came out of it. The classification: 122 OPAQUE (no `ensures`,
+#   so harmless), 67 TOTAL-OK, 9 PARTIAL-GUARDED, **12 PARTIAL-UNGUARDED**. Exactly ONE
+#   `_add_abstract_op` declaration in the whole codebase carries a `requires`.
+#
+#   **LEADS NOT YET WORKED — each is a candidate route, none is confirmed:**
+#     * `str_sub_op` is used BOTH for the total slice `s[a:b]` AND, at
+#       `expressions.py:12788`, for the ELEMENT read `s[i]` — and its first `ensures` is
+#       unconditional in `lo`. Route #67 wired only the `ord(s[i])` path, so a BARE `s[i]`
+#       may still carry no `IndexError` obligation. (My probe of the bare form hit an
+#       EMISSION-FAIL, so it needs a second spelling before it counts either way.)
+#     * `map_update_none` is shared by `del d[k]` (now wired, #66) and by
+#       `set.remove`/`set.discard` at `statements.py:3010-3029`, which emits NO assert —
+#       `s.remove(5)` on a set without 5 raises `KeyError`. My probe EMISSION-FAILed; retry.
+#     * `str_split_elem_op` — `ensures` unconditional in both `sep` and `i`;
+#       `"a b".split(" ")[5]` is `IndexError`, `"ab".split("")` is `ValueError`.
+#     * `ord_op`'s `0 <= result < 256` is ALSO false on a TOTAL input for the same reason as
+#       #69 and is now refused only via the non-ASCII guard — a non-literal path may remain.
+#     * `struct_pack_i1a1` / `struct_pack_i18` are the two UNGUARDED entries in a registry
+#       whose eight siblings all carry the correct `requires`.
+#     * **SYSTEMIC, AND THE BIGGEST OF THEM:** the generic dotted-callee stub
+#       (`expressions.py:7040`) builds an `ensures_suffix` from the callee's contract and
+#       **there is no `requires_suffix` and no requires registry anywhere**. For a callee
+#       reached through that path (imported / out-of-module), its POSTCONDITION is assumed
+#       unconditionally while its PRECONDITION is silently discarded. Verify this first.
 #
 # ## THE LADDER FOR THE NEXT RELAUNCH
 #
