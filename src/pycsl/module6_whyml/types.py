@@ -183,9 +183,30 @@ class TypeInferenceMixin:
                 else:
                     _r54_norm = None
                     break
-            if target not in _u_sz:
-                self._known_collection_sizes[target] = (
-                    len(set(_r54_norm)) if _r54_norm is not None else len(keys))
+            # (#49) ROUTE #61 — `else len(keys)` WAS THE ROUTE. `_r54_norm` is None exactly
+            # when some key is NOT a literal, and the fallback took the raw SYNTACTIC count.
+            # Measured: `#@ requires a == b` then `d = {a: 1, b: 2}; return len(d)` PROVED
+            # `\result == 2` while CPython answers 1 — the precondition hands the prover the
+            # collision as a FACT and the fold answers 2 anyway, because it never consults
+            # the map.
+            #
+            # This was DOCUMENTED as a "stated residue ... because two variables may be
+            # equal and the fold cannot know". That reasoning is right and the conclusion
+            # drawn from it was wrong: **"the fold cannot know" is an argument for REFUSING,
+            # not for guessing.** A residue that proves a FALSE claim is a soundness route;
+            # a boundary fails closed. So no size is registered at all when any key is
+            # non-literal, and `len(d)` falls through and fails closed — exactly what every
+            # other unfoldable dict `len` already does.
+            #
+            # The ELEMENT fold is NOT affected and needs no change: `elem_map` below only
+            # ever holds Number/Bool keys, and the MAP itself is faithful, so `d[a]` with
+            # `a == b` already proves Python's answer (2, the later entry winning) and the
+            # false twin already fails. Measured both directions.
+            #
+            # Route #54 closed the CONSTANT-key literal and route #60 the STORE; this is the
+            # third and last path to the same semantics.
+            if target not in _u_sz and _r54_norm is not None:
+                self._known_collection_sizes[target] = len(set(_r54_norm))
             elem_map = {}
             for k, v in zip(keys, val_ir.get("values", [])):
                 _r54_kv = None
