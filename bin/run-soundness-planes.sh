@@ -124,6 +124,7 @@ SLOW_PLANES=(
     count-trusted-directives.py
     check-mirror-type-only.py
     check-no-exception-differential.py
+    check-value-differential.py
 )
 # Planes that take the shared mirror emission. Anything not listed runs bare, exactly as
 # before.
