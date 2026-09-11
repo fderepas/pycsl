@@ -2,26 +2,33 @@
 #
 # ## THE ONE-PARAGRAPH SUMMARY
 #
-#   ONE new soundness route (#73) found and closed, and ONE INHERITED GATE FOUND DEFECTIVE
-#   AND FIXED. Route #73 is the #69 class — the serious one: a FALSE POSTCONDITION about
-#   ordinary TOTAL Python, needing no `no_exception` and no opt-in of any kind. Beyond that,
-#   three probe batches (36 drivers) aimed at the exception model found NOTHING, which is
-#   itself the result: the gen-#5 handoff's five unworked abstract-`val` leads are NOT live
-#   routes, and the exception model's obligations do NOT stop at the frame. The metric never
-#   moved (459) and was never supposed to.
+#   TWO new soundness routes (#73, #74) found and closed, and ONE INHERITED GATE FOUND
+#   DEFECTIVE AND FIXED. **BOTH ROUTES ARE ONE DEFECT**: an OPAQUE ORACLE SHADOWING CODE THE
+#   USER WROTE — #73 keyed on a literal STRING, #74 on a method NAME — and both are the #69
+#   class, the serious one: a FALSE POSTCONDITION about ordinary TOTAL Python, needing no
+#   `no_exception` and no opt-in of any kind. **#74 WAS FOUND BY PROBING #73's REPAIR**, and
+#   its own second carrier was found by probing the repair for #74 before landing it.
+#   Beyond that, three probe batches (36 drivers) aimed at the exception model found NOTHING,
+#   which is itself the result: the gen-#5 handoff's five unworked abstract-`val` leads are
+#   NOT live routes, and the exception model's obligations do NOT stop at the frame. The
+#   metric never moved (459) and was never supposed to.
 #
 # ## WHAT IS TRUE RIGHT NOW
 #
-#   ledger   **EMPTY. NO OPEN ROUTE.** #73 found and closed this generation.
+#   ledger   **EMPTY. NO OPEN ROUTE.** #73 and #74 found and closed this generation.
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED, the expected
 #            shape of a window paying the soundness ladder. The repair is a refusal.
-#   planes   **ALL 33 GREEN under `--slow`**, run twice this generation (once for the gate
-#            change, once for the #73 repair). **RUN WITH why3 ON PATH**
+#   planes   **ALL 33 GREEN under `--slow`**, run THREE times this generation (the gate
+#            change, the #73 repair, the #74 repair). **RUN WITH why3 ON PATH**
 #            (`export PATH=$HOME/.opam/framac-coq8/bin:$PATH`).
-#   corpora  **BOTH byte-inert** against a pre-repair baseline, except EXACTLY the three
-#            #73 witnesses — which are the drivers written to exercise the repair, so their
-#            emission MUST change. python-reference 2204/2204 inert; pycsl-reference 959/959
-#            with 3 MOVED, 0 GONE, 0 APPEARED.
+#   corpora  **BOTH byte-inert** against a pre-repair baseline for EACH repair, except
+#            exactly that repair's own witnesses. #73: pyref 2204/2204 inert, pycsl-ref
+#            959/959 with 3 MOVED. #74: pyref 2204/2204 inert, pycsl-ref 963/963 with 3
+#            MOVED — and 1181, the REAL-`str` positive control, did NOT move, so the genuine
+#            predicate path is untouched at the BYTE level, not merely at the verdict level.
+#   suite    **3302/3321, ZERO XPASS**, failure set BYTE-FOR-BYTE identical to the
+#            suite55_run5 baseline (19, diffed not eyeballed). rc=1 IS the baseline
+#            condition. `proofs49/suite56_run1.{log,rc}` (#73) and `suite56_run2.*` (#74).
 #   tree     clean, every increment committed. The two GITLINKS (`scratchpad/w7/base`,
 #            `scratchpad/w8/pre`) and the 0-byte stray `str` in the repo root are
 #            PRE-EXISTING and are NOT dirt.
@@ -78,6 +85,47 @@
 #   the mirror's domain convention, not a property of Python. REOPENING CAPABILITY: emit the
 #   non-negativity as an OBLIGATION at the `Array.make` site instead of an axiom on the
 #   getter, which costs the mirror a proof it currently gets for free.
+#
+# ## ROUTE #74 — THE SAME DEFECT ONE FIELD OVER, FOUND BY PROBING #73's REPAIR
+#
+#       class C:
+#           #@ ensures \result == 7
+#           def isdigit(self) -> int:  return 7
+#           #@ ensures \result <= 1                 <-- PROVED. CPython answers 7.
+#           def g(self) -> int:        return self.isdigit()
+#
+#   `_call_named_builtins` matched on the METHOD-NAME SUFFIX ALONE, with the receiver
+#   ERASED, and it is consulted BEFORE `_handle_dotted_call` — so the oracle WON over the
+#   user's real method. **TWELVE ordinary English names are exposed**: islower, isupper,
+#   isalpha, isdigit, isspace, istitle, isalnum, isnumeric, isdecimal, isidentifier,
+#   startswith, endswith.
+#
+#   **THE EMISSION CONTAINED BOTH, AND THAT IS THE PROOF:**
+#       val self_isdigit_0 () : int ensures { ((result = 0) || (result = 1)) }   <- oracle
+#         (self_isdigit_0 ())                                                     <- call site
+#       let c__isdigit (self: c) : int                                            <- REAL, UNUSED
+#   Note the EMPTY parameter list: the receiver is gone, so nothing ties the axiom to any
+#   object. That is the same structural tell routes #13/#14 keyed on — except there the
+#   erasure DELETED an effect, and here it ASSERTS A FALSE FACT.
+#
+#   **A SECOND CARRIER CAME OUT OF PROBING THE REPAIR BEFORE LANDING IT.** `startswith`/
+#   `endswith` take arguments and go down a DIFFERENT branch (`val self_startswith_1
+#   (x0: int) : int`, same false ensures). With the guard removed it proved `\result <= 1`
+#   for a method returning 9. A guard closing only the zero-argument spelling would have
+#   left it open — witness 1180.
+#
+#   REPAIR: fall THROUGH (do not refuse) when the call resolves to a user-defined method,
+#   keyed as the existing `-> NoReturn` check keys it. **THE FALSE AXIOM IS REPLACED, NOT
+#   SUPPRESSED** — the stub now carries the CALLEE'S OWN postcondition,
+#   `ensures { (result = 7) }`, via route #70's propagation machinery.
+#   Witnesses 1178 (negative), 1179 + 1181 (TWO positive controls — the user's true claim,
+#   and a REAL `str.isdigit()` still discharging `<= 1`, which is what stops the fix being a
+#   blanket removal of the predicate model), 1180 (the arguments carrier).
+#
+#   **RESIDUAL, MEASURED NOT ASSUMED:** the `obj.<m>()` spelling on a user-class local does
+#   NOT prove — but that is gen #5's object-typed-locals TYPE ACCIDENT, not a guard. If
+#   object locals ever start emitting, re-measure it: the name-match branch would be reached
+#   with `func_name` not starting with `self.`, and the registry key would not be built.
 #
 # ## THE INHERITED GATE WAS A FALSE-POSITIVE GENERATOR — FIXED
 #
@@ -151,17 +199,19 @@
 #   1. **GROW `test-suite/no-exception-differential/` — it is now the cheapest route
 #      detector in the tree** and it found #73's neighbourhood by making probing mechanical.
 #      Every new raising Python operation added is a permanent check. It curates nothing.
-#   2. **THE `_add_abstract_op` AUDIT IS NOT FINISHED, and #73 shows where the yield is:**
+#   2. **THE `_add_abstract_op` AUDIT IS NOT FINISHED, and #73/#74 show where the yield is:**
 #      not in the `ensures` clauses that model Python operations (a full pass over those
 #      found them sound — see the inventory in the gen-#6 audit), but in the HAND-ADDED
 #      ORACLES keyed on a literal string, a method NAME, or a domain convention. Two leads
-#      remain UNMEASURED: (a) the 0/1 predicate ops at `expressions.py:8863-8899` match on
-#      METHOD-NAME SUFFIX with the receiver ERASED, so a user class defining
-#      `def isdigit(self) -> int: return 7` may get `ensures { result = 0 || result = 1 }`
-#      asserted about a 7 — the same shadowing shape as #73, NOT yet witnessed; (b)
-#      `preamble.py:9081` emits `axiom hash_eq_consistent_<cls>` for any user class defining
+#      remain: (a) ~~the 0/1 predicate ops~~ — **CONFIRMED AND CLOSED AS ROUTE #74**; (b)
+#      STILL UNMEASURED: `preamble.py:9081` emits `axiom hash_eq_consistent_<cls>` for any user class defining
 #      both `__eq__` and `__hash__`, which Python does not enforce (labelled UB-7.2 and
 #      switchable, so it is a known assumption rather than a hidden one).
+#      **AND THE GENERAL FORM, which is now the sharpest instruction in this file: EVERY
+#      HAND-ADDED ORACLE KEYED ON A NAME — a literal string, a method name, a key — IS A
+#      CANDIDATE FOR SHADOWING SOMETHING THE USER WROTE. Both of this generation's routes
+#      were that, and neither needed any opt-in. Enumerate the name-keyed branches in
+#      `_call_named_builtins` and ask of each: what if the user defined this?**
 #   3. The gen-#5 claim backlog, still largely unmined: a frameless `#@ depends_method`; the
 #      module-GLOBAL singleton field store `g.v = n`; the module-const dict fold's
 #      invalidation omitting MUTATION; the `is` blacklist's unannotated-local hole; `return`
