@@ -53,8 +53,9 @@ and it FAILS unless this plane rules that driver UNSOUND. The standing run SKIPS
 
 ## THE SEED POPULATION (gen #7)
 
-Twelve drivers, six AGREE / six DISAGREE, pinning two semantics that are easy to regress to
-a "reasonable" wrong answer:
+**Twenty-two drivers, twelve AGREE / ten DISAGREE**, pinning semantics that are easy to
+regress to a "reasonable" wrong answer. Each DISAGREE driver is the twin of an AGREE one:
+it states the plausible WRONG answer, and the gate requires PyCSL to keep refusing it.
 
   * **Floor division and modulo with a NEGATIVE DIVISOR.** `identifiers.py`'s `OP_MAP`
     comments still say `//` -> `div` and `%` -> `mod` (Why3 `int.EuclideanDivision`), and
@@ -64,6 +65,21 @@ a "reasonable" wrong answer:
   * **`and`/`or` return an OPERAND, not a bool.** `0 or 5` is **5**, `5 and 3` is **3**.
     v04/v05 pin that; v10/v11 are the boolean-collapse twins that must stay refused.
   * **Container truthiness.** The empty string is FALSY. v06 pins it; v12 is the twin.
+  * **FLOOR division vs C-STYLE TRUNCATION, the other classic wrong model.** `-1 // 2` is
+    **-1** in Python (floor) where truncation toward zero gives 0; `-1 % 2` is **1** and
+    `-7 % 3` is **2**, where a C remainder gives -1 for both. v13-v15 pin Python's answers,
+    v19-v21 are the C twins that must stay refused.
+  * **A `bool` IS an `int`.** `True + True` is **2**, not a collapsed 1 (v16 / v22).
+  * **`2 ** 10` is 1024** (v17, pins the power operator against an XOR reading) and
+    **`len("abc")` is 3** (v18).
+
+## KNOWN UNMODELLED, DELIBERATELY NOT ADDED AS DRIVERS (gen #7, measured)
+
+`round()` and `int(<float>)` are Why3 TYPE-REJECTED today (`real` where an `int` is
+expected), so BOTH directions fail and they would only ever report as OUT OF SCOPE. They are
+worth revisiting the moment either is modelled, because Python's rules are exactly the kind a
+model gets wrong: `round(2.5)` is **2**, not 3 (BANKER'S rounding — ties go to even), and
+`int(-3.7)` is **-3** (truncation toward zero), not the floor -4.
 
 Grow it. Every raising-free Python operation whose value the model could plausibly get
 wrong is one more permanent, self-measuring check.

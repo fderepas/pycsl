@@ -144,7 +144,7 @@
 #   MEASURED by CPython on every run rather than asserted by whoever wrote the driver.
 #   RED = (claim disagrees with CPython) + (PyCSL PROVES).
 #
-#   Seeded with 12 drivers, **6 AGREE (all prove) / 6 DISAGREE (all correctly refused)**.
+#   Seeded with **22 drivers, 12 AGREE (all prove) / 10 DISAGREE (all correctly refused)**.
 #   Population guard per the #44 rule (rc=2 unless BOTH populations exist, since the gate is
 #   otherwise satisfiable by refusing everything); parsing is FAIL-CLOSED; a missing why3
 #   REFUSES rather than reporting green.
@@ -184,7 +184,7 @@
 #      audit** — recognizers that mis-MODEL a call without emitting any clause. Three shapes
 #      probed clean; the vein is not exhausted.
 #   4. **Grow BOTH differential corpora** — `no-exception-differential/` (40 drivers) and the
-#      new `value-differential/` (12). They curate nothing, so every driver added is a
+#      new `value-differential/` (22). They curate nothing, so every driver added is a
 #      permanent self-measuring check. The VALUE one is the newer and thinner of the two and
 #      is aimed squarely at the campaign's most serious defect class.
 #   5. The gen-#5 claim backlog, still largely unmined: the module-GLOBAL singleton field
