@@ -202,6 +202,28 @@ class PyCSLWeaver(ast.NodeVisitor):
         def close_dep() -> None:
             nonlocal open_dep
             if open_dep is not None:
+                # (#49) FINDING w56 — A FRAMELESS DEPENDENCY WINDOW IS FAIL-OPEN, SO REQUIRE
+                # THE FRAME. Without `assigns`, the dependency lowers to an abstract `val`
+                # declaring NO effect, and any method that calls it may then claim
+                # `#@ assigns \nothing` however much state the real provider writes. The
+                # (#32) work made that frame DECLARABLE; it did not make it REQUIRED, and
+                # fail-open is the wrong default for a frame.
+                # MEASURED both ways on driver 0968, whose own docstring describes the
+                # experiment: with the window's `assigns` KEPT and the caller weakened to
+                # `assigns \nothing`, Why3 REJECTS ("this expression depends on variable
+                # _pyobj_state, which is left out in the specification"); with the window's
+                # `assigns` REMOVED, that same weakened caller PROVES.
+                # REFUSE rather than guess a frame: guessing `\nothing` re-creates exactly
+                # the hole, and guessing "writes everything" silently widens every caller.
+                if not open_dep["assigns"]:
+                    raise PyCSLSemanticError(
+                        "the `#@ %s_method %s` window declares no `#@   assigns`: a dependency "
+                        "with no frame lowers to an abstract `val` that declares NO "
+                        "effect, so every method calling it may claim `assigns \\nothing` "
+                        "however much state the real provider writes — a false frame no "
+                        "proof plane can contradict. Declare the dependency's frame in the "
+                        "window (`#@   assigns \\nothing` if it genuinely writes nothing)."
+                        % (open_dep["kind"], open_dep["method"]))
                 node.csl_method_deps.append(open_dep)
                 open_dep = None
 
