@@ -911,23 +911,12 @@ class FunctionEmissionMixin:
         #     PYTHON's key equality (the same normalisation route #54 gave the literal
         #     fold: a Bool key is the int 1/0, so `{1:1}` then `d[True]=2` is a repeat).
         # Anything else is refused rather than guessed.
-        def _r60_norm_key(_k):
-            """Python's key identity for a LITERAL key, or None if not a literal."""
-            if not isinstance(_k, dict):
-                return None
-            _t = _k.get("type")
-            if _t == "Bool":
-                return ("n", 1 if _k.get("value") else 0)
-            if _t == "Number" and isinstance(_k.get("value"), (int, float)):
-                return ("n", _k.get("value"))
-            if _t == "String" and isinstance(_k.get("value"), str):
-                return ("s", _k.get("value"))
-            return None
-
+        # NOTE: no nested `def` anywhere in this method. `check-mirror-coverage` counts
+        # every live `def` with no mirror counterpart, and a helper added here moves that
+        # ratchet — the same trap route #59's own first build fell into. The key
+        # normalisation is therefore written out at both of its two sites.
         _r60_body = func.get("body", []) or []
-        # Statement objects that sit at the function's TOP LEVEL, by identity.
         _r60_top_ids = {id(_s) for _s in _r60_body if isinstance(_s, dict)}
-        # Every store to a bare name, anywhere, with its key and its top-level-ness.
         _r60_stores: Dict[str, List[Any]] = {}
         _r60_stack: List[Any] = [_r60_body]
         while _r60_stack:
@@ -936,15 +925,25 @@ class FunctionEmissionMixin:
                 if _n.get("stmt") == "ArraySet":
                     _b = _n.get("array")
                     if isinstance(_b, dict) and _b.get("type") == "Var":
+                        # Python's key identity for a LITERAL store key, else None.
+                        _ki = _n.get("index")
+                        _nk = None
+                        if isinstance(_ki, dict):
+                            _kt = _ki.get("type")
+                            if _kt == "Bool":
+                                _nk = ("n", 1 if _ki.get("value") else 0)
+                            elif (_kt == "Number"
+                                  and isinstance(_ki.get("value"), (int, float))):
+                                _nk = ("n", _ki.get("value"))
+                            elif (_kt == "String"
+                                  and isinstance(_ki.get("value"), str)):
+                                _nk = ("s", _ki.get("value"))
                         _r60_stores.setdefault(_b.get("name"), []).append(
-                            (_r60_norm_key(_n.get("index")), id(_n) in _r60_top_ids))
+                            (_nk, id(_n) in _r60_top_ids))
                 _r60_stack.extend(_n.values())
             elif isinstance(_n, (list, tuple)):
                 _r60_stack.extend(_n)
         if _r60_stores:
-            # Names bound to a dict literal at top level, and how often they are bound
-            # AT ALL (a name bound twice is already poisoned by routes #32/#33, but the
-            # count is re-derived here rather than assumed).
             _r60_lit: Dict[str, Any] = {}
             _r60_binds: Dict[str, int] = {}
             _r60_bstack: List[Any] = [_r60_body]
@@ -957,8 +956,21 @@ class FunctionEmissionMixin:
                         _v = _n.get("value")
                         if (isinstance(_v, dict) and _v.get("type") == "DictLit"
                                 and id(_n) in _r60_top_ids):
-                            _r60_lit[_tn] = [_r60_norm_key(_k)
-                                             for _k in (_v.get("keys") or [])]
+                            _lk = []
+                            for _k in (_v.get("keys") or []):
+                                _nk2 = None
+                                if isinstance(_k, dict):
+                                    _kt = _k.get("type")
+                                    if _kt == "Bool":
+                                        _nk2 = ("n", 1 if _k.get("value") else 0)
+                                    elif (_kt == "Number"
+                                          and isinstance(_k.get("value"), (int, float))):
+                                        _nk2 = ("n", _k.get("value"))
+                                    elif (_kt == "String"
+                                          and isinstance(_k.get("value"), str)):
+                                        _nk2 = ("s", _k.get("value"))
+                                _lk.append(_nk2)
+                            _r60_lit[_tn] = _lk
                     _r60_bstack.extend(_n.values())
                 elif isinstance(_n, (list, tuple)):
                     _r60_bstack.extend(_n)
@@ -973,6 +985,114 @@ class FunctionEmissionMixin:
                     _ok = len(set(_all)) == len(_all)
                 if not _ok:
                     self._fold_unsafe_sizes.add(_name)
+        # (#49) ROUTE #59 CARRIERS 6 AND 7 — A FIELD STORE OF A DICT IS A VALUE COPY.
+        # `self.d = p` on a dict binds the field to a COPY of a pure Why3 map, so two
+        # names for one Python dict diverge. Measured at HEAD, both directions:
+        #     carrier 6:  p={1:1}; self.d=p; p[1]=2;                return self.d[1]
+        #     carrier 7:  p={1:1}; self.d=p; self.e=p; self.d[1]=2; return self.e[1]
+        # CPython answers 2 for both; `\result == 1` PROVED for both.
+        #
+        # WHY THE GUARD LIVES HERE AND NOT IN `_handle_fieldassign_stmt`. That is the
+        # natural home and it was TRIED TWICE and REFUTED (relaunch #54): the mirror
+        # VERIFIES that method VERBATIM, so a recursive `_stack`/`.pop()` walk is refused
+        # by PyCSL's OWN ownership discipline for in-place receiver mutation, and a flat
+        # mirrorable scan emits ILL-TYPED. `_reset_function_state` is a `\trusted` mirror
+        # stub, so the analysis is unconstrained here — the same shape that let route #60
+        # land. No new helper method (a live-only function with no mirror counterpart
+        # moves the `check-mirror-coverage` ratchet, which is what route #59's own first
+        # build did).
+        #
+        # GATED ON THE LOCAL STAYING OBSERVABLE, and that gate is the whole subtlety.
+        # `p = {}; self.d = p; self.d[1] = 2` is FINE — `p` is never read again, so the
+        # copy is indistinguishable from the alias and refusing it would be an
+        # over-refusal. The hazard is TWO LIVE NAMES for one dict: refuse only when the
+        # local survives the store (or is stored into a SECOND field) AND one of those
+        # names is then mutated.
+        # No nested `def` here either — see the note in the route #60 block above.
+        # The body is linearised in SOURCE ORDER by an explicit pre-order walk (children
+        # pushed reversed onto a stack), and each entry carries its OWN Var names, not
+        # its nested blocks' — those are separate entries, so the union over "after" is
+        # the same set without double counting.
+        _r59_dictlocals = set()
+        _r59_lin: List[Any] = []
+        _r59_own: List[Any] = []
+        _r59_work: List[Any] = list(reversed(func.get("body", []) or []))
+        while _r59_work:
+            _s = _r59_work.pop()
+            if not isinstance(_s, dict):
+                continue
+            _r59_lin.append(_s)
+            if (_s.get("stmt") == "Assign" and isinstance(_s.get("target"), str)
+                    and isinstance(_s.get("value"), dict)
+                    and _s["value"].get("type") == "DictLit"):
+                _r59_dictlocals.add(_s["target"])
+            _own = set()
+            _ns = [_v for _k, _v in _s.items()
+                   if _k not in ("body", "orelse", "finalbody", "handlers")]
+            while _ns:
+                _n = _ns.pop()
+                if isinstance(_n, dict):
+                    if _n.get("type") == "Var" and isinstance(_n.get("name"), str):
+                        _own.add(_n["name"])
+                    _ns.extend(_n.values())
+                elif isinstance(_n, (list, tuple)):
+                    _ns.extend(_n)
+            _r59_own.append(_own)
+            _kids = []
+            for _k in ("body", "orelse", "finalbody", "handlers"):
+                _v = _s.get(_k)
+                if isinstance(_v, list):
+                    _kids.extend(_v)
+            _r59_work.extend(reversed(_kids))
+
+        if _r59_dictlocals:
+            _R59_MUT = ("ArraySet", "ArraySliceSet", "DelSubscript", "GhostArraySet")
+            # Which fields each dict local is stored into, anywhere in the function.
+            _r59_fields: Dict[str, set] = {}
+            for _s in _r59_lin:
+                if _s.get("stmt") == "FieldAssign":
+                    _v = _s.get("value")
+                    if (isinstance(_v, dict) and _v.get("type") == "Var"
+                            and _v.get("name") in _r59_dictlocals):
+                        _r59_fields.setdefault(_v["name"], set()).add(_s.get("field"))
+            for _i, _s in enumerate(_r59_lin):
+                if _s.get("stmt") != "FieldAssign":
+                    continue
+                _v = _s.get("value")
+                if not (isinstance(_v, dict) and _v.get("type") == "Var"):
+                    continue
+                _pname = _v.get("name")
+                if _pname not in _r59_dictlocals:
+                    continue
+                _flds = _r59_fields.get(_pname, set())
+                _used_after = any(_pname in _o for _o in _r59_own[_i + 1:])
+                if not (_used_after or len(_flds) >= 2):
+                    continue
+                _mutated = False
+                for _a in _r59_lin[_i + 1:]:
+                    if _a.get("stmt") not in _R59_MUT:
+                        continue
+                    _arr = _a.get("array")
+                    if not isinstance(_arr, dict):
+                        continue
+                    if _arr.get("type") == "Var":
+                        if _arr.get("name") == _pname:
+                            _mutated = True
+                            break
+                    elif (_arr.get("field") or _arr.get("attr")) in _flds:
+                        _mutated = True
+                        break
+                if _mutated:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        f"storing a mutated dict into a field is out of scope: "
+                        f"`{_s.get('object')}.{_s.get('field')} = {_pname}` binds the "
+                        f"field to the SAME dict as `{_pname}` in Python, so a later "
+                        f"store through either name is visible through the other. PyCSL "
+                        f"models a dict as a pure map, so the field store is a COPY and "
+                        f"the write would be invisible (route #59). Refusing instead of "
+                        f"answering incorrectly. A field store whose local is never used "
+                        f"again is fine; restructure so only one name mutates the dict.")
         self._current_symbol_table = symbol_table
         # Formal-parameter names ONLY — Module5 exposes this as a
         # distinct field because `symbol_table` is polluted with loop

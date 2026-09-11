@@ -43,7 +43,15 @@ MIRROR = os.path.join(ROOT, "src/self-annotate/src")
 # 41 live files have no mirror at all (the 36 in the first hand-census excluded def-less
 # files; this script counts every .py, which is the honest denominator). Both may go DOWN,
 # never up.
-MAX_UNMIRRORED_DEFS = 550
+# (#49, relaunch #55) TIGHTENED 550 -> 549. The plane had been reporting
+# "549 < ratchet 550 — lower the constant" and nobody had. That one slot of slack is not
+# free: route #60's repair added ONE nested helper `def` to `_reset_function_state`,
+# which silently consumed it, and the whole 31-plane battery stayed GREEN because the
+# comparison is `>`. The defect only surfaced when a second repair added two more and
+# pushed the count to 552. A ratchet with headroom cannot see the first regression that
+# uses it up, so it is lowered to the measured truth here and the two repairs were
+# rewritten to use no nested `def` at all.
+MAX_UNMIRRORED_DEFS = 549
 MAX_UNMIRRORED_FILES = 41
 
 
