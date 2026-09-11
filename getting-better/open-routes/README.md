@@ -1,6 +1,25 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **FOUR — #78, #79, #80, #81.**  (#77 is CLOSED, see below.)
+## CURRENTLY OPEN: **THREE — #79, #80, #81.**  (#77 and #78 are CLOSED, see below.)
+##
+##   **#78 — A SEEDED `deque(...)` WAS MODELLED AS EMPTY — FOUND AND CLOSED 2026-09-11
+##   (gen #8).** `deque([1,2,3])` then `len` proved `\result == 0` where CPython returns 3;
+##   the element read `dq[0]` was a second carrier and the stale length DISCHARGED a callee's
+##   `requires`. The arm discarded EVERY argument under a comment calling it "a sound
+##   under-approximation" — **it is not one: an EMPTY array is a DIFFERENT CONCRETE VALUE,
+##   not a weaker fact, and a real under-approximation would be UNCONSTRAINED.** Closed by
+##   refusing only the SEEDED form; the empty `deque()` is FAITHFUL and is the control that
+##   bounds the guard (witness 1199; corpus 0501 still proves). Gates: fidelity rc=0,
+##   byte-inert BOTH corpora (971/972 and 2204/2204), IR conformance rc=0, **all 34 planes
+##   rc=0**, suite **3324/3343 ZERO XPASS with a byte-identical 19-failure set**.
+##   **COST NIL — and the check that established that is the reusable part:** the mirror's
+##   `_py_expr_call` is a `#@ \trusted` BODYLESS STUB, and the fidelity plane compares only
+##   UN-trusted mirror methods, so the live body change owed NO mirror sync and NO re-proof.
+##   Contrast #77, whose `_py_stmt_delete` was a VERIFIED body port and cost a 52-minute
+##   whole-file proof. **BEFORE SCOPING ANY MODULE-5 REPAIR, GREP THE MIRROR FOR THE METHOD
+##   AND CHECK FOR `#@ \trusted` — it is the difference between a ten-minute close and a
+##   multi-hour one.**
+##
 ##
 ##   * **#81 — A LIST ALIAS TRACKS ELEMENT STORES BUT LOSES A LENGTH-CHANGING MUTATION**
 ##     (`route81-list-alias-loses-length-changing-mutation.md`). `a=[1,2]; b=a; b.append(3);
@@ -35,12 +54,6 @@
 ##   unconstrained value. **TREAT ANY COMMENT ASSERTING AN ERASURE IS SOUND AS AN UNPROVEN
 ##   LEMMA — it is checkable in one probe.**
 ##
-##   * **#78 — A SEEDED `deque(...)` IS MODELLED AS EMPTY**, every argument discarded
-##     (`route78-seeded-deque-is-modelled-empty.md`). `deque([1,2,3])` then `len` proves
-##     `\result == 0`; CPython returns 3. True twin REFUSED. It also DISCHARGES a callee's
-##     `requires`, and the element read `dq[0]` is a second carrier. The EMPTY `deque()`
-##     control is FAITHFUL and bounds the repair. Blast radius of refusing the seeded form
-##     MEASURED AT ZERO (the only corpus use is `deque()`; the mirror has none).
 ##   * **#79 — AN `__init__` FIELD INITIALISER OUTSIDE THE CAPTURE SHAPE BECOMES A LITERAL 0**
 ##     (`route79-init-field-initialiser-falls-back-to-zero.md`). **THE WIDEST-REACHING ROUTE
 ##     THIS GENERATION**: it needs only `self.n = len(items)`. Three carriers proved
