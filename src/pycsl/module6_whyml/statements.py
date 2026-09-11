@@ -1893,11 +1893,25 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if arr.get("type") == "Var":
             var_name = arr.get("name", "")
             if var_name in getattr(self, "_dict_locals", set()):
+                # (#49) ROUTE #60 — the `else` branch below used to INVENT a size of 1
+                # for a name with no registered fold. A dict PARAMETER reaches
+                # `_dict_locals` through the `_mutated_collection_params` promotion, so
+                # `def f(d: Dict, k): d[k] = 1; return len(d)` folded `len(d)` to 1 while
+                # Python answers the CALLER's size + 0 or 1 — the incoming dict was
+                # never consulted. A size is now only ever UPDATED, never created here:
+                # with no registered fold the read falls through and fails closed, which
+                # is exactly what `len(d)` on a dict param WITHOUT a store already did.
+                #
+                # The remaining increment is reached only for a name the route #60
+                # whitelist in `_reset_function_state` has cleared — bound exactly once
+                # to a top-level dict literal, every store top-level with a literal key,
+                # all keys pairwise distinct under Python's key equality. For those the
+                # post-store size really is one more per store. Every other shape was
+                # added to `_fold_unsafe_sizes` there, so it was never registered and
+                # cannot be resurrected here.
                 known_sizes = getattr(self, "_known_collection_sizes", {})
                 if var_name in known_sizes:
                     known_sizes[var_name] = known_sizes[var_name] + 1
-                else:
-                    known_sizes[var_name] = 1
         _nested_seq_base = None
         if (arr.get("type") == "Subscript"
                 and arr.get("value", {}).get("type") == "Var"):

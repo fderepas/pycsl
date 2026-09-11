@@ -880,6 +880,96 @@ class FunctionEmissionMixin:
                 _r34_stack.extend(_n34.values())
             elif isinstance(_n34, (list, tuple)):
                 _r34_stack.extend(_n34)
+        # (#49) ROUTE #60 (relaunch #55) — `len()` ON A DICT COUNTED STORE SITES.
+        # `_handle_array_set_stmt` used to INCREMENT the folded size on every dict
+        # store. The fold is a SYNTACTIC count of store sites, so it was blind to key
+        # equality (`d={1:1}; d[1]=2` folded 2, Python 1), to a SYMBOLIC store key
+        # (undecidable at emission), to the CALLER's dict (a param store folded `len`
+        # to 1), to REACHABILITY (a store under `if c > 0:` counted unconditionally)
+        # and to ITERATION COUNT (a store in a loop body counted ONCE, so
+        # `d={}; for i in range(n): d[i]=i; len(d)` proved `\result == 1` for every n).
+        # Seven carriers each proved a FALSE claim while the true twin stayed Unknown.
+        #
+        # The justification for keeping the fold alive across a store — "a plain
+        # ArraySet changes an ELEMENT, not the LENGTH" (see the ROUTE #34 note above) —
+        # is true for LISTS and FALSE for DICTS: `d[k] = v` adds a key whenever `k` is
+        # absent.
+        #
+        # THIS IS A WHITELIST, per route #42's rule: the size fold survives stores only
+        # where the emitter can SHOW the post-store size, and every other shape is
+        # marked unsafe here so that `_track_collection_metadata` never registers a size
+        # and `len(d)` falls through and fails closed. A dict keeps its fold only when
+        #   * it is bound EXACTLY ONCE in this function, to a dict LITERAL, and
+        #   * every store to it is at the function's TOP LEVEL (not inside any
+        #     if/else/for/while/try — reachability and iteration count are then not in
+        #     question), and
+        #   * every store key is a LITERAL, and
+        #   * the literal's keys and the store keys are PAIRWISE DISTINCT under
+        #     PYTHON's key equality (the same normalisation route #54 gave the literal
+        #     fold: a Bool key is the int 1/0, so `{1:1}` then `d[True]=2` is a repeat).
+        # Anything else is refused rather than guessed.
+        def _r60_norm_key(_k):
+            """Python's key identity for a LITERAL key, or None if not a literal."""
+            if not isinstance(_k, dict):
+                return None
+            _t = _k.get("type")
+            if _t == "Bool":
+                return ("n", 1 if _k.get("value") else 0)
+            if _t == "Number" and isinstance(_k.get("value"), (int, float)):
+                return ("n", _k.get("value"))
+            if _t == "String" and isinstance(_k.get("value"), str):
+                return ("s", _k.get("value"))
+            return None
+
+        _r60_body = func.get("body", []) or []
+        # Statement objects that sit at the function's TOP LEVEL, by identity.
+        _r60_top_ids = {id(_s) for _s in _r60_body if isinstance(_s, dict)}
+        # Every store to a bare name, anywhere, with its key and its top-level-ness.
+        _r60_stores: Dict[str, List[Any]] = {}
+        _r60_stack: List[Any] = [_r60_body]
+        while _r60_stack:
+            _n = _r60_stack.pop()
+            if isinstance(_n, dict):
+                if _n.get("stmt") == "ArraySet":
+                    _b = _n.get("array")
+                    if isinstance(_b, dict) and _b.get("type") == "Var":
+                        _r60_stores.setdefault(_b.get("name"), []).append(
+                            (_r60_norm_key(_n.get("index")), id(_n) in _r60_top_ids))
+                _r60_stack.extend(_n.values())
+            elif isinstance(_n, (list, tuple)):
+                _r60_stack.extend(_n)
+        if _r60_stores:
+            # Names bound to a dict literal at top level, and how often they are bound
+            # AT ALL (a name bound twice is already poisoned by routes #32/#33, but the
+            # count is re-derived here rather than assumed).
+            _r60_lit: Dict[str, Any] = {}
+            _r60_binds: Dict[str, int] = {}
+            _r60_bstack: List[Any] = [_r60_body]
+            while _r60_bstack:
+                _n = _r60_bstack.pop()
+                if isinstance(_n, dict):
+                    if _n.get("stmt") == "Assign" and isinstance(_n.get("target"), str):
+                        _tn = _n["target"]
+                        _r60_binds[_tn] = _r60_binds.get(_tn, 0) + 1
+                        _v = _n.get("value")
+                        if (isinstance(_v, dict) and _v.get("type") == "DictLit"
+                                and id(_n) in _r60_top_ids):
+                            _r60_lit[_tn] = [_r60_norm_key(_k)
+                                             for _k in (_v.get("keys") or [])]
+                    _r60_bstack.extend(_n.values())
+                elif isinstance(_n, (list, tuple)):
+                    _r60_bstack.extend(_n)
+            for _name, _sts in _r60_stores.items():
+                _keys = _r60_lit.get(_name)
+                _ok = (_keys is not None
+                       and _r60_binds.get(_name, 0) == 1
+                       and all(_k is not None for _k in _keys)
+                       and all(_top and _k is not None for (_k, _top) in _sts))
+                if _ok:
+                    _all = list(_keys) + [_k for (_k, _t) in _sts]
+                    _ok = len(set(_all)) == len(_all)
+                if not _ok:
+                    self._fold_unsafe_sizes.add(_name)
         self._current_symbol_table = symbol_table
         # Formal-parameter names ONLY — Module5 exposes this as a
         # distinct field because `symbol_table` is polluted with loop
