@@ -193,6 +193,12 @@ TRIGGERS: Dict[Tuple[str, Optional[str]], List[Trigger]] = {
     # unlike `divmod`/`int(str)` the receiver here is a real modelled map, so the obligation
     # is faithful and a correct program still discharges it.
     ("subscript", "del"): [("KeyError", "Map.get {0} {1} <> None")],
+    # (#49) ROUTE #66 — `chr(n)` raises `ValueError` outside [0, 0x110000). The abstract
+    # `chr_op` carried `ensures { String.length result = 1 }` UNCONDITIONALLY, i.e. it
+    # asserted a TOTALITY Python does not have, and there was no trigger row, so
+    # `#@ no_exception \all` PROVED for `chr(-1)`. WIRED rather than refused: the bound is
+    # exact, so `chr(65)` still discharges.
+    ("call", "chr"): [("ValueError", "0 <= {0} /\\ {0} < 1114112")],
 
     # Dict access — inline `Map.get d k <> None` rather than a separate
     # predicate, mirroring the existing ghost-dict vocabulary so we don't

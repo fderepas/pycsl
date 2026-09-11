@@ -9198,7 +9198,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "val chr_op (n: int) : string\n"
                 "    ensures { String.length result = 1 }\n"
                 "    ensures { result = (Char.chr n).contents }")
-            return f"(chr_op {args[0]})"
+            # (#49) ROUTE #66 — `chr(n)` raises `ValueError` outside [0, 0x110000), and the
+            # `ensures { String.length result = 1 }` above asserts a TOTALITY Python does
+            # not have. With no trigger row, `#@ no_exception \all` PROVED for `chr(-1)`.
+            return self._wrap_with_no_exception_assert(
+                ("call", "chr"), [args[0]], f"(chr_op {args[0]})")
         if func_name in ("str", "repr", "format", "int", "bool", "abs") and len(args) == 1:
             arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
             if arg_ir.get("type") == "Number" and func_name in ("int", "abs"):
