@@ -4846,6 +4846,22 @@ element write is emitted: a `bytes` write is rejected as immutable
 caller-visibility/frame boundary (the SAME boundary for which
 dict/set/record parameter mutation is rejected, §T.2 / WL-05 —
 driver `wl06c_bytearray_param_write_REJECTED.py`, verdict REJECTED).
+**ROUTE #64 (relaunch #55) — THE OBLIGATION WAS ALREADY NEEDED, FOR LOCALS.** Everything
+above is correct about PARAMETERS, and that is exactly what made the gap hard to see: the
+entry invariant really is never violated in-body, because a parameter element write really
+is rejected. But a LOCAL `bytearray` element write IS emitted and IS faithful — measured,
+`b = bytearray([1,2]); b[0] = 9; return b[0]` proves `9`, CPython's answer — and it carried
+NO `ValueError` obligation at all. So `#@ no_exception \all`, the strongest form of a
+POSITIVE claim that the body raises nothing, PROVED for `b = bytearray([1]); b[0] = 999`,
+which CPython refuses to run (`ValueError: byte must be in range(0, 256)`). The mechanism was
+never broken — `a // 0` under `no_exception ZeroDivisionError` correctly fails to prove — the
+trigger ROW was simply absent. `exception_model.TRIGGERS` now carries
+`("subscript", "write_bytes")` requiring `0 <= v < 256`, selected by the emitter when the
+receiver is known to be `bytes`/`bytearray`; the condition is INLINE rather than a new
+`PREDICATE_LIBRARY` entry, because that library is emitted wholesale into the preamble of
+every unit declaring `no_exception`. An IN-RANGE store still discharges (control `1150`), so
+this is a real obligation and not a refusal; negative witness `1149`.
+
 A future faithful caller-visible `bytearray` mutation model would
 additionally carry a Python-`ValueError` write obligation `0<=v<256`
 (writing 300 into a byte buffer raises `ValueError`).
