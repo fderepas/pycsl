@@ -220,8 +220,24 @@
 #     emission/typing non-results). **So it is harmless by TYPE ACCIDENT, not by a guard** —
 #     the day a composed mixin can have a writing provider, this is a live route, and the
 #     acceptance half is already measured. Repair scoped + censused (require `#@ assigns` in
-#     every dependency window; five real sites, all effect-free); NOT landed because two are
-#     MIRRORED and owe a whole-file re-proof each against the ~4-proof box ceiling.
+#     every dependency window). **THE REPAIR WAS BUILT, FULLY GATED, AND THEN REVERTED —
+#     and the reason is the most transferable thing in this block.** It passed EVERYTHING I
+#     had: 33 planes green, BOTH corpora fully byte-inert (969/969 and 2204/2204, 0 moved /
+#     0 gone / 0 appeared), mirror emission BYTE-IDENTICAL. Then `run-reference-tests.sh`
+#     aborted at its LEADING gate — **IR CONFORMANCE, 0549 and 0553 MISMATCH**: those two
+#     drivers carry FROZEN IR GOLDENS, and the `#@   assigns \nothing` the repair forces
+#     into their windows changes the derived IR.
+#     **A GREEN BYTE-DIFF DOES NOT COVER THE IR** — byte-inertness is about emitted WhyML,
+#     conformance is about the IR one stage earlier, so a landing can be perfectly
+#     byte-inert on both corpora and still break a frozen contract.
+#     Reverted rather than refreshing the goldens ("re-baseline until green" is the banked
+#     lesson), decisively because the hole is NOT currently exploitable. **TRUE COST NOW
+#     MEASURED: refreshing the IR goldens of 0549/0553 plus the version-bump question —
+#     a decision about a frozen contract, not a worker's unilateral call.**
+#     Also measured and worth keeping: the guard's home
+#     (`_extract_mixin_directives`) is a `\trusted` STUB in the mirror, i.e. the CHEAP
+#     side — my earlier "owes a whole-file re-proof" estimate was simply wrong, and
+#     checking which side of the mirror a guard sits on is what decides the cost.
 #     Also learned: `#@ compose_from` has NO Python runtime counterpart, so any future
 #     mixin DIFFERENTIAL driver must use real inheritance or CPython raises AttributeError
 #     and there is no ground truth to compare against.
@@ -249,6 +265,17 @@
 #     route: AssertionError is deliberately outside the model. Pinned as driver d39.
 #
 # ## LESSONS BANKED THIS GENERATION
+#
+#   * **A GREEN BYTE-DIFF DOES NOT COVER THE IR — AND THE SUITE'S LEADING GATE IS NOT THE
+#     SUITE.** A landing that was byte-inert on BOTH corpora (0 moved, 0 gone, 0 appeared)
+#     and green on all 33 planes still broke `IR conformance` on two frozen goldens. Run
+#     `bin/run-conformance.sh` (or the full suite) BEFORE believing a byte-inert landing is
+#     safe; the conformance gate sits one pipeline stage earlier than every byte-diff.
+#   * **`git checkout <commit> -- <paths>` STAGES the old content**, so a later
+#     `git checkout -- <paths>` restores from the POLLUTED INDEX, not from HEAD — a
+#     trap-based "restore" built that way silently REVERTS a landed repair in the working
+#     tree. Use `git reset HEAD -- <paths>` THEN `git checkout HEAD -- <paths>`, and always
+#     `git status` after a trap-restore rather than trusting the trap.
 #
 #   * **VERIFY A DELEGATED CLAIM'S SCOPE, NOT JUST ITS HEADLINE** — again (route #70 banked
 #     it first). The audit that surfaced #73 reported the carrier as the DOTTED
