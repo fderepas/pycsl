@@ -23,6 +23,11 @@
 #            mirror re-proof #77's repair owed. 52 min wall.
 #   corpora  **byte-inert over BOTH** vs a pre-repair worktree baseline: pycsl-ref 971/971,
 #            python-ref 2204/2204, 0 MOVED / 0 GONE / 0 APPEARED.
+#   suite    **3322/3341, ZERO XPASS**, rc=1 (the baseline condition). The 19 failures were
+#            **DIFFED against suite57_route76, not eyeballed, and are BYTE-IDENTICAL**.
+#            3318/3337 -> 3322/3341 is exactly +4 tests / +4 passes: all four #77 witnesses
+#            (1194-1197) pass and nothing else moved.
+#   OWED     **NOTHING.** No proof, battery or sweep in flight.
 #   tree     clean, every increment committed. The two GITLINKS (`scratchpad/w7/base`,
 #            `scratchpad/w8/pre`) and the 0-byte stray `str` in the repo root are
 #            PRE-EXISTING and are NOT dirt.
