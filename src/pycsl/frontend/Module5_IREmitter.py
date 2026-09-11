@@ -1275,9 +1275,47 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if expr.func.id == "deque":
                 # collections-plan: `deque(...)` reduces to the list/array model. Lower
                 # it to an empty array literal so it reuses the append/index/len
-                # machinery verbatim (identical to `dq = []`). A seeded iterable is
-                # modelled as empty (sound under-approximation); left-end ops
+                # machinery verbatim (identical to `dq = []`). Left-end ops
                 # (appendleft/popleft) and pop are out of scope.
+                #
+                # (#49) ROUTE #78 — A SEEDED `deque(...)` WAS MODELLED AS EMPTY, AND THE
+                # COMMENT THAT AUTHORISED IT WAS FALSE. This arm used to discard EVERY
+                # argument and return the empty `ArrayLit` below for any `deque(...)`,
+                # justified as "a seeded iterable is modelled as empty (sound
+                # under-approximation)". **THAT IS NOT AN UNDER-APPROXIMATION.** An EMPTY
+                # array is not a weaker fact about a three-element one — it is a DIFFERENT
+                # CONCRETE VALUE, and the emitter then proves definite facts from it. A real
+                # under-approximation would be an UNCONSTRAINED value. MEASURED, before this
+                # refusal:
+                #     dq = deque([1, 2, 3])
+                #     return len(dq)
+                #     #@ ensures \result == 0      <-- FALSE OF THE PROGRAM (Python: 3)
+                #     [+] Verification SUCCESS! All contracts formally proven.
+                # The element read `dq[0]` is a second carrier (proved 0 where Python gives
+                # 5), the TRUE twin `\result == 3` was REFUSED, and the stale length also
+                # DISCHARGED A CALLEE'S `requires` at a call site. The #69 class: a false
+                # postcondition about ordinary TOTAL Python, no `no_exception`, no opt-in.
+                #
+                # THE EMPTY FORM IS FAITHFUL AND IS THE CONTROL THAT BOUNDS THIS REFUSAL —
+                # `deque()` really is `[]`, it proves its true claim, and corpus 0501 relies
+                # on it. So only the SEEDED form is refused. Census: `deque()` at 0501 is the
+                # ONLY use in either verified corpus and the mirror has NO `deque(` at all,
+                # so this guard is byte-inert BY CONSTRUCTION — it only RAISES or FALLS
+                # THROUGH and never alters emitted text.
+                if expr.args or getattr(expr, "keywords", None):
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        "`deque(<iterable>)` with arguments is not modelled: the lowering "
+                        "reduces a deque to the list/array model and DISCARDS every "
+                        "argument, so a seeded deque would be modelled as EMPTY while the "
+                        "run still reported 'All contracts formally proven'. Measured: "
+                        "`dq = deque([1, 2, 3]); return len(dq)` proved `\\result == 0` "
+                        "while Python returns 3. Build the sequence explicitly instead "
+                        "(`dq = deque()` followed by `dq.append(...)` per element), which "
+                        "is modelled faithfully.",
+                        stage="ir-emit",
+                        code="PYCSL-M5-SEEDED-DEQUE-UNMODELLED",
+                    )
                 return {"type": "ArrayLit", "elts": []}
             # typing-engagement ty1 / 26-0000-typing-spec-2 §2.2 (LR4):
             # `isinstance(v, Literal[...])` is not supported — `typing.Literal`

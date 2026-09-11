@@ -1,7 +1,7 @@
 # ROUTE #78 — A SEEDED `deque(...)` IS MODELLED AS EMPTY, AND EVERY ARGUMENT IS DISCARDED
 
-**STATUS: FOUND AND REPRODUCED 2026-09-11 (gen #8). BOTH DIRECTIONS MEASURED. OPEN — repair
-scoped below.**
+**STATUS: FOUND AND CLOSED 2026-09-11 (gen #8). BOTH DIRECTIONS MEASURED. Witnesses 1198
+(refusal) and 1199 (the empty-`deque()` control that must keep proving).**
 
 **CLASS: the #69 class, the serious one** — a FALSE POSTCONDITION about ordinary, TOTAL Python.
 No `no_exception`, no opt-in.
@@ -68,14 +68,25 @@ absent from the mirror, so it is not a verified artifact.)
 
 ## THE REPAIR, SCOPED
 
-In `_py_expr_call`'s `deque` arm: if the call has ANY argument, raise a `PyCSLSemanticError`
-naming the route; keep the existing empty-`ArrayLit` lowering for the zero-argument form. The
-guard only RAISES or FALLS THROUGH, so it is byte-inert by construction.
+**BUILT AS SCOPED.** In `_py_expr_call`'s `deque` arm: if the call has any positional or
+keyword argument, raise a `PyCSLSemanticError` naming the route and the measurement; keep the
+existing empty-`ArrayLit` lowering for the zero-argument form. The guard only RAISES or FALLS
+THROUGH, so it is byte-inert by construction. The false comment was replaced rather than left
+standing next to the fix.
 
-**Cost note:** this is the same function/module as route #77's repair
-(`frontend/Module5_IREmitter.py`, MIRRORED), so it owes a mirror sync + a whole-file
-Module5_IREmitter re-proof — **but `_py_expr_call` must be checked for whether its mirror
-counterpart is `\trusted`**; if it is, the body change is proof-free. Check before scoping.
+MEASURED AFTER THE REPAIR: all three seeded carriers refuse (`len`, the element read `dq[0]`,
+and the `requires`-discharge escalation); the empty-`deque()` control still PROVES; and
+**corpus 0501 — the pre-existing positive control that uses `deque()` — still PROVES**, which
+is the byte-level evidence that the refusal did not widen past the seeded form.
+
+**COST: NIL, AND THE CHECK THAT ESTABLISHED THAT IS WORTH COPYING.** The arm lives in
+`_py_expr_call`, and the mirror's `_py_expr_call` is a **`#@ \trusted` bodyless stub**
+(`return {}`). The fidelity plane compares only UN-trusted mirror methods against the live
+source, so a live body change under a `\trusted` mirror counterpart owes **no mirror sync and
+no re-proof at all** — unlike #77, whose `_py_stmt_delete` was a verified body port and cost a
+52-minute whole-file proof. **Before scoping any Module-5 repair, grep the mirror for that
+method and check whether it carries `#@ \trusted`: it is the difference between a ten-minute
+close and a multi-hour one.**
 
 ## RESIDUE
 
