@@ -535,6 +535,77 @@ class FunctionEmissionMixin:
                                      if isinstance(v, (dict, list)))
                 elif isinstance(_r64_n, (list, tuple)):
                     _r64_work.extend(_r64_n)
+        # (#49) ROUTE #65 — FOUR ROWS OF `exception_model.TRIGGERS` ARE NEVER LOOKED UP.
+        # Every `no_exception` obligation is injected through
+        # `_wrap_with_no_exception_assert` / `_maybe_emit_no_exception_assert`, and the
+        # complete set of op-keys those call sites pass is ("binop", <op>),
+        # ("subscript", "read"|"write"|"write_bytes") and ("map_get", None). So
+        # ("call", "divmod"), ("attr_call", "index"), ("attr_call", "pop") and
+        # ("call", "next") are DEAD ROWS — present in the table, consulted by nothing.
+        # A row that is never looked up is a soundness claim that is never checked, and it
+        # reads in the table exactly like one that is.
+        #
+        # MEASURED, and the contrast is the whole argument:
+        #   `divmod(a, 0)[0]`  under `no_exception ZeroDivisionError`  -> PROVED (CPython raises)
+        #   `d[5]` on `{1:1}`  under `no_exception KeyError`           -> does NOT prove
+        # Same machinery, same exception family, same shape of condition. The only
+        # difference is that ("map_get", None) is wired and ("call", "divmod") is not.
+        #
+        # WHY REFUSE RATHER THAN WIRE. `divmod` lowers to a fully OPAQUE abstract val
+        # (`val divmod_2 (x0 x1: int) : int` — it does not even return a pair), and the
+        # `.index` row's condition is the literal `"true"`, a self-described placeholder
+        # with zero discrimination (`xs.index(5)` ABSENT and `xs.index(1)` PRESENT gave
+        # IDENTICAL verdicts). There is no faithful obligation to inject for either, so the
+        # honest answer under a `no_exception` claim is to refuse rather than to discharge a
+        # tautology. Refusal is the safe direction; a tautology is not.
+        #
+        # GATED ON THE FUNCTION DECLARING THE MATCHING `no_exception`, so nothing else in
+        # the tree can observe it.
+        _r65_c = func.get("contracts", {}) or {}
+        _r65_all = bool(_r65_c.get("no_exception_all"))
+        _r65_named = set(_r65_c.get("no_exception", []) or [])
+        if _r65_all or _r65_named:
+            _R65_ORPHANS = {
+                ("call", "divmod"): "ZeroDivisionError",
+                ("attr_call", "index"): "ValueError",
+                # Both of these are currently UNREACHABLE — `d.pop(k)` is refused as an
+                # in-place receiver mutation and `next(iter(xs))` does not type-check — so
+                # listing them costs nothing today. They are listed anyway because their
+                # rows are equally orphaned, and the moment either construct lowers it would
+                # silently discharge a `no_exception` claim. `("call", "next")` is also a
+                # `"true"` tautology, like `.index` was.
+                ("attr_call", "pop"): "KeyError",
+                ("call", "next"): "StopIteration",
+            }
+            _r65_work = list(func.get("body", []) or [])
+            while _r65_work:
+                _r65_n = _r65_work.pop()
+                if isinstance(_r65_n, dict):
+                    _r65_f = _r65_n.get("func")
+                    if _r65_n.get("type") == "Call" and isinstance(_r65_f, str):
+                        if "." in _r65_f:
+                            _r65_key = ("attr_call", _r65_f.rsplit(".", 1)[1])
+                        else:
+                            _r65_key = ("call", _r65_f)
+                        _r65_exc = _R65_ORPHANS.get(_r65_key)
+                        if _r65_exc is not None and (_r65_all or _r65_exc in _r65_named):
+                            raise PyCSLIRError(
+                                "`" + _r65_f + "(...)` can raise `" + _r65_exc + "` in "
+                                "Python, and this function claims `#@ no_exception` over "
+                                "it. `exception_model.TRIGGERS` HAS a row for this "
+                                "operation, but no emitter site ever looks that row up, so "
+                                "the obligation was never injected and the claim proved "
+                                "vacuously (route #65). Measured: `divmod(a, 0)` under "
+                                "`no_exception ZeroDivisionError` PROVED while CPython "
+                                "raises, and `xs.index(5)` on a list not containing 5 "
+                                "proved exactly as readily as `xs.index(1)` on one that "
+                                "does. Refusing instead of discharging a claim nothing "
+                                "checks. Drop this operation from the `no_exception` "
+                                "context, or guard the argument yourself.")
+                    _r65_work.extend(v for v in _r65_n.values()
+                                     if isinstance(v, (dict, list)))
+                elif isinstance(_r65_n, (list, tuple)):
+                    _r65_work.extend(_r65_n)
         self._bounded_int = func.get("bounded_int")
         # `no_exception` context for VC injection. `_current_no_exception`
         # is the set of exception names whose triggers must produce an

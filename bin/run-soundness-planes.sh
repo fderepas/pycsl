@@ -57,6 +57,7 @@ PLANES=(
     check-mirror-loop-annotations.py
     check-mirror-signature-drift.py
     check-refusal-reachability.py
+    check-trigger-rows-live.py
     check-trusted-raises-honesty.py
     check-type-keyed-constant-answers.py
     check-emit-ir-arm-postconditions.py
