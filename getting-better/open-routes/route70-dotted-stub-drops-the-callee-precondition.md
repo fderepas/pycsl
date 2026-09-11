@@ -78,3 +78,27 @@ postcondition without the precondition.**
 
 A plane is warranted and would be cheap: for every synthesized callee stub, assert that it
 carries a `requires` whenever the source contract has a non-trivial one.
+
+## STATUS: **CLOSED**
+
+`_build_method_result_ensures_map` no longer propagates a callee's postcondition when that
+callee has a NON-TRIVIAL precondition. Conservative by construction: a `requires` clause
+counts as trivial ONLY if it is a recognised true literal, so failing to recognise a trivial
+one costs completeness while failing to recognise a non-trivial one would cost soundness.
+
+**THE COMPLETENESS COST, STATED:** a guarded callee no longer exports its postcondition
+through a dotted stub at all — `self.pos_only(5)` with a VALID argument no longer proves
+`\result > 0` either. That is the fail-closed fallback this file proposed, and it is the
+right trade until a `requires` suffix is built the way the `ensures` suffix already is.
+Witness `1170` pins the half that must keep working: an UNGUARDED callee still propagates.
+
+**I HIT MY OWN BANKED LESSON.** The map builder is VERIFIED VERBATIM by the mirror — I had
+checked that and written "0 trusted" an hour earlier, then edited it anyway, and the fidelity
+plane went RED with exactly one divergence. Fixed by applying the IDENTICAL edit to the
+mirror copy. *Check which side of the mirror a home sits on BEFORE editing, not after.*
+
+### GATES
+All 32 planes green; fidelity 887/887 verbatim; mirror type-clean and byte-inert; **both
+corpora byte-inert**; metric unchanged at 459; reference suite **3293/3312 with the baseline
+failure set and ZERO XPASS**. Witnesses `1169` (negative, anti-vacuity verified in both
+directions) and `1170` (positive control).
