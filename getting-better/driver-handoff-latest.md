@@ -3,17 +3,20 @@
 # ## WHAT IS TRUE RIGHT NOW
 #
 #   ledger   **EMPTY. NO OPEN ROUTE.** Route #59 is fully closed (all seven carriers), and
-#            #60 through #69 were each FOUND AND CLOSED this generation.
-#            **TEN new routes found and closed**, plus #59 finished.
+#            #60 through #70 were each FOUND AND CLOSED this generation.
+#            **ELEVEN new routes found and closed**, plus #59 finished.
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED all
 #            generation, and that is the EXPECTED shape of a window paying the soundness
 #            ladder. Four repairs, all refusals or whitelists; none costs the trust surface.
 #   planes   **ALL 32 GREEN under `--slow`** (19 in the fast set), re-run after every
 #            landing. The 32nd is NEW this generation: `check-trigger-rows-live.py`.
 #            **RUN IT WITH why3 ON PATH** (`export PATH=$HOME/.opam/framac-coq8/bin:$PATH`).
-#   suite    **3267/3286, ZERO XPASS.** The 19 confirmed failures are EXACTLY the baseline
-#            set (`suite49_run8` was 3249/3268, same 19). All 18 new witnesses pass.
-#            Log: `getting-better/proofs49/suite55_run1.{log,rc}` (rc=1 IS the baseline).
+#   suite    **3293/3312, ZERO XPASS**, failure set BYTE-FOR-BYTE identical to the
+#            `suite49_run8` baseline (3249/3268, same 19). The suite grew by 44 drivers —
+#            all this generation's route witnesses — and every one passes. rc=1 IS the
+#            baseline condition. Log: `getting-better/proofs49/suite55_run4.{log,rc}`.
+#            ZERO XPASS is the strongest available statement that no previously-closed
+#            route reopened; it is the check that caught #42 reopening for a whole window.
 #   tree     clean, every increment committed. The two GITLINKS (`scratchpad/w7/base`,
 #            `scratchpad/w8/pre`) and the 0-byte stray `str` in the repo root are
 #            PRE-EXISTING and are NOT dirt.
@@ -125,6 +128,19 @@
 #     from the Python literal) while `ord("€") < 256` PROVES (wrong). One operation uses code
 #     points, the other bytes, on the same literal in the same function — which is why the
 #     repair refuses `ord` rather than the literal.
+#
+#   **#70 — THE DOTTED STUB KEPT THE CALLEE'S `ensures` AND DROPPED ITS `requires`.** A
+#   `\trusted` method declaring `requires x > 0` / `ensures \result > 0`, called as
+#   `self.pos_only(-5)`, let the CALLER prove `\result > 0` while CPython returns -5. The
+#   emission declared the method TWICE: the correct `val c__pos_only ... requires { x > 0 }`,
+#   and the stub the call site actually used, `val self_pos_only_1 ... ensures { result > 0 }`
+#   with no requires. Dropping BOTH clauses is fail-closed (the imported-class-method path
+#   does exactly that); keeping the postcondition WITHOUT the precondition is the one
+#   combination that is always unsound. Closed by withholding ensures propagation from a
+#   guarded callee — a stated completeness cost, and the better fix (build a `requires`
+#   suffix the way the `ensures` suffix already is) is recorded in the route file.
+#     **THE MIRROR IS NOT EXPOSED TODAY AND I CHECKED RATHER THAN ASSUMED:** all 459
+#     `\trusted` markers carry `requires True`. Fragile safety, not a guarantee.
 #
 # ## THE SHARPEST UNFINISHED THREAD — A FALSE AXIOM CLASS, NOT A ROUTE
 #
@@ -269,11 +285,12 @@
 #       #69 and is now refused only via the non-ASCII guard — a non-literal path may remain.
 #     * `struct_pack_i1a1` / `struct_pack_i18` are the two UNGUARDED entries in a registry
 #       whose eight siblings all carry the correct `requires`.
-#     * **SYSTEMIC, AND THE BIGGEST OF THEM:** the generic dotted-callee stub
-#       (`expressions.py:7040`) builds an `ensures_suffix` from the callee's contract and
-#       **there is no `requires_suffix` and no requires registry anywhere**. For a callee
-#       reached through that path (imported / out-of-module), its POSTCONDITION is assumed
-#       unconditionally while its PRECONDITION is silently discarded. Verify this first.
+#     * ~~SYSTEMIC: the dotted-callee stub drops the precondition~~ — **CONFIRMED AND CLOSED
+#       as ROUTE #70.** Note the audit's framing was wrong about WHERE: a plain cross-module
+#       import DOES carry its `requires` (verified — the emitted `val` has it and the caller
+#       correctly fails), and an imported CLASS method drops BOTH clauses (fail-closed). The
+#       live carrier was a STUBBED SAME-MODULE method. **Verify a delegated claim's scope,
+#       not just its headline.**
 #
 # ## THE LADDER FOR THE NEXT RELAUNCH
 #
