@@ -171,6 +171,13 @@ TRIGGERS: Dict[Tuple[str, Optional[str]], List[Trigger]] = {
     ("binop", "%"):   [("ZeroDivisionError", "no_div_zero ({1})")],
     ("binop", "<<"):  [("ValueError",        "non_neg_shift ({1})")],
     ("binop", ">>"):  [("ValueError",        "non_neg_shift ({1})")],
+    # (#49) ROUTE #68 — `0 ** -1` raises `ZeroDivisionError` in Python (a zero base cannot be
+    # raised to a negative power). Both operands are available at the call site, so the
+    # condition is EXACT and a correct power still discharges. NOTE the two rows above were
+    # in the table all along and were NOT being injected: the `<<`/`>>` emission goes through
+    # the bitwise/power path, which did not wrap, so `1 << -1` PROVED under
+    # `#@ no_exception \all` while CPython raises `ValueError`. That path now wraps.
+    ("binop", "**"):  [("ZeroDivisionError", "not ({0} = 0 /\\ {1} < 0)")],
 
     # Indexing — {0} is the array-length expression supplied at the call
     # site, {1} is the index. The Module 6 emitter looks up the array's

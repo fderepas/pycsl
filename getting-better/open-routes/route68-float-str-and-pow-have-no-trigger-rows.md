@@ -53,3 +53,28 @@ check each has a row — is worth more than any further individual repair.
   * `**` — **WIRE** it. Python raises `ZeroDivisionError` exactly when the base is `0` and the
     exponent is negative, and BOTH operands are available at the call site, so the condition
     `not (base = 0 /\ exp < 0)` is exact and a correct program still discharges.
+
+## STATUS: **CLOSED** — AND IT GREW A THIRD CARRIER THAT WAS A DEAD ROW, NOT A MISSING ONE
+
+| carrier | CPython | repair |
+|---------|---------|--------|
+| `0 ** (-1)` | `ZeroDivisionError` | **WIRED** — new `("binop","**")` row, `not (base = 0 /\ exp < 0)` |
+| `1 << (-1)` | `ValueError` | **WIRED** — the `("binop","<<")`/`(">>")` rows existed ALL ALONG and were never injected |
+| `float(<str>)` | `ValueError` | **REFUSED** — the string is hashed to an int before reaching the opaque val |
+
+**THE SHIFT CARRIER IS THE INTERESTING ONE, AND IT IS A FAILURE OF THE PLANE I ADDED HOURS
+EARLIER.** `non_neg_shift` has been in the table for a long time. `check-trigger-rows-live`
+reported it live — because ONE binop site (`div`/`mod`) passes a DYNAMIC op-key
+`("binop", raw_op)`, and the plane approves a whole KIND from a dynamic key. The bitwise and
+power emission path is a DIFFERENT site and it did not wrap, so the shift rows were never
+injected and `1 << -1` proved.
+
+**THE KIND-LEVEL APPROVAL IS THE PLANE'S SHARPEST LIMIT**, and it is now documented in the
+plane itself. The fix was to make the ASSUMPTION TRUE — the bitwise/power path now wraps —
+rather than to weaken the check. If a new binop emission path is added and does not wrap,
+that approval silently starts lying again.
+
+### GATES
+All 32 planes green; mirror 53/53 type-clean and byte-inert; both corpora byte-inert; metric
+unchanged at 459. Witnesses `1162`/`1163`/`1165` (negatives, each anti-vacuity-verified in
+both directions) and `1164` (positive control: a valid `**` and `<<` still discharge).

@@ -5984,7 +5984,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _acc = f"(map_update_some {_acc} {_key} 0)"
                 return _acc
         if raw_op in self._BITWISE_FN_NAMES:
-            return self._emit_bitwise_or_power(raw_op, expr, left, right)
+            # (#49) ROUTE #68 — THIS PATH NEVER WRAPPED, so the `("binop","<<")` and
+            # `("binop",">>")` rows — which have carried `non_neg_shift` all along — were
+            # never injected, and `1 << -1` PROVED under `#@ no_exception \all` while CPython
+            # raises `ValueError`. The `div`/`mod` sites wrap; this one did not, which is why
+            # a scan that approves a whole KIND from one dynamic `("binop", raw_op)` call site
+            # reported the shift rows as live. Wrapping here makes that true rather than
+            # assumed. `&`/`|`/`^` have no row, so the wrap is a no-op for them.
+            return self._wrap_with_no_exception_assert(
+                ("binop", raw_op), [left, right],
+                self._emit_bitwise_or_power(raw_op, expr, left, right))
         if raw_op == "?":
             self._add_abstract_op("val unknown_op (x: int) (y: int) : int")
             return f"(unknown_op {left} {right})"

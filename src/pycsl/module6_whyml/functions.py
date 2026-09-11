@@ -593,7 +593,13 @@ class FunctionEmissionMixin:
                         # (which has a faithful map condition and is WIRED) there is nothing
                         # truthful to inject here — refuse instead of discharging a claim
                         # nothing checks. `int` of a NUMBER is untouched: it cannot raise.
-                        if (_r65_f == "int" and (_r65_all or "ValueError" in _r65_named)):
+                        # ROUTE #68 adds `float(<str>)`, which is the same situation as
+                        # `int(<str>)` only worse: the emitted call is
+                        # `py_float_1 1824800645` — the STRING IS HASHED TO AN INT before it
+                        # reaches the opaque val, so the argument is not merely unmodelled,
+                        # it is GONE, and no condition over it can be written at all.
+                        if (_r65_f in ("int", "float")
+                                and (_r65_all or "ValueError" in _r65_named)):
                             _r66_a = (_r65_n.get("args") or [None])[0]
                             _r66_isstr = False
                             if isinstance(_r66_a, dict):
@@ -604,7 +610,7 @@ class FunctionEmissionMixin:
                                     _r66_isstr = True
                             if _r66_isstr:
                                 raise PyCSLIRError(
-                                    "`int(<str>)` raises `ValueError` in Python on a "
+                                    "`" + _r65_f + "(<str>)` raises `ValueError` in Python on a "
                                     "non-numeric string, and this function claims "
                                     "`#@ no_exception` over `ValueError`. There is no "
                                     "trigger row for this operation at all, and it lowers "

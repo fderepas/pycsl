@@ -53,6 +53,16 @@ KEY_RE = re.compile(r'\(\s*"([A-Za-z_]+)"\s*,\s*(?:"([^"]*)"|None)\s*\)')
 # all seven arithmetic rows as dead, which is the opposite of the truth. Found by running the
 # plane against a tree where those rows are demonstrably live (`a // 0` under
 # `no_exception ZeroDivisionError` correctly fails to prove).
+#
+# **THIS APPROVAL IS A KIND-LEVEL ASSUMPTION, AND IT IS THE PLANE'S SHARPEST LIMIT.** It is
+# sound only if EVERY emission path for that kind wraps. That was NOT true when it was
+# written: `div`/`mod` wrapped, but the bitwise/power path did not, so the `("binop","<<")`
+# and `("binop",">>")` rows — which have carried `non_neg_shift` all along — were never
+# injected, and `1 << -1` PROVED under `#@ no_exception \all` while CPython raises
+# `ValueError`. The plane called them live because ONE binop site used a dynamic key. Route
+# #68 fixed the EMITTER (that path now wraps) rather than weakening the check, so the
+# assumption is now true rather than merely convenient. If a new binop emission path is ever
+# added, it must wrap too, or this approval silently starts lying again.
 DYNKEY_RE = re.compile(r'\(\s*"([A-Za-z_]+)"\s*,\s*([a-z_][A-Za-z0-9_]*)\s*\)')
 
 
