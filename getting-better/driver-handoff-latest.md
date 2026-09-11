@@ -2,9 +2,9 @@
 #
 # ## THE ONE-PARAGRAPH SUMMARY
 #
-#   FIVE new soundness routes — **#77 found AND CLOSED AND FULLY GATED; #78, #79, #80 and
+#   FIVE new soundness routes — **#77 AND #78 found, CLOSED AND FULLY GATED; #79, #80 and
 #   #81 found, reproduced BOTH DIRECTIONS, and recorded OPEN with their repairs PRICED BY
-#   MEASUREMENT.** All five are the #69 class, the serious one: a FALSE POSTCONDITION about
+#   MEASUREMENT (#81 is fully specified as a one-hour close).** All five are the #69 class, the serious one: a FALSE POSTCONDITION about
 #   ordinary TOTAL Python, no `no_exception` and no opt-in. **FOUR OF THE FIVE CAME FROM TWO
 #   GENERATORS THAT WERE WRITTEN DOWN BEFORE THEY PAID** — a census of PROSE CARVE-OUTS
 #   upstream of a guard (#78/#79/#80), and "probe every OPERATION on a carrier a closed route
@@ -14,7 +14,7 @@
 #
 # ## WHAT IS TRUE RIGHT NOW
 #
-#   ledger   **FOUR OPEN: #78, #79, #80, #81.** #77 closed and FULLY GATED this generation.
+#   ledger   **THREE OPEN: #79, #80, #81.** #77 and #78 closed and FULLY GATED this generation.
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED.
 #   planes   **ALL 34 GREEN, rc=0** (`--slow`). **EXPORT why3 FIRST:**
 #            `export PATH=$HOME/.opam/framac-coq8/bin:$PATH`.
@@ -23,10 +23,10 @@
 #            mirror re-proof #77's repair owed. 52 min wall.
 #   corpora  **byte-inert over BOTH** vs a pre-repair worktree baseline: pycsl-ref 971/971,
 #            python-ref 2204/2204, 0 MOVED / 0 GONE / 0 APPEARED.
-#   suite    **3322/3341, ZERO XPASS**, rc=1 (the baseline condition). The 19 failures were
-#            **DIFFED against suite57_route76, not eyeballed, and are BYTE-IDENTICAL**.
-#            3318/3337 -> 3322/3341 is exactly +4 tests / +4 passes: all four #77 witnesses
-#            (1194-1197) pass and nothing else moved.
+#   suite    **3324/3343, ZERO XPASS**, rc=1 (the baseline condition). The 19 failures were
+#            **DIFFED, not eyeballed, and are BYTE-IDENTICAL** across gen #7's baseline and
+#            BOTH of this generation's runs. 3318/3337 -> 3322/3341 (#77's four witnesses)
+#            -> 3324/3343 (#78's two). Every added test passes; nothing else moved.
 #   OWED     **NOTHING.** No proof, battery or sweep in flight.
 #   tree     clean, every increment committed. The two GITLINKS (`scratchpad/w7/base`,
 #            `scratchpad/w8/pre`) and the 0-byte stray `str` in the repo root are
@@ -219,12 +219,8 @@
 #
 # ## THE LADDER FOR THE NEXT RELAUNCH
 #
-#   1. **CLOSE #78 FIRST — it is the cheapest close available.** Blast radius measured at
-#      ZERO, the empty-`deque()` control already bounds it, and the repair is one guarded
-#      raise in the same function family #77 just touched. CHECK WHETHER `_py_expr_call`'s
-#      MIRROR COUNTERPART IS `\trusted` before scoping the proof cost — if it is, the body
-#      change is proof-free and this is a one-hour close.
-#   2. **THEN #81 — ALSO A ONE-HOUR CLOSE, AND FULLY SPECIFIED.** Single-method guard on
+#   1. **#78 IS DONE.** Start at #81.
+#   2. **#81 — ALSO A ONE-HOUR CLOSE, AND FULLY SPECIFIED.** Single-method guard on
 #      `append` over a local-to-local list alias (both binding orders). Blast radius measured
 #      at ONE site which the guard does not hit. No re-derivation needed.
 #   3. **THEN #80** — same erasure site as #77, so the repair is the same shape; census
