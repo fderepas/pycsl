@@ -65,8 +65,26 @@ CONTENTS. But **every neighbouring operation is already refused**: `insert` and 
 pipeline refusals (the route #13/#17 list-mutator family), the SET alias is fenced (route #63)
 and the DICT alias is fenced (route #59's own repair). The SELF-FIELD carrier also fails closed.
 **So the live surface is exactly `append` on a LOCAL-to-LOCAL list alias** — which is why the
-blast-radius census below comes out at a single site. Check `pop` / `remove` / `extend` on an
-alias before building, since those were not individually probed.
+blast-radius census below comes out at a single site.
+
+**THE MUTATOR FAMILY IS NOW ENUMERATED EXHAUSTIVELY, SO THE REPAIR SPEC IS COMPLETE:**
+
+| mutator on an aliased list | verdict |
+|---|---|
+| **`append`** | **PROVES a false claim — the ONLY live one** |
+| `append` twice in a row | **PROVES** (same defect, not a separate one) |
+| `insert` | refused (PIPELINE ERROR) |
+| `clear` | refused (PIPELINE ERROR) |
+| `pop` | refused (PIPELINE ERROR) |
+| `remove` | refused (PIPELINE ERROR) |
+| `extend` | refused (PIPELINE ERROR) |
+
+**EVERY LENGTH-CHANGING LIST MUTATOR EXCEPT `append` IS ALREADY A PIPELINE REFUSAL.** `append`
+is the one the list model supports natively (it is the operation the array+length model was
+built around), and supporting it is exactly why it is the one that escapes. **The repair is a
+single-method guard**, not a family sweep: refuse `append` on a list local that appears as the
+RHS of another list-local binding (in either order — both mutation directions prove). With a
+measured blast radius of one site that the guard does not hit, **this is a one-hour close.**
 
 Two carriers prove a false claim, and the true twin of the headline one is refused — so it is a
 route, not a gap. **The element READ carrier (n01_elem) is the sharper of the two**: the alias
