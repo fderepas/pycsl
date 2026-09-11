@@ -198,6 +198,20 @@
 #
 # ## PROBED THIS GENERATION WITH NO FINDING — DO NOT RE-PROBE
 #
+#   **THE CLAIM BACKLOG — THREE OF GEN #5's NAMED ITEMS ARE REFUTED BY MEASUREMENT:**
+#   * (g) `return` inside a `try` with a CATCH-ALL handler is NOT caught. Neither
+#     `except Exception:` nor a bare `except:` proves the false `\result == 2`, and the
+#     positive control proves the true `\result == 1` — so it is modelled and decided
+#     correctly, not merely undecided.
+#   * (c) the module-GLOBAL singleton field store `g.v = n`, documented as a RETAINED silent
+#     no-op at "severity-1", does not yield a false proof. SAME-FUNCTION it is FAITHFUL (the
+#     no-op hypothesis fails, the true claim proves); CROSS-FUNCTION both directions fail,
+#     i.e. fail-closed incompleteness. Two spellings only — not proof it is gone.
+#   * (e) route #52's stated hole ("an unannotated local holding a string is not refused")
+#     does not reproduce: the guard fires when EITHER operand is value-typed, so a sibling
+#     literal is enough. Its diagnostic quotes the exact exploit, independently rebuilt.
+
+#
 #   * **ALL FIVE unworked abstract-`val` leads from the gen-#5 handoff are DEAD.** Measured:
 #     the bare `s[5]` spelling (which gen #5 could not reach — it EMISSION-FAILed there and
 #     EMITS here), `s[5:6]`, LOCAL `set.remove`/`set.discard` of an absent element (the
