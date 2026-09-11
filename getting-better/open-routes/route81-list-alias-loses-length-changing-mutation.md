@@ -1,6 +1,7 @@
 # ROUTE #81 — A LIST ALIAS TRACKS ELEMENT STORES BUT LOSES A LENGTH-CHANGING MUTATION
 
-**STATUS: FOUND AND REPRODUCED 2026-09-11 (gen #8). BOTH DIRECTIONS MEASURED. OPEN.**
+**STATUS: FOUND AND CLOSED 2026-09-11 (gen #8). BOTH DIRECTIONS MEASURED. Witness 1200; the
+element-store control is corpus 1131 (route #59's own), which still proves.**
 
 **CLASS: the #69 class, the serious one** — a FALSE POSTCONDITION about ordinary, TOTAL Python.
 No `no_exception`, no opt-in.
@@ -137,11 +138,18 @@ left in the tree, and #81 re-verified as still reproducing at HEAD.
 `Var` naming another list/seq local (checking BOTH names, since both mutation directions
 prove).
 
-**AND THE COST IS NOT NIL — MY EARLIER "ONE-HOUR CLOSE" ESTIMATE WAS WRONG.** The mirror's
-`_handle_seq_assign` is a **VERBATIM CONVERTED body, not a `\trusted` stub**, so the repair
-owes a mirror sync AND a whole-file `module6_whyml/statements.py` mirror re-proof (historically
-~40-60 min, and it has hit `rc=137` OOM in past windows — run it alone). That is the #77 cost
-profile, not the #78 one.
+**THE REPAIR AS BUILT — AND THE PLACEMENT IS THE WHOLE POINT.** `_handle_seq_assign` would
+work, but its mirror is a **VERBATIM CONVERTED body**, so a guard there owes a mirror sync AND
+a whole-file `statements.py` mirror re-proof (~40-60 min, and it has hit `rc=137` OOM in past
+windows). **Instead the guard went at the TOP of `_handle_assign_stmt` — the dispatch ENTRY
+POINT — ahead of every early return, including the `self._seq_locals` one.** That placement
+sees both seq-promoted and unpromoted aliases in one check, AND `_handle_assign_stmt`'s mirror
+is a `#@ \trusted` stub, so **the repair owes NO mirror sync and NO re-proof at all.**
+
+**BANK THIS: THE SAME REPAIR CAN BE CHEAP OR EXPENSIVE DEPENDING ON WHICH FUNCTION IT GOES IN.**
+A guard in a CONVERTED body costs a whole-file proof; the identical guard hoisted into the
+`\trusted` ENTRY POINT that dispatches to it costs nothing — and is often *more* correct,
+because the entry point sees every case before the specialised handlers split them up.
 
 **THE LESSON FROM THE FAILED ATTEMPT, WHICH IS THE REUSABLE PART: THE `\trusted`-STUB COST
 CHECK IS NECESSARY BUT NOT SUFFICIENT — YOU MUST ALSO CONFIRM *WHICH FUNCTION ACTUALLY HANDLES

@@ -460,6 +460,74 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         safe_target = whyml_ident(target)
         val_ir = stmt.value.to_dict()
         vt = val_ir.get("type", "")
+        # (#49) ROUTE #81 — A LIST ALIAS TRACKS ELEMENT STORES BUT LOSES `append`, AND THAT
+        # REFUTES A SENTENCE IN ROUTE #59's OWN FILE. To localise itself, #59 states — as a
+        # section heading — "WHAT MAKES THIS SHARP: THE LIST CARRIER IS CORRECT", concluding
+        # "lists alias correctly (a shared ref)". THAT MEASUREMENT IS REAL AND STILL TRUE,
+        # but it covers only an ELEMENT STORE. MEASURED, before this refusal:
+        #     a: List[int] = [1, 2]
+        #     b: List[int] = a
+        #     b.append(3)
+        #     return len(a)
+        #     #@ ensures \result == 2      <-- FALSE OF THE PROGRAM (Python returns 3)
+        #     [+] Verification SUCCESS! All contracts formally proven.
+        # The TRUE twin was REFUSED; the ELEMENT read `a[1]` is a second and sharper carrier
+        # (proved 1 where Python gives 9, so the alias is wrong about the CONTENTS too); and
+        # the REVERSE direction (`a.append(3)` then `len(b)`) proves identically — which is
+        # why BOTH names are checked.
+        # THE MECHANISM, AND WHY THE GUARD SITS HERE AT THE TOP OF THE HANDLER: a list that
+        # is `append`ed to is SEQ-PROMOTED to a growable `ref (seq int)`, and the
+        # `if target in self._seq_locals: return self._handle_seq_assign(...)` dispatch
+        # BELOW returns long before route #59's alias guard further down — which is exactly
+        # where a first attempt at this repair was placed, where it never fired.
+        # `_handle_seq_assign` emits `let b = ref <init> in`, a COPY of the seq WITH ITS OWN
+        # LENGTH, and Why3 says so on the exploit run: `unused variable b_len`. Placing the
+        # check ahead of every early return is what makes it see both promoted and
+        # unpromoted aliases.
+        # WHY ONLY `append`: every other length-changing list mutator on an aliased list is
+        # ALREADY a pipeline refusal (`insert`, `clear`, `pop`, `remove`, `extend` — each
+        # measured). `append` is the operation the array+length model was BUILT to support,
+        # and supporting it is exactly why it escapes the fence; seq-promotion is triggered
+        # by `append`, so the fence and the leak have the same cause.
+        # BLAST RADIUS CENSUSED AT ONE SITE: the only list-local-to-list-local alias in the
+        # repository is `1131_route59_list_control_faithful.py`, which does an element STORE
+        # and no `append`, so it is NOT hit and stays green. The guard only RAISES or FALLS
+        # THROUGH, so it never alters emitted text.
+        # Walked inline over the raw IR dicts for the same reason #59's arm is: a live-only
+        # helper with no mirror counterpart moves the `check-mirror-coverage` ratchet.
+        if (vt == "Var" and target not in declared_refs
+                and val_ir.get("name") in (getattr(self, "_array_locals", set())
+                                           | getattr(self, "_seq_locals", set()))):
+            _src81 = val_ir.get("name")
+            _names81 = {target, _src81}
+            _appended81 = False
+            _stack81 = [rest]
+            while _stack81 and not _appended81:
+                _n81 = _stack81.pop()
+                if isinstance(_n81, list):
+                    _stack81.extend(_n81)
+                elif isinstance(_n81, dict):
+                    _f81 = _n81.get("func")
+                    if (_n81.get("type") == "Call" and isinstance(_f81, str)
+                            and _f81.endswith(".append")
+                            and _f81.rsplit(".", 1)[0] in _names81):
+                        _appended81 = True
+                    _stack81.extend(_n81.values())
+            if _appended81:
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"aliasing a list that is later APPENDED to is out of scope: "
+                    f"`{target} = {_src81}` binds a SECOND NAME TO THE SAME list in Python, "
+                    f"and a later `append` through either name is visible through the "
+                    f"other. PyCSL models an appended-to list as a `ref (seq int)` with its "
+                    f"OWN length, and the alias COPIES that value, so the appended element "
+                    f"and the new length are invisible through the other name (route #81). "
+                    f"Measured: `a = [1, 2]; b = a; b.append(3); return len(a)` proved "
+                    f"`\\result == 2` while Python returns 3. An element STORE through an "
+                    f"alias IS faithful and stays supported; restructure so only one name "
+                    f"appends, or finish building the list before aliasing it.",
+                    stage="module6-assign",
+                    code="PYCSL-M6-APPEND-THROUGH-LIST-ALIAS")
         # (#44) ROUTES #25/#26/#27 — RECORD AN ERASED-TRUTHY BINDING. These three RHS kinds
         # lower to the literal `0`, which is harmless to READ and unsound to TEST (see the
         # note on `_erased_truthy_locals` in functions.py). Recorded here and refused in
