@@ -3313,3 +3313,5 @@ determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1)
 [0;32m[PASS][0m list_alias_proves
 
 [*] Re-running 19 failure(s) serially to rule out load-induced timeouts...
+  [0;31m[CONFIRMED FAIL][0m 0211
+  [0;31m[CONFIRMED FAIL][0m 0212
