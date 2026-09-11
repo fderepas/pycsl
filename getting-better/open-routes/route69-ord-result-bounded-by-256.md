@@ -58,7 +58,52 @@ a partiality defect: **the bound is false on a TOTAL input.** An abstract `val`'
 is the single most dangerous line in this compiler, because it is an axiom the solver may
 use anywhere, with no corresponding obligation on anyone.
 
-## THE REPAIR SHAPE
+## THE DIAGNOSIS ABOVE WAS INCOMPLETE — THE REAL CAUSE IS THE STRING REPRESENTATION
+
+Widening the `val`'s bound to `[0, 0x110000)` was tried FIRST and **DID NOT FIX IT**, which
+is what exposed the real mechanism. The emitted body is:
+
+```whyml
+  val ord_op (c: string) : int
+    ensures { result = Char.code (Char.get c 0) }
+  ...
+    (ord_op "\xe2\x82\xac")
+```
+
+**THE LITERAL `"€"` IS EMITTED AS ITS UTF-8 BYTES** — a THREE-byte string — and Why3's
+`Char.code` is 0..255 by that theory's own axioms. So `result < 256` follows from the SECOND
+`ensures` no matter what the first one says. `ord` is reading the first BYTE (`0xe2` = 226).
+
+**AND THE MODEL IS INTERNALLY INCONSISTENT ABOUT IT.** Measured:
+
+  * `len("€") == 1` — **PROVES.** That is CPython's answer, folded from the Python literal.
+  * `ord("€") == 226` (the first byte) — does NOT prove.
+  * `ord("€") < 256` — **PROVES.** CPython answers 8364.
+
+So `len` uses Python's code-point semantics while `ord` uses the byte string. One operation
+is right, the other is wrong, on the same literal in the same function.
+
+## THE REPAIR — AND THE GAP THE FIRST VERSION LEFT
+
+REFUSE `ord` over a non-ASCII string. Widening the bound cannot work (`Char.code` re-derives
+it), and refusing the LITERAL outright would lose `len`, which is already correct.
+
+**THE FIRST VERSION REFUSED ONLY `ord(<non-ASCII literal>)` AND WAS DEFEATED BY ONE
+BINDING** — both `s = "€"; ord(s)` and `s = "€"; ord(s[0])` still proved. That is the FIFTH
+time this generation a guard keyed on a syntactic LOCATION has been stepped around (#59's
+carrier 7, #60's loop, #61's names, #62's call boundary, #63's local). The landed guard is
+keyed on the BINDING: it collects locals bound to non-ASCII literals in the `\trusted`
+pre-pass and refuses `ord` of any of them, however spelled.
+
+## STATUS: **CLOSED**
+
+All 32 planes green; mirror 53/53 type-clean and byte-inert; both corpora byte-inert; metric
+unchanged at 459. Witnesses `1166` (direct), `1167` (one binding away) — both
+anti-vacuity-verified in each direction — and `1168` (positive control: ASCII `ord` keeps its
+TRUE bound; note `ord("a") == 97` is NOT derivable because Why3 does not compute `Char.code`
+of a literal, so the control claims the bound).
+
+## THE OLD "REPAIR SHAPE" NOTE, KEPT BECAUSE IT WAS WRONG AND THAT IS INSTRUCTIVE
 
 Change the bound to the true one, `0 <= result < 1114112`, in BOTH `ord_op` and
 `char_code_at`. **This will NOT be byte-inert** — the preamble changes for every unit that

@@ -639,6 +639,75 @@ class FunctionEmissionMixin:
                                      if isinstance(v, (dict, list)))
                 elif isinstance(_r65_n, (list, tuple)):
                     _r65_work.extend(_r65_n)
+        # (#49) ROUTE #69 — `ord()` OF A NON-ASCII STRING IS A BYTE READ, NOT A CODE POINT.
+        # A string literal is emitted as its UTF-8 BYTES (`"\u20ac"` becomes
+        # `"\xe2\x82\xac"`), and characters are Why3 `Char`s whose `code` is 0..255 by the
+        # theory's own axioms. So `return ord("\u20ac")` PROVED `#@ ensures \result < 256`
+        # — with NO `no_exception` and no exception of any kind — while CPython answers 8364.
+        # The wrong VALUE is not provable; the false BOUND is, and an `ensures` on an
+        # abstract `val` is an axiom the solver may use anywhere.
+        #
+        # THE MODEL IS INTERNALLY INCONSISTENT, which is why refusal is the right answer:
+        # `len("\u20ac")` is CORRECT (proves 1, CPython's answer, folded from the Python
+        # literal) while `ord` of the SAME literal reads a byte. Widening the `val`'s bound
+        # does NOT help — `Char.code` re-derives `< 256` unaided — so the operation itself
+        # must be refused on a string the byte model cannot represent.
+        #
+        # KEYED ON THE BINDING, NOT ON THE CALL SITE. A first version refused only
+        # `ord(<non-ASCII literal>)` and was defeated by ONE binding — `s = "\u20ac";
+        # ord(s)` and `ord(s[0])` both still proved. That is the fifth time this generation a
+        # guard keyed on a syntactic LOCATION has been stepped around, so this one collects
+        # the non-ASCII locals first and then refuses `ord` of any of them, however spelled.
+        _r69_bad = set()
+        _r69_work = list(func.get("body", []) or [])
+        while _r69_work:
+            _r69_n = _r69_work.pop()
+            if isinstance(_r69_n, dict):
+                if (_r69_n.get("stmt") == "Assign"
+                        and isinstance(_r69_n.get("target"), str)):
+                    _r69_v = _r69_n.get("value")
+                    if (isinstance(_r69_v, dict) and _r69_v.get("type") == "String"
+                            and isinstance(_r69_v.get("value"), str)
+                            and any(ord(_c) > 127 for _c in _r69_v["value"])):
+                        _r69_bad.add(_r69_n["target"])
+                _r69_work.extend(v for v in _r69_n.values()
+                                 if isinstance(v, (dict, list)))
+            elif isinstance(_r69_n, (list, tuple)):
+                _r69_work.extend(_r69_n)
+        _r69_work = list(func.get("body", []) or [])
+        while _r69_work:
+            _r69_n = _r69_work.pop()
+            if isinstance(_r69_n, dict):
+                if _r69_n.get("type") == "Call" and _r69_n.get("func") == "ord":
+                    _r69_a = (_r69_n.get("args") or [None])[0]
+                    _r69_hit = False
+                    _r69_probe = _r69_a
+                    if (isinstance(_r69_probe, dict)
+                            and _r69_probe.get("type") == "Subscript"):
+                        _r69_probe = _r69_probe.get("value")
+                    if isinstance(_r69_probe, dict):
+                        if (_r69_probe.get("type") == "String"
+                                and isinstance(_r69_probe.get("value"), str)
+                                and any(ord(_c) > 127 for _c in _r69_probe["value"])):
+                            _r69_hit = True
+                        elif (_r69_probe.get("type") == "Var"
+                              and _r69_probe.get("name") in _r69_bad):
+                            _r69_hit = True
+                    if _r69_hit:
+                        raise PyCSLIRError(
+                            "`ord(...)` over a NON-ASCII string is out of scope: PyCSL emits "
+                            "a string literal as its UTF-8 BYTES and models characters with "
+                            "Why3's `Char`, whose codes are 0..255, so `ord` reads the FIRST "
+                            "BYTE rather than the Python code point. Measured: "
+                            "`ord(\"\u20ac\")` proved `\\result < 256` where CPython answers "
+                            "8364, with no `no_exception` and no exception involved (route "
+                            "#69). Note the model gets `len` of the same literal RIGHT, so "
+                            "the two disagree. Use an ASCII literal, or compute the code "
+                            "point outside the verified fragment.")
+                _r69_work.extend(v for v in _r69_n.values()
+                                 if isinstance(v, (dict, list)))
+            elif isinstance(_r69_n, (list, tuple)):
+                _r69_work.extend(_r69_n)
         self._bounded_int = func.get("bounded_int")
         # `no_exception` context for VC injection. `_current_no_exception`
         # is the set of exception names whose triggers must produce an
