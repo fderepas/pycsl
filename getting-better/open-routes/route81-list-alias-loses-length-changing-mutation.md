@@ -176,8 +176,21 @@ Option 1 is the right first move, and **THE CENSUS IS DONE AND THE BLAST RADIUS 
     src/pycsl, src/pycsl_lib  ->  1
       test-suite/corpus/pycsl-reference/1131_route59_list_control_faithful.py :: f :: `b = a`
 
-**THE ONLY `b = a` BETWEEN TWO LIST LOCALS IN THE ENTIRE REPOSITORY IS ROUTE #59's OWN CONTROL
-WITNESS** — the file that encodes the very sentence this route refutes. And it is *not* hit by
+**CORRECTION — THE CENSUS UNDER-COUNTED, AND THE BYTE-DIFF CAUGHT IT.** The census above
+required an ANNOTATED `List[...]` local on both sides, so it MISSED
+`1019_route34_alias_append.py`, which writes `a = []` with **no annotation at all**. The
+repair's byte-diff found it immediately (`GONE 1019_route34_alias_append.mlw`). **The census
+erred in the DANGEROUS direction: under-counting makes a refusal look safer than it is.** It
+happened to be harmless here — 1019 is `# pycsl-expected: FAIL`, route #34's OWN
+alias-then-append witness, a program that must NOT prove; it previously failed by being
+unprovable and now fails earlier by this refusal, so its expected verdict is unchanged and the
+byte-diff is clean under `--expect-gone`. **But that was luck, not method.** A blast-radius
+census over an untyped language must not key on type annotations. (Route #34 finding the same
+alias-then-append shape from the size-fold side is also the tell that #81 is that
+neighbourhood, seen from the value model rather than the fold.)
+
+**THE ONLY *ANNOTATED* `b = a` BETWEEN TWO LIST LOCALS IN THE REPOSITORY IS ROUTE #59's OWN
+CONTROL WITNESS** — the file that encodes the very sentence this route refutes. And it is *not* hit by
 the repair: 1131 does an ELEMENT STORE (`b[0] = 2`), which stays faithful; only a
 length-changing mutation on an aliased list would be refused. **So a guard keyed on
 `append`/`insert`/`pop`/`remove`/`clear` after an alias binding has a measured blast radius of
