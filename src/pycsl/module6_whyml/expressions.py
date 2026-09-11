@@ -10344,6 +10344,37 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # precondition instead of failing on an unconstrained opaque int.
         if func_name == "get" and len(args) == 2:
             _k0 = (expr.get("args") or [None])[0]
+            # (#49) ROUTE #73 — THIS ORACLE MUST NEVER SHADOW A USER-DEFINED FUNCTION.
+            # `func_name == "get"` arises TWO ways: a CHAINED `<expr>.get("arity", d)`
+            # whose receiver is itself a call (the shape this oracle exists for -- see
+            # `expr_ghost_spec_ops.py`, where the receiver's κ is untypable), and a BARE
+            # two-argument call `get("arity", d)` to a function the user DEFINED, which
+            # carries no receiver at all. The second was being replaced by this opaque
+            # `result >= 0` axiom, so the user's own proved contract became UNREACHABLE at
+            # the call site. MEASURED, both spellings, each a complete runnable program:
+            #     def get(k: str, d: int) -> int: return d      # `ensures \result == d`
+            #     def f() -> int: return get("arity", -1)       # CPython: -1
+            #     #@ ensures \result >= 0                       <-- PROVED. FALSE.
+            # and the step-one-move-over variant, which is why the guard is NOT keyed on
+            # the sign of the default (that spelling would have been defeated at once):
+            #     def get(k: str, d: int) -> int: return -5
+            #     def f() -> int: return get("arity", 0)        # CPython: -5
+            #     #@ ensures \result >= 0                       <-- PROVED. FALSE.
+            # Anti-vacuity checked both directions: the TRUE claim (`\result == -1`) did
+            # NOT prove while the false one did, i.e. the oracle had genuinely REPLACED the
+            # function rather than merely widened it.
+            # The guard is STRUCTURAL, not syntactic: a bare call cannot acquire a
+            # receiver, so it cannot be stepped around by moving the hazard.
+            # RETAINED BOUNDARY, stated plainly: with a receiver present this still
+            # asserts `result >= 0` of a value read out of a dict PyCSL cannot type, which
+            # is a DOMAIN CONVENTION of the self-annotation mirror and not a property of
+            # Python -- `d.get("arity", 0)` returns the STORED value when the key is
+            # present, and nothing here makes that non-negative. REOPENING CAPABILITY:
+            # emit the non-negativity as an OBLIGATION at the `Array.make` site that needs
+            # it instead of as an axiom on the getter, which costs the mirror a proof it
+            # currently gets for free.
+            if expr.get("receiver") is None:
+                return None
             if isinstance(_k0, dict) and _k0.get("type") == "String" and _k0.get("value") == "arity":
                 self._add_abstract_op(
                     "val get_arity_field (x0: int) (x1: int) : int\n"
