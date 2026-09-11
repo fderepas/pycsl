@@ -96,6 +96,23 @@
 #     an unrelated `val hash_1 (x0: int) : int` and type-rejects the class argument, and
 #     `a == b` goes to the record `=`. Reading WHY it does not reach `<cls>_eq_` is exactly
 #     how #76 was found.
+#   * **INTEGER `//` AND `%` WITH A NEGATIVE DIVISOR ARE FAITHFUL IN BOTH PLANES.** This
+#     looked like a live route and is not. `identifiers.py`'s `OP_MAP` comments say
+#     `"//" -> div` and `"%" -> mod` (Why3 `int.EuclideanDivision`), and Euclidean really
+#     does disagree with Python there — `7 // -2` is -4 in Python and -3 Euclidean,
+#     `7 % -2` is -1 in Python and 1 Euclidean, `-7 // -2` is 3 vs 4. **MEASURED in BOTH
+#     the BODY and the SPEC plane, all six ways: PyCSL proves PYTHON's answer and REFUSES
+#     the Euclidean one every time.** The OP_MAP comment is stale; the lowering is right.
+#   * **BITWISE AND SHIFT OPS ARE UNINTERPRETED, hence fail-closed.** `&`, `|`, `^`, `>>`,
+#     `<<` and `abs()` on NEGATIVE operands: every TRUE claim FAILS (`-1 & 3 == 3`,
+#     `-8 >> 1 == -4`, `-1 >> 10 == -1`, `-5 ^ 3 == -8`, `abs(-5) == 5`). Incomplete, not
+#     unsound — nothing proves, so no false twin is reachable.
+#   * **A DICT KEYED BY CLASS INSTANCES fails closed BOTH ways.** Python hashes a plain
+#     class by IDENTITY, so `d[a] = 1; d.get(b, 0)` with `b` a distinct structurally-equal
+#     object returns 0 — and this needs NO opt-in, since `.get` never raises. Neither the
+#     false claim (`== 1`) nor the true one (`== 0`) proves.
+#   * **`\old(...)` DOES NOT BYPASS #76's GUARD**, nor does a class-typed field carrier:
+#     the guard fires whenever EITHER side resolves, so the `\result` side alone is enough.
 #   * **The CLASSIFICATION oracles do not yield a false proof in the shapes probed.**
 #     `ir_scanner.py`'s `.split` / `IRScanner.find_*` / `collect_*` array-vs-dict rules are
 #     mirror-domain conventions applied to every program (the #73/#74 shape), but a
