@@ -3643,6 +3643,15 @@ is faithful:
 - **Boolean operators:** `and`/`or` map to `&&`/`||` (`identifiers.py`) in
   **both** spec and body context; `not` maps to `not`. (`not` still takes the
   `(if not a then 1 else 0)` form in body context.)
+  **CORRECTION (relaunch #55) — THIS ROW IS TRUE OF THE *CONDITION* POSITION ONLY.** In a
+  VALUE position Python's `and`/`or` return an OPERAND, not a boolean, and $\mathcal{T}$
+  correctly does the same — see §T.5.12b, which is the accurate description and which this
+  row (and the §T.6.6 operator table) contradicted. MEASURED both ways: `return a and b`
+  with `a == 3`, `b == 5` proves `\result == 5`, CPython's answer, while the boolean reading
+  `\result == 1` does NOT prove; `return a or b` with `a == 0` proves `\result == 5`. No
+  soundness consequence — the emitter was right and the summary row was stale — but a reader
+  following this row would write a driver the model refuses, and three soundness routes this
+  window (#60, #61, #62) began as documentation that asserted something untrue.
 - **Array access:** `arr[i]` maps to WhyML array indexing (Hoare) or
   `Map.get` (Typed/Store), both of which model random-access reads.
 
