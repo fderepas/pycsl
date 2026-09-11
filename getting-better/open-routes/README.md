@@ -16,6 +16,18 @@
 ##
 ##   Routes #73, #74 and #75 (gen #6) are also CLOSED; so are #45-#58, #60-#72.
 ##
+##   **#76 — `==` ON CLASS INSTANCES IS STRUCTURAL, PYTHON'S IS IDENTITY — FOUND AND
+##   CLOSED 2026-09-11 (gen #7), `ecd41b8f`.** The DUAL of #42/#52: those found `is`
+##   decided by VALUE equality (`is` too weak) and gave it its own IR operator; the `==`
+##   side of that coin was never examined. `#@ ensures \result == x` PROVED for
+##   `dup(x) = C(x.v)` where CPython answers False, and the false fact also discharged a
+##   `requires` at a call site. Closed by a fail-closed ALLOWLIST — see the file for the
+##   two blocklist designs that were REFUTED BY MEASUREMENT BEFORE LANDING, and for the
+##   one-line lesson worth carrying: **an allowlist keyed on syntax fails CLOSED when the
+##   hazard moves; a blocklist fails OPEN.** Three residues recorded with reopening
+##   conditions (a `@dataclass` over-refusal, the record-FIELD carrier held only by a type
+##   accident, and the value model's missing object identity).
+##
 ## (the note below predates that find and is kept for its lesson)
 ## PREVIOUSLY: **NONE.** Every route in this ledger is CLOSED at `cf35437f`.
 ##
