@@ -2,27 +2,28 @@
 #
 # ## THE ONE-PARAGRAPH SUMMARY
 #
-#   **FOUR ROUTES CLOSED AND FULLY GATED (#83, #79, #85, #86) AND TWO OF THEM FOUND THIS
-#   GENERATION (#85, #86). ALL FOUR COST EXACTLY NOTHING** — byte-inert over both corpora
-#   AND the mirror, zero whole-file re-proofs owed, the 19-failure suite set byte-identical
-#   throughout. **THE LEDGER WAS EMPTIED TWICE.** The first time, it took about forty
-#   minutes of candidate generation to find two more severity-1 routes — so an empty OPEN
-#   list is a prompt to GENERATE, not a floor, and that is now written into the ledger
-#   header so it cannot be misread. The metric never moved (**markers 459 · grep 484**) and
-#   was never supposed to. **#85 WAS CLOSED FAITHFULLY** — the second such close after #82 —
-#   so it is a completeness GAIN as well as a soundness fix.
+#   **FIVE ROUTES CLOSED AND FULLY GATED (#83, #79, #85, #86, #87) AND THREE OF THEM FOUND
+#   THIS GENERATION (#85, #86, #87).** All five cost the corpus nothing: four were byte-inert
+#   everywhere, and #87 moved exactly its own four witnesses and not one pre-existing file.
+#   No whole-file re-proof was owed anywhere. **THE LEDGER WAS EMPTIED THREE TIMES AND A NEW
+#   SEVERITY-1 ROUTE APPEARED AFTER EACH OF THE FIRST TWO** — so an empty OPEN list is a
+#   prompt to GENERATE, not a floor, and that is now written into the ledger header. **THREE
+#   OF THE CLOSES ARE COMPLETENESS GAINS** (#85 and #87 are faithful captures whose TRUE
+#   twins now prove; the campaign had only one such close before, #82). The metric never
+#   moved (**markers 459 · grep 484**) and was never supposed to.
 #
 # ## WHAT IS TRUE RIGHT NOW
 #
-#   ledger   **ZERO OPEN.** Closed this generation: **#83, #79, #85, #86.** Found: #85, #86.
-#   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED.
-#   planes   **34/34 green, rc=0** (`--slow`), re-run at each landing.
+#   ledger   **ZERO OPEN.** Closed by gen #10: **#83, #79, #85, #86, #87.** Found: #85, #86, #87.
+#   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED all generation.
+#   planes   **34/34 green, rc=0** (`--slow`), re-run at every landing (four full runs).
 #            **EXPORT why3 FIRST:** `export PATH=$HOME/.opam/framac-coq8/bin:$PATH`.
-#   conform  IR conformance **38/38 core + 38/38 front-end, 0 MISMATCH**, determinism 10/10.
-#   suite    **3346/3365, ZERO XPASS**, rc=1 (the baseline condition). The **19-failure set
-#            was BYTE-IDENTICAL in all three of this generation's runs** and to gen #9's.
-#   corpora  byte-inert vs worktree baselines: pycsl-ref 983/983, python-ref 2203/2203,
-#            **and the MIRROR 53/53** — the mirror sweep is the one that retires the
+#   conform  **38/38 core + 38/38 front-end, 0 MISMATCH**, determinism 10/10. It FAILED once,
+#            on #87, and the REPAIR was narrowed — **no golden was ever re-blessed**.
+#   suite    **3350/3369, ZERO XPASS**, rc=1 (the baseline condition). The **19-failure set
+#            was BYTE-IDENTICAL in all four of this generation's runs** and to gen #9's.
+#   corpora  pycsl-ref 993, python-ref 2203, MIRROR 53 — all inert except #87's own four
+#            witnesses. **ALWAYS SWEEP THE MIRROR TOO**: it is the gate that retires the
 #            "whole-file re-proof" cost, and it was run on BOTH sides every time.
 #   ratchets mirror-coverage **549 KEPT**; `check-bespoke-model-drift` never needed `--update`.
 #   OWED     **NOTHING.** No proof, battery or sweep in flight.
@@ -30,147 +31,137 @@
 #            `scratchpad/w8/pre`) and the 0-byte stray `str` in the repo root are
 #            PRE-EXISTING and are NOT dirt.
 #
-# ## THE FOUR GENERATORS THAT PAID THIS GENERATION — IN ORDER OF YIELD
+# ## THE FIVE GENERATORS THAT PAID — EACH PRODUCED A ROUTE, EACH IS WRITTEN WITH ITS EVIDENCE
 #
-#   1. **AFTER LANDING A REPAIR, RE-RUN THE CARRIERS AND LOOK FOR ONE THAT STILL PROVES. A
+#   1. **PROBE EVERY *OPERATION* ON A CARRIER A CONTROL DECLARED SAFE — AND THAT INCLUDES
+#      YOUR OWN CONTROLS, WRITTEN AN HOUR AGO.** This produced **#87**. Route #85's control
+#      table (mine, same session) recorded "a LIST field is fail-closed"; that control ran
+#      `len(c.xs)` ONLY, and the LENGTH is faithful while every ELEMENT was a definite `0`.
+#      **A CONTROL IS A MEASUREMENT ABOUT THE OPERATION IT RAN, NEVER A THEOREM ABOUT THE
+#      TYPE.** #87 is the exact mirror image of #81 (which refuted #59's list control on the
+#      same axis): #81 = length wrong / elements right, #87 = length right / elements wrong.
+#      **FOR A COLLECTION, ALWAYS PROBE BOTH THE SHAPE AND THE CONTENTS.**
+#   2. **AFTER LANDING A REPAIR, RE-RUN THE CARRIERS AND LOOK FOR ONE THAT STILL PROVES. A
 #      SURVIVING CARRIER IS NOT A FAILED REPAIR — IT IS A SECOND ROUTE THE FIRST WAS
-#      MASKING.** This produced **#86** outright. #85's repair closed three of its four
-#      carriers; the cross-call one survived, and dumping the emission showed why in one
-#      read: `let c = { d = (map_update_some ... 1 5) }` (now correct) followed by
-#      `(g (const (None: option int)))` (still wrong) on the NEXT LINE. **TWO INDEPENDENT
-#      ERASURES THAT PRODUCE THE SAME WRONG VALUE ARE INDISTINGUISHABLE UNTIL ONE IS FIXED,
-#      SO FIXING ONE IS A MEASUREMENT INSTRUMENT FOR THE OTHER.** Never record "closed 3 of
-#      4 carriers" as a partial success — it is a hypothesis that the 4th has another cause.
-#
-#   2. **WHEN YOU DUMP THE EMISSION TO CHECK WHETHER A CANDIDATE'S ARM FIRED, READ THE WHOLE
-#      EMITTED FILE, NOT JUST THE LINE YOU CAME FOR.** This produced **#85**. Carve-out
-#      candidate 5 was probed, its arm fired EXACTLY as predicted, and it was NOT
-#      exploitable — but the `--keep-mlw` dump I only ran to prove I had not probed a no-op
-#      showed a SECOND erasure to the same empty-map constant one line above. A
+#      MASKING.** This produced **#86**. Two independent erasures that emit the SAME wrong
+#      constant are indistinguishable until one is fixed, so **fixing one is a measurement
+#      instrument for the other.** Never record "closed 3 of 4 carriers" as a partial success.
+#   3. **WHEN YOU DUMP THE EMISSION TO CHECK WHETHER A CANDIDATE'S ARM FIRED, READ THE WHOLE
+#      EMITTED FILE.** This produced **#85**, one line above the line I came for. A
 #      fully-lowered probe is the one artifact where every erasure in a small program is
-#      visible at once. **A REFUTED CANDIDATE CAN STILL PAY FOR ITSELF IN WHAT ITS DUMP
-#      SHOWS.**
+#      visible at once. **A REFUTED CANDIDATE CAN STILL PAY FOR ITSELF IN ITS DUMP.**
+#   4. **A GUARD'S EARLY EXIT IS PART OF THE GUARD.** #79's census is "the complement of the
+#      capture rule", so it could only enumerate constructors that REACH the rule — and
+#      `if not pset: break` meant a **PARAMETERLESS `__init__` was never scanned at all**.
+#   5. **ASK WHICH GUARD ALREADY STANDS BETWEEN THE POPULATION AND THE CHANGE.** #79's price
+#      fell three times (70% -> 133/17-mirror -> **40 scalar, 0 corpus, 0 mirror**) — the last
+#      because Module 6's existing `_NONSCALAR` check already fenced the entire array arm.
+#      **AN INHERITED COST FIGURE IS AN UNPROVEN LEMMA.**
 #
-#   3. **A GUARD'S EARLY EXIT IS PART OF THE GUARD.** #79's own census is written as "the
-#      complement of the live capture rule", so it could only ever enumerate constructors
-#      that REACH that rule — and `_collect_init_construction` did `if not pset: break`,
-#      meaning a **PARAMETERLESS `__init__` never had a single initialiser examined**. That
-#      is the widest form of #79 and no complement-census could have found it. Ask what
-#      RETURNS EARLY, not only what the predicate rejects.
+# ## THE RULE THE REPAIRS ARE BUILT ON, NOW MEASURED FROM BOTH SIDES
 #
-#   4. **ASK WHICH GUARD ALREADY STANDS BETWEEN THE POPULATION AND THE CHANGE.** #79's price
-#      was corrected downward THREE times (gen #8 "70%, off the table" -> gen #9 "133, 17
-#      mirror sites at ~56 min each" -> measured **40 scalar sites, 0 corpus, 0 mirror**).
-#      The last correction came from noticing that Module 6's existing `_NONSCALAR` check
-#      fences the ENTIRE array arm, so 73 of 113 sites cannot move at all. **AN INHERITED
-#      COST FIGURE IS AN UNPROVEN LEMMA.**
+#   **PREFER A FAITHFUL CAPTURE WHEREVER THE INFORMATION EXISTS; FALL BACK TO UNCONSTRAINED
+#   ONLY WHERE IT GENUINELY DOES NOT.** #85 and #87 are faithful (a LOCAL dict/list literal
+#   was ALWAYS lowered faithfully — only the FIELD arm dropped it, so the information was
+#   sitting there) and their true twins now PROVE. #79, #83, #86 and #85's SET arm could not
+#   be (a conditional store, a non-parameter RHS, an unknown actual, an int-erased set
+#   literal), and were left unconstrained. **#85's repair contains both halves at once**, so
+#   it is the cleanest side-by-side measurement of the rule the campaign has.
 #
-# ## THE MEASUREMENT LESSONS THAT COST ME TIME — READ BEFORE GATING ANYTHING
+# ## GATING LESSONS THAT COST ME TIME — READ BEFORE GATING ANYTHING
 #
-#   * **A CORPUS THAT DOES NOT CONTAIN THE BLAST RADIUS CANNOT PRICE THE REPAIR.** #83's
-#     five sites are ALL in `src/pycsl_lib`, which is in NEITHER byte-diff corpus — so its
-#     green byte-diff was evidence of nothing about the cost. The gate that covers those
-#     sites is the REFERENCE SUITE (the stdlib demo drivers run in it). **Say which gate is
-#     carrying the claim.**
-#
-#   * **A FIELD-LEVEL CENSUS COUNTS DECLARATIONS; THIS FAMILY OF DEFECTS BITES AT AN
-#     ALLOCATION SITE.** My own #79 census predicted 8 mirror sites; the mirror emission
-#     moved by ZERO bytes, because those classes are never ALLOCATED in lowered code
-#     (`frontend__ConcurrencyChecker.mlw` emits the record TYPE and contains no record
-#     LITERAL). The emission is the authority over any census. Rule (o) is not only about
-#     sub-agents — I over-predicted my own.
-#
-#   * **A REPAIR THAT MOVES NOTHING ANYWHERE IS THE EXACT SHAPE OF #82's SILENT NO-OP**, so
-#     never accept the zero on trust. The check that settles it: the CARRIERS CHANGED
-#     VERDICT. If they did, Module 6 demonstrably consumes the new IR key.
-#
+#   * **A CORPUS THAT DOES NOT CONTAIN THE BLAST RADIUS CANNOT PRICE THE REPAIR.** #83's five
+#     sites are ALL in `src/pycsl_lib`, in NEITHER byte-diff corpus — its green byte-diff was
+#     evidence of nothing. The gate that covered them was the SUITE. **Say which gate carries
+#     the claim.**
+#   * **THIS FAMILY OF DEFECTS BITES AT AN ALLOCATION SITE; A FIELD-LEVEL CENSUS COUNTS
+#     DECLARATIONS.** Confirmed TWICE: my #79 census predicted 8 mirror sites and the mirror
+#     moved ZERO bytes (those classes are never allocated — `frontend__ConcurrencyChecker.mlw`
+#     emits the record TYPE and no record LITERAL); and corpus 0980/0981 hold `[0, 7]` and
+#     still did not move under #87, because they never call `C()`. **The emission is the
+#     authority over any census — including your own.**
+#   * **A REPAIR THAT MOVES NOTHING ANYWHERE IS THE SHAPE OF #82's SILENT NO-OP.** Never take
+#     the zero on trust. The check that settles it: **did the carriers CHANGE VERDICT?**
 #   * **WHEN A POSITIVE (must-still-prove) WITNESS FAILS, DUMP THE EMISSION BEFORE TOUCHING
-#     THE REPAIR.** Witness 1219 failed and looked exactly like an over-broad repair; the
-#     real cause was a PRE-EXISTING, fail-closed emitter defect (recorded as
-#     `finding-w60-shared-field-name-label-mismatch.md`): two record classes sharing a FIELD
-#     NAME emit a disambiguated literal label `c_d` but a bare read `c.d`, which is unbound,
-#     so Why3 refuses the whole file. A field named after its own class collides too. **GIVE
-#     EVERY CLASS IN A MULTI-CLASS DRIVER DISTINCT FIELD NAMES.**
-#
+#     THE REPAIR.** Witness 1219 failed and looked exactly like an over-broad repair; the real
+#     cause was a PRE-EXISTING fail-closed emitter defect
+#     (`finding-w60-shared-field-name-label-mismatch.md`): two record classes sharing a FIELD
+#     NAME emit a disambiguated literal label `c_d` but a bare read `c.d`, unbound, so Why3
+#     refuses the file. A field named after its own class collides too. **GIVE EVERY CLASS IN
+#     A MULTI-CLASS DRIVER DISTINCT FIELD NAMES.**
+#   * **WHEN IR CONFORMANCE FAILS, SUSPECT THE REPAIR BEFORE THE GOLDEN.** #87's first build
+#     moved golden 0595's IR while core-only conformance stayed 38/38 — i.e. the IR changed
+#     for a file whose BEHAVIOUR did not. The fix was to **carry information in the IR only
+#     when it changes the answer** (an all-ZERO list literal already lowered faithfully), not
+#     to re-bless. Rule (k) held and the gate was right.
+#   * **NEGATIVE-TEST THE NARROWING, NOT JUST THE REPAIR.** #87's condition is "all elements
+#     ZERO", not "all EQUAL" — `[7,7,7]` got `Array.make 3 0` and is still a defect. Witness
+#     1225 exists for exactly that; without it the narrowing would close #87 for `[1,2,3]`,
+#     leave it open for `[7,7,7]`, and pass every other test in the suite.
 #   * **A VERDICT THAT LIVES ONLY IN /tmp IS NOT A RECORD.** Gen #9's route-#83 plane log
 #     existed only in the volatile session scratchpad; the commit message asserted "34/34
-#     green" with no artifact behind it. Copied to `proofs49/w59b_planes_route83.log`.
-#     The commit message is a claim; the log is the evidence.
+#     green" with no artifact behind it. Now at `proofs49/w59b_planes_route83.log`.
 #
 # ## TWO PROCESS FAILURES I CAUSED, RECORDED IN FULL
 #
-#   1. **KILLING A PARALLEL HARNESS'S PARENT DOES NOT STOP IT, IT CORRUPTS IT.** Acting on a
-#      stale brief I killed what I took to be a duplicate suite; it was gen #9's own
-#      detached run. The kill hit the wrapper, the worker tree was reparented to init and
-#      KEPT RUNNING, and the dying parent's EXIT trap deleted the shared `/tmp` tmpdir out
-#      from under it — so every worker then logged "No such file or directory" and the run
-#      would have reported a fabricated failure set. **Kill the whole tree or nothing.**
-#   2. **`bin/run-reference-tests.sh` SHOWS UP AS TWO ROOT PROCESSES** because the harness
-#      re-invokes itself as its own parallel dispatcher (the second has the first as its
-#      ppid). I read that as two concurrent suites. **CHECK PPID (`ps -o pid,ppid,cmd`)
-#      BEFORE CONCLUDING A BATTERY IS DUPLICATED.** And `pgrep -f`/`pkill -f` on a pattern
-#      your own command line contains kills your own shell — silently, exit 1, no output.
-#      The progress log had already warned about this and I repeated it.
-#
-# ## THE ROUTES
-#
-#   * **#83 `__init__` field store INSIDE CONTROL FLOW — CLOSED, ZERO COST.** Gates all
-#     re-reproduced at HEAD rather than inherited. Suite 3336/3355, failure set identical.
-#   * **#79 `__init__` initialiser naming a NON-PARAMETER became a literal `0` — CLOSED,
-#     ZERO COST.** Four carriers including the parameterless-constructor one this generation
-#     found. Unconstrained capture; a LITERAL RHS is deliberately NOT marked because
-#     `field_defaults` carries it faithfully. Suite 3340/3359.
-#   * **#85 a NON-EMPTY dict/set FIELD LITERAL was the EMPTY MAP — FOUND AND CLOSED
-#     FAITHFULLY.** `self.d = {1: 5}` then `1 in c.d` proved 0 (CPython 1); `c.d.get(1, 0)`
-#     proved 0 (CPython 5). Repaired by carrying the literal to the allocation site as the
-#     `map_update_some` chain a LOCAL dict literal always got, so the TRUE claim now PROVES.
-#     The SET arm gets a polymorphic unconstrained map instead (a local set literal is
-#     int-erased — no faithful lowering to reuse). **Both halves of "prefer faithful where
-#     the information exists" measured side by side in ONE repair.**
-#   * **#86 the `map int (option int)` PARAM COERCION substituted the EMPTY MAP — FOUND AND
-#     CLOSED.** Carve-out candidate 5 proper. Its justification — "the abstract val has no
-#     axioms about its contents anyway" — is a claim about the CALLEE BEING ABSTRACT, not
-#     about the lowering, and false as soon as the callee is a real emitted function with a
-#     contract. Repaired to a polymorphic unconstrained map: **"no known coercion" must mean
-#     "nothing is known", not "it is empty".**
+#   1. **KILLING A PARALLEL HARNESS'S PARENT DOES NOT STOP IT, IT CORRUPTS IT.** I killed what
+#      I took to be a duplicate suite; it was gen #9's own detached run. The kill hit the
+#      wrapper, the workers were reparented to init and KEPT RUNNING, and the dying parent's
+#      EXIT trap deleted the shared `/tmp` tmpdir out from under them — every worker then
+#      logged "No such file or directory" and the run would have reported a fabricated failure
+#      set. **Kill the whole tree or nothing.**
+#   2. **`run-reference-tests.sh` APPEARS AS TWO ROOT PROCESSES** (it re-invokes itself as its
+#      own parallel dispatcher; the second has the first as its ppid). **CHECK PPID BEFORE
+#      CONCLUDING A BATTERY IS DUPLICATED.** And `pgrep -f`/`pkill -f` on a pattern your own
+#      command line contains kills your own shell — silently, exit 1, no output. The progress
+#      log had already warned about this and I repeated it.
 #
 # ## PROBED THIS GENERATION WITH NO FINDING — DO NOT RE-PROBE
 #
-#   * **A FLOAT FIELD DEFAULT IS TRUNCATED BY `int(...)` IN `field_defaults`** (`self.rate =
-#     0.5` stores 0). Against route #53 (a float is an EXACT real) this looked ready-made.
-#     BOTH the un-annotated and the `: float`-annotated spellings are REFUSED IN BOTH
-#     DIRECTIONS by a Why3 TYPE error. **CERTIFIED-BOUNDARY WITH A REOPENING CONDITION:** the
-#     truncation IS a latent wrong value, masked ONLY by a type mismatch — if float fields
-#     are ever made int-compatible, or the int-coded default convention is widened to carry
-#     reals, this goes live immediately. Fail-closed by accident of typing is still
-#     fail-closed, but it is not the same as fail-closed by design.
-#   * **A STRING FIELD LITERAL DEFAULT** (`self.sep: str = "ab"`, carrier `len(c.sep)`) —
-#     refused both directions on an unbound `String.length`.
-#   * **A DICT FIELD TAKEN FROM A PARAMETER** (`self.d = d`) — fail-closed both directions.
-#     This is what keeps #85 small; do not assume the idiomatic constructor shape is affected.
-#   * **A LIST FIELD LITERAL** (`self.xs = [1,2,3]`, carrier `len`) — fail-closed.
+#   * **FLOAT FIELD DEFAULT TRUNCATED BY `int(...)`** (`self.rate = 0.5` stores 0). Refused in
+#     BOTH directions, both spellings, by a Why3 TYPE error. **CERTIFIED-BOUNDARY WITH A
+#     REOPENING CONDITION:** the truncation IS a latent wrong value masked ONLY by a type
+#     mismatch — if float fields are made int-compatible, or the int-coded default convention
+#     is widened to carry reals, it goes live at once.
+#   * **STRING FIELD LITERAL DEFAULT** (`self.sep: str = "ab"`, carrier `len`) — refused both
+#     directions on an unbound `String.length`.
+#   * **THE `option` ARM of `_field_default`** (`return "None"`). Probed twice —
+#     `Optional[int]` and `Optional[<record>]`. **THE ARM NEVER FIRED**: both fields lowered
+#     to plain `int`, the int-constant case is faithfully `{ o = 5 }` and the record case is
+#     `(any int)` (route #79's repair working), and `None` is an unconstrained abstract
+#     `pycsl_none`, so `is None` is undecidable in both directions. Reaching that arm needs a
+#     field whose type actually resolves to `option`.
+#   * **PARAM-SOURCED COLLECTION FIELDS** (`self.d = d`, `self.xs = xs`) — probed on a SECOND
+#     and THIRD operation after the membership control (`.get()`, element read), because that
+#     is exactly the mistake #87 punished. **Still fail-closed, and non-vacuously so**: the
+#     emission binds the caller's actual (`{ xs = src }`) and the read is an opaque
+#     `subscript_get`. This is what keeps #85/#87 small — the idiomatic constructor is fine.
+#   * **CARVE-OUT CANDIDATE 6** (`hval` map local truthiness emits literal `true`) — NOT
+#     probed, COST-PRICED instead: `_collect_union_hval_locals` is gated on
+#     `_current_emitting_func` ending in one of SIX specific method names from PyCSL's own
+#     mirror (`_match_subject_union_info`, `_union_ctor_for_arm_tag`, `_union_none_ctor_for`,
+#     `_maybe_inject_union_return`, `_try_union_is_none_match`, `_compute_return_type`), so a
+#     driver must reproduce that whole idiom under `@mutable_state`. Its justification is the
+#     #55 shape ("sound for the type-safety+frame contracts") which HAS paid before, so it is
+#     worth a funded attempt — just not a cheap one.
 #
 # ## THE LADDER FOR THE NEXT RELAUNCH
 #
-#   1. **THE LEDGER IS EMPTY, SO GENERATE.** The highest-yield move available is the one
-#      that paid twice today: **re-probe the carve-out census candidates an earlier
-#      generation parked in the "LOW-VALUE TAIL"** (`open-routes/carve-out-census-gen9.md`).
-#      #85 and #86 both came out of candidate 5, which was parked. **CANDIDATE 6 IS STILL
-#      UNPROBED AND IS THE BEST-LOOKING ONE LEFT**: truthiness of an `hval` map local emits
-#      the literal `true` (`expressions.py:663`), so `if not vinfo:` is decidably false and
-#      the branch CPython takes on an empty map is DEAD in the model — DEFINITE, and it sits
-#      AFTER routes #25/#26/#27's refusal. Candidates 9 and 10 remain too (both LOW
-#      reachability). The census's honest rate is **3 hits in 7 probes**.
-#   2. **APPLY GENERATOR 1 TO THE ROUTES JUST CLOSED.** Every repair landed this generation
-#      is a fresh instrument: re-run the carriers of #79, #83, #85 and #86 looking for a
-#      survivor, and probe every OPERATION on the carriers they declared safe (the generator
-#      that produced #81).
-#   3. **THE `finding-w60` FIELD-LABEL DEFECT IS WORTH FIXING** — it is fail-closed so it is
-#      not a route, but it silently turns positive witnesses into failures for the wrong
-#      reason, and this campaign depends on positive witnesses to bound repairs.
-#   4. **GROW BOTH DIFFERENTIAL CORPORA** (`no-exception-differential/`, `value-differential/`
-#      at 36). Unpaid from gen #8's ladder and still unpaid. They curate nothing, so every
-#      driver added is a permanent self-measuring check.
+#   1. **THE LEDGER IS EMPTY, SO GENERATE — AND THE FIVE GENERATORS ABOVE ARE RANKED BY WHAT
+#      THEY ACTUALLY PAID TODAY.** Generator 1 is the cheapest and paid last: take every
+#      control sentence in every CLOSED route file, ask which single operation it ran, and
+#      probe a different one. I found #87 that way in two minutes, against my own control.
+#   2. **APPLY GENERATOR 2 TO THIS GENERATION'S FIVE REPAIRS.** Each is a fresh instrument;
+#      re-run the carriers of #79, #83, #85, #86, #87 looking for a survivor.
+#   3. **CARVE-OUT CANDIDATE 6** — see the cost note above. Candidates 9 and 10 remain (both
+#      LOW reachability). The census's honest rate is now **3 hits in 7 probes**, and "LOW-
+#      VALUE TAIL" proved not to be evidence: #85 and #86 both came out of a parked candidate.
+#   4. **FIX `finding-w60`** (the shared-field-name label mismatch). Fail-closed, so not a
+#      route — but it silently turns POSITIVE witnesses into failures for the wrong reason,
+#      and this campaign depends on positive witnesses to bound repairs against over-breadth.
+#   5. **GROW BOTH DIFFERENTIAL CORPORA** (`no-exception-differential/`, `value-differential/`
+#      at 36). Unpaid since gen #8. They curate nothing, so every driver added is a permanent
+#      self-measuring check.
 #
 # ===================================================================================
 
