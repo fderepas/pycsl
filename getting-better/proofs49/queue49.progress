@@ -104,3 +104,5 @@
 08:35 finished suite60_run1 rc=1
 08:38 started w60 byte-diff sweeps (route #79)
 08:41 base sweep done rc=0
+08:43 cand sweep done rc=0
+08:45 started w60_planes_route79 (--slow)

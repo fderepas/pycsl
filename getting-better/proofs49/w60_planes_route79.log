@@ -1,0 +1,3 @@
+[*] soundness-planes: --slow, adding 15 prover/emission plane(s) (~20 min)
+[*] soundness-planes: shared mirror emission ready (53 .mlw) — six plane(s) will use it
+[*] soundness-planes: running 34 driver-run lower bound(s)
