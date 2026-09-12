@@ -1,7 +1,7 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **TWO — #79 and #83.**
-## (gen #9 CLOSED #80, #82 and #84, and FOUND #82, #83 and #84.)
+## CURRENTLY OPEN: **ONE — #79.**
+## (gen #10 CLOSED #83. gen #9 CLOSED #80, #82 and #84, and FOUND #82, #83 and #84.)
 ##
 ##   **#84 — AN `assert` ERASES ITS TEST WHOLESALE, SIDE EFFECTS INCLUDED, AND IT LAUNDERS A
 ##   CONSTRUCT THE EMITTER OTHERWISE REFUSES — FOUND AND CLOSED 2026-09-12 (gen #9).**
@@ -29,7 +29,23 @@
 ##   files, moving the suite baseline from 19 failures to ~30 — to be justified file by file.
 ##
 ##   **#83 — A FIELD STORE INSIDE CONTROL FLOW IN `__init__` IS DROPPED — FOUND 2026-09-12
-##   (gen #9), OPEN.** `self.v: int = 0` then `if n > 0: self.v = n`, and `C(7).v` proves
+##   (gen #9) AND CLOSED 2026-09-12 (gen #10). FULLY GATED, AND IT COST NOTHING.**
+##   Gates, all re-reproduced at HEAD rather than inherited: 34/34 planes; byte-inert over BOTH
+##   corpora (pycsl-ref 976/976, python-ref 2203/2203, 0 MOVED / 0 GONE / 0 APPEARED, zero-byte
+##   files checked on BOTH sides); IR conformance 38/38 core + 38/38 front-end, 0 MISMATCH;
+##   mirror-coverage ratchet 549 KEPT (the guard was inlined with ZERO new defs, twice);
+##   fidelity rc=0 with no mirror sync or whole-file re-proof owed; **suite 3336/3355, ZERO
+##   XPASS, rc=1, failure set 19 vs 19 and BYTE-IDENTICAL to the baseline** — the diff's
+##   population was asserted on both sides before it was believed. The specific risk watched for
+##   was `src/pycsl_lib` fallout, since all five nested-store sites live there and the stdlib
+##   demo drivers DO run in the suite even though they are in neither byte-diff corpus: NONE
+##   moved. Witnesses 1209 (exploit), 1210 (the un-annotated control that refuted the predicted
+##   mechanism) and 1211 (the BOUNDING control — a straight-line `__init__` must stay faithful,
+##   or the repair would silently destroy the parametrized construction #76 and #82 depend on).
+##   **THE REPAIR IS AN UNCONSTRAINED CAPTURE, NOT A FAITHFUL ONE, AND THAT IS CORRECT HERE:**
+##   the model cannot know which branch ran, so neither `\result == 0` nor `\result == 7`
+##   proves. Contrast #82, whose value WAS recoverable and so got a faithful capture.
+##   ORIGINALLY RECORDED AS:** `self.v: int = 0` then `if n > 0: self.v = n`, and `C(7).v` proves
 ##   `\result == 0` where CPython returns 7. Cause: `for stmt in child.body:  # top-level only`.
 ##   **ITS CONTROL REFUTED THE MECHANISM THE CENSUS PREDICTED** — the annotation is irrelevant;
 ##   the un-annotated store is equally live — so the candidate's repair would have fixed the

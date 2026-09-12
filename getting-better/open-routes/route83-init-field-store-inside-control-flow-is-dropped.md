@@ -1,7 +1,29 @@
 # ROUTE #83 — A FIELD STORE INSIDE CONTROL FLOW IN `__init__` IS DROPPED, AND THE FIELD BECOMES A LITERAL `0`
 
 **STATUS: FOUND AND REPRODUCED 2026-09-12 (gen #9). BOTH DIRECTIONS MEASURED ON FOUR CARRIERS,
-WITH A CONTROL THAT REFUTED THE MECHANISM IT WAS PREDICTED TO HAVE. OPEN.**
+WITH A CONTROL THAT REFUTED THE MECHANISM IT WAS PREDICTED TO HAVE.
+CLOSED AND FULLY GATED 2026-09-12 (gen #10) — AT ZERO MEASURED COST.**
+
+> ## CLOSING EVIDENCE (gen #10) — EVERY PLANE RE-REPRODUCED AT HEAD, NOT INHERITED
+>
+> | gate | verdict |
+> |------|---------|
+> | soundness planes | **34/34 green**, rc=0 (`--slow`) |
+> | byte-diff, pycsl-reference | **976/976 inert**, 0 MOVED / 0 GONE / 0 APPEARED |
+> | byte-diff, python-reference | **2203/2203 inert**, same |
+> | zero-byte check, BOTH sides | 0 / 0 (the disk-pressure artifact cannot be hiding a false green) |
+> | IR conformance | **38/38 core + 38/38 front-end**, 0 MISMATCH, determinism 10/10 |
+> | mirror-coverage ratchet | **549 KEPT**, not re-baselined |
+> | fidelity | rc=0, no mirror sync and no whole-file re-proof owed |
+> | reference suite | **3336/3355, ZERO XPASS, rc=1** (the baseline condition) |
+> | failure set | **19 vs 19, BYTE-IDENTICAL** to the baseline, population asserted on both sides |
+>
+> **THE COST IS EXACTLY NOTHING**, which is the unusual part and was NOT assumed: the five
+> nested-store sites all live in `src/pycsl_lib`, which is in NEITHER byte-diff corpus — so a
+> green byte-diff could not by itself have shown the repair was free. The `src/pycsl_lib`
+> demo drivers DO run in the reference suite, and that is the gate that actually covers them;
+> it is why the failure set was diffed rather than eyeballed. **A CORPUS THAT DOES NOT CONTAIN
+> THE BLAST RADIUS CANNOT PRICE THE REPAIR — FIND THE GATE THAT DOES.**
 
 **CLASS: the #69 class** — a FALSE POSTCONDITION about ordinary, TOTAL Python. No
 `no_exception`, no opt-in.
