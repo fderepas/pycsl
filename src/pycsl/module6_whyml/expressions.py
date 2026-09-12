@@ -16310,10 +16310,44 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         _r42_ok = True                     # a comparison yields a bool
                     elif _r42_t == "UnaryOp" and _r42_other.get("op") == "not":
                         _r42_ok = True                     # `not X` yields a bool
-                    elif (_r42_t == "Var"
-                          and getattr(self, "_current_symbol_table", {}).get(
-                              _r42_other.get("name")) == "bool"):
-                        _r42_ok = True                     # a `bool`-typed local/param
+                    # (#49) ROUTE #90 — THE ANNOTATION ARM IS DELETED. IT USED TO READ:
+                    #     elif (_r42_t == "Var"
+                    #           and getattr(self, "_current_symbol_table", {}).get(
+                    #               _r42_other.get("name")) == "bool"):
+                    #         _r42_ok = True            # a `bool`-typed local/param
+                    # and it was the ONLY non-syntactic arm of this whitelist. The
+                    # symbol table it consulted is built from TYPE ANNOTATIONS
+                    # (`Module5_IREmitter._build_function_symbol_table`), so "the
+                    # emitter can SHOW `X` is a Python `bool`" was never true — the
+                    # emitter READ A DECLARATION. Route #51 had ALREADY PROVED that an
+                    # annotation in this codebase is not a fact.
+                    # MEASURED, and every one of these PROVED a falsehood before this
+                    # deletion:
+                    #     def f(x: bool):          #@ requires x == 1
+                    #         if x is True: return 1
+                    #         return 0             #@ ensures \result == 1  <-- PROVED
+                    # CPython returns 0, because `1 is True` is False while `1 == True`
+                    # is True. The same lie ran on `is not True`, on `is False`, on a
+                    # `bool`-annotated LOCAL (`y: bool = 1`), and ACROSS A CALL — the
+                    # front-end accepts the int literal `1` as the actual for a `bool`
+                    # parameter, so the whole exploit is reachable from PyCSL source.
+                    # **THE WHITELIST WAS ANTI-CORRELATED WITH BOOL-NESS**: it admitted
+                    # the one source nothing enforces and still refuses `y = a > b` and
+                    # `y = True` — operands that are bool BY CONSTRUCTION and sound.
+                    # Those stay refused here; re-admitting them is a COMPLETENESS
+                    # follow-up that needs the assigned expression, not this table.
+                    # NOT FIXED BY SUPPLYING A WITNESS: emitting `0 <= x <= 1` for every
+                    # `bool`-annotated binding would still admit `x = 1`, the exact
+                    # carrier, and would make a SECOND falsehood decidable. The campaign's
+                    # hardest-won rule — a completeness fix that supplies a WITNESS value
+                    # is a soundness route waiting to happen — applies in full.
+                    # COST, CENSUSED BY AST OVER 1179 + 2217 + 94 + 104 + 53 FILES AND
+                    # RE-RUN INDEPENDENTLY: of the 92 `is True`/`is False` sites in the
+                    # whole tree, EXACTLY ONE takes this arm — corpus 1057, route #42's
+                    # own "faithful" control, whose claim IS ITSELF FALSE (its
+                    # `requires b == True` is satisfied by `b = 1`, for which CPython
+                    # returns 0, not 7). Every other site is call-valued, attribute-valued
+                    # or unannotated and was already refused by rule.
             # (#49) ROUTE #52 — `is` BETWEEN TWO VALUE-TYPED OPERANDS. Route #42 fixed the
             #   `bool` SINGLETON and left the general narrowing to `==` in place, which is
             #   exactly right for an object whose `__eq__` is the DEFAULT one: for such a
@@ -16404,7 +16438,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     "as VALUE equality and prove the wrong branch: measured, "
                     "`x = 1; if x is True: return 7` proved `\\result == 7` where "
                     "Python returns 0. Here `X` is a `%s` the emitter cannot type as "
-                    "`bool`. Write `X == True`, or annotate `X` as `bool`."
+                    "`bool`. Write `X == True` — that is the VALUE comparison PyCSL models faithfully. (#49 ROUTE #90: this line used to add \"or annotate `X` as `bool`\". That advice WAS THE EXPLOIT — following it turned this correct refusal into a proof of a falsehood, because the annotation arm it pointed at read a DECLARATION, not a fact.)"
                     % (_r42_other.get("type")
                        if isinstance(_r42_other, dict) else type(_r42_other).__name__,),
                     stage="whyml-emit", code="PYCSL-R42-IS-BOOL-SINGLETON")
