@@ -1,7 +1,59 @@
 # ROUTE #79 — AN `__init__` FIELD INITIALISER OUTSIDE THE CAPTURE SHAPE SILENTLY BECOMES 0
 
-**STATUS: FOUND AND REPRODUCED 2026-09-11 (gen #8). BOTH DIRECTIONS MEASURED. OPEN — repair
-scoped below.**
+**STATUS: FOUND AND REPRODUCED 2026-09-11 (gen #8). BOTH DIRECTIONS MEASURED. OPEN.
+COST MODEL CORRECTED 3.7x BY gen #9 — READ THE CORRECTION BEFORE USING THE 70% FIGURE BELOW.**
+
+> ## gen #9 CORRECTION — THE 70% BLAST RADIUS IS AN OVER-COUNT, AND THE REPAIR IS CHEAPER THAN RECORDED
+>
+> The census below applies the complement of the capture rule and reports **489 of 703 (70%)**,
+> concluding that a blanket refusal is off the table. The complement is **not one population, it
+> is three**, and only the third is this route:
+>
+> | class | what it is | count | is it the defect? |
+> |-------|-----------|-------|-------------------|
+> | (i) | a LITERAL RHS with NO free names (`self.balance = 0`, `self.start = 7`) | **376** | **NO — `field_defaults` captures it faithfully** |
+> | (ii) | params-only, captured | 192 | no |
+> | (iii) | the RHS names something OUTSIDE the parameter set | **133** | **YES — this is all of #79** |
+>
+> Class (i) was **verified, not assumed**: conformance golden 0442's source has
+> `self.start: int = 7` inside `__init__` and its golden IR carries `field_defaults={'start': 7}`.
+> `construction_synth.py`'s own docstring says so too — *"Constant RHS (e.g. `self.start = 7`) is
+> already handled by `field_defaults`, so it is intentionally NOT re-captured here."*
+>
+> Splitting class (iii) again by which arm of `_field_default` it reaches:
+>
+>     INT arm (the arm THIS route's exploit uses)   72    corpus 0 · mirror 17 · pycsl 32 · lib 23
+>     array arm                                     32    corpus 30
+>     dict/set arm                                  29    corpus 0
+>
+> **THERE ARE ZERO INT-ARM SITES IN THE VERIFIED CORPUS**, and none of the 38 IR-conformance
+> goldens has one either (every uncaptured field in all 15 record-bearing goldens is a literal).
+> So an INT-arm unconstrained-value repair is predicted **byte-inert over the verified corpus and
+> over all 38 goldens**; the remaining cost is the **17 mirror sites**, which is a
+> whole-file-proof question rather than a completeness regression.
+>
+> **LESSON: A CENSUS KEYED ON THE COMPLEMENT OF A GUARD MEASURES EVERYTHING THE GUARD DOES NOT
+> CAPTURE, WHICH IS NOT THE SAME SET AS EVERYTHING THE GUARD GETS WRONG.** Split the complement by
+> WHY each member fell out before pricing a repair from it.
+>
+> **TWO SIBLING ROUTES CAME OUT OF THAT RE-MEASUREMENT**, both reaching this same erasure site by
+> a different upstream cause, and they change the picture for the repair:
+>
+> * **ROUTE #82 (CLOSED by gen #9, FAITHFULLY)** — a keyword-only or positional-only `__init__`
+>   parameter was invisible to the capture rule, so `P(v=7).v` proved `\result == 0`. Found by
+>   reading the OUTLIER ROWS of the corrected census: four of the 133 were `PyCSLError`'s
+>   `self.filename = filename` and friends, which obviously should have been captured.
+>   **Every field #82 recovered LEAVES this route's omitted set**, so #79 is smaller again.
+> * **ROUTE #83 (OPEN)** — a field store NESTED IN CONTROL FLOW in `__init__` is never even
+>   considered (`for stmt in child.body:  # top-level only`). Blast radius 5, all in
+>   `src/pycsl_lib`.
+>
+> **STRATEGIC CONSEQUENCE:** #79's unconstrained-value repair would close #79 AND #83 at once.
+> But #82 shows the better move where the information EXISTS is a FAITHFUL CAPTURE, not an
+> unconstrained value — it turns a soundness fix into a completeness GAIN. **Prefer faithful
+> capture wherever the value is recoverable; fall back to unconstrained only where it genuinely
+> is not.** For #79 proper (`self.n = len(items)`) the value is NOT recoverable at the allocation
+> site, so unconstrained remains right there.
 
 **CLASS: the #69 class, the serious one** — a FALSE POSTCONDITION about ordinary, TOTAL Python.
 No `no_exception`, no opt-in.
