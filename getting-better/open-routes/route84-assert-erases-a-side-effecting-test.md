@@ -93,12 +93,54 @@ The information is in the IR, so the honest options are:
 Option 1 is the shape #77/#78/#80 used and it is almost certainly right here, because the
 construct is ALREADY refused one token away.
 
-**BLAST RADIUS: NOT YET MEASURED, AND IT IS THE DECIDING NUMBER.** `desugar.py` cites **1450
-asserts across this tree**, so unlike #80 (radius zero) and #82 (radius 8) this one could be
-expensive. **Census asserts whose TEST CONTAINS A CALL** — not all asserts — across
-`test-suite/corpus/`, `src/self-annotate/`, `src/pycsl/` and `src/pycsl_lib/` before writing a
-line. A pure-test assert (`assert n > 0`) must stay exactly as it is; the whole question is how
-many tests call something, and of those how many call something that mutates.
+## BLAST RADIUS — MEASURED, AND THE CARVE-OUT'S OWN COST FIGURE IS INFLATED ~24x
+
+`desugar.py` justifies the erasure with *"1450 asserts across this tree stay exactly as they
+are"*. That number is both **stale** and, far more importantly, **measuring the wrong
+population**:
+
+    TOTAL asserts in the four source roots            1212   (not 1450)
+      inside `if __name__ == "__main__":`             1162   <- DRIVER HARNESS, never lowered
+                                                              as body code
+      inside a FUNCTION BODY (actually lowered)         50
+        of those, PURE test (no call at all)            29   <- untouched by any repair
+        of those, test CONTAINS A CALL                  21   <- THE ENTIRE DECISION SET
+
+**THE WHOLE OF ROUTE #84's COST IS 21 ASSERTS**, every one of them in `test-suite/corpus`
+except a single `len(...)` in `src/pycsl/frontend/pure_ast.py`. **ZERO in the self-annotation
+mirror and ZERO in `src/pycsl_lib`**, so no whole-file mirror re-proof is at risk.
+
+And of those 21, most tests are transparently PURE — `len(...)`, `hasattr`, `isinstance`,
+`callable`, `type(...) is Meta`, `identity(42) == 42`, `f(1, 'x') == 1`, `eval('2 + 3') == 5`.
+The genuinely EFFECTFUL ones are a handful: `buf.read() == 'hello'` (0065), `f.read() == 'hello'`
+(0191) — a stream read ADVANCES THE POSITION, which is exactly this route's hazard and which my
+first mutator-name census MISSED because `read` was not in the name list — plus five
+`asyncio.run(...)` tests and two calls on a freshly constructed object (`C()() == 42`,
+`C()[5] == 10`).
+
+**THE MEASUREMENT KILLS THE OBVIOUS REPAIR AND RESCUES THE ROUTE.** "Refuse any assert whose
+test contains a call" reads as catastrophic against the raw 1108 with-call figure and is merely
+a 21-file completeness question once the `__main__` harnesses are excluded — but 21 corpus
+regressions is still too many to take blind.
+
+**THE REPAIR DESIGN FORK, TO BE SETTLED BY MEASUREMENT:**
+
+1. **A MUTATOR-NAME BLOCKLIST IS THE WRONG SHAPE AND THIS CAMPAIGN ALREADY KNOWS IT.** My own
+   first census used one and scored ZERO hits, because `read` was not on it — while `read` is
+   precisely one of the live mutators. Gen #7 banked *"a blocklist keyed on syntax fails OPEN"*
+   and #77 confirmed it across a module boundary. Do not build one here.
+2. **KEY ON THE EMITTER'S OWN PURITY ANALYSIS, NOT ON NAMES.** Module 5 already computes
+   `_detect_purity`, and the campaign already owns mutation machinery
+   (`find_iteration_mutations`, `check-dropped-mutation`, the `assigns` frame analysis). An
+   assert whose test is PROVABLY PURE by that existing analysis stays exactly as it is; anything
+   else is refused. This reuses a certified recognizer instead of inventing one — lesson (p),
+   census-first: **the analysis already exists, so scope the repair around it rather than around
+   a new construct.**
+3. **Lower the test's effects and discard only its boolean value.** The most faithful option and
+   the most work; it also reopens the aborting-path question the carve-out was avoiding.
+
+Option 2 is the one to price first. The 21 sites are few enough to inspect INDIVIDUALLY before
+and after, which is the honest way to confirm a purity classifier is not failing open.
 
 ## WITNESSES
 
