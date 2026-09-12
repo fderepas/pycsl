@@ -2,9 +2,9 @@
 #
 # ## THE ONE-PARAGRAPH SUMMARY
 #
-#   FIVE new soundness routes — **#77 AND #78 found, CLOSED AND FULLY GATED; #79, #80 and
-#   #81 found, reproduced BOTH DIRECTIONS, and recorded OPEN with their repairs PRICED BY
-#   MEASUREMENT (#81 is fully specified as a one-hour close).** All five are the #69 class, the serious one: a FALSE POSTCONDITION about
+#   FIVE new soundness routes — **#77, #78 AND #81 found, CLOSED AND FULLY GATED; #79 and
+#   #80 found, reproduced BOTH DIRECTIONS, and recorded OPEN with their repairs PRICED BY
+#   MEASUREMENT.** All five are the #69 class, the serious one: a FALSE POSTCONDITION about
 #   ordinary TOTAL Python, no `no_exception` and no opt-in. **FOUR OF THE FIVE CAME FROM TWO
 #   GENERATORS THAT WERE WRITTEN DOWN BEFORE THEY PAID** — a census of PROSE CARVE-OUTS
 #   upstream of a guard (#78/#79/#80), and "probe every OPERATION on a carrier a closed route
@@ -14,7 +14,7 @@
 #
 # ## WHAT IS TRUE RIGHT NOW
 #
-#   ledger   **THREE OPEN: #79, #80, #81.** #77 and #78 closed and FULLY GATED this generation.
+#   ledger   **TWO OPEN: #79, #80.** #77, #78 and #81 closed and FULLY GATED this generation.
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED.
 #   planes   **ALL 34 GREEN, rc=0** (`--slow`). **EXPORT why3 FIRST:**
 #            `export PATH=$HOME/.opam/framac-coq8/bin:$PATH`.
@@ -23,10 +23,11 @@
 #            mirror re-proof #77's repair owed. 52 min wall.
 #   corpora  **byte-inert over BOTH** vs a pre-repair worktree baseline: pycsl-ref 971/971,
 #            python-ref 2204/2204, 0 MOVED / 0 GONE / 0 APPEARED.
-#   suite    **3324/3343, ZERO XPASS**, rc=1 (the baseline condition). The 19 failures were
+#   suite    **3325/3344, ZERO XPASS**, rc=1 (the baseline condition). The 19 failures were
 #            **DIFFED, not eyeballed, and are BYTE-IDENTICAL** across gen #7's baseline and
-#            BOTH of this generation's runs. 3318/3337 -> 3322/3341 (#77's four witnesses)
-#            -> 3324/3343 (#78's two). Every added test passes; nothing else moved.
+#            ALL THREE of this generation's runs. 3318/3337 -> 3322/3341 (#77's four
+#            witnesses) -> 3324/3343 (#78's two) -> 3325/3344 (#81's one). Every added test
+#            passes; nothing else ever moved.
 #   OWED     **NOTHING.** No proof, battery or sweep in flight.
 #   tree     clean, every increment committed. The two GITLINKS (`scratchpad/w7/base`,
 #            `scratchpad/w8/pre`) and the 0-byte stray `str` in the repo root are
@@ -121,24 +122,15 @@
 #     **LESSON: "OUT OF SCOPE BECAUSE IT RAISES" IS ITSELF A CLAIM ABOUT PYTHON AND MUST BE
 #     PROBED, NOT REASONED ABOUT.** `del name` genuinely raises and stays route #71's class.
 #
-#   * **#81 A LIST ALIAS TRACKS ELEMENT STORES BUT LOSES `append`.**
-#     `a=[1,2]; b=a; b.append(3); return len(a)` proves `\result == 2`; CPython 3; TRUE twin
-#     REFUSED. The ELEMENT read is a second and sharper carrier (`a[1]` proves 1 where CPython
-#     gives 9 — the alias is wrong about the CONTENTS, not just the length), and the REVERSE
-#     mutation direction proves too.
-#     **IT REFUTES A REASSURING SENTENCE IN A CLOSED ROUTE'S OWN FILE.** Route #59 localised
-#     itself with a section headed "WHAT MAKES THIS SHARP: THE LIST CARRIER IS CORRECT",
-#     concluding "lists alias correctly (a shared ref)". That measurement is REAL AND STILL
-#     TRUE — but it covers only an ELEMENT STORE. The list model is an `array int` PLUS A
-#     SEPARATE LENGTH: a store goes through the shared ref, a length change does not.
-#     **THE MUTATOR FAMILY IS ENUMERATED, SO THE REPAIR IS A SINGLE-METHOD GUARD:**
-#     `insert`/`clear`/`pop`/`remove`/`extend` on an aliased list are ALL already PIPELINE
-#     REFUSALS; **`append` is the only live one, and it is live precisely BECAUSE it is the
-#     operation the array+length model was built to support.** The fence holds everywhere the
-#     model was absent and leaks at the one place it was present.
-#     **BLAST RADIUS CENSUSED AT ONE SITE** — and that site is `1131_route59_list_control_
-#     faithful.py`, #59's OWN control witness, which does an element STORE and so is NOT hit.
-#     **This is a one-hour close and it is fully specified in its route file.**
+#   * **#81 A LIST ALIAS TRACKS ELEMENT STORES BUT LOSES `append` — CLOSED AND FULLY GATED.**
+#     `a=[1,2]; b=a; b.append(3); len(a)` proved 2 where CPython returns 3; true twin refused;
+#     the ELEMENT read was a second, sharper carrier and the REVERSE direction proved too.
+#     **IT REFUTED A SECTION HEADING IN ROUTE #59's OWN FILE** — "THE LIST CARRIER IS CORRECT"
+#     — which was true of the ELEMENT STORE it measured and false one operation over.
+#     MECHANISM: an appended-to list is SEQ-PROMOTED to `ref (seq int)` and the alias COPIES
+#     it with its OWN length; Why3 prints `unused variable b_len` on the exploit run, exactly
+#     as it printed `unused variable xs` for #77. Closed by a guard at the TOP of
+#     `_handle_assign_stmt`; corpus 1131 (#59's element-store control) still proves.
 #
 # ## A BROKEN TOOL PATH ROOT-CAUSED AND FIXED — USE THE CLEAN BASELINE METHOD AGAIN
 #
@@ -219,18 +211,15 @@
 #
 # ## THE LADDER FOR THE NEXT RELAUNCH
 #
-#   1. **#78 IS DONE.** Start at #81.
-#   2. **#81 — ALSO A ONE-HOUR CLOSE, AND FULLY SPECIFIED.** Single-method guard on
-#      `append` over a local-to-local list alias (both binding orders). Blast radius measured
-#      at ONE site which the guard does not hit. No re-derivation needed.
-#   3. **THEN #80** — same erasure site as #77, so the repair is the same shape; census
+#   1. **#77, #78 AND #81 ARE DONE.** Start at #80.
+#   2. **#80** — same erasure site as #77, so the repair is the same shape; census
 #      `del <name>.<attr>` for blast radius first.
-#   4. **THEN #79, THE UNCONSTRAINED-VALUE REPAIR**, not a refusal (measured: 70%). Price the
+#   3. **THEN #79, THE UNCONSTRAINED-VALUE REPAIR**, not a refusal (measured: 70%). Price the
 #      85 mirror sites before building.
-#   5. **KEEP MINING THE CARVE-OUT CENSUS — SIX CANDIDATES REMAIN UNPROBED**, including the
+#   4. **KEEP MINING THE CARVE-OUT CENSUS — SIX CANDIDATES REMAIN UNPROBED**, including the
 #      annotated-store-inside-`__init__` drop, the `emit_ir[k] = v` no-op (mirror-domain), the
 #      silently-ignored mixin directives, and the missing `else` in the statement dispatch.
-#   6. Grow BOTH differential corpora further; the value one is now 36 and is aimed squarely
+#   5. Grow BOTH differential corpora further; the value one is now 36 and is aimed squarely
 #      at the campaign's most serious defect class.
 #
 # ===================================================================================
