@@ -1,7 +1,48 @@
 # ROUTE #79 — AN `__init__` FIELD INITIALISER OUTSIDE THE CAPTURE SHAPE SILENTLY BECOMES 0
 
-**STATUS: FOUND AND REPRODUCED 2026-09-11 (gen #8). BOTH DIRECTIONS MEASURED. OPEN.
-COST MODEL CORRECTED 3.7x BY gen #9 — READ THE CORRECTION BEFORE USING THE 70% FIGURE BELOW.**
+**STATUS: FOUND 2026-09-11 (gen #8). CLOSED AND FULLY GATED 2026-09-12 (gen #10),
+AT ZERO MEASURED COST. The 70% figure below and gen #9's 17-mirror-site correction are BOTH
+over-counts and are kept only as the record of how the price came down.**
+
+> ## CLOSING EVIDENCE (gen #10)
+>
+> | gate | verdict |
+> |------|---------|
+> | soundness planes | **34/34 green**, rc=0 (`--slow`) |
+> | byte-diff, pycsl-reference | **979/979 inert**, 0 MOVED / 0 GONE / 0 APPEARED |
+> | byte-diff, python-reference | **2203/2203 inert**, same |
+> | zero-byte check, BOTH sides | 0 / 0, `/tmp` at 15% |
+> | **mirror emission** | **53/53 BYTE-IDENTICAL — ZERO whole-file re-proofs owed** |
+> | IR conformance | 38/38 core + 38/38 front-end, 0 MISMATCH, determinism 10/10 |
+> | fidelity | rc=0, 887 verbatim, no mirror sync owed |
+> | mirror-coverage ratchet | **549 KEPT** |
+> | `check-bespoke-model-drift` | passed WITHOUT `--update` |
+> | reference suite | **3340/3359, ZERO XPASS, rc=1**; failure set 19 vs 19 BYTE-IDENTICAL |
+>
+> ## THE CARRIER THAT WAS NOT IN THIS FILE, AND WHY NO CENSUS COULD HAVE FOUND IT
+>
+> `_collect_init_construction` computed the parameter set and then did `if not pset: break`.
+> **A PARAMETERLESS `__init__` NEVER HAD A SINGLE INITIALISER EXAMINED**, so every computed
+> field it set took the literal `0` — the widest form of the defect. Measured:
+> `K = 8; class C: def __init__(self): self.x = K + 1` proves `\result == 0`, CPython 9.
+> The census in this file is written as *the complement of the live capture rule*, so it can
+> only ever enumerate constructors that REACH that rule. **A GUARD'S EARLY EXIT IS PART OF
+> THE GUARD, AND A CENSUS DEFINED AS A PREDICATE'S COMPLEMENT SILENTLY EXCLUDES EVERY INPUT
+> THAT NEVER REACHED THE PREDICATE.** The repair is placed BEFORE the `break`; witness 1214
+> is the witness for that placement specifically.
+>
+> ## WHY THE MIRROR COST WAS ZERO, WHICH IS NOT THE SAME AS "THE CENSUS WAS WRONG"
+>
+> The eight mirror sites the census predicts are REAL classifications. They cost nothing
+> because **this erasure only bites at an ALLOCATION SITE**: `_field_default` is reached only
+> from `_call_record_constructor`. `frontend__ConcurrencyChecker.mlw` emits the record TYPE
+> (`mutable strict_mode: int`) and contains NO RECORD LITERAL — the class is never allocated
+> in lowered code. **A FIELD-LEVEL CENSUS COUNTS DECLARATIONS; THE DEFECT LIVES AT
+> ALLOCATIONS. THE EMISSION IS THE AUTHORITY OVER BOTH.**
+>
+> A repair that moves nothing anywhere is also the exact shape of route #82's SILENT NO-OP,
+> so the zero was NOT taken on trust: the four carriers CHANGED VERDICT (they proved at HEAD
+> and refuse now), which proves Module 6 consumes the new IR key.
 
 > ## gen #9 CORRECTION — THE 70% BLAST RADIUS IS AN OVER-COUNT, AND THE REPAIR IS CHEAPER THAN RECORDED
 >

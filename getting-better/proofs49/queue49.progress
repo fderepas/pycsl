@@ -110,3 +110,5 @@
 09:13 finished w60_planes_route79 rc=0
 09:13 started suite60_run2 (route #79)
 09:13 w60 planes route79 rc=0 — ALL 34 GREEN. check-bespoke-model-drift passed WITHOUT --update, which is the independent confirmation of the 53/53 mirror inertness (the drift fingerprint would have fired had any emitted mirror WhyML moved); check-mirror-coverage held at 549 with no new defs; check-vacuous-drivers green over the four new witnesses. Suite60_run2 running.
+09:39 suite60_run2 at 27 min, still running (prior run took ~47 min)
+09:59 finished suite60_run2 rc=1

@@ -1,7 +1,36 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **ONE — #79.**
-## (gen #10 CLOSED #83. gen #9 CLOSED #80, #82 and #84, and FOUND #82, #83 and #84.)
+## CURRENTLY OPEN: **NONE.**
+## (gen #10 CLOSED #83 AND #79 — the last two. gen #9 CLOSED #80, #82 and #84.)
+##
+## **AN EMPTY OPEN LIST IS NOT A FLOOR.** It means every route the campaign has FOUND is
+## closed and gated, and the hunt must now GENERATE candidates rather than work a queue.
+## The generators that have paid, in order of yield, are recorded below and at the end of
+## this file; the carve-out census still has FOUR unprobed candidates (5, 6, 9, 10) at a
+## measured 2-hits-in-6 rate, and both differential corpora remain under-grown.
+##
+##   **#79 — AN `__init__` FIELD INITIALISER WHOSE RHS NAMES A NON-PARAMETER BECAME A
+##   LITERAL `0` — FOUND 2026-09-11 (gen #8), CLOSED 2026-09-12 (gen #10), AT ZERO MEASURED
+##   COST.** `self.n = len(items)` then `C([1,2,3]).n` proved `\result == 0` where CPython
+##   returns 3, with the true twin refused. FOUR CARRIERS — a builtin, a module constant,
+##   another `self` field, and **a PARAMETERLESS `__init__`, which gen #10 found and which no
+##   earlier census could reach**: the function did `if not pset: break`, so a constructor
+##   with no arguments never had a single initialiser examined. Route #79's own census is
+##   defined as "the complement of the live capture rule" and therefore enumerated only
+##   constructors that HAD parameters. **A GUARD'S EARLY EXIT IS PART OF THE GUARD.**
+##   THE REPAIR IS AN UNCONSTRAINED CAPTURE, and a literal RHS is deliberately NOT marked
+##   (`field_defaults` carries it faithfully — the #82 rule that faithful beats unconstrained
+##   wherever the information exists). Gates: 34/34 planes; byte-inert pycsl-ref 979/979 and
+##   python-ref 2203/2203, 0 MOVED/GONE/APPEARED, zero-byte checked BOTH sides; **mirror
+##   emission 53/53 BYTE-IDENTICAL, so ZERO whole-file re-proofs were owed**; conformance
+##   38/38 + 38/38; fidelity rc=0; mirror-coverage 549 KEPT; suite 3340/3359 ZERO XPASS with
+##   the 19-failure set BYTE-IDENTICAL and its population asserted. Witnesses 1212-1215.
+##   **ITS PRICE WAS CORRECTED THREE TIMES, DOWNWARD EVERY TIME** — gen #8 "70% completeness
+##   regression, repair off the table"; gen #9 "133 defects, 17 mirror sites at ~56 min each";
+##   gen #10 MEASURED: 40 scalar sites, zero corpus movement, zero mirror movement. Each
+##   correction came from splitting a population by a distinction the previous count had
+##   collapsed, and the last one from asking WHICH GUARD ALREADY STANDS between the
+##   population and the change (Module 6's `_NONSCALAR` check fences the entire array arm).
 ##
 ##   **#84 — AN `assert` ERASES ITS TEST WHOLESALE, SIDE EFFECTS INCLUDED, AND IT LAUNDERS A
 ##   CONSTRUCT THE EMITTER OTHERWISE REFUSES — FOUND AND CLOSED 2026-09-12 (gen #9).**
