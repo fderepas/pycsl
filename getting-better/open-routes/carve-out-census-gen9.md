@@ -9,13 +9,18 @@
 | 3 | `try/except/else` drops the `else` | **REFUTED — FAIL-CLOSED.** Route #37 raises an explicit `whyml-emit` error for an `else:` that jumps out. The NON-jumping `else` is modelled FAITHFULLY (true claim proves, false refused). DO NOT RE-PROBE. |
 | 4 | `assert` lowers to `()` | **LIVE — became ROUTE #84**, and it is the sharpest find of the generation: the same mutation OUTSIDE an assert is a PIPELINE ERROR, so the assert LAUNDERS A REFUSED CONSTRUCT past its own guard. |
 
-**HIT RATE 2 of 4, AND THE TWO MISSES WERE BOTH "A LATER GUARD THE SWEEP DID NOT READ".** That is
+| 7 | `_array_coerce_arg` -> `(Array.make 1 0)` | **REFUTED — FAIL-CLOSED.** A generator into `sorted(...)` is refused; the `*args` splat form RAISES `TypeError` in CPython and so is out of the value plane's scope entirely. DO NOT RE-PROBE. |
+| 8 | `@mutable_state` set/dict PARAM mutation -> `()` | **REFUTED — FAIL-CLOSED IN BOTH DIRECTIONS.** Neither `\result == False` nor `\result == True` proves for `s.add(5); return 5 in s`. Incomplete, not unsound. Consistent with gen #8's finding on the neighbouring local-actual carrier. DO NOT RE-PROBE. |
+
+**HIT RATE 2 of 6, AND EVERY ONE OF THE FOUR MISSES WAS "A LATER GUARD THE SWEEP DID NOT READ".** That is
 the systematic bias of a text-pattern census: it finds the carve-out COMMENT but cannot see a
 refusal that lives in a different module and fires later. **Probe before believing — and when a
 candidate turns out live, probe its MECHANISM story separately from its EXISTENCE, because #83
 shows those can come apart.**
 
-Candidates 5-10 below remain UNPROBED.
+Candidates 5, 6, 9 and 10 remain UNPROBED. On the evidence above they are the LOW-VALUE tail:
+every refuted candidate was refuted the same way, and 9 and 10 were already ranked low on
+reachability and latency respectively.
 
 ---
 
