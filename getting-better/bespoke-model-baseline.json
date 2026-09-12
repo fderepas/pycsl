@@ -81,7 +81,7 @@
   },
   "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_stmt_delete": {
     "emitter": "_emit_py_stmt_delete_bespoke",
-    "fingerprint": "e736beea33984d59"
+    "fingerprint": "8f2c0f1ec3eb2486"
   },
   "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._py_stmt_match": {
     "emitter": "_emit_py_stmt_match_bespoke",
