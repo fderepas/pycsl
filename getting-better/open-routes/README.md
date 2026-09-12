@@ -1,6 +1,48 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **TWO — #79 and #82.**  (#80 was CLOSED by gen #9; #77, #78 and #81 by gen #8.)
+## CURRENTLY OPEN: **THREE — #79, #83 and #84.**
+## (gen #9 CLOSED #80 and #82, and FOUND #82, #83 and #84.)
+##
+##   **#84 — AN `assert` ERASES ITS TEST WHOLESALE, SIDE EFFECTS INCLUDED, AND IT LAUNDERS A
+##   CONSTRUCT THE EMITTER OTHERWISE REFUSES — FOUND 2026-09-12 (gen #9), OPEN, REPAIR PRICED.**
+##   `assert xs.pop() == 3` then `return len(xs)` proves `\result == 3` where CPython returns 2.
+##   THE ASSERTION HOLDS, so CPython never aborts and the program is TOTAL. **THE CONTROL IS THE
+##   POINT: the same `xs.pop()` OUTSIDE an assert is a PIPELINE ERROR** — this build refuses that
+##   mutation outright, and wrapping it in a true assert launders it past its own guard. Escalates
+##   to a `requires` discharge. The carve-out's two justifications are both about a FAILING
+##   assert and correct about it; neither addresses a test that SUCCEEDS and MUTATES.
+##   **BLAST RADIUS 21, not the 1450 the carve-out cites** — 1162 of 1212 asserts are in
+##   `__main__` harnesses that are never lowered, and only 21 lowered asserts have a call in the
+##   test. Repair priced: key on the EXISTING `_detect_purity` signal, NOT on syntax (a
+##   mutator-name blocklist scored ZERO because `read` was not on it, and a
+##   refuse-method-calls rule fails open on user functions — "a blocklist keyed on syntax fails
+##   OPEN", three times in one route). Cost: a DELIBERATE completeness regression of ~9-11 corpus
+##   files, moving the suite baseline from 19 failures to ~30 — to be justified file by file.
+##
+##   **#83 — A FIELD STORE INSIDE CONTROL FLOW IN `__init__` IS DROPPED — FOUND 2026-09-12
+##   (gen #9), OPEN.** `self.v: int = 0` then `if n > 0: self.v = n`, and `C(7).v` proves
+##   `\result == 0` where CPython returns 7. Cause: `for stmt in child.body:  # top-level only`.
+##   **ITS CONTROL REFUTED THE MECHANISM THE CENSUS PREDICTED** — the annotation is irrelevant;
+##   the un-annotated store is equally live — so the candidate's repair would have fixed the
+##   annotated spelling, left the commoner one open, and passed every gate. Blast radius 5, all
+##   in `src/pycsl_lib`, zero elsewhere.
+##
+##   **#82 — AN `__init__` KEYWORD-ONLY OR POSITIONAL-ONLY PARAMETER WAS DROPPED — FOUND AND
+##   CLOSED 2026-09-12 (gen #9), AND CLOSED FAITHFULLY.** `P(v=7).v` proved `\result == 0` where
+##   CPython returns 7, because `_collect_init_construction` read `child.args.args` and Python
+##   keeps the other two parameter kinds in sibling fields. FIVE carriers; **the control was
+##   exact** (same class, field, value and clause — only the parameter KIND differed — faithful in
+##   both directions). **THE REPAIR IS A FAITHFUL CAPTURE, NOT A REFUSAL: every false claim is now
+##   refused AND every true twin PROVES**, so it is a completeness GAIN. Gates: byte-inert both
+##   corpora (971/971, 2204/2204), **IR conformance 38/38 + 38/38 WITH NEW IR KEYS ADDED** (the
+##   additive-when-empty design held, so no frozen golden moved and no re-baselining was needed),
+##   fidelity rc=0 with NO mirror sync owed, type-only 53/53, **34/34 planes**, suite **3333/3352
+##   ZERO XPASS with a byte-identical 19-failure set**. Witnesses 1204-1208.
+##   **FOUND BY RULE (o), NOT BY PROBING `__init__`:** re-verifying gen #8's inherited census
+##   surfaced four rows that obviously should have been captured. **THE CENSUS WAS RIGHT AND THE
+##   RULE WAS WRONG.** Generator banked: *when a census returns a member that obviously should not
+##   be there, the bug is as likely to be in the RULE the census applies as in the census — read
+##   the outlier ROWS, not just the totals.*
 ##
 ##   **#82 — AN `__init__` KEYWORD-ONLY OR POSITIONAL-ONLY PARAMETER IS DROPPED, AND EVERY
 ##   FIELD IT INITIALISES BECOMES A LITERAL `0` — FOUND 2026-09-12 (gen #9), OPEN.**

@@ -1,7 +1,7 @@
 # ROUTE #82 — AN `__init__` KEYWORD-ONLY (OR POSITIONAL-ONLY) PARAMETER IS DROPPED, AND EVERY FIELD IT INITIALISES BECOMES A LITERAL `0`
 
-**STATUS: FOUND AND REPRODUCED 2026-09-12 (gen #9). BOTH DIRECTIONS MEASURED ON FOUR
-CARRIERS, WITH AN EXACT CONTROL. OPEN.**
+**STATUS: FOUND, REPAIRED AND FULLY GATED 2026-09-12 (gen #9). CLOSED — AND CLOSED FAITHFULLY,
+not by refusal, so it is a COMPLETENESS GAIN as well as a soundness fix.**
 
 **CLASS: the #69 class, the serious one** — a FALSE POSTCONDITION about ordinary, TOTAL
 Python. No `no_exception`, no opt-in, no unusual construct.
@@ -108,7 +108,7 @@ totals. This is the counterpart to gen #8's "a comment asserting an erasure is s
 unproven lemma": here, *an inherited number is an unproven lemma too*, and the cheapest way to
 test it is to look at the rows it is made of.
 
-## REPAIR — SCOPED, NOT YET BUILT
+## CLOSED — THE REPAIR AS BUILT
 
 Read all three parameter lists, in Python's own binding order:
 
@@ -118,14 +118,71 @@ init_params = [a.arg for a in
                if a.arg != 'self']
 ```
 
-with the caveat that `init_params` is ALSO consumed as a **positional** binding list by
-`_call_record_constructor` (the positional-prefix rule binds `args[i]` to `init_params[i]`).
-Appending the keyword-only names to that same list would make them bind POSITIONALLY, which is
-a *different* wrong model — Python never binds a keyword-only parameter from a positional
-argument. **So the repair must keep the positional-bindable prefix (`posonlyargs + args`)
-SEPARATE from the keyword-only names**, letting WL-07's `kwargs_map` bind the latter by name
-only. Getting this wrong trades one wrong model for another, exactly as the one-token
-alternative did in #77 — so it must be measured, not reasoned about.
+**AND THE TRAP WAS REAL, SO THE TWO LISTS ARE KEPT SEPARATE.** `init_params` is ALSO consumed
+as the **positional** binding list by `_call_record_constructor` (`args[i]` binds
+`init_params[i]`). Appending the keyword-only names to it would bind them FROM POSITIONAL
+ARGUMENTS, which Python never does — a DIFFERENT wrong model in place of the old one, exactly
+as #77's one-token alternative would have been. So:
+
+* `init_params` = `posonlyargs + args` — the positional-bindable prefix, in Python's own order.
+  (Positional-only parameters DO bind positionally and belong here; they were missing before.)
+* `init_kwonly_params` / `init_kwonly_defaults` — NEW additive IR keys, emitted only when the
+  constructor has keyword-only parameters, so absent for the other 288 of 296 constructors and
+  byte-identical there.
+* `pset` — which only decides whether an RHS is EXPRESSIBLE from the parameters — sees all three
+  kinds.
+
+Module 6 binds the keyword-only names **BY NAME ONLY**, and seeds each omitted one from its
+captured CONSTANT default (the kw6 carrier).
+
+### THE BUG IN THE FIRST BUILD, AND THE LESSON THAT COST
+
+The first build fixed the POSITIONAL-ONLY carrier and left every KEYWORD-ONLY one still proving
+the false `0`. **Module 6 does not read the IR `type_decl`.** `preamble.py` builds
+`_record_types` by copying a **SELECTED LIST OF KEYS**, so a new IR key is silently dropped on
+the floor unless it is added there too.
+
+**LESSON: WHEN THREADING A NEW IR KEY FROM MODULE 5 TO MODULE 6, THE `type_decl` IS NOT THE
+INTERFACE — THE HAND-WRITTEN `rec_info` COPY IN `preamble.py` IS.** A key absent from that copy
+reads back as its default, and the repair is a silent no-op that passes every gate.
+
+**A SECOND LESSON, ABOUT DEBUGGING RATHER THAN ABOUT PYCSL.** An isolated harness that does
+`sys.path.insert(0, 'src/pycsl')` and calls the emitter method directly gets a **DIFFERENT `ast`
+module** than the emitter's own, so `isinstance(child, ast.FunctionDef)` is FALSE and the method
+silently returns empty. The harness said the Module-5 code never ran; the real pipeline said it
+did. **THE REAL PIPELINE WAS RIGHT, and the tell was already on the table** — the
+positional-only carrier HAD changed behaviour, which is impossible if that code never executed.
+Debug through the real pipeline, not a hand-built harness.
+
+### GATES, ALL GREEN
+
+* **byte-inert over BOTH corpora** against a pre-repair worktree baseline at `d5ab8bbd`:
+  pycsl-ref **971/971**, python-ref **2204/2204**, **0 MOVED / 0 GONE / 0 APPEARED** — exactly
+  as the blast-radius census predicted (zero corpus sites).
+* **IR conformance 38/38 core + 38/38 front-end, 0 MISMATCH**, determinism 10/10 — the
+  rule-(k) risk, since this route ADDS IR KEYS. The additive-when-empty design held: no golden
+  has a keyword-only constructor, so no frozen golden moved and **no re-baselining was needed or
+  considered.**
+* fidelity rc=0 (887 un-trusted mirror functions verbatim) — **all four edited regions are
+  OUTSIDE the mirror's un-trusted surface** (`construction_synth.py` is not mirrored at all, and
+  `_call_record_constructor` is a `#@ \trusted` bodyless stub), so **NO mirror sync and NO
+  whole-file re-proof were owed.** The #78 shape, as predicted before building.
+* mirror **type-only 53/53, 0 ILL-TYPED** (rule (j) — `preamble.py` was edited).
+* **34/34 planes, all green** — including `check-bespoke-model-drift`, which stayed green
+  because no bespoke model moved.
+* **reference suite 3333/3352, ZERO XPASS**, rc=1 (the baseline condition), with the 19-failure
+  set **byte-identical** to the route-#80 run and the comparison **verified non-vacuous** (19
+  lines on each side).
+
+### WITNESSES IN THE CORPUS
+
+`1204` keyword-only bound (true claim PROVES) · `1205` keyword-only NONZERO default omitted ·
+`1206` positional-only bound · `1207` **the negative witness** (the false claim must NOT prove) ·
+`1208` **the positional CONTROL locked**, so a future change cannot quietly alter the one shape
+that was never broken. Both directions are pinned: 1204 makes the true claim provable and 1207
+makes the false one unprovable. Either alone would also pass for a repair that merely REFUSED
+the construct, which would have been a completeness regression on 8 constructors — including
+`PyCSLError` in the self-annotation mirror.
 
 **BLAST RADIUS: MEASURED, AND IT IS TINY.** Of 296 `__init__` methods across
 `test-suite/corpus/`, `src/self-annotate/`, `src/pycsl/` and `src/pycsl_lib/`:
