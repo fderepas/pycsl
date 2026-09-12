@@ -1,7 +1,7 @@
 # ROUTE #84 — AN `assert` ERASES ITS TEST WHOLESALE, SIDE EFFECTS INCLUDED — AND IT LAUNDERS A CONSTRUCT THE EMITTER OTHERWISE REFUSES
 
-**STATUS: FOUND AND REPAIRED 2026-09-12 (gen #9). SIX CARRIERS, BOTH DIRECTIONS, WITH AN EXACT
-CONTROL. REPAIR BUILT AND NARROWED; GATES IN PROGRESS.**
+**STATUS: FOUND, REPAIRED AND FULLY GATED 2026-09-12 (gen #9). CLOSED.** SIX CARRIERS, BOTH
+DIRECTIONS, WITH AN EXACT CONTROL.
 
 **CLASS: the #69 class** — a FALSE POSTCONDITION about ordinary, TOTAL Python. No
 `no_exception`, no opt-in. **The assertion HOLDS**, so CPython does not abort: the program runs
@@ -273,3 +273,42 @@ owed (fidelity rc=0, 887 verbatim).
 * **`python-reference/0065` is now REFUSED and that is the intended verdict** — `buf.read()`
   advances the stream position, which is precisely this route's hazard. It moves from a silent
   false-proof-enabler to an explicit refusal.
+
+
+## GATES — ALL GREEN, AND THE COST IS ONE FILE
+
+* **byte-inert** vs a pre-repair worktree baseline at `08ea403f`: pycsl-ref **976/976, 0 MOVED /
+  0 GONE / 0 APPEARED**; python-ref **2204 -> 2203, 1 GONE / 0 UNEXPECTED**, declared
+  `--expect-gone pyref__0065`. Zero-byte files checked on BOTH sides (see the hazard below).
+* **IR conformance 38/38 core + 38/38 front-end, 0 MISMATCH**, determinism 10/10.
+* **fidelity rc=0** (887 un-trusted mirror functions verbatim) — **no mirror sync and no
+  whole-file re-proof owed**.
+* **`check-mirror-coverage` ratchet 549 KEPT, NOT RE-BASELINED** — the guard was rewritten inline
+  with zero new defs instead.
+* **34/34 planes green.**
+* **reference suite 3333/3352, ZERO XPASS**, rc=1 (the baseline condition), with the 19-failure
+  set **byte-identical** to the route-#82 close and the comparison verified NON-VACUOUS (19 lines
+  on each side).
+
+The intermediate run — before `0065` was marked — was **3332/3352 with exactly 20 failures**, the
+set being the 19 baseline PLUS `0065` and nothing else. That number is recorded because it is the
+honest, unabsorbed cost of the repair.
+
+**`python-reference/0065` IS NOW A NEGATIVE WITNESS, NOT AN UNTRACKED FAILURE.** It is marked
+`# pycsl-expected: FAIL` with the mechanism in its docstring, so the **XPASS rule guards it**: if
+it ever starts proving again, route #84 has reopened and the suite says so. Leaving it as a bare
+failure would have moved the tolerated baseline 19 -> 20 and put it beyond every ratchet — the
+#44 lesson ("a negative witness that cannot fail is not a test") applied in the other direction.
+
+## A MEASUREMENT HAZARD THIS ROUTE UNCOVERED — READ BEFORE TRUSTING ANY BYTE-DIFF
+
+The first #84 sweep reported **15 MOVED in pycsl-ref**, which is impossible for a guard that only
+RAISES or FALLS THROUGH. Those 15 candidate files were **ZERO BYTES**, in a contiguous block
+(0557-0572), with none on the baseline side: one parallel worker's batch failed to write with
+`/tmp` at 77% from accumulated worktrees and sweep dirs.
+
+**THE FAILURE IS SILENT AND BIDIRECTIONAL. Had the empty file landed on the BASELINE side, the
+diff would have reported a FALSE GREEN** and a real emission change would have passed unnoticed.
+Always run `find <sweepdir> -name '*.mlw' -size 0 | wc -l` on BOTH sides before believing a
+byte-diff verdict, and watch `df`. (`git worktree add` also fails with an opaque "could not reset
+index file to revision 'HEAD'" when `/tmp` is full.)

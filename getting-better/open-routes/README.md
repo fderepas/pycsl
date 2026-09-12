@@ -1,10 +1,19 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **THREE — #79, #83 and #84.**
-## (gen #9 CLOSED #80 and #82, and FOUND #82, #83 and #84.)
+## CURRENTLY OPEN: **TWO — #79 and #83.**
+## (gen #9 CLOSED #80, #82 and #84, and FOUND #82, #83 and #84.)
 ##
 ##   **#84 — AN `assert` ERASES ITS TEST WHOLESALE, SIDE EFFECTS INCLUDED, AND IT LAUNDERS A
-##   CONSTRUCT THE EMITTER OTHERWISE REFUSES — FOUND 2026-09-12 (gen #9), OPEN, REPAIR PRICED.**
+##   CONSTRUCT THE EMITTER OTHERWISE REFUSES — FOUND AND CLOSED 2026-09-12 (gen #9).**
+##   Gates: byte-inert pycsl-ref 976/976, python-ref 1 intended GONE (0065); conformance
+##   38/38 + 38/38; fidelity rc=0 with NO mirror work owed; mirror-coverage ratchet 549 KEPT
+##   (the guard was inlined with ZERO new defs rather than re-baselined); 34/34 planes; suite
+##   **3333/3352 ZERO XPASS with a byte-identical 19-failure set**. **COST: EXACTLY ONE CORPUS
+##   FILE**, `python-reference/0065` (`buf.read()`), now a NEGATIVE WITNESS under the XPASS rule
+##   rather than an untracked failure. **THE REPAIR WAS NARROWED 9x BY REFUTING MY OWN FIRST
+##   DESIGN**: the byte-diff priced it at NINE files, and testing whether those passes were
+##   HOLLOW showed they were NOT (hoisting `asyncio.run(...)` out of the assert still proves),
+##   so refusing them was pure completeness loss.
 ##   `assert xs.pop() == 3` then `return len(xs)` proves `\result == 3` where CPython returns 2.
 ##   THE ASSERTION HOLDS, so CPython never aborts and the program is TOTAL. **THE CONTROL IS THE
 ##   POINT: the same `xs.pop()` OUTSIDE an assert is a PIPELINE ERROR** — this build refuses that

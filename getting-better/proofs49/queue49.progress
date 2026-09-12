@@ -93,3 +93,4 @@
 05:29 started suite59_run3 (route #84 — ZERO XPASS check)
 06:15 finished suite59_run3 rc=1
 06:16 started suite59_run4 (route #84 — final tree, 0065 marked expected-FAIL)
+07:02 finished suite59_run4 rc=1
