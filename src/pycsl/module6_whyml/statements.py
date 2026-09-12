@@ -32,6 +32,79 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # table-driven indirection (str-kind → method-name → getattr) is no longer
     # needed: each typed `StmtIR` subclass routes directly to its handler.
 
+
+    # (#49) ROUTE #84 — the assert-test effect-freedom gate. See the AssertStmt arm for the
+    # measurement, the control, and why three syntactic rules were refuted before this one.
+    _ASSERT_PURE_BUILTINS = frozenset({
+        "len", "isinstance", "hasattr", "callable", "type", "abs", "ord", "chr",
+        "min", "max", "bool", "int", "str", "id", "repr", "bin", "hex", "round",
+    })
+
+    def _assert_test_must_be_effect_free(self, stmt: Any) -> None:
+        """Refuse an `assert` whose test may have a side effect.
+
+        The test is lowered to `()`, i.e. DISCARDED, so any effect inside it is erased.
+        That is sound only if evaluating the test cannot change the state. A call is
+        accepted only when it is demonstrably effect-free:
+
+          * a whitelisted PURE BUILTIN (`len`, `isinstance`, ...), or
+          * a user function the IR already marks `pure` — which
+            `module5/memoization_rt.py::_detect_purity` computes as `assigns \nothing`
+            AND not `\diverges` AND not `\trusted`.
+
+        Everything else FAILS CLOSED: a method call (unknown receiver effect), a
+        constructor, an unlisted builtin (`eval`, `asyncio.run`), or a user function not
+        marked pure. Keying on the existing analysis rather than on names or on call
+        SHAPE is deliberate — see the AssertStmt arm.
+        """
+        try:
+            test_ir = stmt.test.to_dict()
+        except Exception:
+            return                     # cannot inspect it -> leave prior behaviour
+        pure_funcs = {f.get("name") for f in (self.ir.get("functions", []) or [])
+                      if f.get("pure")}
+        offenders: List[str] = []
+
+        def _walk(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("type") == "Call":
+                    fname = node.get("func")
+                    has_recv = node.get("receiver") is not None and "receiver" in node
+                    if has_recv:
+                        offenders.append(f"`{fname}` (a method call)")
+                    elif not isinstance(fname, str):
+                        offenders.append("a computed call target")
+                    elif fname in self._ASSERT_PURE_BUILTINS:
+                        pass
+                    elif fname in pure_funcs:
+                        pass
+                    else:
+                        offenders.append(f"`{fname}`")
+                for v in node.values():
+                    _walk(v)
+            elif isinstance(node, list):
+                for v in node:
+                    _walk(v)
+
+        _walk(test_ir)
+        if not offenders:
+            return
+        from errors import PyCSLSemanticError
+        raise PyCSLSemanticError(
+            "an `assert` whose TEST may have a SIDE EFFECT is not modelled: the test is "
+            "lowered to `()`, i.e. DISCARDED, so any mutation inside it is ERASED while "
+            "the assertion itself still SUCCEEDS and the program runs to completion. "
+            "Measured: `xs = [1, 2, 3]; assert xs.pop() == 3; return len(xs)` proved "
+            "`\\result == 3` while Python returns 2, and the same `xs.pop()` written "
+            "OUTSIDE an assert is rejected by this build — so the assert was carrying a "
+            "refused construct past its own guard. Cannot show these calls are "
+            "effect-free: " + ", ".join(sorted(set(offenders))) + ". Move the call out of "
+            "the assert and assert over the result, or give the callee "
+            "`#@ assigns \\nothing`.",
+            stage="whyml-emit",
+            code="PYCSL-M6-ASSERT-EFFECTFUL-TEST",
+        )
+
     def _emit_first_assign(self, kind: str, indent: str, safe_target: str, target: str,
                            val: str, val_ir: Dict[str, Any],
                            local_refs=None) -> str:
@@ -3219,6 +3292,49 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code = f"{comment}{indent}{kw} {{ {pred} }}"
 
         elif isinstance(stmt, AssertStmt):
+            # (#49) ROUTE #84 — AN `assert` USED TO ERASE ITS TEST WHOLESALE, SIDE EFFECTS
+            # INCLUDED, AND THAT LAUNDERED A CONSTRUCT THIS EMITTER OTHERWISE REFUSES.
+            # MEASURED, before this guard:
+            #     xs: List[int] = [1, 2, 3]
+            #     assert xs.pop() == 3        # the assertion HOLDS — CPython never aborts
+            #     return len(xs)
+            #     #@ ensures \result == 3     <-- FALSE OF THE PROGRAM (Python returns 2)
+            #     [+] Verification SUCCESS! All contracts formally proven.
+            # The TRUE twin was refused, and the stale length also DISCHARGED a callee's
+            # `requires n == 3` at a call site where the runtime value is 2, so the defect
+            # crossed the call graph.
+            #
+            # THE CONTROL IS WHY THIS IS SEVERE RATHER THAN MERELY LOSSY: the SAME
+            # `xs.pop()` OUTSIDE any assert is a PIPELINE ERROR — this build refuses that
+            # mutation outright. Wrapping it in an assert whose test is TRUE dropped it
+            # silently and made a false postcondition provable. So the assert did not just
+            # lose information, it carried a refused construct PAST ITS OWN GUARD.
+            #
+            # The two comments that justified the erasure (in `functions.py` and
+            # `frontend/desugar.py`) are both about a FAILING assert, and both are correct
+            # about it: on the aborting path the model would have to discharge the
+            # postcondition, which is strictly harder. NEITHER says anything about a test
+            # that SUCCEEDS and MUTATES. (`desugar.py` also prices the carve-out at "1450
+            # asserts across this tree" — measured at 1212, of which 1162 are inside
+            # `if __name__ == "__main__":` and never lowered as body code. Only 21 lowered
+            # asserts have a call in the test at all.)
+            #
+            # WHY THIS GUARD ASKS THE PURITY ANALYSIS AND NOT THE SYNTAX. Three syntactic
+            # rules were priced against all 21 rows and all three are wrong:
+            #   * a MUTATOR-NAME blocklist scored ZERO hits, because `read` was not on the
+            #     list — and `buf.read()` / `f.read()` are exactly the live mutators here,
+            #     since a stream read advances the position;
+            #   * "refuse any method call" waves through `identity(42)` and `f(1, 'x')`,
+            #     which are plain calls to user functions that are free to mutate;
+            #   * "allow only pure builtins" refuses `eval('2 + 3')`, `identity(42)` and
+            #     `f(1, 'x')`, which are pure in fact.
+            # That is gen #7's "a blocklist keyed on syntax fails OPEN" three times over in
+            # one route. So the test below consults `_detect_purity`'s EXISTING per-function
+            # `pure` flag (`assigns \nothing` and not `\diverges` and not `\trusted`) —
+            # the same signal the memoization-soundness gate already relies on — and fails
+            # CLOSED on every unknown: a method call, a constructor, a builtin that is not
+            # on the pure whitelist, or a user function not marked pure.
+            self._assert_test_must_be_effect_free(stmt)
             code = f'{indent}()'
 
         elif isinstance(stmt, PassStmt):
