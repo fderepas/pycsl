@@ -137,3 +137,6 @@
 14:19 w60 gate2a planes rc=0 — ALL 34 GREEN. suite60_run5 running; expecting the failure baseline to move 19 -> 18 (0700 now proves).
 14:46 suite60_run5 at 28 min, still running
 15:05 finished suite60_run5 rc=1
+15:25 started w60 FINAL planes (after value-differential 36->45)
+15:57 finished w60 FINAL planes rc=0
+15:58 w60 FINAL planes rc=0 — ALL 34 GREEN, re-run AFTER the value-differential growth so the green covers the tree as it stands.
