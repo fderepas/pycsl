@@ -130,3 +130,5 @@
 12:49 w60 planes route87 rc=0 — ALL 34 GREEN. suite60_run4 running (the decisive gate: #87 is the first repair this generation that moves corpus emissions).
 13:17 suite60_run4 at 28 min, still running
 13:36 finished suite60_run4 rc=1
+13:45 started w60 gate2a (Gap 2a: conformance + fidelity + sweeps + planes + suite)
+13:50 gate2a sweeps done (conformance rc=0)
