@@ -102,3 +102,5 @@
 07:49 started suite60_run1 (route #83 gate; sole suite, /tmp at 10%)
 08:16 suite60_run1 still running at 27 min (gen #9's runs took ~45); planes already green; #79 reproduced at HEAD both directions incl. a NEW parameterless-constructor carrier; baseline worktree wt79 built at 46fd6631
 08:35 finished suite60_run1 rc=1
+08:38 started w60 byte-diff sweeps (route #79)
+08:41 base sweep done rc=0
