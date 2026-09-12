@@ -87,6 +87,10 @@ class ConstructionSynthMixin:
         # (#49) ROUTE #82 side-channel, reset per class so a constructor with no
         # keyword-only parameter emits nothing new (additive -> byte-identical).
         self._init_kwonly = ([], {})
+        # (#49) ROUTE #83 side-channel — fields whose value at construction time is
+        # genuinely UNKNOWN. Reset per class; empty for every constructor whose stores
+        # are all top-level, so it is additive and byte-identical there.
+        self._init_unknown: List[str] = []
         for child in node.body:
             if not (isinstance(child, ast.FunctionDef) and child.name == '__init__'):
                 continue
@@ -135,6 +139,39 @@ class ConstructionSynthMixin:
                         and not isinstance(_d.value, bool)):
                     kwonly_defaults[_a.arg] = int(_d.value)
             self._init_kwonly = (kwonly_params, kwonly_defaults)
+            # (#49) ROUTE #83 — A FIELD STORED INSIDE CONTROL FLOW IS NOT MERELY
+            # UNCAPTURED, ITS VALUE IS UNKNOWN, AND EMITTING A LITERAL `0` FOR IT IS A
+            # DEFINITE FALSE FACT. The loop below is TOP-LEVEL ONLY (`for stmt in
+            # child.body`), by the docstring's own reasoning that "a conditional/looping
+            # init can't be reduced to a single record literal". That reasoning is right
+            # about the REPRESENTATION and wrong about the CONSEQUENCE: the field then
+            # fell through to `_field_default`'s literal `0`. MEASURED:
+            #     class C:
+            #         v: int
+            #         def __init__(self, n: int) -> None:
+            #             self.v: int = 0
+            #             if n > 0:
+            #                 self.v = n
+            #     C(7).v      #@ ensures \result == 0   <-- PROVED; CPython returns 7
+            # The TRUE twin was refused; an UN-ANNOTATED store behaves identically (so
+            # this is NOT the `AnnAssign` hole it was predicted to be); a `while` store
+            # is a third carrier; and the stale `0` DISCHARGED a callee's `requires`.
+            # Collected here and emitted as an UNCONSTRAINED value at the allocation
+            # site — which is what "sound, just less precise" would have meant all along.
+            _top_ids = {id(_st) for _st in child.body}
+            for _st in ast.walk(child):
+                if id(_st) in _top_ids:
+                    continue
+                _ut = None
+                if isinstance(_st, ast.Assign) and len(_st.targets) == 1:
+                    _ut = _st.targets[0]
+                elif isinstance(_st, ast.AnnAssign):
+                    _ut = _st.target
+                if (isinstance(_ut, ast.Attribute)
+                        and isinstance(_ut.value, ast.Name)
+                        and _ut.value.id == 'self'
+                        and _ut.attr not in self._init_unknown):
+                    self._init_unknown.append(_ut.attr)
             pset = set(init_params) | set(kwonly_params)
             if not pset:
                 break

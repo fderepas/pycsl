@@ -8646,6 +8646,11 @@ class PreambleEmissionMixin:
                     # back as `[]`/`{}` there and the emission is byte-identical.
                     "init_kwonly_params": td.get("init_kwonly_params", []),
                     "init_kwonly_defaults": td.get("init_kwonly_defaults", {}),
+                    # (#49) ROUTE #83 — copied here BECAUSE OF ROUTE #82's LESSON: Module 6
+                    # does not read the IR `type_decl`, it reads THIS hand-written copy, and
+                    # a key absent from it reads back as its default, making the repair a
+                    # silent no-op that still passes every gate.
+                    "init_unknown_fields": td.get("init_unknown_fields", []),
                     # fresh-globals.md — the constructor's `#@ ensures` (post-state),
                     # consumed by `_emit_module_globals` (proven-of-the-literal GOAL)
                     # and `#@ fresh_globals` (assumed-at-driver-entry fact).

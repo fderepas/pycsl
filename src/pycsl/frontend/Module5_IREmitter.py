@@ -3672,6 +3672,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 node, {f["name"] for f in fields})
             init_params, init_body = self._collect_init_construction(node)
             _kwo = getattr(self, "_init_kwonly", ([], {}))
+            _unk = list(getattr(self, "_init_unknown", []) or [])
             init_ensures = self._collect_init_ensures(node)
             _icc = self._collect_init_contract_check(node)
             self.program_ir["type_decls"].append({
@@ -3697,6 +3698,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # all 38 frozen conformance goldens is byte-identical.
                 **({"init_kwonly_params": _kwo[0]} if _kwo[0] else {}),
                 **({"init_kwonly_defaults": _kwo[1]} if _kwo[1] else {}),
+                # (#49) ROUTE #83: fields stored inside control flow in `__init__`, whose
+                # value at construction time is UNKNOWN. Emitted ONLY when non-empty, so
+                # absent for every constructor with only top-level stores and therefore
+                # byte-identical there and in all 38 frozen conformance goldens.
+                **({"init_unknown_fields": _unk} if _unk else {}),
                 "init_ensures": init_ensures,
                 # (#43) route #15: the constructor's NON-TRIVIAL `#@ requires`/`#@ ensures`
                 # plus its parameter annotations, so Module 6 can emit a CHECKING-ONLY

@@ -12415,8 +12415,36 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 init_map[fn] = self._expr_to_whyml(
                     self._subst_params(ent["value"], arg_nodes), set())
 
+        # (#49) ROUTE #83 — A FIELD STORED INSIDE CONTROL FLOW IN `__init__` HAS AN
+        # UNKNOWN VALUE, AND THE LITERAL `0` IT USED TO GET IS A DEFINITE FALSE FACT.
+        # `_collect_init_construction` only ever considered the TOP-LEVEL statements of
+        # `__init__` ("a conditional/looping init can't be reduced to a single record
+        # literal"), which is true of the REPRESENTATION and says nothing about what the
+        # field's value then is. MEASURED: `self.v: int = 0` followed by
+        # `if n > 0: self.v = n` let `C(7).v` prove `\result == 0` while CPython returns
+        # 7; the true twin was refused; an UN-ANNOTATED store behaved identically; a
+        # `while` store was a third carrier; and the stale `0` DISCHARGED a callee's
+        # `requires`.
+        # An UNCONSTRAINED value is the faithful answer here and it OVERRIDES any captured
+        # one, because a conditional store can overwrite whatever the straight-line prefix
+        # put there. `any int` is a PROGRAM expression: in a pure/logic context Why3
+        # rejects it, which is a REFUSAL (fail-closed), never a false proof.
+        # Contrast route #82, where the value WAS recoverable and the repair is a faithful
+        # capture — prefer capture wherever the information exists, and fall back to
+        # unconstrained only where it genuinely does not.
+        # NOTE the inline conditional rather than a helper `def`: `check-mirror-coverage`
+        # ratchets on every `ast.FunctionDef` in the live tree, NESTED ONES INCLUDED, and a
+        # nested helper here broke it 549 -> 550. Rule (k) forbids re-baselining a ratchet
+        # to make a gate green, and a `\trusted` mirror stub would raise the trust-surface
+        # metric for what is a pure faithfulness fix.
+        _unknown = set(rec_info.get("init_unknown_fields", []) or [])
+        _NONSCALAR = ("list", "array", "dict", "set", "frozenset", "option")
         field_inits = "; ".join(
-            f"{self._field_label(rec_lower, fn)} = {init_map.get(fn, _field_default(fn))}"
+            "%s = %s" % (
+                self._field_label(rec_lower, fn),
+                "(any int)"
+                if (fn in _unknown and field_types.get(fn, "int") not in _NONSCALAR)
+                else init_map.get(fn, _field_default(fn)))
             for fn in rec_info["fields"]
         )
         return f"{{ {field_inits} }}"
