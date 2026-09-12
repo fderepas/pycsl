@@ -1,7 +1,25 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **NONE.**
-## (gen #10 CLOSED #83 AND #79 — the last two. gen #9 CLOSED #80, #82 and #84.)
+## CURRENTLY OPEN: **ONE — #85, found by gen #10 after it had emptied the ledger.**
+## (gen #10 CLOSED #83 AND #79 and FOUND #85. gen #9 CLOSED #80, #82 and #84.)
+##
+##   **#85 — A NON-EMPTY DICT/SET LITERAL STORED TO A FIELD IN `__init__` IS MODELLED AS THE
+##   EMPTY MAP — FOUND 2026-09-12 (gen #10), OPEN.** `self.d = {1: 5}` then `1 in c.d` proves
+##   `\result == 0` where CPython returns 1, and the true twin is refused. The emitted WhyML
+##   shows it directly: the allocation site is `{ d = (const (None: option int)) }`, the
+##   TOTALLY EMPTY map, so `Map.get d 1` is decidably `None`. FOUR CARRIERS — membership, the
+##   CONTENTS (`c.d.get(1, 0)` proves 0 where CPython gives 5, so the model is wrong about what
+##   is IN the map, not merely about a present-guard), a SET field, and the serious one, a
+##   CROSS-CALL carrier where the empty map DISCHARGES a callee's `#@ requires 1 not in d` that
+##   the running program VIOLATES. THREE CONTROLS BOUND IT EXACTLY: a genuinely empty `{}` is
+##   FAITHFUL, a field taken from a PARAMETER is fail-closed in both directions, and a LIST
+##   field is fail-closed — which is why the blast radius is **ONE site, in `src/pycsl`, with
+##   ZERO in the corpus and ZERO in the mirror**.
+##   **FOUND FROM CARVE-OUT CENSUS CANDIDATE 5, WHICH GEN #9 RANKED AS LOW-VALUE TAIL.** The
+##   candidate's own arm fired exactly as predicted and was NOT exploitable; the route was one
+##   line above it in the same `--keep-mlw` dump. **READ THE WHOLE EMITTED FILE WHEN YOU DUMP
+##   IT TO CHECK A CANDIDATE — a refuted candidate can still pay for itself in what its dump
+##   shows.** The census's hit rate is therefore 3 in 7, not 2 in 6.
 ##
 ## **AN EMPTY OPEN LIST IS NOT A FLOOR.** It means every route the campaign has FOUND is
 ## closed and gated, and the hunt must now GENERATE candidates rather than work a queue.
