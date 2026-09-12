@@ -1,6 +1,21 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **#89** (found, repair SPIKED and measured, gating owed).
+## CURRENTLY OPEN: **#90** (found, reproduced, BOTH DIRECTIONS + CROSS-CALL ESCALATION; repair NOT built).
+##                 **#89** (repair LANDED at e7a92460 and committed; every gate green except the
+##                 34-plane battery, which is the last one in flight).
+##
+##   **#90 — `is True` IS LOWERED TO INTEGER EQUALITY ON A `bool` ANNOTATION NOTHING ENFORCES
+##   — FOUND 2026-09-12 (gen #12).** `if x is True:` emits literally `if (x = 1)`, and the
+##   `bool` parameter is emitted as a plain `int`. With `requires x == 1` the guard is
+##   trivially true, so `\result == 1` PROVES while CPython returns 0 — `1 is True` is False,
+##   because `True` is a distinct singleton from the int 1 even though `1 == True`. The TRUE
+##   twin is refused, `is not True` lies the same way, and **the CROSS-CALL escalation proves
+##   it from PyCSL source alone: the front-end accepts the int literal `1` as the actual for a
+##   `bool` parameter.** MECHANISM — A COMPOSITION OF TWO ROUTES THIS CAMPAIGN ALREADY CLOSED:
+##   route #42's `is` whitelist ADMITS this arm on the ground that "the emitter can SHOW X is a
+##   Python bool", and route #51 ALREADY PROVED that an annotation in this codebase is not a
+##   fact. **A CONTROL THAT ADMITS AN ARM "BECAUSE WE CAN SHOW T" MUST CITE THE ENFORCEMENT OF
+##   T, NOT ITS DECLARATION.** See `route90-is-true-lowered-to-int-equality-on-an-unenforced-bool-annotation.md`.
 ##
 ##   **#88 CLOSED AND FULLY GATED 2026-09-12 (gen #11), FAITHFULLY ON THREE OF SIX CARRIERS.**
 ##   34/34 planes; pycsl-ref 7 MOVED = a subset of its own 8 witnesses with ZERO pre-existing
