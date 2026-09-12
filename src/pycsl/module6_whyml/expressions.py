@@ -7407,7 +7407,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # must already match.
                     coerced.append(arg)
                 else:
-                    coerced.append("(const (None: option int))")
+                    # (#49) ROUTE #86 — THE PLACEHOLDER WAS A DEFINITE VALUE, AND THE
+                    # CALLEE'S CONTRACT WAS THEN EVALUATED AGAINST IT. The comment above
+                    # calls `const None` "a placeholder empty map" and justifies it with
+                    # "the abstract val has no axioms about its contents anyway" — a claim
+                    # about the CALLEE BEING ABSTRACT, not about the lowering, and it is
+                    # false as soon as the callee is a REAL emitted function with a
+                    # contract. MEASURED, with route #85 already repaired so the two
+                    # erasures are separable:
+                    #     let c = { d = (map_update_some (const None) 1 5) } in   <- right
+                    #     (g (const (None: option int)))                          <- WRONG
+                    # `g`'s `#@ requires 1 not in d` was DISCHARGED against the empty map
+                    # while the program passes a map containing 1, and a value carrier
+                    # (`ensures (1 in d) ==> \result == 1`) PROVED `\result == 0` where
+                    # CPython returns 1. The true twin was refused in both.
+                    # An UNCONSTRAINED map is the honest placeholder: this arm genuinely
+                    # does not know the actual's contents (that is why a placeholder was
+                    # wanted at all), and "no known coercion" must mean "nothing is known",
+                    # not "it is empty". POLYMORPHIC so it unifies with a `map string
+                    # (option int)` / `value_type`-carrying parameter too; a monomorphic
+                    # `any` would be ill-typed there, which is fail-closed but needlessly.
+                    self._add_abstract_op(
+                        "val any_map (_u: unit) : map 'k (option 'v)")
+                    coerced.append("(any_map ())")
             elif isinstance(ptype, str) and ptype.startswith("option "):
                 # `Optional[<record>]` PARAM (lesson (ar), relaunch #8). Two actuals reach
                 # such a slot and both need lifting into the option:
@@ -12315,6 +12337,41 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     return "Seq.empty"
                 return f"(Array.make {rec_info['defaults'].get(fn, 0)} 0)"
             if ft in ("dict", "set", "frozenset"):
+                # (#49) ROUTE #85 — THE EMPTY MAP IS A DEFINITE VALUE, NOT AN UNKNOWN ONE,
+                # AND THE EMITTER DECIDED MEMBERSHIP AND CONTENTS ON IT. `self.d = {1: 5}`
+                # then `1 in c.d` PROVED `\result == 0` (CPython 1) and `c.d.get(1, 0)`
+                # PROVED `\result == 0` (CPython 5); the stale empty map also DISCHARGED a
+                # callee's `#@ requires 1 not in d` that the running program violates, so
+                # the defect crossed the call graph. The true twin was refused throughout.
+                # A LOCAL dict literal was always faithful (`map_update_some` chain) — only
+                # this FIELD arm dropped the contents, which is why the repair is a
+                # FAITHFUL CAPTURE where the literal is reconstructible (route #82's rule:
+                # the true claim now PROVES, so this is a completeness GAIN) and a
+                # POLYMORPHIC UNCONSTRAINED map where it is not. A GENUINELY EMPTY literal
+                # (`self.d = {}`) keeps `const None` and stays faithful — that is the
+                # control that bounds this, and it is what makes the repair a fix rather
+                # than a blanket erasure of dict fields.
+                _lit85 = (rec_info.get("field_map_literals") or {}).get(fn)
+                if _lit85:
+                    _acc85 = "(const (None: option int))"
+                    self._add_abstract_op(
+                        "val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
+                        ": map 'k (option 'v)\n"
+                        "    ensures { result = Map.set m k (Some v) }")
+                    for _kv85 in _lit85:
+                        _acc85 = "(map_update_some %s %d %d)" % (
+                            _acc85, int(_kv85[0]), int(_kv85[1]))
+                    return _acc85
+                if fn in set(rec_info.get("field_map_unknown") or []):
+                    # POLYMORPHIC on purpose: the field may lower to `map string (option
+                    # int)` or carry a `value_type`, and a monomorphic `any` would be
+                    # ill-typed there. An ill-typed emission is a REFUSAL (fail-closed),
+                    # never a false proof, but a polymorphic val is simply correct for
+                    # every key/value pair. Spiked before use: `why3 prove --type-only` is
+                    # clean and the FALSE claim stops being Valid.
+                    self._add_abstract_op(
+                        "val any_map (_u: unit) : map 'k (option 'v)")
+                    return "(any_map ())"
                 return "(const (None: option int))"
             if ft == "option":
                 # An OMITTED option field's type-correct default is Why3's `None`, not the

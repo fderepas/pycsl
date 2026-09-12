@@ -1,7 +1,23 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **ONE — #85, found by gen #10 after it had emptied the ledger.**
-## (gen #10 CLOSED #83 AND #79 and FOUND #85. gen #9 CLOSED #80, #82 and #84.)
+## CURRENTLY OPEN: **TWO — #85 and #86, both found by gen #10 after it had emptied the ledger.**
+## (gen #10 CLOSED #83 AND #79 and FOUND #85 and #86. gen #9 CLOSED #80, #82 and #84.)
+##
+##   **#86 — A `map int (option int)` PARAMETER COERCION SUBSTITUTES THE EMPTY MAP FOR THE
+##   ACTUAL — FOUND 2026-09-12 (gen #10), REPAIR BUILT, GATING.** This is carve-out census
+##   candidate 5 PROPER. An actual that is neither a bare identifier nor an already-map
+##   expression — a FIELD READ `c.d` — is replaced by `const None`, and the callee's contract
+##   is then evaluated against it: a `#@ requires 1 not in d` was DISCHARGED while the program
+##   passes a map containing 1, and a value carrier PROVED `\result == 0` where CPython gives
+##   1. The carve-out justifies itself with "the abstract val has no axioms about its contents
+##   anyway" — **a claim about the CALLEE BEING ABSTRACT, not about the lowering**, false as
+##   soon as the callee is a real emitted function with a contract.
+##   **IT ONLY BECAME VISIBLE BECAUSE #85 WAS FIXED FIRST.** Both erasures emitted the SAME
+##   wrong constant, so one masked the other; with #85 repaired the emission reads
+##   `let c = { d = (map_update_some ... 1 5) }` (correct) followed by `(g (const (None: option
+##   int)))` (wrong) on the next line. **LESSON: AFTER LANDING A REPAIR, RE-RUN THE CARRIERS
+##   AND LOOK FOR ONE THAT STILL PROVES — A SURVIVING CARRIER IS NOT A FAILED REPAIR, IT IS A
+##   SECOND ROUTE THE FIRST WAS MASKING.**
 ##
 ##   **#85 — A NON-EMPTY DICT/SET LITERAL STORED TO A FIELD IN `__init__` IS MODELLED AS THE
 ##   EMPTY MAP — FOUND 2026-09-12 (gen #10), OPEN.** `self.d = {1: 5}` then `1 in c.d` proves

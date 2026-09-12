@@ -8651,6 +8651,11 @@ class PreambleEmissionMixin:
                     # a key absent from it reads back as its default, making the repair a
                     # silent no-op that still passes every gate.
                     "init_unknown_fields": td.get("init_unknown_fields", []),
+                    # (#49) ROUTE #85 — copied here for the SAME reason as the line above:
+                    # Module 6 reads THIS hand-written copy, not the IR `type_decl`, so a
+                    # key omitted here is a SILENT NO-OP that still passes every gate.
+                    "field_map_literals": td.get("field_map_literals", {}),
+                    "field_map_unknown": td.get("field_map_unknown", []),
                     # fresh-globals.md — the constructor's `#@ ensures` (post-state),
                     # consumed by `_emit_module_globals` (proven-of-the-literal GOAL)
                     # and `#@ fresh_globals` (assumed-at-driver-entry fact).

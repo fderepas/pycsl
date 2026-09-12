@@ -3671,6 +3671,74 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             str_set_constants = self._collect_class_str_set_constants(
                 node, {f["name"] for f in fields})
             init_params, init_body = self._collect_init_construction(node)
+            # (#49) ROUTE #85 — A NON-EMPTY DICT/SET LITERAL STORED TO A FIELD IN
+            # `__init__` WAS MODELLED AS THE **EMPTY MAP**, AND MEMBERSHIP AND CONTENTS
+            # WERE THEN DECIDED ON. `_field_default` answered every dict/set field with
+            # `(const (None: option int))` — a DEFINITE value, not an unknown one — so
+            # `Map.get d k` was decidably `None`. MEASURED at HEAD:
+            #     class C:
+            #         d: Dict[int, int]
+            #         def __init__(self) -> None:
+            #             self.d = {1: 5}
+            #     `1 in c.d`        #@ ensures \result == 0   <-- PROVED; CPython gives 1
+            #     `c.d.get(1, 0)`   #@ ensures \result == 0   <-- PROVED; CPython gives 5
+            # and the empty map DISCHARGED a callee's `#@ requires 1 not in d` that the
+            # running program VIOLATES, so the defect crossed the call graph. The true
+            # twin was refused in every case.
+            #
+            # A LOCAL dict literal has ALWAYS been lowered FAITHFULLY, to a
+            # `map_update_some (const (None: option int)) k v` chain — only the FIELD arm
+            # dropped it. So the information exists and the repair is a FAITHFUL CAPTURE,
+            # not an unconstrained value: route #82's rule, and it makes the TRUE claim
+            # provable (spiked in Why3 before this was written — the chain gives
+            # `Goal f'vc — Valid`, the old empty map gives the false claim instead).
+            #
+            # Fields whose literal is NOT reconstructible (a non-constant key or value, or
+            # a SET literal, whose element lowering is int-erased) are marked UNKNOWN and
+            # get a polymorphic unconstrained map instead — also spiked: it type-checks
+            # against any key/value type AND the false claim stops proving.
+            # UNKNOWN WINS over a captured literal for the same field: it is the
+            # conservative merge when a field is written more than once.
+            # NOTE: written INLINE with no new `def`. `check-mirror-coverage` ratchets on
+            # every `ast.FunctionDef` in this mirrored file, nested ones included.
+            _m85lit: Dict[str, Any] = {}
+            _m85unk: List[str] = []
+            for _c85 in node.body:
+                if not (isinstance(_c85, ast.FunctionDef) and _c85.name == '__init__'):
+                    continue
+                for _s85 in ast.walk(_c85):
+                    _t85 = _r85 = None
+                    if isinstance(_s85, ast.Assign) and len(_s85.targets) == 1:
+                        _t85, _r85 = _s85.targets[0], _s85.value
+                    elif isinstance(_s85, ast.AnnAssign):
+                        _t85, _r85 = _s85.target, _s85.value
+                    if not (isinstance(_t85, ast.Attribute)
+                            and isinstance(_t85.value, ast.Name)
+                            and _t85.value.id == 'self' and _r85 is not None):
+                        continue
+                    if isinstance(_r85, ast.Set) and _r85.elts:
+                        if _t85.attr not in _m85unk:
+                            _m85unk.append(_t85.attr)
+                    elif isinstance(_r85, ast.Dict) and _r85.keys:
+                        _items85 = []
+                        for _k85, _v85 in zip(_r85.keys, _r85.values):
+                            if (isinstance(_k85, ast.Constant)
+                                    and isinstance(_k85.value, int)
+                                    and not isinstance(_k85.value, bool)
+                                    and isinstance(_v85, ast.Constant)
+                                    and isinstance(_v85.value, int)
+                                    and not isinstance(_v85.value, bool)):
+                                _items85.append([int(_k85.value), int(_v85.value)])
+                            else:
+                                _items85 = None
+                                break
+                        if _items85:
+                            _m85lit[_t85.attr] = _items85
+                        elif _t85.attr not in _m85unk:
+                            _m85unk.append(_t85.attr)
+                break
+            for _f85 in _m85unk:
+                _m85lit.pop(_f85, None)
             _kwo = getattr(self, "_init_kwonly", ([], {}))
             _unk = list(getattr(self, "_init_unknown", []) or [])
             init_ensures = self._collect_init_ensures(node)
@@ -3703,6 +3771,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # absent for every constructor with only top-level stores and therefore
                 # byte-identical there and in all 38 frozen conformance goldens.
                 **({"init_unknown_fields": _unk} if _unk else {}),
+                # (#49) ROUTE #85: a dict field's CONSTANT literal items, and the fields
+                # whose non-empty dict/set literal is not reconstructible. Both emitted
+                # ONLY when non-empty, so absent for every class without such an
+                # initialiser -> byte-identical there and in all 38 frozen goldens.
+                **({"field_map_literals": _m85lit} if _m85lit else {}),
+                **({"field_map_unknown": _m85unk} if _m85unk else {}),
                 "init_ensures": init_ensures,
                 # (#43) route #15: the constructor's NON-TRIVIAL `#@ requires`/`#@ ensures`
                 # plus its parameter annotations, so Module 6 can emit a CHECKING-ONLY
