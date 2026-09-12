@@ -158,6 +158,29 @@ class ConstructionSynthMixin:
             # is a third carrier; and the stale `0` DISCHARGED a callee's `requires`.
             # Collected here and emitted as an UNCONSTRAINED value at the allocation
             # site — which is what "sound, just less precise" would have meant all along.
+            # (#49) ROUTE #88 — AN `AugAssign` TO A FIELD IS INVISIBLE TO EVERY CAPTURE
+            # PATH, AND THAT MAKES A **NESTED** ONE A SURVIVOR OF ROUTE #83's REPAIR.
+            # The walk below tests `ast.Assign` / `ast.AnnAssign` only, and
+            # `Module5_IREmitter._collect_class_fields` does the same, so
+            #     self.n = 0
+            #     self.n += 5              # or:  if k > 0: self.n += 5
+            # left the field at its literal `0` and `C(7).n == 0` PROVED where CPython
+            # returns 5 — BOTH spellings measured, both directions, the true twin refused.
+            # A carrier that SURVIVES a landed repair is a SECOND ROUTE, not a failed
+            # repair (gen #10's generator 2). An augmented store is never reducible to a
+            # record literal, so the field's value at construction time is genuinely
+            # UNKNOWN and `(any int)` is the faithful answer — the same conclusion #83
+            # reached for a conditional store. Census: ZERO `self.<f> op= ...` sites in
+            # `__init__` across corpus, mirror, src/pycsl and src/pycsl_lib, so additive.
+            for _ag in ast.walk(child):
+                if not isinstance(_ag, ast.AugAssign):
+                    continue
+                _at = _ag.target
+                if (isinstance(_at, ast.Attribute)
+                        and isinstance(_at.value, ast.Name)
+                        and _at.value.id == 'self'
+                        and _at.attr not in self._init_unknown):
+                    self._init_unknown.append(_at.attr)
             _top_ids = {id(_st) for _st in child.body}
             for _st in ast.walk(child):
                 if id(_st) in _top_ids:
@@ -233,6 +256,22 @@ class ConstructionSynthMixin:
                     self._init_unknown.append(_f79)
             if not pset:
                 break
+            # (#49) ROUTE #88 — THIS LOOP USED TO **APPEND**, SO AN EARLIER
+            # PARAM-DEPENDENT STORE SURVIVED A LATER ONE THAT SUPERSEDED IT. MEASURED,
+            # and this is the direction that shows the model has no notion of store
+            # ORDER at all rather than a preference for literals:
+            #     def __init__(self, k: int) -> None:
+            #         self.n = k
+            #         self.n = 3
+            #     C(7).n      #@ ensures \result == 7   <-- PROVED; CPython returns 3
+            # The true twin (`== 3`) was refused. Keyed by FIELD and last-wins: a later
+            # store that the capture rule cannot express (a literal — which
+            # `field_defaults` now carries last-wins too — or anything else) sets the
+            # slot back to None rather than popping it, so a field's position in
+            # `init_body` stays at its FIRST capture and a single-store constructor
+            # emits byte-identically. Census: ZERO fields with two top-level stores in
+            # corpus, mirror, src/pycsl or src/pycsl_lib.
+            _cap88: Dict[str, Any] = {}
             for stmt in child.body:  # top-level only — no ast.walk
                 tgt = rhs = None
                 if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1:
@@ -246,8 +285,12 @@ class ConstructionSynthMixin:
                 names = {n.id for n in ast.walk(rhs) if isinstance(n, ast.Name)}
                 # param-dependent AND only over params (no other free names)
                 if names and (names & pset) and names <= pset:
-                    init_body.append({"field": tgt.attr,
-                                      "value": self._py_expr_to_ir(rhs)})
+                    _cap88[tgt.attr] = self._py_expr_to_ir(rhs)
+                elif tgt.attr in _cap88:
+                    _cap88[tgt.attr] = None
+            for _f88, _v88 in _cap88.items():
+                if _v88 is not None:
+                    init_body.append({"field": _f88, "value": _v88})
             return init_params, init_body
         # WL-07 (wrong-lowering-to-fix.md §WL-07 @dataclass ctor arg-drop, a
         # severity-1 UNSOUNDNESS): a `@dataclass` with NO explicit `__init__` has

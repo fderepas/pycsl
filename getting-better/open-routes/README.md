@@ -1,6 +1,14 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **#88** (repair built, gating) and **#89** (found, repair scoped).
+## CURRENTLY OPEN: **#89** (found, repair SPIKED and measured, gating owed).
+##
+##   **#88 CLOSED AND FULLY GATED 2026-09-12 (gen #11), FAITHFULLY ON THREE OF SIX CARRIERS.**
+##   34/34 planes; pycsl-ref 7 MOVED = a subset of its own 8 witnesses with ZERO pre-existing
+##   files (and the ONE witness that did NOT move is 1234, the single-store over-breadth
+##   control — the census made executable); python-ref 2203/2203 and MIRROR 53/53 inert;
+##   conformance 38/38 + 38/38 with no golden re-blessed; fidelity rc=0 887 verbatim; suite
+##   **3361/3379, ZERO XPASS, rc=1, failure set 18 vs 18 BYTE-IDENTICAL** with both
+##   populations asserted; value-differential grown **45 -> 50**, rc=0. Metric unchanged.
 ##
 ##   **#89 — A CONDITIONAL STORE TO A *COLLECTION* FIELD IS THE ARM ROUTE #83's REPAIR
 ##   FENCED OFF, AND ROUTES #85/#87 MADE IT DECIDABLE — FOUND 2026-09-12 (gen #11).**

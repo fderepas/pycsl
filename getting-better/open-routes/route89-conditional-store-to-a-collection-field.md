@@ -89,7 +89,11 @@ it is the reference SUITE (route #83's lesson).
 `q2_dict_field_cond_store.py`, `q3_list_field_only_nested.py`,
 `q4_list_field_cond_false_branch.py`, `q4t_…_twin.py`, `q5_dict_field_cond_false_branch.py`.
 
-**OWED:** re-reproduce q4/q5 at a tree WITHOUT the route-#88 repair (rule (p)). #88's three
-edits are inert on this shape by inspection — Edit A fires only on a second TOP-LEVEL store,
-Edit B only on a param-dependent capture, Edit C only on an `AugAssign` — but "by inspection"
-is not a measurement, and the #88 byte-diff baseline worktree is the free place to do it.
+**RULE (p) DISCHARGED — RE-REPRODUCED AT A TREE WITHOUT THE #88 REPAIR.** Run in the
+detached `git worktree` at HEAD `64e4dddf` (the #88 byte-diff baseline, which carries the
+route-#89 *record* but none of its *code*): `q4` **PROVED**, `q4` twin **refused**, `q5`
+**PROVED** — identical to the live tree. So #89 is a pre-existing defect and not an artifact
+of the #88 repair. #88's three edits are inert on this shape by inspection too (Edit A fires
+only on a second TOP-LEVEL store, Edit B only on a param-dependent capture, Edit C only on an
+`AugAssign`) — but inspection is not a measurement, and the baseline worktree made the
+measurement free.

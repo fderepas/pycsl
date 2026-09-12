@@ -3184,6 +3184,64 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                 sz = self._array_init_size(stmt.value)
                                 if sz is not None:
                                     field_defaults[stmt.target.attr] = sz
+        # (#49) ROUTE #88 — THE UNIT IS THE FIELD'S **LAST** TOP-LEVEL STORE, NOT ITS
+        # FIRST. The walk above guards every store with `target.attr not in
+        # field_names_seen`, so the FIRST store to a field decided its `field_defaults`
+        # entry and every LATER store was skipped outright. MEASURED:
+        #     class C:
+        #         n: int
+        #         def __init__(self) -> None:
+        #             self.n = 1
+        #             self.n = 2
+        #     C().n       #@ ensures \result == 0 ... == 1   <-- PROVED; CPython returns 2
+        # The emitted WhyML is literally `let c = { n = 1 } in c.n`; the TRUE twin
+        # (`== 2`) was REFUSED, THREE stores kept the first of three, and the stale `1`
+        # DISCHARGED a callee's `requires m == 1` while the runtime value was 2.
+        # Route #79's own comment in `module5/construction_synth.py` already states this
+        # rule — "A field written twice must be judged by the write that decides its
+        # value" — and implements it for the UNKNOWN-MARKING decision only. **A RULE
+        # STATED IN A COMMENT IS NOT A RULE THE OTHER FUNCTIONS OBEY.**
+        #
+        # STRICTLY ADDITIVE, AND MEASURED SO: this pass touches a field ONLY on its
+        # SECOND-OR-LATER **TOP-LEVEL** store, and a census of 1167 pycsl-reference +
+        # 2217 python-reference files, the 74-file mirror, src/pycsl and src/pycsl_lib
+        # finds **ZERO** fields with two top-level stores. NESTED stores are deliberately
+        # NOT considered here: they are route #83's territory (`_init_unknown` overrides
+        # the default with `(any int)`), and the five multi-store sites that DO exist are
+        # all one-top-level-plus-one-nested — leaving them to #83 is what keeps this
+        # byte-inert, including the three in `src/pycsl_lib`, which no byte-diff corpus
+        # contains and only the reference SUITE would price.
+        for _c88 in node.body:
+            if not (isinstance(_c88, ast.FunctionDef) and _c88.name == '__init__'):
+                continue
+            _seen88: Set[str] = set()
+            for _s88 in _c88.body:  # TOP-LEVEL ONLY, in source order
+                _t88 = _r88 = None
+                if isinstance(_s88, ast.Assign) and len(_s88.targets) == 1:
+                    _t88, _r88 = _s88.targets[0], _s88.value
+                elif isinstance(_s88, ast.AnnAssign) and _s88.value is not None:
+                    _t88, _r88 = _s88.target, _s88.value
+                if not (isinstance(_t88, ast.Attribute)
+                        and isinstance(_t88.value, ast.Name)
+                        and _t88.value.id == 'self'):
+                    continue
+                if _t88.attr not in _seen88:
+                    # the FIRST top-level store is exactly what the walk above used
+                    _seen88.add(_t88.attr)
+                    continue
+                if (isinstance(_r88, ast.Constant)
+                        and isinstance(_r88.value, (int, float))):
+                    field_defaults[_t88.attr] = int(_r88.value)
+                else:
+                    _sz88 = self._array_init_size(_r88)
+                    if _sz88 is not None:
+                        field_defaults[_t88.attr] = _sz88
+                    else:
+                        # A later store the capture rule cannot express SUPERSEDES the
+                        # earlier default: keeping it would be a definite FALSE fact.
+                        # The field then falls to construction_synth's param capture, or
+                        # to #79/#83's unconstrained `(any int)`.
+                        field_defaults.pop(_t88.attr, None)
         # b14 B1 (ir-schema-spec.md): a `@dataclass` has no `__init__` — its
         # fields are CLASS-BODY AnnAssigns (`target: str`, `value: "ExprIR"`).
         # The synthesized `__init__` walk above finds none, so the class would

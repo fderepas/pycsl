@@ -29,3 +29,10 @@
     ok       check-swallowed-exceptions.py             
     ok       check-bespoke-model-drift.py              
     ok       check-internal-crash-free.py              
+    ok       check-param-mutator-visibility.py         
+    ok       check-avatar-frame-parity.py              
+    ok       count-trusted-directives.py               
+    ok       check-mirror-type-only.py                 
+    ok       check-no-exception-differential.py        
+    ok       check-value-differential.py               
+[+] soundness-planes: OK — all 34 plane(s) green.

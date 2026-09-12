@@ -1,8 +1,71 @@
 # ROUTE #88 — A SCALAR FIELD'S **LAST** STORE IN `__init__` LOSES TO ITS **FIRST**, AND AN `AugAssign` TO A FIELD IS INVISIBLE
 
-**STATUS: FOUND AND REPRODUCED 2026-09-12 (gen #11). BOTH DIRECTIONS MEASURED ON SIX
-CARRIERS, WITH FOUR CONTROLS THAT BOUND IT — TWO OF THEM SHOWING THE COLLECTION ARMS ARE
-ALREADY LAST-WINS AND FAITHFUL.**
+**STATUS: FOUND, REPRODUCED, **CLOSED AND FULLY GATED** 2026-09-12 (gen #11) — AND CLOSED
+FAITHFULLY ON THREE OF ITS SIX CARRIERS. BOTH DIRECTIONS MEASURED, FOUR CONTROLS BOUNDING IT.**
+
+> ## CLOSING EVIDENCE — every plane re-reproduced at HEAD, none inherited
+>
+> | gate | verdict |
+> |------|---------|
+> | soundness planes | **34/34 green**, rc=0 (`--slow`), `proofs49/w61_planes_route88.log` |
+> | byte-diff, pycsl-reference | 1003 baseline / 1003 candidate, **7 MOVED = a SUBSET of this route's own 8 witnesses, ZERO pre-existing files**, 0 GONE, 0 APPEARED |
+> | byte-diff, python-reference | **2203/2203 BYTE-IDENTICAL**, SOURCES sets equal (2217 vs 2217) |
+> | byte-diff, MIRROR | **53/53 BYTE-IDENTICAL** |
+> | zero-byte check | **0 / 0 on BOTH sides of all three sweeps** (/tmp 15–24% throughout) |
+> | IR conformance | **38/38 core + 38/38 front-end**, 0 MISMATCH, determinism 10/10, NO golden re-blessed |
+> | fidelity | rc=0, **887 verbatim**, no mirror sync and no whole-file re-proof owed |
+> | mirror-coverage ratchet | **549 KEPT**, not re-baselined |
+> | value-differential | **50 drivers** (grown 45 → 50), 23 AGREE all prove / 27 DISAGREE all refused, rc=0 |
+> | reference suite | **3361/3379, ZERO XPASS, rc=1**; failure set **18 vs 18 BYTE-IDENTICAL**, both populations asserted |
+> | metric | markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED |
+>
+> **THE WITNESS THAT DID *NOT* MOVE IS THE EVIDENCE.** 1234 — the single-store over-breadth
+> control — is byte-identical across the diff, which is the census made executable: a
+> constructor that writes each field once must emit exactly what it emitted before, and the
+> census found that EVERY real constructor in corpus, mirror, `src/pycsl` and `src/pycsl_lib`
+> is that shape. The seven that moved are the seven that had to.
+>
+> **I CAUGHT A VACUITY TRAP IN MY OWN GATE.** The first version of the "moved set == my
+> witnesses" assertion scraped `byte-diff-compare.py`'s STDOUT, but it writes MOVED lines to
+> STDERR — so it compared against an EMPTY moved set and passed vacuously. The rerun captures
+> both streams and asserts BOTH population sizes (7 and 8) before believing the answer.
+> **ALWAYS ASSERT A DIFF'S POPULATION SIZE BEFORE BELIEVING IT — INCLUDING WHEN THE DIFF IS
+> YOUR OWN.**
+>
+> **THE SUITE VERDICT PER WITNESS**, which is what makes the close non-vacuous:
+> 1229, 1231, 1234 **PASS** (two completeness gains and the over-breadth bound);
+> 1228, 1230, 1232, 1233, 1235 **XFAIL** (every false claim now refused); **ZERO XPASS**.
+
+## THE REPAIR — THREE ADDITIVE EDITS, AND THE CENSUS THAT PRICES THEM
+
+**(A)** `Module5_IREmitter._collect_class_fields` gains a TOP-LEVEL-ONLY, source-ordered second
+pass that overrides `field_defaults` from a field's LAST store and POPS the entry when that
+store is inexpressible. **(B)** `construction_synth._collect_init_construction`'s capture loop
+is keyed by FIELD and last-wins; a superseding store sets the slot to `None` rather than
+popping it, so a field's position in `init_body` stays at its FIRST capture and a single-store
+constructor emits byte-identically. **(C)** a `self.<f> op= ...` anywhere in `__init__` marks
+the field `_init_unknown` → `(any int)`.
+
+**NESTED STORES ARE DELIBERATELY LEFT TO ROUTE #83.** That is what keeps (A) inert over the
+five real multi-store sites, every one of which is one-top-level-plus-one-nested — and three
+of those live in `src/pycsl_lib`, a tree NO byte-diff corpus contains, so the gate that prices
+them is the reference SUITE (route #83's lesson). *(That decision also left route #89 standing,
+which is recorded separately and honestly: the collection arms of the nested case are outside
+#83's fence.)*
+
+**THE CENSUS:** ZERO fields with two top-level stores and ZERO `AugAssign`-to-field sites
+across 1167 pycsl-reference + 2217 python-reference files, the 74-file mirror, `src/pycsl` and
+`src/pycsl_lib` — and the census was proved NON-VACUOUS by re-running it against my own probe
+directory, where it finds 13 and 2.
+
+## WHAT THE REPAIR COULD AND COULD NOT RECOVER
+
+Three carriers close **FAITHFULLY** — the true twin now PROVES where it was refused (two
+literal stores, three literal stores, param-then-literal). Two close **UNCONSTRAINED**: an
+augmented store is not reducible to a record literal, so both directions refuse, and that is
+recorded rather than hidden. **PREFER A FAITHFUL CAPTURE WHEREVER THE INFORMATION EXISTS AND
+FALL BACK TO UNCONSTRAINED ONLY WHERE IT GENUINELY DOES NOT** — this route contains both halves
+side by side, like #85 did.
 
 **CLASS: the #69 class** — a FALSE POSTCONDITION about ordinary, TOTAL Python. No
 `no_exception`, no opt-in, no `\trusted`.
