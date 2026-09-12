@@ -43,39 +43,68 @@ In CPython the guard is `1 is True`, which is **False**: `True` is a distinct si
 from the `int` 1, while `1 == True` is True. **THE MODEL DECIDES `is` AS `==`, AND FOR THE
 BOOL SINGLETON THOSE ARE DIFFERENT RELATIONS ON EXACTLY THE INTEGERS 0 AND 1.**
 
-## CARRIERS — BOTH DIRECTIONS, A CROSS-CALL ESCALATION, AND A SECOND OPERATOR
+## CARRIERS — AND THE TABLE IS THE FINDING, BECAUSE IT IS **INVERTED**
 
-| carrier | shape | claim | CPython | PyCSL |
-|---------|-------|-------|---------|-------|
-| p11 | `x: bool`, `requires x == 1`, `x is True` | `\result == 1` | **0** | **PROVED** ❌ |
+| carrier | operand's bool-ness comes from | claim | CPython | PyCSL |
+|---------|-------------------------------|-------|---------|-------|
+| p11 | **ANNOTATION** — param `x: bool`, `requires x == 1` | `\result == 1` | **0** | **PROVED** ❌ |
 | p11t | same | `\result == 0` | 0 | refused |
-| p12 | **CONTROL**, `requires x == 0` | `\result == 0` | 0 | PROVED ✔ (the arm fires and is decidable) |
-| p13 | **CROSS-CALL**: `f()` returns `g(1)` | `\result == 1` | **0** | **PROVED** ❌ |
+| p12 | same, `requires x == 0` (**arm-fired control**) | `\result == 0` | 0 | PROVED ✔ |
+| p13 | **ANNOTATION**, CROSS-CALL: `f()` returns `g(1)` | `\result == 1` | **0** | **PROVED** ❌ |
 | p13t | same | `\result == 0` | 0 | refused |
-| p14 | `x is not True` | `\result == 0` | **1** | **PROVED** ❌ |
+| p14 | **ANNOTATION**, operator `is not True` | `\result == 0` | **1** | **PROVED** ❌ |
+| p15 | **ANNOTATION**, operator `is False` | `\result == 1` | **0** | **PROVED** ❌ |
+| p19 | **ANNOTATION** on a LOCAL — `y: bool = 1` | `\result == 1` | **0** | **PROVED** ❌ |
+| p19t | same | `\result == 0` | 0 | refused |
+| p16 | annotation on a **FIELD** (`Attribute`) | — | 0 | **REFUSED by the guard** |
+| p17 | **CONSTRUCTION** — `y = a > b`, a comparison result | `\result == 1` | **1** | **REFUSED by the guard** |
+| p18 | **CONSTRUCTION** — `y = True`, a bool LITERAL | `\result == 1` | **1** | **REFUSED by the guard** |
 
-**p13 IS THE ESCALATION AND IT IS THE PART THAT MAKES THIS SEVERITY-1.** The false
-precondition is not merely *satisfiable in Python* — **PyCSL'S OWN FRONT-END ACCEPTS THE
-INT LITERAL `1` AS THE ACTUAL FOR A `bool` PARAMETER**, so the whole lie is reachable from
-PyCSL source, with no appeal to a hypothetical external caller.
+**>>> READ THE LAST THREE ROWS AGAINST THE FIRST SIX. THE WHITELIST IS NOT MERELY TOO
+PERMISSIVE — IT IS ANTI-CORRELATED WITH ACTUAL BOOL-NESS. <<<** It **ADMITS** the one source
+of bool-ness that nothing enforces (a type annotation, which route #51 already proved can
+lie, and which p19 shows is enough even on a LOCAL initialised to `1`), and it **REFUSES**
+the two sources that are bool BY CONSTRUCTION and therefore provably safe — a comparison
+result and the bool literal `True` itself. Every admitted carrier is unsound; both refused
+constructions are sound and true.
+
+## THE GUARD'S OWN ERROR MESSAGE MEASURES THIS EXACT DEFECT — AND THEN RECOMMENDS IT
+
+The refusal emitted for p17/p18 reads, verbatim:
+
+> `an IDENTITY test against a bool literal (X is True / X is False) is refused unless the
+> emitter can SHOW X is a Python bool (ROUTE #42). is is object identity against a SINGLETON,
+> so X is True is False for every genuine int — Python's 1 is True is False — while PyCSL
+> int-encodes bool, which would make the model decide the test as VALUE equality and prove
+> the wrong branch: measured, x = 1; if x is True: return 7 proved \result == 7 where Python
+> returns 0. Here X is a Var the emitter cannot type as bool.` **`Write X == True, or
+> annotate X as bool.`**
+
+Route #42 therefore **ALREADY MEASURED THIS EXPLOIT** — `x = 1; if x is True` proving the
+wrong branch is *my* carrier, written down as the hazard the guard exists to prevent. And the
+guard's closing remediation advice, **"annotate `X` as `bool`"**, is the attack: following the
+message's own instruction converts a correct refusal into the proof of a falsehood.
+
+**>>> A GUARD WHOSE ERROR MESSAGE CORRECTLY STATES THE UNSOUNDNESS IT PREVENTS CAN STILL BE
+THE THING THAT CAUSES IT, IF ITS REMEDIATION ADVICE IS THE UNSOUND CASE. READ THE `HOW TO
+FIX THIS` LINE OF EVERY FAIL-CLOSED MESSAGE AS AN ATTACK SURFACE. <<<** This campaign has
+twice praised a refusal message for "stating the unsoundness that WOULD occur" (the
+`reverse()`/`sort()` carve-out, gen #11's third probe round). That praise was for the
+*diagnosis*. **Nobody had ever read the PRESCRIPTION.**
 
 ## THE MECHANISM — TWO ROUTES THIS CAMPAIGN ALREADY CLOSED, NEVER COMPOSED
 
-Route **#42** (`is` on a singleton) fenced `is` with a WHITELIST and **ADMITTED** the arm
-`b: bool; if b is True:` — its own control — on the stated ground that *"the emitter can SHOW
-`X` is a Python `bool`"*. It can show no such thing: it reads a **TYPE ANNOTATION**.
+Route **#42** (`is` on a singleton) fenced `is` with a whitelist and **ADMITTED** the arm
+`b: bool; if b is True:` on the stated ground that *"the emitter can SHOW `X` is a Python
+`bool`"*. It can show no such thing: it reads a **TYPE ANNOTATION**.
 
 Route **#51** already proved, on a different shape, that **AN ANNOTATION IN THIS CODEBASE IS
 NOT A FACT** — a `bool`-annotated binding can hold `1` or `2`.
 
-**>>> #42's ADMITTED ARM IS SOUND ONLY UNDER #51's ALREADY-REFUTED ASSUMPTION. NEITHER ROUTE
-IS WRONG IN ISOLATION; THE DEFECT LIVES IN THE COMPOSITION, AND NOBODY RAN IT. <<<**
-
-This is the same one-level-up shape as #89 — where #83's fence was scoped by TYPE and #85/#87
-widened what a TYPE can decide — but with a sharper moral: **#89 was a COMPLETENESS GAIN
-re-arming a fence; #90 is a FENCE BUILT ON A FACT THE CAMPAIGN HAD ALREADY DISPROVED
-ELSEWHERE.** A control that admits an arm "because we can show T" must cite the ENFORCEMENT
-of T, not its DECLARATION.
+**#42's ADMITTED ARM IS SOUND ONLY UNDER #51's ALREADY-REFUTED ASSUMPTION. NEITHER ROUTE IS
+WRONG IN ISOLATION; THE DEFECT LIVES IN THE COMPOSITION, AND NOBODY RAN IT.** A control that
+admits an arm "because we can show T" must cite the **ENFORCEMENT** of T, not its
+**DECLARATION**.
 
 ## HOW IT WAS FOUND — AND THE VACUOUS FIRST ATTEMPT, RECORDED BECAUSE IT COST A ROUND
 
@@ -89,10 +118,18 @@ the arm fire (p12 proves), and the defect appeared immediately.
 
 ## THE PREDICTED REPAIR (not yet built — DO NOT SUPPLY A WITNESS)
 
-The honest fix is to make `is True` / `is False` / `is not True` **fail-closed on any operand
-whose bool-ness rests only on an annotation**, i.e. narrow #42's whitelist to operands the
-emitter can show are bool BY CONSTRUCTION (a literal `True`/`False`, a comparison result, a
-`bool()` call), not by declaration. **THE CAMPAIGN'S HARDEST-WON RULE APPLIES WITH FULL
+The inverted table makes the repair unusually clean, because it is **A SOUNDNESS FIX AND A
+COMPLETENESS GAIN IN THE SAME EDIT, IN OPPOSITE DIRECTIONS** — and it SUPPLIES NO WITNESS:
+
+  * **REFUSE** the annotation-only operands that are admitted today (param, local, and any
+    binding whose bool-ness comes from a declaration). That is the soundness half; it turns
+    six proving falsehoods into refusals.
+  * **ADMIT** the by-construction operands that are refused today — a `True`/`False` literal,
+    a comparison result, a `bool()` call. That is the completeness half, it is provably
+    sound, and p17/p18 are its positive witnesses (both TRUE and both refused today).
+  * **FIX THE ERROR MESSAGE.** Its remediation line currently recommends the exploit and MUST
+    stop saying "annotate `X` as `bool`"; the correct advice is `X == True`, which it already
+    offers first. **THE CAMPAIGN'S HARDEST-WON RULE APPLIES WITH FULL
 FORCE: DO NOT "FIX" THIS BY SUPPLYING A WITNESS** — e.g. by emitting an invariant
 `0 <= x <= 1` for every `bool`-annotated parameter. That would be a completeness fix
 supplying a witness value, it would still be WRONG (it admits `x = 1`, the exact carrier),
