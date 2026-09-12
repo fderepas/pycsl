@@ -1,8 +1,28 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 ## CURRENTLY OPEN: **#90** (found, reproduced, BOTH DIRECTIONS + CROSS-CALL ESCALATION; repair NOT built).
-##                 **#89** (repair LANDED at e7a92460 and committed; every gate green except the
-##                 34-plane battery, which is the last one in flight).
+##
+##   **#89 CLOSED AND FULLY GATED 2026-09-12 (gen #12), FAIL-CLOSED IN ALL FOUR DIRECTIONS.**
+##   The repair landed at e7a92460; gen #12 discharged the last owed gate and re-measured the
+##   rest. **34/34 planes rc=0** at the repaired HEAD (that battery re-runs BOTH differential
+##   corpora as planes, so value-differential 52 and no-exception-differential 45 are green at
+##   HEAD too). pycsl-ref byte-diff **2 MOVED = EXACTLY the two expected-FAIL witnesses, ZERO
+##   pre-existing files**, and the two CONTROL witnesses 1238/1239 BYTE-IDENTICAL — the
+##   evidence that #85's and #87's completeness gains are untouched; python-ref 2203/2203 and
+##   MIRROR 53/53 byte-identical; zero-byte 0/0 both sides. IR conformance **38/38 + 38/38
+##   with NO golden moved DESPITE A NEW IR KEY**, and that key was NEGATIVE-TESTED per rule
+##   (l): with preamble.py's hand-written `rec_info` copy line removed, witness 1236 PROVES
+##   THE FALSE CLAIM AGAIN, so the documented Module-6 silent-no-op trap is real and the key
+##   is load-bearing. fidelity rc=0 887 verbatim; mirror-coverage 549 KEPT; bespoke-model-drift
+##   OK with no `--update`. **SUITE 3365/3383, ZERO XPASS, rc=1, failure set 18 vs 18
+##   BYTE-IDENTICAL** with both populations asserted — and gen #12 PROVED BY MEASUREMENT that
+##   this run exercised the REPAIRED tree (the log names 1236-1239, the count moved 3379 ->
+##   3383 by exactly those four, and their verdicts XFAIL/XFAIL/PASS/PASS are producible only
+##   with the repair in). PER-WITNESS: both false claims refused, both controls still faithful.
+##   RULE (p) DISCHARGED LIVE: all four carriers re-run at HEAD are REFUSED (q4 and q5 flipped
+##   from PROVED). **#89 closes FAIL-CLOSED, NOT FAITHFULLY** — unlike #85/#87/#88 — which is
+##   the honest answer for a conditional store, since neither literal is the field's value.
+##   Metric unchanged: markers 459 - grep 484 - offset 25 - unattached 0.
 ##
 ##   **#90 — `is True` IS LOWERED TO INTEGER EQUALITY ON A `bool` ANNOTATION NOTHING ENFORCES
 ##   — FOUND 2026-09-12 (gen #12).** `if x is True:` emits literally `if (x = 1)`, and the

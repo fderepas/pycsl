@@ -34,3 +34,5 @@
     ok       count-trusted-directives.py               
     ok       check-mirror-type-only.py                 
     ok       check-no-exception-differential.py        
+    ok       check-value-differential.py               
+[+] soundness-planes: OK — all 34 plane(s) green.
