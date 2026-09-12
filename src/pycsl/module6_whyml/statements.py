@@ -40,6 +40,46 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         "min", "max", "bool", "int", "str", "id", "repr", "bin", "hex", "round",
     })
 
+
+    @staticmethod
+    def _assert_body_is_trivially_effect_free(func_ir: Any) -> bool:
+        """True only for a body that is EXACTLY `return <expr>` where `<expr>` contains
+        no call and no store — e.g. `def identity(x): return x`.
+
+        (#49) ROUTE #84. This exists because `_detect_purity` keys on the CONTRACT
+        (`#@ assigns \nothing`), so in UNANNOTATED code — all of
+        `test-suite/corpus/python-reference/` — nothing is ever marked pure, and an
+        assert calling even `def identity(x): return x` was refused. That is a
+        completeness loss with no soundness gain, MEASURED at two corpus files (0210,
+        0213).
+
+        It is deliberately the narrowest check that rescues them, and it inspects the
+        BODY rather than trusting a name: a single `Return` whose expression has no
+        `Call` and no assignment anywhere inside it cannot mutate anything. Anything
+        else — a second statement, any call, any store — returns False and the caller
+        FAILS CLOSED. Verified against the carriers: `bump` (which writes `c.v` before
+        returning) and `sneak` (which writes `xs[0]`) are both rejected by it, and both
+        are live #84 carriers.
+        """
+        body = func_ir.get("body") or []
+        if len(body) != 1 or not isinstance(body[0], dict):
+            return False
+        if body[0].get("stmt") != "Return":
+            return False
+
+        def _clean(node: Any) -> bool:
+            if isinstance(node, dict):
+                if node.get("type") == "Call":
+                    return False
+                if node.get("stmt") is not None and node.get("stmt") != "Return":
+                    return False
+                return all(_clean(v) for v in node.values())
+            if isinstance(node, list):
+                return all(_clean(v) for v in node)
+            return True
+
+        return _clean(body[0])
+
     def _assert_test_must_be_effect_free(self, stmt: Any) -> None:
         """Refuse an `assert` whose test may have a side effect.
 
@@ -61,25 +101,37 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             test_ir = stmt.test.to_dict()
         except Exception:
             return                     # cannot inspect it -> leave prior behaviour
-        pure_funcs = {f.get("name") for f in (self.ir.get("functions", []) or [])
-                      if f.get("pure")}
+        all_funcs = {f.get("name"): f for f in (self.ir.get("functions", []) or [])}
+        symtab = getattr(self, "_current_symbol_table", {}) or {}
         offenders: List[str] = []
 
         def _walk(node: Any) -> None:
             if isinstance(node, dict):
                 if node.get("type") == "Call":
                     fname = node.get("func")
-                    has_recv = node.get("receiver") is not None and "receiver" in node
-                    if has_recv:
-                        offenders.append(f"`{fname}` (a method call)")
-                    elif not isinstance(fname, str):
-                        offenders.append("a computed call target")
-                    elif fname in self._ASSERT_PURE_BUILTINS:
-                        pass
-                    elif fname in pure_funcs:
-                        pass
-                    else:
-                        offenders.append(f"`{fname}`")
+                    if isinstance(fname, str) and "." in fname:
+                        # A DOTTED callee is a method call. It is the measured hazard
+                        # exactly when the RECEIVER is state the model tracks: `xs.pop()`
+                        # on a list local, `buf.read()` on a StringIO local. A dotted call
+                        # whose prefix is NOT a tracked local is a MODULE call
+                        # (`asyncio.run(...)`), which the emitter already lowers as an
+                        # opaque value — measured: moving `asyncio.run(outer())` out of the
+                        # assert still proves, so refusing it would be a completeness
+                        # regression on a program this build handles.
+                        recv = fname.split(".", 1)[0]
+                        if recv in symtab:
+                            offenders.append(f"`{fname}` (a method call on the tracked "
+                                             f"local `{recv}`)")
+                    elif isinstance(fname, str) and fname in all_funcs:
+                        # A call to a TOP-LEVEL user function: safe only if the IR marks it
+                        # pure (`_detect_purity`: `assigns \nothing`, not `\diverges`, not
+                        # `\trusted`). A NESTED/local function is not in this registry and
+                        # is not refused here — recorded residue, see the route file.
+                        if not (all_funcs[fname].get("pure")
+                                or self._assert_body_is_trivially_effect_free(
+                                    all_funcs[fname])):
+                            offenders.append(f"`{fname}` (its effects are not known — "
+                                             f"give it `#@ assigns \\nothing`)")
                 for v in node.values():
                     _walk(v)
             elif isinstance(node, list):
