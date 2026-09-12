@@ -1,6 +1,36 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **THREE — #79, #80, #81.**  (#77 and #78 are CLOSED, see below.)
+## CURRENTLY OPEN: **TWO — #79 and #80.**  (#77, #78 and #81 are CLOSED, see below.)
+##
+##   **#81 — A LIST ALIAS TRACKS ELEMENT STORES BUT LOSES `append` — FOUND AND CLOSED
+##   2026-09-11 (gen #8).** `a=[1,2]; b=a; b.append(3); return len(a)` proved `\result == 2`
+##   where CPython returns 3; TRUE twin REFUSED; the ELEMENT read was a second and sharper
+##   carrier (wrong about the CONTENTS, not just the length) and the REVERSE direction proved
+##   identically. **IT REFUTED A SECTION HEADING IN ROUTE #59's OWN FILE** — "THE LIST CARRIER
+##   IS CORRECT" — which was true of the ELEMENT STORE it measured and false one operation
+##   over. MECHANISM: an appended-to list is SEQ-PROMOTED to `ref (seq int)` and the alias
+##   COPIES it with its own length; Why3 prints `unused variable b_len` on the exploit run.
+##   Closed by a guard at the TOP of `_handle_assign_stmt`. Gates: fidelity rc=0, byte-inert
+##   both corpora under `--expect-gone`, conformance rc=0, **34/34 planes rc=0**, suite
+##   **3325/3344 ZERO XPASS, failure set byte-identical**. Witness 1200; corpus 1131 (#59's
+##   element-store control) still proves.
+##
+##   **THREE LESSONS FROM #81, ALL PAID FOR BY MEASUREMENT:**
+##   1. **A CLOSED ROUTE'S "THIS CARRIER IS CORRECT" CONTROL IS EVIDENCE ABOUT THE OPERATION
+##      IT RAN, NOT ABOUT THE TYPE.** Probe every OPERATION on a carrier declared safe, not
+##      just every carrier. (Applied to #76's record control it found nothing — both outcomes
+##      recorded.)
+##   2. **THE SAME REPAIR IS CHEAP OR EXPENSIVE DEPENDING ON WHICH FUNCTION IT GOES IN.** A
+##      guard in `_handle_seq_assign` (a CONVERTED mirror body) would owe a whole-file
+##      statements.py re-proof; hoisted into `_handle_assign_stmt` (a `\trusted` STUB in the
+##      mirror) it owes NOTHING — and is more correct, because the entry point sees both the
+##      seq-promoted and unpromoted alias before the specialised handlers split them.
+##      **A first attempt placed BELOW the `_seq_locals` dispatch never fired at all; one
+##      debug print at the candidate site would have caught that in two minutes.**
+##   3. **A BLAST-RADIUS CENSUS OVER AN UNTYPED LANGUAGE MUST NOT KEY ON TYPE ANNOTATIONS.**
+##      Mine required `List[...]` and missed `a = []`, UNDER-counting — the dangerous
+##      direction, since it makes a refusal look safer than it is. The byte-diff caught it.
+##
 ##
 ##   **#78 — A SEEDED `deque(...)` WAS MODELLED AS EMPTY — FOUND AND CLOSED 2026-09-11
 ##   (gen #8).** `deque([1,2,3])` then `len` proved `\result == 0` where CPython returns 3;
@@ -20,24 +50,6 @@
 ##   AND CHECK FOR `#@ \trusted` — it is the difference between a ten-minute close and a
 ##   multi-hour one.**
 ##
-##
-##   * **#81 — A LIST ALIAS TRACKS ELEMENT STORES BUT LOSES A LENGTH-CHANGING MUTATION**
-##     (`route81-list-alias-loses-length-changing-mutation.md`). `a=[1,2]; b=a; b.append(3);
-##     return len(a)` proves `\result == 2`; CPython returns 3. TRUE twin REFUSED. The
-##     ELEMENT read is a second and sharper carrier (`a[1]` proves 1 where CPython gives 9):
-##     the alias is wrong about the CONTENTS, not just the length. The CALL carrier fails
-##     closed.
-##     **IT REFUTES A REASSURING SENTENCE IN A CLOSED ROUTE'S OWN FILE.** Route #59 closed
-##     the dict case and localised itself with a section headed "WHAT MAKES THIS SHARP: THE
-##     LIST CARRIER IS CORRECT", concluding "lists alias correctly (a shared ref)". That
-##     measurement is real and still true — **but it covers only an ELEMENT STORE.** The list
-##     model is an `array int` PLUS A SEPARATE LENGTH; a store goes through the shared ref, a
-##     length change does not.
-##     **THE LESSON, AND IT GENERALISES FURTHEST OF ANYTHING THIS GENERATION: A CLOSED
-##     ROUTE'S "THIS CARRIER IS CORRECT" CONTROL IS EVIDENCE ABOUT THE OPERATION IT RAN, NOT
-##     ABOUT THE TYPE.** The campaign already banks "probe every CARRIER of a closed route";
-##     add **"probe every OPERATION on the carrier that was declared safe"**. A control is a
-##     measurement, not a theorem, and its scope is exactly the program that was run.
 ##
 ##
 ##   **ALL THREE WERE FOUND BY ONE GENERATOR, AND THE GENERATOR IS #77's OWN LESSON:**
