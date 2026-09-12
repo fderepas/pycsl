@@ -1,4 +1,25 @@
-# CARVE-OUT CENSUS — GEN #9 (candidates, NOT yet probed)
+# CARVE-OUT CENSUS — GEN #9
+
+## PROBE RESULTS SO FAR (4 of 10 resolved) — READ THIS BEFORE SPENDING ANYTHING
+
+| # | candidate | verdict |
+|---|-----------|---------|
+| 1 | annotated store inside `__init__` | **LIVE, and the mechanism story was WRONG — became ROUTE #83.** The predicted cause (the `AnnAssign` Attribute hole) is REAL but IRRELEVANT: the UN-ANNOTATED control proves the same false claim. The actual cause is `for stmt in child.body:  # top-level only`. **Had the candidate's repair been built, it would have fixed the annotated spelling, left the commoner un-annotated one open, and passed every gate.** |
+| 2 | bare `with <ctx>:` | **REFUTED — FAIL-CLOSED.** Routes #38/#39 refuse it with an explicit `whyml-emit` error that names itself and covers the BARE form, not only the `as` form. The candidate read `_with_bindings` and missed the later guard. DO NOT RE-PROBE. |
+| 3 | `try/except/else` drops the `else` | **REFUTED — FAIL-CLOSED.** Route #37 raises an explicit `whyml-emit` error for an `else:` that jumps out. The NON-jumping `else` is modelled FAITHFULLY (true claim proves, false refused). DO NOT RE-PROBE. |
+| 4 | `assert` lowers to `()` | **LIVE — became ROUTE #84**, and it is the sharpest find of the generation: the same mutation OUTSIDE an assert is a PIPELINE ERROR, so the assert LAUNDERS A REFUSED CONSTRUCT past its own guard. |
+
+**HIT RATE 2 of 4, AND THE TWO MISSES WERE BOTH "A LATER GUARD THE SWEEP DID NOT READ".** That is
+the systematic bias of a text-pattern census: it finds the carve-out COMMENT but cannot see a
+refusal that lives in a different module and fires later. **Probe before believing — and when a
+candidate turns out live, probe its MECHANISM story separately from its EXISTENCE, because #83
+shows those can come apart.**
+
+Candidates 5-10 below remain UNPROBED.
+
+---
+
+# THE ORIGINAL RANKED LIST (candidates, as written before probing)
 
 **STATUS: A RANKED CANDIDATE LIST FROM A READ-ONLY SWEEP. NOTHING HERE IS A ROUTE UNTIL IT IS
 PROBED IN BOTH DIRECTIONS AT HEAD.** Every claim below was produced by a sub-agent and is
