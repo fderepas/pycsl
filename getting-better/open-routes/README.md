@@ -1,9 +1,18 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **NONE.**
-## (gen #10 CLOSED FIVE — #83, #79, #85, #86, #87 — and FOUND THREE OF THEM: #85, #86, #87.
-##  gen #9 CLOSED #80, #82 and #84.)
+## CURRENTLY OPEN: **#88** (found gen #11, repair in progress).
 ##
+##   **#88 — A SCALAR FIELD'S *LAST* STORE IN `__init__` LOSES TO ITS *FIRST*, AND AN
+##   `AugAssign` TO A FIELD IS INVISIBLE — FOUND 2026-09-12 (gen #11).** Six carriers, both
+##   directions, plus a CROSS-CALL escalation; four controls bound it (a single store is
+##   faithful, `lit-then-param` is faithful, and BOTH collection arms — #85's dict and #87's
+##   list — are ALREADY last-wins and faithful, so only the SCALAR `field_defaults` path is
+##   affected). `_collect_class_fields` guards on `target.attr not in field_names_seen`
+##   (first-wins) while `_collect_init_construction` APPENDS to `init_body` (so an earlier
+##   param store beats a later literal, carrier c4 — the defect runs in BOTH directions).
+##   Neither path reads `ast.AugAssign`, which also makes a NESTED `self.n += 5` a
+##   **SURVIVOR OF ROUTE #83's REPAIR**. See `route88-init-field-last-store-loses-to-first.md`.
+
 ## **AN EMPTY OPEN LIST IS NOT A FLOOR. gen #10 EMPTIED IT THREE TIMES AND FOUND A NEW
 ## SEVERITY-1 ROUTE AFTER EACH OF THE FIRST TWO.** It means the hunt must GENERATE
 ## candidates rather than work a queue. What produced them, in order: re-probing a
