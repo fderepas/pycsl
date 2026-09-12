@@ -15,13 +15,18 @@
 # ## WHAT IS TRUE RIGHT NOW
 #
 #   ledger   **ZERO OPEN.** Closed by gen #10: **#83, #79, #85, #86, #87.** Found: #85, #86, #87.
+#            Plus **finding-0700 / Gap 2a RESOLVED** — a completeness fix, not a route.
 #   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED all generation.
 #   planes   **34/34 green, rc=0** (`--slow`), re-run at every landing (four full runs).
 #            **EXPORT why3 FIRST:** `export PATH=$HOME/.opam/framac-coq8/bin:$PATH`.
 #   conform  **38/38 core + 38/38 front-end, 0 MISMATCH**, determinism 10/10. It FAILED once,
 #            on #87, and the REPAIR was narrowed — **no golden was ever re-blessed**.
-#   suite    **3350/3369, ZERO XPASS**, rc=1 (the baseline condition). The **19-failure set
-#            was BYTE-IDENTICAL in all four of this generation's runs** and to gen #9's.
+#   suite    **3353/3371, ZERO XPASS**, rc=1 (the baseline condition).
+#            **>>> THE FAILURE BASELINE IS NOW 18, NOT 19. <<<** It was byte-identical at 19
+#            across four of this generation's five runs and all of gen #9's; the fifth run
+#            dropped `pycsl-reference/0700` when Gap 2a landed, and the diff showed exactly
+#            that one line removed. **A run showing 19 failures is now a REGRESSION, not the
+#            old normal.**
 #   corpora  pycsl-ref 993, python-ref 2203, MIRROR 53 — all inert except #87's own four
 #            witnesses. **ALWAYS SWEEP THE MIRROR TOO**: it is the gate that retires the
 #            "whole-file re-proof" cost, and it was run on BOTH sides every time.
@@ -67,6 +72,31 @@
 #   be (a conditional store, a non-parameter RHS, an unknown actual, an int-erased set
 #   literal), and were left unconstrained. **#85's repair contains both halves at once**, so
 #   it is the cleanest side-by-side measurement of the rule the campaign has.
+#
+# ## THE LAST THING I BUILT, AND THE RULE IT EARNED — READ THIS BEFORE TOUCHING
+# ## `_field_default` AGAIN
+#
+#   **finding-0700 / Gap 2a: A `str` FIELD HAD NO DEFAULT WITNESS AT ALL.** The fallback is
+#   `rec_info['defaults'].get(fn, 0)` — an INT — so a `string`-typed field emitted
+#   `{ template = 0 }`, ill-typed, hence a refusal. Fail-closed, and measured to cost exactly
+#   ONE file: a sweep of all 993 pycsl-ref + 2203 python-ref emissions found exactly one
+#   `string`/`real` field defaulted to an int literal, and it was 0700's — one of the 19
+#   tracked failures. **0700 NOW PROVES and the baseline is 18.**
+#
+#   **BUT NOT BY THE FIX THE FINDING DOCUMENTS.** Gap 2a is written as *"the `str` field
+#   defaults to the empty-string witness `\"\"`"*, and building that as written would have
+#   MANUFACTURED a severity-1 route: an empty-string witness is a DEFINITE value, so a field
+#   really initialised to `"abc"` would make `\result == ""` provable — route #85's shape,
+#   created by a completeness fix. Witness 1227 is that negative test. What landed is a
+#   FAITHFUL capture (the field's own literal), and an uncaptured `str` field keeps its
+#   ill-typed int and KEEPS REFUSING.
+#
+#   **>>> A COMPLETENESS FIX THAT SUPPLIES A *WITNESS* VALUE IS A SOUNDNESS ROUTE WAITING TO
+#   HAPPEN. <<<** "Type-correct default" and "true value" are DIFFERENT REQUIREMENTS, and only
+#   the second is safe to make DECIDABLE. **Every arm of `_field_default` this campaign has
+#   repaired — #79 (scalar), #83 (conditional store), #85 (dict/set), #87 (list), and now the
+#   `str` arm — was a witness value someone had justified as sound. That one function is the
+#   same mistake made five times.** Read this before adding an arm to it.
 #
 # ## GATING LESSONS THAT COST ME TIME — READ BEFORE GATING ANYTHING
 #
@@ -162,6 +192,11 @@
 #   5. **GROW BOTH DIFFERENTIAL CORPORA** (`no-exception-differential/`, `value-differential/`
 #      at 36). Unpaid since gen #8. They curate nothing, so every driver added is a permanent
 #      self-measuring check.
+#   6. **AUDIT THE REST OF `_field_default` AND ITS NEIGHBOURS AGAINST THE WITNESS-VALUE
+#      RULE.** The `option` arm (`return "None"`) is the one I could not reach — probed twice,
+#      the arm never fired because both `Optional[int]` and `Optional[<record>]` lower to
+#      plain `int`. It is still a DEFINITE value sitting behind a reachability question, and
+#      it is the last unaudited arm of a function that has now yielded five routes.
 #
 # ===================================================================================
 
