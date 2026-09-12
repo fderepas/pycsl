@@ -1,3 +1,144 @@
+# ====== START HERE — gen #9 FINAL STATE — read this block first ==================
+#
+# ## THE ONE-PARAGRAPH SUMMARY
+#
+#   **THREE new soundness routes FOUND (#82, #83, #84) and TWO routes CLOSED AND FULLY
+#   GATED (#80, #82)**, plus **route #79's cost model CORRECTED BY 3.7x**. All three new
+#   routes are the #69 class, the serious one: a FALSE POSTCONDITION about ordinary TOTAL
+#   Python, no `no_exception` and no opt-in. **#82 WAS CLOSED FAITHFULLY RATHER THAN BY
+#   REFUSAL — every false claim is refused AND every true twin now PROVES — so it is a
+#   COMPLETENESS GAIN as well as a soundness fix**, the first such close in the campaign's
+#   recent history. The metric never moved (**markers 459 · grep 484**) and was never
+#   supposed to. **THE DEFINING FEATURE OF THIS GENERATION IS THAT MEASUREMENT REFUTED MY
+#   OWN WORK THREE TIMES BEFORE ANY GATE DID** — see THE THREE SELF-REFUTATIONS below.
+#
+# ## WHAT IS TRUE RIGHT NOW
+#
+#   ledger   **THREE OPEN: #79, #83, #84** (#84's repair is BUILT and gating).
+#            CLOSED this generation: **#80, #82**.
+#   metric   markers **459** · grep 484 · offset 25 · unattached 0 — UNCHANGED.
+#   planes   34/34 green at the #82 close. **EXPORT why3 FIRST:**
+#            `export PATH=$HOME/.opam/framac-coq8/bin:$PATH`.
+#   conform  IR conformance **38/38 core + 38/38 front-end, 0 MISMATCH**, determinism 10/10.
+#   suite    **3333/3352, ZERO XPASS**, rc=1 (the baseline condition), 19-failure set
+#            byte-identical across both of this generation's runs.
+#   ratchets mirror-coverage **549 KEPT, not re-baselined** (see #84).
+#
+# ## THE THREE SELF-REFUTATIONS — THE MOST TRANSFERABLE THING HERE
+#
+#   1. **AN INHERITED NUMBER IS AN UNPROVEN LEMMA.** Gen #8 priced #79's repair off "489 of
+#      703 (70%) constructor field initialisers are outside the capture shape" and concluded
+#      a refusal was OFF THE TABLE. Splitting that complement by *why* each row fell out
+#      gives 376 literal RHSs (which `field_defaults` captures FAITHFULLY — verified against
+#      golden 0442's IR, not assumed), 192 captured, and **133 actual defects**. Split again
+#      by emitter arm, the INT arm #79's own exploit uses has **ZERO corpus sites**. The
+#      repair gen #8 called off is predicted byte-inert there.
+#      **LESSON: A CENSUS KEYED ON THE COMPLEMENT OF A GUARD MEASURES EVERYTHING THE GUARD
+#      DOES NOT CAPTURE, WHICH IS NOT THE SAME SET AS EVERYTHING IT GETS WRONG.**
+#
+#   2. **MY OWN REPAIR FOR #84 COST NINE CORPUS FILES AND SHOULD HAVE COST ONE.** The
+#      byte-diff priced the first design at 9 newly-refused files. I then tested whether
+#      those passes were HOLLOW — and they were NOT: hoisting `asyncio.run(outer())` out of
+#      the assert into a plain assignment **still proves**, so the emitter already lowers it
+#      opaquely and refusing it was pure completeness loss. Narrowing to the measured hazard
+#      cut it **9 -> 1**. #79's lesson, recurring on my own work.
+#
+#   3. **A RATCHET WANTED RE-BASELINING AND WAS KEPT INSTEAD.** `check-mirror-coverage` went
+#      552 > 549 because it counts every `ast.FunctionDef` **including nested ones**, so two
+#      helper methods plus their inner walkers broke it. Rule (k) forbids re-baselining, and
+#      adding `\trusted` mirror stubs would have RAISED the trust metric for a pure refusal.
+#      The guard was rewritten **inline with zero new defs**. 549 green, metric untouched.
+#
+# ## THE GENERATORS THAT PAID THIS GENERATION
+#
+#   * **READ THE OUTLIER ROWS, NOT JUST THE TOTALS — this produced #82.** Re-verifying gen
+#     #8's census surfaced four rows (`PyCSLError`'s `self.filename = filename` and friends)
+#     that OBVIOUSLY should have been captured. **The census was right and the RULE was
+#     wrong:** `_collect_init_construction` reads `child.args.args`, and Python keeps
+#     positional-only and keyword-only parameters in SIBLING fields that are never read.
+#     **When a census returns a member that obviously should not be there, the bug is as
+#     likely to be in the RULE the census applies as in the census.**
+#
+#   * **A CENSUS CANDIDATE'S MECHANISM STORY IS A HYPOTHESIS SEPARATE FROM ITS EXISTENCE —
+#     this saved #83.** The carve-out census predicted an ANNOTATION-specific hole
+#     (`_py_stmt_annassign` has no `else` for an Attribute target). Both halves are TRUE, and
+#     **the annotation is IRRELEVANT** — the un-annotated control proves the same false
+#     claim. The real cause is `for stmt in child.body:  # top-level only`. **Building the
+#     candidate's repair would have fixed the annotated spelling, left the commoner one open,
+#     and passed every gate.** One control driver, two minutes, was the difference.
+#
+#   * **THE CARVE-OUT CENSUS IS A CANDIDATE GENERATOR, NOT A FINDING LIST: 2 HITS IN 6
+#     PROBES**, and **every one of the four misses was the same thing — a later guard the
+#     text sweep could not see** (#38/#39 refuse the bare `with`; #37 refuses the jumping
+#     `else`; the array-coerce and `@mutable_state` arms are fail-closed). Its false-positive
+#     mode is benign (a wasted probe) and its hits are severity-1, so keep running it and
+#     budget ~3 probes per hit.
+#
+# ## A MEASUREMENT HAZARD THAT NEARLY PASSED — READ THIS BEFORE TRUSTING A BYTE-DIFF
+#
+#   **THE BYTE-DIFF SWEEP FABRICATES `MOVED` ENTRIES UNDER DISK PRESSURE.** A sweep reported
+#   15 MOVED in pycsl-ref for a guard that only RAISES or FALLS THROUGH — impossible. The 15
+#   candidate files were **ZERO BYTES**, in a contiguous block, with none on the baseline
+#   side: one parallel worker's batch failed to write with `/tmp` at 77%.
+#   **THE FAILURE IS SILENT AND BIDIRECTIONAL — an empty file on the BASELINE side would
+#   have reported a FALSE GREEN.** Always run
+#   `find <sweepdir> -name '*.mlw' -size 0 | wc -l` on BOTH sides, and watch `df`.
+#   (`git worktree add` also fails with an opaque "could not reset index file to revision
+#   'HEAD'" when `/tmp` is full.)
+#
+#   **AND ASSERT THE POPULATION SIZE OF ANY AD-HOC DIFF.** My first suite failure-set
+#   comparison matched ZERO lines on BOTH sides and the diff duly reported "identical". The
+#   #44 rule — a gate that cannot tell "nothing is wrong" from "I looked at nothing" is not a
+#   gate — applies to driver-written comparisons, not only to the planes.
+#
+# ## THE ROUTES
+#
+#   * **#80 `del obj.attr` — CLOSED AND FULLY GATED.** Proved `\result == 10` where CPython
+#     returns 5 (class-attribute fallback keeps it TOTAL). Gen #9 added TWO carriers gen #8
+#     lacked: arithmetic on the stale field, and the stale value **DISCHARGING A CALLEE'S
+#     `requires`** — the defect crosses the call graph. Blast radius ZERO (3636 files parsed).
+#     Whole-file mirror re-proof **w59a_m5ir rc=0, 2111 Valid, 0 unproved, 56 min**.
+#     `check-bespoke-model-drift` fired and was discharged BY EVIDENCE: the emitted mirror
+#     WhyML moved by **exactly three lines** (the `is_attribute` raise arm), contract,
+#     invariant, variant and `SDelSubscript` untouched — shown BEFORE `--update`.
+#   * **#82 `__init__` keyword-only/positional-only parameter dropped — CLOSED, FAITHFULLY.**
+#     `P(v=7).v` proved `\result == 0` where CPython returns 7. FIVE carriers; **the control
+#     is exact** (same class, field, value, clause — only the parameter KIND differs).
+#     Repair reads all three parameter lists, keeping the POSITIONAL binding list SEPARATE
+#     from the keyword-only names (appending them would bind keyword-only params
+#     POSITIONALLY — a different wrong model). **THE FIRST BUILD WAS A SILENT NO-OP:
+#     Module 6 does not read the IR `type_decl` — `preamble.py` builds `rec_info` by copying
+#     a SELECTED LIST OF KEYS, so a new IR key is dropped on the floor unless added there.**
+#     Blast radius 8, zero in the corpus. Witnesses 1204-1208.
+#   * **#83 a field store INSIDE CONTROL FLOW in `__init__` — OPEN.** Blast radius 5, all in
+#     `src/pycsl_lib`, zero elsewhere. Cheap to close.
+#   * **#84 an `assert` erases its test, side effects included — REPAIR BUILT, GATING.**
+#     **THE CONTROL IS THE POINT: the same `xs.pop()` OUTSIDE an assert is a PIPELINE
+#     ERROR**, so the assert LAUNDERS A REFUSED CONSTRUCT past its own guard. SIX carriers.
+#     The carve-out cites "1450 asserts"; measured 1212, of which **1162 are in `__main__`
+#     harnesses that are never lowered** — the real decision set is **21**. Cost: ONE corpus
+#     file (0065, `buf.read()`). Residues recorded, incl. `C()()` (a call of a call) uncovered.
+#
+# ## THE LADDER FOR THE NEXT RELAUNCH
+#
+#   1. **FINISH GATING #84** — planes + suite. Byte-diff, conformance, fidelity, ratchets all
+#      already GREEN and recorded. If the suite shows anything but ZERO XPASS and a
+#      19-failure set +1 (pyref 0065 now refused), investigate before closing.
+#   2. **#83 NEXT — it is the cheapest open route** (blast radius 5, all `src/pycsl_lib`,
+#      zero corpus/mirror/compiler, so no whole-file re-proof). Prefer a FAITHFUL capture
+#      over an unconstrained value wherever the value is recoverable — that is what made #82
+#      a completeness gain.
+#   3. **THEN #79**, the unconstrained-value repair. Its true cost is the **17 mirror INT-arm
+#      sites** (whole-file proofs at ~56 min each), NOT a completeness regression. Note
+#      `any int` must be let-bound (a record literal in a pure context would be ill-typed —
+#      that is a REFUSAL, i.e. fail-closed, not a false proof).
+#   4. **CARVE-OUT CENSUS candidates 5, 6, 9, 10 remain unprobed** — the low-value tail.
+#   5. **GROW BOTH DIFFERENTIAL CORPORA** (`no-exception-differential/`, `value-differential/`
+#      at 36). Still unpaid from gen #8's ladder.
+#
+# ===================================================================================
+#
+#
 # ====== START HERE — gen #8 FINAL STATE — read this block first ==================
 #
 # ## THE ONE-PARAGRAPH SUMMARY
