@@ -1,6 +1,17 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **#88** (found gen #11, repair in progress).
+## CURRENTLY OPEN: **#88** (repair built, gating) and **#89** (found, repair scoped).
+##
+##   **#89 — A CONDITIONAL STORE TO A *COLLECTION* FIELD IS THE ARM ROUTE #83's REPAIR
+##   FENCED OFF, AND ROUTES #85/#87 MADE IT DECIDABLE — FOUND 2026-09-12 (gen #11).**
+##   `C(0).xs[0] == 7` PROVES where CPython returns 1: the model takes the CONDITIONAL
+##   store's literal UNCONDITIONALLY (dict field identical). #83's `(any int)` override is
+##   gated on `field_types not in _NONSCALAR`, i.e. SCALARS ONLY — correct when the
+##   collection arms carried no decidable contents, and re-armed the moment #85/#87 made a
+##   field literal's contents faithful. **A COMPLETENESS GAIN CAN RE-ARM A SOUNDNESS DEFECT
+##   AN EARLIER REPAIR HAD FENCED OFF, WITHOUT TOUCHING EITHER OF THEM.** Repair scoped:
+##   extend the override with #86's `any_map` and #87's `any_array`, both already built and
+##   already spiked. See `route89-conditional-store-to-a-collection-field.md`.
 ##
 ##   **#88 — A SCALAR FIELD'S *LAST* STORE IN `__init__` LOSES TO ITS *FIRST*, AND AN
 ##   `AugAssign` TO A FIELD IS INVISIBLE — FOUND 2026-09-12 (gen #11).** Six carriers, both
