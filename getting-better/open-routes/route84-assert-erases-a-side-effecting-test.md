@@ -142,6 +142,53 @@ regressions is still too many to take blind.
 Option 2 is the one to price first. The 21 sites are few enough to inspect INDIVIDUALLY before
 and after, which is the honest way to confirm a purity classifier is not failing open.
 
+## THE 21 ROWS, AND WHAT EACH CANDIDATE RULE WOULD REFUSE — PRICED
+
+Every one of the 21 asserts was classified by hand. Three candidate rules, scored against them:
+
+| rule | what it allows | refuses |
+|------|----------------|---------|
+| A | ONLY whitelisted pure builtins | **12 of 21** |
+| B | refuse any method/attribute call, or a call of a call | **8 of 21** |
+| C | refuse method calls on a VALUE (`sys`/`ast`/`math` module calls allowed) | 8 of 21 |
+
+**RULE B's EIGHT ARE EXACTLY THE EFFECTFUL ONES**, which is the result that matters:
+
+    buf.read() == 'hello'          (0065)   a stream read ADVANCES THE POSITION
+    f.read()   == 'hello'          (0191)   likewise
+    C()() == 42                    (0090)   calls __call__ on a fresh instance
+    asyncio.run(...)               (0098, 0152, 0207, 0208, 0209)  runs an event loop
+
+**RULE A OVER-REFUSES**: it rejects `eval('2 + 3') == 5`, `identity(42) == 42`, `f(1, 'x') == 1`
+and `C()[5] == 10`, which are pure in fact. A whitelist of BUILTIN NAMES is too blunt because
+most of these calls are to USER functions.
+
+**BUT RULE B FAILS OPEN, AND THAT IS DISQUALIFYING ON ITS OWN TERMS.** `identity(42)` and
+`f(1, 'x')` are plain calls to user functions, and a user function is free to mutate. Rule B
+would wave them through on SYNTAX — which is gen #7's "a blocklist keyed on syntax fails OPEN"
+for the third time in this route's history (my mutator-name census was the first, Rule B is the
+second).
+
+**THEREFORE THE RULE TO BUILD IS THE ONE THAT ASKS THE EXISTING ANALYSIS, NOT THE SYNTAX:**
+
+> An `assert` is lowered to `()` only if EVERY call in its test is either (a) a whitelisted
+> PURE BUILTIN, or (b) a user function the IR already marks `pure` — which
+> `module5/memoization_rt.py::_detect_purity` computes today as
+> `assigns 
+othing AND not diverges AND not trusted`. Anything else is REFUSED.
+
+That fails CLOSED on every unknown (method calls, `eval`, constructors, event loops) and it
+reuses a purity signal the campaign already certified and already relies on for memoization
+soundness — lesson (p), census-first, rather than inventing a classifier.
+
+**REMAINING COST TO CONFIRM BEFORE BUILDING:** how many of the refused files CURRENTLY PASS. Of
+the 21, `python-reference/0082` is already in the tolerated 19-failure baseline; the rest pass
+today, so the rule above is a **deliberate completeness regression of roughly 9-11 corpus
+files**, each of which would move from a silent FALSE PROOF to an explicit refusal. That is the
+campaign's thesis working as intended, but it MOVES THE SUITE BASELINE from 19 failures to about
+30 and must therefore be stated plainly and justified FILE BY FILE — not absorbed quietly. Read
+the exact set off the suite log rather than predicting it.
+
 ## WITNESSES
 
 `getting-better/route84-witnesses/a1.py`, `a1twin.py`, `a4req.py`, `a5ctl.py` (**the control —
