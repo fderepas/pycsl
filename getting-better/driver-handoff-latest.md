@@ -29,11 +29,12 @@
 #            old normal.**
 #   corpora  pycsl-ref 995, python-ref 2203, MIRROR 53. **ALWAYS SWEEP THE MIRROR TOO**: it
 #            is the gate that retires the "whole-file re-proof" cost, and it was run on BOTH
-#            sides every time. **value-differential grown 36 -> 45, rc=0** (21 AGREE all
-#            proving / 24 DISAGREE all refusing) — ladder item 5, unpaid since gen #8, now
-#            partly paid from this generation's own carriers.
-#   final    **34/34 planes green (rc=0) re-run AFTER the corpus growth** — that is the
-#            state the tree is in right now.
+#            sides every time. **BOTH DIFFERENTIAL CORPORA GROWN — ladder item 5, unpaid
+#            since gen #8, now PAID**: value-differential **36 -> 45** (21 AGREE all proving
+#            / 24 DISAGREE all refusing, rc=0) and no-exception-differential **39 -> 43**
+#            (30 raising all refused, 12 of 13 returning prove, rc=0).
+#   final    **34/34 planes green (rc=0), re-run AFTER BOTH corpus growths** — that is the
+#            state the tree is in right now, not an earlier snapshot.
 #   ratchets mirror-coverage **549 KEPT**; `check-bespoke-model-drift` never needed `--update`.
 #   OWED     **NOTHING.** No proof, battery or sweep in flight.
 #   tree     clean, every increment committed. The two GITLINKS (`scratchpad/w7/base`,
@@ -193,14 +194,19 @@
 #   4. **FIX `finding-w60`** (the shared-field-name label mismatch). Fail-closed, so not a
 #      route — but it silently turns POSITIVE witnesses into failures for the wrong reason,
 #      and this campaign depends on positive witnesses to bound repairs against over-breadth.
-#   5. **GROW THE `no-exception-differential` CORPUS.** `value-differential` went **36 -> 45**
-#      here (nine drivers from this generation's routes: seven DISAGREE that now correctly
-#      refuse, and two AGREE that PROVE — the latter independently re-confirming that #85 and
-#      #87 were closed FAITHFULLY). The no-exception one is still untouched. **The cheapest
-#      source for these is a route you just closed**: its carriers have already been measured
-#      in both directions against CPython, so the driver is nearly free, and because the
-#      corpus curates nothing — the expected value is MEASURED by running the program every
-#      time — each one becomes a permanent self-measuring check that the route stays closed.
+#   5. **KEEP GROWING BOTH DIFFERENTIAL CORPORA — the method, now demonstrated.**
+#      value-differential went **36 -> 45** and no-exception-differential **39 -> 43** here.
+#      **THE CHEAPEST SOURCE IS A ROUTE YOU JUST CLOSED**: its carriers have already been
+#      measured in both directions against CPython, so the driver is nearly free. Add BOTH
+#      directions — the DISAGREE driver (which must refuse) gives the gate teeth, and the
+#      AGREE driver (which must PROVE) is what stops the gate being satisfiable by refusing
+#      everything, and it independently re-confirms a faithful close. And add the EXCEPTION
+#      pair too when the repair touched a collection: #85/#87 made a field collection's
+#      contents decidable, and **the exception side of that is NOT implied by the value
+#      side** — `c.xs[5]` / `c.d[9]` had to be measured separately (they refuse; the in-range
+#      twins prove). Because these corpora curate nothing — the expected value is MEASURED by
+#      running the program on every run — each driver is a permanent self-measuring check
+#      that the route stays closed.
 #   6. **AUDIT THE REST OF `_field_default` AND ITS NEIGHBOURS AGAINST THE WITNESS-VALUE
 #      RULE.** The `option` arm (`return "None"`) is the one I could not reach — probed twice,
 #      the arm never fired because both `Optional[int]` and `Optional[<record>]` lower to

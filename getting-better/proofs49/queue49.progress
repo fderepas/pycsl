@@ -140,3 +140,6 @@
 15:25 started w60 FINAL planes (after value-differential 36->45)
 15:57 finished w60 FINAL planes rc=0
 15:58 w60 FINAL planes rc=0 — ALL 34 GREEN, re-run AFTER the value-differential growth so the green covers the tree as it stands.
+16:08 started w60 FINAL planes #2 (after no-exception-differential 39->43)
+16:42 finished w60 FINAL planes #2 rc=0
+16:43 w60 FINAL planes #2 rc=0 — ALL 34 GREEN after BOTH corpus growths. Window work complete and fully gated; tree clean, nothing owed, nothing in flight.
