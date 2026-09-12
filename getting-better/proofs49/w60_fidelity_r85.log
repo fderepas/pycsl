@@ -1,0 +1,1 @@
+OK: all 887 un-trusted self-annotate mirror functions (self-methods, module-level helpers, and pycsl.py driver functions) are verbatim copies of the live source; 37 class-level constants are subsets of live (no mirror-only key, no differing value)
