@@ -3738,9 +3738,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                             else:
                                 _el87 = None
                                 break
-                        if _el87:
+                        # CARRY THE KEY ONLY WHEN IT CHANGES THE ANSWER. An ALL-ZERO
+                        # literal already lowers FAITHFULLY to the `(Array.make n 0)` the
+                        # emitter has always produced, so recording it would add an IR key
+                        # that moves a FROZEN CONFORMANCE GOLDEN (0595's `[0]*8`) while
+                        # changing no emitted byte. Rule (k) forbids refreshing a golden to
+                        # make a gate green, and the right answer here was not to re-bless
+                        # it but to stop emitting information that carries none: an
+                        # all-ZERO literal is already right, an all-EQUAL NON-ZERO literal
+                        # (`[7,7,7]` -> the old `Array.make 3 0`) is NOT and must be
+                        # captured, and a non-uniform one takes the full chain.
+                        if _el87 and any(_v87 != 0 for _v87 in _el87):
                             _l87lit[_t85.attr] = _el87
-                        elif _t85.attr not in _l87unk:
+                        elif _el87 is None and _t85.attr not in _l87unk:
                             _l87unk.append(_t85.attr)
                     elif isinstance(_r85, ast.Set) and _r85.elts:
                         if _t85.attr not in _m85unk:
