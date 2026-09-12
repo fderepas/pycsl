@@ -3855,6 +3855,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 _l87lit.pop(_f87, None)
             _kwo = getattr(self, "_init_kwonly", ([], {}))
             _unk = list(getattr(self, "_init_unknown", []) or [])
+            # (#49) ROUTE #89 — the control-flow-only subset, for the COLLECTION arms.
+            _unkcf = list(getattr(self, "_init_unknown_cf", []) or [])
             init_ensures = self._collect_init_ensures(node)
             _icc = self._collect_init_contract_check(node)
             self.program_ir["type_decls"].append({
@@ -3885,6 +3887,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # absent for every constructor with only top-level stores and therefore
                 # byte-identical there and in all 38 frozen conformance goldens.
                 **({"init_unknown_fields": _unk} if _unk else {}),
+                **({"init_unknown_cf_fields": _unkcf} if _unkcf else {}),
                 # (#49) ROUTE #85: a dict field's CONSTANT literal items, and the fields
                 # whose non-empty dict/set literal is not reconstructible. Both emitted
                 # ONLY when non-empty, so absent for every class without such an

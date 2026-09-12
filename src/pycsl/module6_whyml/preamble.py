@@ -8651,6 +8651,11 @@ class PreambleEmissionMixin:
                     # a key absent from it reads back as its default, making the repair a
                     # silent no-op that still passes every gate.
                     "init_unknown_fields": td.get("init_unknown_fields", []),
+                    # (#49) ROUTE #89 — the control-flow-only subset, copied here for the
+                    # SAME reason as every key around it: Module 6 reads THIS hand-written
+                    # copy, NOT the IR `type_decl`, so a key omitted here is a SILENT NO-OP
+                    # that still passes every gate. Added here FIRST, before the consumer.
+                    "init_unknown_cf_fields": td.get("init_unknown_cf_fields", []),
                     # (#49) ROUTE #85 — copied here for the SAME reason as the line above:
                     # Module 6 reads THIS hand-written copy, not the IR `type_decl`, so a
                     # key omitted here is a SILENT NO-OP that still passes every gate.

@@ -12329,6 +12329,34 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # a dict/set field to the empty map; everything else to its
             # captured int (fallback 0).
             ft = field_types.get(fn, "int")
+            # (#49) ROUTE #89 — ROUTE #83's FENCE IS SCOPED BY TYPE AND THE COLLECTION
+            # ARMS ARE OUTSIDE IT. `init_unknown_fields` is consulted at the record-literal
+            # site below under `field_types.get(fn) not in _NONSCALAR`, i.e. SCALARS ONLY.
+            # That was right when it was written — the collection arms then carried no
+            # DECIDABLE contents to be wrong about, and route #79's cost note records
+            # `_NONSCALAR` as a guard that "already fenced the entire array arm". ROUTES
+            # #85 AND #87 RE-ARMED IT by making a dict/list field literal FAITHFUL.
+            # `_collect_class_fields` collects those literals with an `ast.walk`, so a store
+            # nested in an `if` is SEEN and, being later in the walk, WINS. MEASURED:
+            #     self.xs = [1, 2]
+            #     if k > 0:
+            #         self.xs = [7, 8]
+            #     C(0).xs[0]     #@ ensures \result == 7   <-- PROVED; CPython returns 1
+            # The TRUE twin was refused and a DICT field behaved identically
+            # (`c.d[1] == 9` proved, CPython 5). With the guard TRUE the model gives the
+            # right answer for the WRONG REASON — it never evaluates the guard, it just
+            # prefers the nested store; a driver that proves a TRUE claim can be the same
+            # defect seen from its lucky side.
+            # **A COMPLETENESS GAIN CAN RE-ARM A SOUNDNESS DEFECT AN EARLIER REPAIR HAD
+            # FENCED OFF, WITHOUT TOUCHING EITHER OF THEM.** #83's fence and #85/#87's
+            # captures are each correct in isolation: the fence was scoped by TYPE and the
+            # captures widened what a TYPE can decide.
+            # The unconstrained values this needs ALREADY EXIST and were ALREADY SPIKED IN
+            # WHY3: `any_array` (route #87) and `any_map` (route #86), both POLYMORPHIC
+            # because the field may be `array string` / `map string (option hval)` as
+            # easily as int. An ill-typed emission would be a REFUSAL, never a false proof,
+            # but a polymorphic val is simply correct for every element/key type.
+            _unk89 = set(rec_info.get("init_unknown_cf_fields") or [])
             if ft in ("list", "array"):
                 if func_name in getattr(self, "_list_element_record_types", set()):
                     # PINNED record: the list field is the pure `seq <elem>` (preamble
@@ -12350,6 +12378,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # always lowered faithfully, so the information exists — route #82's rule),
                 # unconstrained where it is not.
                 _lit87 = (rec_info.get("field_list_literals") or {}).get(fn)
+                if fn in _unk89:
+                    # ROUTE #89: a conditional store overwrites whatever the straight-line
+                    # prefix put there, so NEITHER literal is the field's value. This is
+                    # the same conclusion #83 reached for a scalar, reached for the arm its
+                    # `_NONSCALAR` guard excluded.
+                    self._add_abstract_op("val any_array (_u: unit) : array 'a")
+                    return "(any_array ())"
                 if _lit87:
                     _vals87 = [int(_v) for _v in _lit87]
                     # ALL-EQUAL is emitted as the plain `Array.make n v` it already was.
@@ -12387,6 +12422,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # control that bounds this, and it is what makes the repair a fix rather
                 # than a blanket erasure of dict fields.
                 _lit85 = (rec_info.get("field_map_literals") or {}).get(fn)
+                if fn in _unk89:
+                    # ROUTE #89, dict/set arm — same reasoning as the list arm above. BOTH
+                    # ARMS OR NEITHER: #85 and #87 are two different captures reached
+                    # through two different arms, and fixing one would let the other's
+                    # witness pass by accident.
+                    self._add_abstract_op(
+                        "val any_map (_u: unit) : map 'k (option 'v)")
+                    return "(any_map ())"
                 if _lit85:
                     _acc85 = "(const (None: option int))"
                     self._add_abstract_op(

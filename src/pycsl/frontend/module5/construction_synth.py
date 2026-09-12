@@ -91,6 +91,22 @@ class ConstructionSynthMixin:
         # genuinely UNKNOWN. Reset per class; empty for every constructor whose stores
         # are all top-level, so it is additive and byte-identical there.
         self._init_unknown: List[str] = []
+        # (#49) ROUTE #89 — A SEPARATE, NARROWER CHANNEL FOR THE COLLECTION ARMS.
+        # `_init_unknown` mixes TWO different reasons a field's value is unknown: route
+        # #83's "stored inside control flow" and route #79's "top-level RHS names something
+        # outside the parameter set". For a SCALAR both reasons are equally fatal, so one
+        # list was enough. FOR A COLLECTION THEY ARE NOT THE SAME: `_array_init_size`
+        # captures a COMPUTED RHS's LENGTH faithfully (`self.buf = bytearray(4096)` really
+        # does give a 4096-element array), so honouring #79's reason in the list arm would
+        # destroy a true capability. MEASURED — the first build of #89's repair consulted
+        # `_init_unknown` and moved corpus 0452, whose `self.buf: list = bytearray(4096)` is
+        # a SINGLE TOP-LEVEL STORE: its `\length(self.buf) >= 4096` class invariant stopped
+        # holding at construction. THE BYTE-DIFF CAUGHT IT AND THE REPAIR WAS NARROWED
+        # RATHER THAN THE CORPUS RE-PRICED. This list carries ONLY the reasons that defeat
+        # a length capture too — a store nested in control flow (#83) and an augmented
+        # store (#88) — because in both of those the straight-line literal is not the
+        # field's value AT ALL, length included.
+        self._init_unknown_cf: List[str] = []
         for child in node.body:
             if not (isinstance(child, ast.FunctionDef) and child.name == '__init__'):
                 continue
@@ -178,9 +194,11 @@ class ConstructionSynthMixin:
                 _at = _ag.target
                 if (isinstance(_at, ast.Attribute)
                         and isinstance(_at.value, ast.Name)
-                        and _at.value.id == 'self'
-                        and _at.attr not in self._init_unknown):
-                    self._init_unknown.append(_at.attr)
+                        and _at.value.id == 'self'):
+                    if _at.attr not in self._init_unknown:
+                        self._init_unknown.append(_at.attr)
+                    if _at.attr not in self._init_unknown_cf:
+                        self._init_unknown_cf.append(_at.attr)   # (#49) ROUTE #89
             _top_ids = {id(_st) for _st in child.body}
             for _st in ast.walk(child):
                 if id(_st) in _top_ids:
@@ -192,9 +210,11 @@ class ConstructionSynthMixin:
                     _ut = _st.target
                 if (isinstance(_ut, ast.Attribute)
                         and isinstance(_ut.value, ast.Name)
-                        and _ut.value.id == 'self'
-                        and _ut.attr not in self._init_unknown):
-                    self._init_unknown.append(_ut.attr)
+                        and _ut.value.id == 'self'):
+                    if _ut.attr not in self._init_unknown:
+                        self._init_unknown.append(_ut.attr)
+                    if _ut.attr not in self._init_unknown_cf:
+                        self._init_unknown_cf.append(_ut.attr)   # (#49) ROUTE #89
             pset = set(init_params) | set(kwonly_params)
             # (#49) ROUTE #79 — A TOP-LEVEL FIELD INITIALISER WHOSE RHS NAMES ANYTHING
             # OUTSIDE THE PARAMETER SET IS NOT MERELY UNCAPTURED, ITS VALUE IS UNKNOWN,
