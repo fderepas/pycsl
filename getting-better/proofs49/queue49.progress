@@ -135,3 +135,5 @@
 14:08 w60 gate2a planes running; byte-diff + conformance already green
 14:18 finished w60_planes_2a rc=0
 14:19 w60 gate2a planes rc=0 — ALL 34 GREEN. suite60_run5 running; expecting the failure baseline to move 19 -> 18 (0700 now proves).
+14:46 suite60_run5 at 28 min, still running
+15:05 finished suite60_run5 rc=1

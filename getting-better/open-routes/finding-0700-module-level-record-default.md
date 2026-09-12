@@ -1,5 +1,39 @@
 # FINDING (not a route) — THE `why3 --type-only` POPULATION RE-MEASURED, AND IT IS ONE FILE
 # (2026-09-09, relaunch #50, ladder item 5)
+#
+# ## RESOLVED 2026-09-12 (gen #10) — AND THE DOCUMENTED FIX WOULD HAVE BEEN A SOUNDNESS ROUTE
+#
+# **0700 NOW PROVES. The suite's failure baseline moved 19 -> 18**, the first change to that
+# set in three generations, and the diff shows exactly one line removed. Gates: 34/34 planes;
+# IR conformance 38/38 + 38/38 with NO golden moved; fidelity rc=0; python-reference
+# 2203/2203 and MIRROR 53/53 inert; pycsl-reference 995 compared with 3 MOVED, asserted
+# mechanically to be 0700 plus this fix's own two witnesses; suite **3353/3371, ZERO XPASS**.
+#
+# **BUT NOT THE FIX THIS FILE DESCRIBES.** The quoted Gap 2a says *"the `str` field defaults
+# to the empty-string witness `{ template = "" }`"*. An empty-string witness is a **DEFINITE
+# value**, so a field really initialised to `"abc"` would then make `\result == ""` PROVABLE
+# — a brand-new severity-1 route of exactly the family routes #85/#86/#87 close. Measured, not
+# feared: witness 1227 is that claim and it must refuse.
+#
+# What landed instead is a **FAITHFUL CAPTURE** — the field carries its OWN literal, so the
+# true claim `\result == "abc"` PROVES and the empty-string claim refuses. A `str` field
+# WITHOUT a constant literal keeps its ill-typed int and **keeps refusing**, so the change
+# turns a refusal into an emission ONLY where the emission is provably the right one. Blast
+# radius measured first: a sweep of all 993 pycsl-ref + 2203 python-ref emissions found
+# **exactly one** `string`/`real` field defaulted to an int literal, and it was 0700's — so no
+# expected-FAIL witness depended on this type accident, which was the real risk.
+#
+# **THE RULE THIS EARNED, AND IT IS THE MOST PORTABLE THING IN THIS FILE:**
+# **A COMPLETENESS FIX THAT SUPPLIES A *WITNESS* VALUE IS A SOUNDNESS ROUTE WAITING TO HAPPEN.**
+# "Type-correct default" and "true value" are different requirements, and only the second is
+# safe to make DECIDABLE. Every arm of `_field_default` this campaign has had to repair — #79
+# (scalar), #83 (conditional store), #85 (dict/set), #87 (list) and now the `str` arm — was a
+# witness value that someone had justified as sound. **That one function is the same mistake
+# made five times, and the next person to add an arm to it should read this sentence first.**
+#
+# Witnesses 1226 (faithful, must prove) and 1227 (the empty-string witness, must NOT prove).
+# The observation below that "fail-closed *by type accident* is fragile" is exactly right and
+# is what made this worth doing.
 
 ## THE POPULATION IS 21, NOT 17 — AND TWENTY OF THEM ARE DELIBERATE
 
