@@ -1,7 +1,7 @@
 # ROUTE #84 — AN `assert` ERASES ITS TEST WHOLESALE, SIDE EFFECTS INCLUDED — AND IT LAUNDERS A CONSTRUCT THE EMITTER OTHERWISE REFUSES
 
-**STATUS: FOUND AND REPRODUCED 2026-09-12 (gen #9). BOTH DIRECTIONS MEASURED, WITH AN EXACT
-CONTROL. OPEN.**
+**STATUS: FOUND AND REPAIRED 2026-09-12 (gen #9). SIX CARRIERS, BOTH DIRECTIONS, WITH AN EXACT
+CONTROL. REPAIR BUILT AND NARROWED; GATES IN PROGRESS.**
 
 **CLASS: the #69 class** — a FALSE POSTCONDITION about ordinary, TOTAL Python. No
 `no_exception`, no opt-in. **The assertion HOLDS**, so CPython does not abort: the program runs
@@ -194,3 +194,82 @@ the exact set off the suite log rather than predicting it.
 `getting-better/route84-witnesses/a1.py`, `a1twin.py`, `a4req.py`, `a5ctl.py` (**the control —
 the same mutation outside an assert is a PIPELINE ERROR**), plus the two recorded non-carriers
 `a2.py` and `a3app.py`.
+
+
+## THE REPAIR AS BUILT — AND IT WAS NARROWED 9x BY REFUTING MY OWN FIRST DESIGN
+
+The guard lives inline in the `AssertStmt` arm of `module6_whyml/statements.py`, diagnostic code
+`PYCSL-M6-ASSERT-EFFECTFUL-TEST`. It refuses in exactly two cases:
+
+* **(a) a DOTTED callee whose receiver prefix is a TRACKED LOCAL** — `xs.pop()` on a list local,
+  `buf.read()` on a StringIO local. That is the measured hazard.
+* **(b) a call to a user function whose effects are not KNOWN to be none** — known either because
+  the IR marks it `pure` (`_detect_purity`: `assigns \nothing`, not `\diverges`, not
+  `\trusted`) or because its body is exactly `return <expr>` with no call and no store anywhere
+  inside it.
+
+### THE FIRST DESIGN COST NINE CORPUS FILES AND THE MEASUREMENT KILLED IT
+
+The first build refused any call the purity oracle could not clear. The byte-diff priced that at
+**NINE newly-refused `python-reference` files** (0065, 0098, 0109, 0148, 0152, 0207, 0208, 0210,
+0213). I then tested whether those passes were **HOLLOW** — whether the files passed only because
+the construct was erased, in which case refusing them would cost nothing real. **THEY WERE NOT.**
+Hoisting `asyncio.run(outer())` out of the assert into a plain assignment **still proves**: the
+emitter already lowers it as an opaque value, so refusing it is a pure completeness regression on
+a program this build handles correctly.
+
+**That is #79's lesson recurring on my own work: the obvious repair was refuted by its blast
+radius before it landed.** Narrowing to the two arms above cut the cost from **nine files to
+one** — `python-reference/0065` (`buf.read()`), which is the genuine hazard.
+
+### ARM (b) WAS TESTED FOR ITS KEEP, NOT ASSUMED — AND IT FOUND A SIXTH CARRIER
+
+Arm (b) is the expensive half, so I disabled it and re-measured. With it off,
+
+```python
+#@ assigns c.v
+def bump(c: C) -> int:
+    c.v = 7
+    return 0
+...
+assert bump(c) == 0
+return c.v        #@ ensures \result == 1    <-- PROVED; CPython returns 7
+```
+
+**proves a false claim.** So arm (b) stays, and this record-field mutation is a sixth carrier.
+Note that my FIRST attempt at justifying arm (b) used a LIST-parameter mutation, which turned out
+to be **already refused pre-repair** for an unrelated WL-05 reason — it was not evidence, and I
+withdrew it. The record-field version is.
+
+### THE `_detect_purity` ORACLE IS WEAK ON UNANNOTATED CODE, AND THAT COST TWO FILES
+
+`_detect_purity` keys on the **CONTRACT**. In unannotated code — all of
+`test-suite/corpus/python-reference/` — nothing is ever marked pure, so arm (b) refused even
+`def identity(x): return x`. That is a completeness loss with no soundness gain, measured at two
+files (0210, 0213). The rescue is the narrowest one that works and it inspects the **BODY**, not
+a name: a single `return <expr>` containing no call and no store cannot mutate anything. It
+correctly rejects both `bump` and `sneak`.
+
+### A RATCHET CAUGHT IT, AND THE RATCHET WAS KEPT
+
+`check-mirror-coverage` went **RATCHET BROKEN 552 > 549**: it counts every `ast.FunctionDef` in
+the live tree, **nested ones included**, so two helper methods plus their inner walkers added
+three unmirrored names. Rule (k) forbids re-baselining a ratchet to make a gate green, and adding
+`\trusted` mirror stubs would have **RAISED the trust-surface metric for what is a pure
+refusal**. The guard was therefore rewritten **inline with explicit worklists and zero new
+defs** — ratchet back to 549, metric untouched at 459, no mirror sync and no whole-file re-proof
+owed (fidelity rc=0, 887 verbatim).
+
+## RESIDUES AND REOPENING CONDITIONS
+
+* **A CALL OF A CALL IS NOT COVERED.** `python-reference/0090`'s `assert C()() == 42` still
+  proves: the outer call is neither dotted nor a registry name, so neither arm fires.
+  **REOPENING: a `__call__` that mutates.** Not chased because the `__call__` protocol is not
+  otherwise modelled, but it is a real hole in this guard and it is written down rather than
+  implied.
+* **A NESTED function that mutates is not caught by arm (b)'s registry lookup** if Module 5 does
+  not hoist it into `ir["functions"]`. The trivially-pure body check does not help here — it only
+  ever ADMITS. **REOPENING: a nested `def` with a store, called from an assert test.**
+* **`python-reference/0065` is now REFUSED and that is the intended verdict** — `buf.read()`
+  advances the stream position, which is precisely this route's hazard. It moves from a silent
+  false-proof-enabler to an explicit refusal.
