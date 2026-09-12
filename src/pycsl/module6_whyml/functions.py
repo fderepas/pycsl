@@ -3600,6 +3600,16 @@ class FunctionEmissionMixin:
             "      (if is_sub tgt && is_slice (sindex_of tgt) then begin",
             "         raise PyCSLSemanticError",
             "       end);",
+            # (#49) ROUTE #80 — the ATTRIBUTE arm is the second err-divergence arm.
+            # `_py_stmt_delete` now REFUSES `del <obj>.<attr>` instead of dropping it to
+            # `Pass`: the erasure kept the deleted instance field while Python falls back
+            # to the CLASS attribute, so `del c.x; return c.x` proved `\result == 10`
+            # where CPython returns 5. `isinstance(tgt, ast.Attribute)` -> the existing
+            # total `is_attribute` projector (IrAttr arm); no isinstance_op, no new
+            # preamble construct.
+            "      (if is_attribute tgt then begin",
+            "         raise PyCSLSemanticError",
+            "       end);",
             "      (if is_sub tgt && not (is_slice (sindex_of tgt)) then",
             f"         ir_stmts := Seq.snoc !ir_stmts (SDelSubscript"
             f" ({disp_e} (svalue_of tgt)) ({disp_e} (sindex_of tgt)))",

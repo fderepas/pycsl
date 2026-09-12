@@ -1980,6 +1980,26 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # `map_update_none` keyed on a coerced slice, i.e. it would MODEL `del d[i:j]` as a
         # key delete where CPython raises `KeyError`. That trades an old wrong model for a
         # new one. Refuse explicitly instead.
+        #
+        # (#49) ROUTE #80 — `del obj.attr` IS #77's OWN RESIDUE, AND THE RESIDUE WAS HALF
+        # WRONG. #77 filed `del name` / `del obj.attr` together as out of scope "because
+        # the program raises". That is true of `del name` (UnboundLocalError) and FALSE of
+        # `del obj.attr`: Python's attribute lookup FALLS BACK TO THE CLASS ATTRIBUTE, so
+        # the program runs to completion and returns a DIFFERENT value. MEASURED, before
+        # this refusal:
+        #     class C:
+        #         x: int = 5          # the class-attribute fallback
+        #         def __init__(self) -> None: self.x = 10
+        #     c = C(); del c.x; return c.x
+        #     #@ ensures \result == 10     <-- FALSE OF THE PROGRAM (Python returns 5)
+        #     [+] Verification SUCCESS! All contracts formally proven.
+        # The TRUE TWIN (`\result == 5`) was REFUSED, which is what makes it a route and
+        # not a gap. LESSON: "out of scope because it raises" is itself a CLAIM ABOUT
+        # PYTHON and must be PROBED, not reasoned about — one language feature turned a
+        # non-total residue into a total soundness route. Census: ZERO attribute deletes
+        # across `test-suite/corpus/`, `src/self-annotate/`, `src/pycsl/` and
+        # `src/pycsl_lib/` (3636 files parsed), so the guard is byte-inert BY
+        # CONSTRUCTION, exactly like #77's.
         for tgt in stmt.targets:
             slice_node = getattr(tgt, "slice", None)
             if isinstance(slice_node, ast.Index):  # py<3.9 wrapper
@@ -1998,6 +2018,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     stage="ir-emit",
                     code="PYCSL-M5-SLICE-DELETE-UNMODELLED",
                 )
+            if isinstance(tgt, ast.Attribute):
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    "`del <obj>.<attr>` (an ATTRIBUTE delete) is not modelled: it was "
+                    "lowered to a bare no-op, so the model KEEPS the deleted instance "
+                    "field while Python removes it and a later read FALLS BACK TO THE "
+                    "CLASS ATTRIBUTE — a different value, in a program that still runs "
+                    "to completion. Measured: `class C: x: int = 5` with "
+                    "`__init__` setting `self.x = 10`, then `del c.x; return c.x` proved "
+                    "`\\result == 10` while Python returns 5. Remove the field's class-level "
+                    "default, or model the reset explicitly with an assignment.",
+                    stage="ir-emit",
+                    code="PYCSL-M5-ATTR-DELETE-UNMODELLED",
+                )
             if isinstance(tgt, ast.Subscript) and not isinstance(slice_node, ast.Slice):
                 ir_stmts.append({
                     "stmt": "DelSubscript",
@@ -2005,9 +2039,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     "index": self._py_expr_to_ir(slice_node),
                 })
             else:
-                # `del name` / `del obj.attr` (rebinding / attribute delete) — stays the
-                # unmodelled no-op it always was (outside the dict/set item-delete scope).
-                # The SLICE form no longer reaches here: it is refused above, route #77.
+                # `del name` (a rebinding delete) — stays the unmodelled no-op it always
+                # was (outside the dict/set item-delete scope), and it is SAFE here only
+                # because a later read of the deleted name RAISES `UnboundLocalError`,
+                # so no total program can observe the stale binding. The SLICE form no
+                # longer reaches here (refused above, route #77) and neither does the
+                # ATTRIBUTE form (route #80).
                 ir_stmts.append({"stmt": "Pass"})
 
     def _py_stmt_match(self, stmt: Any, ir_stmts: List[Dict[str, Any]]) -> None:

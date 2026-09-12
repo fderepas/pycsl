@@ -2083,6 +2083,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     stage="ir-emit",
                     code="PYCSL-M5-SLICE-DELETE-UNMODELLED",
                 )
+            if isinstance(tgt, ast.Attribute):
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    "`del <obj>.<attr>` (an ATTRIBUTE delete) is not modelled: it was "
+                    "lowered to a bare no-op, so the model KEEPS the deleted instance "
+                    "field while Python removes it and a later read FALLS BACK TO THE "
+                    "CLASS ATTRIBUTE — a different value, in a program that still runs "
+                    "to completion. Measured: `class C: x: int = 5` with "
+                    "`__init__` setting `self.x = 10`, then `del c.x; return c.x` proved "
+                    "`\\result == 10` while Python returns 5. Remove the field's class-level "
+                    "default, or model the reset explicitly with an assignment.",
+                    stage="ir-emit",
+                    code="PYCSL-M5-ATTR-DELETE-UNMODELLED",
+                )
             if isinstance(tgt, ast.Subscript) and not isinstance(slice_node, ast.Slice):
                 ir_stmts.append({
                     "stmt": "DelSubscript",
