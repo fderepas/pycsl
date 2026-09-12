@@ -121,3 +121,7 @@
 11:08 w60 planes route85/86 rc=0 — ALL 34 GREEN (incl. check-bespoke-model-drift with no --update, check-mirror-coverage 549, check-vacuous-drivers over the six new witnesses). suite60_run3 running.
 11:35 suite60_run3 at 27 min, still running
 11:54 finished suite60_run3 rc=1
+12:06 started w60 gate87 (conformance + fidelity + sweeps)
+12:11 w60 gate87 sweeps done
+12:16 started w60 gate87b: sweeps + planes + suite (route #87)
+12:21 gate87b sweeps done

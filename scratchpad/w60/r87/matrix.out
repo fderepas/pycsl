@@ -1,0 +1,5 @@
+e4_uniform_nonzero   FAILED
+e4_twin              SUCCESS
+ctl_allzero          SUCCESS
+e1_elem              FAILED
+e1_twin              SUCCESS
