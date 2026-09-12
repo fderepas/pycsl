@@ -3705,6 +3705,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             _m85unk: List[str] = []
             _l87lit: Dict[str, Any] = {}
             _l87unk: List[str] = []
+            # (#49) finding-0700 / Gap 2a — a `str` FIELD had NO default witness at all:
+            # `_field_default`'s fallback is `rec_info['defaults'].get(fn, 0)`, an INT, so a
+            # `string`-typed field emitted `{ template = 0 }` — ILL-TYPED, hence a refusal.
+            # That is fail-closed, and 0700 is the ONE corpus file it costs (measured: a
+            # sweep of all 993 pycsl-ref + 2203 python-ref emissions finds exactly one
+            # `string`/`real` field defaulted to an int literal, and it is 0700's).
+            # THE DOCUMENTED FIX WAS "default a `str` field to the EMPTY STRING `""`", AND
+            # THAT WOULD HAVE OPENED A ROUTE OF THE FAMILY THIS GENERATION SPENT ITS DAY
+            # CLOSING: an empty-string witness is a DEFINITE value, so a field really
+            # initialised to "abc" would make `len(c.s) == 0` provable — #85's shape exactly.
+            # So the capture is FAITHFUL (the literal's own text) and a str field WITHOUT a
+            # constant literal keeps its ill-typed int, i.e. keeps REFUSING. Minimal by
+            # design: this turns a refusal into an emission ONLY where the emission is
+            # provably the right one.
+            _s70lit: Dict[str, Any] = {}
             for _c85 in node.body:
                 if not (isinstance(_c85, ast.FunctionDef) and _c85.name == '__init__'):
                     continue
@@ -3718,7 +3733,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                             and isinstance(_t85.value, ast.Name)
                             and _t85.value.id == 'self' and _r85 is not None):
                         continue
-                    if isinstance(_r85, ast.List) and _r85.elts:
+                    if (isinstance(_r85, ast.Constant)
+                            and isinstance(_r85.value, str)):
+                        _s70lit[_t85.attr] = _r85.value
+                    elif isinstance(_r85, ast.List) and _r85.elts:
                         # (#49) ROUTE #87 — the LIST arm of the same allocation-site
                         # erasure. `_field_default` answered a list field with
                         # `(Array.make <len> 0)`: the LENGTH is captured but every ELEMENT
@@ -3818,6 +3836,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # (#49) ROUTE #87: the same pair for LIST fields.
                 **({"field_list_literals": _l87lit} if _l87lit else {}),
                 **({"field_list_unknown": _l87unk} if _l87unk else {}),
+                # (#49) finding-0700: constant STRING field initialisers.
+                **({"field_str_defaults": _s70lit} if _s70lit else {}),
                 "init_ensures": init_ensures,
                 # (#43) route #15: the constructor's NON-TRIVIAL `#@ requires`/`#@ ensures`
                 # plus its parameter annotations, so Module 6 can emit a CHECKING-ONLY

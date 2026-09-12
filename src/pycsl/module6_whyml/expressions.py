@@ -12408,6 +12408,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         "val any_map (_u: unit) : map 'k (option 'v)")
                     return "(any_map ())"
                 return "(const (None: option int))"
+            if ft in ("str", "string"):
+                # (#49) finding-0700 / Gap 2a — FAITHFUL, NOT THE EMPTY-STRING WITNESS.
+                # The int fallback below emits `{ template = 0 }` against a `string` field,
+                # which is ill-typed and therefore a REFUSAL — fail-closed, and it costs
+                # exactly one corpus file (0700). The documented fix was to default such a
+                # field to `""`; that would be a DEFINITE value and would make
+                # `len(c.s) == 0` provable for a field really initialised to "abc" — route
+                # #85's shape, manufactured by a completeness fix. So: emit the captured
+                # literal when there is one, and otherwise leave the ill-typed int in place
+                # so the file KEEPS REFUSING rather than gaining a decidable wrong answer.
+                _sd70 = (rec_info.get("field_str_defaults") or {}).get(fn)
+                if _sd70 is not None:
+                    return '"%s"' % (
+                        _sd70.replace("\\", "\\\\").replace('"', '\\"'))
             if ft == "option":
                 # An OMITTED option field's type-correct default is Why3's `None`, not the
                 # int `0` — same faithfulness point as the literal-`None` keyword above.

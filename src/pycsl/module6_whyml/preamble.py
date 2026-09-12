@@ -8659,6 +8659,8 @@ class PreambleEmissionMixin:
                     # (#49) ROUTE #87 — same reason again: Module 6 reads THIS copy.
                     "field_list_literals": td.get("field_list_literals", {}),
                     "field_list_unknown": td.get("field_list_unknown", []),
+                    # (#49) finding-0700 — same hand-written-copy trap as the keys above.
+                    "field_str_defaults": td.get("field_str_defaults", {}),
                     # fresh-globals.md — the constructor's `#@ ensures` (post-state),
                     # consumed by `_emit_module_globals` (proven-of-the-literal GOAL)
                     # and `#@ fresh_globals` (assumed-at-driver-entry fact).
