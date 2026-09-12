@@ -1,6 +1,50 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **#90** (found, reproduced, BOTH DIRECTIONS + CROSS-CALL ESCALATION; repair NOT built).
+## CURRENTLY OPEN: **NONE.**
+##
+##   >>> AN EMPTY LEDGER IS A PROMPT TO GENERATE, NOT A FLOOR. It emptied three times in
+##   >>> window #5 and a severity-1 route appeared after each of the first two; it emptied a
+##   >>> fourth time at #89 and #90 appeared within the hour.
+##
+##   **#90 CLOSED AND FULLY GATED 2026-09-12 (gen #12), FAIL-CLOSED, COSTING EXACTLY ONE
+##   CORPUS FILE.** `is True` was lowered to INTEGER EQUALITY on a `bool` annotation nothing
+##   enforces: `if x is True:` emitted literally `if (x = 1)` with the param emitted as a
+##   plain `int`, so under `requires x == 1` the guard was trivially true and `\result == 1`
+##   PROVED while CPython returns 0 (`1 is True` is False; `True` is a distinct singleton
+##   from the int 1, even though `1 == True`). **THE WHITELIST WAS ANTI-CORRELATED WITH
+##   BOOL-NESS**: it ADMITTED the one source nothing enforces (an annotation — on a param
+##   AND on a local) and REFUSED the two that are provable BY CONSTRUCTION. Three operators
+##   lied (`is True`, `is not True`, `is False`), and the CROSS-CALL escalation reached it
+##   from PyCSL source alone — the front-end accepts the int literal `1` for a `bool` param.
+##   MECHANISM: a composition of TWO ROUTES THIS CAMPAIGN ALREADY CLOSED — #42's whitelist
+##   admitted the arm because "the emitter can SHOW X is a Python bool" (it read a
+##   DECLARATION) and #51 had ALREADY PROVED an annotation here is not a fact. **A CONTROL
+##   THAT ADMITS AN ARM "BECAUSE WE CAN SHOW T" MUST CITE THE ENFORCEMENT OF T, NOT ITS
+##   DECLARATION.** REPAIR: a four-line DELETION of that arm, plus a fix to the guard's own
+##   error message, which closed with "Write `X == True`, **or annotate `X` as `bool`**" —
+##   **THE REMEDIATION ADVICE WAS THE EXPLOIT.** GATES: 34/34 planes rc=0; pycsl-reference
+##   byte-diff **0 MOVED, 1 GONE (exactly the predicted 1057), 0 APPEARED** with populations
+##   asserted (1007 - 1 + 2 = 1008); python-reference 2203/2203 and MIRROR 53/53 fully inert;
+##   zero-byte 0 on ALL SIX sides; conformance 38/38 + 38/38, determinism 10/10, no golden
+##   re-blessed; fidelity rc=0 887 verbatim (the mirror's `_expr_to_whyml` is a stub, so no
+##   mirror body owed); coverage 549 KEPT; **suite 3372/3390, ZERO XPASS, rc=1, failure set
+##   18 vs 18 BYTE-IDENTICAL**, population 3390 = 3383 + exactly the seven new files;
+##   value-differential grown 52 -> 56, rc=0. NEGATIVE-TESTED per rule (l): restoring the
+##   deleted arm makes 1240/1243/1244 PROVE THE FALSE CLAIM AGAIN. Metric unchanged.
+##   **COST, CENSUSED BY AST OVER AN ASSERTED 1179+2217+94+104+53 FILES AND RE-RUN
+##   INDEPENDENTLY: of 92 `is`-against-bool sites, EXACTLY ONE took the deleted arm** —
+##   corpus 1057, route #42's own "faithful" control, **whose claim is ITSELF FALSE** (its
+##   `requires b == True` is met by `b = 1`, for which CPython returns 0, not 7). It is now
+##   an expected-FAIL witness carrying its mechanism. Its old docstring warned "it fails if
+##   the whitelist is ever narrowed to nothing" — **A CORPUS CONTROL WRITTEN TO PREVENT
+##   OVER-NARROWING BECAME THE RATCHET THAT PROTECTED AN UNSOUND ARM FOR 48 ROUTES.**
+##   AND MEASURING THE OVER-BREADTH CONTROL REVEALED WHAT #42's WHITELIST ACTUALLY WAS: its
+##   comparison and `not` arms are ADMITTED THEN ILL-TYPED (`if ((a > b) = 1)` — a Why3
+##   `bool` compared to an `int`), verified PRE-EXISTING at the pre-repair HEAD. So the
+##   four-arm whitelist was **ONE TAUTOLOGY PLUS ONE UNSOUND ARM**, with the two arms meant
+##   to carry the real capability dead and unrun for 48 routes. 1245 pins the literal arm
+##   (PASSES); 1246 records the comparison arm as a CERTIFIED BOUNDARY with a REOPENING
+##   CONDITION. See `route90-is-true-lowered-to-int-equality-on-an-unenforced-bool-annotation.md`.
 ##
 ##   **#89 CLOSED AND FULLY GATED 2026-09-12 (gen #12), FAIL-CLOSED IN ALL FOUR DIRECTIONS.**
 ##   The repair landed at e7a92460; gen #12 discharged the last owed gate and re-measured the
