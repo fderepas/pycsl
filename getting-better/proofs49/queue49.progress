@@ -119,3 +119,5 @@
 11:07 finished w60_planes_route85 rc=0
 11:07 started suite60_run3 (routes #85/#86)
 11:08 w60 planes route85/86 rc=0 — ALL 34 GREEN (incl. check-bespoke-model-drift with no --update, check-mirror-coverage 549, check-vacuous-drivers over the six new witnesses). suite60_run3 running.
+11:35 suite60_run3 at 27 min, still running
+11:54 finished suite60_run3 rc=1

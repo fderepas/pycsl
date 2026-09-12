@@ -1,7 +1,29 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **TWO — #85 and #86, both found by gen #10 after it had emptied the ledger.**
-## (gen #10 CLOSED #83 AND #79 and FOUND #85 and #86. gen #9 CLOSED #80, #82 and #84.)
+## CURRENTLY OPEN: **NONE.**
+## (gen #10 CLOSED FOUR — #83, #79, #85, #86 — and FOUND TWO of them, #85 and #86.
+##  gen #9 CLOSED #80, #82 and #84.)
+##
+## **AN EMPTY OPEN LIST IS NOT A FLOOR — gen #10 EMPTIED IT AND THEN FOUND TWO MORE ROUTES
+## IN THE SAME SESSION.** It means the hunt must GENERATE candidates rather than work a
+## queue. What produced #85 and #86 after the queue was empty: re-probing a carve-out census
+## candidate that an earlier generation had ranked in the "LOW-VALUE TAIL" and left unprobed.
+## The census's honest hit rate is now **3 hits in 7 probes**, and the "low-value" label is
+## not evidence. FOUR candidates (6, 9, 10, and the residue of 5) remain.
+##
+##   **#85 and #86 — CLOSED AND FULLY GATED 2026-09-12 (gen #10), AT ZERO MEASURED COST.**
+##   Gates (both repairs together): 34/34 planes rc=0; byte-inert pycsl-ref 983/983,
+##   python-ref 2203/2203 AND the MIRROR 53/53, 0 MOVED/GONE/APPEARED, zero-byte checked on
+##   every side; IR conformance 38/38 + 38/38, determinism 10/10; fidelity rc=0 with no mirror
+##   sync and NO whole-file re-proof owed; mirror-coverage 549 KEPT; `check-bespoke-model-drift`
+##   passed WITHOUT `--update`; **suite 3346/3365, ZERO XPASS, rc=1, failure set 19 vs 19
+##   BYTE-IDENTICAL with its population asserted.** Witnesses 1216-1221.
+##   **#85 WAS CLOSED FAITHFULLY** — the dict literal's contents are now carried to the
+##   allocation site as the same `map_update_some` chain a LOCAL dict literal always got, so
+##   the TRUE claim PROVES (witness 1219) and it is a completeness GAIN, the second such close
+##   after #82. #86 could not be: its arm genuinely does not know the actual's contents, so it
+##   gets a POLYMORPHIC unconstrained map. **BOTH HALVES OF "PREFER FAITHFUL WHERE THE
+##   INFORMATION EXISTS" WERE MEASURED SIDE BY SIDE, IN ONE REPAIR.**
 ##
 ##   **#86 — A `map int (option int)` PARAMETER COERCION SUBSTITUTES THE EMPTY MAP FOR THE
 ##   ACTUAL — FOUND 2026-09-12 (gen #10), REPAIR BUILT, GATING.** This is carve-out census

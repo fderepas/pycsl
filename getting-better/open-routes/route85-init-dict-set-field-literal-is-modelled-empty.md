@@ -1,8 +1,29 @@
 # ROUTE #85 — A NON-EMPTY DICT/SET LITERAL STORED TO A FIELD IN `__init__` IS MODELLED AS THE
 # EMPTY MAP, AND MEMBERSHIP AND CONTENTS ARE THEN DECIDED ON
 
-**STATUS: FOUND AND REPRODUCED 2026-09-12 (gen #10), AT HEAD. BOTH DIRECTIONS MEASURED ON
-FOUR CARRIERS, WITH THREE CONTROLS THAT BOUND IT EXACTLY. OPEN.**
+**STATUS: FOUND, REPRODUCED AND **CLOSED AND FULLY GATED** 2026-09-12 (gen #10), AT ZERO
+MEASURED COST. BOTH DIRECTIONS MEASURED ON FOUR CARRIERS, WITH THREE CONTROLS THAT BOUND IT
+EXACTLY. CLOSED **FAITHFULLY** — the true claim now PROVES, so this is a completeness GAIN.**
+
+> ## CLOSING EVIDENCE (gates run for #85 and #86 together)
+>
+> | gate | verdict |
+> |------|---------|
+> | soundness planes | **34/34 green**, rc=0 |
+> | byte-diff, pycsl-reference | **983/983 inert** |
+> | byte-diff, python-reference | **2203/2203 inert** |
+> | byte-diff, MIRROR | **53/53 inert** — no whole-file re-proof owed |
+> | zero-byte check | 0 on every side, `/tmp` at 10% |
+> | IR conformance | 38/38 + 38/38, determinism 10/10 |
+> | fidelity | rc=0, 887 verbatim |
+> | `check-bespoke-model-drift` | passed WITHOUT `--update` |
+> | reference suite | **3346/3365, ZERO XPASS, rc=1**; failures 19 vs 19 BYTE-IDENTICAL |
+>
+> **THE REPAIR IS A FAITHFUL CAPTURE** (witness 1219 PROVES the true claim), because a LOCAL
+> dict literal was always lowered faithfully and only the FIELD arm dropped it — the
+> information existed. The SET arm gets a polymorphic unconstrained map instead, because a
+> local set literal is int-erased and there is no faithful element lowering to reuse.
+> **BOTH HALVES OF THE RULE IN ONE REPAIR.**
 
 **CLASS: the #69 class, the serious one** — a FALSE POSTCONDITION about ordinary, TOTAL
 Python. No `no_exception`, no opt-in, no decorator, no flag.

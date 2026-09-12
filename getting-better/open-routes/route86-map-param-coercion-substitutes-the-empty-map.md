@@ -1,8 +1,15 @@
 # ROUTE #86 — A `map int (option int)` PARAMETER COERCION SUBSTITUTES THE **EMPTY MAP** FOR
 # THE ACTUAL, AND THE CALLEE'S CONTRACT IS THEN EVALUATED AGAINST IT
 
-**STATUS: FOUND AND REPRODUCED 2026-09-12 (gen #10), AT HEAD. BOTH DIRECTIONS MEASURED ON TWO
-CARRIERS. REPAIR BUILT. OPEN (gating).**
+**STATUS: FOUND, REPRODUCED AND **CLOSED AND FULLY GATED** 2026-09-12 (gen #10), AT ZERO
+MEASURED COST. BOTH DIRECTIONS MEASURED ON TWO CARRIERS.**
+
+> ## CLOSING EVIDENCE
+>
+> Gated together with route #85 — see that file's table. In summary: **34/34 planes; byte-inert
+> over pycsl-ref 983/983, python-ref 2203/2203 and the MIRROR 53/53; conformance 38/38 + 38/38;
+> fidelity rc=0; suite 3346/3365 ZERO XPASS with the 19-failure set byte-identical.**
+> Witnesses 1220 and 1221.
 
 **CLASS: the #69 class** — a FALSE POSTCONDITION about ordinary, TOTAL Python.
 
