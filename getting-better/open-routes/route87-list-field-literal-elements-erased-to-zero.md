@@ -1,7 +1,25 @@
 # ROUTE #87 — A LIST FIELD'S LITERAL KEEPS ITS LENGTH AND LOSES EVERY ELEMENT TO A DEFINITE `0`
 
-**STATUS: FOUND AND REPRODUCED 2026-09-12 (gen #10), AT HEAD. BOTH DIRECTIONS MEASURED ON TWO
-CARRIERS. REPAIR BUILT, FAITHFUL. OPEN (gating).**
+**STATUS: FOUND AND **CLOSED AND FULLY GATED** 2026-09-12 (gen #10), FAITHFULLY. BOTH
+DIRECTIONS MEASURED ON TWO CARRIERS.**
+
+> ## CLOSING EVIDENCE
+>
+> | gate | verdict |
+> |------|---------|
+> | soundness planes | **34/34 green**, rc=0 |
+> | IR conformance | **38/38 core + 38/38 front-end** — it FAILED first; the REPAIR was narrowed and NO golden was re-blessed |
+> | byte-diff, pycsl-reference | 993 compared, **4 MOVED = exactly this route's own witnesses**, ZERO pre-existing files |
+> | byte-diff, python-reference | **2203/2203 inert** |
+> | byte-diff, MIRROR | **53/53 inert** |
+> | fidelity | rc=0, 887 verbatim |
+> | reference suite | **3350/3369, ZERO XPASS, rc=1**; failures 19 vs 19 BYTE-IDENTICAL |
+>
+> **THE CONFORMANCE FAILURE IS THE MOST INSTRUCTIVE PART.** The first build recorded every
+> constant list literal in the IR; golden 0595 (`[0]*8`) gained a `field_list_literals` key
+> while core-only conformance stayed 38/38 — the IR had moved for a file whose BEHAVIOUR had
+> not. The gate was right, and it was pointing at an over-reach in the repair rather than at a
+> stale golden. **CARRY INFORMATION IN THE IR ONLY WHEN IT CHANGES THE ANSWER.**
 
 **CLASS: the #69 class** — a FALSE POSTCONDITION about ordinary, TOTAL Python.
 

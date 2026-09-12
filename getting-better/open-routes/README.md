@@ -1,11 +1,32 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **ONE — #87.**
-## (gen #10 CLOSED FOUR — #83, #79, #85, #86 — and FOUND THREE: #85, #86, #87.
+## CURRENTLY OPEN: **NONE.**
+## (gen #10 CLOSED FIVE — #83, #79, #85, #86, #87 — and FOUND THREE OF THEM: #85, #86, #87.
 ##  gen #9 CLOSED #80, #82 and #84.)
 ##
+## **AN EMPTY OPEN LIST IS NOT A FLOOR. gen #10 EMPTIED IT THREE TIMES AND FOUND A NEW
+## SEVERITY-1 ROUTE AFTER EACH OF THE FIRST TWO.** It means the hunt must GENERATE
+## candidates rather than work a queue. What produced them, in order: re-probing a
+## carve-out candidate an earlier generation had parked in the "LOW-VALUE TAIL" (#85);
+## noticing a carrier that SURVIVED the repair that closed its siblings (#86); and probing
+## a SECOND OPERATION on a carrier a control table had already called fail-closed (#87).
+##
 ##   **#87 — A LIST FIELD'S LITERAL KEEPS ITS LENGTH AND LOSES EVERY ELEMENT TO A DEFINITE
-##   `0` — FOUND 2026-09-12 (gen #10), REPAIR BUILT (FAITHFUL), GATING.** `self.xs = [1,2,3]`
+##   `0` — FOUND AND CLOSED 2026-09-12 (gen #10), FAITHFULLY.** Gates: 34/34 planes;
+##   conformance 38/38 + 38/38 (see below — it FAILED first and the REPAIR was narrowed, the
+##   golden was NOT re-blessed); fidelity rc=0; python-ref 2203/2203 and MIRROR 53/53 inert;
+##   pycsl-ref **4 MOVED, and the moved set ASSERTED MECHANICALLY to equal exactly this
+##   route's own four witnesses — ZERO pre-existing corpus files moved**; suite **3350/3369,
+##   ZERO XPASS, rc=1**, failure set 19 vs 19 byte-identical. Witnesses 1222-1225.
+##   **THE IR CONFORMANCE GATE CAUGHT A REAL OVER-REACH.** The first build recorded EVERY
+##   constant list literal, and golden 0595 gained an IR key while its EMISSION did not move
+##   (core-only conformance stayed 38/38). Rule (k) forbids re-blessing, and the right answer
+##   was to stop emitting information that carries none: an ALL-ZERO literal already lowered
+##   faithfully. **The condition is "all elements ZERO", not "all EQUAL"** — `[7,7,7]` got
+##   `Array.make 3 0` and must still be captured; witness 1225 is the negative test for
+##   exactly that, without which the narrowing would close #87 for `[1,2,3]`, leave it open
+##   for `[7,7,7]`, and pass every other test.
+##   ORIGINALLY RECORDED AS:** `self.xs = [1,2,3]`
 ##   then `c.xs[0]` proved `\result == 0` where CPython returns 1; the true twin was refused;
 ##   and the zero-filled array DISCHARGED a callee's `#@ requires xs[0] == 0` that the program
 ##   violates. `_field_default` returned `(Array.make <len> 0)` — right about the shape, wrong
