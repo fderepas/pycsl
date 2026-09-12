@@ -12335,6 +12335,41 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # `_emit_type_decls`), so its type-correct empty default is `Seq.empty`,
                     # not an `Array.make`.
                     return "Seq.empty"
+                # (#49) ROUTE #87 — `(Array.make <len> 0)` CAPTURES THE LENGTH AND
+                # ERASES EVERY ELEMENT TO A DEFINITE ZERO. MEASURED: `self.xs = [1, 2, 3]`
+                # then `c.xs[0]` PROVED `\result == 0` where CPython returns 1; the true
+                # twin was refused; and the zero-filled array DISCHARGED a callee's
+                # `#@ requires xs[0] == 0` that the running program VIOLATES, so the defect
+                # crosses the call graph. FOUND BY PROBING A SECOND OPERATION ON A CARRIER
+                # ROUTE #85's CONTROL TABLE HAD ALREADY DECLARED "fail-closed": that
+                # control ran `len(c.xs)` ONLY, and the LENGTH is faithful while the
+                # CONTENTS are not. A control is a measurement about the OPERATION it ran,
+                # never a theorem about the TYPE — the same axis on which route #81
+                # refuted route #59's list control.
+                # FAITHFUL where the literal is reconstructible (a LOCAL list literal has
+                # always lowered faithfully, so the information exists — route #82's rule),
+                # unconstrained where it is not.
+                _lit87 = (rec_info.get("field_list_literals") or {}).get(fn)
+                if _lit87:
+                    _vals87 = [int(_v) for _v in _lit87]
+                    # ALL-EQUAL is emitted as the plain `Array.make n v` it already was.
+                    # For the all-ZERO literals that every affected REAL corpus file uses
+                    # (0595/0596 `[0]*8`, 0704 `[0]*4`) this is the IDENTICAL TEXT, so those
+                    # files stay BYTE-IDENTICAL and only the genuinely non-uniform literals
+                    # move. Designing the common case to coincide with the existing output
+                    # is cheaper than paying for it in the byte-diff.
+                    if len(set(_vals87)) == 1:
+                        return f"(Array.make {len(_vals87)} {_vals87[0]})"
+                    _chain87 = "".join(
+                        " _alit[%d] <- %d;" % (_i87, _vals87[_i87])
+                        for _i87 in range(1, len(_vals87)))
+                    return ("(let _alit = Array.make %d (%d) in%s _alit)"
+                            % (len(_vals87), _vals87[0], _chain87))
+                if fn in set(rec_info.get("field_list_unknown") or []):
+                    # POLYMORPHIC for the same reason as route #86's `any_map`: the field
+                    # may be `array string` as easily as `array int`.
+                    self._add_abstract_op("val any_array (_u: unit) : array 'a")
+                    return "(any_array ())"
                 return f"(Array.make {rec_info['defaults'].get(fn, 0)} 0)"
             if ft in ("dict", "set", "frozenset"):
                 # (#49) ROUTE #85 — THE EMPTY MAP IS A DEFINITE VALUE, NOT AN UNKNOWN ONE,

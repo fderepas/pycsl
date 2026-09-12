@@ -8656,6 +8656,9 @@ class PreambleEmissionMixin:
                     # key omitted here is a SILENT NO-OP that still passes every gate.
                     "field_map_literals": td.get("field_map_literals", {}),
                     "field_map_unknown": td.get("field_map_unknown", []),
+                    # (#49) ROUTE #87 — same reason again: Module 6 reads THIS copy.
+                    "field_list_literals": td.get("field_list_literals", {}),
+                    "field_list_unknown": td.get("field_list_unknown", []),
                     # fresh-globals.md — the constructor's `#@ ensures` (post-state),
                     # consumed by `_emit_module_globals` (proven-of-the-literal GOAL)
                     # and `#@ fresh_globals` (assumed-at-driver-entry fact).

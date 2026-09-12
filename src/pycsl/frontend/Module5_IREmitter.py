@@ -3703,6 +3703,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # every `ast.FunctionDef` in this mirrored file, nested ones included.
             _m85lit: Dict[str, Any] = {}
             _m85unk: List[str] = []
+            _l87lit: Dict[str, Any] = {}
+            _l87unk: List[str] = []
             for _c85 in node.body:
                 if not (isinstance(_c85, ast.FunctionDef) and _c85.name == '__init__'):
                     continue
@@ -3716,7 +3718,31 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                             and isinstance(_t85.value, ast.Name)
                             and _t85.value.id == 'self' and _r85 is not None):
                         continue
-                    if isinstance(_r85, ast.Set) and _r85.elts:
+                    if isinstance(_r85, ast.List) and _r85.elts:
+                        # (#49) ROUTE #87 — the LIST arm of the same allocation-site
+                        # erasure. `_field_default` answered a list field with
+                        # `(Array.make <len> 0)`: the LENGTH is captured but every ELEMENT
+                        # is a DEFINITE ZERO. MEASURED: `self.xs = [1, 2, 3]` then
+                        # `c.xs[0]` PROVED `\result == 0` where CPython returns 1, the
+                        # true twin was refused, and the zero-filled array DISCHARGED a
+                        # callee's `#@ requires xs[0] == 0` that the program violates.
+                        # A LOCAL list literal has always been faithful
+                        # (`let _alit = Array.make 3 (1) in _alit[1] <- 2; ... ; _alit`),
+                        # so the information exists and the capture is FAITHFUL.
+                        _el87 = []
+                        for _e87 in _r85.elts:
+                            if (isinstance(_e87, ast.Constant)
+                                    and isinstance(_e87.value, int)
+                                    and not isinstance(_e87.value, bool)):
+                                _el87.append(int(_e87.value))
+                            else:
+                                _el87 = None
+                                break
+                        if _el87:
+                            _l87lit[_t85.attr] = _el87
+                        elif _t85.attr not in _l87unk:
+                            _l87unk.append(_t85.attr)
+                    elif isinstance(_r85, ast.Set) and _r85.elts:
                         if _t85.attr not in _m85unk:
                             _m85unk.append(_t85.attr)
                     elif isinstance(_r85, ast.Dict) and _r85.keys:
@@ -3739,6 +3765,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 break
             for _f85 in _m85unk:
                 _m85lit.pop(_f85, None)
+            for _f87 in _l87unk:
+                _l87lit.pop(_f87, None)
             _kwo = getattr(self, "_init_kwonly", ([], {}))
             _unk = list(getattr(self, "_init_unknown", []) or [])
             init_ensures = self._collect_init_ensures(node)
@@ -3777,6 +3805,9 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # initialiser -> byte-identical there and in all 38 frozen goldens.
                 **({"field_map_literals": _m85lit} if _m85lit else {}),
                 **({"field_map_unknown": _m85unk} if _m85unk else {}),
+                # (#49) ROUTE #87: the same pair for LIST fields.
+                **({"field_list_literals": _l87lit} if _l87lit else {}),
+                **({"field_list_unknown": _l87unk} if _l87unk else {}),
                 "init_ensures": init_ensures,
                 # (#43) route #15: the constructor's NON-TRIVIAL `#@ requires`/`#@ ensures`
                 # plus its parameter annotations, so Module 6 can emit a CHECKING-ONLY

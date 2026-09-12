@@ -1,8 +1,24 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **NONE.**
-## (gen #10 CLOSED FOUR — #83, #79, #85, #86 — and FOUND TWO of them, #85 and #86.
+## CURRENTLY OPEN: **ONE — #87.**
+## (gen #10 CLOSED FOUR — #83, #79, #85, #86 — and FOUND THREE: #85, #86, #87.
 ##  gen #9 CLOSED #80, #82 and #84.)
+##
+##   **#87 — A LIST FIELD'S LITERAL KEEPS ITS LENGTH AND LOSES EVERY ELEMENT TO A DEFINITE
+##   `0` — FOUND 2026-09-12 (gen #10), REPAIR BUILT (FAITHFUL), GATING.** `self.xs = [1,2,3]`
+##   then `c.xs[0]` proved `\result == 0` where CPython returns 1; the true twin was refused;
+##   and the zero-filled array DISCHARGED a callee's `#@ requires xs[0] == 0` that the program
+##   violates. `_field_default` returned `(Array.make <len> 0)` — right about the shape, wrong
+##   about the contents, and `Array.make` makes the wrong contents DECIDABLE.
+##   **FOUND BY PROBING A SECOND OPERATION ON A CARRIER MY OWN ROUTE-#85 CONTROL TABLE HAD
+##   DECLARED "fail-closed" AN HOUR EARLIER.** That control ran `len(c.xs)` only, and the
+##   LENGTH is faithful. **A CONTROL IS A MEASUREMENT ABOUT THE OPERATION IT RAN, NEVER A
+##   THEOREM ABOUT THE TYPE** — route #81's generator, and #87 is its mirror image (#81: length
+##   wrong, elements right; #87: length right, elements wrong). For a collection, ALWAYS probe
+##   BOTH the shape and the contents.
+##   **THE FIRST REPAIR THIS GENERATION THAT MOVES CORPUS BYTES** (6 sites, all in the corpus).
+##   The emission was designed so an ALL-EQUAL literal keeps the plain `(Array.make n v)` it
+##   already emitted, so the three real affected files (all-zero literals) stay byte-identical.
 ##
 ## **AN EMPTY OPEN LIST IS NOT A FLOOR — gen #10 EMPTIED IT AND THEN FOUND TWO MORE ROUTES
 ## IN THE SAME SESSION.** It means the hunt must GENERATE candidates rather than work a
