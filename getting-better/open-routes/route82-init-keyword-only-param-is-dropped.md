@@ -38,6 +38,7 @@ def f() -> int:
 | kw2 twin | same | `\result == 6` | 6 | refused |
 | kw4 | POSITIONAL-ONLY `v, /` | `\result == 0` | **7** | **PROVED** |
 | kw5 | KEYWORD-ONLY, `requires` discharge | `requires n == 0`, runtime n is **7** | — | **PROVED** |
+| kw6 | KEYWORD-ONLY `v: int = 5`, OMITTED at the call | `\result == 0` | **5** | **PROVED** |
 | **kw3 — THE CONTROL** | ORDINARY POSITIONAL `v` | `\result == 0` | 7 | **refused** |
 | kw3 twin — the control's true claim | ORDINARY POSITIONAL `v` | `\result == 7` | 7 | **PROVED** — faithful |
 
@@ -45,6 +46,19 @@ def f() -> int:
 constructor argument value and the SAME clause. Only the parameter's *kind* changes. Positional
 is faithful in BOTH directions; keyword-only and positional-only are wrong in BOTH directions.
 So this is a route, not a gap, and its boundary is not a matter of judgement.
+
+**A FIFTH CARRIER, AND IT CONSTRAINS THE REPAIR (kw6).** A keyword-only parameter with a
+NONZERO DEFAULT that is OMITTED at the call site is wrong too:
+
+```python
+def __init__(self, *, v: int = 5) -> None: self.v = v
+...  p = P(); return p.v        #@ ensures \result == 0   <-- PROVED; CPython returns 5
+```
+
+So it is not enough to bind the keyword arguments that are SUPPLIED. The repair must also
+capture each keyword-only parameter's CONSTANT DEFAULT, because an omitted keyword-only
+parameter is exactly the case where the current literal `0` is most likely to be read as
+"the default" — and it is only right when that default happens to be `0`.
 
 **kw5 IS THE ESCALATION.** The stale `0` DISCHARGES A CALLEE'S `requires n == 0` at a call site
 where the runtime value is `7`. The callee's own proof is then sound relative to a precondition
@@ -113,10 +127,20 @@ SEPARATE from the keyword-only names**, letting WL-07's `kwargs_map` bind the la
 only. Getting this wrong trades one wrong model for another, exactly as the one-token
 alternative did in #77 — so it must be measured, not reasoned about.
 
-**Blast radius: NOT YET MEASURED.** Census `__init__` methods with non-empty `posonlyargs` or
-`kwonlyargs` across `test-suite/corpus/`, `src/self-annotate/`, `src/pycsl/` and
-`src/pycsl_lib/` before building. `src/self-annotate/src/errors.py::PyCSLError` is a known
-instance **in the mirror**, so this interacts with the whole-file mirror proofs.
+**BLAST RADIUS: MEASURED, AND IT IS TINY.** Of 296 `__init__` methods across
+`test-suite/corpus/`, `src/self-annotate/`, `src/pycsl/` and `src/pycsl_lib/`:
+
+    with KEYWORD-ONLY params      8      corpus 0 · mirror 2 · src/pycsl 3 · src/pycsl_lib 2
+    with POSITIONAL-ONLY params   0      (none anywhere in the repository)
+    of those, initialising a field from a dropped parameter   7
+
+**ZERO in the verified corpus**, so the repair is predicted byte-inert over both corpora and
+over all 38 IR-conformance goldens. The real cost is the TWO mirror classes
+(`src/self-annotate/src/errors.py::PyCSLError` — whose `filename`/`line`/`stage`/`code` are
+ALL dropped — and `ConcurrencyChecker`), which makes this a whole-file-mirror-proof question,
+not a completeness-regression one. The positional-only carrier (kw4) is real but has no site
+in the repository, so covering it costs nothing and is worth doing for the same reason #77's
+dynamic-bound case was.
 
 ## RELATION TO #79
 
@@ -130,4 +154,4 @@ value. Fixing #82 first also SHRINKS #79: every field #82 recovers leaves the om
 ## WITNESSES
 
 `getting-better/route82-witnesses/kw1.py`, `kw1twin.py`, `kw2.py`, `kw2twin.py`,
-`kw3ctl.py` (the control), `kw3ctltwin.py`, `kw4pos.py`, `kw5req.py`.
+`kw3ctl.py` (the control), `kw3ctltwin.py`, `kw4pos.py`, `kw5req.py`, `kw6def.py`.
