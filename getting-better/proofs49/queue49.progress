@@ -125,3 +125,6 @@
 12:11 w60 gate87 sweeps done
 12:16 started w60 gate87b: sweeps + planes + suite (route #87)
 12:21 gate87b sweeps done
+12:39 w60 route87 planes running; byte-diff already asserted (4 MOVED = exactly its own witnesses, 0 pre-existing), conformance 38/38+38/38, fidelity rc=0
+12:49 finished w60_planes_route87 rc=0
+12:49 w60 planes route87 rc=0 — ALL 34 GREEN. suite60_run4 running (the decisive gate: #87 is the first repair this generation that moves corpus emissions).
