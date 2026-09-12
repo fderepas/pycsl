@@ -114,3 +114,8 @@
 09:59 finished suite60_run2 rc=1
 10:20 started w60 gate85: conformance + sweeps (routes #85/#86)
 10:25 w60 gate85 sweeps done
+10:40 started w60_planes_route85 (--slow)
+10:49 w60_planes_route85 running >9min; routes #85/#86 already byte-inert (983/983, 2203/2203, mirror 53/53), conformance 38/38+38/38, fidelity rc=0, 12-row matrix green
+11:07 finished w60_planes_route85 rc=0
+11:07 started suite60_run3 (routes #85/#86)
+11:08 w60 planes route85/86 rc=0 — ALL 34 GREEN (incl. check-bespoke-model-drift with no --update, check-mirror-coverage 549, check-vacuous-drivers over the six new witnesses). suite60_run3 running.
