@@ -1,6 +1,42 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **TWO — #79 and #80.**  (#77, #78 and #81 are CLOSED, see below.)
+## CURRENTLY OPEN: **TWO — #79 and #82.**  (#80 was CLOSED by gen #9; #77, #78 and #81 by gen #8.)
+##
+##   **#82 — AN `__init__` KEYWORD-ONLY OR POSITIONAL-ONLY PARAMETER IS DROPPED, AND EVERY
+##   FIELD IT INITIALISES BECOMES A LITERAL `0` — FOUND 2026-09-12 (gen #9), OPEN.**
+##   `_collect_init_construction` reads `child.args.args`, and Python keeps the other two
+##   parameter kinds in the SIBLING fields `posonlyargs`/`kwonlyargs`, which are never read.
+##   For a keyword-only `__init__` the parameter set is EMPTY, `if not pset: break` fires, and
+##   every field falls to `_field_default`'s literal `0`. `class P` with
+##   `def __init__(self, *, v: int = 0)` and `self.v = v`: **`P(v=7).v` PROVES `\result == 0`
+##   where CPython returns 7.** FIVE carriers (keyword-only; keyword-only with RHS `b + 1`;
+##   POSITIONAL-ONLY `(v, /)`; a keyword-only NONZERO default OMITTED at the call; and a
+##   `requires` DISCHARGE), and **THE CONTROL IS EXACT** — the same class, field, argument
+##   value and clause with an ORDINARY POSITIONAL parameter is FAITHFUL IN BOTH DIRECTIONS.
+##   Only the parameter KIND changes. **WIDER THAN #79**: #79 needs an RHS outside the capture
+##   shape, #82 needs nothing but `self.v = v`. Blast radius MEASURED: 8 constructors
+##   repo-wide, **ZERO in the verified corpus**, 0 positional-only anywhere. Both edit sites
+##   are OUTSIDE the mirror's verified surface (`construction_synth.py` is not mirrored;
+##   `_call_record_constructor` is a `#@ \trusted` stub), so it is the CHEAP (#78) shape.
+##
+##   **#80 — `del obj.attr` IS ERASED AND A CLASS-ATTRIBUTE FALLBACK MAKES IT TOTAL — FOUND
+##   BY gen #8, CLOSED AND FULLY GATED BY gen #9 (2026-09-12).** Proved `\result == 10` where
+##   CPython returns 5; true twin refused. Gen #9 added TWO carriers gen #8 did not have, both
+##   directions each: arithmetic on the stale field (`c.x - 5` proves the false 5, refuses the
+##   true 0), and the stale value **DISCHARGING A CALLEE'S `requires v == 10`** where the
+##   runtime value is 5 — the defect CROSSES THE CALL GRAPH. Blast radius **ZERO** (3636 files
+##   parsed, 0 attribute deletes anywhere), so the guard is byte-inert BY CONSTRUCTION. Gates:
+##   byte-inert both corpora (971/971, 2204/2204), mirror-sync rc=0, type-only 53/53,
+##   conformance 38/38 + 38/38, **whole-file mirror re-proof w59a_m5ir rc=0 with 2111 goals
+##   Valid and ZERO unproved**, **34/34 planes**, suite **3328/3347 ZERO XPASS with a
+##   19-failure set BYTE-IDENTICAL to gen #8's**. Witnesses 1201-1203.
+##
+##   **THE LESSON #80 PAID FOR, RESTATED BECAUSE IT COST A GENERATION:** #80 was #77's OWN
+##   RESIDUE, filed as out of scope *"because the program raises"*. That is TRUE of `del name`
+##   and FALSE of `del obj.attr` — class-attribute fallback keeps the program total.
+##   **"OUT OF SCOPE BECAUSE IT RAISES" IS ITSELF A CLAIM ABOUT PYTHON AND MUST BE PROBED,
+##   NOT REASONED ABOUT.** `del name` is still a no-op today and is safe only for that same
+##   unproven-looking reason — its reopening condition is now recorded explicitly.
 ##
 ##   **#81 — A LIST ALIAS TRACKS ELEMENT STORES BUT LOSES `append` — FOUND AND CLOSED
 ##   2026-09-11 (gen #8).** `a=[1,2]; b=a; b.append(3); return len(a)` proved `\result == 2`
