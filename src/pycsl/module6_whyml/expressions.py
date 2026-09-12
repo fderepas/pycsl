@@ -12341,15 +12341,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # for a bound leading field); an OVER-arity call (a Python error) binds
         # nothing (all defaults — fail-closed, never a false full binding).
         kwargs_map = kwargs_map or {}
-        if init_params and ((args and len(args) <= len(init_params)) or kwargs_map):
+        # (#49) ROUTE #82: keyword-only parameters bind BY NAME ONLY. They are
+        # carried apart from `init_params` precisely so they can never be bound
+        # from a positional argument (Python never does that), and the arity test
+        # below still measures the POSITIONAL list alone.
+        kwonly_params = rec_info.get("init_kwonly_params", []) or []
+        kwonly_defaults = rec_info.get("init_kwonly_defaults", {}) or {}
+        bindable = set(init_params) | set(kwonly_params)
+        if (init_params or kwonly_params) and (
+                (args and len(args) <= len(init_params)) or kwargs_map or kwonly_defaults):
             # positional prefix binds init_params[0 .. len(args)-1] by position;
             # keyword args bind the same-named param on top (a Python call never
             # binds a param both positionally and by keyword — a TypeError — so no
             # conflict). A keyword naming a non-param is ignored (kept as default).
             arg_nodes = {init_params[i]: {"type": "RawWhyml", "whyml": args[i]}
                          for i in range(min(len(args), len(init_params)))}
+            # (#49) ROUTE #82: a keyword-only parameter NOT supplied at the call site
+            # takes its DEFAULT. Seed those first so an explicit keyword below
+            # overrides them — measured: `*, v: int = 5` with `P()` proved
+            # `\result == 0` where CPython returns 5.
+            for _kn, _kv in kwonly_defaults.items():
+                if _kn not in kwargs_map:
+                    arg_nodes[_kn] = {"type": "RawWhyml", "whyml": str(_kv)}
             for _kwn, _kww in kwargs_map.items():
-                if _kwn not in init_params:
+                if _kwn not in bindable:
                     continue
                 # OPTION-TARGET keyword: when the field this keyword binds is genuinely
                 # `option τ`, an `Optional`-union actual must be projected into `Some`/`None`,

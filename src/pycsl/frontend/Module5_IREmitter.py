@@ -3671,6 +3671,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             str_set_constants = self._collect_class_str_set_constants(
                 node, {f["name"] for f in fields})
             init_params, init_body = self._collect_init_construction(node)
+            _kwo = getattr(self, "_init_kwonly", ([], {}))
             init_ensures = self._collect_init_ensures(node)
             _icc = self._collect_init_contract_check(node)
             self.program_ir["type_decls"].append({
@@ -3688,6 +3689,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 **({"str_set_constants": str_set_constants}
                    if str_set_constants else {}),
                 "init_params": init_params, "init_body": init_body,
+                # (#49) ROUTE #82: the KEYWORD-ONLY constructor parameters (and their
+                # constant defaults), carried SEPARATELY from `init_params` because
+                # that list is the POSITIONAL binding list. Emitted ONLY when the
+                # constructor actually has keyword-only parameters -> absent for
+                # every other class, so the IR of the whole corpus, the mirror and
+                # all 38 frozen conformance goldens is byte-identical.
+                **({"init_kwonly_params": _kwo[0]} if _kwo[0] else {}),
+                **({"init_kwonly_defaults": _kwo[1]} if _kwo[1] else {}),
                 "init_ensures": init_ensures,
                 # (#43) route #15: the constructor's NON-TRIVIAL `#@ requires`/`#@ ensures`
                 # plus its parameter annotations, so Module 6 can emit a CHECKING-ONLY

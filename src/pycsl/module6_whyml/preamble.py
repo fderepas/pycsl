@@ -8638,6 +8638,14 @@ class PreambleEmissionMixin:
                     # base_op.md Tier A — parametrized construction C(a, b)
                     "init_params": td.get("init_params", []),
                     "init_body": td.get("init_body", []),
+                    # (#49) ROUTE #82 — the KEYWORD-ONLY constructor parameters, carried
+                    # apart from `init_params` because that list is the POSITIONAL binding
+                    # list (`args[i]` binds `init_params[i]`) and Python never binds a
+                    # keyword-only parameter from a positional argument. Absent from the IR
+                    # for every constructor without keyword-only parameters, so this reads
+                    # back as `[]`/`{}` there and the emission is byte-identical.
+                    "init_kwonly_params": td.get("init_kwonly_params", []),
+                    "init_kwonly_defaults": td.get("init_kwonly_defaults", {}),
                     # fresh-globals.md — the constructor's `#@ ensures` (post-state),
                     # consumed by `_emit_module_globals` (proven-of-the-literal GOAL)
                     # and `#@ fresh_globals` (assumed-at-driver-entry fact).

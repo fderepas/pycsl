@@ -84,11 +84,58 @@ class ConstructionSynthMixin:
         intentionally NOT re-captured here."""
         init_params: List[str] = []
         init_body: List[Dict[str, Any]] = []
+        # (#49) ROUTE #82 side-channel, reset per class so a constructor with no
+        # keyword-only parameter emits nothing new (additive -> byte-identical).
+        self._init_kwonly = ([], {})
         for child in node.body:
             if not (isinstance(child, ast.FunctionDef) and child.name == '__init__'):
                 continue
-            init_params = [a.arg for a in child.args.args if a.arg != 'self']
-            pset = set(init_params)
+            # (#49) ROUTE #82 — `ast.arguments.args` HOLDS ONLY THE PLAIN
+            # POSITIONAL-OR-KEYWORD PARAMETERS. Python keeps the other two kinds in
+            # the SIBLING fields `posonlyargs` and `kwonlyargs`, and reading only
+            # `args` silently means "this constructor has no parameters" for a
+            # keyword-only `__init__`: `pset` came back EMPTY, the `if not pset:
+            # break` below fired, `init_params`/`init_body` were empty, and EVERY
+            # field fell through to `_field_default`'s literal `0`. MEASURED:
+            #     class P:
+            #         v: int
+            #         def __init__(self, *, v: int = 0) -> None: self.v = v
+            #     P(v=7).v     #@ ensures \result == 0   <-- PROVED; CPython gives 7
+            # The TRUE twin was refused, a POSITIONAL-ONLY `(v, /)` behaved
+            # identically, the stale `0` DISCHARGED a callee's `requires`, and the
+            # CONTROL — the same class, field, value and clause with an ORDINARY
+            # POSITIONAL parameter — was FAITHFUL IN BOTH DIRECTIONS. Only the
+            # parameter KIND changed.
+            #
+            # THE TWO LISTS ARE KEPT SEPARATE ON PURPOSE. `init_params` is consumed
+            # by `_call_record_constructor` as the POSITIONAL binding list
+            # (`args[i]` binds `init_params[i]`), so appending the keyword-only
+            # names to it would bind them FROM POSITIONAL ARGUMENTS — something
+            # Python never does, i.e. a DIFFERENT wrong model in place of the old
+            # one. Positional-only and positional-or-keyword parameters DO bind
+            # positionally and belong in `init_params`, in Python's own order;
+            # keyword-only names go out separately as `init_kwonly_params` for the
+            # WL-07 by-name binding. `pset` — which only decides whether an RHS is
+            # EXPRESSIBLE from the constructor's parameters — sees all three kinds.
+            init_params = [a.arg for a in
+                           (child.args.posonlyargs + child.args.args)
+                           if a.arg != 'self']
+            kwonly_params = [a.arg for a in child.args.kwonlyargs
+                             if a.arg != 'self']
+            # A keyword-only parameter OMITTED at the call site takes its DEFAULT,
+            # and the literal `0` is right only when that default happens to be 0
+            # (measured: `*, v: int = 5` with `P()` proved `\result == 0` where
+            # CPython returns 5). Capture the CONSTANT defaults so the omitted case
+            # is faithful too; a non-constant default stays omitted and is route
+            # #79's class, not this one.
+            kwonly_defaults = {}
+            for _a, _d in zip(child.args.kwonlyargs, child.args.kw_defaults):
+                if (isinstance(_d, ast.Constant)
+                        and isinstance(_d.value, (int, float))
+                        and not isinstance(_d.value, bool)):
+                    kwonly_defaults[_a.arg] = int(_d.value)
+            self._init_kwonly = (kwonly_params, kwonly_defaults)
+            pset = set(init_params) | set(kwonly_params)
             if not pset:
                 break
             for stmt in child.body:  # top-level only — no ast.walk
