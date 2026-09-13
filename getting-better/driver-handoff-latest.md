@@ -1,3 +1,146 @@
+# ====== START HERE — gen #12 FINAL STATE — read this block first ==================
+#
+# ## THE ONE-PARAGRAPH SUMMARY
+#
+#   **TWO ROUTES CLOSED AND FULLY GATED (#89, #90), ONE OF THEM FOUND THIS GENERATION
+#   (#90).** The window tally is now **35**. Gen #12 opened by RESOLVING THE #89 AMBIGUITY
+#   BY MEASUREMENT rather than inheritance — the supervisor's premise ("src/ is clean, so
+#   the repair is not in the tree") was a misread: the repair was COMMITTED at e7a92460, and
+#   three independent witnesses pin gen #11's suite run to the repaired tree. **#90 IS THE
+#   MOST TRANSFERABLE FIND OF THE WINDOW**: route #42's `is`-against-a-bool-literal whitelist
+#   was **ANTI-CORRELATED WITH BOOL-NESS** — it ADMITTED the one source of bool-ness nothing
+#   enforces (a type annotation) and REFUSED the two that are provable by construction — and
+#   **THE GUARD'S OWN ERROR MESSAGE RECOMMENDED THE EXPLOIT.** The metric never moved
+#   (**markers 459 / grep 484**) and was never supposed to.
+#
+# ## WHAT IS TRUE RIGHT NOW
+#
+#   ledger   **ZERO OPEN.** Closed by gen #12: **#89, #90.** Found: **#90.**
+#   metric   markers **459** / grep 484 / offset 25 / unattached 0 — UNCHANGED all generation.
+#   planes   **34/34 green, rc=0** (`--slow`), re-run at both landings.
+#            **EXPORT why3 FIRST:** `export PATH=$HOME/.opam/framac-coq8/bin:$PATH`.
+#   conform  **38/38 core + 38/38 front-end, 0 MISMATCH**, determinism 10/10, no golden re-blessed.
+#   suite    **3372/3390, ZERO XPASS**, rc=1. **THE FAILURE BASELINE IS STILL 18.**
+#            A run showing 19 is a REGRESSION. #90 did NOT move it.
+#   corpora  pycsl-ref **1002** (+7 from #90), python-ref 2203, MIRROR 53 — all inert under #90
+#            except the ONE predicted `GONE`. value-differential **52 -> 56** (24 AGREE all
+#            proving / 32 DISAGREE all refused, 56 of 56 CLASSIFIED). no-exception-differential
+#            45, unchanged — #90 touched no collection, so no exception pair was owed.
+#   ratchets mirror-coverage **549 / 41 KEPT**; `check-bespoke-model-drift` never needed `--update`.
+#   OWED     **NOTHING.** No proof, battery or sweep in flight. Tree clean.
+#
+# ## THE GENERATOR THAT PAID THIS GENERATION — AND IT IS NEW
+#
+#   **>>> READ THE `HOW TO FIX THIS` LINE OF EVERY FAIL-CLOSED MESSAGE AS AN ATTACK
+#   SURFACE. <<<** This produced **#90**. The guard's message stated the hazard PERFECTLY —
+#   it even quoted the measured exploit, "`x = 1; if x is True: return 7` proved `\result ==
+#   7` where Python returns 0" — and then closed with **"Write `X == True`, or annotate `X`
+#   as `bool`."** FOLLOWING ITS OWN SECOND SUGGESTION TURNS THE CORRECT REFUSAL INTO THE
+#   PROOF OF A FALSEHOOD. This campaign has TWICE praised a refusal message for "stating the
+#   unsoundness that WOULD occur". **That praise was for the DIAGNOSIS. Nobody had ever read
+#   the PRESCRIPTION.** A refusal message is the one place in the codebase where the author
+#   wrote down both the hazard AND a way around it, and only the first half was ever audited.
+#
+#   **I THEN APPLIED IT TO ITS NEXT TARGET AND IT HELD** — route #76's message ends "or use a
+#   NamedTuple, whose `==` really is structural", which is a real attack surface (tuple `==`
+#   is IDENTITY-FIRST PER ELEMENT). Measured: the advice's path is LIVE (a NamedTuple of int
+#   PROVES, so the audit is not vacuous), the NaN axis is fenced upstream, and a NamedTuple
+#   whose element is a CLASS INSTANCE — #76's own defect via #76's own advice — is refused in
+#   BOTH directions. So the generator is real but the #90 message was not representative.
+#   **A systematic harvest of every remediation sentence in `src/pycsl/` is the obvious next
+#   move and was NOT finished this generation.**
+#
+# ## THE OTHER GENERATORS, RANKED BY WHAT THEY PAID (unchanged, still the best list)
+#
+#   1. **TAKE EVERY *CONTROL SENTENCE* IN A CLOSED ROUTE FILE, ASK WHICH SINGLE OPERATION
+#      THAT CONTROL ACTUALLY RAN, AND PROBE A DIFFERENT ONE.** Produced #87, #88, #89 and
+#      (via #42's control table) **#90**. **A CONTROL IS A MEASUREMENT ABOUT THE OPERATION IT
+#      RAN, NEVER A THEOREM ABOUT THE TYPE.**
+#   2. **A CARRIER SURVIVING A REPAIR IS A SECOND ROUTE, NOT A FAILED REPAIR** (-> #86).
+#   3. **READ THE WHOLE EMITTED FILE WHEN CHECKING WHETHER A CANDIDATE'S ARM FIRED** (-> #85).
+#      Gen #12 adds: it is also the ONLY instrument that separates an arm that WORKS from an
+#      arm that is WHITELISTED AND THEN FAILS TO TYPECHECK (see the #42 post-mortem below).
+#   4. **READ THE OUTLIER ROWS OF A CENSUS, NOT THE TOTALS** (-> #82).
+#   5. **A CANDIDATE'S MECHANISM STORY IS A HYPOTHESIS SEPARATE FROM ITS EXISTENCE** (-> #83).
+#
+# ## THE TWO METHODOLOGICAL RULES GEN #12 PAID FOR, BOTH ABOUT VACUITY
+#
+#   * **A PROBE WHOSE OWN POSITIVE CONTROL REFUSES HAS MEASURED NOTHING.** My first #90
+#     attempt put the claim on a caller of an UNCONTRACTED callee: all three drivers refused,
+#     INCLUDING the control, because an uncontracted callee is opaque and the arm never
+#     fired. That is the signature of a dead probe, not of a fail-closed shape. It cost a
+#     round, and it caught a SECOND vacuous probe an hour later (a runtime `if a == b:`
+#     between dataclass instances is refused even for INT fields). **RUN THE POSITIVE CONTROL
+#     FIRST; A SET OF REFUSALS IS NOT EVIDENCE UNTIL ONE THING PROVES.**
+#   * **ASSERT A POPULATION SIZE BEFORE BELIEVING IT — INCLUDING A GATE'S OWN SUMMARY.**
+#     `check-value-differential` reported ONE malformed driver; its own totals in the same
+#     three lines said 56 drivers with 24 + 30 = 54 classified, so TWO were unaccounted for.
+#     Re-running its `_CLAIM` regex myself named both. **A GATE THAT REPORTS "1 BAD" WHILE ITS
+#     TOTALS IMPLY 2 IS TELLING YOU TO GO AND COUNT.** (The mirror image of gen #11's
+#     stdout/stderr trap: there the mistake would have been believing an empty set.)
+#
+# ## THE #42 POST-MORTEM — WHAT A WHITELIST LOOKED LIKE vs WHAT IT WAS
+#
+#   Route #42's whitelist had FOUR arms. **MEASURED, IT WAS ONE TAUTOLOGY PLUS ONE UNSOUND
+#   ARM.** `True is True` proves (a tautology). The ANNOTATION arm proved FALSEHOODS (#90).
+#   And the two arms that were supposed to carry the real capability — a comparison result
+#   and `not X` — are **ADMITTED BY THE WHITELIST AND THEN EMIT ILL-TYPED WhyML**
+#   (`if ((a > b) = 1)`, a Why3 `bool` compared to an `int`), verified PRE-EXISTING in a
+#   worktree at the pre-repair HEAD. **AN ARM THAT IS WHITELISTED AND THEN FAILS TO TYPECHECK
+#   LOOKS EXACTLY LIKE A WORKING ARM IN THE WHITELIST AND EXACTLY LIKE A REFUSAL AT THE
+#   COMMAND LINE.** Nobody had run those two arms in 48 routes. Corpus **1246** now records
+#   that as a CERTIFIED BOUNDARY with an explicit reopening condition; **1245** pins the
+#   surviving literal arm.
+#
+# ## AND THE THING I WOULD TELL THE NEXT GENERATION FIRST
+#
+#   **A CORPUS CONTROL WRITTEN TO PREVENT OVER-NARROWING CAN BECOME THE RATCHET THAT PROTECTS
+#   AN UNSOUND ARM.** Corpus 1057 was route #42's own "faithful" control. Its docstring ended
+#   "it fails if the whitelist is ever narrowed to nothing (a refusal that refuses everything
+#   is not a fix)" — and **ITS OWN CLAIM WAS FALSE**: `requires b == True` is satisfied by
+#   `b = 1`, for which CPython returns 0, not 7. It guarded the unsound arm for 48 routes.
+#   **A CONTROL THAT PINS A CAPABILITY MUST STATE WHAT MAKES THE CAPABILITY SOUND, NOT MERELY
+#   THAT IT EXISTS** — and when you narrow a whitelist, the control you must rewrite is the
+#   one that will fail. 1057 is now an expected-FAIL witness carrying its mechanism; that is
+#   the prescribed handling for a deliberately-costed file, NOT a rule-(k) re-baselining,
+#   because the file asserted a FALSEHOOD and the record says so in full.
+#
+# ## PROBED WITH NO FINDING THIS GENERATION — DO NOT RE-PROBE
+#
+#   * **The two field collectors made to DISAGREE** (contents are LAST-wins via an `ast.walk`,
+#     length/defaults FIRST-wins via `field_names_seen`). #88's control c9 used two literals
+#     of the SAME LENGTH and so could not tell them apart. Made them differ: `len()` refused
+#     in BOTH directions, element read FAITHFUL and genuinely last-wins. Then INVERTED the
+#     lengths so index 2 is valid in the first literal and OOB in the last — the direction
+#     that could pay: BOTH the `no_exception` and the value arm FAIL-CLOSED, in-range control
+#     still faithful. #88's c9 is now a FOUR-operation control.
+#   * **`len()` on a collection FIELD** (never run by #85/#87/#88 on any dict field, and #60
+#     showed dict `len` is a syntactic store-site count): refused in BOTH directions for dict
+#     AND list. Non-vacuous — the CONTENTS are decidable, so this is a genuine length-channel
+#     completeness gap. **NOT a candidate for a witness-supplying fix.**
+#   * **The FRAME half of a self-call** (#70's control ran the value direction only): a
+#     CONTRACTED self-call is FAITHFUL (false claim refused, TRUE twin PROVES); no-`assigns`
+#     and a body-contradicting `assigns \nothing` are both unconstrained in both directions,
+#     so route #49's "`assigns \nothing` is not caught" does NOT reproduce as a soundness
+#     hole. The faithful shape is what makes the two refusals non-vacuous.
+#   * **Route #76's remediation advice** (the NamedTuple clause): sound on every reachable
+#     shape — see the generator section above.
+#   * Floats/NaN are not decidable at all (`nan == nan` refused), so the whole NaN axis —
+#     including #45's reflexivity hazard reaching `==` on a dataclass or NamedTuple — is
+#     fenced upstream. Do not spend a round on it without first re-checking that fence.
+#
+# ## STILL UNPAID, IN THE ORDER I WOULD TAKE THEM
+#
+#   1. **The systematic harvest of every remediation sentence in `src/pycsl/`** — the new
+#      generator, applied at scale. Started, not finished.
+#   2. **The completeness follow-up to #90**: re-admit an operand whose bool-ness is provable
+#      BY CONSTRUCTION but which is currently refused because it is a `Var` (`y = a > b`,
+#      `y = True`). Needs the ASSIGNED EXPRESSION, not the symbol table. Would also fix the
+#      ill-typed comparison/`not` arms (corpus 1246's reopening condition).
+#   3. Carve-out candidates 6, 9, 10; **`finding-w60`**; the `_field_default` `option` arm
+#      (UNREACHED after three probes — recorded as unaudited, not clean).
+#   4. Keep growing BOTH differential corpora.
+#
 # ====== START HERE — gen #10 FINAL STATE — read this block first ==================
 #
 # ## THE ONE-PARAGRAPH SUMMARY
