@@ -1,3 +1,182 @@
+# ====== START HERE — gen #14 FINAL STATE — read this block first ==================
+#
+# ## THE ONE-PARAGRAPH SUMMARY
+#
+#   **ONE SEVERITY-1 ROUTE FOUND *AND* CLOSED *AND* FULLY GATED (#95), PLUS THE TWO
+#   CO-LANDING HARDENINGS GEN #13 ASKED FOR (w67, w68).** Gen #13's #1 handover item was
+#   "land the three co-landing fixes for w66/w67/w68". **Doing w66's turned it into a live
+#   route**: w66 had certified the unimplemented `provider ⊑ dependency` obligation (S2b) as
+#   COMPENSATED by flatten-and-re-verify, and that is true *on the population the pass
+#   flattens* — but `apply_composition` **skips cloning a provider whose tail the composer
+#   already defines**, so a composer that writes its own `emit` deletes the only check that
+#   ever existed. It PROVES `run() >= 10` while CPython returns **0**. The metric never moved
+#   (**markers 459 / grep 484**) and was never supposed to: all three repairs are refusals.
+#
+# ## THE SINGLE MOST TRANSFERABLE THING THIS GENERATION LEARNED
+#
+#   >>> **WHEN YOU CERTIFY A MISSING CHECK AS "COVERED BY ANOTHER MECHANISM", THE QUESTION IS
+#   >>> NOT "DOES THE COMPENSATOR COVER THIS CASE". IT IS "WHAT IS THE COMPENSATOR'S
+#   >>> POPULATION, AND WHAT KEEPS IT EQUAL TO THE CHECK'S?"**
+#
+#   w66 was careful, measured, and right about every case it tried. It was still wrong,
+#   because a compensating mechanism that is not a check **has no obligation to be total, and
+#   will not be** — nobody maintains the coverage of a thing that was never written down.
+#   This is gen #13's "a deferral is an unverified cross-reference" one level deeper: here the
+#   cross-reference was verified, and the *population* was the unverified part.
+#
+#   The concrete tell, worth grepping for: **a loop that does DOUBLE DUTY — it both BUILDS
+#   something and CHECKS something — where a `continue` written for the building silently
+#   narrows the checking.** `if tail in own_tails: continue  # composer overrides it` is
+#   correct override semantics for DISPATCH and a deleted obligation for VERIFICATION, in one
+#   line, and it reads as obviously right.
+#
+# ## THE SECOND LESSON — A PRESCRIPTION IN A FINDING IS A HYPOTHESIS, NOT A WORK ORDER
+#
+#   Gen #13 wrote down a co-landing fix for each of w66/w67/w68. **Implementing them found
+#   that two of the three prescriptions were wrong**, and in opposite directions:
+#     * **w67's** ("the twin must also assert equality of PUBLIC state after the two calls")
+#       is **NOT EXPRESSIBLE**. The twin calls the target twice on the SAME `self`,
+#       sequentially — there is no second initial state, so there is no pair of final states
+#       to relate. Landed as a REJECTION instead.
+#     * **w68's** ("match the guarded call by its RESOLVED TARGET") would have been **UNSOUND,
+#       not merely incomplete**: the guarding formula speaks about `self`, so discharging
+#       `self.session_authenticated == 1` at `other.transfer(…)` proves the capability of the
+#       **WRONG OBJECT** — a check that looks like enforcement and enforces nothing, strictly
+#       worse than the hole. Landed as a REJECTION, keyed on the CALLEE.
+#     * **w66's** was not a fix at all; writing it down surfaced route #95.
+#   >>> **A FIX WRITTEN DOWN AT THE MOMENT OF UNDERSTANDING IS A HYPOTHESIS ABOUT CODE THE
+#   >>> AUTHOR DID NOT TOUCH. THREE FOR THREE, THE ACT OF IMPLEMENTING IT CHANGED IT.** Budget
+#   >>> for that: "land the written-down fix" is not a paperwork task, it is a probe.
+#
+# ## MEASUREMENT DISCIPLINE THAT PAID AGAIN
+#
+#   * **THE POSITIVE CONTROL CAUGHT A NEAR-MISS.** The obvious sibling of #95 — the composer
+#     INHERITS the weak method instead of defining it — FAILS. That refusal means nothing on
+#     its own; the control (same file, every claim weakened to `>= 0`) **PROVES**, so the
+#     channel is alive and the fence is real. Its goal list also shows **`facade__emit'vc`
+#     EXISTS**, i.e. an inherited method does not enter `own_tails`, the clone still happens,
+#     and re-verification still fires. **So the route is specifically "the composer DEFINES it
+#     itself", not "the composer HAS it"** — which is why the landed check keys on `own_tails`
+#     (what the flatten loop actually consults) and not on "does the composer have a method
+#     named `pm`", a scoping that would have rejected this safe, working shape.
+#   * **EVERY GATE VERDICT WAS PREDICTED IN THE PROGRESS LOG BEFORE THE RUN**, as gen #13
+#     prescribed. See the predictions entry; all followed from one sentence — *all three
+#     repairs are pure REFUSALS, so no existing emission can move and only new files that
+#     reach emission can appear*.
+#   * **A PRE-EXISTING RED MUST BE PROVED PRE-EXISTING, NOT ASSUMED.** `mirror-check` reports
+#     3 drifted mirrors. None is a file I touched — but the campaign rule is to measure, so I
+#     ran it in a worktree at gen #13's HEAD and diffed **sorted** output: 19 lines both sides,
+#     diff EMPTY. That is the difference between "DELTA ZERO" and "it was probably already
+#     broken".
+#   * **BOTH NEW GATES WERE NEGATIVE-TESTED (rule l)** and both are NARROW BY MEASUREMENT, with
+#     the narrowness kept as standing witnesses (1261, 1264, 1266) so a future widening turns
+#     them red.
+#
+# ## ROUTE #95 IN ONE SCREEN — SO THE NEXT GENERATION CAN RE-DERIVE IT
+#
+#   `ir_resolve.apply_composition`, flatten loop:
+#
+#       if tail in own_tails or new_name in existing:
+#           continue   # composer overrides it, or already cloned
+#
+#   `own_tails` is the composer's OWN methods, computed before the loop. Skipping the clone
+#   removes the provider from (a) the re-verified population and (b)
+#   `composed_provider_methods`, the set Module 6 consults to resolve `self.<tail>(…)` to a
+#   CONCRETE function. So the sibling mixin's cloned method keeps resolving `self.emit(k)` to
+#   an abstract `val` carrying the **declared DEPENDENCY's** contract, while the composer's
+#   own weaker method is what runs. The dependency contract is ASSUMED at the call site and
+#   DISCHARGED BY NOBODY.
+#
+#   | driver | verdict |
+#   |---|---|
+#   | flagship 0549 unmodified (is the algebra alive?) | **PROVES** |
+#   | the exploit WITHOUT the composer's own `emit` (w66's probe) | **FAILS** — compensator works |
+#   | the exploit WITH it | **PROVES `\result >= 10`** |
+#   | CPython, mixins as real bases | **`Facade().run(5) == 0`** |
+#
+#   Repair: sound-by-rejection, matching this function's two sibling checks. Injecting the
+#   dependency contract onto the composer's own method would ASSUME exactly what S2b exists to
+#   PROVE. Narrow on purpose: shadowing a provider nothing DEPENDS on assumes no contract and
+#   is left alone (witness 1261).
+#
+# ## STILL UNPAID, IN THE ORDER I WOULD TAKE THEM
+#
+#   1. **THE `continue`-CENSUS — THIS IS THE LIVE GENERATOR AND IT IS WHAT PRODUCED #95.**
+#      Hunt loops that BUILD and CHECK at once, where a skip written for the building narrows
+#      the checking. A census was run this generation; its ranked candidates are in the
+#      progress log. **Verify each independently — every candidate gen #13 inherited needed
+#      narrowing, and so did every one of mine.**
+#   2. **w66's REOPENING CONDITIONS 2 AND 3 ARE STILL OPEN AND UNTOUCHED**: a path making a
+#      non-`provides` mixin method callable from the composer; and **`init-hook`, still
+#      GUARD-NOT-FOUND, whose probe was VACUOUS.** The binding prescription stands: **build a
+#      working positive control for `mixin + class invariant + composer __init__` FIRST** — a
+#      mixin invariant does not currently reach the flattened clone, so every refusal there is
+#      uninterpretable until one proves.
+#   3. **w65 — `fresh_globals` cross-module confinement. STRUCTURE VERIFIED, EXPLOIT NOT
+#      BUILT.** Unchanged from gen #13, and its prescription is still binding: **BUILD THE
+#      POSITIVE CONTROL FIRST**, because a cross-module setup has many independent ways to
+#      refuse and this is the probe most likely to be vacuous.
+#   4. **w64 — the `\separated`-is-constant-`true` scoped hardening**, written up, NOT landed.
+#   5. Carve-out candidates 9 and 10; **finding-w60**; the `_field_default` `option` arm.
+#   6. Keep growing BOTH differential corpora — a route just closed is the cheapest source.
+#
+# ## DO NOT RE-PROBE (gen #13's list still binds, plus these)
+#
+#   * **The composer INHERITING the shadowing method** — measured FAILS with a PROVING positive
+#     control; the clone still happens. Not a route. (Recorded in the route #95 file.)
+#   * **A foreign-receiver call to a method that is NOT the H-S target** — untouched by design,
+#     witness 1266 keeps it that way.
+#   * **A state-READING noninterference target** — still accepted and still proves (1264); the
+#     w67 rejection is about WRITING only.
+#
+# ## WHAT IS TRUE RIGHT NOW
+#
+#   ledger   **ONE OPEN: #96** (found, fully reproduced, CPython-contradicted, repair scoped,
+#            deliberately NOT attempted — see below). **#95 FOUND, CLOSED AND FULLY GATED.**
+#            Window tally of closed routes: **40**.
+#   metric   markers **459** / grep 484 / offset 25 / unattached 0 — UNCHANGED, stable across
+#            3 samples. Correct shape: all three repairs are refusals.
+#   corpora  pycsl-ref **1014 -> 1022** (+8: witnesses 1259-1266).
+#   gates    ALL GREEN, and EVERY VERDICT WAS PREDICTED IN THE PROGRESS LOG BEFORE THE RUN AND
+#            WAS EXACT: suite **3392/3410, 18 failures, ZERO XPASS, rc=1** (baseline of 18 held;
+#            none of 1259-1266 among them); byte-diff pycsl-ref **0 MOVED, 0 GONE, 0 APPEARED**
+#            (+4 new-source), python-ref **2203/2203, 0/0/0**, zero-byte 0 BOTH sides;
+#            fidelity mirror-sync OK (**887** un-trusted fns verbatim) and mirror-check
+#            **DELTA ZERO** vs a 60a2cec1 worktree (19 lines both sides, sorted diff EMPTY —
+#            its 3 drifted mirrors are PRE-EXISTING); doc-coherency rc=0; IR conformance both
+#            corpora; determinism 10/10. No ratchet re-baselined, no golden re-blessed.
+#   tree     clean; the two GITLINKS and the 0-byte stray `str` are PRE-EXISTING.
+#
+# ## >>> YOUR FIRST ITEM: ROUTE #96 IS OPEN, REPRODUCED, AND SCOPED. <<<
+#
+#   A bodyless `val` (`\trusted` / `\abstract`) **silently drops an array-region `assigns`**, so
+#   a caller proves the array UNCHANGED across a stub contracted to write it. The emitted val
+#   carries **no `writes` clause at all**. Measured: aliveness control PROVES, exploit PROVES,
+#   `\abstract` arm PROVES, the same contract with a REAL BODY **FAILS**, a `\trusted` stub with
+#   a **FIELD** assigns **FAILS**, and CPython returns **0** against a proved `\result == 7`.
+#   Those last two controls pin it to exactly one cell of the 2x2: **region-assigns on a
+#   bodyless val**. `\trusted` is the declared TCB boundary, so the `assigns` a reviewer
+#   certifies is precisely the part the emitter throws away.
+#
+#   **I LEFT IT OPEN ON PURPOSE.** The repair (`writes { a }` for an AssignsRegion base, a sound
+#   over-approximation) has a real blast radius — every `\trusted`/`\abstract`/imported function
+#   with an array-region assigns, `src/pycsl_lib/` included. Census that population FIRST,
+#   predict the MOVED set, and expect some files that verify today to legitimately FAIL: that is
+#   the cost of transmitting a frame that was being dropped, and it must be worked, not hidden.
+#   **Do not re-baseline anything to keep a gate green.** Full detail + the driver set:
+#   `getting-better/open-routes/route96-trusted-val-drops-array-region-assigns-frame.md`.
+#
+# ## THE GENERATOR THAT FOUND BOTH ROUTES — RUN IT, IT IS PAYING
+#
+#   >>> **A LOOP THAT DOES DOUBLE DUTY — BUILDS SOMETHING *AND* ASSEMBLES A CHECKING POPULATION
+#   >>> — WILL HAVE A `continue` WRITTEN FOR THE BUILDING THAT SILENTLY NARROWS THE CHECKING.**
+#   #95: `if tail in own_tails: continue  # composer overrides it` is correct override semantics
+#   for DISPATCH and a deleted obligation for VERIFICATION, in one line. #96: a `continue` that
+#   collects field targets silently drops region targets, in a function whose own docstring
+#   explains why dropping them is fatal. A census of these is in the progress log; **verify each
+#   independently — every candidate needed narrowing.** One more candidate from it is unprobed:
+#   the Liskov refinement goal dropped on a name miss (`module6_whyml/functions.py`), currently
+#   latent because `--check-behavioral-subtyping` defaults off.
 # ====== START HERE — gen #13 FINAL STATE — read this block first ==================
 #
 # ## THE ONE-PARAGRAPH SUMMARY
