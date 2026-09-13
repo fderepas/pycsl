@@ -827,6 +827,47 @@ class Module3_Weaver:
                     # the grant gets an unprovable VC IN THE CALLER — exactly macsl's
                     # `unauth_endpoint` red (../macsl tests/small_example/attacks.c). The
                     # target's own (recursive) self-call already assumes the precond, so skip it.
+                    # FINDING w68 / co-landing fix. `_collect_self_call_sites` matches ONLY
+                    # `self.<target>(…)`, so a call through any other receiver
+                    # (`other.transfer(…)`) is not a site and gets NO capability check —
+                    # while the target keeps ASSUMING the capability as a `requires`
+                    # (MEASURED: the assumption is real). Today that asymmetry is fenced only
+                    # by a COMPLETENESS GAP, not a guard: a non-`self` call is OPAQUE in the
+                    # model and propagates no postcondition at all (measured). The day
+                    # cross-object calls carry their callee's contract — an obvious and
+                    # frequently-wanted gain, since today it makes every cross-object call
+                    # useless for proof — the capability becomes assumable at a call site
+                    # nobody checks.
+                    # INJECTING the check at such a site instead would be UNSOUND: the
+                    # formula speaks about `self`, and at `other.transfer(…)` the object whose
+                    # capability matters is `other`; proving `self.session_authenticated`
+                    # there proves it of the WRONG object. So reject — sound-by-rejection,
+                    # matching every sibling happy form's trust boundary. Keyed on the CALLEE
+                    # (`func.attr == hp.target`), not on the receiver's shape: route #91's
+                    # lesson, key on what is being called.
+                    # Spelled INLINE rather than as a helper for the #33 reason below.
+                    for _nd in ast.walk(python_ast):
+                        if not (isinstance(_nd, ast.Call)
+                                and isinstance(_nd.func, ast.Attribute)
+                                and _nd.func.attr == hp.target):
+                            continue
+                        _recv = _nd.func.value
+                        if isinstance(_recv, ast.Name) and _recv.id == "self":
+                            continue
+                        try:
+                            _shown = ast.unparse(_recv)
+                        except Exception:
+                            _shown = "<expr>"
+                        raise PyCSLSemanticError(
+                            f"`happy {hp.name}`: '{hp.target}' is guarded by a capability "
+                            f"precondition, but it is called here as "
+                            f"`{_shown}.{hp.target}(…)` (L{getattr(_nd, 'lineno', 0)}) — "
+                            f"through a receiver other than `self`. The call-site capability "
+                            f"check can only be injected at a `self.{hp.target}(…)` site: the "
+                            f"guarding formula speaks about `self`, so proving it here would "
+                            f"prove the capability of the WRONG object, while '{hp.target}' "
+                            f"still ASSUMES it. Call it as `self.{hp.target}(…)`, or drop the "
+                            f"`precond` policy.")
                     csites: List[tuple] = []
                     self._collect_self_call_sites(python_ast, hp.target, None, None, csites)
                     csites.sort(key=lambda t: (getattr(t[0], "lineno", 0),
@@ -1298,6 +1339,85 @@ class Module3_Weaver:
                 raise PyCSLSemanticError(
                     f"`happy {hp.name}`: secret '{s}' is not a parameter of '{hp.target}' "
                     f"(parameters: {formal}).")
+        # FINDING w67 / co-landing fix. The twin synthesized below attaches EXACTLY ONE
+        # obligation — `assert (ra == rb)` over the two RESULTS. NOTHING IN IT COMPARES
+        # `self` ACROSS THE TWO CALLS, so what the form buys is RESULT-noninterference while
+        # its name invites the reader to hear noninterference. A target that returns
+        # something secret-independent and writes the secret verbatim into an observable
+        # field satisfies the obligation exactly as written.
+        #
+        # The twin CANNOT be strengthened to cover the state channel: it calls the target
+        # twice on the SAME `self`, sequentially, so there is no second initial state
+        # against which to compare a final state — a genuine 2-run state relation needs a
+        # second `self`, which this synthesis does not have. Today the channel is fenced
+        # only by a COMPLETENESS GAP: a noninterference target that writes ANY field — even
+        # a literal `0`, with no secret in sight — already fails on the twin's own
+        # postcondition (MEASURED, finding w67; a target that merely READS state proves).
+        # That is an accident, not a guard, and the day self-composition works through
+        # state it evaporates and the state channel is unguarded.
+        #
+        # So reject the shape the obligation does not cover. REACHABILITY-based, not a scan
+        # of the target's own body, so a mutation reached through a helper cannot walk past
+        # it — keying a confinement check on the syntactic shape of one function is exactly
+        # what routes #91/#92 punished. A call through a NON-`self` receiver needs no
+        # traversal: it is opaque in the model and propagates nothing (finding w68).
+        # Spelled INLINE rather than as a helper for the #33 reason below.
+        _methods: Dict[str, Any] = {}
+        for _node in ast.walk(python_ast):
+            if isinstance(_node, ast.ClassDef):
+                for _item in _node.body:
+                    if isinstance(_item, ast.FunctionDef):
+                        _methods.setdefault(_item.name, _item)
+        _seen: set = set()
+        _work = [target_fn]
+        _writer = None
+        while _work and _writer is None:
+            _fn = _work.pop()
+            if _fn.name in _seen:
+                continue
+            _seen.add(_fn.name)
+            for _a in getattr(_fn, "csl_assigns", []) or []:
+                _txt = getattr(_a, "raw", None) or str(getattr(_a, "expr", _a))
+                if "self." in _txt:
+                    _writer = (_fn.name, _txt.strip())
+                    break
+            if _writer is not None:
+                break
+            for _nd in ast.walk(_fn):
+                _tgts = []
+                if isinstance(_nd, ast.Assign):
+                    _tgts = list(_nd.targets)
+                elif isinstance(_nd, (ast.AugAssign, ast.AnnAssign)):
+                    _tgts = [_nd.target]
+                for _t in _tgts:
+                    _base = _t
+                    while isinstance(_base, ast.Subscript):
+                        _base = _base.value
+                    if (isinstance(_base, ast.Attribute)
+                            and isinstance(_base.value, ast.Name)
+                            and _base.value.id == "self"):
+                        _writer = (_fn.name, "self." + _base.attr)
+                        break
+                if _writer is not None:
+                    break
+                if (isinstance(_nd, ast.Call) and isinstance(_nd.func, ast.Attribute)
+                        and isinstance(_nd.func.value, ast.Name)
+                        and _nd.func.value.id == "self"
+                        and _nd.func.attr in _methods):
+                    _work.append(_methods[_nd.func.attr])
+        if _writer is not None:
+            _wfn, _wfield = _writer
+            _via = ("" if _wfn == hp.target
+                    else f" (reached from '{hp.target}' via `self.{_wfn}(…)`)")
+            raise PyCSLSemanticError(
+                f"`happy {hp.name}`: noninterference target '{hp.target}' can WRITE state — "
+                f"`{_wfield}` in '{_wfn}'{_via}. The synthesized self-composition twin "
+                f"asserts only that the two RESULTS are equal (`ra == rb`); it calls the "
+                f"target twice on the same `self`, so it has no second initial state and "
+                f"CANNOT compare final state. A secret written into a field is therefore "
+                f"OUTSIDE the property this form proves. Make '{hp.target}' state-free (no "
+                f"`self.<field>` store on any path it reaches, `assigns \\nothing`), or drop "
+                f"the noninterference policy — it would not mean what its name says.")
         line = getattr(target_fn, "lineno", 0)
         secset = set(secret)
 
