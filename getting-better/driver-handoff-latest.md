@@ -30,12 +30,64 @@
 #   because it remains visible, go and find the thing that looks. If you cannot name
 #   it, the residue is invisible and the comment is the only thing guarding it.*
 #
-# ## THE GENERATOR IS NOW FOUR-FOR-FOUR — KEEP RUNNING IT
+# ## ROUTE #99 IN ONE SCREEN — CLOSED, AND MY FIRST REPAIR OF IT WAS INCOMPLETE
+#
+#   The UB-7.7 memoization gate (route #94's own gate) let a `@cached_property` reading
+#   `self.a` PROVE `ensures \result == self.a` while `a` was mutated by a free function
+#   taking the object as a parameter. CPython after one `bump()`: `total=0, a=1`, so the
+#   proved postcondition is FALSE. **TWO INDEPENDENT NARROWINGS, AND ONLY BOTH FIXES
+#   CLOSED IT — the measurement said so, not an argument:**
+#     1. `memoization_rt.py` admitted a `FieldAssign` to `mutated` only when
+#        `object == "self"`, so `c.<f> = ...` never entered it and `if not mutated:
+#        return` disarmed the gate. **Fixing this ALONE left the exploit STILL PROVING.**
+#     2. The check ran at the end of `visit_ClassDef`, whose comment justified it:
+#        *"by here `generic_visit` has emitted every method of the class, SO THE SET IS
+#        COMPLETE."* Every method OF THAT CLASS — a module-level function defined after
+#        the class is not. Moved to the end of `visit_Module`.
+#
+#   >>> **ROUTE #94 MOVED THIS CHECK ONE LEVEL (function -> class) WHEN IT NEEDED TO MOVE
+#   >>> TWO (function -> class -> MODULE). Its own lesson — *a check needing a
+#   >>> whole-program fact cannot live in a per-node visitor* — was exactly right, and
+#   >>> A CLASS IS STILL A NODE.**
+#
+#   Capability preserved and specifically tested for #94's own stated fear ("a blanket
+#   field-read ban would delete that real capability"): witness **1284 PROVES** — a
+#   memoized reader of a construct-only field while a foreign receiver mutates a
+#   DIFFERENT field. Whole exposed population is FOUR files (0515/0516/1257/1258), each
+#   re-measured. **RESIDUE, NAMED:** `mutated` is still a flat set of field NAMES, so an
+#   unrelated class sharing a name over-refuses — PRE-EXISTING and unchanged in kind (20
+#   of 72 field names are shared). Keying on `(class, field)` is the right follow-up.
+#
+# ## AND I CAUGHT ONE OF MY OWN WITNESSES LYING — DO THIS TO YOURS
+#
+#   I wrote witness 1283 claiming it ISOLATED narrowing (2). It FAILED at baseline, which
+#   looked like confirmation. **A CONTROL THAT FAILS IS A CLAIM ABOUT THE CONTROL UNTIL
+#   YOU READ WHICH GOAL FAILED** — so I read it: at baseline it fails on an unrelated
+#   forward-reference type error (`has type int, but is expected to have type
+#   PyCSL_Program.c`), because `def bump(c: "C")` before `class C` emits the param as
+#   `int`. The alternative isolation (a free function whose parameter is *named* `self`)
+#   fails on `unbound function or predicate symbol 'self'`. **So narrowing (2) is NOT
+#   independently witnessable**; both fences are recorded so nobody re-tries them, and
+#   1283's docstring now says what it actually measures. The route's real witness is 1282.
+#
+# ## TWO MEASUREMENT TRAPS, BOTH HIT AND BOTH CAUGHT — THEY WILL HIT YOU TOO
+#
+#   * **A byte-diff reported `295 GONE — NOT BYTE-INERT`, and it was a FALSE RED.** The
+#     sweep emits pycsl-reference first and python-reference second; I compared while the
+#     second half was still being written. `1908 < 2203` means INCOMPLETE, not DELETED.
+#     >>> **ASSERT A POPULATION SIZE BEFORE BELIEVING A DIFF — INCLUDING A RED ONE.** The
+#     rule is usually quoted to stop a false green; it stops false reds too.
+#   * **`pgrep -f "byte-diff-sweep"` reported STILL RUNNING with zero sweeps alive**,
+#     because the WATCHER SHELLS waiting on that string carry it in their own command
+#     lines and match themselves — 8 hits, 0 real. Grep for the thing being EXECUTED
+#     (`bash bin/byte-diff-sweep.sh`), not a string that also appears in what WAITS on it.
+#
+# ## THE GENERATOR IS NOW FIVE-FOR-FIVE — KEEP RUNNING IT
 #
 #   >>> **A LOOP THAT BOTH BUILDS SOMETHING AND ASSEMBLES A CHECKING POPULATION WILL
 #   >>> HAVE A SKIP WRITTEN FOR THE BUILDING THAT SILENTLY NARROWS THE CHECKING.**
 #
-#   #95, #96, #97 and now #98 are all this shape. #97's instance, verbatim:
+#   #95, #96, #97, #98 and now #99 are all this shape. #97's instance, verbatim:
 #   `apply_inheritance`'s `if base is None: continue` is CORRECT for the field merge
 #   (a fieldless base has nothing to merge) and is the ONLY producer of the Liskov
 #   override pair, so for the verification job sharing that loop it is a deleted
