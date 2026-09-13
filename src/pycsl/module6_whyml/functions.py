@@ -7168,8 +7168,33 @@ class FunctionEmissionMixin:
         for ov in overrides:
             sub_fn = by_name.get(ov["sub_method"])
             base_fn = by_name.get(ov["base_method"])
-            if sub_fn and base_fn:
-                out += self._render_refinement_goal(ov, sub_fn, base_fn)
+            # (#49) ROUTE #97, CO-LANDING FAIL-CLOSED HALF. `if sub_fn and base_fn:`
+            # was a SECOND silent drop on the very same obligation: an override pair
+            # whose two IR names do not both resolve produced NO goal and NO message,
+            # so the file reported "All contracts formally proven" with the refinement
+            # VC missing — the identical failure mode route #97 repairs upstream in
+            # `ir_resolve.apply_inheritance`. Repairing only the upstream half would
+            # have MOVED the silence one function downstream rather than removed it: the
+            # upstream repair starts recording pairs for bases that previously produced
+            # none, so this lookup now sees inputs it has never seen. A guard that stops
+            # being silent in one shape and stays silent in the next has been NARROWED,
+            # not repaired. So an unresolvable pair is now a REFUSAL, never a skip.
+            # Negative-tested by feeding it a pair with an unresolvable `base_method`.
+            if sub_fn is None or base_fn is None:
+                _missing = ("sub method `" + str(ov.get("sub_method")) + "`"
+                            if sub_fn is None else
+                            "base method `" + str(ov.get("base_method")) + "`")
+                raise PyCSLIRError(
+                    "PYCSL-SUBTYPING-PAIR: `--check-behavioral-subtyping` recorded the "
+                    "override pair (" + str(ov.get("sub_method")) + " refines "
+                    + str(ov.get("base_method")) + ") but the " + _missing + " is not "
+                    "among the emitted functions, so the Liskov refinement goal cannot "
+                    "be built. Emitting nothing here would report the file as fully "
+                    "proven with the substitutability obligation silently absent "
+                    "(route #97), so this is a refusal. Ensure both the overriding and "
+                    "the overridden method are defined in a module reaching WhyML "
+                    "emission, or drop `--check-behavioral-subtyping`.")
+            out += self._render_refinement_goal(ov, sub_fn, base_fn)
         return out
 
     def _render_refinement_goal(self, ov: Dict[str, Any], sub_fn: Dict[str, Any],

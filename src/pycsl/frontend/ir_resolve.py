@@ -2136,17 +2136,56 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
         merged_consts: Dict[str, Any] = {}
         for bname in td["bases"]:
             base = records.get(bname)
-            if base is None:
-                continue
-            if base.get("bases"):
-                merge_one(base)  # resolve the chain first
-            for f in base["fields"]:
-                if f["name"] not in seen and f["name"] not in own_field_names:
-                    merged_fields.append(f)
-                    seen.add(f["name"])
-            merged_invs += base.get("class_invariants", [])
-            merged_defaults.update(base.get("field_defaults", {}))
-            merged_consts.update(base.get("constants", {}))
+            # (#49) ROUTE #97 — `--check-behavioral-subtyping` SILENTLY EMITTED NO
+            # REFINEMENT GOAL WHEN THE BASE CLASS HAD NO INSTANCE FIELDS.
+            #
+            # A class becomes a record `type_decl` only `if fields or bases:`
+            # (Module5_IREmitter), so a STATELESS base — the interface / pure-behaviour
+            # base, the most common reason to write a base class at all — has NO entry in
+            # `records`. This loop then hit `if base is None: continue` and skipped the
+            # WHOLE iteration, and the override-pair recording below is the ONLY place the
+            # Liskov obligation is ever produced. MEASURED at a32ec69e on a minimal pair
+            # differing by exactly one `__init__`:
+            #     class Base:                #@ requires x >= 0 / ensures \result >= x
+            #     class Sub(Base):           #@ requires x >= 5 / ensures \result >= x
+            # with a field on `Base` -> 1 goal `sub__f_refines_base`, verification FAILED
+            # (the violation is caught, byte-for-byte corpus 0445); without the field -> 0
+            # goals, `Verification SUCCESS! All contracts formally proven.` The cleaner the
+            # base class, the less checking it received — the failure is INVERTED with
+            # respect to good practice, and an obligation the emitter drops is
+            # indistinguishable from one that was discharged (route #93's lesson).
+            #
+            # THIS IS THE `continue`-CENSUS SIGNATURE (routes #95, #96, and now this one):
+            # ONE LOOP DOING TWO JOBS — it BUILDS the merged record AND ASSEMBLES the
+            # checking population — where a skip written for the BUILDING silently narrows
+            # the CHECKING. `if base is None: continue` is CORRECT for the merge: a
+            # fieldless base has no fields, invariants, defaults or constants to merge.
+            # It is a DELETED OBLIGATION for the verification job sharing the same loop.
+            #
+            # THE REPAIR SPLITS THE TWO JOBS. The MERGE half stays gated on the base
+            # carrying a record (nothing to merge otherwise). The RECORDING half becomes
+            # unconditional over the declared bases. It is monotone — it ADDS refinement
+            # goals and removes none — so it cannot be unsound; the worst case is a new
+            # unprovable goal on a genuinely non-refining override, which is the point of
+            # the flag. The CLONING half also stays gated on the record: a base with no
+            # record has no `self` shape to re-type a clone against, and an inherited
+            # (un-overridden) method from a fieldless base is already FAIL-CLOSED —
+            # measured, it lowers to a CONTRACT-FREE abstract `val s_f_1 (x0: int) : int`,
+            # so neither the true nor the false fact about its result proves (both arms
+            # measured, with a PROVING positive control on the fielded twin). Widening the
+            # clone here would be a behaviour change with no soundness payoff, and handing
+            # that call the base's contract WITHOUT the body would be the classic
+            # "completeness fix that supplies a witness" soundness route.
+            if base is not None:
+                if base.get("bases"):
+                    merge_one(base)  # resolve the chain first
+                for f in base["fields"]:
+                    if f["name"] not in seen and f["name"] not in own_field_names:
+                        merged_fields.append(f)
+                        seen.add(f["name"])
+                merged_invs += base.get("class_invariants", [])
+                merged_defaults.update(base.get("field_defaults", {}))
+                merged_consts.update(base.get("constants", {}))
             prefix_base = f"{bname.lower()}__"
             for fn in list(funcs):
                 name = fn.get("name", "")
@@ -2162,6 +2201,8 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
                         "sub_type": sub.lower(), "base_type": bname.lower(),
                     })
                     continue
+                if base is None:
+                    continue  # (#49) ROUTE #97 — recording is unconditional, cloning is not
                 if new_name in existing_func_names:
                     continue
                 clone = copy.deepcopy(fn)
