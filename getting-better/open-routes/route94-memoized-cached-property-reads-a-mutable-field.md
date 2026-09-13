@@ -120,7 +120,7 @@ The clause must cover reads of **all** mutable state, not just `#@ shared` `Var`
 2. **Add a FieldGet arm**: a memoized function whose body reads `self.<field>` is not RT.
 3. **Add the `module_globals` mutable singletons** alongside `shared_vars`.
 
-**THE OVER-NARROWING HAZARD, WHICH MUST BE MEASURED BEFORE LANDING (corpus 1057's lesson):** a
+**THE OVER-NARROWING HAZARD — NOW MEASURED, SEE THE SECTION BELOW (corpus 1057's lesson):** a
 `@cached_property` *inherently* reads `self`, so a blanket field rule rejects **every**
 `cached_property` on a mutable object. That may well be correct — a `cached_property` is RT only
 if every field it reads is immutable — but it is a capability removal and must be measured, not
@@ -129,6 +129,45 @@ is **assigned somewhere in the class** (i.e. demonstrably mutable), which admits
 `cached_property` over `Final`/never-written fields. **Build the positive control FIRST** — a
 `cached_property` over a never-assigned field that still proves — or the repair cannot be
 distinguished from a blanket ban.
+
+## THE POSITIVE CONTROL IS ALREADY BUILT AND MEASURED — THE NARROW REPAIR IS VIABLE
+
+I did not leave the over-narrowing hazard as a warning; I measured it, so the next generation
+inherits a de-risked repair rather than a worry.
+
+```python
+#@ class invariant self.b >= 0
+class C:
+    def __init__(self) -> None:
+        self.b: int = 7          # written ONLY in __init__, never again
+
+    #@ ensures \result == self.b
+    #@ assigns \nothing
+    @cached_property
+    def snapshot(self) -> int:
+        return self.b
+```
+
+| | verdict |
+|---|---|
+| PyCSL | **VERIFICATION SUCCESS** |
+| **CPython, executed** | `snapshot = 7, self.b = 7`, `snapshot == self.b` → **True** |
+
+**So this `cached_property` is genuinely referentially transparent, and the model and CPython
+AGREE about it.** That settles the design question: the repair must **NOT** be a blanket
+field-read ban, because a real and correctly-modelled capability exists on the other side of
+it. The discriminator that separates the two measured drivers is exactly:
+
+>>> **REJECT A MEMOIZED BODY THAT READS A FIELD ASSIGNED SOMEWHERE OTHER THAN `__init__`.**
+
+`memo_x2`'s `self.a` is assigned in `bump()` → reject. `snapshot`'s `self.b` is assigned only in
+the constructor → admit. Note the `__init__` carve-out is the SAME one routes #91 and #92 needed,
+for the same reason: the constructor establishes the object rather than mutating it. Three
+repairs this generation have now wanted that carve-out, which is worth noticing as a pattern
+rather than re-deriving a fourth time.
+
+**So the repair has a PASS case and a FAIL case that are already written and already measured in
+both PyCSL and CPython.** What remains is only the implementation plus the witnesses.
 
 ## OWED WITH THE REPAIR
 
