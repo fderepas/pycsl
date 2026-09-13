@@ -1,6 +1,45 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **NONE.**
+## CURRENTLY OPEN: **NONE.** (gen #16: #97 and #98 both CLOSED AND GATED — see below.)
+##
+##   **#98 FOUND *AND* CLOSED 2026-09-13 (gen #16), SEV-1 — AND ITS CARRIER WAS #96's OWN
+##   REPAIR.** Route #96's frame repair decided whether an array-region `assigns` becomes a
+##   `writes` clause by testing `a.get("base")` — the **SOURCE** identifier — for membership in
+##   `_current_array_param_names`, which is built by regexing the **ALREADY-EMITTED** signature
+##   (post-`whyml_ident`, which lowercases a leading capital and prefixes WhyML reserved words
+##   with `py_`). Two name spaces, one membership test, and the whole of #96 came back for every
+##   renamed parameter. MEASURED: param `a` -> `writes { a }` -> exploit refused; param `model`
+##   -> `val scramble (py_model: array int) ...` with NO writes -> **PROVED `\result == 7`**;
+##   param `Buf` -> same, PROVED. CPython: `driver([7,7,7,7]) == 0`. `WHYML_RESERVED` is full of
+##   ORDINARY parameter names — model, range, check, label, result, old, ref, float, to, by, type.
+##
+##   >>> **A CARRIER SURVIVING A REPAIR IS A SECOND ROUTE, NOT A FAILED REPAIR.**
+##
+##   **AND THE SKIP'S OWN COMMENT NAMED THE EXPLOIT AND CALLED IT SAFE** — "FAIL-CLOSED, and
+##   deliberately so ... Any such residue stays visible as an un-framed val." Wrong twice, and
+##   this is the transferable part: (1) **"FAIL-CLOSED" WAS A CLAIM ABOUT THE EMITTER, NOT THE
+##   PROVER** — emitting nothing is fail-closed for the emitter (no ill-typed `writes`) and
+##   fail-OPEN for the verifier, which is told the stub is PURE; dropping a frame clause is NEVER
+##   conservative, since an un-framed `val` is the STRONGEST possible claim. (2) **"STAYS VISIBLE"
+##   NAMED NO OBSERVER** — no gate, no plane, no ratchet counted that shape. Visible to whom?
+##   Repair: compare in ONE name space, and GIVE THE RESIDUE AN OBSERVER
+##   (`PYCSL-UNFRAMED-REGION-ASSIGNS`), negative-tested and with a demonstrably NON-EMPTY
+##   population. Witnesses 1278-1281. Capability arm re-measured: 1271 still PROVES.
+##
+##   **#97 FOUND-AT-HEAD *AND* CLOSED 2026-09-13 (gen #16), SEV-2.**
+##   `--check-behavioral-subtyping` emitted **NO refinement goal at all** when the base class had
+##   no instance fields, and reported "All contracts formally proven." A class becomes a record
+##   `type_decl` only `if fields or bases:`, so a STATELESS base — the interface / pure-behaviour
+##   base — is absent from `records` in `ir_resolve.apply_inheritance`, whose `if base is None:
+##   continue` skipped the ONLY place the Liskov override pair is ever recorded. **THE FAILURE IS
+##   INVERTED WITH RESPECT TO GOOD PRACTICE: the cleaner the base class, the less checking it
+##   received.** Minimal pair differing by ONE `__init__`: with a field, 1 goal and FAILED;
+##   without it, 0 goals and SUCCESS. Repair splits the loop's two jobs — the MERGE stays gated on
+##   the base carrying a record, the RECORDING goes unconditional (monotone: adds goals, removes
+##   none). CO-LANDING FAIL-CLOSED HALF, not optional: `_emit_subtyping_goals`' `if sub_fn and
+##   base_fn:` was a SECOND silent drop on the same obligation and now RAISES
+##   `PYCSL-SUBTYPING-PAIR` — *a guard that stops being silent in one shape and stays silent in
+##   the next has been NARROWED, not repaired.* Witnesses 1273-1277.
 ##
 ##   >>> **THE INDEX LAGS THE ROUTE FILES. TRUST THE FILES.** This header claimed
 ##   >>> "CURRENTLY OPEN: NONE" for the whole of gen #14's window while route #96 sat OPEN in
