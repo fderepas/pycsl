@@ -135,7 +135,49 @@ is NOT what this route is about.)
 
 ## STATUS
 
-**OPEN.** Repair scoped below.
+**CLOSED AND FULLY GATED (gen #16).** Repair scoped below; the landed repair is candidate
+(1) — route the self-method application through the SAME
+`_wrap_call_with_callee_raises_assert` the module path uses, keyed on the resolved IR name.
+
+**BOTH DIRECTIONS MEASURED, AND THE CAPABILITY ARM PICKED THE REPAIR.** Candidate (0)
+— transmit the callee's `raises` onto the abstract val — was SPIKED and *does* close the
+exploit (Why3 refuses with *"this expression raises unlisted exception ValueError"*), **but
+`raises { E -> true }` is UNCONDITIONAL and destroys the capability**: the guarded caller,
+whose obligation IS dischargeable, stops proving too. That is a repair that refuses
+everything rather than the wrong thing. The wrap carries the callee's CONDITION. Spike
+reverted.
+
+The repaired method caller emits **verbatim the free-function lowering**:
+`begin assert { not ((k < 0)) }; try (self_checked_abs_1 k) with ValueError -> absurd end end`
+
+| witness | at a32ec69e | at HEAD |
+|---|---|---|
+| 1285 exploit (unguarded, false `no_exception`) | **SUCCESS** | **FAILS** |
+| 1286 capability (guarded, dischargeable) | SUCCESS *(vacuously — no obligation existed)* | **PROVES, earned** |
+| 1287 free-function reference | FAILS | FAILS |
+
+**GATES — every verdict predicted in writing before it ran:** suite **3413/3431, 18
+CONFIRMED FAIL, ZERO XPASS, rc=1**; byte-diff pycsl-ref **0 MOVED / 0 GONE / 0 APPEARED**
+(+12 new-source) and python-ref **2203/2203 0/0/0**, zero-byte 0 both sides; SOURCES
+**1199 → 1214**; fidelity **887 verbatim** + mirror-check **DELTA ZERO**; **mirror
+emission-diff: ZERO mirrors changed by this repair**; IR conformance **38/38 both corpora**;
+determinism **10/10**; doc-coherency rc=0; planes **34/34**; metric **459/484 UNCHANGED**.
+
+**A PREDICTION MISS WORTH KEEPING:** I predicted this repair would move 3 mirrors and owe 3
+whole-file re-proofs, from a census of `self.m()` calls to `#@ raises` methods (118 sites, 3
+mirror files). It moved **none**. The wrap fires only when the CALLER also holds a non-empty
+`no_exception` set, and those three mirrors declare it **0, 0, 0** times. >>> **A POPULATION
+MEASURED ON A NECESSARY-BUT-INSUFFICIENT PREDICATE OVERSTATES THE BLAST RADIUS — census the
+FULL firing condition, not its first conjunct.**
+
+**RESIDUE, NAMED AND DELIBERATELY NOT FIXED HERE:** the abstract val transmits only some
+`ensures` forms (an equality transmits; `\result >= 0` does not), so a caller whose own
+postcondition depends on the callee's still cannot prove it. That is a CAPABILITY gap, not a
+soundness one, and naming it keeps it from being mistaken for part of this route. The other
+co-landing candidate — refusing an *unresolvable* callee while the caller holds a
+`no_exception` set — is **NOT landed**: it would be a blanket refusal whose population was
+never measured, and this campaign's record (gen #14's w68) is that a prescribed co-landing
+fix can itself be unsound. Measure that population before building it.
 
 ## THE REPAIR, SCOPED
 

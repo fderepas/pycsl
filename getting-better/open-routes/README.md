@@ -1,6 +1,25 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **NONE.** (gen #16: #97, #98 and #99 all CLOSED AND GATED — see below.)
+## CURRENTLY OPEN: **NONE.** (gen #16: #97, #98, #99 and #100 all CLOSED AND GATED.)
+##
+##   **#100 FOUND *AND* CLOSED 2026-09-13 (gen #16), SEV-1.** A `#@ no_exception E` on a
+##   METHOD was proved with NO OBLIGATION AT ALL. `_wrap_call_with_callee_raises_assert` had
+##   exactly ONE call site (the module-function path) and is keyed on the IR function name, so
+##   a `self.<m>(...)` call never reached it: the callee's `#@ raises E when P` never produced
+##   the `assert { not P }; try … with E -> absurd` the free-function path emits. Identical
+##   contracts and bodies: as free functions REFUSED, as methods `Verification SUCCESS!`, while
+##   CPython `Helper().caller(-1)` RAISES ValueError.
+##   >>> **AN ABSTRACTION THAT IS CONSERVATIVE FOR WHAT A CALLER MAY *ASSUME* IS PERMISSIVE FOR
+##   >>> WHAT A CALLER MUST *DISCHARGE*.** The val already carries the callee's `ensures`
+##   >>> (measured), so the path VISIBLY carries a contract and reads as sound — the
+##   >>> transmission set had been enumerated as "what the caller may assume", the half that
+##   >>> HELPS. Losing a postcondition costs a proof; losing an effect obligation costs the CHECK.
+##   Repair reuses the existing wrap, keyed on the resolved IR name. THE CAPABILITY ARM CHOSE IT:
+##   the alternative (transmit `raises` onto the val) was spiked, closes the exploit, and emits an
+##   UNCONDITIONAL `raises { E -> true }` that also breaks the guarded caller — refusing
+##   everything instead of the wrong thing. Witnesses 1285-1287. This is the `no_exception`
+##   sibling of route #70 (a dotted stub drops the callee PRECONDITION): the shape recurs once
+##   per obligation kind, so sweep every consumer keyed on a callee name.
 ##
 ##   **#99 FOUND *AND* CLOSED 2026-09-13 (gen #16), SEV-1 — ON THE GATE ROUTE #94 BUILT.** A
 ##   `@cached_property` reading `self.a` PROVED `ensures \result == self.a` while `a` was

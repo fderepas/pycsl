@@ -9,6 +9,18 @@ PHASE-6-GENERATED-SAMPLER: DONE-AUTHORING / BLOCKED:box-busy for the sweep
 OVERALL: INCOMPLETE
 NEXT-ACTION: Box-check first. If idle, run the Phase 3 PILOT on src/self-annotate/src/frontend/exec_splice.py line 35 (recipe below). If emission moves by ONE BYTE: STOP, do not tag the other files, write it up in getting-better/open-routes/ style, mark PHASE-3 BLOCKED:emission-moved.
 
+## SUPERVISOR SCHEDULING POLICY — SET BY THE USER 2026-09-13 ~18:35Z
+THE DRIVER IS PAUSED BETWEEN GENERATIONS TO GIVE THIS WORK THE BOX.
+When the current driver generation finishes, the supervisor spawns THIS implementation
+agent FIRST and lets it take one increment on an idle box, THEN launches the next driver
+generation. Rationale: Phases 3, 4 and the Phase-6 sweep need an idle box; the driver
+campaign runs suites/planes/proofs back-to-back for the whole 96h window, so waiting for a
+natural gap never fires. The between-generation gap is free box time.
+PRIORITY ORDER ON AN IDLE BOX: Phase 3 pilot -> Phase 3 tagging -> Phase 4 burn-down.
+The Phase 6 sweep is LAST and may be deferred to after the window closes (Thu Sep 17).
+Take ONE increment, leave the tree clean and committed, update this file, and stop — do not
+hold the box longer than the increment needs; the driver is waiting on you.
+
 ## COMMITS
   10e58637  Phase 1 — probe ledger + yield reporter + driver rule
   5774b32a  Phase 2 — verified fraction from proof verdicts   (fea721a9 prose repair)
