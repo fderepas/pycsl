@@ -2,8 +2,8 @@
 #
 # ## THE ONE-PARAGRAPH SUMMARY
 #
-#   **THREE ROUTES FOUND, REPAIRED IN BOTH HALVES, AND FULLY GATED — #97, #98, #99 —
-#   AND TWO OF THE THREE LIVE INSIDE THIS CAMPAIGN'S OWN EARLIER REPAIRS.** #97: a Liskov
+#   **FOUR ROUTES FOUND, REPAIRED, AND FULLY GATED — #97, #98, #99, #100 — AND THREE
+#   OF THE FOUR LIVE INSIDE THIS CAMPAIGN'S OWN EARLIER REPAIRS OR GATES.** #97: a Liskov
 #   violation behind a FIELDLESS base was silently accepted — `--check-behavioral-
 #   subtyping` emitted ZERO refinement goals and reported "All contracts formally
 #   proven." #98: route #96's repair decides whether an array-region `assigns`
@@ -16,12 +16,22 @@
 #   class, so a stale `@cached_property` proves a postcondition CPython contradicts.
 #   The metric never moved (**markers 459 / grep 484**) and was never supposed to.
 #
+#   #100: a `#@ no_exception E` on a METHOD was proved with NO OBLIGATION AT ALL —
+#   `_wrap_call_with_callee_raises_assert` had ONE call site (the module path), keyed
+#   on the IR name, so `self.m(...)` never reached it. CPython raises where PyCSL
+#   proved. >>> **AN ABSTRACTION THAT IS CONSERVATIVE FOR WHAT A CALLER MAY *ASSUME*
+#   IS PERMISSIVE FOR WHAT A CALLER MUST *DISCHARGE*** — the val already carried the
+#   callee's `ensures`, so the path visibly carried a contract and read as sound.
+#   THE CAPABILITY ARM CHOSE THE REPAIR: the alternative (transmit `raises` onto the
+#   val) closes the exploit but emits an UNCONDITIONAL `raises { E -> true }` that
+#   also breaks the guarded caller — refusing everything instead of the wrong thing.
+#
 #   **FINAL BATTERY, EVERY VERDICT PREDICTED IN WRITING BEFORE IT RAN:** suite
-#   **3410/3428, 18 CONFIRMED FAIL, ZERO XPASS, rc=1**; byte-diff pycsl-ref
+#   **3413/3431, 18 CONFIRMED FAIL, ZERO XPASS, rc=1**; byte-diff pycsl-ref
 #   **0 MOVED / 0 GONE / 0 APPEARED** (+9 new-source) and python-ref **2203/2203
 #   0/0/0**, zero-byte 0 both sides of both corpora; SOURCES **1199 -> 1211**;
 #   fidelity **887 verbatim** + mirror-check **DELTA ZERO**; mirror emission-diff
-#   **3 of 53** with the delta exactly four `raises` clauses + one `exception` decl;
+#   **3 of 53** (the #97/#98 `raises` declarations only — **#100 moved ZERO mirrors**);
 #   the three moved mirrors re-proved **rc=0 / 0 non-Valid each**; doc-coherency
 #   rc=0; conformance **38/38 both corpora**; determinism **10/10**; planes
 #   **34/34**. **NO RATCHET RE-BASELINED** — `trusted-raises-honesty` held at **70**
@@ -261,7 +271,7 @@
 #            ranked candidates are still unprobed (see STILL UNPAID).
 #   metric   markers **459** / grep 484 / offset 25 / unattached 0 — UNCHANGED.
 #            Correct shape: a refusal and a monotone obligation cost nothing.
-#   corpora  pycsl-ref **1199 -> 1204** (+5: witnesses 1273-1277).
+#   corpora  pycsl-ref **1199 -> 1214** (+15: witnesses 1273-1287).
 #   planes   **34 = 19 FAST + 15 SLOW, and `run-soundness-planes.sh` WITHOUT `--slow`
 #            IS A 19-OF-34 GATE.** All 34 are GREEN at this HEAD (script's own line:
 #            "running 34 driver-run lower bound(s)"; I counted 34 `ok` lines myself).
