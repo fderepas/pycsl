@@ -3437,20 +3437,77 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # over-approximation Why3 itself infers from a `let` whose body writes one
             # cell, which is why the real-body control already refused this exploit.
             #
-            # FAIL-CLOSED, and deliberately so: a base that is not an `array`-typed
-            # PARAMETER of the signature being emitted (`_current_array_param_names`,
-            # parsed from the emitted `args_str`) contributes NOTHING, because
-            # `writes { g }` on a name Why3 does not hold as a mutable value in scope is
-            # a hard emission error, and a silent mis-emission is worse than the honest
-            # residue. Any such residue stays visible as an un-framed val.
+            # (#49) ROUTE #98 — THE ABOVE REPAIR COMPARED TWO DIFFERENT NAME SPACES, AND
+            # THAT PUT THE WHOLE OF ROUTE #96 BACK FOR ANY PARAMETER WHY3 RENAMES.
+            #
+            # `_current_array_param_names` is built in `functions.py` by regexing the
+            # ALREADY-EMITTED signature text (`re.findall(r"\((\w+)\s*:\s*array\b",
+            # args_str)`), so it holds names that have been through `whyml_ident` —
+            # which LOWERCASES a leading capital and prefixes any WhyML reserved word
+            # with `py_`. `a.get("base")` is the SOURCE identifier, straight from
+            # `Module5_IREmitter.py:769` <- `Module2_Parser.py:1528`. Testing one against
+            # the other made the membership fail for every renamed parameter. MEASURED:
+            #     param `a`     -> `val scramble (a: array int) …  writes { a }`  -> refused
+            #     param `model` -> `val scramble (py_model: array int) …` NO writes -> PROVED
+            #                      `\result == 7` while CPython returns 0
+            #     param `Buf`   -> `val scramble (buf: array int) …`      NO writes -> PROVED
+            # and `WHYML_RESERVED` is full of ORDINARY parameter names — `model`, `range`,
+            # `check`, `label`, `result`, `old`, `ref`, `float`, `to`, `by`, `type`.
+            #
+            # >>> A CARRIER SURVIVING A REPAIR IS A SECOND ROUTE, NOT A FAILED REPAIR.
+            #
+            # AND THE COMMENT THAT USED TO STAND HERE WAS WRONG TWICE, WHICH IS THE PART
+            # WORTH CARRYING AWAY. It said "FAIL-CLOSED, and deliberately so … Any such
+            # residue stays visible as an un-framed val."
+            #   (1) "FAIL-CLOSED" WAS A CLAIM ABOUT THE *EMITTER*, NOT ABOUT THE *PROVER*.
+            #       Emitting nothing is fail-closed for the emitter (no ill-typed `writes`
+            #       is produced) and fail-OPEN for the verifier, which is then told the
+            #       stub is PURE. Dropping a frame clause is NEVER conservative: an
+            #       un-framed `val` is the STRONGEST possible claim about a function.
+            #   (2) "STAYS VISIBLE" NAMED NO OBSERVER. Nothing looked. So the second half
+            #       of this repair GIVES IT ONE, below — a refusal, not a description.
+            #
+            # Note WHY only `assigns` failed silently: every other clause mentioning a
+            # renamed parameter goes through EXPRESSION RENDERING, emits the SOURCE name
+            # into a module that binds the mangled one, and is LOUDLY rejected by Why3
+            # ("unbound function or predicate symbol 'model'" — measured). `assigns` is
+            # the one clause consumed structurally here instead, and this function
+            # answered "nothing" where the others raise.
             region_targets: List[str] = []
             _arr_params = getattr(self, "_current_array_param_names", set())
+            _unframed_regions: List[str] = []
             for a in assigns_list:
                 if not isinstance(a, dict) or a.get("type") != "AssignsRegion":
                     continue
                 base = a.get("base")
-                if base and base in _arr_params and base not in region_targets:
-                    region_targets.append(base)
+                # Compare in ONE name space — the EMITTED one, which is also the only
+                # spelling a `writes { … }` clause may legally reference.
+                base_emitted = whyml_ident(base) if base else base
+                if base_emitted and base_emitted in _arr_params:
+                    if base_emitted not in region_targets:
+                        region_targets.append(base_emitted)
+                elif base:
+                    _unframed_regions.append(str(base))
+            # (#49) ROUTE #98, THE FAIL-CLOSED CO-LANDING HALF — THE OBSERVER THE OLD
+            # COMMENT PROMISED AND DID NOT PROVIDE. A region `assigns` on a bodyless
+            # `val` whose base is NOT an array parameter of the emitted signature can no
+            # longer be dropped in silence: the frame the reviewer certified would be
+            # thrown away and the caller told the stub is pure. That is precisely route
+            # #96, and describing it in a comment is not a guard. Refuse instead.
+            # Negative-tested by feeding it a region base that is not a parameter.
+            if _unframed_regions and not nothings:
+                raise PyCSLIRError(
+                    "PYCSL-UNFRAMED-REGION-ASSIGNS: this function is emitted as a bodyless "
+                    "`val` (a `\\trusted` / `\\abstract` / imported stub) and declares "
+                    "`assigns` over the region base(s) " + ", ".join(
+                        "`" + b + "`" for b in sorted(set(_unframed_regions)))
+                    + ", but none of them is an `array`-typed PARAMETER of the emitted "
+                    "signature, so no `writes` clause can be built for them. A `val` with "
+                    "no `writes` is treated by Why3 as PURE, so emitting nothing here would "
+                    "silently discard the frame the reviewer certified and let a caller "
+                    "prove the region UNCHANGED across a stub contracted to write it "
+                    "(routes #96 and #98). Declare the region over an array parameter of "
+                    "this function, or give the stub a real body.")
             _val_targets = field_targets + [t for t in region_targets
                                             if t not in field_targets]
             if _val_targets and not nothings:
