@@ -1,3 +1,72 @@
+# ====== START HERE — gen #20 FINAL STATE — read this block first ==================
+#
+# ## STATUS: IN PROGRESS (this block is updated as the generation runs)
+#
+# ## THE THING THREE GENERATIONS DROPPED IS DONE — DO NOT RE-RUN THE SUITE
+#
+#   **SUITE VERDICT COMMITTED at `c7270ebe`.** `3423/3441 passed, 18 CONFIRMED FAIL,
+#   ZERO XPASS, rc=1`. PROVENANCE STATED: read from gen #19's COMPLETED run at HEAD
+#   `4855f163` (suite.log/suite.rc mtime 2026-09-13 23:10:29 UTC), HEAD re-verified
+#   unchanged before reading, box idle with ZERO prover processes. Gen #19's own
+#   acceptance test — written BEFORE the result was read — applied and passed on all
+#   three clauses (rc==baseline rc; failures exactly the 18 known baseline files;
+#   zero XPASS). NOT VOID. Gens #11/#18/#19 each computed this and never committed it.
+#
+# ## BATTERY LEDGER FOR #101–#106 — 9 LEGS, WHO ESTABLISHED WHICH
+#
+#   Legs 1–4 were established by gen #19 at `b3782687` and are VALID FOR THIS TREE
+#   because `git diff b3782687 HEAD -- . ':(exclude)getting-better'` is EMPTY — a
+#   property of the source tree, re-verified by gen #20 in one command, not an
+#   inherited verdict. These four gates read source only.
+#
+#     1  metric                 459 markers / 484 grep / offset 25 / unattached 0   HIT (gen19)
+#     2  doc-coherency          rc=0                                               HIT (gen19)
+#     3  fidelity mirror-sync   rc=0, 887 un-trusted mirror fns verbatim, 37 consts HIT (gen19)
+#     4  trusted-raises-honesty rc=0, 75 stubs: 6 DECLARED / 69 SILENT, ratchet 69  HIT (gen19)
+#     5  reference suite        3423/3441, 18 fail, ZERO XPASS, rc=1     ACCEPTED (gen20, c7270ebe)
+#     6  byte-diff pycsl-reference                                       see below
+#     7  byte-diff python-reference (pyref)                              see below
+#     8  mirror emission-diff (53 mirrors)                               see below
+#     9  planes 34 = 19 fast + 15 slow                                   see below
+#    (+) self-annotate-mirror-check.sh — CONFIRM the three PRE-EXISTING reds, never inherit
+#
+# ## BYTE-DIFF BASELINE — ESTABLISHED BY GEN #20 ITSELF, POPULATIONS ASSERTED
+#
+#   Baseline commit **`5795cfef`** ("gen18 START", the commit before ALL SIX repairs),
+#   confirmed an ancestor of HEAD. Worktree: `<scratchpad>/g19base`, whose HEAD I read
+#   with `git rev-parse` (5795cfef4b8f…) rather than trusting the directory name; clean
+#   but for the REQUIRED untracked `.venv` symlink.
+#     baseline pycsl-reference   **1214** top-level .py   HEAD **1224**
+#     manifest delta, BOTH SIDES SORTED: exactly the ten witnesses 1288–1297, ZERO deleted
+#     baseline python-reference  **2217** .py (recursive)  HEAD **2217** — manifest IDENTICAL
+#     stray .mlw in corpus: 92 on BOTH sides (checked-in goldens, equal, not a leak)
+#
+#   >>> DO NOT TOUCH `/tmp/claude-1000/bd_before`. It is gen #18's KILLED sweep: 584
+#   >>> emitted .mlw against a 1214-source baseline. Reading it as a baseline yields a
+#   >>> spectacular FALSE `GONE` set. gen #20 deletes it so gen #21 cannot be fooled.
+#
+# ## WHAT IS TRUE RIGHT NOW
+#
+#   metric   markers **459** / grep 484 / offset 25 / unattached 0.
+#   planes   34 = 19 fast + 15 slow. ALWAYS SAY WHICH SET YOU RAN. Count `ok` lines,
+#            NEVER read a banner.
+#   suite    baseline **18** failures. A run showing 19 is a REGRESSION. Now VERIFIED
+#            GREEN for #101–#106 — there is no reason for gen #21 to re-run it.
+#   ratchet  `check-trusted-raises-honesty` SILENT is **69** (MAX_SILENT=69). Move the
+#            POPULATION, never the LINE.
+#   pre-existing, NOT gen #20's: `self-annotate-mirror-check.sh` rc=1 at HEAD on
+#            `expr_ghost_collections.py` / `statements.py` / `stmt_control_flow.py`; the
+#            two modified gitlinks (`scratchpad/w7/base`, `scratchpad/w8/pre`).
+#
+# ## THE SEAM THAT IS STILL THE RICHEST THING OPEN (from route #106, UNPROBED)
+#
+#   **Which OTHER obligations are keyed on a call node that inlining DELETES before
+#   Module 6 ever looks?** Named and open: the frame `writes`, the callee's `requires`,
+#   the UB gates. Also open: a `\trusted` callee is inlined straight THROUGH the trust
+#   boundary (`val helper__f` emitted and never called). The #70 → #100 → #105 chain
+#   establishes this shape recurs ONCE PER OBLIGATION KIND — expect one route per
+#   obligation, not one route total.
+#
 # ====== START HERE — gen #19 FINAL STATE — read this block first ==================
 #
 # ## STATUS: IN PROGRESS (this block is updated as the generation runs)

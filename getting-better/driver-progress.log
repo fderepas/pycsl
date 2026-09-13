@@ -1661,3 +1661,40 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   committed at 35d777fc, now independently re-confirmed by a starvation-free run.
   VERDICT: **ACCEPTED, NOT VOID.** The reference suite is GREEN at baseline for the
   #101-#106 repairs. This closes the suite leg of the #101-#106 battery.
+[gen20-02] SOURCE-TREE IDENTITY RE-VERIFIED IN ONE COMMAND: `git diff b3782687 HEAD -- . ':(exclude)getting-better'` is **EMPTY**. This is a property of the source tree, not an inherited verdict, so gen #19's battery legs 1-4 (metric, doc-coherency, fidelity mirror-sync, trusted-raises-honesty — all source-only gates) hold for this tree. Legs 6-9 still owed.
+
+[gen20-03] BYTE-DIFF BASELINE ESTABLISHED BY ME, POPULATIONS ASSERTED BEFORE BELIEVING ANYTHING:
+  baseline commit **5795cfef** (= "gen18 START", the commit before ALL SIX repairs), confirmed
+  an ancestor of HEAD. Worktree `<scratchpad>/g19base`; I read its HEAD with `git rev-parse`
+  (5795cfef4b8f…) rather than trusting the path name, and confirmed it clean but for the
+  REQUIRED untracked `.venv` symlink.
+    pycsl-reference   baseline **1214** top-level .py   HEAD **1224**
+    delta, BOTH SIDES SORTED: EXACTLY the ten witnesses 1288-1297, ZERO deleted.
+    python-reference  baseline **2217** .py (recursive)  HEAD **2217** — manifest **IDENTICAL**.
+    stray .mlw under test-suite/corpus: **92 on BOTH sides** (checked-in goldens; equal counts,
+    so not an emission leak on either side).
+  /tmp free before any sweep: **5.0G** of 7.6G. Deleting gen #18's killed `/tmp/claude-1000/bd_before`
+  (584 emitted .mlw against a 1214-source baseline — the incomplete-not-deleted shape that
+  manufactures a false GONE set) so no later generation can mistake it for a baseline.
+
+[gen20-04] GEN #20 PREDICTIONS FOR THE FOUR REMAINING LEGS, WRITTEN BEFORE ANYTHING RUNS.
+  I ADOPT gen #18's census-backed predictions and state my OWN reason for each, so a miss
+  indicts a specific belief rather than a mood:
+  * LEG 6 byte-diff pycsl-reference: **0 MOVED / 0 GONE / 0 APPEARED**, plus 10 NEW-SOURCE
+    (the witnesses, benign by the SOURCES.txt manifest rule). Zero-byte count 0 on BOTH sides.
+    REASON: all six repairs are REFUSALS on shapes the pre-existing corpus does not contain —
+    gen #18 measured that ZERO pre-existing corpus files import `setitem` and the corpus has
+    ZERO non-range subscript `assigns` outside the new witnesses.
+  * LEG 7 byte-diff python-reference: **2203 emitted of 2217, 0 MOVED / 0 GONE / 0 APPEARED**,
+    zero-byte 0 both sides, manifest identical so NO new-source and NO gone-source.
+    REASON: identical manifests + repairs that only fire on absent shapes. This is the leg that
+    caught route #60's blunt repair, so it is not ceremonial.
+  * LEG 8 mirror emission-diff: **ZERO of 53 mirrors move.** THE LOAD-BEARING PREDICTION,
+    because #102's bare-`Var` arm could plausibly hit a mirror. Gen #18's scan found exactly
+    ONE `\trusted` mirror stub with a bare-Var `assigns` — `pure_ast.py:4094 #@ assigns new_node`
+    on `copy_location` — and `new_node` is an AST-node param, not `array`-typed, so it fails the
+    `_arr_params` membership test. IF A MIRROR MOVES, THAT STUB IS THE FIRST PLACE TO LOOK.
+  * LEG 9 planes: **34/34 green = 19 fast + 15 slow**, verdict taken by COUNTING `ok` LINES.
+  * (+) `self-annotate-mirror-check.sh`: **rc=1 on EXACTLY the pre-existing three**
+    (expr_ghost_collections / statements / stmt_control_flow). If a FOURTH file appears, it is
+    MINE and I revert. Confirming pre-existence in the 5795cfef worktree, never inheriting it.
