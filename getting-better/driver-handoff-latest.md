@@ -214,8 +214,26 @@
 #   1. **ROUTE #98 — REPAIR IT, BOTH HALVES.** Scoped in its route file. Measure BOTH
 #      directions AND re-check route #96's capability witness 1271 for a RENAMED
 #      parameter, not just for `a`.
-#   2. **THE `continue`-CENSUS CANDIDATES 2 AND 3, both feeding verification
-#      consumers and both UNPROBED** (full evidence in the progress log):
+#   2. **BOTH REMAINING CENSUS CANDIDATES ARE NOW PROBED — #3 BECAME ROUTE #99
+#      (CLOSED), #2 BECAME A CERTIFIED BOUNDARY.** Candidate #2's record is
+#      `open-routes/finding-TY3-gt1-bypassed-by-one-level-of-nesting.md` and its
+#      REOPENING CONDITION IS THE LIVE ITEM: `monomorphize._type_str` answers `None`
+#      for a nested `Subscript`, so `Wrap[Box[Any]]` is NOT refused while `Box[Any]`
+#      IS — GT1 is bypassed one level down, and GT2's bound obligation goes with it.
+#      It is NOT a route today ONLY because the nested program cannot prove a TRUE
+#      fact either (measured, with the prover on). **THE MOMENT NESTED INSTANTIATION
+#      IS IMPLEMENTED THE BYPASS GOES LIVE, SILENTLY.** Make `_type_str` recurse and
+#      surface every type argument at every depth FIRST, then emit.
+#      >>> **THE WHOLE TY3 AREA IS UNCOVERED: not one file in the test-suite uses
+#      >>> `TypeVar` or `Generic[` — five gates, ~700 lines, ZERO corpus coverage.**
+#      Two collateral facts there, both flagged UNMEASURED not claimed: the IR-side
+#      `_collect_instantiations` returned `[]` in EVERY shape tested (everything came
+#      from the AST collector); and **PEP 484 `class Box(Generic[T])` registers no
+#      `type_params` at all**, so `apply_monomorphization` early-returns and the ENTIRE
+#      TY3 machinery is a silent no-op for the older, commoner spelling — `Box[Any]`
+#      there VERIFIES with no GT1, while the PEP 695 spelling is refused.
+#
+#   2b. **THE ORIGINAL CENSUS TEXT, kept because its evidence is still good** (full evidence in the progress log):
 #      * `frontend/monomorphize.py:248-249` + `:331-345` — the instantiation census
 #        is narrowed by a BUILD-ability test (`Subscript` -> `return None`), and the
 #        SAME set feeds the **GT1 `Any` refusal** (`monomorphize.py:74-81`) and the
