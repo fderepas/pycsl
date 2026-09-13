@@ -7245,14 +7245,52 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "Rewrite the mutation as an indexed store (`"
                 + func_name.rsplit(".", 1)[0] + "[i] = v`), or mark the enclosing "
                 "function `#@ \\trusted`.")
+        # (#49) ROUTE #100 — A `#@ no_exception E` ON A METHOD WAS DISCHARGED BY NOBODY,
+        # BECAUSE THIS PATH NEVER CONSULTED THE CALLEE-`raises` REGISTRY AT ALL.
+        #
+        # `_wrap_call_with_callee_raises_assert` had exactly ONE call site — the MODULE
+        # function path (`_handle_call_expr`) — and it is keyed on the IR function name.
+        # A `self.<m>(...)` call reaches the abstract-val lowering below and returned the
+        # bare application, so the callee's `#@ raises E when P` never produced the
+        # `assert { not P }; try … with E -> absurd` that the free-function path emits.
+        # MEASURED on a pair with identical contracts and bodies: as free functions the
+        # false `#@ no_exception ValueError` claim is REFUSED; as methods of one class it
+        # reported `Verification SUCCESS! All contracts formally proven.` while CPython
+        # raises `ValueError` (`Helper().caller(-1)`).
+        #
+        # >>> AN ABSTRACTION THAT IS CONSERVATIVE FOR WHAT A CALLER MAY **ASSUME** IS
+        # >>> PERMISSIVE FOR WHAT A CALLER MUST **DISCHARGE**. This val already receives
+        # >>> the callee's `ensures` (measured: `val self_f_1 (x0: int) : int ensures
+        # >>> { result = x0 }`), so the path VISIBLY carries a contract and reads as
+        # >>> sound — and the transmission set was enumerated as "what the caller may
+        # >>> assume", which is the half that HELPS the caller. Losing a postcondition
+        # >>> costs a proof; losing an effect obligation costs the CHECK.
+        #
+        # THE FIX REUSES THE WORKING MECHANISM rather than adding a second one: resolve
+        # the self-call to the flattened IR name the registry is keyed by, and hand it to
+        # the SAME wrap. Deliberately NOT the other candidate — transmitting `raises` onto
+        # the val itself — which was spiked and does close the exploit, but with
+        # `raises { E -> true }` being UNCONDITIONAL it also destroys the capability: the
+        # guarded caller (`#@ requires k >= 0`, whose obligation IS dischargeable) stops
+        # proving too. The wrap carries the callee's CONDITION, so it refuses only what is
+        # actually unprovable.
+        #
+        # FAIL-CLOSED AND BYTE-INERT BY CONSTRUCTION: the wrap returns `inner` untouched
+        # unless the CALLER holds a non-empty `no_exception` set AND the resolved callee
+        # declares a matching `raises`, so every other call site emits exactly as before.
+        _r100n = (whyml_ident(f"{self._current_self_type}__{func_name[len('self.'):]}")
+                  if func_name.startswith("self.") and self._current_self_type
+                  else func_name)
         if n == 0 and not receiver_param:
             self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
-            _call = f"({arity_name} ())"
+            _call = self._wrap_call_with_callee_raises_assert(
+                _r100n, f"({arity_name} ())", args)
             return f"(let _ = {_call} in absurd)" if _nr_callee else _call
         params = " ".join(f"(x{i}: {ptype})" for i, ptype in enumerate(param_types))
         params = f"{receiver_param}{params}".rstrip()
         self._add_abstract_op(f"val {arity_name} {params} : {ret_type}{writes_clause}{ensures_suffix}")
-        _call = f"({arity_name} {' '.join(coerced)})"
+        _call = self._wrap_call_with_callee_raises_assert(
+            _r100n, f"({arity_name} {' '.join(coerced)})", args)
         return f"(let _ = {_call} in absurd)" if _nr_callee else _call
 
     def _is_seq_arg(self, arg: str) -> bool:
