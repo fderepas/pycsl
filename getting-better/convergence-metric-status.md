@@ -1,0 +1,11 @@
+# Convergence metric implementation — status
+LAST-UPDATED: 2026-09-13T15:39:04Z
+PHASE-1-PROBE-LEDGER: IN-PROGRESS
+PHASE-2-VERIFIED-FRACTION: NOT-STARTED
+PHASE-3-REASON-TAXONOMY: NOT-STARTED
+PHASE-4-SILENT-RAISE-BURNDOWN: NOT-STARTED  (70 -> 70)
+PHASE-5-BLIND-RECAPTURE-RUNBOOK: NOT-STARTED
+PHASE-6-GENERATED-SAMPLER: NOT-STARTED
+OVERALL: INCOMPLETE
+NEXT-ACTION: Spawn 1 just started; building probes.tsv schema + backfill (Phase 1).
+NOTES: First spawn, no prior status file. Plan + source report read in full.

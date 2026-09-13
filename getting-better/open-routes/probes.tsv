@@ -42,6 +42,18 @@
 #     design, or user-directed surface).
 #   This is the schema being fixed before further back-filling, exactly as Phase 1 requires.
 #
+# *** THE BACK-FILL IS ASYMMETRIC AND CROSS-GENERATION YIELD FROM IT IS NOT VALID. ***
+#   The numerator (LIVE) was recoverable for EVERY route, because each has a route file and a
+#   dated commit. The denominator (FAIL-CLOSED) was recoverable only where a generation wrote
+#   a `PROBED ... NO FINDING` section. Generations that did not -- w49, 4, 11, 16, 17 -- come
+#   out at or near 100 % yield, which is an artefact of the record, NOT a measurement. The
+#   same defect makes `generator=unknown` read 35 LIVE / 0 FAIL-CLOSED.
+#   THE ONLY ROWS SAFE TO COMPARE ACROSS GENERATIONS ARE THE `carve-out-census` ROWS, where
+#   numerator and denominator came out of the SAME record. Everything else is a lower bound on
+#   the denominator and therefore an UPPER bound on yield.
+#   This is why the rule is "log before you interpret": from gen #18 on, rows are LIVE-logged
+#   and this asymmetry disappears. Until then, quote back-filled yield only with this caveat.
+#
 # YIELD IS COMPUTED OVER `LIVE + FAIL-CLOSED` ONLY.
 #   VACUOUS rows are instrument failures and are tracked SEPARATELY. A probe whose positive
 #   control refused measured nothing; counting it as a clean negative would inflate the
