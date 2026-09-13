@@ -1,3 +1,38 @@
+# ====== START HERE — gen #17 FINAL STATE — read this block first ==================
+#
+# ## STATUS: IN PROGRESS (this block is updated as the generation runs)
+#
+#   Window #6 continues. Started from HEAD `52cf618b` with the ledger EMPTY (gen #16
+#   closed #97/#98/#99/#100). Metric RE-MEASURED at HEAD, not inherited:
+#   **markers 459 · grep 484 · offset 25 · attached 459 · unattached 0** — unchanged.
+#   Planes **34 = 19 fast + 15 slow**, confirmed BY READING THE TWO ARRAYS in
+#   `bin/run-soundness-planes.sh` (PLANES=19, MIN_PLANES=18; SLOW_PLANES=15, added by
+#   `--slow` with MIN_PLANES bumped to 33) — NOT by running the script and reading a
+#   banner, which is exactly how gen #15 lost 15 planes.
+#
+#   PROBE-LEDGER YIELD AT GENERATION START (`bin/probe-ledger-yield.sh --by-generator`),
+#   which is the number that picks the generator:
+#     continue-census   4/5   **80.0%**   (2 second-order)
+#     deferral-audit    3/6   50.0%       (4 VACUOUS — the worst vacuity rate in the table)
+#     carve-out-census  6/14  42.9%
+#     advice-audit      2/5   40.0%
+#     oracle-audit      1/3   33.3%
+#     control-operation 3/20  15.0%
+#     hand              0/45  **0.0%**    <- 45 probes, zero routes. Do not hand-probe.
+#   `unknown` (35/35, 100%) is BACK-FILL ONLY and is pure selection bias — a row was
+#   written because it was interesting. It is not a generator and must never be ranked.
+#
+# ## WHAT IS TRUE RIGHT NOW
+#
+#   ledger   (updated as the generation runs)
+#   metric   markers **459** / grep 484 / offset 25 / unattached 0 — RE-MEASURED.
+#   planes   34 = 19 fast + 15 slow. ALWAYS SAY WHICH SET YOU RAN.
+#   suite    baseline **18** failures. A run showing 19 is a REGRESSION.
+#   pre-existing, NOT gen #17's: `self-annotate-mirror-check.sh` rc=1 at HEAD on
+#            `expr_ghost_collections.py` / `statements.py` / `stmt_control_flow.py`
+#            (family of `finding-L1-fidelity-plane-red-at-head.md`); the two modified
+#            gitlinks `scratchpad/w7/base`, `scratchpad/w8/pre`; the 0-byte stray `str`.
+#
 # ====== START HERE — gen #16 FINAL STATE — read this block first ==================
 #
 # ## THE ONE-PARAGRAPH SUMMARY
