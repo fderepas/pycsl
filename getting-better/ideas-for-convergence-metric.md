@@ -19,7 +19,9 @@ Everything numeric below was measured today with the command shown, read-only, a
    fixed*; second-order yield falls to 0. Cheap to start today (a TSV ledger); an
    independent sampler is the phase-2 upgrade that removes hunter bias (§3.4).
 3. **Primary metric for (b): body-verified fraction of the live verifier**, 914 / 3236 defs =
-   **28.2 %** today.
+   **28.2 %** today. It replaces the 459 count, which has no denominator and hides 41
+   unmirrored files. The resume trigger is a separate, heavy, already-existing instrument:
+   `bin/probe-conversion-candidates.py` CLEAN count (§3.7) — currently 1 of 446, i.e. zero.
 
 > **CORRECTION ADDED 2026-09-13 BY THE PHASE-2 IMPLEMENTATION — DO NOT QUOTE 28.2 % .**
 > That number computes verified defs as `mirror defs − markers`, which treats *absence of a
@@ -41,9 +43,7 @@ Everything numeric below was measured today with the command shown, read-only, a
 > is one program — the answer is **0 / 3225 = 0.00 %**. Both are printed; see
 > `bin/verified-fraction.py --staleness=strict`. The corrected fraction is roughly **HALF**
 > the figure below, and the gap IS the unproven perimeter.
- It replaces the 459 count, which has no denominator and hides 41
-   unmirrored files. The resume trigger is a separate, heavy, already-existing instrument:
-   `bin/probe-conversion-candidates.py` CLEAN count (§3.7) — currently 1 of 446, i.e. zero.
+
 4. **The thing you can do this week that is genuinely "back on the reducing-trusted
    track" without a new capability**: shrink the *assumption-honesty deficit* — 70 `\trusted`
    stubs whose live body raises and whose stub says nothing (§3.6). It is already ratcheted.
@@ -247,7 +247,8 @@ a few minutes each under `--timelimit 5`; not to be run concurrently with the su
 
 ### 3.5 Body-verified fraction of the live verifier — PRIMARY for (b); replaces the 459 count
 
-**Measures.** (mirror defs − markers) / live defs = **914 / 3236 = 28.2 %**.
+**Measures.** (mirror defs − markers) / live defs = **914 / 3236 = 28.2 %**. Within the
+mirrored perimeter only: 914 / 1929 = 47.4 %.
 
 > **CORRECTION ADDED 2026-09-13 BY THE PHASE-2 IMPLEMENTATION — DO NOT QUOTE 28.2 % .**
 > That number computes verified defs as `mirror defs − markers`, which treats *absence of a
@@ -269,8 +270,8 @@ a few minutes each under `--timelimit 5`; not to be run concurrently with the su
 > is one program — the answer is **0 / 3225 = 0.00 %**. Both are printed; see
 > `bin/verified-fraction.py --staleness=strict`. The corrected fraction is roughly **HALF**
 > the figure below, and the gap IS the unproven perimeter.
- Within the mirrored
-perimeter only: 914 / 1929 = 47.4 %. This is the number Metric A is trying to be. It has a
+
+This is the number Metric A is trying to be. It has a
 denominator, so it can say "nearly done"; it counts the 41 unmirrored files and ~550
 unmirrored defs that the 459 figure cannot see (the `check-mirror-coverage.py` header calls
 itself "the plane the metric structurally cannot see", and it is right); and it makes the
