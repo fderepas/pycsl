@@ -1251,10 +1251,44 @@ class FunctionEmissionMixin:
         for func in functions:
             fields: List[str] = []
             for a in (func.get("contracts", {}).get("assigns", []) or []):
-                if (isinstance(a, dict) and a.get("type") in ("FieldGet", "Attribute")
-                        and a.get("object") == "self" and a.get("field")):
-                    if a["field"] not in fields:
-                        fields.append(a["field"])
+                # (#49) ROUTE #104 — `#@ assigns self.<f>[i]` CONTRIBUTED NO FIELD HERE,
+                # so a `\trusted` METHOD writing one CELL of a self-field array was
+                # emitted with NO `writes` and read by Why3 as PURE.
+                #
+                # This map is THE producer of a bodyless method-`val`'s frame (the
+                # `_emit_frame_condition` collectors deliberately skip every `self.<field>`
+                # and defer to it — see the comment there). It was keyed on the NODE TYPE
+                # carrying the target, `("FieldGet", "Attribute")`, and `#@ assigns
+                # self.xs[0]` lowers to `Subscript(FieldGet(self, "xs"), 0)`
+                # (`Module5_IREmitter._csl_field_subscript`), which is neither — so the
+                # target fell out of the map entirely and the method's `val` got no frame.
+                #
+                # MEASURED at HEAD, and the positive control FIRED, which is what makes
+                # this a finding rather than a story:
+                #     `#@ assigns self.xs`     -> `writes` emitted -> `\result == 7` FAILS
+                #     `#@ assigns self.xs[0]`  -> NO `writes`      -> `\result == 7` PROVES
+                # while CPython returns 5. And there is NO range escape hatch for a
+                # self-field: `#@ assigns self.xs[0..1]` is a PARSE ERROR
+                # (`_parse_assigns_region` calls `expect_name()`, which cannot accept a
+                # dotted base), so the single-index spelling is the ONLY way to say
+                # "this method writes into self.xs[i]" — and it was the unsound one.
+                #
+                # >>> THE OBLIGATION IS ABOUT THE *PATH BEING WRITTEN*, NOT THE NODE TYPE
+                # >>> THAT HAPPENS TO CARRY IT. Peel the `Subscript` layers off the target
+                # >>> and key on what is actually written. Over-approximating `self.xs[i]`
+                # >>> to the whole of `self.xs` is SOUND — more havoc is strictly LESS
+                # >>> caller knowledge — and it is what Why3 itself infers from a `let`
+                # >>> whose body writes one cell, which is why the real-body control
+                # >>> already refused this exploit.
+                _tgt, _depth = a, 0
+                while (isinstance(_tgt, dict) and _tgt.get("type") == "Subscript"
+                       and _depth < 64):
+                    _tgt = _tgt.get("value")
+                    _depth += 1
+                if (isinstance(_tgt, dict) and _tgt.get("type") in ("FieldGet", "Attribute")
+                        and _tgt.get("object") == "self" and _tgt.get("field")):
+                    if _tgt["field"] not in fields:
+                        fields.append(_tgt["field"])
             if fields:
                 out[func["name"]] = fields
         return out

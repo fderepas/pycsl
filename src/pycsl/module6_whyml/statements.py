@@ -3518,18 +3518,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # the thing actually written, then dispatch on WHAT THAT IS. The same peel also
             # covers the bare-`Var` spelling (`#@ assigns g`) — a FOURTH carrier of the
             # identical hole whenever `g` is an array parameter.
-            def _assigns_write_root(node: Any, _depth: int = 0) -> Any:
-                """Peel `Subscript` layers off a write target down to the written base."""
-                while (isinstance(node, dict) and node.get("type") == "Subscript"
-                       and _depth < 64):
-                    node = node.get("value")
-                    _depth += 1
-                return node
-
+            # (The peel is written INLINE, not as a nested helper: this file is MIRRORED,
+            # and `check-mirror-coverage` counts nested `FunctionDef`s — a nested `def`
+            # added to a mirrored file breaks the fidelity plane.)
             for a in assigns_list:
                 if not isinstance(a, dict) or a.get("type") not in ("Subscript", "Var"):
                     continue
-                root = _assigns_write_root(a)
+                root, _depth = a, 0
+                while (isinstance(root, dict) and root.get("type") == "Subscript"
+                       and _depth < 64):
+                    root = root.get("value")
+                    _depth += 1
                 if not isinstance(root, dict):
                     continue
                 rt = root.get("type")
