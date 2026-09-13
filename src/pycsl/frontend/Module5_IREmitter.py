@@ -3925,6 +3925,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # discharges the per-method refinement goal (P2/P4). Byte-identical for
         # classes without `csl_conforms_to` (the population is a no-op).
         self._populate_protocol_conformance(node)
+        # ROUTE #94: the mutable-field half of the UB-7.7 memoization gate, run HERE rather
+        # than in `_check_memoization_soundness`, because that runs per-function during the
+        # walk and the mutator is usually defined AFTER the memoized reader — so the set of
+        # mutated fields is empty at that point. By here `generic_visit` has emitted every
+        # method of the class, so the set is complete. No-op for classes with no memoized
+        # method (the population guard is the first line of the pass).
+        self._check_memoized_field_reads()
         self._current_class = None
 
     def _should_skip_method(self, node: ast.FunctionDef) -> bool:

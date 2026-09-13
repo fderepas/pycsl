@@ -324,7 +324,22 @@ boundary — we do not fake it.
 `_check_memoization_soundness` rejects (`PyCSLIRError`, UB-7.7) unless the
 function is referentially transparent (RT): it must be **pure** (`#@ assigns
 \nothing`, not `\trusted`, not `\diverges` — `_detect_purity`) AND read no
-`#@ shared` mutable global (`_reads_any`). Module-level *constants* are fine.
+`#@ shared` mutable global (`_reads_any`) AND — **route #94** — read no
+`self.<field>` that is **assigned outside `__init__`**. Module-level
+*constants* are fine, and so is a field written only by the constructor.
+
+**Why the field clause was needed (route #94).** `_detect_purity` is about
+`assigns`, not reads, so a method that reads a mutable field and writes nothing
+counted as pure; and `_reads_any` matches only `type == "Var"`, so a field read
+(a `FieldGet`) could never be seen by the `#@ shared` clause whatever was
+declared. Measured: a `@cached_property` returning `self.a`, with `#@ assigns
+\nothing` and `#@ ensures \result == self.a`, **PROVED**, while running the
+same program under CPython gives `total = 0, self.a = 1` after one `bump()` —
+the proved postcondition is **false in the real language**, which is exactly
+this §7.7 divergence. The rule is deliberately *not* "reads any field": a
+`@cached_property` inherently reads `self`, and one over a construct-only field
+is genuinely RT (measured — it proves, and CPython agrees), so banning all field
+reads would remove a real capability.
 
 **Verification stance.** *Hard error*, no escape annotation. PyCSL verifies the
 function's **uncached** body and ignores the decorator. That is sound only when
@@ -337,7 +352,17 @@ an RT function no extra work is needed; this rule only gates the unsound case.)
 Note: contracts must be placed **above** the decorator to attach.
 
 **Corpus cross-reference:** `0515` (pure `@lru_cache` accepted + caller proof),
-`0516` (memoizing a non-RT function rejected).
+`0516` (memoizing a non-RT function rejected), `1257` (route #94: a
+`@cached_property` over a field mutated outside `__init__` — rejected), `1258`
+(route #94 control: a `@cached_property` over a construct-only field still
+PROVES, so the rule is not a blanket field-read ban).
+
+**Known confinement (route #94).** The false postcondition is confined to the
+memoized method itself: a `cached_property` read from *another* function emits
+`unbound function or predicate symbol`, so no caller can consume it. If
+`cached_property` ever becomes readable across functions this class escalates,
+and a ready-made value-differential driver is recorded in
+`getting-better/open-routes/route94-*.md`.
 
 ---
 

@@ -1,39 +1,20 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **ONE — ROUTE #94.**
+## CURRENTLY OPEN: **NONE.**
 ##
-##   **#94 — `@cached_property` READING A MUTABLE FIELD PASSES THE UB-7.7 REFERENTIAL-
-##   TRANSPARENCY GATE, AND THE PROVED POSTCONDITION IS FALSE IN CPYTHON.** Severity 1.
-##   FULLY MEASURED — including an executed CPython witness — REPAIR SCOPED, NOT LANDED.
-##   See `route94-memoized-cached-property-reads-a-mutable-field.md`.
-##   PyCSL proves `ensures \result == self.a` for a `@cached_property`; running the same
-##   program in CPython gives `total = 0, self.a = 1` after one `bump()`, so `c.total == c.a`
-##   is **False**. `_check_memoization_soundness` — the gate written for exactly this UB-7.7
-##   divergence — RAN AND PASSED, for TWO independent reasons: `shared_vars` is populated only
-##   from `#@ shared` declarations (module singletons live in `module_globals`); and `_reads_any`
-##   matches only `type == "Var"`, so a `self.<field>` read (a `FieldGet`) can never be seen.
-##   (I first wrote THREE reasons, the extra one being that `if shared and ...` short-circuits
-##   the clause. **That reason is WRONG and is struck through in the route file rather than
-##   deleted**: `_reads_any` tests `name in names`, so an empty `names` matches nothing and the
-##   guard is behaviourally inert. Rule (o) applies to one's own claims.) `pure` does not help — `_detect_purity` is about
-##   `assigns`, not reads. Controls: 0515 PROVES and 0516 is a PIPELINE ERROR, both
-##   pre-existing, so the gate is neither dead nor a blanket refusal; and the DISAGREE twin
-##   `ensures \result == self.a + 1` REFUSES, so the channel discriminates.
-##   **WHY IT WAS LEFT OPEN:** found while #91/#92/#93 were mid-gate-battery; landing a fourth
-##   repair meant killing the suite a third time and risking a window that gated nothing.
-##   **THE REPAIR CARRIES A NAMED OVER-NARROWING HAZARD** — a `cached_property` inherently
-##   reads `self`, so a blanket field rule bans every one of them. Build the positive control
-##   (a `cached_property` over a never-assigned field that still proves) BEFORE the repair, or
-##   it cannot be told apart from a capability removal. Owes a VALUE-DIFFERENTIAL pair, since
-##   the falsehood is model-vs-runtime rather than in-model.
-##   **NARROWED HONESTLY: THE ROUTE IS CONFINED.** A caller reading `c.total` emits `unbound
-##   function or predicate symbol 'total'`, so cross-function use is FAIL-CLOSED and no caller
-##   can consume the false postcondition. It is a proved postcondition CPython refutes — the
-##   campaign's core class, and exactly what the gate exists to reject — but it is NOT
-##   escalating. AND: do NOT try to add a value-differential pair; that corpus needs a
-##   module-level function whose CPython run can be compared, and the defect is unreachable
-##   from one (I spent the round — the driver is written up in the route file, ready to become
-##   a RED the day `cached_property` becomes readable across functions).
+##   **#94 CLOSED AND GATED 2026-09-13 (gen #13), FAIL-CLOSED.** A `@cached_property` reading a
+##   MUTABLE field passed the UB-7.7 referential-transparency gate, and **CPython contradicts
+##   the proved postcondition** (`total = 0, self.a = 1` after one `bump()`, so `c.total == c.a`
+##   is False while `ensures \result == self.a` was proved). Two reasons the gate missed it:
+##   `_detect_purity` is about `assigns`, not reads; and `_reads_any` matches only
+##   `type == "Var"`, so a `FieldGet` is invisible to the `#@ shared` clause. Repaired by
+##   `_check_memoized_field_reads`, run from the POST-CLASS hook — **the first version, written
+##   in the obvious place (`_check_memoization_soundness`, a per-function visitor), silently did
+##   NOTHING, because the mutator is defined after the memoized reader and the mutated-field set
+##   was empty. Only rule (l)'s negative test caught it.** Witnesses 1257 (exploit) / 1258 (a
+##   construct-only field still proves, so it is not a blanket field-read ban). Confined: no
+##   caller can consume the false postcondition (`cached_property` read across functions emits
+##   an unbound symbol).
 ##
 ##   >>> PREVIOUSLY: the ledger was EMPTY at the start of gen #13, and THREE severity-1
 ##   >>> routes (#91, #92, #93) were sitting in ONE function. An empty ledger is a prompt to

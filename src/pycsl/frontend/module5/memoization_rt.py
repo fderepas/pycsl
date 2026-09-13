@@ -56,6 +56,78 @@ class MemoizationRTMixin:
         if is_pure:
             func_ir["pure"] = True
 
+    def _check_memoized_field_reads(self) -> None:
+        """ROUTE #94. The mutable-state half of `_check_memoization_soundness`, run where it
+        can actually see the answer.
+
+        `_check_memoization_soundness` runs per-function inside `visit_FunctionDef`, so when a
+        memoized method is checked the methods DEFINED AFTER IT are not yet in
+        `program_ir["functions"]` — and the mutator usually is one of them. This pass is called
+        from the post-`generic_visit` hook of `visit_ClassDef`, where every method of the class
+        has been emitted, so the set of mutated fields is complete.
+
+        WHAT IT REJECTS. A memoized function (`@lru_cache` / `@cache` / `@cached_property`)
+        whose body READS `self.<f>` where `<f>` is assigned somewhere other than `__init__`.
+        MEASURED: a `@cached_property` returning `self.a`, with `#@ assigns \nothing` and
+        `#@ ensures \result == self.a`, PROVED — while running the same program under CPython
+        gives `total = 0, self.a = 1` after one `bump()`, so the proved postcondition is FALSE
+        in the real language. That is UB-7.7, exactly what this gate exists to reject.
+
+        WHY THE RULE IS NOT "READS ANY FIELD". A `cached_property` inherently reads `self`, and
+        one over a construct-only field is genuinely referentially transparent — measured: it
+        PROVES and CPython AGREES with it. A blanket field-read ban would delete that real
+        capability (the corpus-1057 mistake). The `__init__` carve-out is the same one routes
+        #91 and #92 needed: the constructor establishes the object rather than mutating it.
+
+        WHY THE EXISTING CLAUSES COULD NOT SEE IT: `_detect_purity` is about `assigns`, not
+        reads, so a method that reads a mutable field and writes nothing counts as pure; and
+        `_reads_any` matches only `type == "Var"`, so a field read (a `FieldGet`) is invisible
+        to the `#@ shared` clause whatever is declared.
+        """
+        funcs = self.program_ir.get("functions", []) or []
+        if not any(f.get("memoized") for f in funcs):
+            return
+        mutated: Set[str] = set()
+        for g in funcs:
+            if str(g.get("name", "")).rsplit("__", 1)[-1] == "__init__":
+                continue
+            stack: List[Any] = [g.get("body", [])]
+            while stack:
+                cur = stack.pop()
+                if isinstance(cur, dict):
+                    if (cur.get("stmt") in ("FieldAssign", "FieldAugAssign")
+                            and cur.get("object") == "self"):
+                        mutated.add(cur.get("field"))
+                    stack.extend(cur.values())
+                elif isinstance(cur, list):
+                    stack.extend(cur)
+        if not mutated:
+            return
+        for f in funcs:
+            if not f.get("memoized"):
+                continue
+            hit = None
+            stack = [f.get("body", [])]
+            while stack and hit is None:
+                cur = stack.pop()
+                if isinstance(cur, dict):
+                    if (cur.get("type") == "FieldGet" and cur.get("object") == "self"
+                            and cur.get("field") in mutated):
+                        hit = cur.get("field")
+                        break
+                    stack.extend(cur.values())
+                elif isinstance(cur, list):
+                    stack.extend(cur)
+            if hit is not None:
+                raise PyCSLIRError(
+                    f"Function '{f['name']}': a memoizing decorator (lru_cache / cache / "
+                    f"cached_property) requires a referentially transparent function, but it "
+                    f"reads `self.{hit}`, a field assigned outside `__init__`. The cached value "
+                    f"goes stale the first time that field changes, so the verified (uncached) "
+                    f"body no longer describes the running program — unsound (UB-7.7). Read "
+                    f"only fields written by the constructor, or drop the decorator. See "
+                    f"config/skills/pycsl-ub-catalog/SKILL.md §7.7.")
+
     def _check_memoization_soundness(self, func_ir: Dict[str, Any]) -> None:
         """no-more-int Stage F: a memoizing decorator (lru_cache/cache/cached_property)
         is sound only on a **referentially transparent** function — one that is pure

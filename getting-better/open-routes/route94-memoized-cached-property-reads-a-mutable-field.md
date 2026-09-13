@@ -2,9 +2,10 @@
 # transparency gate, and the proved postcondition is FALSE IN CPYTHON
 # (demonstrated by running it)
 
-**STATUS: OPEN — FULLY MEASURED INCLUDING A CPYTHON WITNESS, REPAIR SCOPED AND ITS POSITIVE
-CONTROL MEASURED, NOT LANDED (gen #13, 2026-09-13). SEVERITY 1, BUT CONFINED — see the
+**STATUS: CLOSED, FAIL-CLOSED, 2026-09-13 (gen #13). SEVERITY 1, BUT CONFINED — see the
 "HONEST NARROWING" section: no caller can consume the false postcondition.**
+Recorded as OPEN mid-generation while #91/#92/#93 were in their gate battery, then landed once
+that battery completed green.
 Left open deliberately: three routes (#91/#92/#93) were mid-gate-battery when this was found,
 and landing a fourth would have meant killing the suite a third time and risking a window that
 gated nothing. **The measurement is complete; only the repair is owed.** This is the same
@@ -226,3 +227,46 @@ Witnesses: the exploit as `# pycsl-expected: FAIL` with its mechanism, and the
 never-assigned-field control that must still PROVE. **NOT a value-differential pair — see the
 narrowing above; that corpus provably cannot express this class today.** 0515 and 0516 must both
 stay green.
+
+
+## THE REPAIR AS LANDED — AND THE ORDERING BUG THAT ALMOST SHIPPED SILENTLY
+
+**THE FIRST VERSION OF THIS REPAIR DID NOTHING, AND ONLY THE NEGATIVE TEST CAUGHT IT.** I wrote
+the mutable-field clause inside `_check_memoization_soundness`, which is the obvious home for
+it — and the exploit still VERIFIED. The reason is the whole difficulty of this route:
+
+>>> `_check_memoization_soundness` is called from `visit_FunctionDef`, i.e. **per function, as
+>>> the walk reaches it.** When `total` is checked, `bump` — defined three lines further down —
+>>> **is not yet in `program_ir["functions"]`**, so the set of mutated fields is EMPTY and the
+>>> clause passes vacuously. The gate would have looked correct in review, in the diff, and in
+>>> the source; it simply could not see the answer yet.
+
+It landed instead as `_check_memoized_field_reads`, called from the **post-`generic_visit` hook
+of `visit_ClassDef`**, where every method of the class has been emitted and the set is complete.
+
+>>> **A CHECK THAT NEEDS A WHOLE-PROGRAM FACT CANNOT LIVE IN A PER-NODE VISITOR. AND A GATE THAT
+>>> SILENTLY MEASURES AN EMPTY SET LOOKS EXACTLY LIKE A GATE THAT PASSED.** This is the same
+>>> shape as the campaign's vacuity rule, one level up: *a probe whose positive control refuses
+>>> has measured nothing* — here, *a guard whose population is empty has checked nothing*. The
+>>> only reason it did not ship is rule (l): **negative-test every new gate by removing the
+>>> thing it should catch.** I ran the exploit expecting a refusal, got SUCCESS, and went
+>>> looking. Had I trusted the diff, route #94 would have been recorded as closed while being
+>>> wide open — the worst outcome this campaign can produce.
+
+**FIDELITY COST: ZERO.** `memoization_rt.py` is not mirrored at all, and the single call line
+was added inside `visit_ClassDef`, which is `#@ \trusted` in the mirror (so its body is not
+compared verbatim). No new `def` was added to any mirrored file — `check-mirror-coverage` counts
+those. Measured: `check-self-annotate-sync.sh` OK at 887 functions, and
+`self-annotate-mirror-check.sh` **byte-identical to the HEAD-worktree log**.
+
+**AFTER THE REPAIR:**
+
+| driver | before | after |
+|---|---|---|
+| `@cached_property` reading `self.a`, mutated by `bump()` (**1257**) | **VERIFIED** | **REFUSED**, naming the field and both remedies |
+| `@cached_property` over a construct-only field (**1258**) | proved | **PROVES** (unchanged) — not a blanket ban |
+| **0515** a pure `@lru_cache` | PROVES | **PROVES** (unchanged) |
+| **0516** a non-RT `@lru_cache` | PIPELINE ERROR | **PIPELINE ERROR** (unchanged) |
+
+Documented in `config/skills/pycsl-ub-catalog/SKILL.md` §7.7, including the confinement note and
+the reason the rule is not "reads any field".
