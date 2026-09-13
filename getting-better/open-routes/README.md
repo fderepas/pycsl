@@ -1,6 +1,25 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **NONE.** (gen #16: #97 and #98 both CLOSED AND GATED — see below.)
+## CURRENTLY OPEN: **NONE.** (gen #16: #97, #98 and #99 all CLOSED AND GATED — see below.)
+##
+##   **#99 FOUND *AND* CLOSED 2026-09-13 (gen #16), SEV-1 — ON THE GATE ROUTE #94 BUILT.** A
+##   `@cached_property` reading `self.a` PROVED `ensures \result == self.a` while `a` was
+##   mutated by a free function taking the object as a parameter (`def bump(c: C): c.a = ...`).
+##   CPython after one bump: `total=0, a=1`, so the proved postcondition is FALSE — the stale
+##   cache (UB-7.7) that #94's gate exists to reject. Spell the identical mutation as a METHOD
+##   and it was refused all along; only the RECEIVER differed.
+##   **TWO INDEPENDENT NARROWINGS, AND ONLY BOTH FIXES CLOSED IT:** (1) the collector admitted a
+##   `FieldAssign` only when `object == "self"` — fixing this ALONE left the exploit STILL
+##   PROVING; (2) the check ran at the end of `visit_ClassDef`, whose comment claimed "by here
+##   `generic_visit` has emitted every method of the class, SO THE SET IS COMPLETE" — true of
+##   that CLASS, false of a module-level function defined after it. Moved to `visit_Module`.
+##   >>> **#94 MOVED THIS CHECK ONE LEVEL (function -> class) WHEN IT NEEDED TO MOVE TWO
+##   >>> (function -> class -> MODULE). Its own lesson — a check needing a whole-program fact
+##   >>> cannot live in a per-node visitor — was right, and A CLASS IS STILL A NODE.**
+##   Capability preserved against #94's own stated fear of a blanket ban: witness **1284 PROVES**.
+##   Witnesses 1282-1284. Residue named, NOT smuggled: `mutated` is still a flat set of field
+##   NAMES (20 of 72 names are shared across classes), a PRE-EXISTING over-refusal unchanged in
+##   kind; keying on `(class, field)` is the right follow-up.
 ##
 ##   **#98 FOUND *AND* CLOSED 2026-09-13 (gen #16), SEV-1 — AND ITS CARRIER WAS #96's OWN
 ##   REPAIR.** Route #96's frame repair decided whether an array-region `assigns` becomes a
