@@ -1,3 +1,184 @@
+# ====== START HERE — gen #16 FINAL STATE — read this block first ==================
+#
+# ## THE ONE-PARAGRAPH SUMMARY
+#
+#   **ROUTE #97 FOUND-AT-HEAD, REPAIRED IN BOTH HALVES, AND GATED; ROUTE #98 FOUND
+#   (SEV-1) AND IT IS GEN #15's OWN ROUTE-#96 REPAIR COMING BACK.** #97: a Liskov
+#   violation behind a FIELDLESS base was silently accepted — `--check-behavioral-
+#   subtyping` emitted ZERO refinement goals and reported "All contracts formally
+#   proven." #98: route #96's repair decides whether an array-region `assigns`
+#   becomes a `writes` clause by testing the **SOURCE** identifier for membership in
+#   a set built from the **EMITTED** signature, so any parameter `whyml_ident`
+#   renames (`model` -> `py_model`, any WhyML reserved word, any leading capital)
+#   loses its frame entirely and the whole of #96 returns. The metric never moved
+#   (**markers 459 / grep 484**) and was never supposed to.
+#
+# ## THE SINGLE MOST TRANSFERABLE THING THIS GENERATION LEARNED
+#
+#   >>> **"FAIL-CLOSED" IS A CLAIM ABOUT A PARTICULAR MACHINE. NAME THE MACHINE.**
+#   >>> The skip that carries route #98 is COMMENTED, and the comment says
+#   >>> "FAIL-CLOSED, and deliberately so … Any such residue stays visible as an
+#   >>> un-framed val." Emitting nothing IS fail-closed for the EMITTER — no
+#   >>> ill-typed `writes` is produced. It is fail-**OPEN** for the VERIFIER, which
+#   >>> is told the stub is PURE. **Dropping a frame clause is never conservative:
+#   >>> an un-framed `val` is the STRONGEST possible claim.**
+#
+#   And the second half of that sentence is the other half of the lesson:
+#   **"STAYS VISIBLE" NAMES NO OBSERVER.** Nothing in the tree — no gate, no plane,
+#   no ratchet — counts a bodyless `val` that carries a region `assigns` and emits
+#   no `writes`. Visible to whom? *When a comment says a residue is acceptable
+#   because it remains visible, go and find the thing that looks. If you cannot name
+#   it, the residue is invisible and the comment is the only thing guarding it.*
+#
+# ## THE GENERATOR IS NOW FOUR-FOR-FOUR — KEEP RUNNING IT
+#
+#   >>> **A LOOP THAT BOTH BUILDS SOMETHING AND ASSEMBLES A CHECKING POPULATION WILL
+#   >>> HAVE A SKIP WRITTEN FOR THE BUILDING THAT SILENTLY NARROWS THE CHECKING.**
+#
+#   #95, #96, #97 and now #98 are all this shape. #97's instance, verbatim:
+#   `apply_inheritance`'s `if base is None: continue` is CORRECT for the field merge
+#   (a fieldless base has nothing to merge) and is the ONLY producer of the Liskov
+#   override pair, so for the verification job sharing that loop it is a deleted
+#   obligation. THE REPAIR IS ALWAYS THE SAME MOVE: **split the two jobs**, and keep
+#   the build half gated while the recording half goes unconditional.
+#
+#   A ranked `continue`-census of the LIVE source was run this generation and its
+#   candidates are in the progress log. #98 was candidate 1. **CANDIDATES 2 AND 3
+#   ARE UNPROBED AND BOTH FEED VERIFICATION CONSUMERS** — see "STILL UNPAID".
+#
+# ## THE OTHER LESSON, PAID FOR IN A WASTED HOUR — DO NOT REPEAT IT
+#
+#   I launched the reference suite and then ran the baseline byte-diff sweep, the
+#   candidate sweep, conformance, determinism, both mirror emission sweeps and the
+#   19 planes CONCURRENTLY on a 12-core box. The suite came back **2181/3421**
+#   against a predicted 3403/3421, with long CONTIGUOUS blocks of failures. It was
+#   CPU starvation: the provers run under `--timelimit 5` and timed out wholesale.
+#   **4 of 4 sampled "CONFIRMED FAIL" files were re-run ALONE and every one reported
+#   `Verification SUCCESS`.** The verdict was declared VOID and re-run alone.
+#   >>> **A CONTENDED BATTERY IS A BATTERY CUT OFF BY A TIMEOUT IT DID NOT DECLARE.**
+#   >>> One heavy job on the box at a time. And note WHAT SAVED IT: the prediction
+#   >>> was in writing, so a result 1200 tests away from it was INTERROGATED instead
+#   >>> of accepted. A green you merely receive tells you only that nothing screamed.
+#
+# ## A PLANE WENT RED AND IT WAS MINE — THE HONEST FIX IS TO MOVE THE POPULATION
+#
+#   `check-trusted-raises-honesty` broke (SILENT 71 > 70) because #97's fail-closed
+#   half adds a `raise PyCSLIRError` to a live function whose `\trusted` mirror stub
+#   declared no `#@ raises` — so the emitted `val` was telling Why3 that call cannot
+#   raise. PROVED MINE, NOT PRE-EXISTING: the a32ec69e baseline measures 3 declared
+#   / 70 silent, and a sorted diff of the two `--verbose` populations is a SINGLE
+#   added line naming exactly `_emit_subtyping_goals`. FIX: declare it —
+#   `#@ raises PyCSLIRError when True` on the mirror stub — moving it SILENT ->
+#   DECLARED. Re-measured 4 declared / **70 SILENT, ratchet 70, OK**.
+#   >>> **THE BOUND WAS NEVER TOUCHED.** A ratchet that goes red because you honestly
+#   >>> grew the population it measures is repaired by moving the item across the
+#   >>> line, never by moving the line.
+#
+# ## ROUTE #97 IN ONE SCREEN
+#
+#   A class becomes a record `type_decl` only `if fields or bases:` (Module5), so a
+#   STATELESS base — the interface / pure-behaviour base, the most common reason to
+#   write a base class at all — is absent from `records` in `apply_inheritance`.
+#
+#   | file | `Base` has a field? | goals | verdict |
+#   |---|---|---|---|
+#   | fieldless base + violation | no | **0 -> 1** | **SUCCESS -> FAILED** |
+#   | fielded base + same violation | yes | 1 | FAILED (unchanged) |
+#   | fieldless base + LEGITIMATE override | no | **0 -> 1** | SUCCESS -> SUCCESS |
+#
+#   The failing goal is NAMED, not inferred: `why3 prove -P alt-ergo` reports
+#   `Goal sub__f_refines_base … Unknown`, body `((x >= 0) -> (x >= 5)) /\ …`. The
+#   conforming twin's same-named goal is `Valid`. **The capability arm's pass was
+#   WORTH NOTHING before the repair** — it passed with zero goals emitted, i.e.
+#   vacuously; a guard whose population is empty looks exactly like a guard that
+#   passed.
+#
+#   THE FAILURE IS INVERTED WITH RESPECT TO GOOD PRACTICE: the cleaner the base
+#   class, the less checking it received.
+#
+#   CO-LANDING FAIL-CLOSED HALF, AND IT WAS NOT OPTIONAL: `_emit_subtyping_goals`'
+#   `if sub_fn and base_fn:` was a SECOND silent drop on the same obligation, and the
+#   upstream repair feeds it inputs it never saw. It now RAISES
+#   `PYCSL-SUBTYPING-PAIR`. Negative-tested by injecting an unresolvable pair through
+#   a wrapper: it refuses loudly. >>> **A GUARD THAT STOPS BEING SILENT IN ONE SHAPE
+#   AND STAYS SILENT IN THE NEXT HAS BEEN NARROWED, NOT REPAIRED.**
+#
+# ## ROUTE #98 IN ONE SCREEN — OPEN, SEV-1, REPAIR SCOPED IN ITS FILE
+#
+#   `functions.py:6605` builds the population from the ALREADY-EMITTED signature:
+#   `re.findall(r"\((\w+)\s*:\s*array\b", args_str)` — post-`whyml_ident`.
+#   `statements.py:3452` tests the SOURCE name against it:
+#   `if base and base in _arr_params`. Two name spaces, one membership test.
+#
+#   | param | emitted signature | `writes` | verdict |
+#   |---|---|---|---|
+#   | `a` | `val scramble (a: array int) …` | **`writes { a }`** | FAILS (refused) |
+#   | `model` | `val scramble (py_model: array int) …` | **ABSENT** | **PROVES `\result == 7`** |
+#   | `Buf` | `val scramble (buf: array int) …` | **ABSENT** | **PROVES** |
+#
+#   CPython: `driver([7,7,7,7]) == 0`. `WHYML_RESERVED` holds ORDINARY parameter
+#   names — model, range, check, label, result, old, ref, float, to, by, type.
+#   REPAIR: put `base` through `whyml_ident` BEFORE the membership test and append
+#   the EMITTED name. **CO-LANDING HALF:** give the remaining residue an OBSERVER
+#   (a refusal, or a plane counting un-framed region-`assigns` vals) — the current
+#   "stays visible" observer does not exist.
+#
+#   **DO NOT RE-PROBE, MEASURED:** the obvious exploit that keeps #96's
+#   `#@ requires \length(model) > n + 1` is LOUDLY type-rejected ("unbound function
+#   or predicate symbol 'model'") — the contract renders the SOURCE name, the
+#   signature the mangled one. Had that been the only arm, it would have read as
+#   "the fence holds". The live route needs the renamed parameter in NO contract
+#   clause but the `assigns`.
+#
+# ## A CERTIFIED FAIL-CLOSED BOUNDARY BANKED THIS GENERATION (witness 1277)
+#
+#   An inherited, NOT-overridden method of a fieldless base is not cloned and lowers
+#   to a CONTRACT-FREE `val s_f_1 (x0: int) : int` — read off the emitted WhyML — so
+#   NEITHER the true fact (`\result == 4`) NOR the false twin (`== 99`) proves. The
+#   FIELDED twin PROVES the true fact, so the channel is alive and the fence is real.
+#   **REOPENING CONDITION:** the obvious "completeness fix" is to hand that call the
+#   BASE's contract. That would ASSUME a postcondition NOTHING discharges for the
+#   subclass — the campaign's *a completeness fix that supplies a WITNESS value is a
+#   soundness route waiting to happen*, which `_field_default` walked into five
+#   times. Witness 1277 turns XPASS the moment such a fix lands.
+#
+# ## STILL UNPAID, IN THE ORDER I WOULD TAKE THEM
+#
+#   1. **ROUTE #98 — REPAIR IT, BOTH HALVES.** Scoped in its route file. Measure BOTH
+#      directions AND re-check route #96's capability witness 1271 for a RENAMED
+#      parameter, not just for `a`.
+#   2. **THE `continue`-CENSUS CANDIDATES 2 AND 3, both feeding verification
+#      consumers and both UNPROBED** (full evidence in the progress log):
+#      * `frontend/monomorphize.py:248-249` + `:331-345` — the instantiation census
+#        is narrowed by a BUILD-ability test (`Subscript` -> `return None`), and the
+#        SAME set feeds the **GT1 `Any` refusal** (`monomorphize.py:74-81`) and the
+#        **GT2 bound obligation** (`:84` -> `_check_bounds`). So `Stack[Box[int]]`
+#        may get NO bound check and NO `Any` refusal. Also `_collect_instantiations`
+#        never reads `type_decls`, so a `self.s: Stack[int]` FIELD is outside the
+#        census entirely.
+#      * `frontend/module5/memoization_rt.py:93-98` — the UB-7.7 / route-#94 gate's
+#        `mutated` set admits only `cur.get("object") == "self"`, so a mutator
+#        writing the field through ANY OTHER RECEIVER contributes nothing and the
+#        memoized reader passes the gate. Call site is inside `visit_ClassDef`, so a
+#        mutator in a LATER class is absent from the population too.
+#      Verify each independently — every inherited candidate has needed narrowing.
+#   3. w66's reopening conditions 2 and 3 (**`init-hook` is still GUARD-NOT-FOUND and
+#      its probe was VACUOUS** — build the positive control FIRST); w65 `fresh_globals`
+#      cross-module confinement (**BUILD THE POSITIVE CONTROL FIRST**); w64's
+#      `\separated` hardening; finding-w60; the `_field_default` `option` arm.
+#
+# ## WHAT IS TRUE RIGHT NOW
+#
+#   ledger   **ONE OPEN: #98** (found, sev-1, CPython-contradicted, repair scoped,
+#            deliberately NOT attempted before #97's battery closed).
+#            **#97 FOUND-AT-HEAD, REPAIRED IN BOTH HALVES AND GATED.**
+#   metric   markers **459** / grep 484 / offset 25 / unattached 0 — UNCHANGED.
+#            Correct shape: a refusal and a monotone obligation cost nothing.
+#   corpora  pycsl-ref **1199 -> 1204** (+5: witnesses 1273-1277).
+#   planes   **19, NOT 34.** Gen #15 corrected the inherited figure by re-measuring
+#            BOTH sides. Any text saying 34 is stale.
+#   suite    baseline **18** failures. A run showing 19 is a REGRESSION.
+#
 # ====== START HERE — gen #14 FINAL STATE — read this block first ==================
 #
 # ## THE ONE-PARAGRAPH SUMMARY
