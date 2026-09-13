@@ -2197,8 +2197,18 @@ def apply_composition(ir_data: Dict[str, Any]) -> None:
 
     Flatten: clone each provided method `<mixin>__m → <composer>__m` (retype self), so
     a `self.<m>(…)` in the composer resolves to the concrete provider's contract (which
-    each mixin was already verified once against in isolation, S1). The provider⊑
-    dependency refinement goal is S2b.
+    each mixin was already verified once against in isolation, S1).
+
+    ON S2b (`provider ⊑ dependency`), WRITTEN DOWN HERE BECAUSE NOTHING ELSE WRITES IT
+    DOWN: it has no implementation — `grep -rn S2b src/pycsl/` finds only comments. It is
+    discharged IMPLICITLY, by the flattening above: the clone is re-emitted and re-verified
+    against the CONCRETE provider, so a provider that does not refine its declared
+    dependency makes the composed file fail (measured; finding w66). That is a
+    COMPENSATING MECHANISM, NOT A CHECK, and it only ever covers what it flattens — which
+    is why a composer method SHADOWING a depended-on provider is now a hard error
+    (route #95) rather than a silent skip, and why making flattening lazier (cloning only
+    what the composer calls, or reusing a mixin's isolation proof instead of re-verifying)
+    would re-open a severity-1 route while looking like a performance win.
     """
     from errors import PyCSLSemanticError
     compositions = ir_data.get("compositions") or []
@@ -2273,6 +2283,39 @@ def apply_composition(ir_data: Dict[str, Any]) -> None:
         existing = {f.get("name") for f in funcs}
         own_tails = {f["name"][len(c) + 2:] for f in funcs
                      if f.get("name", "").startswith(c + "__")}
+        # --- check (ROUTE #95): a composer method that SHADOWS a depended-on provider ---
+        # The flatten loop below skips a provider whose tail the composer already defines
+        # (`if tail in own_tails: continue`), which reads as ordinary override semantics and
+        # for DISPATCH is exactly right. But the clone is the ONLY mechanism that ever
+        # re-verifies a provider against the concrete composer — finding w66 certified the
+        # unimplemented `provider ⊑ dependency` obligation (S2b) as COMPENSATED by precisely
+        # that re-verification. Skipping the clone removes the method from the re-verified
+        # population AND from `composed_provider_methods`, so a sibling mixin's cloned method
+        # keeps resolving `self.<tail>(…)` to an abstract `val` carrying the DECLARED
+        # DEPENDENCY's contract while the composer's own, possibly weaker, method is what
+        # actually runs. MEASURED: `CoreEmit provides emit ensures \result == 0`,
+        # `MapOps depends_method emit ensures \result >= 10`, and a `Facade` that defines its
+        # own `emit` proved `run() >= 10` while CPython returns 0 — the same file WITHOUT the
+        # composer's `emit` FAILS, so the shadowing method is what deletes the check.
+        # Sound-by-rejection, matching this function's two sibling checks: injecting the
+        # dependency contract onto the composer's own method would ASSUME exactly what S2b
+        # exists to PROVE. Narrow on purpose — shadowing a provider nothing DEPENDS on assumes
+        # no contract and is left alone.
+        dep_methods = {d["method"] for _, d in deps}
+        for pm in sorted(set(providers) & dep_methods):
+            if pm not in own_tails:
+                continue
+            owners = ", ".join(M for M, _ in providers[pm])
+            dep_owners = ", ".join(sorted({M for M, d in deps if d["method"] == pm}))
+            raise PyCSLSemanticError(
+                f"Mixin composition '{C}': '{C}' defines its own '{pm}', which SHADOWS the "
+                f"provider of '{pm}' (from mixin {owners}) that mixin {dep_owners} declares a "
+                f"`#@ depends_method`/`#@ requires_method` on. The shadowed provider is then "
+                f"not flattened into '{C}', so nothing ever verifies that '{C}.{pm}' refines "
+                f"the declared dependency contract — while {dep_owners}'s methods are verified "
+                f"ASSUMING it does. Rename '{C}.{pm}', or drop the dependency declaration and "
+                f"let '{C}' own the method outright. (Composition never silently substitutes "
+                f"an unverified implementation for a declared dependency.)")
         for M in mixin_names:
             m = M.lower()
             for f in mixin_funcs[M]:
