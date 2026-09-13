@@ -1,3 +1,32 @@
+# ====== START HERE — gen #18 FINAL STATE — read this block first ==================
+#
+# ## STATUS: IN PROGRESS (this block is updated as the generation runs)
+#
+#   Window #6 continues. Started from HEAD `1bf3c768` (gen #17 left route #101 FOUND,
+#   REPRODUCED, repair SCOPED but NOT LANDED). Metric RE-MEASURED at HEAD, not
+#   inherited: **markers 459 · grep 484 · offset 25 · attached 459 · unattached 0**.
+#   Tree clean apart from the two PRE-EXISTING modified gitlinks (`scratchpad/w7/base`,
+#   `scratchpad/w8/pre`) and the pre-existing 0-byte stray `str`. Zero untracked.
+#
+#   PLAN: (1) land route #101's repair — the third collector arm for the `Subscript`
+#   spelling — fully gated; (2) check the TWO FURTHER CARRIERS gen #17 named rather
+#   than assume the one repair covers them (a bare `#@ assigns g` -> IR `Var`; the
+#   `nothings` flattening at `Module5_IREmitter.py:5882`); (3) the four ranked census
+#   candidates, led by the `.clear()`/`.update()` no-op on a dict parameter.
+#
+# ## WHAT IS TRUE RIGHT NOW
+#
+#   ledger   (updated as the generation runs)
+#   metric   markers **459** / grep 484 / offset 25 / unattached 0 — RE-MEASURED.
+#   planes   34 = 19 fast + 15 slow. ALWAYS SAY WHICH SET YOU RAN.
+#   suite    baseline **18** failures. A run showing 19 is a REGRESSION.
+#   ratchet  `check-trusted-raises-honesty` SILENT is **69** (MAX_SILENT=69), lowered
+#            monotonically by a non-driver agent. Move the POPULATION, never the LINE.
+#   pre-existing, NOT gen #18's: `self-annotate-mirror-check.sh` rc=1 at HEAD on
+#            `expr_ghost_collections.py` / `statements.py` / `stmt_control_flow.py`
+#            (family of `finding-L1-fidelity-plane-red-at-head.md`); the two modified
+#            gitlinks; the 0-byte stray `str`.
+#
 # ====== START HERE — gen #17 FINAL STATE — read this block first ==================
 #
 # ## STATUS: IN PROGRESS (this block is updated as the generation runs)
