@@ -1642,3 +1642,22 @@ gen19 **I DO NOT INHERIT `35d777fc`'s VERDICT (rule (r)).** It reports suite 342
 gen19 **THE REAL DAMAGE: MY SUITE RAN CONTENDED AND ITS VERDICT IS PROVISIONALLY SUSPECT.** Timeline, measured from file mtimes rather than assumed: my `suite.log` first written **22:22:50** (launched ~22:18); gen #18's `/tmp/claude-1000/suite18b.log` was STILL BEING WRITTEN AT **22:31:32**. So for ~13 minutes TWO FULL REFERENCE SUITES ran on one 12-core box, each with `jobs=6`, plus provers. **THAT IS EXACTLY THE CONFIGURATION THAT PRODUCED GEN #16'S FALSE 2181/3421 AGAINST A PREDICTED 3403** — the provers run under `--timelimit 5` and time out wholesale. Gen #18's line "byte-diff baseline sweep now running ALONE on the box (nothing else on the box)" was SINCERE AND FALSE: it could not see me, and I could not see it. >>> **"ALONE ON THE BOX" IS A CLAIM ABOUT A BOX, NOT ABOUT YOUR OWN JOB LIST — AND NEITHER WRITER CAN VERIFY IT FROM ITS OWN SIDE.** Two disciplined generations each obeying the one-heavy-job-at-a-time rule still starved each other, because each checked only what IT had launched.
 gen19 DECIDED ACCEPTANCE TEST FOR THE CONTENDED SUITE, WRITTEN BEFORE I READ THE RESULT so it cannot be fitted to the number: starvation has a SIGNATURE — long CONTIGUOUS blocks of failures in unrelated files. I accept the run ONLY IF the failures are exactly the **18 known baseline files** (0211–0220, 0701, 0043, 0048, 0079, 0080, 0082, 0095, 0110) and ZERO XPASS. Any other file failing, or a count above 18, means STARVED: the verdict is VOID and I re-run the suite ALONE — I am now the sole writer, so a clean re-run is actually available. A partial or contended verdict cannot be inherited, including from myself.
 gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT. `/tmp/claude-1000/bd_before` holds **584** emitted `.mlw` against a baseline corpus of **1214** sources: it was killed mid-sweep by the TaskStop. This is the "1908 < 2203 means INCOMPLETE, not DELETED" shape exactly, and consuming it would have produced a spectacular false `GONE` set. Its worktree `/tmp/claude-1000/wt101` also now holds 1 stray `.mlw` mid-`rm`/`mv`. AMBIGUOUS PROVENANCE, SO I LEAVE BOTH IN PLACE UNTOUCHED and build my OWN baseline worktree at a commit I choose, asserting its population before believing it.
+
+## gen #20 (window #6, 2026-09-13 ~23:20 UTC)
+
+[gen20-01] SUITE VERDICT RECORDED — the verdict three generations failed to commit.
+  PROVENANCE: read from gen #19's COMPLETED re-run at HEAD `4855f163` (suite.log/suite.rc
+  mtime 2026-09-13 23:10:29 UTC). HEAD re-verified UNCHANGED at `4855f163` before reading;
+  tree clean apart from the two PRE-EXISTING modified gitlinks; box idle, ZERO pycsl/why3/
+  run-reference/byte-diff processes (so the two-writer collision of finding 4855f163 was
+  NOT in effect for this run).
+  GEN #19'S OWN ACCEPTANCE TEST (written BEFORE the result was read) APPLIED AND PASSED:
+    - rc = 1  == the baseline rc                                        OK
+    - failures = 18, EXACTLY the known baseline files:                  OK
+        pycsl-reference/0211..0220 (10), pycsl-reference/0701 (1),
+        python-reference/0043 0048 0079 0080 0082 0095 0110 (7)
+    - XPASS / UNEXPECTED PASS occurrences = 0                           OK
+  RESULT: **3423/3441 passed, 18 failures, ZERO XPASS** — identical to the numbers gen #19
+  committed at 35d777fc, now independently re-confirmed by a starvation-free run.
+  VERDICT: **ACCEPTED, NOT VOID.** The reference suite is GREEN at baseline for the
+  #101-#106 repairs. This closes the suite leg of the #101-#106 battery.
