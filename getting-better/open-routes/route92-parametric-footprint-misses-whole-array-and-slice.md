@@ -2,7 +2,7 @@
 # non-exempt, footprint-less function overwrites the protected per-object region
 # — and its collector's docstring NAMES a guard that does not cover the case
 
-**STATUS: OPEN — FULLY MEASURED, REPAIR NOT YET LANDED (gen #13, 2026-09-13). SEVERITY 1. TWO CARRIERS.**
+**STATUS: CLOSED, FAIL-CLOSED, 2026-09-13 (gen #13). SEVERITY 1. TWO CARRIERS, BOTH CLOSED.**
 Found within the hour of #91, by the generator #91 itself produced.
 
 ## MECHANISM
@@ -81,7 +81,31 @@ nothing to defer. `__init__` is exempt (it creates the field).
 The collector docstring's false deferral was corrected in the same increment: it now says
 the cases are rejected, and names where.
 
+## AFTER THE REPAIR — BOTH CARRIERS RE-MEASURED
+
+| driver | before | after |
+|---|---|---|
+| `d.disk = a` (whole-array) | VERIFIED | **REFUSED** — clause (R3b), naming the path and the line |
+| `d.disk[512:576] = a` (slice) | VERIFIED | **REFUSED** — same clause, message says "slice store" |
+| control: footprint-less point write | REFUSED | **REFUSED** (unchanged) |
+| control: 0614's footprinted `writer` | PROVED | **PROVED** (unchanged) |
+| control: `except`-listed whole-array owner (1252) | — | **PROVES** — the hatch is a checked condition |
+| control: footprinted write at the LAST index of its own region (1253) | — | **PROVES** — capability intact |
+
+0615 (the pre-existing `pycsl-expected: FAIL` cross-object negative) still fails, and
+**not** via the new clause — verified by grepping its output for the new message: 0 hits.
+So it still fails for its own intended reason.
+
+## WITNESSES
+
+**1250** whole-array carrier (expected-FAIL, mechanism in the docstring), **1251** slice
+carrier (expected-FAIL, and records that the slice store is NOT erased — the fact that makes
+it a carrier and not an artefact), **1252** the `except` hatch still verifies, **1253**
+non-vacuity: a footprinted point write at the last index of its own region still proves.
+
 ## GATES
 
-(see the progress-log entry and the #91 record; batteries were run over both repairs
-together, with the byte-diff entries predicted in advance)
+Run as ONE battery over the #91 and #92 repairs together — they are two clauses of the same
+function in the same defect family, and one battery over both is strictly stronger evidence
+than two batteries over one each. See the progress log for the verdicts and the
+byte-diff entries, which were predicted in advance of the sweep.

@@ -851,6 +851,44 @@ class Module3_Weaver:
                     origin = f"happy {hp.name}({hp.param}) protects {path} L{line}"
                     cp = CheckPoint("check", pred, origin=origin)
                     stmt.csl_checkpoints = getattr(stmt, "csl_checkpoints", []) + [cp]
+                # (R3b) WHOLE-PATH AND SLICE STORES — route #92. `_collect_protect_index_sites`
+                # matches only a POINT write, and its docstring DEFERRED the rest: "Slice/
+                # whole-array writes to a parametric path are not certifiable per-object; they
+                # are left to the non-footprint reject." THERE WAS NO SUCH REJECT — the
+                # `CSLBool(False)` above fires only on sites that collector already returned,
+                # which are exactly the point writes, and this branch `continue`s before the
+                # R1/R2 `protects` form (which keys on the DOTTED PATH and would have caught
+                # both). Measured: a non-exempt, footprint-less `d.disk = a` AND
+                # `d.disk[512:576] = a` each VERIFIED, while `ensures d.disk[512] == 7` — the
+                # preservation of a cell inside object 0's region — REFUSED, so both stores
+                # genuinely reached the protected region and neither was erased. A per-index
+                # footprint check cannot constrain a whole-array or slice store, so the
+                # deferral becomes what the docstring always claimed it was: a rejection.
+                for fn in funcs2:
+                    if fn.name in except_set or fn.name == "__init__":
+                        continue
+                    for nd in ast.walk(fn):
+                        if not isinstance(nd, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                            continue
+                        tgts = (nd.targets if isinstance(nd, ast.Assign) else [nd.target])
+                        for tgt in tgts:
+                            if self._target_dotted_path(tgt) != path:
+                                continue
+                            is_sub = isinstance(tgt, ast.Subscript)
+                            sl = tgt.slice if is_sub else None
+                            if isinstance(sl, ast.Index):        # pre-3.9 wrapper
+                                sl = sl.value
+                            if is_sub and not isinstance(sl, ast.Slice):
+                                continue                        # point write: handled above
+                            kind = "slice" if is_sub else "whole-array"
+                            raise PyCSLSemanticError(
+                                f"`happy {hp.name}({hp.param})`: non-exempt '{fn.name}' "
+                                f"performs a {kind} store to the protected path '{path}' "
+                                f"(line {getattr(nd, 'lineno', 0)}), which a per-index "
+                                f"`#@ footprint` check cannot confine to one object's region. "
+                                f"Write through {path}[i] one index at a time so each write is "
+                                f"checked against the footprint, or add '{fn.name}' to the "
+                                f"`except` set if it is a legitimate whole-path owner.")
                 continue
             # 07-1143 R1/R2: the `protects <paths>` subsystem-ownership form — no method
             # outside `except` may DIRECTLY write any protected (possibly dotted) path.
@@ -1097,7 +1135,10 @@ class Module3_Weaver:
         """07-1143 R3: like `_collect_protect_sites` but for a single indexed path,
         capturing the subscript INDEX ast — `(stmt, enclosing_func_name, index_ast)` for
         every point write `<path>[i] = v`. (Slice/whole-array writes to a parametric path
-        are not certifiable per-object; they are left to the non-footprint reject.)"""
+        are not certifiable per-object. They are NOT returned here, and — route #92 — they
+        were NOT caught by the `CSLBool(False)` non-footprint reject either, which fires only
+        on the sites THIS collector returns. They are now rejected outright by clause (R3b)
+        in the R3 branch of `_weave_happy`.)"""
         for child in ast.iter_child_nodes(node):
             if isinstance(child, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
                 tgts = (child.targets if isinstance(child, ast.Assign)
