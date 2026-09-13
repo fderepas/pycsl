@@ -1,9 +1,34 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **#101** — a single-index `assigns seq[idx]` on a bodyless `val` emits
-## **NO frame at all**, so a caller proves the array unchanged across a stub contracted to
-## write it. SEV-1, both directions measured, SHIPS in `src/pycsl_lib/oper/__init__.py:175`.
-## File: `route101-subscript-assigns-on-bodyless-val-emits-no-frame.md`.
+## CURRENTLY OPEN: **NONE.**
+##
+##   **gen #18 (2026-09-13): #101 REPAIRED, and THREE MORE ROUTES FOUND INSIDE ITS OWN
+##   CARRIER LIST — #102, #103, #104 — all SEV-1, all CLOSED AND GATED.** The whole family
+##   is one sentence: **the frame collectors for a bodyless `val` were keyed on the NODE TYPE
+##   carrying the write target, and the obligation is about the PATH BEING WRITTEN.** Four
+##   spellings of "this stub writes through a parameter" existed and the guards covered one.
+##
+##   - **#101** `#@ assigns seq[idx]` (IR `Subscript`) — no `writes`, and it never reached
+##     `_unframed_regions` either, so ROUTE #98's OWN REFUSAL COULD NOT FIRE. SHIPPED in
+##     `src/pycsl_lib/oper/__init__.py:175`, reachable with no `\trusted` marker in sight.
+##     File: `route101-subscript-assigns-on-bodyless-val-emits-no-frame.md`.
+##   - **#102** a bare `#@ assigns g` (IR `Var`) — same hole, fourth spelling. Gen #17 NAMED
+##     this carrier and said CHECK it rather than assume; checked, it was LIVE.
+##     File: `route102-bare-var-assigns-on-a-bodyless-val-drops-the-frame.md`.
+##   - **#103** a stray `#@ assigns \nothing` beside a real target — `nothings` non-empty
+##     disarmed BOTH `if _val_targets and not nothings` AND `if _unframed_regions and not
+##     nothings`, i.e. one clause switched off the frame AND route #98's refusal. ORDER 2:
+##     that `and not nothings` is route #96's OWN repair. SURVIVED #101's repair.
+##     File: `route103-a-stray-nothing-disarms-the-whole-frame-and-the-refusal.md`.
+##   - **#104** `#@ assigns self.xs[0]` on a `\trusted` METHOD — `_build_method_writes_map`
+##     keyed on the node type too, so the method's `val` got no frame. And there is NO range
+##     escape hatch for a self-field (`self.xs[0..1]` is a PARSE ERROR), so the single-index
+##     spelling was the ONLY way to say it and it was the unsound one.
+##     File: `route104-self-field-subscript-assigns-drops-the-method-frame.md`.
+##
+##   >>> **A REFUSAL INSTALLED TO OBSERVE A RESIDUE IS KEYED ON THE SPELLING ITS AUTHOR WAS
+##   >>> LOOKING AT.** #98 installed the observer and covered one spelling of four.
+##
 ## (gen #16: #97, #98, #99 and #100 all CLOSED AND GATED.)
 ##
 ##   **#100 FOUND *AND* CLOSED 2026-09-13 (gen #16), SEV-1.** A `#@ no_exception E` on a

@@ -1,6 +1,6 @@
 # ROUTE #101 — A SINGLE-INDEX `assigns seq[idx]` ON A BODYLESS `val` EMITS **NO FRAME AT ALL**
 
-**Severity 1. OPEN. Found gen #17 (2026-09-13) by the `continue`-census.**
+**Severity 1. CLOSED gen #18 (2026-09-13). Found gen #17 by the `continue`-census.**
 **It ships in the standard library today: `src/pycsl_lib/oper/__init__.py:175`.**
 
 ## THE ONE-LINE STATEMENT
@@ -119,7 +119,7 @@ them; the campaign's repairs neither introduced nor widened it. Recorded as firs
 campaign-shaped is the *false sense of coverage*: #98 installed the observer and covered one third
 of the population.
 
-## THE REPAIR, SCOPED (NOT YET LANDED)
+## THE REPAIR, AS SCOPED BY GEN #17 (LANDED BY GEN #18 — SEE THE CLOSING NOTE BELOW)
 
 Third collector arm over `assigns_list` for `{"type": "Subscript"}`, resolving the subscript BASE
 (walking `value` down through nested `Subscript`/`Attribute`/`FieldGet` to a `Var`), then:
@@ -153,3 +153,38 @@ python3 src/pycsl/pycsl.py <exploit.py> --import-path src --memory-model hoare
 CLOSED when the index spelling emits `writes { seq }` (or is refused), the true/false arms swap
 verdicts, and a corpus witness pins it. This route REOPENS if any future change keys a frame
 collector on a node type rather than on the resolved write path.
+
+
+---
+
+# CLOSING NOTE — GEN #18, 2026-09-13
+
+**LANDED.** The repair is a third collector arm in `_emit_frame_condition` keyed on the
+**RESOLVED WRITE ROOT**, not on the node type: peel every `Subscript` layer off the target
+(inline `while`, NOT a nested `def` — this file is MIRRORED and `check-mirror-coverage` counts
+nested `FunctionDef`s), then dispatch on what is actually written. Route #98's emitted-name-space
+rule is applied IN FULL; the residue is routed into the EXISTING #98 refusal.
+
+**RE-REPRODUCED AT HEAD BEFORE BUILDING ON IT**, per the standing rule: the exploit reported
+`Verification SUCCESS! All contracts formally proven.` at 5795cfef and `1 goal(s) remain
+unproven` after the repair. Emitted `val` read verbatim, not inferred:
+
+```
+  val setitem (seq: array int) (idx: int) (py_val: int) : unit
+    requires { ((Array.length seq) > 0) } … writes   { seq }
+```
+
+**THE TWO "FURTHER CARRIERS" GEN #17 NAMED WERE CHECKED, NOT ASSUMED, AND BOTH WERE LIVE** —
+they are routes **#102** (the bare `Var` spelling) and **#103** (the `\nothing` flattening,
+which SURVIVED this repair). Following this route's own deferral to `_build_method_writes_map`
+produced a THIRD new route, **#104** (the `self.<f>[i]` spelling). Gen #17's instruction to
+check rather than assume paid three routes.
+
+**ORDER 1 STANDS**, exactly as gen #17 recorded it and for the reason it gave.
+
+**CENSUS, RUN BEFORE THE SWEEP AS THE FILE DEMANDED.** Repo-wide, excluding the scratchpad
+worktrees, the non-range subscript `assigns` population is: `src/pycsl_lib/oper/__init__.py:175`
+(the shipped carrier, a bodyless val by import) and six `typing-engagement/ty3` files spelling
+`#@ assigns self._items[self._size], self._size` — all of which have REAL BODIES and therefore
+take the `let` path, not `_emitting_val_contract`. The `\nothing`-mixed population (route #103)
+is **ZERO** functions repo-wide.
