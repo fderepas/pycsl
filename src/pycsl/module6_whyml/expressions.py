@@ -7278,9 +7278,44 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # FAIL-CLOSED AND BYTE-INERT BY CONSTRUCTION: the wrap returns `inner` untouched
         # unless the CALLER holds a non-empty `no_exception` set AND the resolved callee
         # declares a matching `raises`, so every other call site emits exactly as before.
-        _r100n = (whyml_ident(f"{self._current_self_type}__{func_name[len('self.'):]}")
-                  if func_name.startswith("self.") and self._current_self_type
-                  else func_name)
+        # (#49) ROUTE #105 — ROUTE #100's REPAIR COVERED **ONE** RECEIVER SPELLING.
+        # `_module_func_raises` is keyed on the IR FUNCTION NAME (a method is
+        # `<cls>__<m>`, see `Module6_WhyMLTranspiler._build_callee_no_exception_summary`),
+        # and route #100 flattened `self.<m>` into that space. Every OTHER receiver was
+        # handed its SOURCE spelling — the literal strings `"c.f"` and `"_h.f"` — which is
+        # never a key of that registry, so the lookup missed, the wrap returned `inner`
+        # UNTOUCHED, and a caller's `#@ no_exception E` was discharged by NOBODY.
+        #
+        # MEASURED, and read off the emitted WhyML rather than inferred:
+        #   `self.f(k)` -> begin assert { not ((k < 0)) };
+        #                  try (self_f_1 k) with ValueError -> absurd end end   -> FAILS
+        #   `c.f(k)`    -> (c_f_1 k)                                            -> PROVES
+        # with `#@ no_exception ValueError` as the caller's only claim, while CPython
+        # `caller(-1)` RAISES ValueError. A module-global instance (`_h = Helper()`,
+        # then `_h.f(k)`) is the same hole.
+        #
+        # >>> A REPAIR KEYED ON A RECEIVER SPELLING COVERS THE RECEIVERS ITS AUTHOR HAD IN
+        # >>> VIEW. This is routes #101/#102/#104 again in a different clause: the guard
+        # >>> was written about the SYNTAX of the call site, and the obligation is about
+        # >>> WHICH CALLEE IS RESOLVED.
+        #
+        # The correct key was ALREADY being computed 600 lines above, in
+        # `_resolve_dotted_signature`, from `_current_record_var_classes` /
+        # `_module_global_classes` — the same two maps used here. It was simply never
+        # threaded to the wrap. FAIL-CLOSED: an unresolvable receiver falls back to the
+        # source spelling exactly as before, so the wrap still returns `inner` and
+        # emission is unchanged for every call site route #100 already handled.
+        _r100n = func_name
+        if func_name.startswith("self.") and self._current_self_type:
+            _r100n = whyml_ident(f"{self._current_self_type}__{func_name[len('self.'):]}")
+        else:
+            _r100parts = func_name.split(".")
+            if len(_r100parts) == 2:
+                _r100cls = ((getattr(self, "_current_record_var_classes", {}) or {}).get(_r100parts[0])
+                            or (getattr(self, "_module_global_classes", {}) or {}).get(_r100parts[0]))
+                if _r100cls:
+                    _r100n = whyml_ident(
+                        f"{whyml_ident(str(_r100cls).lower())}__{_r100parts[1]}")
         if n == 0 and not receiver_param:
             self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
             _call = self._wrap_call_with_callee_raises_assert(
