@@ -2,8 +2,9 @@
 # transparency gate, and the proved postcondition is FALSE IN CPYTHON
 # (demonstrated by running it)
 
-**STATUS: OPEN — FULLY MEASURED INCLUDING A CPYTHON WITNESS, REPAIR SCOPED, NOT LANDED
-(gen #13, 2026-09-13). SEVERITY 1.**
+**STATUS: OPEN — FULLY MEASURED INCLUDING A CPYTHON WITNESS, REPAIR SCOPED AND ITS POSITIVE
+CONTROL MEASURED, NOT LANDED (gen #13, 2026-09-13). SEVERITY 1, BUT CONFINED — see the
+"HONEST NARROWING" section: no caller can consume the false postcondition.**
 Left open deliberately: three routes (#91/#92/#93) were mid-gate-battery when this was found,
 and landing a fourth would have meant killing the suite a third time and risking a window that
 gated nothing. **The measurement is complete; only the repair is owed.** This is the same
@@ -169,9 +170,52 @@ rather than re-deriving a fourth time.
 **So the repair has a PASS case and a FAIL case that are already written and already measured in
 both PyCSL and CPython.** What remains is only the implementation plus the witnesses.
 
+## HONEST NARROWING — THE ROUTE IS CONFINED, AND THE VALUE-DIFFERENTIAL CORPUS CANNOT HOLD IT
+
+I tried to write the canonical value-differential driver for this (a module-level `f()` that
+constructs the object, reads the `cached_property`, mutates, reads again, and returns — with
+CPython run on every gate invocation). **It does not work, and the reason matters.**
+
+```python
+#@ ensures \result == 1
+#@ assigns \nothing
+def f() -> int:
+    c = C()
+    t0: int = c.total     # caches 0
+    c.bump()              # self.a = 1
+    return c.total        # model: == self.a == 1 ;  CPython: 0 (stale cache)
+```
+
+* **CPython prints `0`** — so the claim `\result == 1` DISAGREES with CPython, which is the
+  direction the corpus needs.
+* **But PyCSL REFUSES**, with `unbound function or predicate symbol 'total'`. A
+  `cached_property` read from another function does not lower to anything callable.
+
+By the corpus's own verdict table that is *"claim DISAGREES + PyCSL refuses -> green (the
+honest answer)"*, **not** RED. So:
+
+>>> **THE FALSEHOOD IS CONFINED TO THE MEMOIZED METHOD'S OWN POSTCONDITION. NO CALLER CAN
+>>> CONSUME IT** — cross-function use is fail-closed by an unbound symbol. #94 is a proved
+>>> postcondition that CPython refutes, which is the campaign's core defect class and exactly
+>>> what `_check_memoization_soundness` exists to reject; but it is **NOT** an escalating route,
+>>> and I am not going to dress it up as one.
+
+**CONSEQUENCE FOR THE REPAIR'S OWED ARTIFACTS — this REPLACES what I wrote above:** do **not**
+spend a round trying to add a value-differential pair. The corpus requires a module-level
+function whose CPython run can be compared, and the defect is unreachable from one. The right
+witnesses are ordinary `pycsl-reference` corpus files — the exploit as `# pycsl-expected: FAIL`
+and the construct-only-field control that must keep proving — plus, if a differential record is
+wanted, a note in `test-suite/value-differential/README.md` recording WHY this class cannot be
+expressed there. **A corpus that cannot express a defect should say so; otherwise the next
+person spends the round I just spent.**
+
+Reopening condition on the confinement: **if `cached_property` ever becomes readable across
+functions**, this immediately becomes an escalating route and the value-differential driver
+above becomes a RED — it is already written, in this file, ready to use.
+
 ## OWED WITH THE REPAIR
 
-Witnesses: the exploit as `# pycsl-expected: FAIL` with its mechanism; the never-assigned-field
-control that must still PROVE; and — because the falsehood is a MODEL-vs-RUNTIME divergence
-rather than an in-model contradiction — **a VALUE-DIFFERENTIAL pair, which is the corpus built
-for exactly this class.** 0515 and 0516 must both stay green.
+Witnesses: the exploit as `# pycsl-expected: FAIL` with its mechanism, and the
+never-assigned-field control that must still PROVE. **NOT a value-differential pair — see the
+narrowing above; that corpus provably cannot express this class today.** 0515 and 0516 must both
+stay green.

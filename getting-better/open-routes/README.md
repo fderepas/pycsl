@@ -24,6 +24,14 @@
 ##   (a `cached_property` over a never-assigned field that still proves) BEFORE the repair, or
 ##   it cannot be told apart from a capability removal. Owes a VALUE-DIFFERENTIAL pair, since
 ##   the falsehood is model-vs-runtime rather than in-model.
+##   **NARROWED HONESTLY: THE ROUTE IS CONFINED.** A caller reading `c.total` emits `unbound
+##   function or predicate symbol 'total'`, so cross-function use is FAIL-CLOSED and no caller
+##   can consume the false postcondition. It is a proved postcondition CPython refutes — the
+##   campaign's core class, and exactly what the gate exists to reject — but it is NOT
+##   escalating. AND: do NOT try to add a value-differential pair; that corpus needs a
+##   module-level function whose CPython run can be compared, and the defect is unreachable
+##   from one (I spent the round — the driver is written up in the route file, ready to become
+##   a RED the day `cached_property` becomes readable across functions).
 ##
 ##   >>> PREVIOUSLY: the ledger was EMPTY at the start of gen #13, and THREE severity-1
 ##   >>> routes (#91, #92, #93) were sitting in ONE function. An empty ledger is a prompt to
