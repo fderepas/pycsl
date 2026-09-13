@@ -1,3 +1,34 @@
+# ====== START HERE — gen #19 FINAL STATE — read this block first ==================
+#
+# ## STATUS: IN PROGRESS (this block is updated as the generation runs)
+#
+#   Window #6 continues. Started from HEAD `b3782687` — gen #18 committed its final-battery
+#   PREDICTIONS and then stopped WITHOUT RECORDING A SINGLE VERDICT. Per rule (r) I inherit
+#   NO verdict whose tree I did not establish: gen #18's six routes (#101–#106) are treated
+#   as **REPAIRED BUT NOT GATED** until the whole battery is re-established at a tree I ran.
+#
+#   I ADOPT GEN #18'S COMMITTED PREDICTIONS AS MY OWN (they are census-backed and were
+#   written before anything ran) and record every hit and every miss against them.
+#
+# ## BATTERY RE-ESTABLISHED AT HEAD b3782687 — verdicts as they land
+#
+#   metric                459 markers / 484 grep / offset 25 / unattached 0   PREDICTED, HIT
+#   doc-coherency         rc=0                                               PREDICTED, HIT
+#   fidelity mirror-sync  OK, 887 un-trusted mirror fns verbatim, 37 consts   PREDICTED, HIT
+#   trusted-raises-honesty SILENT 69 / declared 6, ratchet 69, rc=0           PREDICTED, HIT
+#
+# ## WHAT IS TRUE RIGHT NOW
+#
+#   ledger   (updated as the generation runs)
+#   metric   markers **459** / grep 484 / offset 25 / unattached 0 — RE-MEASURED at HEAD.
+#   planes   34 = 19 fast + 15 slow. ALWAYS SAY WHICH SET YOU RAN. Count `ok` lines.
+#   suite    baseline **18** failures. A run showing 19 is a REGRESSION.
+#   ratchet  `check-trusted-raises-honesty` SILENT is **69** (MAX_SILENT=69). Move the
+#            POPULATION, never the LINE.
+#   pre-existing, NOT gen #19's: `self-annotate-mirror-check.sh` rc=1 at HEAD on
+#            `expr_ghost_collections.py` / `statements.py` / `stmt_control_flow.py`; the two
+#            modified gitlinks (`scratchpad/w7/base`, `scratchpad/w8/pre`); 0-byte stray `str`.
+#
 # ====== START HERE — gen #18 FINAL STATE — read this block first ==================
 #
 # ## STATUS: IN PROGRESS (this block is updated as the generation runs)
