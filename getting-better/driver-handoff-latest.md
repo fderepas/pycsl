@@ -30,8 +30,14 @@
 #            exploits XFAIL, all six controls PASS); planes **34/34, rc=0**. No ratchet
 #            re-baselined, no golden re-blessed.
 #            **THE SUITE FAILURE BASELINE IS STILL 18 AND A RUN SHOWING 19 IS A REGRESSION.**
-#   findings **w63, w64** new CERTIFIED BOUNDARIES (measured, do not re-litigate);
+#   findings **w63, w64, w66, w67** new CERTIFIED BOUNDARIES (measured, do not re-litigate);
 #            **w65** a LEAD, structure verified, **exploit NOT constructed** — labelled as such.
+#            **THREE VACUOUS PROBES CAUGHT AND RECORDED AS MEASURING NOTHING** (w63's
+#            `subscript_get`, the `init-hook` shape, w67's state channel) — each caught by
+#            running the aliveness control BEFORE interpreting a refusal. C8's Union-narrowing
+#            deferral was probed and is **COVERED** (Why3 type-rejects: `has type
+#            PyCSL_Program._union_f_0, but is expected to have type int`, with a proving
+#            int-typed control).
 #   tree     clean, every increment committed. The two GITLINKS (`scratchpad/w7/base`,
 #            `scratchpad/w8/pre`) and the 0-byte stray `str` in the repo root are PRE-EXISTING.
 #
@@ -241,7 +247,25 @@
 #      nothing rejects it. **BUILD THE POSITIVE CONTROL FIRST** — a single-file `fresh_globals`
 #      driver that PROVES plus both clause rejections firing — because a cross-module setup has
 #      many independent ways to refuse and this is the probe most likely to be vacuous.
-#   2. **Three more deferral candidates, all with the named guard's matching rule already quoted
+#   2. **THE THREE COMPOSITION/INFO-FLOW BOUNDARIES FOUND LATE THIS GENERATION — all three are
+#      a COMPLETENESS GAP holding a SECURITY property up, which is route #89's shape and the
+#      most re-armable kind there is. Each has its co-landing fix already written down:**
+#      * **w67 — H-I2 noninterference asserts `ra == rb` over the two RESULTS ONLY**, never
+#        `self`. Fenced only because a state-mutating NI target cannot be verified at all (a
+#        target that READS a field proves; one that WRITES a constant already fails). **The day
+#        self-composition works through state, the state channel is unguarded.** Co-landing fix:
+#        the twin must also assert equality of PUBLIC state after the two calls.
+#      * **w66 — `compose_from`'s S2b (provider-refines-dependency) has NO implementation**, and
+#        is compensated only because `apply_composition` deep-copies each provider method into
+#        the composer and RE-VERIFIES it. That is a flattening OPTIMISATION, not a check, and
+#        nothing names the dependency: **making flattening lazier re-opens a severity-1 route
+#        while looking like a performance win.** `init-hook` is still GUARD-NOT-FOUND and my
+#        probe of it was VACUOUS — build a working positive control for `mixin + class invariant
+#        + composer __init__` FIRST, because a mixin invariant does not currently reach the
+#        flattened clone and every refusal in that area is uninterpretable until one proves.
+#      * **w64 — `\separated` is the constant `true`** under the default model. Fenced by Why3
+#        region typing, which refuses an aliased application only when the callee MUTATES.
+#   3. **Three more deferral candidates, all with the named guard's matching rule already quoted
 #      in the census** (see the progress-log entry): the H-S capability check keyed on
 #      `self.<target>(...)` only; `compose_from`'s "provider-refines-dependency" and "init-hook"
 #      obligations (`grep S2b` returns ONE line, the comment deferring to it — no
@@ -249,8 +273,8 @@
 #      sees only `#@ shared` vars, not `module_globals` or `self.<field>`; and the typed
 #      quantifier binder inside `#@ assert` (fail-closed in practice). **Re-verify each
 #      independently — I verified #92/#93/w64/w65 myself and every one needed narrowing.**
-#   3. Carve-out candidates 9 and 10; **finding-w60**; the `_field_default` `option` arm.
-#   4. Keep growing BOTH differential corpora (a route just closed is the cheapest source; add
+#   4. Carve-out candidates 9 and 10; **finding-w60**; the `_field_default` `option` arm.
+#   5. Keep growing BOTH differential corpora (a route just closed is the cheapest source; add
 #      BOTH directions, plus the EXCEPTION pair when a repair touched a collection).
 #
 # ## THE CAMPAIGN'S STANDING RULES THAT EARNED THEIR PLACE AGAIN
@@ -439,7 +463,7 @@
 #      ill-typed comparison/`not` arms (corpus 1246's reopening condition).
 #   3. Carve-out candidates 6, 9, 10; **`finding-w60`**; the `_field_default` `option` arm
 #      (UNREACHED after three probes — recorded as unaudited, not clean).
-#   4. Keep growing BOTH differential corpora.
+#   5. Keep growing BOTH differential corpora.
 #
 # ====== START HERE — gen #10 FINAL STATE — read this block first ==================
 #
