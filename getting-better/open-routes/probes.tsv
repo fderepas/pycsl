@@ -1,0 +1,212 @@
+# probes.tsv — the PROBE LEDGER (campaign #49). One row per probe, appended BEFORE the
+# result is interpreted. A probe you did not log did not happen.
+#
+# Built by the convergence-metric implementation, Phase 1 of
+# getting-better/convergence-metric-implement.md (2026-09-13).
+#
+# COLUMNS (tab-separated):
+#   date       ISO date the probe was run (YYYY-MM-DD).
+#   gen        driver generation. Numeric for gen #1.. ; wNN for the pre-generation windows.
+#   generator  the candidate generator that produced the probe. One of:
+#                continue-census carve-out-census advice-audit deferral-audit
+#                carrier-rerun control-operation oracle-audit hand
+#              plus, FOR BACK-FILLED ROWS ONLY, `unknown` — the record does not name one.
+#              `unknown` is a deliberate admission, not a default: a live row must never
+#              use it. See NOTE ON BACK-FILL CONFIDENCE below.
+#   candidate  short slug naming the thing probed.
+#   verdict    LIVE | FAIL-CLOSED | VACUOUS | INCOMPLETE | OUT-OF-SCOPE
+#                LIVE         a false claim was PROVED (or a security property violated).
+#                FAIL-CLOSED  the hypothesis was refuted by measurement at HEAD.
+#                VACUOUS      the positive control did not fire; THIS PROBE MEASURED NOTHING.
+#                             *** NEVER fold VACUOUS into FAIL-CLOSED. ***
+#                INCOMPLETE   priced/scoped but not run to a verdict.
+#                OUT-OF-SCOPE CPython raises, or the construct is outside the value plane.
+#   route      route number when verdict=LIVE, else `-`.
+#   order      1 = first-order (the carrier predates the campaign)
+#              2 = second-order (the carrier IS a campaign artefact: a repair, hardening,
+#                  control, or remediation message)
+#              `-` when verdict != LIVE, or when the record does not classify it.
+#   note       free text. `backfill` marks a row reconstructed from prose rather than
+#              logged live; such rows are LOWER CONFIDENCE and must stay separable.
+#
+# SCHEMA REFINEMENT FOUND BY THE PHASE-1 ACCEPTANCE TEST (recorded, not silently applied):
+#   The first back-fill put two probes under OUT-OF-SCOPE because CPython raises on them,
+#   and the acceptance test then under-counted the gen-#8 carve-out census (6 probes where
+#   the handoff says 7). The record gives TWO facts about those probes -- they were RUN and
+#   REFUSED, *and* CPython raises -- and the single `verdict` column had been made to carry
+#   the wrong one. RULE, now applied uniformly:
+#     `verdict` records what the MEASUREMENT returned. A probe that was run and refused is
+#     FAIL-CLOSED even when CPython also raises; the raising is a note, because it bounds
+#     how far the probe could have escalated, not whether it measured anything.
+#     OUT-OF-SCOPE is reserved for candidates NEVER run against the plane (excluded by
+#     design, or user-directed surface).
+#   This is the schema being fixed before further back-filling, exactly as Phase 1 requires.
+#
+# YIELD IS COMPUTED OVER `LIVE + FAIL-CLOSED` ONLY.
+#   VACUOUS rows are instrument failures and are tracked SEPARATELY. A probe whose positive
+#   control refused measured nothing; counting it as a clean negative would inflate the
+#   denominator with non-measurements. This is route #94's shape (a guard whose population
+#   is empty has checked nothing and looks exactly like a guard that passed) and it is the
+#   campaign's standing vacuity rule applied to its own meta-level.
+#   INCOMPLETE and OUT-OF-SCOPE rows are also excluded from yield.
+#
+# NOTE ON BACK-FILL CONFIDENCE (read before quoting any number from the back-filled rows):
+#   Every row below carries note=backfill. They are reconstructed from
+#     getting-better/driver-handoff-latest.md  (the 11 `PROBED ... NO FINDING` sections,
+#                                               and the per-generation `ledger`/`Found:` lines)
+#     getting-better/open-routes/carve-out-census-gen9.md
+#     git log --reverse --date=short --format='%ad|%s' | grep -oE '^[0-9-]+\|.*ROUTE #[0-9]+'
+#   `date` for LIVE rows is HARD evidence (first commit mention, command above).
+#   `gen` is taken from the handoff block that owns the section ("PROBED THIS GENERATION").
+#   `generator` is recorded ONLY where the handoff names it; otherwise `unknown`.
+#   Where a section reports a FAMILY of probes as one bullet ("NINE dunder carriers"),
+#   one row is written and the note says how many carriers it covers. Those rows
+#   UNDER-COUNT the denominator, which biases yield UP — the safe direction for a
+#   convergence claim to be wrong in is DOWN, so treat back-filled yield as an UPPER bound.
+#
+date	gen	generator	candidate	verdict	route	order	note
+2026-09-05	w48	unknown	is-against-bool-literal-whitelist	LIVE	42	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-08	w49	unknown	nan-breaks-eq-reflexivity	LIVE	45	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+?	w49	unknown	none-branch-join	LIVE	46	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-08	w49	unknown	getattr-default-erasure	LIVE	47	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-08	w49	unknown	seeded-collection-dropped	LIVE	48	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-08	w49	unknown	append-through-parameter-dropped	LIVE	49	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-08	w49	unknown	str-optional-always-present	LIVE	50	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-08	w49	unknown	scalar-annotation-lie	LIVE	51	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-08	w49	unknown	is-on-value-typed-operands	LIVE	52	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-08	w49	unknown	float-is-a-real	LIVE	53	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-08	w49	unknown	dict-literal-two-models	LIVE	54	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-09	w50	unknown	route55	LIVE	55	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-09	w50	unknown	value-sentinel-omitted-arg	LIVE	56	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-09	w50	unknown	route57	LIVE	57	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+?	3	unknown	route58	LIVE	58	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-10	4	unknown	route59-list-control	LIVE	59	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-10	4	unknown	route60-del-then-len	LIVE	60	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-11	5	unknown	route61	LIVE	61	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-11	5	unknown	route62	LIVE	62	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-11	5	unknown	route63	LIVE	63	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-11	5	unknown	route64	LIVE	64	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-11	5	unknown	route65	LIVE	65	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-11	5	unknown	route66	LIVE	66	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-11	5	unknown	route67	LIVE	67	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-11	5	unknown	route68	LIVE	68	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-11	5	unknown	route69	LIVE	69	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-11	5	unknown	route70	LIVE	70	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-11	5	unknown	route71	LIVE	71	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-11	5	unknown	route72	LIVE	72	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-11	6	oracle-audit	route73	LIVE	73	-	backfill;order-unclassified-pre-77
+2026-09-11	6	carrier-rerun	route74	LIVE	74	-	backfill;order-unclassified-pre-77
+2026-09-11	6	unknown	route75	LIVE	75	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-11	7	unknown	class-instance-eq-guard	LIVE	76	-	backfill;order-unclassified-pre-77;generator-not-named-in-record
+2026-09-11	8	carve-out-census	del-slice-erased	LIVE	77	1	backfill
+2026-09-11	8	carve-out-census	deque-erasure	LIVE	78	1	backfill
+2026-09-11	8	carve-out-census	init-capture-shape	LIVE	79	1	backfill
+2026-09-12	8	unknown	route80	LIVE	80	1	backfill;generator-not-named-in-record
+2026-09-11	8	control-operation	list-length-channel	LIVE	81	1	backfill
+2026-09-12	9	unknown	init-posonly-kwonly-params	LIVE	82	1	backfill;generator-not-named-in-record
+2026-09-12	9	carve-out-census	annotated-store-inside-__init__	LIVE	83	1	backfill;carve-out-census-gen9.md cand 1;mechanism story was WRONG
+2026-09-12	9	carve-out-census	assert-lowers-to-unit	LIVE	84	1	backfill;carve-out-census-gen9.md cand 4
+2026-09-12	10	carve-out-census	carve-out-parked-candidate-gen10	LIVE	85	1	backfill;handoff L1064 "3 hits in 7 probes";this ONE probe yielded #85 AND #86
+2026-09-12	10	carrier-rerun	survivor-of-85	LIVE	86	2	backfill
+2026-09-12	10	control-operation	list-field-elements-definite-zero	LIVE	87	1	backfill
+2026-09-12	11	unknown	survivor-of-83	LIVE	88	2	backfill;generator-not-named-in-record
+2026-09-12	11	unknown	re-armed-by-85-87	LIVE	89	2	backfill;generator-not-named-in-record
+2026-09-12	12	advice-audit	refusal-advice-recommends-the-exploit	LIVE	90	2	backfill
+2026-09-13	13	advice-audit	guard-next-door-to-a-sound-advice	LIVE	91	1	backfill
+2026-09-13	13	deferral-audit	deferral-handled-over-there	LIVE	92	1	backfill
+2026-09-13	13	deferral-audit	deferral-2	LIVE	93	1	backfill
+2026-09-13	13	deferral-audit	empty-population-guard-proves	LIVE	94	1	backfill
+2026-09-13	14	continue-census	continue-narrows-checking-population	LIVE	95	2	backfill
+2026-09-13	14	continue-census	region-assigns-dropped-to-no-writes	LIVE	96	1	backfill
+2026-09-13	16	continue-census	fieldless-base-drops-liskov-pair	LIVE	97	1	backfill
+2026-09-13	16	continue-census	renamed-param-loses-frame	LIVE	98	2	backfill
+2026-09-13	17	control-operation	ub77-memo-gate-foreign-receiver	LIVE	99	2	backfill;carrier is route #94 own repair population
+2026-09-13	14	continue-census	composer-inherits-shadowing-method	FAIL-CLOSED	-	-	backfill;handoff L321;positive control PROVES
+2026-09-13	14	hand	foreign-receiver-call-non-HS-target	OUT-OF-SCOPE	-	-	backfill;handoff L323;untouched by design, witness 1266
+2026-09-13	14	hand	state-reading-noninterference-target	FAIL-CLOSED	-	-	backfill;handoff L325;w67 rejection is WRITING only
+2026-09-13	13	advice-audit	preserves-advice-message-both-sites	FAIL-CLOSED	-	-	backfill;handoff L626;prescription SOUND
+2026-09-13	13	deferral-audit	w63-reading-alias-guard-keyed-on-ast-Assign	FAIL-CLOSED	-	-	backfill;handoff L630;not exploitable, value model does not propagate array identity
+2026-09-13	13	deferral-audit	w64-separated-lowers-to-constant-true	FAIL-CLOSED	-	-	backfill;handoff L636;does NOT escalate, Why3 region typing rejects
+2026-09-13	13	hand	fun-flag-residue-on-route93	OUT-OF-SCOPE	-	-	backfill;handoff L641;--fun is user-directed partial verification
+2026-09-13	13	deferral-audit	c8-union-narrowing-deferral	FAIL-CLOSED	-	-	backfill;handoff L414;Why3 type-rejects with a PROVING int-typed control
+2026-09-13	13	deferral-audit	w63-subscript-get-aliveness	VACUOUS	-	-	backfill;handoff L408;caught by running the aliveness control BEFORE interpreting the refusal
+2026-09-13	13	deferral-audit	init-hook-shape	VACUOUS	-	-	backfill;handoff L408
+2026-09-13	13	deferral-audit	w67-state-channel	VACUOUS	-	-	backfill;handoff L408
+2026-09-13	13	deferral-audit	w68-capability	VACUOUS	-	-	backfill;handoff L408
+2026-09-12	12	control-operation	two-field-collectors-made-to-disagree	FAIL-CLOSED	-	-	backfill;handoff L829;len refused both directions, element read faithful
+2026-09-12	12	control-operation	len-on-a-collection-FIELD	FAIL-CLOSED	-	-	backfill;handoff L835;non-vacuous length-channel completeness gap
+2026-09-12	12	control-operation	frame-half-of-a-self-call	FAIL-CLOSED	-	-	backfill;handoff L839;contracted self-call FAITHFUL, true twin PROVES
+2026-09-12	12	advice-audit	route76-remediation-advice-namedtuple	FAIL-CLOSED	-	-	backfill;handoff L845;sound on every reachable shape
+2026-09-12	12	control-operation	deque-append-then-len-and-element-read	FAIL-CLOSED	-	-	backfill;handoff L847;route78 control was DEGENERATE, true twin PROVES
+2026-09-12	12	advice-audit	pycsl-sem-retann-two-documented-residues	FAIL-CLOSED	-	-	backfill;handoff L851;advice audited, not assumed
+2026-09-12	12	hand	nan-axis-floats-not-decidable	FAIL-CLOSED	-	-	backfill;handoff L857;fenced upstream, nan==nan refused
+2026-09-12	10	hand	float-field-default-truncated-by-int	FAIL-CLOSED	-	-	backfill;handoff L1028;_field_default arm audit;CERTIFIED BOUNDARY w/ reopening condition
+2026-09-12	10	hand	string-field-literal-default	FAIL-CLOSED	-	-	backfill;handoff L1033;_field_default arm audit;unbound String.length
+2026-09-12	10	hand	option-arm-of-_field_default	VACUOUS	-	-	backfill;handoff L1035;THE ARM NEVER FIRED, probed twice;measured nothing
+2026-09-12	10	control-operation	param-sourced-collection-fields	FAIL-CLOSED	-	-	backfill;handoff L1043;non-vacuously fail-closed, caller actual is bound
+2026-09-12	10	carve-out-census	carve-out-candidate-6-hval-map-truthiness	INCOMPLETE	-	-	backfill;handoff L1046;NOT probed, cost-priced instead
+2026-09-12	9	carve-out-census	bare-with-ctx-no-as	FAIL-CLOSED	-	-	backfill;carve-out-census-gen9.md cand 2;routes 38/39 refuse the bare form
+2026-09-12	9	carve-out-census	try-except-else-drops-the-else	FAIL-CLOSED	-	-	backfill;carve-out-census-gen9.md cand 3;non-jumping else modelled FAITHFULLY
+2026-09-12	9	carve-out-census	array-coerce-arg-to-array-make	FAIL-CLOSED	-	-	backfill;carve-out-census-gen9.md cand 7
+2026-09-12	9	carve-out-census	mutable-state-set-dict-param-mutation	FAIL-CLOSED	-	-	backfill;carve-out-census-gen9.md cand 8;fail-closed in BOTH directions
+2026-09-11	8	control-operation	route76-record-FIELD-carrier	FAIL-CLOSED	-	-	backfill;handoff L1420;fail-closed-by-type-accident, not by a guard
+2026-09-11	8	hand	module-global-singleton-field-store	FAIL-CLOSED	-	-	backfill;handoff L1425;confirmed at HEAD, not inherited
+2026-09-11	8	hand	module-const-dict-list-fold-mutation	FAIL-CLOSED	-	-	backfill;handoff L1427;explicit PIPELINE REFUSAL
+2026-09-11	8	carve-out-census	mutable-state-set-param-via-LOCAL-actual	FAIL-CLOSED	-	-	backfill;handoff L1431;the census strongest remaining lead;PIPELINE ERROR
+2026-09-11	8	carve-out-census	dropped-global-declaration	FAIL-CLOSED	-	-	backfill;handoff L1433;LATENT structural defect, not a live route
+2026-09-11	8	carve-out-census	ellipsis-lowered-to-integer-0	FAIL-CLOSED	-	-	backfill;handoff L1438;REFUSED (measured); CPython also RAISES so it cannot escalate on the value plane
+2026-09-11	8	carve-out-census	gen8-top-four-miss-UNNAMED	FAIL-CLOSED	-	-	backfill;handoff L1273 "the top four gave THREE LIVE ROUTES";the fourth is NOT named in the record
+2026-09-11	8	hand	value-differential-eight-fail-closed-constructs	FAIL-CLOSED	-	-	backfill;handoff L1439;FAMILY OF 8 (2**3**2, slice lower-clamp, range step len, count(""), (-2)**3, 0**0, [0]*-2, s[::-1]);ONE ROW UNDER-COUNTS BY 7
+2026-09-11	7	control-operation	nine-dunder-carriers-class-instance-comparison	FAIL-CLOSED	-	-	backfill;handoff L1539;FAMILY OF 9 + is/is not + spec </<= ;ONE SHARED Why3 type accident;ONE ROW UNDER-COUNTS
+2026-09-11	7	control-operation	value-level-escalation-of-route76	FAIL-CLOSED	-	-	backfill;handoff L1548;Why3 OWN REGION TYPING
+2026-09-11	7	control-operation	quantified-carrier-of-route76	FAIL-CLOSED	-	-	backfill;handoff L1552;guard keys on the BINOP, covered for free
+2026-09-11	7	hand	axiom-hash-eq-consistent-cls	VACUOUS	-	-	backfill;handoff L1555;BOTH symbols are DEAD, the probe could not reach its target
+2026-09-11	7	hand	integer-floordiv-and-mod-negative-divisor	FAIL-CLOSED	-	-	backfill;handoff L1561;MEASURED BOTH PLANES ALL SIX WAYS;OP_MAP comment is stale, lowering is right
+2026-09-11	7	hand	bitwise-and-shift-ops-uninterpreted	FAIL-CLOSED	-	-	backfill;handoff L1568;incomplete not unsound, nothing proves
+2026-09-11	7	hand	dict-keyed-by-class-instances	FAIL-CLOSED	-	-	backfill;handoff L1572;fails closed BOTH ways
+2026-09-11	7	control-operation	old-does-not-bypass-route76-guard	FAIL-CLOSED	-	-	backfill;handoff L1576
+2026-09-11	7	oracle-audit	ir-scanner-classification-oracles	FAIL-CLOSED	-	-	backfill;handoff L1578;THREE shapes probed, NOT a proof the class is empty
+2026-09-11	6	hand	return-inside-try-with-catch-all-handler	FAIL-CLOSED	-	-	backfill;handoff L1869;gen5 claim (g) REFUTED by measurement
+2026-09-11	6	hand	module-global-singleton-field-store-cross-function	FAIL-CLOSED	-	-	backfill;handoff L1872;gen5 claim (c);same-function FAITHFUL
+2026-09-11	6	hand	route52-stated-hole-unannotated-string-local	FAIL-CLOSED	-	-	backfill;handoff L1877;gen5 claim (e) does not reproduce
+2026-09-11	6	hand	frameless-depends_method	FAIL-CLOSED	-	-	backfill;handoff L1881;finding-w56 CONFIRMED FAIL-OPEN but NO false VALUE claim reachable;harmless by TYPE ACCIDENT;repair built, gated, then REVERTED on IR conformance
+2026-09-11	6	hand	abstract-val-lead-bare-s5-subscript	FAIL-CLOSED	-	-	backfill;handoff L1907
+2026-09-11	6	hand	abstract-val-lead-s5to6-slice	FAIL-CLOSED	-	-	backfill;handoff L1907
+2026-09-11	6	hand	abstract-val-lead-local-set-remove-discard-absent	FAIL-CLOSED	-	-	backfill;handoff L1907;the map_update_none lead
+2026-09-11	6	hand	abstract-val-lead-split-elem-oob	FAIL-CLOSED	-	-	backfill;handoff L1907;the str_split_elem_op lead
+2026-09-11	6	hand	abstract-val-lead-struct-pack	FAIL-CLOSED	-	-	backfill;handoff L1907;struct.error NOT in KNOWN_EXCEPTIONS, no route available
+2026-09-11	6	control-operation	exception-obligation-one-call-deeper	FAIL-CLOSED	-	-	backfill;handoff L1913;FAMILY (callee 1//0, explicit raise, [::0], raise in LOOP, raise in TAKEN BRANCH);ONE ROW UNDER-COUNTS BY 4
+2026-09-11	6	hand	raising-ops-negative-index-pop-index-etc	FAIL-CLOSED	-	-	backfill;handoff L1917;FAMILY OF 8;xs[-1] proves as the positive control
+2026-09-11	6	hand	assert-is-a-genuine-no-op	FAIL-CLOSED	-	-	backfill;handoff L1920;suspected ASSUMPTION, measured NOT;route16 confirmed both directions;pinned as driver d39
+2026-09-11	5	hand	class-invariants-inherited-on-subclass-methods	FAIL-CLOSED	-	-	backfill;handoff L2293;both directions
+2026-09-11	5	hand	object-typed-local-aliasing	FAIL-CLOSED	-	-	backfill;handoff L2295;fails closed by TYPE ACCIDENT, not by a guard
+2026-09-11	5	hand	present-but-none-vs-absent	FAIL-CLOSED	-	-	backfill;handoff L2298;does NOT collapse, both directions
+2026-09-11	5	hand	module-globals-direct-write-and-alias	FAIL-CLOSED	-	-	backfill;handoff L2300
+2026-09-11	5	hand	nested-list-inner-aliasing	FAIL-CLOSED	-	-	backfill;handoff L2302;THREE shapes the docs own argument does NOT cover, all type-reject
+2026-09-11	5	hand	len-on-a-list-under-conditional-append	FAIL-CLOSED	-	-	backfill;handoff L2306;correctly undecided, real sidecar ref
+2026-09-11	5	hand	ten-audited-raising-operations	FAIL-CLOSED	-	-	backfill;handoff L2307;NINE of TEN covered or unreachable;FAMILY;ONE ROW UNDER-COUNTS
+2026-09-11	5	control-operation	route60-edges-del-len-spec-set-comprehension	FAIL-CLOSED	-	-	backfill;handoff L2311;refuse independently
+2026-09-11	5	control-operation	route61-element-fold	FAIL-CLOSED	-	-	backfill;handoff L2312;faithful, only size broke
+2026-09-11	5	hand	implicit-none-return-scalar-annotated	FAIL-CLOSED	-	-	backfill;handoff L2313;type-errors
+2026-09-11	5	hand	direct-mutable-state-param-mutation	FAIL-CLOSED	-	-	backfill;handoff L2314;already guarded and fires
+2026-09-10	3	control-operation	remaining-float-semantics-paths	FAIL-CLOSED	-	-	backfill;handoff L3060;FAMILY OF 7 after routes 53/58;ONE ROW UNDER-COUNTS BY 6
+2026-09-10	3	hand	shapes-where-python-raises	FAIL-CLOSED	-	-	backfill;handoff L3063;FAMILY OF 5;"All fail closed" = measured and refuted
+2026-09-10	3	hand	int-collapse-neg-index-bool-key-identity	FAIL-CLOSED	-	-	backfill;handoff L3065;TRUE twins PROVE, so genuinely MODELLED not merely refused
+2026-09-10	3	hand	abc-slice-10-20-equals-empty	INCOMPLETE	-	-	backfill;handoff L3070;ONE completeness gap, recorded as such
+2026-09-10	3	oracle-audit	collapsed-option-reads-worklist	FAIL-CLOSED	-	-	backfill;handoff L3072;9 sites, 3 classes, ZERO unprobed;generator EXHAUSTED
+2026-09-10	3	hand	frame-audit-of-all-758-trusted-stubs	FAIL-CLOSED	-	-	backfill;handoff L3074;5 distinct hits, seven omitted fields UNMODELLED hence benign;the one real hit is a documented CERTIFIED BOUNDARY
+2026-09-09	w50	hand	value-sentinel-omitted-arg-str-default	FAIL-CLOSED	-	-	backfill;handoff L3459;BOTH goals Unknown INCLUDING THE TRUE ONE
+2026-09-09	w50	hand	value-sentinel-omitted-arg-float-default	FAIL-CLOSED	-	-	backfill;handoff L3459
+2026-09-09	w50	hand	union-local-field-projection	FAIL-CLOSED	-	-	backfill;handoff L3462;Why3 usage error
+2026-09-08	w49	control-operation	is-none-residue-at-remaining-simple-types	FAIL-CLOSED	-	-	backfill;handoff L3676;FAMILY OF 4 (bytes, float, list, record field);ONE ROW UNDER-COUNTS BY 3
+2026-09-08	w49	control-operation	route51-at-the-TUPLE-type	FAIL-CLOSED	-	-	backfill;handoff L3680;the reason it is safe is NOT the refusal
+2026-09-08	w49	control-operation	frame-half-of-27th-plane-followup	FAIL-CLOSED	-	-	backfill;handoff L3684;it was the ENSURES half that was live
+2026-09-08	w48	hand	erased-local-projections	FAIL-CLOSED	-	-	backfill;handoff L3813;FAMILY OF 4
+2026-09-08	w48	hand	chained-comparisons-in-program-code	FAIL-CLOSED	-	-	backfill;handoff L3814;route33 desugar handles them;the types.py comment is STALE
+2026-09-08	w48	hand	round-int-on-floats-and-string-ordering	FAIL-CLOSED	-	-	backfill;handoff L3816;type-rejected
+2026-09-08	w48	hand	negative-indexing	FAIL-CLOSED	-	-	backfill;handoff L3817;a[-1] lowers to a[len-1], faithful
+2026-09-08	w48	hand	true-plus-true	FAIL-CLOSED	-	-	backfill;handoff L3818
+2026-09-08	w48	hand	recursion-without-a-variant	FAIL-CLOSED	-	-	backfill;handoff L3818;termination IS checked
+2026-09-08	w48	hand	non-terminating-while	FAIL-CLOSED	-	-	backfill;handoff L3819;Why3 termination sub-goal Unknown, run FAILS
+2026-09-08	w48	hand	comprehension-generator-set-tuple-compared	FAIL-CLOSED	-	-	backfill;handoff L3820;route41 per-name opacity holds
+2026-09-08	w48	hand	abs-max-min	FAIL-CLOSED	-	-	backfill;handoff L3821;abs is an ABSTRACT val with no contract;stated completeness gap

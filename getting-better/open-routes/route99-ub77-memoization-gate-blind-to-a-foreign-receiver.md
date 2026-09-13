@@ -94,7 +94,7 @@ it could see all the functions, and then filtered those functions by a syntactic
 
 ## STATUS
 
-**OPEN.** Repair scoped below.
+**CLOSED** (gen #16). Repair scoped below; outcome and residue at the end of this file.
 
 ## THE REPAIR, SCOPED
 
@@ -119,3 +119,63 @@ Key the collection on the PATH BEING WRITTEN, not on the receiver's spelling:
    (`objs[0].a = 1`) or an attribute chain (`self.inner.a = 1`), whose `object` is neither a
    plain name nor `self`. Decide explicitly whether the collector sees those, and if it cannot,
    give the residue an OBSERVER rather than a comment — route #98's lesson.
+
+## CLOSED — AND THE FIRST REPAIR WAS INCOMPLETE, WHICH IS THE FINDING
+
+**THE ROUTE HAD TWO INDEPENDENT NARROWINGS AND ONLY FIXING BOTH CLOSED IT.** Fixing the
+receiver test alone left the exploit PROVING; the measurement, not an argument, is what said
+so:
+
+| repair state | mutator BEFORE class | mutator AFTER class (the exploit) |
+|---|---|---|
+| at a32ec69e | (blocked by an unrelated fence, see below) | **PROVES** |
+| receiver test widened only | **REFUSED** | **STILL PROVES** |
+| + check moved to `visit_Module` end | REFUSED | **REFUSED** |
+
+The second narrowing is the one worth carrying: route #94 put the check at the end of
+`visit_ClassDef` and justified it in writing — *"by here `generic_visit` has emitted every
+method of the class, **so the set is complete**."* Every method OF THAT CLASS is complete; a
+module-level function defined after the class is not. **#94 moved the check ONE level
+(function → class) when it needed to move TWO (function → class → MODULE).** Its own stated
+lesson — *a check needing a whole-program fact cannot live in a per-node visitor* — was
+exactly right, and **a class is still a node**.
+
+## THE ORDERING HALF CANNOT BE ISOLATED BY A WITNESS — MEASURED, SO NOBODY RE-TRIES IT
+
+Two attempts, both blocked by unrelated LOUD fences, both read rather than assumed:
+
+* mutator declared BEFORE the class needs `def bump(c: "C")`, and at baseline the parameter
+  emits as `int` (the class is not yet declared): `This expression has type int, but is
+  expected to have type PyCSL_Program.c`.
+* mutator AFTER the class with its parameter *named* `self` (so the old receiver test would
+  pass and only ordering would hide it): `unbound function or predicate symbol 'self'` —
+  `self` in a contract is special-cased to a method receiver.
+
+>>> **A CONTROL THAT FAILS IS A CLAIM ABOUT THE CONTROL UNTIL YOU READ WHICH GOAL FAILED.**
+>>> Witness 1283 was first committed claiming to isolate the ordering half. Reading its
+>>> baseline failure reason showed it does not — it fails on a forward-reference type error.
+>>> Its docstring now records what it actually measures.
+
+## WITNESSES
+
+* **1282** — the exploit (foreign receiver, mutator after the class). SUCCESS at a32ec69e,
+  REFUSED now. Requires BOTH halves of the repair.
+* **1283** — the standing record of the two isolation fences above. xFAIL both sides, for
+  *different* reasons on each side, which the docstring states.
+* **1284** — **CAPABILITY CONTROL, MUST PROVE.** A memoized reader of a construct-only field
+  `k` while a foreign-receiver mutator writes a DIFFERENT field `a`. The widened collection
+  must not refuse it — route #94's own warning was that "a blanket field-read ban would
+  delete that real capability (the corpus-1057 mistake)". Measured SUCCESS.
+* Pre-existing 0515, 0516, 1257, 1258 — the whole exposed population (only four corpus files
+  use a memoizing decorator) — each re-measured and unchanged.
+
+## RESIDUE, NAMED AND LEFT OPEN ON PURPOSE
+
+`mutated` is still a FLAT SET OF FIELD NAMES, so an unrelated class's write to a field of the
+same name refuses a memoized reader. **That over-refusal is PRE-EXISTING, not introduced
+here** — the set was already global and name-keyed — and widening the receiver adds more of
+the same kind, never a new kind. Census: 72 distinct field names across the corpora, **20
+owned by more than one class** (`disk` 11, `x` 8, `v` 6, `n` 6). Keying `mutated` on
+`(class, field)` pairs would fix the over-refusal in BOTH directions and is the right
+follow-up; it is a widening of SCOPE, not of SOUNDNESS, so it is recorded here rather than
+smuggled into a soundness repair.

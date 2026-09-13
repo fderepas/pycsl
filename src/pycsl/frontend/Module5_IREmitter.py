@@ -490,6 +490,41 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
         self.generic_visit(node)
 
+        # (#49) ROUTE #99 — THE UB-7.7 MEMOIZATION GATE MOVED HERE, FROM THE POST-CLASSDEF
+        # HOOK, BECAUSE ITS OLD HOME'S COVERAGE PREMISE WAS FALSE.
+        #
+        # Route #94 put this at the end of `visit_ClassDef` and wrote down why: *"run HERE
+        # rather than in `_check_memoization_soundness`, because that runs per-function
+        # during the walk and the mutator is usually defined AFTER the memoized reader — so
+        # the set of mutated fields is empty at that point. By here `generic_visit` has
+        # emitted every method of the class, SO THE SET IS COMPLETE."*
+        #
+        # >>> "SO THE SET IS COMPLETE" IS THE FALSE PREMISE. What is true is that every
+        # >>> method OF THAT CLASS is emitted. A MODULE-LEVEL function defined after the
+        # >>> class — `def bump(c: C): c.a = c.a + 1`, the ordinary way a free function
+        # >>> mutates an object handed to it — has not been visited yet, so it is absent
+        # >>> from `program_ir["functions"]` and the mutated-field set is STILL empty.
+        #
+        # This is campaign generator #8 landing on the campaign's own gate: *when a
+        # soundness argument names a COVERAGE premise ("every write site", "all paths",
+        # "the set is complete"), go and COUNT the cases the code covers — the premise is a
+        # claim about a COLLECTOR, and the collector is the thing nobody re-reads.*
+        #
+        # MEASURED: with the mutator defined BEFORE the class the gate fires and refuses;
+        # with the identical mutator defined AFTER it, the file reported `Verification
+        # SUCCESS! All contracts formally proven.` while CPython gives `total=0, a=1` after
+        # one `bump()` — the proved `ensures \result == self.a` is FALSE in the running
+        # language. Route #94 moved this check ONE level (function -> class) and it needed
+        # to move TWO (function -> class -> MODULE). Its own lesson — *a check needing a
+        # whole-program fact cannot live in a per-node visitor* — was right, and a class is
+        # still a node.
+        #
+        # HERE the set really is complete: `generic_visit` above has walked every top-level
+        # statement, so every FunctionDef in the module, at class scope or module scope and
+        # in any order, has been emitted into `program_ir["functions"]`. No-op for modules
+        # with no memoized function (the population guard is the pass's first line).
+        self._check_memoized_field_reads()
+
         # WL-04c (wrong-lowering-to-fix.md §WL-04 record LITERAL residual): a record
         # constructed as an element of a FAITHFUL `List[<record>]` LITERAL
         # (`[Point(1, 2), Point(3, 4)]`) is realized as an `array <record>` element by
@@ -3925,13 +3960,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # discharges the per-method refinement goal (P2/P4). Byte-identical for
         # classes without `csl_conforms_to` (the population is a no-op).
         self._populate_protocol_conformance(node)
-        # ROUTE #94: the mutable-field half of the UB-7.7 memoization gate, run HERE rather
-        # than in `_check_memoization_soundness`, because that runs per-function during the
-        # walk and the mutator is usually defined AFTER the memoized reader — so the set of
-        # mutated fields is empty at that point. By here `generic_visit` has emitted every
-        # method of the class, so the set is complete. No-op for classes with no memoized
-        # method (the population guard is the first line of the pass).
-        self._check_memoized_field_reads()
+        # (#49) ROUTE #99 — THE ROUTE #94 CALL THAT USED TO SIT HERE HAS MOVED TO THE END OF
+        # `visit_Module`. Its comment claimed that by this point "the set is complete"; that
+        # was true only of the CLASS's own methods, and a module-level mutator defined after
+        # the class was invisible, which reopened the whole of UB-7.7 for a foreign receiver.
+        # See the moved call site for the measurement. Do not move it back: a check needing a
+        # whole-program fact cannot live in a per-node visitor, and a class is still a node.
         self._current_class = None
 
     def _should_skip_method(self, node: ast.FunctionDef) -> bool:

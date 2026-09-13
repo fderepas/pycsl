@@ -95,8 +95,55 @@ class MemoizationRTMixin:
             while stack:
                 cur = stack.pop()
                 if isinstance(cur, dict):
-                    if (cur.get("stmt") in ("FieldAssign", "FieldAugAssign")
-                            and cur.get("object") == "self"):
+                    # (#49) ROUTE #99 — THIS TEST USED TO READ `and cur.get("object") ==
+                    # "self"`, AND THAT SPELLING-KEYED FILTER REOPENED THE WHOLE OF ROUTE
+                    # #94 FOR ANY MUTATION THROUGH A FOREIGN RECEIVER.
+                    #
+                    # `mutated` is the population this gate's refusal iterates. A write
+                    # spelled `c.<f> = ...` — the ordinary way a FREE FUNCTION mutates an
+                    # object it was handed — is a `FieldAssign` whose `object` is `"c"`,
+                    # so it was skipped, `mutated` stayed EMPTY, and the `if not mutated:
+                    # return` below DISARMED THE GATE ENTIRELY before its consumer ran.
+                    # MEASURED on a pair differing ONLY in the receiver of the write:
+                    #     def bump(self): self.a = self.a + 1   -> REFUSED (this gate)
+                    #     def bump(c: C):  c.a   = c.a + 1      -> Verification SUCCESS,
+                    #                                              `c__total'vc` Valid
+                    # and CPython on the second: before `total=0 a=0`, after `total=0
+                    # a=1` — so the PROVED `ensures \result == self.a` is FALSE in the
+                    # running language. The cached value is stale exactly as UB-7.7
+                    # describes; the gate simply never saw the mutation.
+                    #
+                    # >>> STALENESS IS A PROPERTY OF **THE FIELD**, NOT OF WHO WROTE IT.
+                    # >>> The cache does not care which receiver dirtied the value, so the
+                    # >>> collection must be keyed on the FIELD BEING WRITTEN and never on
+                    # >>> the syntactic shape of the receiver. A check keyed on the shape
+                    # >>> of a write target enumerates the shapes its author pictured.
+                    #
+                    # WHY THIS SURVIVED ROUTE #94's OWN REVIEW, WHICH WAS CAREFUL: #94 had
+                    # ALREADY learned that its first repair sat in a per-function visitor
+                    # and silently did nothing, and moved it to the post-class hook so it
+                    # could see every function (see the docstring above). The author was
+                    # therefore thinking hard about WHEN the population is assembled — and
+                    # not about HOW WIDE it is. Getting a population's TIMING right and its
+                    # BREADTH wrong produces a gate that passes every test its author
+                    # wrote: witnesses 1257 and 1258 are both still correct and neither can
+                    # see this hole, because both spell the mutation with `self`.
+                    #
+                    # SOUNDNESS AND COST OF THE WIDENING, MEASURED RATHER THAN ASSUMED:
+                    # admitting every receiver can only ADD refusals, so it cannot make a
+                    # false claim provable. It can over-refuse, because `mutated` is a flat
+                    # set of field NAMES — but THAT HAZARD IS PRE-EXISTING AND UNCHANGED IN
+                    # KIND: the set was already global and name-keyed, so an unrelated
+                    # class's `self.x = ...` already poisoned a memoized `self.x` reader
+                    # before this change. Census: 72 distinct field names across the
+                    # corpora, 20 of them owned by more than one class — and only FOUR
+                    # pycsl-reference files use a memoizing decorator at all (0515, 0516,
+                    # 1257, 1258), so the exposed population is enumerable and each of the
+                    # four is measured individually. Narrowing `mutated` to (class, field)
+                    # pairs would fix the over-refusal in BOTH directions and is the right
+                    # follow-up, but it is a widening of scope, not of soundness, and is
+                    # recorded in the route file rather than smuggled in here.
+                    if cur.get("stmt") in ("FieldAssign", "FieldAugAssign"):
                         mutated.add(cur.get("field"))
                     stack.extend(cur.values())
                 elif isinstance(cur, list):
