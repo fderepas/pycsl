@@ -775,9 +775,23 @@ class Module3_Weaver:
                 if hp.context == "total":
                     # H-D (totality / DoS): PyCSL functions are total by DEFAULT — Why3 emits a
                     # termination VC (each loop needs a `#@ loop variant`), so an attacker-driven
-                    # unbounded loop fails to verify. This policy NAMES that guarantee and
-                    # forbids the only opt-out: `#@ \diverges` on the target contradicts the
-                    # totality claim and is a hard error.
+                    # unbounded loop fails to verify. This policy NAMES that guarantee, and it
+                    # must therefore reject every way of ESCAPING that VC. There are two, not
+                    # one (route #93 — the comment here used to say "the only opt-out"):
+                    #   (a) `#@ \diverges` on the target explicitly opts out of termination;
+                    #   (b) `#@ \trusted` / `#@ \abstract` on the target make Module 6 emit it
+                    #       as a bodyless `val` (contract only, NO goals), so there is no loop
+                    #       and no termination VC to discharge — the guarantee this policy names
+                    #       is simply absent.
+                    # MEASURED for (b): 0728's shape with the target marked `\trusted` and a
+                    # body of `while True: acc = acc + 1` VERIFIED, i.e. an availability policy
+                    # proved of a function whose body cannot terminate. Controls: 0726 proves,
+                    # 0727's `\diverges` is rejected, 0728's variant-less loop fails.
+                    # Sound-by-rejection, and consistent with the three SIBLING happy forms,
+                    # every one of which already carries an explicit trusted/abstract trust
+                    # boundary: the `protects` form (R1.1) and the region-write form (C) demand
+                    # `#@ \preserves`, and the `reading` form (iv) demands membership of
+                    # `except`. H-D was the only form with no trust boundary at all.
                     for fn in target_fns:
                         if getattr(fn, "csl_diverges", False):
                             raise PyCSLSemanticError(
@@ -785,6 +799,17 @@ class Module3_Weaver:
                                 f"`#@ \\diverges` — it opts OUT of termination, contradicting "
                                 f"the totality (H-D) claim. Remove `\\diverges`, or drop the "
                                 f"`total` policy.")
+                        if (getattr(fn, "csl_trusted", False)
+                                or getattr(fn, "csl_abstract", False)):
+                            marker = ("\\trusted" if getattr(fn, "csl_trusted", False)
+                                      else "\\abstract")
+                            raise PyCSLSemanticError(
+                                f"`happy {hp.name}`: total target '{hp.target}' is marked "
+                                f"`#@ {marker}`, so it is emitted as a bodyless `val` with no "
+                                f"goals — there is no termination VC, and the totality (H-D) "
+                                f"guarantee this policy names cannot be discharged for it. "
+                                f"Give '{hp.target}' a verified body (each loop carrying a "
+                                f"`#@ loop variant`), or drop the `total` policy.")
                     continue
                 for fn in target_fns:
                     if hp.context == "postcond":

@@ -767,6 +767,16 @@ method has no checkable body, so it must opt into the trust boundary with `#@ \p
 checks in `Module4._validate_happy`; the trust-boundary requirement in
 `Module3_Weaver._expand_happy_properties`.
 
+**Rule (whole-field rebinding, route #91).** The per-site obligation of clause 1 is injected
+at each write of `self.f[i]`, which is an *indexed* store. A **whole-field rebinding**
+`self.f = e` in a non-exempt function is therefore **a hard error**, not a checked site: it
+replaces the entire array — protected region included — and no per-index predicate can
+constrain a whole-array store. `__init__` is exempt (it *creates* the field, so there is no
+prior region for a preservation property to range over). Realised by clause (A2) of
+`Module3_Weaver._weave_happy`'s region-write branch. Before this rule the store matched no
+site and received no obligation, so the property was provable while a non-exempt method
+overwrote the whole region (witnesses `1247`–`1249`).
+
 **Rule (`footprint` / parametric & protects forms, 07-1143).** A `#@ footprint <name>(arg)`
 must name a parametric HAPPY `<name>` declared in the module (`#@ happy <name>(p): protects
 <path>[LO:HI]`); the meta-pass binds `p := arg` and injects a per-site containment check
@@ -775,7 +785,22 @@ non-exempt method with no `footprint` writing the path, and any non-exempt direc
 `protects <paths>` (subsystem-ownership) field, get `#@ check False`. Aliasing a protected base
 into a non-exempt local is a hard error (`Module3_Weaver._check_protect_aliasing`).
 
-**Soundness (composition theorem, `meta.md`).** If every body-verified method discharges a
+**Rule (whole-array and slice stores to a parametric path, route #92).** A `footprint`
+obligation is *per index*, so it can only constrain an indexed store. In the parametric form a
+non-exempt function performing a **whole-array store** (`<path> = e`) or a **slice store**
+(`<path>[LO:HI] = e`) is therefore **a hard error** — neither can be confined to one object's
+region by a per-index containment check. `__init__` is exempt. Realised by clause (R3b) of the
+R3 branch of `Module3_Weaver._weave_happy`. Before this rule both stores matched no site (the
+site collector returns only point writes) and were reached by no reject, so the per-object
+property was provable while a footprint-less function overwrote a protected region
+(witnesses `1250`–`1253`).
+
+**Soundness (composition theorem, `meta.md`).** *Read "universal coverage" strictly: it is a
+claim about the site collector, and routes #91/#92 were exactly the collector failing to be
+universal. Coverage is now split — an **indexed** store is CHECKED, and a **whole-path or
+slice** store is REJECTED (the two rules above), because a per-index predicate cannot express
+an obligation about a store that replaces the whole array. A future store shape that is
+neither checked nor rejected re-opens both routes.* If every body-verified method discharges a
 `#@ check φ(ℓ)` at each write site of `self.f` (universal coverage, clause 1) and every other
 mutator is exempt or carries the `\preserves` region-preservation `ensures` (clause 2), then
 no execution writes the protected region. No alias analysis is needed (the obligation is at

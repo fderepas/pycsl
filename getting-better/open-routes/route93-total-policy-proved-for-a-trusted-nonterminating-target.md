@@ -2,7 +2,7 @@
 # body is an infinite loop, because `\trusted` strips the body and with it the termination VC
 # — and the guard's comment says `\diverges` is "the only opt-out"
 
-**STATUS: CLOSED, FAIL-CLOSED, 2026-09-13 (gen #13). SEVERITY 1.**
+**STATUS: CLOSED, FAIL-CLOSED, 2026-09-13 (gen #13). SEVERITY 1. BOTH ARMS (`\trusted`, `\abstract`) CLOSED.**
 Third security meta-property of this generation to be provable while violated, and the third
 branch of `Module3_Weaver._weave_happy` to be missing a case its siblings cover.
 
@@ -94,6 +94,33 @@ cannot be discharged for it. The message names the two remedies the emitter actu
 give the target a verified body with `#@ loop variant`s, or drop the `total` policy — and the
 stale "the only opt-out" comment is corrected in the same increment to enumerate both escapes,
 so the next reader is not sent down the path that caused this.
+
+## AFTER THE REPAIR
+
+| driver | before | after |
+|---|---|---|
+| `total` target `#@ \trusted`, body `while True:` | **VERIFIED** | **REFUSED** — clause names the marker and both remedies |
+| `total` target `#@ \abstract`, body `while True:` (1255) | (same arm, `emit_as_val` covers both) | **REFUSED** |
+| 0726 bounded loop with a variant | PROVES | **PROVES** (unchanged) |
+| 0727 `\diverges` target | PIPELINE ERROR | **PIPELINE ERROR** (unchanged) |
+| 0728 variant-less loop | FAILED | **FAILED** (unchanged) |
+| **1256** a `\trusted` NON-target sharing the file | — | **PROVES** — the guard is scoped to `target_fns` |
+
+**BOTH ARMS OF THE DISJUNCTION WERE MEASURED SEPARATELY.** `emit_as_val = func_trusted or
+func_abstract or func_trusted_parent`, and a repair measured on one arm of a disjunction has
+not been measured on the other — route #86's lesson. 1255 is the `\abstract` arm.
+
+**1256 IS THE CONTROL THAT MATTERS MOST HERE.** Without it, "1254 and 1255 are rejected" is
+equally consistent with the repair having banned `\trusted` from any module that carries a
+`total` policy — a narrowing far beyond the measured defect, and exactly the corpus-1057
+mistake. It fails if the guard is ever widened from `target_fns` to all `funcs`.
+
+A note on the driver, recorded because it is the honest history: 1256 FAILED on its first run,
+on `ensures \result >= 0` — my loop invariant omitted `acc >= 0`. That was **my driver's bug,
+not a finding**, and it is worth writing down that I checked which goal failed before
+concluding anything: the unproven goal was the postcondition, not the termination VC, so it
+could not have been the repair. **A CONTROL THAT FAILS IS A CLAIM ABOUT THE CONTROL UNTIL YOU
+READ WHICH GOAL FAILED.**
 
 ## RESIDUE RECORDED, NOT FIXED
 
