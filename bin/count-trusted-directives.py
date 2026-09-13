@@ -117,6 +117,20 @@ def main() -> int:
     if "--emit-dir" in argv:
         emit_dir = argv[argv.index("--emit-dir") + 1]
 
+    # --metrics: the CONVERGENCE view of this plane's population (Phase 2 of
+    # getting-better/convergence-metric-implement.md). It prints the body-verified fraction
+    # computed FROM PROOF VERDICTS, not from the absence of a marker, alongside the 459/484
+    # pair this script has always reported. The marker count is KEPT AS A COLUMN and
+    # DEMOTED, never deleted -- every historical figure in the campaign is stated in it.
+    # This branch is additive: it delegates and returns, and cannot alter the gate verdict
+    # that the plane battery depends on.
+    if "--metrics" in argv:
+        import subprocess as _sp
+        vf = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          "verified-fraction.py")
+        rest = [a for a in argv if a != "--metrics"]
+        return _sp.call([sys.executable, vf] + rest)
+
     matched_mlw = 0
 
     markers = 0

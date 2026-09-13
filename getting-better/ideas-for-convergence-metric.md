@@ -19,7 +19,29 @@ Everything numeric below was measured today with the command shown, read-only, a
    fixed*; second-order yield falls to 0. Cheap to start today (a TSV ledger); an
    independent sampler is the phase-2 upgrade that removes hunter bias (§3.4).
 3. **Primary metric for (b): body-verified fraction of the live verifier**, 914 / 3236 defs =
-   **28.2 %** today. It replaces the 459 count, which has no denominator and hides 41
+   **28.2 %** today.
+
+> **CORRECTION ADDED 2026-09-13 BY THE PHASE-2 IMPLEMENTATION — DO NOT QUOTE 28.2 % .**
+> That number computes verified defs as `mirror defs − markers`, which treats *absence of a
+> `\trusted` marker* as *evidence of proof*. It is not. Recomputed from PROOF VERDICTS
+> (`rc=0` + zero non-Valid goals, proof must postdate the last change to the mirror file and
+> to its live counterpart):
+>
+> ```
+> $ bin/verified-fraction.py --staleness=file
+>   (1) verified / live        499 / 3225 = 15.47 %
+>   (2) unproven-perimeter     644 defs in 27 of 53 mirror files
+>   (3) unmirrored ratchets    MAX_UNMIRRORED_DEFS=549  MAX_UNMIRRORED_FILES=41
+>       OLDEST PROOF RELIED ON 2026-09-02
+> ```
+>
+> Only **26 of 53** mirror files have a fresh passing whole-file proof on record; 18 have no
+> proof at all, 7 have a stale one, 2 have a FAILING one. Under the stricter rule — a proof
+> is stale if ANY commit to `src/pycsl` postdates it, which is defensible because the emitter
+> is one program — the answer is **0 / 3225 = 0.00 %**. Both are printed; see
+> `bin/verified-fraction.py --staleness=strict`. The corrected fraction is roughly **HALF**
+> the figure below, and the gap IS the unproven perimeter.
+ It replaces the 459 count, which has no denominator and hides 41
    unmirrored files. The resume trigger is a separate, heavy, already-existing instrument:
    `bin/probe-conversion-candidates.py` CLEAN count (§3.7) — currently 1 of 446, i.e. zero.
 4. **The thing you can do this week that is genuinely "back on the reducing-trusted
@@ -225,7 +247,29 @@ a few minutes each under `--timelimit 5`; not to be run concurrently with the su
 
 ### 3.5 Body-verified fraction of the live verifier — PRIMARY for (b); replaces the 459 count
 
-**Measures.** (mirror defs − markers) / live defs = **914 / 3236 = 28.2 %**. Within the mirrored
+**Measures.** (mirror defs − markers) / live defs = **914 / 3236 = 28.2 %**.
+
+> **CORRECTION ADDED 2026-09-13 BY THE PHASE-2 IMPLEMENTATION — DO NOT QUOTE 28.2 % .**
+> That number computes verified defs as `mirror defs − markers`, which treats *absence of a
+> `\trusted` marker* as *evidence of proof*. It is not. Recomputed from PROOF VERDICTS
+> (`rc=0` + zero non-Valid goals, proof must postdate the last change to the mirror file and
+> to its live counterpart):
+>
+> ```
+> $ bin/verified-fraction.py --staleness=file
+>   (1) verified / live        499 / 3225 = 15.47 %
+>   (2) unproven-perimeter     644 defs in 27 of 53 mirror files
+>   (3) unmirrored ratchets    MAX_UNMIRRORED_DEFS=549  MAX_UNMIRRORED_FILES=41
+>       OLDEST PROOF RELIED ON 2026-09-02
+> ```
+>
+> Only **26 of 53** mirror files have a fresh passing whole-file proof on record; 18 have no
+> proof at all, 7 have a stale one, 2 have a FAILING one. Under the stricter rule — a proof
+> is stale if ANY commit to `src/pycsl` postdates it, which is defensible because the emitter
+> is one program — the answer is **0 / 3225 = 0.00 %**. Both are printed; see
+> `bin/verified-fraction.py --staleness=strict`. The corrected fraction is roughly **HALF**
+> the figure below, and the gap IS the unproven perimeter.
+ Within the mirrored
 perimeter only: 914 / 1929 = 47.4 %. This is the number Metric A is trying to be. It has a
 denominator, so it can say "nearly done"; it counts the 41 unmirrored files and ~550
 unmirrored defs that the 459 figure cannot see (the `check-mirror-coverage.py` header calls
