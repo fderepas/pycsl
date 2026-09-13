@@ -1,6 +1,33 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **NONE.**
+## CURRENTLY OPEN: **ONE — ROUTE #94.**
+##
+##   **#94 — `@cached_property` READING A MUTABLE FIELD PASSES THE UB-7.7 REFERENTIAL-
+##   TRANSPARENCY GATE, AND THE PROVED POSTCONDITION IS FALSE IN CPYTHON.** Severity 1.
+##   FULLY MEASURED — including an executed CPython witness — REPAIR SCOPED, NOT LANDED.
+##   See `route94-memoized-cached-property-reads-a-mutable-field.md`.
+##   PyCSL proves `ensures \result == self.a` for a `@cached_property`; running the same
+##   program in CPython gives `total = 0, self.a = 1` after one `bump()`, so `c.total == c.a`
+##   is **False**. `_check_memoization_soundness` — the gate written for exactly this UB-7.7
+##   divergence — RAN AND PASSED, for three independent reasons: `if shared and ...`
+##   short-circuits the whole mutable-state clause when a module declares no `#@ shared` var;
+##   `shared_vars` is populated only from `#@ shared` declarations (module singletons live in
+##   `module_globals`); and `_reads_any` matches only `type == "Var"`, so a `self.<field>`
+##   read (a `FieldGet`) can never be seen. `pure` does not help — `_detect_purity` is about
+##   `assigns`, not reads. Controls: 0515 PROVES and 0516 is a PIPELINE ERROR, both
+##   pre-existing, so the gate is neither dead nor a blanket refusal; and the DISAGREE twin
+##   `ensures \result == self.a + 1` REFUSES, so the channel discriminates.
+##   **WHY IT WAS LEFT OPEN:** found while #91/#92/#93 were mid-gate-battery; landing a fourth
+##   repair meant killing the suite a third time and risking a window that gated nothing.
+##   **THE REPAIR CARRIES A NAMED OVER-NARROWING HAZARD** — a `cached_property` inherently
+##   reads `self`, so a blanket field rule bans every one of them. Build the positive control
+##   (a `cached_property` over a never-assigned field that still proves) BEFORE the repair, or
+##   it cannot be told apart from a capability removal. Owes a VALUE-DIFFERENTIAL pair, since
+##   the falsehood is model-vs-runtime rather than in-model.
+##
+##   >>> PREVIOUSLY: the ledger was EMPTY at the start of gen #13, and THREE severity-1
+##   >>> routes (#91, #92, #93) were sitting in ONE function. An empty ledger is a prompt to
+##   >>> generate, not a floor — that is now five times over.
 ##
 ##   >>> AN EMPTY LEDGER IS A PROMPT TO GENERATE, NOT A FLOOR. It emptied three times in
 ##   >>> window #5 and a severity-1 route appeared after each of the first two; it emptied a
