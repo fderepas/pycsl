@@ -1459,3 +1459,4 @@ Routes #32/#33 were the fold being blind to BRANCHES; #34 is the same two maps b
   - fidelity: DELTA ZERO. apply_composition, _expand_happy_properties and _synthesize_selfcomp are ALL \trusted bodyless stubs in the mirror; no signature changed; both weaver checks spelled INLINE so no new method -> no new abstract val in any importing mirror.
   - doc-coherency: rc=0 (no new directive).
   - conformance: 38/38 + 38/38, 0 MISMATCH; determinism 10/10; planes 34/34.
+05:06 gen#14 BATTERY RUNNING. Already green: doc-coherency rc=0; mirror-sync OK (887 un-trusted fns verbatim); mirror-check DELTA ZERO vs a 60a2cec1 worktree (19 lines both sides, sorted diff EMPTY, same 3 PRE-EXISTING drifted mirrors expr_ghost_collections/statements/stmt_control_flow — none touched by this work). Suite w66_suite_gen14 running (3410 tests, jobs=6, matches the predicted total). Baseline byte-diff sweep running in a 60a2cec1 worktree.
