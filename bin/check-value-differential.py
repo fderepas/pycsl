@@ -46,6 +46,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PYCSL = os.path.join(ROOT, "src", "pycsl", "pycsl.py")
 DRIVERS = os.path.join(ROOT, "test-suite", "value-differential")
 NEGDIR = os.path.join(DRIVERS, "negative-test")
+# THE GENERATED SAMPLER (Phase 6 of convergence-metric-implement.md). A SUBDIRECTORY, so the
+# standing run -- which uses os.listdir(DRIVERS) and does not recurse -- SKIPS IT BY
+# CONSTRUCTION, exactly as it skips negative-test/. The generated corpus therefore cannot
+# alter the standing gate's verdict. Written by bin/gen-differential-drivers.py; run with
+# `--generated`. A RED here OUTRANKS a RED from the driver, because the sampler did not know
+# what it was looking for.
+GENDIR = os.path.join(DRIVERS, "generated")
 
 # `#@ ensures \result == <int>`  — the ONLY shape this plane accepts, deliberately.
 _CLAIM = re.compile(r"^#@\s*ensures\s*\\result\s*==\s*(-?\d+)\s*$")
@@ -108,8 +115,79 @@ def _classify(path):
             "claims %d, CPython computes %d" % (claimed, actual))
 
 
+def _generated_run():
+    """Run the plane over the GENERATED corpus and report YIELD PER TEMPLATE FAMILY.
+
+    This is the campaign's first hunter-independent instrument. Measured 2026-09-13, 0 of
+    56 routes were discovered by any plane, ratchet or differential corpus going red; every
+    one came from the driver probing. Yield here is RED / generated."""
+    if not os.path.isdir(GENDIR):
+        print("[!] value-differential --generated: %s does not exist. Generate it first:\n"
+              "      bin/gen-differential-drivers.py --count 200\n"
+              "    A MISSING CORPUS IS NOT A PASS." % os.path.relpath(GENDIR, ROOT),
+              file=sys.stderr)
+        return 2
+    names = sorted(n for n in os.listdir(GENDIR) if n.endswith(".py"))
+    if not names:
+        print("[!] value-differential --generated: corpus is EMPTY. An instrument that "
+              "looked at nothing has said nothing (the #44 rule). REFUSING.",
+              file=sys.stderr)
+        return 2
+    fams = {}
+    for n in names:
+        # g_<family_with_underscores>_<nnn>_<direction>.py
+        core = n[2:-3] if n.startswith("g_") else n[:-3]
+        fam = (core.rsplit("_", 2)[0] if core.count("_") >= 2 else core).replace("_", "-")
+        verdict, detail = _classify(os.path.join(GENDIR, n))
+        if verdict == "no_tool":
+            print("[!] value-differential --generated: why3 is not on PATH. A MISSING TOOL "
+                  "IS NOT A FINDING — refusing.", file=sys.stderr)
+            return 2
+        d = fams.setdefault(fam, {"n": 0, "red": [], "honest": 0, "agree_proved": 0,
+                                  "incomplete": 0, "out_of_scope": 0, "unparseable": []})
+        d["n"] += 1
+        if verdict == "unsound":
+            d["red"].append((n, detail))
+        elif verdict == "unparseable":
+            d["unparseable"].append((n, detail))
+        else:
+            d[verdict] = d.get(verdict, 0) + 1
+
+    total = sum(v["n"] for v in fams.values())
+    total_red = sum(len(v["red"]) for v in fams.values())
+    print("[*] value-differential --generated: %d driver(s), %d RED — YIELD %.2f %%"
+          % (total, total_red, 100.0 * total_red / total if total else 0.0))
+    print("    YIELD PER TEMPLATE FAMILY (this is the number to report, not the total):")
+    for fam in sorted(fams):
+        v = fams[fam]
+        print("      %-20s %4d driver(s)  %3d RED  yield %6.2f %%  (%d agree-proved, "
+              "%d correctly refused, %d incomplete)"
+              % (fam, v["n"], len(v["red"]), 100.0 * len(v["red"]) / v["n"],
+                 v.get("agree_proved", 0), v.get("honest", 0), v.get("incomplete", 0)))
+    rc = 0
+    for fam in sorted(fams):
+        for n, d in fams[fam]["unparseable"]:
+            print("[!]   UNPARSEABLE: %s — %s. Fail-closed." % (n, d), file=sys.stderr)
+            rc = max(rc, 1)
+        for n, d in fams[fam]["red"]:
+            print("[!]   RED (%s): %s — PyCSL PROVES a postcondition the program REFUTES "
+                  "(%s). A RED FROM THE SAMPLER OUTRANKS A RED FROM THE DRIVER: the "
+                  "sampler did not know what it was looking for." % (fam, n, d),
+                  file=sys.stderr)
+            rc = max(rc, 1)
+    print()
+    print("    CONVERGING = RED per 200 falls to 0 across THREE CONSECUTIVE RUNS WITH THE")
+    print("    TEMPLATE SET FROZEN (bin/gen-differential-drivers.py --fingerprint). Adding")
+    print("    a family resets that clock FOR THE NEW FAMILY ONLY.")
+    print("    BLIND SPOTS: bin/gen-differential-drivers.py --blind-spots — state them")
+    print("    alongside every yield figure. Templates are themselves a generator.")
+    return rc
+
+
 def main():
     negative = "--negative-test" in sys.argv
+    if "--generated" in sys.argv:
+        return _generated_run()
     if not os.path.isdir(DRIVERS):
         print("[!] value-differential: %s missing — REFUSING rather than passing."
               % DRIVERS, file=sys.stderr)
