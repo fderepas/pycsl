@@ -23,7 +23,8 @@ hazard. Its docstring:
 Corpus **0515**'s docstring states the same fourth conjunct — *"pure … **and reading no mutable
 global**"*.
 
-## THE MECHANISM — three independent reasons the fourth conjunct does not bite
+## THE MECHANISM — TWO independent reasons the fourth conjunct does not bite
+(it was written as three; the first did not survive verification — see below)
 
 ```python
 if not func_ir.get("pure"):
@@ -33,9 +34,15 @@ if shared and self._reads_any(func_ir["body"], shared):
     reasons.append("it reads a `#@ shared` mutable global (non-deterministic)")
 ```
 
-1. **`if shared and …` SHORT-CIRCUITS THE WHOLE CLAUSE when the module declares no
-   `#@ shared` variable at all.** A file with zero `#@ shared` declarations gets zero
-   mutable-state checking — the clause evaluates to nothing rather than to "no mutable reads".
+1. ~~**`if shared and …` short-circuits the whole clause when the module declares no
+   `#@ shared` variable.**~~ **SELF-CORRECTION — THIS REASON IS WRONG, AND I AM LEAVING IT
+   STRUCK THROUGH RATHER THAN DELETING IT.** I wrote it from the shape of the code before
+   reading `_reads_any` closely enough. `_reads_any` tests `ir.get("name") in names`, so with
+   `names` empty it returns `False` for every node: **`if shared and …` is a pure optimisation
+   and is BEHAVIOURALLY INERT.** Removing it would change nothing. The campaign's rule (o) —
+   verify every claim, including a sub-agent's — applies to my own writing too, and this is the
+   one claim of mine this generation that did not survive being checked. **The defect is real;
+   this reason for it was not.** Two independent reasons remain, and they are sufficient:
 2. **`shared_vars` is populated EXCLUSIVELY from `#@ shared` declarations**
    (`Module5_IREmitter`: `[{"name": d.variable, ...} for d in shared_decls]`). Module-level
    mutable singletons live in a *different* IR field, `module_globals`.
@@ -116,8 +123,8 @@ generation needed narrowing.
 ## REPAIR — SCOPED, WITH THE OVER-NARROWING HAZARD NAMED
 
 The clause must cover reads of **all** mutable state, not just `#@ shared` `Var`s:
-1. **Delete the `if shared and …` short-circuit** — with no `#@ shared` declarations the clause
-   must still evaluate, not vanish.
+1. ~~Delete the `if shared and …` short-circuit~~ — **NOT NEEDED**, it is behaviourally inert
+   (see the self-correction above). Left in the list, struck through, so nobody re-derives it.
 2. **Add a FieldGet arm**: a memoized function whose body reads `self.<field>` is not RT.
 3. **Add the `module_globals` mutable singletons** alongside `shared_vars`.
 

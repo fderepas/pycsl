@@ -9,11 +9,13 @@
 ##   PyCSL proves `ensures \result == self.a` for a `@cached_property`; running the same
 ##   program in CPython gives `total = 0, self.a = 1` after one `bump()`, so `c.total == c.a`
 ##   is **False**. `_check_memoization_soundness` — the gate written for exactly this UB-7.7
-##   divergence — RAN AND PASSED, for three independent reasons: `if shared and ...`
-##   short-circuits the whole mutable-state clause when a module declares no `#@ shared` var;
-##   `shared_vars` is populated only from `#@ shared` declarations (module singletons live in
-##   `module_globals`); and `_reads_any` matches only `type == "Var"`, so a `self.<field>`
-##   read (a `FieldGet`) can never be seen. `pure` does not help — `_detect_purity` is about
+##   divergence — RAN AND PASSED, for TWO independent reasons: `shared_vars` is populated only
+##   from `#@ shared` declarations (module singletons live in `module_globals`); and `_reads_any`
+##   matches only `type == "Var"`, so a `self.<field>` read (a `FieldGet`) can never be seen.
+##   (I first wrote THREE reasons, the extra one being that `if shared and ...` short-circuits
+##   the clause. **That reason is WRONG and is struck through in the route file rather than
+##   deleted**: `_reads_any` tests `name in names`, so an empty `names` matches nothing and the
+##   guard is behaviourally inert. Rule (o) applies to one's own claims.) `pure` does not help — `_detect_purity` is about
 ##   `assigns`, not reads. Controls: 0515 PROVES and 0516 is a PIPELINE ERROR, both
 ##   pre-existing, so the gate is neither dead nor a blanket refusal; and the DISAGREE twin
 ##   `ensures \result == self.a + 1` REFUSES, so the channel discriminates.
