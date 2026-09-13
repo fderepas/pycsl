@@ -2,8 +2,8 @@
 #
 # ## THE ONE-PARAGRAPH SUMMARY
 #
-#   **FOUR ROUTES FOUND (#91, #92, #93, #94), THREE CLOSED AND GATED, ONE HANDED OVER FULLY
-#   MEASURED.** The three closed are all SEVERITY 1, all in ONE FUNCTION
+#   **FOUR ROUTES FOUND *AND* CLOSED *AND* FULLY GATED THIS GENERATION (#91, #92, #93, #94).**
+#   All four are SEVERITY 1. The first three are all in ONE FUNCTION
 #   (`Module3_Weaver._weave_happy`), and all three are **SECURITY META-PROPERTIES PROVED WHILE
 #   VIOLATED**, not wrong values. The window tally of CLOSED routes is now **38**. #91 came from
 #   gen #12's advice-message generator applied to its own #1 ranked target; **the advice turned
@@ -12,22 +12,24 @@
 #   saying a case is "handled/rejected/checked elsewhere", and check the named guard's actual
 #   matching rule against the deferred case. **#94 CARRIES THE STRONGEST EVIDENCE THIS CAMPAIGN
 #   HAS EVER PRODUCED — AN EXECUTED CPYTHON RUN THAT CONTRADICTS A PROVED POSTCONDITION** — and
-#   is left OPEN on purpose, with its repair scoped AND its positive control already measured.
+#   — and its repair landed, gated, after the other three cleared their battery.
 #   The metric never moved (**markers 459 / grep 484**) and was never supposed to: every repair
 #   is a refusal.
 #
 # ## WHAT IS TRUE RIGHT NOW
 #
-#   ledger   **ONE OPEN: #94** (measured, repair scoped, positive control measured, NOT landed).
-#            Closed by gen #13: **#91, #92, #93** — all three also FOUND here, all GATED.
+#   ledger   **ZERO OPEN.** Closed by gen #13: **#91, #92, #93, #94** — all four also FOUND
+#            here, all four FULLY GATED on every plane. Window tally of closed routes: **39**.
 #   metric   markers **459** / grep 484 / offset 25 / unattached 0 — UNCHANGED all generation,
 #            verified stable across the whole run including across a killed battery.
-#   corpora  pycsl-ref **1002 -> 1012** (+10: witnesses 1247–1256).
+#   corpora  pycsl-ref **1002 -> 1014** (+12: witnesses 1247–1258).
 #   gates    fidelity DELTA ZERO (byte-identical to a HEAD-worktree log); byte-diff **0 MOVED,
 #            0 GONE, 5 APPEARED** = exactly the predicted controls, zero-byte 0 on BOTH sides;
 #            conformance **38/38 + 38/38, 0 MISMATCH**, determinism 10/10, no golden re-blessed;
-#            doc-coherency rc=0. SUITE + PLANES: see the progress log for the landed verdicts —
-#            **THE SUITE FAILURE BASELINE IS 18 AND A RUN SHOWING 19 IS A REGRESSION.**
+#            doc-coherency rc=0; suite **3384/3402, 18 failures, ZERO XPASS, rc=1** (all six
+#            exploits XFAIL, all six controls PASS); planes **34/34, rc=0**. No ratchet
+#            re-baselined, no golden re-blessed.
+#            **THE SUITE FAILURE BASELINE IS STILL 18 AND A RUN SHOWING 19 IS A REGRESSION.**
 #   findings **w63, w64** new CERTIFIED BOUNDARIES (measured, do not re-litigate);
 #            **w65** a LEAD, structure verified, **exploit NOT constructed** — labelled as such.
 #   tree     clean, every increment committed. The two GITLINKS (`scratchpad/w7/base`,
@@ -150,6 +152,40 @@
 #     its own timeout yields a PARTIAL verdict, which rule (p) forbids inheriting** — so stop it
 #     deliberately and re-run, never let it be cut off.
 #
+# ## THE LAST ROUTE ALMOST SHIPPED AS A GATE THAT DID NOTHING — READ THIS ONE
+#
+#   **ROUTE #94's FIRST REPAIR WAS CORRECT CODE IN THE WRONG PLACE, AND IT SILENTLY DID
+#   NOTHING.** I put the mutable-field clause in `_check_memoization_soundness`, which is its
+#   obvious home. `_check_memoization_soundness` is called from `visit_FunctionDef` — **per
+#   function, as the walk reaches it** — so when the memoized reader is checked, the mutator
+#   defined three lines BELOW it is not yet in `program_ir["functions"]`; the mutated-field set
+#   is EMPTY and the clause passes vacuously. **The exploit still VERIFIED.** The gate would
+#   have survived review, the diff, and a careful source reading: nothing about it is wrong
+#   except WHERE it runs. It landed instead at the post-`generic_visit` hook of
+#   `visit_ClassDef`, where the class is complete.
+#
+#   >>> **A GUARD WHOSE POPULATION IS EMPTY HAS CHECKED NOTHING, AND LOOKS EXACTLY LIKE A GUARD
+#   >>> THAT PASSED. A CHECK THAT NEEDS A WHOLE-PROGRAM FACT CANNOT LIVE IN A PER-NODE
+#   >>> VISITOR.** This is the campaign's vacuity rule one level up — *a probe whose positive
+#   >>> control refuses has measured nothing* becomes *a gate whose population is empty has
+#   >>> measured nothing*. **The only thing that caught it was rule (l): negative-test every new
+#   >>> gate by removing the thing it should catch.** Had I trusted the diff, #94 would have
+#   >>> been recorded CLOSED while standing wide open — worse than leaving it open, because a
+#   >>> false close removes it from the ledger and nobody looks again.
+#
+# ## PREDICT EVERY GATE VERDICT BEFORE YOU RUN IT — IT COST NOTHING AND IT PAID
+#
+#   I stated, in the progress log BEFORE each run: three byte-diff predictions (0 MOVED / 0 GONE
+#   / exactly-these-N APPEARED), two suite predictions (exact pass counts and failure counts),
+#   and one collateral prediction (no pre-existing memoized corpus file would move). **ALL SIX
+#   WERE EXACT.** Each followed directly from one sentence — *all four repairs are pure
+#   REFUSALS, so only new files that PROVE can emit, and no pre-existing file can move unless it
+#   legitimately performed a newly-rejected construct*.
+#   >>> **A GATE VERDICT YOU PREDICTED CORRECTLY TELLS YOU THAT YOU UNDERSTOOD THE CHANGE. A
+#   >>> GREEN YOU MERELY RECEIVED TELLS YOU ONLY THAT NOTHING SCREAMED.** Predicting first also
+#   >>> forces the collateral search (which pre-existing files COULD move?) to happen BEFORE the
+#   >>> sweep, where it is cheap, instead of after a red, where it is a panic.
+#
 # ## A PATTERN THREE REPAIRS WANTED — NAME IT INSTEAD OF RE-DERIVING IT
 #
 #   **#91, #92 and #94 all needed the SAME `__init__` CARVE-OUT**, for the same reason: the
@@ -198,25 +234,14 @@
 #
 # ## STILL UNPAID, IN THE ORDER I WOULD TAKE THEM
 #
-#   1. **ROUTE #94 — LAND THE REPAIR. It is the only OPEN route and it is fully measured.**
-#      `@cached_property` reading a MUTABLE field passes `_check_memoization_soundness`, and
-#      **CPython contradicts the proved postcondition** (`total = 0, self.a = 1` after one
-#      `bump()`). Three independent reasons the gate misses it: `if shared and ...` short-circuits
-#      the whole mutable-state clause when no `#@ shared` var is declared; `shared_vars` comes
-#      only from `#@ shared` declarations; `_reads_any` matches only `type == "Var"`, so a
-#      `FieldGet` can never be seen. The PASS and FAIL cases are ALREADY MEASURED in both PyCSL
-#      and CPython, and the discriminator is **"reject a memoized body that reads a field
-#      assigned somewhere other than `__init__`"** — do NOT ship a blanket field-read ban, a
-#      `cached_property` over a construct-only field is genuinely RT and must keep proving.
-#      Owes a VALUE-DIFFERENTIAL pair, because the falsehood is model-vs-runtime, not in-model.
-#   2. **w65 — `fresh_globals` cross-module confinement. STRUCTURE VERIFIED, EXPLOIT NOT BUILT.**
+#   1. **w65 — `fresh_globals` cross-module confinement. STRUCTURE VERIFIED, EXPLOIT NOT BUILT.**
 #      `_check_fresh_globals` defers the cross-module case to its own clause (2); verified at
 #      HEAD that `run_ir_semantic_checks` (pycsl.py:504) runs BEFORE `_ir_resolve` (:533) which
 #      injects dep functions, and the dep sub-pipeline runs **no semantic checks at all**. So
 #      nothing rejects it. **BUILD THE POSITIVE CONTROL FIRST** — a single-file `fresh_globals`
 #      driver that PROVES plus both clause rejections firing — because a cross-module setup has
 #      many independent ways to refuse and this is the probe most likely to be vacuous.
-#   3. **Three more deferral candidates, all with the named guard's matching rule already quoted
+#   2. **Three more deferral candidates, all with the named guard's matching rule already quoted
 #      in the census** (see the progress-log entry): the H-S capability check keyed on
 #      `self.<target>(...)` only; `compose_from`'s "provider-refines-dependency" and "init-hook"
 #      obligations (`grep S2b` returns ONE line, the comment deferring to it — no
@@ -224,8 +249,8 @@
 #      sees only `#@ shared` vars, not `module_globals` or `self.<field>`; and the typed
 #      quantifier binder inside `#@ assert` (fail-closed in practice). **Re-verify each
 #      independently — I verified #92/#93/w64/w65 myself and every one needed narrowing.**
-#   4. Carve-out candidates 9 and 10; **finding-w60**; the `_field_default` `option` arm.
-#   5. Keep growing BOTH differential corpora (a route just closed is the cheapest source; add
+#   3. Carve-out candidates 9 and 10; **finding-w60**; the `_field_default` `option` arm.
+#   4. Keep growing BOTH differential corpora (a route just closed is the cheapest source; add
 #      BOTH directions, plus the EXCEPTION pair when a repair touched a collection).
 #
 # ## THE CAMPAIGN'S STANDING RULES THAT EARNED THEIR PLACE AGAIN
