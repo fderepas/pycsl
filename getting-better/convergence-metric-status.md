@@ -1,13 +1,13 @@
 # Convergence metric implementation — status
-LAST-UPDATED: 2026-09-13T16:45:00Z
+LAST-UPDATED: 2026-09-13T19:15:00Z
 PHASE-1-PROBE-LEDGER: DONE
 PHASE-2-VERIFIED-FRACTION: DONE
-PHASE-3-REASON-TAXONOMY: BLOCKED:box-busy
-PHASE-4-SILENT-RAISE-BURNDOWN: BLOCKED:box-busy  (70 -> 70, no edits made)
+PHASE-3-REASON-TAXONOMY: BLOCKED:emission-moved  (pilot FIRED — the token REFUSES the file)
+PHASE-4-SILENT-RAISE-BURNDOWN: IN-PROGRESS  (70 -> 70, no edits made yet)
 PHASE-5-BLIND-RECAPTURE-RUNBOOK: DONE (runbook only, per scope limit)
 PHASE-6-GENERATED-SAMPLER: DONE-AUTHORING / BLOCKED:box-busy for the sweep
 OVERALL: INCOMPLETE
-NEXT-ACTION: Box-check first. If idle, run the Phase 3 PILOT on src/self-annotate/src/frontend/exec_splice.py line 35 (recipe below). If emission moves by ONE BYTE: STOP, do not tag the other files, write it up in getting-better/open-routes/ style, mark PHASE-3 BLOCKED:emission-moved.
+NEXT-ACTION: Phase 3 is BLOCKED by a measured refusal — do NOT retry the in-band `reason:` token. Decide between (1) a real PyCSL language change for a trailing `reason:` (capability-sized, audit-skill-bound) and (2) an OUT-OF-BAND taxonomy side file keyed by (mirror file, function qualname) read by count-trusted-directives.py --metrics. Option 2 is recommended and needs no grammar change. Then Phase 4.
 
 ## SUPERVISOR SCHEDULING POLICY — SET BY THE USER 2026-09-13 ~18:35Z
 THE DRIVER IS PAUSED BETWEEN GENERATIONS TO GIVE THIS WORK THE BOX.
