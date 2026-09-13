@@ -28,6 +28,15 @@
 #            45, unchanged — #90 touched no collection, so no exception pair was owed.
 #   ratchets mirror-coverage **549 / 41 KEPT**; `check-bespoke-model-drift` never needed `--update`.
 #   OWED     **NOTHING.** No proof, battery or sweep in flight. Tree clean.
+#   finding  **w62 NEW** — a `\trusted` marker on ANY function buys a FILE-WIDE C-extension
+#            deny-list bypass (`import_classifier.py:126` uses a whole-tree
+#            `any_function_trusted`, while its message says "the IMPORTING function(s)").
+#            MEASURED both directions; the escalation probe was RUN and does **NOT** escalate
+#            (a `ctypes` value stays unconstrained both ways), so it is TCB-ACCOUNTING, not
+#            the #69 class. Its reopening condition is the interesting part: the bypass is
+#            harmless only while the imported names stay OPAQUE, which is a property of the
+#            STUB SET — **a completeness gain elsewhere can re-arm it without anyone touching
+#            that gate.** Route #89's lesson, at a POLICY gate rather than an emitter arm.
 #
 # ## THE GENERATOR THAT PAID THIS GENERATION — AND IT IS NEW
 #
@@ -47,8 +56,26 @@
 #   PROVES, so the audit is not vacuous), the NaN axis is fenced upstream, and a NamedTuple
 #   whose element is a CLASS INSTANCE — #76's own defect via #76's own advice — is refused in
 #   BOTH directions. So the generator is real but the #90 message was not representative.
-#   **A systematic harvest of every remediation sentence in `src/pycsl/` is the obvious next
-#   move and was NOT finished this generation.**
+#   **THE HARVEST WAS DONE AND IT COMES WITH A RATIO: of 195 user-facing refusal messages in
+#   `src/pycsl/`, 60 (31%) CARRY REMEDIATION ADVICE and 135 (69%) ARE PURE REFUSALS.** So one
+#   refusal in three is an attack surface, and only a handful have been audited.
+#
+#   **THE DISCRIMINATOR, WHICH IS THE MOST REUSABLE THING GEN #12 PRODUCED:** *advice that
+#   names the conditions the emitter ACTUALLY CHECKS is safe; advice that names a marker the
+#   emitter merely READS is the hazard.* The in-tree exemplar of the good shape is
+#   `module5/memoization_rt.py:74`, which bakes its exclusions into the sentence ("requires
+#   `#@ assigns \nothing`, and no `\trusted` / `\diverges`") and whose `_detect_purity`
+#   enforces exactly those three conjuncts.
+#
+#   **SCORE SO FAR: one route (#90) from the FIRST message audited, then THREE CONSECUTIVE
+#   PRESCRIPTIONS THAT HELD** — #76's NamedTuple clause, RETANN's `Optional[str]` clause, and
+#   (as a soundness matter) the `\trusted` deny-list clause. So the generator is real but
+#   #90's message was an OUTLIER: audit the remaining 57, do not assume they are rotten.
+#   The ranked candidate list is in the 10:15 progress-log entry; the top unaudited one is
+#   `Module3_Weaver.py:887/999` ("Add `#@ \preserves` to PROMISE it preserves ..."), which
+#   grafts a synthesized postcondition onto a body-less function — though note its message
+#   says "(an assumed postcondition)" OUT LOUD, which is the honest shape, and it is gated on
+#   `trusted or abstract`, i.e. inside the declared TCB. Measure before believing either way.
 #
 # ## THE OTHER GENERATORS, RANKED BY WHAT THEY PAID (unchanged, still the best list)
 #
@@ -125,14 +152,24 @@
 #     hole. The faithful shape is what makes the two refusals non-vacuous.
 #   * **Route #76's remediation advice** (the NamedTuple clause): sound on every reachable
 #     shape — see the generator section above.
+#   * **`deque().append(7)`** — #78's control was DEGENERATE (`len()` of an EMPTY deque: the
+#     true answer IS the erasure constant) and its residue only ever named `appendleft`.
+#     Measured: `len` and the element read BOTH refuse the false claim and **PROVE the true
+#     one**. #78's repair is better than its own control could show.
+#   * **`PYCSL-SEM-RETANN`'s two documented residues, RE-REPRODUCED AT HEAD** (its census
+#     dates to `27cf17b1`, six routes ago): `-> int` with an explicit `return None`, `-> int`
+#     falling off the end, and `-> str` falling off the end all still REFUSE, with the
+#     `-> str` explicit case raising the guard as the control. **And its advice is TRUE**:
+#     `r: Optional[str] = None` makes the caller's `r is None` test PROVE the true claim and
+#     refuse the false one, in both polarities. Advice audited, not assumed.
 #   * Floats/NaN are not decidable at all (`nan == nan` refused), so the whole NaN axis —
 #     including #45's reflexivity hazard reaching `==` on a dataclass or NamedTuple — is
 #     fenced upstream. Do not spend a round on it without first re-checking that fence.
 #
 # ## STILL UNPAID, IN THE ORDER I WOULD TAKE THEM
 #
-#   1. **The systematic harvest of every remediation sentence in `src/pycsl/`** — the new
-#      generator, applied at scale. Started, not finished.
+#   1. **Audit the remaining ~57 advice-bearing refusal messages** — the harvest is DONE and
+#      ranked (10:15 entry); four are audited. Use the discriminator above to triage.
 #   2. **The completeness follow-up to #90**: re-admit an operand whose bool-ness is provable
 #      BY CONSTRUCTION but which is currently refused because it is a `Var` (`y = a > b`,
 #      `y = True`). Needs the ASSIGNED EXPRESSION, not the symbol table. Would also fix the
