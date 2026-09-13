@@ -96,13 +96,55 @@ PRECONDITION*) — same abstraction, same direction of loss, a different obligat
 was found and closed and this survived is itself the evidence that the shape recurs per
 obligation kind and should be swept once, not per route.
 
+## THE MECHANISM, SHARPENED BY A SECOND MEASUREMENT — IT IS NOT "ABSTRACTION LOSES
+## EVERYTHING", IT IS A **SELECTIVE** TRANSMISSION THAT KEEPS THE ASSUME-SIDE
+
+The first reading above ("`self.m` becomes an abstract val, so the contract is gone") is
+TOO KIND to the emitter and would have mis-scoped the repair. Measured on a callee carrying
+BOTH clauses:
+
+```python
+#@ ensures \result == n
+#@ raises ValueError when n < 0
+def f(self, n: int) -> int: ...
+```
+
+the emitted val is
+
+```
+val self_f_1 (x0: int) : int
+  ensures { (result = x0) }
+```
+
+**THE `ensures` IS TRANSMITTED ONTO THE VAL. THE `raises` IS NOT** — no `raises` clause on
+the val, and no `assert`/`try…with` at the call site. Confirmed against the twin with no
+`raises` at all: byte-identical val.
+
+So the machinery to propagate a callee's contract across the `self.m(...)` abstraction
+**EXISTS AND IS IN USE**. It carries exactly the half that HELPS the caller prove things,
+and omits exactly the half that CONSTRAINS the caller. That is why every inspection of this
+path reads as sound: the val visibly carries a contract.
+
+>>> **THE BUG IS NOT THE ABSTRACTION. IT IS THAT THE CONTRACT-TRANSMISSION SET WAS
+>>> ENUMERATED AS "WHAT THE CALLER MAY ASSUME" AND `raises` LIVES IN THE OTHER HALF.**
+
+(Separately and minor: in the sev-1 reproduction the callee's `ensures \result >= 0` is
+ALSO absent from the val, while `ensures \result == n` transmits — so the transmitted set is
+narrower than "all ensures" too. That is a capability question, not a soundness one, and it
+is NOT what this route is about.)
+
 ## STATUS
 
 **OPEN.** Repair scoped below.
 
 ## THE REPAIR, SCOPED
 
-1. **Resolve `self.<m>(...)` to the concrete IR name before the registry lookup.** The
+0. **PREFERRED, AND SMALLER THAN (1): put `raises` INTO THE EXISTING TRANSMISSION SET.**
+   The val already receives the callee's `ensures`; emit the callee's `raises` onto the same
+   val (`raises { E -> ... }`) so Why3 itself forces the caller to discharge it. This reuses
+   a working mechanism instead of adding a second name-resolution path, and it fixes every
+   obligation-kind at once if the set is re-derived as "the callee's whole contract".
+1. **OR resolve `self.<m>(...)` to the concrete IR name before the registry lookup.** The
    emitter already knows the enclosing class (`_current_self_type`), so the flattened name
    `<cls>__<m>` is constructible at the call site; look the registry up under it. Then the
    method path emits the same `assert`/`try…with` the free-function path already does.
