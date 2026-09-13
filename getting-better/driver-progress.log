@@ -1731,3 +1731,27 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   the 11 location-stamp sites in `pure_ast.py` — declares a NAMED `#@ assigns`, never `\nothing`.
   So: a genuinely stale comment sitting on a guard that holds. Reported as stale-but-covered and
   NOT as a hole, exactly as generator #2's rule requires.
+
+[gen20-08] BATTERY LEG 8/9 — MIRROR EMISSION-DIFF, **the load-bearing prediction**:
+  `53 baseline / 53 candidate .mlw; **0 MOVED, 0 GONE (0 unexpected), 0 APPEARED**`, rc=0,
+  `--min-files 45` honoured. Zero-byte **0 on BOTH sides** (53/0 and 53/0); 53 of 53 mirror
+  files emitted on BOTH sides, so neither side was a partial sweep.
+  PREDICTED "ZERO of 53 mirrors move" — **EXACT HIT.** Gen #18's stated reason is therefore
+  confirmed rather than merely unrefuted: the only `\trusted` mirror stub with a bare-Var
+  `assigns` is `pure_ast.py:4094 #@ assigns new_node` on `copy_location`, and `new_node` is an
+  AST-node parameter, not `array`-typed, so it fails the `_arr_params` membership test and
+  route #102's bare-`Var` arm cannot reach it. Nothing in the self-annotation mirror moved.
+
+[gen20-09] BATTERY (+) `self-annotate-mirror-check.sh` — PRE-EXISTENCE **MEASURED ON BOTH
+  SIDES, NOT INHERITED**, which is the whole point of this leg:
+    at HEAD `aa317bba`      rc=1, DRIFT in exactly 3: expr_ghost_collections.py, statements.py,
+                            stmt_control_flow.py — "3 mirror(s) drifted"
+    at BASELINE `5795cfef`  rc=1, DRIFT in exactly the SAME 3, same message
+  PREDICTED "rc=1 on EXACTLY the pre-existing three" — **EXACT HIT.** The three reds predate
+  all six repairs (family of `finding-L1-fidelity-plane-red-at-head.md`). NO FOURTH FILE
+  APPEARED, so gen #20 introduced no drift and there is nothing to revert. I did NOT inherit
+  gen #18's or gen #19's claim about these three; I re-ran the check in the 5795cfef worktree.
+
+[gen20-10] BATTERY LEG 9/9 (FAST HALF) — soundness planes FAST set: **rc=0, 19 `ok` lines
+  COUNTED** (never read off a banner), matching the documented 19 fast planes. Slow half
+  (15 prover/emission planes) running; verdict to follow in the same ledger.
