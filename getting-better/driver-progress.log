@@ -1698,3 +1698,36 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   * (+) `self-annotate-mirror-check.sh`: **rc=1 on EXACTLY the pre-existing three**
     (expr_ghost_collections / statements / stmt_control_flow). If a FOURTH file appears, it is
     MINE and I revert. Confirming pre-existence in the 5795cfef worktree, never inheriting it.
+
+[gen20-05] BATTERY LEG 6/9 — byte-diff **pycsl-reference**: `1036 baseline / 1045 candidate .mlw;
+  **0 MOVED, 0 GONE (0 unexpected), 0 APPEARED**, 9 new source file(s) ignored`, rc=0.
+  Zero-byte count **0 on BOTH sides** (base 1036/0, head 1045/0). /tmp never dropped below 4.9G,
+  so the disk-pressure MOVED-fabrication hazard was not in play.
+  PREDICTION 0/0/0 — **HIT.** PREDICTION "+10 new-source" — **NEAR-MISS, recorded rather than
+  quietly replaced**: there are 10 new SOURCES but only **9 new EMISSIONS**. The tenth,
+  `1291_route103_a_stray_nothing_disarmed_the_whole_frame.py`, EMITS NO `.mlw` AT ALL because it
+  is route #103's REFUSAL witness and the repair now refuses it. That is the exact hazard the
+  contract warns about ("a refused file emits no .mlw, which a common-files diff reads as zero
+  changes — a false green"), and here it is BENIGN ONLY BECAUSE the SOURCES.txt manifest exists:
+  the compare classified 1291 as new-source rather than silently not noticing it. I verified the
+  identity of the non-emitting file by name rather than inferring it from the count.
+
+[gen20-06] BATTERY LEG 7/9 — byte-diff **python-reference (pyref)**: `2203 baseline / 2203
+  candidate .mlw; **0 MOVED, 0 GONE (0 unexpected), 0 APPEARED**`, rc=0, `--min-files 2000`
+  honoured. Zero-byte **0 on BOTH sides**. Manifests IDENTICAL (2217 sources each side, 2203
+  emitting, 14 refusing on both sides). PREDICTED 2203/2203 0/0/0 — **EXACT HIT.**
+  This is the leg that caught route #60's blunt repair, so it is not ceremonial: all six
+  #101-#106 repairs are inert over the 2203-file PROVED driver corpus.
+
+[gen20-07] PENDING PROBE 1 OF 3 CLOSED (probes.tsv line 226, logged by gen #17 and never
+  interpreted) — `setattr-unit-noop-vs-pyobj-state-writes` → **FAIL-CLOSED**, STALE-BUT-COVERED.
+  The 2026-08-27 comment at `statements.py:2649-2651` claims "`setattr_3` returns unit and has no
+  `writes`". FALSE AT HEAD, and the fence is NAMED AND QUOTED per the deferral rule:
+  `abstract_ops.py:51-54` appends `writes { _pyobj_state }` to every decl starting `val setattr_`,
+  and `functions.py:7042-7057` lifts that cell into the enclosing function's frame — or emits the
+  Why3-REJECTED empty `writes { }`, so the residual direction is fail-LOUD, not silent. All
+  setattr emission sites route through `_add_abstract_op`; none touches `_abstract_ops` directly.
+  The surviving unit-no-op arm (`statements.py:2654`) is triple-gated and its ENTIRE population —
+  the 11 location-stamp sites in `pure_ast.py` — declares a NAMED `#@ assigns`, never `\nothing`.
+  So: a genuinely stale comment sitting on a guard that holds. Reported as stale-but-covered and
+  NOT as a hole, exactly as generator #2's rule requires.
