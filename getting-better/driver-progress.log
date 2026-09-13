@@ -1506,3 +1506,14 @@ Routes #32/#33 were the fold being blind to BRANCHES; #34 is the same two maps b
   - doc-coherency rc=0 (no new directive). determinism 10/10. planes **19/19** (the inherited "34" is stale — gen #15 re-measured both sides).
   - metric: **markers 459 / grep-substring 484 / offset 25 / unattached 0, UNCHANGED.** The repair is a pure refusal plus a monotone obligation: it neither adds nor removes a trust marker.
   - The agent-tests `test_inheritance_subtyping.py` (0444 must exit 0, 0445 must exit 1) stay GREEN: both have FIELDED bases and take the unchanged path.
+12:25 GEN #16 BATTERY RUNNING (route #97 repair, vs an a32ec69e worktree). ALREADY GREEN AND EVERY ONE PREDICTED IN THE 11:58 ENTRY BEFORE IT RAN:
+  - fidelity mirror-sync: **OK, 887 un-trusted mirror fns verbatim** (predicted 887) + 37 class-level constants subsets. EXACT.
+  - fidelity mirror-check: **DELTA ZERO** vs the a32ec69e worktree — **19 lines BOTH sides, sorted diff EMPTY**, the same 3 PRE-EXISTING drifted mirrors (expr_ghost_collections / statements / stmt_control_flow), none of them a file this work touched. EXACT.
+  - IR conformance: **both corpora pass — core 38 OK / 0 MISMATCH and front-end 38 OK / 0 MISMATCH, 0 version-skew**. EXACT (no new IR key; `overrides` already exists and already appears in the 0444/0445 goldens, and neither of those has a fieldless base).
+  - determinism: **10/10 sampled drivers byte-stable across PYTHONHASHSEED 0 vs 1**. EXACT.
+  - doc-coherency: **rc=0**. EXACT.
+  - metric: **markers 459 · grep-substring 484 · offset 25 · attached 459 · unattached 0 — UNCHANGED**. EXACT.
+  - baseline byte-diff sweep in the a32ec69e worktree: rc=0, **1024 pycsl-reference .mlw + 2203 python-reference .mlw**; /tmp 4.7G free throughout (no disk pressure, so no fabricated-MOVED hazard in either direction).
+  - suite launched detached and reports **3421 tests across 2 suites** — EXACTLY the predicted total (predicted 3403/3421). Its own leading gates (IR conformance, determinism) are already green.
+  THE DIFFERENTIAL THAT SHOWS THE WITNESSES ARE REAL ROUTE WITNESSES AND NOT MERELY FILES THAT FAIL: re-run at the a32ec69e BASELINE, **1273 -> SUCCESS and 1275 -> SUCCESS** (the Liskov violation was silently accepted), and at HEAD both **FAIL**. 1274 passes on BOTH sides but the passes are not the same thing — at baseline it emitted ZERO refinement goals (a vacuous pass), at HEAD it emits one and alt-ergo returns Valid. 1276 and 1277 FAIL on both sides, as designed (the already-working fielded cell, and the named fence).
+  Candidate byte-diff sweep and the mirror emission-diff still to run; suite verdict to follow.
