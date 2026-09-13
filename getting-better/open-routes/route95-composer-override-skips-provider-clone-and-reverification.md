@@ -83,3 +83,29 @@ ASSUME what S2b exists to prove.
 Tier-2 `#@ resolve <m> from <Mixin>`, or any future support for a composer legitimately
 overriding a provider, must discharge `composer-method ⊑ declared-dependency` explicitly —
 that is S2b, and at that point it must be IMPLEMENTED, not compensated.
+
+## THE BOUNDARY, SHARPENED — INHERITING THE SHADOWING METHOD IS **NOT** A ROUTE (MEASURED)
+
+The obvious sibling shape — the composer does not DEFINE the weak method but INHERITS it from a
+base class — is more natural than the exploit above and was worth measuring, because
+`apply_inheritance` runs before `apply_composition` and could plausibly have populated
+`own_tails`.
+
+| driver | verdict |
+|---|---|
+| `Facade(WeakBase)` with `WeakBase.emit ensures \result == 0`, dependency `>= 10` | **FAILS** |
+| **POSITIVE CONTROL: the same file with every claim weakened to `>= 0`** | **PROVES** |
+
+The control proves, so the inheritance+composition channel is ALIVE and the refusal above is a
+real fence, not a dead channel. (Per the campaign rule: a set of refusals is not evidence until
+one thing proves — four vacuity traps were caught this way last generation.) The mechanism is
+visible in the control's goal list: **`facade__emit'vc` EXISTS**, i.e. the provider was cloned
+into the composer anyway, and therefore re-verified against the concrete facade.
+
+>>> **SO THE ROUTE IS SPECIFICALLY "THE COMPOSER DEFINES IT ITSELF", NOT "THE COMPOSER HAS IT".**
+>>> An inherited method does not enter `own_tails`, the clone still happens, and the
+>>> compensating re-verification still fires. That is exactly the kind of distinction that gets
+>>> lost when a repair is scoped from a description rather than from a measurement — and it is
+>>> why the landed check is keyed on `own_tails` (the population the flatten loop actually
+>>> consults) rather than on "does the composer have a method named `pm`", which would have
+>>> rejected this safe, working shape.
