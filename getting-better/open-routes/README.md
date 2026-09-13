@@ -2,6 +2,14 @@
 
 ## CURRENTLY OPEN: **NONE.**
 ##
+##   >>> **GATE STATUS NOTE, WRITTEN BY GEN #19 (2026-09-13):** gen #18 REPAIRED #101–#106
+##   >>> and committed its battery PREDICTIONS, but STOPPED BEFORE RECORDING A SINGLE
+##   >>> VERDICT. Under rule (r) — never inherit a gate verdict whose tree you cannot
+##   >>> establish — the phrase "CLOSED AND GATED" below was NOT true when it was written.
+##   >>> Gen #19 is re-establishing the whole battery at HEAD. Until that block in
+##   >>> `driver-handoff-latest.md` says otherwise, read #101–#106 as
+##   >>> **REPAIRED BUT NOT YET GATED**.
+##
 ##   **gen #18 (2026-09-13): #101 REPAIRED, and THREE MORE ROUTES FOUND INSIDE ITS OWN
 ##   CARRIER LIST — #102, #103, #104 — all SEV-1, all CLOSED AND GATED.** The whole family
 ##   is one sentence: **the frame collectors for a bodyless `val` were keyed on the NODE TYPE
