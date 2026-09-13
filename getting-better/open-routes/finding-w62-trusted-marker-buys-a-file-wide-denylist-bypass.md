@@ -75,14 +75,33 @@ TCB-accounting version. The marker count (459) measures how many functions are e
 verification — it does **not** record that each one also silently widens an unrelated,
 file-scoped policy gate.
 
-## REOPENING CONDITION — WHAT WOULD MAKE THIS A ROUTE
+## THE ESCALATION PROBE — RUN, NOT LEFT OPEN. IT DOES **NOT** ESCALATE.
 
-Escalate to severity-1 the moment a deny-listed module's imported NAMES become usable in a
-proof under the bypass. Today the bypass only lets the FILE be processed; a `ctypes` value
-that reaches a contract would either be refused downstream or become a trusted stub. **The
-probe that settles it: under the z2 bypass, call something from `ctypes` and try to prove a
-definite value about its result in a NON-trusted function.** If that proves, this becomes the
-#69 class immediately. NOT RUN — recorded as the next step rather than claimed either way.
+The question that separates a finding from a severity-1 route is whether a deny-listed
+module's imported NAMES become usable in a proof under the bypass. **MEASURED, BOTH
+DIRECTIONS**, in a NON-trusted function under the z2 bypass:
+
+```python
+#@ ensures \result == 0          # FALSE -- CPython gives 4
+def f() -> int:
+    return ctypes.sizeof(ctypes.c_int)
+```
+
+    claim `\result == 0`  (FALSE of the program)  ->  REFUSED
+    claim `\result == 4`  (TRUE  of the program)  ->  REFUSED
+
+**Unconstrained in BOTH directions**, so the bypass lets the FILE be processed without
+letting a `ctypes` value become decidable. **THIS IS NOT THE #69 CLASS AND THE CLASSIFICATION
+ABOVE STANDS.**
+
+### NARROWED REOPENING CONDITION
+
+Re-run the two drivers above the moment anything gives `ctypes` (or another deny-listed
+module) a MODELLED value — a stdlib stub, a trusted-stub `ensures`, or a lowering for any of
+its call shapes. The bypass is harmless only for as long as the imported names stay opaque,
+and that is a property of the STUB SET, not of this gate — so a completeness gain elsewhere
+can re-arm it without touching `import_classifier.py` at all. **That is route #89's lesson
+pointed at a policy gate instead of an emitter arm.**
 
 ## THE CHEAP HONEST FIX (not built)
 
@@ -94,4 +113,5 @@ message; or (b) keep the file-wide semantics and **fix the message to say so** �
 ## WITNESSES
 
 `scratchpad/w62/r95/z1_ctl_ctypes_no_trusted.py` (control — the gate fires),
-`scratchpad/w62/r95/z2_ctypes_unrelated_trusted.py` (the bypass).
+`scratchpad/w62/r95/z2_ctypes_unrelated_trusted.py` (the bypass),
+`z3_ctypes_value_under_bypass.py` and `z4_..._twin.py` (the escalation probe, both refused).
