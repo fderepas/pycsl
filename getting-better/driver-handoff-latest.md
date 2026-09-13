@@ -2,16 +2,31 @@
 #
 # ## THE ONE-PARAGRAPH SUMMARY
 #
-#   **ROUTE #97 FOUND-AT-HEAD, REPAIRED IN BOTH HALVES, AND GATED; ROUTE #98 FOUND
-#   (SEV-1) AND IT IS GEN #15's OWN ROUTE-#96 REPAIR COMING BACK.** #97: a Liskov
+#   **THREE ROUTES FOUND, REPAIRED IN BOTH HALVES, AND FULLY GATED — #97, #98, #99 —
+#   AND TWO OF THE THREE LIVE INSIDE THIS CAMPAIGN'S OWN EARLIER REPAIRS.** #97: a Liskov
 #   violation behind a FIELDLESS base was silently accepted — `--check-behavioral-
 #   subtyping` emitted ZERO refinement goals and reported "All contracts formally
 #   proven." #98: route #96's repair decides whether an array-region `assigns`
 #   becomes a `writes` clause by testing the **SOURCE** identifier for membership in
 #   a set built from the **EMITTED** signature, so any parameter `whyml_ident`
 #   renames (`model` -> `py_model`, any WhyML reserved word, any leading capital)
-#   loses its frame entirely and the whole of #96 returns. The metric never moved
-#   (**markers 459 / grep 484**) and was never supposed to.
+#   loses its frame entirely and the whole of #96 returns. #99: route #94's UB-7.7
+#   memoization gate collects mutated fields only when the write is spelled
+#   `self.<f>` AND only sees functions emitted before the end of the enclosing
+#   class, so a stale `@cached_property` proves a postcondition CPython contradicts.
+#   The metric never moved (**markers 459 / grep 484**) and was never supposed to.
+#
+#   **FINAL BATTERY, EVERY VERDICT PREDICTED IN WRITING BEFORE IT RAN:** suite
+#   **3410/3428, 18 CONFIRMED FAIL, ZERO XPASS, rc=1**; byte-diff pycsl-ref
+#   **0 MOVED / 0 GONE / 0 APPEARED** (+9 new-source) and python-ref **2203/2203
+#   0/0/0**, zero-byte 0 both sides of both corpora; SOURCES **1199 -> 1211**;
+#   fidelity **887 verbatim** + mirror-check **DELTA ZERO**; mirror emission-diff
+#   **3 of 53** with the delta exactly four `raises` clauses + one `exception` decl;
+#   the three moved mirrors re-proved **rc=0 / 0 non-Valid each**; doc-coherency
+#   rc=0; conformance **38/38 both corpora**; determinism **10/10**; planes
+#   **34/34**. **NO RATCHET RE-BASELINED** — `trusted-raises-honesty` held at **70**
+#   through TWO reds, both mine, both fixed by moving the population across the line
+#   and never the line. No golden re-blessed, no gate loosened.
 #
 # ## THE SINGLE MOST TRANSFERABLE THING THIS GENERATION LEARNED
 #
