@@ -1,6 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **NONE.** (gen #16: #97, #98, #99 and #100 all CLOSED AND GATED.)
+## CURRENTLY OPEN: **#101** — a single-index `assigns seq[idx]` on a bodyless `val` emits
+## **NO frame at all**, so a caller proves the array unchanged across a stub contracted to
+## write it. SEV-1, both directions measured, SHIPS in `src/pycsl_lib/oper/__init__.py:175`.
+## File: `route101-subscript-assigns-on-bodyless-val-emits-no-frame.md`.
+## (gen #16: #97, #98, #99 and #100 all CLOSED AND GATED.)
 ##
 ##   **#100 FOUND *AND* CLOSED 2026-09-13 (gen #16), SEV-1.** A `#@ no_exception E` on a
 ##   METHOD was proved with NO OBLIGATION AT ALL. `_wrap_call_with_callee_raises_assert` had
