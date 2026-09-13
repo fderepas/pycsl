@@ -70,7 +70,20 @@ LIVE = os.path.join(ROOT, "src", "pycsl")
 #       Both raise `PyCSLSemanticError`, i.e. they REJECT THE FILE; neither adds an exit
 #       path to a lowering. The rows are tagged `SILENT/refusal` so this stays visible.
 #       NOT bumped for anything else: the non-refusal population is unchanged at 68.
-MAX_SILENT = 70
+#   69  (#49, convergence-metric Phase 4) LOWERED BY DECLARING, never by moving the bound.
+#       `frontend/exec_splice.py::_ExecSplicer.visit_Expr` now carries
+#       `#@ raises PyCSLParseError when True`. Whole-file re-proof rc=0, zero non-Valid
+#       goals (`getting-better/proofs49/cm4_exec_splice.rc` + `.log`, 2m14s).
+#       *** THE `when True` IS AN OVER-APPROXIMATION AND IS DECLARED AS ONE. *** The live
+#       body raises `PyCSLParseError` on exactly three paths, all of them reachable only
+#       when `_is_constant_exec(val)` holds: the `exec(...)` literal fails to parse, a
+#       spliced statement is outside `_WHITELIST`, or the splice contains a nested `exec`.
+#       That condition is not expressible against the stub's parameter, which lowers to an
+#       opaque `int`, so the honest move is the over-approximation plus this note — the
+#       same shape as `ir_schema.py:171` and `desugar.py:56`, which also say `when True`.
+#       An over-approximating `raises` is still STRICTLY WEAKER (hence safer) than the
+#       silent stub it replaces: no-clause told Why3 the call CANNOT raise.
+MAX_SILENT = 69
 
 
 # (#49) THE REFUSAL CLASS. Every `raise` this campaign ADDS to the emitter is a REFUSAL —

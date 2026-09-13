@@ -35,6 +35,7 @@ class _ExecSplicer(ast.NodeTransformer):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ raises PyCSLParseError when True
     #@ assigns self._source
     def visit_Expr(self, node):
         pass
