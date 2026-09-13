@@ -73,3 +73,31 @@ just of the results. Anything less makes the property's name a lie.
 
 Whether the *number of calls*, termination, or exception behaviour can carry the secret — the
 twin asserts nothing about those either. Same reasoning applies, same unreachability caveat.
+
+---
+
+## UPDATE — GEN #14: THE CO-LANDING FIX IS LANDED, AS A REJECTION, NOT AS A STRONGER TWIN.
+
+This finding prescribed *"the twin must also assert equality of PUBLIC state after the two
+calls"*. **That is not expressible in this synthesis, and the reason is worth recording:** the
+twin calls the target twice on the SAME `self`, sequentially. There is no second initial state,
+so there is no pair of final states to relate. A genuine 2-run state relation needs a second
+`self`, which `_synthesize_selfcomp` does not have and cannot cheaply acquire.
+
+So the fix landed as the sibling forms' discipline instead — **sound-by-rejection**: a
+noninterference target that can WRITE state is refused, naming the field and, when the write is
+reached through a helper, the call chain. It is REACHABILITY-based over in-module
+`self.<m>(…)` calls, because a guard that scanned only the target's own body would be routes
+#91/#92 in a third guard. `__init__` needs no carve-out here — it is simply not reachable from
+the target, so the carve-out that #91, #92 and #94 each needed by hand falls out for free.
+
+**What this buys:** the accidental fence (a state-mutating NI target cannot be verified at all)
+is replaced by a NAMED one that says why. The day self-composition works through state, the
+rejection fires and whoever lifts it is pointed straight at the obligation that has to grow —
+instead of silently inheriting a property whose name is a lie.
+
+**Residue, stated honestly:** the rejection covers direct `self.<f>` stores, a non-`\nothing`
+`assigns` clause naming `self.`, and both of those reached transitively through in-module
+`self` calls. Mutation through a NON-`self` receiver is not traversed — it is opaque in the
+model and propagates nothing (finding w68), and w68's own co-landing rejection now refuses the
+guarded-call case of that shape. Witnesses 1262, 1263, 1264.

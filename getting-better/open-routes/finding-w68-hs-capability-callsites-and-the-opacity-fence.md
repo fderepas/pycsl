@@ -71,3 +71,23 @@ not by the guard but by a COMPLETENESS GAP in exactly the shape an attacker woul
 >>> roadmap.** Each of the three has its co-landing fix written down in its finding; the fixes
 >>> are cheap, and they are cheap *now*, while the exploits are unreachable and the guards can
 >>> still be changed without a corpus fight.
+
+---
+
+## UPDATE — GEN #14: THE CO-LANDING FIX IS LANDED, AND IT IS A REJECTION FOR A SHARP REASON.
+
+This finding prescribed *"match the guarded call by its RESOLVED TARGET, not by the literal
+receiver name `self`"*. Resolution is not available where the check lives — `_expand_happy_
+properties` runs in the WEAVER, before IR resolution, so there is no class for `other`. More
+importantly, **injecting the check at a foreign-receiver site would be UNSOUND, not merely
+incomplete**: the guarding formula speaks about `self`, so discharging
+`self.session_authenticated == 1` at `other.transfer(…)` proves the capability of the WRONG
+OBJECT — a check that looks like enforcement and enforces nothing, which is strictly worse than
+the hole it replaces.
+
+So the landed fix keys on the CALLEE (`func.attr == hp.target`) — route #91's lesson, kept —
+and REJECTS the call. `self.<target>(…)` is unaffected; a call to any OTHER method on a foreign
+receiver is unaffected (witness 1266, the rule-(l) narrowness test). The accidental fence
+(non-`self` calls are opaque) is now a named one, so the day cross-object calls carry their
+callee's contract, the rejection fires instead of the capability silently becoming assumable at
+an unchecked site. Witnesses 1265, 1266.

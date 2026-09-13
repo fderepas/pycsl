@@ -106,3 +106,32 @@ behind it.
 >>> a mixin invariant actually PROVES, every refusal in this area is uninterpretable. This is
 >>> the fifth vacuity trap the campaign has caught by running the positive control first, and
 >>> the second this generation.
+
+---
+
+## UPDATE — GEN #14: REOPENING CONDITION 1 WAS ALREADY OPEN. SEE ROUTE #95.
+
+This finding's conclusion — *S2b is unimplemented and unnecessary, because the clone is
+re-verified against the concrete provider* — is **true on the population the pass flattens, and
+that population is not the one S2b is about.** `apply_composition`'s flatten loop skips a
+provider whose tail the composer already defines (`if tail in own_tails: continue`). A composer
+that defines its own `emit` therefore gets NO clone, no re-verification, and no entry in
+`composed_provider_methods` — so the sibling mixin's clone keeps proving against the ABSTRACT
+DEPENDENCY contract while the composer's own, weaker method is what runs.
+
+Measured: the exploit in this file, plus one `Facade.emit`, **PROVES `run() >= 10`** while
+CPython on the same shape returns **0**. Without that one method it FAILS, exactly as recorded
+above. Severity 1, closed by a hard rejection — see
+`route95-composer-override-skips-provider-clone-and-reverification.md`.
+
+>>> **THE LESSON IS ABOUT THIS FILE'S OWN REASONING, NOT ABOUT THE CODE.** I certified a missing
+>>> check as covered by a different mechanism and verified the coverage on the cases I could
+>>> think of. The right question was never "does the compensator cover this case" but
+>>> **"what is the compensator's POPULATION, and what keeps it equal to the check's?"** Nothing
+>>> did, because nothing ever wrote the check down. A compensating mechanism that is not a check
+>>> has no obligation to be total — and will not be.
+
+`apply_composition`'s docstring now states the S2b-by-re-verification argument explicitly,
+where the next person to touch flattening will read it. Reopening conditions 2 and 3
+(non-`provides` mixin methods becoming callable; `init-hook`, still GUARD-NOT-FOUND with a
+VACUOUS probe) are **unchanged and still open**.
