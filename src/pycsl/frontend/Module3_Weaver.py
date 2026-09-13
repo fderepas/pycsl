@@ -982,6 +982,40 @@ class Module3_Weaver:
                           f"L{getattr(stmt, 'lineno', 0)}")
                 cp = CheckPoint("check", pred, origin=origin)
                 stmt.csl_checkpoints = getattr(stmt, "csl_checkpoints", []) + [cp]
+            # (A2) WHOLE-FIELD REBINDING — route #91. `_field_write_site` matches only a
+            # `Subscript` target, so `self.<field> = <expr>` (an `Attribute` target, which
+            # REPLACES the whole array, protected region included) matched nothing and got
+            # NO check at all. Measured: a non-exempt `def wipe(self, a: list): self.disk = a`
+            # VERIFIED, while in the same file `ensures self.disk[1000] == 99` (an
+            # attacker-chosen value inside the region) PROVED and the preservation claim
+            # `== 7` REFUSED — so the model itself certified the region had changed while the
+            # property claiming it had not was proved. Sound-by-rejection, mirroring the
+            # `protects` form (whose `_collect_protect_sites` matches the DOTTED PATH and so
+            # already catches this) and the reading form's alias rejection above. `__init__`
+            # is exempt: it CREATES the field, so there is no prior region for the property
+            # to be about.
+            for fn in funcs:
+                if fn.name in except_set or fn.name == "__init__":
+                    continue
+                for nd in ast.walk(fn):
+                    if not isinstance(nd, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                        continue
+                    tgts = (nd.targets if isinstance(nd, ast.Assign) else [nd.target])
+                    for tgt in tgts:
+                        if (isinstance(tgt, ast.Attribute)
+                                and isinstance(tgt.value, ast.Name)
+                                and tgt.value.id == "self"
+                                and tgt.attr == hp.field):
+                            lo, hi = (self._region_bound_str(hp.region_lo),
+                                      self._region_bound_str(hp.region_hi))
+                            raise PyCSLSemanticError(
+                                f"`happy {hp.name}`: non-exempt '{fn.name}' REBINDS the whole "
+                                f"field 'self.{hp.field}' (line "
+                                f"{getattr(nd, 'lineno', 0)}), replacing the protected region "
+                                f"[{lo}, {hi}) wholesale — a per-index check cannot constrain "
+                                f"a whole-array store. Write through self.{hp.field}[i] so "
+                                f"each index is checked, or add '{fn.name}' to the `except` "
+                                f"set if it is a legitimate owner.")
             # (C) Trust boundary: a non-exempt trusted/abstract function has no
             # checkable body, so it could write the protected region. It must opt in
             # with `#@ \preserves`, which synthesizes the canonical region-preservation
