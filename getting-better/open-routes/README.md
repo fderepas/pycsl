@@ -2,6 +2,41 @@
 
 ## CURRENTLY OPEN: **NONE.**
 ##
+##   >>> **THE INDEX LAGS THE ROUTE FILES. TRUST THE FILES.** This header claimed
+##   >>> "CURRENTLY OPEN: NONE" for the whole of gen #14's window while route #96 sat OPEN in
+##   >>> its own file, and the window #6 supervisor had to carry the correction by hand. If you
+##   >>> close or open a route, edit THIS BLOCK in the same increment.
+##
+##   **#96 CLOSED AND GATED 2026-09-13 (gen #15), FAIL-CLOSED, AND ITS DEFERRAL'S PREMISE WAS
+##   REFUTED.** A bodyless `val` (`\trusted` / `\abstract` / imported) SILENTLY DROPPED an
+##   array-region `assigns`: `_emit_frame_condition`'s val arm collected only `Attribute`/
+##   `FieldGet` targets and `continue`d past every `AssignsRegion`, so the emitted val carried
+##   NO `writes` clause and Why3 treated the stub as PURE. A caller kept `arr[0] == 7` across a
+##   stub whose own contract says it writes `arr[0]` and PROVED `\result == 7`, while CPython
+##   returns **0**. `\trusted` is the DECLARED TCB BOUNDARY, so the `assigns` a reviewer
+##   certifies was exactly the part the emitter threw away.
+##
+##   Gen #14 found it and deliberately left it open, because the blast radius could not be
+##   censused in its remaining window. **THE BLAST RADIUS WAS EMPTY** — an instrumented census
+##   of the exact branch (probe positive- AND negative-tested first) found **0 val x region
+##   sites across 3567 files**: 1193 pycsl-reference, 2217 python-reference, 104 `pycsl_lib`,
+##   53 mirrors, with a planted positive control hitting through the same harness. 48 in-tree
+##   functions carry a region `assigns` and not one is trusted/abstract.
+##
+##   >>> **THAT EMPTINESS IS WHY THE BUG SURVIVED, NOT WHY IT WAS HARMLESS.** The cell of the
+##   >>> 2x2 nobody in-tree writes is the cell no test covered. And: **a deferral justified by
+##   >>> an UN-MEASURED blast radius should be converted into a measurement before it is
+##   >>> inherited as a cost** — the estimate was the only expensive thing about this route.
+##
+##   Both directions: exploit and `\abstract` arm now REFUSE; the capability twin (a trusted
+##   stub with BOTH a region `assigns` and an array `ensures`) STILL PROVES. Soundness of the
+##   whole-array over-approximation is EQUALITY with the verified-body baseline, not strictness:
+##   a real body writing one cell already havocs the whole array, so 1269 (let) and 1270
+##   (trusted twin) now agree where before exactly one of them proved. Fail-closed residue is
+##   empty and each fence is quoted from an executed run (`_check_assigns_regions`
+##   PYCSL-SEM-ASSIGNS for a global or non-list base; a Why3 TYPE REJECTION for `Any`).
+##   Witnesses 1267-1272.
+##
 ##   **#94 CLOSED AND GATED 2026-09-13 (gen #13), FAIL-CLOSED.** A `@cached_property` reading a
 ##   MUTABLE field passed the UB-7.7 referential-transparency gate, and **CPython contradicts
 ##   the proved postcondition** (`total = 0, self.a = 1` after one `bump()`, so `c.total == c.a`

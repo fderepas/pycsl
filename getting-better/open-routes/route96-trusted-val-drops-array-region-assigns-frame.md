@@ -74,10 +74,36 @@ supposed to make impossible.
 
 ## STATUS
 
-**OPEN.** Found and fully reproduced by gen #14 at the end of its window; the repair was NOT
-attempted because its blast radius (every `\trusted`/`\abstract`/imported function carrying an
-array-region `assigns`, including `src/pycsl_lib/` stubs) could not be censused and gated inside
-the remaining time, and a half-gated frame change is worse than an honest open route.
+**CLOSED AND GATED 2026-09-13 (gen #15), FAIL-CLOSED, AND THE DEFERRAL'S OWN PREMISE WAS
+REFUTED BY MEASUREMENT.** Gen #14 left this open because the blast radius "could not be
+censused and gated inside the remaining time". **The blast radius is EMPTY.**
+
+The census was run by instrumenting the EXACT branch the repair touches (`_emit_frame_condition`,
+val arm, `AssignsRegion` non-empty) and sweeping every tree — after negative- AND positive-testing
+the probe itself, because a census whose population is empty looks exactly like a census that
+passed:
+
+| tree | files swept | val x region hits |
+|---|---|---|
+| `test-suite/corpus/pycsl-reference` | 1193 | **0** |
+| `test-suite/corpus/python-reference` | 2217 | **0** |
+| `src/pycsl_lib` (`--import-path src/pycsl_lib`) | 104 | **0** |
+| `src/self-annotate/src` (`--import-path src/pycsl`) | 53 | **0** |
+| *planted positive control, same harness* | 1 | **1 HIT** |
+
+A textual pre-census agrees and explains it: 48 in-tree functions carry a region `assigns`, **not
+one** is `\trusted`/`\abstract`, and the only three living in importable modules
+(`pycsl_lib/strct::pack_into` x2, `pycsl_lib/rng::shuffle_len`) have **no in-tree importer**.
+
+>>> **THAT EMPTINESS IS NOT A REASON THE BUG WAS HARMLESS — IT IS THE REASON IT SURVIVED.** The
+>>> cell of the 2x2 nobody in-tree ever writes is exactly the cell no test ever covered, and the
+>>> emitter is wrong precisely there. A population of zero made the repair CHEAP; it never made
+>>> the route small, because `\trusted` is a boundary offered to USERS, whose programs are not
+>>> in this tree.
+
+The generalisable lesson: **a deferral justified by an un-measured blast radius should be
+converted into a measurement before it is inherited as a cost.** Gen #14's estimate was the only
+thing expensive about this route.
 
 ## THE REPAIR, SCOPED
 
@@ -92,3 +118,69 @@ MOVED entries. **That is the cost of transmitting a frame that was being dropped
 worked, not hidden** — a file that breaks is a file that was relying on the hole. Census the
 population FIRST (`\trusted`/`\abstract`/imported × `AssignsRegion`), predict the MOVED set, and
 do not re-baseline anything to keep a gate green.
+
+## THE REPAIR AS LANDED, AND WHY THE OVER-APPROXIMATION IS SOUND RATHER THAN MERELY STRICT
+
+`_emit_function` records the `array`-typed parameters of the signature it is emitting by parsing
+**`args_str` itself** (`_current_array_param_names`) — not by re-deriving them from the symbol
+table — so a write target is a name Why3 is guaranteed to hold in scope and to consider mutable.
+`_emit_frame_condition`'s val arm then contributes an `AssignsRegion` base to the `writes` set
+when it is one of those parameters.
+
+**The over-approximation to the whole array is not a penalty imposed on the val — it is EQUALITY
+with the verified-body baseline.** Why3 infers the effect of a `let` from its mutations, and in
+the value-semantic model a body that writes one cell yields the same whole-array write: a caller
+keeps nothing about the array, not even cells outside the declared region. Measured both ways
+(witnesses 1269 / 1270): the real-body program and its `\trusted` twin now BOTH refuse a claim
+about an out-of-region cell. Before the repair, exactly one of them proved. So the repair did not
+make a bodyless stub stricter than a verified one; it made it equal, which is the only frame a
+bodyless stub was ever entitled to.
+
+## BOTH DIRECTIONS, MEASURED
+
+| driver | before | after |
+|---|---|---|
+| N2 exploit (`\trusted` + `assigns a[0..n]`) | PROVES `\result == 7` | **FAILS** |
+| N4 the `\abstract` arm | PROVES | **FAILS** |
+| N1 **capability twin** — the same stub with `ensures a[0] == 9`, caller claims `\result == 9` | PROVES | **STILL PROVES** |
+| N3 real-body control | FAILS | FAILS |
+| N5 field-assigns control (the 2026-08-26 fix) | FAILS | FAILS |
+| CPython | `driver([7,7,7,7]) == 0` | unchanged |
+
+N1 is the arm that matters most: a repair that makes every exploit refuse is worthless if it also
+makes the honest program refuse. The new `writes { a }` havocs the array and the stub's OWN
+`ensures` re-pins the cell the caller reads, so the trusted boundary still transmits array facts.
+
+## THE FAIL-CLOSED RESIDUE, WITH EACH FENCE NAMED AND QUOTED FROM AN EXECUTED RUN
+
+A base that is not an `array`-typed parameter contributes nothing. That residue is **empty**, and
+not by argument:
+
+* **a module-GLOBAL array** — refused upstream by `core_ir_semantic.py:242-258`
+  (`_check_assigns_regions`, `PYCSL-SEM-ASSIGNS`): *"Assigns region references undefined variable
+  'g' in function 'scramble'."* The base must be in the function's symbol table.
+* **a non-list base** (`str`, `dict`, `set`, `int`) — refused by the same guard's second arm:
+  the type must be one of `list` / `List` / `Any`.
+* **`Any`, the third admitted type** — reaches emission as `(a: int)` and Why3 **TYPE-REJECTS**
+  the caller's array argument: *"This term has type int, but is expected to have type
+  array.Array.array 'xi"*. Fail-closed, the same shape as gen #13's C8 Union-narrowing verdict.
+
+## WITNESSES
+
+1267 (trusted exploit, xFAIL) - 1268 (`\abstract` arm, xFAIL) - 1269 (real-body baseline, xFAIL)
+/ 1270 (its trusted twin, xFAIL; the pair is the standing EQUIVALENCE witness — if a future change
+re-introduces region precision on one side only, exactly one of them flips) - **1271 (capability
+preserved, MUST PROVE)** - 1272 (the FIELD cell of the 2x2, still refused, so the 2026-08-26 field
+frame fix is pinned against regression).
+
+## REOPENING CONDITIONS
+
+1. Any change that lets a region base be something other than an `array`-typed parameter — a
+   relaxation of `_check_assigns_regions`, or an `Any` param that starts emitting as an array —
+   re-opens the fail-closed residue and must re-measure all three fences above.
+2. A region `assigns` on a `self.<field>` array. The parser (`_parse_assigns_region`) accepts only
+   a bare NAME, so `self.buf[0..n]` is not expressible today; making it expressible would create a
+   new cell of this 2x2 that this repair does NOT cover.
+3. Any future model in which `let` DOES transmit region precision to callers. The soundness
+   argument here is val-equals-let; if `let` gets sharper, the val must get sharper with it or the
+   equality claim in 1269/1270 becomes false in the unsound direction.
