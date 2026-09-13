@@ -83,6 +83,19 @@ covers*), one feature ahead of time.
   typing gates. **It is not exploited here and is NOT claimed as a route** — it needs the
   same TRUE-claim control this file's main finding needed.
 
+  **UPDATE — THE PEP 484 NO-OP WAS THEN MEASURED, AND IT IS FAIL-CLOSED ON EVERY SHAPE
+  TRIED.** Flagging something UNMEASURED is not a resting place, so:
+    * the channel is ALIVE **and DISCRIMINATING**: two live `Box[int]`s, `a.get() == 5`
+      **PROVES**, and the false twin `a.get() == 7` **FAILS** — so values are not
+      conflated across instances and a pass there means something.
+    * the erasure exploit — `b: Box[Any] = Box("hello")` read back as `int` — is
+      **LOUDLY TYPE-REJECTED** by Why3: *"This expression has type string, but is
+      expected to have type int"* (CPython returns `'hello'`).
+  So the PEP 484 spelling loses the TY3 GATES but keeps the underlying type model, and
+  that model refuses the mismatch. **No unsoundness found; the fence is Why3's own
+  typing, named and quoted.** What remains true and undocumented is the ASYMMETRY: a
+  user writing the common spelling gets no GT1/GT2/GT3/GT4 at all, silently.
+
 ## COVERAGE NOTE — WHY NONE OF THIS WAS EVER GOING TO BE CAUGHT BY A GATE
 
 **There is not one file in the entire test-suite using `TypeVar` or `Generic[`** (measured:
