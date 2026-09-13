@@ -1460,3 +1460,11 @@ Routes #32/#33 were the fold being blind to BRANCHES; #34 is the same two maps b
   - doc-coherency: rc=0 (no new directive).
   - conformance: 38/38 + 38/38, 0 MISMATCH; determinism 10/10; planes 34/34.
 05:06 gen#14 BATTERY RUNNING. Already green: doc-coherency rc=0; mirror-sync OK (887 un-trusted fns verbatim); mirror-check DELTA ZERO vs a 60a2cec1 worktree (19 lines both sides, sorted diff EMPTY, same 3 PRE-EXISTING drifted mirrors expr_ghost_collections/statements/stmt_control_flow — none touched by this work). Suite w66_suite_gen14 running (3410 tests, jobs=6, matches the predicted total). Baseline byte-diff sweep running in a 60a2cec1 worktree.
+05:15 GATE VERDICTS (gen #14, vs a 60a2cec1 worktree baseline):
+  - byte-diff pycsl-reference: 1014 baseline / 1018 candidate .mlw; 0 MOVED, 0 GONE, 0 APPEARED, 4 new-source ignored. PREDICTED 0/0 and exactly 4 new emissions (1260,1261,1264,1266) — EXACT; the tool classifies them as new-source rather than APPEARED, which is the finer and correct reading (no pre-existing REFUSAL became an emission).
+  - byte-diff python-reference: 2203/2203; 0 MOVED, 0 GONE, 0 APPEARED. zero-byte 0 on BOTH sides; /tmp 5.0G free.
+  - SOURCES manifests sorted-diff: exactly the 8 new witnesses, nothing else (1185 -> 1193).
+  - fidelity mirror-sync: OK, 887 un-trusted mirror functions verbatim. mirror-check: DELTA ZERO vs baseline (19 lines both sides, sorted diff EMPTY; the 3 drifted mirrors expr_ghost_collections/statements/stmt_control_flow are PRE-EXISTING at 60a2cec1 and untouched here).
+  - doc-coherency rc=0. IR conformance: both corpora pass. determinism 10/10 byte-stable across PYTHONHASHSEED 0 vs 1.
+  - metric UNCHANGED and stable across 3 samples: markers 459 / grep-substring 484 / offset 25 / unattached 0.
+  Suite still running; verdict to follow.
