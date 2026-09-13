@@ -80,5 +80,29 @@ that copy, and the measured file FAILED on the clone regardless.
    re-verifying the clone against the concrete provider. This is the likely one, because it
    looks like a pure performance win.
 2. **A path that makes a non-`provides` mixin method callable from the composer.**
-3. `init-hook` is still **GUARD-NOT-FOUND and UNPROBED** — I measured the refinement obligation,
-   not that one. It is not covered by this finding.
+3. `init-hook` is still **GUARD-NOT-FOUND**, and my attempt to probe it **MEASURED NOTHING** —
+   see below. It is not covered by this finding.
+
+## THE `init-hook` PROBE I RAN AND THREW AWAY — VACUOUS, AND WHY THAT IS WORTH RECORDING
+
+I tried to reach the `init-hook` obligation with the obvious shape: a `#@ mixin` carrying a
+`#@ class invariant self.n >= 0`, composed into a `Facade` whose `__init__` sets `self.n = -5`,
+with the flattened `bump` returning `self.n + 1` under `#@ ensures \result >= 1`. CPython gives
+`-4`, so the claim is false and the direction is right.
+
+**It FAILED — and so did the positive control** (the identical file with `self.n = 5`, which is
+true in CPython and ought to prove). **A SET OF REFUSALS IS NOT EVIDENCE UNTIL ONE THING
+PROVES**, so this measured nothing at all. Adding an explicit `#@ requires self.n >= 0` to the
+provider did not revive it either: both directions still refuse.
+
+Reading which goal failed says why: the unproven goal is `facade__bump'vc`'s **postcondition**,
+i.e. the mixin's class invariant is **not reaching the flattened clone in the composer**. That
+is a *completeness* gap in mixin composition, and it fences the `init-hook` hazard upstream —
+but by accident, not by a guard, and I cannot tell from a dead channel whether the hazard exists
+behind it.
+
+>>> **THE NEXT GENERATION MUST BUILD A WORKING POSITIVE CONTROL FOR `mixin + class invariant +
+>>> composer __init__` BEFORE PROBING `init-hook` AT ALL.** Until a composed file that RELIES on
+>>> a mixin invariant actually PROVES, every refusal in this area is uninterpretable. This is
+>>> the fifth vacuity trap the campaign has caught by running the positive control first, and
+>>> the second this generation.
