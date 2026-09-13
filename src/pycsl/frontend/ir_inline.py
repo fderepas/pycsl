@@ -365,6 +365,48 @@ def _inline_calls(funcs: List[Dict[str, Any]], globals_set: Set[str],
     # `g.method()` receivers reference methods the importer never imported, are
     # not walked).
     for f in (rewrite_funcs if rewrite_funcs is not None else funcs):
+        # (#49) ROUTE #106 — INLINING DELETED THE CALL, AND WITH IT THE OBLIGATION.
+        # A caller declaring `#@ no_exception E` that calls a global-instance method
+        # declaring `#@ raises E when P` must discharge `assert { not P }` at the call
+        # site — `Module6_WhyMLTranspiler._wrap_call_with_callee_raises_assert` emits
+        # exactly that, and routes #100 and #105 extended it to the `self.<m>` and
+        # `<recordvar>.<m>` receivers. But that wrap lives at a CALL SITE, and this pass
+        # runs EARLIER, on the IR, and SPLICES THE CALLEE BODY IN — so by the time
+        # Module 6 looks, there is no call left to wrap.
+        #
+        # MEASURED at ac2ef23e: `_h = Helper()` then `_h.f(k)` inside a
+        # `#@ no_exception ValueError` caller emitted
+        #     let caller (k: int) : int
+        #       raises { ValueError }            <- Why3 is TOLD it raises
+        #     = let _inl_res__inl1 = ref 0 in
+        #       if (k < 0) then begin raise ValueError end; ...
+        # and PyCSL reported `All contracts formally proven`. CPython `caller(-1)` RAISES.
+        # The emitted signature CONTRADICTED the source directive and nothing compared
+        # them. It was inlined EVEN WHEN THE CALLEE WAS `\trusted` — the `val` was emitted
+        # and never called, so the trust boundary was spliced straight through.
+        #
+        # >>> A TRANSFORMATION THAT REMOVES A SYNTACTIC FORM REMOVES EVERY OBLIGATION
+        # >>> KEYED ON THAT FORM. Inlining is semantics-preserving for the VALUE and
+        # >>> silently not for the CHECK, because the check was attached to the call node
+        # >>> rather than to the callee.
+        #
+        # THE REPAIR PRESERVES THE CAPABILITY INSTEAD OF REFUSING: treat such a callee as
+        # `#@ no_inline` FOR THIS CALLER ONLY, so the call survives to Module 6 and lands
+        # on the existing, already-gated wrap. Nothing is rejected that used to be
+        # accepted — the obligation simply becomes visible, which is what the user asked
+        # for by writing `no_exception`. CENSUSED FIRST: across the 71 files declaring
+        # `#@ no_exception`, NOT ONE also declares a module-global instance, so this is
+        # byte-inert on the corpus today; it is a fence for the shape, not a migration.
+        _ne = set((f.get("contracts") or {}).get("no_exception") or [])
+        _ne_all = bool((f.get("contracts") or {}).get("no_exception_all", False))
+        _keep_calls: Set[str] = set()
+        if _ne or _ne_all:
+            for _g in funcs:
+                _draises = {r.get("exc_type")
+                            for r in ((_g.get("contracts") or {}).get("raises") or [])}
+                if _draises and (_ne_all or (_draises & _ne)):
+                    _keep_calls.add(_g.get("name"))
+        inliner.no_inline = (no_inline | _keep_calls) if _keep_calls else no_inline
         body = f.get("body", [])
         # (#33) EXPLICIT CONVERGENCE FLAG, not `for ... else`. The IR emitter reads only a
         # loop's body — `_process_for`/`_process_while` never look at `orelse` — so a loop

@@ -29,6 +29,17 @@
 ##   >>> **A REFUSAL INSTALLED TO OBSERVE A RESIDUE IS KEYED ON THE SPELLING ITS AUTHOR WAS
 ##   >>> LOOKING AT.** #98 installed the observer and covered one spelling of four.
 ##
+##   **AND THE SAME SHAPE IN THE `no_exception` CLAUSE — #105 and #106, also CLOSED:**
+##   - **#105** route #100's repair covered ONE RECEIVER. `_module_func_raises` is keyed on
+##     the IR name `<cls>__<m>`; every non-`self.` receiver was handed its SOURCE spelling
+##     (`"c.f"`), the lookup missed, and the wrap returned `inner` untouched. The correct
+##     key was already computed 600 lines above and never threaded.
+##     File: `route105-raises-obligation-dropped-for-non-self-receivers.md`.
+##   - **#106** a module-global receiver is INLINED before Module 6 ever looks, so there is
+##     no call left to wrap — and the caller is emitted carrying `raises { ValueError }`
+##     while its source says `#@ no_exception ValueError`. SURVIVED #105's repair.
+##     File: `route106-inlining-deletes-the-call-and-with-it-the-obligation.md`.
+##
 ## (gen #16: #97, #98, #99 and #100 all CLOSED AND GATED.)
 ##
 ##   **#100 FOUND *AND* CLOSED 2026-09-13 (gen #16), SEV-1.** A `#@ no_exception E` on a
