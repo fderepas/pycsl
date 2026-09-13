@@ -52,7 +52,7 @@ nothing).
 |---|---|---|---|
 | `protects <paths>` | caught (dotted path) | **CAUGHT** — `_collect_protect_sites` matches `_target_dotted_path(tgt)`, and an `Attribute` target's dotted path IS the protected path | `x = self` (proper prefix) caught by `_check_protect_aliasing` |
 | `reading` (H-I1) | caught (`_subscript_read_site`) | n/a (read form) | **CAUGHT** — an explicit rejection, with a comment saying the alias "would evade the per-site check" |
-| **region-write (the primary form)** | caught | **MISSED — ROUTE #91** | missed; fail-closed only by a TYPE ACCIDENT (below) |
+| **region-write (the primary form)** | caught | **MISSED — ROUTE #91** | no guard HERE, but defended by the VALUE MODEL per spec §2.5 (below) |
 
 So the miss was not a design decision: **two sibling branches of the same function guard
 exactly the write the primary branch missed, and one of them documents the evasion in
@@ -102,17 +102,48 @@ the safe shape; it names no marker that is merely *read*.
 form either (the `reading` form rejects it explicitly; this form does not). Measured at
 HEAD: it is **refused**, but by an **ill-typed emission** — `This expression has type
 array.Array.array int @rho, but is expected to have type int` — i.e. the value model will
-not bind a field array to a local at all. **That is a type accident, not a guard**, exactly
-the #42 shape ("admitted, then ill-typed") and exactly the thing route #89 taught can be
-re-armed by a completeness gain somewhere else.
+not bind a field array to a local at all.
 
-**REOPENING CONDITION: the day the value model can bind a field array to a local (or pass
-`self.f` as an array argument to a helper that stores into it), the region-write form loses
-its only defence on the alias axis and this is a live route.** The repair for it is already
-written next door: copy the `reading` form's alias rejection into the write form. It was NOT
-done in this increment because it is currently unreachable, and an unreachable guard cannot
-be negative-tested — which would make it exactly the kind of unmeasured "fix" this campaign
-refuses to ship.
+**CORRECTED AFTER READING THE SPEC, AND THE CORRECTION MATTERS.** My first reading called
+that a bare *type accident*, the #42 shape. **It is not — it is DOCUMENTED DESIGN.**
+`docs/pycsl-static-semantics-reference.md` §2.5, under "Soundness (composition theorem)",
+says: *"No alias analysis is needed (the obligation is at the location written;
+**value-semantic arrays bar local-alias escape**)."* So the alias axis is defended on
+purpose, by the value model's semantics, and the ill-typed emission is that defence showing
+up at the command line — not an accident standing in for a missing guard. The distinction is
+the difference between a CERTIFIED BOUNDARY *with a named defender* and an unmeasured hole,
+and I had it wrong until I read the rule. **Before filing something as a type accident, check
+whether a spec somewhere claims it on purpose.**
+
+**REOPENING CONDITION (unchanged in substance, sharper in attribution): THE DEFENDER IS THE
+VALUE MODEL, NOT THIS PASS.** The day the value model can bind a field array to a local — or
+pass `self.f` as an array argument to a helper that stores into it — the confinement forms
+lose their only defence on the alias axis, with nothing in `_weave_happy` to replace it, and
+this becomes a live route. That is route #89's lesson exactly: **a fence owned by a DIFFERENT
+subsystem can be un-armed by a completeness gain nobody thinks of as touching this gate.**
+The repair is already written next door (the `reading` form's explicit alias rejection); it
+was NOT copied in this increment because the case is currently unreachable, and an
+unreachable guard cannot be negative-tested — which would make it precisely the kind of
+unmeasured "fix" this campaign refuses to ship.
+
+## THE SPEC SAID IT CORRECTLY AND THE CODE DID NOT — WHERE THE PREMISE IS WRITTEN DOWN
+
+`docs/pycsl-static-semantics-reference.md` §2.5 states the composition theorem this way:
+
+> *"If every body-verified method discharges a `#@ check φ(ℓ)` **at each write site of
+> `self.f` (universal coverage, clause 1)** and every other mutator is exempt or carries the
+> `\preserves` region-preservation `ensures` (clause 2), then no execution writes the
+> protected region."*
+
+**"UNIVERSAL COVERAGE" IS EXACTLY THE PREMISE #91 AND #92 FALSIFIED.** The theorem is stated
+correctly and the specification is not at fault; the site collector simply was not universal —
+it covered subscript point writes and nothing else. So this pair of routes is not a spec gap
+but an **implementation that silently failed to meet a premise its own documentation sets in
+bold**. That is worth internalising because it says where to look next:
+
+>>> **WHEN A SOUNDNESS ARGUMENT NAMES A COVERAGE PREMISE ("every write site", "all paths",
+>>> "each store"), GO AND COUNT THE CASES THE CODE ACTUALLY COVERS. THE PREMISE IS A CLAIM
+>>> ABOUT A COLLECTOR, AND THE COLLECTOR IS THE THING NOBODY RE-READS.**
 
 ## GATES
 
