@@ -3488,6 +3488,151 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         region_targets.append(base_emitted)
                 elif base:
                     _unframed_regions.append(str(base))
+            # (#49) ROUTE #101 — THE THIRD SPELLING, AND IT IS THE ONE THE STANDARD
+            # LIBRARY SHIPS. `#@ assigns seq[idx]` (a SINGLE index, not a `lo..hi`
+            # range) never reaches EITHER loop above, because
+            # `Module2_Parser._parse_assigns_region` does `expect_op("..")`: a lone
+            # index fails that `_try` and falls through to `exprs = [self._parse_expr()]`,
+            # landing in the IR as `{"type": "Subscript", ...}`. It contributed nothing to
+            # `field_targets` (wrong node type), nothing to `region_targets` (wrong node
+            # type), AND — the crux — nothing to `_unframed_regions`, so ROUTE #98'S OWN
+            # REFUSAL, installed just below precisely to stop a bodyless `val` from
+            # silently losing its frame, COULD NOT FIRE. `_val_targets` stayed empty,
+            # control fell through to `if self._value_semantic: return []`, and the val
+            # was emitted PURE — the STRONGEST possible claim.
+            #
+            # MEASURED, same stub / same body / same `requires`, only the spelling differing:
+            #     `#@ assigns seq[idx]`   -> NO `writes`      -> `ensures \result == 7` PROVES
+            #     `#@ assigns seq[0..1]`  -> `writes { seq }` -> the same `ensures` FAILS
+            # and CPython returns 5. IT SHIPS: `src/pycsl_lib/oper/__init__.py:175` carries
+            # `#@ assigns seq[idx]`, and `frontend/ir_resolve.py:201` stamps every imported
+            # function `trusted = True`, so an ordinary program with NO `\trusted` marker
+            # anywhere in sight gets the pure `val`.
+            #
+            # >>> A REFUSAL INSTALLED TO OBSERVE A RESIDUE IS KEYED ON THE SPELLING ITS
+            # >>> AUTHOR WAS LOOKING AT. THE OBLIGATION IS ABOUT THE *PATH BEING WRITTEN*;
+            # >>> THE GUARD WAS WRITTEN ABOUT THE *NODE TYPE THAT HAPPENED TO CARRY IT*.
+            #
+            # So this arm keys on the RESOLVED BASE of the write path, never on the node
+            # type carrying it: peel every `Subscript` layer (`a[i]`, `a[i][j]`, …) down to
+            # the thing actually written, then dispatch on WHAT THAT IS. The same peel also
+            # covers the bare-`Var` spelling (`#@ assigns g`) — a FOURTH carrier of the
+            # identical hole whenever `g` is an array parameter.
+            def _assigns_write_root(node: Any, _depth: int = 0) -> Any:
+                """Peel `Subscript` layers off a write target down to the written base."""
+                while (isinstance(node, dict) and node.get("type") == "Subscript"
+                       and _depth < 64):
+                    node = node.get("value")
+                    _depth += 1
+                return node
+
+            for a in assigns_list:
+                if not isinstance(a, dict) or a.get("type") not in ("Subscript", "Var"):
+                    continue
+                root = _assigns_write_root(a)
+                if not isinstance(root, dict):
+                    continue
+                rt = root.get("type")
+                if rt == "Var":
+                    nm = root.get("name")
+                    # Compare in the EMITTED name space — route #98's rule, IN FULL.
+                    nm_emitted = whyml_ident(nm) if nm else nm
+                    if nm_emitted and nm_emitted in _arr_params:
+                        if (nm_emitted not in region_targets
+                                and nm_emitted not in field_targets):
+                            region_targets.append(nm_emitted)
+                    elif a.get("type") == "Subscript" and nm:
+                        # A SUBSCRIPTED write through a name that is not an array
+                        # parameter of the emitted signature: the source plainly means
+                        # "this stub writes into a collection", and no `writes` clause can
+                        # be built for it. Hand it to route #98's refusal rather than drop
+                        # it — dropping it IS route #96.
+                        #
+                        # A BARE `Var` that is not an array parameter is deliberately NOT
+                        # routed here, and the reason is a measurement rather than a hunch:
+                        # an `int`/`str` parameter is emitted BY VALUE, so a callee write to
+                        # it is invisible to the caller and needs no frame at all. Refusing
+                        # those would reject a large and SOUND population (the
+                        # self-annotation mirrors alone spell hundreds of
+                        # `#@ assigns <local>`). The residue that genuinely remains — a bare
+                        # `Var` naming a RECORD-typed parameter — is NAMED, not waved at, in
+                        # `getting-better/open-routes/route101-*.md`, with its own probe row.
+                        _unframed_regions.append(str(nm))
+                elif rt in ("Attribute", "FieldGet"):
+                    obj = root.get("object")
+                    objname = obj.get("name") if isinstance(obj, dict) else obj
+                    field = root.get("attr") or root.get("field")
+                    if objname and field and objname != "self":
+                        # `<global>.<f>[i]` — exactly the global-field case the first loop
+                        # collects, reached through a subscript.
+                        t = f"{objname}.{field}"
+                        if t not in field_targets:
+                            field_targets.append(t)
+                    # `self.<f>[i]` is NOT added here. The first loop deliberately skips
+                    # every `self.<field>` because a method's self-writes become the val's
+                    # `writes` via `_build_method_writes_map`, and re-emitting one here
+                    # produced an unbound/duplicate target (it regressed formal_coll /
+                    # formal_que). That map is keyed on the NODE TYPE too, so it drops the
+                    # SUBSCRIPT spelling in exactly the same way — repaired THERE, at
+                    # `functions.py::_build_method_writes_map`, in this same increment.
+                elif rt == "Result":
+                    # `#@ assigns \result[i]` on a bodyless val: `\result` is not a
+                    # pre-existing location the stub can write, so no `writes` exists for
+                    # it. Refuse rather than emit a pure val.
+                    _unframed_regions.append("\\result")
+
+            # (#49) ROUTE #103 — A STRAY `#@ assigns \nothing` BESIDE A REAL TARGET
+            # DISARMS BOTH THE FRAME *AND* ROUTE #98'S REFUSAL. `Module5_IREmitter`
+            # flattens EVERY `#@ assigns` clause of a function into ONE list
+            # (`"assigns": [self._csl_to_ir(t) for a in node.csl_assigns for t in
+            # a.targets]`), so a function spelling
+            #       #@ assigns g[0..1]
+            #       #@ assigns \nothing
+            # arrives here with `nothings` NON-EMPTY *and* a real region target. Both
+            # guards below were written `... and not nothings`, so the real frame was
+            # dropped at `if _val_targets and not nothings` and the #98 refusal was
+            # skipped at `if _unframed_regions and not nothings` — the val came out PURE
+            # and a caller PROVED `\result == 7` across a stub contracted to write `g`
+            # (CPython returns 5). MEASURED at HEAD; it SURVIVED route #101's repair,
+            # which is why it is its own route and not a footnote to it.
+            #
+            # ORDER 2, deliberately: unlike #101, the carrier here is THE CAMPAIGN'S OWN
+            # ARTEFACT — `and not nothings` was written by route #96's repair to keep
+            # `\nothing` meaning "writes nothing". The intent was right and the scope was
+            # a conjunct too wide: it let ONE clause silence the OTHER clauses.
+            #
+            # THE REPAIR IS A REFUSAL, NOT A PRECEDENCE RULE. `assigns \nothing` beside
+            # `assigns g[0..1]` is not an under-specification to be resolved by picking a
+            # winner — the two clauses CONTRADICT, and any winner we pick is a guess about
+            # what the reviewer who wrote the stub meant. CENSUS FIRST (the population is
+            # the thing nobody re-reads): a repo-wide scan of every contiguous `#@ assigns`
+            # block finds **ZERO** functions mixing `\nothing` with a real target, so this
+            # refuses an EMPTY live population and is byte-inert. A guard whose population
+            # is empty has checked nothing and looks exactly like a guard that passed, so
+            # it is NEGATIVE-TESTED by feeding it the mixed spelling directly.
+            if nothings and (field_targets or region_targets or _unframed_regions):
+                _shown = sorted(set(field_targets) | set(region_targets)
+                                | set(_unframed_regions))
+                raise PyCSLIRError(
+                    "PYCSL-CONTRADICTORY-ASSIGNS: this function is emitted as a bodyless "
+                    "`val` (a `\\trusted` / `\\abstract` / imported stub) and declares BOTH "
+                    "`assigns \\nothing` AND the write target(s) " + ", ".join(
+                        "`" + t + "`" for t in _shown) + ". Those clauses contradict: "
+                    "`\\nothing` says the stub writes no location at all. Every `#@ assigns` "
+                    "clause of a function is flattened into ONE frame, so this cannot be "
+                    "resolved by clause order, and SILENTLY PREFERRING EITHER ONE would "
+                    "emit a `val` with no `writes` — which Why3 reads as PURE, letting a "
+                    "caller prove the target UNCHANGED across a stub contracted to write it "
+                    "(routes #96, #98, #101, #103). FIX: delete the `assigns \\nothing` "
+                    "clause and keep the write target(s) — the emitter then CHECKS that "
+                    "each target is framable and emits the `writes`. Do NOT take the "
+                    "mirror-image advice of deleting the targets and keeping "
+                    "`\\nothing`: nothing verifies a bodyless `val`\'s `\\nothing`, so that "
+                    "spelling is READ and trusted, and it lands you on exactly the pure "
+                    "`val` this refusal exists to prevent. If the stub really writes "
+                    "nothing, the targets were wrong and deleting them is correct — but "
+                    "that is a claim about the SOURCE, not a way to quiet this message.")
+
             # (#49) ROUTE #98, THE FAIL-CLOSED CO-LANDING HALF — THE OBSERVER THE OLD
             # COMMENT PROMISED AND DID NOT PROVIDE. A region `assigns` on a bodyless
             # `val` whose base is NOT an array parameter of the emitted signature can no
