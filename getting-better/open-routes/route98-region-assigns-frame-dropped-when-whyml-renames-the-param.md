@@ -141,3 +141,33 @@ must reference.
    Negative-test whichever is chosen.
 3. `whyml_ident` is imported in `statements.py`? CHECK — it is imported in `functions.py`
    (`from module6_whyml.identifiers import whyml_ident, …`). Verify before landing.
+
+## WHY `assigns` IS THE **ONLY** CLAUSE THAT FAILS SILENTLY — the characterisation that
+## makes this route precise, and bounds the repair
+
+Measured on the same renamed parameter:
+
+| clause mentioning the renamed param | outcome |
+|---|---|
+| `#@ requires \length(model) > n + 1` | **LOUD** — `unbound function or predicate symbol 'model'` |
+| `#@ ensures ...` over it | same rendering path, same loud rejection |
+| **`#@ assigns model[0..n]`** | **SILENT** — the clause is simply dropped |
+
+The reason is structural: every other clause goes through EXPRESSION RENDERING, which emits
+the SOURCE identifier into a module whose signature binds the MANGLED one — producing an
+unbound symbol and a hard Why3 rejection. `assigns` is the one clause that does NOT go
+through expression rendering: it is consumed structurally by `_emit_frame_condition`, which
+turns it into a `writes` target or into nothing at all.
+
+**So the mangling inconsistency is tree-wide, and it is fail-closed EVERYWHERE EXCEPT the one
+clause whose consumer answers "nothing" instead of raising.** That is the whole of route #98,
+and it is why the repair is correctly scoped to `_emit_frame_condition` rather than to the
+renderer: the other clauses are already loud, and making the frame path loud (or correct)
+closes the only silent one.
+
+It also sharpens the CO-LANDING requirement: route #96's CAPABILITY witness (1271 — a trusted
+stub with both `assigns a[0..n]` and `ensures a[0] == 9`, which must PROVE) **cannot currently
+exist for a renamed parameter at all**, because its `ensures` would be loudly rejected. So
+after the rename fix, verify the capability arm on the `a` spelling (which must still prove)
+and record the renamed spelling as a LOUD, fail-closed boundary rather than expecting it to
+prove.
