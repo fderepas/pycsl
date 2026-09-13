@@ -169,14 +169,29 @@
 #
 # ## WHAT IS TRUE RIGHT NOW
 #
-#   ledger   **ONE OPEN: #98** (found, sev-1, CPython-contradicted, repair scoped,
-#            deliberately NOT attempted before #97's battery closed).
-#            **#97 FOUND-AT-HEAD, REPAIRED IN BOTH HALVES AND GATED.**
+#   ledger   **NONE OPEN. #97 AND #98 BOTH FOUND, REPAIRED IN BOTH HALVES, AND FULLY
+#            GATED ON THE COMPLETE 34-PLANE SET.** Suite **3407/3425, 18 CONFIRMED
+#            FAIL, ZERO XPASS, rc=1 — predicted exactly.** An empty ledger is a prompt
+#            to generate, not a floor: the `continue`-census is four-for-four and TWO
+#            ranked candidates are still unprobed (see STILL UNPAID).
 #   metric   markers **459** / grep 484 / offset 25 / unattached 0 — UNCHANGED.
 #            Correct shape: a refusal and a monotone obligation cost nothing.
 #   corpora  pycsl-ref **1199 -> 1204** (+5: witnesses 1273-1277).
-#   planes   **19, NOT 34.** Gen #15 corrected the inherited figure by re-measuring
-#            BOTH sides. Any text saying 34 is stale.
+#   planes   **34 = 19 FAST + 15 SLOW, and `run-soundness-planes.sh` WITHOUT `--slow`
+#            IS A 19-OF-34 GATE.** All 34 are GREEN at this HEAD (script's own line:
+#            "running 34 driver-run lower bound(s)"; I counted 34 `ok` lines myself).
+#            >>> **GEN #15's "19, NOT 34" WAS WRONG, AND SO WAS MY LAUNCH PROMPT AND
+#            >>> THIS HANDOFF UNTIL NOW.** Gen #15 suspected the number and checked it
+#            the natural way — re-ran the SAME script at the baseline; both sides said
+#            19, so it concluded 34 was stale. But BOTH SIDES RAN THE FAST SET.
+#            >>> **AN A/B COMPARISON CONTROLS FOR CHANGE, NEVER FOR COVERAGE. To learn
+#            >>> a gate's POPULATION you must read the gate's DEFINITION, not run it
+#            >>> twice.** That is `ASSERT A POPULATION SIZE BEFORE BELIEVING IT` one
+#            level deeper, and it is route #98's error in the gate set itself: a number
+#            validated against another instance of itself. ALWAYS SAY WHICH SET YOU RAN.
+#            The 15 slow ones include the closest relatives of #96/#98 —
+#            `check-trusted-frame-honesty`, `check-value-differential`,
+#            `check-no-exception-differential`, `check-bespoke-model-drift`.
 #   suite    baseline **18** failures. A run showing 19 is a REGRESSION.
 #
 # ====== START HERE — gen #14 FINAL STATE — read this block first ==================
