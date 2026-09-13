@@ -3421,8 +3421,40 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     t = f"{objname}.{field}"
                     if t not in field_targets:
                         field_targets.append(t)
-            if field_targets and not nothings:
-                return [f"    writes   {{ {', '.join(field_targets)} }}"]
+            # ROUTE #96 (soundness, 2026-09-13) — AN ARRAY-REGION ASSIGNS ON A BODYLESS
+            # `val` MUST ALSO BECOME A `writes`. The loop above collects only
+            # `Attribute`/`FieldGet` targets; its `continue` skips every `AssignsRegion`
+            # (`#@ assigns a[lo..hi]`), so `field_targets` stayed empty, control fell
+            # through, and under the default value-semantic model the function returned
+            # `[]` — NO frame clause at all. The docstring above says exactly why that is
+            # fatal ("Without them, the val is treated as pure (writes nothing)"), and it
+            # was true of the region case the whole time: a `\trusted` stub declaring
+            # `assigns a[0..n]` let its caller prove `\result == 7` across it while an
+            # executed CPython run of the same program returns 0.
+            #
+            # The region is OVER-APPROXIMATED to the WHOLE array. That is SOUND — more
+            # havoc means strictly LESS caller knowledge — and it is the same
+            # over-approximation Why3 itself infers from a `let` whose body writes one
+            # cell, which is why the real-body control already refused this exploit.
+            #
+            # FAIL-CLOSED, and deliberately so: a base that is not an `array`-typed
+            # PARAMETER of the signature being emitted (`_current_array_param_names`,
+            # parsed from the emitted `args_str`) contributes NOTHING, because
+            # `writes { g }` on a name Why3 does not hold as a mutable value in scope is
+            # a hard emission error, and a silent mis-emission is worse than the honest
+            # residue. Any such residue stays visible as an un-framed val.
+            region_targets: List[str] = []
+            _arr_params = getattr(self, "_current_array_param_names", set())
+            for a in assigns_list:
+                if not isinstance(a, dict) or a.get("type") != "AssignsRegion":
+                    continue
+                base = a.get("base")
+                if base and base in _arr_params and base not in region_targets:
+                    region_targets.append(base)
+            _val_targets = field_targets + [t for t in region_targets
+                                            if t not in field_targets]
+            if _val_targets and not nothings:
+                return [f"    writes   {{ {', '.join(_val_targets)} }}"]
 
         if self._value_semantic:
             return []

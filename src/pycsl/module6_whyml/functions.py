@@ -6588,6 +6588,22 @@ class FunctionEmissionMixin:
         # `symbol_table`). Only READ under the `_uses_build_param_list` gate -> byte-inert.
         self._current_sig_func_name = func.get("name")
         ref_params, args_str = self._build_param_list(func, local_refs, ghost_vars)
+        # ROUTE #96 (soundness, 2026-09-13) — RECORD THE ARRAY-TYPED PARAMETERS OF THE
+        # SIGNATURE ACTUALLY BEING EMITTED, so `_emit_frame_condition` can turn an
+        # `#@ assigns a[lo..hi]` on a BODYLESS `val` into a real `writes { a }`. A `val`
+        # has no body, so Why3 infers NO effect from it: without the clause a caller keeps
+        # every fact it held about `a` ACROSS a stub whose contract says it writes `a`
+        # (measured: a `\trusted` stub with `assigns a[0..n]` let a caller prove
+        # `\result == 7` while CPython returns 0). This is the ARRAY-REGION twin of the
+        # 2026-08-26 field-frame fix below (`trusted-frame-oracle.mlw`), which repaired the
+        # SAME defect for `self.<field>` assigns and left the region case untouched.
+        # Parsed from `args_str` — the emitted signature itself — rather than re-derived
+        # from the symbol table, so the write target is a name Why3 is guaranteed to have
+        # in scope and of a type it is guaranteed to consider mutable. FAIL-CLOSED: a
+        # region base that is not an array PARAMETER of this signature (a module global, a
+        # `str`, a name the emitter renamed) contributes nothing and emission is unchanged.
+        self._current_array_param_names = set(
+            re.findall(r"\((\w+)\s*:\s*array\b", args_str))
 
         # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): set the plain-BOOL flag that
         # gates the `pyconst_val` MIDDLE-tuple-slot typing in `_infer_tuple_slot_type` (a verified
