@@ -30,16 +30,46 @@
 #            exploits XFAIL, all six controls PASS); planes **34/34, rc=0**. No ratchet
 #            re-baselined, no golden re-blessed.
 #            **THE SUITE FAILURE BASELINE IS STILL 18 AND A RUN SHOWING 19 IS A REGRESSION.**
-#   findings **w63, w64, w66, w67** new CERTIFIED BOUNDARIES (measured, do not re-litigate);
+#   findings **w63, w64, w66, w67, w68** new CERTIFIED BOUNDARIES (measured, do not re-litigate);
 #            **w65** a LEAD, structure verified, **exploit NOT constructed** — labelled as such.
 #            **THREE VACUOUS PROBES CAUGHT AND RECORDED AS MEASURING NOTHING** (w63's
-#            `subscript_get`, the `init-hook` shape, w67's state channel) — each caught by
+#            `subscript_get`, the `init-hook` shape, w67's state channel, w68's capability)
+#            — FOUR in all, each caught by
 #            running the aliveness control BEFORE interpreting a refusal. C8's Union-narrowing
 #            deferral was probed and is **COVERED** (Why3 type-rejects: `has type
 #            PyCSL_Program._union_f_0, but is expected to have type int`, with a proving
 #            int-typed control).
 #   tree     clean, every increment committed. The two GITLINKS (`scratchpad/w7/base`,
 #            `scratchpad/w8/pre`) and the 0-byte stray `str` in the repo root are PRE-EXISTING.
+#
+# ## THE SINGLE MOST ACTIONABLE THING THIS GENERATION HANDS OVER — READ IT BEFORE THE LADDER
+#
+#   **PyCSL's SECURITY META-PROPERTIES ARE CURRENTLY LOAD-BEARING ON THE INCOMPLETENESS OF ITS
+#   VALUE MODEL, AND THAT INCOMPLETENESS IS ON THE ROADMAP.** Findings w66, w67 and w68 are
+#   three INDEPENDENT security properties with three DIFFERENT guards, and every one of them is
+#   held up not by its guard but by a completeness gap in exactly the shape an attacker
+#   would use:
+#
+#   | property | the gap IN THE GUARD | what actually fences it today |
+#   |---|---|---|
+#   | `compose_from` provider refinement (w66) | S2b has **no implementation** at all | flatten-and-re-verify — a *performance* mechanism |
+#   | `noninterference` (w67) | the twin asserts `ra == rb` over **RESULTS only**, never state | state-mutating NI targets cannot be verified at all |
+#   | H-S capability (w68) | call-site check injected only at `self.<target>(...)` | a non-`self` call propagates **nothing** |
+#
+#   **EVERY ONE OF THOSE THREE FENCES IS SOMETHING SOMEBODY WANTS TO REMOVE.** Lazier
+#   flattening, self-composition through state, and cross-object contract propagation are all
+#   ordinary, attractive completeness work that nobody would think of as touching a security
+#   property. This is **route #89's lesson at scale**, and unlike #89 we can see it coming.
+#
+#   >>> **EACH OF THE THREE HAS ITS CO-LANDING FIX ALREADY WRITTEN DOWN IN ITS FINDING, AND THE
+#   >>> FIXES ARE CHEAP *NOW* — while the exploits are unreachable and the guards can still be
+#   >>> changed without a corpus fight.** They get expensive the moment the completeness work
+#   >>> lands, and at that point they are severity-1 routes rather than paperwork. If the next
+#   >>> generation does ONE thing from this handoff, do these three.
+#
+#   A caution that belongs with it: **all three of my probes into these were VACUOUS**, and I
+#   only knew because I ran the aliveness control each time. Do not read "I could not exploit
+#   it" as "it is safe"; read it as "the fence is somewhere else, go and name the fence."
 #
 # ## THE GENERATOR THAT PAID, AND IT IS NEW — READ DEFERRALS, NOT JUST CONTROLS
 #
