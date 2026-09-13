@@ -1,3 +1,241 @@
+# ====== START HERE — gen #13 FINAL STATE — read this block first ==================
+#
+# ## THE ONE-PARAGRAPH SUMMARY
+#
+#   **FOUR ROUTES FOUND (#91, #92, #93, #94), THREE CLOSED AND GATED, ONE HANDED OVER FULLY
+#   MEASURED.** The three closed are all SEVERITY 1, all in ONE FUNCTION
+#   (`Module3_Weaver._weave_happy`), and all three are **SECURITY META-PROPERTIES PROVED WHILE
+#   VIOLATED**, not wrong values. The window tally of CLOSED routes is now **38**. #91 came from
+#   gen #12's advice-message generator applied to its own #1 ranked target; **the advice turned
+#   out to be SOUND and the route was in the guard NEXT DOOR** — which produced the
+#   generalisation that then produced **#92, #93 and #94**: read *deferrals*, the comments
+#   saying a case is "handled/rejected/checked elsewhere", and check the named guard's actual
+#   matching rule against the deferred case. **#94 CARRIES THE STRONGEST EVIDENCE THIS CAMPAIGN
+#   HAS EVER PRODUCED — AN EXECUTED CPYTHON RUN THAT CONTRADICTS A PROVED POSTCONDITION** — and
+#   is left OPEN on purpose, with its repair scoped AND its positive control already measured.
+#   The metric never moved (**markers 459 / grep 484**) and was never supposed to: every repair
+#   is a refusal.
+#
+# ## WHAT IS TRUE RIGHT NOW
+#
+#   ledger   **ONE OPEN: #94** (measured, repair scoped, positive control measured, NOT landed).
+#            Closed by gen #13: **#91, #92, #93** — all three also FOUND here, all GATED.
+#   metric   markers **459** / grep 484 / offset 25 / unattached 0 — UNCHANGED all generation,
+#            verified stable across the whole run including across a killed battery.
+#   corpora  pycsl-ref **1002 -> 1012** (+10: witnesses 1247–1256).
+#   gates    fidelity DELTA ZERO (byte-identical to a HEAD-worktree log); byte-diff **0 MOVED,
+#            0 GONE, 5 APPEARED** = exactly the predicted controls, zero-byte 0 on BOTH sides;
+#            conformance **38/38 + 38/38, 0 MISMATCH**, determinism 10/10, no golden re-blessed;
+#            doc-coherency rc=0. SUITE + PLANES: see the progress log for the landed verdicts —
+#            **THE SUITE FAILURE BASELINE IS 18 AND A RUN SHOWING 19 IS A REGRESSION.**
+#   findings **w63, w64** new CERTIFIED BOUNDARIES (measured, do not re-litigate);
+#            **w65** a LEAD, structure verified, **exploit NOT constructed** — labelled as such.
+#   tree     clean, every increment committed. The two GITLINKS (`scratchpad/w7/base`,
+#            `scratchpad/w8/pre`) and the 0-byte stray `str` in the repo root are PRE-EXISTING.
+#
+# ## THE GENERATOR THAT PAID, AND IT IS NEW — READ DEFERRALS, NOT JUST CONTROLS
+#
+#   **>>> A COMMENT THAT SAYS "HANDLED OVER THERE" IS AN UNVERIFIED CROSS-REFERENCE, AND IT
+#   READS EXACTLY LIKE A GUARD. <<<** This produced **#92 and #93**, and a full census produced
+#   **w64, w65** and four more candidates.
+#
+#   The campaign already knew *a control is a measurement about the operation it ran, never a
+#   theorem about the type*. **A DEFERRAL IS WEAKER STILL: it is a claim about code the author
+#   DID NOT RUN, and the only person who could check it would have to leave the file to do so.**
+#   The author who writes "handled over there" and the reader who reads it are never the same
+#   person on the same day.
+#
+#   #92's deferral, verbatim, in `_collect_protect_index_sites`'s docstring:
+#     *"(Slice/whole-array writes to a parametric path are not certifiable per-object; they are
+#     left to the **non-footprint reject**.)"*
+#   **There was no such reject.** The `CSLBool(False)` it names fires only on the sites that
+#   very collector returns — which are, by construction, exactly the point writes it did NOT
+#   skip. Two shapes deferred, zero caught, a confinement property provable while violated.
+#
+#   **HOW TO RUN IT:** grep `src/pycsl/` for "left to", "handled by", "handled in", "caught by",
+#   "rejected by", "rejected elsewhere", "checked by", "already checked", "validated by",
+#   "guaranteed by", "ensured by", "enforced by", "deferred to", "the caller checks", "callers
+#   must", "Module4 rejects", "the front end rejects". For each: name the deferred CASE, LOCATE
+#   the named guard, and **quote its actual matching rule**. A verdict with no quoted matching
+#   rule is worthless. Beware: **"Module 4" IS DROPPED FROM THE PIPELINE** — every comment
+#   deferring to it is at minimum stale, and its successors are `core_ir_semantic.py` and
+#   `frontend/ir_resolve.py`. Several such comments are stale-but-covered; do not report those
+#   as holes.
+#
+# ## THE SECOND NEW GENERATOR — AND IT IS WHY #91 EXISTS
+#
+#   **>>> AN ADVICE AUDIT THAT *CLEARS* ITS MESSAGE IS NOT A DEAD ROUND. THE MESSAGE IS A
+#   POINTER TO A GUARD; READ THE GUARD'S SIBLINGS WHILE YOU ARE THERE. <<<**
+#   Gen #12 left `Module3_Weaver.py:887/999` ("Add `#@ \preserves` to PROMISE it preserves …")
+#   as the #1 ranked advice target. **Its prescription is SOUND** — clause (C) synthesizes a
+#   real, visible, honestly-labelled "(an assumed postcondition)", gated on `trusted or
+#   abstract`, inside the declared TCB. But reading it put clauses (A) and (C) on one screen,
+#   and the *structural* comparison of which confinement form guards what is what paid.
+#   Running advice-audit score: **6 messages audited, 5 prescriptions HELD, and the two routes
+#   (#90, #91) came one from a rotten prescription and one from a SOUND one's neighbourhood.**
+#
+# ## THE STRUCTURAL LESSON ALL THREE ROUTES SHARE — THE MOST TRANSFERABLE THING HERE
+#
+#   `_weave_happy` has FOUR confinement forms. Laid side by side:
+#
+#   | form | point write | whole-path store | slice store | alias | trusted/abstract subject |
+#   |---|---|---|---|---|---|
+#   | `protects` (R1/R2) | caught | **caught** | **caught** | caught | `\preserves` or hard error |
+#   | `reading` (H-I1) | caught | n/a | n/a | **caught** | `except` or hard error |
+#   | region-write | caught | **MISSED -> #91** | caught | value-model | `\preserves` or hard error |
+#   | parametric (R3) | caught | **MISSED -> #92** | **MISSED -> #92** | value-model | (n/a) |
+#   | `total` (H-D) | — | — | — | — | **MISSED -> #93** |
+#
+#   **THE ONE FORM THAT KEYS ON THE *PATH* (`protects`, via `_target_dotted_path`) IS THE ONE
+#   FORM WITH NO HOLES.** The two that key on the *syntactic shape of the target* each missed a
+#   **strictly more destructive** write than the one they caught — invisible precisely because
+#   it is not indexed.
+#
+#   >>> **A CONFINEMENT CHECK KEYED ON THE SYNTACTIC SHAPE OF A WRITE TARGET ENUMERATES THE
+#   >>> SHAPES ITS AUTHOR HAPPENED TO PICTURE. KEY IT ON THE PATH BEING WRITTEN AND THE SHAPES
+#   >>> TAKE CARE OF THEMSELVES.**
+#
+#   And #93 is the same failure one altitude up: a policy that only *names* a guarantee produced
+#   elsewhere must enumerate every way that elsewhere can be made not to fire. It enumerated
+#   `\diverges` and missed `\trusted`/`\abstract`, which delete the body and with it the whole VC.
+#   >>> **AN OBLIGATION YOU DID NOT GENERATE IS INDISTINGUISHABLE FROM ONE THAT WAS DISCHARGED.**
+#
+#   **THE SIBLING TABLE IS ALSO THE REPAIR SPEC.** Every one of the three repairs was already
+#   written, correctly, in a neighbouring branch of the same function. When a form is missing a
+#   case, do not design a fix — **copy the sibling that has it, and copy its discipline**
+#   (sound-by-rejection: a per-index check cannot constrain a whole-array store, so there is
+#   nothing to defer).
+#
+# ## WHERE THE SOUNDNESS PREMISE IS WRITTEN DOWN, AND THAT IT WAS RIGHT
+#
+#   `docs/pycsl-static-semantics-reference.md` §2.5 states the composition theorem as *"every
+#   body-verified method discharges a `#@ check φ(ℓ)` **at each write site of `self.f`
+#   (universal coverage, clause 1)**"*. **"Universal coverage" is EXACTLY the premise #91 and
+#   #92 falsified.** The spec was correct; the COLLECTOR was not universal. So:
+#   >>> **WHEN A SOUNDNESS ARGUMENT NAMES A COVERAGE PREMISE ("every write site", "all paths",
+#   >>> "each store"), GO AND COUNT THE CASES THE CODE COVERS. THE PREMISE IS A CLAIM ABOUT A
+#   >>> COLLECTOR, AND THE COLLECTOR IS THE THING NOBODY RE-READS.**
+#   The doc now records the split explicitly: an INDEXED store is CHECKED, a WHOLE-PATH or SLICE
+#   store is REJECTED, and **a future store shape that is neither re-opens both routes**.
+#
+# ## THE METHODOLOGICAL RULES GEN #13 PAID FOR
+#
+#   * **BEFORE FILING SOMETHING AS A "TYPE ACCIDENT", CHECK WHETHER A SPEC CLAIMS IT ON
+#     PURPOSE.** I filed #91's alias axis as a bare type accident (the #42 shape) and was
+#     WRONG: §2.5 says *"value-semantic arrays bar local-alias escape"* — it is documented
+#     design. The difference is a CERTIFIED BOUNDARY WITH A NAMED DEFENDER versus an unmeasured
+#     hole, and it changes the reopening condition from vague to precise (**the defender is the
+#     VALUE MODEL, not this pass** — route #89's shape).
+#   * **A `diff` HUNK HEADER IS NOT A POPULATION COUNT.** `diff -rq` reported
+#     `pyref/SOURCES.txt` as `1,153c1,199`, which reads like 153 entries becoming 199. Both
+#     files are **2217 lines** and `diff <(sort A) <(sort B)` is **EMPTY** — pure traversal-order
+#     difference between a git-worktree baseline and the main tree. Trusting the header would
+#     have thrown away a valid baseline; ignoring the line would have signed off on an
+#     unexplained diff entry. **SORT BOTH SIDES BEFORE BELIEVING A MANIFEST CHANGED.**
+#   * **AN INCIDENTAL EMISSION FAILURE AND A DELIBERATE FENCE ARE INDISTINGUISHABLE AT THE
+#     COMMAND LINE.** A w63 probe had both directions fail on `unbound function or predicate
+#     symbol 'subscript_get'`. Isolated it: the same contract on a **module-level** function
+#     PROVES, so the failure was `<method> + list param + subscripted contract`, not a fence.
+#     **One step earlier I would have filed "fail-closed" for entirely the wrong reason.**
+#     That is the FOURTH vacuity trap this campaign has caught by running the positive control.
+#   * **A CONTROL THAT FAILS IS A CLAIM ABOUT THE CONTROL UNTIL YOU READ *WHICH GOAL* FAILED.**
+#     Witness 1256 failed first time; the unproven goal was the POSTCONDITION (my loop invariant
+#     omitted `acc >= 0`), not the termination VC — so it could not have been the repair.
+#   * **MEASURE BOTH ARMS OF A DISJUNCTION SEPARATELY.** `emit_as_val = func_trusted or
+#     func_abstract or func_trusted_parent`; witness 1255 is the `\abstract` arm, measured on
+#     its own rather than assumed from the `\trusted` one.
+#   * **PREFER ONE BATTERY OVER N REPAIRS TO N BATTERIES OVER ONE EACH** when the repairs are
+#     siblings in one function — it is strictly stronger evidence and it is what made three
+#     routes affordable in one generation. Corollary learned the hard way: **a battery killed by
+#     its own timeout yields a PARTIAL verdict, which rule (p) forbids inheriting** — so stop it
+#     deliberately and re-run, never let it be cut off.
+#
+# ## A PATTERN THREE REPAIRS WANTED — NAME IT INSTEAD OF RE-DERIVING IT
+#
+#   **#91, #92 and #94 all needed the SAME `__init__` CARVE-OUT**, for the same reason: the
+#   constructor ESTABLISHES the object rather than mutating it, so a property about "what
+#   happens to this field over the object's life" must not range over its creation. If a fourth
+#   guard needs it, that is a sign the distinction belongs somewhere shared rather than being
+#   re-spelled per clause. **Reopening condition on all three carve-outs at once: if PyCSL ever
+#   models an explicit re-invocation of `__init__` on a live object, every one of them must be
+#   re-measured.**
+#
+# ## THE ADVICE-EXEMPLAR CORRECTION — READ THIS BEFORE TRUSTING THE INHERITED DISCRIMINATOR
+#
+#   Gen #12 named `module5/memoization_rt.py:74` **the in-tree EXEMPLAR of safe advice**, because
+#   its sentence bakes in its exclusions and `_detect_purity` enforces exactly those three
+#   conjuncts. **That is accurate, and it is where route #94 was hiding.** The guard's own
+#   DOCSTRING promises a FOURTH conjunct — "reads no mutable global state" — that the message
+#   never mentions and the code barely implements.
+#   >>> **ADVICE THAT NAMES ONLY CONDITIONS THE EMITTER REALLY CHECKS IS SAFE FOR THE USER WHO
+#   >>> FOLLOWS IT, BUT IT IS NOT EVIDENCE THE GUARD IS COMPLETE. A PERFECTLY HONEST MESSAGE CAN
+#   >>> SIT ON AN INCOMPLETE GUARD — AUDIT THE DOCSTRING'S PROMISE AGAINST THE CODE, NOT JUST
+#   >>> THE MESSAGE'S.** Gen #12 learned to distrust advice that OVER-promises; #94 is the mirror
+#   >>> image, advice that UNDER-promises relative to its own guard's stated contract, so nothing
+#   >>> in the message looks wrong at all.
+#
+# ## PROBED WITH NO FINDING / BOUNDED THIS GENERATION — DO NOT RE-PROBE
+#
+#   * **The `\preserves` advice message itself** (both sites) — prescription SOUND. Clause (C)
+#     synthesizes a visible, honestly-labelled assumed postcondition and is gated on
+#     `trusted or abstract`. The `protects`-form site merely `continue`s (suppression with
+#     nothing synthesized) — fail-closed, nothing provable.
+#   * **w63 — the `reading` form's alias guard is keyed on `ast.Assign`**, so `return self.f`
+#     and `f(self.f)` escape it and both VERIFY. **NOT exploitable**: a caller binding the
+#     returned array cannot recover a protected byte (`requires self.disk[0] == 7` ⊬
+#     `\result == 7`), because the value model does not propagate array identity through a
+#     return. Reopening: reference semantics for collections.
+#   * **w64 — `\separated` lowers to the CONSTANT `true`** under the default `hoare` model, so
+#     `\separated(a,3,a,3)` PROVES and an anti-aliasing precondition is discharged by `f(a,a)`.
+#     **Does NOT escalate**: the moment the callee's `assigns` names an aliased parameter, Why3's
+#     region typing rejects the application ("illegal alias" — measured), and a FIELD base is a
+#     parse error. The census comment's conclusion is right, its stated premise is false.
+#     A scoped hardening is written up in the finding and is NOT yet landed.
+#   * **The `--fun` residue on #93**: `--fun` marks out-of-slice functions `trusted` AFTER
+#     Module 3 has run, so it can still strip a `total` target's body. Deliberately not
+#     repaired — `--fun` is user-directed partial verification and the whole-file run the gates
+#     use is unaffected.
+#
+# ## STILL UNPAID, IN THE ORDER I WOULD TAKE THEM
+#
+#   1. **ROUTE #94 — LAND THE REPAIR. It is the only OPEN route and it is fully measured.**
+#      `@cached_property` reading a MUTABLE field passes `_check_memoization_soundness`, and
+#      **CPython contradicts the proved postcondition** (`total = 0, self.a = 1` after one
+#      `bump()`). Three independent reasons the gate misses it: `if shared and ...` short-circuits
+#      the whole mutable-state clause when no `#@ shared` var is declared; `shared_vars` comes
+#      only from `#@ shared` declarations; `_reads_any` matches only `type == "Var"`, so a
+#      `FieldGet` can never be seen. The PASS and FAIL cases are ALREADY MEASURED in both PyCSL
+#      and CPython, and the discriminator is **"reject a memoized body that reads a field
+#      assigned somewhere other than `__init__`"** — do NOT ship a blanket field-read ban, a
+#      `cached_property` over a construct-only field is genuinely RT and must keep proving.
+#      Owes a VALUE-DIFFERENTIAL pair, because the falsehood is model-vs-runtime, not in-model.
+#   2. **w65 — `fresh_globals` cross-module confinement. STRUCTURE VERIFIED, EXPLOIT NOT BUILT.**
+#      `_check_fresh_globals` defers the cross-module case to its own clause (2); verified at
+#      HEAD that `run_ir_semantic_checks` (pycsl.py:504) runs BEFORE `_ir_resolve` (:533) which
+#      injects dep functions, and the dep sub-pipeline runs **no semantic checks at all**. So
+#      nothing rejects it. **BUILD THE POSITIVE CONTROL FIRST** — a single-file `fresh_globals`
+#      driver that PROVES plus both clause rejections firing — because a cross-module setup has
+#      many independent ways to refuse and this is the probe most likely to be vacuous.
+#   3. **Three more deferral candidates, all with the named guard's matching rule already quoted
+#      in the census** (see the progress-log entry): the H-S capability check keyed on
+#      `self.<target>(...)` only; `compose_from`'s "provider-refines-dependency" and "init-hook"
+#      obligations (`grep S2b` returns ONE line, the comment deferring to it — no
+#      implementation); `_check_memoization_soundness`'s "reads no mutable global state" which
+#      sees only `#@ shared` vars, not `module_globals` or `self.<field>`; and the typed
+#      quantifier binder inside `#@ assert` (fail-closed in practice). **Re-verify each
+#      independently — I verified #92/#93/w64/w65 myself and every one needed narrowing.**
+#   4. Carve-out candidates 9 and 10; **finding-w60**; the `_field_default` `option` arm.
+#   5. Keep growing BOTH differential corpora (a route just closed is the cheapest source; add
+#      BOTH directions, plus the EXCEPTION pair when a repair touched a collection).
+#
+# ## THE CAMPAIGN'S STANDING RULES THAT EARNED THEIR PLACE AGAIN
+#
+#   * **A completeness fix that supplies a WITNESS value is a soundness route waiting to happen.**
+#   * **A probe whose own positive control refuses has measured nothing.** (Caught once more.)
+#   * **Assert a population size before believing it — including a gate's own summary.**
+#   * **An empty ledger is a prompt to GENERATE, not a floor.** It was empty at the start of this
+#     generation and three severity-1 routes were in one function.
+#
 # ====== START HERE — gen #12 FINAL STATE — read this block first ==================
 #
 # ## THE ONE-PARAGRAPH SUMMARY
