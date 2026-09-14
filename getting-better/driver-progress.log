@@ -2003,3 +2003,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   must NOT move; a 19 would be a regression and a 20 would mean my witnesses are miscategorised.
   NOTE: legs 7/8 (byte-diff) were run BEFORE these five files existed, so they were not in that
   sweep. They are NEW SOURCES, which SOURCES.txt distinguishes from a refusal-turned-emission.
+2026-09-14 gen#21 suite RE-RUN with the five witnesses: 3428/3446 passed, 18 CONFIRMED FAIL, ZERO XPASS — EXACTLY as predicted. NEW SUITE BASELINE for gen #22: 3428/3446, failures still 18.
