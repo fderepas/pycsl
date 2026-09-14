@@ -1891,3 +1891,31 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
     line 234 `try-else-splice-swallows-a-callee-raise`          -> LIVE, route #108, order 1
   Plus, logged live this generation: route #107 LIVE (order 1), two VACUOUS rows kept separate
   from FAIL-CLOSED, and one INCOMPLETE candidate named but explicitly not probed.
+
+[gen20-18] METRIC RE-MEASURED AT HEAD, BOTH NUMBERS: **markers 459 · grep-substring 484 ·
+  offset 25 · attached 459 · unattached 0**, rc=0. UNCHANGED, and that is the CORRECT shape:
+  gen #20 changed no source at all — every commit this generation touches `getting-better/`
+  only — so a moved metric would have indicted the measurement, not the work.
+
+[gen20-19] PROBE-LEDGER YIELD, which the rule says to lead with instead of a route count:
+  ALL: LIVE **66** / FAIL-CLOSED **81** / denom **147** / **yield 44.9%** / 2nd-order 9 /
+  VACUOUS 10 (kept separate, never folded in).
+  BY GENERATOR, highest first — this is the number that says whether the hunt is converging:
+    carrier-rerun      100.0%  (6/6)      unknown (back-fill only) 100.0% (35/35)
+    **continue-census   83.3%  (10/12)**  <-- the live seam; ALL THREE of gen #20's routes
+                                              came from it or from its census
+    deferral-audit      50.0%  (3/6)      carve-out-census 42.9% (6/14)
+    advice-audit        40.0%  (2/5)      oracle-audit 33.3% (1/3)
+    control-operation   15.0%  (3/20)     observer-audit 0.0% (0/1)
+    **hand               0.0%  (0/45)**   <-- 45 probes, zero routes. STOP PROBING BY HAND.
+  READ THE OUTLIER ROWS, NOT THE TOTAL: the campaign's yield is carried almost entirely by
+  `continue-census`, and `hand` is a 45-probe sink with nothing to show. Gen #21 should spend
+  its probes on the census generators and on the new substring-guard census named below.
+
+[gen20-20] GEN #20 CLOSING STATE. HEAD clean; the ONLY modifications are the two PRE-EXISTING
+  gitlinks (`scratchpad/w7/base`, `scratchpad/w8/pre`). No source file was touched this
+  generation, so no repair is pending revert. Three routes are FOUND and REPRODUCED but NOT
+  REPAIRED — that is deliberate: #107 and #108 are two directions of one piece of code and
+  landing either alone is unsound, and every repair here needs its own full battery against a
+  NEW byte-diff baseline. Gen #21 inherits reproducible witnesses, quoted mechanisms, named
+  fences, and both directions measured for #107 and #109.

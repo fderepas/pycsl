@@ -48,6 +48,26 @@
 ##     while its source says `#@ no_exception ValueError`. SURVIVED #105's repair.
 ##     File: `route106-inlining-deletes-the-call-and-with-it-the-obligation.md`.
 ##
+##
+##   **gen #20: #101-#106 ARE NOW FULLY GATED (all 9 battery legs green), AND THREE NEW SEV-1
+##   ROUTES WERE FOUND. NONE OF THE THREE IS REPAIRED.**
+##   - **#107** a try's `else:` block is SILENTLY DELETED when its lowered text merely CONTAINS
+##     the substring `raise` — INCLUDING FROM AN ORDINARY IDENTIFIER'S NAME. A dead local named
+##     `praiseworthy` deletes the whole block; `ensures \result == 1` then PROVES while CPython
+##     returns 5. BOTH DIRECTIONS MEASURED. Route #37's fence tests four statement KINDS only.
+##     File: `route107-a-substring-raise-in-an-identifier-deletes-the-else-block.md`.
+##   - **#108** a callee's raise inside an `else:` is CAUGHT by that same try (Python never
+##     does this) AND dropped from the function's `raises` summary, because `_callee_raised_in`
+##     skips `orelse`. A `#@ no_exception` caller PROVES while CPython raises. SURVIVED the
+##     #100 -> #105 chain: that chain fixed the receiver KEY; here the SET is empty.
+##     File: `route108-a-callee-raise-in-an-else-block-is-caught-and-unreported.md`.
+##     >>> #107 AND #108 ARE THE TWO DIRECTIONS OF THE SAME CODE — REPAIR THEM TOGETHER.
+##   - **#109** the `_objstate_w` fail-closed FRAME fallback exists in the `self.` arm only;
+##     a record-var / module-global receiver mints `val c_bump_0 () : unit` with NO frame and
+##     NO receiver, so `#@ assigns \nothing` proves over a mutating call. `order = 2` — the
+##     carrier IS the `#32 SPIKE` repair. Fourth link in #70 -> #100 -> #105 -> #109.
+##     File: `route109-record-var-receiver-loses-the-objstate-frame-fallback.md`.
+##
 ## (gen #16: #97, #98, #99 and #100 all CLOSED AND GATED.)
 ##
 ##   **#100 FOUND *AND* CLOSED 2026-09-13 (gen #16), SEV-1.** A `#@ no_exception E` on a

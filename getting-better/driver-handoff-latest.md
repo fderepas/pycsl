@@ -1,71 +1,115 @@
 # ====== START HERE — gen #20 FINAL STATE — read this block first ==================
 #
-# ## STATUS: IN PROGRESS (this block is updated as the generation runs)
+# ## STATUS: COMPLETE. Tree clean, everything committed. HEAD at hand-off: see `git log -1`.
 #
-# ## THE THING THREE GENERATIONS DROPPED IS DONE — DO NOT RE-RUN THE SUITE
+# ## 1. THE BATTERY THREE GENERATIONS FAILED TO RECORD IS **DONE AND COMMITTED**
 #
-#   **SUITE VERDICT COMMITTED at `c7270ebe`.** `3423/3441 passed, 18 CONFIRMED FAIL,
-#   ZERO XPASS, rc=1`. PROVENANCE STATED: read from gen #19's COMPLETED run at HEAD
-#   `4855f163` (suite.log/suite.rc mtime 2026-09-13 23:10:29 UTC), HEAD re-verified
-#   unchanged before reading, box idle with ZERO prover processes. Gen #19's own
-#   acceptance test — written BEFORE the result was read — applied and passed on all
-#   three clauses (rc==baseline rc; failures exactly the 18 known baseline files;
-#   zero XPASS). NOT VOID. Gens #11/#18/#19 each computed this and never committed it.
+#   DO NOT RE-RUN IT. All NINE legs plus the mirror-check are recorded with provenance:
 #
-# ## BATTERY LEDGER FOR #101–#106 — 9 LEGS, WHO ESTABLISHED WHICH
+#     1  metric                  459 markers / 484 grep / offset 25 / unattached 0   HIT   gen19*
+#     2  doc-coherency           rc=0                                                HIT   gen19*
+#     3  fidelity mirror-sync    rc=0, 887 un-trusted fns verbatim, 37 consts        HIT   gen19*
+#     4  trusted-raises-honesty  rc=0, 75 stubs: 6 DECLARED / 69 SILENT, ratchet 69  HIT   gen19*
+#     5  reference suite         3423/3441, 18 fail, ZERO XPASS, rc=1            ACCEPTED  gen20
+#     6  byte-diff pycsl-ref     1036/1045, 0 MOVED / 0 GONE / 0 APPEARED, zb 0/0   HIT   gen20
+#     7  byte-diff python-ref    2203/2203, 0 MOVED / 0 GONE / 0 APPEARED, zb 0/0   HIT   gen20
+#     8  mirror emission-diff    53/53,     0 MOVED / 0 GONE / 0 APPEARED, zb 0/0   HIT   gen20
+#     9  planes                  34/34 `ok` COUNTED = 19 fast + 15 slow             HIT   gen20
+#    (+) mirror-check            rc=1 on the SAME 3 at HEAD **and** at 5795cfef     HIT   gen20
 #
-#   Legs 1–4 were established by gen #19 at `b3782687` and are VALID FOR THIS TREE
-#   because `git diff b3782687 HEAD -- . ':(exclude)getting-better'` is EMPTY — a
-#   property of the source tree, re-verified by gen #20 in one command, not an
-#   inherited verdict. These four gates read source only.
+#     * legs 1-4 are gen #19's, valid for this tree because
+#       `git diff b3782687 HEAD -- . ':(exclude)getting-better'` is EMPTY — a property of the
+#       SOURCE TREE, re-verified by gen #20 in one command, not an inherited verdict.
 #
-#     1  metric                 459 markers / 484 grep / offset 25 / unattached 0   HIT (gen19)
-#     2  doc-coherency          rc=0                                               HIT (gen19)
-#     3  fidelity mirror-sync   rc=0, 887 un-trusted mirror fns verbatim, 37 consts HIT (gen19)
-#     4  trusted-raises-honesty rc=0, 75 stubs: 6 DECLARED / 69 SILENT, ratchet 69  HIT (gen19)
-#     5  reference suite        3423/3441, 18 fail, ZERO XPASS, rc=1     ACCEPTED (gen20, c7270ebe)
-#     6  byte-diff pycsl-reference                                       see below
-#     7  byte-diff python-reference (pyref)                              see below
-#     8  mirror emission-diff (53 mirrors)                               see below
-#     9  planes 34 = 19 fast + 15 slow                                   see below
-#    (+) self-annotate-mirror-check.sh — CONFIRM the three PRE-EXISTING reds, never inherit
+#   **ROUTES #101 #102 #103 #104 #105 #106 ARE NOW REPAIRED *AND* FULLY GATED.**
+#   EVERY PREDICTION HIT. One near-miss recorded rather than quietly replaced: leg 6's
+#   "+10 new-source" is 10 new SOURCES but 9 new EMISSIONS, because route #103's REFUSAL
+#   witness 1291 correctly emits no `.mlw`. Benign ONLY because SOURCES.txt exists.
+#   No ratchet re-baselined, no golden re-blessed.
 #
-# ## BYTE-DIFF BASELINE — ESTABLISHED BY GEN #20 ITSELF, POPULATIONS ASSERTED
+#   Suite provenance, stated once so nobody re-litigates it: read from gen #19's COMPLETED run
+#   at HEAD `4855f163` (finished 23:10:29 UTC, box idle, ZERO prover processes), HEAD
+#   re-verified unchanged before reading, and gen #19's OWN acceptance test — written before
+#   the result was read — applied and passed on all three clauses.
 #
-#   Baseline commit **`5795cfef`** ("gen18 START", the commit before ALL SIX repairs),
-#   confirmed an ancestor of HEAD. Worktree: `<scratchpad>/g19base`, whose HEAD I read
-#   with `git rev-parse` (5795cfef4b8f…) rather than trusting the directory name; clean
-#   but for the REQUIRED untracked `.venv` symlink.
-#     baseline pycsl-reference   **1214** top-level .py   HEAD **1224**
-#     manifest delta, BOTH SIDES SORTED: exactly the ten witnesses 1288–1297, ZERO deleted
-#     baseline python-reference  **2217** .py (recursive)  HEAD **2217** — manifest IDENTICAL
-#     stray .mlw in corpus: 92 on BOTH sides (checked-in goldens, equal, not a leak)
+# ## 2. THREE NEW SEV-1 ROUTES, ALL REPRODUCED, NONE REPAIRED  <-- START HERE, gen #21
 #
-#   >>> DO NOT TOUCH `/tmp/claude-1000/bd_before`. It is gen #18's KILLED sweep: 584
-#   >>> emitted .mlw against a 1214-source baseline. Reading it as a baseline yields a
-#   >>> spectacular FALSE `GONE` set. gen #20 deletes it so gen #21 cannot be fooled.
+#   **#107 — a try's `else:` block is SILENTLY DELETED when its lowered text merely CONTAINS
+#   the substring "raise", including from an ordinary IDENTIFIER'S NAME.**
+#   `stmt_control_flow.py:1809`: `if _else_str.strip() and "raise" not in _else_str:`.
+#   A dead local named `praiseworthy` deletes the whole block. BOTH DIRECTIONS MEASURED:
+#   the exploit proves `ensures \result == 1` while CPython returns 5; the control, identical
+#   minus that one local, correctly FAILS on the postcondition. Route #37's fence
+#   (`pycsl.py:1013`) tests four statement KINDS and an `Assign` is none of them.
 #
-# ## WHAT IS TRUE RIGHT NOW
+#   **#108 — a callee's raise inside an `else:` is CAUGHT by that same try** (Python never
+#   does this) **and is ALSO dropped from the function's `raises` summary**, because
+#   `_callee_raised_in` skips `orelse`. A `#@ no_exception ValueError` caller PROVES while
+#   CPython raises. Survives the #100 -> #105 chain: that chain fixed the receiver KEY, and
+#   here the SET looked up is what is empty.
+#   >>> #107 and #108 ARE THE TWO DIRECTIONS OF THE SAME CODE AND MUST BE REPAIRED TOGETHER.
+#   >>> Making the splice fire more often is NOT safe on its own — that is #108.
 #
-#   metric   markers **459** / grep 484 / offset 25 / unattached 0.
-#   planes   34 = 19 fast + 15 slow. ALWAYS SAY WHICH SET YOU RAN. Count `ok` lines,
-#            NEVER read a banner.
-#   suite    baseline **18** failures. A run showing 19 is a REGRESSION. Now VERIFIED
-#            GREEN for #101–#106 — there is no reason for gen #21 to re-run it.
-#   ratchet  `check-trusted-raises-honesty` SILENT is **69** (MAX_SILENT=69). Move the
+#   **#109 — the `_objstate_w` fail-closed FRAME fallback lives in the `self.` arm only.**
+#   `expressions.py:6650-6660` builds a 7-tuple with `_objstate_w` in the gate; `:6696-6705`
+#   applies the same filter for a record-var/module-global receiver, never computes the
+#   fallback, and builds a 6-tuple. Exploit proves `#@ assigns \nothing` over a mutating call;
+#   emitted avatar is `val c_bump_0 () : unit` — NO frame, NO receiver — while the method's own
+#   definition in the SAME file carries `writes { _pyobj_state }`. Control fails for the RIGHT
+#   goal. `order = 2`: the carrier IS the `#32 SPIKE` repair, whose docstring narrates the very
+#   hazard it left in the other arm.
+#
+#   Route files: `open-routes/route107-*.md`, `route108-*.md`, `route109-*.md`.
+#   Witnesses (NOT yet in the corpus — landing them needs a battery):
+#   `open-routes/witnesses-r107-r108/` and `open-routes/witnesses-r109/`.
+#
+# ## 3. THE PROBE LEDGER IS CLEAN
+#
+#   **ZERO `PENDING` rows** — all three closed with real verdicts (226 FAIL-CLOSED
+#   stale-but-covered, 232 LIVE #109, 234 LIVE #108). Two attempts logged **VACUOUS** and kept
+#   OUT of FAIL-CLOSED; one candidate logged INCOMPLETE and explicitly NOT claimed as a finding
+#   (`_try_reaches_assert` in `desugar.py` scans `node.body` only, so route #16's assert fence
+#   looks blind to an `assert` in an `else` block — NOT PROBED).
+#
+#   YIELD, which is the number to steer by — a route count only goes up and cannot say
+#   "nearly done". ALL: LIVE 66 / FAIL-CLOSED 81 / denom 147 / **yield 44.9%**, 2nd-order 9,
+#   VACUOUS 10. **Highest-yield real generator: `continue-census` at 83.3% (10/12)** — and all
+#   three of this generation's routes came from it or from its census. `hand` is 0.0% over 45.
+#
+# ## 4. THE SEAM, still the richest thing open, now with evidence behind it
+#
+#   **Which OTHER obligations are keyed on a call node, a receiver spelling, or a TEXT
+#   PATTERN that the emitter can lose?** #109 confirms the chain's prediction that the shape
+#   RECURS ONCE PER OBLIGATION KIND (#70 -> #100 -> #105 -> #109). Still named and unprobed:
+#   the frame `writes` under INLINING (#106's seam), the callee's `requires`, the UB gates,
+#   and a `\trusted` callee inlined straight through the trust boundary.
+#
+#   NEW GENERATOR, earned this generation and worth more than the three routes:
+#   >>> **A GUARD IMPLEMENTED AS A SUBSTRING TEST OVER GENERATED TEXT IS KEYED ON SPELLING,
+#   >>> NOT ON STRUCTURE, AND THE SPELLING IS ATTACKER-CHOSEN THE MOMENT A USER NAMES A
+#   >>> VARIABLE.** Go and census every `in <generated text>` / `not in <generated text>` test
+#   >>> in Module 6. `stmt_control_flow.py:1809` was the first one anybody looked at.
+#
+#   And a hard-won instrument lesson, paid for twice this generation:
+#   >>> **READ THE WHOLE EMITTED FILE BEFORE CREDITING A PROOF TO A MECHANISM.** The first
+#   >>> #108 witness PROVED — via #107's deletion, because its callee was named `may_raise`.
+#   >>> The `[+] SUCCESS` line alone would have credited the wrong route.
+#
+# ## 5. WHAT IS TRUE RIGHT NOW
+#
+#   metric   markers **459** / grep 484 / offset 25 / unattached 0 — RE-MEASURED at HEAD.
+#   planes   34 = 19 fast + 15 slow. Count `ok` lines, NEVER read a banner.
+#   suite    baseline **18** failures; VERIFIED GREEN this generation. Do not re-run it.
+#   ratchet  `check-trusted-raises-honesty` SILENT **69** (MAX_SILENT=69). Move the
 #            POPULATION, never the LINE.
-#   pre-existing, NOT gen #20's: `self-annotate-mirror-check.sh` rc=1 at HEAD on
-#            `expr_ghost_collections.py` / `statements.py` / `stmt_control_flow.py`; the
-#            two modified gitlinks (`scratchpad/w7/base`, `scratchpad/w8/pre`).
-#
-# ## THE SEAM THAT IS STILL THE RICHEST THING OPEN (from route #106, UNPROBED)
-#
-#   **Which OTHER obligations are keyed on a call node that inlining DELETES before
-#   Module 6 ever looks?** Named and open: the frame `writes`, the callee's `requires`,
-#   the UB gates. Also open: a `\trusted` callee is inlined straight THROUGH the trust
-#   boundary (`val helper__f` emitted and never called). The #70 → #100 → #105 chain
-#   establishes this shape recurs ONCE PER OBLIGATION KIND — expect one route per
-#   obligation, not one route total.
+#   byte-diff baseline for #101-#106 was **5795cfef**; a NEW baseline is needed for any
+#            #107/#108/#109 repair. Worktree `<scratchpad>/g19base` is at 5795cfef with
+#            `.venv` symlinked. `/tmp/claude-1000/bd_before` (gen #18's killed 584-file sweep)
+#            HAS BEEN DELETED so it can no longer be mistaken for a baseline.
+#   pre-existing, NOT gen #20's: `self-annotate-mirror-check.sh` rc=1 on
+#            `expr_ghost_collections.py` / `statements.py` / `stmt_control_flow.py` — CONFIRMED
+#            pre-existing by running it at 5795cfef as well as at HEAD; the two modified
+#            gitlinks (`scratchpad/w7/base`, `scratchpad/w8/pre`).
 #
 # ====== START HERE — gen #19 FINAL STATE — read this block first ==================
 #
