@@ -1978,3 +1978,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   Structural pre-check for leg 9: an AST census finds ZERO try/else in the whole mirror, so
   the _handle_try_stmt arm cannot fire there; the _callee_raised_in finalbody arm still can.
 2026-09-14 gen#21 BATTERY leg 10: reference suite 3423/3441 passed, 18 CONFIRMED FAIL, ZERO XPASS — EXACTLY the accepted baseline. PREDICTED, HIT.
+2026-09-14 gen#21 BATTERY leg 6: soundness planes 34/34 — COUNTED 34 'ok' lines (19 fast + 15 slow), not read from the banner. PREDICTED, HIT.
