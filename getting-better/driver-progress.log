@@ -2052,3 +2052,11 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   ZERO Unknown/Timeout/Failure/Invalid. PREDICTED, HIT.
   RE-ESTABLISHING the legs that ran BEFORE the getattr fix changed source again (rule: never
   inherit a gate verdict whose tree you cannot establish — including from yourself).
+2026-09-14 gen#21 BATTERY-2 RE-ESTABLISHED at the final tree (after the getattr fix):
+  3 fidelity sync rc=0, 887 verbatim HIT
+  7 byte-diff pycsl-ref 1050/1052, BYTE-INERT, 2 new sources ignored HIT
+  8 byte-diff python-ref 2203/2203, BYTE-INERT HIT
+  9 mirror emission-diff 53/53, 1 MOVED (expressions.mlw, its own body) HIT
+  6 planes 34/34 'ok' COUNTED — getattr-erasure GREEN again at ABSENT 7/7 HIT
+  PREDICTION for the final suite re-run: 3430/3448, 18 failures, ZERO XPASS (the emitter is
+  behaviourally identical to the tree that produced that, so an unchanged result is the claim).
