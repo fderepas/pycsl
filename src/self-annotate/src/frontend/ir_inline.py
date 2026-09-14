@@ -169,6 +169,7 @@ class _Inliner:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ raises PyCSLSemanticError when True
     #@ assigns self.counter
     def _expand(self, callee: str, recv: str, args: List[Any], result_var: Optional[str]) -> List[Any]:
         return []
@@ -213,6 +214,7 @@ def _check_no_aliasing(funcs: List[Dict[str, Any]], globals_set: Set[str]) -> No
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
+#@ raises PyCSLSemanticError when True
 #@ assigns \nothing
 def _inline_calls(funcs: List[int], globals_set: int, g_class: int, rewrite_funcs: Optional[List[int]]=None) -> None:
     pass

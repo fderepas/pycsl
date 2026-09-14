@@ -39,6 +39,7 @@ class ConcurrencyChecker:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ raises PyCSLSemanticError when True
     #@ assigns self._lock_order, self._shared_vars, self._thread_entries, self.warnings
     def check(self) -> List[ConcurrencyWarning]:
         return []

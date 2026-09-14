@@ -64,6 +64,7 @@ def any_function_trusted(tree: ast.AST) -> bool:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
+#@ raises PyCSLSemanticError when True
 #@ assigns \nothing
 def check_imports(tree: ast.AST, *, stub_dir: Path, allow_unverified: bool=False, filename: str='<input>', deny_list: frozenset=DEFAULT_DENY_LIST) -> List[int]:
     return []

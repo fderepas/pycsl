@@ -36,6 +36,7 @@ def _sexp_tokens(s: str) -> Iterator[str]:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
+#@ raises ValueError when True
 #@ assigns \nothing
 def _sexp_parse(tokens: List[str]) -> object:
     return None

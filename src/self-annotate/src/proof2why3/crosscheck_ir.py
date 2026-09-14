@@ -147,6 +147,7 @@ class IRCrossCheckResult:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
+#@ raises RuntimeError when True
 #@ assigns \nothing
 def _load_axiom_registry() -> int:
     return {}

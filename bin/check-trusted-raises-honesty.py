@@ -83,7 +83,46 @@ LIVE = os.path.join(ROOT, "src", "pycsl")
 #       same shape as `ir_schema.py:171` and `desugar.py:56`, which also say `when True`.
 #       An over-approximating `raises` is still STRICTLY WEAKER (hence safer) than the
 #       silent stub it replaces: no-clause told Why3 the call CANNOT raise.
-MAX_SILENT = 69
+#   62  (#49, convergence-metric Phase 4, SECOND batch) LOWERED BY DECLARING, 69 -> 62.
+#       SEVEN stubs in SIX mirror files, chosen for the cheap property gen #16 measured —
+#       a `raises` on a val DECLARED BUT NEVER APPLIED IN-FILE adds no VC. That property
+#       was VERIFIED PER STUB BEFORE EDITING against the baseline `.mlw`: each of the seven
+#       occurs exactly once in its emission, at its own `val` line, and nowhere else (the
+#       only other hits are derived union TYPE names such as `_union__inline_calls_2`,
+#       which are declarations, not applications).
+#         proof2why3/crosscheck.py::_load_axiom_registry        raises RuntimeError
+#         proof2why3/crosscheck_ir.py::_load_axiom_registry     raises RuntimeError
+#         proof2why3/sertop.py::_sexp_parse                     raises ValueError
+#         frontend/ConcurrencyChecker.py::check                 raises PyCSLSemanticError
+#         frontend/import_classifier.py::check_imports          raises PyCSLSemanticError
+#         frontend/ir_inline.py::_expand                        raises PyCSLSemanticError
+#         frontend/ir_inline.py::_inline_calls                  raises PyCSLSemanticError
+#       Each exception name is the one the LIVE body actually raises, read off the live AST
+#       (this file's `declared` test only looks for the WORD `raises`, so the name is on the
+#       author, not on the tool — it was checked by hand per stub).
+#       *** ALL SEVEN `when True` ARE OVER-APPROXIMATIONS AND ARE DECLARED AS ONES. ***
+#       The real conditions, none expressible against the stub signatures:
+#         `_load_axiom_registry` takes NO parameters and raises iff `_AXIOM_REGISTRY` is
+#           absent from `module6_whyml/preamble.py` — a property of a file read at run time,
+#           not of any argument;
+#         `_sexp_parse` raises on empty input, an unterminated list, or a stray `)`. The
+#           FIRST path alone would be expressible (`tokens` lowers to `array string`), but
+#           declaring only it would UNDER-approximate, which is a FALSE declaration; the
+#           other two are content- and recursion-dependent;
+#         `check` raises iff `self.strict_mode` AND `self.warnings` is non-empty — but
+#           `warnings` is populated DURING the call, so no entry state determines it;
+#         `check_imports`, `_expand`, `_inline_calls` depend on AST/IR content behind an
+#           opaque `int`.
+#       Same shape as `ir_schema.py:171`, `desugar.py:56`, `exec_splice.py:38`.
+#       An over-approximating `raises` is still STRICTLY WEAKER (hence safer) than the
+#       silent stub it replaces: no-clause told Why3 the call CANNOT raise.
+#       Acceptance: emit + `why3 prove --type-only` rc=0 on all 6 files, and every file
+#       GREW (so this is NOT the refused-file false green that Phase 3's `reason:` token
+#       produced); emission diff is EXACTLY 7 `raises { E -> true }` clauses + 4 new
+#       `exception` declarations and nothing else; whole-file re-proofs rc=0 with zero
+#       non-Valid goals counted INDEPENDENTLY of the SUCCESS banner
+#       (`getting-better/proofs49/cm5_*.{log,rc}`); markers unchanged at 459.
+MAX_SILENT = 62
 
 
 # (#49) THE REFUSAL CLASS. Every `raise` this campaign ADDS to the emitter is a REFUSAL —

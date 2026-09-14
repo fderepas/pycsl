@@ -1,13 +1,13 @@
 # Convergence metric implementation — status
-LAST-UPDATED: 2026-09-13T20:05:00Z
+LAST-UPDATED: 2026-09-14T11:30:00Z
 PHASE-1-PROBE-LEDGER: DONE
 PHASE-2-VERIFIED-FRACTION: DONE
 PHASE-3-REASON-TAXONOMY: BLOCKED:emission-moved  (pilot FIRED — the token REFUSES the file)
-PHASE-4-SILENT-RAISE-BURNDOWN: IN-PROGRESS  (70 -> 69, 1 of 70 declared)
+PHASE-4-SILENT-RAISE-BURNDOWN: IN-PROGRESS  (70 -> 69 -> 62, 8 of 70 declared)
 PHASE-5-BLIND-RECAPTURE-RUNBOOK: DONE (runbook only, per scope limit)
 PHASE-6-GENERATED-SAMPLER: DONE-AUTHORING / BLOCKED:box-busy for the sweep
 OVERALL: INCOMPLETE
-NEXT-ACTION: Continue Phase 4. Next cheapest batch (each 1 SILENT stub, each with a PASSING whole-file proof on record, so each has a baseline): proof2why3/crosscheck.py::_load_axiom_registry, proof2why3/crosscheck_ir.py::_load_axiom_registry, proof2why3/sertop.py::_sexp_parse, frontend/ConcurrencyChecker.py::check, frontend/import_classifier.py::check_imports, frontend/ir_inline.py::{_expand,_inline_calls}. VERIFY THE NEVER-CALLED-IN-FILE PROPERTY PER STUB BEFORE EDITING. Phase 3 is BLOCKED by a measured refusal — do NOT retry the in-band `reason:` token. Decide between (1) a real PyCSL language change for a trailing `reason:` (capability-sized, audit-skill-bound) and (2) an OUT-OF-BAND taxonomy side file keyed by (mirror file, function qualname) read by count-trusted-directives.py --metrics. Option 2 is recommended and needs no grammar change. Then Phase 4.
+NEXT-ACTION: Continue Phase 4. THE NEXT CHEAPEST BATCH IS `proof2why3/canonical.py` — EIGHT SILENT stubs in ONE file (_ac_normalize, _alpha_rename, _dedup_arrow_chain, _flatten_foralls, _iff_app_to_binop, _normalize_names, _sort_arrow_hypotheses, substitute), and ALL EIGHT live bodies raise exactly `TypeError`, so it is one exception name across the batch. Plus `proof2why3/normalize.py::_alpha_rename` (same live function, so same name) for nine. *** CAVEAT THAT COSTS TIME: unlike increment 3's batch, canonical.py has NO whole-file proof on record anywhere in the tree (searched: proofs46/48/49 and every scratchpad wN/proofs) — so the successor must FIRST run a baseline proof of canonical.py AT HEAD and only then edit, or there is nothing to compare against. Budget for that. *** VERIFY THE NEVER-CALLED-IN-FILE PROPERTY PER STUB BEFORE EDITING (emit the baseline .mlw, confirm each name occurs ONLY at its own `val` line; derived union TYPE names like `_union__x_1` are declarations, not applications). Phase 3 remains BLOCKED by a measured refusal — do NOT retry the in-band `reason:` token; take Option 2 (OUT-OF-BAND taxonomy side file keyed by (mirror file, function qualname), read by count-trusted-directives.py --metrics, with its own attachment check in both directions). PHASE 3 NEEDS NO IDLE BOX AND SHOULD BE DONE WHILE THE DRIVER RUNS — see the scheduling note below.
 
 ## SUPERVISOR SCHEDULING POLICY — SET BY THE USER 2026-09-13 ~18:35Z
 THE DRIVER IS PAUSED BETWEEN GENERATIONS TO GIVE THIS WORK THE BOX.
@@ -16,7 +16,14 @@ agent FIRST and lets it take one increment on an idle box, THEN launches the nex
 generation. Rationale: Phases 3, 4 and the Phase-6 sweep need an idle box; the driver
 campaign runs suites/planes/proofs back-to-back for the whole 96h window, so waiting for a
 natural gap never fires. The between-generation gap is free box time.
-PRIORITY ORDER ON AN IDLE BOX: Phase 3 pilot -> Phase 3 tagging -> Phase 4 burn-down.
+PRIORITY ORDER ON AN IDLE BOX: Phase 4 burn-down FIRST.
+*** REVISED 2026-09-14 BY INCREMENT 3, AND THE REASON MATTERS. *** The original order put
+Phase 3 first. That was wrong for an IDLE box: `convergence-metric-implement.md` §1 says in
+its own words that Phases 1-3 are pure bookkeeping and "can run ALONGSIDE a live driver
+generation", while Phases 4-6 consume the box. Phase 3 Option 2 is a side file plus a
+histogram — ZERO prover time — so spending a scarce idle window on it WASTES the window.
+Phase 4 is the only unblocked phase that actually needs the box (whole-file re-proofs).
+SO: Phase 4 on an idle box; Phase 3 whenever, including while the driver runs.
 The Phase 6 sweep is LAST and may be deferred to after the window closes (Thu Sep 17).
 Take ONE increment, leave the tree clean and committed, update this file, and stop — do not
 hold the box longer than the increment needs; the driver is waiting on you.
@@ -26,6 +33,9 @@ hold the box longer than the increment needs; the driver is waiting on you.
   5774b32a  Phase 2 — verified fraction from proof verdicts   (fea721a9 prose repair)
   758fc276  Phase 5 — blind recapture runbook
   184f81cb  Phase 6 — generated differential sampler (authored, not swept)
+  e474a883  Phase 3 pilot — gate FIRED, finding written, edit reverted
+  46aaaf5c  Phase 4 batch 1 — SILENT 70 -> 69 (exec_splice)
+  <this>    Phase 4 batch 2 — SILENT 69 -> 62 (seven stubs, six mirror files)
 
 ## THE CORRECTED VERIFIED-FRACTION TRIPLE  (bin/verified-fraction.py --staleness=file)
       (1) verified / live      499 / 3225 = 15.47 %
@@ -86,7 +96,7 @@ hold the box longer than the increment needs; the driver is waiting on you.
   and driving that bucket to zero is a multi-generation task, not "one pass over 459 lines".
   Say so when Phase 3 lands rather than tagging speculatively — a `correctness:` tag is a
   CLAIM, and this repo's boundary claims have been refuted repeatedly.
-- PHASE 4 HAS NOT STARTED AND MAX_SILENT HAS NOT BEEN TOUCHED (still 70). When it starts:
+- PHASE 4 IS UNDER WAY: MAX_SILENT 70 -> 69 -> 62, lowered ONLY by declaring. Rule:
   order batches by the cheap property gen #16 measured — a `raises` on a val declared but
   never called in-file adds no VC. NEVER raise MAX_SILENT to make the ratchet pass.
 
@@ -137,3 +147,76 @@ self-annotate-mirror-check.sh is rc=1 at HEAD on expr_ghost_collections.py / sta
 stmt_control_flow.py. Confirmed pre-existing: `git diff HEAD --stat` was empty when first
 observed and none of those files was touched. Same family as
 finding-L1-fidelity-plane-red-at-head.md.
+
+## INCREMENT 3 (2026-09-14 ~11:15-12:10Z, idle box granted by the supervisor)
+
+### THE CHOICE: PHASE 4, NOT PHASE 3 — AND WHY
+The handoff's priority order said Phase 3 first. I took Phase 4 instead, deliberately.
+`convergence-metric-implement.md` §1 states that Phases 1-3 are pure bookkeeping and can run
+ALONGSIDE a live driver generation, and that Phases 4-6 consume the box. Phase 3 Option 2 is
+a side file plus a histogram: ZERO prover time. Spending a scarce idle window on it would
+have burned the one resource Phase 4 cannot proceed without. The priority block above is
+amended accordingly. Phase 3 is NOT deprioritised — it is rescheduled onto driver time.
+
+### PHASE 4 — SECOND BATCH LANDED. SILENT 69 -> 62.
+SEVEN stubs across SIX mirror files, every exception name read off the LIVE AST:
+  proof2why3/crosscheck.py::_load_axiom_registry        RuntimeError
+  proof2why3/crosscheck_ir.py::_load_axiom_registry     RuntimeError
+  proof2why3/sertop.py::_sexp_parse                     ValueError
+  frontend/ConcurrencyChecker.py::check                 PyCSLSemanticError
+  frontend/import_classifier.py::check_imports          PyCSLSemanticError
+  frontend/ir_inline.py::_expand                        PyCSLSemanticError
+  frontend/ir_inline.py::_inline_calls                  PyCSLSemanticError
+MAX_SILENT lowered 69 -> 62, monotonically. THE BOUND WAS NEVER RAISED.
+All seven `when True` are OVER-APPROXIMATIONS and are declared as such in the ratchet
+history, with the real condition written out per stub and the reason it is not expressible.
+ONE OF THEM IS WORTH SINGLING OUT: `_sexp_parse`'s FIRST raise path (`not tokens`) IS
+expressible — `tokens` lowers to `array string` — but declaring only that path would
+UNDER-approximate, and an under-approximating `raises` is a FALSE declaration, not a tighter
+one. Over-approximating is the safe direction; it is strictly weaker than the silent stub.
+
+### CHEAP PROPERTY VERIFIED PER STUB *BEFORE* EDITING (all 7/7)
+Baseline `.mlw` emitted for each of the six files first; each of the seven names occurs
+EXACTLY ONCE in its emission, at its own bodyless `val` line, and nowhere else — so each
+`raises` adds no VC. The only other textual hits are derived union TYPE names
+(`_union__inline_calls_2`, `_union__expand_1`, `_union_concurrencychecker_0`), which are
+declarations, not applications. Recording that distinction because it is the thing that
+would silently make this batch expensive if a successor mistook it for a call site.
+
+### GATE VERDICTS, EACH WITH ITS POPULATION
+  emit + `why3 prove --type-only`   6/6 files rc=0, and EVERY FILE GREW (3254->3315,
+        9216->9277, 5103->5137, 2521->2594, 12933->13006, 31108->31192). The growth is the
+        point: increment 2's `reason:` token produced NO .mlw at all, and a common-files
+        byte diff read that as zero changes. A green here that did not grow would be that
+        same false green. CHECKED, not assumed.
+  emission diff base->after         EXACTLY 7 `raises { E -> true }` clauses + 4 new
+        `exception E` declarations. Nothing else moved; no other `val` touched.
+  whole-file re-proofs              6 files, 503 goals, 0 non-Valid, all rc=0
+        (`getting-better/proofs49/cm5_{crosscheck,crosscheck_ir,sertop,concurrency,
+        import_class,ir_inline}.{log,rc}`; 12.8s/37.0s/55.6s/12.4s/137.0s/162.0s).
+        Non-Valid counted by grepping the prover verdicts, INDEPENDENTLY of the banner.
+  check-trusted-raises-honesty      population 75, 13 declared / 62 SILENT, ratchet 62, rc=0
+  ^ NEGATIVE TEST OF THAT RATCHET   planted defect (deleted the new `#@ raises` line from
+        sertop.py) -> rc=1, "SILENT RATCHET BROKEN — 63 > 62", and it NAMED the exact stub.
+        Restored; rc back to 0. The green is believed because the red was demonstrated.
+  count-trusted-directives          markers 459 / grep 484 / offset 25 / unattached 0, rc=0
+        — UNCHANGED, as it must be: a `#@ raises` line is not a `\trusted` marker.
+  check-self-annotate-sync.sh       rc=0 over 887 un-trusted mirror functions
+  self-annotate-mirror-check.sh     rc=1, DELTA ZERO — the same three pre-existing files
+        (expr_ghost_collections.py, statements.py, stmt_control_flow.py), none of mine.
+        Pre-existing at HEAD; same family as finding-L1-fidelity-plane-red-at-head.md.
+
+### REFERENCE SUITE DELIBERATELY NOT RE-RUN, AND THE REASON IS CHECKABLE
+`git diff --name-only` contains NO path under `src/pycsl/`. The shipped compiler is
+byte-unchanged, so the 3430/3448 baseline cannot move. The diff is six mirror files plus the
+ratchet constant. Stating the check rather than the conclusion so the next reader can redo it
+in one command. If a successor's Phase-4 batch ever touches `src/pycsl/`, this reasoning
+EXPIRES and the suite must be run.
+
+### A NOTE ON WHAT THE RATCHET DOES NOT CHECK
+`check-trusted-raises-honesty.py`'s `declared` test matches any `#@` line containing the word
+`raises`. It does NOT check that the declared exception NAME is the one the live body raises.
+So the seven names above are on the author, not on the tool; each was read off the live AST by
+hand and is recorded in the ratchet history. A successor could satisfy this ratchet with a
+wrong name and nothing would say so — worth a future hardening, and cheap: the checker already
+computes `KINDS[name]` for exactly this purpose and simply never compares it.
