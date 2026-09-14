@@ -61,3 +61,35 @@ already defined") before any goal ran. It measured nothing about provability.
 (`any_int ()`-style havoc), never to `0`. The `GenExp` arm's comment records that emitter code
 in the mirror (`sum(ord(c) for c in name)`) currently depends on the scalar `0` shape, so the
 population must be censused over all four trees before choosing refusal vs havoc.
+
+---
+
+## SECOND CARRIER — THE VERY SHAPE ROUTE #24's REPAIR SAYS IT COVERS (order 2)
+
+Route #24 (corpus 0996) replaced a computed-callee erasure with `(opaque_dynamic_call 0)`,
+and its comment claims the arm is reached for "a call whose CALLEE is not a plain name ...
+`type(self)(...)`, `self.fns[0]()`, a computed constructor". `type(self)()` does reach it —
+Module 5 builds a Call-of-Call node. A **Subscript** or **Lambda** callee does not: Module 5's
+`_py_expr_call` returns `UnknownPyExpr` for it, and Module 6 lowers that to `0` long before
+the opaque arm could see it.
+
+`u_subcall2.py`:
+
+```python
+#@ requires len(fs) > 0
+#@ ensures \result == 0
+#@ assigns \nothing
+def f(fs: List[Callable[[int], int]], x: int) -> int:
+    return fs[0](x)
+```
+
+`[+] Verification SUCCESS` rc=0, whole body `0`; CPython `f([lambda y: y + 1], 0)` = 1.
+**A REPAIR COMMENT THAT NAMES A SHAPE IS A CLAIM ABOUT A COLLECTOR — COUNT WHAT REACHES IT.**
+`bin/check-computed-rhs-erasure.py`'s census ("exactly ONE site tree-wide") counted the
+emitted `:= 0` shape and so could not see a `0` that is a whole function body.
+
+AST census (all four trees) of the Module 5 catch-all population: `Call` with a `Call` callee
+167 (mostly the mirror, handled by the Call-of-Call arm), `Yield` 80, `YieldFrom` 12,
+`Await` 4 (python-reference 0098/0152), `Lambda`/`Subscript` callee **0**. The lambda and
+subscript carriers are therefore corpus-inert to repair; `Yield`/`Await` need the emission
+census before choosing refusal vs havoc.
