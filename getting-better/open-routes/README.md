@@ -1,14 +1,29 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **NONE.**
+## CURRENTLY OPEN: **#109, #110, #111.**  (last edited by gen #21, 2026-09-14)
 ##
-##   >>> **GATE STATUS NOTE, WRITTEN BY GEN #19 (2026-09-13):** gen #18 REPAIRED #101–#106
-##   >>> and committed its battery PREDICTIONS, but STOPPED BEFORE RECORDING A SINGLE
-##   >>> VERDICT. Under rule (r) — never inherit a gate verdict whose tree you cannot
-##   >>> establish — the phrase "CLOSED AND GATED" below was NOT true when it was written.
-##   >>> Gen #19 is re-establishing the whole battery at HEAD. Until that block in
-##   >>> `driver-handoff-latest.md` says otherwise, read #101–#106 as
-##   >>> **REPAIRED BUT NOT YET GATED**.
+##   >>> **#110 and #111 are NEW THIS GENERATION and are the highest-ranked items on the
+##   >>> board.** Both come from the SUBSTRING-CENSUS generator, both are SEV-1, both have
+##   >>> BOTH DIRECTIONS MEASURED, NEITHER IS REPAIRED.
+##   >>>   #110 `_coerce_to_int` replaces a call argument with the literal `0` when the
+##   >>>        lowered text starts with an internal op spelling — and SEVEN of those
+##   >>>        spellings (`any_1`, `all_1`, `sorted_1`, `list_new_arr`, `array_slice`,
+##   >>>        `map_update_some`, `map_update_none`) are ordinary Python identifiers.
+##   >>>   #111 a dict/set self-field is clobbered with the everywhere-empty map when the
+##   >>>        lowered RHS is not alphanumeric. **NEEDS NO ADVERSARIAL NAMING** —
+##   >>>        `self.b = self.a` is ordinary Python. This is the worst of the three.
+##   >>> **#109** (`order = 2`) remains open and untouched by gen #21: the `_objstate_w`
+##   >>> frame fallback exists in the `self.` arm only.
+##
+##   >>> **#107 and #108 are CLOSED AND GATED by gen #21 (2026-09-14)** — one structural
+##   >>> repair for both directions (the `else:` is lowered as a SIBLING of the try behind a
+##   >>> completion flag, never appended to the try body behind a substring test), an
+##   >>> ELEVEN-LEG battery with ten exact predictions and one recorded miss, and corpus
+##   >>> regression witnesses 1298–1302. Suite baseline moved to **3428/3446, 18 failures**.
+##
+##   >>> The gen #19 gate-status note that used to sit here (about #101–#106 being
+##   >>> "REPAIRED BUT NOT YET GATED") is RESOLVED: gen #20 completed that battery on all
+##   >>> nine legs. #101–#106 are repaired AND gated. Do not re-gate them.
 ##
 ##   **gen #18 (2026-09-13): #101 REPAIRED, and THREE MORE ROUTES FOUND INSIDE ITS OWN
 ##   CARRIER LIST — #102, #103, #104 — all SEV-1, all CLOSED AND GATED.** The whole family
