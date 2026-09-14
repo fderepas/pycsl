@@ -2060,3 +2060,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   6 planes 34/34 'ok' COUNTED — getattr-erasure GREEN again at ABSENT 7/7 HIT
   PREDICTION for the final suite re-run: 3430/3448, 18 failures, ZERO XPASS (the emitter is
   behaviourally identical to the tree that produced that, so an unchanged result is the claim).
+2026-09-14 gen#21 BATTERY-2 leg 10 FINAL: suite 3430/3448, 18 CONFIRMED FAIL, ZERO XPASS at the final tree — PREDICTED, HIT. ROUTE #110 IS REPAIRED AND FULLY GATED.

@@ -2,7 +2,8 @@
 # lowered argument's text happens to start with an internal op spelling, and SEVEN of those
 # spellings are ordinary Python identifiers a user is free to choose
 
-**Status: FOUND, REPRODUCED, BOTH DIRECTIONS MEASURED. Repair NOT yet landed.**
+**Status: CLOSED AND FULLY GATED by gen #21 (2026-09-14).** See THE REPAIR AS LANDED at the
+bottom of this file. Original finding text preserved below unchanged.
 **Severity: SEV-1.** A false postcondition is PROVED, and the trigger is a FUNCTION NAME.
 
 ## PROVENANCE
@@ -115,3 +116,71 @@ emitter must REFUSE, not invent a `0`.
 whyml_str.endswith(")")` replaces the term with `str(stable_hash(whyml_str))`, a constant
 derived from the emitter's own text. A **comma inside a string literal argument** reaches it
 (`h("a,b")`). Logged as a candidate, NOT as a finding — not run to a verdict.
+
+
+---
+
+# THE REPAIR AS LANDED (gen #21, 2026-09-14) — CLOSED AND FULLY GATED
+
+`_coerce_to_int` now extracts the HEAD SYMBOL of the lowered term and refuses to treat it as
+array- or map-shaped when that symbol is a USER-DEFINED function (`self._module_func_names`):
+
+```
+        _head = ""
+        if stripped.startswith("("):
+            _head = stripped[1:].split(" ")[0]
+        _user_fn = _head in self._module_func_names
+        ...
+            if stripped.startswith(prefix) and not _user_fn:
+                return "0"
+```
+
+Passing such a term THROUGH is the fail-closed direction: if the call really is
+collection-typed, Why3 rejects it where an `int` is expected — a loud error instead of a
+silent `0`.
+
+**BOTH DIRECTIONS, PLUS A POSITIVE CONTROL.** `d_any1` rc=1 (the false proof is gone; the
+emission is now `Array.make 1 ((any_1 x))`, the call SURVIVES); `d_ctl` rc=1 unchanged;
+`d_pos` rc=0 — the TRUE claim `\result == x + 1` PROVES, so the repair is FAITHFUL rather
+than merely refusing. Corpus witnesses **1303** (negative) and **1304** (positive twin).
+
+## THE SECOND-ORDER COST THE PLANES CAUGHT, AND THE LESSON
+
+The FIRST form of this repair used `getattr(self, "_module_func_names", set())`. In the
+self-annotation mirror a `getattr` WITH A DEFAULT on a name the record does not declare
+lowers to a `pycsl_getattr_default_*` fall-through, so the repair silently added an eighth
+erasure site and `bin/check-getattr-erasure.py` went RED (`ABSENT 8 > ratchet 7`).
+
+Provenance was established BEFORE anything else: the baseline at `bcae6447` gives 31 sites /
+ABSENT 7 / GREEN, so the regression was mine. The other four live sites for that field sit in
+methods that are `\trusted` in the mirror and never emit; mine was in a non-trusted method
+and did. **MAX_ABSENT WAS NOT RAISED.** The cause was fixed — the default was dead code, as
+`Module6_WhyMLTranspiler.__init__` initialises the field unconditionally — and the count
+returned to 31 / ABSENT 7.
+
+>>> **A REPAIR THAT BUYS ITS SOUNDNESS WITH A NEW ERASURE SITE HAS MOVED THE PROBLEM, NOT
+>>> FIXED IT — AND ITS OWN WITNESS CANNOT SEE THAT COST.** Check a repair against the OTHER
+>>> planes, not only against the thing it was written to stop.
+
+## GATE VERDICTS (all at the FINAL tree, after the getattr fix)
+
+    metric                  459 / 484 / 25 / 0                                   HIT
+    doc-coherency           rc=0                                                 HIT
+    fidelity mirror-sync    rc=0, 887 un-trusted fns verbatim                    HIT
+    trusted-raises-honesty  rc=0, 6 declared / 69 silent, ratchet 69             HIT
+    dropped-mutation        0 / 51 / 9 / 0                                       HIT
+    byte-diff pycsl-ref     1050/1052 BYTE-INERT, 2 new sources ignored          HIT
+    byte-diff python-ref    2203/2203 BYTE-INERT                                 HIT
+    mirror emission-diff    53/53, 1 MOVED (expressions.mlw, its own body)       HIT
+    planes                  34/34 `ok` COUNTED                                   HIT
+    reference suite         3430/3448, 18 failures, ZERO XPASS                   HIT
+    mirror whole-file proof expressions.py SUCCESS, 21269 Valid, 0 bad           HIT
+
+Byte-inertness was PREDICTED FROM A CENSUS, not hoped for: zero functions in all four trees
+are named any of the nine head symbols the prefixes can match.
+
+## STILL OPEN IN THE SAME FUNCTION — NOT repaired, NOT probed
+
+`expressions.py:1030` — `if "," in whyml_str and whyml_str.startswith("(") and
+whyml_str.endswith(")")` replaces the term with `str(stable_hash(whyml_str))`. A COMMA inside
+a string-literal argument reaches it (`h("a,b")`). This repair does NOT cover that branch.
