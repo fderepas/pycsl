@@ -73,3 +73,24 @@ module-level function of that name — not on the argument shape; everything els
 ordinary computed-callee path (route #24's opaque value, once route #115's Module 5 catch-all
 no longer pre-empts it). The companion VARIABLE-NAME arm (`ClassByNameCall`) has the same
 un-keyed outer callee and must be checked in the same increment.
+
+---
+
+## SECOND CARRIER — THE VARIABLE-NAME ARM DECLINES TO THE LITERAL `0` (measured, gen #23)
+
+Predicted above, then run. `name = "inc" if c else "dec"; return Pick(name)(3)`:
+`_collect_class_name_ternaries` (statements.py) accepts ANY single-assigned local whose value
+is a ternary of two string literals — no pyast-parser gate — so Module 5's `ClassByNameCall`
+finds an entry. Outside the pyast model `_ctor` is `None`, so the arm's own decline test
+
+```
+                if not (_ctor and isinstance(_lw, str)
+                        and _lw.startswith(f"({_ctor} ")):
+                    return "0"
+```
+
+returns the LITERAL `0` for the whole construction. False `ensures \result == 0` PROVES
+(rc=0), emitted body `let name = ref (if (c <> 0) then 1556256700 else 2004353471) in 0`;
+CPython returns 2 for both values of `c`. This is also a `witness-census` site (the census's
+`expressions.py:17130`). The repair must make a DECLINE opaque (route #24's
+`opaque_dynamic_call`), never `0`.
