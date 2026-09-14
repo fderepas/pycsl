@@ -2004,3 +2004,21 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   NOTE: legs 7/8 (byte-diff) were run BEFORE these five files existed, so they were not in that
   sweep. They are NEW SOURCES, which SOURCES.txt distinguishes from a refusal-turned-emission.
 2026-09-14 gen#21 suite RE-RUN with the five witnesses: 3428/3446 passed, 18 CONFIRMED FAIL, ZERO XPASS — EXACTLY as predicted. NEW SUITE BASELINE for gen #22: 3428/3446, failures still 18.
+2026-09-14 gen#21 ROUTE #110 REPAIR LANDED (source + mirror). Witness verdicts:
+  d_any1 rc=1 (false proof GONE; emitted list literal is now `Array.make 1 ((any_1 x))` — the
+         call SURVIVES where it used to be the literal 0)
+  d_ctl  rc=1 (control unchanged)
+  d_pos  rc=0 (TRUE claim `\result == x + 1` PROVES — the repair is FAITHFUL, not refusing)
+  corpus 1303 rc=1 (negative), 1304 rc=0 (positive)
+2026-09-14 gen#21 BATTERY-2 PREDICTIONS for the #110 repair (written BEFORE any leg runs):
+  1 metric 459/484/25/0 · 2 doc-coherency rc=0 · 3 fidelity sync rc=0 887/37
+  4 trusted-raises 75, 6/69 · 5 mirror type-only rc=0 53, 0 ill-typed · 6 planes 34/34
+  7 byte-diff pycsl-ref  ZERO MOVED, 0 GONE, EXACTLY 2 APPEARED (1303, 1304). The MOVED
+    prediction is BYTE-INERT and it rests on a CENSUS, not a hope: no function anywhere in the
+    four trees is named Array, array_slice, sorted_1, list_new_arr, any_1, all_1,
+    map_update_some, map_update_none or const — the nine head symbols the prefixes can match.
+  8 byte-diff python-ref ZERO MOVED / GONE / APPEARED
+  9 mirror emission-diff 1 MOVED (expressions.py — its own body changed), 0 GONE/APPEARED
+ 10 suite 3430/3448, 18 failures, ZERO XPASS
+ 11 mirror whole-file proof of expressions.py — REQUIRED, _coerce_to_int is NOT \trusted there
+ 12 dropped-mutation unchanged 0 / 51 / 9 / 0

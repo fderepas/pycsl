@@ -229,15 +229,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if whyml_str.startswith('"') and whyml_str.endswith('"'):
             return str(stable_hash(whyml_str))
         stripped = whyml_str.strip()
+        # (ROUTE #110) THESE PREFIX TESTS ARE KEYED ON SPELLING, AND SEVEN OF THE SPELLINGS
+        # ARE ORDINARY PYTHON IDENTIFIERS. `array_slice`, `sorted_1`, `list_new_arr`,
+        # `any_1`, `all_1`, `map_update_some`, `map_update_none` all survive `whyml_ident`
+        # unchanged, so a user who merely NAMES A FUNCTION `any_1` had its call argument
+        # REPLACED BY THE LITERAL `0` -- the value, and every contract the callee carries,
+        # discarded in silence. MEASURED: `xs = [any_1(x)]; return xs[0]` PROVED
+        # `ensures \result == 0` while CPython returns x+1, and the emitted list literal was
+        # `Array.make 1 (0)` with the call GONE. The control, identical but for renaming the
+        # callee `anyq_1`, correctly FAILED and kept `(anyq_1 x)`.
+        #
+        # The head symbol of a term the USER defined is never one of this emitter's minted
+        # ops, so it must never be treated as array- or map-shaped. Passing it through is the
+        # FAIL-CLOSED direction: if such a call really is collection-typed, Why3 rejects it
+        # where an `int` is expected, which is a loud error rather than a silent `0`.
+        _head = ""
+        if stripped.startswith("("):
+            _head = stripped[1:].split(" ")[0]
+        _user_fn = _head in getattr(self, "_module_func_names", set())
         array_prefixes = ("(Array.make", "(Array.sub ", "(array_slice ", "(sorted_1 ",
                           "(list_new_arr ", "(any_1 ", "(all_1 ")
         for prefix in array_prefixes:
-            if stripped.startswith(prefix):
+            if stripped.startswith(prefix) and not _user_fn:
                 return "0"
         map_prefixes = ("(map_update_some ", "(map_update_none ",
                         "(const (None: option int)")
         for prefix in map_prefixes:
-            if stripped.startswith(prefix):
+            if stripped.startswith(prefix) and not _user_fn:
                 return "0"
         if "," in whyml_str and whyml_str.startswith("(") and whyml_str.endswith(")"):
             return str(stable_hash(whyml_str))
