@@ -2030,3 +2030,9 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   8 byte-diff python-ref 2203/2203, 0 MOVED / GONE / APPEARED — BYTE-INERT. HIT
   The inertness prediction rested on a CENSUS (zero user functions named any of the nine head
   symbols) and it was exact across 3253 corpus files.
+2026-09-14 gen#21 BATTERY-2: leg 5 mirror type-only rc=0, 53 mirrors, 0 ILL-TYPED HIT.
+  leg 9 mirror emission-diff 53/53, 1 MOVED (expressions.mlw — its own body), 0 GONE/APPEARED,
+  zb 0/0. PREDICTED CORRECTLY THIS TIME (battery-1's leg 9 miss was the lesson). 17 diff lines,
+  all mine: the _user_fn/_head locals, the head extraction, and the two added conjunctions.
+  leg 10 suite 3430/3448 passed, 18 CONFIRMED FAIL, ZERO XPASS — PREDICTED, HIT.
+  NEW SUITE BASELINE for gen #22: 3430/3448, failures still 18.
