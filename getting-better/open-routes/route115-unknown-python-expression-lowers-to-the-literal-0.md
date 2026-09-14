@@ -69,7 +69,9 @@ population must be censused over all four trees before choosing refusal vs havoc
 Route #24 (corpus 0996) replaced a computed-callee erasure with `(opaque_dynamic_call 0)`,
 and its comment claims the arm is reached for "a call whose CALLEE is not a plain name ...
 `type(self)(...)`, `self.fns[0]()`, a computed constructor". `type(self)()` does reach it —
-Module 5 builds a Call-of-Call node. A **Subscript** or **Lambda** callee does not: Module 5's
+Module 5 builds a `ClassByNameCall` node (callee `Call(Name, [Name|Subscript])`), which Module 6
+resolves or sends to the opaque arm. (Corrected after reading `_py_expr_call`: an earlier draft
+of this line said "Call-of-Call"; the same reading found route #116.) A **Subscript** or **Lambda** callee does not: Module 5's
 `_py_expr_call` returns `UnknownPyExpr` for it, and Module 6 lowers that to `0` long before
 the opaque arm could see it.
 
