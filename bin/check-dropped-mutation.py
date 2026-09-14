@@ -248,7 +248,11 @@ MAX_CTXBIND = 51
 # or a shape the pipeline REFUSES. Counting a drop was never the same as establishing
 # that it is safe — that is the whole lesson of #21 and #37, and this ratchet is the one
 # that carried both of them while staying green.
-MAX_TRYFINAL = 11
+# ROUTES #107 + #108 lowered this from 11 to 9: the two `try/else` rows left the bucket for
+# real. A non-jumping else is now EMITTED (lowered as a sibling of the try, behind a
+# completion flag) and a jumping one is REFUSED by pycsl.py's PYCSL-R37 fence, so neither
+# is a dropped mutation any more. The POPULATION moved; the line follows it DOWNWARD only.
+MAX_TRYFINAL = 9
 
 # DANGLING ratchet — a HARD 0. See the class list above. Measured across
 # pycsl-reference, python-reference, the negative corpus, the mirror, `src/pycsl_lib` and
@@ -381,8 +385,26 @@ def scan_file(path: str):
         elif isinstance(node, ast.Try) and (node.finalbody or node.orelse):
             if node.finalbody and not node.handlers and not _jumps_out(node.body):
                 bucket, why = "HANDLED", "`try/finally`, no handlers, no jump out — emitted"
-            elif node.orelse and not node.finalbody and not _jumps_out(node.orelse):
-                bucket, why = "HANDLED", "`try/else`, else cannot raise — appended to the try body"
+            elif node.orelse and not node.finalbody:
+                # (ROUTES #107 + #108) this line used to call the shape safe with a why-string
+                # that was a FALSE CLAIM TWICE OVER. The else COULD raise -- a callee raise
+                # arriving through a `#@ raises` clause leaves no literal `raise` for
+                # `_jumps_out` to see -- and "appended to the try body" is precisely what put
+                # it INSIDE the try, where this statement's own handlers caught it, which
+                # Python never does. A control is a measurement about the operation it ran,
+                # never a theorem about the type, and this one encoded the assumption under
+                # test. The else is now lowered as a SIBLING of the try/except behind a
+                # completion flag, so it is ALWAYS emitted and Python's scoping is the emitted
+                # scoping; a jumping else is REFUSED by pycsl.py's PYCSL-R37 fence rather than
+                # silently dropped. So no `try/else` is a dropped mutation any more.
+                if _jumps_out(node.orelse):
+                    bucket, why = "REFUSED", (
+                        "`try/else` whose else jumps out "
+                        "(pycsl.py PYCSL-R37-TRY-ELSE-DROPPED)")
+                else:
+                    bucket, why = "HANDLED", (
+                        "`try/else` — lowered as a SIBLING of the try, guarded by a "
+                        "completion flag (routes #107/#108); NOT inside the try")
             else:
                 bucket, why = "TRYFINAL", (
                     "`try/%s` block not emitted (%s)"

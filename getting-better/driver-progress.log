@@ -1945,3 +1945,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   b_pos   rc=0 NEW positive control — raising callee in an `else:` escapes the wrapper and a
           CATCHING caller proves. The repair is faithful, not merely refusing.
   0189 rc=0 HIT · 1029 rc=0 HIT · 1028 rc=1 refused by PYCSL-R37 HIT
+2026-09-14 gen#21 audit-side half of #108 landed: check-dropped-mutation try/else why-string was a FALSE CLAIM ('else cannot raise — appended to the try body'); reclassified. TRYFINAL 11->9, REFUSED 5->7, ratchet lowered 11->9 (population moved, line follows DOWNWARD only). rc=0.
