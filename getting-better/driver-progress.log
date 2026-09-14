@@ -1854,3 +1854,40 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   One row logged **INCOMPLETE** and explicitly NOT a finding: `_try_reaches_assert` in
   `frontend/desugar.py` scans `node.body` only, so route #16's assert fence looks blind to an
   `assert` in an else block. NAMED so it is not lost; NOT probed.
+
+[gen20-16] *** ROUTE #109 FOUND AND REPRODUCED at HEAD c803d6ff. SEV-1. `order = 2`. ***
+  **The `_objstate_w` fail-closed frame fallback was written into the `self.` arm only, so a
+  RECORD-VARIABLE receiver mints an avatar with NO FRAME AND NO RECEIVER.**
+  This was gen #18's census candidate 2, logged PENDING and never interpreted by two
+  generations. It is confirmed exactly as the census described it.
+    `expressions.py:6650-6660` (`self.` arm)     computes `_objstate_w`, puts it in the GATE
+      and in a **7-tuple** field_spec.
+    `expressions.py:6696-6705` (recordvar/global) applies the SAME `_writes_filtered_to_labels`
+      filter but NEVER computes `_objstate_w`, omits it from the gate, and builds a **6-tuple**.
+    So when the filter empties the set, the gate is FALSE, `field_spec` is None, and the call
+    lowers to a bare abstract op.
+  DIRECTION 1 (exploit PROVES): `caller()` declares `#@ assigns \nothing`, calls `c.bump()`
+    whose callee declares `#@ assigns self.hidden`. `[+] Verification SUCCESS`. CPython sets
+    `c.hidden = 5`. Emitted avatar, READ FROM THE FILE: **`val c_bump_0 () : unit`** — no
+    `writes`, and the receiver parameter is gone too — while the method's OWN definition in
+    the SAME emitted file carries `writes { _pyobj_state }`.
+  DIRECTION 2 (control FAILS for the RIGHT goal): the identical callee via `self.bump()` gives
+    rc=1 with the named goal **"this expression depends on variable _pyobj_state, which is left
+    out in the specification"**, and its avatar IS framed
+    (`val self_bump_0 (self: c) : unit writes { _pyobj_state }`). So the obligation is LIVE on
+    this shape and the exploit's proof cannot be dismissed as vacuous.
+  `order = 2` IS THE POINT: the carrier is the `#32 SPIKE` repair itself, and that repair's own
+  docstring describes precisely the hazard the other arm still has — "the avatar is minted with
+  NO frame at all -- so the callee's declared effect is UNOBSERVABLE and every caller may claim
+  `writes { }`". A REPAIR THAT NARRATES THE HAZARD IN ONE ARM AND LEAVES IT IN THE OTHER.
+  FOURTH LINK IN THE CHAIN #70 -> #100 -> #105 -> #109, and the chain's own prediction coming
+  true: THE SHAPE RECURS ONCE PER OBLIGATION KIND. #105 was the receiver spelling in the
+  RAISES clause; #109 is the receiver spelling in the FRAME.
+
+[gen20-17] **ALL THREE `PENDING` PROBES ARE CLOSED. `probes.tsv` now contains ZERO `PENDING`
+  rows**, and `PENDING` was never in that file's declared verdict vocabulary to begin with.
+    line 226 `setattr-unit-noop-vs-pyobj-state-writes`          -> FAIL-CLOSED (stale-but-covered)
+    line 232 `record-var-call-frame-has-no-objstate-fallback`   -> LIVE, route #109, order 2
+    line 234 `try-else-splice-swallows-a-callee-raise`          -> LIVE, route #108, order 1
+  Plus, logged live this generation: route #107 LIVE (order 1), two VACUOUS rows kept separate
+  from FAIL-CLOSED, and one INCOMPLETE candidate named but explicitly not probed.
