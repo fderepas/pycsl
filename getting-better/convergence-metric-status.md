@@ -1,13 +1,13 @@
 # Convergence metric implementation — status
-LAST-UPDATED: 2026-09-14T11:30:00Z
+LAST-UPDATED: 2026-09-14T19:55:00Z
 PHASE-1-PROBE-LEDGER: DONE
 PHASE-2-VERIFIED-FRACTION: DONE
-PHASE-3-REASON-TAXONOMY: BLOCKED:emission-moved  (pilot FIRED — the token REFUSES the file)
+PHASE-3-REASON-TAXONOMY: DONE (build, per the 2026-09-14 amendment)  (side file + checker; tagging track OPEN: unclassified 458/459; NOT yet wired into run-soundness-planes.sh)
 PHASE-4-SILENT-RAISE-BURNDOWN: IN-PROGRESS  (70 -> 69 -> 62, 8 of 70 declared)
 PHASE-5-BLIND-RECAPTURE-RUNBOOK: DONE (runbook only, per scope limit)
 PHASE-6-GENERATED-SAMPLER: DONE-AUTHORING / BLOCKED:box-busy for the sweep
 OVERALL: INCOMPLETE
-NEXT-ACTION: Continue Phase 4. THE NEXT CHEAPEST BATCH IS `proof2why3/canonical.py` — EIGHT SILENT stubs in ONE file (_ac_normalize, _alpha_rename, _dedup_arrow_chain, _flatten_foralls, _iff_app_to_binop, _normalize_names, _sort_arrow_hypotheses, substitute), and ALL EIGHT live bodies raise exactly `TypeError`, so it is one exception name across the batch. Plus `proof2why3/normalize.py::_alpha_rename` (same live function, so same name) for nine. *** CAVEAT THAT COSTS TIME: unlike increment 3's batch, canonical.py has NO whole-file proof on record anywhere in the tree (searched: proofs46/48/49 and every scratchpad wN/proofs) — so the successor must FIRST run a baseline proof of canonical.py AT HEAD and only then edit, or there is nothing to compare against. Budget for that. *** VERIFY THE NEVER-CALLED-IN-FILE PROPERTY PER STUB BEFORE EDITING (emit the baseline .mlw, confirm each name occurs ONLY at its own `val` line; derived union TYPE names like `_union__x_1` are declarations, not applications). Phase 3 remains BLOCKED by a measured refusal — do NOT retry the in-band `reason:` token; take Option 2 (OUT-OF-BAND taxonomy side file keyed by (mirror file, function qualname), read by count-trusted-directives.py --metrics, with its own attachment check in both directions). PHASE 3 NEEDS NO IDLE BOX AND SHOULD BE DONE WHILE THE DRIVER RUNS — see the scheduling note below.
+NEXT-ACTION: Continue Phase 4. THE NEXT CHEAPEST BATCH IS `proof2why3/canonical.py` — EIGHT SILENT stubs in ONE file (_ac_normalize, _alpha_rename, _dedup_arrow_chain, _flatten_foralls, _iff_app_to_binop, _normalize_names, _sort_arrow_hypotheses, substitute), and ALL EIGHT live bodies raise exactly `TypeError`, so it is one exception name across the batch. Plus `proof2why3/normalize.py::_alpha_rename` (same live function, so same name) for nine. *** CAVEAT THAT COSTS TIME: unlike increment 3's batch, canonical.py has NO whole-file proof on record anywhere in the tree (searched: proofs46/48/49 and every scratchpad wN/proofs) — so the successor must FIRST run a baseline proof of canonical.py AT HEAD and only then edit, or there is nothing to compare against. Budget for that. *** VERIFY THE NEVER-CALLED-IN-FILE PROPERTY PER STUB BEFORE EDITING (emit the baseline .mlw, confirm each name occurs ONLY at its own `val` line; derived union TYPE names like `_union__x_1` are declarations, not applications). Phase 3 BUILD IS DONE (6ff56694): the taxonomy lives in getting-better/trusted-reasons.tsv, checked by bin/check-trusted-reasons.py (rc 0; --self-test rc 0). Two Phase-3 follow-ups need NO idle box and can run while the driver runs: (a) wire check-trusted-reasons.py into run-soundness-planes.sh as its own commit, updating every "34 planes" citation to 35 in the same pass; (b) the tagging track — lower MAX_UNCLASSIFIED from 458 by citing measured backlog headings, never by guessing. Do NOT retry the in-band `reason:` token.
 
 ## SUPERVISOR SCHEDULING POLICY — SET BY THE USER 2026-09-13 ~18:35Z
 THE DRIVER IS PAUSED BETWEEN GENERATIONS TO GIVE THIS WORK THE BOX.
@@ -35,7 +35,8 @@ hold the box longer than the increment needs; the driver is waiting on you.
   184f81cb  Phase 6 — generated differential sampler (authored, not swept)
   e474a883  Phase 3 pilot — gate FIRED, finding written, edit reverted
   46aaaf5c  Phase 4 batch 1 — SILENT 70 -> 69 (exec_splice)
-  <this>    Phase 4 batch 2 — SILENT 69 -> 62 (seven stubs, six mirror files)
+  09d397f7  Phase 4 batch 2 — SILENT 69 -> 62 (seven stubs, six mirror files)
+  6ff56694  Phase 3 build — out-of-band reason taxonomy (side file + checker), cherry-picked from 4aa51563
 
 ## THE CORRECTED VERIFIED-FRACTION TRIPLE  (bin/verified-fraction.py --staleness=file)
       (1) verified / live      499 / 3225 = 15.47 %
@@ -47,7 +48,7 @@ hold the box longer than the increment needs; the driver is waiting on you.
   2 FAILED. STRICT FLOOR IS 0.00 % (--staleness=strict): no proof in this repo survives a
   single commit to src/pycsl, and the driver commits several times a day.
 
-## PHASE 3 PILOT RECIPE — READY TO RUN, DO NOT DEVIATE
+## PHASE 3 PILOT RECIPE — HISTORICAL: RUN 2026-09-13, GATE FIRED (e474a883). DO NOT RE-RUN; SEE THE 2026-09-14 AMENDMENT IN convergence-metric-implement.md
   PILOT FILE: src/self-annotate/src/frontend/exec_splice.py
     Chosen because it has exactly ONE real marker (line 35, inside `_ExecSplicer`) AND a
     passing whole-file proof on record (w49_exec_splice, rc=0), so there is a baseline and
@@ -220,3 +221,40 @@ So the seven names above are on the author, not on the tool; each was read off t
 hand and is recorded in the ratchet history. A successor could satisfy this ratchet with a
 wrong name and nothing would say so — worth a future hardening, and cheap: the checker already
 computes `KINDS[name]` for exactly this purpose and simply never compares it.
+
+## LANDING 2026-09-14 ~19:50Z (supervising session) — increment 3 committed, Phase 3 built
+
+### WHY A SUPERVISOR COMMITTED INCREMENT 3
+The increment-3 agent (session 72fe2917) finished its gates and launched a 34-plane re-check
+at 15:34, then its session ended (transcript last written 15:44) BEFORE it committed. The
+re-check completed unattended: cm6_planes_all rc=0, 34/34 `ok` lines counted, 2158 s. The
+tree was left dirty and the box sat idle ~11:30-19:40; no driver generation was launched.
+TREE IDENTITY WAS CHECKED, NOT ASSUMED: every modified file's mtime is 11:22-11:28, HEAD did
+not move after 11:17, so the 15:34 plane run covered exactly the committed tree. Cheap gates
+re-run at commit time: trusted-raises-honesty 13/62 rc=0; markers 459; self-annotate-sync rc=0;
+no path under src/pycsl/. Landed as 09d397f7 with cm5_* and cm6_planes_all evidence.
+
+### PHASE 3 BUILD — 6ff56694 (built by a delegate in a worktree, verified independently)
+Side file getting-better/trusted-reasons.tsv (459 rows = 459 markers), checker
+bin/check-trusted-reasons.py (both attachment directions, reason grammar, backlog-heading
+cite rule, zero-input guard, MAX_UNCLASSIFIED=458 ratchet, --sync/--write, --self-test,
+histogram), shared walk bin/trusted_markers.py, histogram in count-trusted-directives --metrics,
+dated AMENDMENT in convergence-metric-implement.md §Phase 3 redefining DONE.
+Histogram: correctness 0 · cost-scale 1 (Module5_IREmitter _py_stmts_to_ir, cite
+"L2 `_py_stmts_to_ir`") · spent-rc0 0 · unclassified 458.
+SUPERVISOR VERIFICATION, INDEPENDENT OF THE DELEGATE'S REPORT:
+  - a from-scratch marker->qualname walk produced 459 keys IDENTICAL to the TSV's (no dups);
+  - count-trusted-directives default output byte-identical vs the 3c4f290c version (rc 0),
+    and with --emit-dir on an empty dir (rc 2 both); extracted helpers AST-identical;
+  - defects planted beyond the delegate's self-test all went red (rc 1): qualname case change,
+    right name in wrong file, trailing space in a reason, extra column, marker removed from a
+    mirror copy (orphan), stub added to a mirror copy (missing + ratchet); positive controls
+    (spent-rc0; correctness with a real unique heading) rc 0;
+  - after the cherry-pick onto 09d397f7: check rc 0, --self-test rc 0, --metrics rc 0,
+    markers 459, raises-honesty 62 rc 0.
+KNOWN AND ACCEPTED: CRLF TSVs are tolerated (keys still match). A NEW `\trusted` marker breaks
+MAX_UNCLASSIFIED even after --sync --write, until it is classified — intended (forces
+classification at spend time) but it is driver friction once the plane is wired.
+NOT DONE: wiring into run-soundness-planes.sh (34 -> 35); the tagging track; no slow planes
+were re-run for 6ff56694 — it touches no src/ path and only adds a standalone checker, and the
+one existing plane it edits (count-trusted-directives.py) was diffed output-identical.
