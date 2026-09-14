@@ -1,92 +1,102 @@
 # ====== START HERE — gen #21 FINAL STATE — read this block first ==================
 #
-# ## STATUS: IN PROGRESS (this block is updated as the generation runs)
+# ## STATUS: COMPLETE. Tree clean (two PRE-EXISTING gitlinks only), everything committed.
 #
-#   Window #6 continues. Started from HEAD `fc29feb0` (gen #20 FINAL). Tree clean apart
-#   from the two PRE-EXISTING modified gitlinks (`scratchpad/w7/base`, `scratchpad/w8/pre`)
-#   and the pre-existing 0-byte stray `str`. Box idle, 0 prover processes.
-#   Metric RE-MEASURED at HEAD, not inherited:
-#   **markers 459 · grep 484 · offset 25 · attached 459 · unattached 0** — unchanged.
+# ## 1. ROUTES #107 + #108 ARE REPAIRED *AND* FULLY GATED. DO NOT RE-RUN THE BATTERY.
 #
-# ## 1. ROUTES #107 + #108 RE-REPRODUCED AT HEAD `fc29feb0` BEFORE ANY REPAIR
+#   ONE STRUCTURAL REPAIR FOR BOTH DIRECTIONS. `stmt_control_flow.py:1809` decided whether to
+#   keep a try's `else:` with `"raise" not in _else_str` — a SUBSTRING TEST OVER GENERATED
+#   TEXT. The else is now lowered as a SIBLING of the try/except behind a completion flag, so
+#   Python's scoping IS the emitted scoping. The block is ALWAYS emitted: there is no
+#   surviving drop, so there is no string left to test. `_callee_raised_in` now visits
+#   `orelse` AND `finalbody`, unfiltered by handler_bases.
 #
-#   Rule (r): inherit no verdict whose tree you did not establish. All three witnesses
-#   re-run at HEAD from `open-routes/witnesses-r107-r108/`:
-#     a_exp2.py  (#107 exploit)  rc=0  Valid, 20 steps   — proves `\result == 1`, CPython 5
-#     a_ctl2.py  (#107 control)  rc=1  Unknown           — fails for the RIGHT goal
-#     b_catch.py (#108 exploit)  rc=0  Valid, 27 steps   — proves, CPython RAISES
+#   The flag is named `try_else_ok'<depth>`. The PRIME is the point: `whyml_ident` can never
+#   produce one, because a Python identifier cannot contain `'`. Collision-proof BY
+#   CONSTRUCTION, not by hoping about spelling — which is the entire lesson of #107.
 #
-# ## 2. THE `try/else` POPULATION IS FIVE SITES IN ALL FOUR TREES — censused, not assumed
+#   ELEVEN LEGS, TEN PREDICTIONS EXACT, ONE RECORDED MISS:
+#     1  metric                  459 markers / 484 grep / offset 25 / unattached 0   HIT
+#     2  doc-coherency           rc=0                                                HIT
+#     3  fidelity mirror-sync    rc=0, 887 un-trusted fns verbatim, 37 consts         HIT
+#     4  trusted-raises-honesty  rc=0, 75 stubs, 6 DECLARED / 69 SILENT, ratchet 69   HIT
+#     5  mirror type-only        rc=0, 53 mirrors, 0 ILL-TYPED                        HIT
+#     6  planes                  34/34 `ok` COUNTED = 19 fast + 15 slow               HIT
+#     7  byte-diff pycsl-ref     1045/1045, 1 MOVED (1029), 0 GONE/APPEARED, zb 0/0   HIT
+#     8  byte-diff python-ref    2203/2203, 1 MOVED (0189), 0 GONE/APPEARED, zb 0/0   HIT
+#     9  mirror emission-diff    53/53, 1 MOVED (stmt_control_flow)                  MISS
+#    10  reference suite         3423/3441, 18 failures, ZERO XPASS                   HIT
+#    11  mirror whole-file proof SUCCESS, 12284 Valid, 0 bad                          HIT
+#    10b suite RE-RUN w/ witnesses 3428/3446, 18 failures, ZERO XPASS                 HIT
 #
-#   AST census (`ast.Try` with a non-empty `orelse`) over `src/pycsl`, `src/self-annotate`,
-#   `test-suite/corpus`, `src/pycsl_lib`:
-#     src/pycsl/frontend/pure_ast.py:2650, :2742        (MIRRORED file)
-#     test-suite/corpus/python-reference/0189.py:14     (else assigns; PROVES \result == 3)
-#     test-suite/corpus/pycsl-reference/1029_...:14     (else assigns; PROVES \result == 2)
-#     test-suite/corpus/pycsl-reference/1028_...:25     (else RETURNS; REFUSED by #37 fence)
-#   That set IS the blast radius of any `orelse` lowering change. This is what makes a
-#   #107/#108 repair gateable inside one window, and it is why it was worth censusing first.
+#   THE MISS, RECORDED NOT RENUMBERED: I predicted 0 MOVED for leg 9 from "no mirrored file
+#   has a try/else" — TRUE, and it is why no OTHER mirror moved — but the EDITED MIRROR FILE'S
+#   OWN body changed, so its emission must. 46 diff lines, all attributable.
+#   A second miss worth keeping: b_catch now fails on a WHY3 TYPE ERROR ("raises unlisted
+#   exception ValueError"), not the no_exception VC I predicted. `_module_func_raises` carries
+#   only DECLARED raises, so the assert-and-absurd wrapper is not installed for a callee whose
+#   raises are INFERRED. Fail-closed, but it is a real diagnosis-quality gap — a good next item.
 #
-# ## 3. ROUTES #107 + #108 ARE REPAIRED — ONE STRUCTURAL REPAIR FOR BOTH DIRECTIONS
+#   **NEW SUITE BASELINE: 3428/3446, 18 failures.** A 19 is a REGRESSION.
+#   Ratchet `check-dropped-mutation` MAX_TRYFINAL lowered 11 -> 9 because the POPULATION moved
+#   (both try/else rows left the bucket). REFUSED 5 -> 7. The line only ever follows DOWNWARD.
 #
-#   The `else` is no longer appended to the try body behind a substring test. It is lowered
-#   as a SIBLING of the try/except behind a completion flag, so Python's scoping IS the
-#   emitted scoping and the block is ALWAYS emitted — there is no surviving drop, hence no
-#   string left to test. `_callee_raised_in` now visits `orelse` AND `finalbody`.
-#   The flag's name carries a PRIME, which `whyml_ident` can NEVER produce (a Python
-#   identifier cannot contain `'`), so no user spelling can collide — STRUCTURAL, not a hope.
+#   Corpus witnesses 1298-1302 landed (3 positive, 2 expected-FAIL), so this cannot regress
+#   silently. 1300 negative-tests the flag by naming a user local literally `try_else_ok`.
 #
-#   BOTH DIRECTIONS NEGATIVE-TESTED, and FAITHFUL rather than merely refusing:
-#     a_exp2  rc=1 (#107 false proof GONE)      a_pos  rc=0 (TRUE postcondition \result==5 PROVES)
-#     b_catch rc=1 (#108 false proof GONE)      b_pos  rc=0 (raising callee in an else: escapes
-#                                                       the wrapper; a CATCHING caller PROVES)
-#     a_collide rc=0 — a user local literally named `try_else_ok` coexists with `try_else_ok'4`
-#     0189 rc=0 · 1029 rc=0 · 1028 still refused by PYCSL-R37
-#   PREDICTION MISS, RECORDED NOT RENUMBERED: b_catch fails on a WHY3 TYPE ERROR ("raises
-#   unlisted exception ValueError"), not the no_exception VC I predicted — `_module_func_raises`
-#   carries only DECLARED raises, so the assert-and-absurd wrapper is not installed for a callee
-#   whose raises are INFERRED. Fail-closed; worth a look as its own item.
+# ## 2. TWO NEW SEV-1 ROUTES  <-- START HERE, gen #22
 #
-#   Audit-side half also landed: check-dropped-mutation's try/else why-string was a FALSE claim
-#   ("else cannot raise — appended to the try body"). TRYFINAL 11->9, REFUSED 5->7, ratchet
-#   lowered 11->9. THE POPULATION MOVED; the line only ever follows it DOWNWARD.
+#   The substring-census that gen #20 banked WAS RUN (874 raw grep hits triaged) and it paid.
+#   The sharpest instances are NOT in control flow but in ARGUMENT COERCION and FIELD STORES.
 #
-# ## 4. THE SUBSTRING-CENSUS WAS RUN AND IT PAID — TWO NEW SEV-1 ROUTES
-#
-#   874 raw grep hits triaged. The generator is alive well beyond the try-lowering, and the
-#   sharpest instances are NOT in control flow but in ARGUMENT COERCION and FIELD STORES.
-#
-#   **#110** `_coerce_to_int` (expressions.py:1017-1027) returns the literal `0` when the
+#   **#110 — `_coerce_to_int` (expressions.py:1017-1027) returns the literal `0`** when the
 #   lowered argument text starts with an internal op spelling. SEVEN of those prefixes are
-#   ordinary identifiers — `any_1`, `all_1`, `sorted_1`, `list_new_arr`, `array_slice`,
+#   ORDINARY IDENTIFIERS: `any_1`, `all_1`, `sorted_1`, `list_new_arr`, `array_slice`,
 #   `map_update_some`, `map_update_none`. `xs = [any_1(x)]; return xs[0]` PROVES
 #   `\result == 0` (CPython x+1); emitted `Array.make 1 (0)` — the call is ERASED. Control
 #   renamed `anyq_1` FAILS and keeps `(anyq_1 x)`. On the hot path of list literals, dict
-#   keys/values, subscript stores, setattr, for-loop iterables — NOT an exotic population.
+#   keys/values, subscript stores, setattr and for-loop iterables — the population is NOT exotic.
 #
-#   **#111** statements.py:2610-2612 replaces a `set`/`dict`/`frozenset` self-field's RHS
-#   with the EVERYWHERE-EMPTY MAP when the lowered text is not alphanumeric after deleting
-#   `_` and `!`. **NEEDS NO ADVERSARIAL NAMING**: `self.b = self.a` is ordinary Python and
-#   PROVES `\result == 0` while CPython returns 1. Control routes the same assignment
-#   through a local (`!t` IS alnum) and correctly FAILS. Also measured: a dict LITERAL
-#   assigned in a non-`__init__` method is clobbered too — route #85 covered `__init__` only.
-#   THE AVATAR IS THE FENCE for the cross-method case: two earlier shapes measured NOTHING
-#   (logged) because the caller sees a value-opaque `val ... writes {self.b}` with no ensures.
-#   The route bites exactly where a method OBSERVES ITS OWN WRITE.
+#   **#111 — a `set`/`dict`/`frozenset` self-field is clobbered with the EVERYWHERE-EMPTY MAP**
+#   (statements.py:2610-2612) when the lowered RHS is not alphanumeric after deleting `_` and
+#   `!`. **NEEDS NO ADVERSARIAL NAMING**: `self.b = self.a` is ordinary Python and PROVES
+#   `\result == 0` while CPython returns 1. Control routes the same assignment through a local
+#   (`!t` IS alnum), the value survives, and the same claim is correctly REFUTED.
+#   ALSO MEASURED: a dict LITERAL assigned in a non-`__init__` method is clobbered too, so
+#   route #85's faithful-literal repair covers the `__init__` RECORD LITERAL only.
+#   THE AVATAR IS THE FENCE for the cross-method case — two earlier shapes measured NOTHING
+#   and are logged as such. #111 bites exactly where a method OBSERVES ITS OWN WRITE.
 #
-#   Route files: `open-routes/route110-*.md`, `route111-*.md`.
+#   Route files: `open-routes/route110-*.md`, `route111-*.md`. NEITHER IS REPAIRED.
+#   Both repairs are the SAME shape: the decision is a TYPE question the emitter already knows
+#   structurally, and the substitution must REFUSE rather than invent a witness value.
 #
-# ## 5. WHAT IS TRUE RIGHT NOW
+# ## 3. STILL OPEN, NOT WORKED THIS GENERATION
+#
+#   **#109** (`order = 2`, carrier is the `#32 SPIKE` repair): the `_objstate_w` frame fallback
+#   exists in the `self.` arm only. Fourth link in #70 -> #100 -> #105 -> #109, a chain that
+#   recurs once per obligation kind. Untouched by gen #21.
+#
+#   From the census, UNPROBED and ranked: `expressions.py:1030` (a COMMA in a string-literal
+#   argument replaces the term with a text hash); `statements.py:2610`'s twin at
+#   `expressions.py:7476`; `functions.py:7040` and `abstract_ops.py:51` (frame decisions keyed
+#   on a name, both WIDENING so conservative); `preamble.py:4478` (`!n` matches inside `!n2`).
+#   Full triage incl. a "checked, not exploitable" table is in the gen #21 census.
+#
+# ## 4. WHAT IS TRUE RIGHT NOW
 #
 #   metric   markers **459** / grep 484 / offset 25 / unattached 0 — RE-MEASURED at HEAD.
-#   ledger   68 LIVE / 82 FAIL-CLOSED / 150 denom / **45.3%**, VACUOUS 10, ZERO PENDING.
+#   ledger   68 LIVE / 82 FAIL-CLOSED / 150 denom / **45.3%**, VACUOUS 10, ZERO PENDING rows.
+#            (`grep -c PENDING` returns 3 — all three are gen #20 PROSE, "was PENDING". Check
+#             column 5, not the whole line.)
+#   yield    `continue-census` remains the best real generator; `substring-census` opened this
+#            generation at 2 LIVE / 3 logged. `hand` is still 0.0% over 45 — do not hand-probe.
 #   planes   34 = 19 fast + 15 slow. Count `ok` lines, NEVER read a banner.
-#   suite    baseline **18** failures; 19 is a REGRESSION. Last accepted 3423/3441, 0 XPASS.
-#   ratchet  `check-trusted-raises-honesty` SILENT **69** (MAX_SILENT=69). Move the
-#            POPULATION, never the LINE.
+#   suite    baseline **3428/3446, 18 failures**. A 19 is a REGRESSION.
+#   ratchet  trusted-raises-honesty SILENT 69 (MAX_SILENT=69); dropped-mutation TRYFINAL 9.
 #   pre-existing, NOT gen #21's: `self-annotate-mirror-check.sh` rc=1 on
-#            `expr_ghost_collections.py` / `statements.py` / `stmt_control_flow.py`;
-#            the two modified gitlinks; the 0-byte stray `str`.
+#            `expr_ghost_collections.py` / `statements.py` / `stmt_control_flow.py`; the two
+#            modified gitlinks (`scratchpad/w7/base`, `scratchpad/w8/pre`); 0-byte stray `str`.
 #
 # ====== START HERE — gen #20 FINAL STATE — read this block first ==================
 #
