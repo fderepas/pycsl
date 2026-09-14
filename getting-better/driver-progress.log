@@ -1763,3 +1763,32 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   It is NOT hung and it will NOT be cut off by a timeout — the rule is that a partial verdict
   cannot be inherited, so it is being allowed to finish rather than stopped. Battery legs 1-8
   and 9-fast are ALREADY COMMITTED; only the slow half of leg 9 is outstanding.
+
+[gen20-12] BATTERY LEG 9/9 COMPLETE — soundness planes, FULL SET: **rc=0, 34 `ok` lines
+  COUNTED** (`grep -c '^    ok'`), and ZERO non-`ok` status lines in the whole log. Fast set
+  re-counted separately at **19**, so the split is the documented **19 fast + 15 slow = 34**.
+  The banner "all 34 plane(s) green" agrees with the count, but the COUNT is the verdict —
+  the banner is recorded only as a cross-check, per the rule.
+  PREDICTED 34/34 — **EXACT HIT.** `PATH` was exported to `$HOME/.opam/framac-coq8/bin` before
+  the run. The battery was allowed to finish rather than being cut off.
+
+[gen20-13] *** THE #101-#106 BATTERY IS NOW COMPLETE — ALL NINE LEGS PLUS THE MIRROR-CHECK ***
+  Routes **#101, #102, #103, #104, #105, #106** move from REPAIRED BUT NOT GATED to
+  **REPAIRED AND FULLY GATED**. Final ledger, with who established each leg:
+    1  metric                  459 markers / 484 grep / offset 25 / unattached 0   HIT   gen19*
+    2  doc-coherency           rc=0                                                HIT   gen19*
+    3  fidelity mirror-sync    rc=0, 887 un-trusted fns verbatim, 37 consts        HIT   gen19*
+    4  trusted-raises-honesty  rc=0, 75 stubs: 6 DECLARED / 69 SILENT, ratchet 69  HIT   gen19*
+    5  reference suite         3423/3441, 18 fail, ZERO XPASS, rc=1            ACCEPTED  gen20
+    6  byte-diff pycsl-ref     1036/1045, 0 MOVED / 0 GONE / 0 APPEARED, zb 0/0   HIT   gen20
+    7  byte-diff python-ref    2203/2203, 0 MOVED / 0 GONE / 0 APPEARED, zb 0/0   HIT   gen20
+    8  mirror emission-diff    53/53, 0 MOVED / 0 GONE / 0 APPEARED, zb 0/0       HIT   gen20
+    9  planes                  34/34 ok COUNTED = 19 fast + 15 slow               HIT   gen20
+   (+) mirror-check            rc=1 on the SAME 3 at HEAD **and** at 5795cfef     HIT   gen20
+    * legs 1-4 are gen #19's, valid for this tree because
+      `git diff b3782687 HEAD -- . ':(exclude)getting-better'` is EMPTY — a property of the
+      source tree that gen #20 re-verified in one command, NOT an inherited verdict.
+  EVERY PREDICTION HIT. One near-miss recorded and not quietly replaced: leg 6's "+10
+  new-source" is 10 new SOURCES but 9 new EMISSIONS, because route #103's refusal witness
+  1291 now correctly emits no `.mlw`. NO RATCHET RE-BASELINED, NO GOLDEN RE-BLESSED.
+  RATCHET/METRIC UNMOVED: metric 459/484, MAX_SILENT 69, suite baseline 18.
