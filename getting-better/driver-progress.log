@@ -2022,3 +2022,11 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
  10 suite 3430/3448, 18 failures, ZERO XPASS
  11 mirror whole-file proof of expressions.py — REQUIRED, _coerce_to_int is NOT \trusted there
  12 dropped-mutation unchanged 0 / 51 / 9 / 0
+2026-09-14 gen#21 BATTERY-2 verdicts so far (#110 repair):
+  1 metric 459/484/25/0 HIT · 2 doc-coherency rc=0 HIT · 3 fidelity sync rc=0 887 verbatim HIT
+  4 trusted-raises rc=0, 6 declared / 69 silent, ratchet 69 HIT
+ 12 dropped-mutation 0 / 51 / 9 / 0 HIT
+  7 byte-diff pycsl-ref  1050/1052, 0 MOVED, 0 GONE, 0 APPEARED, 2 new sources ignored — BYTE-INERT. HIT
+  8 byte-diff python-ref 2203/2203, 0 MOVED / GONE / APPEARED — BYTE-INERT. HIT
+  The inertness prediction rested on a CENSUS (zero user functions named any of the nine head
+  symbols) and it was exact across 3253 corpus files.
