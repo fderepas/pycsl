@@ -2036,3 +2036,14 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   all mine: the _user_fn/_head locals, the head extraction, and the two added conjunctions.
   leg 10 suite 3430/3448 passed, 18 CONFIRMED FAIL, ZERO XPASS — PREDICTED, HIT.
   NEW SUITE BASELINE for gen #22: 3430/3448, failures still 18.
+2026-09-14 gen#21 BATTERY-2 leg 6 PLANES WENT RED: 33/34, check-getattr-erasure.py rc=1,
+  "ABSENT 8 > ratchet 7". PROVENANCE ESTABLISHED BEFORE ANYTHING ELSE: baseline bcae6447 in a
+  worktree gives 31 sites / ABSENT 7 / GREEN, so the regression was MINE. Cause: my
+  `getattr(self, "_module_func_names", set())` lowers in the MIRROR to a pycsl_getattr_default_*
+  fall-through; the other four live sites for that field are inside \trusted mirror stubs and
+  never emit, mine was in a non-trusted method and did. FIXED AT THE CAUSE by reading the field
+  directly (the default was dead code — __init__ sets it unconditionally). Back to 31 / ABSENT 7
+  / GREEN. THE RATCHET WAS NOT RAISED.
+  LESSON (bank it): A REPAIR THAT BUYS ITS SOUNDNESS WITH A NEW ERASURE SITE HAS MOVED THE
+  PROBLEM, NOT FIXED IT — and its own witness cannot see that cost. Check a repair against the
+  OTHER planes, not only against the thing it was written to stop.

@@ -1031,7 +1031,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _head = ""
         if stripped.startswith("("):
             _head = stripped[1:].split(" ")[0]
-        _user_fn = _head in getattr(self, "_module_func_names", set())
+        # Read the field DIRECTLY, never `getattr(self, ..., set())`. The defensive default
+        # is dead code — `Module6_WhyMLTranspiler.__init__` initialises `_module_func_names`
+        # unconditionally — and in the self-annotation mirror a `getattr` WITH A DEFAULT on a
+        # name the record does not declare lowers to a `pycsl_getattr_default_*` FALL-THROUGH,
+        # i.e. one more erasure site on `bin/check-getattr-erasure.py`'s ABSENT ratchet. A
+        # repair that buys its soundness with a new erasure site has moved the problem, not
+        # fixed it; the ratchet caught exactly that and the line was NOT raised to hide it.
+        _user_fn = _head in self._module_func_names
         array_prefixes = ("(Array.make", "(Array.sub ", "(array_slice ", "(sorted_1 ",
                           "(list_new_arr ", "(any_1 ", "(all_1 ")
         for prefix in array_prefixes:
