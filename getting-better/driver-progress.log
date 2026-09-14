@@ -1792,3 +1792,65 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   new-source" is 10 new SOURCES but 9 new EMISSIONS, because route #103's refusal witness
   1291 now correctly emits no `.mlw`. NO RATCHET RE-BASELINED, NO GOLDEN RE-BLESSED.
   RATCHET/METRIC UNMOVED: metric 459/484, MAX_SILENT 69, suite baseline 18.
+
+[gen20-14] *** TWO NEW SOUNDNESS ROUTES, #107 AND #108, FOUND AND REPRODUCED AT HEAD 113f38a7.
+  BOTH ARE SEV-1. BOTH DIRECTIONS MEASURED FOR #107. ***
+
+  **ROUTE #107 — a try's `else:` block is SILENTLY DELETED when its lowered text merely
+  CONTAINS the substring "raise", including from an ordinary IDENTIFIER'S NAME.**
+  `stmt_control_flow.py:1809`: `if _else_str.strip() and "raise" not in _else_str:` — a Python
+  SUBSTRING TEST OVER GENERATED TEXT. When false, the block is never appended: no refusal, no
+  warning, no diagnostic.
+    DIRECTION 1 (exploit PROVES): a_exp2.py declares `#@ ensures \result == 1`, its else block
+      is `y = 5` plus a dead local named **`praiseworthy`**, and PyCSL reports
+      `[+] Verification SUCCESS! All contracts formally proven.` CPython returns **5**. The
+      emitted `let f ()` — READ IN FULL, not inferred — has NO else branch at all.
+    DIRECTION 2 (control correctly REFUSES): a_ctl2.py is identical minus that one dead local.
+      rc=1, postcondition **Unknown**. So the proof is caused BY THE SUBSTRING and by nothing
+      else, and the instrument is not vacuous.
+    THE FENCE THAT MISSES IT, NAMED AND QUOTED: route #37's `PYCSL-R37-TRY-ELSE-DROPPED`
+      (`pycsl.py:1013-1023`) exists to catch exactly a dropped else, but tests FOUR STATEMENT
+      KINDS (Return/Raise/Break/Continue). An `Assign` is none of them. Its own comment says
+      "no such shape is known, and none exists in either corpus or the mirror" — a claim about
+      A CENSUS OF TWO CORPORA, not a theorem about the lowering. The shape is ONE IDENTIFIER away.
+
+  **ROUTE #108 — a callee's raise inside a try's `else:` is CAUGHT by that same try, and is
+  ALSO dropped from the enclosing function's `raises` summary.** The OPPOSITE direction of the
+  same code. Python does not let a try catch its own else's exception.
+    EXPLOIT MEASURED: b_catch.py — callee named **`boom`** deliberately, so no "raise"
+      substring and #107's deletion cannot be what fires. `caller` claims
+      `#@ no_exception ValueError`; `[+] Verification SUCCESS`. CPython `caller(-1)` RAISES.
+      The emitted `wrapper`, read in full, shows the else SPLICED INSIDE the try:
+      `try y := 1; let _ = (boom k) in () with ValueError -> y := 9 end`.
+    WHY IT SURVIVES THE #100 -> #105 CHAIN: that chain fixed the RECEIVER KEY used to look a
+      callee's raises set up. Here the key resolves perfectly and THE SET ITSELF IS EMPTY,
+      because `_callee_raised_in` (`stmt_control_flow.py:1671-1683`) recurses into a Try's
+      `body` and `handlers` and then `continue`s — it NEVER visits `orelse`.
+      *A repair that corrects a lookup cannot help when the thing looked up is what is wrong.*
+    AUDIT-SIDE BLIND SPOT, same root cause: `bin/check-dropped-mutation.py:384` buckets this
+      exact shape as "HANDLED — `try/else`, else cannot raise", i.e. the ratchet encodes the
+      assumption under test and is green by construction.
+
+  THE GENERATOR, sharpened, and it is new:
+  >>> **A GUARD IMPLEMENTED AS A SUBSTRING TEST OVER GENERATED TEXT IS KEYED ON SPELLING, NOT
+  >>> ON STRUCTURE, AND THE SPELLING IS ATTACKER-CHOSEN THE MOMENT A USER NAMES A VARIABLE.**
+
+  NEITHER ROUTE IS REPAIRED. Repair sketches are in the route files and must be RE-DERIVED
+  before landing (the #95 rule: a written-down fix can itself be unsound). The two directions
+  MUST be repaired together — making the splice fire more often is not safe on its own,
+  because the splice direction is #108.
+
+[gen20-15] PENDING PROBE 3 OF 3 CLOSED (probes.tsv line 234) — `try-else-splice-swallows-a-
+  callee-raise` → **LIVE, route #108, order 1**. Two further rows logged **VACUOUS** and NOT
+  folded into FAIL-CLOSED, because both measured nothing and saying so is the point:
+    - the FIRST #108 witness named its callee `may_raise`, whose NAME contains "raise", so the
+      else was DELETED (route #107) instead of spliced. It PROVED — via the WRONG MECHANISM.
+      READING THE WHOLE EMITTED FILE is what caught the misattribution; the `[+] SUCCESS` line
+      alone would have credited the proof to #108.
+    - the first refusal control failed on an unrelated Why3 typing error
+      ("This function has side effects, it cannot be used as pure"), not on the `no_exception`
+      obligation. A CONTROL THAT FAILS IS A CLAIM ABOUT THE CONTROL UNTIL YOU READ WHICH GOAL
+      FAILED. Superseded by a_ctl2.py, which refuses for the right reason.
+  One row logged **INCOMPLETE** and explicitly NOT a finding: `_try_reaches_assert` in
+  `frontend/desugar.py` scans `node.body` only, so route #16's assert fence looks blind to an
+  `assert` in an else block. NAMED so it is not lost; NOT probed.
