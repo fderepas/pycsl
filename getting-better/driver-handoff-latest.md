@@ -112,8 +112,22 @@
 #   ledger   68 LIVE / 82 FAIL-CLOSED / 150 denom / **45.3%**, VACUOUS 10, ZERO PENDING rows.
 #            (`grep -c PENDING` returns 3 — all three are gen #20 PROSE, "was PENDING". Check
 #             column 5, not the whole line.)
-#   yield    `continue-census` remains the best real generator; `substring-census` opened this
-#            generation at 2 LIVE / 3 logged. `hand` is still 0.0% over 45 — do not hand-probe.
+#   yield    PER GENERATOR (`bin/probe-ledger-yield.sh --by-generator`) — this is the number
+#            that picks the next generator, not the route count:
+#              substring-census  2/2   **100%**  <- NEW, opened by gen #21. n=2, so treat it as
+#                                                   promising rather than proven, and KEEP MINING
+#                                                   IT: its two hits are #110 and #111.
+#              carrier-rerun     6/6   100%      (2 second-order)
+#              continue-census  10/13  76.9%     (was 83.3%; gen #21's finalbody probe closed
+#                                                 FAIL-CLOSED, which is the honest cost of a
+#                                                 denominator you write before you interpret)
+#              deferral-audit    3/6   50.0%     (4 VACUOUS — worst vacuity rate in the table)
+#              carve-out-census  6/14  42.9%
+#              advice-audit      2/5   40.0%
+#              oracle-audit      1/3   33.3%
+#              control-operation 3/20  15.0%
+#              hand              0/45  **0.0%**  <- 45 probes, zero routes. DO NOT HAND-PROBE.
+#            `unknown` (35/35) is BACK-FILL ONLY, pure selection bias, and must never be ranked.
 #   planes   34 = 19 fast + 15 slow. Count `ok` lines, NEVER read a banner.
 #   suite    baseline **3430/3448, 18 failures**. A 19 is a REGRESSION.
 #   ratchet  trusted-raises-honesty SILENT 69 (MAX_SILENT=69); dropped-mutation TRYFINAL 9.
