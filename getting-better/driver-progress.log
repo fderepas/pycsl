@@ -1979,3 +1979,11 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   the _handle_try_stmt arm cannot fire there; the _callee_raised_in finalbody arm still can.
 2026-09-14 gen#21 BATTERY leg 10: reference suite 3423/3441 passed, 18 CONFIRMED FAIL, ZERO XPASS — EXACTLY the accepted baseline. PREDICTED, HIT.
 2026-09-14 gen#21 BATTERY leg 6: soundness planes 34/34 — COUNTED 34 'ok' lines (19 fast + 15 slow), not read from the banner. PREDICTED, HIT.
+2026-09-14 gen#21 BATTERY leg 9: mirror emission-diff 53/53 baseline/candidate, 1 MOVED
+  (module6_whyml__stmt_control_flow.mlw), 0 GONE, 0 APPEARED, zero-byte 0/0 both sides.
+  *** PREDICTION MISS, RECORDED NOT RENUMBERED. *** I predicted 0 MOVED from "no mirrored file
+  has a try/else" — TRUE, and it is why no OTHER mirror moved — but I forgot that the EDITED
+  MIRROR FILE'S OWN Python body changed, so its emission must change. The 46-line diff is
+  entirely attributable: the new _has_else/_else_ok/_else locals, the try_assigned union with
+  orelse, the DELETED substring test, the flag emission and the guarded-else append, plus a new
+  `val str_length_op` pulled in by my use of len(indent). No collateral.
