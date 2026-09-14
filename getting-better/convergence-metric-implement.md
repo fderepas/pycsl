@@ -199,6 +199,69 @@ are indistinguishable.
 repo's boundary claims have been refuted repeatedly ("V1-floor REFUTED", "ten refuted
 boundaries"). Re-probe a random 10 % per quarter via `probe-conversion-candidates.py`.
 
+#### 2026-09-14 AMENDMENT — the in-band token is dead; the taxonomy lives in a side file
+
+**The pilot gate above FIRED, and it did its job.** The in-band `reason:` token was REFUTED on
+2026-09-13: `\trusted` is a parsed directive with a CLOSED grammar (`_parse_trusted` accepts only
+`\trusted [reviewer: ID]`), so ANY trailing token makes Module 2 REFUSE THE WHOLE FILE — no
+`.mlw` at all, which a common-files byte diff reads as zero changes (a false green). See
+[`open-routes/finding-reason-token-refuses-the-whole-file.md`](open-routes/finding-reason-token-refuses-the-whole-file.md).
+The original text above is kept as the record of the design that was piloted. **Do not add any
+token to any `#@ \trusted` line, and do not repurpose `reviewer:`.**
+
+**The design that replaces it (the finding's "option 2") — out of band, no language change, no
+re-proof:**
+
+* **Side file** `getting-better/trusted-reasons.tsv` — `#` comment header, then
+  `file<TAB>qualname<TAB>reason<TAB>cite`, one row per live marker. `file` is relative to
+  `src/self-annotate/src`; `qualname` is the FULL nested qualname (`Class.method.inner`), never a
+  line number; a qualname collision within a file is disambiguated `#2`, `#3` in source order,
+  numbered over ALL defs sharing the name (so converting one stub never renumbers a trusted
+  sibling). Buckets are unchanged: `correctness:<name>`, `cost-scale:<capability>`, `spent-rc0`,
+  `unclassified` (the default).
+* **One attachment walk, not two.** The marker constants and `_block_marker_line` moved verbatim
+  into `bin/trusted_markers.py`; `bin/count-trusted-directives.py` now imports them (its default
+  and `--emit-dir` output and rc were diffed byte-identical before/after), and the checker keys
+  its rows off the same enumeration.
+* **Checker** `bin/check-trusted-reasons.py` (rc 0 OK / 1 defect / 2 refusal): both attachment
+  directions (MISSING row -> prints the row to add; ORPHAN row -> prints the row to delete;
+  duplicate key; unattached / multiply-attached marker), the reason grammar, the cite rule
+  (`correctness:*` / `cost-scale:*` must cite a `driver-backlog.md` heading — exact heading text,
+  or a substring of exactly one heading, outside ``` fences), the #44 zero-input guard (mirror
+  files < `MIN_MIRROR_FILES`, missing/empty TSV, zero markers -> "THIS IS A REFUSAL, NOT A
+  PASS"), the monotone-down `MAX_UNCLASSIFIED` ratchet, `--sync` (prints rows to add/delete;
+  `--sync --write` applies them), `--seed`, and a histogram on every run.
+  `--self-test` plants every defect in a temp copy and checks the rc and message.
+* **Histogram in `--metrics`.** `bin/count-trusted-directives.py --metrics` now prints the
+  reason histogram after the verified fraction (to stderr under `--json`).
+* **Seeded mechanically, not speculatively.** 459 rows = 459 markers at `3c4f290c`. 458
+  `unclassified`; ONE tagged, because a backlog heading names that exact function and its
+  boundary tag: `frontend/Module5_IREmitter.py PyCSLToJSONEmitter._py_stmts_to_ir` ->
+  `cost-scale:stmt-handler-dispatch`, cite ``L2 `_py_stmts_to_ir` `` (the 2026-08-27 measured
+  erasure probe; its `SLabel`/`SProofAssert` constructors are still absent from `src/pycsl`).
+  `MAX_UNCLASSIFIED = 458`.
+
+**New acceptance for Phase 3 — DONE when:** side file + checker (both directions, grammar, cite,
+zero-input guard, ratchet, sync mode, histogram) + negative tests + `--metrics` histogram have
+landed. **That is now met.** The original acceptance "`unclassified` -> 0" is NOT dropped; it is
+split out as its own track (below), because it is a multi-generation tagging effort, not a build.
+
+**Follow-up, named and NOT done in this change: wire `check-trusted-reasons.py` into
+`bin/run-soundness-planes.sh`.** Deliberately deferred — it moves the battery from 34 to 35
+planes, a figure many status notes cite, so it should land as its own commit with those notes
+updated in the same pass. Until then the plane is run by hand and via `--metrics`, and drift
+between the markers and the side file is caught only when someone runs it.
+
+**Tagging track (separate, multi-generation, its own ratchet).** Drive `unclassified` 458 -> 0
+by lowering `MAX_UNCLASSIFIED` monotonically, never raising it. Rules: a `correctness:` or
+`cost-scale:` tag must cite the backlog heading that MEASURED the boundary (write the heading
+first if the paragraph lacks one); `spent-rc0` is for an assumption deliberately bought to reach
+rc=0 and should be applied at spend time; when in doubt, leave `unclassified`. The standing
+caveat above (re-probe 10 % of `correctness:` per quarter) applies to the side file unchanged.
+A NEW marker lands as `unclassified` via `--sync --write` and breaks the ratchet — that friction
+is intended: it forces classification when the assumption is spent, which is exactly what makes
+a rise like 451 -> 459 legible.
+
 ### Phase 4 — silent-raise burn-down (the actual trust reduction)
 
 **This is the only item here that reduces what is assumed without needing a capability.**

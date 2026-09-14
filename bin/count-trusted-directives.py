@@ -55,14 +55,17 @@ import os
 import re
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MIRROR = os.path.join(ROOT, "src/self-annotate/src")
-MIN_MIRROR_FILES = 40   # true population 53; a floor on the INPUT, never on the metric (gen #4)
-
-# A MARKER is a `#@` line whose first token is `\trusted`. Anything else that merely
-# contains the substring is prose.
-MARKER = re.compile(r"^#@\s*\\trusted\b")
-CONTAINS = "#@ \\trusted"
+# THE MARKER DEFINITION AND THE MARKER -> DEF ATTACHMENT WALK LIVE IN `bin/trusted_markers.py`
+# (convergence-metric Phase 3), moved there VERBATIM so that `bin/check-trusted-reasons.py`
+# keys its side file off the SAME walk this plane counts with. Two walks that could disagree
+# about the population is the bug class this file's own naming note documents. The names are
+# re-exported here unchanged:
+#   MIRROR, MIN_MIRROR_FILES (40; a floor on the INPUT, never on the metric, gen #4),
+#   MARKER (a `#@` line whose first token is `\trusted`; anything else is prose), CONTAINS,
+#   _block_marker_line, and iter_trusted_defs (the ast.walk-order enumeration used below).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from trusted_markers import (  # noqa: E402
+    MIRROR, MIN_MIRROR_FILES, MARKER, CONTAINS, _block_marker_line, iter_trusted_defs)
 
 
 # Declaration scanners. The identifier is CAPTURED and then tested, rather than being
@@ -92,25 +95,6 @@ def _emitted_as(txt, pattern, base):
     return None
 
 
-def _block_marker_line(lines, lineno):
-    """Index of the `\trusted` marker governing the def at `lineno`, or None.
-
-    Walks up through the contiguous `#@` / `#` / decorator / blank block, exactly as
-    `check-untrusted-emitted.py` does — plain comments and blank lines are part of the
-    block (omitting them stops the walk at any justification comment and reads a trusted
-    stub as un-trusted)."""
-    i = lineno - 2
-    while i >= 0:
-        s = lines[i].strip()
-        if s.startswith("#@") or s.startswith("#") or s.startswith("@") or s == "":
-            if MARKER.match(s):
-                return i
-            i -= 1
-            continue
-        return None
-    return None
-
-
 def main() -> int:
     emit_dir = None
     argv = sys.argv[1:]
@@ -124,12 +108,24 @@ def main() -> int:
     # DEMOTED, never deleted -- every historical figure in the campaign is stated in it.
     # This branch is additive: it delegates and returns, and cannot alter the gate verdict
     # that the plane battery depends on.
+    #
+    # Phase 3 adds the REASON HISTOGRAM (why each marker is trusted), delegated to
+    # `bin/check-trusted-reasons.py`, which reads the out-of-band side file
+    # `getting-better/trusted-reasons.tsv` against the SAME marker walk this plane counts
+    # with. It runs the full reasons check, so side-file drift shows up here too, and the
+    # exit code is the verified-fraction rc if that failed, else the reasons rc. Under
+    # `--json` the histogram goes to STDERR so stdout stays one parseable JSON document.
+    # The default (non --metrics) path below is untouched.
     if "--metrics" in argv:
         import subprocess as _sp
-        vf = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                          "verified-fraction.py")
+        _here = os.path.dirname(os.path.abspath(__file__))
+        vf = os.path.join(_here, "verified-fraction.py")
         rest = [a for a in argv if a != "--metrics"]
-        return _sp.call([sys.executable, vf] + rest)
+        rc = _sp.call([sys.executable, vf] + rest)
+        sys.stdout.flush()
+        rc_reasons = _sp.call([sys.executable, os.path.join(_here, "check-trusted-reasons.py")],
+                              stdout=(sys.stderr if "--json" in rest else None))
+        return rc or rc_reasons
 
     matched_mlw = 0
 
@@ -173,13 +169,9 @@ def main() -> int:
 
         claimed = set()
         trusted_defs = []
-        for node in ast.walk(tree):
-            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                continue
-            m = _block_marker_line(lines, node.lineno)
-            if m is not None:
-                claimed.add(m)
-                trusted_defs.append(node.name)
+        for node, m, _qualname in iter_trusted_defs(tree, lines):
+            claimed.add(m)
+            trusted_defs.append(node.name)
         attached += len(claimed)
         for i in sorted(marker_idx - claimed):
             unattached.append((rel, i + 1, lines[i].strip()[:70]))
