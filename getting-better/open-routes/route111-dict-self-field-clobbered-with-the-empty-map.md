@@ -114,3 +114,50 @@ substitution must never be silent**: supplying the empty map is the "completenes
 supplies a WITNESS value" shape the campaign has been burned by five times. Where the value
 is recoverable (a field read, a literal) it must be KEPT; where it genuinely is not, the
 emitter must REFUSE.
+
+---
+
+# REPAIR SCOPE, CENSUSED BY GEN #21 (2026-09-14) — read this before scoping the repair
+
+**THE CLOBBER POPULATION IN ALL FOUR TREES IS FOUR SITES.** AST census: a class-declared
+`Dict`/`Set`/`FrozenSet` field assigned from an RHS that is neither a bare `Name` (which
+survives the `isalnum()` clause as `!t`) nor a dict/set literal (which starts with a map
+prefix):
+
+    test-suite/corpus/pycsl-reference/0941.py:34   self.s = set()
+    test-suite/corpus/pycsl-reference/0775.py:28   self.s = set()
+    src/self-annotate/src/module6_whyml/statements.py:1660
+                                                   self._inline_array_temps = set(array_vars)
+    src/self-annotate/src/module6_whyml/statements.py:1730
+                                                   self._current_record_var_classes =
+                                                       IRScanner.find_record_var_classes(...)
+
+**CAVEAT ON THE CENSUS, STATED SO IT IS NOT OVER-TRUSTED:** it keys on a class-level
+annotation, while the emitter resolves the field type through `_field_type_for` /
+`_record_types[...]["field_types"]`, which can know a type the annotation does not spell. So
+FOUR is a LOWER BOUND, not a theorem. Re-derive it from `_record_types` before landing.
+
+**WHAT THE FOUR SITES MEAN FOR THE REPAIR — and why gen #21 did NOT land one:**
+
+  - The two corpus sites are `self.s = set()`, where collapsing to the empty map is
+    ACCIDENTALLY CORRECT. They are not evidence the guard is right.
+  - **The two remaining sites are in the SELF-ANNOTATION MIRROR'S OWN SOURCE.** They are real
+    value losses, and they are load-bearing: the mirror's whole-file proof of `statements.py`
+    currently models both fields as the everywhere-empty map. A repair that makes them
+    FAITHFUL changes what that proof is proving, and a repair that REFUSES instead would stop
+    the mirror emitting at all — which means editing live mirrored source in
+    `src/pycsl/module6_whyml/statements.py` to avoid the shape.
+
+  So the repair is NOT the cheap, provably-inert kind #110's was (#110's population was zero).
+  It is a value-model change whose blast radius lands inside the mirror's own proof.
+
+**THE NARROW REPAIR THAT IS AVAILABLE AND SOUND**, if a future generation wants an increment
+rather than the whole route: the RHS IR (`stmt.value`) IS in scope at the site, and
+`types.py:_field_type_of(attr_ir)` already resolves a `self.<field>` expression to its
+declared type tag. Keeping the value when the RHS is itself a map-typed FIELD READ closes the
+measured exploit exactly, and is byte-inert (none of the four sites is a field read). It does
+NOT close the call-valued RHS direction, and **a partial repair must say so loudly rather than
+let the route be marked closed** — a carrier surviving a repair is a second route.
+
+**THE FULL REPAIR** remains as sketched above: drive the decision from the RHS's IR TYPE, and
+REFUSE where the value is genuinely unrecoverable instead of inventing the empty map.
