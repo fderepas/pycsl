@@ -27,9 +27,59 @@
 #   That set IS the blast radius of any `orelse` lowering change. This is what makes a
 #   #107/#108 repair gateable inside one window, and it is why it was worth censusing first.
 #
-# ## 3. WHAT IS TRUE RIGHT NOW
+# ## 3. ROUTES #107 + #108 ARE REPAIRED — ONE STRUCTURAL REPAIR FOR BOTH DIRECTIONS
+#
+#   The `else` is no longer appended to the try body behind a substring test. It is lowered
+#   as a SIBLING of the try/except behind a completion flag, so Python's scoping IS the
+#   emitted scoping and the block is ALWAYS emitted — there is no surviving drop, hence no
+#   string left to test. `_callee_raised_in` now visits `orelse` AND `finalbody`.
+#   The flag's name carries a PRIME, which `whyml_ident` can NEVER produce (a Python
+#   identifier cannot contain `'`), so no user spelling can collide — STRUCTURAL, not a hope.
+#
+#   BOTH DIRECTIONS NEGATIVE-TESTED, and FAITHFUL rather than merely refusing:
+#     a_exp2  rc=1 (#107 false proof GONE)      a_pos  rc=0 (TRUE postcondition \result==5 PROVES)
+#     b_catch rc=1 (#108 false proof GONE)      b_pos  rc=0 (raising callee in an else: escapes
+#                                                       the wrapper; a CATCHING caller PROVES)
+#     a_collide rc=0 — a user local literally named `try_else_ok` coexists with `try_else_ok'4`
+#     0189 rc=0 · 1029 rc=0 · 1028 still refused by PYCSL-R37
+#   PREDICTION MISS, RECORDED NOT RENUMBERED: b_catch fails on a WHY3 TYPE ERROR ("raises
+#   unlisted exception ValueError"), not the no_exception VC I predicted — `_module_func_raises`
+#   carries only DECLARED raises, so the assert-and-absurd wrapper is not installed for a callee
+#   whose raises are INFERRED. Fail-closed; worth a look as its own item.
+#
+#   Audit-side half also landed: check-dropped-mutation's try/else why-string was a FALSE claim
+#   ("else cannot raise — appended to the try body"). TRYFINAL 11->9, REFUSED 5->7, ratchet
+#   lowered 11->9. THE POPULATION MOVED; the line only ever follows it DOWNWARD.
+#
+# ## 4. THE SUBSTRING-CENSUS WAS RUN AND IT PAID — TWO NEW SEV-1 ROUTES
+#
+#   874 raw grep hits triaged. The generator is alive well beyond the try-lowering, and the
+#   sharpest instances are NOT in control flow but in ARGUMENT COERCION and FIELD STORES.
+#
+#   **#110** `_coerce_to_int` (expressions.py:1017-1027) returns the literal `0` when the
+#   lowered argument text starts with an internal op spelling. SEVEN of those prefixes are
+#   ordinary identifiers — `any_1`, `all_1`, `sorted_1`, `list_new_arr`, `array_slice`,
+#   `map_update_some`, `map_update_none`. `xs = [any_1(x)]; return xs[0]` PROVES
+#   `\result == 0` (CPython x+1); emitted `Array.make 1 (0)` — the call is ERASED. Control
+#   renamed `anyq_1` FAILS and keeps `(anyq_1 x)`. On the hot path of list literals, dict
+#   keys/values, subscript stores, setattr, for-loop iterables — NOT an exotic population.
+#
+#   **#111** statements.py:2610-2612 replaces a `set`/`dict`/`frozenset` self-field's RHS
+#   with the EVERYWHERE-EMPTY MAP when the lowered text is not alphanumeric after deleting
+#   `_` and `!`. **NEEDS NO ADVERSARIAL NAMING**: `self.b = self.a` is ordinary Python and
+#   PROVES `\result == 0` while CPython returns 1. Control routes the same assignment
+#   through a local (`!t` IS alnum) and correctly FAILS. Also measured: a dict LITERAL
+#   assigned in a non-`__init__` method is clobbered too — route #85 covered `__init__` only.
+#   THE AVATAR IS THE FENCE for the cross-method case: two earlier shapes measured NOTHING
+#   (logged) because the caller sees a value-opaque `val ... writes {self.b}` with no ensures.
+#   The route bites exactly where a method OBSERVES ITS OWN WRITE.
+#
+#   Route files: `open-routes/route110-*.md`, `route111-*.md`.
+#
+# ## 5. WHAT IS TRUE RIGHT NOW
 #
 #   metric   markers **459** / grep 484 / offset 25 / unattached 0 — RE-MEASURED at HEAD.
+#   ledger   68 LIVE / 82 FAIL-CLOSED / 150 denom / **45.3%**, VACUOUS 10, ZERO PENDING.
 #   planes   34 = 19 fast + 15 slow. Count `ok` lines, NEVER read a banner.
 #   suite    baseline **18** failures; 19 is a REGRESSION. Last accepted 3423/3441, 0 XPASS.
 #   ratchet  `check-trusted-raises-honesty` SILENT **69** (MAX_SILENT=69). Move the
