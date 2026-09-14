@@ -1962,3 +1962,18 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   9 mirror emission-diff  53/53, 0 MOVED / 0 GONE / 0 APPEARED (no mirrored file has a try/else)
  10 reference suite       18 failures, ZERO XPASS (19 would be a REGRESSION)
  11 mirror whole-file proof of stmt_control_flow.py — REQUIRED, _handle_try_stmt is NOT \trusted
+2026-09-14 gen#21 BATTERY VERDICTS (recorded as read, suite still running):
+  1 metric                 459 / 484 / 25 / 0                                   PREDICTED, HIT
+  2 doc-coherency          rc=0                                                 PREDICTED, HIT
+  3 fidelity mirror-sync   rc=0, 887 un-trusted fns verbatim, 37 consts         PREDICTED, HIT
+  4 trusted-raises-honesty rc=0, 75 stubs, 6 DECLARED / 69 SILENT, ratchet 69   PREDICTED, HIT
+  5 mirror type-only       rc=0, 53 mirrors type-checked, 0 ILL-TYPED           PREDICTED, HIT
+  7 byte-diff pycsl-ref    1045/1045, EXACTLY 1 MOVED (1029), 0 GONE, 0 APPEARED, zb 0/0  HIT
+  8 byte-diff python-ref   2203/2203, EXACTLY 1 MOVED (0189), 0 GONE, 0 APPEARED, zb 0/0  HIT
+  The 1029 diff is EXACTLY the repair and nothing else: `y := 2` relocated out of the try
+  into `if !try_else_ok'4 then begin ... end`. Baseline was a fresh worktree at 8ec98d66.
+  NOTE on instrument honesty: a mid-flight read of the sweep log showed "1030 of 1204" and
+  looked like a shrunken corpus; re-reading both logs COMPLETE showed 1046/1224 on BOTH
+  sides. A partially-written log is not a population count.
+  Structural pre-check for leg 9: an AST census finds ZERO try/else in the whole mirror, so
+  the _handle_try_stmt arm cannot fire there; the _callee_raised_in finalbody arm still can.
