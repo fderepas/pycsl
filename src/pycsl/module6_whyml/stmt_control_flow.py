@@ -1683,6 +1683,19 @@ class ControlFlowStmtMixin:
                     e for e in inner
                     if not any(handler_catches(b, e) for b in handler_bases)
                 }
+                # (ROUTE #108) this `continue` used to skip `orelse` AND `finalbody`.
+                # Neither is protected by THIS try's handlers -- Python does not catch an
+                # exception raised in an `else:` with the same statement's `except:`
+                # clauses, and the #33 `finally` splice only fires when there are no
+                # handlers at all. So a callee raise written in either one escapes the
+                # enclosing function, yet it vanished from the `raises` summary that
+                # functions.py builds from this walk. They escape UNFILTERED by
+                # `handler_bases`. Measured: the `finally` half is fail-closed (Why3
+                # rejects the unlisted exception), the `orelse` half was NOT, because the
+                # old lowering spliced the else INSIDE the try where a handler arm caught
+                # it -- which is why this fix and the lowering fix had to land together.
+                escaping |= self._callee_raised_in(stmt.get("orelse", []) or [])
+                escaping |= self._callee_raised_in(stmt.get("finalbody", []) or [])
                 continue
             # Non-Try statement: any call here (in its test/value/etc.)
             # escapes unconditionally; recurse structurally for nested
@@ -1744,7 +1757,13 @@ class ControlFlowStmtMixin:
                 "ValueError: x = 9 / finally: x = 3 / return x` proved `\\result == 2` "
                 "while Python returns 3. A `try ... finally:` with NO handlers IS modelled "
                 "— split the statement, or move the cleanup after the `try`.")
+        # (ROUTES #107 + #108) the `else` block is lowered OUTSIDE the try (below), so a
+        # local it assigns must be pre-declared as an outer ref exactly like a body or a
+        # handler local -- otherwise its `let` would be scoped inside the guarded `if` and
+        # the value would not survive to the statements after the `try`.
+        _else = [s.to_dict() for s in stmt.orelse]
         try_assigned = IRScanner.find_assigned_vars(body_stmts)
+        try_assigned |= IRScanner.find_assigned_vars(_else)
         n_ha = len(handlers)
         i_ha = 0
         while i_ha < n_ha:
@@ -1794,20 +1813,50 @@ class ControlFlowStmtMixin:
         body_str = self._stmts_to_whyml(body_stmts, local_refs, declared_refs.copy(), indent + "  ", in_loop)
         if not body_str:
             body_str = f"{indent}  ()"
-        # (#33) `try ... except ... else:` — the `else` clause was DROPPED too. Module 5
-        # carries `orelse` into the IR and this handler never read it, so a whole reachable
-        # block was absent from the model. Python runs it AFTER the try body completes
-        # WITHOUT an exception, which is exactly "at the end of the try body" — provided it
-        # cannot itself raise into the handlers, which Python would not let it do. One
-        # string test of the LOWERED else decides that, the same way the `finally` rule
-        # decides its own safe case: no `raise` anywhere in it. Anything else keeps today's
-        # behaviour and is counted by `bin/check-dropped-mutation.py`'s TRYFINAL category.
-        _else = [s.to_dict() for s in stmt.orelse]
+        # (#33, then ROUTES #107 + #108) `try ... except ... else:`.
+        #
+        # #33 appended the lowered `else` to the TRY BODY when `"raise" not in <lowered
+        # else>`. That single line was wrong in BOTH directions at once:
+        #
+        #   #107 (the block DELETED). The test is a SUBSTRING test over GENERATED TEXT, so
+        #   it is keyed on SPELLING, and the spelling is attacker-chosen the moment a user
+        #   names a variable. A dead local named `praiseworthy` in the `else` made the test
+        #   false and the whole block was dropped -- silently, no refusal, no warning.
+        #   MEASURED: `y = 0 / try: y = 1 / except ValueError: y = 9 / else: y = 5;
+        #   praiseworthy = 0 / return y` PROVED `ensures \result == 1` while CPython
+        #   returns 5, and the emitted `let f ()` had no else branch at all. The control,
+        #   identical minus that one dead local, correctly FAILED.
+        #
+        #   #108 (the block SPLICED WHERE PYTHON DOES NOT PUT IT). Appending to the try
+        #   body puts the `else` INSIDE the try, so this statement's own handlers catch
+        #   what it raises. Python never does that: an exception raised in an `else:` is
+        #   NOT caught by that try's `except:` clauses. A raise arriving through a callee's
+        #   `#@ raises` leaves no literal `raise` in the lowered text, so the substring
+        #   test PERMITTED the unsound splice. MEASURED: a `#@ no_exception ValueError`
+        #   caller over such a wrapper PROVED while CPython raises.
+        #
+        # The repair is STRUCTURAL and it is the same repair for both directions: lower the
+        # `else` as a SIBLING of the try/except, guarded by a completion flag, so Python's
+        # scoping IS the emitted scoping. The block is now ALWAYS emitted -- there is no
+        # surviving case in which it is dropped, so there is nothing left to test a string
+        # for. A `return`/`raise`/`break`/`continue` in the `else` lowers to a raise that is
+        # now raised OUTSIDE the try and propagates correctly; pycsl.py's PYCSL-R37 fence
+        # still refuses those shapes upstream, which is now a conservative POLICY rather
+        # than a load-bearing soundness prop.
+        _else_str = ""
+        _has_else = False
         if _else:
             _else_str = self._stmts_to_whyml(_else, local_refs, declared_refs.copy(),
                                              indent + "  ", in_loop)
-            if _else_str.strip() and "raise" not in _else_str:
-                body_str = body_str + ";\n" + _else_str
+            if _else_str.strip():
+                _has_else = True
+        # The flag's name carries a PRIME, which `whyml_ident` can NEVER produce: a Python
+        # identifier cannot contain `'`, and the non-ASCII sanitiser maps to letters or to
+        # `u<ord>`. So no user-chosen spelling can collide with it. That guarantee is
+        # STRUCTURAL, not a hope about spelling, which is the entire lesson of #107. The
+        # depth suffix keeps a NESTED try's flag distinct from its parent's; sibling trys at
+        # the same depth shadow harmlessly, each one's `if` having already run.
+        _else_ok = f"try_else_ok'{len(indent)}"
         if handlers:
             from exception_model import handler_catches
             # Concrete exception tags that can actually escape the try body
@@ -1827,7 +1876,12 @@ class ControlFlowStmtMixin:
             body_raised |= self._callee_raised_in(body_stmts)
             body_raised = sorted(body_raised)
 
-            code = f"{pre_decls}{indent}try\n{body_str}\n"
+            if _has_else:
+                code = (f"{pre_decls}{indent}let {_else_ok} = ref False in\n"
+                        f"{indent}try\n{body_str};\n"
+                        f"{indent}  {_else_ok} := True\n")
+            else:
+                code = f"{pre_decls}{indent}try\n{body_str}\n"
             n_h = len(handlers)
             i_h = 0
             first_handler = True
@@ -1874,8 +1928,18 @@ class ControlFlowStmtMixin:
                 already_matched |= seen_local
                 i_h += 1
             code += f"{indent}end"
+            if _has_else:
+                # The flag is set by the LAST statement of the try region, so it is true
+                # exactly when the body completed without raising. A handler that ran
+                # leaves it false, and a `return` out of the body never reaches it.
+                code += (f";\n{indent}if !{_else_ok} then begin\n"
+                         f"{_else_str}\n{indent}end")
         else:
+            # No handlers: nothing is caught here, so the `else` runs exactly when the body
+            # completed and appending it is already faithful -- no flag needed.
             code = f"{pre_decls}{body_str}"
+            if _has_else:
+                code = code + ";\n" + _else_str
         # (#33) `finally:` WAS DROPPED ENTIRELY, and that PROVED A FALSE POSTCONDITION.
         # `_handle_try_stmt` read `stmt.body` and `stmt.handlers` and never `stmt.finalbody`,
         # so the cleanup block was absent from the model. Measured, before this:

@@ -1932,3 +1932,16 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   NEW pos ctl a_pos.py       rc=0  — #107 exploit body with the TRUE postcondition \result == 5 must PROVE (else is modelled, not merely dropped differently)
   NEW collide a_collide.py   rc=0  — a user local literally named `try_else_ok` in the else must NOT collide with the synthetic flag
   byte-diff: EXACTLY the 3 corpus try/else files may MOVE (0189, 1029, 1028-is-refused-so-no-emission). 0 GONE / 0 APPEARED.
+2026-09-14 gen#21 REPAIR #107+#108 LANDED (source + mirror). Witness verdicts vs predictions:
+  a_exp2  rc=1 PREDICTED HIT   (#107 false proof GONE)
+  a_ctl2  rc=1 PREDICTED HIT
+  b_catch rc=1 PREDICTED rc HIT, MECHANISM MISS — it fails on a WHY3 TYPE ERROR ("raises unlisted
+          exception ValueError" at the `(wrapper k)` call in `caller`), NOT on the no_exception VC
+          I predicted. Cause: `_module_func_raises` carries only DECLARED `#@ raises`, so the
+          no_exception assert-and-absurd wrapper is NOT installed for a callee whose raises are
+          INFERRED. Fail-closed, recorded as a finding, NOT silently renumbered.
+  a_pos   rc=0 PREDICTED HIT   (true postcondition \result == 5 PROVES — else is MODELLED)
+  a_collide rc=0 PREDICTED HIT (user local `try_else_ok` coexists with synthetic `try_else_ok'4`)
+  b_pos   rc=0 NEW positive control — raising callee in an `else:` escapes the wrapper and a
+          CATCHING caller proves. The repair is faithful, not merely refusing.
+  0189 rc=0 HIT · 1029 rc=0 HIT · 1028 rc=1 refused by PYCSL-R37 HIT
