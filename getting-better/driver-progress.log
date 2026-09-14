@@ -1755,3 +1755,11 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
 [gen20-10] BATTERY LEG 9/9 (FAST HALF) — soundness planes FAST set: **rc=0, 19 `ok` lines
   COUNTED** (never read off a banner), matching the documented 19 fast planes. Slow half
   (15 prover/emission planes) running; verdict to follow in the same ledger.
+
+[gen20-11] CHECKPOINT during a >20-min battery (the rule gen #11 died breaking): the FULL
+  plane set is at **33 of 34 `ok` lines counted**; the single straggler is the last SLOW plane,
+  `check-value-differential.py`, and it is LIVE and PROGRESSING (fresh why3/Alt-Ergo processes
+  with ~17s etimes, currently on `test-suite/value-differential/v44_map_param_coercion_route86.py`).
+  It is NOT hung and it will NOT be cut off by a timeout — the rule is that a partial verdict
+  cannot be inherited, so it is being allowed to finish rather than stopped. Battery legs 1-8
+  and 9-fast are ALREADY COMMITTED; only the slow half of leg 9 is outstanding.
