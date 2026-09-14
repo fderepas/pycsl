@@ -2047,3 +2047,8 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   LESSON (bank it): A REPAIR THAT BUYS ITS SOUNDNESS WITH A NEW ERASURE SITE HAS MOVED THE
   PROBLEM, NOT FIXED IT — and its own witness cannot see that cost. Check a repair against the
   OTHER planes, not only against the thing it was written to stop.
+2026-09-14 gen#21 BATTERY-2 leg 11: whole-file re-proof of src/self-annotate/src/module6_whyml/
+  expressions.py — [+] Verification SUCCESS! All contracts formally proven. 21269 goals Valid,
+  ZERO Unknown/Timeout/Failure/Invalid. PREDICTED, HIT.
+  RE-ESTABLISHING the legs that ran BEFORE the getattr fix changed source again (rule: never
+  inherit a gate verdict whose tree you cannot establish — including from yourself).
