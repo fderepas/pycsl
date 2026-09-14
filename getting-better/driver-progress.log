@@ -1987,3 +1987,10 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   entirely attributable: the new _has_else/_else_ok/_else locals, the try_assigned union with
   orelse, the DELETED substring test, the flag emission and the guarded-else append, plus a new
   `val str_length_op` pulled in by my use of len(indent). No collateral.
+2026-09-14 gen#21 BATTERY leg 11 (the expensive one, and the one that gates a mirrored non-trusted
+  method): whole-file re-proof of src/self-annotate/src/module6_whyml/stmt_control_flow.py —
+  [+] Verification SUCCESS! All contracts formally proven. 12284 goals Valid, ZERO
+  Unknown/Timeout/Failure/Invalid. PREDICTED, HIT.
+2026-09-14 gen#21 BATTERY COMPLETE — 11 legs, 10 predictions EXACT, 1 recorded MISS (leg 9).
+  No ratchet re-baselined upward, no golden re-blessed. Tree clean apart from the two
+  PRE-EXISTING gitlinks. ROUTES #107 AND #108 ARE REPAIRED *AND* FULLY GATED.
