@@ -1921,3 +1921,14 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   fences, and both directions measured for #107 and #109.
 2026-09-14 gen#21 START: HEAD fc29feb0, metric 459/484/25/0 re-measured. #107+#108 re-reproduced at HEAD (a_exp2 rc=0 Valid/a_ctl2 rc=1 Unknown/b_catch rc=0 Valid). try/else population censused = 5 sites in all four trees.
 2026-09-14 gen#21 probe: finalbody callee-raise = FAIL-CLOSED (Why3 exception typing rejects unlisted raise; splice confirmed by reading emitted mlw). Ledger 66 LIVE/82 FAIL-CLOSED/148 denom/44.6%, zero PENDING.
+2026-09-14 gen#21 PREDICTIONS for the #107+#108 joint repair (written BEFORE running any of them):
+  a_exp2.py  (#107 exploit)  rc=1  — else now spliced, y=5, `\result == 1` refuted
+  a_ctl2.py  (#107 control)  rc=1  — unchanged, still refuted on the postcondition
+  b_catch.py (#108 exploit)  rc=1  — else outside the try; ValueError escapes wrapper; caller's no_exception violated
+  0189.py    (python-ref)    rc=0  — else IS modelled; \result == 3 still PROVES
+  1029       (pycsl-ref)     rc=0  — else IS modelled; \result == 2 still PROVES
+  1028       (pycsl-ref)     rc!=0 — still REFUSED by the PYCSL-R37 fence (untouched); stays an expected-FAIL negative witness
+  c_final.py (#110 probe)    rc=1  — unchanged, Why3 unlisted-exception type error
+  NEW pos ctl a_pos.py       rc=0  — #107 exploit body with the TRUE postcondition \result == 5 must PROVE (else is modelled, not merely dropped differently)
+  NEW collide a_collide.py   rc=0  — a user local literally named `try_else_ok` in the else must NOT collide with the synthetic flag
+  byte-diff: EXACTLY the 3 corpus try/else files may MOVE (0189, 1029, 1028-is-refused-so-no-emission). 0 GONE / 0 APPEARED.
