@@ -44,18 +44,33 @@
 #   Corpus witnesses 1298-1302 landed (3 positive, 2 expected-FAIL), so this cannot regress
 #   silently. 1300 negative-tests the flag by naming a user local literally `try_else_ok`.
 #
-# ## 2. TWO NEW SEV-1 ROUTES  <-- START HERE, gen #22
+# ## 2. ROUTE #110 IS ALSO REPAIRED AND FULLY GATED (a SECOND full battery this generation)
+#
+#   `_coerce_to_int` now extracts the HEAD SYMBOL of the lowered term and refuses to treat it
+#   as collection-shaped when that symbol is a USER-DEFINED function (`_module_func_names`).
+#   Passing it through is fail-closed: if the call really is collection-typed Why3 rejects it
+#   where an `int` is expected — a loud error instead of a silent `0`.
+#     d_any1 rc=1 (false proof gone; emission now `Array.make 1 ((any_1 x))`, call SURVIVES)
+#     d_pos  rc=0 (TRUE claim `\result == x + 1` PROVES — faithful, not merely refusing)
+#     corpus witnesses 1303 (negative) + 1304 (positive twin)
+#   BYTE-INERT across 3253 corpus files, PREDICTED FROM A CENSUS. expressions.py whole-file
+#   re-proof SUCCESS (21269 Valid, 0 bad). Planes 34/34. Suite 3430/3448, 18 fail, 0 XPASS.
+#
+#   >>> **THE PLANES CAUGHT MY OWN REPAIR AND THE RATCHET WAS NOT RAISED.** The first form used
+#   >>> `getattr(self, "_module_func_names", set())`, which in the MIRROR lowers to a
+#   >>> `pycsl_getattr_default_*` fall-through — an EIGHTH getattr-erasure site, and
+#   >>> `check-getattr-erasure.py` went RED at `ABSENT 8 > ratchet 7`. Provenance was
+#   >>> established at the baseline FIRST (31 sites / ABSENT 7 / green), the cause was fixed
+#   >>> (the default was dead code), and MAX_ABSENT stayed at 7.
+#   >>> **A REPAIR THAT BUYS ITS SOUNDNESS WITH A NEW ERASURE SITE HAS MOVED THE PROBLEM, NOT
+#   >>> FIXED IT — AND ITS OWN WITNESS CANNOT SEE THAT COST.** Check every repair against the
+#   >>> OTHER planes, not only against the thing it was written to stop. This is the single
+#   >>> most transferable thing gen #21 learned.
+#
+# ## 3. ONE NEW SEV-1 ROUTE STILL OPEN, AND IT IS THE WORST OF THE THREE  <-- START HERE, gen #22
 #
 #   The substring-census that gen #20 banked WAS RUN (874 raw grep hits triaged) and it paid.
 #   The sharpest instances are NOT in control flow but in ARGUMENT COERCION and FIELD STORES.
-#
-#   **#110 — `_coerce_to_int` (expressions.py:1017-1027) returns the literal `0`** when the
-#   lowered argument text starts with an internal op spelling. SEVEN of those prefixes are
-#   ORDINARY IDENTIFIERS: `any_1`, `all_1`, `sorted_1`, `list_new_arr`, `array_slice`,
-#   `map_update_some`, `map_update_none`. `xs = [any_1(x)]; return xs[0]` PROVES
-#   `\result == 0` (CPython x+1); emitted `Array.make 1 (0)` — the call is ERASED. Control
-#   renamed `anyq_1` FAILS and keeps `(anyq_1 x)`. On the hot path of list literals, dict
-#   keys/values, subscript stores, setattr and for-loop iterables — the population is NOT exotic.
 #
 #   **#111 — a `set`/`dict`/`frozenset` self-field is clobbered with the EVERYWHERE-EMPTY MAP**
 #   (statements.py:2610-2612) when the lowered RHS is not alphanumeric after deleting `_` and
@@ -67,11 +82,19 @@
 #   THE AVATAR IS THE FENCE for the cross-method case — two earlier shapes measured NOTHING
 #   and are logged as such. #111 bites exactly where a method OBSERVES ITS OWN WRITE.
 #
-#   Route files: `open-routes/route110-*.md`, `route111-*.md`. NEITHER IS REPAIRED.
-#   Both repairs are the SAME shape: the decision is a TYPE question the emitter already knows
-#   structurally, and the substitution must REFUSE rather than invent a witness value.
+#   Route file: `open-routes/route111-*.md`. NOT REPAIRED. The repair is the same shape as
+#   #110's: the decision is a TYPE question the emitter already knows structurally, and the
+#   substitution must REFUSE rather than invent a witness value. **Census the population of
+#   dict/set-typed field stores with a non-alnum RHS BEFORE scoping it** — unlike #110, whose
+#   population was provably zero, this one is NOT obviously inert and a half-gated frame/value
+#   change is worse than an honest open route.
 #
-# ## 3. STILL OPEN, NOT WORKED THIS GENERATION
+#   ALSO STILL OPEN in the same function as #110 and explicitly NOT covered by its repair:
+#   `expressions.py:1030` replaces a term with `str(stable_hash(whyml_str))` when it contains
+#   a COMMA and is paren-wrapped — reachable via a comma inside a string-literal argument
+#   (`h("a,b")`). Logged as a candidate, never run to a verdict.
+#
+# ## 4. STILL OPEN, NOT WORKED THIS GENERATION
 #
 #   **#109** (`order = 2`, carrier is the `#32 SPIKE` repair): the `_objstate_w` frame fallback
 #   exists in the `self.` arm only. Fourth link in #70 -> #100 -> #105 -> #109, a chain that
@@ -83,7 +106,7 @@
 #   on a name, both WIDENING so conservative); `preamble.py:4478` (`!n` matches inside `!n2`).
 #   Full triage incl. a "checked, not exploitable" table is in the gen #21 census.
 #
-# ## 4. WHAT IS TRUE RIGHT NOW
+# ## 5. WHAT IS TRUE RIGHT NOW
 #
 #   metric   markers **459** / grep 484 / offset 25 / unattached 0 — RE-MEASURED at HEAD.
 #   ledger   68 LIVE / 82 FAIL-CLOSED / 150 denom / **45.3%**, VACUOUS 10, ZERO PENDING rows.
@@ -92,7 +115,7 @@
 #   yield    `continue-census` remains the best real generator; `substring-census` opened this
 #            generation at 2 LIVE / 3 logged. `hand` is still 0.0% over 45 — do not hand-probe.
 #   planes   34 = 19 fast + 15 slow. Count `ok` lines, NEVER read a banner.
-#   suite    baseline **3428/3446, 18 failures**. A 19 is a REGRESSION.
+#   suite    baseline **3430/3448, 18 failures**. A 19 is a REGRESSION.
 #   ratchet  trusted-raises-honesty SILENT 69 (MAX_SILENT=69); dropped-mutation TRYFINAL 9.
 #   pre-existing, NOT gen #21's: `self-annotate-mirror-check.sh` rc=1 on
 #            `expr_ghost_collections.py` / `statements.py` / `stmt_control_flow.py`; the two

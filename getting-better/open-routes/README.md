@@ -1,15 +1,16 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **#109, #110, #111.**  (last edited by gen #21, 2026-09-14)
+## CURRENTLY OPEN: **#109 and #111.**  (last edited by gen #21, 2026-09-14)
+##   **#110 was found AND CLOSED AND FULLY GATED in the same generation (gen #21).**
 ##
-##   >>> **#110 and #111 are NEW THIS GENERATION and are the highest-ranked items on the
-##   >>> board.** Both come from the SUBSTRING-CENSUS generator, both are SEV-1, both have
-##   >>> BOTH DIRECTIONS MEASURED, NEITHER IS REPAIRED.
-##   >>>   #110 `_coerce_to_int` replaces a call argument with the literal `0` when the
-##   >>>        lowered text starts with an internal op spelling — and SEVEN of those
+##   >>> **#110 and #111 are NEW THIS GENERATION**, both from the SUBSTRING-CENSUS generator,
+##   >>> both SEV-1, both with BOTH DIRECTIONS MEASURED. **#110 is CLOSED AND GATED; #111 is
+##   >>> NOT REPAIRED and is the highest-ranked item on the board.**
+##   >>>   #110 CLOSED: `_coerce_to_int` replaced a call argument with the literal `0` when the
+##   >>>        lowered text started with an internal op spelling — and SEVEN of those
 ##   >>>        spellings (`any_1`, `all_1`, `sorted_1`, `list_new_arr`, `array_slice`,
 ##   >>>        `map_update_some`, `map_update_none`) are ordinary Python identifiers.
-##   >>>   #111 a dict/set self-field is clobbered with the everywhere-empty map when the
+##   >>>   #111 OPEN: a dict/set self-field is clobbered with the everywhere-empty map when the
 ##   >>>        lowered RHS is not alphanumeric. **NEEDS NO ADVERSARIAL NAMING** —
 ##   >>>        `self.b = self.a` is ordinary Python. This is the worst of the three.
 ##   >>> **#109** (`order = 2`) remains open and untouched by gen #21: the `_objstate_w`
