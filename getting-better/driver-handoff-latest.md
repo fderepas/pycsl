@@ -1,3 +1,43 @@
+# ====== START HERE — gen #21 FINAL STATE — read this block first ==================
+#
+# ## STATUS: IN PROGRESS (this block is updated as the generation runs)
+#
+#   Window #6 continues. Started from HEAD `fc29feb0` (gen #20 FINAL). Tree clean apart
+#   from the two PRE-EXISTING modified gitlinks (`scratchpad/w7/base`, `scratchpad/w8/pre`)
+#   and the pre-existing 0-byte stray `str`. Box idle, 0 prover processes.
+#   Metric RE-MEASURED at HEAD, not inherited:
+#   **markers 459 · grep 484 · offset 25 · attached 459 · unattached 0** — unchanged.
+#
+# ## 1. ROUTES #107 + #108 RE-REPRODUCED AT HEAD `fc29feb0` BEFORE ANY REPAIR
+#
+#   Rule (r): inherit no verdict whose tree you did not establish. All three witnesses
+#   re-run at HEAD from `open-routes/witnesses-r107-r108/`:
+#     a_exp2.py  (#107 exploit)  rc=0  Valid, 20 steps   — proves `\result == 1`, CPython 5
+#     a_ctl2.py  (#107 control)  rc=1  Unknown           — fails for the RIGHT goal
+#     b_catch.py (#108 exploit)  rc=0  Valid, 27 steps   — proves, CPython RAISES
+#
+# ## 2. THE `try/else` POPULATION IS FIVE SITES IN ALL FOUR TREES — censused, not assumed
+#
+#   AST census (`ast.Try` with a non-empty `orelse`) over `src/pycsl`, `src/self-annotate`,
+#   `test-suite/corpus`, `src/pycsl_lib`:
+#     src/pycsl/frontend/pure_ast.py:2650, :2742        (MIRRORED file)
+#     test-suite/corpus/python-reference/0189.py:14     (else assigns; PROVES \result == 3)
+#     test-suite/corpus/pycsl-reference/1029_...:14     (else assigns; PROVES \result == 2)
+#     test-suite/corpus/pycsl-reference/1028_...:25     (else RETURNS; REFUSED by #37 fence)
+#   That set IS the blast radius of any `orelse` lowering change. This is what makes a
+#   #107/#108 repair gateable inside one window, and it is why it was worth censusing first.
+#
+# ## 3. WHAT IS TRUE RIGHT NOW
+#
+#   metric   markers **459** / grep 484 / offset 25 / unattached 0 — RE-MEASURED at HEAD.
+#   planes   34 = 19 fast + 15 slow. Count `ok` lines, NEVER read a banner.
+#   suite    baseline **18** failures; 19 is a REGRESSION. Last accepted 3423/3441, 0 XPASS.
+#   ratchet  `check-trusted-raises-honesty` SILENT **69** (MAX_SILENT=69). Move the
+#            POPULATION, never the LINE.
+#   pre-existing, NOT gen #21's: `self-annotate-mirror-check.sh` rc=1 on
+#            `expr_ghost_collections.py` / `statements.py` / `stmt_control_flow.py`;
+#            the two modified gitlinks; the 0-byte stray `str`.
+#
 # ====== START HERE — gen #20 FINAL STATE — read this block first ==================
 #
 # ## STATUS: COMPLETE. Tree clean, everything committed. HEAD at hand-off: see `git log -1`.

@@ -1919,3 +1919,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
   landing either alone is unsound, and every repair here needs its own full battery against a
   NEW byte-diff baseline. Gen #21 inherits reproducible witnesses, quoted mechanisms, named
   fences, and both directions measured for #107 and #109.
+2026-09-14 gen#21 START: HEAD fc29feb0, metric 459/484/25/0 re-measured. #107+#108 re-reproduced at HEAD (a_exp2 rc=0 Valid/a_ctl2 rc=1 Unknown/b_catch rc=0 Valid). try/else population censused = 5 sites in all four trees.
