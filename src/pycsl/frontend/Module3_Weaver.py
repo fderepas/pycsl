@@ -2265,6 +2265,386 @@ class Module3_Weaver:
                 "rebinds it. None of these is modelled: use a modelled decorator (or an "
                 "identity decorator `def d(f): return f`), give each definition its own "
                 "name, or move the star import above every definition.")
+        # (#49) ROUTES #130-#133 — FOUR MORE PLACES WHERE A NAME'S RUNTIME VALUE IS NOT THE ONE
+        # THE MODEL READS. Measured at 65237fdb, each PROVING a claim CPython contradicts:
+        #   #130 an IMPORTED name bound twice: `from plainlib import inc` then `from starlib
+        #        import inc` (or `inc = plainlib.dec`, `import a as m; import b as m`, a from-import
+        #        in a module `if`/`else`, a function-local import of another `inc`) — the model
+        #        keeps the FIRST import (#118 rule (1) keys on this file's defs only).
+        #   #131 a BUILTIN shadowed by an assignment: module `len = sum`, a local `len = sum`, a
+        #        module `for max in [min]` — `len(xs)` still lowered to the builtin length.
+        #   #132 the module/class CONSTANT FOLDERS (`module_collect.collect_module_*`,
+        #        `_collect_class_constants`) take "bound exactly once" from the TOP-LEVEL
+        #        single-name `Assign`/`AnnAssign` statements only: `N = 3; N += 2`, `if ...: N = 5`,
+        #        `N, M = 5, 6`, `for N in [5]`, `setattr(sys.modules[__name__], "N", 5)`, a class
+        #        body `N += 2`, and a folded str dict MUTATED (`OP.update(...)`, `OP["a"] = "c"`,
+        #        `d = OP; d["a"] = "c"` in a function) all read the first literal.
+        #   #133 a def NESTED IN A METHOD is lifted to a method of the class under its own name:
+        #        named like a method of that class, it REPLACED the method's body and dropped its
+        #        postcondition (`C.h` claiming 2 over `return 1` proved).
+        # CENSUS (pycsl-reference, python-reference, 53 mirrors, pycsl_lib): #130 witness 1342
+        # (already refused) and pycsl_lib json/tool.py (not ingested); #131 0 sites; #132 0 sites
+        # beyond an unread `_`/`__all__`, plus pycsl_lib json/encoder.py `ESCAPE_DCT.setdefault`
+        # (a genuine mutation of a folded dict); #133 0 sites.
+        _nb_bad: list = []
+        _nb_builtin_names = frozenset((
+            "ArithmeticError", "AssertionError", "AttributeError", "BaseException", "BaseExceptionGroup",
+            "BlockingIOError", "BrokenPipeError", "BufferError", "BytesWarning", "ChildProcessError",
+            "ConnectionAbortedError", "ConnectionError", "ConnectionRefusedError", "ConnectionResetError",
+            "DeprecationWarning", "EOFError", "Ellipsis", "EncodingWarning", "EnvironmentError",
+            "Exception", "ExceptionGroup", "False", "FileExistsError", "FileNotFoundError",
+            "FloatingPointError", "FutureWarning", "GeneratorExit", "IOError", "ImportError",
+            "ImportWarning", "IndentationError", "IndexError", "InterruptedError", "IsADirectoryError",
+            "KeyError", "KeyboardInterrupt", "LookupError", "MemoryError", "ModuleNotFoundError",
+            "NameError", "None", "NotADirectoryError", "NotImplemented", "NotImplementedError", "OSError",
+            "OverflowError", "PendingDeprecationWarning", "PermissionError", "ProcessLookupError",
+            "PythonFinalizationError", "RecursionError", "ReferenceError", "ResourceWarning",
+            "RuntimeError", "RuntimeWarning", "StopAsyncIteration", "StopIteration", "SyntaxError",
+            "SyntaxWarning", "SystemError", "SystemExit", "TabError", "TimeoutError", "True", "TypeError",
+            "UnboundLocalError", "UnicodeDecodeError", "UnicodeEncodeError", "UnicodeError",
+            "UnicodeTranslateError", "UnicodeWarning", "UserWarning", "ValueError", "Warning",
+            "ZeroDivisionError", "abs", "aiter", "all", "anext", "any", "ascii", "bin", "bool",
+            "breakpoint", "bytearray", "bytes", "callable", "chr", "classmethod", "compile", "complex",
+            "copyright", "credits", "delattr", "dict", "dir", "divmod", "enumerate", "eval", "exec", "exit",
+            "filter", "float", "format", "frozenset", "getattr", "globals", "hasattr", "hash", "help",
+            "hex", "id", "input", "int", "isinstance", "issubclass", "iter", "len", "license", "list",
+            "locals", "map", "max", "memoryview", "min", "next", "object", "oct", "open", "ord", "pow",
+            "print", "property", "quit", "range", "repr", "reversed", "round", "set", "setattr", "slice",
+            "sorted", "staticmethod", "str", "sum", "super", "tuple", "type", "vars", "zip"))
+        # binding sites per SCOPE (the module, every class body, every function body), not
+        # descending into nested def/class/lambda bodies nor into comprehension targets:
+        # name -> list of (kind, key, node); kind in def/store/import; key identifies an import.
+        _nb_scopes: list = [("module", python_ast.body, None)]
+        for _nb_x in ast.walk(python_ast):
+            if isinstance(_nb_x, ast.ClassDef):
+                _nb_scopes.append(("class", _nb_x.body, _nb_x))
+            elif isinstance(_nb_x, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                _nb_scopes.append(("function", _nb_x.body, _nb_x))
+        _nb_sites_of: Dict[int, Dict[str, list]] = {}
+        for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
+            _nb_sites: Dict[str, list] = {}
+            _nb_st: list = list(_nb_body)
+            while _nb_st:
+                _nb_y = _nb_st.pop()
+                if isinstance(_nb_y, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    _nb_sites.setdefault(_nb_y.name, []).append(("def", None, _nb_y))
+                    _nb_st.extend(_nb_y.decorator_list)
+                    continue
+                if isinstance(_nb_y, ast.Lambda):
+                    continue
+                if type(_nb_y).__name__ == "comprehension":
+                    _nb_st.append(_nb_y.iter)
+                    _nb_st.extend(_nb_y.ifs)
+                    continue
+                if isinstance(_nb_y, ast.Name) and isinstance(_nb_y.ctx, (ast.Store, ast.Del)):
+                    _nb_sites.setdefault(_nb_y.id, []).append(("store", None, _nb_y))
+                elif isinstance(_nb_y, ast.Import):
+                    for _nb_a in _nb_y.names:
+                        _nb_root = _nb_a.name.split(".")[0]
+                        _nb_key = f"import {_nb_a.name}" if _nb_a.asname else f"import {_nb_root}"
+                        _nb_sites.setdefault(_nb_a.asname or _nb_root, []).append(
+                            ("import", _nb_key, _nb_y))
+                elif isinstance(_nb_y, ast.ImportFrom):
+                    for _nb_a in _nb_y.names:
+                        if _nb_a.name == "*":
+                            continue
+                        _nb_sites.setdefault(_nb_a.asname or _nb_a.name, []).append(
+                            ("import", f"from {_nb_y.level} {_nb_y.module} {_nb_a.name}", _nb_y))
+                elif type(_nb_y).__name__ in ("ExceptHandler", "MatchAs", "MatchStar"):
+                    if isinstance(getattr(_nb_y, "name", None), str):
+                        _nb_sites.setdefault(_nb_y.name, []).append(("store", None, _nb_y))
+                _nb_st.extend(ast.iter_child_nodes(_nb_y))
+            _nb_sites_of[id(_nb_body)] = _nb_sites
+        _nb_msites = _nb_sites_of.get(id(python_ast.body), {})
+        # (#130) an imported name with any other binding site of a different key, per scope; a
+        # function-local import of a name the module binds differently.
+        for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
+            _nb_sites = _nb_sites_of.get(id(_nb_body), {})
+            for _nb_n, _nb_ss in _nb_sites.items():
+                _nb_ikeys = {_nb_k for (_nb_sk, _nb_k, _nb_nd) in _nb_ss if _nb_sk == "import"}
+                if not _nb_ikeys:
+                    continue
+                _nb_allkeys = {_nb_k for (_nb_sk, _nb_k, _nb_nd) in _nb_ss}
+                if len(_nb_allkeys) > 1:
+                    _nb_bad.append(f"imported name `{_nb_n}` bound again in the same scope")
+                if _nb_kind == "function" and _nb_n in _nb_msites:
+                    _nb_mkeys = {_nb_k for (_nb_sk, _nb_k, _nb_nd) in _nb_msites[_nb_n]}
+                    if _nb_mkeys != _nb_ikeys:
+                        _nb_bad.append(f"imported name `{_nb_n}` in function "
+                                       f"`{_nb_owner.name}` shadows a module binding")
+        # (#131) a builtin name bound by a store in a scope where it is also called.
+        for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
+            if _nb_kind == "class":
+                continue
+            _nb_sites = _nb_sites_of.get(id(_nb_body), {})
+            _nb_shadow = {_nb_n for _nb_n, _nb_ss in _nb_sites.items()
+                          if _nb_n in _nb_builtin_names
+                          and any(_nb_sk == "store" for (_nb_sk, _nb_k, _nb_nd) in _nb_ss)}
+            # a PARAMETER named like a builtin is a binding too: `def f(len, xs): return
+            # len(xs)` lowered the call as the array length (`f(sum, [5]) == 1` proved, CPython 5).
+            if _nb_kind == "function":
+                _nb_pa = _nb_owner.args
+                for _nb_a in (list(getattr(_nb_pa, "posonlyargs", []) or []) + list(_nb_pa.args)
+                              + list(_nb_pa.kwonlyargs)
+                              + [x for x in (_nb_pa.vararg, _nb_pa.kwarg) if x is not None]):
+                    if _nb_a.arg in _nb_builtin_names:
+                        _nb_shadow.add(_nb_a.arg)
+            # `from builtins import sum as len` binds a builtin name to ANOTHER builtin; the
+            # import resolver treats a `builtins` import as the builtin of the bound name
+            # (measured past the first cut: `len([5]) == 1` proved, CPython 5).
+            for _nb_n, _nb_ss in _nb_sites.items():
+                for _nb_sk, _nb_k, _nb_nd in _nb_ss:
+                    if (_nb_sk == "import" and isinstance(_nb_nd, ast.ImportFrom)
+                            and _nb_nd.module in ("builtins", "__builtin__")):
+                        for _nb_a in _nb_nd.names:
+                            if _nb_a.asname and _nb_a.asname != _nb_a.name:
+                                _nb_bad.append(f"builtin `{_nb_a.name}` imported as "
+                                               f"`{_nb_a.asname}`")
+            if not _nb_shadow:
+                continue
+            # any LOAD of the rebound name in that scope (a call, `raise ValueError`, `except
+            # KeyError`, an `isinstance` argument): the first cut keyed on CALLS of a short
+            # list and was walked past by `ValueError = KeyError` (a `raise`/`except` pair
+            # proved the handler did not run, CPython 2). Census: 0 sites in the five trees.
+            _nb_where = python_ast if _nb_owner is None else _nb_owner
+            for _nb_c in ast.walk(_nb_where):
+                if (isinstance(_nb_c, ast.Name) and isinstance(_nb_c.ctx, ast.Load)
+                        and _nb_c.id in _nb_shadow):
+                    _nb_bad.append(f"builtin `{_nb_c.id}` rebound by an assignment and "
+                                   f"read at line {getattr(_nb_c, 'lineno', 0)}")
+        # (#132) a module/class constant the folders take as bound once (one top-level
+        # single-name Assign/AnnAssign of a literal) that is READ (a load, or a `#@` token)
+        # and has another binding site in its scope, is named by a literal setattr on a
+        # module-like receiver, or — a dict/set/list literal — is mutated or aliased anywhere.
+        _nb_readers = frozenset((
+            "get", "items", "keys", "values", "copy", "count", "index", "__contains__",
+            "__getitem__", "union", "intersection", "difference", "issubset", "issuperset",
+            "isdisjoint", "symmetric_difference"))
+        _nb_pure_calls = frozenset((
+            "len", "sorted", "list", "tuple", "set", "frozenset", "dict", "any", "all", "sum",
+            "min", "max", "enumerate", "zip", "reversed", "str", "repr", "bool", "isinstance"))
+        _nb_exec_names: set = set()
+        _nb_parent: Dict[int, Any] = {}
+        for _nb_x in ast.walk(python_ast):
+            for _nb_c in ast.iter_child_nodes(_nb_x):
+                _nb_parent[id(_nb_c)] = _nb_x
+        _nb_contract_toks: set = set()
+        for _nb_line in self.source_code.splitlines():
+            if _nb_line.lstrip().startswith("#@"):
+                _nb_contract_toks.update(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", _nb_line))
+        _nb_loads: set = set()
+        _nb_attr_loads: set = set()
+        for _nb_x in ast.walk(python_ast):
+            if isinstance(_nb_x, ast.Name) and isinstance(_nb_x.ctx, ast.Load):
+                _nb_loads.add(_nb_x.id)
+            elif isinstance(_nb_x, ast.Attribute) and isinstance(_nb_x.ctx, ast.Load):
+                _nb_attr_loads.add(_nb_x.attr)
+        for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
+            if _nb_kind == "function":
+                continue
+            _nb_sites = _nb_sites_of.get(id(_nb_body), {})
+            _nb_once: Dict[str, list] = {}
+            for _nb_ch in _nb_body:
+                _nb_tg = None
+                _nb_val = None
+                if (isinstance(_nb_ch, ast.Assign) and len(_nb_ch.targets) == 1
+                        and isinstance(_nb_ch.targets[0], ast.Name)):
+                    _nb_tg = _nb_ch.targets[0]
+                    _nb_val = _nb_ch.value
+                elif (isinstance(_nb_ch, ast.AnnAssign) and isinstance(_nb_ch.target, ast.Name)
+                        and _nb_ch.value is not None):
+                    _nb_tg = _nb_ch.target
+                    _nb_val = _nb_ch.value
+                if _nb_tg is not None:
+                    _nb_once.setdefault(_nb_tg.id, []).append((_nb_tg, _nb_val))
+            for _nb_n, _nb_rows in _nb_once.items():
+                if len(_nb_rows) != 1:
+                    continue
+                _nb_tg, _nb_val = _nb_rows[0]
+                _nb_lit = (isinstance(_nb_val, ast.Constant)
+                           or (isinstance(_nb_val, ast.UnaryOp)
+                               and isinstance(_nb_val.operand, ast.Constant)))
+                _nb_mut = (isinstance(_nb_val, (ast.Dict, ast.Set, ast.List, ast.Tuple))
+                           or (isinstance(_nb_val, ast.Call) and isinstance(_nb_val.func, ast.Name)
+                               and _nb_val.func.id in ("frozenset", "set")))
+                # (#134) the same premise in two more single-binding recognizers: route #116's
+                # `F("name")(args)` resolver takes `G = globals()` as bound once from the TOP-LEVEL
+                # statements (`if True: G = {"inc": dec}` escaped: `F("inc")(3)` proved `inc`'s
+                # result, CPython ran `dec`), and `collect_module_globals` takes `g = C(...)`
+                # (a module-defined class) the same way.
+                _nb_obj = (_nb_kind == "module" and isinstance(_nb_val, ast.Call)
+                           and isinstance(_nb_val.func, ast.Name)
+                           and (_nb_val.func.id in ("globals", "vars", "locals")
+                                or any(isinstance(_nb_cd, ast.ClassDef)
+                                       and _nb_cd.name == _nb_val.func.id
+                                       for _nb_cd in python_ast.body)))
+                if not (_nb_lit or _nb_mut or _nb_obj):
+                    continue
+                _nb_read = (_nb_n in _nb_contract_toks
+                            or (_nb_n in _nb_loads if _nb_kind == "module"
+                                else (_nb_n in _nb_attr_loads or _nb_n in _nb_loads)))
+                if not _nb_read:
+                    continue
+                _nb_why = ""
+                if any(_nb_nd is not _nb_tg for (_nb_sk, _nb_k, _nb_nd) in _nb_sites.get(_nb_n, [])):
+                    _nb_why = "bound again in its scope"
+                if _nb_kind == "module" and not _nb_why:
+                    for _nb_x in ast.walk(python_ast):
+                        if (isinstance(_nb_x, ast.Call) and isinstance(_nb_x.func, ast.Name)
+                                and _nb_x.func.id in ("setattr", "delattr") and len(_nb_x.args) >= 2
+                                and isinstance(_nb_x.args[1], ast.Constant)
+                                and _nb_x.args[1].value == _nb_n
+                                and not (isinstance(_nb_x.args[0], ast.Name)
+                                         and _nb_x.args[0].id not in _rb_objs
+                                         and _nb_x.args[0].id not in _rb_alias)):
+                            _nb_why = "written by a literal `setattr`"
+                            break
+                # a MUTABLE literal of a shape a folder takes (a str-keyed dict, a str set, a list
+                # of str tuples; a class-body str set): EVERY reference to the object must sit in
+                # a read position — keyed on the object, never on the spelling of a write (the
+                # first cut enumerated `d = OP` and was walked past by `d, e = OP, 1`, `for d in
+                # [OP]` and `L = [OP]`). One level of aliasing into a plain name is allowed when
+                # every load of that name is itself a read position.
+                _nb_shape = _nb_val
+                if (isinstance(_nb_shape, ast.Call) and isinstance(_nb_shape.func, ast.Name)
+                        and _nb_shape.func.id == "set" and len(_nb_shape.args) == 1):
+                    _nb_shape = _nb_shape.args[0]
+                _nb_escape = False
+                if isinstance(_nb_shape, ast.Set):
+                    _nb_escape = all(isinstance(_nb_e, ast.Constant) and isinstance(_nb_e.value, str)
+                                     for _nb_e in _nb_shape.elts)
+                elif isinstance(_nb_shape, ast.Dict) and _nb_kind == "module":
+                    _nb_escape = bool(_nb_shape.keys) and all(
+                        isinstance(_nb_e, ast.Constant) and isinstance(_nb_e.value, str)
+                        for _nb_e in _nb_shape.keys)
+                elif isinstance(_nb_shape, ast.List) and _nb_kind == "module":
+                    _nb_escape = bool(_nb_shape.elts) and all(
+                        isinstance(_nb_e, ast.Tuple) for _nb_e in _nb_shape.elts)
+                if _nb_escape and not _nb_why:
+                    _nb_refs: list = []
+                    for _nb_x in ast.walk(python_ast):
+                        if (_nb_kind == "module" and isinstance(_nb_x, ast.Name)
+                                and _nb_x.id == _nb_n and _nb_x is not _nb_tg):
+                            _nb_refs.append(_nb_x)
+                        elif (_nb_kind == "class" and isinstance(_nb_x, ast.Attribute)
+                                and _nb_x.attr == _nb_n):
+                            _nb_refs.append(_nb_x)
+                        elif (_nb_kind == "class" and isinstance(_nb_x, ast.Name)
+                                and _nb_x.id == _nb_n and _nb_x is not _nb_tg):
+                            _nb_refs.append(_nb_x)
+                    _nb_aliases: set = set()
+                    _nb_depth = 0
+                    while _nb_refs and not _nb_why:
+                        _nb_next: list = []
+                        for _nb_r in _nb_refs:
+                            _nb_p = _nb_parent.get(id(_nb_r))
+                            if not isinstance(getattr(_nb_r, "ctx", None), ast.Load):
+                                _nb_why = "mutated or rebound"
+                            elif (isinstance(_nb_p, ast.Attribute) and _nb_p.value is _nb_r
+                                    and _nb_p.attr in _nb_readers):
+                                continue
+                            elif (isinstance(_nb_p, ast.Subscript) and _nb_p.value is _nb_r
+                                    and isinstance(_nb_p.ctx, ast.Load)):
+                                continue
+                            elif isinstance(_nb_p, ast.BinOp):
+                                continue
+                            elif (isinstance(_nb_p, ast.Compare) and _nb_r is not _nb_p.left
+                                    and all(isinstance(_nb_o, (ast.In, ast.NotIn))
+                                            for _nb_o in _nb_p.ops)):
+                                continue
+                            elif (type(_nb_p).__name__ in ("For", "AsyncFor", "comprehension")
+                                    and getattr(_nb_p, "iter", None) is _nb_r):
+                                continue
+                            elif (isinstance(_nb_p, ast.Call) and _nb_r in _nb_p.args
+                                    and isinstance(_nb_p.func, ast.Name)
+                                    and _nb_p.func.id in _nb_pure_calls):
+                                continue
+                            elif (_nb_depth == 0
+                                    and isinstance(_nb_p, (ast.Assign, ast.AnnAssign, ast.NamedExpr))
+                                    and _nb_p.value is _nb_r):
+                                _nb_tgts = (list(_nb_p.targets) if isinstance(_nb_p, ast.Assign)
+                                            else [_nb_p.target])
+                                for _nb_t in _nb_tgts:
+                                    if isinstance(_nb_t, ast.Name):
+                                        _nb_aliases.add(_nb_t.id)
+                                    else:
+                                        _nb_why = "aliased"
+                            else:
+                                _nb_why = "aliased or mutated"
+                            if _nb_why:
+                                break
+                        if _nb_depth == 0 and _nb_aliases and not _nb_why:
+                            for _nb_x in ast.walk(python_ast):
+                                if (isinstance(_nb_x, ast.Name) and _nb_x.id in _nb_aliases
+                                        and isinstance(_nb_x.ctx, ast.Load)):
+                                    _nb_next.append(_nb_x)
+                        _nb_refs = _nb_next
+                        _nb_depth = _nb_depth + 1
+                if _nb_why:
+                    _nb_where = "the module" if _nb_owner is None else f"class `{_nb_owner.name}`"
+                    _nb_bad.append(f"constant `{_nb_n}` of {_nb_where} {_nb_why}")
+                _nb_exec_names.add(_nb_n)
+        # a CONSTANT `exec("...")` is spliced in as source AFTER this check: refuse one whose text
+        # names a builtin, an imported name, or a folded constant (measured: `exec("len = sum")`
+        # proved `len([5]) == 1` past the first cut).
+        for _nb_n, _nb_ss in _nb_msites.items():
+            if any(_nb_sk == "import" for (_nb_sk, _nb_k, _nb_nd) in _nb_ss):
+                _nb_exec_names.add(_nb_n)
+        for _nb_x in ast.walk(python_ast):
+            if (isinstance(_nb_x, ast.Call) and isinstance(_nb_x.func, ast.Name)
+                    and _nb_x.func.id == "exec" and _nb_x.args
+                    and isinstance(_nb_x.args[0], ast.Constant)
+                    and isinstance(_nb_x.args[0].value, str)):
+                _nb_toks = set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", _nb_x.args[0].value))
+                if _nb_toks & (_nb_exec_names | _nb_builtin_names):
+                    _nb_bad.append(f"a constant `exec` naming a builtin, an imported name or a "
+                                   f"constant at line {getattr(_nb_x, 'lineno', 0)}")
+        # (#133) a def nested in a method, named like a method of that class or of an in-module
+        # base (the lift emits it as that method).
+        _nb_cls_by_name: Dict[str, Any] = {}
+        for _nb_x in ast.walk(python_ast):
+            if isinstance(_nb_x, ast.ClassDef):
+                _nb_cls_by_name.setdefault(_nb_x.name, _nb_x)
+        for _nb_x in ast.walk(python_ast):
+            if not isinstance(_nb_x, ast.ClassDef):
+                continue
+            _nb_meths: set = set()
+            _nb_todo: list = [_nb_x]
+            _nb_seen: set = set()
+            while _nb_todo:
+                _nb_k = _nb_todo.pop()
+                if id(_nb_k) in _nb_seen:
+                    continue
+                _nb_seen.add(id(_nb_k))
+                _nb_meths |= {_nb_s.name for _nb_s in _nb_k.body
+                              if isinstance(_nb_s, (ast.FunctionDef, ast.AsyncFunctionDef))}
+                for _nb_b in _nb_k.bases:
+                    if isinstance(_nb_b, ast.Name) and _nb_b.id in _nb_cls_by_name:
+                        _nb_todo.append(_nb_cls_by_name[_nb_b.id])
+            for _nb_m in _nb_x.body:
+                if not isinstance(_nb_m, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                _nb_q: list = list(_nb_m.body)
+                while _nb_q:
+                    _nb_z = _nb_q.pop()
+                    if isinstance(_nb_z, ast.ClassDef):
+                        continue
+                    if isinstance(_nb_z, (ast.FunctionDef, ast.AsyncFunctionDef)) and (
+                            _nb_z.name in _nb_meths):
+                        _nb_bad.append(f"`{_nb_z.name}` defined inside method "
+                                       f"`{_nb_x.name}.{_nb_m.name}` at line {_nb_z.lineno}")
+                    _nb_q.extend(ast.iter_child_nodes(_nb_z))
+        if _nb_bad:
+            raise PyCSLSemanticError(
+                "a name's runtime value is not the one the model reads ("
+                + "; ".join(sorted(set(_nb_bad))) + "). An imported name bound twice keeps the "
+                "FIRST import (measured: `from plainlib import inc` then `from starlib import "
+                "inc` proved the plainlib contract); a builtin rebound by an assignment is still "
+                "lowered as the builtin (`len = sum` then `len([5]) == 1` proved); a module or "
+                "class constant is folded to its first literal although it is rebound or mutated "
+                "(`N = 3; N += 2` proved `N == 3`); a def nested in a method replaces the method "
+                "of the same name. Give each binding its own name, and treat a folded constant "
+                "as immutable.")
         # (#49) ROUTE #120 — ATTRIBUTE-ACCESS HOOKS ARE NOT MODELLED. Every method call and field
         # store is resolved statically; a class-level hook that intercepts the lookup or the
         # store is never consulted. Measured at c01ef653, both PROVING what CPython contradicts:

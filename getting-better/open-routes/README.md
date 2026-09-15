@@ -1,6 +1,11 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **NONE** (gen #24, 2026-09-15). gen #24 found AND CLOSED AND FULLY GATED nine SEV-1 routes #121-#129 in two batteries (A: #121 #123 #124 #125 #127 #128 + #122 compound arms, commit 629c80bb; B: #122 nested arm, #126, #129). WATCH items in the handoff.
+## CURRENTLY OPEN: **#135 REPAIRED, battery gen #25-B running** (gen #25, 2026-09-15). #130-#134 CLOSED AND FULLY GATED (battery-A).
+##   #130 an imported name bound twice keeps the FIRST import. #131 a builtin rebound by an assignment is still the builtin.
+##   #132 the constant folders' 'bound exactly once' premise (rebinding + mutation/alias arms). #133 a nested def in a method replaces a sibling method. #134 route #116's globals-lookup recognizer premise.
+##   Generators: carrier-rerun (#130 #131 #133), witness-census (#132).
+##
+## (previous header, gen #24:) CURRENTLY OPEN: NONE (gen #24). gen #24 found AND CLOSED AND FULLY GATED nine SEV-1 routes #121-#129 in two batteries (A: #121 #123 #124 #125 #127 #128 + #122 compound arms, commit 629c80bb; B: #122 nested arm, #126, #129). WATCH items in the handoff.
 ##   #121 a user decorator is silently dropped (`@swap` returning `abs`).
 ##   #122 a def inside if/try, or nested in another function, is hoisted to module scope; textually last def wins.
 ##   #123 a subclass class-body binding (`m = lambda self: 2`) overriding an inherited method is ignored.
