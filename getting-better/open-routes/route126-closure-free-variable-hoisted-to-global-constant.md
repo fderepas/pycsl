@@ -1,6 +1,6 @@
 # ROUTE #126 — a nested def's CLOSURE VARIABLE becomes ONE GLOBAL OPAQUE CONSTANT when the def is lifted
 
-**Status: OPEN (found by gen #24, 2026-09-15).**
+**Status: OPEN — repair drafted for gen #24 battery-B (Module 3 marks, Module 5 IR keys, Module 6 generic refusal).**
 **Severity: SEV-1. First-order.**
 
 ## MEASURED at HEAD `7c9dede2`

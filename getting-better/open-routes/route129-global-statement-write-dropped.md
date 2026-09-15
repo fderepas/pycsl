@@ -1,7 +1,7 @@
 # ROUTE #129 — a write through a `global` declaration is DROPPED (lowered to a fresh local), and every read
 # of a non-constant module variable is ONE opaque constant, across the write
 
-**Status: OPEN (found by gen #24, 2026-09-15) — not repaired; scope below.**
+**Status: OPEN — repair drafted for gen #24 battery-B (Module 3 marks, Module 5 IR keys, Module 6 generic refusal).**
 **Severity: SEV-1. First-order.**
 
 ## MEASURED at HEAD `0a3d1d2e`
@@ -34,3 +34,10 @@ function refuses those stdlib modules wherever a stdlib test ingests them. CENSU
 are lowered (not `\trusted`), whether any caller reads the written global, and whether a `writes`-carrying model
 of the global (the `_shared_var_names` concurrency path already derefs `!name`) can be reused.
 Driver: `scratchpad/g24/p5/global_unannotated_write.py`.
+
+## CENSUS (gen #24, four trees): `global` declarations inside functions
+pycsl_lib: sysmod/iomod/subproc/tmpf `set_world` (`_world`), tmpf `_next_name` (`_name_counter`), warn `__exit__`
+(`_filter_actions, _filter_categories`, under `assigns \nothing`); python-reference 0181 (`_test_g`). No mirror site,
+no pycsl-reference site. Seven sites total — a refusal is cheap to census but touches four stdlib modules; the
+modelling route (a module global written through `global` becomes a `ref` the reads deref, with a `writes` frame)
+is the real repair.
