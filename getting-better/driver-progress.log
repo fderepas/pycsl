@@ -2169,3 +2169,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
 2026-09-15 gen#23 BATTERY-5 cheap legs HIT (7 rc=0 + 3b pre-existing; 13/62); emission BYTE-INERT vs battery-4b in all three directions — HIT. Suite started 12:15Z.
 2026-09-15 gen#23 CHECKPOINT 12:35Z: battery-5 suite running.
 2026-09-15 gen#23 CHECKPOINT 13:05Z: battery-5 suite running (50 min).
+2026-09-15 gen#23 BATTERY-5 suite: 3465/3483, 18 CONFIRMED FAIL — same 18 names, ZERO XPASS; 1335-1339 XFAIL. PREDICTED, HIT. Planes running.
