@@ -2763,6 +2763,8 @@ class Module3_Weaver:
         # anywhere. CENSUS: pycsl-reference 3 dynamic execs (0638 0639 0644, all bare and
         # in a function/method), python-reference 2 evals (0109 0217, constant, no walrus),
         # 53 mirrors 0, pycsl_lib 0.
+        _nb_ns_builtins = frozenset(("exec", "eval", "setattr", "delattr", "globals",
+                                     "vars", "locals", "getattr"))
         _nb_modexec_ids = {id(_nb_x) for _nb_x in _nb_mnodes}
         for _nb_x in ast.walk(python_ast):
             if not (isinstance(_nb_x, ast.Call) and isinstance(_nb_x.func, ast.Name)
@@ -2772,7 +2774,15 @@ class Module3_Weaver:
             _nb_const = (isinstance(_nb_src, ast.Constant)
                          and isinstance(_nb_src.value, str))
             if _nb_x.func.id == "eval":
-                _nb_binds = (not _nb_const) or (":=" in _nb_src.value)
+                # an `eval` BINDS through a walrus — and also through any namespace
+                # builtin its expression reaches. The first cut keyed on `:=` alone and
+                # was walked past by `eval("globals().update({'N': 5})")` and
+                # `eval("exec('N = 5')")`, both of which PROVED `N == 3` (CPython 5).
+                # A constant text naming none of them cannot rebind anything
+                # (python-reference 0109/0217 are `eval("2 + 3")` — no identifiers).
+                _nb_binds = ((not _nb_const) or (":=" in _nb_src.value)
+                             or bool(set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*",
+                                                    _nb_src.value)) & _nb_ns_builtins))
             else:
                 _nb_binds = not _nb_const
             if not _nb_binds:
@@ -2791,8 +2801,6 @@ class Module3_Weaver:
         # write. CENSUS over pycsl-reference, python-reference, the 53 mirrors, `pycsl_lib`
         # and `src/pycsl`: 0 sites. `__import__` is deliberately NOT in the list — no
         # recognizer keys on it and python-reference 0127 reads it as a value.
-        _nb_ns_builtins = frozenset(("exec", "eval", "setattr", "delattr", "globals",
-                                     "vars", "locals", "getattr"))
         _nb_callees = {id(_nb_x.func) for _nb_x in ast.walk(python_ast)
                        if isinstance(_nb_x, ast.Call) and isinstance(_nb_x.func, ast.Name)}
         _nb_imported: set = set()
