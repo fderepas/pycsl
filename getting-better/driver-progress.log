@@ -2196,3 +2196,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
 2026-09-15 gen#24 CHECKPOINT 18:17Z: battery-B planes 33 ok, 0 RED, last slow plane running.
 2026-09-15 gen#24 BATTERY-B COMPLETE AND GREEN: planes 34/34 — PREDICTED, HIT (every battery-B leg hit). ROUTES #122 (nested arm), #126, #129 CLOSED AND FULLY GATED. NEW SUITE BASELINE 3487/3505, 18 failures. CURRENTLY OPEN: NONE.
 2026-09-15 gen#24 FINAL STATE block written at the top of driver-handoff-latest.md; worktrees g24/wt_head and g24/wt_b removed; no background process alive.
+2026-09-15 gen#25 START 18:30Z: HEAD 8d21068b, tree clean (2 pre-existing gitlinks), no live prover, metric 459/484/25/0 stable x3. Read prompt+skill+gen #24 FINAL STATE+routes README+log tail. Ladder: (a) carrier-rerun gen #24's own fences (#127 alias fixpoint, decorator-spelling recognizers, #126 capture rule, #129 non-global module writes), (b) WATCH items, (c) gen #23 list.
