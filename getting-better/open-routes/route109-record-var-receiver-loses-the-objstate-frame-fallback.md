@@ -1,7 +1,7 @@
 # ROUTE #109 — the `_objstate_w` fail-closed frame fallback was written into the `self.`
 # arm only, so a RECORD-VARIABLE receiver mints an avatar with NO FRAME AND NO RECEIVER
 
-**Status: FOUND, REPRODUCED, BOTH DIRECTIONS MEASURED. Repair NOT yet landed.**
+**Status: CLOSED AND FULLY GATED by gen #23 (2026-09-15, batch 3)** — see THE REPAIR AS LANDED at the bottom. Original finding preserved below.
 **Severity: SEV-1. `order = 2` — the carrier IS a campaign artefact: the `#32 SPIKE`
 `_objstate_w` repair itself.**
 
@@ -129,3 +129,30 @@ And per the campaign's own lesson, the RIGHT repair is not "add the seventh slot
 >>> **A COMPLETENESS FILTER APPLIED IN TWO PLACES NEEDS ITS FAIL-CLOSED FALLBACK IN BOTH.
 >>> COPYING THE FILTER WITHOUT THE FALLBACK CONVERTS A LOUD UNBOUND-SYMBOL ERROR INTO A
 >>> SILENT FALSE PROOF.**
+
+
+---
+
+# THE REPAIR AS LANDED — gen #23 batch 3 (2026-09-15)
+
+Routes #109 and #118 landed together in ONE battery (commit recorded in `driver-progress.log`).
+Every verdict PREDICTED before it ran: cheap legs identical to battery-2 (metric 459/484/25/0 ·
+trusted-raises 13/62 · type-only 53/0 · dropped-mutation 0/51/9/0 · sync 887) · emission
+BYTE-INERT vs the battery-2 tree over pycsl-reference, python-reference and all 53 mirrors (zb 0),
+so no mirror proof is owed · suite 3450/3468, the SAME 18 failures, ZERO XPASS · planes 34/34 `ok` COUNTED.
+
+**What landed.** `expressions.py::_resolve_dotted_signature`, record-var/global arm (live only;
+the mirror copy is `\trusted`): `_objstate_rw = bool(declared writes) and not filtered writes`
+joins the gate and the 7-tuple, keyed on the callee's `lookup_key` — the same fallback the
+`self.` arm had. The consumer already read slot 6 receiver-agnostically. The avatar is now
+`val c_bump_0 (self: c) : unit writes { _pyobj_state }`.
+
+**Witnesses.** 1319 (XFAIL — refused on "depends on variable _pyobj_state, which is left out",
+the frame goal); 1320 (PASS — the honest `#@ assigns c.hidden` caller). Population: ZERO in all
+trees (byte-inert).
+
+**Known residue, logged, not a route:** `_writes_filtered_to_labels` drops UNLABELLED targets
+from a PARTIALLY labelled `assigns` (`writes { self.a }` for `assigns self.a, self.hidden`) in
+both arms, and the fallback fires only when the whole set empties. Unobservable today:
+unlabelled-field reads are fresh `getattr_c` program vals. Plus an adjudication item: `assigns
+self.a` PROVES while writing an unlabelled field, by the documented #32 `_pyobj_state` rule.

@@ -463,6 +463,94 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     from frontend.exec_splice import splice_constant_exec
     unified_ast = splice_constant_exec(unified_ast)
 
+    # (#49) ROUTE #118 — A FUNCTION NAME IS NOT A CONSTANT IN PYTHON. Every call `inc(...)` is
+    # resolved against `def inc`, and nothing looked at a LATER rebinding of that name:
+    # `def inc: ...; def dec: ...; inc = dec` then `inc(3)` PROVED `\result == 4` while
+    # CPython returned 2. Route #116's globals-lookup fence leans on the same assumption
+    # (`_g["inc"] = dec` kept `_N("inc")(3)` as `(inc 3)`). There is no model of a rebound
+    # function, so REFUSE every way a module rebinds a def/class name after defining it: a
+    # module-level (or CLASS-BODY, for a method name) `Assign`/`AnnAssign`/`AugAssign`/import/
+    # `for` target onto it (at any nesting of that scope), a `global <name>` anywhere, or a store THROUGH a name bound to
+    # `globals()` or through `globals()[...]` directly. CENSUS (all four trees): zero sites.
+    # PLACED HERE, not in `Module5_IREmitter.visit_Module`: that method's mirror is a
+    # `\trusted` stub, and a direct `raise` there MEASURABLY moved `check-trusted-raises-honesty`
+    # (62 -> 65, three stubs share the name) and two mirror emissions — the same choke-point
+    # rule as the parse-failure wrap above.
+    _r118_defs: dict = {}
+    _r118_globs: set = set()
+    for _r118_st in getattr(unified_ast, "body", []) or []:
+        if isinstance(_r118_st, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef)):
+            _r118_defs.setdefault(_r118_st.name, _r118_st.lineno)
+        if (isinstance(_r118_st, _ast.Assign) and len(_r118_st.targets) == 1
+                and isinstance(_r118_st.targets[0], _ast.Name)
+                and isinstance(_r118_st.value, _ast.Call)
+                and isinstance(_r118_st.value.func, _ast.Name)
+                and _r118_st.value.func.id == "globals"):
+            _r118_globs.add(_r118_st.targets[0].id)
+    _r118_bad: list = []
+    # One pass per SCOPE: the module, and every class body (a class-body `m = n` rebinds the
+    # METHOD name — measured: `c.m()` proved `m`'s contract while Python ran `n`).
+    _r118_scopes: list = [(getattr(unified_ast, "body", []) or [], _r118_defs)]
+    for _r118_cls in _ast.walk(unified_ast):
+        if isinstance(_r118_cls, _ast.ClassDef):
+            _r118_cdefs: dict = {}
+            for _r118_cst in _r118_cls.body:
+                if isinstance(_r118_cst, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef)):
+                    _r118_cdefs.setdefault(_r118_cst.name, _r118_cst.lineno)
+            if _r118_cdefs:
+                _r118_scopes.append((list(_r118_cls.body), _r118_cdefs))
+    # EVERY BINDING in the scope, keyed on the NAME being bound, never on the statement kind
+    # (the first cut enumerated Assign/AugAssign/AnnAssign/import/for and a module-level
+    # walrus `if (inc := dec):` walked straight past it — measured). Descends every child
+    # node of the scope's statements EXCEPT nested def/class/lambda bodies (their own scopes).
+    _r118_stack: list = []
+    for _r118_body, _r118_sdefs in _r118_scopes:
+        for _r118_x in _r118_body:
+            _r118_stack.append((_r118_x, _r118_sdefs, getattr(_r118_x, "lineno", 0)))
+    while _r118_stack:
+        _r118_s, _r118_scope_defs, _r118_line = _r118_stack.pop()
+        if isinstance(_r118_s, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef,
+                                _ast.Lambda)):
+            continue
+        _r118_line = getattr(_r118_s, "lineno", None) or _r118_line
+        _r118_names: list = []
+        if isinstance(_r118_s, _ast.Name) and isinstance(_r118_s.ctx, (_ast.Store, _ast.Del)):
+            _r118_names.append(_r118_s.id)
+        elif isinstance(_r118_s, (_ast.Import, _ast.ImportFrom)):
+            _r118_names = [(_r118_a.asname or _r118_a.name).split(".")[0]
+                           for _r118_a in _r118_s.names]
+        elif isinstance(_r118_s, (_ast.ExceptHandler, _ast.MatchAs)):
+            if isinstance(getattr(_r118_s, "name", None), str):
+                _r118_names.append(_r118_s.name)
+        elif hasattr(_ast, "MatchStar") and isinstance(_r118_s, _ast.MatchStar):
+            if isinstance(getattr(_r118_s, "name", None), str):
+                _r118_names.append(_r118_s.name)
+        for _r118_n in _r118_names:
+            if _r118_n in _r118_scope_defs and _r118_line > _r118_scope_defs[_r118_n]:
+                _r118_bad.append(f"`{_r118_n}` rebound at line {_r118_line}")
+        for _r118_x in _ast.iter_child_nodes(_r118_s):
+            _r118_stack.append((_r118_x, _r118_scope_defs, _r118_line))
+    for _r118_n in _ast.walk(unified_ast):
+        if isinstance(_r118_n, _ast.Global):
+            for _r118_g in _r118_n.names:
+                if _r118_g in _r118_defs:
+                    _r118_bad.append(f"`global {_r118_g}` at line {_r118_n.lineno}")
+        if isinstance(_r118_n, _ast.Subscript) and isinstance(_r118_n.ctx, (_ast.Store, _ast.Del)):
+            _r118_v = _r118_n.value
+            if ((isinstance(_r118_v, _ast.Name) and _r118_v.id in _r118_globs)
+                    or (isinstance(_r118_v, _ast.Call) and isinstance(_r118_v.func, _ast.Name)
+                        and _r118_v.func.id == "globals")):
+                _r118_bad.append(f"a store through the module namespace at line {_r118_n.lineno}")
+    if _r118_bad:
+        from errors import PyCSLSemanticError as _PyCSLSemErr118
+        raise _PyCSLSemErr118(
+            "a function, method or class NAME is rebound after its definition ("
+            + "; ".join(sorted(set(_r118_bad))) + "). Every call is resolved against the "
+            "`def`, so the rebinding would be silently ignored (measured: `inc = dec` then "
+            "`inc(3)` proved the `inc` contract while Python ran `dec`). Rebinding a "
+            "function name is not modelled; give the new binding its own name.",
+            stage="ir-emit", code="PYCSL-IR-FUNCTION-NAME-REBOUND")
+
     # [Module 4 DROPPED — B-final reorder] The pipeline is now M1-3 → M5 (build IR) →
     # all semantic checks (on the IR, via core_ir_semantic.run_ir_semantic_checks) → M6.
     # Module 4 used to run here between M3 and M5; every one of its language-agnostic

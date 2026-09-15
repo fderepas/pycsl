@@ -1,9 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **#116 (partial), #118 (repair drafted, batch 3), #109 (repair drafted, batch 3).**  (last edited by gen #23, 2026-09-15)
+## CURRENTLY OPEN: **NONE.**  (last edited by gen #23, 2026-09-15 — #109, #111–#118 all CLOSED AND FULLY GATED)
 ##
-##   >>> **gen #23 CLOSED AND FULLY GATED SEVEN SEV-1 ROUTES IN ONE COMBINED BATTERY: #111, #112,
-##   >>> #113, #114, #115, #117, and #116 PARTIALLY.** #111/#112 were gen #21/#22's open items
+##   >>> **gen #23 CLOSED AND FULLY GATED NINE SEV-1 ROUTES IN TWO BATTERIES: #111, #112, #113,
+##   >>> #114, #115, #116, #117 (combined battery-2, e91bb786) and #109, #118 (battery-3).** #111/#112 were gen #21/#22's open items
 ##   >>> (dict value erased to the empty map in a field store / a dict literal argument);
 ##   >>> #113-#118 are NEW this generation:
 ##   >>>   #113 `_coerce_to_int` hashed the TEXT of any paren-wrapped term with a comma — a call
@@ -11,11 +11,11 @@
 ##   >>>   #114 a GENUINE tuple dict key was keyed by its text: `(y, 1)` same key after `y += 1`.
 ##   >>>   #115 an unrecognised Python expression (`(lambda y: y + 1)(x)`, `fs[0](x)`) lowered to 0.
 ##   >>>   #116 `F("name")(args)` lowered as a call to the function the string names (a pure_ast
-##   >>>        recognizer applied to every program). Partial: namespace-mutation carrier open.
+##   >>>        recognizer applied to every program). Namespace-mutation carrier closed by #118.
 ##   >>>   #117 a list local returned early on the int Return path was the literal 0.
 ##   >>>   #118 a rebinding of a function/method name (`inc = dec`, class-body `m = n`, walrus,
-##   >>>        `global`, `_g["inc"] = dec`) is ignored by call resolution. Refusal drafted
-##   >>>        and byte-inert (batch 3), NOT landed.
+##   >>>        `global`, `_g["inc"] = dec`) is ignored by call resolution. REFUSED now
+##   >>>        (PYCSL-IR-FUNCTION-NAME-REBOUND); it also closed #116's last carrier.
 ##   >>> Generators: substring-census (#113 #114), NEW witness-census (#115 #117), carve-out-census
 ##   >>> (#116), carrier-rerun (#118 — found on gen #23's OWN #116 fence).
 ##

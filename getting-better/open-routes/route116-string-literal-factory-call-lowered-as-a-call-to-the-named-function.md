@@ -1,7 +1,7 @@
 # ROUTE #116 — `F("name")(args)` is lowered as a call to the function NAMED BY THE STRING,
 # whatever `F` actually returns
 
-**Status: PARTIALLY REPAIRED by gen #23 (2026-09-15) — STILL OPEN** (namespace-mutation carrier; its repair is route #118). See the bottom.
+**Status: CLOSED AND FULLY GATED by gen #23 (2026-09-15)** — partially in batch 2, the namespace-mutation carrier in batch 3 via route #118. See the bottom.
 **Severity: SEV-1. First-order.** A callable class constructed from a string is ordinary Python.
 
 ## PROVENANCE
@@ -129,3 +129,18 @@ outer callee to be one; a DECLINED ternary construction is `(any int)`, never `0
 `Pick("inc")(3)` on a callable class, a fake `_N` over `_g = {"inc": dec}`, the ternary decline.
 Faithful twin 1318 (PASS), negatives 1315, 1317 (XFAIL). **Still open:** the namespace-mutation
 carrier `_g["inc"] = dec` — its repair is route #118's refusal (batch 3).
+
+
+---
+
+# THE REPAIR AS LANDED — gen #23 batch 3 (2026-09-15)
+
+Routes #109 and #118 landed together in ONE battery (commit recorded in `driver-progress.log`).
+Every verdict PREDICTED before it ran: cheap legs identical to battery-2 (metric 459/484/25/0 ·
+trusted-raises 13/62 · type-only 53/0 · dropped-mutation 0/51/9/0 · sync 887) · emission
+BYTE-INERT vs the battery-2 tree over pycsl-reference, python-reference and all 53 mirrors (zb 0),
+so no mirror proof is owed · suite 3450/3468, the SAME 18 failures, ZERO XPASS · planes 34/34 `ok` COUNTED.
+
+**Batch 3 closes the remaining carrier.** `_g["inc"] = dec` is now refused by route #118's
+rebinding refusal (a store through a `globals()`-bound name); witness 1322 (XFAIL). With it, all
+measured carriers of #116 are closed.

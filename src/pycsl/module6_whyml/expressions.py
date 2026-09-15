@@ -6743,15 +6743,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     mwrites = getattr(self, "_module_method_writes", {})
                     field_ens = (fens.get(lookup_key, []) + foens.get(lookup_key, [])
                                  + fpens.get(lookup_key, []) + fppens.get(lookup_key, []))
-                    writes = self._writes_filtered_to_labels(
-                        cls, mwrites.get(lookup_key, []))
+                    _declared_rw = mwrites.get(lookup_key, [])
+                    writes = self._writes_filtered_to_labels(cls, _declared_rw)
                     frame_ens = fpfens.get(lookup_key, [])
                     result_frame_ens = rfens.get(lookup_key, [])
-                    if field_ens or writes or frame_ens or result_frame_ens:
+                    # (#49) ROUTE #109 — the `#32 SPIKE` `_objstate_w` fallback was written into
+                    # the `self.` arm above ONLY. Here the same filter emptied a declared
+                    # `assigns` whose target is not an emitted field label, the gate below was
+                    # FALSE, and the call lowered to a bare `val c_bump_0 () : unit` with NO
+                    # FRAME AND NO RECEIVER: `c = C(); c.bump(); return c.a` PROVED under
+                    # `#@ assigns \nothing` while `bump` writes `c.hidden`. The decision is
+                    # about the CALLEE's declared effect (keyed on `lookup_key`), not about how
+                    # the receiver is spelled, so both arms now apply the same fallback and the
+                    # consumer (which already reads slot 6 receiver-agnostically) frames
+                    # `_pyobj_state`.
+                    _objstate_rw = bool(_declared_rw) and not writes
+                    if field_ens or writes or frame_ens or result_frame_ens or _objstate_rw:
                         # `b.<m>()`: the receiver record `b` becomes the abstract op's leading
                         # `(self: cls)` parameter; `writes` frames the mutated self-fields.
                         field_spec = (parts[0], cls, field_ens, writes, frame_ens,
-                                      result_frame_ens)
+                                      result_frame_ens, _objstate_rw)
                     matched_instance = True
             if not matched_instance:
                 # Bytes-producing methods return `array int` (a byte buffer),
