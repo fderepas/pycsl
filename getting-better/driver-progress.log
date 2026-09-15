@@ -2123,3 +2123,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
 2026-09-15 gen#23 CHECKPOINT 02:49Z: battery-2 proofs still running (expressions 3h04m; stmt_control_flow + pure_ast 1h13m). advice-audit on the ERASED-TRUTHINESS message: its recommended alternatives (`k in g`, `next(g)`) lower to opaque terms over the erased symbol — 2 FAIL-CLOSED, advice safe.
 2026-09-15 gen#23 CHECKPOINT 03:08Z: battery-2 MAIN proof phases all printed clean, vacuity phases still running (final verdict owed): expressions 21347 Valid / 0 bad (was 21269: the new _coerce_to_int branch adds goals), stmt_control_flow 12284 Valid / 0 bad, pure_ast 3372 Valid / 0 bad.
 2026-09-15 gen#23 CHECKPOINT 03:36Z: battery-2 vacuity phases still running (expressions 3h51m, stmt_control_flow/pure_ast 2h01m). Nothing to interpret.
+2026-09-15 gen#23 CHECKPOINT 04:05Z: battery-2 vacuity phases still running (expressions 4h20m, stmt_control_flow/pure_ast 2h30m).
