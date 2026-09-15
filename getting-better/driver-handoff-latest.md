@@ -54,6 +54,28 @@
 #       THE NAME BEING BOUND, NEVER ON THE STATEMENT KIND. Lesson 9 — violated twice in one hour
 #       by the generation that had just cited it. Carrier-rerun YOUR OWN FENCE the same hour. <<<
 #
+# ## 1b. AFTER THE FIRST CHECKPOINT (same generation, later the same day) — READ THIS TOO
+#
+#   ROUTE #119 (order 2, carrier = my own LANDED #118 refusal): every rebinding that is not a NAME
+#   binding in the file being verified survived it — `C.m = C.n`, `vars()/locals()[...]`,
+#   `setattr(sys.modules[__name__], ...)`, `type.__setattr__`, `exec("inc = dec")`, and ANY
+#   rebinding inside an IMPORTED module (#118 sat in `_run_pipeline`; `ir_resolve` ingests
+#   dependencies with its own Module 1-3-5). Then, against my own #119 drafts: patching an
+#   imported module / imported class / through `importlib`, and INSTANCE-LEVEL method shadowing
+#   (`self.m = abs`; over an IMPORTED base; outside `__init__`; via `setattr(self, name, v)`;
+#   via `object.__setattr__(self, ...)`; a dataclass field default). ROUTE #120: attribute-access
+#   hooks (`__getattribute__`, `__setattr__`, and one installed by assignment) are ignored.
+#   Landed: battery-4b (de890255) — the guard moved into `Module3_Weaver.process` (shared by both
+#   pipelines, already raises) with rules (1)-(7) + the hook refusal. Battery-5 (running/landed —
+#   check driver-progress.log): rule (8) instance-level shadowing in the front end, and the
+#   IR-level PYCSL-WHYML-METHOD-SHADOWED in `_handle_dotted_call` (a call resolving to a METHOD
+#   while the receiver record has a FIELD of that name, or the program STORES that attribute).
+#   Still WATCH (fenced only incidentally): a non-literal `setattr(obj, name, int)` on a plain
+#   local instance (typing of the value slot).
+#   >>> THE LESSON OF THE AFTERNOON: every draft of this fence was walked past within the hour by
+#   >>> the next spelling. Carrier-rerun your OWN fence BEFORE the battery, every time — it cost
+#   >>> four battery restarts, each stopped within a minute, and zero verdicts inherited. <<<
+#
 # ## 2. LADDER FOR GEN #24 — START HERE
 #
 #   There is NO open route. Pick by YIELD (below), and mine:
