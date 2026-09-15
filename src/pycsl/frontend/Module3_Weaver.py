@@ -2625,52 +2625,61 @@ class Module3_Weaver:
         # A def's BODY is NOT executed here and stays out (an in-function patch is fenced by
         # the value model). A lambda's body is admitted fail-closed: whether it is called in
         # place cannot be read off the syntax.
+        # NO NESTED `def` HERE: this file is mirrored, `check-mirror-coverage` counts nested
+        # FunctionDefs, and the first cut's two helpers were LIFTED into methods and emitted
+        # as two extra abstract `val`s in `frontend/__init__` and `frontend/ir_resolve` (the
+        # two mirrors that ingest this one) — 2 MOVED on the mirror byte-diff.
         _nb_lam_params: set = set()
-
-        def _nb_arg_names(_a) -> list:
-            return (list(getattr(_a, "posonlyargs", []) or []) + list(_a.args)
-                    + list(_a.kwonlyargs)
-                    + [_x for _x in (_a.vararg, _a.kwarg) if _x is not None])
-
-        def _nb_modexec(_roots: list) -> list:
-            _out: list = []
-            _stk: list = list(_roots)
-            while _stk:
-                _y = _stk.pop()
-                if isinstance(_y, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    _stk.extend(_y.decorator_list)
-                    _stk.extend([_d for _d in (_y.args.defaults or []) if _d is not None])
-                    _stk.extend([_d for _d in (_y.args.kw_defaults or []) if _d is not None])
-                    _stk.extend([_a.annotation for _a in _nb_arg_names(_y.args)
-                                 if _a.annotation is not None])
-                    if _y.returns is not None:
-                        _stk.append(_y.returns)
+        _nb_mx_of: Dict[int, list] = {}
+        for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
+            if _nb_kind == "function":
+                continue
+            _nb_out: list = []
+            _nb_stk: list = list(_nb_body)
+            while _nb_stk:
+                _nb_y = _nb_stk.pop()
+                if isinstance(_nb_y, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                    _nb_ar = _nb_y.args
+                    _nb_stk.extend([_nb_d for _nb_d in (_nb_ar.defaults or [])
+                                    if _nb_d is not None])
+                    _nb_stk.extend([_nb_d for _nb_d in (_nb_ar.kw_defaults or [])
+                                    if _nb_d is not None])
+                    if isinstance(_nb_y, ast.Lambda):
+                        for _nb_a in (list(getattr(_nb_ar, "posonlyargs", []) or [])
+                                      + list(_nb_ar.args) + list(_nb_ar.kwonlyargs)
+                                      + [_nb_v for _nb_v in (_nb_ar.vararg, _nb_ar.kwarg)
+                                         if _nb_v is not None]):
+                            _nb_lam_params.add(_nb_a.arg)
+                        _nb_stk.append(_nb_y.body)
+                        continue
+                    _nb_stk.extend(_nb_y.decorator_list)
+                    _nb_stk.extend([_nb_a.annotation
+                                    for _nb_a in (list(getattr(_nb_ar, "posonlyargs", []) or [])
+                                                  + list(_nb_ar.args) + list(_nb_ar.kwonlyargs)
+                                                  + [_nb_v for _nb_v in (_nb_ar.vararg,
+                                                                         _nb_ar.kwarg)
+                                                     if _nb_v is not None])
+                                    if _nb_a.annotation is not None])
+                    if _nb_y.returns is not None:
+                        _nb_stk.append(_nb_y.returns)
                     continue
-                if isinstance(_y, ast.ClassDef):
+                if isinstance(_nb_y, ast.ClassDef):
                     # the class BODY is its own scope entry in `_nb_scopes`; only the header
                     # expressions run here.
-                    _stk.extend(_y.decorator_list)
-                    _stk.extend(_y.bases)
-                    _stk.extend(_y.keywords)
+                    _nb_stk.extend(_nb_y.decorator_list)
+                    _nb_stk.extend(_nb_y.bases)
+                    _nb_stk.extend(_nb_y.keywords)
                     continue
-                if isinstance(_y, ast.Lambda):
-                    for _a in _nb_arg_names(_y.args):
-                        _nb_lam_params.add(_a.arg)
-                    _stk.extend([_d for _d in (_y.args.defaults or []) if _d is not None])
-                    _stk.extend([_d for _d in (_y.args.kw_defaults or []) if _d is not None])
-                    _stk.append(_y.body)
-                    continue
-                _out.append(_y)
-                _stk.extend(ast.iter_child_nodes(_y))
-            return _out
-
+                _nb_out.append(_nb_y)
+                _nb_stk.extend(ast.iter_child_nodes(_nb_y))
+            _nb_mx_of[id(_nb_body)] = _nb_out
         # the bindings that a module-scope / class-body receiver name refers to: those in the
         # module and class bodies themselves (a function-local binding is another variable).
         _nb_mnodes: list = []
         for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
             if _nb_kind == "function":
                 continue
-            _nb_mnodes.extend(_nb_modexec(list(_nb_body)))
+            _nb_mnodes.extend(_nb_mx_of.get(id(_nb_body), []))
         for _nb_x in _nb_mnodes:
             _nb_pairs: list = []
             if isinstance(_nb_x, ast.Assign):
@@ -2714,7 +2723,7 @@ class Module3_Weaver:
         for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
             if _nb_kind == "function":
                 continue
-            for _nb_y in _nb_modexec(list(_nb_body)):
+            for _nb_y in _nb_mx_of.get(id(_nb_body), []):
                 _nb_recv = None
                 if isinstance(_nb_y, ast.Attribute) and isinstance(_nb_y.ctx, (ast.Store, ast.Del)):
                     _nb_recv = _nb_y.value
