@@ -1,6 +1,6 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **#121, #122, #123, #124, #125, #126, #127, #128** (gen #24, 2026-09-15 — all SEV-1, all measured PROVING at HEAD 7c9dede2 with CPython contradicting)
+## CURRENTLY OPEN: **#121, #122, #123, #124, #125, #126, #127, #128, #129** (gen #24, 2026-09-15 — all SEV-1, all measured PROVING at HEAD 7c9dede2 with CPython contradicting)
 ##   #121 a user decorator is silently dropped (`@swap` returning `abs`).
 ##   #122 a def inside if/try, or nested in another function, is hoisted to module scope; textually last def wins.
 ##   #123 a subclass class-body binding (`m = lambda self: 2`) overriding an inherited method is ignored.
@@ -9,6 +9,7 @@
 ##   #127 namespace patching past #119: `__builtins__`, aliases, computed receivers, non-literal setattr on a cls parameter.
 ##   #128 the descriptor protocol (`__get__`/`__set__`) is ignored.
 ##   REPAIRS: #121 #122(module-compound arm) #123 #124 #125 #127 #128 drafted as ONE battery (battery-A); #122(nested arm) + #126 are battery-B (Module 6).
+##   #129 a `global` write is dropped (fresh local) and reads of a non-constant module variable are one constant across it (OPEN, not scoped into a battery).
 ##   #126 a lifted nested def's closure variable becomes ONE global opaque constant (`f(1) - f(2) == 0` proves).
 ##   Generators: carrier-rerun (#121-#124, re-probing gen #23's VACUOUS function-as-value rows with values that
 ##   do not trip the duplicate-symbol fence, and the #118 rule (1) scope keys), hand (#125).
