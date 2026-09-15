@@ -18,3 +18,13 @@ Refuse when a function name is defined by more than one `def` in the module and 
 is not a top-level module statement (nested in a compound statement, or inside another function).
 Census the four trees first (conditional defs, nested helper defs sharing a name).
 Drivers: `scratchpad/g24/p1/if_def.py`, `try_def.py`, `nested_def_dual.py`.
+
+## MORE CARRIERS (same day)
+4. Two sibling functions each with a nested `def h` (+1 / -1): `a()`'s FALSE `\result == 2` PROVES — ONE hoisted
+   `let h` (the last). CENSUS: 34 colliding nested defs in the MIRRORS (functions.py classify/rename/saw/refs_param,
+   core_ir_semantic walk, ir_resolve _walk, types _scan, preamble _walk, statements rec), 2 in pycsl_lib
+   json/encoder.py — so the nested-def arm CANNOT be a front-end refusal (it would refuse mirror files); it belongs
+   where the lifted def is emitted (Module 6 `_emit_function`, the `nonlocal_writes` precedent).
+5. `try: from starlib import inc / except ImportError: def inc` — the fallback def wins in the model, the import at
+   runtime. PROVES a false `\result == 4`.
+See also ROUTE #126 (the closure free variable of a lifted nested def becomes a global constant).

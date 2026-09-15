@@ -1,11 +1,12 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **#121, #122, #123, #124, #125** (gen #24, 2026-09-15 — all SEV-1, all measured PROVING at HEAD 7c9dede2 with CPython contradicting)
+## CURRENTLY OPEN: **#121, #122, #123, #124, #125, #126** (gen #24, 2026-09-15 — all SEV-1, all measured PROVING at HEAD 7c9dede2 with CPython contradicting)
 ##   #121 a user decorator is silently dropped (`@swap` returning `abs`).
 ##   #122 a def inside if/try, or nested in another function, is hoisted to module scope; textually last def wins.
 ##   #123 a subclass class-body binding (`m = lambda self: 2`) overriding an inherited method is ignored.
 ##   #124 `from m import *` after a def rebinds the name silently.
 ##   #125 multiple inheritance resolved depth-first, not by C3 MRO.
+##   #126 a lifted nested def's closure variable becomes ONE global opaque constant (`f(1) - f(2) == 0` proves).
 ##   Generators: carrier-rerun (#121-#124, re-probing gen #23's VACUOUS function-as-value rows with values that
 ##   do not trip the duplicate-symbol fence, and the #118 rule (1) scope keys), hand (#125).
 ##
