@@ -1,3 +1,97 @@
+# ====== START HERE — gen #24 FINAL STATE — read this block first ==================
+#
+# ## STATUS: COMPLETE. Tree clean (two PRE-EXISTING gitlinks only), everything committed, no background process
+#   alive. NINE SEV-1 ROUTES FOUND AND CLOSED AND FULLY GATED this generation (#121-#129) in TWO batteries,
+#   every leg of both predicted in driver-progress.log and hit. CURRENTLY OPEN: NONE.
+#
+# ## 1. WHAT GEN #24 FOUND AND CLOSED (routes #121-#129, all SEV-1, all measured PROVING with CPython contradicting)
+#
+#   Opening move: re-probe gen #23's SEVEN "Symbol X is already defined" VACUOUS rows with values that do not
+#   trip the duplicate symbol (a builtin, a lambda). The fence was a property of the VALUE; the shapes were live.
+#   BATTERY-A (commit 629c80bb), every leg predicted and hit:
+#     #121 a user DECORATOR was silently dropped (`@swap` -> abs). Allowed now only: absent binding + modelled
+#          marker (property/staticmethod/mutable_state/dataclass, no star import), ONE canonical import bound
+#          under its OWN name (an alias bypassed #94's memo gate: `cached_property as memo_prop`), ONE identity def
+#          not spelled like a meaningful decorator. (Module3_Weaver.process)
+#     #122 compound arm: a def inside if/try (incl. the try-import fallback idiom) competing with another binding
+#          resolved to the textually last — per scope, module AND every class body (Module3)
+#     #123 a class-body binding overriding an inherited method (`m = lambda self: 2`, imported base, grandchild):
+#          IR key `class_body_bindings` (classes with bases only), apply_inheritance skips the clone (fail-closed)
+#     #124 a star import after a def, or after another star import (Module3)
+#     #125 diamond MRO resolved depth-first: apply_inheritance now clones only from the C3 provider (1348 PASS twin)
+#     #127 namespace patching past #119: `__builtins__.len = ...`, setattr(__builtins__), aliases (`bm =
+#          __builtins__`, `pm = plainlib`, through a function return, through an if-expression), computed
+#          `getattr(__builtins__, "__dict__")[...]`, non-literal setattr on a `cls` PARAMETER (Module3 #119 rules)
+#     #128 the descriptor protocol (__get__/__set__) ignored — refused with the #120 hooks
+#     battery-A: suite 3481/3499 same 18 0 XPASS, planes 34/34, python-ref GONE 0078 (predicted).
+#   BATTERY-B (commit 6d63b01d):
+#     #122 nested arm: sibling helpers `h` collapsed to one lifted `let h`; a helper replacing a module / IMPORTED
+#          function of the same name (checked from BOTH sides — the helper defined BEFORE the module def never
+#          reaches emission); #126 a lifted nested def's CAPTURED enclosing name became ONE global `val constant`
+#          (read: `f(1) - f(2) == 0`; write through a captured list invisible); #129 a `global` write lowered to a
+#          fresh local while reads of a non-constant module variable are one constant. Module3 marks, Module5 IR
+#          keys only when present, Module6 `_emit_function_block` generic refusals (nonlocal_writes precedent,
+#          trusted/abstract/trusted_parent exempt; twins suppressed by a bespoke `self._*_walk_ids` pairing exempt;
+#          `self` is not a capture inside a method). python-ref 0166 and 0181 flipped to expected-FAIL with reasons.
+#
+# ## 1b. LESSONS (each paid for this generation)
+#   >>> CARRIER-RERUN YOUR OWN FENCE BEFORE THE BATTERY — AGAIN IT PAID: battery-A was stopped once (3 min in, no
+#   >>> verdict) for two draft carriers; battery-B's draft was walked past three times in the worktree
+#   >>> (method-nested `self`, suppressed bespoke twins GONE'ing two mirrors, a helper vs an IMPORTED function).
+#   >>> A REFUSAL KEYED ON A SPELLING IS OUT-VOTED BY EVERY RECOGNIZER KEYED ON THE SAME SPELLING: allowing an
+#   >>> alias of `cached_property` switched OFF route #94's memo gate. Check what else reads the name.
+#   >>> Live Module3 is INGESTED by two mirror files (frontend/__init__, ir_resolve): `%` formatting and
+#   >>> `x[i][j]` indexing in new Module3 code moved their emissions (pycsl_div/mod, use matrix.Matrix). Unpack
+#   >>> tuples, use f-strings.
+#   >>> Develop the NEXT battery in a worktree (g24/wt_b) while the current one runs; never edit the main tree.
+#
+# ## 2. LADDER FOR GEN #25 — START HERE
+#   There is NO open route. Pick by YIELD (§3). Highest-value next moves, in order:
+#   (a) carrier-rerun on gen #24's OWN fences (they are fresh and were walked past five times in one day):
+#       the #127 alias fixpoint (taint through containers, attributes of aliases, class attributes holding
+#       modules), #121's allow-list (every recognizer keyed on a decorator SPELLING — grep them), #126's
+#       capture rule (defaults, class bodies, decorators of nested defs), #129 (any write path to a module
+#       variable that is not spelled `global`).
+#   (b) the WATCH list below — each row is one change from live.
+#   WATCH (probes.tsv rows, each one change from live):
+#     - default argument of a nested def reading an enclosing parameter (`def h(y=x)`): not marked by #126's
+#       capture rule (defaults are not body loads); refused today only because the defaulted call is opaque.
+#     - a class nested in a function whose method reads an enclosing parameter: not a lifted def; opaque today.
+#     - `setattr(sys.modules[__name__], "N", 5)` writing a plain module global: #119 rule (5) does not refuse it
+#       (literal "N" is not a def name); fenced only by the `_pyobj_state` frame error.
+#     - patching a module through a function PARAMETER (`def patch(m): m.inc = abs`): #119 rule (6) exempts
+#       parameters; fenced by a Why3 type error on the value.
+#     - `walrus` inside a comprehension leaking to the function (VACUOUS: Why3 syntax error in the any-fold).
+#     - gen #23's list (i)-(iii) is still unworked: `assigns self.a` over an unlabelled field, the
+#       `_writes_filtered_to_labels` partial drop, Optional[str] ternary None -> "", Literal[0, None],
+#       `_hvalmap_local_vars` name-gated truthiness, witness-census's ~40 unprobed `val constant`/Number-0 sites.
+#   GENERATORS THAT WORKED: carrier-rerun of gen #23's VACUOUS rows with a different VALUE (9 routes from one
+#   idea); reading the `val constant <name>` fallback of `_handle_var_expr` (witness-census: #126 write arm, #129).
+#
+# ## 3. YIELD — bin/probe-ledger-yield.sh --by-generator (whole ledger, after gen #24)
+#   key                    LIVE  FAILC  denom    yield  2nd-ord  VACUOUS
+#   advice-audit              2      5      7    28.6%        1        0
+#   carrier-rerun            58     35     93    62.4%       45        9
+#   carve-out-census          9      8     17    52.9%        0        1
+#   continue-census          10      4     14    71.4%        3        3
+#   control-operation         3     17     20    15.0%        1        0
+#   deferral-audit            3      3      6    50.0%        0        4
+#   hand                      1     47     48     2.1%        0        2
+#   observer-audit            0      1      1     0.0%        0        0
+#   oracle-audit              1      2      3    33.3%        0        0
+#   substring-census          5      2      7    71.4%        0        0
+#   unknown                  35      0     35   100.0%        2        0
+#   witness-census            7     18     25    28.0%        1        5
+#   GEN #24 ALONE: carrier-rerun 26 LIVE / 20 FC / 1 VAC (nine routes; ~13 rows are order-2 carriers of my own
+#   drafts — count ROUTES, not rows) · witness-census 2 LIVE / 3 FC / 1 VAC (#126 write arm, #129) · hand 1/3 (#125).
+#
+# ## 4. WHAT IS TRUE RIGHT NOW
+#   metric   markers 459 / grep 484 / offset 25 / unattached 0
+#   suite    baseline 3487/3505, 18 failures (same names). A 19 is a REGRESSION.
+#   planes   34; ratchets trusted-raises SILENT 62 · dropped-mutation 0/51/9/0 · trusted-reasons unclassified 458.
+#   scratch  scratchpad/g24/ (p1..p5 probe drivers, w1/w2 witness copies, batteryA/B scripts+logs, A_*/Bb_*
+#            sweeps = the current emission baselines, wt_head/wt_b worktrees).
+
 # ====== START HERE — gen #23 FINAL STATE — read this block first ==================
 #
 # ## STATUS: COMPLETE. Tree clean (two PRE-EXISTING gitlinks only), everything committed, no
