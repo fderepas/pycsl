@@ -1,3 +1,107 @@
+# ====== START HERE — gen #23 FINAL STATE — read this block first ==================
+#
+# ## STATUS: CHECKPOINTED (gen #23 may add below this line before stopping; the tree is clean
+#   and committed at every checkpoint). HEAD at writing: 6c75839a.
+#
+# ## 0. GEN #22, FOR THE RECORD: found #112 (21d5029e), then HUNG on a Bash call that never
+#   executed; the supervisor saved its UN-GATED #111/#112 diff to getting-better/interrupted/.
+#   Gen #23 re-derived the repair (the patch was a hint: its `stmt.value.to_dict()` was right,
+#   its `_field_type_of` test was widened to `_rhs_yields_map`), and the battery then found a
+#   regression the patch would have shipped (§1 miss a).
+#
+# ## 1. NINE SEV-1 ROUTES CLOSED AND FULLY GATED. CURRENTLY OPEN: NONE.
+#
+#   BATTERY-2 (ONE combined battery, commit e91bb786):
+#     #111 dict/set field store clobbered with the EMPTY MAP (`self.b = self.a`, `= mk()`)
+#     #112 non-empty dict literal in argument position = the empty map (`g({1: 5})`)
+#     #113 `_coerce_to_int` hashed the TEXT of any paren term with a comma: `g(y, "a,b")`, and a
+#          tuple projection `a[i][1]` returned from a try (corpus 0607 PASSED on the constant)
+#     #114 a genuine tuple dict key hashed by its text: `(y, 1)` same key after `y += 1`
+#     #115 UnknownPyExpr -> literal 0: `(lambda y: y + 1)(x)`, and `fs[0](x)` — the shape route
+#          #24's own repair comment claimed to cover (order 2)
+#     #116 `F("name")(args)` lowered as a call to the function the string names (a pure_ast
+#          recognizer on every program: `Pick("inc")(3)`, a fake `_N`, a ternary decline -> 0)
+#     #117 a list local returned early on the Return-int path = literal 0 (no annotation needed)
+#   BATTERY-3 (commit 6c75839a):
+#     #109 record-var receiver avatar had NO frame and NO receiver (gen #21's open item)
+#     #118 rebinding a function/method name is ignored by call resolution: `inc = dec`,
+#          class-body `m = n`, module walrus, `global inc`, `_g["inc"] = dec` -> now REFUSED
+#          (PYCSL-IR-FUNCTION-NAME-REBOUND, in `_run_pipeline`); also #116's last carrier.
+#
+#   Every gate verdict was PREDICTED in driver-progress.log before it ran. Battery-2: metric
+#   459/484/25/0 · sync 887 · trusted-raises 13/62 · type-only 53/0 · dropped-mutation 0/51/9/0 ·
+#   pycsl-ref 22 MOVED + GONE 0996 (expected) · pyref 6 MOVED · mirror 7 MOVED, EVERY HUNK READ ·
+#   suite 3444/3462 · 7 mirror whole-file proofs SUCCESS 0 bad (statements 17630, expressions
+#   21347, stmt_control_flow 12284, pure_ast 3372, functions 1199, Module5 2109, preamble 216) ·
+#   planes 34/34. Battery-3: all byte-inert vs battery-2 · suite 3450/3468 · planes 34/34.
+#   Corpus witnesses 1305-1324 (14 XFAIL negatives, 6 PASS faithful twins/controls).
+#
+#   THE THREE RECORDED MISSES — THESE ARE THE LESSONS:
+#   (a) #112's first sweep moved 17 corpus + 2 pyref files to `map_update_some (any_map ()) ..`:
+#       the local-assignment fold used the LOWERED literal as its base, which was the empty map
+#       only BECAUSE the literal lowered to it. >>> A VALUE THAT WAS A LIE IN ONE CONSUMER WAS
+#       THE TRUTH IN ANOTHER. Read the hunks, never just the MOVED count. <<<
+#   (b) planes: `check-singleton-constant-lowering` is keyed on ARM SPELLING and went red when
+#       `if t in ("UnknownPyExpr","GenExp")` was split. Re-merging made the gate BLIND to the
+#       GenExp constant (worse than red) — reverted. Two baseline entries whose written
+#       justifications #115/#116 had just REFUTED ("closed at the BINDING"; "a REFUSAL, not a
+#       value") were REMOVED; the GenExp key narrowed. 14 -> 12 constant arms, re-verified.
+#       >>> A BASELINE ENTRY'S JUSTIFICATION IS A CLAIM ABOUT THE CODE — AUDIT IT LIKE ONE. <<<
+#   (c) #118 took THREE cuts. In `Module5.visit_Module` a direct `raise` moved trusted-raises
+#       62 -> 65 (three mirror stubs share that name) + two mirror emissions: relocated to
+#       `_run_pipeline`, exactly the #45 precedent. Then it enumerated statement KINDS and a
+#       class-body `m = n`, then a module walrus, walked past it. >>> KEY A CONFINEMENT CHECK ON
+#       THE NAME BEING BOUND, NEVER ON THE STATEMENT KIND. Lesson 9 — violated twice in one hour
+#       by the generation that had just cited it. Carrier-rerun YOUR OWN FENCE the same hour. <<<
+#
+# ## 2. LADDER FOR GEN #24 — START HERE
+#
+#   There is NO open route. Pick by YIELD (below), and mine:
+#   (i)  WATCH / ADJUDICATION items (probes.tsv rows, NOT routes — each is one change from live):
+#        - `assigns self.a` PROVES while the body writes an UNLABELLED field (the documented #32
+#          `_pyobj_state` rule). #109's precedent counted a proved `assigns \nothing` as LIVE.
+#          Adjudicate: is a proved-but-false frame on an unmodelled field a route?
+#        - `_writes_filtered_to_labels` drops unlabelled targets from a PARTIALLY labelled
+#          assigns (both arms; `writes { self.a }` for `assigns self.a, self.hidden`). Unobservable
+#          today only because unlabelled reads are fresh `getattr_c` program vals.
+#        - Optional[str] ternary `"a" if c else None`: the None arm lowers to "" — fenced only by
+#          a union type error; the arm's comment PROMISES the injection that would make it live.
+#        - `Literal[0, None]`: the domain clause encodes None as 0, `is None` uses pycsl_none.
+#        - `_to_bool` answers `true` for `_hvalmap_local_vars`, a set filled by FUNCTION-NAME
+#          suffix (`_union_none_ctor_for`, `_compute_return_type`, ...): FIRES in a user method so
+#          named (`if (not true)`), fenced by a type error.
+#        - #117's union sibling still emits `(Arm_0_1 0)` (type error today).
+#   (ii) The "Symbol X is already defined in the current scope" error on a function used as a
+#        VALUE made SIX probes VACUOUS (fs=[inc], a factory returning dec, `global inc`, a local
+#        shadow, a decorator swap, a higher-order argument). It is a fence nobody designed —
+#        the day it is fixed, RE-RUN ALL SIX (drivers in scratchpad/g23/p3,p6,p7,p8,p11).
+#   (iii) witness-census has ~40 unprobed sites (57 grep hits in module6 + 6 front-end Number-0
+#        fallbacks; ~17 probed). Remaining high-value: `_dv_missing_default` hval `(HInt 0)`,
+#        `expressions.py` record-literal field default `const None` (12551), the
+#        `(svalue_of`/`(object_of` emit-ir `true` arms, generic_fold's constant returns.
+#
+# ## 3. YIELD — bin/probe-ledger-yield.sh --by-generator (whole ledger, after gen #23)
+#
+#   continue-census 10/14 71.4% · substring-census 5/7 71.4% · carrier-rerun 13/22 59.1% ·
+#   carve-out-census 9/17 52.9% · deferral-audit 3/6 50% · oracle-audit 1/3 · witness-census
+#   (NEW) 5/17 29.4% (4 VACUOUS) · advice-audit 2/7 · control-operation 3/20 · hand 0/45.
+#   GEN #23 ALONE: carrier-rerun 6 LIVE / 2 FC (4 VAC; one LIVE row is a #109 re-measure) ·
+#   carve-out-census 3/3 · substring-census 3/5 · witness-census 5/17 · advice-audit 0/2 ·
+#   continue-census 0/1 (+1 OUT-OF-SCOPE). Ledger total 86 LIVE / ~106 FC.
+#
+# ## 4. WHAT IS TRUE RIGHT NOW
+#
+#   metric   markers 459 / grep 484 / offset 25 / unattached 0
+#   suite    baseline 3450/3468, 18 failures (same 18 names as gen #21). A 19 is a REGRESSION.
+#   planes   34 = 19 fast + 15 slow; singleton-constant-lowering baseline 12 arms.
+#   ratchet  trusted-raises SILENT 62 · dropped-mutation TRYFINAL 9 · trusted-reasons unclassified 458.
+#   timing   a mirror whole-file proof INCLUDING the default-on vacuity phase takes HOURS
+#            (expressions 6h03m, stmt_control_flow 4h08m, pure_ast 3h56m, statements 3h41m).
+#            Budget batteries for it; never kill one to "save time" — a partial verdict is none.
+#   scratch  scratchpad/g23/ (probe drivers p1..p11, batteries, sweeps, wt_draft worktree).
+#   pre-existing, not gen #23's: mirror-check rc=1 on 3 files; two modified gitlinks.
+#
+
 # ====== START HERE — gen #21 FINAL STATE — read this block first ==================
 #
 # ## STATUS: COMPLETE. Tree clean (two PRE-EXISTING gitlinks only), everything committed.
