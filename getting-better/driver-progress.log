@@ -2145,3 +2145,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
 2026-09-15 gen#23 BATTERY-3 legs: cheap legs HIT (7 rc=0; 3b pre-existing rc=1; metric 459/484/25/0; trusted-raises 13/62; type-only 53/0); emission vs battery-2 BYTE-INERT in all three directions, zb 0 — HIT. Suite started 08:01Z.
 2026-09-15 gen#23 CHECKPOINT 08:13Z: battery-3 suite running. One more VACUOUS probe (higher-order argument) on the 'Symbol X is already defined' function-as-value fence — six this generation.
 2026-09-15 gen#23 CHECKPOINT 08:33Z: battery-3 suite running. witness-census: a NAME-gated truthiness (`_hvalmap_local_vars`, filled only for six emitter method names) FIRES in a user method so named (`if (not true)`), fenced today only by a Why3 type error — logged FAIL-CLOSED + WATCH.
+2026-09-15 gen#23 CHECKPOINT 08:53Z: battery-3 suite still running (52 min).
