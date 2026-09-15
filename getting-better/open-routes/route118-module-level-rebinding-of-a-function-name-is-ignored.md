@@ -88,3 +88,14 @@ the campaign's lesson 9, which this generation cited and then violated twice in 
 (class-body `m = n`), 1324 (walrus) — all XFAIL by refusal. Census: ZERO sites in all trees
 (byte-inert). Siblings: duplicate `def` FAIL-CLOSED (last def wins, as in Python); function-as-
 value probes VACUOUS on the pre-existing "Symbol X is already defined" error.
+
+---
+
+## CARRIERS SURVIVED THE LANDED REFUSAL — see ROUTE #119 (gen #23, same day)
+
+Carrier-rerun on this refusal about an hour after it was marked closed found six more rebindings
+that PROVE at `c01ef653`: an attribute store `C.m = C.n`, `vars()`/`locals()` subscripts,
+`setattr(sys.modules[__name__], ...)`, `type.__setattr__(C, ...)`, and ANY rebinding inside an
+IMPORTED module (this refusal sat in `pycsl._run_pipeline`, which `ir_resolve`'s dependency
+sub-pipeline never calls). The guard has moved into `Module3_Weaver.process` and grown — see
+`route119-*.md`. **The "CLOSED" above was premature; the root is closed only with #119.**
