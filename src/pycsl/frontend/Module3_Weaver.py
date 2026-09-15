@@ -2329,6 +2329,133 @@ class Module3_Weaver:
                     f"visitor, so both the contract and the whole coroutine body would be "
                     f"silently DROPPED while the run still reports 'All contracts formally "
                     f"proven'. Remove the contract, or make the function synchronous.")
+        # (#49) ROUTES #122 (nested arm) + #126 — A NESTED `def` IS LIFTED TO A SIBLING OF ITS
+        # ENCLOSING FUNCTION UNDER ITS OWN NAME, and two things the lift does not preserve were
+        # measured PROVING what CPython contradicts:
+        #   #122 two sibling functions each defining a helper `h` (+1 / -1) emit ONE `let h`
+        #        (the textually last), and a nested def named like a MODULE function replaces it;
+        #   #126 a name the nested def reads from its ENCLOSING function (a parameter, a local,
+        #        a captured list it writes through) becomes ONE GLOBAL opaque `val constant`:
+        #        `f(x): def h(): return x` made `f(1) - f(2) == 0` provable (Python -1).
+        # Only the emitter knows whether the lifted body is ever lowered (a `\trusted` /
+        # `\abstract` parent emits it as a bodyless `val`; converted mirror methods pair some
+        # lifted walkers bespoke), so the facts are MARKED here and REFUSED in Module 6
+        # `_emit_function`, next to the `nonlocal_writes` refusal of the same shape:
+        #   `csl_lifted_collision`  the def is nested in a function and another non-method def
+        #                           in the file has the same name;
+        #   `csl_closure_captures`  the names it (or a lambda/comprehension inside it) reads that
+        #                           are bound by an enclosing function and not by itself — the
+        #                           enclosing functions' own nested def names excluded (they are
+        #                           lifted beside it, under the collision rule).
+        _lf_rows: list = []
+        _lf_stack: list = [(_lf_n, [], "module") for _lf_n in python_ast.body]
+        while _lf_stack:
+            _lf_n, _lf_chain, _lf_scope = _lf_stack.pop()
+            if isinstance(_lf_n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if _lf_scope != "class":
+                    _lf_rows.append((_lf_n, _lf_chain))
+                for _lf_c in ast.iter_child_nodes(_lf_n):
+                    _lf_stack.append((_lf_c, _lf_chain + [_lf_n], "function"))
+                continue
+            if isinstance(_lf_n, ast.ClassDef):
+                for _lf_c in _lf_n.body:
+                    _lf_stack.append((_lf_c, _lf_chain, "class"))
+                continue
+            for _lf_c in ast.iter_child_nodes(_lf_n):
+                _lf_stack.append((_lf_c, _lf_chain, _lf_scope))
+        _lf_count: Dict[str, int] = {}
+        for _lf_n, _lf_chain in _lf_rows:
+            _lf_count[_lf_n.name] = _lf_count.get(_lf_n.name, 0) + 1
+        # other bindings a lifted helper's name competes with: every import alias (file-wide),
+        # every class name, and every module-scope assignment target (measured: a nested helper
+        # `inc` replaced an IMPORTED `inc` for a sibling function, Python 2 vs proved 4).
+        _lf_others: set = set()
+        for _lf_x in ast.walk(python_ast):
+            if isinstance(_lf_x, (ast.Import, ast.ImportFrom)):
+                for _lf_al in _lf_x.names:
+                    _lf_others.add((_lf_al.asname or _lf_al.name).split(".")[0])
+            elif isinstance(_lf_x, ast.ClassDef):
+                _lf_others.add(_lf_x.name)
+        _lf_mq: list = list(python_ast.body)
+        while _lf_mq:
+            _lf_x = _lf_mq.pop()
+            if isinstance(_lf_x, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+                continue
+            if isinstance(_lf_x, ast.Name) and not isinstance(_lf_x.ctx, ast.Load):
+                _lf_others.add(_lf_x.id)
+            _lf_mq.extend(ast.iter_child_nodes(_lf_x))
+        for _lf_n, _lf_chain in _lf_rows:
+            if not _lf_chain:
+                continue
+            if _lf_count.get(_lf_n.name, 0) > 1 or _lf_n.name in _lf_others:
+                _lf_n.csl_lifted_collision = True
+            # names bound by the nested def itself (params, stores, imports, defs, globals),
+            # and names it loads (descending into lambdas/comprehensions, not nested defs).
+            _lf_own: set = set()
+            _lf_loads: set = set()
+            _lf_fa = _lf_n.args
+            for _lf_a in (list(getattr(_lf_fa, "posonlyargs", []) or []) + list(_lf_fa.args)
+                          + list(_lf_fa.kwonlyargs)
+                          + [x for x in (_lf_fa.vararg, _lf_fa.kwarg) if x is not None]):
+                _lf_own.add(_lf_a.arg)
+            _lf_q: list = list(_lf_n.body)
+            while _lf_q:
+                _lf_y = _lf_q.pop()
+                if isinstance(_lf_y, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    _lf_own.add(_lf_y.name)
+                    continue
+                if isinstance(_lf_y, ast.Lambda):
+                    for _lf_a in _lf_y.args.args:
+                        _lf_own.add(_lf_a.arg)
+                if isinstance(_lf_y, ast.Name):
+                    if isinstance(_lf_y.ctx, ast.Load):
+                        _lf_loads.add(_lf_y.id)
+                    else:
+                        _lf_own.add(_lf_y.id)
+                elif isinstance(_lf_y, (ast.Import, ast.ImportFrom)):
+                    for _lf_al in _lf_y.names:
+                        _lf_own.add((_lf_al.asname or _lf_al.name).split(".")[0])
+                elif isinstance(_lf_y, ast.Global):
+                    _lf_own.update(_lf_y.names)
+                elif isinstance(_lf_y, ast.ExceptHandler) and isinstance(_lf_y.name, str):
+                    _lf_own.add(_lf_y.name)
+                _lf_q.extend(ast.iter_child_nodes(_lf_y))
+            _lf_encl: set = set()
+            _lf_encl_defs: set = set()
+            for _lf_f in _lf_chain:
+                _lf_ga = _lf_f.args
+                for _lf_a in (list(getattr(_lf_ga, "posonlyargs", []) or []) + list(_lf_ga.args)
+                              + list(_lf_ga.kwonlyargs)
+                              + [x for x in (_lf_ga.vararg, _lf_ga.kwarg) if x is not None]):
+                    _lf_encl.add(_lf_a.arg)
+                _lf_globals: set = set()
+                _lf_q2: list = list(_lf_f.body)
+                while _lf_q2:
+                    _lf_z = _lf_q2.pop()
+                    if isinstance(_lf_z, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        _lf_encl_defs.add(_lf_z.name)
+                        continue
+                    if isinstance(_lf_z, (ast.ClassDef, ast.Lambda)):
+                        continue
+                    if isinstance(_lf_z, ast.Name) and not isinstance(_lf_z.ctx, ast.Load):
+                        _lf_encl.add(_lf_z.id)
+                    elif isinstance(_lf_z, (ast.Import, ast.ImportFrom)):
+                        for _lf_al in _lf_z.names:
+                            _lf_encl.add((_lf_al.asname or _lf_al.name).split(".")[0])
+                    elif isinstance(_lf_z, ast.Global):
+                        _lf_globals.update(_lf_z.names)
+                    elif isinstance(_lf_z, ast.ExceptHandler) and isinstance(_lf_z.name, str):
+                        _lf_encl.add(_lf_z.name)
+                    _lf_q2.extend(ast.iter_child_nodes(_lf_z))
+                _lf_encl -= _lf_globals
+            # inside a METHOD the lifted def is itself emitted as a method of the class, so
+            # `self` is its own parameter, not a capture.
+            _lf_root_args = _lf_chain[0].args.args if _lf_chain else []
+            if _lf_root_args and _lf_root_args[0].arg == "self":
+                _lf_own.add("self")
+            _lf_caps = sorted((_lf_loads - _lf_own) & (_lf_encl - _lf_encl_defs))
+            if _lf_caps:
+                _lf_n.csl_closure_captures = _lf_caps
         PyCSLWeaver(contracts_map).visit(python_ast)
         python_ast.csl_happy_properties = happy_props
         self._consolidate_module_concurrency(python_ast, contracts_map)

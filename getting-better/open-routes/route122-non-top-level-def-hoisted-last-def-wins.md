@@ -1,7 +1,7 @@
 # ROUTE #122 — a `def` that is NOT a top-level module statement (inside `if`/`try`, or nested in
 # another function) is hoisted into module scope, where the TEXTUALLY LAST def of a name wins
 
-**Status: PARTLY CLOSED — the module-scope and class-body COMPOUND arms (if/try/import-fallback) closed and gated in gen #24 battery-A; the NESTED-DEF arm (sibling helpers, helper vs module/imported function) is drafted for battery-B.**
+**Status: CLOSED AND FULLY GATED by gen #24 (2026-09-15): compound arms in battery-A, nested-def arm (two-sided collision, imports/classes/module assignments as partners) in battery-B.**
 **Severity: SEV-1. Order 2** (carrier = #118's rule (1), whose module pass keys on top-level defs;
 the dup-def control "last def wins" is only right for top-level duplicates).
 

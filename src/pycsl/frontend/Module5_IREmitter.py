@@ -5894,8 +5894,31 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 _wb_stack.extend(_h.body)
             for _c in getattr(_wb, "cases", []) or []:
                 _wb_stack.extend(_c.body)
+        # (#49) ROUTE #129 — a WRITE THROUGH `global` IS DROPPED: the store lowers to a FRESH
+        # local `let n = ref ...`, while every read of a non-constant module variable is one
+        # opaque `val constant` — so `a = N; setn(); return a - N` proved `0` (Python -2), under
+        # a false `assigns \nothing` the honest `assigns N` could not even spell. Same carrier
+        # and same layer as `nonlocal_writes`: the names this function declares `global` AND
+        # stores, from its own statements (a nested def's `global` is its own). Module 6
+        # refuses unless the name is a modelled `#@ shared` variable.
+        _global_decl: List[str] = []
+        _global_stored: set = set()
+        _gw_stack: list = list(node.body)
+        while _gw_stack:
+            _gw = _gw_stack.pop()
+            if isinstance(_gw, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+                continue
+            if isinstance(_gw, ast.Global):
+                for _nm in _gw.names:
+                    if _nm not in _global_decl:
+                        _global_decl.append(_nm)
+            if isinstance(_gw, ast.Name) and not isinstance(_gw.ctx, ast.Load):
+                _global_stored.add(_gw.id)
+            _gw_stack.extend(ast.iter_child_nodes(_gw))
+        _global_writes = [_nm for _nm in _global_decl if _nm in _global_stored]
         return {
             "name": func_name,
+            **({"global_writes": sorted(_global_writes)} if _global_writes else {}),
             # (#34) emitted ONLY when non-empty, so the IR of every function without a
             # `nonlocal` is byte-identical and the frozen conformance goldens do not move.
             **({"nonlocal_writes": sorted(_nonlocal_writes)} if _nonlocal_writes else {}),
@@ -6372,6 +6395,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # distinct provenance consumed only by the emit-as-val gate.
         if self._enclosing_trusted_stack and any(self._enclosing_trusted_stack):
             func_ir["trusted_parent"] = True
+        # (#49) ROUTES #122/#126: the lifted-def facts marked by the weaver, carried ONLY when
+        # present (absent for every top-level function -> byte-identical IR there).
+        if getattr(node, "csl_closure_captures", None):
+            func_ir["closure_captures"] = list(node.csl_closure_captures)
+        if getattr(node, "csl_lifted_collision", False):
+            func_ir["lifted_name_collision"] = True
         self.program_ir["functions"].append(func_ir)
         # Push THIS function's effective-trusted status (its own `\trusted`, or an
         # already-trusted enclosing frame) so a def nested inside it inherits too.

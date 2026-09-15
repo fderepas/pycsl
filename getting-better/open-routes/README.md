@@ -1,6 +1,6 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **#122 (nested-def arm), #126, #129** — all drafted for gen #24 battery-B. CLOSED AND FULLY GATED by gen #24 battery-A: #121, #123, #124, #125, #127, #128, and #122's compound-statement arms.
+## CURRENTLY OPEN: **NONE** (gen #24, 2026-09-15). gen #24 found AND CLOSED AND FULLY GATED nine SEV-1 routes #121-#129 in two batteries (A: #121 #123 #124 #125 #127 #128 + #122 compound arms, commit 629c80bb; B: #122 nested arm, #126, #129). WATCH items in the handoff.
 ##   #121 a user decorator is silently dropped (`@swap` returning `abs`).
 ##   #122 a def inside if/try, or nested in another function, is hoisted to module scope; textually last def wins.
 ##   #123 a subclass class-body binding (`m = lambda self: 2`) overriding an inherited method is ignored.

@@ -6566,6 +6566,21 @@ class FunctionEmissionMixin:
                 "returns 7. Call `__enter__` explicitly and assign its result, or use a "
                 "bare `with <lock>:` (which IS modelled, as a critical section)."
                 % (func.get("name"), ", ".join(func["with_bindings"])))
+        # (#49) ROUTE #129 — a write through `global` to a name that is not a modelled
+        # `#@ shared` variable (see Module 5 `global_writes`).
+        _gw_unmodelled = [_nm for _nm in (func.get("global_writes") or [])
+                          if _nm not in (getattr(self, "_shared_var_names", set()) or set())]
+        if (_gw_unmodelled
+                and not (func.get("trusted") or func.get("abstract")
+                         or func.get("trusted_parent"))):
+            raise PyCSLIRError(
+                "function '%s' writes %s through a `global` declaration, and no certified "
+                "lowering models it: the store lands on a FRESH LOCAL while every read of the "
+                "module variable is one opaque constant, so a read before and after the write "
+                "would be proved equal (measured: `a = N; setn(); return a - N` proved 0 while "
+                "Python returns -2). Declare the variable `#@ shared`, or pass and return the "
+                "value instead of assigning a global."
+                % (func.get("name"), ", ".join(_gw_unmodelled)))
         if (func.get("nonlocal_writes")
                 and not (func.get("trusted") or func.get("abstract")
                          or func.get("trusted_parent"))):
@@ -6577,6 +6592,45 @@ class FunctionEmissionMixin:
                 "still reported 'All contracts formally proven'. Return the value from the "
                 "nested function instead of assigning through the closure."
                 % (func.get("name"), ", ".join(func["nonlocal_writes"])))
+        # (#49) ROUTES #122 (nested arm) + #126 — a LIFTED nested def, the same layer and the
+        # same exemption as `nonlocal_writes` above (a bodyless `val` never lowers its body).
+        # Measured before: two sibling helpers `h` emitted ONE `let h` (`a()` proved the other
+        # helper's result), and a captured enclosing name became one global `val constant`
+        # (`f(1) - f(2) == 0` proved, Python -1; a captured list written through was a no-op).
+        # The collision is checked from BOTH sides: the emitted function may be the MODULE
+        # def while the colliding lifted helper (defined earlier) was dropped before emission
+        # (measured: `other(): def inc -> +1` then a module `def inc -> -1` proved `other()`
+        # against the module `inc`).
+        # A twin SUPPRESSED by a bespoke pairing (the `found=[False]` closure-form walk, whose
+        # wrapper emits a self-contained catamorphism and never calls it) is not live: the
+        # bespoke recognizers record such helpers by object identity in `self._*_ids`.
+        _lf_suppressed: set = set()
+        for _lf_k, _lf_v in vars(self).items():
+            if _lf_k.endswith("_walk_ids") and isinstance(_lf_v, (set, frozenset, list, tuple)):
+                _lf_suppressed |= set(_lf_v)
+        _lf_twin = False
+        for _lf_g in ((getattr(self, "ir", None) or {}).get("functions", []) or []):
+            if (isinstance(_lf_g, dict) and _lf_g is not func and id(_lf_g) not in _lf_suppressed
+                    and _lf_g.get("name") == func.get("name")
+                    and _lf_g.get("lifted_name_collision")
+                    and not (_lf_g.get("trusted") or _lf_g.get("abstract")
+                             or _lf_g.get("trusted_parent"))):
+                _lf_twin = True
+        if _lf_twin or ((func.get("closure_captures") or func.get("lifted_name_collision"))
+                        and not (func.get("trusted") or func.get("abstract")
+                                 or func.get("trusted_parent"))):
+            raise PyCSLIRError(
+                "nested function '%s' is lifted to a sibling of its enclosing function, and "
+                "the lift is not faithful here: %s. A lifted body reads a captured name as ONE "
+                "global opaque constant shared by every call, and two lifted helpers with the "
+                "same name collapse to one. Pass the captured values as parameters and give the "
+                "helper a unique name, or move it to module level."
+                % (func.get("name"),
+                   "; ".join(([("it reads %s from an enclosing function"
+                                % ", ".join(func["closure_captures"]))]
+                              if func.get("closure_captures") else [])
+                             + (["another function in the file has the same name"]
+                                if (func.get("lifted_name_collision") or _lf_twin) else []))))
         is_method = func.get("kind") == "method"
 
         local_refs, ghost_vars = self._reset_function_state(func, body_stmts)
