@@ -2218,3 +2218,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
 2026-09-15 gen#25 BATTERY-B cheap legs HIT (7 rc=0 + 3b pre-existing 3 drifted; 459/484/25/0; 13/62; 458; 887; 53/0; dropped-mutation ratchets 0/51/9/0 — its unratcheted REFUSED column moved 7 -> 8 (a statement of the new #135 loop scanned as REFUSED), NOT predicted, recorded); emission vs battery-A HIT: byte-inert in all three, zb 0. Suite started 21:12:51Z.
 2026-09-15 gen#25 CHECKPOINT 21:28Z: battery-B suite running (started 21:12:51Z).
 2026-09-15 gen#25 CHECKPOINT 21:47Z: battery-B suite running (35 min).
+2026-09-15 gen#25 CHECKPOINT 22:06Z: battery-B suite running (54 min).
