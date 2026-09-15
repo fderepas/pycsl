@@ -2786,6 +2786,15 @@ class Module3_Weaver:
                                      "vars", "locals", "getattr"))
         _nb_callees = {id(_nb_x.func) for _nb_x in ast.walk(python_ast)
                        if isinstance(_nb_x, ast.Call) and isinstance(_nb_x.func, ast.Name)}
+        _nb_imported: set = set()
+        for _nb_x in ast.walk(python_ast):
+            if isinstance(_nb_x, ast.Import):
+                for _nb_a in _nb_x.names:
+                    _nb_imported.add(_nb_a.asname or _nb_a.name.split(".")[0])
+            elif isinstance(_nb_x, ast.ImportFrom):
+                for _nb_a in _nb_x.names:
+                    if _nb_a.name != "*":
+                        _nb_imported.add(_nb_a.asname or _nb_a.name)
         for _nb_x in ast.walk(python_ast):
             if (isinstance(_nb_x, ast.Name) and isinstance(_nb_x.ctx, ast.Load)
                     and _nb_x.id in _nb_ns_builtins and id(_nb_x) not in _nb_callees):
@@ -2799,16 +2808,26 @@ class Module3_Weaver:
             elif isinstance(_nb_x, ast.Attribute) and _nb_x.attr in _nb_ns_builtins:
                 _nb_bad.append(f"the namespace builtin `{_nb_x.attr}` reached as an "
                                f"attribute at line {getattr(_nb_x, 'lineno', 0)}")
-            # ... and reached by a COMPUTED `getattr` that is then CALLED:
-            # `getattr(__builtins__, "ex" + "ec")("N = 5")` names none of the spellings
-            # above. #127 already refuses a computed `getattr` on the WRITE side; this is
-            # its read side. Census of `getattr(...)(...)` over the five trees: 0 sites
-            # (the 333 `<name>(...)(...)` sites are all `_N(cls)(...)` factories).
+            # ... and reached by a `getattr` ON A NAMESPACE OBJECT that is then CALLED:
+            # `getattr(builtins, "set" + "attr")(plainlib, "inc", plainlib.dec)` names none
+            # of the spellings above. #127 already refuses a computed `getattr` on the WRITE
+            # side; this is its read side.
+            # SCOPED TO A NAMESPACE RECEIVER — `__builtins__` or an IMPORTED name. The first
+            # cut refused EVERY `getattr(...)(...)` on a census I read off a TRUNCATED
+            # listing ("the 333 sites are all `_N(cls)(...)`"): the real count of
+            # `getattr(obj, name)(...)` is 2 in the mirrors and 5 in `src/pycsl` — the
+            # emitter's own `getattr(self, handler_name)(node)` dispatch — and the mirror
+            # emission sweep caught it as FOUR GONE mirrors. A `self`/local receiver is not
+            # a namespace and is untouched; census under the scoped rule: 0 live sites.
             elif (isinstance(_nb_x, ast.Call) and isinstance(_nb_x.func, ast.Call)
                     and isinstance(_nb_x.func.func, ast.Name)
-                    and _nb_x.func.func.id == "getattr"):
-                _nb_bad.append(f"a computed `getattr` used as a callee at line "
-                               f"{getattr(_nb_x, 'lineno', 0)}")
+                    and _nb_x.func.func.id == "getattr"
+                    and _nb_x.func.args
+                    and isinstance(_nb_x.func.args[0], ast.Name)
+                    and (_nb_x.func.args[0].id == "__builtins__"
+                         or _nb_x.func.args[0].id in _nb_imported)):
+                _nb_bad.append(f"a `getattr` on a namespace object used as a callee at "
+                               f"line {getattr(_nb_x, 'lineno', 0)}")
         # (#133) a def nested in a method, named like a method of that class or of an in-module
         # base (the lift emits it as that method).
         _nb_cls_by_name: Dict[str, Any] = {}
