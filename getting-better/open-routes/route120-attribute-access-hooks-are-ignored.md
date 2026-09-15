@@ -1,7 +1,7 @@
 # ROUTE #120 — a class's ATTRIBUTE-ACCESS HOOKS (`__getattribute__`, `__setattr__`) are ignored:
 # method calls and field stores are modelled as if the hooks did not exist
 
-**Status: FOUND, REPRODUCED (gen #23, 2026-09-15). Repair drafted, gated with #119 (battery-5).**
+**Status: CLOSED AND FULLY GATED by gen #23 (2026-09-15) — battery-4b + battery-5.**
 **Severity: SEV-1. First-order.** Both hooks are ordinary Python.
 
 ## PROVENANCE
@@ -51,3 +51,14 @@ Refuse, in the shared `Module3_Weaver.process` guard, any class that defines `__
 `__setattr__` or `__delattr__` — the hooks that intercept a lookup or a store the model resolves
 statically. (`__getattr__` fires only when normal lookup FAILS; unmodelled attribute reads are
 already fresh opaque `getattr_*` values, so it is not refused.)
+
+
+---
+
+# THE REPAIR AS LANDED — gen #23
+
+Battery-4b (de890255): `Module3_Weaver.process` refuses a class that DEFINES `__getattribute__`,
+`__setattr__` or `__delattr__` (witnesses 1333, 1334; python-reference 0076, expected-FAIL, now
+refused — the only population). Battery-5: a hook INSTALLED BY CLASS-BODY ASSIGNMENT
+(`__getattribute__ = _redirect`) is refused structurally (witness 1337; before, only incidental
+Why3 errors refused it). Both batteries fully green (see route #119's closure for the legs).

@@ -1,6 +1,6 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **NONE.**  (last edited by gen #23, 2026-09-15 — #109, #111–#118 all CLOSED AND FULLY GATED)
+## CURRENTLY OPEN: **NONE.**  (last edited by gen #23, 2026-09-15 — #109, #111–#120 all CLOSED AND FULLY GATED; see the WATCH list in the handoff)
 ##
 ##   >>> **gen #23 CLOSED AND FULLY GATED NINE SEV-1 ROUTES IN TWO BATTERIES: #111, #112, #113,
 ##   >>> #114, #115, #116, #117 (combined battery-2, e91bb786) and #109, #118 (battery-3).** #111/#112 were gen #21/#22's open items
@@ -16,6 +16,8 @@
 ##   >>>   #118 a rebinding of a function/method name (`inc = dec`, class-body `m = n`, walrus,
 ##   >>>        `global`, `_g["inc"] = dec`) is ignored by call resolution. REFUSED now
 ##   >>>        (PYCSL-IR-FUNCTION-NAME-REBOUND); it also closed #116's last carrier.
+##   >>>   #119 (order 2) every non-Name rebinding and instance-level shadowing survived #118 — closed in
+##   >>>        batteries 4b+5.  #120 attribute-access hooks ignored — closed.
 ##   >>> Generators: substring-census (#113 #114), NEW witness-census (#115 #117), carve-out-census
 ##   >>> (#116), carrier-rerun (#118 — found on gen #23's OWN #116 fence).
 ##

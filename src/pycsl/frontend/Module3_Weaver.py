@@ -1820,6 +1820,71 @@ class Module3_Weaver:
                                        f"`{_rb_root_id or '<expr>'}...` at line "
                                        f"{getattr(_rb_z, 'lineno', 0)}")
                 _rb_st3.extend(ast.iter_child_nodes(_rb_z))
+        # (8) INSTANCE-LEVEL shadowing of a method: `self.m = abs` in `__init__` makes `c.m(-3)`
+        # call `abs` (measured PROVING the method's contract, Python 3). A builtin value slips
+        # past the function-as-value error that fenced `self.m = fn` for an in-file `fn`, so the
+        # earlier WATCH exemption was wrong. Keyed on the METHODS OF THE ENCLOSING CLASS AND ITS
+        # IN-MODULE BASES (a same-named field of an unrelated class is not a shadow: pycsl_lib
+        # `subproc` stores `self.returncode` beside another class's `returncode` method).
+        # `setattr(self, <non-literal>, v)` is refused only in a class that has a non-dunder
+        # method to shadow (pure_ast's node base sets its fields that way and has only dunders).
+        _rb_cls_by_name: Dict[str, Any] = {}
+        for _rb_c in ast.walk(python_ast):
+            if isinstance(_rb_c, ast.ClassDef):
+                _rb_cls_by_name.setdefault(_rb_c.name, _rb_c)
+        for _rb_c in ast.walk(python_ast):
+            if not isinstance(_rb_c, ast.ClassDef):
+                continue
+            _rb_meths: set = set()
+            _rb_todo: list = [_rb_c]
+            _rb_seen: set = set()
+            while _rb_todo:
+                _rb_k = _rb_todo.pop()
+                if id(_rb_k) in _rb_seen:
+                    continue
+                _rb_seen.add(id(_rb_k))
+                _rb_meths |= {_rb_s.name for _rb_s in _rb_k.body
+                              if isinstance(_rb_s, (ast.FunctionDef, ast.AsyncFunctionDef))}
+                for _rb_b in _rb_k.bases:
+                    if isinstance(_rb_b, ast.Name) and _rb_b.id in _rb_cls_by_name:
+                        _rb_todo.append(_rb_cls_by_name[_rb_b.id])
+                    elif not (isinstance(_rb_b, ast.Name) and _rb_b.id == "object"):
+                        # a base NOT defined in this module (imported, builtin, or an
+                        # expression): its methods are invisible here. A non-literal
+                        # `setattr(self, name, v)` could shadow any of them — measured
+                        # `C(K)` with `setattr(self, name, value)` and `C("m", int).m()`
+                        # PROVING `K.m`'s contract, Python 0.
+                        _rb_meths.add("<foreign-base>")
+            _rb_has_plain = any(not (_rb_m.startswith("__") and _rb_m.endswith("__"))
+                                for _rb_m in _rb_meths)
+            for _rb_q in ast.walk(_rb_c):
+                _rb_ql = getattr(_rb_q, "lineno", 0)
+                if (isinstance(_rb_q, ast.Attribute) and isinstance(_rb_q.ctx, (ast.Store, ast.Del))
+                        and isinstance(_rb_q.value, ast.Name) and _rb_q.value.id == "self"
+                        and _rb_q.attr in _rb_meths):
+                    _rb_bad.append(f"method `{_rb_q.attr}` shadowed by `self.{_rb_q.attr}` at line {_rb_ql}")
+                _rb_sargs = None
+                if (isinstance(_rb_q, ast.Call) and isinstance(_rb_q.func, ast.Name)
+                        and _rb_q.func.id in ("setattr", "delattr") and len(_rb_q.args) >= 2
+                        and isinstance(_rb_q.args[0], ast.Name) and _rb_q.args[0].id == "self"):
+                    _rb_sargs = _rb_q.args[1]
+                elif (isinstance(_rb_q, ast.Call) and isinstance(_rb_q.func, ast.Attribute)
+                        and _rb_q.func.attr in ("__setattr__", "__delattr__") and _rb_q.args
+                        and ((isinstance(_rb_q.func.value, ast.Name) and _rb_q.func.value.id == "self")
+                             or (isinstance(_rb_q.func.value, ast.Call)
+                                 and isinstance(_rb_q.func.value.func, ast.Name)
+                                 and _rb_q.func.value.func.id == "super"))):
+                    _rb_sargs = _rb_q.args[0]
+                elif (isinstance(_rb_q, ast.Call) and isinstance(_rb_q.func, ast.Attribute)
+                        and _rb_q.func.attr in ("__setattr__", "__delattr__")
+                        and len(_rb_q.args) >= 2 and isinstance(_rb_q.args[0], ast.Name)
+                        and _rb_q.args[0].id == "self"):
+                    # `object.__setattr__(self, name, v)`: the unbound spelling of the same write.
+                    _rb_sargs = _rb_q.args[1]
+                if _rb_sargs is not None:
+                    _rb_slit = isinstance(_rb_sargs, ast.Constant) and isinstance(_rb_sargs.value, str)
+                    if (_rb_slit and _rb_sargs.value in _rb_meths) or (not _rb_slit and _rb_has_plain):
+                        _rb_bad.append(f"method shadowed through `setattr` on self at line {_rb_ql}")
         if _rb_bad:
             raise PyCSLSemanticError(
                 "a function, method or class NAME is rebound after its definition ("
@@ -1839,11 +1904,20 @@ class Module3_Weaver:
         for _hk_cls in ast.walk(python_ast):
             if isinstance(_hk_cls, ast.ClassDef):
                 for _hk_st in _hk_cls.body:
-                    if (isinstance(_hk_st, (ast.FunctionDef, ast.AsyncFunctionDef))
-                            and _hk_st.name in ("__getattribute__", "__setattr__", "__delattr__")):
+                    # a hook INSTALLED BY ASSIGNMENT (`__getattribute__ = _redirect`) is the same
+                    # hook; measured refused only by incidental Why3 errors before this.
+                    _hk_names = ([_hk_st.name] if isinstance(_hk_st, (ast.FunctionDef,
+                                                                     ast.AsyncFunctionDef))
+                                 else [_hk_t.id for _hk_x in ([_hk_st.target] if isinstance(
+                                           _hk_st, (ast.AnnAssign, ast.AugAssign)) else
+                                           getattr(_hk_st, "targets", []) or [])
+                                       for _hk_t in ast.walk(_hk_x) if isinstance(_hk_t, ast.Name)])
+                    _hk_hit = [_hk_n for _hk_n in _hk_names
+                               if _hk_n in ("__getattribute__", "__setattr__", "__delattr__")]
+                    if _hk_hit:
                         raise PyCSLSemanticError(
                             f"Class '{_hk_cls.name}' (line {_hk_cls.lineno}) defines "
-                            f"`{_hk_st.name}`, an attribute-access hook the model does not "
+                            f"`{_hk_hit[0]}`, an attribute-access hook the model does not "
                             f"consult: every method call and field store is resolved "
                             f"statically, so the hook would be silently ignored (measured: a "
                             f"`__getattribute__` redirecting `m` to `n` proved `m`'s contract; "

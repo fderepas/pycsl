@@ -6932,6 +6932,74 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # ... : int`, mismatching downstream consumers when `<method>`
         # actually takes/returns array or map types.
         ret_type, param_types, result_ensures, field_spec = self._resolve_dotted_signature(func_name)
+        # (#49) ROUTE #119, INSTANCE-LEVEL SHADOWING, keyed on the PATH: a call `<recv>.m(...)`
+        # resolves to the METHOD `m`, but if the receiver's record also carries a FIELD named
+        # `m` then some store put an attribute `m` on the instance, and Python's lookup finds
+        # the INSTANCE attribute first. Measured PROVING the method's contract while CPython
+        # called the stored value: `self.m = abs` in `__init__` (in-module class), and the
+        # same over a method INHERITED FROM AN IMPORTED base, which a front-end check cannot
+        # see. Here both facts are known, whatever spelled the store.
+        _sh_parts = func_name.split(".")
+        if len(_sh_parts) == 2:
+            _sh_cls = None
+            if _sh_parts[0] == "self":
+                _sh_cls = self._current_self_type
+            else:
+                _sh_rv = (getattr(self, "_current_record_var_classes", {}).get(_sh_parts[0])
+                          or getattr(self, "_module_global_classes", {}).get(_sh_parts[0]))
+                _sh_cls = _sh_rv.lower() if isinstance(_sh_rv, str) else None
+            if _sh_cls:
+                # THE SECOND FACT — an attribute of that name STORED ANYWHERE in the program
+                # (`FieldAssign`/`FieldAugAssign`, or a literal `setattr`). A store outside
+                # `__init__` creates no record field, so the field test alone missed
+                # `def install(self): self.m = int` over an inherited `m` (measured PROVING).
+                # Only consulted when the call really resolves to a METHOD of the class, so a
+                # stored `self.items` never taints `d.items()` on a dict. Computed once per
+                # IR and kept INSIDE the IR dict (no new emitter attribute).
+                _sh_stored = self.ir.get("__r119_stored_attr_names__") if isinstance(
+                    getattr(self, "ir", None), dict) else None
+                if _sh_stored is None and isinstance(getattr(self, "ir", None), dict):
+                    _sh_stored = set()
+                    _sh_stack: list = [self.ir.get("functions") or []]
+                    while _sh_stack:
+                        _sh_n = _sh_stack.pop()
+                        if isinstance(_sh_n, dict):
+                            if _sh_n.get("stmt") in ("FieldAssign", "FieldAugAssign") and isinstance(
+                                    _sh_n.get("field"), str):
+                                _sh_stored.add(_sh_n["field"])
+                            if (_sh_n.get("type") == "Call" and _sh_n.get("func") in ("setattr",)
+                                    and len(_sh_n.get("args") or []) >= 2
+                                    and isinstance(_sh_n["args"][1], dict)
+                                    and _sh_n["args"][1].get("type") == "String"):
+                                _sh_stored.add(_sh_n["args"][1].get("value"))
+                            _sh_stack.extend(_sh_n.values())
+                        elif isinstance(_sh_n, list):
+                            _sh_stack.extend(_sh_n)
+                    self.ir["__r119_stored_attr_names__"] = _sh_stored
+                _sh_is_method = (f"{_sh_cls}__{_sh_parts[1]}" in self._module_method_return_types
+                                 or f"{_sh_cls}__{_sh_parts[1]}" in getattr(
+                                     self, "_module_method_result_ensures", {}))
+                if _sh_is_method and _sh_stored and _sh_parts[1] in _sh_stored:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        f"the call `{func_name}(...)` resolves to a METHOD `{_sh_parts[1]}`, but "
+                        f"the program also STORES an attribute `{_sh_parts[1]}` on an object, "
+                        f"and Python finds an instance attribute before the method — the "
+                        f"method's contract could be applied to a different callable. Instance "
+                        f"attributes that shadow methods are not modelled; rename one of them.",
+                        stage="module6-whyml", code="PYCSL-WHYML-METHOD-SHADOWED")
+                for _sh_info in getattr(self, "_record_types", {}).values():
+                    if (_sh_info.get("whyml_name") == _sh_cls
+                            and _sh_parts[1] in (_sh_info.get("field_types") or {})):
+                        from errors import PyCSLSemanticError
+                        raise PyCSLSemanticError(
+                            f"the call `{func_name}(...)` resolves to a METHOD `{_sh_parts[1]}`, "
+                            f"but instances of its class also carry an ATTRIBUTE "
+                            f"`{_sh_parts[1]}` (a store such as `self.{_sh_parts[1]} = ...`), and "
+                            f"Python finds the instance attribute first — the method's contract "
+                            f"would be applied to a different callable. Instance attributes that "
+                            f"shadow methods are not modelled; rename one of them.",
+                            stage="module6-whyml", code="PYCSL-WHYML-METHOD-SHADOWED")
         # Pad / truncate param_types to match n (the abstract val arity
         # only sees the caller's actual arg count, not the IR's symbol
         # table size).

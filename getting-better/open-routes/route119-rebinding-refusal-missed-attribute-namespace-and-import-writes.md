@@ -1,7 +1,7 @@
 # ROUTE #119 — route #118's rebinding refusal (landed 6c75839a) missed every rebinding that is
 # not a NAME binding in the file being verified
 
-**Status: FOUND (gen #23, 2026-09-15), ORDER 2 — the carrier is gen #23's own landed repair.**
+**Status: CLOSED AND FULLY GATED by gen #23 (2026-09-15) — battery-4b (de890255) + battery-5.** See THE REPAIR AS LANDED at the bottom.
 **Severity: SEV-1.** Every carrier PROVES a contract of the original def while CPython runs the
 replacement.
 
@@ -40,7 +40,7 @@ json/encoder.py:147` has exactly this shape), `inc.__code__ = dec.__code__` in a
 
 The guard moved into `Module3_Weaver.process` — the one step BOTH pipelines share, which already
 raises (so `check-trusted-raises-honesty` and the mirror emissions stay put) — and grew to:
-(1) name bindings per scope (as #118), constant `exec("...")` bodies included; (2) `global
+(1) name bindings per scope (as #118); (2) `global
 <def name>`; (3) any subscript write or mutating method call through `globals()`/`vars()`/
 `locals()`, a name bound to one of them, or any `.__dict__`; (4) an attribute write whose
 attribute is a def/class/method name on any receiver but `self`; (5) `setattr`/`delattr` and
@@ -56,3 +56,33 @@ check; parsing the string inside `process` needed a `try/except SyntaxError`, wh
 
 WATCH (not refused, fenced today only by the function-as-value error): `self.<method> = fn` and
 `super().__setattr__(name, v)` instance-level shadowing.
+
+
+---
+
+# THE REPAIR AS LANDED — gen #23 (2026-09-15), TWO BATTERIES
+
+**Battery-4b** (commit de890255, with route #120): the rebinding guard moved from
+`pycsl._run_pipeline` into `Module3_Weaver.process` with rules (1)-(7) above. Cheap legs identical ·
+emission byte-inert except the predicted `--expect-gone python-reference 0076` · suite 3460/3478,
+same 18 failures, 0 XPASS · planes 34/34. Witnesses 1325-1332.
+
+**Battery-5** (INSTANCE-LEVEL shadowing, found by carrier-rerun on the battery-4b tree):
+  (8) front end — a `self.<m>` store, or `setattr(self, "<m>")` / `self.__setattr__` /
+      `super().__setattr__` / `object.__setattr__(self, ...)`, where `m` is a method of the class
+      or its in-module bases; a NON-literal attribute is refused when the class has a non-dunder
+      method OR any base not defined in the module (its methods are unknowable here);
+  (9) IR level, `PYCSL-WHYML-METHOD-SHADOWED` in `_handle_dotted_call` (already raised) — a call
+      that resolves to a METHOD `m` of the receiver's class while the receiver record carries a
+      FIELD `m` (e.g. a dataclass field default, a store in `__init__`, over an IMPORTED base the
+      front end cannot see) or the program STORES an attribute `m` anywhere (a store outside
+      `__init__` creates no field).
+Measured carriers closed by battery-5, each PROVING at HEAD c01ef653: `self.m = abs` (1335);
+`self.m = int` over an imported base (1336); a late store in `install()` (1338); a non-literal
+`setattr(self, name, value)` over an imported base (1339); `object.__setattr__(self, ...)`
+(probe); a dataclass field default over an imported base (probe). Battery-5: cheap legs identical ·
+emission byte-inert vs battery-4b in all three directions · suite 3465/3483, same 18 failures,
+0 XPASS · planes 34/34.
+
+**Remaining WATCH (fenced only incidentally, logged):** a non-literal `setattr(obj, name, int)` on
+a plain local instance through a helper — refused today by the typing of the setattr value slot.
