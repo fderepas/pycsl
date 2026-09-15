@@ -94,3 +94,15 @@ returns the LITERAL `0` for the whole construction. False `ensures \result == 0`
 CPython returns 2 for both values of `c`. This is also a `witness-census` site (the census's
 `expressions.py:17130`). The repair must make a DECLINE opaque (route #24's
 `opaque_dynamic_call`), never `0`.
+
+---
+
+## THE DRAFT FENCE HAS A CARRIER ALREADY (gen #23, order 2) — #116 IS NOT CLOSED BY BATCH-2
+
+Batch-2 keys the recognizer on a genuine `globals()` lookup helper. Carrier-rerun on that fence:
+a module-level `_g["inc"] = dec` (a SUBSCRIPT store into the namespace — the fence counted NAME
+targets only, the campaign's lesson 9 exactly) keeps `_N` qualified and `_N("inc")(3)` is still
+`(inc 3)`: false `\result == 4` PROVES, CPython 2. Its root is route #118 (a rebinding of the
+looked-up name is not consulted at all, even by a DIRECT call). Batch-2 closes the `Pick("inc")`
+callable-class carrier, the fake-dict `_N`, and the ternary decline; the namespace-mutation
+carrier stays open under #118.
