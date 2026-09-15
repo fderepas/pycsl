@@ -20,6 +20,17 @@ The campaign rule, again: **a carrier surviving a repair is a second route, not 
 | `setattr(sys.modules[__name__], "inc", dec)` | a call, not a binding |
 | `type.__setattr__(C, "m", C.n)` | the dunder spelling of setattr |
 | `inc = dec` inside an IMPORTED module (`from rebindlib import inc`) | the refusal sat in `pycsl._run_pipeline`; imported dependencies are ingested by `frontend/ir_resolve.py` with their own Module 1-3-5 and never pass through it |
+| `exec("inc = dec")` at module level | the refusal never looked inside the string |
+
+AND, run against gen #23's OWN #119 DRAFT the same hour (each PROVED at HEAD and on the draft):
+
+| carrier | why the draft missed it |
+|---|---|
+| `import plainlib; plainlib.inc = plainlib.dec; plainlib.inc(3)` | the draft keyed on names defined in THIS file; the receiver is an IMPORT |
+| `from plainlib import K; K.m = K.n; K().m()` | same |
+| `importlib.import_module("plainlib").inc = ...` | the receiver is a CALL, not a name |
+
+(`type(c).m = C.n` was already refused at HEAD by the in-place field-mutation refusal — FAIL-CLOSED.)
 
 VACUOUS siblings (the function-as-value "Symbol X is already defined" fence): `c.m = c.n` on an
 instance, `self.m = fn` through a constructor parameter (the `json.JSONEncoder` idiom — `pycsl_lib/
@@ -33,10 +44,15 @@ raises (so `check-trusted-raises-honesty` and the mirror emissions stay put) —
 <def name>`; (3) any subscript write or mutating method call through `globals()`/`vars()`/
 `locals()`, a name bound to one of them, or any `.__dict__`; (4) an attribute write whose
 attribute is a def/class/method name on any receiver but `self`; (5) `setattr`/`delattr` and
-`X.__setattr__`/`__delattr__` (receiver not `self`/`super()`) with a def/class/method name or a
-non-literal attribute; (6) ANY attribute write on an object that IS a module-level def or class,
-scope-aware (a parameter or local of the same name inside a function is not the def — pure_ast's
-`node.lineno = ...` is exactly that case).
+`X.__setattr__`/`__delattr__` (receiver not `self`/`super()`) with a def/class/method name, a
+literal on an imported object, or a non-literal attribute on a class-or-module-like receiver
+(a non-literal `setattr(out, f.name, v)` on a plain local is LIVE Module3_Weaver's own idiom —
+refusing it refused two MIRROR files; narrowed); (6) ANY attribute write whose receiver CHAIN
+roots at a module-level def/class or an IMPORTED object (scope-aware: a parameter or local of
+the same name is not the object — pure_ast's `node.lineno = ...`), or contains a call not rooted
+at `self`; (7) a constant `exec("...")` whose text names a def/class/imported object (token
+check; parsing the string inside `process` needed a `try/except SyntaxError`, which added an
+`exception SyntaxError` to two mirror emissions — measured, removed).
 
 WATCH (not refused, fenced today only by the function-as-value error): `self.<method> = fn` and
 `super().__setattr__(name, v)` instance-level shadowing.
