@@ -2613,16 +2613,64 @@ class Module3_Weaver:
         _nb_has_star = any(isinstance(_nb_x, ast.ImportFrom)
                            and any(_nb_a.name == "*" for _nb_a in _nb_x.names)
                            for _nb_x in ast.walk(python_ast))
+        # (#137) THE NODES THAT ACTUALLY RUN WHEN THE MODULE (or a class body) RUNS. The first
+        # cut walked `iter_child_nodes` and `continue`d on every FunctionDef and Lambda, so
+        # THREE module-scope execution sites were never scanned at all (each PROVED the
+        # original `inc` while CPython ran `dec`):
+        #   a LAMBDA BODY called in place — `(lambda m: setattr(m, "inc", plainlib.dec))
+        #   (plainlib)` — where #119 rule (6) also exempts the lambda's PARAMETER receiver;
+        #   the same lambda in a CLASS BODY;
+        #   a def's DEFAULT ARGUMENT / annotation / decorator expression, all evaluated at
+        #   DEFINITION time — `def h(z = (lambda m: setattr(m, "inc", ...))(plainlib))`.
+        # A def's BODY is NOT executed here and stays out (an in-function patch is fenced by
+        # the value model). A lambda's body is admitted fail-closed: whether it is called in
+        # place cannot be read off the syntax.
+        _nb_lam_params: set = set()
+
+        def _nb_arg_names(_a) -> list:
+            return (list(getattr(_a, "posonlyargs", []) or []) + list(_a.args)
+                    + list(_a.kwonlyargs)
+                    + [_x for _x in (_a.vararg, _a.kwarg) if _x is not None])
+
+        def _nb_modexec(_roots: list) -> list:
+            _out: list = []
+            _stk: list = list(_roots)
+            while _stk:
+                _y = _stk.pop()
+                if isinstance(_y, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    _stk.extend(_y.decorator_list)
+                    _stk.extend([_d for _d in (_y.args.defaults or []) if _d is not None])
+                    _stk.extend([_d for _d in (_y.args.kw_defaults or []) if _d is not None])
+                    _stk.extend([_a.annotation for _a in _nb_arg_names(_y.args)
+                                 if _a.annotation is not None])
+                    if _y.returns is not None:
+                        _stk.append(_y.returns)
+                    continue
+                if isinstance(_y, ast.ClassDef):
+                    # the class BODY is its own scope entry in `_nb_scopes`; only the header
+                    # expressions run here.
+                    _stk.extend(_y.decorator_list)
+                    _stk.extend(_y.bases)
+                    _stk.extend(_y.keywords)
+                    continue
+                if isinstance(_y, ast.Lambda):
+                    for _a in _nb_arg_names(_y.args):
+                        _nb_lam_params.add(_a.arg)
+                    _stk.extend([_d for _d in (_y.args.defaults or []) if _d is not None])
+                    _stk.extend([_d for _d in (_y.args.kw_defaults or []) if _d is not None])
+                    _stk.append(_y.body)
+                    continue
+                _out.append(_y)
+                _stk.extend(ast.iter_child_nodes(_y))
+            return _out
+
         # the bindings that a module-scope / class-body receiver name refers to: those in the
         # module and class bodies themselves (a function-local binding is another variable).
         _nb_mnodes: list = []
-        _nb_st: list = list(python_ast.body)
-        while _nb_st:
-            _nb_y = _nb_st.pop()
-            if isinstance(_nb_y, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+        for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
+            if _nb_kind == "function":
                 continue
-            _nb_mnodes.append(_nb_y)
-            _nb_st.extend(ast.iter_child_nodes(_nb_y))
+            _nb_mnodes.extend(_nb_modexec(list(_nb_body)))
         for _nb_x in _nb_mnodes:
             _nb_pairs: list = []
             if isinstance(_nb_x, ast.Assign):
@@ -2634,6 +2682,22 @@ class Module3_Weaver:
                 _nb_pairs.append((_nb_x.target, None))
             elif type(_nb_x).__name__ == "withitem" and _nb_x.optional_vars is not None:
                 _nb_pairs.append((_nb_x.optional_vars, None))
+            # (#137) the first cut enumerated the binding forms its author pictured, and a
+            # name bound by any OTHER form fell to the `not _nb_has_star` DEFAULT, i.e. FRESH.
+            # Measured: `[setattr(m, "inc", plainlib.dec) for m in [plainlib]]` at module
+            # scope proved the original `inc` (CPython ran `dec`) — the sink saw the
+            # `setattr`, but the comprehension target `m` was never recorded.
+            elif isinstance(_nb_x, ast.AugAssign):
+                _nb_pairs.append((_nb_x.target, None))
+            elif type(_nb_x).__name__ == "comprehension":
+                _nb_pairs.append((_nb_x.target, None))
+            elif type(_nb_x).__name__ in ("ExceptHandler", "MatchAs", "MatchStar"):
+                if isinstance(getattr(_nb_x, "name", None), str):
+                    _nb_fresh_ok[_nb_x.name] = False
+            elif isinstance(_nb_x, (ast.Import, ast.ImportFrom)):
+                for _nb_a in _nb_x.names:
+                    if _nb_a.name != "*":
+                        _nb_fresh_ok[_nb_a.asname or _nb_a.name.split(".")[0]] = False
             for _nb_t, _nb_v in _nb_pairs:
                 _nb_good = (isinstance(_nb_t, ast.Name) and _nb_v is not None
                             and (isinstance(_nb_v, (ast.Constant, ast.Dict, ast.List, ast.Set))
@@ -2643,15 +2707,14 @@ class Module3_Weaver:
                 for _nb_tn in ast.walk(_nb_t):
                     if isinstance(_nb_tn, ast.Name) and not isinstance(_nb_tn.ctx, ast.Load):
                         _nb_fresh_ok[_nb_tn.id] = _nb_fresh_ok.get(_nb_tn.id, True) and _nb_good
+        # a LAMBDA PARAMETER is bound by the caller, not by the module: it describes no
+        # object this file can see (the `(lambda m: setattr(m, ...))(plainlib)` carrier).
+        for _nb_n in _nb_lam_params:
+            _nb_fresh_ok[_nb_n] = False
         for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
             if _nb_kind == "function":
                 continue
-            _nb_st: list = list(_nb_body)
-            while _nb_st:
-                _nb_y = _nb_st.pop()
-                if isinstance(_nb_y, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef,
-                                      ast.Lambda)):
-                    continue
+            for _nb_y in _nb_modexec(list(_nb_body)):
                 _nb_recv = None
                 if isinstance(_nb_y, ast.Attribute) and isinstance(_nb_y.ctx, (ast.Store, ast.Del)):
                     _nb_recv = _nb_y.value
@@ -2670,7 +2733,82 @@ class Module3_Weaver:
                             and _nb_fresh_ok.get(_nb_recv.id, not _nb_has_star)):
                         _nb_bad.append(f"an attribute written at {_nb_kind} scope on a computed "
                                        f"receiver at line {getattr(_nb_y, 'lineno', 0)}")
-                _nb_st.extend(ast.iter_child_nodes(_nb_y))
+        # (#136) A DYNAMIC `exec`, AND AN `eval` THAT CAN BIND, REBIND NAMES WHOSE VALUES THE
+        # MODEL HAS ALREADY FOLDED OR RESOLVED — and NOTHING downstream models the value.
+        # `exec_splice.py` splices only a CONSTANT single-argument `exec` and defers the rest
+        # to "scope havoc + frame taint, P5a/P5a'"; both handlers were located and neither
+        # touches a value: `_scope_dyn_exec` only withholds the `\in_scope` decided-FALSE
+        # direction, and `exec_havoc … writes {int_mem}` exists only in the typed/store
+        # memory model. The same docstring (and `_has_dynamic_exec`) assert that eval "does
+        # not inject names" — false since 3.8's walrus. Measured, each PROVING what CPython
+        # contradicts: module-scope `exec("N" + " = 5")` over a folded `N = 3`; `S = "N = 5";
+        # exec(S)`; `exec("le" + "n = sum")` then `len([5]) == 1`; `exec("in" + "c = dec")`
+        # over an imported `inc`; `exec("in" + "c = lambda y: y - 1")` over a module def;
+        # `eval("(N := 5)")`; and, inside a function, `exec(code, globals())` and
+        # `eval("(N := 5)", globals())`.
+        # SCOPED TO WHERE THE BINDING REACHES THE MODULE NAMESPACE: assignments made by a
+        # bare `exec`/`eval` go to the LOCALS mapping, which IS the module globals at module
+        # and class-body scope and is a discarded snapshot inside a function. So a bare call
+        # in a function body is left alone (corpus 0638/0639/0644 keep demonstrating the
+        # `\in_scope` havoc and the frame taint); an explicit mapping argument is refused
+        # anywhere. CENSUS: pycsl-reference 3 dynamic execs (0638 0639 0644, all bare and
+        # in a function/method), python-reference 2 evals (0109 0217, constant, no walrus),
+        # 53 mirrors 0, pycsl_lib 0.
+        _nb_modexec_ids = {id(_nb_x) for _nb_x in _nb_mnodes}
+        for _nb_x in ast.walk(python_ast):
+            if not (isinstance(_nb_x, ast.Call) and isinstance(_nb_x.func, ast.Name)
+                    and _nb_x.func.id in ("exec", "eval")):
+                continue
+            _nb_src = _nb_x.args[0] if _nb_x.args else None
+            _nb_const = (isinstance(_nb_src, ast.Constant)
+                         and isinstance(_nb_src.value, str))
+            if _nb_x.func.id == "eval":
+                _nb_binds = (not _nb_const) or (":=" in _nb_src.value)
+            else:
+                _nb_binds = not _nb_const
+            if not _nb_binds:
+                continue
+            if len(_nb_x.args) > 1 or _nb_x.keywords or id(_nb_x) in _nb_modexec_ids:
+                _nb_bad.append(f"a dynamic `{_nb_x.func.id}` that can bind into the module "
+                               f"namespace at line {getattr(_nb_x, 'lineno', 0)}")
+        # (#136/#137, SECOND CUT — found by carrier-rerun on this block's own first cut)
+        # EVERY RECOGNIZER THAT GUARDS THE NAMESPACE KEYS ON THE SPELLING OF A BUILTIN —
+        # #118's namespace-dict rule, #119's `setattr`/`delattr` rule, #127's computed
+        # `getattr`, the two arms just above. ONE ALIAS DEFEATS THEM ALL AT ONCE, and both
+        # spellings PROVED against the first cut of this very block: `sa = setattr;
+        # sa(plainlib, "inc", plainlib.dec)` (CPython 2) and `ex = exec; ex("N" + " = 5")`
+        # (CPython 5). So a namespace-reaching builtin read ANYWHERE other than as the
+        # CALLEE of a call is refused — keyed on the read, not on the twenty spellings of a
+        # write. CENSUS over pycsl-reference, python-reference, the 53 mirrors, `pycsl_lib`
+        # and `src/pycsl`: 0 sites. `__import__` is deliberately NOT in the list — no
+        # recognizer keys on it and python-reference 0127 reads it as a value.
+        _nb_ns_builtins = frozenset(("exec", "eval", "setattr", "delattr", "globals",
+                                     "vars", "locals", "getattr"))
+        _nb_callees = {id(_nb_x.func) for _nb_x in ast.walk(python_ast)
+                       if isinstance(_nb_x, ast.Call) and isinstance(_nb_x.func, ast.Name)}
+        for _nb_x in ast.walk(python_ast):
+            if (isinstance(_nb_x, ast.Name) and isinstance(_nb_x.ctx, ast.Load)
+                    and _nb_x.id in _nb_ns_builtins and id(_nb_x) not in _nb_callees):
+                _nb_bad.append(f"the namespace builtin `{_nb_x.id}` read as a value at line "
+                               f"{getattr(_nb_x, 'lineno', 0)}")
+            # the same builtin reached as an ATTRIBUTE — `import builtins;
+            # builtins.setattr(plainlib, "inc", plainlib.dec)` PROVED past the cut above,
+            # and #127's `__builtins__` rules do not name the `builtins` MODULE. Census of
+            # `.exec/.eval/.setattr/.delattr/.globals/.vars/.locals/.getattr` over the five
+            # trees: 0 sites.
+            elif isinstance(_nb_x, ast.Attribute) and _nb_x.attr in _nb_ns_builtins:
+                _nb_bad.append(f"the namespace builtin `{_nb_x.attr}` reached as an "
+                               f"attribute at line {getattr(_nb_x, 'lineno', 0)}")
+            # ... and reached by a COMPUTED `getattr` that is then CALLED:
+            # `getattr(__builtins__, "ex" + "ec")("N = 5")` names none of the spellings
+            # above. #127 already refuses a computed `getattr` on the WRITE side; this is
+            # its read side. Census of `getattr(...)(...)` over the five trees: 0 sites
+            # (the 333 `<name>(...)(...)` sites are all `_N(cls)(...)` factories).
+            elif (isinstance(_nb_x, ast.Call) and isinstance(_nb_x.func, ast.Call)
+                    and isinstance(_nb_x.func.func, ast.Name)
+                    and _nb_x.func.func.id == "getattr"):
+                _nb_bad.append(f"a computed `getattr` used as a callee at line "
+                               f"{getattr(_nb_x, 'lineno', 0)}")
         # (#133) a def nested in a method, named like a method of that class or of an in-module
         # base (the lift emits it as that method).
         _nb_cls_by_name: Dict[str, Any] = {}
@@ -2715,8 +2853,14 @@ class Module3_Weaver:
                 "lowered as the builtin (`len = sum` then `len([5]) == 1` proved); a module or "
                 "class constant is folded to its first literal although it is rebound or mutated "
                 "(`N = 3; N += 2` proved `N == 3`); a def nested in a method replaces the method "
-                "of the same name. Give each binding its own name, and treat a folded constant "
-                "as immutable.")
+                "of the same name; a DYNAMIC `exec`, or an `eval` that binds through a walrus, "
+                "rebinds names into the module namespace and no part of the model sees the new "
+                "value (`exec(\"N\" + \" = 5\")` proved `N == 3`); and an attribute written at "
+                "module or class-body scope must have a receiver this file can describe — a "
+                "lambda parameter, a comprehension target and an imported module are not "
+                "(`(lambda m: setattr(m, \"inc\", other))(mod)` proved the original `inc`). "
+                "Give each binding its own name, treat a folded constant as immutable, and "
+                "keep a dynamic `exec`/`eval` out of module and class-body scope.")
         # (#49) ROUTE #120 — ATTRIBUTE-ACCESS HOOKS ARE NOT MODELLED. Every method call and field
         # store is resolved statically; a class-level hook that intercepts the lookup or the
         # store is never consulted. Measured at c01ef653, both PROVING what CPython contradicts:
