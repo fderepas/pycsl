@@ -1,7 +1,9 @@
 # ====== START HERE — gen #23 FINAL STATE — read this block first ==================
 #
-# ## STATUS: CHECKPOINTED (gen #23 may add below this line before stopping; the tree is clean
-#   and committed at every checkpoint). HEAD at writing: 6c75839a.
+# ## STATUS: COMPLETE. Tree clean (two PRE-EXISTING gitlinks only), everything committed, no
+#   background process alive. ELEVEN SEV-1 ROUTES CLOSED AND FULLY GATED this generation
+#   (#109, #111-#120) across FIVE batteries; CURRENTLY OPEN: NONE. Read §1b — the afternoon's
+#   #119/#120 family is where the lessons are.
 #
 # ## 0. GEN #22, FOR THE RECORD: found #112 (21d5029e), then HUNG on a Bash call that never
 #   executed; the supervisor saved its UN-GATED #111/#112 diff to getting-better/interrupted/.
@@ -9,7 +11,7 @@
 #   its `_field_type_of` test was widened to `_rhs_yields_map`), and the battery then found a
 #   regression the patch would have shipped (§1 miss a).
 #
-# ## 1. NINE SEV-1 ROUTES CLOSED AND FULLY GATED. CURRENTLY OPEN: NONE.
+# ## 1. THE MORNING: NINE SEV-1 ROUTES CLOSED AND FULLY GATED (batteries 2 and 3)
 #
 #   BATTERY-2 (ONE combined battery, commit e91bb786):
 #     #111 dict/set field store clobbered with the EMPTY MAP (`self.b = self.a`, `= mk()`)
@@ -66,10 +68,13 @@
 #   via `object.__setattr__(self, ...)`; a dataclass field default). ROUTE #120: attribute-access
 #   hooks (`__getattribute__`, `__setattr__`, and one installed by assignment) are ignored.
 #   Landed: battery-4b (de890255) — the guard moved into `Module3_Weaver.process` (shared by both
-#   pipelines, already raises) with rules (1)-(7) + the hook refusal. Battery-5 (running/landed —
-#   check driver-progress.log): rule (8) instance-level shadowing in the front end, and the
-#   IR-level PYCSL-WHYML-METHOD-SHADOWED in `_handle_dotted_call` (a call resolving to a METHOD
-#   while the receiver record has a FIELD of that name, or the program STORES that attribute).
+#   pipelines, already raises) with rules (1)-(7) + the hook refusal. Battery-5 (11b900d6): rule
+#   (8) instance-level shadowing in the front end (incl. foreign bases and the unbound
+#   `object.__setattr__(self, ...)` spelling), and the IR-level PYCSL-WHYML-METHOD-SHADOWED in
+#   `_handle_dotted_call` (a call resolving to a METHOD while the receiver record has a FIELD of
+#   that name, or the program STORES that attribute). Both batteries: every leg PREDICTED and HIT;
+#   suite 3460/3478 then 3465/3483, same 18, 0 XPASS; planes 34/34; emission byte-inert (4b:
+#   expect-gone python-reference 0076, which defines __setattr__).
 #   Still WATCH (fenced only incidentally): a non-literal `setattr(obj, name, int)` on a plain
 #   local instance (typing of the value slot).
 #   >>> THE LESSON OF THE AFTERNOON: every draft of this fence was walked past within the hour by
@@ -104,17 +109,18 @@
 #
 # ## 3. YIELD — bin/probe-ledger-yield.sh --by-generator (whole ledger, after gen #23)
 #
-#   continue-census 10/14 71.4% · substring-census 5/7 71.4% · carrier-rerun 13/22 59.1% ·
+#   continue-census 10/14 71.4% · substring-census 5/7 71.4% · carrier-rerun 32/47 68.1% ·
 #   carve-out-census 9/17 52.9% · deferral-audit 3/6 50% · oracle-audit 1/3 · witness-census
-#   (NEW) 5/17 29.4% (4 VACUOUS) · advice-audit 2/7 · control-operation 3/20 · hand 0/45.
-#   GEN #23 ALONE: carrier-rerun 6 LIVE / 2 FC (4 VAC; one LIVE row is a #109 re-measure) ·
-#   carve-out-census 3/3 · substring-census 3/5 · witness-census 5/17 · advice-audit 0/2 ·
-#   continue-census 0/1 (+1 OUT-OF-SCOPE). Ledger total 86 LIVE / ~106 FC.
+#   (NEW) 5/20 25.0% (4 VACUOUS) · advice-audit 2/7 · control-operation 3/20 · hand 0/45.
+#   GEN #23 ALONE: carrier-rerun 25 LIVE / 8 FC (7 VAC) — INFLATED: ~16 of those LIVE rows are
+#   carriers of ONE family (#118/#119, most order 2 against my own drafts); count ROUTES, not rows,
+#   before ranking it · carve-out-census 3/3 · substring-census 3/5 · witness-census 5/20 ·
+#   advice-audit 0/2 · continue-census 0/1 (+1 OUT-OF-SCOPE).
 #
 # ## 4. WHAT IS TRUE RIGHT NOW
 #
 #   metric   markers 459 / grep 484 / offset 25 / unattached 0
-#   suite    baseline 3450/3468, 18 failures (same 18 names as gen #21). A 19 is a REGRESSION.
+#   suite    baseline 3465/3483, 18 failures (same 18 names as gen #21). A 19 is a REGRESSION.
 #   planes   34 = 19 fast + 15 slow; singleton-constant-lowering baseline 12 arms.
 #   ratchet  trusted-raises SILENT 62 · dropped-mutation TRYFINAL 9 · trusted-reasons unclassified 458.
 #   timing   a mirror whole-file proof INCLUDING the default-on vacuity phase takes HOURS
