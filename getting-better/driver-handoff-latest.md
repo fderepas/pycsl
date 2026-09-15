@@ -1,3 +1,94 @@
+# ====== START HERE — gen #25 FINAL STATE — read this block first ==================
+#
+# ## STATUS: COMPLETE. Tree clean (two PRE-EXISTING gitlinks only), everything committed, no background process
+#   alive. SIX SEV-1 ROUTES FOUND AND CLOSED AND FULLY GATED this generation (#130-#135) in TWO batteries, every
+#   leg of both predicted in driver-progress.log and hit. CURRENTLY OPEN: NONE.
+#
+# ## 1. WHAT GEN #25 FOUND AND CLOSED (all SEV-1, all measured PROVING with CPython contradicting)
+#   One new block in Module3_Weaver.process (both pipelines; it already raised, so no ratchet moved).
+#   BATTERY-A (commit 2313ded3):
+#     #130 an IMPORTED name bound twice keeps the FIRST import: second from-import, `inc = plainlib.dec`,
+#          `import a as m; import b as m`, a from-import in a module if/else, a function-local import of
+#          another object. (#118 rule (1) keyed on this file's defs only.)
+#     #131 a BUILTIN rebound is still lowered as the builtin: `len = sum` (module/local), `for max in [min]`,
+#          `exec("len = sum")`, `from builtins import sum as len`, `ValueError = KeyError` (raise/except), an
+#          unannotated PARAMETER `def f(len, xs)`. Now: any builtins name bound by a store or a parameter and READ.
+#     #132 the constant FOLDERS' "bound exactly once" premise counts TOP-LEVEL single-name Assign/AnnAssign only:
+#          `N += 2`, rebinding inside `if`, tuple/for targets, literal setattr on sys.modules, `S += "b"`, a
+#          `requires` over a rebound constant, class-body `N += 2`; and a folded str dict MUTATED or ALIASED
+#          (`OP.update`, `d = OP` in a function, `d, e = OP, 1`, `for d in [OP]`, `L = [OP]`). The mutable-literal
+#          arm keys on EVERY reference to the object (read positions only, one alias level).
+#     #133 a def nested in a METHOD named like a method of the class REPLACED it (body swapped, postcondition
+#          dropped: a false `C.h` contract proved).
+#     #134 route #116's globals-lookup recognizer: `_g = globals()` rebound inside `if` escaped its top-level count.
+#     battery-A: suite 3503/3521 same 18 0 XPASS, planes 34/34, emission byte-inert in all three.
+#   BATTERY-B (commit c8f817e2):
+#     #135 module-scope code is never lowered, and #127's alias taint says "an ordinary call produces a value":
+#          `m = ident(plainlib); m.inc = ...`, `setattr(ident(plainlib), "inc", ...)`, called lambda,
+#          comprehension, keyword argument, `m = H(plainlib); m.x.inc = ...`, `ms = [ident(plainlib)]; ms[0].inc`,
+#          a LEADING star import exporting a module alias. Keyed on the SINK: at module/class-body scope an
+#          attribute write needs a receiver that IS a name bound only to literals / module-class instances (or
+#          unbound, in a file without a star import). A taint-through-arguments cut polluted 5 mirrors (the alias
+#          set is file-wide by NAME) and was abandoned.
+#     battery-B: suite 3507/3525 same 18 0 XPASS, planes 34/34, emission vs battery-A byte-inert in all three.
+#
+# ## 1b. LESSONS (each paid for this generation)
+#   >>> A COLLECTOR'S "EXACTLY ONCE" IS A CLAIM ABOUT WHICH STATEMENTS IT WALKS. Every `collect_module_*` walked
+#   >>> `node.body` only; the same premise sat in route #116's own justification check (#134). grep "exactly once"
+#   >>> / "bound once" and read the loop header, not the docstring.
+#   >>> A REFUSAL THAT ENUMERATES SPELLINGS LOST EVERY TIME: #131 was widened three times (calls of a short list ->
+#   >>> exceptions -> parameters), #132's alias arm twice, #135 three times. Each widening was found by
+#   >>> carrier-rerun on my own draft BEFORE a verdict; battery-A was stopped twice (no verdict read) to fold them in.
+#   >>> MODULE-SCOPE CODE IS INVISIBLE TO THE MODEL: in-function twins of #135 were fenced by typing/frames; only
+#   >>> the weaver sees module-level effects. Probe the module-scope spelling of every in-function FAIL-CLOSED row.
+#   >>> Develop the next battery in a worktree (g25/wt_b) while the current one runs; run its sweeps THERE.
+#
+# ## 2. LADDER FOR GEN #26 — START HERE
+#   There is NO open route. Highest-value next moves:
+#   (a) carrier-rerun gen #25's own fences: the #132 read-position whitelist (`_nb_readers`, `_nb_pure_calls`:
+#       is any listed method/builtin able to return or mutate the object?); the #135 "fresh" definition (a
+#       module class with a foreign base, a class whose `__init__` returns/stores self elsewhere, a class
+#       instance rebound via walrus); #130's per-scope keys (class-body imports, nested functions); the exec
+#       arm's token rule (non-constant exec is not spliced — confirm).
+#   (b) WATCH (probes.tsv rows, each one change from live): a nested def named like a FOREIGN base's method
+#       (#133 walks in-module bases only; opaque today); `collect_module_globals` rebinding (emission ignores it,
+#       entry state not assumed — any contract exposing the initial record makes it live; #134's arm now refuses
+#       the rebinding but NOT a module-level `G.n = 5` direct store on a fresh instance, which #135 allows by
+#       design); class constant shadowed by `k.N = 5` / `self.N = 5` (type error / frame); a folded dict passed
+#       to a mutating function (effect error); module list `XS.append` (not folded today); route #60 dict size
+#       fold `del d[k]` / `d |= {...}` / tuple-target store (type errors).
+#   (c) gen #24's WATCH list items not re-probed: nested-def default reading an enclosing param (opaque call);
+#       class-in-function reading an enclosing param (refused, fence unnamed); walrus in a comprehension.
+#   (d) gen #23's unworked list (hvalmap name-gated truthiness needs the mirror's hval type model; assigns over
+#       unlabelled fields; `_writes_filtered_to_labels`; Literal[0, None]; witness-census `val constant` sites).
+#   GENERATORS THAT WORKED: carrier-rerun (#130 #131 #133 #134 #135 + 12 draft carriers) and witness-census /
+#   coverage-premise of collectors (#132).
+#
+# ## 3. YIELD — bin/probe-ledger-yield.sh --by-generator (whole ledger, after gen #25)
+#   key                    LIVE  FAILC  denom    yield  2nd-ord  VACUOUS
+#   advice-audit              2      5      7    28.6%        1        0
+#   carrier-rerun            84     68    152    55.3%       68       10
+#   carve-out-census          9      8     17    52.9%        0        1
+#   continue-census          10      4     14    71.4%        3        3
+#   control-operation         3     17     20    15.0%        1        0
+#   deferral-audit            3      3      6    50.0%        0        4
+#   hand                      1     47     48     2.1%        0        2
+#   observer-audit            0      1      1     0.0%        0        0
+#   oracle-audit              1      2      3    33.3%        0        0
+#   substring-census          5      2      7    71.4%        0        0
+#   unknown                  35      0     35   100.0%        2        0
+#   witness-census           20     43     63    31.7%        2        5
+#   GEN #25 ALONE: carrier-rerun 26 LIVE / 33 FC / 1 VAC (six routes; ~14 LIVE rows are order-2 carriers of my own
+#   drafts — count ROUTES, not rows) · witness-census 13 LIVE / 25 FC (#132).
+#
+# ## 4. WHAT IS TRUE RIGHT NOW
+#   metric   markers 459 / grep 484 / offset 25 / unattached 0
+#   suite    baseline 3507/3525, 18 failures (same names). A 19 is a REGRESSION.
+#   planes   34; ratchets trusted-raises SILENT 62 · dropped-mutation 0/51/9/0 (REFUSED column 8, unratcheted) ·
+#            trusted-reasons unclassified 458.
+#   scratch  scratchpad/g25/ (p1..p16 probe drivers, w1/w2 witness copies, census/, batteryA/B scripts+logs,
+#            A_*/Bm_* sweeps = the current emission baselines).
+
 # ====== START HERE — gen #24 FINAL STATE — read this block first ==================
 #
 # ## STATUS: COMPLETE. Tree clean (two PRE-EXISTING gitlinks only), everything committed, no background process

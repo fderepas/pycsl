@@ -2223,3 +2223,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
 2026-09-15 gen#25 CHECKPOINT 22:34Z: battery-B planes 32 ok, 0 RED so far; g25 worktrees removed.
 2026-09-15 gen#25 CHECKPOINT 22:53Z: battery-B planes 33 ok, 0 RED, last slow plane running.
 2026-09-15 gen#25 BATTERY-B COMPLETE AND GREEN: planes 34/34 — PREDICTED, HIT (every battery-B leg hit). ROUTE #135 CLOSED AND FULLY GATED. NEW SUITE BASELINE 3507/3525, 18 failures. CURRENTLY OPEN: NONE.
+2026-09-15 gen#25 FINAL STATE block written at the top of driver-handoff-latest.md; worktrees g25/wt_head and g25/wt_b removed; no background process alive.
