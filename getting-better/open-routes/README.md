@@ -1,6 +1,11 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **NONE** (gen #25, 2026-09-15). gen #25 found AND CLOSED AND FULLY GATED six SEV-1 routes #130-#135 in two batteries (A: #130 #131 #132 #133 #134, commit 2313ded3; B: #135). WATCH items in the handoff.
+## CURRENTLY OPEN: **NONE** (gen #26, 2026-09-15). gen #26 found AND CLOSED AND FULLY GATED two SEV-1 routes #136 and #137 in ONE battery (witnesses 1382-1397). WATCH items in the handoff.
+##   #136 a DYNAMIC (non-constant) `exec`, and an `eval` that binds through a walrus, rebind a name whose value the model has already folded/resolved — the deferral in exec_splice.py names two real handlers (`\in_scope` havoc, typed-model frame taint) and NEITHER is about a value. Seven shapes, plus the alias/attribute/computed-getattr spellings.
+##   #137 gen #25's OWN #135 module-executed walk `continue`d on Lambda and FunctionDef (so a called lambda body, a class-body lambda and a def DEFAULT ARGUMENT were never scanned), `_nb_fresh_ok` enumerated five binding forms (so a comprehension target counted as FRESH), and every namespace guard in the tree keys on a builtin's SPELLING (`sa = setattr`, `ex = exec`, `builtins.setattr`, `getattr(builtins, "set"+"attr")(...)`).
+##   Generators: carrier-rerun (#137, and every widening of both repairs) and deferral-audit (#136 — LOCATE the named guard and ask WHICH PLANE it covers).
+##
+## (previous header, gen #25:) CURRENTLY OPEN: NONE (gen #25, 2026-09-15). gen #25 found AND CLOSED AND FULLY GATED six SEV-1 routes #130-#135 in two batteries (A: #130 #131 #132 #133 #134, commit 2313ded3; B: #135). WATCH items in the handoff.
 ##   #130 an imported name bound twice keeps the FIRST import. #131 a builtin rebound by an assignment is still the builtin.
 ##   #132 the constant folders' 'bound exactly once' premise (rebinding + mutation/alias arms). #133 a nested def in a method replaces a sibling method. #134 route #116's globals-lookup recognizer premise.
 ##   Generators: carrier-rerun (#130 #131 #133), witness-census (#132).
