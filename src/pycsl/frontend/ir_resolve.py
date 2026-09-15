@@ -2119,6 +2119,74 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
     type_decls = ir_data.get("type_decls", [])
     records = {td["name"]: td for td in type_decls if td.get("kind") == "record"}
     funcs = ir_data.setdefault("functions", [])
+    # (#49) ROUTES #123 + #125 — WHICH CLASS PROVIDES AN INHERITED METHOD. The merge below
+    # walks the bases LEFT-FIRST, DEPTH-FIRST and clones the first method it meets, which is
+    # not Python's rule on two counts (both measured PROVING what CPython contradicts):
+    #   #125 a DIAMOND `D(B, C)` over `A` with `C.m` resolved to `A.m` (C3 MRO is D, B, C, A);
+    #   #123 a CLASS-BODY BINDING `m = lambda self: 2` in a subclass is an override the merge
+    #        never saw, so the base's `m` was cloned over it (also through an imported base
+    #        and a grandchild).
+    # The ORIGINAL owners and bases are snapshotted before any clone exists; the C3
+    # linearization of every class is computed from them; and a clone is made ONLY when its
+    # ORIGINAL owner is the first class in the C3 MRO (after the subclass) that defines or
+    # BINDS the name. When the two walks agree nothing changes, so every hierarchy without a
+    # diamond conflict or a class-body override is byte-identical. A class-body binding is a
+    # provider with no model: its name gets NO clone (fail-closed, contract-free call).
+    _in_bases: Dict[str, List[str]] = {n: list(td.get("bases") or []) for n, td in records.items()}
+    _in_binds: Dict[str, Set[str]] = {n.lower(): set(td.get("class_body_bindings") or [])
+                                      for n, td in records.items()}
+    _in_classes: List[str] = list(records)
+    for _in_bl in _in_bases.values():
+        for _in_b in _in_bl:
+            if _in_b not in _in_classes:
+                _in_classes.append(_in_b)
+    _in_owner: Dict[str, str] = {}
+    _in_own: Dict[str, Set[str]] = {}
+    for _in_f in funcs:
+        _in_fn = _in_f.get("name", "")
+        _in_best = ""
+        for _in_c in _in_classes:
+            _in_p = _in_c.lower() + "__"
+            if _in_fn.startswith(_in_p) and len(_in_p) > len(_in_best):
+                _in_best = _in_p
+        if _in_best:
+            _in_owner[_in_fn] = _in_best[:-2]
+            _in_own.setdefault(_in_best[:-2], set()).add(_in_fn[len(_in_best):])
+    _in_mro: Dict[str, Optional[List[str]]] = {}
+    _in_grew = True
+    while _in_grew:
+        _in_grew = False
+        for _in_c in _in_classes:
+            if _in_c in _in_mro:
+                continue
+            _in_bl = _in_bases.get(_in_c, [])
+            if any(_in_b not in _in_mro for _in_b in _in_bl):
+                continue
+            _in_grew = True
+            if any(_in_mro[_in_b] is None for _in_b in _in_bl):
+                _in_mro[_in_c] = None
+                continue
+            _in_seqs: List[List[str]] = [list(_in_mro[_in_b] or []) for _in_b in _in_bl]
+            _in_seqs.append(list(_in_bl))
+            _in_res: List[str] = [_in_c]
+            _in_ok = True
+            while any(_in_seqs):
+                _in_pick = None
+                for _in_sq in _in_seqs:
+                    if not _in_sq:
+                        continue
+                    _in_h = _in_sq[0]
+                    if not any(_in_h in _in_o[1:] for _in_o in _in_seqs):
+                        _in_pick = _in_h
+                        break
+                if _in_pick is None:
+                    _in_ok = False
+                    break
+                _in_res.append(_in_pick)
+                _in_seqs = [(_in_o[1:] if _in_o and _in_o[0] == _in_pick else _in_o)
+                            for _in_o in _in_seqs]
+            _in_mro[_in_c] = _in_res if _in_ok else None
+    _in_origin: Dict[str, str] = {}
 
     def merge_one(td: Dict[str, Any]) -> None:
         if not td.get("bases"):
@@ -2205,6 +2273,21 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
                     continue  # (#49) ROUTE #97 — recording is unconditional, cloning is not
                 if new_name in existing_func_names:
                     continue
+                # (#123/#125) clone only from the C3 provider (see the snapshot above).
+                if tail in _in_binds.get(sub.lower(), set()):
+                    continue
+                _in_sub_mro = _in_mro.get(sub)
+                _in_org = _in_owner.get(_in_origin.get(name, name))
+                if _in_sub_mro is not None and _in_org is not None:
+                    _in_prov = None
+                    for _in_k in _in_sub_mro[1:]:
+                        if (tail in _in_own.get(_in_k.lower(), set())
+                                or tail in _in_binds.get(_in_k.lower(), set())):
+                            _in_prov = _in_k.lower()
+                            break
+                    if _in_prov is not None and _in_prov != _in_org:
+                        continue
+                _in_origin[new_name] = _in_origin.get(name, name)
                 clone = copy.deepcopy(fn)
                 clone["name"] = new_name
                 clone["self_type"] = sub

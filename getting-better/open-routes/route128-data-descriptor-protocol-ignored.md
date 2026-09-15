@@ -1,7 +1,7 @@
 # ROUTE #128 — the DESCRIPTOR protocol (`__get__`/`__set__`) is ignored: an attribute bound to a descriptor
 # instance is modelled as a plain field
 
-**Status: OPEN — repair drafted for gen #24 battery-A.**
+**Status: CLOSED AND FULLY GATED by gen #24 (2026-09-15), battery-A (cheap legs, emission vs HEAD, suite 3481/3499 same 18 0 XPASS, planes 34/34 — every leg predicted and hit).**
 **Severity: SEV-1. First-order.** Sibling of #120 (attribute-access hooks) on the ATTRIBUTE's class.
 
 ## MEASURED at HEAD `0a3d1d2e`

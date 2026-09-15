@@ -1653,10 +1653,95 @@ class Module3_Weaver:
         # them monkeypatches ANOTHER module (`plainlib.inc = plainlib.dec`, `K.m = K.n` after
         # `from plainlib import K`) — measured PROVING, the first cut only knew this file's defs.
         _rb_objs: set = set(_rb_defs)
+        # (#49) ROUTE #127 — the BUILTINS namespace is an object too: `__builtins__.len = seven`
+        # (no import needed) proved `len([1, 2]) == 2` while Python returned 7 (the first cut
+        # rooted only on imports and defs). `builtins` is covered once imported.
+        _rb_objs.add("__builtins__")
         for _rb_x in ast.walk(python_ast):
             if isinstance(_rb_x, (ast.Import, ast.ImportFrom)):
                 for _rb_a in _rb_x.names:
                     _rb_objs.add((_rb_a.asname or _rb_a.name).split(".")[0])
+        # (#49) ROUTE #127 — ALIASES of an object root, and COMPUTED receivers. The rules below
+        # were keyed on the SPELLING of the receiver root; `bm = __builtins__; bm.len = seven`,
+        # `pm = plainlib; pm.inc = abs` and `getattr(__builtins__, "__dict__")["len"] = seven`
+        # each proved the original contract while Python ran the replacement. A name bound
+        # (anywhere, any scope) to an expression that REACHES an object root through
+        # attribute/subscript steps, or through a dynamic accessor call (`getattr`, `vars`,
+        # `globals`, `locals`, `type`, `__import__`, `eval`, `*.import_module`), is itself an
+        # object root, to a fixpoint. A CALL of a def/class (`C()`, `mk()`) produces a value,
+        # not the object, and taints nothing. An alias is never exempted as a "local".
+        _rb_alias: set = set()
+        _rb_retobj: set = set()
+        _rb_grew = True
+        while _rb_grew:
+            _rb_grew = False
+            for _rb_x in ast.walk(python_ast):
+                _rb_pairs: list = []
+                if isinstance(_rb_x, ast.Assign):
+                    _rb_pairs = [(_rb_t, _rb_x.value) for _rb_t in _rb_x.targets]
+                elif isinstance(_rb_x, (ast.AnnAssign, ast.NamedExpr)) and _rb_x.value is not None:
+                    _rb_pairs = [(_rb_x.target, _rb_x.value)]
+                elif isinstance(_rb_x, (ast.For, ast.AsyncFor)):
+                    _rb_pairs = [(_rb_x.target, _rb_x.iter)]
+                elif isinstance(_rb_x, ast.withitem) and _rb_x.optional_vars is not None:
+                    _rb_pairs = [(_rb_x.optional_vars, _rb_x.context_expr)]
+                elif (isinstance(_rb_x, (ast.FunctionDef, ast.AsyncFunctionDef))
+                      and _rb_x.name not in _rb_retobj):
+                    # a FUNCTION whose return value reaches an object root makes every call of
+                    # it an object (`def get(): return __builtins__`, then `bm = get()`).
+                    _rb_rq: list = list(_rb_x.body)
+                    while _rb_rq:
+                        _rb_ry = _rb_rq.pop()
+                        if isinstance(_rb_ry, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                               ast.ClassDef, ast.Lambda)):
+                            continue
+                        if isinstance(_rb_ry, ast.Return) and _rb_ry.value is not None:
+                            _rb_pairs.append((None, _rb_ry.value))
+                        _rb_rq.extend(ast.iter_child_nodes(_rb_ry))
+                for _rb_t, _rb_v in _rb_pairs:
+                    # the value REACHES an object when any name in it (outside the arguments of
+                    # an ordinary call, whose RESULT is a value) is an object root or alias, or
+                    # it calls a dynamic accessor, or it calls a function that returns an object.
+                    _rb_hit = False
+                    _rb_vq: list = [_rb_v]
+                    while _rb_vq and not _rb_hit:
+                        _rb_e = _rb_vq.pop()
+                        if isinstance(_rb_e, (ast.Lambda, ast.ListComp, ast.SetComp, ast.DictComp,
+                                              ast.GeneratorExp)):
+                            continue
+                        if isinstance(_rb_e, ast.Call):
+                            _rb_f = _rb_e.func
+                            if ((isinstance(_rb_f, ast.Name)
+                                 and _rb_f.id in ("globals", "locals", "type", "__import__", "eval"))
+                                    or (isinstance(_rb_f, ast.Attribute)
+                                        and _rb_f.attr == "import_module")
+                                    or (isinstance(_rb_f, ast.Name) and _rb_f.id in _rb_retobj)):
+                                _rb_hit = True
+                            elif (isinstance(_rb_f, ast.Name) and _rb_f.id in ("getattr", "vars")
+                                    and _rb_e.args):
+                                _rb_vq.append(_rb_e.args[0])
+                            continue
+                        if isinstance(_rb_e, ast.Name):
+                            _rb_hit = _rb_e.id in _rb_objs or _rb_e.id in _rb_alias
+                            continue
+                        _rb_vq.extend(ast.iter_child_nodes(_rb_e))
+                    if not _rb_hit:
+                        continue
+                    if _rb_t is None:
+                        _rb_retobj.add(_rb_x.name)
+                        _rb_grew = True
+                        break
+                    _rb_tq: list = [_rb_t]
+                    while _rb_tq:
+                        _rb_tn = _rb_tq.pop()
+                        if isinstance(_rb_tn, (ast.Tuple, ast.List)):
+                            _rb_tq.extend(_rb_tn.elts)
+                        elif isinstance(_rb_tn, ast.Starred):
+                            _rb_tq.append(_rb_tn.value)
+                        elif (isinstance(_rb_tn, ast.Name) and _rb_tn.id != "self"
+                                and _rb_tn.id not in _rb_alias):
+                            _rb_alias.add(_rb_tn.id)
+                            _rb_grew = True
         _rb_mod_body: list = list(python_ast.body)
         _rb_scopes.append((_rb_mod_body, _rb_defs))
         for _rb_cls in ast.walk(python_ast):
@@ -1668,6 +1753,48 @@ class Module3_Weaver:
                 _rb_all.update(_rb_cdefs)
                 if _rb_cdefs:
                     _rb_scopes.append((list(_rb_cls.body), _rb_cdefs))
+        # (#49) ROUTE #127 — the receivers a NON-LITERAL `setattr` may write through: a local
+        # bound ONLY by assignments from an ordinary call (`out = copy.deepcopy(node)`, the
+        # emitter's own idiom) in the innermost enclosing function. A PARAMETER is not one:
+        # `__init_subclass__(cls): setattr(cls, n, ...)` rebinds a subclass's method (measured
+        # PROVING, Python 2). Keyed by the id of each call node inside that function.
+        _rb_inst: Dict[int, set] = {}
+        for _rb_fn2 in ast.walk(python_ast):
+            if not isinstance(_rb_fn2, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            _rb_callsets: set = set()
+            _rb_other: set = set()
+            _rb_calls2: list = []
+            _rb_q2: list = list(_rb_fn2.body)
+            while _rb_q2:
+                _rb_y2 = _rb_q2.pop()
+                if isinstance(_rb_y2, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef,
+                                       ast.Lambda)):
+                    continue
+                _rb_is_call_assign = (
+                    isinstance(_rb_y2, ast.Assign) and len(_rb_y2.targets) == 1
+                    and isinstance(_rb_y2.targets[0], ast.Name)
+                    and isinstance(_rb_y2.value, ast.Call)
+                    and not (isinstance(_rb_y2.value.func, ast.Name)
+                             and _rb_y2.value.func.id in ("getattr", "vars", "globals", "locals",
+                                                          "type", "__import__", "eval")))
+                if _rb_is_call_assign:
+                    _rb_callsets.add(_rb_y2.targets[0].id)
+                    _rb_q2.append(_rb_y2.value)
+                    continue
+                if isinstance(_rb_y2, ast.Name) and isinstance(_rb_y2.ctx, (ast.Store, ast.Del)):
+                    _rb_other.add(_rb_y2.id)
+                if isinstance(_rb_y2, ast.Call):
+                    _rb_calls2.append(_rb_y2)
+                _rb_q2.extend(ast.iter_child_nodes(_rb_y2))
+            _rb_fa2 = _rb_fn2.args
+            _rb_params2 = {_rb_ar.arg for _rb_ar in (
+                list(getattr(_rb_fa2, "posonlyargs", []) or []) + list(_rb_fa2.args)
+                + list(_rb_fa2.kwonlyargs)
+                + [x for x in (_rb_fa2.vararg, _rb_fa2.kwarg) if x is not None])}
+            _rb_inst_locals = _rb_callsets - _rb_other - _rb_params2
+            for _rb_c2 in _rb_calls2:
+                _rb_inst[id(_rb_c2)] = _rb_inst_locals
         _rb_bad: list = []
         _rb_stack: list = []
         for _rb_body, _rb_sdefs in _rb_scopes:
@@ -1719,8 +1846,36 @@ class Module3_Weaver:
                     and _rb_n.func.attr in ("update", "__setitem__", "__delitem__", "pop",
                                             "popitem", "setdefault", "clear")):
                 _rb_ns = _rb_n.func.value
+            _rb_ns_alias = False
+            if _rb_ns is not None:
+                _rb_e2 = _rb_ns
+                while True:
+                    if isinstance(_rb_e2, (ast.Attribute, ast.Subscript)):
+                        _rb_e2 = _rb_e2.value
+                    elif isinstance(_rb_e2, ast.Call):
+                        _rb_f2 = _rb_e2.func
+                        if ((isinstance(_rb_f2, ast.Name)
+                             and _rb_f2.id in ("globals", "locals", "type", "__import__", "eval"))
+                                or (isinstance(_rb_f2, ast.Attribute)
+                                    and _rb_f2.attr == "import_module")):
+                            _rb_ns_alias = True
+                            break
+                        if (isinstance(_rb_f2, ast.Name) and _rb_f2.id in ("getattr", "vars")
+                                and _rb_e2.args):
+                            _rb_e2 = _rb_e2.args[0]
+                            continue
+                        break
+                    else:
+                        if isinstance(_rb_e2, ast.Name) and (
+                                _rb_e2.id in _rb_alias or _rb_e2.id == "__builtins__"):
+                            _rb_ns_alias = True
+                        break
             if _rb_ns is not None and (
-                    (isinstance(_rb_ns, ast.Name) and _rb_ns.id in _rb_globs)
+                    (isinstance(_rb_ns, ast.Name) and (_rb_ns.id in _rb_globs
+                                                       or _rb_ns.id == "__builtins__"))
+                    # (#127) a subscript store / mutating call whose receiver chain roots at an
+                    # ALIAS of an object, or passes through a dynamic accessor call.
+                    or _rb_ns_alias
                     or (isinstance(_rb_ns, ast.Call) and isinstance(_rb_ns.func, ast.Name)
                         and _rb_ns.func.id in ("globals", "vars", "locals"))
                     or (isinstance(_rb_ns, ast.Attribute) and _rb_ns.attr == "__dict__")):
@@ -1754,11 +1909,15 @@ class Module3_Weaver:
                 # local object is the emitter's own dataclass-copy idiom (live Module3_Weaver,
                 # measured: refusing it refused two MIRROR files that import it) and is the
                 # instance-level WATCH case, like `self.<m> = fn`.
-                _rb_recv_cls = (not isinstance(_rb_sa[0], ast.Name)) or _rb_sa[0].id in _rb_objs
+                _rb_recv_cls = ((not isinstance(_rb_sa[0], ast.Name)) or _rb_sa[0].id in _rb_objs
+                                or _rb_sa[0].id in _rb_alias)
                 if ((_rb_lit and (_rb_a1.value in _rb_all
                                   or (isinstance(_rb_sa[0], ast.Name)
-                                      and _rb_sa[0].id in _rb_objs)))
-                        or (not _rb_lit and _rb_recv_cls)):
+                                      and (_rb_sa[0].id in _rb_objs
+                                           or _rb_sa[0].id in _rb_alias))))
+                        or (not _rb_lit and (_rb_recv_cls or not (
+                            isinstance(_rb_sa[0], ast.Name)
+                            and _rb_sa[0].id in _rb_inst.get(id(_rb_n), set()))))):
                     _rb_bad.append(f"`setattr`/`delattr` of a function name at line {_rb_ln}")
         # (6) ANY attribute store/del on an object that IS a module-level def or class, or an
         # IMPORTED module/name —
@@ -1815,6 +1974,7 @@ class Module3_Weaver:
                             _rb_root = _rb_root.value
                     _rb_root_id = _rb_root.id if isinstance(_rb_root, ast.Name) else None
                     if ((_rb_root_id in _rb_objs and _rb_root_id not in _rb_loc)
+                            or _rb_root_id in _rb_alias
                             or (_rb_has_call and _rb_root_id != "self")):
                         _rb_bad.append(f"attribute `.{_rb_z.attr}` written on "
                                        f"`{_rb_root_id or '<expr>'}...` at line "
@@ -1892,6 +2052,219 @@ class Module3_Weaver:
                 "`def`, so the rebinding would be silently ignored (measured: `inc = dec` then "
                 "`inc(3)` proved the `inc` contract while Python ran `dec`). Rebinding a "
                 "function name is not modelled; give the new binding its own name.")
+        # (#49) ROUTES #121, #122 (module-scope arm), #124 — THREE MORE WAYS A NAME'S RUNTIME
+        # BINDING DIFFERS FROM THE `def` EVERY CALL IS RESOLVED AGAINST. Measured at 7c9dede2,
+        # each PROVING a claim CPython contradicts:
+        #   #121 a DECORATOR is silently dropped: `def swap(fn): return abs`, `@swap def inc`
+        #        -> `inc(-3)` proved `inc`'s contract (-2), Python 3.
+        #   #122 a def inside a module-level `if`/`try` competes with another binding of the
+        #        name and the model keeps the TEXTUALLY LAST one: `if FLAG == 1: def inc (-1)
+        #        else: def inc (+1)`, and the fallback idiom `try: from m import inc / except
+        #        ImportError: def inc` — both proved the fallback's contract, Python ran the other.
+        #   #124 `from m import *` AFTER a def rebinds the name: proved the def's contract.
+        # Keyed on the NAME and its BINDING SITES, never on the statement kind:
+        #   (a) a decorator is allowed only when every binding of its root name in the file is
+        #       either absent (and the name is a modelled builtin/marker: `property`,
+        #       `staticmethod`, `mutable_state`, `dataclass`), or exactly ONE canonical import
+        #       (`dataclasses.dataclass`, `functools.lru_cache/cache/cached_property`,
+        #       `contextlib.contextmanager`, `typing.overload`), or exactly ONE module-level
+        #       IDENTITY def (`def mutable_state(cls): return cls`); `mod.attr` only through a
+        #       plain `import mod` of those modules.
+        #   (b) a module-scope def/class NESTED IN A COMPOUND STATEMENT whose name has any other
+        #       module-scope binding.
+        #   (c) a star import preceded by a module-scope binding of any name other than the
+        #       anchor `_` (a `from __future__` import binds nothing here).
+        # CENSUS (pycsl-reference, python-reference, 53 mirrors, pycsl_lib): decorators in use
+        # are dataclass, staticmethod, property, mutable_state (identity defs or unbound),
+        # cached_property, lru_cache, contextmanager (+ `_contextmanager` alias), `_identity`
+        # (an identity def) — all allowed; (b) 0 sites (json/tool.py's two compound defs have no
+        # competing binding); (c) 0 sites (three star imports, each right after `_ = 0`).
+        _dc_canon = {("dataclasses", "dataclass"), ("functools", "lru_cache"),
+                     ("functools", "cache"), ("functools", "cached_property"),
+                     ("contextlib", "contextmanager"), ("typing", "overload")}
+        _dc_mods = {_dc_m for (_dc_m, _dc_a) in _dc_canon}
+        _dc_bare_ok = {"property", "staticmethod", "mutable_state", "dataclass"}
+        # every binding site of every name, file-wide: name -> [(kind, detail, node)]
+        _dc_sites: Dict[str, list] = {}
+        for _dc_n in ast.walk(python_ast):
+            if isinstance(_dc_n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                _dc_sites.setdefault(_dc_n.name, []).append(("def", None, _dc_n))
+                if not isinstance(_dc_n, ast.ClassDef):
+                    _dc_fa = _dc_n.args
+                    for _dc_arg in (list(getattr(_dc_fa, "posonlyargs", []) or [])
+                                    + list(_dc_fa.args) + list(_dc_fa.kwonlyargs)
+                                    + [x for x in (_dc_fa.vararg, _dc_fa.kwarg) if x is not None]):
+                        _dc_sites.setdefault(_dc_arg.arg, []).append(("other", None, _dc_n))
+            elif isinstance(_dc_n, ast.Lambda):
+                for _dc_arg in _dc_n.args.args:
+                    _dc_sites.setdefault(_dc_arg.arg, []).append(("other", None, _dc_n))
+            elif isinstance(_dc_n, ast.Name) and isinstance(_dc_n.ctx, (ast.Store, ast.Del)):
+                _dc_sites.setdefault(_dc_n.id, []).append(("other", None, _dc_n))
+            elif isinstance(_dc_n, ast.Import):
+                for _dc_a in _dc_n.names:
+                    _dc_sites.setdefault((_dc_a.asname or _dc_a.name).split(".")[0], []).append(
+                        ("module", _dc_a.name if not _dc_a.asname or "." not in _dc_a.name
+                         else None, _dc_n))
+            elif isinstance(_dc_n, ast.ImportFrom):
+                for _dc_a in _dc_n.names:
+                    if _dc_a.name == "*":
+                        continue
+                    _dc_sites.setdefault(_dc_a.asname or _dc_a.name, []).append(
+                        ("from", (_dc_n.module or "", _dc_a.name) if not _dc_n.level else None,
+                         _dc_n))
+            elif isinstance(_dc_n, (ast.ExceptHandler, ast.MatchAs)) or (
+                    hasattr(ast, "MatchStar") and isinstance(_dc_n, ast.MatchStar)):
+                if isinstance(getattr(_dc_n, "name", None), str):
+                    _dc_sites.setdefault(_dc_n.name, []).append(("other", None, _dc_n))
+            elif isinstance(_dc_n, (ast.Global, ast.Nonlocal)):
+                for _dc_g in _dc_n.names:
+                    _dc_sites.setdefault(_dc_g, []).append(("other", None, _dc_n))
+        _dc_bad: list = []
+        for _dc_n in ast.walk(python_ast):
+            if not isinstance(_dc_n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            for _dc_d in _dc_n.decorator_list:
+                _dc_t = _dc_d.func if isinstance(_dc_d, ast.Call) else _dc_d
+                _dc_ok = False
+                _dc_root = _dc_t.id if isinstance(_dc_t, ast.Name) else (
+                    _dc_t.value.id if (isinstance(_dc_t, ast.Attribute)
+                                       and isinstance(_dc_t.value, ast.Name)) else None)
+                _dc_s = _dc_sites.get(_dc_root, []) if _dc_root is not None else []
+                _dc_kind, _dc_det, _dc_node = ("", None, None)
+                if len(_dc_s) == 1:
+                    _dc_kind, _dc_det, _dc_node = _dc_s[0]
+                if isinstance(_dc_t, ast.Name):
+                    if not _dc_s:
+                        # a STAR import may bind the name to anything, so a bare builtin/marker
+                        # is trusted only in a module without one.
+                        _dc_ok = _dc_t.id in _dc_bare_ok and not any(
+                            isinstance(_dc_si, ast.ImportFrom)
+                            and any(_dc_sa.name == "*" for _dc_sa in _dc_si.names)
+                            for _dc_si in ast.walk(python_ast))
+                    elif _dc_kind == "from" and _dc_det in _dc_canon:
+                        # the recognizers downstream key on the SPELLING (`_is_memoized` on
+                        # `lru_cache`/`cache`/`cached_property`, `is_property` on `property`,
+                        # the CM fixpoint on a `...contextmanager` suffix): an ALIAS of a
+                        # canonical decorator would be ACCEPTED here and IGNORED there
+                        # (measured: `cached_property as memo_prop` proved route #94's stale
+                        # read). So the bound name must be the canonical one.
+                        _dc_dm, _dc_da = _dc_det
+                        _dc_ok = (_dc_t.id == _dc_da
+                                  or (_dc_da == "contextmanager"
+                                      and _dc_t.id.endswith("contextmanager")))
+                    elif (_dc_kind == "def" and isinstance(_dc_node, ast.FunctionDef)
+                          and _dc_node in python_ast.body):
+                        _dc_body = list(_dc_node.body)
+                        _dc_first = _dc_body[0] if _dc_body else None
+                        if (isinstance(_dc_first, ast.Expr)
+                                and isinstance(_dc_first.value, ast.Constant)
+                                and isinstance(_dc_first.value.value, str)):
+                            _dc_body = _dc_body[1:]
+                        _dc_fa = _dc_node.args
+                        _dc_ret = _dc_body[0] if len(_dc_body) == 1 else None
+                        _dc_p0 = _dc_fa.args[0] if len(_dc_fa.args) == 1 else None
+                        # an identity def must not borrow the spelling of a decorator a
+                        # recognizer gives MEANING to (`def property(f): return f` would make
+                        # `c.x` read the getter's value while Python returns the function).
+                        _dc_ok = (_dc_t.id not in ("property", "staticmethod", "classmethod",
+                                                   "dataclass", "lru_cache", "cache",
+                                                   "cached_property", "overload")
+                                  and not _dc_t.id.endswith("contextmanager")
+                                  and not _dc_node.decorator_list and _dc_p0 is not None
+                                  and not getattr(_dc_fa, "posonlyargs", [])
+                                  and not _dc_fa.kwonlyargs and _dc_fa.vararg is None
+                                  and _dc_fa.kwarg is None and not _dc_fa.defaults
+                                  and isinstance(_dc_ret, ast.Return)
+                                  and isinstance(_dc_ret.value, ast.Name)
+                                  and _dc_ret.value.id == _dc_p0.arg)
+                elif _dc_root is not None:
+                    _dc_ok = (_dc_kind == "module" and _dc_det == _dc_root
+                              and _dc_root in _dc_mods and (_dc_root, _dc_t.attr) in _dc_canon)
+                if not _dc_ok:
+                    _dc_bad.append(f"decorator `{ast.unparse(_dc_d)}` on `{_dc_n.name}` "
+                                   f"(line {_dc_n.lineno})")
+        # (b) defs/classes inside compound statements, and every binding site, per SCOPE: the
+        # module and EVERY CLASS BODY (function/class bodies nested in a scope are excluded).
+        # A class body is a scope too: `class C: if FLAG == 1: def m (2) else: def m (1)`
+        # proved `C().m() == 1` (the textually last), Python 2 — measured on the first cut,
+        # which walked only the module.
+        _dc_mscope: Dict[str, list] = {}
+        _dc_scope_list: list = [(python_ast.body, "the module")]
+        for _dc_cl in ast.walk(python_ast):
+            if isinstance(_dc_cl, ast.ClassDef):
+                _dc_scope_list.append((_dc_cl.body, f"class `{_dc_cl.name}`"))
+        _dc_is_module = True
+        for _dc_sbody, _dc_sname in _dc_scope_list:
+            _dc_sites2: Dict[str, list] = {}
+            _dc_nested: list = []
+            _dc_stack2: list = [(_dc_x, False) for _dc_x in _dc_sbody]
+            while _dc_stack2:
+                _dc_x, _dc_in_compound = _dc_stack2.pop()
+                if isinstance(_dc_x, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    _dc_sites2.setdefault(_dc_x.name, []).append(_dc_x.lineno)
+                    if _dc_in_compound:
+                        _dc_nested.append(_dc_x)
+                    for _dc_dd in _dc_x.decorator_list:
+                        _dc_stack2.append((_dc_dd, _dc_in_compound))
+                    continue
+                if isinstance(_dc_x, ast.Lambda):
+                    continue
+                _dc_bn: list = []
+                if isinstance(_dc_x, ast.Name) and isinstance(_dc_x.ctx, (ast.Store, ast.Del)):
+                    _dc_bn.append(_dc_x.id)
+                elif isinstance(_dc_x, ast.Import):
+                    _dc_bn = [(_dc_a.asname or _dc_a.name).split(".")[0] for _dc_a in _dc_x.names]
+                elif isinstance(_dc_x, ast.ImportFrom) and _dc_x.module != "__future__":
+                    _dc_bn = [_dc_a.asname or _dc_a.name for _dc_a in _dc_x.names
+                              if _dc_a.name != "*"]
+                elif isinstance(_dc_x, (ast.ExceptHandler, ast.MatchAs)) or (
+                        hasattr(ast, "MatchStar") and isinstance(_dc_x, ast.MatchStar)):
+                    if isinstance(getattr(_dc_x, "name", None), str):
+                        _dc_bn.append(_dc_x.name)
+                for _dc_b in _dc_bn:
+                    _dc_sites2.setdefault(_dc_b, []).append(getattr(_dc_x, "lineno", 0))
+                _dc_cmp = _dc_in_compound or isinstance(_dc_x, (ast.If, ast.Try, ast.For,
+                                                                ast.While, ast.With,
+                                                                ast.AsyncFor, ast.AsyncWith)) \
+                    or type(_dc_x).__name__ in ("TryStar", "Match")
+                for _dc_c in ast.iter_child_nodes(_dc_x):
+                    _dc_stack2.append((_dc_c, _dc_cmp))
+            for _dc_x in _dc_nested:
+                if len(_dc_sites2.get(_dc_x.name, [])) > 1:
+                    _dc_bad.append(f"`{_dc_x.name}` defined inside a compound statement at line "
+                                   f"{_dc_x.lineno} and bound elsewhere in {_dc_sname}")
+            if _dc_is_module:
+                _dc_mscope = _dc_sites2
+            _dc_is_module = False
+        # (c) a star import after a module-scope binding (a star import can only appear at
+        # module scope, but it may sit inside a module-level `if`/`try`), or after ANOTHER star
+        # import (measured: `from a import *; from b import *` proved a's `inc` while Python
+        # ran b's — the wildcard resolver keeps the first).
+        _dc_stars = sorted((_dc_x.lineno, _dc_x.module) for _dc_x in ast.walk(python_ast)
+                           if isinstance(_dc_x, ast.ImportFrom)
+                           and any(_dc_a.name == "*" for _dc_a in _dc_x.names))
+        _dc_first_star = True
+        for _dc_sl, _dc_sm in _dc_stars:
+            if not _dc_first_star:
+                _dc_bad.append(f"a second star import `from {_dc_sm} import *` at line {_dc_sl}")
+            _dc_first_star = False
+        for _dc_x in ast.walk(python_ast):
+            if isinstance(_dc_x, ast.ImportFrom) and any(_dc_a.name == "*" for _dc_a in _dc_x.names):
+                _dc_prior = sorted(_dc_b for _dc_b, _dc_ls in _dc_mscope.items()
+                                   if _dc_b != "_" and any(_dc_l < _dc_x.lineno for _dc_l in _dc_ls))
+                if _dc_prior:
+                    _dc_bad.append(f"`from {_dc_x.module} import *` at line {_dc_x.lineno} after "
+                                   f"a binding of `{_dc_prior[0]}`")
+        if _dc_bad:
+            raise PyCSLSemanticError(
+                "a name's runtime binding is not the `def` the model resolves it to ("
+                + "; ".join(sorted(set(_dc_bad))) + "). A decorator whose effect is not "
+                "modelled is silently dropped (measured: a decorator returning `abs` proved the "
+                "undecorated contract); a def inside `if`/`try` that competes with another "
+                "binding is resolved to the textually last one; a star import after a def "
+                "rebinds it. None of these is modelled: use a modelled decorator (or an "
+                "identity decorator `def d(f): return f`), give each definition its own "
+                "name, or move the star import above every definition.")
         # (#49) ROUTE #120 — ATTRIBUTE-ACCESS HOOKS ARE NOT MODELLED. Every method call and field
         # store is resolved statically; a class-level hook that intercepts the lookup or the
         # store is never consulted. Measured at c01ef653, both PROVING what CPython contradicts:
@@ -1913,7 +2286,13 @@ class Module3_Weaver:
                                            getattr(_hk_st, "targets", []) or [])
                                        for _hk_t in ast.walk(_hk_x) if isinstance(_hk_t, ast.Name)])
                     _hk_hit = [_hk_n for _hk_n in _hk_names
-                               if _hk_n in ("__getattribute__", "__setattr__", "__delattr__")]
+                               if _hk_n in ("__getattribute__", "__setattr__", "__delattr__",
+                                            # (#49) ROUTE #128 — the DESCRIPTOR protocol is the
+                                            # same hook on the attribute's class: `x = Seven()`
+                                            # with `__get__ -> 7` made `C().x` read 7 while
+                                            # `\result == 42` PROVED. Census: pyref 0078 only
+                                            # (expected-FAIL).
+                                            "__get__", "__set__", "__delete__", "__set_name__")]
                     if _hk_hit:
                         raise PyCSLSemanticError(
                             f"Class '{_hk_cls.name}' (line {_hk_cls.lineno}) defines "

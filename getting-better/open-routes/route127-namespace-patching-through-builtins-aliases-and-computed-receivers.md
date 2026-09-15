@@ -1,7 +1,7 @@
 # ROUTE #127 — namespace patching the #119 fence walked past: `__builtins__`, ALIASES of an object
 # root, COMPUTED receivers, and a NON-LITERAL `setattr` on a class passed as a parameter
 
-**Status: OPEN — repair drafted for gen #24 battery-A.**
+**Status: CLOSED AND FULLY GATED by gen #24 (2026-09-15), battery-A (cheap legs, emission vs HEAD, suite 3481/3499 same 18 0 XPASS, planes 34/34 — every leg predicted and hit).**
 **Severity: SEV-1. Order 2** (carrier = the landed #119 rebinding refusal, rules (3)/(5)/(6), keyed on the
 SPELLING of the receiver root: an import alias, a def/class name, `globals()/vars()/locals()`, a literal
 `.__dict__`).

@@ -1,7 +1,7 @@
 # ROUTE #123 — a subclass's CLASS-BODY BINDING (`m = lambda self: 2`, `m = staticmethod(abs)`) that
 # overrides an INHERITED method is ignored: calls resolve to the base's def
 
-**Status: OPEN (found by gen #24, 2026-09-15) — repair drafted for gen #24 battery-A.**
+**Status: CLOSED AND FULLY GATED by gen #24 (2026-09-15), battery-A (cheap legs, emission vs HEAD, suite 3481/3499 same 18 0 XPASS, planes 34/34 — every leg predicted and hit).**
 **Severity: SEV-1. Order 2** (carrier = #118/#119 rule (1): the class-body pass flags a Name store
 only against the defs of the SAME class body, so a name inherited from a base walks past it).
 

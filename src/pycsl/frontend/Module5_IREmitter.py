@@ -3946,6 +3946,36 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # (#49) ROUTE #89 — the control-flow-only subset, for the COLLECTION arms.
             _unkcf = list(getattr(self, "_init_unknown_cf", []) or [])
             init_ensures = self._collect_init_ensures(node)
+            # (#49) ROUTE #123 — a CLASS-BODY BINDING (`m = lambda self: 2`,
+            # `m = staticmethod(abs)`, `group = _color_match_group`) OVERRIDES an inherited
+            # method of that name, and `apply_inheritance` cloned the base's method over it
+            # (measured: `B().m()` proved `A.m`'s contract while Python ran the lambda; the
+            # same through an IMPORTED base and a grandchild). The names bound directly in the
+            # class body (not by a `def`) are carried so the clone can be skipped (fail-closed:
+            # the call then has no inherited contract). Emitted ONLY for a class WITH bases and
+            # a non-empty set, so every other type_decl — and every frozen IR golden — is
+            # unchanged.
+            _cbb123: List[str] = []
+            if bases:
+                _cbq123: list = list(node.body)
+                while _cbq123:
+                    _cbx123 = _cbq123.pop()
+                    if isinstance(_cbx123, ast.ClassDef) and _cbx123.name not in _cbb123:
+                        _cbb123.append(_cbx123.name)   # a nested class binds its name too
+                    if isinstance(_cbx123, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef,
+                                            ast.Lambda)):
+                        continue
+                    if (isinstance(_cbx123, ast.Name)
+                            and isinstance(_cbx123.ctx, (ast.Store, ast.Del))
+                            and _cbx123.id not in _cbb123):
+                        _cbb123.append(_cbx123.id)
+                    elif isinstance(_cbx123, (ast.Import, ast.ImportFrom)):
+                        for _cba123 in _cbx123.names:
+                            _cbn123 = (_cba123.asname or _cba123.name).split(".")[0]
+                            if _cbn123 != "*" and _cbn123 not in _cbb123:
+                                _cbb123.append(_cbn123)
+                    _cbq123.extend(ast.iter_child_nodes(_cbx123))
+                _cbb123.sort()
             _icc = self._collect_init_contract_check(node)
             self.program_ir["type_decls"].append({
                 "kind": "record", "name": node.name, "fields": fields,
@@ -3955,6 +3985,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 "has_hash": has_hash, "has_eq": has_eq,
                 "is_unhashable": has_eq and not has_hash,
                 "constants": constants, "bases": bases,
+                **({"class_body_bindings": _cbb123} if _cbb123 else {}),
                 # 7b (self-tcb-reduction L4b): class-body string-set constants, so a
                 # `<x> in self.<CONST>` membership lowers to a faithful `str_eq_op`
                 # disjunction. Emitted only when non-empty (additive) → byte-identical

@@ -1,6 +1,6 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **#121, #122, #123, #124, #125, #126, #127, #128, #129** (gen #24, 2026-09-15 — all SEV-1, all measured PROVING at HEAD 7c9dede2 with CPython contradicting)
+## CURRENTLY OPEN: **#122 (nested-def arm), #126, #129** — all drafted for gen #24 battery-B. CLOSED AND FULLY GATED by gen #24 battery-A: #121, #123, #124, #125, #127, #128, and #122's compound-statement arms.
 ##   #121 a user decorator is silently dropped (`@swap` returning `abs`).
 ##   #122 a def inside if/try, or nested in another function, is hoisted to module scope; textually last def wins.
 ##   #123 a subclass class-body binding (`m = lambda self: 2`) overriding an inherited method is ignored.
