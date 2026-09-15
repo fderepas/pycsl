@@ -138,6 +138,57 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # keys, populated from the same `csl_shared_decls`).
         self._shared_var_names = {d.variable for d in shared_decls}
 
+        # (#49) ROUTE #116 — THE CLASS-BY-NAME FACTORY RECOGNIZER'S JUSTIFICATION, CHECKED.
+        # `_py_expr_call` resolves `F("X")(...)` to a direct call of `X` because
+        # "`pure_ast._N(name)` is `return _g[name]`" — a fact about ONE helper, and the arm
+        # never looked at which `F` it had. `Pick("inc")(3)` on a callable class was lowered
+        # to `(inc 3)` and PROVED `\result == 4` while CPython returned 2. Record here the
+        # module-level functions for which the fact actually HOLDS: exactly one parameter, no
+        # decorators, a body that is the single statement `return G[<param>]`, where `G` is a
+        # module-level name bound exactly once to a bare `globals()` call, and neither the
+        # function name nor `globals` is rebound at module level. Only those callees may use
+        # the recognizer; every other `F(...)(...)` keeps the ordinary computed-callee path.
+        _m116_assigned: Dict[str, int] = {}
+        _m116_globals: Set[str] = set()
+        for _st116 in node.body:
+            _tg116: List[str] = []
+            if isinstance(_st116, ast.Assign):
+                _tg116 = [t.id for t in _st116.targets if isinstance(t, ast.Name)]
+                if (len(_st116.targets) == 1 and len(_tg116) == 1
+                        and isinstance(_st116.value, ast.Call)
+                        and isinstance(_st116.value.func, ast.Name)
+                        and _st116.value.func.id == "globals"
+                        and not _st116.value.args and not _st116.value.keywords):
+                    _m116_globals.add(_tg116[0])
+            elif isinstance(_st116, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                _tg116 = [_st116.name]
+            elif isinstance(_st116, (ast.AnnAssign, ast.AugAssign)) and isinstance(_st116.target, ast.Name):
+                _tg116 = [_st116.target.id]
+            elif isinstance(_st116, (ast.Import, ast.ImportFrom)):
+                _tg116 = [(a.asname or a.name).split(".")[0] for a in _st116.names]
+            for _n116 in _tg116:
+                _m116_assigned[_n116] = _m116_assigned.get(_n116, 0) + 1
+        self._globals_lookup_funcs: Set[str] = set()
+        if "globals" not in _m116_assigned:
+            for _st116 in node.body:
+                if not (isinstance(_st116, ast.FunctionDef)
+                        and _m116_assigned.get(_st116.name) == 1
+                        and not _st116.decorator_list
+                        and len(_st116.args.args) == 1
+                        and not _st116.args.posonlyargs and not _st116.args.kwonlyargs
+                        and _st116.args.vararg is None and _st116.args.kwarg is None
+                        and len(_st116.body) == 1
+                        and isinstance(_st116.body[0], ast.Return)):
+                    continue
+                _rv116 = _st116.body[0].value
+                if (isinstance(_rv116, ast.Subscript)
+                        and isinstance(_rv116.value, ast.Name)
+                        and _rv116.value.id in _m116_globals
+                        and _m116_assigned.get(_rv116.value.id) == 1
+                        and isinstance(_rv116.slice, ast.Name)
+                        and _rv116.slice.id == _st116.args.args[0].arg):
+                    self._globals_lookup_funcs.add(_st116.name)
+
         # Store CSL nodes so _get_mutex_invariant_ir can look them up later
         self._mutex_invariants_csl = dict(mutex_invs)
 
@@ -1440,6 +1491,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # reference corpus has none.
         if (isinstance(expr.func, ast.Call)
                 and isinstance(expr.func.func, ast.Name)
+                and expr.func.func.id in getattr(self, "_globals_lookup_funcs", set())
                 and len(expr.func.args) == 1
                 and not expr.func.keywords
                 and isinstance(expr.func.args[0], ast.Constant)
@@ -1464,6 +1516,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # string literal (that is the resolved form above, unchanged).
         if (isinstance(expr.func, ast.Call)
                 and isinstance(expr.func.func, ast.Name)
+                and expr.func.func.id in getattr(self, "_globals_lookup_funcs", set())
                 and len(expr.func.args) == 1
                 and not expr.func.keywords
                 and isinstance(expr.func.args[0], (ast.Name, ast.Subscript))):

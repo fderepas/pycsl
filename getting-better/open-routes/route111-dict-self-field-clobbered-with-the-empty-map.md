@@ -1,7 +1,7 @@
 # ROUTE #111 — a `set`/`dict`/`frozenset` self-field assigned from ANY non-alphanumeric
 # lowered RHS is SILENTLY REPLACED BY THE EVERYWHERE-EMPTY MAP
 
-**Status: FOUND, REPRODUCED, BOTH DIRECTIONS MEASURED. Repair NOT yet landed.**
+**Status: CLOSED AND FULLY GATED by gen #23 (2026-09-15)** — see THE REPAIR AS LANDED at the bottom. Original finding preserved below.
 **Severity: SEV-1. First-order. NO ADVERSARIAL NAMING IS REQUIRED** — `self.b = self.a` is
 ordinary Python, and that is what makes this worse than #107 and #110.
 
@@ -161,3 +161,29 @@ let the route be marked closed** — a carrier surviving a repair is a second ro
 
 **THE FULL REPAIR** remains as sketched above: drive the decision from the RHS's IR TYPE, and
 REFUSE where the value is genuinely unrecoverable instead of inventing the empty map.
+
+---
+
+# THE REPAIR AS LANDED — gen #23 (2026-09-15)
+
+Landed with routes #111–#117 as ONE combined battery (commit recorded in `driver-progress.log`).
+Every verdict was PREDICTED in the progress log before it ran:
+metric 459/484/25/0 · doc-coherency rc=0 · mirror sync 887 verbatim · mirror-check same 3
+pre-existing drifts · trusted-raises 13/62 · trusted-reasons 459↔459 · type-only 53, 0
+ill-typed · dropped-mutation 0/51/9/0 · byte-diff pycsl-ref 22 MOVED / GONE only 0996 (an
+expected-FAIL witness now refused) · python-ref 6 MOVED · mirror emission 7 MOVED, every hunk
+read and attributed · suite 3444/3462, the SAME 18 failures, ZERO XPASS · whole-file proofs of
+all 7 moved mirrors SUCCESS, 0 bad (statements 17630, expressions 21347, stmt_control_flow
+12284, pure_ast 3372, functions 1199, Module5_IREmitter 2109, preamble 216 Valid) · planes
+34/34 `ok` COUNTED (after narrowing `check-singleton-constant-lowering`'s baseline: the split arm orphaned two entries whose justifications #115/#116 had just refuted — removed — and renamed the GenExp half's key; constant arms 14 -> 12; emission re-verified byte-identical).
+
+**What landed.** `statements.py::_handle_fieldassign_stmt` (live + verbatim mirror): a
+map-typed field store whose lowered RHS is neither map-prefixed nor alphanumeric now asks the
+RHS IR `self._rhs_yields_map(stmt.value.to_dict())` — a map-typed field read, a map-returning
+call, a set operator over one — and KEEPS such a value; anything else becomes the polymorphic
+unconstrained `(any_map ())`. The everywhere-empty map is never substituted.
+
+**Witnesses.** `e3_dict` / `e3_call` / `e3_lit` false claims PROVED at HEAD and are refused on
+the method postcondition; the faithfulness control (`t = {1: 5}; self.a = t; self.b = self.a`,
+true `\result == 1`) was REFUSED at the baseline and PROVES now. Corpus 1305 (field read, XFAIL),
+1306 (faithful, PASS), 1307 (call, XFAIL). The mirror `statements.py` proof covers the edit.

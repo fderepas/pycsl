@@ -1,7 +1,7 @@
 # ROUTE #113 — `_coerce_to_int` REPLACES A CALL WITH A HASH OF ITS TEXT when the call's
 # lowered text merely CONTAINS A COMMA — and a comma inside a STRING-LITERAL ARGUMENT counts
 
-**Status: FOUND, REPRODUCED, BOTH DIRECTIONS MEASURED (gen #23, 2026-09-14). NOT REPAIRED.**
+**Status: CLOSED AND FULLY GATED by gen #23 (2026-09-15)** — see THE REPAIR AS LANDED at the bottom. Original finding preserved below.
 **Severity: SEV-1. First-order.** A false postcondition is PROVED; the trigger is a comma in
 an ordinary string argument (`g(y, "a,b")`).
 
@@ -93,3 +93,25 @@ Tuple-arm census rows (the 9 genuine tuples, for #114's blast radius):
 `pyref 0150 (1, 2)`; mirror `pure_ast` ×2 (`Seq.snoc !parts <hash>`); mirror `expressions`
 ×1 (`_pg2_get_1 <hash>` keyed by `(self._current_self_type, !field)`); `pycsl_lib`
 `json/scanner` ×2, `json/tool` ×1, `os/UnixInodeFileSystem` ×1, `warn/__init__` ×1.
+
+---
+
+# THE REPAIR AS LANDED — gen #23 (2026-09-15)
+
+Landed with routes #111–#117 as ONE combined battery (commit recorded in `driver-progress.log`).
+Every verdict was PREDICTED in the progress log before it ran:
+metric 459/484/25/0 · doc-coherency rc=0 · mirror sync 887 verbatim · mirror-check same 3
+pre-existing drifts · trusted-raises 13/62 · trusted-reasons 459↔459 · type-only 53, 0
+ill-typed · dropped-mutation 0/51/9/0 · byte-diff pycsl-ref 22 MOVED / GONE only 0996 (an
+expected-FAIL witness now refused) · python-ref 6 MOVED · mirror emission 7 MOVED, every hunk
+read and attributed · suite 3444/3462, the SAME 18 failures, ZERO XPASS · whole-file proofs of
+all 7 moved mirrors SUCCESS, 0 bad (statements 17630, expressions 21347, stmt_control_flow
+12284, pure_ast 3372, functions 1199, Module5_IREmitter 2109, preamble 216 Valid) · planes
+34/34 `ok` COUNTED (after narrowing `check-singleton-constant-lowering`'s baseline: the split arm orphaned two entries whose justifications #115/#116 had just refuted — removed — and renamed the GenExp half's key; constant arms 14 -> 12; emission re-verified byte-identical).
+
+**What landed.** `_coerce_to_int` (live + verbatim mirror): a paren-wrapped term containing a
+comma whose HEAD TOKEN is a bare identifier or keyword (`(g ...`, `(let ...`, `(if ...`) is an
+application or binder, never a tuple, and passes through unchanged (a non-int term is a Why3
+type error). Both carriers are closed and FAITHFUL: `c_comma2_pos` (true `b - a == 1`) and
+`t_proj_true` (`\result == 20 or 40`) PROVE where they were refused, 0607 still PASSES — now on
+the real projection. Corpus 1309 (XFAIL), 1310 (PASS), 1311 (XFAIL).

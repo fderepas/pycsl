@@ -1,7 +1,7 @@
 # ROUTE #112 — a NON-EMPTY dict literal outside a map-returning function lowers to the
 # EVERYWHERE-EMPTY MAP, and route #86's repair lets it through by PREFIX
 
-**Status: FOUND, REPRODUCED, BOTH DIRECTIONS MEASURED (gen #22, 2026-09-14).**
+**Status: CLOSED AND FULLY GATED by gen #23 (2026-09-15)** — see THE REPAIR AS LANDED at the bottom. Found by gen #22 (2026-09-14); original finding preserved below.
 **Severity: SEV-1. First-order. NO ADVERSARIAL NAMING** — `g({1: 5})` is ordinary Python.
 
 ## PROVENANCE
@@ -69,3 +69,31 @@ Non-empty literal that the faithful chain cannot build -> the POLYMORPHIC UNCONS
 `(any_map ())` (routes #85/#86/#89's value, already spiked), never the empty map. Landed
 together with route #111 (same erasure family; #111's own guard must not re-erase an
 `any_map` RHS back to the empty map).
+
+---
+
+# THE REPAIR AS LANDED — gen #23 (2026-09-15)
+
+Landed with routes #111–#117 as ONE combined battery (commit recorded in `driver-progress.log`).
+Every verdict was PREDICTED in the progress log before it ran:
+metric 459/484/25/0 · doc-coherency rc=0 · mirror sync 887 verbatim · mirror-check same 3
+pre-existing drifts · trusted-raises 13/62 · trusted-reasons 459↔459 · type-only 53, 0
+ill-typed · dropped-mutation 0/51/9/0 · byte-diff pycsl-ref 22 MOVED / GONE only 0996 (an
+expected-FAIL witness now refused) · python-ref 6 MOVED · mirror emission 7 MOVED, every hunk
+read and attributed · suite 3444/3462, the SAME 18 failures, ZERO XPASS · whole-file proofs of
+all 7 moved mirrors SUCCESS, 0 bad (statements 17630, expressions 21347, stmt_control_flow
+12284, pure_ast 3372, functions 1199, Module5_IREmitter 2109, preamble 216 Valid) · planes
+34/34 `ok` COUNTED (after narrowing `check-singleton-constant-lowering`'s baseline: the split arm orphaned two entries whose justifications #115/#116 had just refuted — removed — and renamed the GenExp half's key; constant arms 14 -> 12; emission re-verified byte-identical).
+
+**What landed.** `expressions.py` `DictLitExpr` arm: a NON-EMPTY literal the gated faithful
+chain cannot build lowers to `(any_map ())`, never `(const (None: option int))`. An empty `{}`
+is unchanged. **The co-landing fix that the battery found:** `_emit_first_assign` folded a local
+literal's keys onto the LOWERED LITERAL as its base, which was only the empty map BECAUSE the
+literal lowered to the empty map; the first sweep moved 17 corpus + 2 python-reference files to
+`map_update_some (any_map ()) ...` (a completeness regression). The base is now named
+explicitly. LESSON: a value that was a lie in one consumer (an argument) was load-bearing in
+another (a fold's base) — read the hunks, not the MOVED count.
+
+**Witnesses.** `p_arg` false claim refused; corpus 1308 (XFAIL). The only corpus effect is one
+unused `val any_map` declaration in 20 pycsl-reference + 3 python-reference files (declared by a
+lower-and-discard call).

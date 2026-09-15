@@ -2710,7 +2710,8 @@ class ControlFlowStmtMixin:
                 # function level (no raise), the array variable IS the
                 # value — keep its name.
                 if use_raise and func_ret_peek != "array int":
-                    val = "0"
+                    # (#49) ROUTE #117: UNKNOWN, not the literal `0` (a list is never `0`).
+                    val = "(any int)"
                 else:
                     val = whyml_ident(val_ir["name"])
             else:
@@ -2869,7 +2870,10 @@ class ControlFlowStmtMixin:
             # (matches the pre-existing lossy behaviour).
             if (val_ir and val_ir.get("type") == "Var"
                     and val_ir.get("name") in self._array_locals):
-                val = "0"
+                # (#49) ROUTE #117 — this was the LITERAL `0`: an unannotated
+                # `if x > 0: return xs` PROVED `\result == 0` while CPython returned
+                # `[x, 1]`. The value cannot be carried by `Return int`; it is UNKNOWN.
+                val = "(any int)"
             elif val == "()":
                 val = "0"
             elif val == "true":

@@ -73,15 +73,14 @@ BASELINE = {
         "by the subscript handler, which never routes the slice itself through here.",
     ("_expr_to_whyml", '"Slice"', "0"):
         "the dict-shaped twin of the SliceExpr arm above.",
-    ("_expr_to_whyml", "UnknownPyExprExpr", "0"):
-        "route #41: an UNRECOGNIZED expression. The literal 0 is retained deliberately "
-        "-- moving it would move every existing genexp site -- and the unsoundness it "
-        "used to carry is closed one level up, at the BINDING: a local bound to an "
-        "UnknownPyExpr reads as the per-name opaque `pycsl_erased_<x>`. Witnesses "
-        "1041-1045.",
-    ("_expr_to_whyml", "str", "0"):
-        "the `_PYAST_IRNODE_CTORS` guard inside the IfExp-of-constructors recognizer: a "
-        "REFUSAL to lift an arm that is not a real ADT application. Not a value.",
+    # (#49, gen #23) REMOVED, BECAUSE THEIR ARMS NO LONGER ANSWER A CONSTANT:
+    #   ("_expr_to_whyml", "UnknownPyExprExpr", "0") — blessed as "closed one level up, at
+    #     the BINDING"; ROUTE #115 measured the unbound spelling (`return (lambda y: y + 1)(x)`
+    #     proved `\result == 0`). The arm now answers `(any int)`.
+    #   ("_expr_to_whyml", "str", "0") — blessed as "a REFUSAL ... Not a value"; ROUTE #116
+    #     measured that it WAS a value (`Pick(name)(3)` proved `\result == 0`). Now `(any int)`.
+    # A baseline entry's justification is a claim about the code, and both of these were
+    # refuted by a measurement. The population only ever goes down.
     ("_to_bool", '"Var"', "true"):
         "self-tcb-reduction T1.a / Tier-5: the truthiness of a dict/set/map-typed local, "
         "whose Why3 type carries no int at all, so the default `<> 0` coercion is a TYPE "
@@ -122,9 +121,14 @@ BASELINE = {
         "control 1068 is the driver that holds it. Three different truthiness answers now "
         "live in one dict (refuse for a generator, `false` for `None`, `true` for NaN), "
         "and that is a semantic distinction, not an inconsistency.",
-    ("_expr_to_whyml", '"UnknownPyExpr|GenExp"', "0"):
-        "route #41, dict-shaped: the same arm as UnknownPyExprExpr above, extended to "
-        "GenExp for R2a parity. Closed at the BINDING, not here — see that entry.",
+    # (#49, gen #23) KEY NARROWED from '"UnknownPyExpr|GenExp"': route #115 split that arm
+    # and its UnknownPyExpr half now answers `(any int)`. The GenExp half is the SAME
+    # pre-existing arm with the same R2a-parity reason; nothing new is blessed here.
+    ("_expr_to_whyml", '"GenExp"', "0"):
+        "route #41, dict-shaped, GenExp half ONLY since route #115 (gen #23): the "
+        "UnknownPyExpr half of this arm answers `(any int)`. A generator expression in a "
+        "value position still lowers to 0 for R2a parity; its truthiness is refused at the "
+        "binding (PYCSL-WHYML-ERASED-TRUTHINESS).",
     ("_emit_term_retval", '"Bool"', "true|false"):
         "a `#@ proof`-bridge term whose value IS the bool literal -- faithful.",
 }

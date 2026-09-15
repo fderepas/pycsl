@@ -554,8 +554,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                              "MkTuple": "a non-empty tuple literal"}.get(_etk, _etk)
                 raise PyCSLSemanticError(
                     f"the truthiness of `{ir_expr.get('name')}` is not modelled: it is "
-                    f"bound to {_kindname}, which this lowering emits as the literal `0`. "
-                    f"Testing it would be decidably FALSE in the model while the Python "
+                    f"bound to {_kindname}, which this lowering emits as a value that is not "
+                    f"the object (the literal `0`, or since route #115 an unconstrained int "
+                    f"for an unrepresented expression). Testing it could be decidably FALSE "
+                    f"in the model while the Python "
                     f"object is ALWAYS truthy — measured, `if <it>: return 7` proved "
                     f"`\\result == 0` where Python returns 7. Reading the value is fine "
                     f"(every projection off it is abstract); only the guard is unsound. "
@@ -1051,9 +1053,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         for prefix in map_prefixes:
             if stripped.startswith(prefix) and not _user_fn:
                 return "0"
-        # Tuple literals (a, b, c) → hash to int
+        # Tuple literals (a, b, c) → an int KEY OF THE TUPLE'S VALUE.
+        # (#49) ROUTES #113 + #114. This arm returned `stable_hash(<lowered text>)` for any
+        # paren-wrapped text containing a comma, which was wrong in BOTH of its decisions:
+        #   #113 — "is it a tuple?" was a SUBSTRING test, so a CALL with a comma inside a
+        #          string argument `(g !y "a,b")`, and a tuple PROJECTION
+        #          `(let (_, _r1_) = a[i] in _r1_)` (corpus 0607 passed on the constant),
+        #          were replaced by a constant: `b - a == 0` PROVED over g(y) before and
+        #          after `y += 1` (CPython 1); `\result > 1000` PROVED for a component that
+        #          is 20 or 40.
+        #   #114 — a GENUINE tuple was keyed by its TEXT, so `(y, 1)` was the same dict key
+        #          before and after `y` changed: `(y, 1) in d` PROVED true, CPython False.
+        # Now: a paren-wrapped term whose HEAD TOKEN is a bare identifier or keyword is an
+        # APPLICATION or a binder (`(g ...`, `(let ...`, `(if ...`), never a tuple — a tuple's
+        # head token carries its separating comma or opens a nested term — and it passes
+        # through unchanged (fail-closed: a non-int term is a Why3 type error). A GENUINE
+        # tuple has no int encoding here that is a function of its VALUE, so it becomes an
+        # UNCONSTRAINED int, Why3's `(any int)` — sound (a key that is merely unknown), at a
+        # measured completeness cost: two occurrences of the same tuple are no longer
+        # provably the same key. A value-keyed uninterpreted `tuple_key` would keep that,
+        # but it needs an abstract-op declaration and this method's PROVED mirror is
+        # `assigns \nothing`; `(any int)` needs no declaration. In a logic context `any` is
+        # rejected by Why3 — a refusal, never a false proof.
         if "," in whyml_str and whyml_str.startswith("(") and whyml_str.endswith(")"):
-            return str(stable_hash(whyml_str))
+            if _head.replace("_", "").replace(".", "").replace("'", "").isalnum():
+                return whyml_str
+            return "(any int)"
         return whyml_str
 
     # ----- no-more-int F1: dict value-type (ν) dispatch, consolidated -----
@@ -16699,7 +16724,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if self._in_spec: return "true" if node.value else "false"
             return "1" if node.value else "0"
         if isinstance(node, UnknownPyExprExpr):
-            return "0"
+            # (#49) ROUTE #115 — an expression Module 5 does not recognise (an immediately
+            # applied lambda, a SUBSCRIPTED callee `fs[0](x)`, `await`, ...) used to lower to
+            # the LITERAL `0`: `return (lambda y: y + 1)(x)` PROVED `\result == 0` (CPython
+            # x + 1). A literal is a WRONG value; the honest one is UNKNOWN — Why3's
+            # `(any int)`, fresh at every evaluation, rejected in a logic context.
+            return "(any int)"
         if isinstance(node, SliceExpr):
             return "0"
         if isinstance(node, OldFieldExpr):
@@ -17127,13 +17157,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _ctor = _pc3[0] if _pc3 else None
                 if not (_ctor and isinstance(_lw, str)
                         and _lw.startswith(f"({_ctor} ")):
-                    return "0"
+                    # (#49) ROUTE #116 — a DECLINED class-by-name construction used to be the
+                    # LITERAL `0`: `name = "inc" if c else "dec"; return Pick(name)(3)` on a
+                    # callable class PROVED `\result == 0` (CPython 2). Decline to UNKNOWN.
+                    return "(any int)"
                 _arms.append(_lw)
             _c = self._to_bool(
                 self._expr_to_whyml(_test_ir, local_refs, invariant_ctx, subst),
                 _test_ir or {})
             return f"(if {_c} then {_arms[0]} else {_arms[1]})"
-        if t in ("UnknownPyExpr", "GenExp"):
+        if t == "UnknownPyExpr":
+            # (#49) ROUTE #115, the dict-shaped twin of the typed arm: UNKNOWN, never `0`.
+            return "(any int)"
+        if t == "GenExp":
             # genexp-erasure-wall R2a parity: before R2a a generator expression had no Module-5
             # handler and arrived here as `UnknownPyExpr`, lowering to the scalar `0` (which
             # `_array_coerce_arg` then turned into a placeholder array). R2a gives it a real IR
@@ -17268,6 +17304,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             " : map 'k (option 'v)\n"
                             "    ensures { result = Map.set m k (Some v) }")
                         return _acc
+            if _dl_keys:
+                # (#49) ROUTE #112 — A LITERAL WITH KEYS IS NOT THE EMPTY MAP. This fallback
+                # returned `(const (None: option int))` for EVERY non-empty literal the gated
+                # chain above could not build, and route #86's map-param coercion kept it
+                # because that spelling is on its map-prefix list: `g({1: 5})` PROVED a
+                # callee postcondition evaluated against the EMPTY map (`\result == 0`,
+                # CPython 1) while the true twin was refused. Where the contents are not
+                # reconstructed here the honest value is UNKNOWN: the POLYMORPHIC
+                # UNCONSTRAINED `any_map` (routes #85/#86/#89). An EMPTY literal still takes
+                # the faithful `const None` below. In a LOGIC context `any_map` is a program
+                # symbol and Why3 rejects it — a refusal, never a false proof.
+                self._add_abstract_op(
+                    "val any_map (_u: unit) : map 'k (option 'v)")
+                return "(any_map ())"
             return "(const (None: option int))"
         if isinstance(node, ListCompExpr):
             # pyconst_val bytes content-comprehension (self-tcb-reduction M5, B-bucket):

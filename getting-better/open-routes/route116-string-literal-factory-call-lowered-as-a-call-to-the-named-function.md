@@ -1,7 +1,7 @@
 # ROUTE #116 — `F("name")(args)` is lowered as a call to the function NAMED BY THE STRING,
 # whatever `F` actually returns
 
-**Status: FOUND, REPRODUCED (gen #23, 2026-09-14). NOT REPAIRED.**
+**Status: PARTIALLY REPAIRED by gen #23 (2026-09-15) — STILL OPEN** (namespace-mutation carrier; its repair is route #118). See the bottom.
 **Severity: SEV-1. First-order.** A callable class constructed from a string is ordinary Python.
 
 ## PROVENANCE
@@ -106,3 +106,26 @@ targets only, the campaign's lesson 9 exactly) keeps `_N` qualified and `_N("inc
 looked-up name is not consulted at all, even by a DIRECT call). Batch-2 closes the `Pick("inc")`
 callable-class carrier, the fake-dict `_N`, and the ternary decline; the namespace-mutation
 carrier stays open under #118.
+
+---
+
+# THE REPAIR AS LANDED — gen #23 (2026-09-15)
+
+Landed with routes #111–#117 as ONE combined battery (commit recorded in `driver-progress.log`).
+Every verdict was PREDICTED in the progress log before it ran:
+metric 459/484/25/0 · doc-coherency rc=0 · mirror sync 887 verbatim · mirror-check same 3
+pre-existing drifts · trusted-raises 13/62 · trusted-reasons 459↔459 · type-only 53, 0
+ill-typed · dropped-mutation 0/51/9/0 · byte-diff pycsl-ref 22 MOVED / GONE only 0996 (an
+expected-FAIL witness now refused) · python-ref 6 MOVED · mirror emission 7 MOVED, every hunk
+read and attributed · suite 3444/3462, the SAME 18 failures, ZERO XPASS · whole-file proofs of
+all 7 moved mirrors SUCCESS, 0 bad (statements 17630, expressions 21347, stmt_control_flow
+12284, pure_ast 3372, functions 1199, Module5_IREmitter 2109, preamble 216 Valid) · planes
+34/34 `ok` COUNTED (after narrowing `check-singleton-constant-lowering`'s baseline: the split arm orphaned two entries whose justifications #115/#116 had just refuted — removed — and renamed the GenExp half's key; constant arms 14 -> 12; emission re-verified byte-identical).
+
+**What landed (PARTIAL — #116 stays OPEN).** Module 5 `visit_Module` records the functions for
+which the class-by-name recognizer's own justification HOLDS (one parameter, body exactly
+`return G[<param>]`, `G` bound once to bare `globals()`), and both class-by-name arms require the
+outer callee to be one; a DECLINED ternary construction is `(any int)`, never `0`. Closed:
+`Pick("inc")(3)` on a callable class, a fake `_N` over `_g = {"inc": dec}`, the ternary decline.
+Faithful twin 1318 (PASS), negatives 1315, 1317 (XFAIL). **Still open:** the namespace-mutation
+carrier `_g["inc"] = dec` — its repair is route #118's refusal (batch 3).

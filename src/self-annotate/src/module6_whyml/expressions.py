@@ -265,7 +265,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if stripped.startswith(prefix) and not _user_fn:
                 return "0"
         if "," in whyml_str and whyml_str.startswith("(") and whyml_str.endswith(")"):
-            return str(stable_hash(whyml_str))
+            if _head.replace("_", "").replace(".", "").replace("'", "").isalnum():
+                return whyml_str
+            return "(any int)"
         return whyml_str
     #@ requires True
     #@ ensures True

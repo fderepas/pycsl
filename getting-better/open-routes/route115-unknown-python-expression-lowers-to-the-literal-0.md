@@ -1,7 +1,7 @@
 # ROUTE #115 — an expression Module 5 does not recognise becomes `UnknownPyExpr`, and Module 6
 # lowers `UnknownPyExpr` to the DEFINITE VALUE `0`
 
-**Status: FOUND, REPRODUCED (gen #23, 2026-09-14). NOT REPAIRED.**
+**Status: CLOSED AND FULLY GATED by gen #23 (2026-09-15)** — see THE REPAIR AS LANDED at the bottom. Original finding preserved below.
 **Severity: SEV-1. First-order.** `(lambda y: y + 1)(x)` is ordinary Python.
 
 ## PROVENANCE
@@ -95,3 +95,25 @@ AST census (all four trees) of the Module 5 catch-all population: `Call` with a 
 `Await` 4 (python-reference 0098/0152), `Lambda`/`Subscript` callee **0**. The lambda and
 subscript carriers are therefore corpus-inert to repair; `Yield`/`Await` need the emission
 census before choosing refusal vs havoc.
+
+---
+
+# THE REPAIR AS LANDED — gen #23 (2026-09-15)
+
+Landed with routes #111–#117 as ONE combined battery (commit recorded in `driver-progress.log`).
+Every verdict was PREDICTED in the progress log before it ran:
+metric 459/484/25/0 · doc-coherency rc=0 · mirror sync 887 verbatim · mirror-check same 3
+pre-existing drifts · trusted-raises 13/62 · trusted-reasons 459↔459 · type-only 53, 0
+ill-typed · dropped-mutation 0/51/9/0 · byte-diff pycsl-ref 22 MOVED / GONE only 0996 (an
+expected-FAIL witness now refused) · python-ref 6 MOVED · mirror emission 7 MOVED, every hunk
+read and attributed · suite 3444/3462, the SAME 18 failures, ZERO XPASS · whole-file proofs of
+all 7 moved mirrors SUCCESS, 0 bad (statements 17630, expressions 21347, stmt_control_flow
+12284, pure_ast 3372, functions 1199, Module5_IREmitter 2109, preamble 216 Valid) · planes
+34/34 `ok` COUNTED (after narrowing `check-singleton-constant-lowering`'s baseline: the split arm orphaned two entries whose justifications #115/#116 had just refuted — removed — and renamed the GenExp half's key; constant arms 14 -> 12; emission re-verified byte-identical).
+
+**What landed.** `expressions.py`: `UnknownPyExpr` (typed and dict arms) lowers to `(any int)`,
+never `0` (`GenExp` deliberately untouched). Both carriers refused: `(lambda y: y + 1)(x)` and
+`fs[0](x)`. Collateral read in the sweep: discarded expression statements `let _ = 0` became
+`let _ = (any int)` (1031, python-reference 0061/0141/0175, pure_ast); `type(self)(...)` in
+pure_ast became `(any int)`; corpus 0996 (route #24's witness, expected-FAIL) is now REFUSED by
+the pre-existing ERASED-TRUTHINESS check, whose message was corrected. Corpus 1313, 1314 (XFAIL).

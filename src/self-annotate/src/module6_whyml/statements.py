@@ -1119,14 +1119,27 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if ftype in ("list", "tuple"):
                 val = self._array_coerce_arg(val)
             elif ftype in ("set", "dict", "frozenset"):
-                # Map-typed field: keep map-shaped values, otherwise
-                # use empty map. (Same pragma as `_handle_dotted_call`.)
+                # Map-typed field: keep map-shaped values; otherwise the value is
+                # NOT KNOWN here and is modelled as UNKNOWN, never as empty.
+                # (#49) ROUTE #111 — this used to substitute `(const (None: option int))`,
+                # the EVERYWHERE-EMPTY MAP, for any RHS whose lowered text was not
+                # alphanumeric after deleting `_` and `!`. That is a DEFINITE value:
+                # `self.b = self.a` and `self.b = mk()` (ordinary Python) then PROVED
+                # `1 in self.b` false in the same method while CPython found it true.
+                # "Is this RHS map-valued" is a TYPE question and is now answered from the
+                # RHS IR (`_rhs_yields_map`: a map-typed field read, a map-returning call,
+                # a set operator over one) — such a value is KEPT (a key/value-type
+                # mismatch is a Why3 type error, fail-closed). Anything else becomes the
+                # POLYMORPHIC UNCONSTRAINED `any_map` of routes #85/#86/#89.
                 stripped = val.strip()
                 map_prefixes = ("(map_update_some ", "(map_update_none ",
                                 "(const (None: option int)", "(Map.get ")
                 if not any(stripped.startswith(p) for p in map_prefixes):
                     if not stripped.replace("_", "").replace("!", "").isalnum():
-                        val = "(const (None: option int))"
+                        if not self._rhs_yields_map(stmt.value.to_dict()):
+                            self._add_abstract_op(
+                                "val any_map (_u: unit) : map 'k (option 'v)")
+                            val = "(any_map ())"
             code = f"{indent}{obj}.{safe_field} <- {val}"
         else:
             hash_field = stable_hash(field)
