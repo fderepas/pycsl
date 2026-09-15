@@ -2221,3 +2221,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
 2026-09-15 gen#25 CHECKPOINT 22:06Z: battery-B suite running (54 min).
 2026-09-15 gen#25 BATTERY-B suite: 3507/3525 passed, same failure set as battery-A (diffed), ZERO XPASS; 1378-1381 XFAIL — PREDICTED, HIT. Planes running (22:17Z).
 2026-09-15 gen#25 CHECKPOINT 22:34Z: battery-B planes 32 ok, 0 RED so far; g25 worktrees removed.
+2026-09-15 gen#25 CHECKPOINT 22:53Z: battery-B planes 33 ok, 0 RED, last slow plane running.
