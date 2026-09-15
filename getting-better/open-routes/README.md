@@ -1,6 +1,6 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN: **#135 REPAIRED, battery gen #25-B running** (gen #25, 2026-09-15). #130-#134 CLOSED AND FULLY GATED (battery-A).
+## CURRENTLY OPEN: **NONE** (gen #25, 2026-09-15). gen #25 found AND CLOSED AND FULLY GATED six SEV-1 routes #130-#135 in two batteries (A: #130 #131 #132 #133 #134, commit 2313ded3; B: #135). WATCH items in the handoff.
 ##   #130 an imported name bound twice keeps the FIRST import. #131 a builtin rebound by an assignment is still the builtin.
 ##   #132 the constant folders' 'bound exactly once' premise (rebinding + mutation/alias arms). #133 a nested def in a method replaces a sibling method. #134 route #116's globals-lookup recognizer premise.
 ##   Generators: carrier-rerun (#130 #131 #133), witness-census (#132).

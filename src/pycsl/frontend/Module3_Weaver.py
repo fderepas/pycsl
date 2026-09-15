@@ -2599,6 +2599,78 @@ class Module3_Weaver:
                 if _nb_toks & (_nb_exec_names | _nb_builtin_names):
                     _nb_bad.append(f"a constant `exec` naming a builtin, an imported name or a "
                                    f"constant at line {getattr(_nb_x, 'lineno', 0)}")
+        # (#135) MODULE-SCOPE and CLASS-BODY code is never lowered: the weaver is its only
+        # fence, and #127's alias taint keys on how a value is SPELLED (an ordinary call
+        # "produces a value"). `m = ident(plainlib); m.inc = plainlib.dec`, `(lambda:
+        # plainlib)()`, `[x for x in [plainlib]][0]`, `ident(x=plainlib)` and
+        # `setattr(ident(plainlib), "inc", ...)` each proved the original `inc` (CPython ran
+        # `dec`). Keyed on the SINK: in those scopes an attribute store/delete, or a
+        # `setattr`/`delattr`, is allowed only on a receiver rooted at a name whose every
+        # binding in the file is a literal or a call of a class defined in this module (a
+        # fresh object), or at a name with no module-scope binding at all.
+        _nb_fresh_ok: Dict[str, bool] = {}
+        _nb_modcls = {_nb_cd.name for _nb_cd in python_ast.body if isinstance(_nb_cd, ast.ClassDef)}
+        _nb_has_star = any(isinstance(_nb_x, ast.ImportFrom)
+                           and any(_nb_a.name == "*" for _nb_a in _nb_x.names)
+                           for _nb_x in ast.walk(python_ast))
+        # the bindings that a module-scope / class-body receiver name refers to: those in the
+        # module and class bodies themselves (a function-local binding is another variable).
+        _nb_mnodes: list = []
+        _nb_st: list = list(python_ast.body)
+        while _nb_st:
+            _nb_y = _nb_st.pop()
+            if isinstance(_nb_y, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                continue
+            _nb_mnodes.append(_nb_y)
+            _nb_st.extend(ast.iter_child_nodes(_nb_y))
+        for _nb_x in _nb_mnodes:
+            _nb_pairs: list = []
+            if isinstance(_nb_x, ast.Assign):
+                for _nb_t in _nb_x.targets:
+                    _nb_pairs.append((_nb_t, _nb_x.value))
+            elif isinstance(_nb_x, (ast.AnnAssign, ast.NamedExpr)):
+                _nb_pairs.append((_nb_x.target, _nb_x.value))
+            elif isinstance(_nb_x, (ast.For, ast.AsyncFor)):
+                _nb_pairs.append((_nb_x.target, None))
+            elif type(_nb_x).__name__ == "withitem" and _nb_x.optional_vars is not None:
+                _nb_pairs.append((_nb_x.optional_vars, None))
+            for _nb_t, _nb_v in _nb_pairs:
+                _nb_good = (isinstance(_nb_t, ast.Name) and _nb_v is not None
+                            and (isinstance(_nb_v, (ast.Constant, ast.Dict, ast.List, ast.Set))
+                                 or (isinstance(_nb_v, ast.Call)
+                                     and isinstance(_nb_v.func, ast.Name)
+                                     and _nb_v.func.id in _nb_modcls)))
+                for _nb_tn in ast.walk(_nb_t):
+                    if isinstance(_nb_tn, ast.Name) and not isinstance(_nb_tn.ctx, ast.Load):
+                        _nb_fresh_ok[_nb_tn.id] = _nb_fresh_ok.get(_nb_tn.id, True) and _nb_good
+        for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
+            if _nb_kind == "function":
+                continue
+            _nb_st: list = list(_nb_body)
+            while _nb_st:
+                _nb_y = _nb_st.pop()
+                if isinstance(_nb_y, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef,
+                                      ast.Lambda)):
+                    continue
+                _nb_recv = None
+                if isinstance(_nb_y, ast.Attribute) and isinstance(_nb_y.ctx, (ast.Store, ast.Del)):
+                    _nb_recv = _nb_y.value
+                elif (isinstance(_nb_y, ast.Call) and isinstance(_nb_y.func, ast.Name)
+                        and _nb_y.func.id in ("setattr", "delattr") and _nb_y.args):
+                    _nb_recv = _nb_y.args[0]
+                if _nb_recv is not None:
+                    # the receiver itself must be that name: a deeper chain (`m.x.inc`,
+                    # `ms[0].inc`) reaches an object the binding does not describe (measured
+                    # past the first cut: `m = H(plainlib); m.x.inc = ...` and `ms =
+                    # [ident(plainlib)]; ms[0].inc = ...` both proved the original `inc`).
+                    # a name with no module-scope binding is exempt only in a file without a
+                    # star import (`from aliaslib import *` exporting `pm = plainlib`, then
+                    # `pm.inc = plainlib.dec`, proved the original `inc` past the second cut).
+                    if not (isinstance(_nb_recv, ast.Name)
+                            and _nb_fresh_ok.get(_nb_recv.id, not _nb_has_star)):
+                        _nb_bad.append(f"an attribute written at {_nb_kind} scope on a computed "
+                                       f"receiver at line {getattr(_nb_y, 'lineno', 0)}")
+                _nb_st.extend(ast.iter_child_nodes(_nb_y))
         # (#133) a def nested in a method, named like a method of that class or of an in-module
         # base (the lift emits it as that method).
         _nb_cls_by_name: Dict[str, Any] = {}
