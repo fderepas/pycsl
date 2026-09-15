@@ -2163,3 +2163,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
 2026-09-15 gen#23 CHECKPOINT 10:57Z: battery-4b suite running (38 min); battery-5 draft staged in g23/wt_b5.
 2026-09-15 gen#23 BATTERY-4b suite: 3460/3478, 18 CONFIRMED FAIL — same 18 names, ZERO XPASS; 1325-1334 XFAIL; 0076 XFAIL (refusal). PREDICTED, HIT. Planes running.
 2026-09-15 gen#23 CHECKPOINT 11:45Z: battery-4b planes running.
+2026-09-15 gen#23 BATTERY-4b COMPLETE AND GREEN: planes 34/34 — PREDICTED, HIT. Every leg hit (cheap legs, emission byte-inert with the predicted expect-gone pyref 0076, suite 3460/3478 same 18 0 XPASS, planes 34/34). Committing #119 (module/class/import/namespace/setattr/exec rebinding refusal moved into Module3_Weaver.process) and #120 (attribute-access hooks). NOT closing either: carriers found while it ran (instance-level method shadowing incl. an imported base; hook by assignment) are staged for battery-5.
