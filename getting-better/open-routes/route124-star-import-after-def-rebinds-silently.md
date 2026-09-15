@@ -1,6 +1,6 @@
 # ROUTE #124 — `from m import *` AFTER a `def` rebinds the name silently
 
-**Status: OPEN (found by gen #24, 2026-09-15).**
+**Status: OPEN (found by gen #24, 2026-09-15) — repair drafted for gen #24 battery-A.**
 **Severity: SEV-1. Order 2** (carrier = #118 rule (1)'s import arm, which reads the alias NAMES; a star
 import binds names no alias spells).
 

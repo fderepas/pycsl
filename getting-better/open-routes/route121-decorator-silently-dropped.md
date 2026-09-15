@@ -1,6 +1,6 @@
 # ROUTE #121 — a user DECORATOR is silently DROPPED: calls resolve to the undecorated body
 
-**Status: OPEN (found by gen #24, 2026-09-15).**
+**Status: OPEN (found by gen #24, 2026-09-15) — repair drafted for gen #24 battery-A.**
 **Severity: SEV-1. First-order.** Ordinary Python; no adversarial naming.
 
 ## PROVENANCE

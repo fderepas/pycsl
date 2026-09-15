@@ -1,6 +1,6 @@
 # ROUTE #125 — a method call on a class with MULTIPLE bases is resolved DEPTH-FIRST, not by C3 MRO
 
-**Status: OPEN (found by gen #24, 2026-09-15).**
+**Status: OPEN (found by gen #24, 2026-09-15) — repair drafted for gen #24 battery-A.**
 **Severity: SEV-1. First-order.**
 
 ## MEASURED at HEAD `7c9dede2`

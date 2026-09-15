@@ -1,7 +1,7 @@
 # ROUTE #122 — a `def` that is NOT a top-level module statement (inside `if`/`try`, or nested in
 # another function) is hoisted into module scope, where the TEXTUALLY LAST def of a name wins
 
-**Status: OPEN (found by gen #24, 2026-09-15).**
+**Status: OPEN (found by gen #24, 2026-09-15) — repair drafted for gen #24 battery-A.**
 **Severity: SEV-1. Order 2** (carrier = #118's rule (1), whose module pass keys on top-level defs;
 the dup-def control "last def wins" is only right for top-level duplicates).
 
