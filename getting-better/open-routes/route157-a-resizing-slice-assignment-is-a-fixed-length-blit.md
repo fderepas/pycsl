@@ -1,6 +1,6 @@
 # ROUTE #157 — a slice assignment that RESIZES the list is modelled as a fixed-length blit
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtH, with #155/#156); battery G pending.** Severity 1.
+**Status: CLOSED AND FULLY GATED by gen #29 (2026-09-16), battery G (with #155/#156).** Severity 1.
 Generator: carrier-rerun (route #81's alias fence led to the no-alias shape).
 
 ## Measured at `52a02d5a`
@@ -18,3 +18,8 @@ per-element hint on the emitted text (the handler is a converted mirror method; 
 trusted and already rewrites nothing else). Equal-length stores keep their model (all 9 PASS
 corpus files with slice stores re-prove); resizing ones fail to prove. Witnesses 1531/1532 (XFAIL),
 1533 (PASS control).
+
+**Battery G (every leg predicted and hit):** emission vs the #152-#154-closed tree 1170 -> 1180 with
+EXACTLY the ten predicted corpus files MOVED (the slice-store files; each diff is one appended length
+assertion per store), python-reference and mirrors inert; conformance 38/38 + 38/38; suite 3659/3677
+same 18, zero XPASS; planes --slow 34/34; dropped-mutation TRYFINAL ratchet 9 -> 5.
