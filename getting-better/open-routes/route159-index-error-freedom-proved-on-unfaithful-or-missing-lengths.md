@@ -1,6 +1,6 @@
 # ROUTE #159 — `no_exception IndexError` proved for index operations whose length is unfaithful or unchecked
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtI, with #158); battery H pending.** Severity 1.
+**Status: CLOSED AND FULLY GATED by gen #29 (2026-09-16), battery H (with #158/#160). Witness 1546 (erased dict-literal KeyError) added during drafting.** Severity 1.
 Generator: hand (following #158's placeholder into the bounds VC).
 
 ## Measured at `e27e6797` — each PROVED `no_exception IndexError`, CPython raises IndexError
@@ -23,3 +23,7 @@ see the size (the store withdraws the fold), so `pycsl.py::_run_pipeline` streng
 `in_bounds ((Array.length X))` to `in_bounds (0)` inside a `let X = (Array.make 1024 0) in` scope with
 no `X_len` sidecar and no rebinding. Only functions declaring `no_exception IndexError` carry these
 asserts. Witnesses 1538-1543 (XFAIL), 1544/1545 (PASS controls).
+
+**Battery H (every leg predicted and hit):** emission measured BEFORE predicting (stated) — vs the
+#155-#157-closed tree 1180 -> 1196, 0 MOVED / 0 GONE / 0 APPEARED, python-reference and mirrors
+inert; conformance 38/38 + 38/38; suite 3679/3697 same 18, zero XPASS; planes --slow 34/34.
