@@ -1,6 +1,6 @@
 # ROUTE #143 — an IMPORTED function's `raises` condition is folded against the IMPORTING module's constants
 
-**Status: REPAIR DRAFTED by gen #29 (worktree, drafts 1-4); battery pending — see "Gen #29" at the end.**
+**Status: CLOSED AND FULLY GATED by gen #29 (2026-09-16), battery C' (drafts 1-7). Witnesses 1464-1471 1473-1475 (XFAIL — refused), 1472 1476 (PASS). See "Gen #29" at the end.**
 Severity 1. Both directions measured. Generator: carrier-rerun, on gen #27's own #140/#141 repairs.
 
 ## The exploit (measured, both directions)
@@ -154,3 +154,18 @@ would game it, so the check is inlined into two functions the mirror already car
 `\trusted` stubs. And a new `raise` in `resolve_imports` broke the trusted-raises ratchet (63 > 62);
 the mirror stub now DECLARES `#@ raises PyCSLSemanticError when True` (route #59's precedent),
 14 declared / 62 silent.
+
+**Drafts 5-7.** Draft 4 falsely refused an importer and a callee module that both `from consts import
+LIM` (one object) — draft 5 accepts the same name from the same source on both sides (witness 1476).
+Draft 5 resolved a DEPENDENCY file's absolute import from that file's own directory; scratchpad
+probes passed only because their CWD held `multi_file_lib/` — run in place, 1473 proved again, 1474
+was not refused and 1476 was falsely refused; draft 6 anchors only relative imports at the spelling
+file. Draft 7: battery C's planes went RED on `check-dropped-mutation` (CTXBIND 53 > 51) — the two
+`with open(...) as _fh:` reads — and the whole battery was re-run on the rewrite.
+
+**Battery C' (all predicted, all hit):** emission vs `acba66f3` pycsl-reference 1123 -> 1125 0/0/0,
+python-reference 2199 0/0/0, mirrors one MOVED (`frontend__ir_resolve`, exactly the `raises` line on
+`val resolve_imports`; whole-file proof SUCCESS at baseline and candidate, 1584 s each); conformance
+38/38 + 38/38; suite 3602/3620 same 18, zero XPASS; planes --slow 34/34; trusted-raises 14 declared /
+62 silent; mirror-coverage 549/41; dropped-mutation 0/51/9/0.
+WATCH: `import X as m` on both sides is recorded as a local binding (precision; population 0).
