@@ -642,3 +642,6 @@ date	gen	generator	candidate	verdict	route	order	note
 2026-09-16	29	carrier-rerun	g29-dataclasses-replace	FAIL-CLOSED	-	2	`dataclasses.replace(p, x=5).x == 1`: `let q = ref 0`, refused.
 2026-09-16	29	carrier-rerun	g29-namedtuple-replace	FAIL-CLOSED	-	2	`p._replace(x=5).x == 1`: `let q = ref 0`, refused.
 2026-09-16	29	carrier-rerun	g29-dataclass-init-false-field-direct-and-derived	LIVE	151	2	LOGGED AFTER THE RESULT. Same class: `P(3).y == 3` PROVED (CPython 5); and a base `field(init=False)` field merged into a derived dataclass: `B(3).gety() == 3` PROVED (CPython 5). Witnesses 1508/1509.
+2026-09-16	29	carrier-rerun	g29-omitted-default-computed-initialiser	LIVE	149	2	LOGGED AFTER THE RESULT. `self.x = k * 3` over `k: int = 4`, `C()`: `{ x = 0 }`, `== 0` PROVED at HEAD; CPython 12. Closed by the #149 draft (`{ x = (4 * 3) }`); witnesses 1511/1512 go with battery E.
+2026-09-16	29	carrier-rerun	g29-kwargs-and-varargs-ctor-stores	FAIL-CLOSED	-	2	`self.x = kwargs.get("x", 3)` and `self.x = args[0]`: both `(any int)` at HEAD.
+2026-09-16	29	carrier-rerun	g29-namedtuple-omitted-int-default	FAIL-CLOSED	-	2	`class P(NamedTuple): x: int; y: int = 5`, `P(1).y == 0` refused (`{ x = 1; y = 5 }` faithful).
