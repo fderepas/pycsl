@@ -12707,10 +12707,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         pos_defaults = rec_info.get("init_param_defaults", {}) or {}
         default_unknown = set(rec_info.get("init_default_unknown", []) or [])
         _unk149: Set[str] = set()
-        if (init_params or kwonly_params) and (
+        # (#49) ROUTE #155 — a PARAMETERLESS constructor can still carry a binding: route
+        # #150 composes a leading `super().__init__()`'s CLOSED entries (`x = 5` from an
+        # omitted defaulted base parameter) into `init_body`, and the old guard required
+        # `init_params or kwonly_params`, so `B().get() == 0` PROVED (CPython 5). A
+        # zero-argument call with a non-empty `init_body` enters the block; an entry over
+        # an unbound name is still skipped below, so only closed entries are new.
+        if ((init_params or kwonly_params) and (
                 (len(args) <= len(init_params)
                  and (args or pos_defaults or default_unknown))
-                or kwargs_map or kwonly_defaults):
+                or kwargs_map or kwonly_defaults)) or (
+                    not args and not kwargs_map and init_body):
             # positional prefix binds init_params[0 .. len(args)-1] by position;
             # keyword args bind the same-named param on top (a Python call never
             # binds a param both positionally and by keyword — a TypeError — so no
