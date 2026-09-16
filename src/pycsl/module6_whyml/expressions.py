@@ -13887,9 +13887,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         ("subscript", "read"), ["0", self._coerce_to_int(index)],
                         f"(subscript_get_str {value_str} {self._coerce_to_int(index)})")
                 self._add_abstract_op("val subscript_get (x: int) (i: int) : int")
-                return self._wrap_with_no_exception_assert(
+                _erased159 = self._wrap_with_no_exception_assert(
                     ("subscript", "read"), ["0", self._coerce_to_int(index)],
                     f"(subscript_get {self._coerce_to_int(value_str)} {self._coerce_to_int(index)})")
+                # ... and an erased DICT-literal read (`{}[1]`) can raise KeyError, which no
+                # trigger row can state over an erased receiver: under `no_exception
+                # KeyError` (or `\all`) it is an unprovable obligation.
+                if (isinstance(value, dict) and value.get("type") in ("Dict", "DictLit")
+                        and not self._in_spec):
+                    _act159 = set(getattr(self, "_current_no_exception", set()) or set())
+                    if getattr(self, "_current_no_exception_all", False):
+                        from exception_model import all_phase1_exceptions
+                        _act159.update(all_phase1_exceptions())
+                    if "KeyError" in _act159:
+                        _erased159 = f"begin assert {{ false }}; {_erased159} end"
+                return _erased159
         else:
             return f"(Map.get !{self._heap_var} ({value_str} + {index}))"
 
