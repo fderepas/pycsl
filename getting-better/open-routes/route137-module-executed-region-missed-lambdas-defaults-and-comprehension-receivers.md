@@ -58,6 +58,10 @@ Found by carrier-rerun on THIS route's own first cut, before any verdict was rea
 | 1395 | `import builtins; builtins.setattr(...)` | `inc(3) == 4` | 2 |
 | 1396 | `getattr(builtins, "set" + "attr")(...)` | `inc(3) == 4` | 2 |
 
+#118's namespace-dict rule, #119's `setattr`/`delattr` rule, #127's computed `getattr`,
+#135's sink and both of this route's new arms all name the builtin. ONE alias defeats all
+of them simultaneously.
+
 ### (d) the SUBSCRIPT sink enumerated the dict spellings too
 
 #118's namespace-dict rule lists `globals()[k]`, `vars()[k]`, `<mod>.__dict__[k]`. Two more
@@ -72,10 +76,6 @@ A module/class-scope SUBSCRIPT store is now keyed on the PATH being written — 
 must be a name the file can describe — exactly like the attribute sink. Census of non-Name
 receivers: 2 in pycsl-reference (1326, 1351, both already expected-FAIL), 0 elsewhere.
 `D = {}; D["a"] = 1` and `XS = [0, 0]; XS[0] = 7` at module scope still verify.
-
-#118's namespace-dict rule, #119's `setattr`/`delattr` rule, #127's computed `getattr`,
-#135's sink and both of this route's new arms all name the builtin. ONE alias defeats all
-of them simultaneously.
 
 ## The repair
 
