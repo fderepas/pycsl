@@ -1,6 +1,6 @@
 # ROUTE #161 — an OPAQUE builtin call is assumed not to raise under `no_exception`
 
-**Status: OPEN. Found by gen #29 (2026-09-16), carrier-rerun on its own #160 draft.** Severity 1.
+**Status: REPAIR DRAFTED by gen #29 (worktree wtJ, on top of battery H's candidate); battery I pending.** Severity 1.
 
 ## Measured on the #159/#160 candidate (and at `87258ff7`)
 
@@ -23,3 +23,13 @@ verified program or a stub with its own `raises`/`no_exception` contract, nor (b
 builtins known never to raise the declared exceptions for any argument (e.g. `len`, `abs`, `min`/`max`
 of two or more arguments, `sorted`, `bool`, `str` of an int). Census the corpus `no_exception`
 functions' callees first and predict the refused set; an honest regression there is the price.
+
+## Draft (wtJ)
+
+In `_reset_function_state` (trusted), after the route #65/#66/#72/#160 refusals: under a
+`no_exception` context a Call is allowed only if its callee is a program function / record type (by
+name, dotted name, or method tail), or an undotted builtin on a whitelist (len, abs, bool, str, repr,
+sorted, reversed, list, tuple, set, frozenset, dict, enumerate, zip, range, min, max, sum, any, all,
+isinstance, chr, ord, int, float, print, hash, id, type, iter, map, filter, round, bytearray, bytes,
+pow), or a method on a whitelist (append ... bit_length). Every `no_exception` file of both corpora
+re-run on the draft: all as expected. Witnesses 1554/1555.
