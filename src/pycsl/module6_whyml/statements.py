@@ -2099,6 +2099,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     body = f"{arr_e}[{index_expr}] <- {val_expr}"
                     # no_exception IndexError → prepend assert in_bounds.
                     length_expr = f"(Array.length {arr_e})"
+                    # (#49) ROUTE #159 — the store twin: `xs = []; xs[0] = 5` proved
+                    # `no_exception IndexError` against the placeholder's 1024.
+                    if arr_e.strip() == "(Array.make 1024 0)" or (
+                            arr.get("type") == "Var"
+                            and getattr(self, "_known_collection_sizes", {}).get(
+                                arr.get("name")) == 0
+                            and arr.get("name") not in getattr(
+                                self, "_rebound_collections", set())):
+                        length_expr = "0"
                     pred = self._maybe_emit_no_exception_assert(
                         ("subscript", "write"), [length_expr, index_expr])
                     # (#49) ROUTE #64 — a `bytes`/`bytearray` element store ALSO raises

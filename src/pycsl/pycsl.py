@@ -1146,6 +1146,30 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         lambda _m157: (_m157.group(1) + " ;\n    assert { Array.length "
                        + _m157.group("s") + " = (" + _m157.group("w") + ") }"),
         _mlw)
+    # (#49) ROUTE #159 — A PLACEHOLDER-BOUND ARRAY'S WHY3 LENGTH IS NOT THE LIST'S. `xs = []`
+    # lowers to the immutable binding `let xs = (Array.make 1024 0) in`, whose Why3 length is
+    # 1024 for good, while the Python list — never appended to (an append target is a
+    # `ref Seq` or carries an `xs_len` sidecar) — has length 0. So `xs[0] = 5` proved
+    # `no_exception IndexError` against 1024 (CPython raises). The Module 6 read handler now
+    # uses the faithful length where it knows the size; the STORE handler cannot see it (the
+    # size fold is withdrawn by the store itself), so the bounds obligation is corrected
+    # here, on the emitted text: inside a `let X = (Array.make 1024 0) in` scope with no
+    # `X_len` sidecar and no later rebinding of `X`, `in_bounds ((Array.length X))` becomes
+    # `in_bounds (0)` — strictly STRONGER, so no proof can become easier.
+    import re as _re159
+    for _m159 in list(_re159.finditer(
+            r"let ([A-Za-z_][A-Za-z0-9_']*) = \(Array\.make 1024 0\) in", _mlw)):
+        _x159 = _m159.group(1)
+        _tail159 = _mlw[_m159.end():]
+        _stop159 = _re159.search(
+            r"\blet " + _re159.escape(_x159) + r"\b|\n  let |\n  val |\nend", _tail159)
+        _scope159 = _tail159[:_stop159.start()] if _stop159 else _tail159
+        if _re159.search(r"\b" + _re159.escape(_x159) + r"_len\b", _mlw):
+            continue
+        _fixed159 = _scope159.replace(
+            "in_bounds ((Array.length " + _x159 + "))", "in_bounds (0)")
+        if _fixed159 != _scope159:
+            _mlw = _mlw[:_m159.end()] + _fixed159 + _tail159[len(_scope159):]
     return _mlw
 
 

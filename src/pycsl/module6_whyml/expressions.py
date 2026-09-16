@@ -13518,7 +13518,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _negk = self._negative_literal_index(expr.get("index", {}))
             if _negk is not None:
                 index = f"(Seq.length {base} - {_negk})"
-            return f"(Seq.get {base} {index})"
+            # (#49) ROUTE #159 — `Seq.get` is TOTAL in Why3 (no precondition), so this read
+            # carried NO IndexError obligation at all: `xs = []; xs.append(1); xs[3]` proved
+            # `no_exception IndexError` while CPython raises. The array read below wraps; so
+            # does this one now, against the SEQ's own length.
+            return self._wrap_with_no_exception_assert(
+                ("subscript", "read"), [f"(Seq.length {base})", index],
+                f"(Seq.get {base} {index})")
         # strings-plan Stage 2: s[i] on a str is the 1-char substring String.substring s i 1
         # (Why3 strings have no char type; a character is a length-1 string). Reuses the
         # str_sub_op bridge whose length lemma gives String.length result = 1 under bounds.
@@ -13531,7 +13537,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "    ensures { result = (String.substring s lo len) }\n"
                 "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
                 " -> String.length result = len }")
-            return f"(str_sub_op {vstr} {index} 1)"
+            # (#49) ROUTE #159 — a string index past the end raises IndexError; `"abc"[5]`
+            # proved `no_exception IndexError` (the substring is just `""`). Bounds against
+            # the string's own length.
+            return self._wrap_with_no_exception_assert(
+                ("subscript", "read"), [f"(String.length {vstr})", index],
+                f"(str_sub_op {vstr} {index} 1)")
         # 07-0903 W1: `a[i][k]` where `a` is a list/array of tuples — the inner `a[i]` is
         # a tuple value (`Array.get`), so destructure its k-th component. Must precede the
         # 2-D matrix detection below (which would otherwise read `a` as a `matrix`).
@@ -13733,6 +13744,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # before subscripting, else `!x[i]` parses as `!(x[i])`.
                 arr_e = f"({value_str})" if value_str.startswith("!") else value_str
                 length_expr = f"(Array.length {arr_e})"
+                # (#49) ROUTE #159 — THE BOUNDS OBLIGATION MUST USE THE LIST'S LENGTH, NOT THE
+                # WHY3 ARRAY'S. An empty list literal is the placeholder `(Array.make 1024
+                # 0)` (lesson (ao)), so `[][0]` and `xs = []; xs[0]` proved `no_exception
+                # IndexError` against a length of 1024 while CPython raises.
+                if arr_e.strip() == "(Array.make 1024 0)" or (
+                        isinstance(value, dict) and value.get("type") == "Var"
+                        and getattr(self, "_known_collection_sizes", {}).get(
+                            value.get("name")) == 0
+                        and value.get("name") not in getattr(
+                            self, "_rebound_collections", set())):
+                    length_expr = "0"
                 # W8 capability (iv): a NEGATIVE LITERAL index `a[-k]` is Python's
                 # from-the-end read, i.e. `a[len(a) - k]`. Emitting the literal `-k`
                 # was BOTH unfaithful (it is not element `-k` of anything) and
@@ -13851,14 +13873,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         "    ensures { result = (String.substring s lo len) }\n"
                         "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
                         " -> String.length result = len }")
-                    return f"(str_sub_op {value_str} {self._coerce_to_int(index)} 1)"
+                    return self._wrap_with_no_exception_assert(
+                        ("subscript", "read"),
+                        [f"(String.length {value_str})", self._coerce_to_int(index)],
+                        f"(str_sub_op {value_str} {self._coerce_to_int(index)} 1)")
                 if (isinstance(value, dict) and value.get("type") == "Call"
                         and self._resolve_dotted_signature(value.get("func", ""))[0] == "array string"):
                     self._add_abstract_op(
                         "val subscript_get_str (a: array string) (i: int) : string")
-                    return f"(subscript_get_str {value_str} {self._coerce_to_int(index)})"
+                    # ROUTE #159: an ERASED read has no length to bound against, so under
+                    # `no_exception IndexError` it is an unprovable obligation (length 0).
+                    return self._wrap_with_no_exception_assert(
+                        ("subscript", "read"), ["0", self._coerce_to_int(index)],
+                        f"(subscript_get_str {value_str} {self._coerce_to_int(index)})")
                 self._add_abstract_op("val subscript_get (x: int) (i: int) : int")
-                return f"(subscript_get {self._coerce_to_int(value_str)} {self._coerce_to_int(index)})"
+                return self._wrap_with_no_exception_assert(
+                    ("subscript", "read"), ["0", self._coerce_to_int(index)],
+                    f"(subscript_get {self._coerce_to_int(value_str)} {self._coerce_to_int(index)})")
         else:
             return f"(Map.get !{self._heap_var} ({value_str} + {index}))"
 
