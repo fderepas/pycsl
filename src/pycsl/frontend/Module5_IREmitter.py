@@ -3215,7 +3215,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                         ftype = rhs.func.id
                                 fields.append({"name": target.attr, "type": ftype, "mutable": True})
                                 field_names_seen.add(target.attr)
-                                if isinstance(rhs, ast.Constant) and isinstance(rhs.value, (int, float)):
+                                # (#49) ROUTE #148 — `int(2.5)` is 2: a NON-INTEGRAL float is
+                                # not a value this int-typed field can hold, so it is not a
+                                # default at all (route #79 marks the field UNKNOWN instead).
+                                # MEASURED: `self.r = 2.5`, `c.r > 2` false, `== 0` PROVED.
+                                if (isinstance(rhs, ast.Constant)
+                                        and isinstance(rhs.value, (int, float))
+                                        and not (isinstance(rhs.value, float)
+                                                 and not rhs.value.is_integer())):
                                     field_defaults[target.attr] = int(rhs.value)
                                 else:
                                     # (#49) ROUTE #139 — PYTHON'S PARSER DOES NOT FOLD, so a
@@ -3339,7 +3346,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     _seen88.add(_t88.attr)
                     continue
                 if (isinstance(_r88, ast.Constant)
-                        and isinstance(_r88.value, (int, float))):
+                        and isinstance(_r88.value, (int, float))
+                        and not (isinstance(_r88.value, float)
+                                 and not _r88.value.is_integer())):
+                    # ROUTE #148: a non-integral float falls through to the pop below.
                     field_defaults[_t88.attr] = int(_r88.value)
                 elif self._const_int_value(_r88) is not None:
                     # (#49) ROUTE #139 — the same unary-minus miss, on the last-wins arm.
@@ -4039,6 +4049,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             for _f87 in _l87unk:
                 _l87lit.pop(_f87, None)
             _kwo = getattr(self, "_init_kwonly", ([], {}))
+            _pd149 = getattr(self, "_init_posdef", ({}, []))
             _unk = list(getattr(self, "_init_unknown", []) or [])
             # (#49) ROUTE #145 — the class-body `@dataclass` computed-default fields join
             # the SAME channel. `_collect_class_fields` ran above, and
@@ -4147,6 +4158,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # all 38 frozen conformance goldens is byte-identical.
                 **({"init_kwonly_params": _kwo[0]} if _kwo[0] else {}),
                 **({"init_kwonly_defaults": _kwo[1]} if _kwo[1] else {}),
+                # (#49) ROUTE #149: the POSITIONAL parameter defaults and the parameters
+                # (either kind) whose default the model cannot state. Emitted ONLY when
+                # non-empty — census: 8 classes with a positional default in both corpora,
+                # the mirrors and `src/pycsl_lib`, NONE among the 38 frozen goldens.
+                **({"init_param_defaults": _pd149[0]} if _pd149[0] else {}),
+                **({"init_default_unknown": _pd149[1]} if _pd149[1] else {}),
                 # (#49) ROUTE #83: fields stored inside control flow in `__init__`, whose
                 # value at construction time is UNKNOWN. Emitted ONLY when non-empty, so
                 # absent for every constructor with only top-level stores and therefore

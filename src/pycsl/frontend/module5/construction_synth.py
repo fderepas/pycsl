@@ -87,6 +87,9 @@ class ConstructionSynthMixin:
         # (#49) ROUTE #82 side-channel, reset per class so a constructor with no
         # keyword-only parameter emits nothing new (additive -> byte-identical).
         self._init_kwonly = ([], {})
+        # (#49) ROUTE #149 side-channel: POSITIONAL parameter defaults, and the names of
+        # every parameter (either kind) whose default is not an int this model can state.
+        self._init_posdef = ({}, [])
         # (#49) ROUTE #83 side-channel — fields whose value at construction time is
         # genuinely UNKNOWN. Reset per class; empty for every constructor whose stores
         # are all top-level, so it is additive and byte-identical there.
@@ -222,13 +225,48 @@ class ConstructionSynthMixin:
             # CPython returns 5). Capture the CONSTANT defaults so the omitted case
             # is faithful too; a non-constant default stays omitted and is route
             # #79's class, not this one.
+            #
+            # (#49) ROUTE #149 — AN OMITTED ARGUMENT TAKES ITS PARAMETER'S DEFAULT, OF
+            # EITHER KIND, AND ROUTE #82 COVERED ONE KIND AND ONE SPELLING. MEASURED at
+            # `acba66f3`, each `Cy().r` read PROVING a false `== 0`:
+            #   * a POSITIONAL `def __init__(self, r: int = 5)` — the IR carried no
+            #     positional defaults at all, so the record literal took the field's
+            #     witness 0 (and a zero-argument call never entered the binding block);
+            #   * a keyword-only default that is a MODULE CONSTANT (`*, r: int = K`) —
+            #     "a non-constant default stays omitted and is route #79's class": no
+            #     route #79 arm reads parameter defaults, so it too took the witness 0;
+            #   * a keyword-only `True` — the capture excluded `bool`, and `True` is 1;
+            #   * a keyword-only `2.5` — `int()` TRUNCATED it to 2 (route #148).
+            # One rule for both kinds: an int, a bool, an integral float or a folded
+            # negative literal is CAPTURED; any other default makes the fields that
+            # parameter initialises UNKNOWN when the argument is omitted.
             kwonly_defaults = {}
-            for _a, _d in zip(child.args.kwonlyargs, child.args.kw_defaults):
-                if (isinstance(_d, ast.Constant)
-                        and isinstance(_d.value, (int, float))
-                        and not isinstance(_d.value, bool)):
-                    kwonly_defaults[_a.arg] = int(_d.value)
+            _posdef149: Dict[str, int] = {}
+            _dunk149: List[str] = []
+            _pos149 = [a.arg for a in (child.args.posonlyargs + child.args.args)]
+            _pairs149 = [(_n, _d, True) for _n, _d in zip(
+                _pos149[len(_pos149) - len(child.args.defaults):], child.args.defaults)]
+            _pairs149 += [(_a.arg, _d, False) for _a, _d in zip(
+                child.args.kwonlyargs, child.args.kw_defaults) if _d is not None]
+            for _n149, _d149, _ispos149 in _pairs149:
+                _v149 = None
+                if isinstance(_d149, ast.Constant) and isinstance(_d149.value, bool):
+                    _v149 = int(_d149.value)
+                elif isinstance(_d149, ast.Constant) and isinstance(_d149.value, int):
+                    _v149 = _d149.value
+                elif (isinstance(_d149, ast.Constant) and isinstance(_d149.value, float)
+                        and _d149.value.is_integer()):
+                    _v149 = int(_d149.value)
+                elif self._const_int_value(_d149) is not None:
+                    _v149 = self._const_int_value(_d149)
+                if _v149 is None:
+                    _dunk149.append(_n149)
+                elif _ispos149:
+                    _posdef149[_n149] = _v149
+                else:
+                    kwonly_defaults[_n149] = _v149
             self._init_kwonly = (kwonly_params, kwonly_defaults)
+            self._init_posdef = (_posdef149, _dunk149)
             # (#49) ROUTE #83 — A FIELD STORED INSIDE CONTROL FLOW IS NOT MERELY
             # UNCAPTURED, ITS VALUE IS UNKNOWN, AND EMITTING A LITERAL `0` FOR IT IS A
             # DEFINITE FALSE FACT. The loop below is TOP-LEVEL ONLY (`for stmt in
@@ -363,6 +401,11 @@ class ConstructionSynthMixin:
                 # So this arm's live population is 0 and it is a pure ratchet.
                 _lit79 = isinstance(_r79, (ast.Constant, ast.Dict, ast.Set, ast.List,
                                            ast.Tuple))
+                # (#49) ROUTE #148 — a NON-INTEGRAL float Constant is not carried by
+                # `field_defaults` (it used to be, TRUNCATED), so it is not exempt.
+                if (isinstance(_r79, ast.Constant) and isinstance(_r79.value, float)
+                        and not _r79.value.is_integer()):
+                    _lit79 = False
                 if not _lit79 and isinstance(_r79, ast.Call) and isinstance(_r79.func, ast.Name):
                     _lit79 = _r79.func.id in ("set", "frozenset", "dict", "list",
                                               "bytearray", "bytes", "tuple")

@@ -12699,8 +12699,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         kwonly_params = rec_info.get("init_kwonly_params", []) or []
         kwonly_defaults = rec_info.get("init_kwonly_defaults", {}) or {}
         bindable = set(init_params) | set(kwonly_params)
+        # (#49) ROUTE #149 — an OMITTED POSITIONAL argument takes its parameter's
+        # DEFAULT (the positional twin of route #82), and an omitted argument of either
+        # kind whose default the model cannot state leaves every field it initialises
+        # UNKNOWN. The binding block now also runs for a ZERO-argument call when there
+        # are defaults to seed; without any, the guard is exactly the old one.
+        pos_defaults = rec_info.get("init_param_defaults", {}) or {}
+        default_unknown = set(rec_info.get("init_default_unknown", []) or [])
+        _unk149: Set[str] = set()
         if (init_params or kwonly_params) and (
-                (args and len(args) <= len(init_params)) or kwargs_map or kwonly_defaults):
+                (len(args) <= len(init_params)
+                 and (args or pos_defaults or default_unknown))
+                or kwargs_map or kwonly_defaults):
             # positional prefix binds init_params[0 .. len(args)-1] by position;
             # keyword args bind the same-named param on top (a Python call never
             # binds a param both positionally and by keyword — a TypeError — so no
@@ -12714,6 +12724,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             for _kn, _kv in kwonly_defaults.items():
                 if _kn not in kwargs_map:
                     arg_nodes[_kn] = {"type": "RawWhyml", "whyml": str(_kv)}
+            _omit149 = [p for p in init_params[len(args):] if p not in kwargs_map]
+            for _pn in _omit149:
+                if _pn in pos_defaults:
+                    arg_nodes[_pn] = {"type": "RawWhyml", "whyml": str(pos_defaults[_pn])}
+            _omit_unk149 = {p for p in list(_omit149) + list(kwonly_params)
+                            if p in default_unknown and p not in kwargs_map}
             for _kwn, _kww in kwargs_map.items():
                 if _kwn not in bindable:
                     continue
@@ -12761,6 +12777,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # prefix (a trailing omitted-with-default field) keeps its typed
                 # default — never a bare unsubstituted param var (ill-typed WhyML).
                 free = self._init_value_free_names(ent["value"])
+                if free & _omit_unk149:
+                    _unk149.add(fn)
+                    continue
                 if free and not (free <= set(arg_nodes.keys())):
                     continue
                 init_map[fn] = self._expr_to_whyml(
@@ -12789,6 +12808,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # to make a gate green, and a `\trusted` mirror stub would raise the trust-surface
         # metric for what is a pure faithfulness fix.
         _unknown = set(rec_info.get("init_unknown_fields", []) or [])
+        # ROUTE #149: only an int-modelled field takes `(any int)`; any other type keeps
+        # today's value (a `(any int)` there would be ill-typed).
+        _unknown |= {f for f in _unk149 if field_types.get(f, "int") in ("int", "bool")}
         _NONSCALAR = ("list", "array", "dict", "set", "frozenset", "option")
         field_inits = "; ".join(
             "%s = %s" % (
