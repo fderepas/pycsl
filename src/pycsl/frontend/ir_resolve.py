@@ -2822,19 +2822,37 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                     for _c in getattr(_st, "cases", []) or []:
                         _stack.append(list(_c.body))
             _bind143[_key] = (_ev, _wild)
-            if _key == "<importer>":
-                for _wm, _wl in _wild:
-                    _wr = _resolve_module_path(_wm, _wl, main_file)
-                    if _wr is not None and os.path.abspath(_wr) not in [k for k, _ in _trees143]:
-                        try:
-                            with open(_wr) as _fh:
-                                _trees143.append((os.path.abspath(_wr), _ast.parse(_fh.read())))
-                        except (OSError, SyntaxError):
-                            pass
+            # Every wildcard source is parsed too, for the importer AND for each dependency:
+            # a dependency that obtains `LIM` through its OWN `from consts import *` binds it
+            # just as surely (gen #29 carrier k12 — the first draft missed it and PROVED).
+            for _wm, _wl in _wild:
+                _wr = _resolve_module_path(_wm, _wl,
+                                           main_file if _key == "<importer>" else _key)
+                if _wr is not None and os.path.abspath(_wr) not in [k for k, _ in _trees143]:
+                    try:
+                        with open(_wr) as _fh:
+                            _trees143.append((os.path.abspath(_wr), _ast.parse(_fh.read())))
+                    except (OSError, SyntaxError):
+                        _trees143.append((os.path.abspath(_wr), None))
         _imp_ev, _imp_wild = _bind143["<importer>"]
         for _fn in _t143:
             _dep = _fn.pop("_r143_dep_file")
-            _dep_ev = _bind143.get(_dep, ({}, []))[0]
+            # The dependency's module-level names: its own bindings plus, transitively,
+            # everything its wildcard sources bind.
+            _dep_names: Set[str] = set()
+            _seen143: Set[str] = set()
+            _todo143 = [_dep]
+            while _todo143:
+                _k = _todo143.pop()
+                if _k in _seen143 or _k not in _bind143:
+                    continue
+                _seen143.add(_k)
+                _dep_names |= set(_bind143[_k][0])
+                for _wm, _wl in _bind143[_k][1]:
+                    _wr = _resolve_module_path(_wm, _wl, _k)
+                    if _wr is not None:
+                        _todo143.append(os.path.abspath(_wr))
+            _dep_ev = {n: None for n in _dep_names}
             _params = {(p.get("name") if isinstance(p, dict) else p)
                        for p in (_fn.get("formal_params", []) or [])} | {"self"}
             _read: Set[str] = set()
@@ -2865,8 +2883,20 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                         _wr = _resolve_module_path(_wm, _wl, main_file)
                         if _wr is None or os.path.abspath(_wr) == _dep:
                             continue
-                        if _nm in _bind143.get(os.path.abspath(_wr), ({}, []))[0]:
-                            _bad = f"bound by the wildcard import of `{_wm}`"
+                        _wseen: Set[str] = set()
+                        _wtodo = [os.path.abspath(_wr)]
+                        while _wtodo and _bad is None:
+                            _k = _wtodo.pop()
+                            if _k in _wseen or _k not in _bind143 or _k == _dep:
+                                continue
+                            _wseen.add(_k)
+                            if _nm in _bind143[_k][0]:
+                                _bad = f"bound by the wildcard import of `{_wm}`"
+                            for _wm2, _wl2 in _bind143[_k][1]:
+                                _wr2 = _resolve_module_path(_wm2, _wl2, _k)
+                                if _wr2 is not None:
+                                    _wtodo.append(os.path.abspath(_wr2))
+                        if _bad is not None:
                             break
                 if _bad is not None:
                     from errors import PyCSLSemanticError
