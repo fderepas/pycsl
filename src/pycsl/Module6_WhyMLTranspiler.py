@@ -355,6 +355,21 @@ class Module6_WhyMLTranspiler(
         names. Returns None if the IR shape is not supported."""
         if cond_ir is None or not param_names:
             return None
+        # (#49) ROUTE #140 — `zip` TRUNCATES, AND A TRUNCATED SUBSTITUTION IS NOT A MISSING
+        # FACT, IT IS A WRONG ONE. Any callee parameter left unsubstituted is rendered by
+        # `_expr_to_whyml` IN THE CALLER'S SCOPE, so a caller that happens to have a local or
+        # parameter of the same name silently supplies the condition's value. Measured: a
+        # method `f(self, k: int = -1)` with `raises ValueError when k < 0`, called as `c.f()`
+        # from a caller with `requires k >= 0` and `no_exception ValueError` — the default fill
+        # at `_handle_dotted_call` is gated on a `self.` receiver, so `args` is empty, `k`
+        # bound to the CALLER's `k`, `assert { not (k < 0) }` discharged, and the whole
+        # contract PROVED while CPython raises. (Renaming the caller's parameter to `j` makes
+        # the same condition an unconstrained `val constant` and the proof is refused — so the
+        # mechanism is name capture, not a missing assert.) Fail-closed: an incomplete
+        # substitution renders NOTHING, and the caller then gets `assert { false }`, which is
+        # the honest statement that this call site cannot be shown exception-free.
+        if len(args) < len(param_names):
+            return None
         subst = {p: a for p, a in zip(param_names, args)}
         try:
             # Reuse the existing expression renderer with a substitution

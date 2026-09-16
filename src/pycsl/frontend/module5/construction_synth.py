@@ -270,7 +270,34 @@ class ConstructionSynthMixin:
                 # faithfully by `field_defaults`, and marking it would throw away a true
                 # value — the #82 lesson that a faithful capture beats an unconstrained
                 # one wherever the information exists.
-                _last79[_t79.attr] = bool(_n79) and not ((_n79 & pset) and _n79 <= pset)
+                # (#49) ROUTE #139 — ... AND THE EXEMPTION'S PREMISE IS A CLAIM ABOUT A
+                # COLLECTOR NOBODY RE-READ. "A LITERAL RHS is carried faithfully by
+                # `field_defaults`" is true only of the shapes `field_defaults` MATCHES:
+                # an `ast.Constant` int/float, a `_const_int_value` fold, an
+                # `_array_init_size` length — and, through the route #85/#86/gap2a
+                # channels, a Dict / Set / List / Tuple / str Constant / collection call.
+                # Python's parser does not fold, so `self.start = -7` (UnaryOp) and
+                # `self.start = 2 + 3` (BinOp) are name-free, unmatched, unmarked, and
+                # fell to the DEFINITE witness 0: `\result == 0` PROVED while CPython
+                # returned -7 and 5 (the true twin `== -7` was refused). The unary-minus
+                # half is now carried FAITHFULLY by `field_defaults`; a name-free RHS
+                # that is still a COMPUTED expression is marked UNKNOWN here, which is
+                # the fail-closed half. CENSUS of name-free unmatched RHS over the four
+                # trees: 59 — 42 Dict, 14 Constant (str/None), 1 Set, all carried by
+                # their own channels, plus 2 UnaryOp (`-1`, in the mirror's own
+                # `frontend/__init__.py`) which the `field_defaults` fix now carries.
+                # So this arm's live population is 0 and it is a pure ratchet.
+                _lit79 = isinstance(_r79, (ast.Constant, ast.Dict, ast.Set, ast.List,
+                                           ast.Tuple))
+                if not _lit79 and isinstance(_r79, ast.Call) and isinstance(_r79.func, ast.Name):
+                    _lit79 = _r79.func.id in ("set", "frozenset", "dict", "list",
+                                              "bytearray", "bytes", "tuple")
+                if not _lit79:
+                    _lit79 = (self._const_int_value(_r79) is not None
+                              or self._array_init_size(_r79) is not None)
+                _last79[_t79.attr] = ((bool(_n79)
+                                       and not ((_n79 & pset) and _n79 <= pset))
+                                      or (not _n79 and not _lit79))
             for _f79, _bad79 in _last79.items():
                 if _bad79 and _f79 not in self._init_unknown:
                     self._init_unknown.append(_f79)

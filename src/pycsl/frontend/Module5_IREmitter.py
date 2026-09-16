@@ -3212,9 +3212,24 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                 if isinstance(rhs, ast.Constant) and isinstance(rhs.value, (int, float)):
                                     field_defaults[target.attr] = int(rhs.value)
                                 else:
-                                    sz = self._array_init_size(rhs)
-                                    if sz is not None:
-                                        field_defaults[target.attr] = sz
+                                    # (#49) ROUTE #139 — PYTHON'S PARSER DOES NOT FOLD, so a
+                                    # NEGATIVE literal is `UnaryOp(USub, Constant)` and misses
+                                    # `isinstance(rhs, ast.Constant)`. `construction_synth`'s
+                                    # deferral ("a Constant RHS is already handled by
+                                    # `field_defaults`") and route #79's own exemption ("a
+                                    # LITERAL RHS is deliberately NOT marked") both read that
+                                    # premise off the WORD "constant" rather than off this
+                                    # rule, so `self.start = -7` fell to the definite witness
+                                    # 0 and `\result == 0` PROVED (CPython -7). The sibling
+                                    # collector `_collect_class_constants` has always used
+                                    # `_const_int_value`, which handles the unary minus.
+                                    _cv139 = self._const_int_value(rhs)
+                                    if _cv139 is not None:
+                                        field_defaults[target.attr] = _cv139
+                                    else:
+                                        sz = self._array_init_size(rhs)
+                                        if sz is not None:
+                                            field_defaults[target.attr] = sz
                     elif isinstance(stmt, ast.AnnAssign):
                         if (isinstance(stmt.target, ast.Attribute) and
                                 isinstance(stmt.target.value, ast.Name) and
@@ -3320,6 +3335,9 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 if (isinstance(_r88, ast.Constant)
                         and isinstance(_r88.value, (int, float))):
                     field_defaults[_t88.attr] = int(_r88.value)
+                elif self._const_int_value(_r88) is not None:
+                    # (#49) ROUTE #139 — the same unary-minus miss, on the last-wins arm.
+                    field_defaults[_t88.attr] = self._const_int_value(_r88)
                 else:
                     _sz88 = self._array_init_size(_r88)
                     if _sz88 is not None:
