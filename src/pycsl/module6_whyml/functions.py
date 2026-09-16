@@ -715,6 +715,34 @@ class FunctionEmissionMixin:
                                 elif (_r66_a.get("type") == "Var"
                                       and _st.get(_r66_a.get("name")) == "str"):
                                     _r66_isstr = True
+                                # (#49) ROUTE #163 — "is it a string?" was answered only for a
+                                # literal and a `str`-typed NAME, so a string reaching `int()`
+                                # any other way was treated as a number: `int(getname())` (a
+                                # `-> str` function) and `int(p.s)` (a string field) PROVED
+                                # `no_exception ValueError` while CPython raises. Invert it:
+                                # the argument must be PROVABLY numeric — a numeric literal or
+                                # operator result, a name typed int/float/bool, or a call to a
+                                # numeric builtin or to a program function annotated as
+                                # returning int/float/bool — or the call is refused.
+                                else:
+                                    _t163 = _r66_a.get("type")
+                                    _num163 = _t163 in ("Number", "Float", "BinOp", "UnaryOp",
+                                                        "Compare", "BoolOp", "Bool", "True",
+                                                        "False")
+                                    if _t163 == "Var":
+                                        _num163 = _st.get(_r66_a.get("name")) in (
+                                            "int", "float", "bool")
+                                    if _t163 == "Call" and isinstance(_r66_a.get("func"), str):
+                                        _cf163 = _r66_a["func"]
+                                        _ann163 = (getattr(self,
+                                                           "_module_method_return_annotations",
+                                                           {}) or {}).get(_cf163)
+                                        _num163 = (_cf163 in ("len", "abs", "ord", "round",
+                                                              "int", "float", "sum", "min",
+                                                              "max", "hash", "id", "pow")
+                                                   or _ann163 in ("int", "float", "bool"))
+                                    if not _num163:
+                                        _r66_isstr = True
                             if _r66_isstr:
                                 raise PyCSLIRError(
                                     "`" + _r65_f + "(<str>)` raises `ValueError` in Python on a "
