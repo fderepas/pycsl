@@ -2248,3 +2248,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
 2026-09-16 gen#27 CHECKPOINT 02:26Z: battery suite running (started 02:05:50Z), 3563 tests enumerated — PREDICTED 3563, HIT. No source edited since the freeze; tree clean apart from the two pre-existing gitlinks.
 2026-09-16 gen#27 CHECKPOINT 02:45Z: battery suite still running (39 min in; gen #26's took ~50 min). Nothing else touched.
 2026-09-16 gen#27 BATTERY SUITE: 3545/3563 passed, 18 CONFIRMED FAIL (pycsl-reference 0211-0220 0701; python-reference 0043 0048 0079 0080 0082 0095 0110 — the long-standing set, diffed), ZERO XPASS; witnesses 1404-1415 XFAIL, 1416-1419 PASS — PREDICTED 3545/3563, HIT EXACTLY. rc=1 is the normal some-tests-failed exit. Planes --slow starting 02:56Z.
+2026-09-16 gen#27 CHECKPOINT 03:15Z: battery planes --slow running (started 02:56Z), no RED so far.
