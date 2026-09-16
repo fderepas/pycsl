@@ -7373,7 +7373,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             "heapq.heapreplace", "random.shuffle", "bisect.insort", "bisect.insort_left",
             "bisect.insort_right", "struct.pack_into", "operator.setitem",
             "operator.delitem", "operator.iadd", "operator.iconcat"))
-        if not writes_clause and func_name in _R162_ARG_MUTATORS:
+        # Only when an argument IS a collection (a list/dict/set/bytes local or parameter, a
+        # collection literal, or a collection-typed `self` field): the stub-resolution smoke
+        # tests call these functions with an int (`heapq.heapify(x)`), where nothing is
+        # mutated and emission must keep working.
+        _coll162 = False
+        for _a162 in (arg_irs or []):
+            if not isinstance(_a162, dict):
+                continue
+            if _a162.get("type") in ("ArrayLit", "List", "DictLit", "Dict", "SetLit", "Set"):
+                _coll162 = True
+            elif _a162.get("type") == "Var":
+                _n162 = _a162.get("name")
+                if (_n162 in getattr(self, "_array_locals", set())
+                        or _n162 in getattr(self, "_seq_locals", set())
+                        or _n162 in getattr(self, "_dict_locals", set())
+                        or _n162 in getattr(self, "_current_array1d_params", set())
+                        or getattr(self, "_current_symbol_table", {}).get(_n162)
+                        in ("list", "dict", "set", "bytes", "bytearray")):
+                    _coll162 = True
+            elif _a162.get("type") in ("Attribute", "FieldGet"):
+                if self._field_type_of(_a162) in ("list", "dict", "set", "frozenset",
+                                                  "bytes", "bytearray", "array"):
+                    _coll162 = True
+        if not writes_clause and func_name in _R162_ARG_MUTATORS and _coll162:
             raise PyCSLIRError(
                 "`" + func_name + "(...)` MUTATES an ARGUMENT in place, and no certified "
                 "lowering models it: the call becomes an abstract operation with no `writes` "
