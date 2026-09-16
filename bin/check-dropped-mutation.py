@@ -252,7 +252,11 @@ MAX_CTXBIND = 51
 # real. A non-jumping else is now EMITTED (lowered as a sibling of the try, behind a
 # completion flag) and a jumping one is REFUSED by pycsl.py's PYCSL-R37 fence, so neither
 # is a dropped mutation any more. The POPULATION moved; the line follows it DOWNWARD only.
-MAX_TRYFINAL = 9
+# (#49) ROUTE #156 lowered this from 9 to 5: the handler-less `finally` whose try body jumps
+# out is now REFUSED by pycsl.py's PYCSL-R156 fence and classified REFUSED here (six rows —
+# four pre-existing sites inside trusted code or the live emitter, and the two new negative
+# witnesses 1528/1529). The POPULATION moved; the line follows it DOWNWARD only.
+MAX_TRYFINAL = 5
 
 # DANGLING ratchet — a HARD 0. See the class list above. Measured across
 # pycsl-reference, python-reference, the negative corpus, the mirror, `src/pycsl_lib` and
@@ -385,6 +389,16 @@ def scan_file(path: str):
         elif isinstance(node, ast.Try) and (node.finalbody or node.orelse):
             if node.finalbody and not node.handlers and not _jumps_out(node.body):
                 bucket, why = "HANDLED", "`try/finally`, no handlers, no jump out — emitted"
+            elif node.finalbody and not node.handlers:
+                # (#49) ROUTE #156 — the handler-less `finally` whose body jumps out was the
+                # half of this bucket route #21 never fenced, and it was EXPLOITABLE (a
+                # nested `try: raise / finally: x = 7` under an outer handler proved
+                # `\result != 7`; CPython 7). It is now REFUSED before emission by
+                # pycsl.py's PYCSL-R156 fence, exactly as route #37's jumping `else` is, so
+                # it moves to the REFUSED bucket rather than staying a counted drop.
+                bucket, why = "REFUSED", (
+                    "`try/finally` with no handlers whose body jumps out "
+                    "(pycsl.py PYCSL-R156-TRY-FINALLY-JUMP-DROPPED)")
             elif node.orelse and not node.finalbody:
                 # (ROUTES #107 + #108) this line used to call the shape safe with a why-string
                 # that was a FALSE CLAIM TWICE OVER. The else COULD raise -- a callee raise
