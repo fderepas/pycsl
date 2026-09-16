@@ -181,6 +181,20 @@ class ConstructionSynthMixin:
                 if self._ann_is_kw_only_sentinel(stmt.annotation):
                     _sentinel = True
                     continue
+                # (#49) ROUTE #151 — `field(init=False, ...)` declares a FIELD that is NOT a
+                # parameter of the synthesized `__init__`. Keeping it in the positional list
+                # shifted every later binding: `y: int = field(init=False, default=5);
+                # x: int = 0` with `P(3)` gave `{ y = 3; x = 0 }` and `P(3).x == 0` PROVED
+                # (CPython 3). The field keeps its own default channel.
+                if (isinstance(stmt.value, ast.Call)
+                        and ((isinstance(stmt.value.func, ast.Name)
+                              and stmt.value.func.id == "field")
+                             or (isinstance(stmt.value.func, ast.Attribute)
+                                 and stmt.value.func.attr == "field"))
+                        and any(_k151.arg == "init" and isinstance(_k151.value, ast.Constant)
+                                and _k151.value.value is False
+                                for _k151 in stmt.value.keywords)):
+                    continue
                 _fk = self._dc_field_kw_only(stmt.value)
                 if _fk if _fk is not None else (_kwall or _sentinel):
                     _dckw.append(stmt.target.id)
