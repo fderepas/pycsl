@@ -1735,6 +1735,21 @@ at 10: the drop was *counted*. Route #21 had already established, for the `final
 the same counter, that a counted drop can be exploitable — and refused it. The `else` half
 was left counted and unrefused on identical evidence.
 
+**And route #21's own fence left a third shape counted (route #156, gen #29).** A `finally`
+WITHOUT handlers is emitted only when the lowered try body contains no `raise`; when the body
+jumps out (`return`/`raise`/`break`/`continue`) the block was dropped on every path:
+
+    x = 0
+    try:
+        try:     raise ValueError
+        finally: x = 7
+    except ValueError: pass
+    return x                 # `#@ ensures \result != 7` PROVED; Python returns 7
+
+This shape is now **refused** (`PYCSL-R156-TRY-FINALLY-JUMP-DROPPED`) in any non-trusted function;
+a handler-less `finally` whose body cannot jump out is still emitted (witness `1530`), and
+`check-dropped-mutation` counts the refused shape as REFUSED (TRYFINAL 9 -> 5).
+
 ---
 
 ### §T.5.12b  `and` / `or` in a VALUE position return the OPERAND
