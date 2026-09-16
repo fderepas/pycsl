@@ -2988,6 +2988,46 @@ class Module3_Weaver:
                 _nb_bad.append(f"the namespace mapping `.{_nb_x.attr}` used outside a name "
                                f"binding or a subscript read at line "
                                f"{getattr(_nb_x, 'lineno', 0)}")
+        # (#142) THE ONE ESCAPE BOTH RULES ALLOW — "it may be bound to a plain NAME" — HANDS OUT
+        # AN UNGUARDED HANDLE ON THE NAMESPACE, and every sink in this block is keyed on the
+        # spelling of the mapping, not on the name now holding it. Measured against the two
+        # rules above: `_g = globals(); dict.update(_g, N=5)`, `_g = globals();
+        # operator.setitem(_g, "N", 5)` and `_g = f.__globals__; dict.update(_g, N=5)` each
+        # PROVED `f() == 3` while CPython returns 5 (the unbound-method spelling also makes the
+        # module-scope sink's receiver the name `dict`, which has no module binding and is
+        # FRESH). The allowance exists for route #116's `_g = globals()` idiom, whose ONLY use
+        # is a subscript READ — so that is exactly what the name is now permitted to do.
+        # CENSUS over the five trees of a name bound to a no-argument `globals()`/`vars()`/
+        # `locals()` or to one of the four namespace attributes, USED anywhere other than a
+        # subscript read: ONE site, 1322's `_g["inc"] = dec`, already an expected-FAIL witness.
+        _nb_nsnames: set = set()
+        for _nb_x in ast.walk(python_ast):
+            if not isinstance(_nb_x, (ast.Assign, ast.AnnAssign, ast.NamedExpr)):
+                continue
+            _nb_v = _nb_x.value
+            if _nb_v is None:
+                continue
+            _nb_isns = ((isinstance(_nb_v, ast.Call) and isinstance(_nb_v.func, ast.Name)
+                         and _nb_v.func.id in ("globals", "vars", "locals")
+                         and not _nb_v.args and not _nb_v.keywords)
+                        or (isinstance(_nb_v, ast.Attribute) and _nb_v.attr in _nb_ns_attrs))
+            if not _nb_isns:
+                continue
+            for _nb_t in (list(_nb_x.targets) if isinstance(_nb_x, ast.Assign)
+                          else [_nb_x.target]):
+                if isinstance(_nb_t, ast.Name):
+                    _nb_nsnames.add(_nb_t.id)
+        if _nb_nsnames:
+            for _nb_x in ast.walk(python_ast):
+                if not (isinstance(_nb_x, ast.Name) and isinstance(_nb_x.ctx, ast.Load)
+                        and _nb_x.id in _nb_nsnames):
+                    continue
+                _nb_p = _nb_parent.get(id(_nb_x))
+                if not (isinstance(_nb_p, ast.Subscript) and _nb_p.value is _nb_x
+                        and isinstance(_nb_p.ctx, ast.Load)):
+                    _nb_bad.append(f"the name `{_nb_x.id}`, bound to the module namespace "
+                                   f"mapping, used outside a subscript read at line "
+                                   f"{getattr(_nb_x, 'lineno', 0)}")
         # NOT EXTENDED TO THE COMPUTED SPELLING: `getattr(f, "__globals__")["N"] = 5` and
         # `getattr(f, "__glo" + "bals__")["N"] = 5` were both probed and BOTH ARE REFUSED AT
         # HEAD (a Why3 typing failure on the subscript store through the accessor's result), so

@@ -370,6 +370,30 @@ class Module6_WhyMLTranspiler(
         # the honest statement that this call site cannot be shown exception-free.
         if len(args) < len(param_names):
             return None
+        # (#49) ROUTE #141 — ... AND THE SUBSTITUTION ENUMERATES *PARAMETERS*, WHICH IS NOT THE
+        # SAME SET AS "EVERY NAME THE CONDITION CAN MENTION". `formal_params` does not contain
+        # `self`, so a callee whose `raises` condition is over a FIELD renders that field IN THE
+        # CALLER'S SCOPE. Measured, on this very repair: a class `H` with `self.tag = -1` and
+        # `raises ValueError when self.tag < 0`, called as `h.f(k)` from a method of a DIFFERENT
+        # class `G` whose own `self.tag` is 5 and which declares `requires self.tag >= 0` +
+        # `no_exception ValueError` — the emitted line was literally
+        # `assert { not ((self.g_tag < 0)) }`, discharged from G's field, and the contract PROVED
+        # while CPython raises ValueError. A module-level global in a condition (`_filesystem`,
+        # `dir_lookup`) denotes the SAME object in both scopes and is untouched; `self` is the
+        # one name that cannot. CENSUS of `#@ raises ... when ...self...` over the corpora, the
+        # 53 mirrors, `pycsl_lib` and `src/pycsl`: 0 sites, so this arm is a pure ratchet.
+        _r141: List[Any] = [cond_ir]
+        while _r141:
+            _n141 = _r141.pop()
+            if isinstance(_n141, dict):
+                for _k141, _v141 in _n141.items():
+                    if _k141 in ("name", "id", "var") and _v141 == "self":
+                        return None
+                    _r141.append(_v141)
+            elif isinstance(_n141, list):
+                _r141.extend(_n141)
+            elif isinstance(_n141, str) and _n141 == "self":
+                return None
         subst = {p: a for p, a in zip(param_names, args)}
         try:
             # Reuse the existing expression renderer with a substitution
