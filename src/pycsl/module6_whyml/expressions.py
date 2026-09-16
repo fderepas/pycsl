@@ -12723,11 +12723,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # `\result == 0` where CPython returns 5.
             for _kn, _kv in kwonly_defaults.items():
                 if _kn not in kwargs_map:
-                    arg_nodes[_kn] = {"type": "RawWhyml", "whyml": str(_kv)}
+                    # ROUTE #149: a folded NEGATIVE default is parenthesized, so it splices
+                    # as one operand (`(div (-5) 2)`, never `div -5 2`).
+                    arg_nodes[_kn] = {"type": "RawWhyml",
+                                      "whyml": str(_kv) if _kv >= 0 else "(%d)" % _kv}
             _omit149 = [p for p in init_params[len(args):] if p not in kwargs_map]
             for _pn in _omit149:
                 if _pn in pos_defaults:
-                    arg_nodes[_pn] = {"type": "RawWhyml", "whyml": str(pos_defaults[_pn])}
+                    _pv149 = pos_defaults[_pn]
+                    arg_nodes[_pn] = {"type": "RawWhyml",
+                                      "whyml": str(_pv149) if _pv149 >= 0 else "(%d)" % _pv149}
             _omit_unk149 = {p for p in list(_omit149) + list(kwonly_params)
                             if p in default_unknown and p not in kwargs_map}
             for _kwn, _kww in kwargs_map.items():
