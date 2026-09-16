@@ -43,9 +43,14 @@ evaluates an *expression*, and `(N := 5)` is an expression that **binds**.
 | 1394 | `ex = exec; ex("N" + " = 5")` | `f() == 3` | 5 |
 | 1395 | `import builtins; builtins.setattr(plainlib, "inc", plainlib.dec)` | `inc(3) == 4` | 2 |
 | 1396 | `getattr(builtins, "set" + "attr")(plainlib, "inc", plainlib.dec)` | `inc(3) == 4` | 2 |
+| 1398 | `eval("globals().update({'N': 5})")` — constant text, no walrus | `f() == 3` | 5 |
+| 1399 | `eval("exec('N = 5')")` | `f() == 3` | 5 |
+| 1400 | `operator.setitem(globals(), "N", 5)` | `f() == 3` | 5 |
+| 1401 | `dict.update(globals(), N=5)` | `f() == 3` | 5 |
 
-1394/1395/1396 are **second-order carriers of this route's own first three drafts** — they
-were found by carrier-rerun *before* any verdict was read, and each widened the repair.
+1394-1401 are **second-order carriers of this route's own successive drafts** — every one was
+found by carrier-rerun *before* a verdict was read (the battery was stopped twice, at 3 and
+2 minutes in), and every one widened the repair. NINE drafts.
 
 ## Why the constant-`exec` fences did not cover it
 
@@ -71,7 +76,15 @@ module and class-body scope and is a discarded snapshot inside a function. So:
   namespace-dict rule, #119's setattr/delattr rule, #127's computed getattr, and this
   route's own first cut — keys on the builtin's SPELLING, and one alias defeats them all.
   `__import__` is deliberately NOT in the list: no recognizer keys on it, and
-  python-reference 0127 reads it as a value and PASSES.
+  python-reference 0127 reads it as a value and PASSES;
+* treat a CONSTANT `eval` text that NAMES a namespace builtin as binding too (`eval(
+  "globals().update({'N': 5})")` has no walrus). python-reference 0109/0217 are
+  `eval("2 + 3")` — no identifiers — and keep their verdicts;
+* refuse a NO-ARGUMENT `globals()` / `vars()` / `locals()` call anywhere except bound to a
+  plain name (route #116's `_g = globals()` idiom, itself fenced by #134) or read through a
+  subscript. That dict IS the module namespace, and #118 only ever keyed on a subscript
+  STORE *through* it — never on it leaving. `vars(self)` HAS an argument (an ordinary
+  object's `__dict__`) and is untouched.
 
 ## Census (the reason the scoping is not arbitrary)
 

@@ -58,6 +58,21 @@ Found by carrier-rerun on THIS route's own first cut, before any verdict was rea
 | 1395 | `import builtins; builtins.setattr(...)` | `inc(3) == 4` | 2 |
 | 1396 | `getattr(builtins, "set" + "attr")(...)` | `inc(3) == 4` | 2 |
 
+### (d) the SUBSCRIPT sink enumerated the dict spellings too
+
+#118's namespace-dict rule lists `globals()[k]`, `vars()[k]`, `<mod>.__dict__[k]`. Two more
+expressions denote that same dict:
+
+| witness | shape | model | CPython |
+|---|---|---|---|
+| 1402 | `f.__globals__["N"] = 5` on a module `def` | `f() == 3` | 5 |
+| 1403 | `inspect.currentframe().f_globals["N"] = 5` | `f() == 3` | 5 |
+
+A module/class-scope SUBSCRIPT store is now keyed on the PATH being written — its receiver
+must be a name the file can describe — exactly like the attribute sink. Census of non-Name
+receivers: 2 in pycsl-reference (1326, 1351, both already expected-FAIL), 0 elsewhere.
+`D = {}; D["a"] = 1` and `XS = [0, 0]; XS[0] = 7` at module scope still verify.
+
 #118's namespace-dict rule, #119's `setattr`/`delattr` rule, #127's computed `getattr`,
 #135's sink and both of this route's new arms all name the builtin. ONE alias defeats all
 of them simultaneously.
@@ -73,6 +88,8 @@ of them simultaneously.
 3. A namespace-reaching builtin (`exec eval setattr delattr globals vars locals getattr`) is
    refused when READ AS A VALUE or reached as an ATTRIBUTE; a `getattr` on
    `__builtins__` or on an IMPORTED name, used as a CALLEE, is refused too.
+4. A module/class-scope **subscript** store/delete is keyed on the path, like (3)'s
+   attribute sink.
 
 ## Two misses, both caught by the mirror emission diff — and both worth keeping
 
