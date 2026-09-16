@@ -1,6 +1,6 @@
 # ROUTE #154 — an ELEMENT store into a field's container inside `__init__` is dropped from the literal
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wt152, with #152/#153); battery F' pending.** Severity 1.
+**Status: CLOSED AND FULLY GATED by gen #29 (2026-09-16), battery F' (with #152/#153).** Severity 1.
 Generator: carrier-rerun (the #150 construction neighbourhood, after battery E).
 
 ## Measured at `52a02d5a` (CPython contradicting)
@@ -19,3 +19,7 @@ A subscript store / augmented store / `del` rooted at `self.<f>` makes `<f>` unk
 channels; a LOAD of `self.<f>` whose value can escape — anything other than an element read, an
 attribute read, a callee, a pure builtin's argument, an operand, a test or an iteration source —
 makes its contents unknown (collection channel). Witnesses 1517-1519 (XFAIL), 1521 (PASS control).
+
+**Battery F' (every leg predicted and hit):** emission vs the #150/#151-closed tree 1161 -> 1170 0/0/0,
+python-reference and mirrors inert; conformance 38/38 + 38/38; suite 3647/3665 same 18, zero XPASS;
+planes --slow 34/34. (Battery F was stopped with no verdict read to fold the match-capture carrier and #154.)
