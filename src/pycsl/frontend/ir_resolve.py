@@ -2764,9 +2764,13 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
         _trees143: List[Tuple[str, Any]] = [("<importer>", validated_ast)]
         for _fn in _t143:
             if _fn["_r143_dep_file"] not in [k for k, _ in _trees143]:
+                # Read WITHOUT a `with ... as` binding: every such binding in this tree is
+                # a CTXBIND row of `check-dropped-mutation` (ratchet 51), and the first
+                # draft's two `with open(...) as _fh:` broke it 53 > 51. The file object is
+                # released as soon as `.read()` returns (CPython refcounting).
                 try:
-                    with open(_fn["_r143_dep_file"]) as _fh:
-                        _trees143.append((_fn["_r143_dep_file"], _ast.parse(_fh.read())))
+                    _trees143.append((_fn["_r143_dep_file"],
+                                      _ast.parse(open(_fn["_r143_dep_file"]).read())))
                 except (OSError, SyntaxError):
                     _trees143.append((_fn["_r143_dep_file"], None))
         _ti = 0
@@ -2834,8 +2838,8 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                                            _key if (_wl and _key != "<importer>") else main_file)
                 if _wr is not None and os.path.abspath(_wr) not in [k for k, _ in _trees143]:
                     try:
-                        with open(_wr) as _fh:
-                            _trees143.append((os.path.abspath(_wr), _ast.parse(_fh.read())))
+                        _trees143.append((os.path.abspath(_wr),
+                                          _ast.parse(open(_wr).read())))
                     except (OSError, SyntaxError):
                         _trees143.append((os.path.abspath(_wr), None))
         _imp_ev, _imp_wild = _bind143["<importer>"]
