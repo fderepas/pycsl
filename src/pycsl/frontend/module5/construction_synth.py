@@ -441,6 +441,26 @@ class ConstructionSynthMixin:
                     if _ut.attr not in self._init_unknown_cf:
                         self._init_unknown_cf.append(_ut.attr)   # (#49) ROUTE #89
             pset = set(init_params) | set(kwonly_params)
+            # (#49) ROUTE #153 — A PARAMETER THE CONSTRUCTOR REBINDS IS NOT THE ARGUMENT.
+            # The capture substitutes the call's ARGUMENT for every parameter name in a
+            # store's RHS, which is right only if the name still holds that argument.
+            # MEASURED: `k = k + 1` (and `k += 1`) before `self.x = k` built `{ x = 5 }` for
+            # `C(5)` and `C(5).x == 5` PROVED; CPython 6. A rebound parameter leaves `pset`,
+            # so a store over it is not captured and route #79 marks the field UNKNOWN.
+            _rebound153 = set()
+            for _n153 in ast.walk(child):
+                if id(_n153) in _nested152:
+                    continue
+                if isinstance(_n153, ast.Name) and isinstance(_n153.ctx, (ast.Store, ast.Del)):
+                    _rebound153.add(_n153.id)
+                elif isinstance(_n153, ast.ExceptHandler) and _n153.name:
+                    _rebound153.add(_n153.name)
+                elif isinstance(_n153, (ast.Import, ast.ImportFrom)):
+                    for _al153 in _n153.names:
+                        _rebound153.add((_al153.asname or _al153.name).split(".")[0])
+                elif isinstance(_n153, (ast.Global, ast.Nonlocal)):
+                    _rebound153.update(_n153.names)
+            pset = pset - _rebound153
             # (#49) ROUTE #79 — A TOP-LEVEL FIELD INITIALISER WHOSE RHS NAMES ANYTHING
             # OUTSIDE THE PARAMETER SET IS NOT MERELY UNCAPTURED, ITS VALUE IS UNKNOWN,
             # AND THE LITERAL `0` IT USED TO GET IS A DEFINITE FALSE FACT. The capture
