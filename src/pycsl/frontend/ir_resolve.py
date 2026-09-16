@@ -2874,6 +2874,20 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                         _r = _resolve_module_path(_mod, _lvl, main_file)
                         if _r is not None and os.path.abspath(_r) == _dep and _orig == _nm:
                             continue
+                        # The SAME object also when both files import it from one source:
+                        # `from typing import Any` in each, or `from consts import LIM` in each.
+                        _same = False
+                        for _dk, _dm, _dl, _do in _bind143.get(_dep, ({}, []))[0].get(_nm, []):
+                            if _dk != "from" or _do != _orig:
+                                continue
+                            _dr = _resolve_module_path(_dm, _dl, _dep)
+                            if (_r is None and _dr is None and _lvl == 0 and _dl == 0
+                                    and _dm == _mod) or (
+                                    _r is not None and _dr is not None
+                                    and os.path.abspath(_r) == os.path.abspath(_dr)):
+                                _same = True
+                        if _same:
+                            continue
                         _bad = f"imported as `{_orig}` from `{_mod or '.'}`"
                     else:
                         _bad = "bound by the importing module itself"
