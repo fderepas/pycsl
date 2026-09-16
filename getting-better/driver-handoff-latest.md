@@ -1,3 +1,146 @@
+# ====== START HERE — gen #26 FINAL STATE — read this block first ==================
+#
+# ## STATUS: COMPLETE. Tree clean (two PRE-EXISTING gitlinks only), everything committed, no background process
+#   alive, no worktrees left. TWO SEV-1 ROUTES FOUND AND CLOSED AND FULLY GATED this generation (#136, #137) in
+#   ONE battery, every leg predicted in driver-progress.log and hit. CURRENTLY OPEN: NONE.
+#
+# ## 1. WHAT GEN #26 FOUND AND CLOSED (both SEV-1, all shapes measured PROVING with CPython contradicting)
+#   One new region in Module3_Weaver.process (it already raised, so no ratchet moved). Witnesses 1382-1403
+#   (21 XFAIL + 1397 PASS). Commit a219ff01.
+#     #136 A DYNAMIC (non-constant) `exec`, AND AN `eval` THAT CAN BIND, rebind a name whose value the model
+#          has already folded/resolved, and NOTHING downstream models the value. Found by DEFERRAL-AUDIT:
+#          exec_splice.py defers a dynamic exec to "scope havoc + frame taint, P5a/P5a'"; BOTH handlers were
+#          located and BOTH are real — `_scope_dyn_exec` withholds only the `\in_scope` decided-FALSE direction
+#          (and is computed per FUNCTION, so it never sees module scope), and `exec_havoc … writes {int_mem}`
+#          exists only in the typed/store model. NEITHER is about a VALUE. The same docstring asserts eval
+#          "does not inject names" — false since 3.8's walrus. Measured: module-scope `exec("N" + " = 5")` over
+#          a folded `N = 3`; `S = "N = 5"; exec(S)`; `exec("le"+"n = sum")`; over an imported `inc`; over a
+#          module `def inc`; `eval("(N := 5)")`; in-function `exec(code, globals())` and `eval("(N := 5)",
+#          globals())`; `eval("globals().update({'N': 5})")` (constant, NO walrus); `eval("exec('N = 5')")`;
+#          `operator.setitem(globals(), "N", 5)`; `dict.update(globals(), N=5)`.
+#     #137 GEN #25'S OWN #135 REPAIR, ONE DAY OLD. Its module-executed walk `continue`d on Lambda and
+#          FunctionDef — so a LAMBDA BODY called in place, the same lambda in a CLASS BODY, and a def's
+#          DEFAULT ARGUMENT (evaluated at definition time) were never scanned; #119 rule (6) also exempts the
+#          lambda's PARAMETER receiver, so 1389 slipped BOTH fences. `_nb_fresh_ok` enumerated five binding
+#          forms, so a COMPREHENSION target defaulted to FRESH. And every namespace guard in the tree keys on
+#          a builtin's SPELLING: `sa = setattr`, `ex = exec`, `builtins.setattr`,
+#          `getattr(builtins, "set"+"attr")(...)`, `f.__globals__["N"] = 5`,
+#          `inspect.currentframe().f_globals["N"] = 5`.
+#   THE REPAIR, in one region: the module-executed region now includes lambda bodies (fail-closed), a def's
+#   defaults/kw_defaults/annotations/decorators and a class's decorators/bases/keywords (a def BODY stays out);
+#   `_nb_fresh_ok` records AugAssign / comprehension / ExceptHandler / MatchAs / MatchStar / Import /
+#   ImportFrom / lambda parameters as NOT fresh; a namespace builtin (exec eval setattr delattr globals vars
+#   locals getattr) is refused when READ AS A VALUE or reached as an ATTRIBUTE; `getattr` on `__builtins__` or
+#   an imported name used as a CALLEE is refused; a NO-ARGUMENT globals()/vars()/locals() may only be bound to
+#   a plain name or read through a subscript (`vars(self)` HAS an argument and is untouched); and a
+#   module/class-scope SUBSCRIPT store/delete is keyed on the PATH being written, like the attribute sink.
+#   `__import__` is deliberately NOT in the builtin list (python-reference 0127 reads it as a value, PASSES).
+#
+# ## 1b. LESSONS (each paid for this generation)
+#   >>> A DEFERRAL THAT NAMES TWO HANDLERS CAN BE HONEST ABOUT BOTH AND STILL BE A HOLE. Locate the named
+#   >>> guard, quote its matching rule, then ask WHICH OF THE THREE PLANES it actually covers. #136's deferral
+#   >>> named `\in_scope` havoc and frame taint; both exist, both work, and neither is about a value.
+#   >>> ASSERT A POPULATION SIZE BEFORE BELIEVING IT — INCLUDING A LISTING YOU TRUNCATED YOURSELF. draft-4's
+#   >>> "census 0 sites" came from `len(hits)` printed next to `hits[:10]`; the real `getattr(obj,name)(...)`
+#   >>> population is 2 in the mirrors and 5 in src/pycsl (the emitter's own dispatch) and the mirror sweep
+#   >>> came back FOUR GONE. `print(hits[:10])` is the `diff`-hunk-header trap in your own handwriting.
+#   >>> THE NESTED-DEF HAZARD HAS AN EMISSION COST, NOT JUST A COVERAGE-GATE COST: draft-5's two nested defs
+#   >>> in `process` were LIFTED to methods and emitted as two extra abstract `val`s -> 2 MOVED in
+#   >>> frontend/__init__ and frontend/ir_resolve, the two mirrors that ingest Module3.
+#   >>> CARRIER-RERUN YOUR OWN DRAFT, AND KEEP DOING IT: NINE drafts, and the battery was stopped DELIBERATELY
+#   >>> TWICE (3 min and 2 min in, no verdict read) to fold in six LIVE carriers of my own fences. Eight of the
+#   >>> 22 witnesses are order-2 carriers of this generation's own repair.
+#   >>> A REFUSAL KEYED ON A SPELLING LOSES; KEY IT ON THE PATH OR THE READ. The namespace family took four
+#   >>> widenings (alias -> attribute -> computed getattr -> the dict escaping a call -> the subscript sink)
+#   >>> before it stopped producing carriers.
+#
+# ## 2. LADDER FOR GEN #27 — START HERE
+#   There is NO open route. Highest-value next moves:
+#   (a) carrier-rerun gen #26's OWN fences (fresh, and they produced six carriers in one afternoon):
+#       - `_nb_fresh_ok`'s DEFAULT for a name with no module-scope binding in a file without a star import is
+#         still FRESH (gen #25's pure_ast `Constant.n = property(...)` exemption). Find a way to make such a
+#         name denote a module/namespace at run time.
+#       - a def's BODY is still outside the module-executed region: a module-scope CALL of a def that patches
+#         its parameter was FAIL-CLOSED only by "a specification error" on the value — RE-PROBE with a value
+#         that types (an int field, a class attribute).
+#       - `_nb_ns_builtins` omits `__import__`, `compile`, `super`, `type`, `memoryview`, `object`. Is any
+#         recognizer keyed on one of those spellings? (`object.__setattr__` is refused today by #119.)
+#       - `_nb_imported` is file-wide; `getattr(<local bound to builtins>, "setattr")(...)`.
+#       - the #136 eval token rule keys on identifiers in the CONSTANT text; an eval text that reaches the
+#         namespace WITHOUT naming one of the eight (`"[].__class__.__base__.__subclasses__()"`).
+#   (b) MORE DEFERRAL-AUDIT — this generation's best new generator (66.7% yield, 6 LIVE / 3 FC). Greped and
+#       NOT yet audited: Module6_WhyMLTranspiler.py:289 ("propagation is handled by
+#       `_wrap_call_with_callee_raises_assert`"); frontend/module5/construction_synth.py:83 ("Constant RHS
+#       ... is already handled by `field_defaults`, so it is intentionally NOT re-captured here" — a COLLECTOR
+#       deferral, exactly #132's shape); module6_whyml/expressions.py:1007 ("handled by the record-aware
+#       dotted-call path (A2a/A2c)"); Module5_IREmitter.py:953 ("handled by Module6's `str_contains_op`");
+#       module6_whyml/types.py:531; expressions.py:5778 ("already rejected at L3-tc, so no corpus program can
+#       be relying on it"); preamble.py:141 ("guarded by the per-field in-range `requires`"); irx.py:11
+#       ("each read is guarded by a membership test, so no KeyError is reachable"); generic_fold.py:1213;
+#       statements.py:426/431 ("typically handled by `\trusted` upstream" — already flagged as a hedge);
+#       functions.py:5657; core_ir_semantic.py:899; expressions.py:14509 ("Module 4 has already rejected an
+#       unresolved name" — Module 4 IS DROPPED).
+#   (c) ONE VACUOUS ROW OWED A RE-PROBE: `statements._emit_option_tuple_unpack`'s docstring asserts "the
+#       Python guard `if X is not None:` makes the `None` arm dead" and the emitter NEVER CHECKS for a guard
+#       (the terminal-return variant emits `absurd`). My positive control never reached the handler —
+#       `a, b = p` with `p: Optional[Tuple[int,int]]` takes the UNION path and is a Why3 type error. Find the
+#       source shape that registers an OPTION LOCAL (a dict `.get` result?) and re-probe.
+#   (d) A LATENT #132 HOLE, gated only by a missing consumer: `collect_module_const_str_sets` accepts
+#       `set(("a","b"))`, `set(["a","b"])` and `frozenset([...])`, but #132's escape arm only recognises a
+#       bare `ast.Set` (after unwrapping `set(<Set>)`). `XS = set(("a","b")); XS.add("c")` is NOT escape-
+#       checked. It measured VACUOUS today (a plain `{"a","b"}` set with `"c" in XS` emits `val constant xS :
+#       int` + an abstract `contains_check` — the fold has NO Module-6 consumer recognizer for that shape).
+#       THE DAY A STR-SET CONSUMER LANDS, THIS IS LIVE. Same for a module int/str LIST (`len(XS)` is not
+#       folded today either).
+#   (e) gen #25's WATCH rows still unre-probed: a nested def named like a FOREIGN base's method (#133 walks
+#       in-module bases only); a folded dict passed to a mutating function (refused today as "aliased or
+#       mutated" — check the fence is the rule, not luck); route #60's dict size fold under `del d[k]` /
+#       `d |= {...}` / a tuple-target store. RE-PROBED AND STILL CLOSED this generation: a module-scope field
+#       store on a FRESH module-class instance (`g = C(); g.n = 5`) — the model does not assume the object's
+#       entry state, so the read is Unknown; a class constant shadowed by `C.N = 5` (#119 rule 6).
+#   (f) gen #24's list (nested-def default reading an enclosing param; class-in-function reading an enclosing
+#       param; walrus in a comprehension) and gen #23's list (hvalmap name-gated truthiness; assigns over
+#       unlabelled fields; `_writes_filtered_to_labels`; Literal[0, None]; witness-census `val constant` sites).
+#   GENERATORS THAT WORKED: deferral-audit (#136 — NEW, and the highest-yield key in the ledger at 66.7%) and
+#   carrier-rerun (#137 and every one of the nine drafts' widenings).
+#
+# ## 3. YIELD — bin/probe-ledger-yield.sh --by-generator (whole ledger, after gen #26)
+#   key                    LIVE  FAILC  denom    yield  2nd-ord  VACUOUS
+#   advice-audit              2      5      7    28.6%        1        0
+#   carrier-rerun           103     85    188    54.8%       87       14
+#   carve-out-census          9      8     17    52.9%        0        1
+#   continue-census          10      4     14    71.4%        3        3
+#   control-operation         3     17     20    15.0%        1        0
+#   deferral-audit            6      3      9    66.7%        3        5
+#   hand                      1     47     48     2.1%        0        2
+#   observer-audit            0      1      1     0.0%        0        0
+#   oracle-audit              1      2      3    33.3%        0        0
+#   substring-census          5      2      7    71.4%        0        0
+#   unknown                  35      0     35   100.0%        2        0
+#   witness-census           20     43     63    31.7%        2        5
+#   GEN #26 ALONE: 44 rows — 22 LIVE / 17 FAIL-CLOSED / 5 VACUOUS. carrier-rerun 19 LIVE (two routes; ~13 are
+#   order-2 carriers of my OWN drafts — count ROUTES, not rows) · deferral-audit 3 LIVE (#136's two handlers
+#   and the eval claim). NOTE the 5 VACUOUS: three are the str-set fold with no consumer, one the str->str
+#   dict read through a subscript (the live read shape is `.get(k, d)`, corpus 1373), one the option-unpack.
+#
+# ## 4. WHAT IS TRUE RIGHT NOW
+#   metric   markers 459 / grep 484 / offset 25 / unattached 0 (UNMOVED — a refusal costs the trust surface
+#            nothing; do not chase the metric)
+#   suite    NEW BASELINE 3529/3547, 18 failures — pycsl-reference 0211-0220 + 0701, python-reference 0043
+#            0048 0079 0080 0082 0095 0110. A 19 is a REGRESSION. ZERO XPASS.
+#   planes   34 (`bin/run-soundness-planes.sh --slow`; without `--slow` it is 19). Ratchets: trusted-raises
+#            13 declared / 62 SILENT · dropped-mutation 0/51/9/0 (unratcheted REFUSED column 8) ·
+#            trusted-reasons 459<->459, unclassified 458.
+#   corpus   pycsl-reference 1330 sources, 1074 emitting. python-reference 2217 sources, 2199 emitting.
+#   scratch  scratchpad/g26/ (p1..p27 + c1..c18 + ctrl2 probe drivers). The emission baselines live OUTSIDE
+#            the repo, in the session scratchpad g26sweeps/{corpus_base,mirror_base} — REBUILD them from a
+#            worktree-at-HEAD; do not inherit them.
+#   HOW TO REBUILD THE EMISSION BASELINE (3 commands, ~8 min):
+#            git worktree add --detach <wt> HEAD && ln -s <repo>/.venv <wt>/.venv
+#            ( cd <wt> && bin/byte-diff-sweep.sh <out>/corpus_base && bin/mirror-emit-sweep.sh <out>/mirror_base )
+#            then the same two sweeps in the main tree + bin/byte-diff-compare.py on each pair
+#            (and on <out>/*/pyref for python-reference).
+
 # ====== START HERE — gen #25 FINAL STATE — read this block first ==================
 #
 # ## STATUS: COMPLETE. Tree clean (two PRE-EXISTING gitlinks only), everything committed, no background process
