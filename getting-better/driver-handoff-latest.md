@@ -3,17 +3,17 @@
 # ## STATUS (updated as work lands — trust `git log` + driver-progress.log over this block)
 #   - Machine REBOOTED ~07:47Z 2026-09-16: /tmp scratchpads and all baselines were lost. Why3 is NOT on the default
 #     PATH: `. scratchpad/g29/env.sh` (adds ~/.opam/framac-coq8/bin, PYTHONHASHSEED=0).
-#   - CLOSED: #147 (acba66f3, battery B'), #143 (8ebb31e8, battery C' — battery C missed on dropped-mutation CTXBIND).
-#   - BATTERY D RUNNING for #148 (float literal truncation) + #149 (omitted ctor arg ignores its default):
-#     branch wip/g29-r148-149, worktree $SCRATCH/wt149; emission HIT (1125->1141 0/0/0, pyref and mirrors inert);
-#     suite predicted 3618/3636, planes 34/34. On green: cherry-pick 8ebb31e8..wip/g29-r148-149, CLOSED commit.
-#   - NEXT: battery E for #150 (constructor effects outside top-level self stores: opaque; leading
-#     super().__init__ composed; inherited __post_init__) + #151 (dataclass field(init=False)) + extra #149
-#     witnesses 1511-1512: branch wip/g29-r150, worktree $SCRATCH/wt150 (based on the D candidate). Witnesses
-#     1493-1512. Census: tiny same-file population; os UnixInodeFileSystem.__init__ calls self._format_disk()
-#     (opaque) but no swept corpus file emits the os global.
+#   - CLOSED this generation: #147 (acba66f3), #143 (8ebb31e8), #148+#149 (8b91a93b), #150+#151 (52a02d5a).
+#   - BATTERY F' RUNNING for #152 (return in __init__), #153 (parameter rebound in __init__, incl. match captures),
+#     #154 (element store / escaping load of a field container in __init__): branch wip/g29-r152, worktree
+#     $SCRATCH/wt152, baseline emitE. Predicted: corpus 1161->1170 0/0/0, suite 3647/3665, planes 34/34.
+#     On green: `git cherry-pick wip/g29-r150..wip/g29-r152` onto the branch, check `git diff wip/g29-r152 --
+#     src test-suite` is empty, CLOSED commit, route files 152/153/154 status.
+#   - Battery F (first version) was STOPPED deliberately with no verdict read to fold carriers (recorded).
 #   ($SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad — tmpfs.
 #    All worktree work is committed to the local branches wip/g29-* — recover from those, not from /tmp.)
+#   - NEXT IDEAS: the construction neighbourhood has produced #147-#154 in one day; keep carrier-rerunning it
+#     (method-level twins measured fail-closed so far); then the older ladder (deferral-audit list, WATCH rows).
 #
 # ## LESSONS SO FAR (gen #29)
 #   >>> AN UNMODELLED NAME IN A WALK IS NOT "NOTHING THERE" (`records.get(x) is None` -> continue was an assumption).
