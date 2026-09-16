@@ -4055,6 +4055,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             _dcs144 = bool(getattr(self, "_init_dc_synth", False))
             _dcf144 = list(getattr(self, "_init_dc_fields", []) or [])
             _dck146 = list(getattr(self, "_init_dc_kwonly", []) or [])
+            # (#49) ROUTE #147 — this class declares NO `__init__` of its own and is NOT
+            # `@dataclass`-decorated, so Python gives it the FIRST `__init__` in its MRO
+            # VERBATIM. That is a different operation from route #144's SYNTHESIZE (which
+            # builds a signature out of the merged field list): here nothing is built, a
+            # constructor is INHERITED, and an annotation the subclass happens to declare
+            # is inert because the decorator never runs on it.
+            _own147 = any(isinstance(_s147, ast.FunctionDef)
+                          and _s147.name == "__init__" for _s147 in node.body)
+            _inh147 = bool(bases) and not self._is_dataclass_decorated(node) and not _own147
             init_ensures = self._collect_init_ensures(node)
             # (#49) ROUTE #123 — a CLASS-BODY BINDING (`m = lambda self: 2`,
             # `m = staticmethod(abs)`, `group = _color_match_group`) OVERRIDES an inherited
@@ -4122,6 +4131,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # a subclass inherits a keyword-only field AS keyword-only and never binds
                 # it from a positional argument.
                 **({"dataclass_kwonly_fields": _dck146} if _dck146 else {}),
+                # (#49) ROUTE #147: this class INHERITS its constructor. Emitted only for a
+                # based, undecorated class with no `__init__` of its own.
+                **({"init_inherits": True} if _inh147 else {}),
+                # (#49) ROUTE #147: this class DECLARES an `__init__`, whether or not this
+                # front end managed to capture its parameters. A subclass's MRO walk must
+                # STOP here — Python calls THIS constructor, and walking past it because
+                # `init_params` came back empty (a `*args` signature, say) would hand the
+                # subclass a GRANDPARENT's constructor that Python never calls.
+                **({"has_own_init": True} if _own147 else {}),
                 # (#49) ROUTE #82: the KEYWORD-ONLY constructor parameters (and their
                 # constant defaults), carried SEPARATELY from `init_params` because
                 # that list is the POSITIONAL binding list. Emitted ONLY when the

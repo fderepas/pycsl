@@ -2393,6 +2393,75 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
                 _own_kw = list(td.get("init_kwonly_params", []) or [])
                 td["init_kwonly_params"] = (
                     merged_kw + [k for k in _own_kw if k not in merged_kw])
+        # (#49) ROUTE #147 — A SUBCLASS THAT DECLARES NO `__init__` INHERITS THE FIRST ONE
+        # IN ITS MRO, AND THE MODEL GAVE IT AN EMPTY `init_params`.
+        #
+        # `_call_record_constructor`'s whole binding block is guarded by
+        # `if (init_params or kwonly_params) and (...)`, so an empty list means the guard
+        # is FALSE, nothing binds, and every field takes `_field_default`'s DEFINITE
+        # literal. MEASURED at `2db4bb76` (i.e. WITH #144/#145/#146 already repaired),
+        # each PROVING with CPython contradicting — the inherited field is read through an
+        # INHERITED METHOD, because a DIRECT base-field read emits the unmangled name and
+        # type-errors (a separate, pre-existing, fail-closed gap):
+        #   * a PLAIN subclass of a `@dataclass`                    `Cee(7).get() == 0`, CPython 7
+        #   * a PLAIN subclass of a plain class with an explicit `__init__`   ditto
+        #   * an UNDECORATED subclass of a `@dataclass` that declares its OWN annotation
+        #     — Python does NOT run the decorator here, so `cfld: int = 0` is an inert
+        #     annotation and `Cee(7)` still calls the base's `__init__(afld)`.
+        #
+        # THE THIRD SHAPE IS WHY THIS IS A *COPY*, NOT ROUTE #144's MERGE. Synthesizing a
+        # signature from the merged field list would answer `(afld, cfld)` there, which
+        # Python never does. A class that merely INHERITS a constructor contributes
+        # NOTHING to it, so the whole binding description is taken wholesale from the
+        # first ancestor that HAS one: the positional list, the by-name list and its
+        # defaults, the body, and route #83's/#89's unknown-field sets — leaving any of
+        # those behind would give the subclass a MORE DECIDED constructor than its base.
+        if td.get("init_inherits") and not td.get("init_params"):
+            _mro147 = _in_mro.get(sub)
+            _chain147 = list(_mro147[1:]) if _mro147 else list(td["bases"])
+            for _an147 in _chain147:
+                _at147 = records.get(_an147)
+                if _at147 is None:
+                    continue
+                if _at147.get("bases"):
+                    merge_one(_at147)   # the ancestor's own list must be final first
+                # STOP AT THE FIRST ANCESTOR THAT *DECLARES* A CONSTRUCTOR, NOT THE FIRST
+                # WHOSE PARAMETERS WERE *CAPTURED* — a carrier found by rerunning this very
+                # repair. `class Bee(Ay): def __init__(self, *args): self.afld = 0` declares
+                # a constructor whose parameters this front end does not capture, so a walk
+                # keyed on "non-empty `init_params`" stepped PAST it to `Ay`'s and
+                # `Cee(7).get() == 7` PROVED while CPython gives 0. Python stops at `Bee`;
+                # so do we, and with nothing to copy the subclass keeps the pre-existing
+                # all-defaults behaviour (fail-closed, unchanged).
+                # AND THE ANCESTOR MUST *DEFINE* A CONSTRUCTOR, NOT MERELY HAVE INHERITED
+                # ONE — the second carrier this repair produced against itself, a DIAMOND:
+                #     class Ay:  def __init__(self, afld): self.afld = afld
+                #     class Bee(Ay): pass
+                #     class Cee(Ay): def __init__(self, afld): self.afld = afld + 100
+                #     class Dee(Bee, Cee): pass
+                # The C3 MRO is Dee, Bee, Cee, Ay, so Python calls **Cee's**. The first
+                # draft stopped at `Bee` because the loop had already given `Bee` a COPY of
+                # `Ay`'s constructor, and `Dee(7).get() == 7` PROVED while CPython gives
+                # 107. An `init_inherits` class contributes nothing of its own and must be
+                # walked THROUGH, exactly as Python walks through it.
+                if not (_at147.get("has_own_init") or _at147.get("init_dataclass_synth")
+                        or ((_at147.get("init_params")
+                             or _at147.get("init_kwonly_params"))
+                            and not _at147.get("init_inherits"))):
+                    continue
+                if not (_at147.get("init_params") or _at147.get("init_kwonly_params")):
+                    break
+                td["init_params"] = list(_at147.get("init_params", []))
+                td["init_body"] = copy.deepcopy(_at147.get("init_body", []))
+                if _at147.get("init_kwonly_params"):
+                    td["init_kwonly_params"] = list(_at147["init_kwonly_params"])
+                    td["init_kwonly_defaults"] = dict(
+                        _at147.get("init_kwonly_defaults", {}))
+                if _at147.get("init_unknown_fields"):
+                    td["init_unknown_fields"] = list(_at147["init_unknown_fields"])
+                if _at147.get("init_unknown_cf_fields"):
+                    td["init_unknown_cf_fields"] = list(_at147["init_unknown_cf_fields"])
+                break
         td["fields"] = merged_fields + td["fields"]
         td["class_invariants"] = merged_invs + td.get("class_invariants", [])
         td["field_defaults"] = {**merged_defaults, **td.get("field_defaults", {})}
