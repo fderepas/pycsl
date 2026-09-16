@@ -3,20 +3,18 @@
 # ## STATUS (updated as work lands — trust `git log` + driver-progress.log over this block)
 #   - Machine REBOOTED ~07:47Z 2026-09-16: /tmp scratchpads and all baselines were lost. Why3 is NOT on the default
 #     PATH: `. scratchpad/g29/env.sh` (adds ~/.opam/framac-coq8/bin, PYTHONHASHSEED=0).
-#   - CLOSED this generation: #147 (acba66f3), #143 (8ebb31e8), #148+#149 (8b91a93b), #150+#151 (52a02d5a),
-#     #152+#153+#154 (e27e6797), #155+#156+#157 (87258ff7).
-#   - BATTERY H RUNNING (suite then planes) for #158 (any/all fold over the empty-list placeholder), #159
-#     (IndexError/KeyError freedom on unfaithful/missing lengths), #160 (range/pow/max/split raising builtins):
-#     branch wip/g29-r158, worktree $SCRATCH/wtI; emission measured inert before predicting; suite predicted
-#     3679/3697, planes 34/34. On green: `git cherry-pick wip/g29-r155..wip/g29-r158`, diff check, CLOSED commit.
-#   - NEXT: battery I for #161 (under no_exception, calls must reach program functions or a whitelist):
-#     branch wip/g29-r161, worktree $SCRATCH/wtJ (on the H candidate). All no_exception corpus files re-run
-#     as expected on the draft.
+#   - CLOSED this generation (18 routes): #147 (acba66f3), #143 (8ebb31e8), #148+#149 (8b91a93b), #150+#151
+#     (52a02d5a), #152+#153+#154 (e27e6797), #155+#156+#157 (87258ff7), #158+#159+#160 (7c8f275f),
+#     #161+#162 (0a9723c0).
+#   - BATTERY J RUNNING (suite then planes) for #163 (int()/float() of a non-literal string under no_exception
+#     ValueError) + #164 (erased mapping read under no_exception KeyError): branch wip/g29-r163, worktree
+#     $SCRATCH/wtK; emission measured inert (1195->1196); suite predicted 3686/3704, planes 34/34.
+#     On green: `git cherry-pick wip/g29-r161..wip/g29-r163`, diff check, CLOSED commit, route files 163/164.
 #   ($SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad — tmpfs.
 #    All worktree work is committed to the local branches wip/g29-* — recover from those, not from /tmp.)
-#   - GENERATORS THAT WORKED TODAY: carrier-rerun on the construction model (#147-#155), continue-census on a
-#     refusal's own "X IS modelled" sentence (#156), following an alias fence to its alias-free shape (#157),
-#     `!= truth` batches over builtin families (#158-#161: the empty-list placeholder and opaque builtins).
+#   - PROBED FAIL-CLOSED today (don't re-probe without a new idea): arithmetic, strings, unicode, slices, comprehension
+#     builtins, dunders, enums, context managers, loop-else, generators, module attributes, frames on module
+#     collections, raises precision, try/finally batches — see probes.tsv gen 29 rows.
 #
 # ## LESSONS SO FAR (gen #29)
 #   >>> AN UNMODELLED NAME IN A WALK IS NOT "NOTHING THERE" (`records.get(x) is None` -> continue was an assumption).
