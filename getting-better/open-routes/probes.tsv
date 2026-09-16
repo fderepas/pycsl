@@ -703,3 +703,4 @@ date	gen	generator	candidate	verdict	route	order	note
 2026-09-16	29	hand	g29-assert-check-behaviors	FAIL-CLOSED	-	-	An in-body `#@ assert` and `#@ check` of a false fact are obligations (refused); a behavior-clause spelling was a pipeline error (syntax).
 2026-09-16	29	hand	g29-lemma-soundness-shapes	FAIL-CLOSED	-	-	`#@ lemma` with `ensures False` whose body raises, whose body loops forever, and a lemma method calling a `\trusted` sibling through `self.` (the gen #27 WATCH row): all refused.
 2026-09-16	29	hand	g29-ghost-touching-program-state	FAIL-CLOSED	-	-	A ghost assignment to a program local, a ghost element store into a program array, and a ghost augmented assignment to a parameter: no false proof.
+2026-09-16	29	hand	g29-closure-late-binding	FAIL-CLOSED	-	-	6 closure shapes (late-bound free variable, lambda-in-comprehension, lambda capturing a rebound local, returned closure, closure appending to an outer list, nonlocal): 4 pipeline errors, 2 refused.
