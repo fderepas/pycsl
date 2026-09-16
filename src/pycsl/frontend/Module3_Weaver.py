@@ -2730,6 +2730,18 @@ class Module3_Weaver:
                 elif (isinstance(_nb_y, ast.Call) and isinstance(_nb_y.func, ast.Name)
                         and _nb_y.func.id in ("setattr", "delattr") and _nb_y.args):
                     _nb_recv = _nb_y.args[0]
+                # a SUBSCRIPT store is the same sink one spelling over. #118's rule
+                # enumerates the DICT spellings that name a namespace (`globals()[k]`,
+                # `vars()[k]`, `<mod>.__dict__[k]`), and two more reach the very same
+                # dict: `f.__globals__["N"] = 5` on a module def and
+                # `inspect.currentframe().f_globals["N"] = 5` both PROVED `N == 3`
+                # (CPython 5). Keyed on the PATH being written, not on the spelling:
+                # at module/class-body scope the receiver must be a name this file can
+                # describe. CENSUS of non-Name receivers: 2 in pycsl-reference (1326 and
+                # 1351, both already expected-FAIL), 0 everywhere else.
+                elif isinstance(_nb_y, ast.Subscript) and isinstance(_nb_y.ctx,
+                                                                     (ast.Store, ast.Del)):
+                    _nb_recv = _nb_y.value
                 if _nb_recv is not None:
                     # the receiver itself must be that name: a deeper chain (`m.x.inc`,
                     # `ms[0].inc`) reaches an object the binding does not describe (measured
@@ -2740,8 +2752,9 @@ class Module3_Weaver:
                     # `pm.inc = plainlib.dec`, proved the original `inc` past the second cut).
                     if not (isinstance(_nb_recv, ast.Name)
                             and _nb_fresh_ok.get(_nb_recv.id, not _nb_has_star)):
-                        _nb_bad.append(f"an attribute written at {_nb_kind} scope on a computed "
-                                       f"receiver at line {getattr(_nb_y, 'lineno', 0)}")
+                        _nb_bad.append(f"an attribute or item written at {_nb_kind} scope on "
+                                       f"a computed receiver at line "
+                                       f"{getattr(_nb_y, 'lineno', 0)}")
         # (#136) A DYNAMIC `exec`, AND AN `eval` THAT CAN BIND, REBIND NAMES WHOSE VALUES THE
         # MODEL HAS ALREADY FOLDED OR RESOLVED — and NOTHING downstream models the value.
         # `exec_splice.py` splices only a CONSTANT single-argument `exec` and defers the rest
@@ -2845,6 +2858,34 @@ class Module3_Weaver:
                          or _nb_x.func.args[0].id in _nb_imported)):
                 _nb_bad.append(f"a `getattr` on a namespace object used as a callee at "
                                f"line {getattr(_nb_x, 'lineno', 0)}")
+            # ... and the NAMESPACE DICT ITSELF, escaping into an arbitrary call. #118's
+            # rule keys on a SUBSCRIPT STORE through it, so `operator.setitem(globals(),
+            # "N", 5)` and `dict.update(globals(), N=5)` both PROVED `N == 3` (CPython 5)
+            # past the cut above. A NO-ARGUMENT `globals()`/`vars()`/`locals()` IS the
+            # module namespace; it may only be bound to a plain name (route #116's
+            # `_g = globals()` idiom, itself fenced by #134) or read through a subscript.
+            # `vars(self)` HAS an argument — an ordinary object's `__dict__`, not a
+            # namespace — and is untouched. CENSUS of no-arg calls: 4 `_g = globals()`
+            # (allowed) + 1326's `vars()["inc"] = dec` (already refused by #118) in
+            # pycsl-reference, 1 `_g = globals()` in the mirrors, 0 in python-reference
+            # and pycsl_lib.
+            elif (isinstance(_nb_x, ast.Call) and isinstance(_nb_x.func, ast.Name)
+                    and _nb_x.func.id in ("globals", "vars", "locals")
+                    and not _nb_x.args and not _nb_x.keywords):
+                _nb_p = _nb_parent.get(id(_nb_x))
+                _nb_ok = False
+                if (isinstance(_nb_p, (ast.Assign, ast.AnnAssign, ast.NamedExpr))
+                        and _nb_p.value is _nb_x):
+                    _nb_tg = (list(_nb_p.targets) if isinstance(_nb_p, ast.Assign)
+                              else [_nb_p.target])
+                    _nb_ok = all(isinstance(_nb_t, ast.Name) for _nb_t in _nb_tg)
+                elif (isinstance(_nb_p, ast.Subscript) and _nb_p.value is _nb_x
+                        and isinstance(_nb_p.ctx, ast.Load)):
+                    _nb_ok = True
+                if not _nb_ok:
+                    _nb_bad.append(f"the module namespace dict `{_nb_x.func.id}()` used "
+                                   f"outside a name binding or a subscript read at line "
+                                   f"{getattr(_nb_x, 'lineno', 0)}")
         # (#133) a def nested in a method, named like a method of that class or of an in-module
         # base (the lift emits it as that method).
         _nb_cls_by_name: Dict[str, Any] = {}
