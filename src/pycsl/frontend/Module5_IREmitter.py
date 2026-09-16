@@ -4063,7 +4063,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # is inert because the decorator never runs on it.
             _own147 = any(isinstance(_s147, ast.FunctionDef)
                           and _s147.name == "__init__" for _s147 in node.body)
-            _inh147 = bool(bases) and not self._is_dataclass_decorated(node) and not _own147
+            # A `@dataclass(init=False)` generates no constructor either, so it inherits
+            # exactly like an undecorated class (gen #29 carrier, see
+            # `_dc_decorator_init_false`).
+            _inh147 = (bool(bases) and not _own147
+                       and not (self._is_dataclass_decorated(node)
+                                and not self._dc_decorator_init_false(node)))
             init_ensures = self._collect_init_ensures(node)
             # (#49) ROUTE #123 — a CLASS-BODY BINDING (`m = lambda self: 2`,
             # `m = staticmethod(abs)`, `group = _color_match_group`) OVERRIDES an inherited
@@ -4134,12 +4139,6 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # (#49) ROUTE #147: this class INHERITS its constructor. Emitted only for a
                 # based, undecorated class with no `__init__` of its own.
                 **({"init_inherits": True} if _inh147 else {}),
-                # (#49) ROUTE #147: this class DECLARES an `__init__`, whether or not this
-                # front end managed to capture its parameters. A subclass's MRO walk must
-                # STOP here — Python calls THIS constructor, and walking past it because
-                # `init_params` came back empty (a `*args` signature, say) would hand the
-                # subclass a GRANDPARENT's constructor that Python never calls.
-                **({"has_own_init": True} if _own147 else {}),
                 # (#49) ROUTE #82: the KEYWORD-ONLY constructor parameters (and their
                 # constant defaults), carried SEPARATELY from `init_params` because
                 # that list is the POSITIONAL binding list. Emitted ONLY when the

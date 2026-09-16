@@ -431,7 +431,8 @@ class ConstructionSynthMixin:
         # handled by `_call_record_constructor` (positional-prefix binding + typed
         # default) — sound. Additive: a non-dataclass class with no `__init__` is
         # untouched (empty init, prior behaviour).
-        if self._is_dataclass_decorated(node):
+        if (self._is_dataclass_decorated(node)
+                and not self._dc_decorator_init_false(node)):
             # (#49) ROUTE #144, SHAPE B — A `ClassVar` MEMBER IS AN `ast.AnnAssign` BUT IS
             # **NOT** AN `__init__` PARAMETER, SO INCLUDING IT SHIFTS THE WHOLE POSITIONAL
             # BINDING BY ONE AND EVERY FIELD TAKES ITS *NEIGHBOUR'S* ARGUMENT. Measured at
@@ -514,6 +515,31 @@ class ConstructionSynthMixin:
             for kw in dec.keywords:
                 if kw.arg == "kw_only" and isinstance(kw.value, ast.Constant):
                     return bool(kw.value.value)
+        return False
+
+    @staticmethod
+    def _dc_decorator_init_false(node) -> bool:
+        """(#49) ROUTE #147, gen #29 carrier — does `@dataclass(...)` pass `init=False`?
+
+        `dataclasses` then generates NO `__init__`, so the class keeps the one it
+        declares or INHERITS the first one in its MRO — it is route #147's case, not
+        the SYNTHESIZE arm. Measured before this check, `@dataclass(init=False)` over a
+        plain base whose `__init__` stores `afld + 100`: `Cee(7).get() == 0` PROVED,
+        CPython 107. Only a CONSTANT keyword is read (the `kw_only=` convention above);
+        census of `dataclass(... init=` over both corpora, the 53 mirrors, `src/pycsl`
+        and `src/pycsl_lib`: ZERO.
+        """
+        for dec in node.decorator_list:
+            if not isinstance(dec, ast.Call):
+                continue
+            target = dec.func
+            if not ((isinstance(target, ast.Name) and target.id == "dataclass")
+                    or (isinstance(target, ast.Attribute)
+                        and target.attr == "dataclass")):
+                continue
+            for kw in dec.keywords:
+                if kw.arg == "init" and isinstance(kw.value, ast.Constant):
+                    return not bool(kw.value.value)
         return False
 
     @staticmethod

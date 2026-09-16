@@ -2422,19 +2422,47 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
             for _an147 in _chain147:
                 _at147 = records.get(_an147)
                 if _at147 is None:
-                    continue
+                    # AN ANCESTOR THIS FRONT END DOES NOT MODEL IS NOT A CLASS WITHOUT A
+                    # CONSTRUCTOR — the third carrier this repair produced against itself
+                    # (gen #29). `class Cee(Exception, Ay): pass` has the C3 MRO Cee,
+                    # Exception, Ay, and Python calls BaseException's constructor, which
+                    # binds no field; a walk that `continue`d past the unmodelled name
+                    # copied `Ay`'s and `Cee(7).get() == 7` PROVED while CPython gives the
+                    # class-level default 5. The same holds for an in-module STATELESS
+                    # base (no fields, so no `records` entry) that defines a constructor.
+                    # So ANY unmodelled ancestor STOPS the walk with nothing copied (the
+                    # pre-existing model). There is no walk-through list: an unmodelled
+                    # name is only a SPELLING — a stateless user class named `ABC`, and one
+                    # named `object`, each PROVED the same false `== 7` against a list that
+                    # admitted them — and the real `object` is LAST in every C3 MRO, so
+                    # stopping on it loses nothing.
+                    break
                 if _at147.get("bases"):
                     merge_one(_at147)   # the ancestor's own list must be final first
-                # STOP AT THE FIRST ANCESTOR THAT *DECLARES* A CONSTRUCTOR, NOT THE FIRST
-                # WHOSE PARAMETERS WERE *CAPTURED* — a carrier found by rerunning this very
-                # repair. `class Bee(Ay): def __init__(self, *args): self.afld = 0` declares
-                # a constructor whose parameters this front end does not capture, so a walk
-                # keyed on "non-empty `init_params`" stepped PAST it to `Ay`'s and
-                # `Cee(7).get() == 7` PROVED while CPython gives 0. Python stops at `Bee`;
-                # so do we, and with nothing to copy the subclass keeps the pre-existing
-                # all-defaults behaviour (fail-closed, unchanged).
-                # AND THE ANCESTOR MUST *DEFINE* A CONSTRUCTOR, NOT MERELY HAVE INHERITED
-                # ONE — the second carrier this repair produced against itself, a DIAMOND:
+                # THE STOP IS AT THE FIRST ANCESTOR THAT *DECLARES* A CONSTRUCTOR, NOT THE
+                # FIRST WHOSE PARAMETERS WERE *CAPTURED* — the first carrier found by
+                # rerunning this very repair. `class Bee(Ay): def __init__(self, *args):
+                # self.afld = 0` declares a constructor whose parameters this front end does
+                # not capture, so a walk keyed on "non-empty `init_params`" stepped PAST it
+                # to `Ay`'s and `Cee(7).get() == 7` PROVED while CPython gives 0. Python
+                # stops at `Bee`; so do we, and with nothing to copy the subclass keeps the
+                # pre-existing all-defaults behaviour (fail-closed, unchanged).
+                # STOP AT THE FIRST ANCESTOR THAT *DEFINES* A CONSTRUCTOR — and "defines"
+                # is exactly `not init_inherits`, because that flag marks precisely the
+                # classes Python itself walks through.
+                #
+                # THE FIRST SPELLING OF THIS TEST BROKE A FROZEN IR GOLDEN AND THE GATE WAS
+                # RIGHT. Draft 3 published a separate `has_own_init` marker on every class
+                # DECLARING an `__init__`, which is a claim about a class SHAPE rather than
+                # about the case that consumes it: it appeared on 14 of the 38 frozen
+                # conformance goldens' `type_decls` and `front-end-only conformance` failed
+                # 24 OK / 14 MISMATCH. The IR is frozen at v1.1; the repair was at fault,
+                # not the baseline. `init_inherits` alone carries the same information for
+                # this walk and is emitted ONLY for a based, undecorated, `__init__`-less
+                # class — none of which any golden declares.
+                #
+                # It must ALSO be checked, and this was the second carrier this repair
+                # produced against itself, a DIAMOND:
                 #     class Ay:  def __init__(self, afld): self.afld = afld
                 #     class Bee(Ay): pass
                 #     class Cee(Ay): def __init__(self, afld): self.afld = afld + 100
@@ -2444,10 +2472,7 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
                 # `Ay`'s constructor, and `Dee(7).get() == 7` PROVED while CPython gives
                 # 107. An `init_inherits` class contributes nothing of its own and must be
                 # walked THROUGH, exactly as Python walks through it.
-                if not (_at147.get("has_own_init") or _at147.get("init_dataclass_synth")
-                        or ((_at147.get("init_params")
-                             or _at147.get("init_kwonly_params"))
-                            and not _at147.get("init_inherits"))):
+                if _at147.get("init_inherits"):
                     continue
                 if not (_at147.get("init_params") or _at147.get("init_kwonly_params")):
                     break
