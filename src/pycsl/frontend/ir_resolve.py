@@ -2826,8 +2826,12 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
             # a dependency that obtains `LIM` through its OWN `from consts import *` binds it
             # just as surely (gen #29 carrier k12 — the first draft missed it and PROVED).
             for _wm, _wl in _wild:
+                # An ABSOLUTE import resolves against the PROGRAM's roots (the main file's
+                # directory first), exactly as the importer's own imports do; only a RELATIVE
+                # one is anchored at the file that spells it (gen #29: resolving a corpus
+                # helper's absolute wildcard from the helper's own directory found nothing).
                 _wr = _resolve_module_path(_wm, _wl,
-                                           main_file if _key == "<importer>" else _key)
+                                           _key if (_wl and _key != "<importer>") else main_file)
                 if _wr is not None and os.path.abspath(_wr) not in [k for k, _ in _trees143]:
                     try:
                         with open(_wr) as _fh:
@@ -2849,7 +2853,7 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                 _seen143.add(_k)
                 _dep_names |= set(_bind143[_k][0])
                 for _wm, _wl in _bind143[_k][1]:
-                    _wr = _resolve_module_path(_wm, _wl, _k)
+                    _wr = _resolve_module_path(_wm, _wl, _k if _wl else main_file)
                     if _wr is not None:
                         _todo143.append(os.path.abspath(_wr))
             _dep_ev = {n: None for n in _dep_names}
@@ -2880,7 +2884,7 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                         for _dk, _dm, _dl, _do in _bind143.get(_dep, ({}, []))[0].get(_nm, []):
                             if _dk != "from" or _do != _orig:
                                 continue
-                            _dr = _resolve_module_path(_dm, _dl, _dep)
+                            _dr = _resolve_module_path(_dm, _dl, _dep if _dl else main_file)
                             if (_r is None and _dr is None and _lvl == 0 and _dl == 0
                                     and _dm == _mod) or (
                                     _r is not None and _dr is not None
@@ -2907,7 +2911,7 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                             if _nm in _bind143[_k][0]:
                                 _bad = f"bound by the wildcard import of `{_wm}`"
                             for _wm2, _wl2 in _bind143[_k][1]:
-                                _wr2 = _resolve_module_path(_wm2, _wl2, _k)
+                                _wr2 = _resolve_module_path(_wm2, _wl2, _k if _wl2 else main_file)
                                 if _wr2 is not None:
                                     _wtodo.append(os.path.abspath(_wr2))
                         if _bad is not None:
