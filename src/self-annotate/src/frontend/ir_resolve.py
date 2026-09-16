@@ -231,6 +231,11 @@ def apply_inheritance(ir_data: int) -> None:
 def apply_composition(ir_data: int) -> None:
     pass
 
+# (#49) ROUTE #143: the live body now REFUSES an imported contract whose dependency-bound
+# free name the importer rebinds. A `\trusted` stub carrying no `#@ raises` ASSERTS THAT
+# ITS LIVE COUNTERPART CANNOT RAISE (what `check-trusted-raises-honesty` measures), so the
+# marker is declared here — the route #59 precedent in `module6_whyml/statements.py`.
+#@ raises PyCSLSemanticError when True
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
