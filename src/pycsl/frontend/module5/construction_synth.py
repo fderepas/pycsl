@@ -331,6 +331,19 @@ class ConstructionSynthMixin:
                         and not any(isinstance(_a, ast.Starred) for _a in _sc150.args)):
                     _skip150 = _sc150
                     self._init_super150 = [self._py_expr_to_ir(_a) for _a in _sc150.args]
+            # (#49) ROUTE #152 — a `return` in the constructor makes every statement after
+            # it CONDITIONAL, top-level stores included. MEASURED: `if k < 0: return` then
+            # `self.x = k` over a class attribute `x = 0` built `{ x = (- 1) }` and
+            # `C(-1).x == -1` PROVED; CPython 0. Opaque, like any other unmodelled effect (a
+            # `return` inside a NESTED def or lambda is not the constructor's).
+            _nested152 = set()
+            for _n152 in ast.walk(child):
+                if _n152 is not child and isinstance(
+                        _n152, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                    _nested152 |= {id(_x) for _x in ast.walk(_n152)}
+            if any(isinstance(_n152, ast.Return) and id(_n152) not in _nested152
+                   for _n152 in ast.walk(child)):
+                self._init_opaque150 = True
             _attr_roots150 = set()
             for _n150 in ast.walk(child):
                 if isinstance(_n150, ast.Attribute) and isinstance(_n150.value, ast.Name):
