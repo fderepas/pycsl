@@ -1,3 +1,174 @@
+# ====== START HERE — gen #27 FINAL STATE — read this block first ==================
+#
+# ## STATUS: COMPLETE. Tree clean (two PRE-EXISTING gitlinks only), everything committed, no background process
+#   alive, no worktrees left. FIVE SEV-1 ROUTES FOUND, CLOSED AND FULLY GATED in TWO batteries (#138 #139 #140
+#   in battery-A, #141 #142 in battery-B); EVERY LEG OF BOTH BATTERIES WAS PREDICTED IN driver-progress.log AND
+#   HIT. TWO MORE SEV-1 ROUTES FOUND, REPRODUCED AND RECORDED OPEN ON PURPOSE: **#143 and #144**.
+#
+# ## 1. WHAT GEN #27 CLOSED (all SEV-1, all measured PROVING with CPython contradicting)
+#   BATTERY-A (commit c38d88f4) — witnesses 1404-1419 (12 XFAIL + 4 PASS):
+#     #138 CARRIER-RERUN ON GEN #26'S OWN #136/#137 FENCES, EIGHT shapes. Those fences were keyed on a receiver
+#          NAME (`_nb_imported` is file-wide: `import builtins; b = builtins; getattr(b, "set"+"attr")(...)`),
+#          on a syntactic SHAPE (`sa = getattr(builtins, "setattr"); sa(...)` — bind the result and
+#          `Call(func=Call(getattr,...))` never appears), on a token SPELLING (an eval text naming none of the
+#          eight `_nb_ns_builtins` — `eval("f.__globals__.__setitem__('N', 5)")`), and on a LOCATION (a BARE
+#          IN-FUNCTION eval; the location gate is about where an ASSIGNMENT lands, and a mutation through a CALL
+#          does not care — same with a non-constant text). Plus the mapping reached by a mutating METHOD CALL
+#          (`f.__globals__.__setitem__("N", 5)`), by the UNBOUND-method spelling (`dict.__setitem__(
+#          f.__globals__, "N", 5)` — the receiver becomes the name `dict`, which has no module binding and was
+#          FRESH), and as a CALL ARGUMENT (`operator.setitem(f.__globals__, "N", 5)`).
+#          REPAIR: module/class-scope `getattr` and mutating dict-method calls join the path-keyed sink;
+#          `__builtins__` is seeded NOT-fresh; the four namespace-bearing attributes (`__globals__`,
+#          `f_globals`, `f_locals`, `__dict__`) may appear ONLY in a name binding or a subscript read, anywhere
+#          in the file, and are added to #118's namespace-dict receiver rule; an `eval` whose text is
+#          non-constant, or constant and containing any of `( . [`, is refused wherever it stands. `exec` KEEPS
+#          its location gate — a constant `exec` is spliced in as REAL SOURCE and is modelled (0642, 0643).
+#     #139 DEFERRAL-AUDIT. `construction_synth.py:83` defers a "Constant RHS" to `field_defaults`, whose rule is
+#          `isinstance(rhs, ast.Constant)` — and PYTHON'S PARSER DOES NOT FOLD. `self.start = -7` is
+#          `UnaryOp(USub, Constant)` and `self.start = 2 + 3` is a `BinOp`: both name-free, both unmatched by
+#          the collector, and both EXEMPT FROM ROUTE #79'S UNKNOWN-MARKING BY THE SAME PREMISE, so they fell to
+#          the DEFINITE witness 0. `\result == 0` PROVED; CPython -7 and 5; the true twin was refused.
+#          REPAIR: `field_defaults` folds a unary-minus literal with `_const_int_value` (the sibling collector
+#          `_collect_class_constants` always did) — FAITHFUL, not a witness; and route #79's literal exemption
+#          now marks a name-free COMPUTED right-hand side UNKNOWN.
+#     #140 DEFERRAL-AUDIT. `Module6_WhyMLTranspiler.py:289` defers raises-condition propagation to
+#          `_wrap_call_with_callee_raises_assert`, whose substitution is a positional `zip(param_names, args)`
+#          and whose default fill at `_handle_dotted_call` is gated on a `self.` RECEIVER. On `c.f()` and
+#          `c.f(k=-5)` with `f(self, k: int = -1)` and `raises ValueError when k < 0`, `args` is EMPTY and the
+#          callee's `k` renders IN THE CALLER'S SCOPE, so `assert { not (k < 0) }` is discharged from the
+#          caller's own `k` and `no_exception ValueError` PROVED while CPython raises.
+#          REPAIR: `_render_callee_condition` returns None when `len(args) < len(param_names)` — an incomplete
+#          substitution renders NOTHING and the caller gets the honest `assert { false }`.
+#   BATTERY-B (commit 678b2805) — witnesses 1420-1423 (4 XFAIL), BOTH found by CARRIER-RERUN ON BATTERY-A:
+#     #141 the substitution enumerates FORMAL PARAMETERS, and `formal_params` has no `self`. A callee
+#          `raises ValueError when self.tag < 0` on an object whose `tag` is -1, called as `h.f(k)` from a
+#          method of a DIFFERENT class whose own `tag` is 5, emitted literally `assert { not ((self.g_tag < 0))
+#          }` and PROVED. REPAIR: a condition mentioning `self` does not render at all. A module-level global in
+#          a condition denotes the same object in both scopes and is untouched (census of `raises ... when
+#          ...self...`: 0 sites).
+#     #142 the ONE ESCAPE BOTH NAMESPACE RULES ALLOW — "it may be bound to a plain NAME", which exists for route
+#          #116's `_g = globals()` idiom — is an UNGUARDED HANDLE. `_g = globals(); dict.update(_g, N=5)`,
+#          `_g = globals(); operator.setitem(_g, "N", 5)` and `_g = f.__globals__; dict.update(_g, N=5)` all
+#          PROVED `f() == 3`; CPython 5. REPAIR: a name bound to a namespace mapping IS a namespace mapping and
+#          may only be read through a subscript — which is exactly what route #116's idiom does (1318 verifies
+#          before and after; census of other uses: ONE, 1322's `_g["inc"] = dec`, already expected-FAIL).
+#
+# ## 1b. LESSONS (each paid for this generation)
+#   >>> A DEFERRAL'S *WORD* CAN BE BROADER THAN THE GUARD'S *RULE*, AND THAT GAP IS THE ROUTE. "a Constant RHS"
+#   >>> vs `isinstance(rhs, ast.Constant)`; "condition propagation is handled by <X>" vs a `zip` that TRUNCATES;
+#   >>> "an OVER-arity call is a Python error" vs `len(args) > len(init_params)` on a class whose init_params
+#   >>> were never merged from its base. Read the comment's noun, then read the predicate, then ask what is in
+#   >>> the difference. Three of this generation's routes are exactly that difference.
+#   >>> A TRUNCATED SUBSTITUTION IS NOT A MISSING FACT, IT IS A WRONG ONE. Any callee name left unsubstituted is
+#   >>> rendered IN THE CALLER'S SCOPE, where a same-named local or field silently supplies a value. The control
+#   >>> that proves it is RENAMING the caller's variable: the proof then fails on an unconstrained constant.
+#   >>> EVERY "IT MAY ONLY BE BOUND TO A PLAIN NAME" ESCAPE HATCH HANDS OUT A HANDLE. #142 is #116's sanctioned
+#   >>> idiom used as a weapon; the fix is to give the NAME the same rule as the expression it holds.
+#   >>> RE-MEASURE, NEVER INHERIT — INCLUDING YOUR OWN PREDICTIONS. I predicted battery-A's emission baseline as
+#   >>> "1073" by inheriting gen #26's figure; HEAD carried gen #26's own 22 witnesses and the true baseline was
+#   >>> 1074. The DELTA I predicted was exact; the absolute was borrowed.
+#   >>> A REFUSAL THAT CLOSES NOTHING MEASURED DOES NOT BELONG IN THE REPAIR. Draft-4 grew an arm for
+#   >>> `getattr(f, "__globals__")["N"] = 5`; that shape is ALREADY refused at HEAD (Why3 typing), so the arm was
+#   >>> REMOVED before the battery. Refusal surface is not free.
+#   >>> THE 600-SECOND TOOL TIMEOUT IS A TURN HAZARD, NOT A PROCESS HAZARD: a poll loop longer than that gets
+#   >>> backgrounded and the verdict is no longer inside your turn. Poll in <=540s foreground batches.
+#
+# ## 2. LADDER FOR GEN #28 — START HERE
+#   (a) **ROUTE #144 IS THE TOP ITEM** (`getting-better/open-routes/route144-*.md`). Two measured shapes, both
+#       SEV-1: a DERIVED `@dataclass` binds NOTHING (every field takes its definite default) because
+#       `init_params` is this class's `AnnAssign`s only and `ir_resolve.py:2298` merges fields but not
+#       `init_params`; and a `ClassVar` member enters `init_params` although Python does not, so the positional
+#       binding is OFF BY ONE and takes the NEIGHBOURING argument. The faithful repair (prepend base fields in
+#       MRO order, drop `ClassVar`s) is the right one. BLAST RADIUS, measured: 128 derived/`ClassVar`
+#       dataclasses, most of them the MIRROR'S OWN CSL AST node hierarchy in
+#       `src/self-annotate/src/frontend/Module2_Parser.py`. CENSUS THE CONSTRUCTION SITES (not the class
+#       declarations) whose argument count exceeds the model's `init_params`, PREDICT THE MOVED SET BEFORE THE
+#       SWEEP, and expect honest failures.
+#   (b) **ROUTE #143** (`route143-*.md`). An IMPORTED callee's `raises` condition is folded against the
+#       IMPORTING module's constants — the emitted `val` itself carries the wrong value. The repair is scoped
+#       (`_resolve_direct_imports`: refuse when a name free in an injected contract, and not one of that
+#       function's formal params, is also bound by the importing module). NOT landed because the `pycsl_lib` os
+#       stubs' `_filesystem`/`dir_lookup` conditions were not censused against that rule.
+#   (c) CARRIER-RERUN GEN #27'S OWN FIVE REPAIRS — it produced 6 of this generation's routes and every widening:
+#       - the #139 `_lit79` exemption ENUMERATES SHAPES (Constant / Dict / Set / List / Tuple / a collection
+#         call). A tuple field and a float field were probed and fail closed; the OTHER members of that list
+#         are carried by the #85/#86/gap2a channels — verify each of those channels is really faithful.
+#       - the #139 `field_defaults` arm still does `int(rhs.value)` on a FLOAT: `self.r = 2.5` records 2. The
+#         `\result == 2.0` probe was refused, but find a float shape that types.
+#       - the #141 rule permits any MODULE GLOBAL in a `raises` condition. Within one module that is sound;
+#         #143 is the cross-module counterexample. What about a global the callee's own module REBINDS?
+#       - the #142 rule keys on a name bound DIRECTLY to the mapping. `_g = globals(); h = _g` is refused
+#         (a non-subscript-read use), but check a mapping reaching a name through a container or a call.
+#       - the #138 `_nb_ns_attrs` list has FOUR members. `__globals__ f_globals f_locals __dict__` — is there a
+#         fifth spelling of a namespace mapping (`gi_frame`, `tb_frame`, `__self__`, `__func__` chains all land
+#         on one of the four; `__closure__` cells were not probed).
+#   (d) MORE DEFERRAL-AUDIT. Two censuses have been run; the second one's own count is **246 comment/docstring
+#       deferral hits in `src/pycsl/`, 191 after removing proof-assistant citations and Module-4 provenance,
+#       179 not yet audited**, and that is a LOWER BOUND (a deferral phrased without a census word, or living in
+#       an f-string, is not counted — `core_ir_semantic.py:899` was missed for exactly that reason). Sites
+#       already audited and COVERED (do not re-probe): `expressions.py:1007 / 5944 / 634`, `Module5_IREmitter
+#       .py:953`, `types.py:531`, `preamble.py:141`, `irx.py:11`, `generic_fold.py:1213`, `statements.py:426`
+#       (STALE-BUT-COVERED — route #18 refuses it unconditionally; the DOCSTRING HEDGE SHOULD BE DELETED),
+#       `functions.py:5657 / 2039`, `core_ir_semantic.py:137 / 1582 / 574`, `expressions.py:14509`,
+#       `stmt_control_flow.py:1833`, `struct_format.py:288`, `ir_scanner.py:165`.
+#   (e) WATCH, each one change from live:
+#       - `core_ir_semantic.py:964` `_lemma_calls_trusted` matches a BARE name and a dotted call emits
+#         `self.helper`, so a LEMMA METHOD CAN CALL A `\trusted` METHOD. The probe was caught only by the
+#         NON-VACUITY GATE (`lemma proves ensures false`); an OPTIMISTIC-BUT-CONSISTENT trusted contract would
+#         not be. `_collect_call_targets` in the SAME FILE already does the `rsplit(".", 1)[-1]` normalization.
+#       - `module6_whyml/expressions.py:13882 / 13910`: "the `| _ -> <record default>` arm is UNREACHABLE
+#         wherever the caller has guarded `is not None`" — THERE IS NO SUCH CHECK. Mirror-scoped (gated on
+#         `_term_local_vars` / `_sibling_call_union_type`), so it is an L-plane fidelity concern, not user
+#         soundness; the instrument is a mirror-fidelity driver on an un-narrowed receiver.
+#       - `module6_whyml/auto_trust.py:420`: the named guard is WHY3'S region analysis, not a rule in this repo,
+#         and the response to "Why3 would reject this" is to STOP EMITTING THE BODY. A refusal converted into an
+#         assumption, on a purely syntactic predicate (`return_type == "array int"` + an early/in-loop return).
+#         Treat as a TCB entry.
+#       - `_emit_option_tuple_unpack`: gen #26's VACUOUS row is now MEASURED. An `Optional[Tuple[int,int]]`
+#         method does NOT register an option-tuple local (the return type lowers to a UNION and the call site
+#         becomes an abstract `val ... : int`), so the handler's POPULATION IS EMPTY and its docstring claim
+#         ("the Python guard makes the None arm dead") is UNCHECKED. Latent, not live.
+#       - the latent #132 str-set-folder hole (still no Module-6 consumer) and gens #25/#24/#23's lists.
+#   GENERATORS THAT WORKED: carrier-rerun (#138 #141 #142 + every widening of all five repairs) and
+#   deferral-audit (#139 #140 #144).
+#
+# ## 3. YIELD — bin/probe-ledger-yield.sh --by-generator (whole ledger, after gen #27)
+#   key                    LIVE  FAILC  denom    yield  2nd-ord  VACUOUS
+#   advice-audit              2      5      7    28.6%        1        0
+#   carrier-rerun           115     98    213    54.0%       99       14
+#   carve-out-census          9      8     17    52.9%        0        1
+#   continue-census          10      4     14    71.4%        3        3
+#   control-operation         3     17     20    15.0%        1        0
+#   deferral-audit           11     13     24    45.8%        3        5
+#   hand                      1     47     48     2.1%        0        2
+#   observer-audit            0      1      1     0.0%        0        0
+#   oracle-audit              1      3      4    25.0%        0        0
+#   substring-census          5      2      7    71.4%        0        0
+#   unknown                  35      0     35   100.0%        2        0
+#   witness-census           20     43     63    31.7%        2        5
+#   GEN #27 ALONE: 41 rows — 17 LIVE / 24 FAIL-CLOSED / 0 VACUOUS, across SEVEN routes (#138-#144).
+#   NOTE THE DENOMINATOR MOVING: deferral-audit fell from 66.7% to 45.8% because gen #27 logged 10 FAIL-CLOSED
+#   deferral rows against 5 LIVE ones. That is the ledger working — gen #26's 66.7% was 9 rows.
+#
+# ## 4. WHAT IS TRUE RIGHT NOW
+#   metric   markers 459 / grep 484 / offset 25 / unattached 0 (UNMOVED across both batteries — a refusal and a
+#            faithful fold both cost the trust surface nothing; do not chase the metric)
+#   suite    NEW BASELINE 3549/3567, 18 failures — pycsl-reference 0211-0220 + 0701, python-reference 0043 0048
+#            0079 0080 0082 0095 0110. A 19 is a REGRESSION. ZERO XPASS.
+#   planes   34 (`bin/run-soundness-planes.sh --slow`; without `--slow` it is 19). Ratchets: trusted-raises
+#            13 declared / 62 SILENT · dropped-mutation 0/51/9/0 (unratcheted REFUSED column 8) ·
+#            trusted-reasons 459<->459, unclassified 458. mirror-type-only reports 53 EMITTED / 0 ill-typed
+#            (gen #26's log quoted 49 — that is the emitted count, and it moved; the gate is green either way).
+#   corpus   pycsl-reference 1350 sources, 1083 emitting. python-reference 2217 sources, 2199 emitting.
+#   scratch  scratchpad/g27/ (ctrl/p/q/c/d/e/f/g/h/i/j/k probe drivers, all committed) and the new corpus
+#            helper `test-suite/corpus/pycsl-reference/multi_file_lib/r141_raiselib.py` (route #143's callee).
+#   HOW TO REBUILD AN EMISSION BASELINE (3 commands, ~4 min — the baselines live OUTSIDE the repo, in the
+#            session scratchpad; NEVER inherit one):
+#            git worktree add --detach <wt> <baseline-commit> && ln -s <repo>/.venv <wt>/.venv
+#            ( cd <wt> && bin/byte-diff-sweep.sh <out>/corpus_base && bin/mirror-emit-sweep.sh <out>/mirror_base )
+#            then the same two sweeps in the main tree + bin/byte-diff-compare.py on each pair
+#            (and on <out>/*/pyref for python-reference, and --min-files 45 for the mirrors).
+
 # ====== START HERE — gen #26 FINAL STATE — read this block first ==================
 #
 # ## STATUS: COMPLETE. Tree clean (two PRE-EXISTING gitlinks only), everything committed, no background process
