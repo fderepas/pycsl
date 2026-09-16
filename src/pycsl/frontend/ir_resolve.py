@@ -2497,11 +2497,141 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
                     td["init_param_defaults"] = dict(_at147["init_param_defaults"])
                 if _at147.get("init_default_unknown"):
                     td["init_default_unknown"] = list(_at147["init_default_unknown"])
+                if _at147.get("init_opaque150"):
+                    td["init_opaque150"] = True   # (#49) ROUTE #150 — the effect is inherited
                 if _at147.get("init_unknown_fields"):
                     td["init_unknown_fields"] = list(_at147["init_unknown_fields"])
                 if _at147.get("init_unknown_cf_fields"):
                     td["init_unknown_cf_fields"] = list(_at147["init_unknown_cf_fields"])
                 break
+        # (#49) ROUTE #150 — A LEADING `super().__init__(<args>)` COMPOSES THE BASE
+        # CONSTRUCTOR INTO THIS ONE. MEASURED before: `super().__init__(k + 100)` left the
+        # base field on its witness (`{ b_x = 0 }`) and `B(7).get() == 0` PROVED, CPython
+        # 107. The base holder is found exactly as route #147 finds an inherited
+        # constructor (walk THROUGH `init_inherits`, STOP at anything unmodelled); its
+        # `init_body` is substituted with the call's arguments and prepended for every
+        # field this class does not itself store afterwards. Everything that cannot be
+        # stated — an unmodelled holder, an opaque holder, an arity the holder cannot take,
+        # an omitted argument without a stateable default, a substituted value over names
+        # that are not this constructor's parameters — makes the class OPAQUE (every field
+        # unknown), never a definite witness. Inline (no helper `def`): `ir_resolve.py` is a
+        # mirrored file and the mirror-coverage ratchet counts nested defs too.
+        if "init_super150" in td:
+            _args150 = td.pop("init_super150") or []
+            _hold150 = None
+            _mro150 = _in_mro.get(sub)
+            for _an150 in (list(_mro150[1:]) if _mro150 else list(td["bases"])):
+                _at150 = records.get(_an150)
+                if _at150 is None:
+                    _hold150 = "opaque"
+                    break
+                if _at150.get("bases"):
+                    merge_one(_at150)
+                if _at150.get("init_inherits"):
+                    continue
+                _hold150 = _at150
+                break
+            _own_fields150 = ({e.get("field") for e in td.get("init_body", []) or []}
+                              | set(td.get("field_defaults", {}) or {})
+                              | set(td.get("init_unknown_fields", []) or []))
+            _pset150 = set(td.get("init_params", []) or []) | set(
+                td.get("init_kwonly_params", []) or [])
+            if isinstance(_hold150, dict):
+                _hp150 = list(_hold150.get("init_params", []) or [])
+                _bind150: Dict[str, Any] = {}
+                _unkp150: Set[str] = set()
+                # A holder still carrying `init_super150` was never merged, which happens
+                # only when it had NO bases — its `super().__init__()` is `object`'s no-op.
+                if _hold150.get("init_opaque150") or len(_args150) > len(_hp150) or (
+                        _hold150.get("init_super150") is not None
+                        and _in_bases.get(_an150)):
+                    _hold150 = "opaque"
+                else:
+                    for _i150, _p150 in enumerate(_hp150):
+                        if _i150 < len(_args150):
+                            _bind150[_p150] = _args150[_i150]
+                        elif _p150 in (_hold150.get("init_param_defaults") or {}):
+                            _bind150[_p150] = {"type": "Number",
+                                               "value": _hold150["init_param_defaults"][_p150]}
+                        elif _p150 in set(_hold150.get("init_default_unknown") or []):
+                            _unkp150.add(_p150)
+                        else:
+                            _hold150 = "opaque"   # a required argument Python would miss
+                            break
+                if isinstance(_hold150, dict):
+                    for _k150 in (_hold150.get("init_kwonly_params") or []):
+                        if _k150 in (_hold150.get("init_kwonly_defaults") or {}):
+                            _bind150[_k150] = {"type": "Number",
+                                               "value": _hold150["init_kwonly_defaults"][_k150]}
+                        elif _k150 in set(_hold150.get("init_default_unknown") or []):
+                            _unkp150.add(_k150)
+                        else:
+                            _hold150 = "opaque"
+                            break
+                if isinstance(_hold150, dict):
+                    _pre150 = []
+                    _newunk150 = []
+                    for _ent150 in _hold150.get("init_body", []) or []:
+                        _fld150 = _ent150.get("field")
+                        if _fld150 in _own_fields150:
+                            continue
+                        _val150 = copy.deepcopy(_ent150.get("value"))
+                        _names150: Set[str] = set()
+                        _stk150: List[Any] = [_val150]
+                        while _stk150:
+                            _nd150 = _stk150.pop()
+                            if isinstance(_nd150, dict):
+                                if _nd150.get("type") == "Var" and isinstance(_nd150.get("name"), str):
+                                    _names150.add(_nd150["name"])
+                                _stk150.extend(_nd150.values())
+                            elif isinstance(_nd150, list):
+                                _stk150.extend(_nd150)
+                        if _names150 & _unkp150 or not (_names150 <= set(_bind150)):
+                            _newunk150.append(_fld150)
+                            continue
+                        if isinstance(_val150, dict) and _val150.get("type") == "Var":
+                            _val150 = copy.deepcopy(_bind150[_val150["name"]])
+                        else:
+                            _stk150 = [_val150]
+                            while _stk150:
+                                _nd150 = _stk150.pop()
+                                _items150 = (list(_nd150.items()) if isinstance(_nd150, dict)
+                                             else list(enumerate(_nd150))
+                                             if isinstance(_nd150, list) else [])
+                                for _key150, _ch150 in _items150:
+                                    if (isinstance(_ch150, dict) and _ch150.get("type") == "Var"
+                                            and _ch150.get("name") in _bind150):
+                                        _nd150[_key150] = copy.deepcopy(_bind150[_ch150["name"]])
+                                    elif isinstance(_ch150, (dict, list)):
+                                        _stk150.append(_ch150)
+                        _vn150: Set[str] = set()
+                        _stk150 = [_val150]
+                        while _stk150:
+                            _nd150 = _stk150.pop()
+                            if isinstance(_nd150, dict):
+                                if _nd150.get("type") == "Var" and isinstance(_nd150.get("name"), str):
+                                    _vn150.add(_nd150["name"])
+                                _stk150.extend(_nd150.values())
+                            elif isinstance(_nd150, list):
+                                _stk150.extend(_nd150)
+                        if not (_vn150 <= _pset150):
+                            _newunk150.append(_fld150)
+                            continue
+                        _pre150.append({"field": _fld150, "value": _val150})
+                    for _lst150 in ("init_unknown_fields", "init_unknown_cf_fields"):
+                        for _u in (_hold150.get(_lst150) or []):
+                            if _u not in _own_fields150 and _u not in _newunk150:
+                                _newunk150.append(_u)
+                    if _pre150:
+                        td["init_body"] = _pre150 + list(td.get("init_body", []) or [])
+                    if _newunk150:
+                        for _lst150 in ("init_unknown_fields", "init_unknown_cf_fields"):
+                            _l = td.setdefault(_lst150, [])
+                            for _u in _newunk150:
+                                if _u not in _l:
+                                    _l.append(_u)
+            if _hold150 == "opaque":
+                td["init_opaque150"] = True
         td["fields"] = merged_fields + td["fields"]
         td["class_invariants"] = merged_invs + td.get("class_invariants", [])
         td["field_defaults"] = {**merged_defaults, **td.get("field_defaults", {})}
@@ -2512,8 +2642,34 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
         merge_one(td)
     # (#49) ROUTE #147 — `init_inherits` is consumed above and is not part of the frozen
     # resolved IR (goldens 0444/0445 carry an inheriting class without it).
+    # (#49) ROUTE #150 — a SYNTHESIZED `@dataclass` constructor runs the first
+    # `__post_init__` in the MRO, inherited or not; an ancestor that defines one makes the
+    # construction opaque.
+    _pinr150 = set(ir_data.pop("post_init_nonrecord150", []) or [])
+    for _nm150, td in records.items():
+        if not td.get("init_dataclass_synth") or td.get("init_opaque150"):
+            continue
+        for _an150 in (list(_in_mro.get(_nm150) or [])[1:]):
+            _ar150 = records.get(_an150)
+            if (_ar150 is not None and _ar150.get("has_post_init150")) or _an150 in _pinr150:
+                td["init_opaque150"] = True
+                break
     for td in records.values():
         td.pop("init_inherits", None)
+        td.pop("init_super150", None)
+        td.pop("has_post_init150", None)
+        # (#49) ROUTE #150 — an opaque constructor effect leaves EVERY field unknown,
+        # including the base fields merged above (measured: `super().__init__(k + 100)`
+        # gave `{ b_x = 0; ... }` and `B(7).get() == 0` PROVED; CPython 107).
+        if td.pop("init_opaque150", None):
+            _u150 = td.setdefault("init_unknown_fields", [])
+            _c150 = td.setdefault("init_unknown_cf_fields", [])
+            for _f150 in td.get("fields", []) or []:
+                _n150 = _f150.get("name") if isinstance(_f150, dict) else _f150
+                if _n150 and _n150 not in _u150:
+                    _u150.append(_n150)
+                if _n150 and _n150 not in _c150:
+                    _c150.append(_n150)
 
 
 def apply_composition(ir_data: Dict[str, Any]) -> None:

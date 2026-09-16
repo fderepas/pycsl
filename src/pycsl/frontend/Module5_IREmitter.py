@@ -3916,6 +3916,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if _class_tsc:
             self.program_ir.setdefault("class_type_str_constants", {})[node.name] = {
                 k: [list(e) for e in v] for k, v in _class_tsc.items()}
+        # (#49) ROUTE #150 — which classes DEFINE `__post_init__`. A derived `@dataclass`'s
+        # synthesized constructor calls the INHERITED hook too (measured: `B(A)` over an
+        # `A.__post_init__` storing 7 proved `B(1).get() == 1`). Records carry a flag; a
+        # class that is not a record (no fields, no bases) goes on a module-level list.
+        # Both are side channels consumed and POPPED by `apply_inheritance`.
+        _hpi150 = any(isinstance(_c, ast.FunctionDef) and _c.name == "__post_init__"
+                      for _c in node.body)
+        if _hpi150 and not (fields or bases):
+            self.program_ir.setdefault("post_init_nonrecord150", []).append(node.name)
         if fields or bases:
             class_invariants_ir = [self._csl_to_ir(inv.expr)
                                    for inv in getattr(node, 'csl_class_invariants', [])]
@@ -4060,6 +4069,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     _unk.append(_u145)
             # (#49) ROUTE #89 — the control-flow-only subset, for the COLLECTION arms.
             _unkcf = list(getattr(self, "_init_unknown_cf", []) or [])
+            # (#49) ROUTE #150 — an opaque constructor effect: EVERY field is unknown, on
+            # both channels (a helper can change a collection's length as easily as a
+            # scalar's value).
+            if getattr(self, "_init_opaque150", False):
+                for _f150 in fields:
+                    _fn150 = _f150.get("name") if isinstance(_f150, dict) else _f150
+                    if _fn150 and _fn150 not in _unk:
+                        _unk.append(_fn150)
+                    if _fn150 and _fn150 not in _unkcf:
+                        _unkcf.append(_fn150)
             # (#49) ROUTE #144 — "these `init_params` were synthesized from a
             # `@dataclass`'s own field declarations", the precondition for
             # `apply_inheritance` to prepend the base dataclasses' parameters.
@@ -4150,6 +4169,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # (#49) ROUTE #147: this class INHERITS its constructor. Emitted only for a
                 # based, undecorated class with no `__init__` of its own.
                 **({"init_inherits": True} if _inh147 else {}),
+                # (#49) ROUTE #150: an opaque constructor effect. A SIDE CHANNEL to
+                # `apply_inheritance`, which widens the unknown lists to the MERGED base
+                # fields too (a `super().__init__(...)` sets exactly those) and POPS it, so
+                # the resolved IR never carries the key.
+                **({"init_opaque150": True}
+                   if getattr(self, "_init_opaque150", False) else {}),
+                **({"has_post_init150": True} if _hpi150 else {}),
+                **({"init_super150": getattr(self, "_init_super150")}
+                   if getattr(self, "_init_super150", None) is not None else {}),
                 # (#49) ROUTE #82: the KEYWORD-ONLY constructor parameters (and their
                 # constant defaults), carried SEPARATELY from `init_params` because
                 # that list is the POSITIONAL binding list. Emitted ONLY when the

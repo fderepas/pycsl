@@ -110,6 +110,22 @@ class ConstructionSynthMixin:
         # store (#88) — because in both of those the straight-line literal is not the
         # field's value AT ALL, length included.
         self._init_unknown_cf: List[str] = []
+        # (#49) ROUTE #150 side-channel, reset per class: the constructor can change
+        # `self` by some means other than a recognized store, so NO field's value at
+        # construction time is known. Consumed by `visit_ClassDef`, which widens the two
+        # unknown lists to every field.
+        self._init_opaque150: bool = False
+        # (#49) ROUTE #150 — the argument IR of a LEADING `super().__init__(<args>)`
+        # statement, composed faithfully by `apply_inheritance`; None when absent.
+        self._init_super150: Any = None
+        # A `@dataclass` whose SYNTHESIZED `__init__` calls `self.__post_init__()`.
+        if (self._is_dataclass_decorated(node)
+                and not self._dc_decorator_init_false(node)
+                and not any(isinstance(_c150, ast.FunctionDef) and _c150.name == "__init__"
+                            for _c150 in node.body)
+                and any(isinstance(_c150, ast.FunctionDef)
+                        and _c150.name == "__post_init__" for _c150 in node.body)):
+            self._init_opaque150 = True
         # (#49) ROUTE #144 side-channel, reset per class: True only when the
         # `init_params` below were SYNTHESIZED from a `@dataclass`'s own field
         # declarations (no explicit `__init__`) — the one case in which Python also
@@ -267,6 +283,76 @@ class ConstructionSynthMixin:
                     kwonly_defaults[_n149] = _v149
             self._init_kwonly = (kwonly_params, kwonly_defaults)
             self._init_posdef = (_posdef149, _dunk149)
+            # (#49) ROUTE #150 — A CONSTRUCTOR'S EFFECTS OUTSIDE ITS RECOGNIZED STORES ARE
+            # NOT IN THE RECORD LITERAL, SO THE LITERAL MAY NOT STATE ANY FIELD AS KNOWN.
+            # MEASURED at `acba66f3`, each `== 1` (or `== 0`) PROVED while CPython gives the
+            # post-effect value: `self._setup()` storing the field; `me = self; me.x = 7`;
+            # `setattr(self, "x", 7)`; `init_p(self)`; `super().__init__(k + 100)`; and a
+            # `@dataclass`'s `__post_init__` (flagged above). One rule: a `super()` call,
+            # any call whose callee or arguments mention `self` (except a small set of pure
+            # builtins over it), or ANY other load of the bare name `self` (an alias, a
+            # container element, a return) makes every field UNKNOWN.
+            _pure150 = {"len", "abs", "min", "max", "int", "str", "bool", "float",
+                        "isinstance", "range", "list", "dict", "set", "frozenset", "tuple",
+                        "sorted", "sum", "any", "all", "hash", "repr", "ord", "chr"}
+            # A LEADING `super().__init__(<positional args>)` (after an optional docstring)
+            # is not opaque: `apply_inheritance` composes the base constructor's binding
+            # into this one, which keeps goldens 0442/0443 (`super().__init__()` first)
+            # faithful rather than unknown. Any other `super()` use stays opaque.
+            _lead150 = [_st for _st in child.body
+                        if not (isinstance(_st, ast.Expr)
+                                and isinstance(_st.value, ast.Constant)
+                                and isinstance(_st.value.value, str))]
+            _skip150 = None
+            if _lead150 and isinstance(_lead150[0], ast.Expr):
+                _sc150 = _lead150[0].value
+                if (isinstance(_sc150, ast.Call)
+                        and isinstance(_sc150.func, ast.Attribute)
+                        and _sc150.func.attr == "__init__"
+                        and isinstance(_sc150.func.value, ast.Call)
+                        and isinstance(_sc150.func.value.func, ast.Name)
+                        and _sc150.func.value.func.id == "super"
+                        and not _sc150.func.value.args
+                        and not _sc150.keywords
+                        and not any(isinstance(_a, ast.Starred) for _a in _sc150.args)):
+                    _skip150 = _sc150
+                    self._init_super150 = [self._py_expr_to_ir(_a) for _a in _sc150.args]
+            _attr_roots150 = set()
+            for _n150 in ast.walk(child):
+                if isinstance(_n150, ast.Attribute) and isinstance(_n150.value, ast.Name):
+                    _attr_roots150.add(id(_n150.value))
+            _skipids150 = ({id(_x) for _x in ast.walk(_skip150)} - {id(_a2) for _a in _skip150.args for _a2 in ast.walk(_a)}
+                           if _skip150 is not None else set())
+            for _n150 in ast.walk(child):
+                if id(_n150) in _skipids150:
+                    continue
+                if isinstance(_n150, ast.Call):
+                    _fn150 = _n150.func
+                    _root150 = _fn150
+                    while isinstance(_root150, (ast.Attribute, ast.Subscript)):
+                        _root150 = _root150.value
+                    if (isinstance(_root150, ast.Call) and isinstance(_root150.func, ast.Name)
+                            and _root150.func.id == "super"):
+                        self._init_opaque150 = True
+                        break
+                    if isinstance(_root150, ast.Name) and _root150.id == "self":
+                        self._init_opaque150 = True
+                        break
+                    _mentions150 = any(
+                        isinstance(_m150, ast.Name) and _m150.id == "self"
+                        for _a150 in list(_n150.args) + [_k.value for _k in _n150.keywords]
+                        for _m150 in ast.walk(_a150))
+                    if _mentions150 and not (isinstance(_fn150, ast.Name)
+                                             and _fn150.id in _pure150):
+                        self._init_opaque150 = True
+                        break
+                elif (isinstance(_n150, ast.Name) and _n150.id == "self"
+                      and isinstance(_n150.ctx, ast.Load)
+                      and id(_n150) not in _attr_roots150):
+                    # a bare `self` that is not the root of an attribute: an alias, an
+                    # argument (already handled above for calls), a container element...
+                    self._init_opaque150 = True
+                    break
             # (#49) ROUTE #83 — A FIELD STORED INSIDE CONTROL FLOW IS NOT MERELY
             # UNCAPTURED, ITS VALUE IS UNKNOWN, AND EMITTING A LITERAL `0` FOR IT IS A
             # DEFINITE FALSE FACT. The loop below is TOP-LEVEL ONLY (`for stmt in
