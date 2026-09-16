@@ -1878,7 +1878,15 @@ class Module3_Weaver:
                     or _rb_ns_alias
                     or (isinstance(_rb_ns, ast.Call) and isinstance(_rb_ns.func, ast.Name)
                         and _rb_ns.func.id in ("globals", "vars", "locals"))
-                    or (isinstance(_rb_ns, ast.Attribute) and _rb_ns.attr == "__dict__")):
+                    # (#138) `__dict__` is one of FOUR attributes that hand out a namespace
+                    # mapping. `f.__globals__.__setitem__("N", 5)` on a module def PROVED
+                    # `f() == 3` (CPython 5) — the receiver is an Attribute, so neither the
+                    # `_rb_globs` name rule nor the `__dict__` rule saw it. CENSUS of the four
+                    # spellings over the five trees: 2 sites (1402, 1403), both already
+                    # expected-FAIL route witnesses.
+                    or (isinstance(_rb_ns, ast.Attribute)
+                        and _rb_ns.attr in ("__dict__", "__globals__", "f_globals",
+                                            "f_locals"))):
                 _rb_bad.append(f"a write through a namespace dict at line {_rb_ln}")
             if (isinstance(_rb_n, ast.Attribute) and isinstance(_rb_n.ctx, (ast.Store, ast.Del))
                     and _rb_n.attr in _rb_all
@@ -2720,6 +2728,15 @@ class Module3_Weaver:
         # object this file can see (the `(lambda m: setattr(m, ...))(plainlib)` carrier).
         for _nb_n in _nb_lam_params:
             _nb_fresh_ok[_nb_n] = False
+        # `__builtins__` is never bound by this file, so the "no module-scope binding" exemption
+        # would have made THE builtin namespace the one receiver every sink here trusts.
+        _nb_fresh_ok["__builtins__"] = False
+        # (#138) the mutating DICT methods #118 already enumerates. At module/class-body scope
+        # they are the same sink as a subscript store, one spelling over: `f.__globals__
+        # .__setitem__("N", 5)` PROVED `f() == 3` (CPython 5) past gen #26's draft-9, whose
+        # subscript rule keys on the PATH but never sees a method call.
+        _nb_mutators = frozenset(("update", "__setitem__", "__delitem__", "pop", "popitem",
+                                  "setdefault", "clear"))
         for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
             if _nb_kind == "function":
                 continue
@@ -2730,6 +2747,28 @@ class Module3_Weaver:
                 elif (isinstance(_nb_y, ast.Call) and isinstance(_nb_y.func, ast.Name)
                         and _nb_y.func.id in ("setattr", "delattr") and _nb_y.args):
                     _nb_recv = _nb_y.args[0]
+                # (#138) a `getattr` AT MODULE/CLASS-BODY SCOPE hands out an object this file
+                # cannot describe, and gen #26's computed-getattr arm scoped itself TWICE by
+                # things an alias defeats: by the RECEIVER'S NAME (`_nb_imported` is file-wide,
+                # so `b = builtins; getattr(b, "set" + "attr")(plainlib, "inc", plainlib.dec)`
+                # walked past it) and by the SYNTACTIC SHAPE `Call(func=Call(getattr, ...))`
+                # (so `sa = getattr(builtins, "set" + "attr"); sa(...)` walked past it too).
+                # BOTH PROVED `plainlib.inc(3) == 4`; CPython returns 2. Keyed on the PATH, like
+                # every other sink here. CENSUS of module/class-scope `getattr`: 2 sites, both
+                # already-expected-FAIL route witnesses (1351, 1396); 0 in python-reference, the
+                # 53 mirrors, `pycsl_lib` and `src/pycsl` (the emitter's own
+                # `getattr(self, handler_name)(node)` dispatch is inside function bodies).
+                elif (isinstance(_nb_y, ast.Call) and isinstance(_nb_y.func, ast.Name)
+                        and _nb_y.func.id == "getattr" and _nb_y.args):
+                    _nb_recv = _nb_y.args[0]
+                # (#138) ... and a MUTATING DICT METHOD on a receiver this file cannot describe.
+                # CENSUS: 12 module/class-scope sites over the five trees — 1401 (already
+                # expected-FAIL) plus eleven whose receiver IS a fresh name (`b = Buffer()` in
+                # 0192, `ESCAPE_DCT` and `_EMIT_IR_HANDLER_ATTR_PROJ`, both module dict
+                # literals), so no live program changes verdict.
+                elif (isinstance(_nb_y, ast.Call) and isinstance(_nb_y.func, ast.Attribute)
+                        and _nb_y.func.attr in _nb_mutators):
+                    _nb_recv = _nb_y.func.value
                 # a SUBSCRIPT store is the same sink one spelling over. #118's rule
                 # enumerates the DICT spellings that name a namespace (`globals()[k]`,
                 # `vars()[k]`, `<mod>.__dict__[k]`), and two more reach the very same
@@ -2752,8 +2791,8 @@ class Module3_Weaver:
                     # `pm.inc = plainlib.dec`, proved the original `inc` past the second cut).
                     if not (isinstance(_nb_recv, ast.Name)
                             and _nb_fresh_ok.get(_nb_recv.id, not _nb_has_star)):
-                        _nb_bad.append(f"an attribute or item written at {_nb_kind} scope on "
-                                       f"a computed receiver at line "
+                        _nb_bad.append(f"an attribute or item written, or a namespace reached, "
+                                       f"at {_nb_kind} scope on a computed receiver at line "
                                        f"{getattr(_nb_y, 'lineno', 0)}")
         # (#136) A DYNAMIC `exec`, AND AN `eval` THAT CAN BIND, REBIND NAMES WHOSE VALUES THE
         # MODEL HAS ALREADY FOLDED OR RESOLVED — and NOTHING downstream models the value.
@@ -2793,14 +2832,45 @@ class Module3_Weaver:
                 # `eval("exec('N = 5')")`, both of which PROVED `N == 3` (CPython 5).
                 # A constant text naming none of them cannot rebind anything
                 # (python-reference 0109/0217 are `eval("2 + 3")` — no identifiers).
+                # (#138) ... AND THE TOKEN RULE IS STILL A SPELLING RULE. An eval text that
+                # reaches the namespace WITHOUT naming one of the eight walks past it:
+                # `eval("f.__globals__.__setitem__('N', 5)")` PROVED `f() == 3` (CPython 5).
+                # A text can only bind or mutate through a CALL, an ATTRIBUTE, a SUBSCRIPT or
+                # an `=`; a text with none of `( . [ =` is a closed arithmetic/literal
+                # expression. The text is NOT parsed here on purpose — a `try/except
+                # SyntaxError` in this method measurably added an `exception SyntaxError` to
+                # two mirror emissions (see the constant-`exec` note above). CENSUS of the
+                # eleven constant `eval`/`exec` texts over the five trees: the three that
+                # PASS today are all `eval("2 + 3")` (1397, python-reference 0109 and 0217),
+                # which contains none of the four characters; every other one already FAILS.
+                # `exec` is deliberately NOT given this rule: a constant `exec` is SPLICED IN
+                # AS REAL SOURCE by `splice_constant_exec` and is modelled (0642, 0643).
                 _nb_binds = ((not _nb_const) or (":=" in _nb_src.value)
+                             or any(_nb_ch in _nb_src.value for _nb_ch in "(.[=")
                              or bool(set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*",
                                                     _nb_src.value)) & _nb_ns_builtins))
             else:
                 _nb_binds = not _nb_const
             if not _nb_binds:
                 continue
-            if len(_nb_x.args) > 1 or _nb_x.keywords or id(_nb_x) in _nb_modexec_ids:
+            # (#138) the LOCATION gate is about where an ASSIGNMENT lands (the locals mapping,
+            # which is a discarded snapshot inside a function). A text that MUTATES THROUGH A
+            # CALL does not care: a bare in-function `eval("f.__globals__.__setitem__('N', 5)")`
+            # reaches the real module globals and PROVED `f() == 3` (CPython 5). So a constant
+            # text carrying a call, an attribute or a subscript is refused wherever it stands.
+            # ... and a NON-CONSTANT text is unknown, so it reaches too: `S =
+            # "f.__globals__.__setitem__('N', 5)"` with a bare in-function `eval(S)` PROVED
+            # `f() == 3` (CPython 5) past the constant-text form of this widening. CENSUS of
+            # dynamic `eval`: 0 in pycsl-reference, python-reference, the 53 mirrors and
+            # `pycsl_lib`; 1 in `src/pycsl` (`module6_whyml/auto_trust.py:188`), whose mirror
+            # method is `\trusted` and carries no body. `exec` keeps the location gate: its
+            # constant form is spliced in as real source and its dynamic form is what 0638,
+            # 0639, 0644 and 1397 exercise.
+            _nb_reach = (_nb_x.func.id == "eval"
+                         and ((not _nb_const)
+                              or any(_nb_ch in _nb_src.value for _nb_ch in "(.[")))
+            if (_nb_reach or len(_nb_x.args) > 1 or _nb_x.keywords
+                    or id(_nb_x) in _nb_modexec_ids):
                 _nb_bad.append(f"a dynamic `{_nb_x.func.id}` that can bind into the module "
                                f"namespace at line {getattr(_nb_x, 'lineno', 0)}")
         # (#136/#137, SECOND CUT — found by carrier-rerun on this block's own first cut)
@@ -2886,6 +2956,42 @@ class Module3_Weaver:
                     _nb_bad.append(f"the module namespace dict `{_nb_x.func.id}()` used "
                                    f"outside a name binding or a subscript read at line "
                                    f"{getattr(_nb_x, 'lineno', 0)}")
+        # (#138) THE SAME MAPPING, REACHED AS AN ATTRIBUTE. Gen #26's draft-9 gave the no-arg
+        # `globals()`/`vars()`/`locals()` spelling an ESCAPE rule (it may only be bound to a
+        # plain name or read through a subscript) and gave `f.__globals__["N"] = 5` a SINK rule
+        # (the subscript store is keyed on the path). Neither covers the mapping FLOWING INTO A
+        # CALL under the attribute spelling, and three shapes proved `f() == 3` while CPython
+        # returned 5: `f.__globals__.__setitem__("N", 5)` (receiver), `dict.__setitem__(
+        # f.__globals__, "N", 5)` and `operator.setitem(f.__globals__, "N", 5)` (argument — the
+        # unbound-method spelling also makes the sink's receiver the name `dict`, which has no
+        # module binding and so defaulted to FRESH). So the ESCAPE rule, not a sink rule, is the
+        # one that generalizes: these four attributes ARE a namespace mapping wherever they
+        # appear. CENSUS over the five trees: 2 sites (1402, 1403), both already expected-FAIL.
+        # The bare NAME `__builtins__` is deliberately NOT given this rule — python-reference
+        # 0127 passes `__builtins__` to `hasattr` and reads `__builtins__.__import__`, and it
+        # PASSES today; #127's own rules already cover writing through it.
+        _nb_ns_attrs = frozenset(("__globals__", "f_globals", "f_locals", "__dict__"))
+        for _nb_x in ast.walk(python_ast):
+            if not (isinstance(_nb_x, ast.Attribute) and _nb_x.attr in _nb_ns_attrs):
+                continue
+            _nb_p = _nb_parent.get(id(_nb_x))
+            _nb_ok = False
+            if (isinstance(_nb_p, (ast.Assign, ast.AnnAssign, ast.NamedExpr))
+                    and _nb_p.value is _nb_x):
+                _nb_tg = (list(_nb_p.targets) if isinstance(_nb_p, ast.Assign)
+                          else [_nb_p.target])
+                _nb_ok = all(isinstance(_nb_t, ast.Name) for _nb_t in _nb_tg)
+            elif (isinstance(_nb_p, ast.Subscript) and _nb_p.value is _nb_x
+                    and isinstance(_nb_p.ctx, ast.Load)):
+                _nb_ok = True
+            if not _nb_ok:
+                _nb_bad.append(f"the namespace mapping `.{_nb_x.attr}` used outside a name "
+                               f"binding or a subscript read at line "
+                               f"{getattr(_nb_x, 'lineno', 0)}")
+        # NOT EXTENDED TO THE COMPUTED SPELLING: `getattr(f, "__globals__")["N"] = 5` and
+        # `getattr(f, "__glo" + "bals__")["N"] = 5` were both probed and BOTH ARE REFUSED AT
+        # HEAD (a Why3 typing failure on the subscript store through the accessor's result), so
+        # a string-argument rule here would add refusal surface that closes nothing measured.
         # (#133) a def nested in a method, named like a method of that class or of an in-module
         # base (the lift emits it as that method).
         _nb_cls_by_name: Dict[str, Any] = {}
