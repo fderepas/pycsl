@@ -1,6 +1,6 @@
 # ROUTE #161 — an OPAQUE builtin call is assumed not to raise under `no_exception`
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtJ, on top of battery H's candidate); battery I pending.** Severity 1.
+**Status: CLOSED AND FULLY GATED by gen #29 (2026-09-16), battery I (with #162).** Severity 1.
 
 ## Measured on the #159/#160 candidate (and at `87258ff7`)
 
@@ -33,3 +33,9 @@ sorted, reversed, list, tuple, set, frozenset, dict, enumerate, zip, range, min,
 isinstance, chr, ord, int, float, print, hash, id, type, iter, map, filter, round, bytearray, bytes,
 pow), or a method on a whitelist (append ... bit_length). Every `no_exception` file of both corpora
 re-run on the draft: all as expected. Witnesses 1554/1555.
+
+**Battery I (every leg predicted and hit):** emission measured before predicting — the sweep caught a
+#162 draft-1 precision regression (14 python-reference stdlib smoke tests GONE), fixed in draft 2;
+final emission vs the #158-#160-closed tree: 1196 -> 1195 with exactly ONE intended GONE (0386, an
+unresolved callee under `no_exception`), python-reference and mirrors inert; conformance 38/38 + 38/38;
+suite 3683/3701 same 18, zero XPASS; planes --slow 34/34.

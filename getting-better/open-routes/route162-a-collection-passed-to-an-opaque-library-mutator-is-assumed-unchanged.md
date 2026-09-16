@@ -1,6 +1,6 @@
 # ROUTE #162 — a collection passed to an OPAQUE library function is assumed unchanged
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtJ, with #161); battery I pending — a DENYLIST, the systemic question stays recorded.** Severity 1. Generator: hand (frame probes after #161).
+**Status: CLOSED AND FULLY GATED by gen #29 (2026-09-16), battery I (with #161) — a DENYLIST gated on a collection argument; the systemic question (an unknown argument mutator) stays a WATCH.** Severity 1. Generator: hand (frame probes after #161).
 
 ## Measured at `87258ff7`
 
@@ -31,3 +31,9 @@ mutate an argument in place: heapq.{heapify, heappush, heappop, heappushpop, hea
 random.shuffle, bisect.{insort, insort_left, insort_right}, struct.pack_into,
 operator.{setitem, delitem, iadd, iconcat}, refused when the op carries no `writes`. Witnesses
 1556/1557. The general gap — an unknown argument mutator — remains OPEN as a WATCH.
+
+**Battery I (every leg predicted and hit):** emission measured before predicting — the sweep caught a
+#162 draft-1 precision regression (14 python-reference stdlib smoke tests GONE), fixed in draft 2;
+final emission vs the #158-#160-closed tree: 1196 -> 1195 with exactly ONE intended GONE (0386, an
+unresolved callee under `no_exception`), python-reference and mirrors inert; conformance 38/38 + 38/38;
+suite 3683/3701 same 18, zero XPASS; planes --slow 34/34.
