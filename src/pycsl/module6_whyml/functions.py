@@ -769,6 +769,56 @@ class FunctionEmissionMixin:
                                 "does. Refusing instead of discharging a claim nothing "
                                 "checks. Drop this operation from the `no_exception` "
                                 "context, or guard the argument yourself.")
+                        # (#49) ROUTE #161 — THE ORPHAN LIST CAN NEVER BE COMPLETE. Every
+                        # builtin or library call without a trigger row lowers to an abstract
+                        # `val` with no `raises`, so under `no_exception` it is ASSUMED not to
+                        # raise: `"{1}".format(0)` proved IndexError-freedom and
+                        # `math.factorial(-1)` proved ValueError-freedom (CPython raises both),
+                        # one route after #160 had refused four others by name. So invert
+                        # the default: under a `no_exception` context a call is allowed only
+                        # if its callee is a function or class of the verified program (its
+                        # own contract speaks for it), or a builtin / method on a SHORT
+                        # WHITELIST of operations that cannot raise the tracked exceptions
+                        # (their partial cases — `int(<str>)`, `split("")`, `range` step 0,
+                        # `max` of an empty iterable — are refused above). Census: 78
+                        # `no_exception` functions in both corpora; their non-program
+                        # callees are len, bytearray, int, chr, ord, split, divmod, index,
+                        # float, remove — all whitelisted or already refused.
+                        _R161_FUNCS = frozenset((
+                            "len", "abs", "bool", "str", "repr", "sorted", "reversed",
+                            "list", "tuple", "set", "frozenset", "dict", "enumerate", "zip",
+                            "range", "min", "max", "sum", "any", "all", "isinstance", "chr",
+                            "ord", "int", "float", "print", "hash", "id", "type", "iter",
+                            "map", "filter", "round", "bytearray", "bytes", "pow"))
+                        _R161_METHODS = frozenset((
+                            "append", "extend", "insert", "copy", "clear", "reverse", "sort",
+                            "count", "get", "keys", "values", "items", "setdefault", "update",
+                            "add", "discard", "union", "intersection", "difference",
+                            "issubset", "issuperset", "strip", "lstrip", "rstrip", "lower",
+                            "upper", "startswith", "endswith", "replace", "join", "find",
+                            "rfind", "split", "isdigit", "isalpha", "isalnum", "isspace",
+                            "bit_length"))
+                        _k161 = set(getattr(self, "_module_method_formal_params", {}) or {})
+                        _k161 |= set(getattr(self, "_record_types", {}) or {})
+                        _tails161 = {_n.rsplit("__", 1)[-1] for _n in _k161}
+                        _tail161 = _r65_f.rsplit(".", 1)[-1]
+                        _is_method161 = ("." in _r65_f) or (_r65_n.get("receiver") is not None)
+                        _ok161 = (_r65_f in _k161 or _r65_f.replace(".", "__") in _k161
+                                  or (_is_method161 and (_tail161 in _tails161
+                                                         or _tail161 in _R161_METHODS))
+                                  or (not _is_method161 and _r65_f in _R161_FUNCS))
+                        if not _ok161:
+                            raise PyCSLIRError(
+                                "`" + _r65_f + "(...)` is not a function of the verified "
+                                "program and not on the list of operations known never to "
+                                "raise the exceptions `#@ no_exception` tracks, and this "
+                                "function claims `#@ no_exception`. Such a call lowers to an "
+                                "abstract `val` with no `raises`, so the claim would be "
+                                "proved by ASSUMPTION (route #161; measured: "
+                                "`\"{1}\".format(0)` proved IndexError-freedom and "
+                                "`math.factorial(-1)` ValueError-freedom while CPython "
+                                "raises). Give the callee a contract (a stub with "
+                                "`#@ raises`), or drop the exception from the context.")
                     _r65_work.extend(v for v in _r65_n.values()
                                      if isinstance(v, (dict, list)))
                 elif isinstance(_r65_n, (list, tuple)):
