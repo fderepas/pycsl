@@ -3963,6 +3963,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             _unk = list(getattr(self, "_init_unknown", []) or [])
             # (#49) ROUTE #89 — the control-flow-only subset, for the COLLECTION arms.
             _unkcf = list(getattr(self, "_init_unknown_cf", []) or [])
+            # (#49) ROUTE #144 — "these `init_params` were synthesized from a
+            # `@dataclass`'s own field declarations", the precondition for
+            # `apply_inheritance` to prepend the base dataclasses' parameters.
+            _dcs144 = bool(getattr(self, "_init_dc_synth", False))
+            _dcf144 = list(getattr(self, "_init_dc_fields", []) or [])
             init_ensures = self._collect_init_ensures(node)
             # (#49) ROUTE #123 — a CLASS-BODY BINDING (`m = lambda self: 2`,
             # `m = staticmethod(abs)`, `group = _color_match_group`) OVERRIDES an inherited
@@ -4011,6 +4016,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 **({"str_set_constants": str_set_constants}
                    if str_set_constants else {}),
                 "init_params": init_params, "init_body": init_body,
+                # (#49) ROUTE #144: this class's `init_params` were SYNTHESIZED from its
+                # own `@dataclass` field declarations, so Python's synthesized `__init__`
+                # ALSO takes the base dataclasses' fields first — `apply_inheritance`
+                # prepends them. Emitted ONLY for such a class (absent for every explicit
+                # `__init__` and every non-dataclass), so the IR of the whole corpus, the
+                # 53 mirrors and all 38 frozen conformance goldens is byte-identical
+                # wherever no `@dataclass` without an explicit `__init__` is declared.
+                **({"init_dataclass_synth": True} if _dcs144 else {}),
+                # (#49) ROUTE #144: this class's OWN `@dataclass` field names — what a
+                # DERIVED dataclass inherits, `ClassVar`s excluded. Carried separately
+                # from `init_params` because a `@dataclass` with an explicit `__init__`
+                # publishes `__dataclass_fields__` (so a subclass inherits these names)
+                # while its OWN signature is the explicit one. Emitted only for a
+                # `@dataclass` with at least one field.
+                **({"dataclass_fields": _dcf144} if _dcf144 else {}),
                 # (#49) ROUTE #82: the KEYWORD-ONLY constructor parameters (and their
                 # constant defaults), carried SEPARATELY from `init_params` because
                 # that list is the POSITIONAL binding list. Emitted ONLY when the

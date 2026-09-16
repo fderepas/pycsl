@@ -107,6 +107,29 @@ class ConstructionSynthMixin:
         # store (#88) — because in both of those the straight-line literal is not the
         # field's value AT ALL, length included.
         self._init_unknown_cf: List[str] = []
+        # (#49) ROUTE #144 side-channel, reset per class: True only when the
+        # `init_params` below were SYNTHESIZED from a `@dataclass`'s own field
+        # declarations (no explicit `__init__`) — the one case in which Python also
+        # inherits the BASE dataclasses' fields into the synthesized signature, so
+        # `ir_resolve.apply_inheritance` may prepend them. False for every class with
+        # an explicit `__init__` (its declared signature is the whole truth) and for
+        # every non-dataclass, so the key is absent there and the IR of the corpus,
+        # the mirror and all 38 frozen conformance goldens is byte-identical.
+        self._init_dc_synth: bool = False
+        # (#49) ROUTE #144 — THIS class's own `@dataclass` FIELD list, which is what a
+        # DERIVED dataclass inherits. It is computed here, for EVERY `@dataclass`, and
+        # not from `init_params` below, because the two differ exactly where it matters:
+        # a `@dataclass` that ALSO writes an explicit `__init__` keeps that `__init__`
+        # (`dataclasses._set_new_attribute` never overwrites a class attribute) but STILL
+        # publishes `__dataclass_fields__`, so a subclass of it inherits these names even
+        # though the class's own `init_params` are the explicit signature. `ClassVar`
+        # members are excluded here for the same reason as below (PEP 557 pseudo-fields).
+        self._init_dc_fields: List[str] = (
+            [stmt.target.id for stmt in node.body
+             if isinstance(stmt, ast.AnnAssign)
+             and isinstance(stmt.target, ast.Name)
+             and not self._ann_is_classvar(stmt.annotation)]
+            if self._is_dataclass_decorated(node) else [])
         for child in node.body:
             if not (isinstance(child, ast.FunctionDef) and child.name == '__init__'):
                 continue
@@ -358,13 +381,56 @@ class ConstructionSynthMixin:
         # default) — sound. Additive: a non-dataclass class with no `__init__` is
         # untouched (empty init, prior behaviour).
         if self._is_dataclass_decorated(node):
-            fnames = [stmt.target.id for stmt in node.body
-                      if isinstance(stmt, ast.AnnAssign)
-                      and isinstance(stmt.target, ast.Name)]
+            # (#49) ROUTE #144, SHAPE B — A `ClassVar` MEMBER IS AN `ast.AnnAssign` BUT IS
+            # **NOT** AN `__init__` PARAMETER, SO INCLUDING IT SHIFTS THE WHOLE POSITIONAL
+            # BINDING BY ONE AND EVERY FIELD TAKES ITS *NEIGHBOUR'S* ARGUMENT. Measured at
+            # `2887ba44` on
+            #     @dataclass
+            #     class P:
+            #         k: ClassVar[int] = 10
+            #         x: int
+            #         y: int
+            #     P(1, 2).x     #@ ensures \result == 2   <-- PROVED; CPython gives 1
+            # This is strictly worse than shape A below: it is not a lost default, it is a
+            # DEFINITE WRONG VALUE silently taken from the neighbouring argument. Python's
+            # `@dataclass` skips a `ClassVar`-annotated member when it synthesizes
+            # `__init__` (PEP 557: "pseudo-field"), so we skip it here. The member stays a
+            # `fields` entry (typed `classvar`) with its `field_defaults` value, so the
+            # class-level constant is still readable — only the BINDING LIST loses it.
+            fnames = list(self._init_dc_fields)
             init_params = list(fnames)
             init_body = [{"field": fn, "value": {"type": "Var", "name": fn}}
                          for fn in fnames]
+            # (#49) ROUTE #144, SHAPE A — the side-channel that lets `ir_resolve`'s
+            # inheritance merge PREPEND the base dataclasses' parameters. It marks
+            # "this class's `init_params` were SYNTHESIZED from its own field
+            # declarations", which is exactly the case in which Python's synthesized
+            # `__init__` also inherits the bases' fields. A class with an EXPLICIT
+            # `__init__` must NOT be merged — its signature is whatever it declares,
+            # base fields included or not — and the `return` above leaves the flag at
+            # its per-class `False`.
+            self._init_dc_synth = True
         return init_params, init_body
+
+    @staticmethod
+    def _ann_is_classvar(ann: Optional[ast.expr]) -> bool:
+        """(#49) ROUTE #144 — is this annotation a `ClassVar` / `ClassVar[T]`?
+
+        Both the bare name (`from typing import ClassVar`) and the dotted spelling
+        (`typing.ClassVar[int]`) are recognized, subscripted or not. A STRING
+        annotation (`"ClassVar[int]"`, PEP 563) is deliberately NOT matched: it is
+        not parsed anywhere else in this front end either, and answering False keeps
+        the member in `init_params`, which is the PRE-EXISTING behaviour — this
+        predicate only ever REMOVES a member from the binding list, never adds one.
+        """
+        if ann is None:
+            return False
+        base = ann.value if isinstance(ann, ast.Subscript) else ann
+        if isinstance(base, ast.Name):
+            return base.id == "ClassVar"
+        if isinstance(base, ast.Attribute):
+            return base.attr == "ClassVar"
+        return False
 
     def _collect_init_contract_check(self, node: ast.ClassDef) -> Dict[str, Any]:
         """(#43) ROUTE #15 — a constructor's `#@ requires` / `#@ ensures` is never checked.

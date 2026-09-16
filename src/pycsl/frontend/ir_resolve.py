@@ -2202,6 +2202,81 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
         merged_invs: List[Dict[str, Any]] = []
         merged_defaults: Dict[str, Any] = {}
         merged_consts: Dict[str, Any] = {}
+        # (#49) ROUTE #144, SHAPE A — A DERIVED `@dataclass` BOUND **NOTHING** AND EVERY
+        # FIELD TOOK ITS DEFINITE DEFAULT.
+        #
+        # `construction_synth.py` synthesizes a `@dataclass`'s `init_params` from THIS
+        # class's own `AnnAssign`s, and the merge below carried `fields`,
+        # `class_invariants`, `field_defaults` and `constants` ACROSS THE BASE — but not
+        # `init_params`. Python's synthesized `__init__` takes the base dataclasses'
+        # fields FIRST, so a perfectly legal `C(1, 2)` on `class C(B)` looked OVER-ARITY
+        # to the model (`len(args)=2 > len(init_params)=1`), and
+        # `_call_record_constructor`'s over-arity arm — justified by the premise "an
+        # OVER-arity call is a Python error, so binding nothing is fail-closed" — handed
+        # back `_field_default`'s **definite** integer for every field. MEASURED at
+        # `2887ba44`:
+        #     @dataclass
+        #     class B: a: int
+        #     @dataclass
+        #     class C(B): b: int
+        #     C(1, 2).b     #@ ensures \result == 0   <-- PROVED; CPython gives 2
+        # The premise is the route: `len(args) > len(init_params)` is a Python error only
+        # when `init_params` really IS the constructor's parameter list.
+        #
+        # THE FIX IS THE FAITHFUL ONE — make `init_params` the real signature. The base
+        # parameters are PREPENDED, base-first, exactly as Python orders them, and a field
+        # REDECLARED in the subclass keeps its BASE POSITION (PEP 557), which is what
+        # `[p for p in own if p not in merged_ip]` preserves. Merging is gated on BOTH
+        # sides carrying `init_dataclass_synth`: a class with an EXPLICIT `__init__`
+        # declares its whole signature (Python inherits nothing into it), and a
+        # NON-dataclass base contributes no `__dataclass_fields__`, so neither may donate
+        # or receive. CENSUS of classes whose `init_params` move, over the two corpora,
+        # the 53 mirrors and `src/pycsl_lib`: ONE — `StatementEmissionMixin` in
+        # `module6_whyml/statements.py`, which is never constructed — so this is
+        # byte-inert on every verified tree and the correction is visible only to the new
+        # witnesses. (`src/pycsl/ir_schema.py` carries 113 more, but `src/pycsl` is not an
+        # input to the verifier; its mirror `src/self-annotate/src/ir_schema.py` has none.)
+        #
+        # THE ORDER IS PYTHON'S, NOT THE DECLARATION'S — a carrier-rerun on the FIRST
+        # draft of this very repair. `dataclasses._process_class` walks
+        # `cls.__mro__[-1:0:-1]`, i.e. the REVERSED MRO, so for `class Cee(Ay, Bee)`
+        # the field list is Bee's, THEN Ay's, then Cee's own. Draft 1 walked the
+        # DECLARED bases left-to-right and got Ay's first. MEASURED on draft 1:
+        #     @dataclass
+        #     class Ay:  afld: int          # with `def get(self) -> int: return self.afld`
+        #     @dataclass
+        #     class Bee: bfld: int
+        #     @dataclass
+        #     class Cee(Ay, Bee): cfld: int
+        #     Cee(1, 2, 3).get()   #@ ensures \result == 1   <-- PROVED; CPython gives 2
+        # (a base field cannot be read DIRECTLY — `o.afld` emits the unmangled name and
+        # type-errors, a separate pre-existing fail-closed gap — so the probe reads it
+        # through the INHERITED METHOD, and the SINGLE-inheritance twin, where the two
+        # orders agree, is the positive control and PROVES `== 1` correctly). The C3
+        # linearization `_in_mro` computed above for routes #123/#125 is reused here.
+        #
+        # THE DONOR LIST IS `dataclass_fields`, NOT THE DONOR'S `init_params`: a
+        # `@dataclass` that also writes an explicit `__init__` keeps that `__init__` but
+        # still publishes `__dataclass_fields__`, so a subclass inherits those names even
+        # though the base's own signature is the explicit one.
+        merged_ip: List[str] = []
+        merged_ib: List[Dict[str, Any]] = []
+        if td.get("init_dataclass_synth"):
+            _mro144 = _in_mro.get(sub)
+            # An unresolvable MRO (C3 conflict) yields None; fall back to the declared
+            # bases reversed, which agrees with Python on every single-inheritance chain.
+            _chain144 = (list(reversed(_mro144[1:])) if _mro144
+                         else list(reversed(td["bases"])))
+            for _bn144 in _chain144:
+                _bt144 = records.get(_bn144)
+                if _bt144 is None:
+                    continue
+                for _p144 in _bt144.get("dataclass_fields", []) or []:
+                    if _p144 in merged_ip:
+                        continue
+                    merged_ip.append(_p144)
+                    merged_ib.append({"field": _p144,
+                                      "value": {"type": "Var", "name": _p144}})
         for bname in td["bases"]:
             base = records.get(bname)
             # (#49) ROUTE #97 — `--check-behavioral-subtyping` SILENTLY EMITTED NO
@@ -2294,6 +2369,15 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
                 funcs.append(clone)
                 existing_func_names.add(new_name)
                 own_tails.add(tail)
+        # (#49) ROUTE #144 — prepend, base-first, keeping a redeclared field's BASE
+        # position. Empty (and so a no-op leaving the lists identical) unless BOTH this
+        # class and at least one base carry `init_dataclass_synth`.
+        if merged_ip:
+            _own_ip = list(td.get("init_params", []) or [])
+            _own_ib = list(td.get("init_body", []) or [])
+            td["init_params"] = merged_ip + [p for p in _own_ip if p not in merged_ip]
+            td["init_body"] = merged_ib + [e for e in _own_ib
+                                           if e.get("field") not in merged_ip]
         td["fields"] = merged_fields + td["fields"]
         td["class_invariants"] = merged_invs + td.get("class_invariants", [])
         td["field_defaults"] = {**merged_defaults, **td.get("field_defaults", {})}
