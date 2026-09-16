@@ -424,6 +424,69 @@ class ConstructionSynthMixin:
                         self._init_unknown.append(_at.attr)
                     if _at.attr not in self._init_unknown_cf:
                         self._init_unknown_cf.append(_at.attr)   # (#49) ROUTE #89
+            # (#49) ROUTE #154 — AN ELEMENT STORE INTO A FIELD'S CONTAINER IN THE
+            # CONSTRUCTOR CHANGES A VALUE THE LITERAL CAPTURE STATES. MEASURED:
+            # `self.xs = [1, 2]; self.xs[0] = 9` kept route #87's literal and
+            # `C().xs[0] == 1` PROVED (CPython 9); `self.d = {1: 5}; self.d[1] = 9` kept
+            # route #85's literal and `C().d[1] == 5` PROVED (CPython 9). A subscript
+            # store, augmented store or `del` rooted at `self.<f>` makes `<f>` UNKNOWN on
+            # both channels (the container's contents AND its length).
+            for _sb154 in ast.walk(child):
+                if not (isinstance(_sb154, ast.Subscript)
+                        and isinstance(_sb154.ctx, (ast.Store, ast.Del))):
+                    continue
+                _r154 = _sb154.value
+                while isinstance(_r154, ast.Subscript):
+                    _r154 = _r154.value
+                while (isinstance(_r154, ast.Attribute)
+                       and not (isinstance(_r154.value, ast.Name)
+                                and _r154.value.id == "self")):
+                    _r154 = _r154.value
+                if (isinstance(_r154, ast.Attribute) and isinstance(_r154.value, ast.Name)
+                        and _r154.value.id == "self"):
+                    if _r154.attr not in self._init_unknown:
+                        self._init_unknown.append(_r154.attr)
+                    if _r154.attr not in self._init_unknown_cf:
+                        self._init_unknown_cf.append(_r154.attr)
+            # ... AND THE CONTAINER ITSELF MAY ESCAPE: a gen #29 carrier of the rule above
+            # bound `xs = self.xs` and stored `xs[0] = 9` through the local, and
+            # `C().xs[0] == 1` PROVED again. A LOAD of `self.<f>` whose value flows anywhere
+            # other than an element read (`self.<f>[i]`), an attribute read or a call's
+            # callee makes `<f>`'s CONTENTS unknown (collection channel only — an int
+            # field cannot be mutated through an alias).
+            _par154 = {}
+            for _pp154 in ast.walk(child):
+                for _cc154 in ast.iter_child_nodes(_pp154):
+                    _par154[id(_cc154)] = _pp154
+            for _ld154 in ast.walk(child):
+                if not (isinstance(_ld154, ast.Attribute)
+                        and isinstance(_ld154.ctx, ast.Load)
+                        and isinstance(_ld154.value, ast.Name)
+                        and _ld154.value.id == "self"):
+                    continue
+                _pa154 = _par154.get(id(_ld154))
+                if isinstance(_pa154, ast.Subscript) and _pa154.value is _ld154:
+                    continue
+                if isinstance(_pa154, ast.Attribute) and _pa154.value is _ld154:
+                    continue
+                if isinstance(_pa154, ast.Call) and _pa154.func is _ld154:
+                    continue
+                # a read that cannot hand out the object: a pure builtin's argument,
+                # a comparison / boolean / arithmetic operand, a test, an iteration source
+                if (isinstance(_pa154, ast.Call) and isinstance(_pa154.func, ast.Name)
+                        and _pa154.func.id in _pure150):
+                    continue
+                if isinstance(_pa154, (ast.Compare, ast.BoolOp, ast.UnaryOp, ast.BinOp,
+                                       ast.FormattedValue)):
+                    continue
+                if isinstance(_pa154, (ast.If, ast.While, ast.IfExp, ast.Assert)) \
+                        and getattr(_pa154, "test", None) is _ld154:
+                    continue
+                if isinstance(_pa154, (ast.For, ast.comprehension)) \
+                        and _pa154.iter is _ld154:
+                    continue
+                if _ld154.attr not in self._init_unknown_cf:
+                    self._init_unknown_cf.append(_ld154.attr)
             _top_ids = {id(_st) for _st in child.body}
             for _st in ast.walk(child):
                 if id(_st) in _top_ids:
@@ -460,6 +523,12 @@ class ConstructionSynthMixin:
                         _rebound153.add((_al153.asname or _al153.name).split(".")[0])
                 elif isinstance(_n153, (ast.Global, ast.Nonlocal)):
                     _rebound153.update(_n153.names)
+                # a `match` capture binds WITHOUT a Name node (gen #29 carrier: `case k:`
+                # rebound the parameter and `C(5).x == 5` PROVED; CPython 7)
+                elif isinstance(_n153, (ast.MatchAs, ast.MatchStar)) and _n153.name:
+                    _rebound153.add(_n153.name)
+                elif isinstance(_n153, ast.MatchMapping) and _n153.rest:
+                    _rebound153.add(_n153.rest)
             pset = pset - _rebound153
             # (#49) ROUTE #79 — A TOP-LEVEL FIELD INITIALISER WHOSE RHS NAMES ANYTHING
             # OUTSIDE THE PARAMETER SET IS NOT MERELY UNCAPTURED, ITS VALUE IS UNKNOWN,
