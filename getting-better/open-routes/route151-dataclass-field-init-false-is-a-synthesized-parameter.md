@@ -1,6 +1,6 @@
 # ROUTE #151 — a `@dataclass` `field(init=False)` field was treated as a synthesized constructor PARAMETER
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wt150, with route #150); battery E pending.**
+**Status: CLOSED AND FULLY GATED by gen #29 (2026-09-16), battery E (with #150).**
 Severity 1. Generator: carrier-rerun (construction neighbourhood of #148-#150).
 
 ## Measured at `8ebb31e8` (CPython contradicting)

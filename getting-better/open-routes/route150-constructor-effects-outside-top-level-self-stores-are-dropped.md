@@ -63,3 +63,7 @@ classes (not the declared ones — gen #28's lesson) and PREDICT the moved set; 
     intercepting a constructor store (pipeline errors).
   * WATCH: a FOREIGN stateless base defining `__post_init__` is not seen (no record, not in this
     module's list); `super(B, self).__init__` and `A.__init__(self, k)` are opaque, not composed.
+
+**Battery E (every leg predicted and hit):** emission vs the #148/#149-closed tree 1141 -> 1161 0/0/0,
+python-reference and mirrors inert; conformance 38/38 + 38/38; suite 3638/3656 same 18, zero XPASS;
+planes --slow 34/34.
