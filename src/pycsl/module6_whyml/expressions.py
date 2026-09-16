@@ -13937,8 +13937,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # ... and an erased DICT-literal read (`{}[1]`) can raise KeyError, which no
                 # trigger row can state over an erased receiver: under `no_exception
                 # KeyError` (or `\all`) it is an unprovable obligation.
-                if (isinstance(value, dict) and value.get("type") in ("Dict", "DictLit")
-                        and not self._in_spec):
+                # (#49) ROUTE #164 — not only a dict LITERAL: ANY erased receiver may be a
+                # mapping (`os.environ["K"]` proved `no_exception KeyError`, CPython raises).
+                if not self._in_spec:
                     _act159 = set(getattr(self, "_current_no_exception", set()) or set())
                     if getattr(self, "_current_no_exception_all", False):
                         from exception_model import all_phase1_exceptions
