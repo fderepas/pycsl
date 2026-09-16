@@ -2492,6 +2492,11 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
                     td["init_kwonly_params"] = list(_at147["init_kwonly_params"])
                     td["init_kwonly_defaults"] = dict(
                         _at147.get("init_kwonly_defaults", {}))
+                # (#49) ROUTE #149 — the parameter defaults travel with the constructor.
+                if _at147.get("init_param_defaults"):
+                    td["init_param_defaults"] = dict(_at147["init_param_defaults"])
+                if _at147.get("init_default_unknown"):
+                    td["init_default_unknown"] = list(_at147["init_default_unknown"])
                 if _at147.get("init_unknown_fields"):
                     td["init_unknown_fields"] = list(_at147["init_unknown_fields"])
                 if _at147.get("init_unknown_cf_fields"):
