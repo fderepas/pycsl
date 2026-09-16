@@ -9016,6 +9016,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not arr or not arr.strip() or arr.strip() == "0":
             return None                      # iterable itself erased — nothing to fold over
         arr = arr.strip()
+        # (#49) ROUTE #158 — THE FOLD QUANTIFIES OVER `Array.length a`, AND FOR AN EMPTY LIST
+        # THAT IS NOT THE LIST'S LENGTH. `[]` lowers to the emitter's PLACEHOLDER
+        # `(Array.make 1024 0)` (lesson (ao)), so `all(x > 0 for x in [])` folded over 1024
+        # zeros and `\result != 1` PROVED (CPython 1: `all` of nothing is True); `any(x == 0
+        # for x in [])` proved the mirror image, and a LOCAL bound to `[]` did the same.
+        # Decline — the unconstrained oracle stays — whenever the Why3 array's length is not
+        # the Python list's: the placeholder literal itself, a local bound to `[]` (known
+        # size 0), an append target (its length lives in the `X_len` sidecar), or a
+        # rebound collection.
+        if arr == "(Array.make 1024 0)":
+            return None
+        if arr.isidentifier() and (
+                arr in getattr(self, "_current_append_targets", set())
+                or arr in getattr(self, "_rebound_collections", set())
+                or getattr(self, "_known_collection_sizes", {}).get(arr) == 0):
+            return None
         # cap5 (self-tcb-reduction `_refine_tuple_return_type`): a fold over an `array string`
         # refine list-comp local (`any(s != "int" for s in slots)` / `all(x != "int" for x in
         # _s)`) is typed `array string`, its predicate a FAITHFUL string comparison. Handled
