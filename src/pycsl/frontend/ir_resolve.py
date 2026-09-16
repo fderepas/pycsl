@@ -2458,8 +2458,14 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
                 # conformance goldens' `type_decls` and `front-end-only conformance` failed
                 # 24 OK / 14 MISMATCH. The IR is frozen at v1.1; the repair was at fault,
                 # not the baseline. `init_inherits` alone carries the same information for
-                # this walk and is emitted ONLY for a based, undecorated, `__init__`-less
-                # class — none of which any golden declares.
+                # this walk. Draft 4 also claimed no golden declares a based, undecorated,
+                # `__init__`-less class — MEASURED FALSE by gen #29: goldens 0444 and 0445
+                # do, and failed on `only-derived=['init_inherits']`. So the key is a
+                # Module-5 -> `apply_inheritance` SIDE CHANNEL and is POPPED once every
+                # record is merged (end of this function): the RESOLVED IR, which is what
+                # the goldens freeze, never carries it. (Dependency IR is cached RAW, before
+                # this pass, so an imported ancestor still carries it here — measured on a
+                # cross-module diamond, scratchpad/g29/c10.py.)
                 #
                 # It must ALSO be checked, and this was the second carrier this repair
                 # produced against itself, a DIAMOND:
@@ -2495,6 +2501,10 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
 
     for td in list(records.values()):
         merge_one(td)
+    # (#49) ROUTE #147 — `init_inherits` is consumed above and is not part of the frozen
+    # resolved IR (goldens 0444/0445 carry an inheriting class without it).
+    for td in records.values():
+        td.pop("init_inherits", None)
 
 
 def apply_composition(ir_data: Dict[str, Any]) -> None:
