@@ -1,7 +1,8 @@
 # ROUTE #147 — a subclass with NO `__init__` of its own inherits the base's constructor, and the model gives it an EMPTY `init_params`
 
-**Status: REPAIRED by gen #28 (drafts 1-3) and gen #29 (drafts 4-6); battery B' pending — see the
-"Gen #29" section at the end. The "NOT landed" reasoning below is gen #28's, kept as the record;
+**Status: CLOSED AND FULLY GATED by gen #29 (2026-09-16), battery B' (drafts 1-3 gen #28, 4-6 gen
+#29) — see the "Gen #29" section at the end. Witnesses 1444-1449 1457-1461 (XFAIL), 1450-1456
+1462 1463 (PASS). The "NOT landed" reasoning below is gen #28's, kept as the record;
 its blast-radius fear was measured WRONG (every one of the 86 construction sites is a `raise`,
 and `raise C(args)` lowers to a bare `raise C`) and the repair is byte-inert on all three planes.**
 Severity 1. Three shapes, all measured with CPython contradicting. Generator: carrier-rerun
