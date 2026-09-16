@@ -1,6 +1,6 @@
 # ROUTE #148 — an UNANNOTATED float literal stored in a field is TRUNCATED to an int
 
-**Status: OPEN. Found and reproduced by gen #29 (2026-09-16).** Severity 1. Generator: carrier-rerun
+**Status: CLOSED AND FULLY GATED by gen #29 (2026-09-16), battery D (with #149). Witnesses 1480 1483 1484 1485 (XFAIL), 1490 (PASS on both).** Severity 1. Generator: carrier-rerun
 (gen #27's WATCH row on its own #139 `field_defaults` arm).
 
 ## The defect
@@ -36,3 +36,17 @@ the definite witness 0 — the exemption must stop covering a non-integral float
 Accept an `int` (not bool-special-cased beyond today) or an INTEGRAL float only; a non-integral
 float is not a `field_defaults` value, and #79 marks it UNKNOWN. Census the float literals in
 field stores across both corpora, the mirrors, `src/pycsl` and `src/pycsl_lib` before predicting.
+
+## Closed (gen #29, battery D — every leg predicted and hit)
+
+Repair: `construction_synth._collect_init_construction` captures every parameter default of either
+kind — an int, a bool, an integral float or a folded negative literal — into `init_param_defaults`
+(positional, new popped-free IR key emitted only when non-empty) or the existing
+`init_kwonly_defaults`, and lists every other defaulted parameter in `init_default_unknown`;
+`_call_record_constructor` seeds omitted positional arguments, marks fields initialised from an
+omitted unknown-default parameter UNKNOWN (int/bool-typed fields), parenthesizes negative splices,
+and enters the binding block for a zero-argument call when defaults exist. The #147 inherit copy
+carries both keys. A non-integral float literal store is no longer a `field_defaults` value and
+route #79 no longer exempts it.
+Battery D: emission vs the #143-closed tree 1125 -> 1141 0/0/0, python-reference and mirrors inert;
+conformance 38/38 + 38/38; suite 3618/3636 same 18, zero XPASS; planes --slow 34/34.

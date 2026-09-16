@@ -1,6 +1,6 @@
 # ROUTE #149 — an OMITTED positional constructor argument ignores the parameter's DEFAULT
 
-**Status: OPEN. Found and reproduced by gen #29 (2026-09-16).** Severity 1. Generator: carrier-rerun
+**Status: CLOSED AND FULLY GATED by gen #29 (2026-09-16), battery D (with #148). Witnesses 1477-1483 1491 (XFAIL), 1486-1489 1492 (PASS). Extra witnesses 1511/1512 travel with battery E.** Severity 1. Generator: carrier-rerun
 (while probing route #148's float family). The positional twin of route #82.
 
 ## Measured at `acba66f3` (CPython contradicting)
@@ -31,3 +31,17 @@ omitted positional parameters from it, exactly like route #82's keyword-only see
 parameter with a NON-constant default whose argument is omitted makes every field it initialises
 UNKNOWN. Census constructor calls that omit a defaulted positional argument over both corpora and
 the mirrors, and PREDICT the moved emission set before the sweep.
+
+## Closed (gen #29, battery D — every leg predicted and hit)
+
+Repair: `construction_synth._collect_init_construction` captures every parameter default of either
+kind — an int, a bool, an integral float or a folded negative literal — into `init_param_defaults`
+(positional, new popped-free IR key emitted only when non-empty) or the existing
+`init_kwonly_defaults`, and lists every other defaulted parameter in `init_default_unknown`;
+`_call_record_constructor` seeds omitted positional arguments, marks fields initialised from an
+omitted unknown-default parameter UNKNOWN (int/bool-typed fields), parenthesizes negative splices,
+and enters the binding block for a zero-argument call when defaults exist. The #147 inherit copy
+carries both keys. A non-integral float literal store is no longer a `field_defaults` value and
+route #79 no longer exempts it.
+Battery D: emission vs the #143-closed tree 1125 -> 1141 0/0/0, python-reference and mirrors inert;
+conformance 38/38 + 38/38; suite 3618/3636 same 18, zero XPASS; planes --slow 34/34.
