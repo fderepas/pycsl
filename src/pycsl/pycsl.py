@@ -1043,6 +1043,60 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 f"out IS modelled; move the jump after the `try`, or fold the block "
                 f"into the end of the try body.",
                 stage="whyml-emit", code="PYCSL-R37-TRY-ELSE-DROPPED")
+    # (#49) ROUTE #156 — ROUTE #21's REFUSAL COVERS A `finally` WITH HANDLERS; THE OTHER
+    # HALF OF THE SAME RESIDUE WAS STILL DROPPED IN SILENCE. `_handle_try_stmt` appends a
+    # `finally` only when the try has no handlers AND "raise" is not in the lowered body; a
+    # `return`/`raise`/`break`/`continue` in the body lowers to a `raise`, so for a
+    # handler-less try that JUMPS OUT the block vanishes. MEASURED (gen #29):
+    #     x = 0
+    #     try:
+    #         try:     raise ValueError
+    #         finally: x = 7
+    #     except ValueError: pass
+    #     return x                 #@ ensures \result != 7   <-- PROVED; CPython 7
+    # Refused HERE, before emission, for the same reason route #37's twin is:
+    # `_handle_try_stmt` is a CONVERTED mirror method (a raise there needs a body sync and
+    # a whole-file re-proof). A `finally` whose try body cannot jump out is still emitted.
+    for _f156 in ir_data.get("functions", []):
+        # a `\trusted` / `\abstract` body (and a trusted parent's lifted helper) is never
+        # lowered, so nothing of it can be dropped — and an imported dependency stub arrives
+        # marked trusted, so a library's own `try/finally` never refuses its importer.
+        if (_f156.get("trusted") or _f156.get("abstract")
+                or _f156.get("trusted_parent")):
+            continue
+        _s156 = [_f156.get("body", [])]
+        _hit156 = None
+        while _s156 and _hit156 is None:
+            _n156 = _s156.pop()
+            if isinstance(_n156, dict):
+                if (_n156.get("stmt") == "Try" and _n156.get("finalbody")
+                        and not _n156.get("handlers")):
+                    _j156 = [_n156.get("body")]
+                    while _j156:
+                        _x156 = _j156.pop()
+                        if isinstance(_x156, dict):
+                            if _x156.get("stmt") in ("Return", "Raise", "Break", "Continue"):
+                                _hit156 = _f156.get("name", "?")
+                                break
+                            _j156.extend(_x156.values())
+                        elif isinstance(_x156, (list, tuple)):
+                            _j156.extend(_x156)
+                    if _hit156 is not None:
+                        break
+                _s156.extend(_n156.values())
+            elif isinstance(_n156, (list, tuple)):
+                _s156.extend(_n156)
+        if _hit156 is not None:
+            from errors import PyCSLSemanticError as _PyCSLSemErr156
+            raise _PyCSLSemErr156(
+                f"a `try ... finally:` in {_hit156!r} has no handlers and its body jumps "
+                f"out (ROUTE #156): Module 6 appends the `finally` block only when the "
+                f"lowered try body contains no `raise`, and a `return`/`raise`/`break`/"
+                f"`continue` lowers to one — so the block would be DROPPED on every path "
+                f"and the run would still report 'All contracts formally proven'. A "
+                f"`finally` whose try body cannot jump out IS modelled; move the jump "
+                f"after the `try`.",
+                stage="whyml-emit", code="PYCSL-R156-TRY-FINALLY-JUMP-DROPPED")
     if "R31_UNMODELLED_LIST_TRUTHINESS" in _mlw:
         # ROUTE #31 (relaunch #45) — the Python truthiness of a list local whose
         # LENGTH the model does not carry. `_to_bool` used to answer `true` for
