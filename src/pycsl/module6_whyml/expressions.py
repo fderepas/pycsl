@@ -7360,6 +7360,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # leaving the array untouched. So the guard keys on the CALL'S LOWERING, not on the
         # receiver: a mutator whose abstract op takes neither the receiver nor a `writes`
         # clause has had its effect deleted, wherever the receiver came from.
+        # (#49) ROUTE #162 — THE SAME ERASURE THROUGH A MODULE FUNCTION THAT MUTATES ITS
+        # ARGUMENT. The guard below keys on a METHOD name on the receiver; `heapq.heapify(xs)`
+        # has no receiver to mutate, the list is an ARGUMENT, and the abstract op takes no
+        # `writes` — so `f(xs)` with `heapq.heapify(xs)` under `#@ assigns \nothing` let a
+        # caller prove `xs[0]` unchanged (CPython reorders it). A DENYLIST of standard-library
+        # functions documented to mutate an argument in place (a whitelist of pure callees
+        # would refuse the mirror's own `json.dumps`/`os.path`/IRScanner calls); the
+        # systemic question is recorded with the route.
+        _R162_ARG_MUTATORS = frozenset((
+            "heapq.heapify", "heapq.heappush", "heapq.heappop", "heapq.heappushpop",
+            "heapq.heapreplace", "random.shuffle", "bisect.insort", "bisect.insort_left",
+            "bisect.insort_right", "struct.pack_into", "operator.setitem",
+            "operator.delitem", "operator.iadd", "operator.iconcat"))
+        if not writes_clause and func_name in _R162_ARG_MUTATORS:
+            raise PyCSLIRError(
+                "`" + func_name + "(...)` MUTATES an ARGUMENT in place, and no certified "
+                "lowering models it: the call becomes an abstract operation with no `writes` "
+                "clause, so the mutation would be SILENTLY ABSENT and an unchanged-contents "
+                "claim about the argument would be proved (route #162; measured: "
+                "`heapq.heapify(xs)` under `#@ assigns \\nothing`). Model the mutation with "
+                "indexed stores, or mark the enclosing function `#@ \\trusted`.")
         if (not receiver_param and not writes_clause
                 and "." in func_name
                 and func_name.rsplit(".", 1)[1] in _SELF_FIELD_MUTATORS):
