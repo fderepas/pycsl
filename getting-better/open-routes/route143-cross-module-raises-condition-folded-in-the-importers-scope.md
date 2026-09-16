@@ -1,6 +1,6 @@
 # ROUTE #143 — an IMPORTED function's `raises` condition is folded against the IMPORTING module's constants
 
-**Status: OPEN. Found and reproduced by gen #27 (2026-09-16). NOT repaired — deliberately.**
+**Status: REPAIR DRAFTED by gen #29 (worktree, drafts 1-4); battery pending — see "Gen #29" at the end.**
 Severity 1. Both directions measured. Generator: carrier-rerun, on gen #27's own #140/#141 repairs.
 
 ## The exploit (measured, both directions)
@@ -116,3 +116,41 @@ route.
   - exploit and control: `scratchpad/g27/j1.py` (PROVES, CPython raises) and
     `scratchpad/g27/j2.py` (the same file without `LIM = 5` — correctly refused)
   - probe-ledger rows: `g27-cross-module-raises-condition-folded-in-the-importers-scope`
+
+
+## Gen #29 — re-measure, wider shapes, and the repair
+
+**Re-measured at `260bb92a`.** j1 still PROVES. NOTE: gen #27's `j1.py`/`j2.py` must be run with the
+corpus on the import path; from `scratchpad/g27` the import prints `external module ... skipping`
+and j2 then PROVES for an unrelated reason (nothing is imported).
+
+**The route is wider than `raises` and wider than a from-import.** All PROVED at HEAD with CPython
+contradicting: a MODULE import (`lib.f(k)`, witness 1465), a WILDCARD import rebound afterwards
+(1466), an imported CLASS's method (1467), a name the importer imports FROM ANOTHER module (1468),
+and an ENSURES clause (`\result == BASE`, 1475). FAIL-CLOSED at HEAD (the proof or Why3 refuses),
+refused now: a binding in a module-level `if` (1469), a name reaching the importer only through
+another module's wildcard (1470) or a two-hop wildcard (1474), a condition CALLING a helper the
+importer redefines (1471). FAIL-CLOSED and untouched: a caller LOCAL or PARAMETER named like the
+dependency's constant — the call-site assert binds it, but the `with ValueError -> absurd` arm is
+judged against the `val`'s own global, and stays unprovable.
+
+**The repair (inside `resolve_imports`, no new `def`s).** `_process_dependency` tags every
+dependency function with its file; at the end of `resolve_imports` every tagged function that
+reached the importer is checked and the tag POPPED (the resolved IR — the frozen goldens — never
+carries it). REFUSE when a name is (a) read by the injected contract — a `Var`, a string `Call`
+callee or an `Attribute` root, every clause; (b) bound at module level by the function's own file,
+its wildcard sources followed transitively; (c) not a formal parameter or `self`; and (d) bound at
+module level by the importer by anything other than an import of THAT name from THAT file, or —
+when the importer does not bind it explicitly — exported by a wildcard import of another file.
+Positive control 1472: `from lib import g2, LIM` is allowed and `requires k >= LIM` discharges.
+
+**Carrier found against the repair itself:** draft 2 built the dependency-bound set from explicit
+bindings only, and a callee module that obtains `LIM` through its OWN `from consts import *`
+PROVED again (witness 1473). Draft 3 follows wildcard sources on both sides.
+
+**Two gates the placement had to respect, both measured on the draft.** Helper `def`s in
+`ir_resolve.py` broke the mirror-coverage ratchet (556 > 549); parking them in an unmirrored file
+would game it, so the check is inlined into two functions the mirror already carries as
+`\trusted` stubs. And a new `raise` in `resolve_imports` broke the trusted-raises ratchet (63 > 62);
+the mirror stub now DECLARES `#@ raises PyCSLSemanticError when True` (route #59's precedent),
+14 declared / 62 silent.
