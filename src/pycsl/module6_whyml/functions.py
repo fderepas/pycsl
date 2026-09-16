@@ -629,8 +629,71 @@ class FunctionEmissionMixin:
                     if _r65_n.get("type") == "Call" and isinstance(_r65_f, str):
                         if "." in _r65_f:
                             _r65_key = ("attr_call", _r65_f.rsplit(".", 1)[1])
+                        elif _r65_n.get("receiver") is not None:
+                            # (#49) ROUTE #160 — a method call on an EXPRESSION receiver
+                            # (`"a".split("")`) carries `receiver` and an UNDOTTED `func`, so
+                            # it was keyed ("call", "split") and route #72's refusal never
+                            # saw it: `len("a".split(""))` PROVED `no_exception ValueError`.
+                            _r65_key = ("attr_call", _r65_f)
                         else:
                             _r65_key = ("call", _r65_f)
+                        # (#49) ROUTE #160 — three more builtins that raise with no trigger
+                        # row, each PROVING a matching `no_exception` (gen #29, CPython
+                        # raising): `range(0, 5, 0)` (ValueError, zero step), `pow(0, -1)`
+                        # (ZeroDivisionError), `max([])` / `min([])` (ValueError, empty
+                        # iterable, no `default=`). None has a faithful obligation to inject,
+                        # so each is REFUSED unless its arguments make the raise
+                        # syntactically impossible (the route #72 convention).
+                        _r160_args = list(_r65_n.get("args") or [])
+                        # the constant value of each argument, or None (inline: a helper
+                        # `def` here would move the mirror-coverage ratchet)
+                        _r160_nums = []
+                        for _x in _r160_args:
+                            _v160 = None
+                            if (isinstance(_x, dict) and _x.get("type") == "Number"
+                                    and isinstance(_x.get("value"), int)):
+                                _v160 = _x["value"]
+                            elif (isinstance(_x, dict) and _x.get("type") == "UnaryOp"
+                                    and _x.get("op") == "-" and isinstance(_x.get("expr"), dict)
+                                    and _x["expr"].get("type") == "Number"
+                                    and isinstance(_x["expr"].get("value"), int)):
+                                _v160 = -_x["expr"]["value"]
+                            _r160_nums.append(_v160)
+                        _r160_msg = None
+                        if (_r65_key == ("call", "range") and len(_r160_args) == 3
+                                and (_r65_all or "ValueError" in _r65_named)):
+                            _r160_st = _r160_nums[2]
+                            if _r160_st is None or _r160_st == 0:
+                                _r160_msg = ("`range(start, stop, step)` raises `ValueError` "
+                                             "for a zero step")
+                        elif (_r65_key == ("call", "pow") and len(_r160_args) >= 2
+                                and (_r65_all or "ZeroDivisionError" in _r65_named
+                                     or "ValueError" in _r65_named)):
+                            _r160_b = _r160_nums[0]
+                            _r160_e = _r160_nums[1]
+                            if not ((_r160_e is not None and _r160_e >= 0)
+                                    or (len(_r160_args) == 2 and _r160_b not in (None, 0))):
+                                _r160_msg = ("`pow(base, exp)` raises `ZeroDivisionError` "
+                                             "(or `ValueError` with a modulus) for a "
+                                             "negative exponent")
+                        elif (_r65_key in (("call", "max"), ("call", "min"))
+                                and len(_r160_args) == 1
+                                and not any(isinstance(_k, dict) and _k.get("arg") == "default"
+                                            for _k in (_r65_n.get("keywords") or []))
+                                and (_r65_all or "ValueError" in _r65_named)):
+                            _r160_it = _r160_args[0]
+                            if not (isinstance(_r160_it, dict)
+                                    and _r160_it.get("type") in ("ArrayLit", "Tuple", "List")
+                                    and (_r160_it.get("elts") or [])):
+                                _r160_msg = ("`" + _r65_f + "(iterable)` raises `ValueError` "
+                                             "on an empty iterable without `default=`")
+                        if _r160_msg is not None:
+                            raise PyCSLIRError(
+                                _r160_msg + ", and this function claims `#@ no_exception` "
+                                "over it. There is no trigger row for this builtin and no "
+                                "faithful obligation to inject, so the claim would be proved "
+                                "vacuously (route #160). Use a literal argument that cannot "
+                                "raise, or drop the exception from the context.")
                         # (#49) ROUTE #66 — `int(<str>)` raises `ValueError` on a
                         # non-numeric string and has NO trigger row at all. It lowers to an
                         # OPAQUE `val str_to_int (s: string) : int`, so unlike `del d[k]`
