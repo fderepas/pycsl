@@ -1,6 +1,9 @@
 # ROUTE #147 — a subclass with NO `__init__` of its own inherits the base's constructor, and the model gives it an EMPTY `init_params`
 
-**Status: OPEN. Found and reproduced by gen #28 (2026-09-16). NOT repaired — deliberately.**
+**Status: REPAIRED by gen #28 (drafts 1-3) and gen #29 (drafts 4-6); battery B' pending — see the
+"Gen #29" section at the end. The "NOT landed" reasoning below is gen #28's, kept as the record;
+its blast-radius fear was measured WRONG (every one of the 86 construction sites is a `raise`,
+and `raise C(args)` lowers to a bare `raise C`) and the repair is byte-inert on all three planes.**
 Severity 1. Three shapes, all measured with CPython contradicting. Generator: carrier-rerun
 (on gen #28's own route-#144 repair).
 
@@ -98,3 +101,40 @@ finding.**
   - probe-ledger rows: `g28-plain-subclass-of-a-dataclass-binds-nothing`,
     `g28-plain-subclass-of-an-explicit-init-binds-nothing`,
     `g28-undecorated-subclass-declaring-its-own-annotation`.
+
+
+## Gen #29 — drafts 4, 5, 6 (the repair as landed)
+
+**Draft 4 (found uncommitted after a reboot).** Draft 3's separate `has_own_init` IR key appeared on
+14 of the 38 frozen conformance goldens (front-end-only conformance 24 OK / 14 MISMATCH). The walk
+now keys on `init_inherits` alone: stop at the first ancestor that is NOT `init_inherits`, walk
+THROUGH one that is.
+
+**Draft 5 — five carriers of the repair, found by rerunning it against itself.**
+  1. An UNMODELLED ancestor ahead of the definer (`class Cee(Exception, Ay): pass`): the walk
+     `continue`d past `records.get(...) is None` and copied Ay's constructor. `Cee(7).get() == 7`
+     PROVED; CPython 5 (BaseException's constructor binds nothing). Witness 1457.
+  2. The same with an in-module STATELESS base (no fields, so no record) that defines a constructor.
+     Witness 1458.
+  3. and 4. Against my own fences — a walk-through list `{object, Generic, ABC}`, then `{object}`:
+     stateless user classes NAMED `ABC` and `object` proved the same false `== 7`. Witnesses 1459,
+     1460. FINAL RULE: every unmodelled ancestor STOPS the walk with nothing copied; the real
+     `object` is last in every C3 MRO, so stopping on it loses nothing.
+  5. `@dataclass(init=False)` generates no constructor, so it INHERITS; #147 excluded every decorated
+     class and #144 synthesized one. `Cee(7).get() == 0` PROVED at `da51d62b` AND on draft 4; CPython
+     107. New helper `_dc_decorator_init_false` (constant keyword only — census of `dataclass(...
+     init=` over both corpora, the mirrors, `src/pycsl` and `src/pycsl_lib`: ZERO). Witnesses 1461
+     (XFAIL), 1462 (PASS, fails at `da51d62b`), 1463 (PASS on both).
+  FAIL-CLOSED: `__init__ = _mk` bound in the class body; `@dataclass(init=False)` over a dataclass base
+  (false claim); a `*args` constructor storing a literal (the #139 channel carries it).
+
+**Draft 6 — the conformance leg MISSED its prediction and was right.** Draft 4's comment claimed no
+golden declares a based, undecorated, `__init__`-less class; goldens 0444 and 0445 do, and failed on
+`only-derived=['init_inherits']`. The key is now a Module-5 -> `apply_inheritance` SIDE CHANNEL,
+POPPED once every record is merged, so the RESOLVED IR the goldens freeze never carries it.
+Dependency IR is cached RAW (before `apply_inheritance`), so an IMPORTED inheriting ancestor still
+carries the key during the walk — measured faithful on a cross-module diamond
+(`scratchpad/g29/c10.py`: false `== 7` refused, true `== 107` proves).
+
+LESSON: **AN UNMODELLED NAME IN A WALK IS NOT "NOTHING THERE".** `records.get(x) is None` means the
+model cannot see `x`, and a `continue` on it is an assumption about `x`'s behaviour.
