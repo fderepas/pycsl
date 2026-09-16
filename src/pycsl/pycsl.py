@@ -1127,6 +1127,25 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             "or-pattern of those, and a constructor pattern of a declared "
             "`#@ datatype`. Sequence, mapping, class and as-patterns are not.",
             stage="whyml-emit", code="PYCSL-R30-UNINTERPRETED-PATTERN")
+    # (#49) ROUTE #157 — A SLICE ASSIGNMENT RESIZES THE LIST UNLESS THE SOURCE IS EXACTLY
+    # AS LONG AS THE SLICE, AND THE MODEL IS A FIXED-LENGTH `Array.blit`. MEASURED (gen #29):
+    #     a = [1, 2]; a[2:] = [3, 4]; return len(a)      #@ ensures \result != 4  <-- PROVED
+    # (CPython 4): the blit copied `len(a) - 2 = 0` elements and the length stayed 2. The
+    # faithful lowering (a resize) is a new value shape; the sound one is to make EQUAL
+    # LENGTH a proof obligation, so a length-preserving slice store keeps its model and a
+    # resizing one fails to prove. The obligation is added HERE, on the emitted text, because
+    # `_handle_array_slice_set_stmt` is a CONVERTED mirror method: the emitter's own
+    # per-element hint `assert { forall i : int. (0 <= i /\ i < (W)) -> (D[(L) + i] = S[i]) }`
+    # follows every blit and names the width `W` and the (identifier) source `S`, so the
+    # length assertion is appended right after it. Census: 0 slice assignments in the
+    # mirrors or python-reference; 13 in pycsl-reference (11 files).
+    import re as _re157
+    _mlw = _re157.sub(
+        r"(assert \{ forall i : int\. \(0 <= i /\\ i < \((?P<w>.*)\)\) -> "
+        r"\((?P<d>.*)\[\((?P<lo>.*)\) \+ i\] = (?P<s>[A-Za-z_][A-Za-z0-9_']*)\[i\]\) \})",
+        lambda _m157: (_m157.group(1) + " ;\n    assert { Array.length "
+                       + _m157.group("s") + " = (" + _m157.group("w") + ") }"),
+        _mlw)
     return _mlw
 
 
