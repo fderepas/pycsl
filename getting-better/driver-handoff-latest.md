@@ -3,17 +3,18 @@
 # ## STATUS (updated as work lands — trust `git log` + driver-progress.log over this block)
 #   - Machine REBOOTED ~07:47Z 2026-09-16: /tmp scratchpads and all baselines were lost. Why3 is NOT on the default
 #     PATH: `. scratchpad/g29/env.sh` (adds ~/.opam/framac-coq8/bin, PYTHONHASHSEED=0).
-#   - CLOSED this generation: #147 (acba66f3), #143 (8ebb31e8), #148+#149 (8b91a93b), #150+#151 (52a02d5a).
-#   - BATTERY F' RUNNING for #152 (return in __init__), #153 (parameter rebound in __init__, incl. match captures),
-#     #154 (element store / escaping load of a field container in __init__): branch wip/g29-r152, worktree
-#     $SCRATCH/wt152, baseline emitE. Predicted: corpus 1161->1170 0/0/0, suite 3647/3665, planes 34/34.
-#     On green: `git cherry-pick wip/g29-r150..wip/g29-r152` onto the branch, check `git diff wip/g29-r152 --
-#     src test-suite` is empty, CLOSED commit, route files 152/153/154 status.
-#   - Battery F (first version) was STOPPED deliberately with no verdict read to fold carriers (recorded).
+#   - CLOSED this generation: #147 (acba66f3), #143 (8ebb31e8), #148+#149 (8b91a93b), #150+#151 (52a02d5a),
+#     #152+#153+#154 (e27e6797).
+#   - BATTERY G RUNNING for #155 (composed closed entry in a parameterless ctor), #156 (handler-less finally
+#     dropped on a jump -> PYCSL-R156, TRYFINAL 9->5), #157 (resizing slice assignment -> length assert
+#     appended in pycsl.py): branch wip/g29-r155, worktree $SCRATCH/wtH, baseline emitF. Predicted EXACTLY 10
+#     corpus files MOVED (the slice-store files), suite 3659/3677, planes 34/34.
+#     On green: `git cherry-pick wip/g29-r152..wip/g29-r155`, `git diff wip/g29-r155 -- src test-suite bin docs`
+#     empty, CLOSED commit, route files 155/156/157 status.
 #   ($SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad — tmpfs.
 #    All worktree work is committed to the local branches wip/g29-* — recover from those, not from /tmp.)
-#   - NEXT IDEAS: the construction neighbourhood has produced #147-#154 in one day; keep carrier-rerunning it
-#     (method-level twins measured fail-closed so far); then the older ladder (deferral-audit list, WATCH rows).
+#   - GENERATORS THAT WORKED TODAY: carrier-rerun on the construction model (#147-#155), continue-census on a
+#     refusal's own "X IS modelled" sentence (#156), and following an alias fence to its alias-free shape (#157).
 #
 # ## LESSONS SO FAR (gen #29)
 #   >>> AN UNMODELLED NAME IN A WALK IS NOT "NOTHING THERE" (`records.get(x) is None` -> continue was an assumption).
