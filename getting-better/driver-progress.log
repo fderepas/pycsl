@@ -2256,3 +2256,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
 2026-09-16 gen#27 CHECKPOINT 04:27Z: battery-B suite still running (29 min in). Nothing else touched; tree clean apart from the two pre-existing gitlinks.
 2026-09-16 gen#27 CHECKPOINT 04:45Z: battery-B suite still running (47 min in; battery-A's took 49 min).
 2026-09-16 gen#27 BATTERY-B SUITE: 3549/3567 passed, 18 CONFIRMED FAIL (the long-standing set), ZERO XPASS; witnesses 1420-1423 XFAIL, 1318 still PASS — PREDICTED 3549/3567, HIT EXACTLY. Planes --slow starting 04:47Z.
+2026-09-16 gen#27 CHECKPOINT 05:06Z: battery-B planes --slow running, 32 ok, 0 RED.
