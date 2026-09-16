@@ -1,3 +1,31 @@
+# ====== START HERE — gen #29 IN PROGRESS (autonomous 96h run, deadline epoch 1789893581 = 2026-09-20T08:39Z) ======
+#
+# ## STATUS (updated as work lands — trust `git log` + driver-progress.log over this block)
+#   - Machine REBOOTED ~07:47Z 2026-09-16: /tmp scratchpads and all baselines were lost. Why3 is NOT on the default
+#     PATH: `. scratchpad/g29/env.sh` (adds ~/.opam/framac-coq8/bin, PYTHONHASHSEED=0).
+#   - ROUTE #147 CLOSED (commit acba66f3), battery B', drafts 4-6 by gen #29 (unmodelled-ancestor stop,
+#     @dataclass(init=False), init_inherits popped from the resolved IR). Witnesses 1444-1463.
+#   - ROUTE #143 REPAIR in worktree `$SCRATCH/wt143` (drafts 1-6 on top of acba66f3), battery C RUNNING:
+#     emission HIT (corpus 1123->1125 0/0/0, pyref inert, mirrors 1 MOVED = frontend__ir_resolve `raises` line);
+#     whole-file proofs of that mirror at baseline (wt_b @ acba66f3) and candidate RUNNING; then suite
+#     (predict 3602/3620) and planes --slow (34/34). Witnesses 1464-1476. On green: cherry-pick the wt143
+#     commits onto the branch and write CLOSED(#49) #143.
+#   - ROUTES #148 (unannotated float literal field truncated) + #149 (omitted ctor argument ignores its
+#     parameter default — positional twin of #82, plus #82's bool/module-constant/float gaps) FOUND LIVE and
+#     drafted in worktree `$SCRATCH/wt149` (based on the branch before #143 lands — rebase after). Witnesses
+#     1477-1490. Battery D not yet predicted. Census: 8 classes with positional ctor defaults, 0 omitting call
+#     sites by bare name, 0 goldens.
+#   ($SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad — tmpfs, lost on reboot;
+#    every worktree commit is ALSO recoverable only if cherry-picked; if the worktrees are gone, redo from the route files.)
+#
+# ## LESSONS SO FAR (gen #29)
+#   >>> AN UNMODELLED NAME IN A WALK IS NOT "NOTHING THERE" (`records.get(x) is None` -> continue was an assumption).
+#   >>> A PROBE WHOSE CWD IS NOT THE SUITE'S CWD TESTS A DIFFERENT RESOLVER (#143 draft 5 looked green from scratchpad).
+#   >>> A NEW `raise` IN A MIRRORED TRUSTED FUNCTION MOVES THE TRUSTED-RAISES RATCHET; DECLARE `#@ raises` ON THE STUB.
+#   >>> NEW `def`s IN A MIRRORED FILE MOVE MIRROR-COVERAGE; inline into an already-trusted function rather than
+#       parking helpers in an unmirrored file.
+#   >>> "a non-constant default stays omitted and is route #79's class" — no #79 arm reads parameter defaults (#149).
+#
 # ====== START HERE — gen #27 FINAL STATE — read this block first ==================
 #
 # ## STATUS: COMPLETE. Tree clean (two PRE-EXISTING gitlinks only), everything committed, no background process
