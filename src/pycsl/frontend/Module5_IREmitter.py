@@ -3185,6 +3185,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         fields: List[Dict[str, Any]] = []
         field_names_seen: Set[str] = set()
         field_defaults: Dict[str, int] = {}
+        # (#49) ROUTE #145 side-channel, reset per class: `@dataclass` class-body fields
+        # whose declared default is name-free but COMPUTED, and so has no captured value.
+        # They join route #83's `init_unknown_fields` (→ `(any int)`) rather than taking
+        # `_field_default`'s definite literal `0`. Empty for every class in the corpora,
+        # the mirrors and `pycsl_lib`, so the key stays absent and emission is unchanged.
+        self._m5_dc_unknown: List[str] = []
         for child in node.body:
             if isinstance(child, ast.FunctionDef) and child.name == '__init__':
                 for stmt in ast.walk(child):
@@ -3396,9 +3402,82 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         _fld2["key_type"] = _kt2
                     fields.append(_fld2)
                     field_names_seen.add(stmt.target.id)
-                    if (stmt.value is not None and isinstance(stmt.value, ast.Constant)
-                            and isinstance(stmt.value.value, (int, float))):
-                        field_defaults[stmt.target.id] = int(stmt.value.value)
+                    # (#49) ROUTE #145 — THE CLASS-BODY DEFAULT COLLECTOR KEYED ON
+                    # `isinstance(value, ast.Constant)`, AND PYTHON'S PARSER DOES NOT FOLD.
+                    #
+                    # This is gen #27's route #139 ONE LEVEL UP, found by CARRIER-RERUN on
+                    # that very repair: #139 taught the `__init__`-BODY collector to fold a
+                    # unary-minus literal with `_const_int_value`, and left THIS collector —
+                    # the one every `@dataclass` uses — on the raw `ast.Constant` test. A
+                    # field with no `field_defaults` entry falls to `_field_default`'s
+                    # **definite** literal `0`. MEASURED at `2887ba44`, each PROVING with
+                    # CPython contradicting:
+                    #     @dataclass
+                    #     class Pee: xfld: int = -7            # UnaryOp   -> proved 0, CPython -7
+                    #     class Pee: xfld: int = 2 + 3         # BinOp     -> proved 0, CPython  5
+                    #     class Pee: xfld: int = field(default=5)   # Call -> proved 0, CPython  5
+                    #
+                    # THREE ARMS, IN ORDER, AND THE ORDER IS LOAD-BEARING:
+                    #  1. `field(default=<x>)` is UNWRAPPED first — it is the dataclass
+                    #     spelling of a default and the wrapper hides every shape below it.
+                    #     `field(default_factory=...)` and a bare `field()` carry NO default
+                    #     and are left exactly as they were: the typed default they already
+                    #     get (an empty map for `default_factory=dict`) is FAITHFUL, and the
+                    #     13 corpus sites are all of that form.
+                    #  2. a NUMERIC `ast.Constant` keeps the pre-existing `int(...)` path
+                    #     VERBATIM (so `True`/`2.5` behave exactly as before — byte-identical),
+                    #     then `_const_int_value` folds the unary-minus literal.
+                    #  3. anything else that is name-free-but-COMPUTED is marked UNKNOWN
+                    #     (`(any int)`), never given a witness value — the lesson that a
+                    #     completeness fix supplying a witness is a soundness route waiting to
+                    #     happen. STRING/None/bool constants and collection literals or factory
+                    #     calls are EXCLUDED from that arm because they are carried by their own
+                    #     channels (#51's `field_str_defaults`, #85's map literals, #87's list
+                    #     literals); disturbing them here would re-price working corpus files.
+                    # CENSUS over the two corpora, the 53 mirrors and `pycsl_lib`: 48 numeric
+                    # class-body defaults (arm 2, unchanged), 161 non-numeric `ast.Constant`
+                    # and 14 collection literals/factory calls (all excluded), and ZERO
+                    # UnaryOp/BinOp/Name — so arms 1 and 3 have LIVE POPULATION 0 and the
+                    # emission is byte-inert.
+                    _rhs145 = stmt.value
+                    _isfield145 = False
+                    _factory145 = False
+                    if isinstance(_rhs145, ast.Call):
+                        _ff145 = _rhs145.func
+                        if ((isinstance(_ff145, ast.Name) and _ff145.id == "field")
+                                or (isinstance(_ff145, ast.Attribute)
+                                    and _ff145.attr == "field")):
+                            _isfield145 = True
+                            _factory145 = any(_k145.arg == "default_factory"
+                                              for _k145 in _rhs145.keywords)
+                            _rhs145 = next((_k145.value for _k145 in _rhs145.keywords
+                                            if _k145.arg == "default"), None)
+                    if _rhs145 is None and _factory145:
+                        # (#49) ROUTE #145, carrier-rerun on this very arm: a
+                        # `default_factory` RUNS A FUNCTION at construction time, and its
+                        # result is not a value this front end can know. For a COLLECTION
+                        # field that is harmless — the typed default (`{}`/empty array)
+                        # IS what `dict`/`set`/`list` produce, and `init_unknown_fields`
+                        # is `_NONSCALAR`-gated in Module 6 so those 13 corpus sites are
+                        # untouched. For a SCALAR field it was a DEFINITE 0:
+                        #     xfld: int = field(default_factory=five)
+                        #     Pee().xfld    #@ ensures \result == 0  <-- PROVED; CPython 5
+                        # so the field is marked UNKNOWN and the scalar case fails closed.
+                        self._m5_dc_unknown.append(stmt.target.id)
+                    elif _rhs145 is None:
+                        pass
+                    elif (isinstance(_rhs145, ast.Constant)
+                            and isinstance(_rhs145.value, (int, float))):
+                        field_defaults[stmt.target.id] = int(_rhs145.value)
+                    elif self._const_int_value(_rhs145) is not None:
+                        field_defaults[stmt.target.id] = self._const_int_value(_rhs145)
+                    elif isinstance(_rhs145, (ast.Constant, ast.Dict, ast.List,
+                                              ast.Set, ast.Tuple)):
+                        pass
+                    elif isinstance(_rhs145, ast.Call) and not _isfield145:
+                        pass
+                    else:
+                        self._m5_dc_unknown.append(stmt.target.id)
         return fields, field_defaults
 
     @staticmethod
@@ -3961,6 +4040,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 _l87lit.pop(_f87, None)
             _kwo = getattr(self, "_init_kwonly", ([], {}))
             _unk = list(getattr(self, "_init_unknown", []) or [])
+            # (#49) ROUTE #145 — the class-body `@dataclass` computed-default fields join
+            # the SAME channel. `_collect_class_fields` ran above, and
+            # `_collect_init_construction` (which resets `_init_unknown`) runs after it,
+            # so the two lists are merged here rather than in either collector.
+            for _u145 in (getattr(self, "_m5_dc_unknown", []) or []):
+                if _u145 not in _unk:
+                    _unk.append(_u145)
             # (#49) ROUTE #89 — the control-flow-only subset, for the COLLECTION arms.
             _unkcf = list(getattr(self, "_init_unknown_cf", []) or [])
             # (#49) ROUTE #144 — "these `init_params` were synthesized from a
@@ -3968,6 +4054,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # `apply_inheritance` to prepend the base dataclasses' parameters.
             _dcs144 = bool(getattr(self, "_init_dc_synth", False))
             _dcf144 = list(getattr(self, "_init_dc_fields", []) or [])
+            _dck146 = list(getattr(self, "_init_dc_kwonly", []) or [])
             init_ensures = self._collect_init_ensures(node)
             # (#49) ROUTE #123 — a CLASS-BODY BINDING (`m = lambda self: 2`,
             # `m = staticmethod(abs)`, `group = _color_match_group`) OVERRIDES an inherited
@@ -4031,6 +4118,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # while its OWN signature is the explicit one. Emitted only for a
                 # `@dataclass` with at least one field.
                 **({"dataclass_fields": _dcf144} if _dcf144 else {}),
+                # (#49) ROUTE #146: the KEYWORD-ONLY half of the same list, kept apart so
+                # a subclass inherits a keyword-only field AS keyword-only and never binds
+                # it from a positional argument.
+                **({"dataclass_kwonly_fields": _dck146} if _dck146 else {}),
                 # (#49) ROUTE #82: the KEYWORD-ONLY constructor parameters (and their
                 # constant defaults), carried SEPARATELY from `init_params` because
                 # that list is the POSITIONAL binding list. Emitted ONLY when the

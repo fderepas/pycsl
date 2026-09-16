@@ -124,12 +124,63 @@ class ConstructionSynthMixin:
         # publishes `__dataclass_fields__`, so a subclass of it inherits these names even
         # though the class's own `init_params` are the explicit signature. `ClassVar`
         # members are excluded here for the same reason as below (PEP 557 pseudo-fields).
-        self._init_dc_fields: List[str] = (
-            [stmt.target.id for stmt in node.body
-             if isinstance(stmt, ast.AnnAssign)
-             and isinstance(stmt.target, ast.Name)
-             and not self._ann_is_classvar(stmt.annotation)]
-            if self._is_dataclass_decorated(node) else [])
+        # (#49) ROUTE #146 — A KEYWORD-ONLY `@dataclass` FIELD IS NOT A POSITIONAL ONE,
+        # AND KEEPING IT IN THE POSITIONAL LIST SHIFTS EVERY BINDING AFTER IT. Python
+        # 3.10 added THREE spellings, and all three change the ORDER of the synthesized
+        # `__init__`'s positional parameters:
+        #   `@dataclass(kw_only=True)`        every field is keyword-only;
+        #   `x: int = field(kw_only=True)`    that one field is (and `kw_only=False`
+        #                                     forces a field back to positional);
+        #   `_: KW_ONLY`                      a SENTINEL pseudo-field: it is not a field
+        #                                     at all and every field AFTER it is kw-only.
+        # MEASURED at `2887ba44`, PROVING with CPython contradicting:
+        #     @dataclass
+        #     class Pee:
+        #         xfld: int = field(kw_only=True, default=0)
+        #         yfld: int = 0
+        #     Pee(5, xfld=1).yfld    #@ ensures \result == 0   <-- PROVED; CPython gives 5
+        # because `yfld` is Python's FIRST positional parameter while the model made it
+        # the second, bound `xfld` from the 5, and then let the explicit `xfld=1` keyword
+        # overwrite it — leaving `yfld` on its default. The keyword-only names go out on
+        # route #82's EXISTING channel (`init_kwonly_params`/`init_kwonly_defaults`),
+        # which binds BY NAME ONLY and can never take a positional argument.
+        # CENSUS of `kw_only` / `KW_ONLY` over the two corpora, the 53 mirrors and
+        # `pycsl_lib`: ONE file, `src/pycsl_lib/dc/__init__.py`, and that is the STUB
+        # DECLARING `field(...)`, not a use — so this is byte-inert.
+        _dcpos: List[str] = []
+        _dckw: List[str] = []
+        _dckwd: Dict[str, Any] = {}
+        if self._is_dataclass_decorated(node):
+            _kwall = self._dc_decorator_kw_only(node)
+            _sentinel = False
+            for stmt in node.body:
+                if not (isinstance(stmt, ast.AnnAssign)
+                        and isinstance(stmt.target, ast.Name)):
+                    continue
+                if self._ann_is_classvar(stmt.annotation):
+                    continue
+                if self._ann_is_kw_only_sentinel(stmt.annotation):
+                    _sentinel = True
+                    continue
+                _fk = self._dc_field_kw_only(stmt.value)
+                if _fk if _fk is not None else (_kwall or _sentinel):
+                    _dckw.append(stmt.target.id)
+                    _dv = self._dc_default_const(stmt.value)
+                    if _dv is not None:
+                        _dckwd[stmt.target.id] = _dv
+                else:
+                    _dcpos.append(stmt.target.id)
+        # (#49) ROUTE #144 — THIS class's own `@dataclass` FIELD list, which is what a
+        # DERIVED dataclass inherits. It is computed here, for EVERY `@dataclass`, and
+        # not from `init_params` below, because the two differ exactly where it matters:
+        # a `@dataclass` that ALSO writes an explicit `__init__` keeps that `__init__`
+        # (`dataclasses._set_new_attribute` never overwrites a class attribute) but STILL
+        # publishes `__dataclass_fields__`, so a subclass of it inherits these names even
+        # though the class's own `init_params` are the explicit signature. `ClassVar`
+        # members are excluded (PEP 557 pseudo-fields) and keyword-only fields travel in
+        # their own list so a subclass inherits them as keyword-only too.
+        self._init_dc_fields: List[str] = _dcpos
+        self._init_dc_kwonly: List[str] = _dckw
         for child in node.body:
             if not (isinstance(child, ast.FunctionDef) and child.name == '__init__'):
                 continue
@@ -397,10 +448,13 @@ class ConstructionSynthMixin:
             # `__init__` (PEP 557: "pseudo-field"), so we skip it here. The member stays a
             # `fields` entry (typed `classvar`) with its `field_defaults` value, so the
             # class-level constant is still readable — only the BINDING LIST loses it.
-            fnames = list(self._init_dc_fields)
-            init_params = list(fnames)
+            init_params = list(self._init_dc_fields)
             init_body = [{"field": fn, "value": {"type": "Var", "name": fn}}
-                         for fn in fnames]
+                         for fn in (list(self._init_dc_fields)
+                                    + list(self._init_dc_kwonly))]
+            # (#49) ROUTE #146 — the keyword-only fields leave on route #82's channel.
+            if self._init_dc_kwonly:
+                self._init_kwonly = (list(self._init_dc_kwonly), dict(_dckwd))
             # (#49) ROUTE #144, SHAPE A — the side-channel that lets `ir_resolve`'s
             # inheritance merge PREPEND the base dataclasses' parameters. It marks
             # "this class's `init_params` were SYNTHESIZED from its own field
@@ -431,6 +485,80 @@ class ConstructionSynthMixin:
         if isinstance(base, ast.Attribute):
             return base.attr == "ClassVar"
         return False
+
+    @staticmethod
+    def _ann_is_kw_only_sentinel(ann) -> bool:
+        """(#49) ROUTE #146 — is this annotation the bare `KW_ONLY` sentinel?
+
+        `_: KW_ONLY` is a PSEUDO-FIELD: it declares no field of its own and makes every
+        member declared AFTER it keyword-only. It is never subscripted, so only the bare
+        `Name`/`Attribute` spellings are matched.
+        """
+        if isinstance(ann, ast.Name):
+            return ann.id == "KW_ONLY"
+        if isinstance(ann, ast.Attribute):
+            return ann.attr == "KW_ONLY"
+        return False
+
+    @staticmethod
+    def _dc_decorator_kw_only(node) -> bool:
+        """(#49) ROUTE #146 — does the `@dataclass(...)` decorator pass `kw_only=True`?"""
+        for dec in node.decorator_list:
+            if not isinstance(dec, ast.Call):
+                continue
+            target = dec.func
+            if not ((isinstance(target, ast.Name) and target.id == "dataclass")
+                    or (isinstance(target, ast.Attribute)
+                        and target.attr == "dataclass")):
+                continue
+            for kw in dec.keywords:
+                if kw.arg == "kw_only" and isinstance(kw.value, ast.Constant):
+                    return bool(kw.value.value)
+        return False
+
+    @staticmethod
+    def _dc_field_kw_only(value):
+        """(#49) ROUTE #146 — a field's OWN `kw_only=` override, or None when it has none.
+
+        `field(kw_only=True)` makes exactly this field keyword-only and
+        `field(kw_only=False)` forces it back to positional, overriding BOTH the
+        class-level `kw_only=True` and a preceding `KW_ONLY` sentinel — which is why
+        this returns a THREE-valued answer and the caller only falls back to the
+        class-level rule on None.
+        """
+        if not isinstance(value, ast.Call):
+            return None
+        fn = value.func
+        if not ((isinstance(fn, ast.Name) and fn.id == "field")
+                or (isinstance(fn, ast.Attribute) and fn.attr == "field")):
+            return None
+        for kw in value.keywords:
+            if kw.arg == "kw_only" and isinstance(kw.value, ast.Constant):
+                return bool(kw.value.value)
+        return None
+
+    @staticmethod
+    def _dc_default_const(value):
+        """(#49) ROUTE #146 — the INT value of a field's declared default, or None.
+
+        Unwraps `field(default=<x>)` first (the dataclass spelling), then accepts a
+        numeric literal or a unary-minus literal. A `default_factory`, a bare `field()`
+        and any non-constant default answer None, so the omitted keyword falls to
+        `_field_default` rather than to a fabricated witness.
+        """
+        if isinstance(value, ast.Call):
+            fn = value.func
+            if ((isinstance(fn, ast.Name) and fn.id == "field")
+                    or (isinstance(fn, ast.Attribute) and fn.attr == "field")):
+                value = next((k.value for k in value.keywords
+                              if k.arg == "default"), None)
+        if isinstance(value, ast.Constant) and isinstance(value.value, (int, float)):
+            return int(value.value)
+        if (isinstance(value, ast.UnaryOp) and isinstance(value.op, ast.USub)
+                and isinstance(value.operand, ast.Constant)
+                and isinstance(value.operand.value, (int, float))):
+            return -int(value.operand.value)
+        return None
 
     def _collect_init_contract_check(self, node: ast.ClassDef) -> Dict[str, Any]:
         """(#43) ROUTE #15 — a constructor's `#@ requires` / `#@ ensures` is never checked.

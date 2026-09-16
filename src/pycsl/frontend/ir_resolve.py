@@ -2260,6 +2260,7 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
         # still publishes `__dataclass_fields__`, so a subclass inherits those names even
         # though the base's own signature is the explicit one.
         merged_ip: List[str] = []
+        merged_kw: List[str] = []
         merged_ib: List[Dict[str, Any]] = []
         if td.get("init_dataclass_synth"):
             _mro144 = _in_mro.get(sub)
@@ -2277,6 +2278,15 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
                     merged_ip.append(_p144)
                     merged_ib.append({"field": _p144,
                                       "value": {"type": "Var", "name": _p144}})
+                # (#49) ROUTE #146 — an inherited KEYWORD-ONLY field stays keyword-only.
+                # Without this it would be absent from `bindable` and an explicit keyword
+                # naming it would be SILENTLY IGNORED, leaving the field on its default.
+                for _k146 in _bt144.get("dataclass_kwonly_fields", []) or []:
+                    if _k146 in merged_kw:
+                        continue
+                    merged_kw.append(_k146)
+                    merged_ib.append({"field": _k146,
+                                      "value": {"type": "Var", "name": _k146}})
         for bname in td["bases"]:
             base = records.get(bname)
             # (#49) ROUTE #97 — `--check-behavioral-subtyping` SILENTLY EMITTED NO
@@ -2372,12 +2382,17 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
         # (#49) ROUTE #144 — prepend, base-first, keeping a redeclared field's BASE
         # position. Empty (and so a no-op leaving the lists identical) unless BOTH this
         # class and at least one base carry `init_dataclass_synth`.
-        if merged_ip:
+        if merged_ip or merged_kw:
             _own_ip = list(td.get("init_params", []) or [])
             _own_ib = list(td.get("init_body", []) or [])
-            td["init_params"] = merged_ip + [p for p in _own_ip if p not in merged_ip]
+            _seen144 = set(merged_ip) | set(merged_kw)
+            td["init_params"] = merged_ip + [p for p in _own_ip if p not in _seen144]
             td["init_body"] = merged_ib + [e for e in _own_ib
-                                           if e.get("field") not in merged_ip]
+                                           if e.get("field") not in _seen144]
+            if merged_kw:
+                _own_kw = list(td.get("init_kwonly_params", []) or [])
+                td["init_kwonly_params"] = (
+                    merged_kw + [k for k in _own_kw if k not in merged_kw])
         td["fields"] = merged_fields + td["fields"]
         td["class_invariants"] = merged_invs + td.get("class_invariants", [])
         td["field_defaults"] = {**merged_defaults, **td.get("field_defaults", {})}
