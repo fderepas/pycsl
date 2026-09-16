@@ -1,6 +1,6 @@
 # ROUTE #162 — a collection passed to an OPAQUE library function is assumed unchanged
 
-**Status: OPEN. Found by gen #29 (2026-09-16).** Severity 1. Generator: hand (frame probes after #161).
+**Status: REPAIR DRAFTED by gen #29 (worktree wtJ, with #161); battery I pending — a DENYLIST, the systemic question stays recorded.** Severity 1. Generator: hand (frame probes after #161).
 
 ## Measured at `87258ff7`
 
@@ -21,3 +21,13 @@ In the generic fallback: a collection-typed argument (list/dict/set/bytearray lo
 field) passed to an abstract op with no `writes` clause is refused unless the callee is on a
 whitelist of functions that never mutate their arguments. Census the corpus dotted calls with
 collection arguments and predict the refused (GONE) set.
+
+## Draft (wtJ)
+
+A census of dotted calls with name/attribute arguments over the corpus and the mirrors (json.dumps,
+os.path.*, IRScanner helpers, struct.pack/unpack, ...) shows a pure-callee WHITELIST would refuse the
+mirror's own verified bodies, so the draft is a DENYLIST of standard-library functions documented to
+mutate an argument in place: heapq.{heapify, heappush, heappop, heappushpop, heapreplace},
+random.shuffle, bisect.{insort, insort_left, insort_right}, struct.pack_into,
+operator.{setitem, delitem, iadd, iconcat}, refused when the op carries no `writes`. Witnesses
+1556/1557. The general gap — an unknown argument mutator — remains OPEN as a WATCH.
