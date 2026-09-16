@@ -7282,6 +7282,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     self._add_abstract_op("val _pyobj_state : ref int")
                     _wparts.append("_pyobj_state")
                 writes_clause = "\n    writes { " + ", ".join(_wparts) + " }"
+        # (#49) ROUTE #165 — A CLASS INVARIANT IS THE METHOD'S IMPLICIT PRECONDITION, AND A
+        # RECEIVER-LESS STUB DROPS IT. Route #70 withholds a callee's postcondition when the
+        # callee has a `requires`; the class invariant is the same kind of guard, but a
+        # `\result`-only ensures went onto `val c_get_0 () : int` WITHOUT the receiver, so Why3
+        # never checked the receiver's invariant at the call. MEASURED: `c = C(); c.x = -5;
+        # return c.get()` with `class invariant self.x >= 0` and `get` ensuring
+        # `\result >= 0` PROVED `\result >= 0` (CPython -5). Pass the receiver instead —
+        # a record argument of an invariant-carrying type makes Why3 demand the invariant at
+        # the call, so the guarantee stays exactly as conditional as the source. Only for a
+        # `<local>.<m>(...)` receiver whose class declares invariants and when no other path
+        # already passes it.
+        if field_spec is None and "." in func_name and not func_name.startswith("self."):
+            _p165 = func_name.split(".")
+            if len(_p165) == 2:
+                _cls165 = ((getattr(self, "_current_record_var_classes", {}) or {}).get(_p165[0])
+                           or "")
+                if _cls165:
+                    for _td165 in (self.ir.get("type_decls", []) or []):
+                        if (str(_td165.get("name", "")).lower() == str(_cls165).lower()
+                                and _td165.get("class_invariants")):
+                            receiver_param = f"(self: {whyml_ident(str(_cls165).lower())}) "
+                            coerced = [whyml_ident(_p165[0])] + coerced
+                            break
         # allocator-frame plan §2.7 (scope-to-win): an OPT-IN `#@ sibling_concrete` callee
         # gets a CONCRETE `self.<m>()` lowering — `(<class>__<m> self args)` — so why3 uses
         # the real method's FULL contract AND its type (class) invariant guarantee on the
