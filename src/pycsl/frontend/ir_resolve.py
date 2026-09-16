@@ -128,179 +128,6 @@ def _get_module_exports(filepath: str) -> Optional[Set[str]]:
     return None  # caller should use all non-underscore functions
 
 
-# (#49) ROUTE #143 — A NAME FREE IN A CONTRACT THAT CROSSED A MODULE BOUNDARY DENOTES THE
-# *DEPENDENCY'S* BINDING, AND THE IMPORTER'S SAME-NAMED BINDING SILENTLY REPLACED IT.
-#
-# An injected stub's contract IR is lowered in the IMPORTER's namespace, so a free name the
-# dependency binds (`LIM = -1` under `#@ raises ValueError when LIM < 0`) is folded against
-# the IMPORTER's `LIM = 5`. MEASURED (gen #27 j1, re-measured gen #29): the emitted `val`
-# itself carried `raises { ValueError -> ((5) < 0) }` and `no_exception ValueError` PROVED
-# while CPython raises — through a from-import, a MODULE import (`lib.f(k)`), a WILDCARD
-# import rebound afterwards, and an imported CLASS's method. Without a same-named importer
-# binding the name lowers to an unconstrained `val constant` and the proof already fails,
-# so the hazard is exactly the CLASH, and the repair REFUSES exactly the clash.
-#
-# The dependency's functions are TAGGED here, when its IR is first built, with the names
-# free in their contracts that the dependency binds at module level; `resolve_imports`
-# checks every tagged function that reached the importer and POPS the tag, so the resolved
-# IR (the frozen goldens) never carries it.
-_R143_TAG = "_r143_dep_contract_names"
-
-
-def _r143_module_bindings(tree: Any) -> Tuple[Dict[str, List[Tuple[str, Optional[str], str]]],
-                                               List[Tuple[str, int]]]:
-    """Every MODULE-LEVEL binding event of `tree`, by name: `("local", None, "")` for a
-    def/class/assignment/loop/with/except/walrus target, `("from", module, orig)` for a
-    from-import alias (module dotted path + level resolved by the caller), and the list of
-    wildcard imports `(module, level)`. Function, class and lambda BODIES are not module
-    scope and are not walked (a class NAME and a def NAME are)."""
-    events: Dict[str, List[Tuple[str, Optional[str], str]]] = {}
-    wild: List[Tuple[str, int]] = []
-
-    def _local(name: str) -> None:
-        events.setdefault(name, []).append(("local", None, ""))
-
-    def _targets(t: Any) -> None:
-        for n in _ast.walk(t):
-            if isinstance(n, _ast.Name):
-                _local(n.id)
-
-    def _stmts(body: List[Any]) -> None:
-        for st in body:
-            if isinstance(st, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef)):
-                _local(st.name)
-                continue
-            if isinstance(st, _ast.ImportFrom):
-                for a in st.names:
-                    if a.name == "*":
-                        wild.append((st.module or "", st.level or 0))
-                    else:
-                        events.setdefault(a.asname or a.name, []).append(
-                            ("from", f"{st.level or 0}:{st.module or ''}", a.name))
-                continue
-            if isinstance(st, _ast.Import):
-                for a in st.names:
-                    _local(a.asname or a.name.split(".")[0])
-                continue
-            if isinstance(st, _ast.Assign):
-                for t in st.targets:
-                    _targets(t)
-            elif isinstance(st, (_ast.AnnAssign, _ast.AugAssign)):
-                _targets(st.target)
-            elif isinstance(st, (_ast.For, _ast.AsyncFor)):
-                _targets(st.target)
-            elif isinstance(st, (_ast.With, _ast.AsyncWith)):
-                for it in st.items:
-                    if it.optional_vars is not None:
-                        _targets(it.optional_vars)
-            elif isinstance(st, _ast.Try) or type(st).__name__ == "TryStar":
-                for h in st.handlers:
-                    if h.name:
-                        _local(h.name)
-            for n in _ast.walk(st):
-                if isinstance(n, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef,
-                                  _ast.Lambda)):
-                    break
-                if isinstance(n, _ast.NamedExpr) and isinstance(n.target, _ast.Name):
-                    _local(n.target.id)
-            for fld in ("body", "orelse", "finalbody"):
-                sub = getattr(st, fld, None)
-                if isinstance(sub, list):
-                    _stmts(sub)
-            for h in getattr(st, "handlers", []) or []:
-                _stmts(h.body)
-            for c in getattr(st, "cases", []) or []:
-                _stmts(c.body)
-
-    _stmts(getattr(tree, "body", []) or [])
-    return events, wild
-
-
-def _r143_contract_free_names(contracts: Any) -> Set[str]:
-    """Names read in a contract: a `Var`, a string `Call` callee, and an `Attribute`
-    projection's root `Var` — every clause, `raises` conditions included."""
-    acc: Set[str] = set()
-
-    def _walk(node: Any) -> None:
-        if isinstance(node, dict):
-            t = node.get("type")
-            if t == "Var" and isinstance(node.get("name"), str):
-                acc.add(node["name"])
-            elif t == "Call" and isinstance(node.get("func"), str):
-                acc.add(node["func"])
-            for v in node.values():
-                _walk(v)
-        elif isinstance(node, (list, tuple)):
-            for v in node:
-                _walk(v)
-
-    _walk(contracts)
-    return acc
-
-
-def _r143_tag_dependency(ir_data: Dict[str, Any], filepath: str, dep_source: str) -> None:
-    try:
-        events, _wild = _r143_module_bindings(_ast.parse(dep_source))
-    except SyntaxError:
-        return
-    bound = set(events)
-    for fn in ir_data.get("functions", []) or []:
-        params = set()
-        for p in fn.get("formal_params", []) or []:
-            params.add(p.get("name") if isinstance(p, dict) else p)
-        names = (_r143_contract_free_names(fn.get("contracts", {})) & bound) - params - {"self"}
-        if names:
-            fn[_R143_TAG] = {"file": os.path.abspath(filepath), "names": sorted(names)}
-
-
-def _r143_check_and_untag(validated_ast: Any, main_file: str, ir_data: Dict[str, Any]) -> None:
-    """Refuse an injected contract whose free dependency-bound name the IMPORTER rebinds;
-    then pop every tag. Called once at the end of `resolve_imports`."""
-    tagged = [fn for fn in ir_data.get("functions", []) or [] if _R143_TAG in fn]
-    if not tagged:
-        return
-    try:
-        events, wild = _r143_module_bindings(validated_ast)
-    except Exception:
-        events, wild = {}, []
-    for fn in tagged:
-        tag = fn.pop(_R143_TAG)
-        dep = tag["file"]
-        for n in tag["names"]:
-            bad = None
-            for kind, mod, orig in events.get(n, []):
-                if kind == "from":
-                    lvl, _, dotted = mod.partition(":")
-                    res = _resolve_module_path(dotted, int(lvl), main_file)
-                    if res is not None and os.path.abspath(res) == dep and orig == n:
-                        continue
-                    bad = f"imported as `{orig}` from `{dotted or '.'}`"
-                else:
-                    bad = "bound by the importing module itself"
-                break
-            if bad is None and not events.get(n):
-                for dotted, lvl in wild:
-                    res = _resolve_module_path(dotted, lvl, main_file)
-                    if res is None or os.path.abspath(res) == dep:
-                        continue
-                    try:
-                        with open(res) as _fh:
-                            w_events, _ = _r143_module_bindings(_ast.parse(_fh.read()))
-                    except (OSError, SyntaxError):
-                        continue
-                    if n in w_events:
-                        bad = f"bound by the wildcard import of `{dotted}`"
-                        break
-            if bad is not None:
-                from errors import PyCSLSemanticError
-                raise PyCSLSemanticError(
-                    f"Imported contract of '{fn.get('name')}' (from "
-                    f"'{os.path.basename(dep)}') reads the module-level name '{n}', which "
-                    f"denotes THAT module's binding; in '{os.path.basename(main_file)}' the "
-                    f"name is {bad}, and the contract would be lowered against the wrong "
-                    f"binding (route #143). Rename one of the two bindings.")
-
-
 def _process_dependency(filepath: str, needed_names: Set[str], cache: Dict[str, Any],
                         deep: bool = False, processing_set: Optional[Set[str]] = None) -> List[Dict[str, Any]]:
     """Run Modules 1→5 on filepath, return list of func_ir dicts for
@@ -338,7 +165,10 @@ def _process_dependency(filepath: str, needed_names: Set[str], cache: Dict[str, 
                             deep=True, cache=cache,
                             processing_set=processing_set)
 
-        _r143_tag_dependency(ir_data, filepath, dep_source)
+        # (#49) ROUTE #143 — remember which file every dependency function came from; the
+        # tag is checked and POPPED at the end of `resolve_imports` (see there).
+        for _fn143 in ir_data.get("functions", []) or []:
+            _fn143["_r143_dep_file"] = filepath
         cache[filepath] = ir_data
         if processing_set is not None:
             processing_set.discard(filepath)
@@ -2904,7 +2734,149 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
     # Piece 3b: the SAME-FILE `_NODE_SPEC` harvest, for the case where `pure_ast.py` itself
     # is the file under verification. No-op unless the file defines `_NODE_SPEC`.
     _resolve_same_file_node_spec_records(validated_ast, ir_data)
-    _r143_check_and_untag(validated_ast, main_file, ir_data)
+    # (#49) ROUTE #143 — A NAME FREE IN A CONTRACT THAT CROSSED A MODULE BOUNDARY DENOTES
+    # THE *DEPENDENCY'S* BINDING, AND THE IMPORTER'S SAME-NAMED BINDING SILENTLY REPLACED IT.
+    #
+    # An injected stub's contract IR is lowered in the IMPORTER's namespace, so a free name
+    # the dependency binds (`LIM = -1` under `#@ raises ValueError when LIM < 0`) was folded
+    # against the importer's `LIM = 5`. MEASURED (gen #27 j1, re-measured gen #29): the
+    # emitted `val` itself carried `raises { ValueError -> ((5) < 0) }` and `no_exception
+    # ValueError` PROVED while CPython raises — through a from-import, a MODULE import
+    # (`lib.f(k)`), a WILDCARD import the importer rebinds afterwards, and an imported
+    # CLASS's method. Without a same-named importer binding the name lowers to an
+    # unconstrained `val constant` and the proof already fails, so the hazard is exactly
+    # the CLASH, and this REFUSES exactly the clash: a name that is (a) read by an injected
+    # contract (a `Var`, a string `Call` callee, an `Attribute` root; every clause, `raises`
+    # included), (b) bound at MODULE level by the function's own file, (c) not one of its
+    # formal parameters or `self`, and (d) bound at module level by the importer by anything
+    # other than an import of THAT name from THAT file — an assignment in any compound
+    # statement, a def/class, an import from elsewhere — or, when the importer does not bind
+    # it explicitly, exported by a wildcard import of ANOTHER file.
+    #
+    # No helper `def`s: this lives inside two functions the mirror already carries as
+    # `\trusted` stubs, so the mirror-coverage ratchet is untouched honestly rather than by
+    # parking new functions in an unmirrored file. The tag is popped from every function,
+    # so the resolved IR (the frozen goldens) never carries it.
+    _t143 = [fn for fn in ir_data.get("functions", []) or [] if "_r143_dep_file" in fn]
+    if _t143:
+        _bind143: Dict[str, Tuple[Dict[str, List[Tuple[str, str, int, str]]],
+                                  List[Tuple[str, int]]]] = {}
+        _trees143: List[Tuple[str, Any]] = [("<importer>", validated_ast)]
+        for _fn in _t143:
+            if _fn["_r143_dep_file"] not in [k for k, _ in _trees143]:
+                try:
+                    with open(_fn["_r143_dep_file"]) as _fh:
+                        _trees143.append((_fn["_r143_dep_file"], _ast.parse(_fh.read())))
+                except (OSError, SyntaxError):
+                    _trees143.append((_fn["_r143_dep_file"], None))
+        _ti = 0
+        while _ti < len(_trees143):
+            _key, _tree = _trees143[_ti]
+            _ti += 1
+            _ev: Dict[str, List[Tuple[str, str, int, str]]] = {}
+            _wild: List[Tuple[str, int]] = []
+            _stack = [list(getattr(_tree, "body", []) or [])] if _tree is not None else []
+            while _stack:
+                for _st in _stack.pop():
+                    if isinstance(_st, (_ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef)):
+                        _ev.setdefault(_st.name, []).append(("local", "", 0, ""))
+                        continue
+                    if isinstance(_st, _ast.ImportFrom):
+                        for _a in _st.names:
+                            if _a.name == "*":
+                                _wild.append((_st.module or "", _st.level or 0))
+                            else:
+                                _ev.setdefault(_a.asname or _a.name, []).append(
+                                    ("from", _st.module or "", _st.level or 0, _a.name))
+                        continue
+                    if isinstance(_st, _ast.Import):
+                        for _a in _st.names:
+                            _ev.setdefault(_a.asname or _a.name.split(".")[0], []).append(
+                                ("local", "", 0, ""))
+                        continue
+                    _tg: List[Any] = []
+                    if isinstance(_st, _ast.Assign):
+                        _tg = list(_st.targets)
+                    elif isinstance(_st, (_ast.AnnAssign, _ast.AugAssign, _ast.For,
+                                          _ast.AsyncFor)):
+                        _tg = [_st.target]
+                    elif isinstance(_st, (_ast.With, _ast.AsyncWith)):
+                        _tg = [_it.optional_vars for _it in _st.items
+                               if _it.optional_vars is not None]
+                    _names = []
+                    for _t in _tg:
+                        _names += [n.id for n in _ast.walk(_t) if isinstance(n, _ast.Name)]
+                    for _h in getattr(_st, "handlers", []) or []:
+                        if getattr(_h, "name", None):
+                            _names.append(_h.name)
+                        _stack.append(list(_h.body))
+                    for _n in _ast.walk(_st):
+                        if isinstance(_n, _ast.NamedExpr) and isinstance(_n.target, _ast.Name):
+                            _names.append(_n.target.id)
+                    for _nm in _names:
+                        _ev.setdefault(_nm, []).append(("local", "", 0, ""))
+                    for _fld in ("body", "orelse", "finalbody"):
+                        _sub = getattr(_st, _fld, None)
+                        if isinstance(_sub, list):
+                            _stack.append(list(_sub))
+                    for _c in getattr(_st, "cases", []) or []:
+                        _stack.append(list(_c.body))
+            _bind143[_key] = (_ev, _wild)
+            if _key == "<importer>":
+                for _wm, _wl in _wild:
+                    _wr = _resolve_module_path(_wm, _wl, main_file)
+                    if _wr is not None and os.path.abspath(_wr) not in [k for k, _ in _trees143]:
+                        try:
+                            with open(_wr) as _fh:
+                                _trees143.append((os.path.abspath(_wr), _ast.parse(_fh.read())))
+                        except (OSError, SyntaxError):
+                            pass
+        _imp_ev, _imp_wild = _bind143["<importer>"]
+        for _fn in _t143:
+            _dep = _fn.pop("_r143_dep_file")
+            _dep_ev = _bind143.get(_dep, ({}, []))[0]
+            _params = {(p.get("name") if isinstance(p, dict) else p)
+                       for p in (_fn.get("formal_params", []) or [])} | {"self"}
+            _read: Set[str] = set()
+            _cst: List[Any] = [_fn.get("contracts", {})]
+            while _cst:
+                _node = _cst.pop()
+                if isinstance(_node, dict):
+                    if _node.get("type") == "Var" and isinstance(_node.get("name"), str):
+                        _read.add(_node["name"])
+                    elif _node.get("type") == "Call" and isinstance(_node.get("func"), str):
+                        _read.add(_node["func"])
+                    _cst.extend(_node.values())
+                elif isinstance(_node, (list, tuple)):
+                    _cst.extend(_node)
+            for _nm in sorted((_read & set(_dep_ev)) - _params):
+                _bad = None
+                for _kind, _mod, _lvl, _orig in _imp_ev.get(_nm, []):
+                    if _kind == "from":
+                        _r = _resolve_module_path(_mod, _lvl, main_file)
+                        if _r is not None and os.path.abspath(_r) == _dep and _orig == _nm:
+                            continue
+                        _bad = f"imported as `{_orig}` from `{_mod or '.'}`"
+                    else:
+                        _bad = "bound by the importing module itself"
+                    break
+                if _bad is None and not _imp_ev.get(_nm):
+                    for _wm, _wl in _imp_wild:
+                        _wr = _resolve_module_path(_wm, _wl, main_file)
+                        if _wr is None or os.path.abspath(_wr) == _dep:
+                            continue
+                        if _nm in _bind143.get(os.path.abspath(_wr), ({}, []))[0]:
+                            _bad = f"bound by the wildcard import of `{_wm}`"
+                            break
+                if _bad is not None:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        f"Imported contract of '{_fn.get('name')}' (from "
+                        f"'{os.path.basename(_dep)}') reads the module-level name '{_nm}', "
+                        f"which denotes THAT module's binding; in "
+                        f"'{os.path.basename(main_file)}' the name is {_bad}, and the "
+                        f"contract would be lowered against the wrong binding (route #143). "
+                        f"Rename one of the two bindings.")
     return imported_names
 
 
