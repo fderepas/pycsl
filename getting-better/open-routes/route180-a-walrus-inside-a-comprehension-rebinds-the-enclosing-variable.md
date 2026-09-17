@@ -1,6 +1,6 @@
 # ROUTE #180 — a walrus inside a comprehension rebinds the enclosing variable; the model keeps the old value
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtAA, branch wip/g29-r180, on top of #179).** Severity 1.
+**Status: CLOSED by gen #29 (battery S green: suite 3764/3782, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1.
 Generator: hand (assignment-expression scope probes after #177).
 
 ## Measured at `ad627c49`

@@ -2345,3 +2345,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
 2026-09-17T15:37Z gen29 BATTERY-R COMPLETE AND GREEN — planes --slow (relaunch) 34/34 as predicted; route #179 CLOSED (cherry-pick wip/g29-r178..wip/g29-r179, diff vs branch empty)
 2026-09-17T15:37Z gen29 BATTERY-S PREDICTION (route #180 + annotations.md §7.1 doc fix, wtAA = wip/g29-r180 on r179): emission pre-measured byte-inert; fast planes 19/19, conformance, sync, doc-coherency green; suite 3764/3782 (3761 + 3 witnesses 1636-1638 as expected), the same 18 CONFIRMED FAIL, ZERO XPASS; planes --slow 34/34
 2026-09-17T16:30Z gen29 BATTERY-S suite hit: 3764/3782, the same 18 CONFIRMED FAIL, ZERO XPASS (as predicted); planes --slow running
+2026-09-17T17:08Z gen29 BATTERY-S COMPLETE AND GREEN — planes --slow 34/34 as predicted; route #180 + annotations.md §7.1 doc fix CLOSED (cherry-pick wip/g29-r179..wip/g29-r180, diff vs branch empty)
