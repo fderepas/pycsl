@@ -812,3 +812,4 @@ date	gen	generator	candidate	verdict	route	order	note
 2026-09-17	29	carrier-rerun	g29-r132-class-constant-spellings	FAIL-CLOSED	132	-	Class constant list mutated through a method, class constant rebound in a method (refused), module tuple element and indexed module string: no false proof.
 2026-09-17	29	hand	g29-getattr-setattr	FAIL-CLOSED	-	-	getattr with a literal name, getattr default on a missing attribute, setattr then read, hasattr on a missing attribute, computed attribute name: all unproved with `!= truth` claims.
 2026-09-17	29	hand	g29-generators-2	FAIL-CLOSED	-	-	Generator sums, a generator with a bare return, yield inside a loop, consumed by a for: all unproved with `!= truth` claims (yield-erasure plane holds).
+2026-09-17	29	hand	g29-cross-type-equality	FAIL-CLOSED	-	-	1 == 1.0 (true, unproved), True as a dict key colliding with 1, 1.0 and 1 as dict keys, "1" == 1: no false proof.
