@@ -926,6 +926,45 @@ class FunctionEmissionMixin:
                                      if isinstance(v, (dict, list)))
                 elif isinstance(_r65_n, (list, tuple)):
                     _r65_work.extend(_r65_n)
+        # (#49) ROUTE #173 — A TUPLE UNPACK RAISES ValueError ON AN ARITY MISMATCH, AND NO
+        # TRIGGER ROW OR REFUSAL KNEW IT. MEASURED: `s = "a"; a, b = s.split(",")` under
+        # `#@ no_exception ValueError` PROVED (CPython: not enough values to unpack), and so
+        # did the same inside `try ... except ValueError` (route #171's widening only
+        # reaches operations that have a trigger or a refusal). Under a ValueError context
+        # an unpack is accepted only when its arity is STATIC: a tuple display of exactly
+        # the target count, or a call to a function of this file (its tuple return type is
+        # emitted and checked). Everything else is refused.
+        if _r65_all or "ValueError" in _r65_named:
+            _r173_names = {str(_f173.get("name", "")) for _f173 in (self.ir.get("functions", []) or [])}
+            _r173_work = list(func.get("body", []) or [])
+            while _r173_work:
+                _r173_n = _r173_work.pop()
+                if isinstance(_r173_n, dict):
+                    if _r173_n.get("stmt") == "TupleUnpack":
+                        _r173_v = _r173_n.get("value")
+                        _r173_t = _r173_n.get("targets") or []
+                        _r173_ok = (isinstance(_r173_v, dict)
+                                    and ((_r173_v.get("type") == "Tuple"
+                                          and len(_r173_v.get("elts") or []) == len(_r173_t))
+                                         or (_r173_v.get("type") == "Call"
+                                             and _r173_v.get("receiver") is None
+                                             and isinstance(_r173_v.get("func"), str)
+                                             and "." not in _r173_v["func"]
+                                             and _r173_v["func"] in _r173_names)))
+                        if not _r173_ok:
+                            raise PyCSLIRError(
+                                "a tuple unpack of a value whose length is not statically the "
+                                "target count raises `ValueError` in Python on a mismatch, and "
+                                "this function claims (or, through an exception handler, relies "
+                                "on) freedom from `ValueError`. No obligation models the arity, "
+                                "so the claim would be proved vacuously (route #173; measured: "
+                                "`a, b = \"a\".split(\",\")` under `#@ no_exception "
+                                "ValueError`). Unpack a tuple display or the result of a "
+                                "function of this file, or index the elements explicitly.")
+                    _r173_work.extend(v for v in _r173_n.values()
+                                      if isinstance(v, (dict, list)))
+                elif isinstance(_r173_n, (list, tuple)):
+                    _r173_work.extend(_r173_n)
         # (#49) ROUTE #69 — `ord()` OF A NON-ASCII STRING IS A BYTE READ, NOT A CODE POINT.
         # A string literal is emitted as its UTF-8 BYTES (`"\u20ac"` becomes
         # `"\xe2\x82\xac"`), and characters are Why3 `Char`s whose `code` is 0..255 by the
