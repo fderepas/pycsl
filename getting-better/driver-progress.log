@@ -2323,3 +2323,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
 2026-09-17 gen#29 BATTERY-L EMISSION PRE-MEASURED (02:11Z; #166 on top of the K candidate, worktree wtM): vs the K candidate pycsl-reference 1201 -> 1204 (3 new witnesses), 0 MOVED / 0 GONE / 0 APPEARED; python-reference 2199 0/0/0; mirrors 53 0/0/0 — BYTE-INERT, as the conflict census predicted (no dotted-stub conflict anywhere in the corpus or the mirrors).
 2026-09-17T02:46Z gen29 BATTERY-K COMPLETE AND GREEN — planes --slow 34/34 as predicted; route #165 CLOSED (landed via cherry-pick wip/g29-r163..wip/g29-r165, diff vs branch empty)
 2026-09-17T02:46Z gen29 BATTERY-L PREDICTION (route #166, wtM on top of landed #165): suite 3694/3712 (3691+3 witnesses 1566-1568 as expected), the same 18 CONFIRMED FAIL, ZERO XPASS; planes --slow 34/34
+2026-09-17T03:42Z gen29 BATTERY-L suite hit: 3694/3712, the same 18 CONFIRMED FAIL, ZERO XPASS (as predicted); planes --slow running
