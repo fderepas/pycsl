@@ -1113,8 +1113,44 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     except Exception:
         _t175 = None
     if _t175 is not None:
+        # (#49) ROUTE #181 — THE SOURCE CHECKS OF ROUTES #175 AND #179 READ THE MAIN FILE ONLY.
+        # An IMPORTED `class MyErr(ValueError)` raised under `except ValueError`, and an
+        # IMPORTED class whose `__init__` raises, constructed under `no_exception ValueError`
+        # or inside `except ValueError`, each PROVED (CPython raises / 9). The dependency
+        # modules named by the main file's imports (resolved against the main file's
+        # directory and `--import-path`, transitively) are parsed too; their classes and
+        # functions feed the class/raise maps, while the callers checked stay the main file's.
+        import os as _os181
+        _tall175 = _ast175.Module(body=list(_t175.body), type_ignores=[])
+        _main_ids181 = {id(_z) for _z in _ast175.walk(_t175)}
+        _dirs181 = [_os181.path.dirname(_os181.path.abspath(str(args.file)))]
+        _dirs181 += [str(_d) for _d in (getattr(args, "import_path", None) or [])]
+        _seen181 = set()
+        _todo181 = [(_t175, _dirs181[0])]
+        while _todo181 and len(_seen181) < 64:
+            _tree181, _here181 = _todo181.pop()
+            for _im181 in _ast175.walk(_tree181):
+                _mods181 = []
+                if isinstance(_im181, _ast175.ImportFrom) and _im181.module:
+                    _mods181.append((_im181.module, _im181.level or 0))
+                elif isinstance(_im181, _ast175.Import):
+                    _mods181.extend((_a.name, 0) for _a in _im181.names)
+                for _mn181, _lv181 in _mods181:
+                    _cands181 = ([_here181] if _lv181 else []) + ([] if _lv181 else [_here181] + _dirs181)
+                    for _dd181 in _cands181:
+                        for _pp181 in (_os181.path.join(_dd181, *_mn181.split(".")) + ".py",
+                                       _os181.path.join(_dd181, *_mn181.split("."), "__init__.py")):
+                            if _pp181 in _seen181 or not _os181.path.isfile(_pp181):
+                                continue
+                            _seen181.add(_pp181)
+                            try:
+                                _dt181 = _ast175.parse(open(_pp181).read())
+                            except Exception:
+                                continue
+                            _tall175.body.extend(_dt181.body)
+                            _todo181.append((_dt181, _os181.path.dirname(_pp181)))
         _bases175 = {}
-        for _c175 in _ast175.walk(_t175):
+        for _c175 in _ast175.walk(_tall175):
             if isinstance(_c175, _ast175.ClassDef):
                 _bases175[_c175.name] = [
                     (_b175.id if isinstance(_b175, _ast175.Name) else _b175.attr)
@@ -1123,7 +1159,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _alias175 = {}
         # a plain name alias of an exception class (`Alias = MyErr`, anywhere) is the same
         # class: measured, `raise Alias()` under `except ValueError` still proved the other path
-        for _al175 in _ast175.walk(_t175):
+        for _al175 in _ast175.walk(_tall175):
             if (isinstance(_al175, _ast175.Assign) and len(_al175.targets) == 1
                     and isinstance(_al175.targets[0], _ast175.Name)
                     and isinstance(_al175.value, _ast175.Name)
@@ -1134,9 +1170,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         if _bases175:
             _lines175 = source_code.splitlines()
             _decl175 = {}
-            for _d175 in _ast175.walk(_t175):
+            for _d175 in _ast175.walk(_tall175):
                 if isinstance(_d175, (_ast175.FunctionDef, _ast175.AsyncFunctionDef)):
                     _i175 = min([_d175.lineno] + [_x.lineno for _x in _d175.decorator_list]) - 2
+                    if id(_d175) not in _main_ids181:
+                        _i175 = -1
                     _rs175 = set()
                     while 0 <= _i175 < len(_lines175) and _lines175[_i175].strip().startswith(("#@", "@")):
                         _ln175 = _lines175[_i175].strip()
@@ -1155,14 +1193,24 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             if isinstance(_ey175, _ast175.Name):
                                 _rs175.add(_ey175.id)
                     _decl175.setdefault(_d175.name, set()).update(_rs175)
-            _trusted175 = {str(_f.get("name", "")).rsplit("__", 1)[-1]
+            # trusted functions by their IR name: `<class_lower>__<method>` for a method (a
+            # name-tail match lost a leading underscore, `x___m`.rsplit("__") -> "m", and let
+            # the mirror's trusted `_render_callee_condition` be checked — route #181 census)
+            _trusted175 = {str(_f.get("name", ""))
                            for _f in ir_data.get("functions", [])
                            if _f.get("trusted") or _f.get("abstract") or _f.get("trusted_parent")}
+            _owner181 = {}
+            for _k181 in _ast175.walk(_tall175):
+                if isinstance(_k181, _ast175.ClassDef):
+                    for _m181 in _k181.body:
+                        if isinstance(_m181, (_ast175.FunctionDef, _ast175.AsyncFunctionDef)):
+                            _owner181[id(_m181)] = _k181.name
             import builtins as _bi175
             for _fd175 in _ast175.walk(_t175):
                 if not isinstance(_fd175, (_ast175.FunctionDef, _ast175.AsyncFunctionDef)):
                     continue
-                if _fd175.name in _trusted175:
+                if ((f"{_owner181[id(_fd175)].lower()}__{_fd175.name}" if id(_fd175) in _owner181
+                     else _fd175.name) in _trusted175):
                     continue
                 for _tr175 in _ast175.walk(_fd175):
                     if not isinstance(_tr175, _ast175.Try):
@@ -1230,7 +1278,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         # raises through `check(v)` / `self.check()` raises too — measured on the draft)
         _fr179 = {}
         _fc179 = {}
-        for _f179 in _ast175.walk(_t175):
+        for _f179 in _ast175.walk(_tall175):
             if not isinstance(_f179, (_ast175.FunctionDef, _ast175.AsyncFunctionDef)):
                 continue
             _rs179 = _fr179.setdefault(_f179.name, set())
@@ -1254,7 +1302,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _fr179[_fn179] |= _fr179[_cn179]
                         _chg179 = True
         _cls179 = {}
-        for _c179 in _ast175.walk(_t175):
+        for _c179 in _ast175.walk(_tall175):
             if not isinstance(_c179, _ast175.ClassDef):
                 continue
             _ex179 = set()
@@ -1282,7 +1330,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _cls179[_c179.name] = _ex179
         if _cls179:
             _bases179 = {}
-            for _c179 in _ast175.walk(_t175):
+            for _c179 in _ast175.walk(_tall175):
                 if isinstance(_c179, _ast175.ClassDef):
                     _bases179[_c179.name] = [
                         (_b.id if isinstance(_b, _ast175.Name) else _b.attr)
@@ -1297,7 +1345,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _cls179.setdefault(_cn179, set()).update(_cls179[_b179])
                             _chg179 = True
             _lines179 = source_code.splitlines()
-            _funcs179 = [_d for _d in _ast175.walk(_t175)
+            _funcs179 = [_d for _d in _ast175.walk(_tall175)
                          if isinstance(_d, (_ast175.FunctionDef, _ast175.AsyncFunctionDef))]
             _may179 = {}
             _calls179 = {}
@@ -1327,13 +1375,21 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             if _g179 is not _d179 and not _may179[id(_g179)] <= _may179[id(_d179)]:
                                 _may179[id(_d179)] |= _may179[id(_g179)]
                                 _chg179 = True
-            _trusted179 = {str(_f.get("name", "")).rsplit("__", 1)[-1]
+            _trusted179 = {str(_f.get("name", ""))
                            for _f in ir_data.get("functions", [])
                            if _f.get("trusted") or _f.get("abstract") or _f.get("trusted_parent")}
+            _owner179 = {}
+            for _k179 in _ast175.walk(_tall175):
+                if isinstance(_k179, _ast175.ClassDef):
+                    for _m179 in _k179.body:
+                        if isinstance(_m179, (_ast175.FunctionDef, _ast175.AsyncFunctionDef)):
+                            _owner179[id(_m179)] = _k179.name
 
             for _d179 in _funcs179:
                 _ex179 = _may179[id(_d179)]
-                if not _ex179 or _d179.name in _trusted179:
+                if (not _ex179 or id(_d179) not in _main_ids181
+                        or (f"{_owner179[id(_d179)].lower()}__{_d179.name}" if id(_d179) in _owner179
+                            else _d179.name) in _trusted179):
                     continue
                 _i179 = min([_d179.lineno] + [_x.lineno for _x in _d179.decorator_list]) - 2
                 _ne179 = set()
