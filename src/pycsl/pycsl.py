@@ -1216,6 +1216,134 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         f"path would be proved of the other one. Catch `{_s175}` "
                                         f"by its own name.",
                                         stage="whyml-emit", code="PYCSL-R175-USER-EXCEPTION-SUBCLASS")
+    # (#49) ROUTE #179 — A CONSTRUCTOR THAT RAISES IS LOWERED AS A RECORD LITERAL, AND THE
+    # RAISE IS GONE. `__init__` (and a dataclass `__post_init__`) is synthesised into a record
+    # value; a `raise` in it never reaches the model. MEASURED (gen #29): `C(-1)` with
+    # `if v < 0: raise ValueError()` in `__init__` PROVED `#@ no_exception ValueError`, and
+    # `try: c = C(-1) except ValueError: return 9; return 0` PROVED `\\result == 0` (CPython
+    # raises / 9); same through `__post_init__`. Refused: a non-trusted function that calls such
+    # a class (directly, or through same-file functions that do, transitively) while declaring
+    # `no_exception` for the raised exception (or `\\all`) or holding a handler that catches it.
+    if _t175 is not None:
+        import builtins as _bi179
+        _cls179 = {}
+        for _c179 in _ast175.walk(_t175):
+            if not isinstance(_c179, _ast175.ClassDef):
+                continue
+            _ex179 = set()
+            for _m179 in _c179.body:
+                if (isinstance(_m179, (_ast175.FunctionDef, _ast175.AsyncFunctionDef))
+                        and _m179.name in ("__init__", "__post_init__", "__new__")):
+                    _nest179 = set()
+                    for _q179 in _ast175.walk(_m179):
+                        if _q179 is not _m179 and isinstance(
+                                _q179, (_ast175.FunctionDef, _ast175.AsyncFunctionDef, _ast175.Lambda)):
+                            _nest179 |= {id(_z) for _z in _ast175.walk(_q179)}
+                    for _q179 in _ast175.walk(_m179):
+                        if (isinstance(_q179, _ast175.Raise) and id(_q179) not in _nest179):
+                            _e179 = _q179.exc
+                            if isinstance(_e179, _ast175.Call):
+                                _e179 = _e179.func
+                            _ex179.add(_e179.id if isinstance(_e179, _ast175.Name) else "BaseException")
+            if _ex179:
+                _cls179[_c179.name] = _ex179
+        if _cls179:
+            _bases179 = {}
+            for _c179 in _ast175.walk(_t175):
+                if isinstance(_c179, _ast175.ClassDef):
+                    _bases179[_c179.name] = [
+                        (_b.id if isinstance(_b, _ast175.Name) else _b.attr)
+                        for _b in _c179.bases if isinstance(_b, (_ast175.Name, _ast175.Attribute))]
+            # a subclass without its own raising constructor inherits the base's
+            _chg179 = True
+            while _chg179:
+                _chg179 = False
+                for _cn179, _bl179 in _bases179.items():
+                    for _b179 in _bl179:
+                        if _b179 in _cls179 and not _cls179[_b179] <= _cls179.get(_cn179, set()):
+                            _cls179.setdefault(_cn179, set()).update(_cls179[_b179])
+                            _chg179 = True
+            _lines179 = source_code.splitlines()
+            _funcs179 = [_d for _d in _ast175.walk(_t175)
+                         if isinstance(_d, (_ast175.FunctionDef, _ast175.AsyncFunctionDef))]
+            _may179 = {}
+            _calls179 = {}
+            for _d179 in _funcs179:
+                _cs179 = set()
+                _dir179 = set()
+                for _q179 in _ast175.walk(_d179):
+                    if isinstance(_q179, _ast175.Call):
+                        _fnm179 = (_q179.func.id if isinstance(_q179.func, _ast175.Name)
+                                   else _q179.func.attr if isinstance(_q179.func, _ast175.Attribute)
+                                   else None)
+                        if _fnm179:
+                            _cs179.add(_fnm179)
+                            if _fnm179 in _cls179:
+                                _dir179 |= _cls179[_fnm179]
+                _calls179[id(_d179)] = _cs179
+                _may179[id(_d179)] = set(_dir179)
+            _names179 = {}
+            for _d179 in _funcs179:
+                _names179.setdefault(_d179.name, []).append(_d179)
+            _chg179 = True
+            while _chg179:
+                _chg179 = False
+                for _d179 in _funcs179:
+                    for _cn179 in _calls179[id(_d179)]:
+                        for _g179 in _names179.get(_cn179, []):
+                            if _g179 is not _d179 and not _may179[id(_g179)] <= _may179[id(_d179)]:
+                                _may179[id(_d179)] |= _may179[id(_g179)]
+                                _chg179 = True
+            _trusted179 = {str(_f.get("name", "")).rsplit("__", 1)[-1]
+                           for _f in ir_data.get("functions", [])
+                           if _f.get("trusted") or _f.get("abstract") or _f.get("trusted_parent")}
+
+            for _d179 in _funcs179:
+                _ex179 = _may179[id(_d179)]
+                if not _ex179 or _d179.name in _trusted179:
+                    continue
+                _i179 = min([_d179.lineno] + [_x.lineno for _x in _d179.decorator_list]) - 2
+                _ne179 = set()
+                while 0 <= _i179 < len(_lines179) and _lines179[_i179].strip().startswith(("#@", "@")):
+                    _ln179 = _lines179[_i179].strip()
+                    if _ln179.startswith("#@ no_exception"):
+                        _ne179.update(_t.strip(",") for _t in _ln179[len("#@ no_exception"):].split())
+                    _i179 -= 1
+                _hs179 = set()
+                for _q179 in _ast175.walk(_d179):
+                    if isinstance(_q179, _ast175.ExceptHandler):
+                        if _q179.type is None:
+                            _hs179.add("")
+                        elif isinstance(_q179.type, _ast175.Name):
+                            _hs179.add(_q179.type.id)
+                        elif isinstance(_q179.type, _ast175.Tuple):
+                            _hs179.update(_z.id for _z in _q179.type.elts if isinstance(_z, _ast175.Name))
+                for _e179 in sorted(_ex179):
+                    # ancestors of the raised name (user bases, then the builtin MRO); a bare
+                    # handler (""), `Exception` and `BaseException` catch it too
+                    _anc179 = {"", "Exception", "BaseException"}
+                    _qq179 = [_e179]
+                    while _qq179:
+                        _a179 = _qq179.pop()
+                        if _a179 in _anc179:
+                            continue
+                        _anc179.add(_a179)
+                        _qq179.extend(_bases179.get(_a179, []))
+                        _ab179 = getattr(_bi179, _a179, None)
+                        if isinstance(_ab179, type) and issubclass(_ab179, BaseException):
+                            _anc179.update(_k.__name__ for _k in _ab179.__mro__)
+                    if ("\\all" in _ne179 or _e179 in _ne179
+                            or any(_h179 in _anc179 for _h179 in _hs179)):
+                        from errors import PyCSLSemanticError as _PyCSLSemErr179
+                        raise _PyCSLSemErr179(
+                            f"{_d179.name!r} constructs an object whose `__init__` / "
+                            f"`__post_init__` can raise `{_e179}` (ROUTE #179), directly or "
+                            f"through a call, and either claims `no_exception` for it or "
+                            f"catches it; a construction is lowered to a record value and "
+                            f"the raise is not modelled, so the claim or the handler's path "
+                            f"would be proved of the wrong program. Validate the argument "
+                            f"before constructing, or move the check out of the constructor.",
+                            stage="whyml-emit", code="PYCSL-R179-RAISING-CONSTRUCTOR")
     if "R31_UNMODELLED_LIST_TRUTHINESS" in _mlw:
         # ROUTE #31 (relaunch #45) — the Python truthiness of a list local whose
         # LENGTH the model does not carry. `_to_bool` used to answer `true` for
