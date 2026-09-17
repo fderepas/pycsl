@@ -782,3 +782,4 @@ date	gen	generator	candidate	verdict	route	order	note
 2026-09-17	29	hand	g29-tuple-assignment-forms	FAIL-CLOSED	-	-	Swap, list element swap, tuple return unpack order, chained assignment aliasing a list, augmented subscript store, list-of-tuples sort: no false proof.
 2026-09-17	29	hand	g29-loop-annotation-soundness	FAIL-CLOSED	-	-	Non-inductive while invariant, a constant variant, a for-loop invariant broken by the body, break exiting before the bound: all refused.
 2026-09-17	29	hand	g29-recursive-contracts	FAIL-CLOSED	-	-	Recursive function / method and mutual recursion with false ensures used by a caller: refused.
+2026-09-17	29	hand	g29-del-statements	FAIL-CLOSED	-	-	del local then rebind, del dict key then len / membership, del list slice (refused), del attribute then hasattr (refused): no false proof.
