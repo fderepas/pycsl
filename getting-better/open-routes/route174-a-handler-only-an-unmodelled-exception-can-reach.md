@@ -26,6 +26,14 @@ BaseException`) is now XFAIL by design; python-reference and mirrors inert. Witn
 (XFAIL), 1603 (PASS: explicit FileNotFoundError under `except OSError`). Fast planes, conformance,
 sync green.
 
+## Carrier folded in
+
+`except ArithmeticError` around `float(10 ** 400)` PROVED on the draft: the class covers the modelled
+ZeroDivisionError (so it was accepted) and also the unmodelled OverflowError/FloatingPointError.
+A handler covering a modelled class now needs EVERY builtin subclass to be modelled, below a modelled
+class (ValueError's Unicode subclasses: their operations are refused by the widened context), or
+explicitly raised. Witness 1606 (XFAIL). Emission unchanged.
+
 ## Completeness cost (recorded)
 
 A claiming function can no longer use a broad handler at all, even around code that raises only
