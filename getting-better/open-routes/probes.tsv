@@ -784,3 +784,4 @@ date	gen	generator	candidate	verdict	route	order	note
 2026-09-17	29	hand	g29-recursive-contracts	FAIL-CLOSED	-	-	Recursive function / method and mutual recursion with false ensures used by a caller: refused.
 2026-09-17	29	hand	g29-del-statements	FAIL-CLOSED	-	-	del local then rebind, del dict key then len / membership, del list slice (refused), del attribute then hasattr (refused): no false proof.
 2026-09-17	29	hand	g29-string-formatting-lengths	FAIL-CLOSED	-	-	f-string format spec, str() of a negative, %-formatting with %%, !r conversion, positional str.format, join with separator: lengths/equality with `!= truth` claims all unproved.
+2026-09-17	29	carrier-rerun	g29-r170-r171-handlers-in-loops	FAIL-CLOSED	171	-	On landed #170-#180: try/except inside for/while with continue / break / counter on missing keys and placeholder indexes, int() in a loop handler: no false proof (the true break-on-IndexError claim is unproved: completeness).
