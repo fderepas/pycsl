@@ -1097,6 +1097,102 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 f"`finally` whose try body cannot jump out IS modelled; move the jump "
                 f"after the `try`.",
                 stage="whyml-emit", code="PYCSL-R156-TRY-FINALLY-JUMP-DROPPED")
+    # (#49) ROUTE #175 — A USER EXCEPTION SUBCLASS IS NOT CAUGHT BY ITS BASE CLASS HANDLER.
+    # Handler matching knows the builtin hierarchy only (`exception_model.EXCEPTION_BASES`);
+    # a user `class MyErr(ValueError)` / `class Sub(Base)` raised in a `try` is its own Why3
+    # exception, the `with ValueError ->` / `with Base ->` arm never matches it, and it
+    # escapes into an added `raises { MyErr }` — so the handler's path is dead in the proof.
+    # MEASURED (gen #29): `try: raise MyErr() except ValueError: return 9; return 0` PROVED
+    # `\result == 0` (CPython 9); same for `Sub(Base)`. The resolved IR has already cleared
+    # the class `bases` (inheritance merged), so the check reads the SOURCE: a handler naming
+    # a strict ancestor of an exception raised in its `try` body (a `raise`, or a call to a
+    # function whose `#@ raises` names it) is refused in a non-trusted function.
+    try:
+        import ast as _ast175
+        _t175 = _ast175.parse(source_code)
+    except Exception:
+        _t175 = None
+    if _t175 is not None:
+        _bases175 = {}
+        for _c175 in _ast175.walk(_t175):
+            if isinstance(_c175, _ast175.ClassDef):
+                _bases175[_c175.name] = [
+                    (_b175.id if isinstance(_b175, _ast175.Name) else _b175.attr)
+                    for _b175 in _c175.bases
+                    if isinstance(_b175, (_ast175.Name, _ast175.Attribute))]
+        if _bases175:
+            _lines175 = source_code.splitlines()
+            _decl175 = {}
+            for _d175 in _ast175.walk(_t175):
+                if isinstance(_d175, (_ast175.FunctionDef, _ast175.AsyncFunctionDef)):
+                    _i175 = min([_d175.lineno] + [_x.lineno for _x in _d175.decorator_list]) - 2
+                    _rs175 = set()
+                    while 0 <= _i175 < len(_lines175) and _lines175[_i175].strip().startswith(("#@", "@")):
+                        _ln175 = _lines175[_i175].strip()
+                        if _ln175.startswith("#@ raises"):
+                            _tok175 = _ln175[len("#@ raises"):].strip().split()
+                            if _tok175:
+                                _rs175.add(_tok175[0].rstrip(","))
+                        _i175 -= 1
+                    _decl175.setdefault(_d175.name, set()).update(_rs175)
+            _trusted175 = {str(_f.get("name", "")).rsplit("__", 1)[-1]
+                           for _f in ir_data.get("functions", [])
+                           if _f.get("trusted") or _f.get("abstract") or _f.get("trusted_parent")}
+            import builtins as _bi175
+            for _fd175 in _ast175.walk(_t175):
+                if not isinstance(_fd175, (_ast175.FunctionDef, _ast175.AsyncFunctionDef)):
+                    continue
+                if _fd175.name in _trusted175:
+                    continue
+                for _tr175 in _ast175.walk(_fd175):
+                    if not isinstance(_tr175, _ast175.Try):
+                        continue
+                    _e175 = set()
+                    for _st175 in _tr175.body:
+                        for _x175 in _ast175.walk(_st175):
+                            if isinstance(_x175, _ast175.Raise) and _x175.exc is not None:
+                                _ex175 = _x175.exc.func if isinstance(_x175.exc, _ast175.Call) else _x175.exc
+                                if isinstance(_ex175, _ast175.Name):
+                                    _e175.add(_ex175.id)
+                            if isinstance(_x175, _ast175.Call):
+                                _cn175 = (_x175.func.id if isinstance(_x175.func, _ast175.Name)
+                                          else _x175.func.attr if isinstance(_x175.func, _ast175.Attribute)
+                                          else None)
+                                if _cn175:
+                                    _e175 |= _decl175.get(_cn175, set())
+                    for _s175 in _e175:
+                        if _s175 not in _bases175:
+                            continue
+                        _anc175 = set()
+                        _q175 = list(_bases175.get(_s175, []))
+                        while _q175:
+                            _a175 = _q175.pop()
+                            if _a175 in _anc175:
+                                continue
+                            _anc175.add(_a175)
+                            _q175.extend(_bases175.get(_a175, []))
+                            _ba175 = getattr(_bi175, _a175, None)
+                            if isinstance(_ba175, type) and issubclass(_ba175, BaseException):
+                                _anc175.update(_k.__name__ for _k in _ba175.__mro__
+                                               if issubclass(_k, BaseException))
+                        for _h175 in _tr175.handlers:
+                            _hn175 = []
+                            if isinstance(_h175.type, _ast175.Name):
+                                _hn175 = [_h175.type.id]
+                            elif isinstance(_h175.type, _ast175.Tuple):
+                                _hn175 = [_e.id for _e in _h175.type.elts if isinstance(_e, _ast175.Name)]
+                            for _hh175 in _hn175:
+                                if _hh175 != _s175 and _hh175 in _anc175:
+                                    from errors import PyCSLSemanticError as _PyCSLSemErr175
+                                    raise _PyCSLSemErr175(
+                                        f"`except {_hh175}` in {_fd175.name!r} is meant to catch "
+                                        f"the raised `{_s175}`, a user subclass of it (ROUTE #175), "
+                                        f"but handler matching knows only the builtin exception "
+                                        f"hierarchy: in the proof the raise escapes the handler "
+                                        f"while Python runs it, so a contract about the handler's "
+                                        f"path would be proved of the other one. Catch `{_s175}` "
+                                        f"by its own name.",
+                                        stage="whyml-emit", code="PYCSL-R175-USER-EXCEPTION-SUBCLASS")
     if "R31_UNMODELLED_LIST_TRUTHINESS" in _mlw:
         # ROUTE #31 (relaunch #45) — the Python truthiness of a list local whose
         # LENGTH the model does not carry. `_to_bool` used to answer `true` for
