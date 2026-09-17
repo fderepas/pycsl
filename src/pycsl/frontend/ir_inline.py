@@ -218,6 +218,19 @@ class _Inliner:
         # / capture); map each formal to its actual (or temp).
         # sorted: _assigned_locals is a set — deterministic __inl<N> numbering
         rename = {loc: self._fresh(loc) for loc in sorted(_assigned_locals(body))}
+        # (#49) ROUTE #169 — a tuple-unpacking bind is a local too. `_assigned_locals` sees
+        # only single-name targets, so `a, b = d, d` in the callee kept its spelling and
+        # OVERWROTE the caller's `a`: `a = 7; _g.f(100); return a` PROVED `\result == 100`
+        # (CPython 7). Freshen those names as well (their `Var` uses are renamed by
+        # `_substitute`; the `targets` list is renamed after it).
+        _tu169: List[str] = []
+        for _n169 in _walk_dicts(body):
+            if _n169.get("stmt") == "TupleUnpack" and isinstance(_n169.get("targets"), list):
+                for _t169 in _n169["targets"]:
+                    if isinstance(_t169, str) and _t169 not in rename and _t169 not in _tu169:
+                        _tu169.append(_t169)
+        for _t169 in sorted(_tu169):
+            rename[_t169] = self._fresh(_t169)
         pre: List[Any] = []
         param_map: Dict[str, Any] = {}
         for formal, actual in zip(formals, args):
@@ -228,6 +241,42 @@ class _Inliner:
                 pre.append({"stmt": "Assign", "target": tmp, "value": copy.deepcopy(actual)})
                 param_map[formal] = {"type": "Var", "name": tmp}
         body = [_substitute(st, recv, param_map, rename) for st in body]
+        for _n169 in _walk_dicts(body):
+            if _n169.get("stmt") == "TupleUnpack" and isinstance(_n169.get("targets"), list):
+                _n169["targets"] = [rename.get(_t169, _t169) if isinstance(_t169, str)
+                                    else _t169 for _t169 in _n169["targets"]]
+        # (#49) ROUTE #169 — A NAME THE CALLEE READS FROM MODULE SCOPE IS CAPTURED BY A
+        # CALLER LOCAL OF THE SAME NAME. Only the callee's own binds are freshened; every
+        # other identifier in the spliced body keeps its spelling and so resolves in the
+        # CALLER's scope. MEASURED: `K = 3` at module level, `def f(self): return K`, and a
+        # caller `K = 9; return _g.f()` PROVED `\result == 9` (CPython 3). Refuse when an
+        # unfreshened identifier of the spliced body is bound by the caller (a parameter or
+        # any assignment/loop/unpack target).
+        _cb169 = getattr(self, "caller_binders", set()) or set()
+        if _cb169:
+            _seen169: Set[str] = set()
+            for _n169 in _walk_dicts(body):
+                if _n169.get("type") == "Var" and isinstance(_n169.get("name"), str):
+                    _seen169.add(_n169["name"])
+                for _k169 in ("target", "object"):
+                    if isinstance(_n169.get(_k169), str):
+                        _seen169.add(_n169[_k169])
+                if isinstance(_n169.get("targets"), list):
+                    _seen169.update(t for t in _n169["targets"] if isinstance(t, str))
+                if _n169.get("type") == "Call" and isinstance(_n169.get("func"), str) \
+                        and "." in _n169["func"]:
+                    _seen169.add(_n169["func"].partition(".")[0])
+            _fresh169 = set(rename.values()) | {
+                a.get("name") for a in param_map.values()
+                if isinstance(a, dict) and a.get("type") == "Var"}
+            _cap169 = sorted(n for n in (_seen169 & _cb169)
+                             if n not in _fresh169 and n != recv)
+            if _cap169:
+                raise PyCSLSemanticError(
+                    f"cannot inline '{callee}' on '{recv}': its body refers to "
+                    f"{', '.join(repr(n) for n in _cap169)}, which the calling function binds "
+                    f"as a local, so the spliced body would read the CALLER's variable instead "
+                    f"of the name the method sees (route #169). Rename the local.")
         # A `return` may appear only as the LAST statement (tail). Mid-body returns
         # would need control-flow duplication — refuse (sound restriction).
         for st in body[:-1] if body else []:
@@ -429,6 +478,15 @@ def _inline_calls(funcs: List[Dict[str, Any]], globals_set: Set[str],
         # asks for, and it is exactly semantics-preserving.
         _converged = False
         for _ in range(_MAX_INLINE_DEPTH):
+            # (#49) ROUTE #169 — the caller's binders, recomputed per round (earlier rounds
+            # add only freshened names).
+            _cb = set(f.get("formal_params", []) or [])
+            for _nd in _walk_dicts(body):
+                if isinstance(_nd.get("target"), str) and _nd.get("stmt"):
+                    _cb.add(_nd["target"])
+                if isinstance(_nd.get("targets"), list) and _nd.get("stmt"):
+                    _cb.update(t for t in _nd["targets"] if isinstance(t, str))
+            inliner.caller_binders = _cb
             new_body = inliner.inline_stmts(body)
             if new_body == body:
                 _converged = True
