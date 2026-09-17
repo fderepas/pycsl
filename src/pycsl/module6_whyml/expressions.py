@@ -7512,6 +7512,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if _r100cls:
                     _r100n = whyml_ident(
                         f"{whyml_ident(str(_r100cls).lower())}__{_r100parts[1]}")
+        # (#49) ROUTE #166 — ONE STUB NAME, TWO CALLEES. The stub name is built from the
+        # call's SPELLING (`<receiver-name>_<method>_<arity>`), so `o.get()` on a `C` in one
+        # function and `o.get()` on a `D` in another both register `o_get_0`, and
+        # `_add_abstract_op` resolved the same-name/same-arity clash by keeping the LONGER
+        # declaration: `C.get` (`ensures \result == 1`) was called through `D.get`'s
+        # `ensures { result = 700 }` and `f() == 700` PROVED while CPython returns 1. A
+        # different declaration under an already-registered name now gets its own name
+        # (suffixed with a hash of the declaration), so every call site keeps ITS callee's
+        # contract; a byte-identical re-registration is unchanged.
+        _decl166 = (f"val {arity_name} () : {ret_type}{ensures_suffix}"
+                    if (n == 0 and not receiver_param) else None)
+        if _decl166 is None:
+            _params166 = " ".join(f"(x{i}: {ptype})" for i, ptype in enumerate(param_types))
+            _params166 = f"{receiver_param}{_params166}".rstrip()
+            _decl166 = (f"val {arity_name} {_params166} : "
+                        f"{ret_type}{writes_clause}{ensures_suffix}")
+        _prev166 = self._abstract_ops.get(arity_name)
+        if _prev166 is not None and _prev166 != _decl166:
+            arity_name = f"{arity_name}_c{stable_hash(_decl166) % 100000}"
         if n == 0 and not receiver_param:
             self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
             _call = self._wrap_call_with_callee_raises_assert(
