@@ -18,6 +18,14 @@ measurement refused 7 mirror files with broad handlers — BEFORE the claim gate
 own XFAIL witness 1585, python-reference and mirrors inert. Witnesses 1592, 1593 (XFAIL),
 1594 (PASS). Fast planes 19/19, conformance, sync green.
 
+## Carrier folded in
+
+The claim gate itself (from #171) missed loop specs: an `ensures True` function whose
+`loop invariant r == 0` holds only on the dead-handler path PROVED (CPython r == 9). Loop
+`invariants`/`variants` now count as claims (functions.py and the preamble gate). Still inert on
+corpus/pyref/mirrors. Witness 1595 (XFAIL). A frame claim needs no gate: Why3 infers the handler
+path's writes (measured: `assigns \nothing` with a handler store is refused at HEAD).
+
 ## Still open
 
 Unknown / trusted callees inside a handled `try` are refused only when the widened set triggers
