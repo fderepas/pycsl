@@ -14,7 +14,7 @@ module PyCSL_Program
 
 
   (* Abstract operations for unsupported Python patterns *)
-  val a_visit_1 (x0: int) : int
+  val a_visit_1 (self: functionanalyzer) (x0: int) : int
     ensures { (result >= 0) }
 
   val functionanalyzer__generic_visit (self: functionanalyzer) (node: int) : int
@@ -40,6 +40,6 @@ module PyCSL_Program
     ensures  { (result >= 0) } (* linear *)
   =
     let a = { functionanalyzer__depth = 0; count = 0 } in
-    (a_visit_1 n)
+    (a_visit_1 a n)
 
 end
