@@ -806,3 +806,4 @@ date	gen	generator	candidate	verdict	route	order	note
 2026-09-17	29	carrier-rerun	g29-mutable-state-param-mutation	FAIL-CLOSED	19	-	@mutable_state methods mutating a set / list / dict PARAMETER under `assigns \nothing`, with the caller reading the length: all pipeline refusals (route #19's fence holds).
 2026-09-17	29	hand	g29-iteration-shapes	FAIL-CLOSED	-	-	Snapshot iteration with insertion, set iteration sum, string character count, dict .items() sum, nested loops with an inner break: all unproved with `!= truth` claims.
 2026-09-17	29	hand	g29-augmented-assignment-targets	FAIL-CLOSED	-	-	`d[k] += n`, `c.n += n`, `xs[i] += 1` in a loop, `s += "bc"`, `xs += [..]` with `!= truth` claims: all unproved.
+2026-09-17	29	hand	g29-container-truthiness	FAIL-CLOSED	31	-	Truthiness of an empty dict / string / 0.0 / empty set and of a list or dict made non-empty by a store, with `!= truth` claims: all unproved (route #31 family holds).
