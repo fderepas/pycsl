@@ -1,6 +1,6 @@
 # ROUTE #184 — a `None` list element / dict-literal value reads back as the integer 0
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtAE, branch wip/g29-r184, on top of #183).** Severity 1.
+**Status: CLOSED by gen #29 (battery W green: suite 3780/3798, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1.
 Generator: the route #56 carriers measured by gen #29 (the FIELD one is route #183).
 
 ## Measured at `e842b16d`
