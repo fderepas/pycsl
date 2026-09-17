@@ -1,6 +1,6 @@
 # ROUTE #183 — a field whose only initialiser is `None` reads back as the integer 0
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtAD, branch wip/g29-r183, on top of #182).** Severity 1.
+**Status: CLOSED by gen #29 (battery V green: suite 3776/3794, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1.
 Generator: hand (the None-as-zero carriers measured against the open route #56).
 
 ## Measured at `57dd2d87`
