@@ -1,6 +1,6 @@
 # ROUTE #174 — a handler only an unmodelled exception can reach is dead in the proof
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtU, on top of #173).** Severity 1. Generator: hand
+**Status: CLOSED by gen #29 (battery O green: suite 3733/3751, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1. Generator: hand
 (recorded open in route #173's batch).
 
 ## Measured at `546e366f` (and on the #173 draft), each `#@ ensures \result == 0`, CPython 9

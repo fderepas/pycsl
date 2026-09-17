@@ -1,6 +1,6 @@
 # ROUTE #173 — a tuple unpack's arity mismatch proves `no_exception ValueError`
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtT, on top of #172).** Severity 1. Generator: hand
+**Status: CLOSED by gen #29 (battery O green: suite 3733/3751, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1. Generator: hand
 (unmodelled implicit exceptions caught, after #171/#172).
 
 ## Measured at `210033fe`

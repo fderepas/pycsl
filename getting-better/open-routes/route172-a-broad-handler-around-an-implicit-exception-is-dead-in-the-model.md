@@ -1,6 +1,6 @@
 # ROUTE #172 — route #171's residual: `except Exception` / bare around an implicit exception
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtS, on top of #171).** Severity 1. Generator:
+**Status: CLOSED by gen #29 (battery O green: suite 3733/3751, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1. Generator:
 carrier-rerun on the #171 draft (its own recorded residual).
 
 ## Measured on the #171 draft (and at `927e899f`)
