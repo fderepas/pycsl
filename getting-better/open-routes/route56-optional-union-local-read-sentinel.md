@@ -146,3 +146,17 @@ whole-file `why3 prove --timelimit 180` was still running at its 900-second wall
 verdict at all. Reading the emitted WhyML settled it in seconds, because the question was
 never "can the solver close this goal" but "which arm did the lowering choose". The solver
 was thrashing precisely BECAUSE the answer is an opaque it cannot decide.
+
+## Carriers measured by gen #29 (2026-09-17) — the same class beyond LOCALS
+
+Still open at `f53b57d1`, each PROVED `True` while CPython answers `False`:
+
+    class C: self.v: Optional[int] = None      c = C();          return c.v == 0
+    xs: List[Optional[int]] = [None];                            return xs[0] == 0
+    d: Dict[str, Optional[int]] = {"a": None};                   return d["a"] == 0
+
+So the sentinel read is not confined to Optional LOCALS: an Optional FIELD, an Optional LIST
+ELEMENT and an Optional DICT VALUE read back as the carrier's zero too. Refused in the same batch:
+`None` returned from a function and compared (`f(False) == 0`), and a `None` DEFAULT parameter
+compared. Recorded here rather than as a new route: same mechanism, same repair (a distinguishable
+`None` in the value model — routes #44/#56/#57's shared capability).
