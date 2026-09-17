@@ -23,6 +23,13 @@ exactly the target count or a call to a function of this file; otherwise PyCSLIR
 inert (corpus/pyref/mirrors). Witnesses 1596, 1597 (XFAIL), 1598 (PASS). Fast planes, conformance,
 sync green.
 
+## Carrier folded in (committed on wip/g29-r174)
+
+`for a, b in ["abc"]` and `for k, v, w in d.items()` under `no_exception ValueError` PROVED (CPython
+ValueError). A `For` with `tuple_targets` is accepted only over `enumerate(x)` / `.items()` with two
+targets or `zip(...)` with one target per argument. Comprehension tuple targets and single-element /
+string unpacks were already refused. Witnesses 1604-1605 (XFAIL). Emission unchanged.
+
 ## Also measured this batch (recorded, not routes)
 
 Caught AttributeError on `None.x` (`Optional` local), OverflowError from `float(10**400)`,
