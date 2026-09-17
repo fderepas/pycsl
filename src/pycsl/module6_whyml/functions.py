@@ -1211,6 +1211,13 @@ class FunctionEmissionMixin:
                                     and _x178.get("op") in ("/", "div", "//", "%", "mod", "**")
                                     and (_f178.get("trusted") or _f178.get("abstract"))):
                                 _r178.add("ZeroDivisionError")
+                            # a shift by a negative count raises ValueError; its trigger row is
+                            # consulted only under the CALLEE's own context (measured: `1 << x`
+                            # in an uncontracted helper, same-file or imported, called with -1
+                            # under the caller's `no_exception ValueError` / `except ValueError`
+                            # PROVED)
+                            if _x178.get("type") == "BinOp" and _x178.get("op") in ("<<", ">>"):
+                                _r178.add("ValueError")
                             if _x178.get("stmt") == "TupleUnpack":
                                 _r178.add("ValueError")
                             if _x178.get("type") == "Call" and isinstance(_x178.get("func"), str):
