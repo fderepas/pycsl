@@ -1134,6 +1134,15 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             if _tok175:
                                 _rs175.add(_tok175[0].rstrip(","))
                         _i175 -= 1
+                    # an UNANNOTATED callee's own `raise` statements count too (measured: a
+                    # method raising `MyErr(ValueError)` with no `#@ raises`, caught by
+                    # `except ValueError` in the caller, still proved the other path)
+                    for _y175 in _ast175.walk(_d175):
+                        if isinstance(_y175, _ast175.Raise) and _y175.exc is not None:
+                            _ey175 = (_y175.exc.func if isinstance(_y175.exc, _ast175.Call)
+                                      else _y175.exc)
+                            if isinstance(_ey175, _ast175.Name):
+                                _rs175.add(_ey175.id)
                     _decl175.setdefault(_d175.name, set()).update(_rs175)
             _trusted175 = {str(_f.get("name", "")).rsplit("__", 1)[-1]
                            for _f in ir_data.get("functions", [])

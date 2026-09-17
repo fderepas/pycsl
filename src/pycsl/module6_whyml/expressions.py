@@ -7633,12 +7633,60 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _a167.append(
                         "assert { [@expl:PyCSL-R167 callee precondition at a stubbed method call] "
                         + (f"({_c167})" if _c167 else "false") + " };")
+        # (#49) ROUTE #176 — A STUBBED METHOD CALL NEVER RAISES, SO A HANDLER FOR THE
+        # CALLEE'S EXCEPTION IS DEAD. The abstract op carries no `raises`; the method's own
+        # `let` declares `raises { E }`, but the caller never sees it. MEASURED: `c.go(-1)`
+        # with `go` raising ValueError on a negative argument, inside `try ... except
+        # ValueError: return 9`, PROVED `\result == 0` (CPython 9); same for `self.go(-1)`
+        # from a sibling. When the resolved callee (route #167's resolution) can let E escape
+        # (declared `raises`, or an escaping `raise` in its body) and the calling function
+        # has a handler for E, the call may now raise E first (`if any bool then raise E`):
+        # the handler path is live, and an escape the caller does not catch is refused by Why3.
+        _esc176: Set[str] = set()
+        from module6_whyml.ir_scanner import IRScanner as _IRS176
+        from module6_whyml.identifiers import safe_exc_name as _sen176
+        if _m167:
+            for _f176 in (self.ir.get("functions", []) or []):
+                _fn176 = str(_f176.get("name", ""))
+                if not ((_k167 and whyml_ident(_fn176) == _k167)
+                        or (not _k167 and _fn176.endswith("__" + _m167))):
+                    continue
+                for _r176 in ((_f176.get("contracts", {}) or {}).get("raises", []) or []):
+                    if isinstance(_r176, dict) and _r176.get("exc_type"):
+                        _esc176.add(str(_r176["exc_type"]))
+                _esc176 |= set(_IRS176.collect_escaping_exceptions(_f176.get("body", []) or []))
+        _pre176 = ""
+        if _esc176:
+            from exception_model import handler_catches as _hc176
+            _cur176 = getattr(self, "_current_sig_func_name", None)
+            _hs176: Set[str] = set()
+            for _g176 in (self.ir.get("functions", []) or []):
+                if _g176.get("name") != _cur176:
+                    continue
+                _w176: List[Any] = [_g176.get("body", [])]
+                while _w176:
+                    _x176 = _w176.pop()
+                    if isinstance(_x176, dict):
+                        if _x176.get("stmt") == "Try":
+                            for _h176 in (_x176.get("handlers") or []):
+                                _et176 = _h176.get("exc_type") if isinstance(_h176, dict) else None
+                                for _hn176 in (str(_et176).split("|") if _et176 else ["BaseException"]):
+                                    _hs176.add(_hn176)
+                        _w176.extend(v for v in _x176.values() if isinstance(v, (dict, list)))
+                    elif isinstance(_x176, list):
+                        _w176.extend(_x176)
+            for _e176 in sorted(_esc176):
+                if any(_hc176(_hn176, _e176) or _hn176 in ("Exception", "BaseException")
+                       for _hn176 in _hs176):
+                    _pre176 += f"if (any bool) then raise {_sen176(_e176)}; "
         if n == 0 and not receiver_param:
             self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
             _call = self._wrap_call_with_callee_raises_assert(
                 _r100n, f"({arity_name} ())", args)
             if _a167:
                 _call = "begin " + " ".join(_a167) + " " + _call + " end"
+            if _pre176:
+                _call = "begin " + _pre176 + _call + " end"
             return f"(let _ = {_call} in absurd)" if _nr_callee else _call
         params = " ".join(f"(x{i}: {ptype})" for i, ptype in enumerate(param_types))
         params = f"{receiver_param}{params}".rstrip()
@@ -7647,6 +7695,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _r100n, f"({arity_name} {' '.join(coerced)})", args)
         if _a167:
             _call = "begin " + " ".join(_a167) + " " + _call + " end"
+        if _pre176:
+            _call = "begin " + _pre176 + _call + " end"
         return f"(let _ = {_call} in absurd)" if _nr_callee else _call
 
     def _is_seq_arg(self, arg: str) -> bool:
