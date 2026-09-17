@@ -21,3 +21,11 @@ In #178's scan, a division (`/`, `//`, `%`, `**`) inside a `\trusted` / abstract
 stub) is a ZeroDivisionError source, and ZeroDivisionError joins the active set. Emission byte-inert.
 Witnesses 1643, 1644 (XFAIL), 1645 (PASS, made non-vacuous after the vacuous-drivers ratchet flagged
 the first draft), helper `multi_file_lib/r182_divider.py`.
+
+## Carrier folded in
+
+A shift by a negative count (`1 << x` with x = -1) inside an uncontracted helper — same-file or imported
+— called under the caller's `no_exception ValueError` or `except ValueError` PROVED (CPython
+ValueError / 9): the shift trigger row is consulted only under the callee's own context. `<<` / `>>`
+in any scanned callee is now a ValueError source for #178. Witnesses 1646-1647 (XFAIL).
+Imported `int()`, unpack and empty-list index callers were already refused.
