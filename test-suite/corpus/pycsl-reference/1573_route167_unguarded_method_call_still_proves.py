@@ -1,4 +1,4 @@
-r"""Test 1573 - ROUTE #167 control (gen #29): a stubbed call to a method with NO precondition is untouched, and the guarded method itself still proves.
+r"""Test 1573 - ROUTE #167 control (gen #29): a stubbed call to a method with NO precondition is untouched - its result-only postcondition still reaches the caller - and the guarded method itself still proves.
 """
 _ = 0  # anchor
 
@@ -20,5 +20,5 @@ class C:
 #@ ensures \result == 5
 def probe() -> int:
     c = C(0)
-    c.one()
-    return 5
+    r = c.one()
+    return r + 4
