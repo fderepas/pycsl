@@ -20,6 +20,14 @@ codomain, lower to route #44's opaque `pycsl_none`. Reads become UNDECIDED inste
 Emission byte-inert (corpus/pyref/mirrors). Witnesses 1651-1653 (XFAIL), 1654 (PASS: ordinary int
 literals unchanged). Fast planes 19/19, conformance, sync green.
 
+## Measured and NOT adopted (recorded)
+
+Giving the TYPED `NoneExpr` arm the same opaque — which would also close the STORE positions
+(`xs[0] = None`, `d["a"] = None`, `self.v = None`, `xs.append(None)`, all still PROVING `== 0`) —
+moves 16 mirror emissions and breaks `check-singleton-constant-lowering`: that is route #56's general
+repair (a distinguishable `None` in the value model), not a fail-closed fence, so it is left to the
+value-model campaign. The dict-shaped arm's stale baseline entry in that plane is retired here.
+
 ## Still open (route #56)
 
 Optional LOCALS in the conditional-join shape (#56 itself) and every other `None` position keep the
