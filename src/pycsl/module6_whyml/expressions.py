@@ -7642,24 +7642,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # (declared `raises`, or an escaping `raise` in its body) and the calling function
         # has a handler for E, the call may now raise E first (`if any bool then raise E`):
         # the handler path is live, and an escape the caller does not catch is refused by Why3.
-        _esc176: Set[str] = set()
+        _pre176 = ""
         from module6_whyml.ir_scanner import IRScanner as _IRS176
         from module6_whyml.identifiers import safe_exc_name as _sen176
+        from exception_model import handler_catches as _hc176
+        _cur176 = getattr(self, "_current_sig_func_name", None)
+        _hs176: Set[str] = set()
         if _m167:
-            for _f176 in (self.ir.get("functions", []) or []):
-                _fn176 = str(_f176.get("name", ""))
-                if not ((_k167 and whyml_ident(_fn176) == _k167)
-                        or (not _k167 and _fn176.endswith("__" + _m167))):
-                    continue
-                for _r176 in ((_f176.get("contracts", {}) or {}).get("raises", []) or []):
-                    if isinstance(_r176, dict) and _r176.get("exc_type"):
-                        _esc176.add(str(_r176["exc_type"]))
-                _esc176 |= set(_IRS176.collect_escaping_exceptions(_f176.get("body", []) or []))
-        _pre176 = ""
-        if _esc176:
-            from exception_model import handler_catches as _hc176
-            _cur176 = getattr(self, "_current_sig_func_name", None)
-            _hs176: Set[str] = set()
             for _g176 in (self.ir.get("functions", []) or []):
                 if _g176.get("name") != _cur176:
                     continue
@@ -7675,6 +7664,46 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         _w176.extend(v for v in _x176.values() if isinstance(v, (dict, list)))
                     elif isinstance(_x176, list):
                         _w176.extend(_x176)
+        if _hs176:
+            # Escaping exceptions per function of this file, TRANSITIVELY through the calls in
+            # its body (by name, or by method-name suffix): declared `raises`, escaping `raise`
+            # statements, and whatever a callee can let escape (measured: `go` raising only
+            # through a helper `self.check(v)` still PROVED). An over-approximation (catches
+            # inside callees are not subtracted), which only makes more handler paths live.
+            _dir176: Dict[str, Set[str]] = {}
+            _calls176: Dict[str, Set[str]] = {}
+            for _f176 in (self.ir.get("functions", []) or []):
+                _fn176 = str(_f176.get("name", ""))
+                _d176: Set[str] = set(_IRS176.collect_escaping_exceptions(_f176.get("body", []) or []))
+                for _r176 in ((_f176.get("contracts", {}) or {}).get("raises", []) or []):
+                    if isinstance(_r176, dict) and _r176.get("exc_type"):
+                        _d176.add(str(_r176["exc_type"]))
+                _dir176[_fn176] = _d176
+                _c176: Set[str] = set()
+                _w176 = [_f176.get("body", [])]
+                while _w176:
+                    _x176 = _w176.pop()
+                    if isinstance(_x176, dict):
+                        if _x176.get("type") == "Call" and isinstance(_x176.get("func"), str):
+                            _c176.add(_x176["func"].rsplit(".", 1)[-1])
+                        _w176.extend(v for v in _x176.values() if isinstance(v, (dict, list)))
+                    elif isinstance(_x176, list):
+                        _w176.extend(_x176)
+                _calls176[_fn176] = _c176
+            _changed176 = True
+            while _changed176:
+                _changed176 = False
+                for _fn176, _cs176 in _calls176.items():
+                    for _gn176, _gd176 in _dir176.items():
+                        if (_gn176 in _cs176 or _gn176.rsplit("__", 1)[-1] in _cs176) \
+                                and not _gd176 <= _dir176[_fn176]:
+                            _dir176[_fn176] |= _gd176
+                            _changed176 = True
+            _esc176: Set[str] = set()
+            for _fn176, _d176 in _dir176.items():
+                if ((_k167 and whyml_ident(_fn176) == _k167)
+                        or (not _k167 and _fn176.endswith("__" + _m167))):
+                    _esc176 |= _d176
             for _e176 in sorted(_esc176):
                 if any(_hc176(_hn176, _e176) or _hn176 in ("Exception", "BaseException")
                        for _hn176 in _hs176):
@@ -9031,6 +9060,38 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if _g167c:
                     inner = ("begin assert { [@expl:PyCSL-R167 callee precondition at a "
                              "stubbed method call] false }; " + inner + " end")
+                # (#49) ROUTE #176 carrier — the same spelling never raises either:
+                # `C().go(-1)` with `go` raising ValueError, caught by the caller, PROVED the
+                # other path. No resolved callee here, so conservatively: when a same-file
+                # method of that name exists and the calling function has handlers, the call
+                # may raise each NAMED handled exception.
+                _m176c = any(str(_f.get("name", "")).endswith("__" + str(func_name))
+                             for _f in (self.ir.get("functions", []) or []))
+                if _m176c:
+                    _cur176c = getattr(self, "_current_sig_func_name", None)
+                    _hs176c: List[str] = []
+                    for _g176c in (self.ir.get("functions", []) or []):
+                        if _g176c.get("name") != _cur176c:
+                            continue
+                        _w176c: List[Any] = [_g176c.get("body", [])]
+                        while _w176c:
+                            _x176c = _w176c.pop()
+                            if isinstance(_x176c, dict):
+                                if _x176c.get("stmt") == "Try":
+                                    for _h176c in (_x176c.get("handlers") or []):
+                                        _et176c = (_h176c.get("exc_type")
+                                                   if isinstance(_h176c, dict) else None)
+                                        for _hn176c in (str(_et176c).split("|") if _et176c else []):
+                                            if _hn176c not in _hs176c:
+                                                _hs176c.append(_hn176c)
+                                _w176c.extend(v for v in _x176c.values() if isinstance(v, (dict, list)))
+                            elif isinstance(_x176c, list):
+                                _w176c.extend(_x176c)
+                    if _hs176c:
+                        from module6_whyml.identifiers import safe_exc_name as _sen176c
+                        inner = ("begin " + "".join(
+                            f"if (any bool) then raise {_sen176c(_h)}; " for _h in sorted(_hs176c))
+                            + inner + " end")
             return self._wrap_unannotated_call_with_strict_assert(inner)
         # 1111-spec R7 (no-more-int): if the call passes fewer args than the callee
         # arity, fill the missing trailing params from the callee's positional
