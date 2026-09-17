@@ -25,6 +25,5 @@ GenExp is refused, unconditionally. Branch also carries a doc-only fix: `test-su
 §7.1 claimed a Python `assert` lowers to `check { ... }`; the emitter lowers it to `()` (translational
 reference §T.5.8, README, static semantics all agree) — corrected.
 
-## Still to measure
-
-Emission census (running), fast planes, witnesses.
+Emission byte-inert (corpus/pyref/mirrors). Witnesses 1636, 1637 (XFAIL), 1638 (PASS: walrus in a plain
+condition). Fast planes 19/19, conformance, sync, doc-coherency green.
