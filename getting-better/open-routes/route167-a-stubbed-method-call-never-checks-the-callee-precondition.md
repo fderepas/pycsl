@@ -41,6 +41,13 @@ Witnesses 1569–1572, 1574 (XFAIL), 1573 (PASS control, non-vacuous).
 Fast planes 19/19 (after removing a `finally` that broke the TRYFINAL ratchet and making 1573
 non-vacuous), conformance 38/38 + 38/38, sync rc=0, mirror-coverage 549/41.
 
+## Carrier folded in (wtP)
+
+`C(0).sget()` and `super().sget()` reach the generic unannotated-call fallback (bare method name,
+`receiver` field) and still PROVED on draft 2. That fallback now asserts false when a same-file
+method of that name has a non-trivial precondition. Corpus/pyref/mirrors byte-inert.
+Witnesses 1581–1582 (XFAIL). Landing: with #168/#169 as `wip/g29-r166..wip/g29-r169`.
+
 ## Still to measure
 
 Emission census (corpus / pyref / mirrors) before predictions; imported-class methods across files
