@@ -1083,6 +1083,38 @@ class FunctionEmissionMixin:
                                       if isinstance(v, (dict, list)))
                 elif isinstance(_r173_n, (list, tuple)):
                     _r173_work.extend(_r173_n)
+        # (#49) ROUTE #180 — A WALRUS INSIDE A COMPREHENSION REBINDS THE ENCLOSING VARIABLE,
+        # AND THE COMPREHENSION IS LOWERED AS AN OPAQUE VALUE. PEP 572: `(y := x)` inside a
+        # comprehension / generator binds `y` in the CONTAINING function. MEASURED at HEAD:
+        # `y = 0; xs = [(y := x) for x in [1, 2, 3]]; return y` PROVED `\\result == 0`
+        # (CPython 3); `sum((last := x) for x in ...)` likewise. Unconditional (no context
+        # needed): a NamedExpr anywhere inside a ListComp / SetComp / DictComp / GenExp of a
+        # non-trusted function is refused.
+        _w180 = list(func.get("body", []) or [])
+        while _w180:
+            _n180 = _w180.pop()
+            if isinstance(_n180, dict):
+                if _n180.get("type") in ("ListComp", "SetComp", "DictComp", "GenExp"):
+                    _s180: List[Any] = [_n180]
+                    while _s180:
+                        _x180 = _s180.pop()
+                        if isinstance(_x180, dict):
+                            if _x180.get("type") == "NamedExpr":
+                                raise PyCSLIRError(
+                                    "an assignment expression `(" + str(_x180.get("target"))
+                                    + " := ...)` inside a comprehension rebinds `"
+                                    + str(_x180.get("target")) + "` in the enclosing function "
+                                    "(PEP 572), but the comprehension is lowered as a value "
+                                    "without that effect, so the variable would keep its old "
+                                    "value in the proof (route #180; measured: `y = 0; "
+                                    "[(y := x) for x in [1, 2, 3]]; return y` proved 0, CPython "
+                                    "3). Write the loop explicitly.")
+                            _s180.extend(v for v in _x180.values() if isinstance(v, (dict, list)))
+                        elif isinstance(_x180, list):
+                            _s180.extend(_x180)
+                _w180.extend(v for v in _n180.values() if isinstance(v, (dict, list)))
+            elif isinstance(_n180, list):
+                _w180.extend(_n180)
         # (#49) ROUTE #177 — A COMPREHENSION'S ELEMENT OPERATIONS CARRY NO `no_exception`
         # OBLIGATION. A comprehension that no fold recognises lowers to an opaque
         # `list_comp` / oracle value, so the subscripts and divisions inside it were never
