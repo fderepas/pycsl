@@ -3,20 +3,19 @@
 # ## STATUS (updated as work lands — trust `git log` + driver-progress.log over this block)
 #   - Machine REBOOTED ~07:47Z 2026-09-16: /tmp scratchpads and all baselines were lost. Why3 is NOT on the default
 #     PATH: `. scratchpad/g29/env.sh` (adds ~/.opam/framac-coq8/bin, PYTHONHASHSEED=0).
-#   - CLOSED this generation (20 routes): #147 #143 #148 #149 #150 #151 #152 #153 #154 #155 #156 #157 #158 #159 #160
-#     #161 #162 #163 #164 (last CLOSED commit 7e9e399c).
-#   - BATTERY K RUNNING for #165 (receiver-less method stub skips the class invariant): branch wip/g29-r165,
-#     worktree $SCRATCH/wtL; 5 corpus files MOVED by design (0446 0448 0450 0451 0453, all re-prove), core golden
-#     0448.expected.mlw regenerated; suite predicted 3691/3709, planes 34/34.
-#     On green: `git cherry-pick wip/g29-r163..wip/g29-r165`, diff check, CLOSED commit.
-#   - NEXT: battery L for #166 (one abstract stub name for two callees; keep-longer merge): branch wip/g29-r166,
-#     worktree $SCRATCH/wtM (#165 + #166). Conflict census: 0 corpus, 139 mirror conflicts all benign spellings,
-#     none from dotted stubs -> predicted mirror-inert; MEASURE the emission first.
+#   - CLOSED this generation (22 routes): #147 #143 #148 #149 #150 #151 #152 #153 #154 #155 #156 #157 #158 #159 #160
+#     #161 #162 #163 #164 #165 #166 (last CLOSED commit 2d9e53ca).
+#   - BATTERY M RUNNING for #167 (stubbed method call never checks the callee `requires`), #168 (global-method
+#     inliner drops a discarded tail return), #169 (inliner capture of caller locals): branch wip/g29-r169,
+#     worktree $SCRATCH/wtP (stack wip/g29-r167 -> r168 -> r169 on r166). Emission pre-measured: corpus 10 MOVED
+#     (by design, PASS ones re-prove), pyref/mirrors inert. Suite predicted 3708/3726, planes 34/34.
+#     On green: `git cherry-pick wip/g29-r166..wip/g29-r169`, diff check, CLOSED commit for all three.
 #   ($SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad — tmpfs.
 #    All worktree work is committed to the local branches wip/g29-* — recover from those, not from /tmp.)
 #   - PROBED FAIL-CLOSED (don't re-probe without a new idea): arithmetic, strings, unicode, slices, comprehension
 #     builtins, dunders, enums, context managers, loop-else, generators, closures, class attributes, ghost code,
-#     lemmas, assert/check, module attributes, module collection frames, raises precision, try/finally — probes.tsv.
+#     lemmas, assert/check, module attributes, module collection frames, raises precision, try/finally, Optional, constructor contracts, loop jumps,
+#     list mutators/aliasing, class dispatch, globals/recursion, global & record aliasing, nested frames — probes.tsv.
 #
 # ## LESSONS SO FAR (gen #29)
 #   >>> AN UNMODELLED NAME IN A WALK IS NOT "NOTHING THERE" (`records.get(x) is None` -> continue was an assumption).
