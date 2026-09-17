@@ -1,6 +1,6 @@
 # ROUTE #165 — a receiver-less method stub propagates a postcondition that relies on a broken class invariant
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtL, on top of battery J's candidate).** Severity 1.
+**Status: CLOSED by gen #29 (battery K green: suite 3691/3709, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1.
 
 ## Measured at `0a9723c0`
 
