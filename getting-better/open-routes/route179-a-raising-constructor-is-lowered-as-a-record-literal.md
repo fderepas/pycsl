@@ -30,6 +30,5 @@ construct one directly, or call same-file functions that do (transitively), are 
 catches it. A caller that merely constructs (no claim about the exception) is unaffected: its
 postconditions are partial-correctness claims about normal return.
 
-## Still to measure
-
-Emission census (running); witnesses.
+Emission byte-inert (corpus/pyref/mirrors). Witnesses 1630-1632 (XFAIL), 1633 (PASS). Fast planes 19/19
+(after inlining a nested helper that moved mirror-coverage), conformance, sync green.
