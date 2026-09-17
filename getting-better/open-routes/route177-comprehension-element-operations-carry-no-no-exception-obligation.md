@@ -22,6 +22,5 @@ ListComp/SetComp/DictComp/GenExp whose element/key/value/conditions/iterables co
 (IndexError/KeyError), a `/`/`div`/`%`/`**` (ZeroDivisionError), or a tuple generator target
 (ValueError) is refused.
 
-## Still to measure
-
-Emission census (running); carriers: lambdas, nested defs, f-strings with subscripts.
+Emission inert (corpus/pyref/mirrors). Witnesses 1620-1623 (XFAIL), 1624 (PASS control).
+Fast planes/conformance/sync measured together with #178 in wtY: green.
