@@ -371,7 +371,11 @@ class FunctionEmissionMixin:
             while _w171 and not _claim171:
                 _n171 = _w171.pop()
                 if isinstance(_n171, dict):
-                    if _n171.get("stmt") in ("Assert", "ProofAssert"):
+                    # (#49) ROUTE #172 — loop invariants / variants are claims too (measured:
+                    # an `ensures True` function whose `loop invariant r == 0` held only on
+                    # the dead-handler path PROVED, CPython r == 9).
+                    if (_n171.get("stmt") in ("Assert", "ProofAssert")
+                            or _n171.get("invariants") or _n171.get("variants")):
                         _claim171 = True
                     _w171.extend(v for v in _n171.values() if isinstance(v, (dict, list)))
                 elif isinstance(_n171, list):
