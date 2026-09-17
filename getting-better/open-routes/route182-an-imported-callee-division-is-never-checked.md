@@ -1,6 +1,6 @@
 # ROUTE #182 — a division inside an imported (trusted) callee is never checked
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtAC, branch wip/g29-r182, on top of #181).** Severity 1.
+**Status: CLOSED by gen #29 (battery U green: suite 3773/3791, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1.
 Generator: carrier-rerun of #178 (imported callees).
 
 ## Measured at `76f39779`
