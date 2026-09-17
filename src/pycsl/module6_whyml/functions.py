@@ -1183,8 +1183,13 @@ class FunctionEmissionMixin:
         # refused.
         if _r65_all or _r65_named:
             from exception_model import all_phase1_exceptions as _ph178
+            # (#49) ROUTE #182 — ZeroDivisionError joins the set for callees whose body is NOT
+            # verified here (a `\trusted` function, including every imported stub): their
+            # divisions are never checked. MEASURED: `from lib import div` (`return 10 // x`),
+            # `div(0)` under `#@ no_exception ZeroDivisionError` PROVED, and inside `except
+            # ZeroDivisionError: return 9` PROVED `\result == 0` (CPython raises / 9).
             _act178 = (set(_r65_named) | (set(_ph178()) if _r65_all else set())) & {
-                "KeyError", "IndexError", "ValueError"}
+                "KeyError", "IndexError", "ValueError", "ZeroDivisionError"}
             if _act178:
                 _raw178: Dict[str, Set[str]] = {}
                 _cl178: Dict[str, Set[str]] = {}
@@ -1202,6 +1207,10 @@ class FunctionEmissionMixin:
                         if isinstance(_x178, dict):
                             if _x178.get("type") == "Subscript":
                                 _r178 |= {"KeyError", "IndexError"}
+                            if (_x178.get("type") == "BinOp"
+                                    and _x178.get("op") in ("/", "div", "//", "%", "mod", "**")
+                                    and (_f178.get("trusted") or _f178.get("abstract"))):
+                                _r178.add("ZeroDivisionError")
                             if _x178.get("stmt") == "TupleUnpack":
                                 _r178.add("ValueError")
                             if _x178.get("type") == "Call" and isinstance(_x178.get("func"), str):
