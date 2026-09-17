@@ -1,6 +1,6 @@
 # ROUTE #179 — a raising constructor is lowered as a record literal, and the raise is gone
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtZ, branch wip/g29-r179, on top of #178).** Severity 1.
+**Status: CLOSED by gen #29 (battery R green: suite 3761/3779, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34 on a relaunch).** Severity 1.
 Generator: hand (raising callees of every call spelling, after #176).
 
 ## Measured at `b795f888`
