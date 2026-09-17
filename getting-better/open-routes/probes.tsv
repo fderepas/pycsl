@@ -714,3 +714,4 @@ date	gen	generator	candidate	verdict	route	order	note
 2026-09-17	29	hand	g29-import-and-local-def-shadowing	FAIL-CLOSED	130	-	A local def followed by a same-named from-import, and the reverse order: both pipeline errors (route #130 family).
 2026-09-17	29	hand	g29-optional-truthiness	FAIL-CLOSED	-	-	6 Optional shapes (falsy 0 / "" / [] inside Optional, None-ness after rebinding, `or` default, not-None projection) with `!= truth`: no false proof.
 2026-09-17	29	hand	g29-constructor-contracts	FAIL-CLOSED	15	-	A violated constructor `requires` exploited through its `ensures`, and a constructor `ensures` its body does not establish: both refused (route #15 holds).
+2026-09-17	29	hand	g29-loop-exit-jumps	FAIL-CLOSED	-	-	while+break (post-loop NOT cond does not hold), return inside a for over range, continue skipping an accumulator: all refused.
