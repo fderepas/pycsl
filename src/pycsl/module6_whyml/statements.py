@@ -154,6 +154,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 v_str = self._pyval_wrap(v_ir, local_refs)
             else:
                 v_low = self._expr_to_whyml(v_ir, local_refs)
+                # (#49) ROUTE #184 — a `None` VALUE of a dict literal is not the integer 0
+                # either (`{"a": None}` then `d["a"] == 0` PROVED True, CPython False): store
+                # route #44's opaque `pycsl_none` so the read is UNDECIDED.
+                if (isinstance(v_ir, dict) and v_ir.get("type") == "None"
+                        and (nu in (None, "", "int"))):
+                    self._add_abstract_op("val function pycsl_none : int")
+                    v_low = "pycsl_none"
                 v_str = self._dv_store_value(nu, v_low)
             acc = f"(map_update_some {acc} {k_str} {v_str})"
         return acc

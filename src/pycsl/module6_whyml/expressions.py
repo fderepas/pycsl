@@ -17384,6 +17384,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if t == "None":     return "0"
         if isinstance(node, ArrayLitExpr):
             elts = expr.get("elts", [])
+            # (#49) ROUTE #184 — A `None` ELEMENT OF A LIST LITERAL IS NOT THE INTEGER 0.
+            # `xs: List[Optional[int]] = [None]` lowered to `Array.make 1 0`, so `xs[0] == 0`
+            # PROVED True (CPython False) and `xs[0] + 1` PROVED `== 1` (CPython TypeError).
+            # Route #56's shape on a LIST ELEMENT; the FIELD carrier is route #183. The
+            # element becomes route #44's opaque `pycsl_none`, so the read is UNDECIDED.
+            if any(isinstance(_e184, dict) and _e184.get("type") == "None" for _e184 in elts):
+                self._add_abstract_op("val function pycsl_none : int")
+                elts = [({"type": "RawWhyml", "whyml": "pycsl_none"}
+                         if isinstance(_e184, dict) and _e184.get("type") == "None" else _e184)
+                        for _e184 in elts]
+                expr = dict(expr)
+                expr["elts"] = elts
             # 07-0903 W1 (no-more-int): a list/array of tuples lowers to a faithful
             # `array (t0, …)` — each element is a Why3 tuple, NOT collapsed to an int.
             # Homogeneous fixed-arity tuples only (the directory/(key,value) shape);
