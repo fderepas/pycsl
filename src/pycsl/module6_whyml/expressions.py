@@ -14038,6 +14038,41 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         # yields the INNER map; the missing-key default is the empty inner map
                         # (`const None`), not the int `0`.
                         default = f"(const (None: {_fnu[len('map int ('):-1]}))"
+                # (#49) ROUTE #170 — A MISSING KEY RAISES, AND A HANDLER CAN OBSERVE IT. The
+                # placeholder above is justified as "dead under `no_exception KeyError`, the
+                # ambient default otherwise" — but inside a function whose `try` CATCHES the
+                # KeyError, the handler is a real program path and the placeholder erased it.
+                # MEASURED: `d = {"a": 1}; try: v = d["b"] except KeyError: return 9;
+                # return v` PROVED `\result == 0` (CPython 9), and the same under
+                # `except Exception`. In a function with any handler that can catch
+                # KeyError (KeyError, LookupError, Exception, BaseException, bare or
+                # unrecognised), the missing-key arm RAISES KeyError: caught where Python
+                # catches it, an unprovable escape elsewhere (fail-closed; an undeclared
+                # KeyError under a broader handler is a Why3 error, also fail-closed).
+                _fn170 = getattr(self, "_current_sig_func_name", None)
+                _catch170 = False
+                if _fn170 and not getattr(self, "_in_spec", False):
+                    for _f170 in (self.ir.get("functions", []) or []):
+                        if _f170.get("name") != _fn170:
+                            continue
+                        _w170: List[Any] = [_f170.get("body", [])]
+                        while _w170 and not _catch170:
+                            _x170 = _w170.pop()
+                            if isinstance(_x170, dict):
+                                if _x170.get("stmt") == "Try":
+                                    for _h170 in (_x170.get("handlers") or []):
+                                        _et170 = (_h170.get("exc_type")
+                                                  if isinstance(_h170, dict) else None)
+                                        if (_et170 is None
+                                                or set(str(_et170).split("|")) & {
+                                                    "KeyError", "LookupError", "Exception",
+                                                    "BaseException"}):
+                                            _catch170 = True
+                                _w170.extend(_x170.values())
+                            elif isinstance(_x170, list):
+                                _w170.extend(_x170)
+                if _catch170:
+                    default = "(raise KeyError)"
                 inner = f"(match Map.get {value_str} {k} with | Some v_ -> v_ | None -> {default} end)"
                 # no_exception KeyError → assert has_key before the read.
                 return self._wrap_with_no_exception_assert(
