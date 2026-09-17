@@ -34,6 +34,11 @@ A handler covering a modelled class now needs EVERY builtin subclass to be model
 class (ValueError's Unicode subclasses: their operations are refused by the widened context), or
 explicitly raised. Witness 1606 (XFAIL). Emission unchanged.
 
+A second carrier: the claim gate ignored CLASS INVARIANTS — a method with no `ensures` whose
+`except ValueError` path set `self.x = -1` under `class invariant self.x >= 0` let a caller prove
+`c.x >= 0` (CPython -1). A method of an invariant-carrying class now counts as claiming (functions.py
+and the preamble gate). Witness 1607 (XFAIL). Emission unchanged.
+
 ## Completeness cost (recorded)
 
 A claiming function can no longer use a broad handler at all, even around code that raises only
