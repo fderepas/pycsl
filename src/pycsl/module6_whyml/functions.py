@@ -1136,6 +1136,93 @@ class FunctionEmissionMixin:
                     _w177.extend(v for v in _n177.values() if isinstance(v, (dict, list)))
                 elif isinstance(_n177, list):
                     _w177.extend(_n177)
+        # (#49) ROUTE #178 — AN IMPLICIT RAISE INSIDE A CALLEE IS AMBIENT THERE, AND THE
+        # CALLER'S CONTEXT NEVER SEES IT. A same-file function without its own `no_exception`
+        # lowers a missing-key dict read to the placeholder (route #57's ambient convention),
+        # so nothing raises. MEASURED at HEAD, each PROVED while CPython raises KeyError:
+        # `v = get(d)` with `def get(d): return d["b"]` under the caller's
+        # `#@ no_exception KeyError`, and the same helper (or a method reading
+        # `self.d["b"]`) inside `try ... except KeyError: return 9` (CPython 9). Divisions and
+        # list indexing are always checked in the callee itself; the ambient ones are the
+        # map read (KeyError), the placeholder list (IndexError) and opaque `int()`/`float()`
+        # / unpacks (ValueError). Under an active KeyError / IndexError / ValueError context
+        # a call to a same-file function or method (transitively) containing such an
+        # operation, which does not itself declare `no_exception` for that exception, is
+        # refused.
+        if _r65_all or _r65_named:
+            from exception_model import all_phase1_exceptions as _ph178
+            _act178 = (set(_r65_named) | (set(_ph178()) if _r65_all else set())) & {
+                "KeyError", "IndexError", "ValueError"}
+            if _act178:
+                _raw178: Dict[str, Set[str]] = {}
+                _cl178: Dict[str, Set[str]] = {}
+                _decl178: Dict[str, Set[str]] = {}
+                for _f178 in (self.ir.get("functions", []) or []):
+                    _fn178 = str(_f178.get("name", ""))
+                    _cc178 = _f178.get("contracts", {}) or {}
+                    _decl178[_fn178] = (set(_ph178()) if _cc178.get("no_exception_all")
+                                        else set(_cc178.get("no_exception", []) or []))
+                    _r178: Set[str] = set()
+                    _c178: Set[str] = set()
+                    _w178: List[Any] = [_f178.get("body", [])]
+                    while _w178:
+                        _x178 = _w178.pop()
+                        if isinstance(_x178, dict):
+                            if _x178.get("type") == "Subscript":
+                                _r178 |= {"KeyError", "IndexError"}
+                            if _x178.get("stmt") == "TupleUnpack":
+                                _r178.add("ValueError")
+                            if _x178.get("type") == "Call" and isinstance(_x178.get("func"), str):
+                                if _x178["func"] in ("int", "float"):
+                                    _r178.add("ValueError")
+                                _c178.add(_x178["func"].rsplit(".", 1)[-1])
+                            _w178.extend(v for v in _x178.values() if isinstance(v, (dict, list)))
+                        elif isinstance(_x178, list):
+                            _w178.extend(_x178)
+                    _raw178[_fn178] = _r178 - _decl178[_fn178]
+                    _cl178[_fn178] = _c178
+                _ch178 = True
+                while _ch178:
+                    _ch178 = False
+                    for _fn178, _cs178 in _cl178.items():
+                        for _gn178, _gr178 in _raw178.items():
+                            if (_gn178 != _fn178
+                                    and (_gn178 in _cs178 or _gn178.rsplit("__", 1)[-1] in _cs178)):
+                                _add178 = (_gr178 - _decl178[_fn178]) - _raw178[_fn178]
+                                if _add178:
+                                    _raw178[_fn178] |= _add178
+                                    _ch178 = True
+                _me178 = str(func.get("name", ""))
+                _w178 = list(func.get("body", []) or [])
+                while _w178:
+                    _x178 = _w178.pop()
+                    if isinstance(_x178, dict):
+                        if _x178.get("type") == "Call" and isinstance(_x178.get("func"), str):
+                            _t178 = _x178["func"].rsplit(".", 1)[-1]
+                            for _gn178, _gr178 in _raw178.items():
+                                if _gn178 == _me178:
+                                    continue
+                                if not (_gn178 == _x178["func"] or _gn178 == _t178
+                                        or ("." in _x178["func"] and _gn178.endswith("__" + _t178))
+                                        or (_x178.get("receiver") is not None
+                                            and _gn178.endswith("__" + _t178))):
+                                    continue
+                                _hit178 = sorted(_gr178 & _act178)
+                                if _hit178:
+                                    raise PyCSLIRError(
+                                        "`" + _x178["func"] + "(...)` calls code that can raise `"
+                                        + "`/`".join(_hit178) + "` implicitly (a dict or list "
+                                        "subscript, an unpack, `int()`/`float()`) without "
+                                        "declaring `#@ no_exception` for it, where that raise is "
+                                        "not modelled; this function claims (or, through an "
+                                        "exception handler, relies on) freedom from it (route "
+                                        "#178; measured: a helper returning `d[\"b\"]` under the "
+                                        "caller's `#@ no_exception KeyError`). Add `#@ "
+                                        "no_exception` to the callee, or drop the exception from "
+                                        "this context.")
+                        _w178.extend(v for v in _x178.values() if isinstance(v, (dict, list)))
+                    elif isinstance(_x178, list):
+                        _w178.extend(_x178)
         # (#49) ROUTE #69 — `ord()` OF A NON-ASCII STRING IS A BYTE READ, NOT A CODE POINT.
         # A string literal is emitted as its UTF-8 BYTES (`"\u20ac"` becomes
         # `"\xe2\x82\xac"`), and characters are Why3 `Char`s whose `code` is 0..255 by the
