@@ -311,6 +311,75 @@ class FunctionEmissionMixin:
     def _reset_function_state(self, func: Dict[str, Any],
                                body_stmts: List[Dict[str, Any]]) -> Tuple[Set[str], Set[str]]:
         """Reset all per-function instance variables. Returns (local_refs, ghost_vars)."""
+        # (#49) ROUTE #171 — A HANDLER FOR AN IMPLICIT EXCEPTION OBSERVES AN OPERATION THE
+        # MODEL SAYS CANNOT FAIL. Without `no_exception` the implicit raises of the modelled
+        # operations are ambient: a placeholder array read, `int("1.5")`'s opaque
+        # `str_to_int`, carry no raising path. That is harmless while the exception would
+        # escape, and WRONG once a handler catches it: MEASURED, `xs = []; try: v = xs[0]
+        # except IndexError: return 9; return v * 0` and `try: v = int("1.5") except
+        # ValueError: return 9; return v * 0` each PROVED `\result == 0` (CPython 9).
+        # A function whose `try` catches one of the modelled implicit exceptions (by name
+        # or through a builtin base class below `Exception`) is
+        # emitted AS IF it declared `no_exception` for them: every such operation must be
+        # proved not to raise (route #159/#160/#161 obligations and refusals), so the
+        # handler really is dead whenever the proof succeeds. Local to this reset — the
+        # function's own emitted contract is untouched.
+        import builtins as _bi171
+        from exception_model import all_phase1_exceptions as _ph171
+        _c171: Set[str] = set()
+        _w171: List[Any] = list(func.get("body", []) or [])
+        while _w171:
+            _n171 = _w171.pop()
+            if isinstance(_n171, dict):
+                if _n171.get("stmt") == "Try":
+                    for _h171 in (_n171.get("handlers") or []):
+                        _et171 = _h171.get("exc_type") if isinstance(_h171, dict) else None
+                        for _nm171 in (str(_et171).split("|") if _et171 else [""]):
+                            _b171 = getattr(_bi171, _nm171, None) if _nm171 else None
+                            # NAMED handlers only (`except IndexError`, `except LookupError`,
+                            # ...). `except Exception` / `BaseException` / bare are left out
+                            # on purpose: the self-annotate mirror relies on them around
+                            # trusted callees, and turning them on refused 7 mirror files
+                            # (measured). Recorded as the open residual of this route.
+                            if not (isinstance(_b171, type) and issubclass(_b171, BaseException)
+                                    and _b171 not in (Exception, BaseException)):
+                                continue
+                            for _x171 in _ph171():
+                                if issubclass(getattr(_bi171, _x171), _b171):
+                                    _c171.add(_x171)
+                _w171.extend(v for v in _n171.values() if isinstance(v, (dict, list)))
+            elif isinstance(_n171, list):
+                _w171.extend(_n171)
+        _cc171 = func.get("contracts", {}) or {}
+        # Only where a CLAIM can depend on the handler being dead: a non-trivial `ensures`
+        # (route #70's triviality test) or an in-body assertion. A function whose contract
+        # is `ensures True` and asserts nothing makes no claim a dead handler could falsify
+        # beyond the ambient exception convention (measured: the self-annotate mirror's
+        # `_parse_why3_json` / sertop parsers, `ensures True`, would otherwise be refused).
+        _claim171 = False
+        for _e171 in (_cc171.get("ensures", []) or []):
+            _t171 = _e171.get("type") if isinstance(_e171, dict) else None
+            _v171 = _e171.get("value", _e171.get("id")) if isinstance(_e171, dict) else None
+            if not ((_t171 in ("Bool", "Constant", "NameConstant") and _v171 is True)
+                    or (_t171 in ("Name", "Var") and _v171 in ("True", "true"))
+                    or (_t171 == "Number" and _v171 == 1)):
+                _claim171 = True
+        if _c171 and not _claim171:
+            _w171 = list(func.get("body", []) or [])
+            while _w171 and not _claim171:
+                _n171 = _w171.pop()
+                if isinstance(_n171, dict):
+                    if _n171.get("stmt") in ("Assert", "ProofAssert"):
+                        _claim171 = True
+                    _w171.extend(v for v in _n171.values() if isinstance(v, (dict, list)))
+                elif isinstance(_n171, list):
+                    _w171.extend(_n171)
+        if (_c171 and _claim171 and not _cc171.get("no_exception_all")
+                and not _c171 <= set(_cc171.get("no_exception", []) or [])):
+            func = dict(func)
+            func["contracts"] = dict(_cc171)
+            func["contracts"]["no_exception"] = sorted(
+                set(_cc171.get("no_exception", []) or []) | _c171)
         # (#43) ROUTE #19 — MAKE THE PROSE A MACHINE CHECK. `_handle_expr_stmt` lowers a
         # set/dict-typed PARAM mutated via `.add`/`.discard`/`.remove` inside a
         # `@mutable_state` class to a NO-OP, justified as "the mutation is on a value
@@ -6974,7 +7043,8 @@ class FunctionEmissionMixin:
         if self._current_no_exception_all:
             from exception_model import all_phase1_exceptions
             callee_escaping -= set(all_phase1_exceptions())
-        callee_escaping -= set(self._current_no_exception)
+        # (#49) ROUTE #171 — the DECLARED set, not the handler-widened one.
+        callee_escaping -= set((func.get("contracts", {}) or {}).get("no_exception", []) or [])
         func_exceptions |= callee_escaping
         # b-spec Track B (P3): an imported/abstract `val` stub shows only the NARROW interface
         # contract. Per-kind: a specified interface clause REPLACES the definition's; an OMITTED kind

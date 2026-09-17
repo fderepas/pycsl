@@ -317,6 +317,14 @@ class Module6_WhyMLTranspiler(
         contract says the raise fires only when ``P``.
         """
         active = set(self._current_no_exception)
+        # (#49) ROUTE #171 — only the DECLARED `no_exception` set governs a callee's
+        # EXPLICIT raises: route #171 widens `_current_no_exception` with the implicit
+        # exceptions a handler catches, and a callee's declared `raises` of such an
+        # exception is modelled faithfully (raised, then caught) rather than asserted away.
+        for _f171 in (self.ir.get("functions", []) or []):
+            if _f171.get("name") == getattr(self, "_current_sig_func_name", None):
+                active &= set(((_f171.get("contracts") or {}).get("no_exception")) or [])
+                break
         if self._current_no_exception_all:
             from exception_model import all_phase1_exceptions
             active.update(all_phase1_exceptions())

@@ -14074,6 +14074,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if _catch170:
                     default = "(raise KeyError)"
                 inner = f"(match Map.get {value_str} {k} with | Some v_ -> v_ | None -> {default} end)"
+                # (#49) ROUTE #171 — the raising arm IS the faithful model, so no presence
+                # assert on top of it (route #171 turns on `no_exception KeyError` for every
+                # function with a KeyError-catching handler, and the assert would make the
+                # caught path unprovable). An uncaught raise still fails the proof.
+                if _catch170:
+                    return inner
                 # no_exception KeyError → assert has_key before the read.
                 return self._wrap_with_no_exception_assert(
                     ("map_get", None), [value_str, k], inner)
