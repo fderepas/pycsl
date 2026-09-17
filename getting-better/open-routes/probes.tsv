@@ -780,3 +780,4 @@ date	gen	generator	candidate	verdict	route	order	note
 2026-09-17	29	hand	g29-math-module-values	FAIL-CLOSED	-	-	math.gcd sign, isqrt, comb(3, 5), factorial, copysign(-0.0), abs(-True), trunc of a negative with `!= truth` claims: all unproved.
 2026-09-17	29	hand	g29-instance-state-sequences	FAIL-CLOSED	-	-	Field append via a method then len (refused), two increments, two independent instances each incremented, with `!= truth` claims: no false proof.
 2026-09-17	29	hand	g29-tuple-assignment-forms	FAIL-CLOSED	-	-	Swap, list element swap, tuple return unpack order, chained assignment aliasing a list, augmented subscript store, list-of-tuples sort: no false proof.
+2026-09-17	29	hand	g29-loop-annotation-soundness	FAIL-CLOSED	-	-	Non-inductive while invariant, a constant variant, a for-loop invariant broken by the body, break exiting before the bound: all refused.
