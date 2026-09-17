@@ -8958,6 +8958,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # treated pessimistically. Default mode preserves backward
             # compat — ambient.
             inner = f"({arity_fn} {' '.join(coerced_args) if coerced_args else '()'})"
+            # (#49) ROUTE #167 carrier — THE COMPUTED-RECEIVER SPELLING. `C(0).sget()` and
+            # `super().sget()` arrive here with a bare method name and the receiver in the
+            # `receiver` field, never reaching `_handle_dotted_call`'s precondition assert,
+            # so a violated `requires self.x != 0` PROVED `\result == 5` (CPython
+            # ZeroDivisionError). No nameable receiver: when any same-file method of that
+            # name declares a non-trivial precondition (route #70's test), assert false.
+            if _rcv is not None and "." not in str(func_name):
+                _g167c = False
+                for _f167c in (self.ir.get("functions", []) or []):
+                    if not str(_f167c.get("name", "")).endswith("__" + str(func_name)):
+                        continue
+                    for _rq167c in ((_f167c.get("contracts", {}) or {}).get("requires", [])
+                                    or []):
+                        _t167c = _rq167c.get("type") if isinstance(_rq167c, dict) else None
+                        _v167c = (_rq167c.get("value", _rq167c.get("id"))
+                                  if isinstance(_rq167c, dict) else None)
+                        if not ((_t167c in ("Bool", "Constant", "NameConstant") and _v167c is True)
+                                or (_t167c in ("Name", "Var") and _v167c in ("True", "true"))
+                                or (_t167c == "Number" and _v167c == 1)):
+                            _g167c = True
+                if _g167c:
+                    inner = ("begin assert { [@expl:PyCSL-R167 callee precondition at a "
+                             "stubbed method call] false }; " + inner + " end")
             return self._wrap_unannotated_call_with_strict_assert(inner)
         # 1111-spec R7 (no-more-int): if the call passes fewer args than the callee
         # arity, fill the missing trailing params from the callee's positional
