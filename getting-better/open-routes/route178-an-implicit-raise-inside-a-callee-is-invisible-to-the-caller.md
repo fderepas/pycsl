@@ -1,6 +1,6 @@
 # ROUTE #178 — an implicit raise inside an uncontracted callee is invisible to the caller's context
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtY, branch wip/g29-r178, on top of #177).** Severity 1.
+**Status: CLOSED by gen #29 (battery Q green: suite 3755/3773, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1.
 Generator: carrier of #170 (missing-key reads caught by the caller).
 
 ## Measured at `2698cc81`, each PROVED

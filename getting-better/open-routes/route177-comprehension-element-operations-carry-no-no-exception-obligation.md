@@ -1,7 +1,7 @@
 # ROUTE #177 — a comprehension's element operations carry no `no_exception` obligation
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtX, branch wip/g29-r177, on top of #176 + #175 alias
-carrier).** Severity 1. Generator: carrier of #170 (a missing-key read inside a comprehension caught
+**Status: CLOSED by gen #29 (battery Q green: suite 3755/3773, same 18 CONFIRMED FAIL, zero XPASS;
+planes --slow 34/34).** Severity 1. Generator: carrier of #170 (a missing-key read inside a comprehension caught
 by `except KeyError` PROVED), then generalized to declared contexts.
 
 ## Measured at `162fe9b7`, each PROVED while CPython raises

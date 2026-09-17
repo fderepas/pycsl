@@ -31,3 +31,8 @@ own name). Fast planes, conformance, sync green.
 
 A user subclass raised by an UNANNOTATED callee (no `#@ raises`) is invisible to the check; the
 faithful fix (user classes in the handler expansion) needs `_handle_try_stmt` (verified mirror).
+
+## Alias carrier (closed with battery Q)
+
+`Alias = MyErr` raised under `except ValueError`, and `raise MyErr()` under `except Alias`, PROVED on the
+landed #175 (CPython 9); plain-name aliases are now resolved. Witnesses 1618-1619 (XFAIL).
