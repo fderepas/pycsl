@@ -1120,6 +1120,17 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     (_b175.id if isinstance(_b175, _ast175.Name) else _b175.attr)
                     for _b175 in _c175.bases
                     if isinstance(_b175, (_ast175.Name, _ast175.Attribute))]
+        _alias175 = {}
+        # a plain name alias of an exception class (`Alias = MyErr`, anywhere) is the same
+        # class: measured, `raise Alias()` under `except ValueError` still proved the other path
+        for _al175 in _ast175.walk(_t175):
+            if (isinstance(_al175, _ast175.Assign) and len(_al175.targets) == 1
+                    and isinstance(_al175.targets[0], _ast175.Name)
+                    and isinstance(_al175.value, _ast175.Name)
+                    and _al175.value.id in _bases175
+                    and _al175.targets[0].id not in _bases175):
+                _bases175[_al175.targets[0].id] = [_al175.value.id]
+                _alias175[_al175.targets[0].id] = _al175.value.id
         if _bases175:
             _lines175 = source_code.splitlines()
             _decl175 = {}
@@ -1191,7 +1202,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             elif isinstance(_h175.type, _ast175.Tuple):
                                 _hn175 = [_e.id for _e in _h175.type.elts if isinstance(_e, _ast175.Name)]
                             for _hh175 in _hn175:
-                                if _hh175 != _s175 and _hh175 in _anc175:
+                                if _hh175 != _s175 and (
+                                        _hh175 in _anc175
+                                        or _alias175.get(_hh175, _hh175) == _alias175.get(_s175, _s175)
+                                        or _alias175.get(_hh175, _hh175) in _anc175):
                                     from errors import PyCSLSemanticError as _PyCSLSemErr175
                                     raise _PyCSLSemErr175(
                                         f"`except {_hh175}` in {_fd175.name!r} is meant to catch "
