@@ -426,6 +426,33 @@ class FunctionEmissionMixin:
                                                      and issubclass(getattr(_bi171, _x), _c174)
                                                      for _x in _e174)
                                               or (_nm174 and _nm174 in _e174))
+                                # A class that covers a modelled exception may ALSO cover
+                                # unmodelled siblings: `except ArithmeticError` catches
+                                # OverflowError / FloatingPointError, and PROVED the dead-handler
+                                # value around `float(10 ** 400)` (CPython 9). Every builtin
+                                # subclass must be modelled, below a modelled class (whose
+                                # operations the widened context checks), or explicitly raised.
+                                if (_covers174 and not _broad174
+                                        and any(issubclass(getattr(_bi171, _m), _c174) for _m in _ph171())):
+                                    for _s174 in vars(_bi171).values():
+                                        if not (isinstance(_s174, type) and issubclass(_s174, _c174)):
+                                            continue
+                                        if any(issubclass(_s174, getattr(_bi171, _m)) for _m in _ph171()):
+                                            continue
+                                        if any(isinstance(getattr(_bi171, _x, None), type)
+                                               and issubclass(_s174, getattr(_bi171, _x))
+                                               for _x in _e174):
+                                            continue
+                                        if any(isinstance(getattr(_bi171, _x, None), type)
+                                               and issubclass(getattr(_bi171, _x), _s174)
+                                               and _s174 is not _c174
+                                               for _x in _e174):
+                                            continue
+                                        if _s174 is _c174 and (
+                                                any(issubclass(getattr(_bi171, _m), _c174) for _m in _ph171())):
+                                            continue
+                                        _covers174 = False
+                                        break
                                 if _broad174 or not _covers174:
                                     raise PyCSLIRError(
                                         "`except " + (_nm174 or "") + "` can be reached by an "
