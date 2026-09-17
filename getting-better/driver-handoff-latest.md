@@ -3,18 +3,20 @@
 # ## STATUS (updated as work lands — trust `git log` + driver-progress.log over this block)
 #   - Machine REBOOTED ~07:47Z 2026-09-16: /tmp scratchpads and all baselines were lost. Why3 is NOT on the default
 #     PATH: `. scratchpad/g29/env.sh` (adds ~/.opam/framac-coq8/bin, PYTHONHASHSEED=0).
-#   - CLOSED this generation (25 routes): #147 #143 #148 #149 #150 #151 #152 #153 #154 #155 #156 #157 #158 #159 #160
-#     #161 #162 #163 #164 #165 #166 #167 #168 #169 (battery M).
-#   - DRAFTED, NEXT BATTERY (N): #170 (caught missing-key dict read erases the handler; wtQ, wip/g29-r170, inert)
-#     and #171 (named handler for a modelled implicit exception -> function checked as no_exception; wtR,
-#     wip/g29-r171; corpus 12 + pyref 3 MOVED by predicate-library additions only, mirrors inert). Land as
-#     `git cherry-pick wip/g29-r169..wip/g29-r171`.
+#   - CLOSED this generation (27 routes): #147 #143 #148 #149 #150 #151 #152 #153 #154 #155 #156 #157 #158 #159 #160
+#     #161 #162 #163 #164 #165 #166 #167 #168 #169 #170 #171 (battery N).
+#   - BATTERY O RUNNING for #172 (broad handlers), #173 (tuple-unpack arity under a ValueError context,
+#     incl. for-loop tuple targets), #174 (handlers only unmodelled exceptions can reach; handler-class
+#     siblings; class invariants as claims): worktree $SCRATCH/wtU, branch wip/g29-r174 (stack r172 -> r173
+#     -> r174 on r171). Predicted suite 3733/3751, planes 34/34. On green:
+#     `git cherry-pick wip/g29-r171..wip/g29-r174`, diff check, CLOSED commit.
 #   ($SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad — tmpfs.
 #    All worktree work is committed to the local branches wip/g29-* — recover from those, not from /tmp.)
 #   - PROBED FAIL-CLOSED (don't re-probe without a new idea): arithmetic, strings, unicode, slices, comprehension
 #     builtins, dunders, enums, context managers, loop-else, generators, closures, class attributes, ghost code,
 #     lemmas, assert/check, module attributes, module collection frames, raises precision, try/finally, Optional, constructor contracts, loop jumps,
-#     list mutators/aliasing, class dispatch, globals/recursion, global & record aliasing, nested frames — probes.tsv.
+#     list mutators/aliasing, class dispatch, globals/recursion, global & record aliasing, nested frames,
+#     builtins sequence semantics, object identity, no_exception builtin sources — probes.tsv.
 #
 # ## LESSONS SO FAR (gen #29)
 #   >>> AN UNMODELLED NAME IN A WALK IS NOT "NOTHING THERE" (`records.get(x) is None` -> continue was an assumption).
