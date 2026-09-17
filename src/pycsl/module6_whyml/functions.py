@@ -366,6 +366,14 @@ class FunctionEmissionMixin:
                     or (_t171 in ("Name", "Var") and _v171 in ("True", "true"))
                     or (_t171 == "Number" and _v171 == 1)):
                 _claim171 = True
+        # (#49) ROUTE #174 carrier — a CLASS INVARIANT is a claim every method re-establishes
+        # (measured: an `ensures True` method whose `except ValueError` path sets
+        # `self.x = -1` under `class invariant self.x >= 0` PROVED a caller's `c.x >= 0`).
+        if func.get("self_type") and not _claim171:
+            for _td171 in (self.ir.get("type_decls", []) or []):
+                if (str(_td171.get("name", "")).lower() == str(func.get("self_type")).lower()
+                        and _td171.get("class_invariants")):
+                    _claim171 = True
         if _c171 and not _claim171:
             _w171 = list(func.get("body", []) or [])
             while _w171 and not _claim171:

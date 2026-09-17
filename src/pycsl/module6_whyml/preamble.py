@@ -2181,6 +2181,12 @@ class PreambleEmissionMixin:
                         _s171p.extend(v for v in _x171p.values() if isinstance(v, (dict, list)))
                     elif isinstance(_x171p, list):
                         _s171p.extend(_x171p)
+                if _f171p.get("self_type") and not _claim171p:
+                    for _td171p in (self.ir.get("type_decls", []) or []):
+                        if (str(_td171p.get("name", "")).lower()
+                                == str(_f171p.get("self_type")).lower()
+                                and _td171p.get("class_invariants")):
+                            _claim171p = True
                 if _claim171p:
                     _w171p.append(_f171p.get("body", []))
             while _w171p and not needs_no_exception:
