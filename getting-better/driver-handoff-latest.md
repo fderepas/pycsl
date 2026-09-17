@@ -3,10 +3,8 @@
 # ## STATUS (updated as work lands — trust `git log` + driver-progress.log over this block)
 #   - Machine REBOOTED ~07:47Z 2026-09-16: /tmp scratchpads and all baselines were lost. Why3 is NOT on the default
 #     PATH: `. scratchpad/g29/env.sh` (adds ~/.opam/framac-coq8/bin, PYTHONHASHSEED=0).
-#   - CLOSED this generation (39 routes): #147 #143 #148-#183 (last: battery V, commit c654494a).
-#   - BATTERY W RUNNING detached (scratchpad/g29/batteryW.sh; wtAE, branch wip/g29-r184 on r183): #184
-#     `None` list elements / dict-literal values lower to the opaque `pycsl_none` (witnesses 1651-1654,
-#     stale singleton-constant baseline entry retired). Predicted suite 3780/3798, planes 34/34.
+#   - CLOSED this generation (40 routes): #147 #143 #148-#184 (last: battery W, commit 38c25bf0).
+#     No battery running; worktrees wtZ, wtAA..wtAE remain (all landed).
 #   - RECORDED OPEN: route #56's remaining carriers — `None` STORE positions (`xs[0] = None`,
 #     `d["a"] = None`, `self.v = None`, `append(None)`) still read back as 0; the typed `NoneExpr`
 #     opaque was MEASURED (16 mirror emissions move) and left to the value-model campaign.
