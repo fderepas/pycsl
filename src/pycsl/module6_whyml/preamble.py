@@ -2188,10 +2188,10 @@ class PreambleEmissionMixin:
                     if _n171p.get("stmt") == "Try":
                         for _h171p in (_n171p.get("handlers") or []):
                             _et171p = _h171p.get("exc_type") if isinstance(_h171p, dict) else None
-                            for _nm171p in (str(_et171p).split("|") if _et171p else []):
-                                _b171p = getattr(_bi171p, _nm171p, None)
+                            for _nm171p in (str(_et171p).split("|") if _et171p else [""]):
+                                _b171p = (getattr(_bi171p, _nm171p, None) if _nm171p
+                                          else BaseException)
                                 if (isinstance(_b171p, type) and issubclass(_b171p, BaseException)
-                                        and _b171p not in (Exception, BaseException)
                                         and any(issubclass(getattr(_bi171p, _x), _b171p)
                                                 for _x in _ph171p())):
                                     needs_no_exception = True
