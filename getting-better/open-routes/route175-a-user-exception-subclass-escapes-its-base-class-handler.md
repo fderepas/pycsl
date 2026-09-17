@@ -1,6 +1,6 @@
 # ROUTE #175 — a user exception subclass escapes its base-class handler in the proof
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtV, on top of #174).** Severity 1. Generator: hand
+**Status: CLOSED by gen #29 (battery P green: suite 3743/3761, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1. Generator: hand
 (exception hierarchy probes after #170-#174).
 
 ## Measured at `0beed736`

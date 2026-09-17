@@ -1,6 +1,6 @@
 # ROUTE #176 — a stubbed method call never raises, so the caller's handler is dead
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtW, on top of #175).** Severity 1. Generator:
+**Status: CLOSED by gen #29 (battery P green: suite 3743/3761, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1. Generator:
 carrier-rerun of #175 (a raising callee, then the builtin-class case).
 
 ## Measured at `3da76330`
