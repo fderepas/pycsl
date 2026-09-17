@@ -1350,14 +1350,14 @@ The following Python constructs in function bodies are transpiled to WhyML:
 assert x > 0, "x must be positive"
 ```
 
-Transpiles to:
-
-```whyml
-check { [@expl:x must be positive] (x > 0) }
-```
-
-The message string (if present) becomes a WhyML `@expl:` attribute.
-If no message, `"assertion"` is used as default.
+Is **not** a proof obligation: a Python `assert` lowers to `()` (translational
+reference §T.5.8). Outside a handler that can catch `AssertionError` this is sound
+for partial correctness — a failing assert aborts, and contracts speak about normal
+return — so a false Python `assert` does not make verification fail. Inside such a
+handler the program is refused (static semantics, route 16). To state a fact the
+prover must establish, write `#@ assert P` (proved and assumed downstream) or
+`#@ check P` (proved only). (Corrected gen #29: this section previously claimed a
+`check { ... }` lowering that the emitter has never produced.)
 
 ### 7.2 Tuple Unpacking
 
