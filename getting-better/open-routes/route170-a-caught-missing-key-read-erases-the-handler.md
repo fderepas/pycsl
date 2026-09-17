@@ -1,6 +1,6 @@
 # ROUTE #170 — a CAUGHT missing-key dict read proves the placeholder value, erasing the handler
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtQ, on top of #169).** Severity 1. Generator: hand
+**Status: CLOSED by gen #29 (battery N green: suite 3717/3735, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1. Generator: hand
 (implicit-exception handler probes).
 
 ## Measured at `bd4054d3`

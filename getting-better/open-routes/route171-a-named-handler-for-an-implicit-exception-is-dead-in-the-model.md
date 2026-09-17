@@ -1,6 +1,6 @@
 # ROUTE #171 — a handler for an implicit exception the model says cannot occur is dead code
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtR, on top of #170).** Severity 1. Generator: carrier
+**Status: CLOSED by gen #29 (battery N green: suite 3717/3735, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1. Generator: carrier
 of #170 (other implicit exceptions caught in the same function).
 
 ## Measured at `4c2ded03`
