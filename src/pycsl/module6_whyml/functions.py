@@ -335,14 +335,16 @@ class FunctionEmissionMixin:
                     for _h171 in (_n171.get("handlers") or []):
                         _et171 = _h171.get("exc_type") if isinstance(_h171, dict) else None
                         for _nm171 in (str(_et171).split("|") if _et171 else [""]):
-                            _b171 = getattr(_bi171, _nm171, None) if _nm171 else None
-                            # NAMED handlers only (`except IndexError`, `except LookupError`,
+                            _b171 = getattr(_bi171, _nm171, None) if _nm171 else BaseException
+                            # (#49) ROUTE #172 — broad handlers (Exception, BaseException, bare)
+                            # widen too; the claim gate below keeps the self-annotate mirror
+                            # (whose handler-bearing functions are `ensures True`) inert.
+                            # Historical (#171 draft): NAMED handlers only (`except IndexError`, `except LookupError`,
                             # ...). `except Exception` / `BaseException` / bare are left out
                             # on purpose: the self-annotate mirror relies on them around
                             # trusted callees, and turning them on refused 7 mirror files
                             # (measured). Recorded as the open residual of this route.
-                            if not (isinstance(_b171, type) and issubclass(_b171, BaseException)
-                                    and _b171 not in (Exception, BaseException)):
+                            if not (isinstance(_b171, type) and issubclass(_b171, BaseException)):
                                 continue
                             for _x171 in _ph171():
                                 if issubclass(getattr(_bi171, _x171), _b171):
