@@ -7531,16 +7531,57 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _prev166 = self._abstract_ops.get(arity_name)
         if _prev166 is not None and _prev166 != _decl166:
             arity_name = f"{arity_name}_c{stable_hash(_decl166) % 100000}"
+        # (#49) ROUTE #167 — A METHOD'S PRECONDITION IS NEVER CHECKED AT A STUBBED CALL.
+        # Route #70 withholds the callee's postcondition when it has a `requires`, which
+        # keeps the caller from ASSUMING an unconditional guarantee — but the abstract op
+        # below carries no `requires` at all, so nobody DISCHARGES the precondition either.
+        # MEASURED: `c = C(0); c.get(); return 5` with `get` declaring `requires self.x != 0`
+        # (body `self.x // self.x`) PROVED `\result == 5` while CPython raises
+        # ZeroDivisionError; the same through a `c: C` parameter, a `self.get(0)` sibling
+        # call on a param `requires d != 0`, and `C.get(0)` on a staticmethod. The
+        # precondition is not renderable on the stub (its params are renamed, its receiver
+        # is often absent), so the call site gets `assert { false }`: fail-closed, and only
+        # where the source call is reachable. Resolution by the callee's IR name when the
+        # receiver's class is known; otherwise by METHOD NAME over every same-file method
+        # with a precondition (a spurious match only refuses).
+        _m167 = func_name.rsplit(".", 1)[1] if "." in func_name else ""
+        _g167 = False
+        if _m167:
+            _k167 = _r100n if "__" in _r100n else ""
+            _p167 = func_name.split(".")
+            if not _k167 and len(_p167) == 2:
+                for _td167 in (self.ir.get("type_decls", []) or []):
+                    if str(_td167.get("name", "")) == _p167[0]:
+                        _k167 = whyml_ident(f"{_p167[0].lower()}__{_m167}")
+            for _f167 in (self.ir.get("functions", []) or []):
+                _fn167 = str(_f167.get("name", ""))
+                if not ((_k167 and whyml_ident(_fn167) == _k167)
+                        or (not _k167 and _fn167.endswith("__" + _m167))):
+                    continue
+                for _rq167 in ((_f167.get("contracts", {}) or {}).get("requires", []) or []):
+                    _t167 = _rq167.get("type") if isinstance(_rq167, dict) else None
+                    _v167 = (_rq167.get("value", _rq167.get("id"))
+                             if isinstance(_rq167, dict) else None)
+                    if not ((_t167 in ("Bool", "Constant", "NameConstant") and _v167 is True)
+                            or (_t167 in ("Name", "Var") and _v167 in ("True", "true"))
+                            or (_t167 == "Number" and _v167 == 1)):
+                        _g167 = True
         if n == 0 and not receiver_param:
             self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
             _call = self._wrap_call_with_callee_raises_assert(
                 _r100n, f"({arity_name} ())", args)
+            if _g167:
+                _call = ("begin assert { [@expl:PyCSL-R167 callee precondition not "
+                         "transmitted to a stubbed method call] false }; " + _call + " end")
             return f"(let _ = {_call} in absurd)" if _nr_callee else _call
         params = " ".join(f"(x{i}: {ptype})" for i, ptype in enumerate(param_types))
         params = f"{receiver_param}{params}".rstrip()
         self._add_abstract_op(f"val {arity_name} {params} : {ret_type}{writes_clause}{ensures_suffix}")
         _call = self._wrap_call_with_callee_raises_assert(
             _r100n, f"({arity_name} {' '.join(coerced)})", args)
+        if _g167:
+            _call = ("begin assert { [@expl:PyCSL-R167 callee precondition not "
+                     "transmitted to a stubbed method call] false }; " + _call + " end")
         return f"(let _ = {_call} in absurd)" if _nr_callee else _call
 
     def _is_seq_arg(self, arg: str) -> bool:
