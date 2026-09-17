@@ -3,9 +3,13 @@
 # ## STATUS (updated as work lands — trust `git log` + driver-progress.log over this block)
 #   - Machine REBOOTED ~07:47Z 2026-09-16: /tmp scratchpads and all baselines were lost. Why3 is NOT on the default
 #     PATH: `. scratchpad/g29/env.sh` (adds ~/.opam/framac-coq8/bin, PYTHONHASHSEED=0).
-#   - CLOSED this generation (38 routes): #147 #143 #148-#182 (last: battery U, commit 57dd2d87).
-#     No battery running. OPEN and recorded: route #56 (None-as-zero) now has FIELD / LIST-ELEMENT /
-#     DICT-VALUE / arithmetic carriers measured by gen #29 — same repair (a distinguishable None).
+#   - CLOSED this generation (39 routes): #147 #143 #148-#183 (last: battery V, commit c654494a).
+#   - BATTERY W RUNNING detached (scratchpad/g29/batteryW.sh; wtAE, branch wip/g29-r184 on r183): #184
+#     `None` list elements / dict-literal values lower to the opaque `pycsl_none` (witnesses 1651-1654,
+#     stale singleton-constant baseline entry retired). Predicted suite 3780/3798, planes 34/34.
+#   - RECORDED OPEN: route #56's remaining carriers — `None` STORE positions (`xs[0] = None`,
+#     `d["a"] = None`, `self.v = None`, `append(None)`) still read back as 0; the typed `NoneExpr`
+#     opaque was MEASURED (16 mirror emissions move) and left to the value-model campaign.
 #   - Worktrees wtL..wtY removed (branches kept). Battery R's first planes leg died when the session was
 #     stopped; batteries are now launched with `nohup setsid` so they survive.
 #   - LESSON (session): a compound command that cd's into a corpus and mutates it hung for 75 min; use
