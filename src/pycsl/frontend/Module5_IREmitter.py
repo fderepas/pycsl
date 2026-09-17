@@ -3982,6 +3982,36 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # design: this turns a refusal into an emission ONLY where the emission is
             # provably the right one.
             _s70lit: Dict[str, Any] = {}
+            # (#49) ROUTE #183 — a field whose ONLY initialiser is the literal `None` is not
+            # the integer 0. `self.v: Optional[int] = None` lowered to `{ v = 0 }`, so
+            # `c.v == 0` PROVED True (CPython False) — route #56's shape on a FIELD. The
+            # names are carried so Module 6 can default them to route #44's opaque
+            # `pycsl_none` instead of a definite zero (a field later assigned a real value
+            # in `__init__` is NOT collected).
+            _n183: List[str] = []
+            for _c183 in node.body:
+                if not (isinstance(_c183, ast.FunctionDef) and _c183.name == '__init__'):
+                    continue
+                _none183: Dict[str, bool] = {}
+                for _s183 in ast.walk(_c183):
+                    _t183 = _r183 = None
+                    if isinstance(_s183, ast.Assign) and len(_s183.targets) == 1:
+                        _t183, _r183 = _s183.targets[0], _s183.value
+                    elif isinstance(_s183, ast.AnnAssign):
+                        _t183, _r183 = _s183.target, _s183.value
+                    if not (isinstance(_t183, ast.Attribute)
+                            and isinstance(_t183.value, ast.Name)
+                            and _t183.value.id == 'self'):
+                        continue
+                    _isnone183 = (isinstance(_r183, ast.Constant) and _r183.value is None)
+                    if _t183.attr in _none183:
+                        _none183[_t183.attr] = _none183[_t183.attr] and _isnone183
+                    else:
+                        _none183[_t183.attr] = _isnone183
+                for _k183, _v183 in _none183.items():
+                    if _v183 and _k183 not in _n183:
+                        _n183.append(_k183)
+            _n183.sort()
             for _c85 in node.body:
                 if not (isinstance(_c85, ast.FunctionDef) and _c85.name == '__init__'):
                     continue
@@ -4209,6 +4239,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 **({"field_list_unknown": _l87unk} if _l87unk else {}),
                 # (#49) finding-0700: constant STRING field initialisers.
                 **({"field_str_defaults": _s70lit} if _s70lit else {}),
+                # (#49) ROUTE #183: fields whose only initialiser is the literal `None`.
+                **({"field_none_defaults": _n183} if _n183 else {}),
                 "init_ensures": init_ensures,
                 # (#43) route #15: the constructor's NON-TRIVIAL `#@ requires`/`#@ ensures`
                 # plus its parameter annotations, so Module 6 can emit a CHECKING-ONLY
