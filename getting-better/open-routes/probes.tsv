@@ -777,3 +777,4 @@ date	gen	generator	candidate	verdict	route	order	note
 2026-09-17	29	hand	g29-copy-semantics	FAIL-CLOSED	-	-	list.copy(), a[:], list(a), dict(a), copy.deepcopy independence and shallow-copy inner sharing with `!= truth` claims: all unproved.
 2026-09-17	29	hand	g29-method-frames-on-arguments	FAIL-CLOSED	-	-	`assigns \nothing` methods storing into a list param, a dict param, another instance's field, and self's list through a local alias, with caller claims CPython contradicts: all refused.
 2026-09-17	29	carrier-rerun	g29-global-inliner-shapes	FAIL-CLOSED	168	-	Global-instance method inlining: early return in a branch, return inside a loop, handled exception mutating self, defaulted param, keyword call: no false proof (refusals / unproved).
+2026-09-17	29	hand	g29-math-module-values	FAIL-CLOSED	-	-	math.gcd sign, isqrt, comb(3, 5), factorial, copysign(-0.0), abs(-True), trunc of a negative with `!= truth` claims: all unproved.
