@@ -20,16 +20,26 @@ Route #70 withholds the callee's POSTCONDITION when it has a `requires` (so the 
 assume it), but nothing carries the PRECONDITION, so the call site discharges nothing. A result
 that is discarded (or not needed for the caller's claim) turns a crashing call into a proof.
 
-## Repair (draft)
+## Repair (draft 2)
 
-In `_handle_dotted_call` (trusted), on the abstract-op fallback: resolve the callee's IR name
-(`<cls>__<m>`, via route #100's resolution, or `Cls.m` for a class-qualified call; otherwise by
-method name over every same-file method) and, when it declares a non-trivial `requires` (route
-#70's triviality test), prefix the call with
-`assert { [@expl:PyCSL-R167 callee precondition not transmitted to a stubbed method call] false }`.
-Fail-closed and local: only reachable call sites are refused. Concrete routes (`sibling_concrete`,
-record-array siblings) are untouched and already check the real `requires`.
-Witnesses 1569–1572 (XFAIL), 1573 (PASS control).
+Draft 1 asserted `false` at every such call: emission census moved 10 corpus files and broke six
+PASS programs (0452 0522 0721 0967 1286 1293) whose preconditions DO hold. Draft 2, in
+`_handle_dotted_call` (trusted), on the abstract-op fallback: resolve the callee's IR name
+(`<cls>__<m>` via route #100's resolution, or `Cls.m`; otherwise by method name over every
+same-file method), and for each non-trivial `requires` (route #70's triviality test) assert the
+clause at the call site — rendered in spec context with the parameters renamed to placeholders IN
+THE IR (a `subst` map missed `\length(data)`), `self` replaced by the named receiver, then the
+placeholders replaced by the call's arguments. Anything not faithfully renderable (unresolved
+callee, missing argument, a receiver that is not a name, a leftover parameter/`self` token)
+asserts `false`. Label `PyCSL-R167 callee precondition at a stubbed method call`.
+
+Emission (vs battery L candidate): corpus 10 MOVED (exactly the calls to guarded methods), 0 GONE;
+pyref and mirrors byte-inert. The six PASS programs prove again; the four XFAIL programs still fail.
+Carriers (hand, draft): kwarg call and chained `h.c.sget()` assert false; receiver named `d`,
+subclass instance, field reassigned after construction, call-valued argument all refused.
+Witnesses 1569–1572, 1574 (XFAIL), 1573 (PASS control, non-vacuous).
+Fast planes 19/19 (after removing a `finally` that broke the TRYFINAL ratchet and making 1573
+non-vacuous), conformance 38/38 + 38/38, sync rc=0, mirror-coverage 549/41.
 
 ## Still to measure
 
