@@ -30,3 +30,13 @@ uncaught escape is refused by Why3. Also: route #175's source check now reads an
 own `raise` statements (a method raising `MyErr(ValueError)` with no `#@ raises`, caught by `except
 ValueError`, PROVED). Emission inert (corpus/pyref/mirrors). Witnesses 1611, 1612, 1613 (XFAIL),
 1614 (PASS). Fast planes, conformance, sync green.
+
+## Carriers folded in
+
+On the draft, `C().go(-1)` (computed receiver, generic unannotated-call fallback) and a `go` that
+raises only through a helper `self.check(v)` still PROVED (CPython 9). Escaping exceptions are now
+computed transitively over the file's call graph (by name / method-name suffix, catches inside
+callees not subtracted — an over-approximation); the computed-receiver fallback may raise every
+NAMED exception the calling function handles when a same-file method of that name exists.
+A module function raising through `check(v)` and a global-instance method (inlined) were refused at
+HEAD. Witnesses 1615-1616 (XFAIL). Emission inert.
