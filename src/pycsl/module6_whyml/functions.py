@@ -1083,6 +1083,59 @@ class FunctionEmissionMixin:
                                       if isinstance(v, (dict, list)))
                 elif isinstance(_r173_n, (list, tuple)):
                     _r173_work.extend(_r173_n)
+        # (#49) ROUTE #177 — A COMPREHENSION'S ELEMENT OPERATIONS CARRY NO `no_exception`
+        # OBLIGATION. A comprehension that no fold recognises lowers to an opaque
+        # `list_comp` / oracle value, so the subscripts and divisions inside it were never
+        # checked. MEASURED at HEAD, each PROVED while CPython raises: `[d[k] for k in ["a",
+        # "b"]]` under `no_exception KeyError`, `[10 // x for x in [0, 1]]` under
+        # ZeroDivisionError, `[xs[i] for i in range(3)]` under IndexError, `sum(10 // x for
+        # x in xs)`, and `{k: d[k] for k in ["b"]}`. Under an active context a comprehension
+        # (ListComp / SetComp / DictComp / GenExp) whose element, key, value, condition or
+        # iterable contains a raising operation for an active exception is refused:
+        # subscripts for IndexError/KeyError, `/` `div` `%` `**` for ZeroDivisionError, and a
+        # tuple generator target (an unpack) for ValueError.
+        if _r65_all or _r65_named:
+            from exception_model import all_phase1_exceptions as _ph177
+            _act177 = set(_r65_named) | (set(_ph177()) if _r65_all else set())
+            _w177 = list(func.get("body", []) or [])
+            while _w177:
+                _n177 = _w177.pop()
+                if isinstance(_n177, dict):
+                    if _n177.get("type") in ("ListComp", "SetComp", "DictComp", "GenExp"):
+                        _why177 = ""
+                        _s177: List[Any] = [_n177.get(_k177) for _k177 in ("elt", "key", "value")]
+                        for _g177 in (_n177.get("generators") or []):
+                            if isinstance(_g177, dict):
+                                _s177.append(_g177.get("iter"))
+                                _s177.extend(_g177.get("ifs") or [])
+                                if (_g177.get("target") == "_comp_var"
+                                        and "ValueError" in _act177):
+                                    _why177 = "a tuple target unpacks each element (ValueError)"
+                        while _s177 and not _why177:
+                            _x177 = _s177.pop()
+                            if isinstance(_x177, dict):
+                                if (_x177.get("type") == "Subscript"
+                                        and ({"IndexError", "KeyError"} & _act177)):
+                                    _why177 = "a subscript (IndexError / KeyError)"
+                                elif (_x177.get("type") == "BinOp"
+                                      and _x177.get("op") in ("/", "div", "//", "%", "mod", "**")
+                                      and "ZeroDivisionError" in _act177):
+                                    _why177 = "a division (ZeroDivisionError)"
+                                _s177.extend(v for v in _x177.values() if isinstance(v, (dict, list)))
+                            elif isinstance(_x177, list):
+                                _s177.extend(_x177)
+                        if _why177:
+                            raise PyCSLIRError(
+                                "a comprehension contains " + _why177 + ", and this function "
+                                "claims (or, through an exception handler, relies on) freedom "
+                                "from that exception; the comprehension is lowered without "
+                                "per-element obligations, so the claim would be proved "
+                                "vacuously (route #177; measured: `[d[k] for k in [\"a\", "
+                                "\"b\"]]` proved `no_exception KeyError`). Write the loop "
+                                "explicitly.")
+                    _w177.extend(v for v in _n177.values() if isinstance(v, (dict, list)))
+                elif isinstance(_n177, list):
+                    _w177.extend(_n177)
         # (#49) ROUTE #69 — `ord()` OF A NON-ASCII STRING IS A BYTE READ, NOT A CODE POINT.
         # A string literal is emitted as its UTF-8 BYTES (`"\u20ac"` becomes
         # `"\xe2\x82\xac"`), and characters are Why3 `Char`s whose `code` is 0..255 by the
