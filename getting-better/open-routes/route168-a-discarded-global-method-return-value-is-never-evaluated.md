@@ -1,6 +1,6 @@
 # ROUTE #168 — the global-method inliner throws away a discarded tail `return` expression
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtO, on top of #167).** Severity 1. Generator:
+**Status: CLOSED by gen #29 (battery M green: suite 3708/3726, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1. Generator:
 carrier-rerun of #167 (a module-global receiver).
 
 ## Measured at `ef82cdc7`

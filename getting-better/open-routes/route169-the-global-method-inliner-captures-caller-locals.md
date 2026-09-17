@@ -1,6 +1,6 @@
 # ROUTE #169 — the global-method inliner lets caller locals capture the spliced body's names
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtP, on top of #168).** Severity 1. Generator: hand
+**Status: CLOSED by gen #29 (battery M green: suite 3708/3726, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1. Generator: hand
 (inliner capture probes following #168).
 
 ## Measured at `dc4520d4`

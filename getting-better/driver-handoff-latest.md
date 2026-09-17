@@ -3,13 +3,12 @@
 # ## STATUS (updated as work lands — trust `git log` + driver-progress.log over this block)
 #   - Machine REBOOTED ~07:47Z 2026-09-16: /tmp scratchpads and all baselines were lost. Why3 is NOT on the default
 #     PATH: `. scratchpad/g29/env.sh` (adds ~/.opam/framac-coq8/bin, PYTHONHASHSEED=0).
-#   - CLOSED this generation (22 routes): #147 #143 #148 #149 #150 #151 #152 #153 #154 #155 #156 #157 #158 #159 #160
-#     #161 #162 #163 #164 #165 #166 (last CLOSED commit 2d9e53ca).
-#   - BATTERY M RUNNING for #167 (stubbed method call never checks the callee `requires`), #168 (global-method
-#     inliner drops a discarded tail return), #169 (inliner capture of caller locals): branch wip/g29-r169,
-#     worktree $SCRATCH/wtP (stack wip/g29-r167 -> r168 -> r169 on r166). Emission pre-measured: corpus 10 MOVED
-#     (by design, PASS ones re-prove), pyref/mirrors inert. Suite predicted 3708/3726, planes 34/34.
-#     On green: `git cherry-pick wip/g29-r166..wip/g29-r169`, diff check, CLOSED commit for all three.
+#   - CLOSED this generation (25 routes): #147 #143 #148 #149 #150 #151 #152 #153 #154 #155 #156 #157 #158 #159 #160
+#     #161 #162 #163 #164 #165 #166 #167 #168 #169 (battery M).
+#   - DRAFTED, NEXT BATTERY (N): #170 (caught missing-key dict read erases the handler; wtQ, wip/g29-r170, inert)
+#     and #171 (named handler for a modelled implicit exception -> function checked as no_exception; wtR,
+#     wip/g29-r171; corpus 12 + pyref 3 MOVED by predicate-library additions only, mirrors inert). Land as
+#     `git cherry-pick wip/g29-r169..wip/g29-r171`.
 #   ($SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad — tmpfs.
 #    All worktree work is committed to the local branches wip/g29-* — recover from those, not from /tmp.)
 #   - PROBED FAIL-CLOSED (don't re-probe without a new idea): arithmetic, strings, unicode, slices, comprehension

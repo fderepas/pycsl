@@ -1,6 +1,6 @@
 # ROUTE #167 — a stubbed method call never checks the callee's precondition
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtN, on top of #166).** Severity 1. Generator: hand
+**Status: CLOSED by gen #29 (battery M green: suite 3708/3726, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1. Generator: hand
 (requires-violation probes after the #165 carrier rerun).
 
 ## Measured at `65565510`
