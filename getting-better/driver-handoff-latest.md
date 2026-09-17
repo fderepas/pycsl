@@ -3,10 +3,12 @@
 # ## STATUS (updated as work lands — trust `git log` + driver-progress.log over this block)
 #   - Machine REBOOTED ~07:47Z 2026-09-16: /tmp scratchpads and all baselines were lost. Why3 is NOT on the default
 #     PATH: `. scratchpad/g29/env.sh` (adds ~/.opam/framac-coq8/bin, PYTHONHASHSEED=0).
-#   - CLOSED this generation (34 routes): #147 #143 #148-#178 (last: battery Q, commit ab9d0e77).
-#   - BATTERY R RUNNING (wtZ, branch wip/g29-r179 on r178): #179 raising constructors lowered as record
-#     literals (source check in pycsl.py::_run_pipeline; witnesses 1630-1635). Predicted suite 3761/3779,
-#     planes 34/34. On green: `git cherry-pick wip/g29-r178..wip/g29-r179`, diff check, CLOSED commit.
+#   - CLOSED this generation (35 routes): #147 #143 #148-#179 (last: battery R, commit 1cb9008e).
+#   - BATTERY S RUNNING detached (nohup setsid scratchpad/g29/batteryS.sh; wtAA, branch wip/g29-r180 on r179):
+#     #180 walrus inside a comprehension (1636-1638) + annotations.md §7.1 doc fix (Python assert is not an
+#     obligation). Predicted suite 3764/3782, planes 34/34. On green: `git cherry-pick wip/g29-r179..wip/g29-r180`.
+#   - Worktrees wtL..wtY removed (branches kept). Battery R's first planes leg died when the session was
+#     stopped; batteries are now launched with `nohup setsid` so they survive.
 #   - LESSON (session): a compound command that cd's into a corpus and mutates it hung for 75 min; use
 #     small separate steps, `timeout 900` on every pycsl/why3 call, and background scripts for sweeps.
 #   ($SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad — tmpfs.
