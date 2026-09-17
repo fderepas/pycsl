@@ -1,6 +1,6 @@
 # ROUTE #166 — one abstract stub NAME for two callees: `_add_abstract_op` keeps the LONGER contract
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtL, with #165).** Severity 1. Generator: hand (the
+**Status: CLOSED by gen #29 (battery L green: suite 3694/3712, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1. Generator: hand (the
 Liskov-default WATCH row, followed to its mechanism).
 
 ## Measured at `0a9723c0`
