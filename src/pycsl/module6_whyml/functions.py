@@ -380,6 +380,66 @@ class FunctionEmissionMixin:
                     _w171.extend(v for v in _n171.values() if isinstance(v, (dict, list)))
                 elif isinstance(_n171, list):
                     _w171.extend(_n171)
+        # (#49) ROUTE #174 — A HANDLER ONLY AN UNMODELLED EXCEPTION CAN REACH. The model
+        # knows five implicit exceptions (IndexError, KeyError, ValueError,
+        # ZeroDivisionError, StopIteration) plus whatever is raised EXPLICITLY. A handler for
+        # anything else — `except AttributeError` around `c.x` on a None `Optional`,
+        # `except OverflowError` around `float(10 ** 400)`, `except UnicodeDecodeError`
+        # around `.decode()` — is dead in the model, and each PROVED the dead-handler value
+        # (CPython 9); `except Exception` / `BaseException` / bare catch those classes too.
+        # In a claiming function such a handler is refused: a broad one always, a narrow one
+        # unless its class covers a modelled implicit exception or one raised explicitly in
+        # the `try` body (a `raise`, or a call to a function of this file declaring `raises`).
+        if _claim171:
+            _w174: List[Any] = list(func.get("body", []) or [])
+            while _w174:
+                _n174 = _w174.pop()
+                if isinstance(_n174, dict):
+                    if _n174.get("stmt") == "Try":
+                        _e174: Set[str] = set()
+                        _b174: List[Any] = [_n174.get("body", [])]
+                        while _b174:
+                            _x174 = _b174.pop()
+                            if isinstance(_x174, dict):
+                                if _x174.get("stmt") == "Raise" and _x174.get("exc_type"):
+                                    _e174.add(str(_x174.get("exc_type")))
+                                if _x174.get("type") == "Call" and isinstance(_x174.get("func"), str):
+                                    _cf174 = _x174["func"].rsplit(".", 1)[-1]
+                                    for _g174 in (self.ir.get("functions", []) or []):
+                                        _gn174 = str(_g174.get("name", ""))
+                                        if _gn174 == _cf174 or _gn174.endswith("__" + _cf174):
+                                            for _r174 in ((_g174.get("contracts") or {}).get("raises") or []):
+                                                if isinstance(_r174, dict) and _r174.get("exc_type"):
+                                                    _e174.add(str(_r174["exc_type"]))
+                                _b174.extend(v for v in _x174.values() if isinstance(v, (dict, list)))
+                            elif isinstance(_x174, list):
+                                _b174.extend(_x174)
+                        for _h174 in (_n174.get("handlers") or []):
+                            _et174 = _h174.get("exc_type") if isinstance(_h174, dict) else None
+                            for _nm174 in (str(_et174).split("|") if _et174 else [""]):
+                                _c174 = getattr(_bi171, _nm174, None) if _nm174 else BaseException
+                                if not (isinstance(_c174, type) and issubclass(_c174, BaseException)):
+                                    continue
+                                _broad174 = _c174 in (Exception, BaseException)
+                                _covers174 = (any(issubclass(getattr(_bi171, _m), _c174) for _m in _ph171())
+                                              or any(isinstance(getattr(_bi171, _x, None), type)
+                                                     and issubclass(getattr(_bi171, _x), _c174)
+                                                     for _x in _e174)
+                                              or (_nm174 and _nm174 in _e174))
+                                if _broad174 or not _covers174:
+                                    raise PyCSLIRError(
+                                        "`except " + (_nm174 or "") + "` can be reached by an "
+                                        "exception the model does not raise (AttributeError, "
+                                        "TypeError, OverflowError, UnicodeError, ...), so the handler "
+                                        "is dead in the proof while Python can run it, and this "
+                                        "function makes a claim that depends on it (route #174; "
+                                        "measured: `except AttributeError` around a None `Optional` "
+                                        "attribute read proved the other path's value). Catch the "
+                                        "specific modelled or explicitly raised exception, or test "
+                                        "the condition before the operation.")
+                    _w174.extend(v for v in _n174.values() if isinstance(v, (dict, list)))
+                elif isinstance(_n174, list):
+                    _w174.extend(_n174)
         if (_c171 and _claim171 and not _cc171.get("no_exception_all")
                 and not _c171 <= set(_cc171.get("no_exception", []) or [])):
             func = dict(func)
