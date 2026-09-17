@@ -1,6 +1,6 @@
 # ROUTE #181 — the source-level exception checks of #175/#179 ignore imported modules
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtAB, branch wip/g29-r181, on top of #180).** Severity 1.
+**Status: CLOSED by gen #29 (battery T green: suite 3768/3786, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1.
 Generator: carrier-rerun of the landed #175/#179 (multi-file).
 
 ## Measured at `65d0b736`, each PROVED
