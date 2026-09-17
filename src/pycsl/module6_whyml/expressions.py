@@ -13013,6 +13013,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # An OMITTED option field's type-correct default is Why3's `None`, not the
                 # int `0` — same faithfulness point as the literal-`None` keyword above.
                 return "None"
+            # (#49) ROUTE #183 — A FIELD INITIALISED ONLY TO `None` IS NOT THE INTEGER 0.
+            # `self.v: Optional[int] = None` lowered to `{ v = 0 }` and `c.v == 0` PROVED
+            # True while CPython answers False (route #56's shape, on a FIELD; the LIST
+            # ELEMENT and DICT VALUE carriers are recorded there). Route #44's opaque
+            # `pycsl_none` is the campaign's existing answer for "this is None, and nothing
+            # is decidable about it": the comparison becomes undecided instead of wrong.
+            if fn in set(rec_info.get("field_none_defaults") or []):
+                self._add_abstract_op("val function pycsl_none : int")
+                return "pycsl_none"
             return f"{rec_info['defaults'].get(fn, 0)}"
 
         # Parametrized overrides: map each param-initialised scalar field to its

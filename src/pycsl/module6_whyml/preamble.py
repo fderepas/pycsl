@@ -8723,6 +8723,8 @@ class PreambleEmissionMixin:
                     "field_list_unknown": td.get("field_list_unknown", []),
                     # (#49) finding-0700 — same hand-written-copy trap as the keys above.
                     "field_str_defaults": td.get("field_str_defaults", {}),
+                    # (#49) ROUTE #183 — same hand-written-copy trap as the keys above.
+                    "field_none_defaults": td.get("field_none_defaults", []),
                     # fresh-globals.md — the constructor's `#@ ensures` (post-state),
                     # consumed by `_emit_module_globals` (proven-of-the-literal GOAL)
                     # and `#@ fresh_globals` (assumed-at-driver-entry fact).
