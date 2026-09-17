@@ -2152,6 +2152,52 @@ class PreambleEmissionMixin:
             func.get("contracts", {}).get("no_exception_all")
             for func in functions
         )
+        # (#49) ROUTE #171 — a function whose `try` has a NAMED handler for a modelled
+        # implicit exception is checked as if it declared `no_exception` (see
+        # `_reset_function_state`), so its obligations need the predicate vocabulary too.
+        if not needs_no_exception:
+            import builtins as _bi171p
+            from exception_model import all_phase1_exceptions as _ph171p
+            # Same gate as the widening itself: only a function that makes a claim (a
+            # non-trivial `ensures`, route #70's test, or an in-body assertion).
+            _w171p: List[Any] = []
+            for _f171p in functions:
+                _claim171p = False
+                for _e171p in ((_f171p.get("contracts", {}) or {}).get("ensures", []) or []):
+                    _t171p = _e171p.get("type") if isinstance(_e171p, dict) else None
+                    _v171p = (_e171p.get("value", _e171p.get("id"))
+                              if isinstance(_e171p, dict) else None)
+                    if not ((_t171p in ("Bool", "Constant", "NameConstant") and _v171p is True)
+                            or (_t171p in ("Name", "Var") and _v171p in ("True", "true"))
+                            or (_t171p == "Number" and _v171p == 1)):
+                        _claim171p = True
+                _s171p: List[Any] = [_f171p.get("body", [])]
+                while _s171p and not _claim171p:
+                    _x171p = _s171p.pop()
+                    if isinstance(_x171p, dict):
+                        if _x171p.get("stmt") in ("Assert", "ProofAssert"):
+                            _claim171p = True
+                        _s171p.extend(v for v in _x171p.values() if isinstance(v, (dict, list)))
+                    elif isinstance(_x171p, list):
+                        _s171p.extend(_x171p)
+                if _claim171p:
+                    _w171p.append(_f171p.get("body", []))
+            while _w171p and not needs_no_exception:
+                _n171p = _w171p.pop()
+                if isinstance(_n171p, dict):
+                    if _n171p.get("stmt") == "Try":
+                        for _h171p in (_n171p.get("handlers") or []):
+                            _et171p = _h171p.get("exc_type") if isinstance(_h171p, dict) else None
+                            for _nm171p in (str(_et171p).split("|") if _et171p else []):
+                                _b171p = getattr(_bi171p, _nm171p, None)
+                                if (isinstance(_b171p, type) and issubclass(_b171p, BaseException)
+                                        and _b171p not in (Exception, BaseException)
+                                        and any(issubclass(getattr(_bi171p, _x), _b171p)
+                                                for _x in _ph171p())):
+                                    needs_no_exception = True
+                    _w171p.extend(v for v in _n171p.values() if isinstance(v, (dict, list)))
+                elif isinstance(_n171p, list):
+                    _w171p.extend(_n171p)
         bounded_sizes = {func["bounded_int"] for func in functions if func.get("bounded_int")}
         user_exceptions: Set[str] = set()
         n2 = len(all_bodies)
