@@ -779,3 +779,4 @@ date	gen	generator	candidate	verdict	route	order	note
 2026-09-17	29	carrier-rerun	g29-global-inliner-shapes	FAIL-CLOSED	168	-	Global-instance method inlining: early return in a branch, return inside a loop, handled exception mutating self, defaulted param, keyword call: no false proof (refusals / unproved).
 2026-09-17	29	hand	g29-math-module-values	FAIL-CLOSED	-	-	math.gcd sign, isqrt, comb(3, 5), factorial, copysign(-0.0), abs(-True), trunc of a negative with `!= truth` claims: all unproved.
 2026-09-17	29	hand	g29-instance-state-sequences	FAIL-CLOSED	-	-	Field append via a method then len (refused), two increments, two independent instances each incremented, with `!= truth` claims: no false proof.
+2026-09-17	29	hand	g29-tuple-assignment-forms	FAIL-CLOSED	-	-	Swap, list element swap, tuple return unpack order, chained assignment aliasing a list, augmented subscript store, list-of-tuples sort: no false proof.
