@@ -1226,6 +1226,33 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # `no_exception` for the raised exception (or `\\all`) or holding a handler that catches it.
     if _t175 is not None:
         import builtins as _bi179
+        # explicit raises per function name, closed over same-file calls (a constructor that
+        # raises through `check(v)` / `self.check()` raises too — measured on the draft)
+        _fr179 = {}
+        _fc179 = {}
+        for _f179 in _ast175.walk(_t175):
+            if not isinstance(_f179, (_ast175.FunctionDef, _ast175.AsyncFunctionDef)):
+                continue
+            _rs179 = _fr179.setdefault(_f179.name, set())
+            _cc179 = _fc179.setdefault(_f179.name, set())
+            for _q179 in _ast175.walk(_f179):
+                if isinstance(_q179, _ast175.Raise) and _q179.exc is not None:
+                    _e179 = _q179.exc.func if isinstance(_q179.exc, _ast175.Call) else _q179.exc
+                    _rs179.add(_e179.id if isinstance(_e179, _ast175.Name) else "BaseException")
+                if isinstance(_q179, _ast175.Call):
+                    _cn179 = (_q179.func.id if isinstance(_q179.func, _ast175.Name)
+                              else _q179.func.attr if isinstance(_q179.func, _ast175.Attribute)
+                              else None)
+                    if _cn179:
+                        _cc179.add(_cn179)
+        _chg179 = True
+        while _chg179:
+            _chg179 = False
+            for _fn179, _cc179 in _fc179.items():
+                for _cn179 in _cc179:
+                    if _cn179 != _fn179 and _cn179 in _fr179 and not _fr179[_cn179] <= _fr179[_fn179]:
+                        _fr179[_fn179] |= _fr179[_cn179]
+                        _chg179 = True
         _cls179 = {}
         for _c179 in _ast175.walk(_t175):
             if not isinstance(_c179, _ast175.ClassDef):
@@ -1240,6 +1267,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 _q179, (_ast175.FunctionDef, _ast175.AsyncFunctionDef, _ast175.Lambda)):
                             _nest179 |= {id(_z) for _z in _ast175.walk(_q179)}
                     for _q179 in _ast175.walk(_m179):
+                        if (isinstance(_q179, _ast175.Call) and id(_q179) not in _nest179):
+                            _cn179 = (_q179.func.id if isinstance(_q179.func, _ast175.Name)
+                                      else _q179.func.attr if isinstance(_q179.func, _ast175.Attribute)
+                                      else None)
+                            if _cn179 and _cn179 in _fr179 and _cn179 != _m179.name:
+                                _ex179 |= _fr179[_cn179]
                         if (isinstance(_q179, _ast175.Raise) and id(_q179) not in _nest179):
                             _e179 = _q179.exc
                             if isinstance(_e179, _ast175.Call):
