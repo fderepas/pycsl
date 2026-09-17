@@ -771,3 +771,4 @@ date	gen	generator	candidate	verdict	route	order	note
 2026-09-17	29	hand	g29-exception-objects	FAIL-CLOSED	-	-	e.args length, raise ... from, subclass handler first, raising a class, an inner function that catches: all unproved with `!= truth` claims.
 2026-09-17	29	hand	g29-argument-passing	FAIL-CLOSED	-	-	Keyword-only default, keywords out of order over a default, *args / **kwargs counts, f(*xs), a shared mutable dict default: no false proof.
 2026-09-17	29	hand	g29-no-exception-index-shapes	FAIL-CLOSED	-	-	Under no_exception: computed index, negative index below -len, loop index past the end, negative string index, 2-D inner index, nested-dict inner missing key: all refused.
+2026-09-17	29	hand	g29-pure-lemma-ghost-assume	FAIL-CLOSED	-	-	A side-effecting `#@ pure` function in a contract, a false lemma, a ghost assignment to a real variable, `#@ assume False`: all refused.
