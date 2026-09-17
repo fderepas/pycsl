@@ -2175,7 +2175,8 @@ class PreambleEmissionMixin:
                 while _s171p and not _claim171p:
                     _x171p = _s171p.pop()
                     if isinstance(_x171p, dict):
-                        if _x171p.get("stmt") in ("Assert", "ProofAssert"):
+                        if (_x171p.get("stmt") in ("Assert", "ProofAssert")
+                                or _x171p.get("invariants") or _x171p.get("variants")):
                             _claim171p = True
                         _s171p.extend(v for v in _x171p.values() if isinstance(v, (dict, list)))
                     elif isinstance(_x171p, list):
