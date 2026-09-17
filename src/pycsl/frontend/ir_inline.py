@@ -247,6 +247,20 @@ class _Inliner:
                         f"no value.")
                 out.append({"stmt": "Assign", "target": result_var, "value": val})
             # a `return None` / bare return in statement position → nothing to bind
+            # (#49) ROUTE #168 — A DISCARDED RETURN VALUE IS STILL EVALUATED. In statement
+            # position the tail `return <e>` was popped and `<e>` thrown away, so whatever
+            # evaluating it DOES vanished with it: `_g.run()` with `run` returning
+            # `self.bumpret()` (a mutator) PROVED `_g.x - a == 0` (CPython 1), and a method
+            # `requires self.x != 0` returning `self.x // self.x` PROVED its caller on
+            # `_g = C(0)` (CPython ZeroDivisionError). Bind it to a fresh discard local
+            # instead: the next fixpoint round inlines any global call inside it, and
+            # Module 6 lowers the evaluation with its checks.
+            elif (val is not None
+                  and not (isinstance(val, dict)
+                           and val.get("type") in ("Constant", "NameConstant", "None")
+                           and val.get("value") is None)):
+                out.append({"stmt": "Assign", "target": self._fresh("_inl_discard"),
+                            "value": val})
         else:
             out.extend(body)
             if result_var is not None:
