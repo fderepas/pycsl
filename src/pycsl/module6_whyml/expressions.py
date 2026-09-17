@@ -17268,6 +17268,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if isinstance(node, ResultExpr):
             return getattr(self, "_result_alias", None) or "result"
         if isinstance(node, NoneExpr):
+            # (#49) ROUTE #184, MEASURED AND NOT ADOPTED: returning route #44's opaque here
+            # (the TYPED twin of the `t == "None"` arm below) moves 16 mirror emissions and
+            # breaks `check-singleton-constant-lowering` — it is route #56's general repair,
+            # not a fail-closed fence. The store-position carriers it would close
+            # (`xs[0] = None`, `d["a"] = None`, `self.v = None`, `xs.append(None)`) stay
+            # recorded as open carriers of route #56.
             return "0"
         if isinstance(node, BoolExpr):
             if self._in_spec: return "true" if node.value else "false"
@@ -17381,7 +17387,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # them with "illegal character in string") — `";\n"` lowers to `";\\n"`.
             return whyml_string_literal(expr["value"])
         if t == "Result":   return getattr(self, "_result_alias", None) or "result"
-        if t == "None":     return "0"
+        if t == "None":
+            # (#49) ROUTE #184 (wide arm, measured before adopting) — the bare `None`
+            # literal as an int is route #56's mechanism; try the opaque.
+            self._add_abstract_op("val function pycsl_none : int")
+            return "pycsl_none"
         if isinstance(node, ArrayLitExpr):
             elts = expr.get("elts", [])
             # (#49) ROUTE #184 — A `None` ELEMENT OF A LIST LITERAL IS NOT THE INTEGER 0.
