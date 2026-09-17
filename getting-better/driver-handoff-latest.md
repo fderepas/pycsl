@@ -3,10 +3,9 @@
 # ## STATUS (updated as work lands — trust `git log` + driver-progress.log over this block)
 #   - Machine REBOOTED ~07:47Z 2026-09-16: /tmp scratchpads and all baselines were lost. Why3 is NOT on the default
 #     PATH: `. scratchpad/g29/env.sh` (adds ~/.opam/framac-coq8/bin, PYTHONHASHSEED=0).
-#   - CLOSED this generation (37 routes): #147 #143 #148-#181 (last: battery T, commit f53b57d1).
-#   - BATTERY U RUNNING detached (scratchpad/g29/batteryU.sh; wtAC, branch wip/g29-r182 on r181): #182
-#     imported/trusted callee divisions and negative shifts as implicit-raise sources for #178
-#     (witnesses 1643-1647, helper multi_file_lib/r182_divider.py). Predicted suite 3773/3791, planes 34/34.
+#   - CLOSED this generation (38 routes): #147 #143 #148-#182 (last: battery U, commit 57dd2d87).
+#     No battery running. OPEN and recorded: route #56 (None-as-zero) now has FIELD / LIST-ELEMENT /
+#     DICT-VALUE / arithmetic carriers measured by gen #29 — same repair (a distinguishable None).
 #   - Worktrees wtL..wtY removed (branches kept). Battery R's first planes leg died when the session was
 #     stopped; batteries are now launched with `nohup setsid` so they survive.
 #   - LESSON (session): a compound command that cd's into a corpus and mutates it hung for 75 min; use
