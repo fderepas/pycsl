@@ -7538,17 +7538,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # MEASURED: `c = C(0); c.get(); return 5` with `get` declaring `requires self.x != 0`
         # (body `self.x // self.x`) PROVED `\result == 5` while CPython raises
         # ZeroDivisionError; the same through a `c: C` parameter, a `self.get(0)` sibling
-        # call on a param `requires d != 0`, and `C.get(0)` on a staticmethod. The
-        # precondition is not renderable on the stub (its params are renamed, its receiver
-        # is often absent), so the call site gets `assert { false }`: fail-closed, and only
-        # where the source call is reachable. Resolution by the callee's IR name when the
-        # receiver's class is known; otherwise by METHOD NAME over every same-file method
-        # with a precondition (a spurious match only refuses).
+        # call on a param `requires d != 0`, and `C.get(0)` on a staticmethod. The call site
+        # now ASSERTS each non-trivial precondition (route #70's triviality test), rendered
+        # like a callee `raises` condition: parameters substituted by the call's arguments,
+        # `self` by the receiver. Whatever cannot be rendered faithfully — an unresolved
+        # callee (matched by METHOD NAME over every same-file method), a missing argument,
+        # a `self` with no nameable receiver, a receiver named like a callee parameter —
+        # asserts `false`: fail-closed, and only where the call is reachable.
         _m167 = func_name.rsplit(".", 1)[1] if "." in func_name else ""
-        _g167 = False
+        _a167: List[str] = []
         if _m167:
             _k167 = _r100n if "__" in _r100n else ""
             _p167 = func_name.split(".")
+            _recv167 = ""
+            if _k167 and len(_p167) == 2:
+                _recv167 = _p167[0]
             if not _k167 and len(_p167) == 2:
                 for _td167 in (self.ir.get("type_decls", []) or []):
                     if str(_td167.get("name", "")) == _p167[0]:
@@ -7562,26 +7566,87 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _t167 = _rq167.get("type") if isinstance(_rq167, dict) else None
                     _v167 = (_rq167.get("value", _rq167.get("id"))
                              if isinstance(_rq167, dict) else None)
-                    if not ((_t167 in ("Bool", "Constant", "NameConstant") and _v167 is True)
+                    if ((_t167 in ("Bool", "Constant", "NameConstant") and _v167 is True)
                             or (_t167 in ("Name", "Var") and _v167 in ("True", "true"))
                             or (_t167 == "Number" and _v167 == 1)):
-                        _g167 = True
+                        continue
+                    _c167 = None
+                    _pn167 = list(self._module_func_param_names.get(_k167, []) or [])
+                    if _k167 and len(args) >= len(_pn167) and _recv167 not in _pn167:
+                        _e167 = _rq167
+                        _self167 = False
+                        _w167: List[Any] = [_rq167]
+                        while _w167:
+                            _x167 = _w167.pop()
+                            if isinstance(_x167, dict):
+                                for _kk167, _vv167 in _x167.items():
+                                    if _kk167 in ("name", "id", "var", "object") and _vv167 == "self":
+                                        _self167 = True
+                                    _w167.append(_vv167)
+                            elif isinstance(_x167, list):
+                                _w167.extend(_x167)
+                        if _self167 and _recv167 and _recv167 != "self":
+                            _e167 = self._subst_self_in_expr(_rq167, _recv167)
+                        if not _self167 or _recv167:
+                            # Parameters are renamed to placeholders IN THE IR (a `subst` map
+                            # misses spellings such as `\length(data)`'s `var`), rendered in
+                            # spec context, then replaced textually; any callee parameter
+                            # name left as a bare token afterwards means a spelling was
+                            # missed and would bind in the CALLER's scope, so it refuses.
+                            import copy as _cp167
+                            import re as _re167
+                            _ph167 = {_pp167: f"pycslrsixseven{_ix167}x"
+                                      for _ix167, _pp167 in enumerate(_pn167)}
+                            _e167 = _cp167.deepcopy(_e167)
+                            _w167 = [_e167]
+                            while _w167:
+                                _x167 = _w167.pop()
+                                if isinstance(_x167, dict):
+                                    for _kk167 in list(_x167.keys()):
+                                        _vv167 = _x167[_kk167]
+                                        if (_kk167 in ("name", "id", "var", "object", "array", "base")
+                                                and isinstance(_vv167, str) and _vv167 in _ph167):
+                                            _x167[_kk167] = _ph167[_vv167]
+                                        else:
+                                            _w167.append(_vv167)
+                                elif isinstance(_x167, list):
+                                    _w167.extend(_x167)
+                            _spec167 = getattr(self, "_in_spec", False)
+                            self._in_spec = True
+                            try:
+                                _c167 = self._expr_to_whyml(_e167, set(), invariant_ctx=False)
+                            except Exception:
+                                _c167 = None
+                            self._in_spec = _spec167
+                            if _c167:
+                                for _pp167 in _pn167 + ["self"] * (_recv167 != "self"):
+                                    if _re167.search(r"(?<![\w.'])" + _re167.escape(_pp167)
+                                                     + r"(?![\w'])", _c167):
+                                        _c167 = None
+                                        break
+                            if _c167:
+                                for _pp167, _aa167 in zip(_pn167, args):
+                                    _c167 = _re167.sub(r"\b" + _ph167[_pp167] + r"\b",
+                                                       lambda _m, _a=_aa167: f"({_a})", _c167)
+                                if "pycslrsixseven" in _c167:
+                                    _c167 = None
+                    _a167.append(
+                        "assert { [@expl:PyCSL-R167 callee precondition at a stubbed method call] "
+                        + (f"({_c167})" if _c167 else "false") + " };")
         if n == 0 and not receiver_param:
             self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
             _call = self._wrap_call_with_callee_raises_assert(
                 _r100n, f"({arity_name} ())", args)
-            if _g167:
-                _call = ("begin assert { [@expl:PyCSL-R167 callee precondition not "
-                         "transmitted to a stubbed method call] false }; " + _call + " end")
+            if _a167:
+                _call = "begin " + " ".join(_a167) + " " + _call + " end"
             return f"(let _ = {_call} in absurd)" if _nr_callee else _call
         params = " ".join(f"(x{i}: {ptype})" for i, ptype in enumerate(param_types))
         params = f"{receiver_param}{params}".rstrip()
         self._add_abstract_op(f"val {arity_name} {params} : {ret_type}{writes_clause}{ensures_suffix}")
         _call = self._wrap_call_with_callee_raises_assert(
             _r100n, f"({arity_name} {' '.join(coerced)})", args)
-        if _g167:
-            _call = ("begin assert { [@expl:PyCSL-R167 callee precondition not "
-                     "transmitted to a stubbed method call] false }; " + _call + " end")
+        if _a167:
+            _call = "begin " + " ".join(_a167) + " " + _call + " end"
         return f"(let _ = {_call} in absurd)" if _nr_callee else _call
 
     def _is_seq_arg(self, arg: str) -> bool:
