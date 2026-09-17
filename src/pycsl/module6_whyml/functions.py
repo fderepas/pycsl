@@ -1000,6 +1000,29 @@ class FunctionEmissionMixin:
             while _r173_work:
                 _r173_n = _r173_work.pop()
                 if isinstance(_r173_n, dict):
+                    # (#49) ROUTE #173 carrier — a `for a, b in <iterable>` target unpacks each
+                    # element: `for a, b in ["abc"]` and `for k, v, w in d.items()` PROVED
+                    # `no_exception ValueError`. Accepted only for `enumerate(x)` / `.items()`
+                    # with two targets and `zip(...)` with one target per argument.
+                    if _r173_n.get("stmt") == "For" and isinstance(_r173_n.get("tuple_targets"), list):
+                        _r173_tt = _r173_n["tuple_targets"]
+                        _r173_it = _r173_n.get("iter")
+                        _r173_fn = (_r173_it.get("func") if isinstance(_r173_it, dict)
+                                    and _r173_it.get("type") == "Call" else None)
+                        _r173_fok = isinstance(_r173_fn, str) and (
+                            (_r173_fn == "enumerate" and len(_r173_tt) == 2)
+                            or (_r173_fn.rsplit(".", 1)[-1] == "items" and len(_r173_tt) == 2
+                                and not (_r173_it.get("args") or []))
+                            or (_r173_fn == "zip" and len(_r173_it.get("args") or []) == len(_r173_tt)))
+                        if not _r173_fok:
+                            raise PyCSLIRError(
+                                "a `for` loop with a tuple target unpacks every element, which "
+                                "raises `ValueError` in Python when an element's length is not "
+                                "the target count, and this function claims (or, through an "
+                                "exception handler, relies on) freedom from `ValueError` "
+                                "(route #173; measured: `for a, b in [\"abc\"]` proved it). "
+                                "Iterate `enumerate`, `zip` or `.items()`, or index the "
+                                "elements explicitly.")
                     if _r173_n.get("stmt") == "TupleUnpack":
                         _r173_v = _r173_n.get("value")
                         _r173_t = _r173_n.get("targets") or []
