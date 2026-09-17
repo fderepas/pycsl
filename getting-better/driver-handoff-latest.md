@@ -3,13 +3,12 @@
 # ## STATUS (updated as work lands — trust `git log` + driver-progress.log over this block)
 #   - Machine REBOOTED ~07:47Z 2026-09-16: /tmp scratchpads and all baselines were lost. Why3 is NOT on the default
 #     PATH: `. scratchpad/g29/env.sh` (adds ~/.opam/framac-coq8/bin, PYTHONHASHSEED=0).
-#   - CLOSED this generation (27 routes): #147 #143 #148 #149 #150 #151 #152 #153 #154 #155 #156 #157 #158 #159 #160
-#     #161 #162 #163 #164 #165 #166 #167 #168 #169 #170 #171 (battery N).
-#   - BATTERY O RUNNING for #172 (broad handlers), #173 (tuple-unpack arity under a ValueError context,
-#     incl. for-loop tuple targets), #174 (handlers only unmodelled exceptions can reach; handler-class
-#     siblings; class invariants as claims): worktree $SCRATCH/wtU, branch wip/g29-r174 (stack r172 -> r173
-#     -> r174 on r171). Predicted suite 3733/3751, planes 34/34. On green:
-#     `git cherry-pick wip/g29-r171..wip/g29-r174`, diff check, CLOSED commit.
+#   - CLOSED this generation (30 routes): #147 #143 #148-#174 (last: battery O, commit ddf11ab3).
+#   - DRAFTED, NEXT BATTERY (P): #175 (user exception subclass escapes its base handler; wtV, wip/g29-r175,
+#     check in pycsl.py::_run_pipeline) and #176 (stubbed method calls never raise; wtW, wip/g29-r176, incl.
+#     carriers and imported-class witness 1617). Land as `git cherry-pick wip/g29-r174..wip/g29-r176`.
+#   - LESSON (session): a compound command that cd's into a corpus and mutates it hung for 75 min; use
+#     small separate steps, `timeout 900` on every pycsl/why3 call, and background scripts for sweeps.
 #   ($SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad — tmpfs.
 #    All worktree work is committed to the local branches wip/g29-* — recover from those, not from /tmp.)
 #   - PROBED FAIL-CLOSED (don't re-probe without a new idea): arithmetic, strings, unicode, slices, comprehension

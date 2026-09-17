@@ -40,3 +40,7 @@ callees not subtracted — an over-approximation); the computed-receiver fallbac
 NAMED exception the calling function handles when a same-file method of that name exists.
 A module function raising through `check(v)` and a global-instance method (inlined) were refused at
 HEAD. Witnesses 1615-1616 (XFAIL). Emission inert.
+An IMPORTED class method raising ValueError, called as `c.go(-1)` under `except ValueError`, PROVED
+at HEAD and is refused by the draft (imported stub bodies are in the IR). Witness 1617 (XFAIL) with
+helper `multi_file_lib/r176_raising.py`. Imported module functions (`fgo(-1)`, `helper.fgo(-1)`) were
+refused at HEAD.
