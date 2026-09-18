@@ -32,5 +32,6 @@ list-of-dicts local, a `Set[str]`, a read of the map's own values), each ending 
 refusal reads the SOURCE, like routes #175/#179/#187: a non-trusted function that binds one name to
 TWO different record classes and then calls a method on that name is refused
 (`PYCSL-R189-AMBIGUOUS-RECEIVER-CLASS`). Measured emission-inert: scanning `src/` and the whole
-reference corpus for the shape gives ZERO hits. Witnesses 1666 (XFAIL), 1667 (PASS control — one
+reference corpus for the shape gives ZERO hits (a repo-wide scan finds exactly one instance,
+`rclpy/rclpy/test/test_lifecycle.py::test_lifecycle_state_transitions`, which no gate verifies). Witnesses 1666 (XFAIL), 1667 (PASS control — one
 local per class still proves).
