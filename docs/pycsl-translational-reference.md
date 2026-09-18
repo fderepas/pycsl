@@ -1812,6 +1812,47 @@ emissions).
 the comprehension lowers to an opaque value, so `y = 0; [(y := x) for x in [1, 2, 3]]; return y`
 proved `0`. Refused.
 
+#### Which callee a call site gets (routes #166, #185-#189)
+
+Five of gen #29's routes are one question asked five ways: **which callee does this call site get,
+and is that answer single-valued?** They are worth reading together, because each repair closed one
+spelling and the next generator found the next.
+
+* **#166 — one stub NAME, two callees.** The abstract stub is named from the call's SPELLING
+  (`<receiver>_<method>_<arity>`), so `o.get()` on a `C` and `o.get()` on a `D` both registered
+  `o_get_0`, and `_add_abstract_op` resolved the clash by KEEPING THE LONGER declaration. Repair: a
+  different declaration under a taken name gets its own name.
+* **#185 — a field receiver mis-KEYS the callee.** `self.inner.get()` resolved to `outer__inner_get`,
+  a name no function carries, so routes #167 (precondition) and #176 (may-raise) looked up nothing.
+  Repair: an unmatched key falls back to the method-name match.
+* **#186 — the same mis-keying on the `raises` wrap.** The key handed to
+  `_wrap_call_with_callee_raises_assert` was computed in the same block and kept the broken spelling,
+  so a declared `#@ raises E when P` produced no `assert { not P }`. Repair: the same fallback, with
+  an `assert { false }` when several raising candidates match (attaching one class's condition to
+  another's callee would be a WRONG fact, not a missing one).
+* **#188 — the disambiguating suffix COLLIDES.** #166's fix suffixes a clashing name with
+  `_c{stable_hash(decl) % 100000}` — 100000 buckets — and the keep-the-longer resolution is still
+  underneath it, so two callees whose suffixes collide share one contract again. The collision is
+  constructible: `ensures \result == 123` and `ensures \result == 441` both hash to `_c84185`.
+  Repair: the suffix is injective per base name. **A hash-derived NAME is not a disambiguator unless
+  the collision case is handled** — the two other `% 100000` names in the emitter (the `any`/`all`
+  fold and the string fold) take the same reading, and are fail-closed only INCIDENTALLY, by Why3's
+  duplicate-symbol rejection.
+* **#189 — one receiver NAME, two classes.** `IRScanner.find_record_var_classes` `update()`s every
+  nested scope into one flat map, so `if flag > 0: o = D() else: o = C()` resolved `o` to `C` and the
+  single call site carried `C.get`'s `ensures` on every path. Repair: a function that binds one name
+  to two record classes and then calls a method on it is refused — the scanner itself is the
+  certified `sdict` dict-fold, and every in-scanner marking loses that lowering.
+
+**A module body is not in the IR (route #187).** `#@ fresh_globals` re-establishes each module-global
+singleton's CONSTRUCTOR post-state as an ASSUMED entry fact, and the IR records a global as
+`{name, class, value}` only — every other top-level statement is dropped. `counter = Counter();
+counter.n = 7` then a `fresh_globals` driver returning `counter.n` PROVED `\result == 0` (CPython 7),
+as did the same with a top-level `counter.bump()`. The existing confinement checked only that the
+driver is not a method and is called by nobody; neither looks at the module body. A `fresh_globals`
+file's module body may now contain only imports, definitions, a docstring and simple bindings that
+neither rebind a name nor read a global singleton.
+
 ---
 
 ### §T.5.12b  `and` / `or` in a VALUE position return the OPERAND
