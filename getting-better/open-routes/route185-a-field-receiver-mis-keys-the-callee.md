@@ -1,6 +1,6 @@
 # ROUTE #185 — a `self.<field>.<m>()` receiver mis-keys the callee, so #167/#176 look up nothing
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtAG, branch wip/g29-r185, on top of the docs commit).**
+**Status: CLOSED by gen #29 (battery Y green: suite 3783/3801, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).**
 Severity 1. Generator: carrier-rerun of the landed #167/#176 (receiver spellings).
 
 ## Measured at `59611f89`
