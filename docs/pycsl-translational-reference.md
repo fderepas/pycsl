@@ -1752,6 +1752,68 @@ a handler-less `finally` whose body cannot jump out is still emitted (witness `1
 
 ---
 
+### §T.5.12a  The exception model after gen #29 (routes #167-#184)
+
+Fourteen repairs landed in gen #29 turn call sites and handler paths from *assumed* into
+*checked*. Collected here because they share one mechanism: a construct the emitter models as
+"cannot fail" is a construct whose failure path the proof deletes.
+
+**Call sites of a stubbed method (routes #167, #176, #182).** A `<recv>.<m>(...)` the emitter
+cannot lower concretely becomes an abstract `val`. That stub used to carry neither the callee's
+PRECONDITION nor its RAISES:
+
+    class C:
+        #@ requires self.x != 0
+        def get(self) -> int: return self.x // self.x
+    c = C(0); c.get(); return 5        # `#@ ensures \result == 5` PROVED; CPython ZeroDivisionError
+
+The call site now ASSERTS each non-trivial `requires`, rendered with the callee's parameters
+substituted by the call's arguments and `self` by the receiver (anything not faithfully
+renderable asserts `false`), and — when the calling function has a handler for it — may RAISE what
+the callee can let escape (declared `raises`, an escaping `raise`, transitively through the file's
+call graph; imported stubs included). `C(0).go()` and `super().go()`, which reach the generic
+unannotated-call fallback with a bare method name, are covered by the same two rules.
+
+**Handled implicit exceptions (routes #170-#174, #177, #178, #182).** Without `no_exception`, an
+implicit raise is ambient: a missing-key dict read answers the placeholder, an empty list literal
+is a 1024-cell placeholder array, `int(<str>)` is an opaque total function. That is sound while the
+exception ESCAPES and wrong once a handler CATCHES it — the handler's path is dead in the proof and
+taken in Python. A function that CLAIMS something (a non-trivial `ensures`, an in-body assertion, a
+loop invariant/variant, or a class invariant it must re-establish) and catches one of the modelled
+implicit exceptions is now checked as if it declared `no_exception` for it; a dict read inside such
+a function RAISES `KeyError` on a missing key instead of answering the placeholder; comprehensions,
+tuple unpacks, negative shifts and calls into uncontracted or imported callees that can raise
+implicitly are refused rather than discharged; and a handler that only an UNMODELLED exception could
+reach (`AttributeError`, `OverflowError`, `UnicodeDecodeError`, or any broad `except Exception`) is
+refused outright.
+
+**Exception identity (routes #175, #179, #181).** Why3 exceptions are flat tags: a user
+`class MyErr(ValueError)` raised under `except ValueError` escaped the handler in the proof, and a
+`raise` inside `__init__` vanished into the record literal a construction lowers to. Both are refused
+now, reading the SOURCE (the resolved IR has already merged inheritance away) of the main file AND of
+the modules it imports; plain-name aliases of an exception class are resolved.
+
+**Inlined global-instance methods (routes #168, #169).** `_g.m()` is spliced into the caller. A
+discarded tail `return <e>` dropped `<e>` — its division check, its nested mutating call — so it is
+now bound to a fresh local; and only the callee's own single-name binds were freshened, so a
+tuple-unpack target overwrote the caller's variable and a name read from module scope resolved to a
+caller local. Tuple targets are freshened; a spliced identifier the caller binds is refused.
+
+**`None` is not the integer 0 (routes #183, #184).** A field whose only initialiser is `None`, a
+`None` element of a list literal and a `None` value of a dict literal answered a DEFINITE zero
+(`c.v == 0`, `xs[0] == 0`, `d["a"] == 0` all PROVED True; `xs[0] + 1` PROVED `== 1` where CPython
+raises TypeError). They now answer route #44's opaque `pycsl_none`, so the comparison is UNDECIDED.
+The remaining `None` positions — STORES (`xs[0] = None`, `self.v = None`, `append(None)`) and
+Optional locals — keep the integer-0 lowering; that is route #56, whose repair is a distinguishable
+`None` in the value model (measured: giving the typed `NoneExpr` arm the opaque moves 16 mirror
+emissions).
+
+**A walrus inside a comprehension (route #180).** PEP 572 binds it in the CONTAINING function, and
+the comprehension lowers to an opaque value, so `y = 0; [(y := x) for x in [1, 2, 3]]; return y`
+proved `0`. Refused.
+
+---
+
 ### §T.5.12b  `and` / `or` in a VALUE position return the OPERAND
 
 Python's `and` and `or` are **selection**, not conjunction: `0 or 5` is `5` and `3 and 7`
