@@ -7555,7 +7555,37 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         f"{ret_type}{writes_clause}{ensures_suffix}")
         _prev166 = self._abstract_ops.get(arity_name)
         if _prev166 is not None and _prev166 != _decl166:
-            arity_name = f"{arity_name}_c{stable_hash(_decl166) % 100000}"
+            # (#49) ROUTE #188 — THE DISAMBIGUATING SUFFIX IS A 100000-BUCKET HASH, AND A
+            # COLLISION PUTS ROUTE #166 BACK. `_add_abstract_op` still resolves a
+            # same-name/different-declaration clash by KEEPING THE LONGER declaration, so
+            # two callees whose suffixes collide share one stub and one contract again.
+            # MEASURED (gen #29, by construction from the declaration format): with `C`,
+            # `D` (`ensures \result == 123`) and `E` (`ensures \result == 441`) all called
+            # as `o.get()`, both D and E hash to `_c84185`; the E call site got D's
+            # contract and `h()` PROVED `\result == 123` while CPython returns 441. The
+            # suffix is now made INJECTIVE per base name: a declaration keeps the name it
+            # was first given, and a different declaration landing on a taken name is
+            # pushed to the next free `_2`, `_3`, … A hash-derived name is not a
+            # disambiguator unless the collision is handled; emission is unchanged wherever
+            # no two declarations collide, which is every file in the corpus today.
+            _base188 = arity_name
+            arity_name = f"{_base188}_c{stable_hash(_decl166) % 100000}"
+            _map188 = getattr(self, "_r188_stub_names", None)
+            if _map188 is None:
+                _map188 = {}
+                self._r188_stub_names = _map188
+            _k188 = (_base188, _decl166)
+            if _k188 in _map188:
+                arity_name = _map188[_k188]
+            else:
+                _used188 = set(_map188.values())
+                _try188 = arity_name
+                _i188 = 2
+                while _try188 in _used188 or self._abstract_ops.get(_try188) is not None:
+                    _try188 = f"{arity_name}_{_i188}"
+                    _i188 += 1
+                _map188[_k188] = _try188
+                arity_name = _try188
         # (#49) ROUTE #167 — A METHOD'S PRECONDITION IS NEVER CHECKED AT A STUBBED CALL.
         # Route #70 withholds the callee's postcondition when it has a `requires`, which
         # keeps the caller from ASSUMING an unconditional guarantee — but the abstract op
