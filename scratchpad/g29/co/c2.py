@@ -1,12 +1,21 @@
-r"""G29 CO-C2 — comprehension/iteration builtin probe (claim != truth; CPython 6)."""
+r"""Concurrent: mutex invariant broken inside the critical section."""
+import threading
 _ = 0  # anchor
+#@ shared counter protected_by lock
+#@ mutex_invariant lock: counter >= 0
+
+lock = threading.Lock()
+counter = 0
 
 
-#@ ensures \result != 6
-def probe() -> int:
-    xs = [x * 2 for x in range(4) if x % 2 == 1]
-    return xs[1]
+#@ ensures \result == 0
+def bump() -> int:
+    global counter
+    #@ critical lock
+    with lock:
+        counter = counter - 1
+    return 0
 
 
 if __name__ == "__main__":
-    print("CPython:", probe())
+    print("CPython:", bump())

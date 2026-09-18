@@ -1,0 +1,32 @@
+emitted 1126 of 1403 source file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emit143/corpus_cand2 (6 jobs)
+emitted 2199 of 2217 python-reference file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emit143/corpus_cand2/pyref (6 jobs)
+[*] mirror-emit-sweep: emitted 53 of 53 mirror file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emit143/mirror_cand2
+    Compare with: bin/byte-diff-compare.py <baseline> /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emit143/mirror_cand2 --min-files 45
+== COMPARE corpus
+[*] byte-diff-compare: 1123 baseline / 1125 candidate .mlw; 0 MOVED, 0 GONE (0 unexpected), 0 APPEARED, 2 new source file(s) ignored.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+rc=0
+== COMPARE pyref
+[*] byte-diff-compare: 2199 baseline / 2199 candidate .mlw; 0 MOVED, 0 GONE (0 unexpected), 0 APPEARED.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+rc=0
+== COMPARE mirrors
+[!]   MOVED frontend__ir_resolve.mlw
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 1 MOVED, 0 GONE (0 unexpected), 0 APPEARED.
+rc=1
+== CAND vs CAND(battery C) mirrors
+[*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 0 MOVED, 0 GONE (0 unexpected), 0 APPEARED.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+rc=0
+EMISSION-DONE
+[+] core-only conformance: 38 OK / 0 MISMATCH (38 goldens) — front-end NOT imported
+front-end conformance: 38 OK / 0 MISMATCH (38 goldens; 0 version-skew)
+determinism: 10/10 sampled drivers byte-stable across PYTHONHASHSEED (0 vs 1)
+SUITE-START 12:29:55Z
+ Results: 3602/3620 passed
+XPASS lines: 0
+PLANES-START 13:19:28Z
+[+] soundness-planes: OK — all 34 plane(s) green.
+rc=0
+BATTERY-DONE 13:57:09Z

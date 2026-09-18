@@ -1,37 +1,21 @@
-r"""G29 SM3 — two classes' `get` methods called through the SAME receiver NAME in two functions:
-the abstract stubs are both named `o_get_0`, and `_add_abstract_op` keeps the LONGER declaration."""
+r"""method keyword argument order"""
+from typing import List
 _ = 0  # anchor
 
 
 class C:
     def __init__(self) -> None:
-        self.n = 1
+        self.k = 0
 
-    #@ ensures \result == 1
-    def get(self) -> int:
-        return 1
-
-
-class D:
-    def __init__(self) -> None:
-        self.n = 2
-
-    #@ ensures \result == 700
-    def get(self) -> int:
-        return 700
+    def f(self, a: int, b: int) -> int:
+        return a - b
 
 
-#@ ensures \result == 700
-def f() -> int:
-    o = C()
-    return o.get()
-
-
-#@ ensures \result == 700
-def g() -> int:
-    o = D()
-    return o.get()
+#@ ensures \result == 1
+def probe() -> int:
+    c = C()
+    return c.f(b=2, a=1)
 
 
 if __name__ == "__main__":
-    print("CPython:", f(), g())
+    print("CPython:", probe())

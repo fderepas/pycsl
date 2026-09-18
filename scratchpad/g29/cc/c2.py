@@ -1,17 +1,13 @@
-r"""G29 CC2 — a constructor `ensures` that its body does NOT establish."""
+r"""bool in dict key collision"""
+from typing import List, Dict
 _ = 0  # anchor
 
 
-class C:
-    #@ ensures self.x == 5
-    def __init__(self, k: int) -> None:
-        self.x = k
-
-
-#@ ensures \result == 5
+#@ ensures \result == 2
 def probe() -> int:
-    c = C(3)
-    return c.x
+    d: Dict[int, int] = {1: 1}
+    d[True] = 2
+    return len(d)
 
 
 if __name__ == "__main__":

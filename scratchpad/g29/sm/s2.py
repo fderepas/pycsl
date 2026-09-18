@@ -1,30 +1,20 @@
-r"""G29 SM2 — a base method calling `self.m()` dispatches to the OVERRIDE (CPython 7)."""
+r"""method with default arg used by instance"""
+from typing import List
 _ = 0  # anchor
 
 
-class A:
+class C:
     def __init__(self) -> None:
-        self.n = 1
+        self.k = 1
 
-    #@ ensures \result == 1
-    def m(self) -> int:
-        return 1
-
-    #@ ensures \result == 1
-    def call_m(self) -> int:
-        return self.m()
+    def f(self, x: int = 3) -> int:
+        return x + self.k
 
 
-class B(A):
-    #@ ensures \result == 7
-    def m(self) -> int:
-        return 7
-
-
-#@ ensures \result == 1
+#@ ensures \result == 3
 def probe() -> int:
-    b = B()
-    return b.call_m()
+    c = C()
+    return c.f()
 
 
 if __name__ == "__main__":

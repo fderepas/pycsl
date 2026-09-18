@@ -1,12 +1,16 @@
-r"""G29 AS1 — an in-body `#@ assert` of a FALSE fact: an obligation, never an assumption."""
+r"""assert statement failing caught"""
+from typing import List, Dict
 _ = 0  # anchor
 
 
-#@ ensures \result == 7
+#@ ensures \result == 0
 def probe() -> int:
     x = 1
-    #@ assert x == 7
-    return x
+    try:
+        assert x == 2
+    except AssertionError:
+        return 9
+    return 0
 
 
 if __name__ == "__main__":

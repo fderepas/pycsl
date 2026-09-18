@@ -1,0 +1,32 @@
+emitted 1226 of 1518 source file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitR/corpus_cand (6 jobs)
+emitted 2199 of 2217 python-reference file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitR/corpus_cand/pyref (6 jobs)
+[*] mirror-emit-sweep: emitted 53 of 53 mirror file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitR/mirror_cand
+    Compare with: bin/byte-diff-compare.py <baseline> /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitR/mirror_cand --min-files 45
+== COMPARE corpus
+[!]   MOVED 0449.mlw
+[!]   MOVED 0451.mlw
+[!]   MOVED 0976_directive_anchoring.mlw
+[!]   MOVED 1029_route37_try_else_no_jump_faithful.mlw
+[!]   MOVED 1298_route107_raise_substring_in_an_identifier_deleted_the_else.mlw
+[!]   MOVED 1299_route107_else_block_is_modelled_faithfully.mlw
+[!]   MOVED 1300_route107_synthetic_else_flag_cannot_collide_with_a_user_name.mlw
+[!]   MOVED 1302_route108_raising_callee_in_an_else_escapes_and_is_catchable.mlw
+[!]   MOVED 1583_route170_caught_missing_key_read_proves_the_placeholder.mlw
+[!]   MOVED 1584_route170_caught_missing_int_key_read.mlw
+[!]   MOVED 1586_route170_caught_missing_key_returns_the_handler_value.mlw
+[!]   MOVED 1587_route170_present_key_read_in_try_still_proves.mlw
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 1222 baseline / 1225 candidate .mlw; 12 MOVED, 0 GONE (0 unexpected), 0 APPEARED, 3 new source file(s) ignored.
+rc=1
+== COMPARE pyref
+[!]   MOVED pyref__0110.mlw
+[!]   MOVED pyref__0176.mlw
+[!]   MOVED pyref__0189.mlw
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 2199 baseline / 2199 candidate .mlw; 3 MOVED, 0 GONE (0 unexpected), 0 APPEARED.
+rc=1
+== COMPARE mirrors
+[*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 0 MOVED, 0 GONE (0 unexpected), 0 APPEARED.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+rc=0
+EMISSION-DONE 05:51:33Z
