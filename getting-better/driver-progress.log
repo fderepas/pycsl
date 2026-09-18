@@ -2396,3 +2396,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
 2026-09-18T14:13Z gen29 PLANES BATTERY GREEN: fast 19/19 rc=0, planes --slow 36/36 rc=0 — the two new planes (callee-contract-attribution, assumed-facts) take the slow set from 15 to 17 and the --slow total from 34 to 36, exactly as predicted. Landing them.
 2026-09-18T14:13Z gen29 THE TWO NEW PLANES LANDED on ghost-assign-bc6. The battery is now 19 fast / 36 with --slow. gen #29 has closed 46 routes and added two planes.
 2026-09-18T14:14Z gen29 Post-landing hunt resumed: the RECLAIM SWEEP (re-asks every earlier probe with four wrong claims, including the erased-value 0) is running over the first 30 probe directories, and the upgraded gen5/gen8 fuzzers over fresh seeds.
+2026-09-18T14:27Z gen29 CARRIER: a dynamic negative STRING INDEX (`s[i]`, i == -1) was a second #190 carrier — PROVED len==0 pre-#190, FAILS now. Witness pending for the next battery batch.
