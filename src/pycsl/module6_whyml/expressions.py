@@ -13958,7 +13958,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"(String.substring {vstr} {index} 1)"
             self._add_abstract_op(
                 "val str_sub_op (s: string) (lo len: int) : string\n"
-                "    ensures { result = (String.substring s lo len) }\n"
+                "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
+                " -> result = (String.substring s lo len) }\n"
                 "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
                 " -> String.length result = len }")
             # (#49) ROUTE #159 — a string index past the end raises IndexError; `"abc"[5]`
@@ -14335,7 +14336,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         and self._negative_literal_index(expr.get("index", {})) is None):
                     self._add_abstract_op(
                         "val str_sub_op (s: string) (lo len: int) : string\n"
-                        "    ensures { result = (String.substring s lo len) }\n"
+                        "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
+                        " -> result = (String.substring s lo len) }\n"
                         "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
                         " -> String.length result = len }")
                     return self._wrap_with_no_exception_assert(
@@ -15541,6 +15543,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     ) -> str:
         arr = self._expr_to_whyml(node.value, local_refs, invariant_ctx, subst)
         sl = node.slice.to_dict()
+        # (#49) ROUTE #190 — AN OMITTED SLICE BOUND IS A `None` NODE, NOT AN ABSENT KEY.
+        # Every branch below asks `sl.get("upper")` and falls back to the sequence's own
+        # LENGTH when the bound is absent — the right answer, and DEAD CODE, because the
+        # typed `SliceExpr` carries an omitted bound as a `None` EXPRESSION, which is
+        # truthy and lowers to the integer `0` (route #56's None-as-zero, reached through
+        # a slice). So `s[1:]` emitted `str_sub_op s 1 ((0) - (1))`, i.e. a NEGATIVE
+        # length, and Why3's `String.substring` answers the EMPTY string for that —
+        # MEASURED at landed HEAD: `"abc"[1:]` PROVED `len(t) == 0` (CPython 2), and so
+        # did `"abc"[0:]` (CPython 3). Normalising the bound to a real absence restores the
+        # length fallback the code below already writes.
+        if isinstance(sl, dict):
+            _sl190 = dict(sl)
+            for _k190 in ("lower", "upper"):
+                _b190 = _sl190.get(_k190)
+                if isinstance(_b190, dict) and _b190.get("type") in ("None", "NoneExpr"):
+                    _sl190[_k190] = None
+            sl = _sl190
         # seq-model-pivot.md SQ3: a slice of a seq local (`body_stmts[:-1]`) is a seq
         # sub-sequence (`seq_sub`) — a pure immutable value, NO `array_slice`/region. Content
         # opaque; the length law is conditional (sound). @mutable_state (via _seq_locals).
@@ -15576,7 +15595,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # Stage-0 literal probe), so we supply it directly under its bounds guard.
             self._add_abstract_op(
                 "val str_sub_op (s: string) (lo len: int) : string\n"
-                "    ensures { result = (String.substring s lo len) }\n"
+                "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
+                " -> result = (String.substring s lo len) }\n"
                 "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
                 " -> String.length result = len }")
             return f"(str_sub_op {arr} {slo} {slen})"
