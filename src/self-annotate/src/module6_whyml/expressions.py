@@ -1493,22 +1493,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # MEASURED at landed HEAD: `"abc"[1:]` PROVED `len(t) == 0` (CPython 2), and so
         # did `"abc"[0:]` (CPython 3). Normalising the bound to a real absence restores the
         # length fallback the code below already writes.
-        if isinstance(sl, dict):
-            _sl190 = dict(sl)
-            for _k190 in ("lower", "upper"):
-                _b190 = _sl190.get(_k190)
-                if isinstance(_b190, dict) and _b190.get("type") in ("None", "NoneExpr"):
-                    _sl190[_k190] = None
-            sl = _sl190
+        # Two BOOLEANS rather than a normalised copy of `sl`: this function is MIRRORED,
+        # and writing `None` into the dict made the mirror's own emission ill-typed
+        # (`This expression has type emit_ir, but is expected to have type int` — the map's
+        # values are nodes and `None` lowers to 0). `check-mirror-type-only` caught that, so
+        # the presence test lives in a bool and the dict is left alone.
+        _lo_has190 = node.slice.lower.kind != "None"
+        _up_has190 = node.slice.upper.kind != "None"
         # seq-model-pivot.md SQ3: a slice of a seq local (`body_stmts[:-1]`) is a seq
         # sub-sequence (`seq_sub`) — a pure immutable value, NO `array_slice`/region. Content
         # opaque; the length law is conditional (sound). @mutable_state (via _seq_locals).
         _bv = node.value.to_dict()
         if (_bv.get("type") == "Var" and _bv.get("name") in getattr(self, "_seq_locals", set())):
             _slo = (self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst)
-                    if sl.get("lower") else "0")
+                    if _lo_has190 else "0")
             _shi = (self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst)
-                    if sl.get("upper") else f"(Seq.length {arr})")
+                    if _up_has190 else f"(Seq.length {arr})")
             self._add_abstract_op(
                 "val seq_sub (s: seq 'a) (lo hi: int) : seq 'a\n"
                 "    ensures { 0 <= lo <= hi <= Seq.length s -> Seq.length result = hi - lo }")
@@ -1517,8 +1517,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # uses the logic symbol; body bridges through `str_sub_op` (and `str_length_op` for an
         # omitted upper bound), since `String.substring`/`String.length` aren't program values.
         if self._is_string_expr(node.value.to_dict()):
-            slo = self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst) if sl.get("lower") else "0"
-            if sl.get("upper"):
+            slo = self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst) if _lo_has190 else "0"
+            if _up_has190:
                 shi = self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst)
             elif self._in_spec:
                 shi = f"(String.length {arr})"
