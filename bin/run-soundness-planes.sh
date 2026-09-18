@@ -106,9 +106,12 @@ MIN_PLANES=18
 # route #57's ill-typed landing, and the staged-L1 landing. **A MIRROR EDIT MUST BE
 # TYPE-CHECKED BEFORE IT IS PROVED**, and the fast set cannot do it without emitting.
 #
-# `check-clause-survival` is still NOT here, and the reason is specific rather than
-# incidental: its `--emit-dir` wants a freshly emitted CORPUS (bin/byte-diff-sweep.sh), not
-# the mirror. Handing it this directory would silently compare the wrong population.
+# `check-clause-survival` IS here as of (#49), with its own emission: its `--emit-dir`
+# wants a freshly emitted CORPUS (bin/byte-diff-sweep.sh), not the mirror, and handing it
+# THIS directory would silently compare the wrong population — so the loop below emits the
+# corpus once, separately, for that plane alone. It was left out for that reason and was
+# therefore never run: gen #29 found its ratchet BROKEN (4 deficit files against 2) since
+# route #116's witnesses landed.
 SLOW_PLANES=(
     check-getattr-erasure.py
     check-computed-rhs-erasure.py
@@ -134,11 +137,14 @@ SLOW_PLANES=(
     check-assumed-facts.py
     check-proof-crosscheck.sh
     check-emitted-vacuity.py
+    check-clause-survival.py
 )
 # Planes that take the shared mirror emission. Anything not listed runs bare, exactly as
 # before.
 EMIT_DIR_PLANES=" check-computed-rhs-erasure.py check-yield-erasure.py check-shadowed-selfcalls.py check-trusted-frame-honesty.py check-avatar-frame-parity.py count-trusted-directives.py check-mirror-type-only.py "
 SHARED_EMIT=""
+# (#49) A SECOND shared emission: the CORPUS, for `check-clause-survival.py`.
+CORPUS_EMIT=""
 
 if [ "${1:-}" = "--slow" ] || [ "${PYCSL_SOUNDNESS_PLANES_SLOW:-0}" = "1" ]; then
     PLANES+=("${SLOW_PLANES[@]}")
@@ -146,7 +152,7 @@ if [ "${1:-}" = "--slow" ] || [ "${PYCSL_SOUNDNESS_PLANES_SLOW:-0}" = "1" ]; the
     MIN_PLANES=$((MIN_PLANES + ${#SLOW_PLANES[@]}))
     echo "[*] soundness-planes: --slow, adding ${#SLOW_PLANES[@]} prover/emission plane(s) (~20 min)"
     SHARED_EMIT="$(mktemp -d "${TMPDIR:-/tmp}/pycsl-planes-emit.XXXXXX")"
-    trap 'rm -rf "$SHARED_EMIT"' EXIT
+    trap 'rm -rf "$SHARED_EMIT" "$CORPUS_EMIT"' EXIT
     # THE FILE NAMING IS LOAD-BEARING AND IT IS NOT OBVIOUS. Every consumer maps a `.mlw`
     # back to its source with `os.path.relpath(src, MIRROR)[:-3].replace(os.sep, "_")` —
     # ONE underscore. `scratchpad/w49/emit-mirrors.sh` writes TWO (`${rel//\//__}`), and
@@ -188,6 +194,18 @@ for p in "${PLANES[@]}"; do
     fi
     if [ -n "$SHARED_EMIT" ] && [[ "$EMIT_DIR_PLANES" == *" $p "* ]]; then
         out="$(cd "$PROJECT_ROOT" && python3 "bin/$p" --emit-dir "$SHARED_EMIT" 2>&1)"
+    elif [ "$p" = "check-clause-survival.py" ]; then
+        # (#49) THIS PLANE WANTS A FRESHLY EMITTED CORPUS, not the shared MIRROR emission —
+        # handing it the mirror directory would silently compare the wrong population,
+        # which is the reason the note above gives for leaving it out. So emit the corpus
+        # ONCE, here, and hand it over. It was uncollected, and gen #29 found its ratchet
+        # BROKEN (4 deficit files against a ratchet of 2) since route #116's witnesses
+        # landed.
+        if [ -z "$CORPUS_EMIT" ]; then
+            CORPUS_EMIT="$(mktemp -d "${TMPDIR:-/tmp}/pycsl-planes-corpus.XXXXXX")"
+            (cd "$PROJECT_ROOT" && bin/byte-diff-sweep.sh "$CORPUS_EMIT" >/dev/null 2>&1) || true
+        fi
+        out="$(cd "$PROJECT_ROOT" && python3 "bin/$p" --emit-dir "$CORPUS_EMIT" 2>&1)"
     elif [ "$p" = "check-emitted-vacuity.py" ]; then
         # (#49) THIS PLANE NEEDS ITS OWN EMISSION, BESIDE THE MIRROR SOURCES — it reads the
         # `.mlw` next to each `.py` rather than an `--emit-dir`, and WITHOUT `--emit` it
