@@ -1492,6 +1492,69 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     f"already left. Move the statement into the driver, or drop "
                     f"`#@ fresh_globals`.",
                     stage="whyml-emit", code="PYCSL-R187-FRESH-GLOBALS-MODULE-BODY")
+    # (#49) ROUTE #189 — ONE RECEIVER NAME, TWO CLASSES, ONE CONTRACT. A local bound to a
+    # record constructor is mapped to its class by `IRScanner.find_record_var_classes`,
+    # which `update()`s every nested scope into ONE FLAT MAP: for
+    # `if flag > 0: o = D() else: o = C()` the LAST branch scanned wins, so `o` resolved to
+    # `C` and the single call site `o.get()` was emitted as one abstract stub carrying
+    # `C.get`'s `ensures`. MEASURED (gen #29): that file PROVED `\result == 1` for EVERY
+    # `flag` while CPython returns 2 on the `D` branch — route #166 again, from the other
+    # end (there, two call sites and one stub NAME; here, one call site and one CLASS).
+    # The scanner itself is the certified `sdict` dict-fold (`recognize_dictfold`), so the
+    # marking cannot live there without losing that lowering; the refusal reads the SOURCE,
+    # like routes #175/#179/#187. FAIL-CLOSED and measured emission-inert: no function in
+    # `src/` or in the reference corpus binds one name to two record classes and then calls
+    # a method on it (scanned, zero hits).
+    if _t175 is not None:
+        _rc189 = {_c189.name for _c189 in _ast175.walk(_tall175)
+                  if isinstance(_c189, _ast175.ClassDef)}
+        _tr189 = {str(_f.get("name", "")) for _f in (ir_data.get("functions", []) or [])
+                  if _f.get("trusted") or _f.get("abstract") or _f.get("trusted_parent")}
+        _ow189 = {}
+        for _k189 in _ast175.walk(_tall175):
+            if isinstance(_k189, _ast175.ClassDef):
+                for _m189 in _k189.body:
+                    if isinstance(_m189, (_ast175.FunctionDef, _ast175.AsyncFunctionDef)):
+                        _ow189[id(_m189)] = _k189.name
+        for _fd189 in _ast175.walk(_t175):
+            if not isinstance(_fd189, (_ast175.FunctionDef, _ast175.AsyncFunctionDef)):
+                continue
+            if ((f"{_ow189[id(_fd189)].lower()}__{_fd189.name}" if id(_fd189) in _ow189
+                 else _fd189.name) in _tr189):
+                continue
+            _bd189 = {}
+            for _st189 in _ast175.walk(_fd189):
+                _tg189 = []
+                _v189 = None
+                if isinstance(_st189, _ast175.Assign):
+                    _tg189, _v189 = list(_st189.targets), _st189.value
+                elif isinstance(_st189, _ast175.AnnAssign) and _st189.value is not None:
+                    _tg189, _v189 = [_st189.target], _st189.value
+                if (isinstance(_v189, _ast175.Call)
+                        and isinstance(_v189.func, _ast175.Name)
+                        and _v189.func.id in _rc189):
+                    for _x189 in _tg189:
+                        if isinstance(_x189, _ast175.Name):
+                            _bd189.setdefault(_x189.id, set()).add(_v189.func.id)
+            _ab189 = sorted(_n for _n in _bd189 if len(_bd189[_n]) > 1)
+            if not _ab189:
+                continue
+            for _ca189 in _ast175.walk(_fd189):
+                if (isinstance(_ca189, _ast175.Call)
+                        and isinstance(_ca189.func, _ast175.Attribute)
+                        and isinstance(_ca189.func.value, _ast175.Name)
+                        and _ca189.func.value.id in _ab189):
+                    _nm189 = _ca189.func.value.id
+                    from errors import PyCSLSemanticError as _PyCSLSemErr189
+                    raise _PyCSLSemErr189(
+                        f"{_fd189.name!r} binds {_nm189!r} to more than one class "
+                        f"({', '.join(sorted(_bd189[_nm189]))}) and then calls "
+                        f"`{_nm189}.{_ca189.func.attr}(...)` (ROUTE #189). A record local "
+                        f"is mapped to ONE class, the last binding the scanner reaches, so "
+                        f"the call would carry that class's contract on every path — "
+                        f"measured: a two-branch receiver proved the other class's result. "
+                        f"Give each class its own local.",
+                        stage="whyml-emit", code="PYCSL-R189-AMBIGUOUS-RECEIVER-CLASS")
     if "R31_UNMODELLED_LIST_TRUTHINESS" in _mlw:
         # ROUTE #31 (relaunch #45) — the Python truthiness of a list local whose
         # LENGTH the model does not carry. `_to_bool` used to answer `true` for
