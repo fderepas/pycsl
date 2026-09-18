@@ -1,6 +1,7 @@
 # ROUTE #186 — the `raises` wrap's key mis-resolves a field receiver, so a declared `raises` is never discharged
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtAH, branch wip/g29-r186, on top of #185).** Severity 1.
+**Status: CLOSED by gen #29 (battery Z green: suite 3786/3804, the same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).**
+Severity 1.
 Generator: carrier-rerun of the landed #185 (the same mis-keying, one consumer further).
 
 ## Measured at `8a30d42f`
@@ -20,7 +21,7 @@ The local-receiver spelling (route #105) is refused. Route #185 repaired the key
 and still resolved `self.inner.go` to `outer__inner_go` — a name no function carries — so the wrap
 found no `raises` and emitted no `assert { not P }`.
 
-## Repair (draft)
+## Repair
 
 An unmatched key falls back to the method-name match: ONE candidate resolves it; several candidates
 that can raise leave it unresolved and the call carries an `assert { false }` under an active
