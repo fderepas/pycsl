@@ -193,6 +193,29 @@ def use(b: Beta) -> int:
     # the verdict this cell must be able to produce. With the branches the other way round
     # the same file reads CORRECT and the cell tests nothing (measured, both ways, against
     # the pre-#189 tree).
+    # A TERNARY receiver: the binding's value is an `IfExp`, not a `Call`, so
+    # `find_record_var_classes` records nothing at all and the #189 source check (which
+    # reads `Assign` values that ARE calls) does not fire either. The cell pins that this
+    # spelling stays fail-closed rather than silently picking one arm.
+    "ternary": '''{ann}#@ ensures {claim}
+def probe(flag: int) -> int:
+    o = Beta() if flag > 0 else Alpha()
+    return o.{call}
+''',
+    # A receiver bound in a `try` BODY and again in its HANDLER. The scanner descends
+    # `body`/`orelse` and loop bodies but NOT handlers, so the map sees only the body's
+    # class; the #189 source check walks the whole function and refuses the pair. The cell
+    # pins that refusal — if it ever stops covering handlers this flips.
+    "try-handler": '''{ann}#@ ensures {claim}
+def probe(flag: int) -> int:
+    try:
+        if flag > 0:
+            raise ValueError()
+        o = Beta()
+    except ValueError:
+        o = Alpha()
+    return o.{call}
+''',
     "two-branch": '''{ann}#@ ensures {claim}
 def probe(flag: int) -> int:
     if flag > 0:
@@ -235,6 +258,8 @@ BASELINE = {
     ("call-returned", "ensures"):   "CORRECT",
     ("parameter", "ensures"):       "CORRECT",
     ("two-branch", "ensures"):      "REFUSED",
+    ("ternary", "ensures"):         "CORRECT",
+    ("try-handler", "ensures"):     "REFUSED",
     ("local", "requires"):          "CORRECT",
     ("self-field", "requires"):     "CORRECT",
     ("two-branch", "requires"):     "REFUSED",
