@@ -820,3 +820,4 @@ date	gen	generator	candidate	verdict	route	order	note
 2026-09-17	29	hand	g29-for-expansion	FAIL-CLOSED	-	-	A `#@ for` expansion whose ground `requires` a caller violates, and one indexing beyond the array: both refused.
 2026-09-17	29	hand	g29-happy-capability-receivers	FAIL-CLOSED	-	-	The H-S capability precond at a RECEIVER-VAR and a module-global receiver call site (annotations.md row 8 calls receiver sites a follow-up): both are hard pipeline refusals naming the wrong-object risk.
 2026-09-18	29	hand	g29-happy-region-writes	FAIL-CLOSED	-	-	HAPPY region-integrity writes inside the protected region through a LOCAL ALIAS of the field and through a COMPUTED index, from a non-exempt method: both refused (unproved region check).
+2026-09-18	29	hand	g29-happy-protects	FAIL-CLOSED	-	-	HAPPY `protects` violated by a non-exempt method of the owning class and by a method of another class holding the object: both refused.
