@@ -49,6 +49,17 @@
 #   >>> NEW `def`s IN A MIRRORED FILE MOVE MIRROR-COVERAGE; inline into an already-trusted function rather than
 #       parking helpers in an unmirrored file.
 #   >>> "a non-constant default stays omitted and is route #79's class" — no #79 arm reads parameter defaults (#149).
+#   >>> A +1-ONLY DIFFERENTIAL FUZZER CANNOT SEE AN ERASED VALUE. An erased value reads as 0, and 0 is this
+#       campaign's most common wrong answer (#31 #40 #43 #44 #56 #183 #184 #190). gen8 — the grammar written FOR
+#       the slice neighbourhood — reported zero over a whole batch while route #190 was live in it, because it
+#       only ever asked about `answer + 1`. Every fuzzer now claims {v+1, 0, v-1, 99}.
+#   >>> THE ROUTES CLUSTER WHERE THERE IS NO PLANE. Five of gen #29's routes are one question (which callee does
+#       this call site get) and the battery had no gate for it; the assumed-fact surface had none either, and the
+#       plane built for it found a silent axiom the hand census had missed on its first run. When a generation
+#       produces a FAMILY, build the plane before hunting the next member.
+#   >>> CENSUS THE MODEL'S DECISIONS, NOT JUST ITS REFUSALS. Route #190 came out of grepping the `ensures` clauses
+#       the emitter puts on abstract ops and asking which of them decides a VALUE with no side condition; exactly
+#       one did (`str_sub_op`), and it was a route.
 #
 # ====== START HERE — gen #27 FINAL STATE — read this block first ==================
 #
