@@ -13958,7 +13958,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"(String.substring {vstr} {index} 1)"
             self._add_abstract_op(
                 "val str_sub_op (s: string) (lo len: int) : string\n"
-                "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
+                "    ensures { (0 <= lo /\\ 0 <= len)"
                 " -> result = (String.substring s lo len) }\n"
                 "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
                 " -> String.length result = len }")
@@ -14336,7 +14336,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         and self._negative_literal_index(expr.get("index", {})) is None):
                     self._add_abstract_op(
                         "val str_sub_op (s: string) (lo len: int) : string\n"
-                        "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
+                        "    ensures { (0 <= lo /\\ 0 <= len)"
                         " -> result = (String.substring s lo len) }\n"
                         "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
                         " -> String.length result = len }")
@@ -15595,7 +15595,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # Stage-0 literal probe), so we supply it directly under its bounds guard.
             self._add_abstract_op(
                 "val str_sub_op (s: string) (lo len: int) : string\n"
-                "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
+                "    ensures { (0 <= lo /\\ 0 <= len)"
                 " -> result = (String.substring s lo len) }\n"
                 "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
                 " -> String.length result = len }")
