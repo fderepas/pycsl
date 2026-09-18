@@ -109,6 +109,19 @@ def main():
         mlw = os.path.join(args.emit_dir, f[:-3] + ".mlw")
         if not os.path.exists(mlw):
             continue          # refused on purpose (a `pycsl-expected: FAIL` witness)
+        # (#49) A `pycsl-expected: FAIL` WITNESS THAT STILL EMITS IS NOT A CLAIM EITHER.
+        # The skip above catches the witnesses refused at EMISSION; a witness that emits
+        # and then fails at the PROVER reached this loop and was counted. Its clauses are
+        # not claims this project makes — the file asserts the pipeline must NOT prove it —
+        # so a deficit there says nothing about a clause being lost from a proof anyone
+        # relies on. MEASURED (gen #29): `1315_route116_...` and `1317_route116_...` are
+        # exactly that, and counting them had left this ratchet BROKEN (4 > 2) since route
+        # #116's witnesses landed, unnoticed, because nothing runs this gate. Excluding
+        # them restores the EXISTING ratchet of 2 rather than raising it (rule (k)).
+        _src_head = open(os.path.join(args.corpus, f), encoding="utf-8",
+                         errors="replace").read(4096)
+        if "# pycsl-expected: FAIL" in _src_head:
+            continue
         sc = _source_counts(os.path.join(args.corpus, f))
         if sc is None:
             continue
