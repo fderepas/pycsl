@@ -14,6 +14,16 @@
 #   - #190 an open-ended or negative STRING slice was decided as the EMPTY string. An exhaustive
 #     64-cell slice-bound sweep: 24 false proofs at HEAD, 0 after the repair (21 completeness cells the
 #     measured cost; the faithful normalisation is the recorded follow-up).
+#   - GATE FACADE FOUND AND REPAIRED: `bin/check-proof-crosscheck.sh` — the mechanical 3-way check that a
+#     `#@ proof` citation's Why3 axiom says what the cited Rocq/Lean theorem says — reported
+#     `PASS 0 / SKIP 0 / FAIL 0` and rc=0 while checking NOTHING, because its `python -m` invocation could
+#     not import the package and `|| true` swallowed the error. Repaired (PYTHONPATH, hard error on a
+#     non-summary, the #44 zero-check refusal, skip `pycsl-expected: FAIL` files) and REGISTERED in the
+#     battery's slow set: 17 PASS / 16 SKIP / 0 FAIL over 14 files. The runner now accepts a shell plane.
+#   - THE FUZZER/SWEEP LESSON, AND THAT IT BIT TWICE: a probe that claims ONE wrong answer only catches a
+#     model that answers THAT value; an ERASED value reads as 0. gen8 walked past route #190 for a batch,
+#     and then the sweep built AS #190's evidence repeated the same mistake. Every fuzzer and sweep now
+#     claims {v+1, 0, v-1, 99}; 234 earlier probes were re-asked that way (zero new findings).
 #   - CENSUSES worth keeping: every emitted `assume` is one of TWO families (25 concurrent
 #     mutex-invariant entries across 21 files, only 0256 proven, and it is the XFAIL that shows the
 #     release check exists; 2 `fresh_globals` constructor post-states, proof-backed); every emitted
