@@ -132,6 +132,7 @@ SLOW_PLANES=(
     # still out. `check-callee-contract-attribution` generates its own drivers.
     check-callee-contract-attribution.py
     check-assumed-facts.py
+    check-proof-crosscheck.sh
 )
 # Planes that take the shared mirror emission. Anything not listed runs bare, exactly as
 # before.
@@ -186,6 +187,15 @@ for p in "${PLANES[@]}"; do
     fi
     if [ -n "$SHARED_EMIT" ] && [[ "$EMIT_DIR_PLANES" == *" $p "* ]]; then
         out="$(cd "$PROJECT_ROOT" && python3 "bin/$p" --emit-dir "$SHARED_EMIT" 2>&1)"
+    elif [[ "$p" == *.sh ]]; then
+        # (#49) A PLANE MAY BE A SHELL SCRIPT. `check-proof-crosscheck.sh` is the
+        # mechanical 3-way check that a `#@ proof` citation's Why3 axiom says what the
+        # cited Rocq/Lean theorem says — the audit that backs every `pycsl_axiom_*` fact
+        # the assumed-facts plane classifies as audited-by-construction. It lived only in
+        # a Makefile target, and gen #29 found it reporting `PASS 0, SKIP 0, FAIL 0` and
+        # rc=0 while checking NOTHING (its `python -m` invocation could not import the
+        # package and the error was swallowed). A signal nobody collects is not a signal.
+        out="$(cd "$PROJECT_ROOT" && bash "bin/$p" 2>&1)"
     else
         out="$(cd "$PROJECT_ROOT" && python3 "bin/$p" 2>&1)"
     fi
