@@ -2407,3 +2407,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
 2026-09-18T18:49Z gen29 BATTERY-AE PREDICTION (wtAN, test-suite only): suite 3798/3816, the same 18 CONFIRMED FAIL, ZERO XPASS; planes --slow 36/36 rc=0 with value-differential at 70 drivers (30 AGREE proving, 40 DISAGREE refused).
 2026-09-18T19:44Z gen29 BATTERY AE suite leg: 3798/3816, the same 18 CONFIRMED FAIL, ZERO XPASS — as predicted. Slow planes running.
 2026-09-18T19:53Z gen29 RECLAIM SWEEP COMPLETE: 234 earlier probes re-asked with four wrong claims each (0, v+1, v-1, 99) — zero false proofs. The erased-value hypothesis does not reopen anything already probed.
+2026-09-18T20:32Z gen29 BATTERY AE GREEN: suite 3798/3816, the same 18 CONFIRMED FAIL, ZERO XPASS; planes --slow 36/36 rc=0 with value-differential at 70 drivers. Landing the ten new drivers. Also: gen7 (callee resolution, four claims per program) over seeds 40-45 — 48 programs, zero false proofs.
