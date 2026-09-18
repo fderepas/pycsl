@@ -125,6 +125,13 @@ SLOW_PLANES=(
     check-mirror-type-only.py
     check-no-exception-differential.py
     check-value-differential.py
+    # (#49) gen #29's two new planes. Both run BARE, and that is deliberate: the shared
+    # `--emit-dir` above is the MIRROR emission, and `check-assumed-facts` reads the
+    # CORPUS (its `assume`/`axiom` families live there), so handing it this directory
+    # would compare the wrong population — the same reason `check-clause-survival` is
+    # still out. `check-callee-contract-attribution` generates its own drivers.
+    check-callee-contract-attribution.py
+    check-assumed-facts.py
 )
 # Planes that take the shared mirror emission. Anything not listed runs bare, exactly as
 # before.
