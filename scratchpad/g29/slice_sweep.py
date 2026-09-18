@@ -58,8 +58,21 @@ for lo in BOUNDS:
         body = ('_ = 0  # anchor\n\n\n#@ ensures \\result == %d\n'
                 'def probe() -> int:\n    s: str = "%s"\n    t: str = s[%s:%s]\n'
                 '    return len(t)\n')
-        vf = run(body % (real + 1, S, spell(lo), spell(hi)),
-                 os.path.join(OUT, "false_%s.py" % tag))
+        # MORE THAN ONE WRONG ANSWER PER CELL. The first version of this sweep claimed
+        # `real + 1` only and reported zero on a tree where route #190 was live: the
+        # model's wrong answer there is 0 (an ERASED value), not `real + 1`. Ask about
+        # both, and count the cell as a false proof if EITHER proves.
+        vf = "FAILED"
+        for _bad in (0, real + 1):
+            if _bad == real:
+                continue
+            _v = run(body % (_bad, S, spell(lo), spell(hi)),
+                     os.path.join(OUT, "false%d_%s.py" % (_bad, tag)))
+            if _v == "SUCCESS":
+                vf = "SUCCESS"
+                break
+            if _v == "REFUSED":
+                vf = "REFUSED"
         vt = run(body % (real, S, spell(lo), spell(hi)),
                  os.path.join(OUT, "true_%s.py" % tag))
         if vf == "SUCCESS":
