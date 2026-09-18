@@ -36,11 +36,19 @@ does not read from the end. The slice path never got the same treatment.
 
 (1) An omitted bound is normalised to a real absence in `_handle_slice_access_expr`, which
 restores the length fallback the code already writes — and makes `s[1:]` PROVE its true
-length, so this half is a completeness GAIN as well as a soundness fix. (2) Both `ensures`
-of `str_sub_op` are guarded by the same in-range condition
-`0 <= lo /\ 0 <= len /\ lo + len <= String.length s`, so an out-of-range or negative slice
-decides NOTHING instead of deciding the empty string; the in-range content law survives
-(witness 1671 is discharged by it, not by a length). The spec plane needs no separate
+length, so this half is a completeness GAIN as well as a soundness fix. (2) `str_sub_op`'s CONTENT law is guarded by
+`0 <= lo /\ 0 <= len` — and by exactly that, which is the second thing this route taught.
+The first draft guarded it by the LENGTH law's condition
+(`… /\ lo + len <= String.length s`) and that is too strong: measured, `"abc"[1:10]` PROVES
+`len(t) == 2` at HEAD, because Why3's `String.substring` CLAMPS an overlong length exactly
+as Python does. The two disagree in one place only — a NEGATIVE start, where Python counts
+from the end and Why3 answers empty — and a negative `len` is the shape a negative STOP
+also arrives as (`s[:-1]` is `lo = 0, len = -1`, and Python's answer there is non-empty
+while a genuine `hi < lo` is). So the content law now holds wherever the two agree,
+including the clamping case, and says nothing where they diverge. The LENGTH law keeps the
+full `lo + len <= String.length s` guard, because `String.length result = len` is false in
+the clamping case. The in-range content law survives (witness 1671 is discharged by it, not
+by a length). The spec plane needs no separate
 guard: a slice is not parseable inside a `#@` clause (measured — "expected ')'").
 
 Witnesses 1668, 1669 (XFAIL), 1670, 1671 (PASS controls). Emission: the `str_sub_op`
