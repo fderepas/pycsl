@@ -7512,6 +7512,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if _r100cls:
                     _r100n = whyml_ident(
                         f"{whyml_ident(str(_r100cls).lower())}__{_r100parts[1]}")
+        # (#49) ROUTE #186 — THE SAME MIS-KEYING ON THE `raises` WRAP. Route #185 repaired the
+        # precondition/raise lookups of #167/#176; this key — the one route #100/#105 hand to
+        # `_wrap_call_with_callee_raises_assert` — still resolved `self.inner.go` to
+        # `outer__inner_go`, a name no function carries, so a callee's declared
+        # `#@ raises E when P` produced NO `assert { not P }` at the call site. MEASURED:
+        # `self.inner.go(-1)` with `go` declaring `raises ValueError when v < 0`, under the
+        # caller's `#@ no_exception ValueError`, PROVED (CPython raises); the local-receiver
+        # spelling (route #105) is refused. An unmatched key falls back to the method-name
+        # match: ONE candidate resolves it; several candidates that can raise leave the key
+        # unresolved and the call carries an `assert { false }` under an active context —
+        # fail-closed, because attaching one class's condition to another's callee would be a
+        # WRONG fact, not a missing one.
+        _amb186 = False
+        if "__" in str(_r100n) and "." in func_name:
+            _fns186 = [str(_f186.get("name", "")) for _f186 in (self.ir.get("functions", []) or [])]
+            if not any(whyml_ident(_n186) == _r100n for _n186 in _fns186):
+                _tail186 = func_name.rsplit(".", 1)[-1]
+                _cand186 = [_n186 for _n186 in _fns186 if _n186.endswith("__" + _tail186)]
+                if len(_cand186) == 1:
+                    _r100n = whyml_ident(_cand186[0])
+                elif len(_cand186) > 1:
+                    _raise186 = [_n186 for _n186 in _cand186
+                                 if getattr(self, "_module_func_raises", {}).get(whyml_ident(_n186))]
+                    if _raise186:
+                        _amb186 = True
         # (#49) ROUTE #166 — ONE STUB NAME, TWO CALLEES. The stub name is built from the
         # call's SPELLING (`<receiver-name>_<method>_<arity>`), so `o.get()` on a `C` in one
         # function and `o.get()` on a `D` in another both register `o_get_0`, and
@@ -7629,6 +7654,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             except Exception:
                                 _c167 = None
                             self._in_spec = _spec167
+                            # (#49) ROUTE #186 — the placeholder rename registers abstract ops
+                            # for the renamed parameters (`val constant pycslrsixseven0x`);
+                            # they are dead once the placeholders are substituted away, and an
+                            # emitted dead `val` is exactly the noise the emission gates read.
+                            _ops186 = getattr(self, "_abstract_ops", None)
+                            if isinstance(_ops186, dict):
+                                for _k186d in [_k for _k, _v in _ops186.items()
+                                               if "pycslrsixseven" in str(_k) or "pycslrsixseven" in str(_v)]:
+                                    _ops186.pop(_k186d, None)
+                            elif isinstance(_ops186, (set, list)):
+                                _keep186 = [_o for _o in _ops186 if "pycslrsixseven" not in str(_o)]
+                                if isinstance(_ops186, set):
+                                    _ops186.clear(); _ops186.update(_keep186)
+                                else:
+                                    del _ops186[:]; _ops186.extend(_keep186)
                             if _c167:
                                 for _pp167 in _pn167 + ["self"] * (_recv167 != "self"):
                                     if _re167.search(r"(?<![\w.'])" + _re167.escape(_pp167)
@@ -7725,6 +7765,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _r100n, f"({arity_name} ())", args)
             if _a167:
                 _call = "begin " + " ".join(_a167) + " " + _call + " end"
+            if _amb186 and (getattr(self, "_current_no_exception", set())
+                            or getattr(self, "_current_no_exception_all", False)):
+                _call = ("begin assert { [@expl:PyCSL-R186 ambiguous callee for a declared "
+                         "raises] false }; " + _call + " end")
             if _pre176:
                 _call = "begin " + _pre176 + _call + " end"
             return f"(let _ = {_call} in absurd)" if _nr_callee else _call
@@ -7735,6 +7779,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _r100n, f"({arity_name} {' '.join(coerced)})", args)
         if _a167:
             _call = "begin " + " ".join(_a167) + " " + _call + " end"
+        if _amb186 and (getattr(self, "_current_no_exception", set())
+                        or getattr(self, "_current_no_exception_all", False)):
+            _call = ("begin assert { [@expl:PyCSL-R186 ambiguous callee for a declared "
+                     "raises] false }; " + _call + " end")
         if _pre176:
             _call = "begin " + _pre176 + _call + " end"
         return f"(let _ = {_call} in absurd)" if _nr_callee else _call

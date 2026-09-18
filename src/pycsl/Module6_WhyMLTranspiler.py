@@ -407,9 +407,20 @@ class Module6_WhyMLTranspiler(
             # Reuse the existing expression renderer with a substitution
             # map — this preserves the callee's contract semantics while
             # binding parameters to the caller's arg strings.
-            return self._expr_to_whyml(cond_ir, set(), invariant_ctx=False, subst=subst)
+            _r = self._expr_to_whyml(cond_ir, set(), invariant_ctx=False, subst=subst)
         except Exception:
             return None
+        # (#49) ROUTE #186 — the renderer registers an abstract `val constant <name>` for a
+        # name it does not know, and under `subst` that "name" is the ARGUMENT TEXT: a literal
+        # actual produced `val constant 1 : int`, a Why3 SYNTAX error that fails the whole
+        # file (measured on a field-receiver call whose condition the route #186 key fallback
+        # newly resolves). Drop any op whose name is not an identifier; a real symbol the
+        # condition needs (str_hash_op, …) is untouched.
+        _ops = getattr(self, "_abstract_ops", None)
+        if isinstance(_ops, dict):
+            for _k in [_k for _k in list(_ops) if not str(_k)[:1].isalpha() and not str(_k).startswith("_")]:
+                _ops.pop(_k, None)
+        return _r
 
     def _wrap_with_no_exception_assert(self, op_key, operands, inner_expr: str) -> str:
         """Wrap ``inner_expr`` with a no_exception assertion if appropriate.
