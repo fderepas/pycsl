@@ -1433,6 +1433,65 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             f"would be proved of the wrong program. Validate the argument "
                             f"before constructing, or move the check out of the constructor.",
                             stage="whyml-emit", code="PYCSL-R179-RAISING-CONSTRUCTOR")
+    # (#49) ROUTE #187 — `#@ fresh_globals` ASSUMES THE CONSTRUCTOR POST-STATE, AND THE
+    # MODULE BODY'S OWN MUTATIONS OF THE GLOBAL ARE INVISIBLE TO IT. The directive
+    # re-establishes each module-global singleton's `__init__` post-state as an ASSUMED
+    # entry fact; the IR records a global as `{name, class, value}` only, and every OTHER
+    # top-level statement is dropped on the floor. MEASURED (gen #29):
+    # `counter = Counter(); counter.n = 7` with a `#@ fresh_globals` driver returning
+    # `counter.n` PROVED `\result == 0` (CPython 7), and the same with a top-level
+    # `counter.bump()` (`ensures self.n == 3`) PROVED `\result == 0` (CPython 3). Without
+    # the directive both FAIL (the global is havoc'd), so the assumed fact is the whole gap.
+    # The existing PYCSL-SEM-FRESH-GLOBALS confinement checks only that the driver is not a
+    # method and is called by nobody — neither sees the module body. FAIL-CLOSED: with a
+    # `#@ fresh_globals` driver in the file, the module body may contain only imports,
+    # definitions, a docstring, and simple `name = <expr>` bindings that neither rebind a
+    # name nor read a global singleton. An attribute/subscript store, a bare call, an `if`
+    # or a loop at module level is refused — the assumed constructor state would describe a
+    # program state the module body has already left.
+    if _t175 is not None and any(_f.get("fresh_globals")
+                                 for _f in (ir_data.get("functions", []) or [])):
+        _gl187 = {str(_g.get("name")) for _g in (ir_data.get("module_globals", []) or [])
+                  if _g.get("name")}
+        _seenb187 = set()
+        for _s187 in _t175.body:
+            if isinstance(_s187, (_ast175.Import, _ast175.ImportFrom, _ast175.ClassDef,
+                                  _ast175.FunctionDef, _ast175.AsyncFunctionDef)):
+                continue
+            if isinstance(_s187, _ast175.Expr) and isinstance(_s187.value, _ast175.Constant):
+                continue
+            _bad187 = ""
+            if isinstance(_s187, (_ast175.Assign, _ast175.AnnAssign)):
+                _tg187 = (list(_s187.targets) if isinstance(_s187, _ast175.Assign)
+                          else [_s187.target])
+                if not all(isinstance(_x187, _ast175.Name) for _x187 in _tg187):
+                    _bad187 = ("a module-level attribute or subscript store "
+                               "(the write is not in the IR at all)")
+                else:
+                    for _x187 in _tg187:
+                        if _x187.id in _seenb187:
+                            _bad187 = (f"the module-level name {_x187.id!r} is bound twice "
+                                       f"(the second binding is not in the IR)")
+                        _seenb187.add(_x187.id)
+                    for _n187 in _ast175.walk(_s187.value) if _s187.value is not None else []:
+                        if isinstance(_n187, _ast175.Name) and _n187.id in _gl187:
+                            _bad187 = (f"a module-level statement that reads the global "
+                                       f"singleton {_n187.id!r}")
+            else:
+                _bad187 = ("a module-level statement that is not an import, a definition or "
+                           "a simple binding (it is not in the IR, so its effect on a global "
+                           "is invisible)")
+            if _bad187:
+                from errors import PyCSLSemanticError as _PyCSLSemErr187
+                raise _PyCSLSemErr187(
+                    f"this module declares `#@ fresh_globals`, which ASSUMES each "
+                    f"module-global singleton's constructor post-state at the driver's "
+                    f"entry, but line {getattr(_s187, 'lineno', 0)} is {_bad187} "
+                    f"(ROUTE #187). The module body runs at import, after the constructor, "
+                    f"so the assumed fact would be proved of a state the program has "
+                    f"already left. Move the statement into the driver, or drop "
+                    f"`#@ fresh_globals`.",
+                    stage="whyml-emit", code="PYCSL-R187-FRESH-GLOBALS-MODULE-BODY")
     if "R31_UNMODELLED_LIST_TRUTHINESS" in _mlw:
         # ROUTE #31 (relaunch #45) — the Python truthiness of a list local whose
         # LENGTH the model does not carry. `_to_bool` used to answer `true` for
