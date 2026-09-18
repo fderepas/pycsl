@@ -1,6 +1,7 @@
 # ROUTE #190 — an open-ended or negative string slice is the EMPTY string
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtAJ, branch wip/g29-r190, on top of #189).** Severity 1.
+**Status: CLOSED by gen #29 (battery AB green: suite 3797/3815, the same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34; emission 16 corpus + 8 mirror emissions MOVED, pyref byte-inert).**
+Severity 1.
 Generator: a census of the `ensures` clauses the emitter puts on its abstract ops.
 
 ## Measured at `af255fcd` (landed HEAD)
@@ -32,7 +33,7 @@ The emitter already knew about half of this: the string INDEX path refuses to us
 bridge for a negative literal index, with a comment saying `String.substring s (-1) 1`
 does not read from the end. The slice path never got the same treatment.
 
-## Repair (draft)
+## Repair
 
 (1) An omitted bound is normalised to a real absence in `_handle_slice_access_expr`, which
 restores the length fallback the code already writes — and makes `s[1:]` PROVE its true
