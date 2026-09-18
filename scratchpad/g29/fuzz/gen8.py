@@ -102,18 +102,26 @@ for i in range(N):
     if out.returncode != 0 or not out.stdout.strip().lstrip("-").isdigit():
         continue
     v = int(out.stdout.strip())
-    lines = src.split("\n")
-    idx = lines.index("def probe() -> int:")
-    lines.insert(idx, f"#@ ensures \\result == {v + 1}")
-    path_f = os.path.join(OUT, f"false_{SEED}_{i}.py")
-    open(path_f, "w").write("\n".join(lines))
-    try:
-        p = subprocess.run([f"{R}/.venv/bin/python3", f"{R}/src/pycsl/pycsl.py", path_f],
-                           capture_output=True, text=True, timeout=300,
-                           env={**os.environ, "PYTHONHASHSEED": "0"})
-    except Exception:
-        continue
-    if "Verification SUCCESS" in p.stdout:
-        found += 1
-        print(f"FALSE-PROOF {path_f} (CPython {v}, claim {v + 1})", flush=True)
+    # MORE THAN ONE FALSE CLAIM PER PROGRAM. A fuzzer that only ever claims `answer + 1`
+    # catches a model that answers `answer + 1` and NOTHING ELSE — measured: route #190
+    # makes `len("abcde"[1:])` answer 0 where CPython answers 4, and this grammar walked
+    # straight past it for a whole batch because it only asked about 5. So ask about a
+    # SET of wrong answers, including the degenerate 0 that an erased value produces.
+    for claim in (v + 1, 0, v - 1, 99):
+        if claim == v:
+            continue
+        lines = src.split("\n")
+        idx = lines.index("def probe() -> int:")
+        lines.insert(idx, f"#@ ensures \\result == {claim}")
+        path_f = os.path.join(OUT, f"false_{SEED}_{i}_{claim}.py")
+        open(path_f, "w").write("\n".join(lines))
+        try:
+            p = subprocess.run([f"{R}/.venv/bin/python3", f"{R}/src/pycsl/pycsl.py", path_f],
+                               capture_output=True, text=True, timeout=300,
+                               env={**os.environ, "PYTHONHASHSEED": "0"})
+        except Exception:
+            continue
+        if "Verification SUCCESS" in p.stdout:
+            found += 1
+            print(f"FALSE-PROOF {path_f} (CPython {v}, claim {claim})", flush=True)
 print(f"FUZZ8-DONE seed={SEED} n={N} false_proofs={found}", flush=True)
