@@ -123,6 +123,19 @@ KNOWN_ERASURES = {
     # condition, same exception type with or without it). Recorded reason per this
     # ledger's policy; landed with the field-guard-raise cluster.
     "_check_span",                                           # erases `stage` (error-message-only; faithful)
+    # (#49) BOOKED, NOT EXCUSED (gen #29). `_check_scalar_return_annotation(func)` erases
+    # `func` entirely, and unlike the entries above that is NOT error-message-only: the
+    # discriminant itself vanishes. The reason it is admissible is the CONTRACT. Both uses
+    # of `func` are opaque in the model — `func.get("return_annotation")` is the
+    # hash-constant dict read, and `func.get("body")` feeds the `\trusted`
+    # `_returns_literal_none` — so the emitted body is a test of opaque values, and the
+    # function's own contract is `requires True / ensures True / assigns \nothing`. Nothing
+    # is claimed about `func` in the first place: its conversion buys the FRAME and
+    # TERMINATION, not a functional claim. MEASURED (gen #29) as PRE-EXISTING — the same
+    # single erasure appears at r186, before this generation's routes — and found only
+    # because this gate is NOT COLLECTED by the battery, which the same commit fixes.
+    # IF THE CONTRACT IS EVER STRENGTHENED, THIS ENTRY MUST BE REVISITED.
+    "_check_scalar_return_annotation",                       # erases `func` (contract claims nothing about it)
     # `_union_c11_check_dead_arms` erases `fname` — SAME policy as `_cs_clause`'s `ctx` /
     # `_check_span`'s `stage`: the C11 dead-arm check is a VOID `ensures True` function whose
     # only observable is a `warnings.warn(...)` and whose `fname` appears ONLY inside that

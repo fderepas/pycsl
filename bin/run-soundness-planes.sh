@@ -133,6 +133,7 @@ SLOW_PLANES=(
     check-callee-contract-attribution.py
     check-assumed-facts.py
     check-proof-crosscheck.sh
+    check-emitted-vacuity.py
 )
 # Planes that take the shared mirror emission. Anything not listed runs bare, exactly as
 # before.
@@ -187,6 +188,14 @@ for p in "${PLANES[@]}"; do
     fi
     if [ -n "$SHARED_EMIT" ] && [[ "$EMIT_DIR_PLANES" == *" $p "* ]]; then
         out="$(cd "$PROJECT_ROOT" && python3 "bin/$p" --emit-dir "$SHARED_EMIT" 2>&1)"
+    elif [ "$p" = "check-emitted-vacuity.py" ]; then
+        # (#49) THIS PLANE NEEDS ITS OWN EMISSION, BESIDE THE MIRROR SOURCES — it reads the
+        # `.mlw` next to each `.py` rather than an `--emit-dir`, and WITHOUT `--emit` it
+        # REFUSES (rc=2, "found 0 emitted mirror .mlw file(s) ... REFUSING to report a
+        # verdict"), which is why it was never in this list. It was therefore UNCOLLECTED,
+        # and gen #29 found it RED at HEAD with one erasure outside its ledger. The
+        # artefacts are `*.mlw`, which .gitignore already covers.
+        out="$(cd "$PROJECT_ROOT" && python3 "bin/$p" --emit 2>&1)"
     elif [[ "$p" == *.sh ]]; then
         # (#49) A PLANE MAY BE A SHELL SCRIPT. `check-proof-crosscheck.sh` is the
         # mechanical 3-way check that a `#@ proof` citation's Why3 axiom says what the
