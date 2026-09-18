@@ -3,21 +3,17 @@
 # ## STATUS (updated as work lands — trust `git log` + driver-progress.log over this block)
 #   - Machine REBOOTED ~07:47Z 2026-09-16: /tmp scratchpads and all baselines were lost. Why3 is NOT on the default
 #     PATH: `. scratchpad/g29/env.sh` (adds ~/.opam/framac-coq8/bin, PYTHONHASHSEED=0).
-#   - CLOSED this generation (42 routes): #147 #143 #148-#186, plus the translational reference's
-#     §T.5.12a summary and its new "which callee a call site gets" section (#166/#185-#189) —
-#     last landed: route #186, commit af255fcd (battery Z: suite 3786/3804, 18 CONFIRMED FAIL, 0 XPASS,
-#     planes --slow 34/34).
-#   - DRAFTED AND BATTERIED, NOT YET LANDED: #187 (`#@ fresh_globals` ignores the module body),
-#     #188 (route #166's stub-name hash suffix collides), #189 (one receiver name, two classes) —
-#     worktree wtAI = wip/g29-r189, emission BYTE-INERT in all three directions, fast legs green,
-#     battery AA (suite + slow planes) running.
-#   - DRAFTED, NOT YET MEASURED: #190 (an open-ended or negative STRING slice is decided as the
-#     EMPTY string — `"abc"[1:]` proved `len == 0`; the omitted bound is a `None` node lowering to 0
-#     and `str_sub_op`'s content ensures was unconditional) — worktree wtAJ = wip/g29-r190.
-#   - BUILT, NOT YET REGISTERED: `bin/check-callee-contract-attribution.py` (16 cells), the plane the
-#     battery lacked for the question five routes are. Green on wtAI; at the pre-#189 tree it reports
-#     THREE MIS-ATTRIBUTED cells, so it is decisive. Register it in run-soundness-planes.sh (SLOW_PLANES)
-#     on its own branch — registering moves the plane counts, so not under a running battery.
+#   - CLOSED this generation (46 routes): #147 #143 #148-#190. Last landed: route #190 and the two
+#     new planes, commit 2382a02a. The battery is now 19 fast / 36 with --slow.
+#   - THE FIVE-ROUTE FAMILY: #166 #185 #186 #188 #189 are one question — WHICH CALLEE DOES THIS CALL
+#     SITE GET — and the battery had no gate for it, so gen #29 built `bin/check-callee-contract-attribution.py`
+#     (16 cells; decisive: it reports THREE MIS-ATTRIBUTED cells on the pre-#189 tree).
+#   - #187 `#@ fresh_globals` assumed a constructor post-state the module body had already left; the
+#     plane built for that surface, `bin/check-assumed-facts.py`, classifies every emitted assume/axiom
+#     and found a silent `hash_eq_consistent_<cls>` axiom the hand census had missed.
+#   - #190 an open-ended or negative STRING slice was decided as the EMPTY string. An exhaustive
+#     64-cell slice-bound sweep: 24 false proofs at HEAD, 0 after the repair (21 completeness cells the
+#     measured cost; the faithful normalisation is the recorded follow-up).
 #   - CENSUSES worth keeping: every emitted `assume` is one of TWO families (25 concurrent
 #     mutex-invariant entries across 21 files, only 0256 proven, and it is the XFAIL that shows the
 #     release check exists; 2 `fresh_globals` constructor post-states, proof-backed); every emitted
