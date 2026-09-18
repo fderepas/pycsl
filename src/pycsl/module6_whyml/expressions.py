@@ -7549,6 +7549,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _a167: List[str] = []
         if _m167:
             _k167 = _r100n if "__" in _r100n else ""
+            # (#49) ROUTE #185 — A `self.<field>.<m>(...)` RECEIVER MIS-KEYS THE CALLEE.
+            # Route #100's name resolution turns `self.inner.go` into `outer__inner_go`, which
+            # names NO function of the file; routes #167 and #176 then looked up nothing and
+            # emitted neither the precondition assert nor the may-raise prefix. MEASURED:
+            # a guarded `Inner.get` (`requires self.x != 0`) called as `self.inner.get()` with
+            # `x == 0` PROVED `\result == 5` (CPython ZeroDivisionError), and a raising
+            # `Inner.go` caught by the caller PROVED the dead-handler value (CPython 9).
+            # A key that matches no IR function falls back to the method-name suffix match.
+            if _k167 and not any(whyml_ident(str(_f185.get("name", ""))) == _k167
+                                 for _f185 in (self.ir.get("functions", []) or [])):
+                _k167 = ""
             _p167 = func_name.split(".")
             _recv167 = ""
             if _k167 and len(_p167) == 2:
