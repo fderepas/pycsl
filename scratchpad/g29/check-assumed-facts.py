@@ -25,6 +25,20 @@ and every `axiom` into the families this campaign has reviewed:
                            import, audited elsewhere by construction.
   DERIVABLE-LIST-LEMMA     `axiom mem_head : forall x: int, l: list int. mem x (Cons x l)`
                            — a THEOREM of `list.Mem`, redundant rather than assumed.
+  HASH-EQ-CONSISTENCY      `axiom hash_eq_consistent_<cls> : forall a b. <cls>_eq_ a b =
+                           True -> <cls>_hash_ a = <cls>_hash_ b` — UB-7.2, emitted for any
+                           class defining BOTH `__hash__` and `__eq__`. This one is a
+                           REVIEWED ASSUMPTION, not a theorem: Python lets a user write an
+                           inconsistent pair, and then the axiom is FALSE of the program
+                           and the `a == b` branch is contradictory in the model, so any
+                           postcondition holds on it. `--strict-hash-eq-consistency` turns
+                           it into a goal (corpus 0411 documents both modes). It is not
+                           reachable today for an accidental reason worth writing down:
+                           every spelling that could satisfy the antecedent — `a == b`,
+                           `a.__eq__(b)`, `K.__eq__(a, b)`, even with `other: K` — fails to
+                           TYPE, because the model wants an int where the record goes
+                           (measured, gen #29). That fence is INCIDENTAL; if the record
+                           comparison ever types, this family becomes a live route.
 
 Anything else is UNCLASSIFIED and FAILS. A new assumed-fact family is exactly the thing
 that must not arrive without a route review, and the census that found route #187's was
@@ -55,6 +69,8 @@ AXIOM_FAMILIES = [
     ("PROOF-IMPORT", re.compile(r"^axiom pycsl_axiom_[A-Za-z0-9_']+ ")),
     ("DERIVABLE-LIST-LEMMA",
      re.compile(r"^axiom mem_head : forall x: int, l: list int\. mem x \(Cons x l\)$")),
+    ("HASH-EQ-CONSISTENCY",
+     re.compile(r"^axiom hash_eq_consistent_[A-Za-z0-9_]+ ?: forall a b: [A-Za-z0-9_]+\. ")),
 ]
 
 
