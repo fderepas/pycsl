@@ -65,3 +65,25 @@ an omitted bound really was always present, as a `None` node. After the repair t
 is genuinely falsifiable, and the mirror's `true` becomes an OVER-approximation — which
 costs nothing, because that function's mirror contract is `requires True / ensures True`
 plus a frame. Worth knowing if anyone ever strengthens it.
+
+## The measured trade
+
+An EXHAUSTIVE sweep of `(lower, upper)` drawn from `{absent, -3..3}` on `"abcde"` — 64 cells,
+each asked TWO wrong answers (`0` and `real + 1`) and then the true one:
+
+| tree | false proofs | complete | incomplete |
+|---|---|---|---|
+| landed HEAD | **24** | 40 | 24 |
+| with the repair | **0** | 19 | 45 |
+
+So the route reaches 24 of the 64 combinations — every cell with an omitted upper bound and
+every cell with a negative bound — and the repair removes all of them. The 21 cells that
+lose completeness are the ones whose WRONG answer happened to coincide with Python's
+(`s[3:1]` is empty either way). Recovering them needs the faithful normalisation at the
+call site (`hi < 0 ? max(0, n + hi) : min(hi, n)`, and the same for `lo`), which is a
+value-model change with real emission churn; fail-closed came first.
+
+**And the sweep itself is a lesson.** Its first version claimed `real + 1` only and reported
+`64 cells / zero false proofs` on the tree where the route was live — the same mistake the
+fuzzer lesson names, made by the tool built to check that lesson's route. A tool built after
+a lesson should be run against the route the lesson came from before its result is believed.
