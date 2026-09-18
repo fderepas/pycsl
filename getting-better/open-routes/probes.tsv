@@ -823,3 +823,4 @@ date	gen	generator	candidate	verdict	route	order	note
 2026-09-18	29	hand	g29-happy-protects	FAIL-CLOSED	-	-	HAPPY `protects` violated by a non-exempt method of the owning class and by a method of another class holding the object: both refused.
 2026-09-18	29	hand	g29-mixin-refinement	FAIL-CLOSED	-	-	A mixin provider whose `ensures` is weaker than the declared `depends_method` contract, consumed by the composer: refused (CPython cannot run composition at all, so this is a spec-level check).
 2026-09-18	29	census	g29-xfail-regression-sweep	MEASURED	-	-	Re-ran all 185 gen #29 XFAIL witnesses at the landed HEAD (routes #143-#184 in): ZERO XPASS — every recorded false proof is still refused.
+2026-09-18	29	hand	g29-concurrent-model	FAIL-CLOSED	-	-	Unprotected write to a `shared ... protected_by` variable (pipeline refusal) and a `mutex_invariant` broken inside the critical section (unproved) under --memory-model concurrent.
