@@ -892,3 +892,4 @@ date	gen	generator	candidate	verdict	route	order	note
 2026-09-18	29	hand	pb82-pb83-genexp-and-sum	NONE	-	-	The `\\sum(a, lo, hi)` contract construct lowers to a REAL recursive `pycsl_sum` definition with a snoc lemma, not to the `return "0"` branch (that branch is the non-value-semantic model, which the default never takes) — confirmed by reading the emission.
 2026-09-18	29	hand	pb84-bytes	NONE	-	-	`bytes` with the ZERO hypothesis as well as the true one: `b"abc"[0]` PROVES 97 (faithful) and FAILS 0; `len(b"ab" + b"cd")` FAILS 0.
 2026-09-18	29	hand	pb85-collection-lengths	NONE	-	-	Collection lengths and tuple reads under the ZERO hypothesis: `len({1,2,3})`, `len({1:10, 2:20})` and `(7, 8)[0]` all FAIL the claim 0.
+2026-09-18	29	hand	pb86-loop-accumulation	NONE	-	-	Loop accumulation under the ZERO hypothesis: a `while` with a variant, a `for ... in range(3)`, and a NESTED `for` all FAIL the claim 0 — the loop bodies are not erased.
