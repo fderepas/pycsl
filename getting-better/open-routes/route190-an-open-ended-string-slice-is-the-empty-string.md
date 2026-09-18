@@ -46,3 +46,14 @@ guard: a slice is not parseable inside a `#@` clause (measured — "expected ')'
 Witnesses 1668, 1669 (XFAIL), 1670, 1671 (PASS controls). Emission: the `str_sub_op`
 declaration text changes in 16 corpus and 8 mirror emissions; all 16 corpus files keep
 their expectation (13 SUCCESS, and 0768 / 1160 / 1542 are `pycsl-expected: FAIL`).
+
+## One note for the self-verification
+
+`_slice_array_or_opaque` — the only half of the slice handler that IS mirrored — keeps the
+`if sl.get("lower")` present-guard, and the mirror models that guard as `true` on the
+grounds (its own comment, 07-03-refactor R4) that "the sub-node is always-present in the
+model". That was TRUE before this repair and is the same reading that made the defect:
+an omitted bound really was always present, as a `None` node. After the repair the guard
+is genuinely falsifiable, and the mirror's `true` becomes an OVER-approximation — which
+costs nothing, because that function's mirror contract is `requires True / ensures True`
+plus a frame. Worth knowing if anyone ever strengthens it.
