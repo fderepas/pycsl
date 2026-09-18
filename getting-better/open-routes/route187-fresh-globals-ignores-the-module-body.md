@@ -1,6 +1,7 @@
 # ROUTE #187 — `#@ fresh_globals` assumes the constructor post-state, and the module body's own mutations are invisible
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtAI, branch wip/g29-r187, on top of #186).** Severity 1.
+**Status: CLOSED by gen #29 (battery AA green: suite 3793/3811, the same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34; emission byte-inert in all three directions).**
+Severity 1.
 Generator: hand probe of the opt-in trust surfaces (annotations.md #28).
 
 ## Measured at `8a30d42f`
@@ -32,7 +33,7 @@ The existing `PYCSL-SEM-FRESH-GLOBALS` confinement checks only that the driver (
 and (2) is called by nobody. Neither looks at the module body — the confinement was written about
 *who enters the driver*, and the hole is about *what ran before anyone did*.
 
-## Repair (draft)
+## Repair
 
 The IR cannot see the statements, so the check reads the SOURCE, like routes #175/#179/#181: with a
 `#@ fresh_globals` function in the file, the module body may contain only imports, definitions, a

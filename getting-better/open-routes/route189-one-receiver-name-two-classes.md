@@ -1,6 +1,7 @@
 # ROUTE #189 — one receiver name, two classes, one contract
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtAI, branch wip/g29-r189, on top of #188).** Severity 1.
+**Status: CLOSED by gen #29 (battery AA green: suite 3793/3811, the same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34; emission byte-inert in all three directions).**
+Severity 1.
 Generator: reading `IRScanner.find_record_var_classes` for the assumption it makes (the #188 lesson —
 a resolution that maps many things to one).
 
@@ -23,7 +24,7 @@ goes out of scope, then `(o_get_0 ())` with `ensures { result = 1 }`.
 This is route #166 from the other end: there, two call sites collapsed onto one stub NAME; here, one
 call site collapses onto one CLASS.
 
-## Repair (draft)
+## Repair
 
 The scanner is lowered by the certified `sdict` dict-fold (`recognize_dictfold`), and every shape
 that carries the ambiguity marker inside it loses that lowering — measured three ways (a

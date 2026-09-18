@@ -1,6 +1,7 @@
 # ROUTE #188 — route #166's disambiguating stub suffix is a 100000-bucket hash, and a collision puts #166 back
 
-**Status: REPAIR DRAFTED by gen #29 (worktree wtAI, branch wip/g29-r188, on top of #187).** Severity 1.
+**Status: CLOSED by gen #29 (battery AA green: suite 3793/3811, the same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34; emission byte-inert in all three directions).**
+Severity 1.
 Generator: carrier-rerun of the landed #166, read for the assumption its repair makes.
 
 ## Measured at `8a30d42f`
@@ -23,7 +24,7 @@ The collision is not luck: the declaration format is
 `_c84185`) falls out of a few hundred candidates. 100000 buckets means a birthday collision at a few
 hundred distinct stubs of one base name.
 
-## Repair (draft)
+## Repair
 
 The suffix is made INJECTIVE per base name: a declaration keeps the name it was first given (a map
 from `(base, declaration)` to the chosen name), and a different declaration landing on a taken name is
