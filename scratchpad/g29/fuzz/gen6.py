@@ -143,18 +143,22 @@ for i in range(N):
     if out.returncode != 0 or not out.stdout.strip().lstrip("-").isdigit():
         continue
     v = int(out.stdout.strip())
-    lines = src.split("\n")
-    idx = lines.index("def probe() -> int:")
-    lines.insert(idx, f"#@ ensures \\result == {v + 1}")
-    path_f = os.path.join(OUT, f"false_{SEED}_{i}.py")
-    open(path_f, "w").write("\n".join(lines))
-    try:
-        p = subprocess.run([f"{R}/.venv/bin/python3", f"{R}/src/pycsl/pycsl.py", path_f],
-                           capture_output=True, text=True, timeout=300,
-                           env={**os.environ, "PYTHONHASHSEED": "0"})
-    except Exception:
-        continue
-    if "Verification SUCCESS" in p.stdout:
-        found += 1
-        print(f"FALSE-PROOF {path_f} (CPython {v}, claim {v + 1})", flush=True)
+    # (#49) LESSON: a +1-only claim cannot see an ERASED value, which reads as 0.
+    for claim in (v + 1, 0, v - 1, 99):
+        if claim == v:
+            continue
+        lines = src.split("\n")
+        idx = lines.index("def probe() -> int:")
+        lines.insert(idx, f"#@ ensures \\result == {claim}")
+        path_f = os.path.join(OUT, f"false_{SEED}_{i}_{claim}.py")
+        open(path_f, "w").write("\n".join(lines))
+        try:
+            p = subprocess.run([f"{R}/.venv/bin/python3", f"{R}/src/pycsl/pycsl.py", path_f],
+                               capture_output=True, text=True, timeout=300,
+                               env={**os.environ, "PYTHONHASHSEED": "0"})
+        except Exception:
+            continue
+        if "Verification SUCCESS" in p.stdout:
+            found += 1
+            print(f"FALSE-PROOF {path_f} (CPython {v}, claim {claim})", flush=True)
 print(f"FUZZ6-DONE seed={SEED} n={N} false_proofs={found}", flush=True)
