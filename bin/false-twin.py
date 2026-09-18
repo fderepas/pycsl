@@ -46,8 +46,15 @@ if not os.path.exists(PYTHON):
     PYTHON = sys.executable
 
 # `#@ ensures \result == <int>`  (optionally parenthesised, with surrounding text).
+# (#49) THE WHOLE CLAUSE, NOT A SUB-TERM. The operator's premise — "a proven
+# `\result == N` pins the unique returned value, so `== N±1` is necessarily false" —
+# holds only when the `== N` IS the clause. MEASURED (gen #29): corpus `0105` declares
+# `#@ ensures \result >= x or \result == 0` over `return x`, the old pattern mutated the
+# DISJUNCT to `== 1`, and the mutant correctly SURVIVED because `\result >= x` still
+# holds — reported as a false-green that was nothing of the kind. Anchored to the end of
+# the line so only a clause of exactly the form `#@ ensures \result == <int>` is mutated.
 _ENSURES_RESULT_EQ_INT = re.compile(
-    r'(#@\s*ensures\b[^\n]*?\\result\s*==\s*)(-?\d+)(\b)')
+    r'(#@\s*ensures\s+\\result\s*==\s*)(-?\d+)\s*(\Z)')
 
 
 def _mutants(source: str) -> List[Tuple[str, str]]:
