@@ -3,8 +3,11 @@
 # ## STATUS (updated as work lands — trust `git log` + driver-progress.log over this block)
 #   - Machine REBOOTED ~07:47Z 2026-09-16: /tmp scratchpads and all baselines were lost. Why3 is NOT on the default
 #     PATH: `. scratchpad/g29/env.sh` (adds ~/.opam/framac-coq8/bin, PYTHONHASHSEED=0).
-#   - CLOSED this generation (40 routes): #147 #143 #148-#184, plus the translational reference's
-#     §T.5.12a summary of the exception-model repairs (battery X, commit 59611f89). No battery running.
+#   - CLOSED this generation (41 routes): #147 #143 #148-#185, plus the translational reference's
+#     §T.5.12a summary (battery X) — last: battery Y, commit 8a30d42f. No battery running.
+#     Worktree wtAG (wip/g29-r185) is the tip; wtAE/wtAF landed and can be removed.
+#     PENDING witness idea: the two-level `self.mid.leaf.get()` carrier (PROVED at HEAD before #185,
+#     refused on the draft) is measured but has no corpus witness yet.
 #   - Differential FUZZERS live in scratchpad/g29/fuzz (gen.py arithmetic/control flow, gen2.py
 #     dict/list/None/handlers, gen3.py classes+contracts+receivers, gen4.py inheritance/global
 #     instances/folds): each claims something FALSE of CPython's observed answer and reports any
