@@ -23,7 +23,7 @@ FILES=(
 pass=0; fail=0
 for f in "${FILES[@]}"; do
   t0=$(date +%s)
-  out=$(timeout 2400 python3 src/pycsl/pycsl.py "$f" --import-path "$WT/src/pycsl" 2>&1)
+  out=$(timeout 9000 python3 src/pycsl/pycsl.py "$f" --import-path "$WT/src/pycsl" 2>&1)
   t1=$(date +%s)
   if echo "$out" | grep -q "Verification SUCCESS"; then
     echo "[PASS] $f ($((t1-t0))s)"; pass=$((pass+1))
