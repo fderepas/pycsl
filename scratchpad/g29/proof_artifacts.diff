@@ -1,0 +1,323 @@
+diff --git a/test-suite/corpus/pycsl-reference/0342.proofs/lean/.lake/config/0/lakefile.olean b/test-suite/corpus/pycsl-reference/0342.proofs/lean/.lake/config/0/lakefile.olean
+index 962adb4e..62fb9b2e 100644
+Binary files a/test-suite/corpus/pycsl-reference/0342.proofs/lean/.lake/config/0/lakefile.olean and b/test-suite/corpus/pycsl-reference/0342.proofs/lean/.lake/config/0/lakefile.olean differ
+diff --git a/test-suite/corpus/pycsl-reference/0342.proofs/lean/.lake/config/0/lakefile.olean.trace b/test-suite/corpus/pycsl-reference/0342.proofs/lean/.lake/config/0/lakefile.olean.trace
+index 31f1344f..08377bbf 100644
+--- a/test-suite/corpus/pycsl-reference/0342.proofs/lean/.lake/config/0/lakefile.olean.trace
++++ b/test-suite/corpus/pycsl-reference/0342.proofs/lean/.lake/config/0/lakefile.olean.trace
+@@ -1,6 +1,6 @@
+ {"platform": "x86_64-unknown-linux-gnu",
+  "options": {},
+  "name": "[anonymous]",
+- "leanHash": "68218e876d2a38b1985b8590fff244a83c321783",
++ "leanHash": "293d5d0c0c3f3dded4688b3ccd6a33939ac5102b",
+  "idx": 0,
+  "configHash": "9d67297283272c2c"}
+diff --git a/test-suite/corpus/pycsl-reference/0342.proofs/rocq/.gcd.aux b/test-suite/corpus/pycsl-reference/0342.proofs/rocq/.gcd.aux
+index 43e747fd..6f71b8d8 100644
+--- a/test-suite/corpus/pycsl-reference/0342.proofs/rocq/.gcd.aux
++++ b/test-suite/corpus/pycsl-reference/0342.proofs/rocq/.gcd.aux
+@@ -1,37 +1,37 @@
+-COQAUX1 8fb5e305b9bffed8658cf850d0ed59b3 /home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0342.proofs/rocq/gcd.v
++COQAUX1 8fb5e305b9bffed8658cf850d0ed59b3 /home/fabrice/git/pycsl/test-suite/corpus/pycsl-reference/0342.proofs/rocq/gcd.v
+ 0 0 VernacProof "tac:no using:no"
+-618 622 proof_build_time "0.017"
+-0 0 gcd_result_nonneg "0.017"
++618 622 proof_build_time "0.003"
++0 0 gcd_result_nonneg "0.003"
+ 613 617 context_used ""
+-618 622 proof_check_time "0.005"
++618 622 proof_check_time "0.001"
+ 0 0 VernacProof "tac:no using:no"
+-851 855 proof_build_time "0.034"
+-0 0 gcd_result_positive "0.034"
++851 855 proof_build_time "0.005"
++0 0 gcd_result_positive "0.005"
+ 846 850 context_used ""
+-851 855 proof_check_time "0.022"
++851 855 proof_check_time "0.004"
+ 0 0 VernacProof "tac:no using:no"
+-1070 1074 proof_build_time "0.008"
+-0 0 gcd_divides_a "0.008"
++1070 1074 proof_build_time "0.001"
++0 0 gcd_divides_a "0.001"
+ 1046 1069 context_used ""
+-1070 1074 proof_check_time "0.002"
++1070 1074 proof_check_time "0.000"
+ 0 0 VernacProof "tac:no using:no"
+-1289 1293 proof_build_time "0.006"
+-0 0 gcd_divides_b "0.006"
++1289 1293 proof_build_time "0.001"
++0 0 gcd_divides_b "0.001"
+ 1265 1288 context_used ""
+-1289 1293 proof_check_time "0.002"
++1289 1293 proof_check_time "0.000"
+ 0 0 VernacProof "tac:no using:no"
+-1563 1567 proof_build_time "0.003"
+-0 0 gcd_0 "0.003"
++1563 1567 proof_build_time "0.000"
++0 0 gcd_0 "0.000"
+ 1544 1562 context_used ""
+-1563 1567 proof_check_time "0.001"
++1563 1567 proof_check_time "0.000"
+ 0 0 VernacProof "tac:no using:no"
+-2010 2014 proof_build_time "0.020"
+-0 0 gcd_step "0.020"
++2010 2014 proof_build_time "0.004"
++0 0 gcd_step "0.004"
+ 1990 2009 context_used ""
+-2010 2014 proof_check_time "0.007"
++2010 2014 proof_check_time "0.002"
+ 0 0 VernacProof "tac:no using:no"
+-2637 2641 proof_build_time "0.028"
+-0 0 gcd_greatest "0.028"
++2637 2641 proof_build_time "0.003"
++0 0 gcd_greatest "0.003"
+ 2526 2636 context_used ""
+-2637 2641 proof_check_time "0.007"
+-0 0 vo_compile_time "1.445"
++2637 2641 proof_check_time "0.001"
++0 0 vo_compile_time "0.251"
+diff --git a/test-suite/corpus/pycsl-reference/0342.proofs/rocq/gcd.vo b/test-suite/corpus/pycsl-reference/0342.proofs/rocq/gcd.vo
+index a6d85ee5..346d8e56 100644
+Binary files a/test-suite/corpus/pycsl-reference/0342.proofs/rocq/gcd.vo and b/test-suite/corpus/pycsl-reference/0342.proofs/rocq/gcd.vo differ
+diff --git a/test-suite/corpus/pycsl-reference/0352.proofs/rocq/.Gcd.aux b/test-suite/corpus/pycsl-reference/0352.proofs/rocq/.Gcd.aux
+index 897ba334..5e8c121a 100644
+--- a/test-suite/corpus/pycsl-reference/0352.proofs/rocq/.Gcd.aux
++++ b/test-suite/corpus/pycsl-reference/0352.proofs/rocq/.Gcd.aux
+@@ -1,37 +1,37 @@
+-COQAUX1 8fb5e305b9bffed8658cf850d0ed59b3 /home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0352.proofs/rocq/Gcd.v
++COQAUX1 8fb5e305b9bffed8658cf850d0ed59b3 /home/fabrice/git/pycsl/test-suite/corpus/pycsl-reference/0352.proofs/rocq/Gcd.v
+ 0 0 VernacProof "tac:no using:no"
+-618 622 proof_build_time "0.022"
+-0 0 gcd_result_nonneg "0.022"
++618 622 proof_build_time "0.002"
++0 0 gcd_result_nonneg "0.002"
+ 613 617 context_used ""
+-618 622 proof_check_time "0.004"
++618 622 proof_check_time "0.001"
+ 0 0 VernacProof "tac:no using:no"
+-851 855 proof_build_time "0.028"
+-0 0 gcd_result_positive "0.028"
++851 855 proof_build_time "0.004"
++0 0 gcd_result_positive "0.004"
+ 846 850 context_used ""
+-851 855 proof_check_time "0.016"
++851 855 proof_check_time "0.003"
+ 0 0 VernacProof "tac:no using:no"
+-1070 1074 proof_build_time "0.006"
+-0 0 gcd_divides_a "0.006"
++1070 1074 proof_build_time "0.001"
++0 0 gcd_divides_a "0.001"
+ 1046 1069 context_used ""
+-1070 1074 proof_check_time "0.002"
++1070 1074 proof_check_time "0.000"
+ 0 0 VernacProof "tac:no using:no"
+-1289 1293 proof_build_time "0.006"
+-0 0 gcd_divides_b "0.006"
++1289 1293 proof_build_time "0.001"
++0 0 gcd_divides_b "0.001"
+ 1265 1288 context_used ""
+-1289 1293 proof_check_time "0.002"
++1289 1293 proof_check_time "0.000"
+ 0 0 VernacProof "tac:no using:no"
+-1563 1567 proof_build_time "0.003"
+-0 0 gcd_0 "0.003"
++1563 1567 proof_build_time "0.000"
++0 0 gcd_0 "0.000"
+ 1544 1562 context_used ""
+-1563 1567 proof_check_time "0.001"
++1563 1567 proof_check_time "0.000"
+ 0 0 VernacProof "tac:no using:no"
+-2010 2014 proof_build_time "0.019"
+-0 0 gcd_step "0.019"
++2010 2014 proof_build_time "0.002"
++0 0 gcd_step "0.002"
+ 1990 2009 context_used ""
+-2010 2014 proof_check_time "0.005"
++2010 2014 proof_check_time "0.001"
+ 0 0 VernacProof "tac:no using:no"
+-2637 2641 proof_build_time "0.010"
+-0 0 gcd_greatest "0.010"
++2637 2641 proof_build_time "0.002"
++0 0 gcd_greatest "0.002"
+ 2526 2636 context_used ""
+-2637 2641 proof_check_time "0.002"
+-0 0 vo_compile_time "1.102"
++2637 2641 proof_check_time "0.000"
++0 0 vo_compile_time "0.176"
+diff --git a/test-suite/corpus/pycsl-reference/0352.proofs/rocq/Gcd.vo b/test-suite/corpus/pycsl-reference/0352.proofs/rocq/Gcd.vo
+index 608ee8cd..b5159e25 100644
+Binary files a/test-suite/corpus/pycsl-reference/0352.proofs/rocq/Gcd.vo and b/test-suite/corpus/pycsl-reference/0352.proofs/rocq/Gcd.vo differ
+diff --git a/test-suite/corpus/pycsl-reference/0538.proofs/rocq/.Perm.aux b/test-suite/corpus/pycsl-reference/0538.proofs/rocq/.Perm.aux
+index 05f8ea3f..c0e8d6fa 100644
+--- a/test-suite/corpus/pycsl-reference/0538.proofs/rocq/.Perm.aux
++++ b/test-suite/corpus/pycsl-reference/0538.proofs/rocq/.Perm.aux
+@@ -1,7 +1,7 @@
+-COQAUX1 96993ccbe6140b8876e9a823653e4a58 /home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0538.proofs/rocq/Perm.v
++COQAUX1 96993ccbe6140b8876e9a823653e4a58 /home/fabrice/git/pycsl/test-suite/corpus/pycsl-reference/0538.proofs/rocq/Perm.v
+ 0 0 VernacProof "tac:no using:no"
+-702 706 proof_build_time "0.004"
+-0 0 permut_refl "0.004"
++702 706 proof_build_time "0.001"
++0 0 permut_refl "0.001"
+ 678 701 context_used ""
+-702 706 proof_check_time "0.001"
+-0 0 vo_compile_time "0.407"
++702 706 proof_check_time "0.000"
++0 0 vo_compile_time "0.060"
+diff --git a/test-suite/corpus/pycsl-reference/0538.proofs/rocq/Perm.vo b/test-suite/corpus/pycsl-reference/0538.proofs/rocq/Perm.vo
+index 2debe2b0..28e3a14d 100644
+Binary files a/test-suite/corpus/pycsl-reference/0538.proofs/rocq/Perm.vo and b/test-suite/corpus/pycsl-reference/0538.proofs/rocq/Perm.vo differ
+diff --git a/test-suite/corpus/pycsl-reference/0539.proofs/rocq/.Rev.aux b/test-suite/corpus/pycsl-reference/0539.proofs/rocq/.Rev.aux
+index 31057667..5b3e889e 100644
+--- a/test-suite/corpus/pycsl-reference/0539.proofs/rocq/.Rev.aux
++++ b/test-suite/corpus/pycsl-reference/0539.proofs/rocq/.Rev.aux
+@@ -1,7 +1,7 @@
+-COQAUX1 5c301a6978ae817b7f214dbecbba4d99 /home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0539.proofs/rocq/Rev.v
++COQAUX1 5c301a6978ae817b7f214dbecbba4d99 /home/fabrice/git/pycsl/test-suite/corpus/pycsl-reference/0539.proofs/rocq/Rev.v
+ 0 0 VernacProof "tac:no using:no"
+-940 944 proof_build_time "0.011"
+-0 0 rev_permutation "0.011"
++940 944 proof_build_time "0.001"
++0 0 rev_permutation "0.001"
+ 917 939 context_used ""
+-940 944 proof_check_time "0.001"
+-0 0 vo_compile_time "0.446"
++940 944 proof_check_time "0.000"
++0 0 vo_compile_time "0.064"
+diff --git a/test-suite/corpus/pycsl-reference/0539.proofs/rocq/Rev.vo b/test-suite/corpus/pycsl-reference/0539.proofs/rocq/Rev.vo
+index 2e57d860..d7e2bf32 100644
+Binary files a/test-suite/corpus/pycsl-reference/0539.proofs/rocq/Rev.vo and b/test-suite/corpus/pycsl-reference/0539.proofs/rocq/Rev.vo differ
+diff --git a/test-suite/corpus/pycsl-reference/0542.proofs/rocq/.Json.aux b/test-suite/corpus/pycsl-reference/0542.proofs/rocq/.Json.aux
+index c2219162..0b002318 100644
+--- a/test-suite/corpus/pycsl-reference/0542.proofs/rocq/.Json.aux
++++ b/test-suite/corpus/pycsl-reference/0542.proofs/rocq/.Json.aux
+@@ -1,7 +1,7 @@
+-COQAUX1 97c245c3dad283310abdc0e1d31b1817 /home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0542.proofs/rocq/Json.v
++COQAUX1 97c245c3dad283310abdc0e1d31b1817 /home/fabrice/git/pycsl/test-suite/corpus/pycsl-reference/0542.proofs/rocq/Json.v
+ 0 0 VernacProof "tac:no using:no"
+-549 553 proof_build_time "0.018"
+-0 0 mirror_involution "0.018"
++549 553 proof_build_time "0.002"
++0 0 mirror_involution "0.002"
+ 536 548 context_used ""
+-549 553 proof_check_time "0.003"
+-0 0 vo_compile_time "1.355"
++549 553 proof_check_time "0.000"
++0 0 vo_compile_time "0.220"
+diff --git a/test-suite/corpus/pycsl-reference/0542.proofs/rocq/Json.vo b/test-suite/corpus/pycsl-reference/0542.proofs/rocq/Json.vo
+index 7b1cf3ac..0062354b 100644
+Binary files a/test-suite/corpus/pycsl-reference/0542.proofs/rocq/Json.vo and b/test-suite/corpus/pycsl-reference/0542.proofs/rocq/Json.vo differ
+diff --git a/test-suite/corpus/pycsl-reference/0708.proofs/rocq/.FieldToStrRoundTrip.aux b/test-suite/corpus/pycsl-reference/0708.proofs/rocq/.FieldToStrRoundTrip.aux
+index 6f67223b..a646e4f4 100644
+--- a/test-suite/corpus/pycsl-reference/0708.proofs/rocq/.FieldToStrRoundTrip.aux
++++ b/test-suite/corpus/pycsl-reference/0708.proofs/rocq/.FieldToStrRoundTrip.aux
+@@ -1,12 +1,12 @@
+-COQAUX1 8dbee323f65bfbb16a3bf8185b606a58 /home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0708.proofs/rocq/FieldToStrRoundTrip.v
++COQAUX1 8dbee323f65bfbb16a3bf8185b606a58 /home/fabrice/git/pycsl/test-suite/corpus/pycsl-reference/0708.proofs/rocq/FieldToStrRoundTrip.v
+ 0 0 VernacProof "tac:no using:no"
+-5152 5156 proof_build_time "0.136"
+-0 0 scan_round_trip "0.136"
++5152 5156 proof_build_time "0.033"
++0 0 scan_round_trip "0.033"
+ 5139 5151 context_used ""
+-5152 5156 proof_check_time "0.067"
++5152 5156 proof_check_time "0.022"
+ 0 0 VernacProof "tac:no using:no"
+-6510 6514 proof_build_time "0.071"
+-0 0 field_to_str_round_trip "0.071"
++6510 6514 proof_build_time "0.019"
++0 0 field_to_str_round_trip "0.019"
+ 6499 6509 context_used ""
+-6510 6514 proof_check_time "0.025"
+-0 0 vo_compile_time "2.439"
++6510 6514 proof_check_time "0.007"
++0 0 vo_compile_time "0.570"
+diff --git a/test-suite/corpus/pycsl-reference/0708.proofs/rocq/FieldToStrRoundTrip.vo b/test-suite/corpus/pycsl-reference/0708.proofs/rocq/FieldToStrRoundTrip.vo
+index 05722b4c..f47afc67 100644
+Binary files a/test-suite/corpus/pycsl-reference/0708.proofs/rocq/FieldToStrRoundTrip.vo and b/test-suite/corpus/pycsl-reference/0708.proofs/rocq/FieldToStrRoundTrip.vo differ
+diff --git a/test-suite/corpus/pycsl-reference/0711.proofs/rocq/.SlotInodeByteDecode.aux b/test-suite/corpus/pycsl-reference/0711.proofs/rocq/.SlotInodeByteDecode.aux
+index 090fdb0e..90673227 100644
+--- a/test-suite/corpus/pycsl-reference/0711.proofs/rocq/.SlotInodeByteDecode.aux
++++ b/test-suite/corpus/pycsl-reference/0711.proofs/rocq/.SlotInodeByteDecode.aux
+@@ -1,7 +1,7 @@
+-COQAUX1 4e1864501a83f481d01810ef4e7f2c03 /home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0711.proofs/rocq/SlotInodeByteDecode.v
++COQAUX1 4e1864501a83f481d01810ef4e7f2c03 /home/fabrice/git/pycsl/test-suite/corpus/pycsl-reference/0711.proofs/rocq/SlotInodeByteDecode.v
+ 0 0 VernacProof "tac:no using:no"
+-2042 2046 proof_build_time "0.009"
+-0 0 slot_inode_byte_decode "0.009"
++2042 2046 proof_build_time "0.001"
++0 0 slot_inode_byte_decode "0.001"
+ 2029 2041 context_used ""
+-2042 2046 proof_check_time "0.003"
+-0 0 vo_compile_time "1.246"
++2042 2046 proof_check_time "0.001"
++0 0 vo_compile_time "0.205"
+diff --git a/test-suite/corpus/pycsl-reference/0711.proofs/rocq/SlotInodeByteDecode.vo b/test-suite/corpus/pycsl-reference/0711.proofs/rocq/SlotInodeByteDecode.vo
+index 225f501b..79b8bfbf 100644
+Binary files a/test-suite/corpus/pycsl-reference/0711.proofs/rocq/SlotInodeByteDecode.vo and b/test-suite/corpus/pycsl-reference/0711.proofs/rocq/SlotInodeByteDecode.vo differ
+diff --git a/test-suite/corpus/pycsl-reference/0712.proofs/rocq/.SlotNameByteDecode.aux b/test-suite/corpus/pycsl-reference/0712.proofs/rocq/.SlotNameByteDecode.aux
+index 74cc20fc..29d68e67 100644
+--- a/test-suite/corpus/pycsl-reference/0712.proofs/rocq/.SlotNameByteDecode.aux
++++ b/test-suite/corpus/pycsl-reference/0712.proofs/rocq/.SlotNameByteDecode.aux
+@@ -1,17 +1,17 @@
+-COQAUX1 3b64fe33b4d49b857ac1fd8c80c0e46c /home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0712.proofs/rocq/SlotNameByteDecode.v
++COQAUX1 3b64fe33b4d49b857ac1fd8c80c0e46c /home/fabrice/git/pycsl/test-suite/corpus/pycsl-reference/0712.proofs/rocq/SlotNameByteDecode.v
+ 0 0 VernacProof "tac:no using:no"
+-5377 5381 proof_build_time "0.128"
+-0 0 scan_round_trip "0.128"
++5377 5381 proof_build_time "0.035"
++0 0 scan_round_trip "0.035"
+ 5364 5376 context_used ""
+-5377 5381 proof_check_time "0.078"
++5377 5381 proof_check_time "0.022"
+ 0 0 VernacProof "tac:no using:no"
+-6460 6464 proof_build_time "0.095"
+-0 0 field_to_str_round_trip "0.095"
++6460 6464 proof_build_time "0.017"
++0 0 field_to_str_round_trip "0.017"
+ 6449 6459 context_used ""
+-6460 6464 proof_check_time "0.054"
++6460 6464 proof_check_time "0.006"
+ 0 0 VernacProof "tac:no using:no"
+-7861 7865 proof_build_time "0.021"
+-0 0 slot_name_byte_decode "0.021"
++7861 7865 proof_build_time "0.003"
++0 0 slot_name_byte_decode "0.003"
+ 7848 7860 context_used ""
+-7861 7865 proof_check_time "0.010"
+-0 0 vo_compile_time "2.567"
++7861 7865 proof_check_time "0.001"
++0 0 vo_compile_time "0.529"
+diff --git a/test-suite/corpus/pycsl-reference/0712.proofs/rocq/SlotNameByteDecode.vo b/test-suite/corpus/pycsl-reference/0712.proofs/rocq/SlotNameByteDecode.vo
+index c0eb0816..f99fec30 100644
+Binary files a/test-suite/corpus/pycsl-reference/0712.proofs/rocq/SlotNameByteDecode.vo and b/test-suite/corpus/pycsl-reference/0712.proofs/rocq/SlotNameByteDecode.vo differ
+diff --git a/test-suite/corpus/pycsl-reference/0714.proofs/rocq/.FieldToStrFrame.aux b/test-suite/corpus/pycsl-reference/0714.proofs/rocq/.FieldToStrFrame.aux
+index 6831b73f..d08cff39 100644
+--- a/test-suite/corpus/pycsl-reference/0714.proofs/rocq/.FieldToStrFrame.aux
++++ b/test-suite/corpus/pycsl-reference/0714.proofs/rocq/.FieldToStrFrame.aux
+@@ -1,12 +1,12 @@
+-COQAUX1 76777be0a5a9c31fa788be4a8ccb80c2 /home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0714.proofs/rocq/FieldToStrFrame.v
++COQAUX1 76777be0a5a9c31fa788be4a8ccb80c2 /home/fabrice/git/pycsl/test-suite/corpus/pycsl-reference/0714.proofs/rocq/FieldToStrFrame.v
+ 0 0 VernacProof "tac:no using:no"
+-3468 3472 proof_build_time "0.073"
+-0 0 scan_frame "0.073"
++3468 3472 proof_build_time "0.014"
++0 0 scan_frame "0.014"
+ 3454 3467 context_used ""
+-3468 3472 proof_check_time "0.022"
++3468 3472 proof_check_time "0.006"
+ 0 0 VernacProof "tac:no using:no"
+-4092 4096 proof_build_time "0.030"
+-0 0 field_to_str_frame "0.030"
++4092 4096 proof_build_time "0.006"
++0 0 field_to_str_frame "0.006"
+ 4082 4091 context_used ""
+-4092 4096 proof_check_time "0.010"
+-0 0 vo_compile_time "2.402"
++4092 4096 proof_check_time "0.003"
++0 0 vo_compile_time "0.688"
+diff --git a/test-suite/corpus/pycsl-reference/0714.proofs/rocq/FieldToStrFrame.vo b/test-suite/corpus/pycsl-reference/0714.proofs/rocq/FieldToStrFrame.vo
+index e18bd3e6..1bcaec82 100644
+Binary files a/test-suite/corpus/pycsl-reference/0714.proofs/rocq/FieldToStrFrame.vo and b/test-suite/corpus/pycsl-reference/0714.proofs/rocq/FieldToStrFrame.vo differ

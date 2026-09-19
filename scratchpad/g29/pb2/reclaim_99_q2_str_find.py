@@ -1,0 +1,7 @@
+_ = 0  # anchor
+
+
+#@ ensures \result == 99
+def probe() -> int:
+    s: str = "hello"
+    return s.find("z")

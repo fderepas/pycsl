@@ -1,0 +1,7 @@
+SUITE-START 16:44:41Z
+ Results: 3798/3816 passed
+XPASS lines: 0
+PLANES-START 17:38:45Z
+[!] soundness-planes: 1 of 36 RED — check-value-differential.py(rc=1)
+rc=1
+BATTERY-DONE 18:27:32Z

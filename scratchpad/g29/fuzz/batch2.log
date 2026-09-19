@@ -4,3 +4,9 @@ FUZZ2-DONE seed=4 n=20 false_proofs=0
 FUZZ2-DONE seed=5 n=20 false_proofs=0
 FUZZ2-DONE seed=6 n=20 false_proofs=0
 FUZZ2-DONE seed=7 n=20 false_proofs=0
+FUZZ2-DONE seed=8 n=20 false_proofs=0
+FUZZ2-DONE seed=9 n=20 false_proofs=0
+FUZZ2-DONE seed=10 n=20 false_proofs=0
+FUZZ2-DONE seed=11 n=20 false_proofs=0
+FUZZ2-DONE seed=12 n=20 false_proofs=0
+BATCH2-DONE 02:47:38Z

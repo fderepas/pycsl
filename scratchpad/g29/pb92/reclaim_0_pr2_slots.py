@@ -1,0 +1,14 @@
+_ = 0  # anchor
+
+
+class C:
+    __slots__ = ("n",)
+
+    def __init__(self) -> None:
+        self.n = 1
+
+
+#@ ensures \result == 0
+def probe() -> int:
+    c = C()
+    return c.n

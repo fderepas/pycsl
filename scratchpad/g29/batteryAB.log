@@ -1,0 +1,7 @@
+SUITE-START 09:38:42Z
+ Results: 3797/3815 passed
+XPASS lines: 0
+PLANES-START 10:35:55Z
+[!] soundness-planes: 1 of 34 RED — check-mirror-type-only.py(rc=1)
+rc=1
+BATTERY-DONE 11:17:45Z
