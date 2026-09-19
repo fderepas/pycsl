@@ -2423,3 +2423,4 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
 2026-09-18T22:57Z gen29 BATTERY-AH PREDICTION (wtAR = the clause-survival collection, bin/-only): emission unchanged BY CONSTRUCTION, suite 3798/3816 with the same 18 CONFIRMED FAIL and ZERO XPASS; fast planes 19/19; planes --slow 39/39 rc=0, with clause-survival reporting 888 compared / 2 deficits (ratchet 2).
 2026-09-18T23:51Z gen29 BATTERY AH suite leg: 3798/3816, the same 18 CONFIRMED FAIL, ZERO XPASS — as predicted. Slow planes (39) running.
 2026-09-19T00:44Z gen29 BATTERY AH GREEN: suite 3798/3816, the same 18 CONFIRMED FAIL, ZERO XPASS; planes --slow 39/39 rc=0 — including the newly collected check-clause-survival.py. Landing it.
+2026-09-19T00:44Z gen29 LANDED the clause-survival collection. The battery is 19 fast / 39 with --slow. Three gates that were UNCOLLECTED are now collected, and two of them were RED at HEAD when first run.
