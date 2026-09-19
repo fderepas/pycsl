@@ -3,26 +3,40 @@
 # ## HOW TO RUN ANYTHING: `. scratchpad/g29/env.sh` first (why3 is NOT on the default PATH; it also sets
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #
+# ## CLOSED SO FAR THIS WINDOW (all landed on ghost-assign-bc6, all battery-verified)
+#   - **#191** a `None` STORED anywhere read back as the integer 0 (route #56's general repair).
+#     Battery A: suite 3804/3822 predicted and hit, same 18 CONFIRMED FAIL, zero XPASS, --slow 39/39,
+#     13 CHANGED mirrors whole-file prove 13/13 (~7h of prover time).
+#   - **#192** a genuine integer `0` was re-tagged as the Python `None` at an `Optional[<record>]` /
+#     union parameter slot. FOUND BY #191's OWN REPAIR. Battery B: suite 3808/3826 predicted and hit,
+#     emission BYTE-INERT in all three directions so no mirror re-proof was owed.
+#
 # ## IN FLIGHT RIGHT NOW
-#   - **ROUTE #191** (route #56's general repair) on branch `wip/g30-r191`, worktree `$SCRATCH/wtA`.
-#     FOUR pieces, all in that one worktree:
-#       (1) `expressions.py` typed `NoneExpr` leaf -> route #44's opaque `pycsl_none` (the route itself);
-#       (2) `Module6_WhyMLTranspiler._exprir_theory_symbols` strips comments/strings before scraping the
-#           deferred emit_ir ADT theory's declared names, and accepts `val function|predicate <name>`
-#           (the prose phrase `val function` had been captured as a symbol named `function`);
-#       (3) `expressions.py` option-`<record>` lift AND the `_union_*` twin beside it also recognise
-#           `pycsl_none`, not only the spelling `"0"` (without this, 2 mirrors are ill-typed);
-#       (4) `bin/check-singleton-constant-lowering.py` baseline entry RETIRED (no site left), witnesses
-#           1673-1678, route191/route56/route184/open-routes README + translational-reference §T.5.12h.
-#   - NEXT EXACT STEP: `$SCRATCH/mirrorproof_wtA2.log` — the 13 CHANGED mirrors' whole-file proofs
-#     (launched 09:55Z, `timeout 9000` each, script `scratchpad/g30/mirrorproof.sh <worktree>`). When it
-#     reports 13/0, run the battery on wtA: `bin/run-reference-tests.sh` then
-#     `bin/run-soundness-planes.sh --slow` (template: `scratchpad/g29/batteryAH.sh`), predict first.
-#   - EMISSION ALREADY MEASURED (`$SCRATCH/emitA2.log`, base in `$SCRATCH/emitA/`): 23 corpus + 2
-#     python-reference + 13 mirror emissions MOVE, 6 new corpus files (the witnesses), 0 GONE, 0 APPEARED.
-#     Mirror TYPE-ONLY is GREEN (53/53) — `$SCRATCH/typeonly_wtA2.log`.
-#   - BATTERY PREDICTION TO WRITE BEFORE RUNNING: suite 3804/3822 (3798 + 6 new witnesses: 1673-1676
-#     XFAIL, 1677/1678 PASS), the same 18 CONFIRMED FAIL, ZERO XPASS; fast planes 19/19; --slow 39/39.
+#   - **ROUTE #193** on branch `wip/g30-r193`, worktree `$SCRATCH/wtD`. `_array_coerce_arg` answered
+#     `(Array.make 1 0)` — a DEFINITE length-1 array — for an iterable the IR could not represent, and
+#     `sorted_1` carries `ensures { Array.length result = Array.length a }`, so
+#     `len(sorted(x for x in [3, 1, 2]))` PROVED `== 1` while CPython answers 3. Repair: the placeholder
+#     becomes the OPAQUE `val pycsl_unknown_array (_u: unit) : array int` (a `val`, NOT a `val function`
+#     — an array is mutable and Why3 refuses a pure symbol of a mutable type; spiked by hand first), and
+#     `_array_coerce_arg` stops being a @staticmethod so it can register the op.
+#   - NEXT EXACT STEP: poll `$SCRATCH/mirrorproof_wtD.log` (5 CHANGED mirrors, `timeout 14400`;
+#     audit_proof_reverify PASS 27s, Module5_IREmitter PASS 2974s, pure_ast / statements /
+#     stmt_control_flow outstanding). When it reports 5/0, run `$SCRATCH/batteryB.sh` retargeted at wtD
+#     (or copy `scratchpad/g30/batteryA.sh` and s/wtA/wtD/).
+#   - BATTERY-C PREDICTION (already written to driver-progress.log): suite 3810/3828 (3808 + witness
+#     1683 XFAIL + 1684 PASS), the same 18 CONFIRMED FAIL, ZERO XPASS; fast planes 19/19; --slow 39/39.
+#   - EMISSION ALREADY MEASURED (`$SCRATCH/emitD.log`): 3 corpus MOVED (exactly the three route #158
+#     `any`/`all` witnesses), python-reference BYTE-INERT, 5 mirrors MOVED. The diff is exactly
+#     `(Array.make 1 0)` -> `(pycsl_unknown_array ())` plus the one `val`, nothing incidental.
+#
+# ## THE OPEN LEAD AFTER #193 (probes already written, not yet run)
+#   `scratchpad/g30/p5` — a CARRIER-RERUN on route #159. That route corrected the 1024-element empty-list
+#   placeholder's `in_bounds` obligation with a POST-HOC REGEX REWRITE of the emitted `.mlw`
+#   (`src/pycsl/pycsl.py:1607`), gated on "no `X_len` sidecar AND no later rebinding of `X`". Both
+#   conjuncts are escape hatches of exactly the shape gen #27's lesson warns about, and the rewrite is
+#   itself spelling-keyed — the family routes #192/#193 belong to. Three shapes drafted: `len([])`, a
+#   REBOUND empty list then a store, and an empty list PASSED to a function then stored into. CPython
+#   answers 0, IndexError, IndexError.
 #
 # ## STATE AT gen #30's START (verified from disk, not inherited)
 #   - HEAD was d0748584, tree clean, battery 19 fast / 39 with --slow, suite 3798/3816, same 18
