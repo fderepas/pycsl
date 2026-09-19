@@ -1,3 +1,59 @@
+# ====== START HERE — gen #30 IN PROGRESS (autonomous 96h run, deadline epoch 1790150356 = 2026-09-23T07:59Z) ======
+#
+# ## HOW TO RUN ANYTHING: `. scratchpad/g29/env.sh` first (why3 is NOT on the default PATH; it also sets
+#    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
+#
+# ## IN FLIGHT RIGHT NOW
+#   - **ROUTE #191** (route #56's general repair) on branch `wip/g30-r191`, worktree `$SCRATCH/wtA`.
+#     FOUR pieces, all in that one worktree:
+#       (1) `expressions.py` typed `NoneExpr` leaf -> route #44's opaque `pycsl_none` (the route itself);
+#       (2) `Module6_WhyMLTranspiler._exprir_theory_symbols` strips comments/strings before scraping the
+#           deferred emit_ir ADT theory's declared names, and accepts `val function|predicate <name>`
+#           (the prose phrase `val function` had been captured as a symbol named `function`);
+#       (3) `expressions.py` option-`<record>` lift AND the `_union_*` twin beside it also recognise
+#           `pycsl_none`, not only the spelling `"0"` (without this, 2 mirrors are ill-typed);
+#       (4) `bin/check-singleton-constant-lowering.py` baseline entry RETIRED (no site left), witnesses
+#           1673-1678, route191/route56/route184/open-routes README + translational-reference §T.5.12h.
+#   - NEXT EXACT STEP: `$SCRATCH/mirrorproof_wtA2.log` — the 13 CHANGED mirrors' whole-file proofs
+#     (launched 09:55Z, `timeout 9000` each, script `scratchpad/g30/mirrorproof.sh <worktree>`). When it
+#     reports 13/0, run the battery on wtA: `bin/run-reference-tests.sh` then
+#     `bin/run-soundness-planes.sh --slow` (template: `scratchpad/g29/batteryAH.sh`), predict first.
+#   - EMISSION ALREADY MEASURED (`$SCRATCH/emitA2.log`, base in `$SCRATCH/emitA/`): 23 corpus + 2
+#     python-reference + 13 mirror emissions MOVE, 6 new corpus files (the witnesses), 0 GONE, 0 APPEARED.
+#     Mirror TYPE-ONLY is GREEN (53/53) — `$SCRATCH/typeonly_wtA2.log`.
+#   - BATTERY PREDICTION TO WRITE BEFORE RUNNING: suite 3804/3822 (3798 + 6 new witnesses: 1673-1676
+#     XFAIL, 1677/1678 PASS), the same 18 CONFIRMED FAIL, ZERO XPASS; fast planes 19/19; --slow 39/39.
+#
+# ## STATE AT gen #30's START (verified from disk, not inherited)
+#   - HEAD was d0748584, tree clean, battery 19 fast / 39 with --slow, suite 3798/3816, same 18
+#     CONFIRMED FAIL, zero XPASS. gen #29 closed 46 routes (#143, #147-#190).
+#   - LEFTOVERS CLEANED: 15 stale g29 worktrees removed (/tmp 76% -> 9% — this MATTERS, the run needs
+#     the space), stray `batch5c.log` / `slicesweep_AJ2.log` / `.ftwin_self_*.py`, and the cross-check
+#     gate's UNTRACKED rocq build artifacts under `*.proofs/rocq/`.
+#     >>> TRAP, PAID FOR: 231 of the `.tmp*.aux` files under `test-suite/corpus/pycsl-reference/*.proofs/
+#     >>> rocq/` are TRACKED. `find -name '.tmp*.aux' -delete` deletes them. Use `git clean -f <dir>`,
+#     >>> which only removes the untracked ones.
+#   - The wip/g29-* BRANCHES are kept (their worktrees are gone). They cost nothing; every one of them is
+#     landed on ghost-assign-bc6 by cherry-pick, so `git branch -d` will refuse — delete with -D only
+#     after checking `git diff <branch> ghost-assign-bc6 -- <paths>` is empty.
+#   - A leftover gen #29 WATCHDOG shell (`sleep 1500` + `git log`) may still be alive; it is read-only.
+#
+# ## gen #30 LESSONS SO FAR
+#   >>> A DEFERRAL THAT DECIDES BY "DOES THE REST OF THE FILE MENTION A NAME I DECLARE?" IS ONLY AS GOOD
+#   >>> AS ITS LIST OF NAMES, AND A LIST SCRAPED FROM TEXT THAT INCLUDES ITS OWN PROSE CONTAINS WORDS THE
+#   >>> CODE NEVER DECLARED. The sibling routine three definitions away already stripped comments and said
+#   >>> why in its docstring; the one that did not was never exercised on a file that could trip it until
+#   >>> an unrelated change made one. Nine corpus files and one mirror were carrying a 277-line ADT theory
+#   >>> they never referenced.
+#   >>> A LIFT THAT RECOGNISES A PYTHON VALUE BY ITS WHYML SPELLING BREAKS THE MOMENT THE SPELLING MOVES —
+#   >>> and the break is fail-closed (a type error), which is why it had never been noticed. Two lifts
+#   >>> recognised the Python `None` as the string `"0"`. Changing what `None` lowers to made both miss.
+#   >>> AND THE SAME LIFT READ BACKWARDS IS A ROUTE CANDIDATE: it turns a GENUINE integer `0` into the
+#   >>> option's `None`. Before #191 it could not tell them apart; after it, it can.
+#   >>> A WRAPPER `timeout` IS NOT A PROOF VERDICT. `Module5_IREmitter.py` "FAILED (2400s)" while still
+#   >>> printing `Valid` — my budget was too small, nothing was wrong. Read the tail before believing a
+#   >>> FAIL; the mirror proof script now uses `timeout 9000`.
+#
 # ====== START HERE — gen #29 IN PROGRESS (autonomous 96h run, deadline epoch 1789893581 = 2026-09-20T08:39Z) ======
 #
 # ## STATUS (updated as work lands — trust `git log` + driver-progress.log over this block)
