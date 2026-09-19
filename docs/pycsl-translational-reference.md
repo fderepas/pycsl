@@ -2462,9 +2462,14 @@ The cost was two lifts that had been recognising the Python `None` **by the WhyM
 `"0"`**: `_option_record_param_upgrade`'s sibling, which lifts an omitted / explicit `None`
 actual into an `Optional[<record>]` parameter's `option` type, and the `_union_*` twin beside
 it, which substitutes a synthesized union's nullary `None` arm. Both now recognise
-`pycsl_none` as well. Read the other way, those lifts also turn a **genuine integer `0`**
-into the option's `None`; before #191 they could not tell the two apart, and after it they
-can, which is recorded as a route candidate rather than silently changed.
+`pycsl_none` as well. Read the other way, those lifts also turned a **genuine integer `0`**
+into the option's `None` — `self.tag(0)` emitted `(parser__tag self (None: option tok))` and
+`self.expect("RPAREN", 0)` emitted `(Arm_0_None : _union_expect_0)`, so a callee contract
+`ensures start == None ==> \result == 1` discharged in the caller and `\result == 1` PROVED
+while CPython returns 2. That is **route #192**, closed in the same generation: the `"0"`
+spelling is dropped from both lifts, which after #191 costs the legitimate actuals nothing
+(an omitted optional argument and an explicit `None` both arrive as `pycsl_none`) and turns an
+integer actual into a type error — refused rather than answered wrongly.
 
 **A read of a `None`-bound local is now the opaque `val function pycsl_none : int`** — route
 #41's device one singleton later — and the `is None` fall-through compares against that same
