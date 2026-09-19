@@ -8017,7 +8017,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # _tok`): fail-closed, but it takes `frontend/pure_ast.py` and every other
                 # `Optional[<record>]` call site in the mirror with it. The `"0"` spelling
                 # is KEPT for the residual int-model actuals that still reach this slot.
-                if _s in ("0", "(0)", "pycsl_none", "(pycsl_none)"):
+                if _s in ("pycsl_none", "(pycsl_none)"):
                     coerced.append(f"(None: {ptype})")
                     continue
                 _id = _s[1:] if _s.startswith("!") else _s
@@ -8029,7 +8029,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     continue
                 coerced.append(arg)
             elif (isinstance(ptype, str) and ptype.startswith("_union_")
-                  and arg.strip() in ("0", "(0)", "pycsl_none", "(pycsl_none)")):
+                  and arg.strip() in ("pycsl_none", "(pycsl_none)")):
                 # cursor-nest `parse_atom`: an OMITTED optional argument
                 # (`self.expect("RPAREN")` against `def expect(self, kind, value=None)`)
                 # is filled with the Python `None` default, which the int model lowers to
