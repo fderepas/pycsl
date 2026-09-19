@@ -1109,11 +1109,26 @@ class Module6_WhyMLTranspiler(
         theory's OWN emitted text (same discipline as
         `_reserved_exprir_symbols`), so it can never drift out of sync."""
         text = "\n".join(theory_lines)
+        # (#49) ROUTE #191 PREREQUISITE — STRIP COMMENTS AND STRING LITERALS FIRST.
+        # `_opaque_accessor_symbols` (below) already does this and says why: the
+        # theory's own explanatory prose contains the phrase "`val function`", which
+        # `\bval\s+(\w+)` captures as a symbol named `function`. That word is NOT
+        # declared by the theory, and it made the deferral's reference test fire on
+        # any emitted `val function <op> : …` abstract-op line — so a @mutable_state
+        # file that merely declared an abstract op had the whole ~277-line ADT theory
+        # spliced back in (MEASURED on 0933 the moment route #191 gave the typed
+        # `None` arm route #44's `pycsl_none`). Stripping first also lets the `val`
+        # pattern capture the REAL name of a `val function f` / `val predicate p`
+        # declaration instead of the keyword, which is the same defect read the other
+        # way round: a theory symbol declared that way would otherwise be MISSED and
+        # a file referencing it would lose the theory it needs.
+        text = re.sub(r"\(\*.*?\*\)", " ", text, flags=re.S)
+        text = re.sub(r'"[^"]*"', ' ', text)
         names: Set[str] = set()
         names.update(re.findall(r"^\s*type\s+(\w+)", text, re.M))
         names.update(re.findall(r"\bwith\s+(\w+)\s*=", text))
         names.update(re.findall(r"\blet\s+(?:rec\s+)?function\s+(\w+)", text))
-        names.update(re.findall(r"\bval\s+(\w+)", text))
+        names.update(re.findall(r"\bval\s+(?:function\s+|predicate\s+)?(\w+)", text))
         names.update(re.findall(r"\blemma\s+(\w+)", text))
         names.update(re.findall(r"\bexception\s+(\w+)", text))
         # Constructors of the sum types (`IrVar`, `ILCons`, `INum`, …): the

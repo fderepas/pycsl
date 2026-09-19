@@ -32,3 +32,16 @@ value-model campaign. The dict-shaped arm's stale baseline entry in that plane i
 
 Optional LOCALS in the conditional-join shape (#56 itself) and every other `None` position keep the
 integer-0 lowering; the general repair is a distinguishable `None` in the value model.
+
+## The deferred general repair IS LANDED — gen #30, route #191 (2026-09-19)
+
+"Measured and NOT adopted" above is now adopted. Giving the TYPED `NoneExpr` arm route #44's
+opaque closes the four STORE positions this file listed. The two obstacles it named both proved
+cheaper than the note implied:
+
+* **`check-singleton-constant-lowering`** did not need a re-justification, it needed a
+  RETIREMENT: the arm no longer answers a constant, so the baseline entry has no site — the same
+  disposal `UnknownPyExprExpr` and `str` got when routes #115/#116 refuted their entries.
+* **"16 mirror emissions"** re-measured as 13 mirrors (plus 23 corpus and 2 python-reference
+  files). One of those, `0933`, moved by +277 lines for a reason that had nothing to do with
+  `None` — see `route191-a-stored-none-reads-back-as-zero.md`.

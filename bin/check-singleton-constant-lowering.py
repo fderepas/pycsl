@@ -59,19 +59,20 @@ DECIDING = {"true", "false", "0", "1", "0.0", "-1"}
 # Anything not listed here is a FAILURE, whether it is new or merely un-triaged.
 # ---------------------------------------------------------------------------
 BASELINE = {
-    ("_expr_to_whyml", "NoneExpr", "0"):
-        "route #44: the STRUCTURAL `None` (an absent slice bound, an optional-field "
-        "slot, a union arm) really is the int witness 0 under the Optional convention "
-        "the union/carrier recognizers are built on. The VALUE positions that made it a "
-        "route -- a `None`-bound local's reads, and the `is None` comparison "
-        "fall-through -- are intercepted upstream of this arm and lower to the opaque "
-        "`pycsl_none`. Witnesses 1058-1064.",
     #   ("_expr_to_whyml", '"None"', "0") — ROUTE #184 (gen #29) made the dict-shaped arm
     #     answer the opaque `pycsl_none` instead of the int 0: `[None]` elements and
     #     `{"k": None}` values read back as a DEFINITE zero (`xs[0] == 0` PROVED True,
-    #     CPython False; `xs[0] + 1` PROVED == 1, CPython TypeError). The TYPED `NoneExpr`
-    #     twin above still answers 0 — measured, changing it moves 16 mirror emissions and
-    #     is route #56's general repair, not a fence.
+    #     CPython False; `xs[0] + 1` PROVED == 1, CPython TypeError).
+    #   ("_expr_to_whyml", "NoneExpr", "0") — ROUTE #191 (gen #30) RETIRED IT. The entry
+    #     claimed the TYPED twin was only ever the STRUCTURAL `None` (an absent slice
+    #     bound, an optional-field slot, a union arm) and that the VALUE positions were
+    #     "intercepted upstream". THEY WERE NOT: every `None` STORE went through this arm,
+    #     so `xs[0] = None`, `d["a"] = None`, `b.v = None` and `xs.append(None)` each read
+    #     back a DEFINITE zero and a `v == 0` guard PROVED while CPython answers False
+    #     (witnesses 1673-1676). The arm now answers the same opaque `pycsl_none` as its
+    #     dict-shaped twin — route #56's general repair — so it declares no constant and
+    #     the entry has no site. The UnknownPyExprExpr / str precedent below: a baseline
+    #     justification is a claim about the code, and a measurement refuted this one.
     ("_expr_to_whyml", "SliceExpr", "0"):
         "a bare `Slice` node in a VALUE position has no value; the real bounds are read "
         "by the subscript handler, which never routes the slice itself through here.",

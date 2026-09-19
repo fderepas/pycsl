@@ -8007,7 +8007,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # actual is NOT re-tagged as a record — it falls through and fails LOUDLY.
                 _pl = ptype[len("option "):].strip()
                 _s = arg.strip()
-                if _s in ("0", "(0)"):
+                # (#49) ROUTE #191 — THE `None` ACTUAL NOW SPELLS ITSELF `pycsl_none`.
+                # This lift recognised the Python `None` by the STRING `"0"`, because that
+                # is what the typed `NoneExpr` arm used to answer. It answers the opaque
+                # now, so the opaque is what an omitted-optional / explicit-`None` actual
+                # arrives as, and it lifts to the option's own `None` — the FAITHFUL value
+                # of that argument, exactly as before. Without this the lift misses and the
+                # call is ill-typed (`has type int, but is expected to have type option
+                # _tok`): fail-closed, but it takes `frontend/pure_ast.py` and every other
+                # `Optional[<record>]` call site in the mirror with it. The `"0"` spelling
+                # is KEPT for the residual int-model actuals that still reach this slot.
+                if _s in ("0", "(0)", "pycsl_none", "(pycsl_none)"):
                     coerced.append(f"(None: {ptype})")
                     continue
                 _id = _s[1:] if _s.startswith("!") else _s
@@ -8019,7 +8029,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     continue
                 coerced.append(arg)
             elif (isinstance(ptype, str) and ptype.startswith("_union_")
-                  and arg.strip() in ("0", "(0)")):
+                  and arg.strip() in ("0", "(0)", "pycsl_none", "(pycsl_none)")):
                 # cursor-nest `parse_atom`: an OMITTED optional argument
                 # (`self.expect("RPAREN")` against `def expect(self, kind, value=None)`)
                 # is filled with the Python `None` default, which the int model lowers to
@@ -8029,6 +8039,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # the FAITHFUL value of that default. Restricted to a literal `0` actual,
                 # so a genuinely int-valued expression flowing into a union slot still
                 # fails LOUDLY rather than being silently re-tagged as None.
+                # (#49) ROUTE #191 — the `None` actual now spells itself `pycsl_none`
+                # (the typed `NoneExpr` arm answers route #44's opaque, not the int
+                # witness), so that spelling is recognised here too. Without it
+                # `proof2why3/parser.py`'s `self.expect("RPAREN")` is ill-typed
+                # (`has type int, but is expected to have type _union_expect_1`) —
+                # fail-closed, but it suspends the whole mirror. The sibling
+                # `option <record>` lift above takes the same addition.
                 _vi = getattr(self, "_variant_types", {}).get(ptype) or {}
                 _none = next((cn for cn, c in (_vi.get("constructors") or {}).items()
                               if c.get("arity") == 0 and "None" in cn), None)
@@ -17377,13 +17394,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if isinstance(node, ResultExpr):
             return getattr(self, "_result_alias", None) or "result"
         if isinstance(node, NoneExpr):
-            # (#49) ROUTE #184, MEASURED AND NOT ADOPTED: returning route #44's opaque here
-            # (the TYPED twin of the `t == "None"` arm below) moves 16 mirror emissions and
-            # breaks `check-singleton-constant-lowering` — it is route #56's general repair,
-            # not a fail-closed fence. The store-position carriers it would close
-            # (`xs[0] = None`, `d["a"] = None`, `self.v = None`, `xs.append(None)`) stay
-            # recorded as open carriers of route #56.
-            return "0"
+            # (#49) ROUTE #191 SPIKE — the TYPED twin of the `t == "None"` arm.
+            self._add_abstract_op("val function pycsl_none : int")
+            return "pycsl_none"
         if isinstance(node, BoolExpr):
             if self._in_spec: return "true" if node.value else "false"
             return "1" if node.value else "0"

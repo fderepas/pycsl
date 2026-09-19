@@ -2422,7 +2422,7 @@ always expanded chains correctly", citing `0865`. That was false and is correcte
 
 ### §T.5.12h  `None` is NOT the integer 0 in a VALUE position
 
-`None` lowers to the literal `0`, and that is the **Optional convention** the whole
+`None` USED TO LOWER to the literal `0`, and that was the **Optional convention** the whole
 union/carrier machinery is built on: `x is None` on a `Union`-typed local is a constructor
 check, on an `iropt_ir`/`iropt_str` carrier it is a `match` on the absent arm, on an
 `option`-returning call it is a `None`/`Some` discriminant, and a dozen more recognizers sit
@@ -2440,6 +2440,31 @@ not consistent is what happened when NONE of those recognizers fired (route #44,
 The fourth needs no branch and no unusual body: any function returning `0` could carry that
 contract and be "verified", because `\result == None` lowered to `result = 0`. A contract
 that is false of its own program, proving directly, is the worst end of this family.
+
+**Route #191 (gen #30) finished the job: the `None` LITERAL ITSELF is the opaque, in every
+position.** Route #44 intercepted the *reads* — a `None`-bound local, the `is None`
+fall-through — and route #184 the two literal *builders* (a `None` element of a list literal,
+a `None` value of a dict literal). The typed `NoneExpr` leaf of `_expr_to_whyml` still
+answered the int `0`, and every STORE reached it, so
+
+| program | model (before #191) | Python |
+|---|---|---|
+| `xs[0] = None; xs[0] == 0` | **PROVED** True | **False** |
+| `d["a"] = None; d["a"] == 0` | **PROVED** True | **False** |
+| `b.v = None; b.v == 0` (post-construction) | **PROVED** True | **False** |
+| `xs.append(None); xs[0] == 0` | **PROVED** True | **False** |
+
+The leaf now answers `pycsl_none` like its dict-shaped twin, so all four are UNDECIDED
+(witnesses `1673`–`1676`), an ordinary integer store is untouched (`1677`), and — because the
+opaque is ONE shared constant — `b.v is None` after a `None` store still PROVES (`1678`).
+
+The cost was two lifts that had been recognising the Python `None` **by the WhyML spelling
+`"0"`**: `_option_record_param_upgrade`'s sibling, which lifts an omitted / explicit `None`
+actual into an `Optional[<record>]` parameter's `option` type, and the `_union_*` twin beside
+it, which substitutes a synthesized union's nullary `None` arm. Both now recognise
+`pycsl_none` as well. Read the other way, those lifts also turn a **genuine integer `0`**
+into the option's `None`; before #191 they could not tell the two apart, and after it they
+can, which is recorded as a route candidate rather than silently changed.
 
 **A read of a `None`-bound local is now the opaque `val function pycsl_none : int`** — route
 #41's device one singleton later — and the `is None` fall-through compares against that same

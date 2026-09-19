@@ -160,3 +160,18 @@ ELEMENT and an Optional DICT VALUE read back as the carrier's zero too. Refused 
 `None` returned from a function and compared (`f(False) == 0`), and a `None` DEFAULT parameter
 compared. Recorded here rather than as a new route: same mechanism, same repair (a distinguishable
 `None` in the value model — routes #44/#56/#57's shared capability).
+
+## CLOSED by gen #30's ROUTE #191 (2026-09-19)
+
+The general repair named above — "a distinguishable `None` in the value model" — is landed, and
+it is smaller than this file predicted: the TYPED `NoneExpr` leaf of `_expr_to_whyml` now answers
+the SAME opaque `pycsl_none` that its dict-shaped twin (`t == "None"`) already answered. Every
+`None` LITERAL in every position is the opaque; nothing about the Optional convention above it
+changed, because `None` really is one shared singleton and the opaque is one shared constant.
+
+The four STORE carriers this file recorded as still open are UNDECIDED now (witnesses 1673-1676),
+an ordinary integer store is untouched (1677), and `x is None` after a `None` store still PROVES
+(1678). Route #184's "16 mirror emissions" price re-measured as 13 mirrors, 23 corpus files and
+2 python-reference files. See `route191-a-stored-none-reads-back-as-zero.md` for the two lifts
+that had been recognising the Python `None` by its WhyML SPELLING `"0"`, and for the latent
+`_exprir_theory_symbols` defect the re-measurement uncovered.
