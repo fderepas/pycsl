@@ -62,6 +62,10 @@ PLANES=(
     check-type-keyed-constant-answers.py
     check-emit-ir-arm-postconditions.py
     check-singleton-constant-lowering.py
+    # (#49) gen #30: the ARGUMENT-COERCION ratchet. Routes #192 and #193 were both
+    # substitutions in `_coerce_dotted_args`, found by each other's repair, in one
+    # day — the campaign's own "the routes cluster where there is no plane" signature.
+    check-argument-coercion.py
     check-type-keyed-value-sentinels.py
     check-collapsed-option-reads.py
     check-constant-fallthrough.py
@@ -70,7 +74,7 @@ PLANES=(
     check-statement-block-coverage.py
     check-vacuous-drivers.py
 )
-MIN_PLANES=18
+MIN_PLANES=19
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
