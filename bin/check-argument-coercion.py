@@ -77,10 +77,19 @@ BASELINE = {
         "placeholder literal -- re-probe it whenever anything changes what `[]` lowers "
         "to (that is the route #192 shape).",
     ("_coerce_dotted_args", "self._coerce_to_int(arg)"):
-        "the int-erasure bridge: a non-int actual reaching an int-erased param is hashed "
-        "to an int. It DECIDES nothing about the value -- the hash is injective-by-luck "
-        "only, which is what routes #113/#114 measured and fenced -- and the receiving "
-        "param is int-erased, so no law reads it.",
+        "the int-erasure bridge. THIS ENTRY'S FIRST VERSION WAS REFUTED ONE HOUR AFTER "
+        "THIS PLANE LANDED, and the refutation is why the entry is worth reading. It said "
+        "the bridge \"DECIDES nothing about the value ... and the receiving param is "
+        "int-erased, so no law reads it\". A CONTRACT ON AN INT-ERASED PARAM IS A LAW "
+        "THAT READS IT: route #194 gave a callee the TRUE contract `ensures p == 0 ==> "
+        "\\result == 1` and called it with an array-shaped actual, which the bridge "
+        "answered with the LITERAL `0` -- the collection discarded, the contract "
+        "discharged, `\\result == 1` PROVED where CPython answers 2 (witness 1685). The "
+        "array/map arms now answer Why3's `(any int)`, which stands for EVERY int and "
+        "decides nothing. What remains here is the STRING/TUPLE hash (routes #113/#114): "
+        "it is injective-by-luck only, and a caller cannot predict the hash it would have "
+        "to name in a contract to exploit it -- but that is a claim about difficulty, not "
+        "about soundness, so re-probe it if anything ever makes the hash predictable.",
     ("_coerce_dotted_args", "'(Array.make 0 (IrOther \"\"))'"):
         "THE EMPTY-LIST PLACEHOLDER into a `List[\"ExprIR\"]` param. Gated on the exact "
         "`(Array.make 1024 0)` literal, which is what `[]` lowers to, so the actual "
