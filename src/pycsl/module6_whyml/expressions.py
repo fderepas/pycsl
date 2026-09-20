@@ -1056,18 +1056,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # repair that buys its soundness with a new erasure site has moved the problem, not
         # fixed it; the ratchet caught exactly that and the line was NOT raised to hide it.
         _user_fn = _head in self._module_func_names
+        # (#49) ROUTE #194 — AN ERASED COLLECTION IS NOT THE INTEGER 0. These two arms
+        # answered the LITERAL `0` for an array- or map-shaped actual reaching an
+        # int-erased param, and the defence was that "the receiving param is int-erased,
+        # so no law reads it". A CONTRACT ON AN INT-ERASED PARAM IS A LAW THAT READS IT:
+        # a callee `def f(self, p)` (un-annotated, so the `val` declares `p: int`) with
+        # the contract `ensures p == 0 ==> \result == 1` — TRUE of its own body — called
+        # as `self.f(sorted(xs))` emitted `(p__f self 0)`, the array discarded (Why3 even
+        # warns "unused variable xs"), and `\result == 1` PROVED while CPython answers 2
+        # (witness 1685). Why3's `(any int)` stands for EVERY int, so the erased
+        # collection decides nothing — route #115's device, and declaration-free, which
+        # matters here: this function's mirror is a CONVERTED method with
+        # `#@ assigns \nothing`, so registering an abstract op would break its frame
+        # (route #193 paid for that lesson).
         array_prefixes = ("(Array.make", "(Array.sub ", "(array_slice ", "(sorted_1 ",
                           "(list_new_arr ", "(any_1 ", "(all_1 ")
         for prefix in array_prefixes:
             if stripped.startswith(prefix) and not _user_fn:
-                return "0"
+                return "(any int)"
         # Map-shaped expressions (body-set / body-dict updates) can't be
         # passed where int is expected — same placeholder.
         map_prefixes = ("(map_update_some ", "(map_update_none ",
                         "(const (None: option int)")
         for prefix in map_prefixes:
             if stripped.startswith(prefix) and not _user_fn:
-                return "0"
+                return "(any int)"
         # Tuple literals (a, b, c) → an int KEY OF THE TUPLE'S VALUE.
         # (#49) ROUTES #113 + #114. This arm returned `stable_hash(<lowered text>)` for any
         # paren-wrapped text containing a comma, which was wrong in BOTH of its decisions:

@@ -1,6 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN after gen #30 (2026-09-20): **NONE.**
+## CURRENTLY OPEN after gen #30 (2026-09-20, second entry): **NONE.**
+##
+## **ROUTE #194 IS CLOSED, AND THE PLANE THAT LANDED ONE HOUR EARLIER IS WHAT FOUND IT.** `_coerce_to_int` answered the LITERAL `0` for an array- or map-shaped actual reaching an INT-ERASED parameter. The argument-coercion plane's baseline justification for that arm said "the receiving param is int-erased, so no law reads it" — and A CONTRACT ON AN INT-ERASED PARAM IS A LAW THAT READS IT. A callee `def f(self, p)` (un-annotated, so the `val` declares `p: int`) with the TRUE contract `ensures p == 0 ==> \result == 1`, called as `self.f(sorted(xs))`, emitted `(p__f self 0)` — the array discarded, Why3 warning `unused variable xs` — and `\result == 1` PROVED while CPython answers 2. Repaired with Why3's `(any int)` (declaration-free, because the mirror's copy is a CONVERTED method with `assigns \nothing`). Witnesses 1685 (XFAIL), 1686 (PASS). See `route194-an-erased-collection-was-the-integer-zero.md`.
+##
+## (previous header, same day:) **NONE.**
 ##
 ## **ROUTE #193 IS CLOSED** — the PLACEHOLDER array for an iterable the IR cannot represent had a KNOWN LENGTH. `_array_coerce_arg` answered `(Array.make 1 0)` and `sorted_1` carries `ensures { Array.length result = Array.length a }`, so `len(sorted(x for x in [3, 1, 2]))` PROVED `== 1` while CPython answers 3; the true twin was refused. Its docstring's defence — "the abstract vals have no axioms about their input CONTENTS" — says nothing about LENGTH. The placeholder is now Why3's `any (array int)`. Witnesses 1683 (XFAIL), 1684 (PASS control). FOUND BY the census route #192's lesson demanded. See `route193-the-placeholder-array-had-a-known-length.md`.
 ##
