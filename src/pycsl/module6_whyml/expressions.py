@@ -954,7 +954,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         ensure their type). For everything else, returns the placeholder."""
         stripped = whyml_str.strip()
         if stripped == "0":
-            return "(Array.make 1 0)"
+            # (#49) ROUTE #193 — A PLACEHOLDER FOR AN UNKNOWN ARRAY MUST NOT HAVE A KNOWN
+            # LENGTH. This returned `(Array.make 1 0)`, a DEFINITE length-1 array, and the
+            # defence written above ("the abstract vals have no axioms about their input
+            # contents") is about CONTENTS and says nothing about LENGTH — `sorted_1`
+            # carries `ensures { Array.length result = Array.length a }`, so
+            # `len(sorted(x for x in [3, 1, 2]))` PROVED `== 1` while CPython answers 3,
+            # and `array_to_seq`'s `Seq.length result = Array.length a` is the same law one
+            # step further on. The honest placeholder is Why3's `any`, which stands for
+            # EVERY array of ints, so nothing about it — length or contents — is decidable.
+            # `any` and not an abstract `val`: declaring one would make this function
+            # register an abstract op, i.e. EFFECTFUL, and its mirror is a CONVERTED method
+            # whose proven contract is `assigns \nothing` (measured: battery C went RED on
+            # check-self-annotate-mirror-sync, check-mirror-signature-drift and
+            # check-trusted-frame-honesty). `any` needs no declaration, so the function
+            # stays a pure @staticmethod and the mirror stays a verbatim one-line edit.
+            return "(any (array int))"
         # Already array-shaped — leave alone.
         if (stripped.startswith("(Array.make")
                 or stripped.startswith("(Array.get")

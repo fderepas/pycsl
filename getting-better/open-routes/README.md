@@ -1,6 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN after gen #30 (2026-09-19): **NONE.**
+## CURRENTLY OPEN after gen #30 (2026-09-20): **NONE.**
+##
+## **ROUTE #193 IS CLOSED** — the PLACEHOLDER array for an iterable the IR cannot represent had a KNOWN LENGTH. `_array_coerce_arg` answered `(Array.make 1 0)` and `sorted_1` carries `ensures { Array.length result = Array.length a }`, so `len(sorted(x for x in [3, 1, 2]))` PROVED `== 1` while CPython answers 3; the true twin was refused. Its docstring's defence — "the abstract vals have no axioms about their input CONTENTS" — says nothing about LENGTH. The placeholder is now Why3's `any (array int)`. Witnesses 1683 (XFAIL), 1684 (PASS control). FOUND BY the census route #192's lesson demanded. See `route193-the-placeholder-array-had-a-known-length.md`.
+##
+## (previous header, gen #30 2026-09-19:) **NONE.**
 ##
 ## **ROUTE #192 IS CLOSED** — the candidate recorded below was reproduced SEV-1 on BOTH arms and repaired. A genuine integer `0` actual was handed to the callee as the Python `None` at an `Optional[<record>]` slot (`(parser__tag self (None: option tok))`) and at a synthesized-union slot (`(Arm_0_None : _union_expect_0)`); with the callee carrying the TRUE contract `ensures start == None ==> \result == 1`, `return self.tag(0)` PROVED `\result == 1` while CPython returns 2, and the TRUE twin was refused. The `"0"` spelling is dropped from both lifts; the omitted-optional and explicit-`None` actuals still lift (they arrive as `pycsl_none` after route #191) and an integer actual is now REFUSED at L3-tc. Witnesses 1679/1680 (XFAIL), 1681/1682 (PASS). Emission byte-inert in all three directions. See `route192-a-genuine-integer-zero-is-re-tagged-as-none.md`.
 ##
