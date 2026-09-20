@@ -4,39 +4,36 @@
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #
 # ## CLOSED SO FAR THIS WINDOW (all landed on ghost-assign-bc6, all battery-verified)
-#   - **#191** a `None` STORED anywhere read back as the integer 0 (route #56's general repair).
-#     Battery A: suite 3804/3822 predicted and hit, same 18 CONFIRMED FAIL, zero XPASS, --slow 39/39,
-#     13 CHANGED mirrors whole-file prove 13/13 (~7h of prover time).
+#   - **#191** a `None` STORED anywhere read back as the integer 0 (route #56's general repair —
+#     the LAST open route family from gen #29). Battery A: suite 3804/3822 predicted and hit; 13
+#     CHANGED mirrors whole-file prove 13/13 (~7h of prover time).
 #   - **#192** a genuine integer `0` was re-tagged as the Python `None` at an `Optional[<record>]` /
-#     union parameter slot. FOUND BY #191's OWN REPAIR. Battery B: suite 3808/3826 predicted and hit,
-#     emission BYTE-INERT in all three directions so no mirror re-proof was owed.
+#     union parameter slot. FOUND BY #191's OWN REPAIR. Battery B: suite 3808/3826; emission
+#     BYTE-INERT in all three directions, so no mirror re-proof was owed.
+#   - **#193** the PLACEHOLDER array for an unrepresentable iterable had a KNOWN LENGTH
+#     (`len(sorted(x for x in [3,1,2]))` PROVED `== 1`, CPython 3). FOUND BY #192's OWN LESSON.
+#     Battery C2: suite 3810/3828; 6 CHANGED mirrors prove 6/6 (~7.5h).
+#   - **THE ARGUMENT-COERCION PLANE** `bin/check-argument-coercion.py` — #192 and #193 were both
+#     substitutions in `_coerce_dotted_args`, found by each other, in one day. Battery D green;
+#     the battery is now **20 fast / 40 with --slow**.
 #
 # ## IN FLIGHT RIGHT NOW
-#   - **ROUTE #193** on branch `wip/g30-r193`, worktree `$SCRATCH/wtD`. `_array_coerce_arg` answered
-#     `(Array.make 1 0)` — a DEFINITE length-1 array — for an iterable the IR could not represent, and
-#     `sorted_1` carries `ensures { Array.length result = Array.length a }`, so
-#     `len(sorted(x for x in [3, 1, 2]))` PROVED `== 1` while CPython answers 3. Repair: the placeholder
-#     becomes the OPAQUE `val pycsl_unknown_array (_u: unit) : array int` (a `val`, NOT a `val function`
-#     — an array is mutable and Why3 refuses a pure symbol of a mutable type; spiked by hand first), and
-#     `_array_coerce_arg` stops being a @staticmethod so it can register the op.
-#   - NEXT EXACT STEP: poll `$SCRATCH/mirrorproof_wtD.log` (5 CHANGED mirrors, `timeout 14400`;
-#     audit_proof_reverify PASS 27s, Module5_IREmitter PASS 2974s, pure_ast / statements /
-#     stmt_control_flow outstanding). When it reports 5/0, run `$SCRATCH/batteryB.sh` retargeted at wtD
-#     (or copy `scratchpad/g30/batteryA.sh` and s/wtA/wtD/).
-#   - BATTERY-C PREDICTION (already written to driver-progress.log): suite 3810/3828 (3808 + witness
-#     1683 XFAIL + 1684 PASS), the same 18 CONFIRMED FAIL, ZERO XPASS; fast planes 19/19; --slow 39/39.
-#   - EMISSION ALREADY MEASURED (`$SCRATCH/emitD.log`): 3 corpus MOVED (exactly the three route #158
-#     `any`/`all` witnesses), python-reference BYTE-INERT, 5 mirrors MOVED. The diff is exactly
-#     `(Array.make 1 0)` -> `(pycsl_unknown_array ())` plus the one `val`, nothing incidental.
+#   - `scratchpad/g30/fuzz/gen9.py` — the argument-coercion differential fuzzer — running over seeds
+#     1-6 (`$SCRATCH/fuzz9.log`, look for `FALSE-PROOF` lines and the per-seed `FUZZ9-DONE` count).
+#     ITS DESIGN POINT, and it is the transferable part: the CALLEE must carry a contract that is
+#     TRUE of its own body AND READS the property the substitution changes (`start == None`,
+#     `\length(xs)`, `"a" in d`, `\strlen(s)`). A callee with `ensures True` hides the defect
+#     completely — which is why this surface went unprobed through 190 routes.
+#   - Tree is CLEAN, every increment committed, nothing pushed.
 #
-# ## THE OPEN LEAD AFTER #193 (probes already written, not yet run)
-#   `scratchpad/g30/p5` — a CARRIER-RERUN on route #159. That route corrected the 1024-element empty-list
-#   placeholder's `in_bounds` obligation with a POST-HOC REGEX REWRITE of the emitted `.mlw`
-#   (`src/pycsl/pycsl.py:1607`), gated on "no `X_len` sidecar AND no later rebinding of `X`". Both
-#   conjuncts are escape hatches of exactly the shape gen #27's lesson warns about, and the rewrite is
-#   itself spelling-keyed — the family routes #192/#193 belong to. Three shapes drafted: `len([])`, a
-#   REBOUND empty list then a store, and an empty list PASSED to a function then stored into. CPython
-#   answers 0, IndexError, IndexError.
+# ## THE METHOD THAT PRODUCED ALL THREE ROUTES THIS WINDOW, in order
+#   1. Take the ONE recorded-open route family and build its general repair (#191).
+#   2. When the repair changes what something LOWERS TO, census who was reading the OLD spelling.
+#      That census IS the next route (#192).
+#   3. Generalize the defect ("a lowering that recognises a value by its spelling") to its family
+#      ("a DEFINITE stand-in for an UNKNOWN value") and census THAT. That census IS the next
+#      route (#193).
+#   4. When two routes land in the same function in one day, BUILD THE PLANE before hunting again.
 #
 # ## STATE AT gen #30's START (verified from disk, not inherited)
 #   - HEAD was d0748584, tree clean, battery 19 fast / 39 with --slow, suite 3798/3816, same 18
