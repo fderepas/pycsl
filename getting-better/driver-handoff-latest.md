@@ -21,7 +21,18 @@
 #   - **#195 + #196** the EMPTY-LIST placeholder at a call boundary, read two ways: as the integer 0
 #     at an int-erased param, and as a 1024-ELEMENT array at an `array int` param (where CPython's
 #     OWN answer was REFUSED). Both found by sweeping the same baseline. Battery F: 3815/3833.
-#   - The battery is now **20 fast / 40 with --slow**; suite **3815/3833**, the same 18 CONFIRMED
+#   - **THE AXIOM-FOOTPRINT PLANE** `bin/check-proof-reverify.sh` — A FOURTH UNCOLLECTED GATE, and
+#     the one that backs the ledger claim. A `#@ proof rocq|lean` directive IMPORTS the cited
+#     theorem into the Why3 ledger AS AN AXIOM; nothing checked the cited theorem was PROVED.
+#     MEASURED by replacing a cited `Qed` with `Admitted`: the cross-check stays green (it compares
+#     STATEMENTS), the suite stays green (an `Admitted` COMPILES), and
+#     `--audit-proof --reverify-proofs` catches it — a flag NO script ever passed. Batteries G, H2.
+#     THEN DRIVEN 6 -> 0 unresolved, fixing two instrument bugs: a missing CROSS-TREE SEARCH PATH
+#     (five citations name theorems proved in another tree; the search now reports WHERE it
+#     resolved, which immediately caught it resolving inside a STALE AGENT WORKTREE under
+#     `.claude/`) and a PREFIX COLLISION in the Lean footprint parse (`…round_trip_i32` stole
+#     `…round_trip_i32i32`'s line). VERIFIED 155 -> 166: eleven axiom imports nothing had checked.
+#   - The battery is now **20 fast / 41 with --slow**; suite **3815/3833**, the same 18 CONFIRMED
 #     FAIL, ZERO XPASS. A CONTROL BATTERY on HEAD re-confirmed all of it.
 #
 # ## THE METHOD, WHICH IS THE MOST TRANSFERABLE THING THIS WINDOW PRODUCED
@@ -41,7 +52,9 @@
 #   surface survived 190 routes.
 #
 # ## IN FLIGHT AT HANDOFF
-#   - Two differential fuzzers running, both at ZERO false proofs so far:
+#   - `bin/check-proof-reverify.sh` reads 166 VERIFIED / 0 UNRESOLVED / 0 SOUNDNESS. ANY non-zero
+#     reading is now a REGRESSION, not a backlog.
+#   - Two differential fuzzers, gen9 COMPLETE (8 seeds, 112 programs, zero false proofs):
 #     `scratchpad/g30/fuzz/gen9.py` (four hand-picked reading callees) -> `$SCRATCH/fuzz9b.log`,
 #     `scratchpad/g30/fuzz/gen10.py` (the six-shape x five-contract x eleven-actual cross-product,
 #     40 seeds) -> `$SCRATCH/fuzz10.log`. Look for `FALSE-PROOF` lines; each names its file.
