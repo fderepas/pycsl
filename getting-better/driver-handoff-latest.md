@@ -21,6 +21,13 @@
 #   - **#195 + #196** the EMPTY-LIST placeholder at a call boundary, read two ways: as the integer 0
 #     at an int-erased param, and as a 1024-ELEMENT array at an `array int` param (where CPython's
 #     OWN answer was REFUSED). Both found by sweeping the same baseline. Battery F: 3815/3833.
+#   - **#197** `getattr(o, "a", 0)` on an object of UNKNOWN static type ANSWERED THE DEFAULT, and
+#     the body read it — `peek(o: Any)` PROVED `\result == 1` (emitting `v := 0` with `o` UNUSED,
+#     Why3 says so) while CPython answers 2. FOUND BY `check-getattr-erasure`'s OWN RATCHET NOTE,
+#     which said the UNKNOWN default was "not demonstrated to be exploitable — a contract cannot
+#     name a field of an object whose type the model does not carry". THE CONTRACT DOES NOT HAVE
+#     TO NAME THE FIELD. Battery J2: suite 3817/3835, 3 mirrors prove 3/3.
+#   - **THE TRUSTED-REASONS PLANE** — a FIFTH gate that existed and nothing ran. Battery I.
 #   - **THE AXIOM-FOOTPRINT PLANE** `bin/check-proof-reverify.sh` — A FOURTH UNCOLLECTED GATE, and
 #     the one that backs the ledger claim. A `#@ proof rocq|lean` directive IMPORTS the cited
 #     theorem into the Why3 ledger AS AN AXIOM; nothing checked the cited theorem was PROVED.
@@ -32,8 +39,14 @@
 #     resolved, which immediately caught it resolving inside a STALE AGENT WORKTREE under
 #     `.claude/`) and a PREFIX COLLISION in the Lean footprint parse (`…round_trip_i32` stole
 #     `…round_trip_i32i32`'s line). VERIFIED 155 -> 166: eleven axiom imports nothing had checked.
-#   - The battery is now **20 fast / 41 with --slow**; suite **3815/3833**, the same 18 CONFIRMED
-#     FAIL, ZERO XPASS. A CONTROL BATTERY on HEAD re-confirmed all of it.
+#   - The battery is now **21 fast / 42 with --slow**; suite **3817/3835**, the same 18 CONFIRMED
+#     FAIL, ZERO XPASS. A CONTROL BATTERY on HEAD re-confirmed the mid-window state.
+#
+# ## THE HEADLINE, because it is the reusable part: FIVE OF THE SEVEN ROUTES WERE FOUND BY READING
+#    A PLANE'S OWN WRITTEN JUSTIFICATION AS A CHECKABLE CLAIM. #194/#195/#196 came from
+#    `check-argument-coercion`'s baseline (written that same afternoon), #197 from
+#    `check-getattr-erasure`'s ratchet note. A gate that holds something at a ratchet "because it
+#    is not sound by argument either" has written the argument down right there. Probe it.
 #
 # ## THE METHOD, WHICH IS THE MOST TRANSFERABLE THING THIS WINDOW PRODUCED
 #   1. Close the ONE recorded-open family (#191).
