@@ -4607,3 +4607,123 @@ had been returning the CONSTANT `true` for an hval-map local, so `not vinfo` low
 `not true` = false and the guarded path was DEAD IN THE MODEL. `map_nonempty`, a `val function`
 whose postcondition is the exact `exists k. m[k] <> None`, made two such branches live again
 with no axiom. **Splitting a refuted increment is usually cheaper than defending it.**
+
+---
+
+# gen #30 (2026-09-19..21) — six routes, three planes, and one method
+
+Six SEV-1 routes (#191-#196) and three planes landed in one window, and FIVE of the six routes
+came out of a single escalating move rather than six separate hunts. The lessons below are
+ordered so the last one is the one to carry.
+
+## (a) WHEN A REPAIR CHANGES WHAT SOMETHING *LOWERS TO*, CENSUS WHO WAS READING THE OLD SPELLING
+
+Route #191 gave the typed `NoneExpr` leaf route #44's opaque, so `None` stopped spelling itself
+`"0"`. Two lifts in `_coerce_dotted_args` recognised the Python `None` **by that spelling**, and
+both silently missed. The break was FAIL-CLOSED (a Why3 type error, loud), which is why it had
+never been noticed — and the SAME break read the other way is route #192: those lifts also
+turned a **genuine integer `0`** into the option's `None`, so `self.tag(0)` PROVED
+`\result == 1` where CPython answers 2.
+
+>>> A LOWERING THAT RECOGNISES A PYTHON VALUE BY ITS WHYML SPELLING IS SOUND ONLY WHILE THAT
+>>> SPELLING IS UNIQUE TO THAT VALUE, AND NOTHING IN THE CODE ENFORCES THAT. Two values sharing
+>>> one spelling makes the test a COINCIDENCE, and the comment beside it will describe the value
+>>> while the predicate matches the spelling.
+
+## (b) GENERALIZE THE DEFECT TO ITS FAMILY, THEN CENSUS THE FAMILY
+
+"Recognised by spelling" generalizes to "a DEFINITE stand-in for an UNKNOWN value". That census
+produced route #193: `_array_coerce_arg`'s `(Array.make 1 0)` placeholder has a **length**, and
+`sorted_1` carries `ensures { Array.length result = Array.length a }`, so
+`len(sorted(x for x in [3,1,2]))` PROVED `== 1` where CPython answers 3.
+
+>>> A PLACEHOLDER HAS EVERY PROPERTY ITS REPRESENTATION HAS, NOT JUST THE ONE YOU WERE THINKING
+>>> ABOUT, and a defence that names one property is not a defence of the others. The comment
+>>> said "no axioms about its input CONTENTS"; the law being read was about LENGTH.
+
+## (c) THE ONE PROBE — and why this surface survived 190 routes
+
+>>> GIVE THE CALLEE A CONTRACT THAT IS **TRUE OF ITS OWN BODY** AND THAT **READS** THE PROPERTY
+>>> THE SUBSTITUTION CHANGES. CALL IT WITH THE SUBSTITUTED-AWAY SHAPE. RUN CPYTHON.
+
+A callee with `ensures True` hides every defect of this family completely. Nobody had written a
+callee that *looked at* its argument, so nothing at the call boundary had ever been probed. That
+one sentence found #192, #194, #195 and #196.
+
+## (d) BUILD THE PLANE WHEN TWO ROUTES LAND IN ONE FUNCTION IN ONE DAY — THEN SWEEP ITS BASELINE
+
+#192 and #193 were both substitutions in `_coerce_dotted_args`. The campaign's own signature
+("the routes cluster where there is no plane") said build it, so `bin/check-argument-coercion.py`
+was built: every `coerced.append(...)` classified PASS-THROUGH or SUBSTITUTION, every
+SUBSTITUTION carrying a written justification.
+
+**THREE of its fourteen baseline entries fell within nine hours, with NOT ONE LINE of the emitter
+changed since gen #29.** #194 ("the param is int-erased, so no law reads it" — a contract on an
+int-erased param IS a law that reads it), #195 ("the callee is a `\trusted` val with
+`ensures true`" — the callee does not have to be either), #196 (the same placeholder, 1024
+elements long, where CPython's OWN answer was REFUSED).
+
+>>> A PLANE PAYS FOR ITSELF THE MOMENT IT FORCES YOU TO WRITE THE JUSTIFICATION DOWN. Nothing
+>>> about those arms changed. What changed is that someone had to state, in prose, why each was
+>>> safe — and the statements were checkable, and two were false.
+>>> **A BASELINE ENTRY IS A CLAIM, AND A SWEEP OF THE BASELINE IS A ROUTE-FINDING METHOD.**
+
+A corollary paid for twice: a baseline entry can also carry a justification that a LATER route
+already refuted. `check-singleton-constant-lowering`'s `("_to_bool", '"Var"', "true")` entry still
+quoted the pre-route-#55 rationale — the exact sentence #55 killed — while the code had long
+since been narrowed to the shape where `true` is faithful. **Re-read the entries, not just the
+code.**
+
+## (e) A CHECK THAT IS NOT IN A RUNNER IS NOT A GATE
+
+Two of gen #30's three planes are checks that ALREADY EXISTED and had never been run by anything:
+`--audit-proof --reverify-proofs` (the AXIOM-FOOTPRINT check that backs the whole ledger==3 claim
+— measured: replacing a cited `Qed` with `Admitted` left the cross-check green, the suite green,
+and every other plane green) and `bin/check-trusted-reasons.py` (a complete plane with a ratchet
+that no runner invoked). Two commands find them:
+
+    ls bin/check-* | xargs -n1 basename | sort > a
+    grep -oE 'check-[a-z0-9-]+\.(py|sh)' bin/run-soundness-planes.sh | sort -u > b
+    comm -23 a b                       # checks nothing runs
+
+    grep -oE '"--[a-z0-9-]+"' src/pycsl/pycsl.py | tr -d '"' | sort -u   # then diff against
+                                       # what any bin/ script, Makefile or suite ever passes
+
+>>> ENUMERATE THE CHECKS AND DIFF AGAINST THE RUNNER. The gate you never ran is
+>>> indistinguishable from the gate you never wrote, and it is more dangerous, because its
+>>> existence is cited as evidence.
+
+## (f) COSTS THAT ARE DECIDED BEFORE YOU WRITE THE FIX
+
+Three of these cost a red battery before being learned the right way round:
+
+  * **A repair that needs a new abstract `val` makes its emitter function EFFECTFUL**, and if
+    that function's MIRROR is a CONVERTED method its proven `assigns \nothing` is the budget you
+    just spent. Battery C went red on three fidelity planes. `any (array int)` needs no
+    declaration. CHECK THE MIRROR'S CONTRACT BEFORE CHOOSING THE DEVICE.
+  * **A new module-level helper is an ABSENT function, not a `\trusted` one** —
+    `check-mirror-coverage` 550 > 549. Giving it a `\trusted` stub fixes coverage but RAISES the
+    trusted count, the metric the campaign exists to lower. INLINE IT into an already-trusted
+    caller; that costs nothing on either plane.
+  * **A wrapper `timeout` is not a proof verdict.** `Module5_IREmitter` "FAILED (2400s)" while
+    still printing `Valid`; it passed at 2970s.
+
+And one that saved hours rather than costing them: **emission-diff BEFORE the proof sweep** kept
+the mirror legs at 13, 6, 3, 2 and 0 files instead of 53 every time.
+
+## (g) "I COULD NOT MEASURE IT" IS A THIRD VERDICT
+
+`check-proof-reverify` was RED on its first clean run, and all six failures were INSTRUMENT
+conditions — cross-tree proof paths the audit was not told about, and a Lean output-parse miss.
+Reporting those as SOUNDNESS failures would have been false; reporting them as passes would have
+been worse. They were counted apart, held at a named ratchet, and then driven to ZERO by fixing
+the instrument (VERIFIED 155 -> 166: eleven axiom imports nothing had ever checked).
+
+>>> WHEN A GATE CANNOT MEASURE SOMETHING, IT MUST SAY SO IN A THIRD COLUMN — never as a failure,
+>>> never as a pass — and the thing it could not measure must be NAMED so the next reader can
+>>> fix the instrument rather than re-derive the problem.
+
+The search that fixed it also had to REPORT WHERE it resolved each citation, and that reporting
+earned its keep in its first run: a citation resolved inside `.claude/worktrees/agent-…/`, a
+STALE AGENT WORKTREE checked out inside the repo. **A citation satisfied by an old copy of the
+project is worse than an unresolved one — it looks checked and is not.**
