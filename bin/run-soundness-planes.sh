@@ -140,6 +140,13 @@ SLOW_PLANES=(
     check-callee-contract-attribution.py
     check-assumed-facts.py
     check-proof-crosscheck.sh
+    # (#49) gen #30: THE AXIOM-FOOTPRINT GATE. `check-proof-crosscheck.sh` above
+    # compares a citation's STATEMENT to the cited theorem's; nothing checked that the
+    # cited theorem is PROVED. Measured: replacing a cited `Qed` with `Admitted` left
+    # the cross-check green, the suite green, and every other plane green — the
+    # `--audit-proof --reverify-proofs` footprint check existed, worked, and was run by
+    # NOTHING. It recompiles the cited Rocq/Lean proofs, so it belongs in the slow set.
+    check-proof-reverify.sh
     check-emitted-vacuity.py
     check-clause-survival.py
 )
