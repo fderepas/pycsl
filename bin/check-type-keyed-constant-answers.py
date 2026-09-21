@@ -122,11 +122,27 @@ BASELINE = {
     ("_to_bool", "_current_self_type+_mutable_state_classes", "true"):
         "`if sl.get(\"lower\"):` -- a present-guard on an emit_ir SUB-NODE projection "
         "(`svalue_of`/`object_of`/`sindex_of`/`arg0_of`), i.e. the same always-present "
-        "model reached through a projector instead of a local. Same stated scope.",
+        "model reached through a projector instead of a local. "
+        "THE STANDING CONDITION, measured in gen #30 and stated here because nothing else "
+        "enforces it: an OVER-APPROXIMATED GUARD makes the model take ONE branch ALWAYS, "
+        "which is unsound for ANY non-trivial `ensures`, and unsound for `assigns` "
+        "whenever the SKIPPED branch assigns something the taken one does not. "
+        "INSTRUMENTED AND EMITTED over all 53 mirror files: this arm fires EXACTLY ONCE, "
+        "in `ExpressionEmissionMixin._slice_array_or_opaque`, which carries "
+        "`#@ ensures True` -- so no false postcondition is reachable -- and whose guard "
+        "(`self._expr_to_whyml(sl[\"lower\"], ...) if sl.get(\"lower\") else \"0\"`) "
+        "forces the MORE-assigning branch, so the frame claim is conservative in the right "
+        "direction. RE-MEASURE THIS whenever a conversion gives a reaching method a real "
+        "`ensures`, or an arm is added whose skipped branch assigns.",
     ("_to_bool", "_hvalmap_local_vars", "true"):
         "`if not vinfo:` on a nested-map local (`map string (option hval)`). A map has no "
         "int value, so the default coercion is a type error; the real projection happens in "
-        "the returned tuple. Same stated scope as the dict/set arm.",
+        "the returned tuple. Same stated scope as the dict/set arm, and the same standing "
+        "condition as the sub-node arm above. MEASURED in gen #30 by instrumenting the arm "
+        "and emitting all 53 mirrors: it fires ZERO times -- it is DEAD in this tree. That "
+        "is not a reason to delete it (the shape it serves is a real Tier-5 one) and it is "
+        "not a reason to trust it either: a first live site would be un-gated, so the "
+        "instrumented census is the check, and it is cheap to re-run.",
     ("_to_bool", "_rebound_collections", "true|false"):
         "route #31's REPAIR, not its defect: a collection whose SIZE the emitter knows "
         "exactly (`_known_collection_sizes`, and only while the name is not in "
