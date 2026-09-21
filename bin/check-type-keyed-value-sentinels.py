@@ -71,7 +71,7 @@ BASELINE = {
         "`x: Optional[R] = None` then `x.n == 0`, dies with a Why3 usage error where "
         "Python raises AttributeError. NOTE the verdict is a TYPE ACCIDENT, not a guard — "
         "the same accident hid route #56 at the `str` carrier while it was live at `int`. "
-        "If a `int`-carrier field read ever reaches this arm, re-measure it.",
+        "If a `int`-carrier field read ever reaches this arm, re-measure it. RE-MEASURED IN gen #30, AND THE INT CARRIER DOES DECIDE: `x: Optional[R] = None` then `return x.n` with `R.n: int` PROVES `ensures \\result == 0` while CPython raises AttributeError -- there is no type accident at int, the arm simply answers the zero. WHAT ACTUALLY HOLDS THE LINE is weaker than this entry used to imply, and it is two OTHER fences, neither of them here: (1) wrapping the read in `except AttributeError` is REFUSED by route #174's dead-handler check, so the value cannot be observed on a live Python path; and (2) `#@ no_exception AttributeError` is REFUSED at the directive -- AttributeError is not a modelled exception (known: IndexError, KeyError, StopIteration, ValueError, ZeroDivisionError) -- so the claim cannot be made either. THE STANDING CONDITION: if AttributeError is EVER added to the modelled set, this arm becomes immediately exploitable through `no_exception`, and it must be made opaque in the same increment.",
     ("expressions.py", "_union_read_projection", "emit_ir|float|real|str|string", None):
         "ROUTE #56 — the `int` carrier DECIDED here. `| _ -> 0` made a `None` Optional-union "
         "local and a genuine `0` the same Why3 term, so `x == 0` proved true where Python "
