@@ -66,6 +66,13 @@ PLANES=(
     # substitutions in `_coerce_dotted_args`, found by each other's repair, in one
     # day — the campaign's own "the routes cluster where there is no plane" signature.
     check-argument-coercion.py
+    # (#49) gen #30: the FIFTH uncollected gate. `check-trusted-reasons.py` is a full
+    # plane — it cross-checks every live `#@ \trusted` marker against a row in
+    # `getting-better/trusted-reasons.tsv` in BOTH directions and carries an
+    # unclassified ratchet — and NOTHING RAN IT: not this runner, not the suite, not
+    # the Makefile. A marker added without a row, a row orphaned by a conversion, or a
+    # duplicate, all went unnoticed. It is fast (seconds), so it goes in the fast set.
+    check-trusted-reasons.py
     check-type-keyed-value-sentinels.py
     check-collapsed-option-reads.py
     check-constant-fallthrough.py
@@ -74,7 +81,7 @@ PLANES=(
     check-statement-block-coverage.py
     check-vacuous-drivers.py
 )
-MIN_PLANES=19
+MIN_PLANES=20
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
