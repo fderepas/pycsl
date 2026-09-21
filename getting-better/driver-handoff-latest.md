@@ -1,39 +1,77 @@
-# ====== START HERE — gen #30 IN PROGRESS (autonomous 96h run, deadline epoch 1790150356 = 2026-09-23T07:59Z) ======
+# ====== START HERE — gen #30 (autonomous 96h run, deadline epoch 1790150356 = 2026-09-23T07:59Z) ======
 #
 # ## HOW TO RUN ANYTHING: `. scratchpad/g29/env.sh` first (why3 is NOT on the default PATH; it also sets
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #
-# ## CLOSED SO FAR THIS WINDOW (all landed on ghost-assign-bc6, all battery-verified)
-#   - **#191** a `None` STORED anywhere read back as the integer 0 (route #56's general repair —
-#     the LAST open route family from gen #29). Battery A: suite 3804/3822 predicted and hit; 13
-#     CHANGED mirrors whole-file prove 13/13 (~7h of prover time).
+# ## WHAT gen #30 CLOSED — SIX SEV-1 ROUTES AND ONE NEW PLANE, all landed on ghost-assign-bc6,
+#    every one battery-verified against a prediction written BEFORE the run.
+#   - **#191** a `None` STORED anywhere read back as the integer 0 — route #56's general repair, the
+#     LAST open route family inherited from gen #29. The typed `NoneExpr` leaf of `_expr_to_whyml`
+#     answered the literal `0` while its dict-shaped twin already answered route #44's opaque.
+#     Battery A: suite 3804/3822; 13 CHANGED mirrors prove 13/13 (~7h of prover time).
 #   - **#192** a genuine integer `0` was re-tagged as the Python `None` at an `Optional[<record>]` /
-#     union parameter slot. FOUND BY #191's OWN REPAIR. Battery B: suite 3808/3826; emission
-#     BYTE-INERT in all three directions, so no mirror re-proof was owed.
-#   - **#193** the PLACEHOLDER array for an unrepresentable iterable had a KNOWN LENGTH
-#     (`len(sorted(x for x in [3,1,2]))` PROVED `== 1`, CPython 3). FOUND BY #192's OWN LESSON.
-#     Battery C2: suite 3810/3828; 6 CHANGED mirrors prove 6/6 (~7.5h).
+#     union parameter slot. FOUND BY #191's OWN REPAIR. Battery B: 3808/3826, emission byte-inert.
+#   - **#193** the PLACEHOLDER array for an unrepresentable iterable had a KNOWN LENGTH —
+#     `len(sorted(x for x in [3,1,2]))` PROVED `== 1`, CPython 3. FOUND BY #192's LESSON.
+#     Battery C2: 3810/3828; 6 mirrors prove 6/6.
 #   - **THE ARGUMENT-COERCION PLANE** `bin/check-argument-coercion.py` — #192 and #193 were both
-#     substitutions in `_coerce_dotted_args`, found by each other, in one day. Battery D green;
-#     the battery is now **20 fast / 40 with --slow**.
+#     substitutions in `_coerce_dotted_args`, found by each other, in one day. Battery D.
+#   - **#194** an ERASED COLLECTION was the integer 0, and an INT-ERASED PARAM'S CONTRACT READ IT.
+#     FOUND BY THE PLANE'S OWN BASELINE, ONE HOUR AFTER IT LANDED. Battery E: 3812/3830.
+#   - **#195 + #196** the EMPTY-LIST placeholder at a call boundary, read two ways: as the integer 0
+#     at an int-erased param, and as a 1024-ELEMENT array at an `array int` param (where CPython's
+#     OWN answer was REFUSED). Both found by sweeping the same baseline. Battery F: 3815/3833.
+#   - The battery is now **20 fast / 40 with --slow**; suite **3815/3833**, the same 18 CONFIRMED
+#     FAIL, ZERO XPASS. A CONTROL BATTERY on HEAD re-confirmed all of it.
 #
-# ## IN FLIGHT RIGHT NOW
-#   - `scratchpad/g30/fuzz/gen9.py` — the argument-coercion differential fuzzer — running over seeds
-#     1-6 (`$SCRATCH/fuzz9.log`, look for `FALSE-PROOF` lines and the per-seed `FUZZ9-DONE` count).
-#     ITS DESIGN POINT, and it is the transferable part: the CALLEE must carry a contract that is
-#     TRUE of its own body AND READS the property the substitution changes (`start == None`,
-#     `\length(xs)`, `"a" in d`, `\strlen(s)`). A callee with `ensures True` hides the defect
-#     completely — which is why this surface went unprobed through 190 routes.
-#   - Tree is CLEAN, every increment committed, nothing pushed.
-#
-# ## THE METHOD THAT PRODUCED ALL THREE ROUTES THIS WINDOW, in order
-#   1. Take the ONE recorded-open route family and build its general repair (#191).
-#   2. When the repair changes what something LOWERS TO, census who was reading the OLD spelling.
+# ## THE METHOD, WHICH IS THE MOST TRANSFERABLE THING THIS WINDOW PRODUCED
+#   1. Close the ONE recorded-open family (#191).
+#   2. When a repair changes what something LOWERS TO, census who was reading the OLD spelling.
 #      That census IS the next route (#192).
-#   3. Generalize the defect ("a lowering that recognises a value by its spelling") to its family
-#      ("a DEFINITE stand-in for an UNKNOWN value") and census THAT. That census IS the next
-#      route (#193).
-#   4. When two routes land in the same function in one day, BUILD THE PLANE before hunting again.
+#   3. Generalize the defect to its FAMILY — "a DEFINITE stand-in for an UNKNOWN value" — and
+#      census that. That census IS the next route (#193).
+#   4. When two routes land in one function in one day, BUILD THE PLANE before hunting again.
+#   5. **THEN SWEEP THE PLANE'S OWN BASELINE.** Every justification you were forced to write down
+#      is a checkable claim, and some of them are false. THREE of fourteen entries fell within nine
+#      hours, with NOT ONE LINE of the emitter changed since gen #29.
+#   THE ONE PROBE that found #192, #194, #195 and #196, stated once:
+#      *give the callee a contract that is TRUE OF ITS OWN BODY and that READS the property the
+#      substitution changes; call it with the substituted-away shape; run CPython.*
+#   A callee with `ensures True` hides every defect of that family completely. That is why this
+#   surface survived 190 routes.
+#
+# ## IN FLIGHT AT HANDOFF
+#   - Two differential fuzzers running, both at ZERO false proofs so far:
+#     `scratchpad/g30/fuzz/gen9.py` (four hand-picked reading callees) -> `$SCRATCH/fuzz9b.log`,
+#     `scratchpad/g30/fuzz/gen10.py` (the six-shape x five-contract x eleven-actual cross-product,
+#     40 seeds) -> `$SCRATCH/fuzz10.log`. Look for `FALSE-PROOF` lines; each names its file.
+#   - Tree CLEAN, every increment committed, NOTHING pushed (push stays gated to the user).
+#
+# ## SURFACES SWEPT CLEAN THIS WINDOW (do not re-probe without a new idea — see probes.tsv)
+#   the singleton-constant-lowering baseline (10 entries; one STALE justification corrected — it
+#   still carried the pre-route-#55 rationale route #55 had refuted); the constant-fallthrough
+#   baseline (8 deciding tails; the route #29 family is refused before emission, `d.get(k)` is
+#   fenced by route #57); the type-keyed-constant-answers baseline (16 arms; the two truthiness
+#   OVER-APPROXIMATION arms measured by instrumenting them and emitting all 53 mirrors — one fires
+#   ZERO times, the other EXACTLY ONCE on a method with `ensures True`); the value-sentinels
+#   int-carrier re-measurement; the hval absent-key sentinel (corpus-UNREACHABLE, mirror side left
+#   HONESTLY OPEN with the next step named); route #159's 1024-placeholder escape shapes; the
+#   spelling-keyed return-type arm; ensures-propagation under a default fill; erased statements.
+#
+# ## TRAPS PAID FOR THIS WINDOW
+#   >>> 231 of the `.tmp*.aux` files under `test-suite/corpus/pycsl-reference/*.proofs/rocq/` are
+#   >>> TRACKED. Use `git clean -f <dir>`, never `find -name '.tmp*.aux' -delete`.
+#   >>> `check-proof-crosscheck.sh` RECOMPILES the cited Rocq/Lean proofs, so any battery DIRTIES
+#   >>> tracked `.vo`/`.olean`/`.aux` artifacts. Stage witnesses BY NAME; then `git checkout --
+#   >>> test-suite/` + `git clean -f test-suite/`.
+#   >>> A WRAPPER `timeout` IS NOT A PROOF VERDICT. `Module5_IREmitter` "FAILED (2400s)" while still
+#   >>> printing `Valid`; it passed at 2970s. Mirror proofs now get `timeout 14400`.
+#   >>> A REPAIR THAT NEEDS A NEW ABSTRACT `val` MAKES ITS EMITTER FUNCTION EFFECTFUL, and if that
+#   >>> function's MIRROR is a CONVERTED method its proven `assigns \nothing` is the budget you just
+#   >>> spent. Battery C went RED on three fidelity planes for exactly this; the fix was Why3's
+#   >>> declaration-free `any`. CHECK THE MIRROR'S CONTRACT BEFORE CHOOSING THE DEVICE.
+#   >>> Emission-diff BEFORE the proof sweep (lesson (r)) is what kept these legs to 13, 6, 3 and 2
+#   >>> mirrors instead of 53. It is the single biggest time saver in the loop.
 #
 # ## STATE AT gen #30's START (verified from disk, not inherited)
 #   - HEAD was d0748584, tree clean, battery 19 fast / 39 with --slow, suite 3798/3816, same 18
