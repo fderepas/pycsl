@@ -7946,7 +7946,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # either side. Gated on the EXACT placeholder literal, so a genuine array
                 # flowing into an int param still fails LOUDLY.
                 if arg.strip() == "(Array.make 1024 0)":
-                    coerced.append("0")
+                    # (#49) ROUTE #195 — THE PARAGRAPH ABOVE IS THE CLAIM THAT WAS FALSE.
+                    # "the callee is a `\trusted` `val` with `ensures true`, so no property
+                    # of the argument is provable on either side" — the callee does not
+                    # have to be `\trusted` and does not have to say `ensures true`. A
+                    # sibling `def f(self, p)` (un-annotated param, so the `val` declares
+                    # `p: int`) carrying `ensures p == 0 ==> \result == 1` — TRUE of its
+                    # own body — called as `self.f([])` emitted `(p__f self 0)` and PROVED
+                    # `\result == 1` while CPython answers 2, because `[] == 0` is False
+                    # (witness 1687). The honest answer is Why3's `(any int)`: there is no
+                    # int that represents a list, so the model must not name one. Same
+                    # device and same reason as route #194 one arm away, and
+                    # declaration-free for the same reason (this function's mirror is a
+                    # CONVERTED method with `#@ assigns \nothing`).
+                    coerced.append("(any int)")
                     continue
                 coerced.append(self._coerce_to_int(arg))
             elif ptype == "array emit_ir" and arg.strip() == "(Array.make 1024 0)":
@@ -7981,6 +7994,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 else:
                     self._materialize_bridge()
                     coerced.append(f"(materialize {arg})")
+            elif ptype == "array int" and arg.strip() == "(Array.make 1024 0)":
+                # (#49) ROUTE #196 — THE EMPTY-LIST PLACEHOLDER IS 1024 ELEMENTS LONG, AND
+                # A CALLEE'S CONTRACT CAN READ THAT LENGTH. Passed through unchanged to an
+                # `array int` param, a sibling `def g(self, ns: List[int]) -> int: return
+                # len(ns)` carrying `ensures \result == \length(ns)` — TRUE of its own
+                # body — handed the CALLER `\result == 1024` for `self.g([])`, which
+                # PROVED while CPython answers 0 (witness 1689); CPython's own answer, 0,
+                # was REFUSED. Route #159 corrected this placeholder's `in_bounds`
+                # obligation with a post-hoc rewrite of the emitted text, which is about
+                # INDEXING and says nothing about LENGTH at a call boundary.
+                # The faithful value is the genuinely EMPTY array — `[]` really does have
+                # length 0 — which is exactly what the `array emit_ir` arm above already
+                # substitutes for this same placeholder. Gated on the EXACT placeholder
+                # literal, so a real array actual is untouched. `List[str]` was MEASURED
+                # and fails closed, so no `array string` arm is added: a repair that closes
+                # nothing measured does not belong in the repair.
+                coerced.append("(Array.make 0 0)")
             elif ptype == "array int":
                 coerced.append(self._array_coerce_arg(arg))
             elif ptype == "map int (option int)":

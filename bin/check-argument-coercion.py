@@ -67,15 +67,31 @@ PASS_THROUGH = {"arg", "a", "_s", "whyml_str"}
 # Anything not listed here is a FAILURE, whether it is new or merely un-triaged.
 # ---------------------------------------------------------------------------
 BASELINE = {
-    ("_coerce_dotted_args", "'0'"):
-        "THE EMPTY-LIST PLACEHOLDER into an int-erased param. `[]` lowers to the "
-        "emitter's `(Array.make 1024 0)` stand-in, and a param the callee int-erases "
-        "cannot take an array at all (L3-tc `array int` vs `int`). The int witness `0` "
-        "loses nothing the placeholder had: the placeholder is not `[]` either, and the "
-        "callee is a `\\trusted` `val` with `ensures true`, so NO property of the "
-        "argument is provable on either side. GUARD IS SPELLING-KEYED on the exact "
-        "placeholder literal -- re-probe it whenever anything changes what `[]` lowers "
-        "to (that is the route #192 shape).",
+    ("_coerce_dotted_args", "'(any int)'"):
+        "THE EMPTY-LIST PLACEHOLDER into an int-erased param. THIS ENTRY'S FIRST VERSION "
+        "WAS REFUTED FIFTEEN MINUTES AFTER ROUTE #194 REFUTED ITS NEIGHBOUR, by the same "
+        "one probe. It said the int witness `0` \"loses nothing the placeholder had ... "
+        "and the callee is a `\\trusted` `val` with `ensures true`, so NO property of "
+        "the argument is provable on either side\". THE CALLEE DOES NOT HAVE TO BE "
+        "`\\trusted` AND DOES NOT HAVE TO SAY `ensures true`: route #195 gave a sibling "
+        "`def f(self, p)` the TRUE contract `ensures p == 0 ==> \\result == 1` and "
+        "called it `self.f([])`, which emitted `(p__f self 0)` and PROVED "
+        "`\\result == 1` where CPython answers 2 (witness 1687). The substitution is now "
+        "Why3's `(any int)` -- there is no int that represents a list, so the model must "
+        "not name one. GUARD IS STILL SPELLING-KEYED on the exact placeholder literal: "
+        "re-probe it whenever anything changes what `[]` lowers to (the route #192 shape).",
+    ("_coerce_dotted_args", "'(Array.make 0 0)'"):
+        "ROUTE #196's repair. THE SAME EMPTY-LIST PLACEHOLDER into an `array int` param "
+        "used to be passed through UNCHANGED, and it is 1024 ELEMENTS LONG: a sibling "
+        "`def g(self, ns: List[int]) -> int: return len(ns)` carrying "
+        "`ensures \\result == \\length(ns)` handed the caller `\\result == 1024` for "
+        "`self.g([])`, which PROVED where CPython answers 0 -- and CPython's own answer "
+        "was REFUSED (witnesses 1689, 1690). Route #159 corrected this placeholder's "
+        "`in_bounds` obligation by rewriting the emitted text; that is about INDEXING and "
+        "says nothing about LENGTH at a call boundary. The genuinely EMPTY array is "
+        "FAITHFUL, not merely opaque -- `[]` really does have length 0 -- which is why "
+        "1690 now PROVES what it could not before. `List[str]` was measured and fails "
+        "closed, so no `array string` arm exists.",
     ("_coerce_dotted_args", "self._coerce_to_int(arg)"):
         "the int-erasure bridge. THIS ENTRY'S FIRST VERSION WAS REFUTED ONE HOUR AFTER "
         "THIS PLANE LANDED, and the refutation is why the entry is worth reading. It said "
