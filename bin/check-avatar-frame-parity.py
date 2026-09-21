@@ -76,7 +76,13 @@ A THIRD KIND OF SILENT FRAME HOLE, found by closing (B) and worth its own sweep:
 ALL**. The stub exists, is signature-checked and is believed — it simply says nothing about
 its frame, so `_module_method_writes` has no entry and the avatar is minted frameless.
 THREE of the four (B) closures were exactly this, and cost no marker to fix. CENSUS at
-#33: **11 of 476** `\trusted` stubs have no `#@ assigns`:
+#33: **11 of 476** `\trusted` stubs have no `#@ assigns`. RE-MEASURED gen #30 (the
+campaign's own rule: re-measure, never inherit): **still exactly 11, and the SAME
+eleven** — the denominator is now 459 markers, so the set has not drifted in either
+direction. A NOTE ON MEASURING IT, paid for on the first attempt: a census that walks
+from the `#@` block to the `def` must skip PLAIN `#` COMMENT LINES as well as blanks
+and decorators, or six of the eleven come back unnamed and the count reads 17. A census
+that cannot name its members is not a measurement. The eleven:
     errors.py                        message, as_dict
     module6_whyml/statements.py      _resolve_dotted_signature, _is_emit_ir_expr,
                                      _coerce_to_int, _expr_to_whyml_string_ctx,
