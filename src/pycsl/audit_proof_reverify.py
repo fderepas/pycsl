@@ -382,10 +382,23 @@ def verify_lean_file(proof_file: Path, qualnames: List[str],
     # Match each cited qualname to its line via substring search.
     by_qn: dict[str, str] = {}
     for line in stdout.splitlines():
-        for qn in qualnames:
-            if f"'{qn}'" in line or qn in line:
-                by_qn[qn] = line
-                break
+        # (#49, gen #30) PREFIX COLLISION. This used to take the FIRST qualname whose
+        # name appeared anywhere in the line and `break`. `qn in line` is a SUBSTRING
+        # test, and one cited qualname is routinely a PREFIX of another —
+        # `Pycsl.Struct.Std.round_trip_i32` is a prefix of `…round_trip_i32i32`. The
+        # shorter name claimed the longer one's output line, the longer one then had no
+        # line at all, and the audit reported it as
+        # `['<unknown — #print axioms line missing>']`, i.e. as a NON-ALLOWLISTED
+        # ASSUMPTION — a genuine, fully-proved Lean theorem reported as an axiom import.
+        # It was the last entry on `bin/check-proof-reverify.sh`'s unresolved ratchet.
+        # Prefer the QUOTED form Lean actually prints (`'foo.bar' depends on axioms:`),
+        # fall back to the loose test only if nothing quotes, and take the LONGEST match
+        # so a prefix can never steal its extension's line.
+        exact = [qn for qn in qualnames if f"'{qn}'" in line]
+        cands = exact or [qn for qn in qualnames if qn in line]
+        if not cands:
+            continue
+        by_qn.setdefault(max(cands, key=len), line)
 
     for qn in qualnames:
         line = by_qn.get(qn, "")

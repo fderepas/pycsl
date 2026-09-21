@@ -52,7 +52,11 @@ soundfail_files=()
 
 # THE UNRESOLVED RATCHET, and why it is a ratchet rather than a pass.
 # On first collection (gen #30) this gate reported SIX failures on a CLEAN tree, and
-# every one of them is an INSTRUMENT condition rather than an unsound citation:
+# every one of them was an INSTRUMENT condition rather than an unsound citation. FIVE of
+# the six were then FIXED in the same window by giving the audit a cross-tree search path
+# (`audit_proof._fallback_proof_dirs`), which took VERIFIED from 155 to 165 — ten
+# citations that had never been checked by anything. The ratchet is now ONE. The original
+# six, for the record:
 #   * 0420.py x3 — `UnixFs.Struct.i1a1/i18/i2.round_trip`: "proof dir not found
 #     .../0420.proofs/rocq". The cited proofs live in the `unix-filesystem/` tree; the
 #     audit looks in `<file>.proofs/<prover>/` by default and is not told otherwise.
@@ -63,10 +67,18 @@ soundfail_files=()
 #     theorem is a genuine proof with no `sorry`, so this is an output-parse miss in
 #     `audit_proof_reverify.py`, not an axiom.
 # "I could not measure it" must never be reported as "it is unsound", and it must never
-# be reported as a pass either. So they are counted apart, held at a ratchet, and the
-# NEXT step is named: teach the audit the cross-tree proof paths (5 of 6) and fix the
-# Lean footprint parse (1 of 6), then lower this to 0.
-UNRESOLVED_RATCHET=6
+# be reported as a pass either. So they are counted apart and held at a ratchet.
+# THE RATCHET IS NOW ZERO. The last entry was the 0778 Lean footprint parse, and it was
+# a PREFIX COLLISION in `audit_proof_reverify.verify_lean_file`: the qualname->line match
+# was a SUBSTRING test taking the FIRST hit, and `…round_trip_i32` is a prefix of
+# `…round_trip_i32i32`, so the shorter name claimed the longer one's `#print axioms`
+# line and the longer one was reported as having a non-allowlisted assumption. Note
+# WHICH DIRECTION OF THAT BUG IS THE DANGEROUS ONE: this instance reported a genuine
+# proof as an axiom import (loud, harmless), but the same collision could just as easily
+# hand a citation SOMEONE ELSE'S clean axiom set and MASK a real one. Fixed by preferring
+# the quoted form Lean actually prints and taking the LONGEST match.
+# ANY non-zero reading here is now a regression, not a backlog.
+UNRESOLVED_RATCHET=0
 
 candidates=(
     "src/self-annotate/src/"*.py
