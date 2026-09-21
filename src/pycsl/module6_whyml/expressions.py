@@ -11943,24 +11943,51 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # the emission with PYCSL_GETATTR_CENSUS=1 and ratchets the two populations apart,
         # with the DECLARED count pinned at 0 — that is the route-#22 regression gate.
         # Env-gated, so it costs nothing and emits nothing on a normal run.
+        # (#49) ROUTE #197 — THE CLASSIFICATION IS NO LONGER CENSUS-ONLY. It used to be
+        # computed inside the `PYCSL_GETATTR_CENSUS` env gate, i.e. the emitter KNEW which
+        # of the three cases it was in and used that knowledge only to print a line for a
+        # plane. The UNKNOWN case now changes the ANSWER, so it is computed always (it is
+        # three dict lookups).
+        _ga_o = obj_ir.get("name", "?") if isinstance(obj_ir, dict) else "?"
+        _ga_n = (name_ir.get("value") if isinstance(name_ir, dict)
+                 and name_ir.get("type") == "String" else "<nonliteral>")
+        _ga_t = (getattr(self, "_current_symbol_table", {}) or {}).get(_ga_o)
+        if _ga_o == "self" and not _ga_t:
+            _ga_t = getattr(self, "_current_self_type", None)
+        _ga_lbls = (getattr(self, "_emitted_record_field_labels", {})
+                    or {}).get(str(_ga_t).lower()) if _ga_t else None
+        if _ga_lbls is None:
+            _ga_cls = "UNKNOWN"      # no field list for this type at all
+        elif (_ga_n != "<nonliteral>"
+              and self._field_label(str(_ga_t).lower(), _ga_n) in _ga_lbls):
+            _ga_cls = "DECLARED"     # the record DECLARES it — must never happen
+        else:
+            _ga_cls = "ABSENT"       # known record, name genuinely not a field
         if _os.environ.get("PYCSL_GETATTR_CENSUS"):
-            _ga_o = obj_ir.get("name", "?") if isinstance(obj_ir, dict) else "?"
-            _ga_n = (name_ir.get("value") if isinstance(name_ir, dict)
-                     and name_ir.get("type") == "String" else "<nonliteral>")
-            _ga_t = (getattr(self, "_current_symbol_table", {}) or {}).get(_ga_o)
-            if _ga_o == "self" and not _ga_t:
-                _ga_t = getattr(self, "_current_self_type", None)
-            _ga_lbls = (getattr(self, "_emitted_record_field_labels", {})
-                        or {}).get(str(_ga_t).lower()) if _ga_t else None
-            if _ga_lbls is None:
-                _ga_cls = "UNKNOWN"      # no field list for this type at all
-            elif (_ga_n != "<nonliteral>"
-                  and self._field_label(str(_ga_t).lower(), _ga_n) in _ga_lbls):
-                _ga_cls = "DECLARED"     # the record DECLARES it — must never happen
-            else:
-                _ga_cls = "ABSENT"       # known record, name genuinely not a field
             _sys.stderr.write("GETATTR_FALLTHROUGH\t%s\t%s\t%s\t%s\n" % (
                 _ga_cls, _ga_o, _ga_t, _ga_n))
+        # (#49) ROUTE #197 — AN UNKNOWN-TYPED OBJECT'S `getattr` IS NOT ITS DEFAULT.
+        # `bin/check-getattr-erasure.py` held the UNKNOWN bucket at a RATCHET rather than
+        # calling it safe, and stated exactly why: the default is "a GUESS ... Not
+        # demonstrated to be exploitable — a contract cannot name a field of an object
+        # whose type the model does not carry — but it is not sound by argument either".
+        # THE CONTRACT DOES NOT HAVE TO NAME THE FIELD. The BODY reads it and the contract
+        # reads `\result`:
+        #     def peek(o: Any) -> int:            #@ ensures \result == 1
+        #         v = getattr(o, "a", 0)
+        #         if v == 0: return 1
+        #         return 2
+        # emitted `let v = ref 0 in v := 0;` with `o` UNUSED (Why3 says so), and PROVED
+        # `\result == 1` while CPython answers 2 for any object with `a = 7`
+        # (witness 1691). The TRUE twin is refused.
+        # ABSENT keeps the default — `getattr` really does return it there, and that is
+        # the faithful answer the route #22 gate was built to protect. Only UNKNOWN, where
+        # the model can establish neither presence NOR absence, becomes Why3's `(any int)`:
+        # every int, so the read decides nothing. Declaration-free (route #115's device),
+        # which also keeps this lowering pure.
+        # (the UNKNOWN arm itself is at the SCALAR-DEFAULT tail below, so the no-default
+        # and non-scalar-default forms keep route #47's existing per-site opaques and
+        # stay byte-identical)
         # Dynamic-config / ABSENT-field path: emit the default. getattr returns
         # `default` for an absent attribute, so this is sound WHEN THE GUARD ABOVE HAS
         # ESTABLISHED ABSENCE (the record type is known and does not declare the name).
@@ -12011,6 +12038,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 stable_hash(repr(default_ir)) & 0xffffffff)
             self._add_abstract_op("val function %s : int" % _r47)
             return _r47
+        # (#49) ROUTE #197 — THE SCALAR DEFAULT IS THE ANSWER ONLY WHEN ABSENCE IS KNOWN.
+        # Below this point the default is emitted VERBATIM, which is faithful for ABSENT
+        # (the record type is known and does not declare the name, so `getattr` really
+        # does return the default) and a GUESS for UNKNOWN (the object's static type is
+        # `Any`/`object`/unresolved, so the attribute may well exist). The guess PROVED:
+        #     def peek(o: Any) -> int:            #@ ensures \result == 1
+        #         v = getattr(o, "a", 0)
+        #         if v == 0: return 1
+        #         return 2
+        # emitted `let v = ref 0 in v := 0;` with `o` UNUSED, and proved `\result == 1`
+        # where CPython answers 2 for any object with `a = 7` (witness 1691).
+        # The repair is route #47's OWN device, not a new one: a PER-SITE opaque, hashed
+        # on the call's IR so two reads of the SAME `getattr` expression agree (which
+        # `(any int)` would NOT give — it is fresh at every evaluation, and losing that
+        # equality is a real loss of faithfulness for no gain).
+        if _ga_cls == "UNKNOWN":
+            _r197 = "pycsl_getattr_unknown_%d" % (stable_hash(repr(expr)) & 0xffffffff)
+            self._add_abstract_op("val function %s : int" % _r197)
+            return _r197
         return self._expr_to_whyml(default_ir, local_refs, invariant_ctx, subst)
 
     def _subst_params(self, ir: Any, arg_nodes: Dict[str, Any]) -> Any:

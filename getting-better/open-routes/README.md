@@ -1,6 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN after gen #30 (2026-09-21): **NONE.**
+## CURRENTLY OPEN after gen #30 (2026-09-21, second entry): **NONE.**
+##
+## **ROUTE #197 IS CLOSED** — `getattr(o, "a", 0)` on an object of UNKNOWN static type ANSWERED THE DEFAULT, and the body read it: `peek(o: Any)` PROVED `\result == 1` (emitting `let v = ref 0 in v := 0;` with `o` UNUSED — Why3 says so) while CPython answers 2 for any object with `a = 7`. FOUND BY `bin/check-getattr-erasure.py`'s OWN RATCHET NOTE, which said the UNKNOWN default was "not demonstrated to be exploitable — a contract cannot name a field of an object whose type the model does not carry". THE CONTRACT DOES NOT HAVE TO NAME THE FIELD; the BODY reads it and the contract reads `\result`. Repaired with a PER-SITE opaque (route #47's own device, hashed on the call's IR so two reads of the same expression agree — `(any int)` was tried first and refuted by the emission census, because it is fresh at every evaluation). ABSENT keeps its faithful default. Witnesses 1691 (XFAIL), 1692 (PASS). See `route197-an-unknown-typed-getattr-was-its-default.md`.
+##
+## (previous header, same day:) **NONE.**
 ##
 ## **ROUTES #195 AND #196 ARE CLOSED — both found by SWEEPING `bin/check-argument-coercion.py`'s OWN BASELINE with one probe** (give the callee a contract TRUE of its own body that READS the substituted property; call it with the substituted-away shape; run CPython). #195: the EMPTY-LIST placeholder became the integer `0` at an int-erased param, so `self.f([])` PROVED `\result == 1` where CPython answers 2 — repaired with `(any int)`. #196: the SAME placeholder is 1024 ELEMENTS LONG at an `array int` param, so `self.g([])` with `ensures \result == \length(ns)` PROVED `\result == 1024` where CPython answers 0, AND CPython's own answer was REFUSED — repaired with the genuinely EMPTY array, which is FAITHFUL rather than merely opaque (witness 1690 now proves what the model could not). THREE of the plane's fourteen baseline entries fell to that one probe within nine hours of the plane landing, with no emitter line changed since gen #29. See `route195-196-the-empty-list-placeholder-at-a-call-boundary.md`.
 ##
