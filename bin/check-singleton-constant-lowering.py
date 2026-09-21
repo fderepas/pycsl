@@ -87,12 +87,22 @@ BASELINE = {
     # A baseline entry's justification is a claim about the code, and both of these were
     # refuted by a measurement. The population only ever goes down.
     ("_to_bool", '"Var"', "true"):
-        "self-tcb-reduction T1.a / Tier-5: the truthiness of a dict/set/map-typed local, "
-        "whose Why3 type carries no int at all, so the default `<> 0` coercion is a TYPE "
-        "ERROR rather than a wrong answer. `true` is a sound OVER-approximation for the "
-        "type-safety+frame contracts proved here -- the real check is the `in` or the "
-        "projection that follows -- and it is gated on @mutable_state / "
-        "`_hvalmap_local_vars`, so it is inert elsewhere.",
+        "THIS TEXT WAS STALE UNTIL gen #30 SWEPT IT, and the staleness is the thing worth "
+        "recording: it quoted the PRE-ROUTE-#55 justification -- \"`true` is a sound "
+        "OVER-approximation ... the real check is the `in` or the projection that "
+        "follows\" -- which is the very sentence route #55 refuted. That arm fired on a "
+        "BARE guard, where there is no `in` that follows, and `ensures \\result == 7` "
+        "proved for a body returning 0 on the empty-dict path (witnesses 1104-1106). "
+        "WHAT THE CODE ACTUALLY DOES NOW: the unsubsumed guard answers the per-name "
+        "opaque `pycsl_nonempty_<name>` and decides nothing; `true` survives ONLY for a "
+        "name the parent `&&` has marked SUBSUMED -- `if subst and name in subst:`, where "
+        "an EMPTY `subst` makes `name in subst` False anyway, so the short-circuit "
+        "changes nothing and `true` is FAITHFUL. The mark is made at the `&&`, where the "
+        "parent is visible, and restored immediately after the left operand, so a "
+        "same-named guard in the RIGHT operand or anywhere else does not inherit it. "
+        "Re-probed in gen #30: a dict/set local outside the subsumed shape reaches "
+        "`map_nonempty` (a function OF THE MAP VALUE, so a store changes its argument) or "
+        "fails L3-tc; `d = self.d` is refused by route #59's aliasing fence.",
     ("_to_bool", "int", "true|false"):
         "route #31's repair, not its defect: a collection whose SIZE the emitter KNOWS "
         "(`_known_collection_sizes`, and only while the name is not in "
