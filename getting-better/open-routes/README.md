@@ -1,6 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN after gen #30 (2026-09-20, second entry): **NONE.**
+## CURRENTLY OPEN after gen #30 (2026-09-21): **NONE.**
+##
+## **ROUTES #195 AND #196 ARE CLOSED — both found by SWEEPING `bin/check-argument-coercion.py`'s OWN BASELINE with one probe** (give the callee a contract TRUE of its own body that READS the substituted property; call it with the substituted-away shape; run CPython). #195: the EMPTY-LIST placeholder became the integer `0` at an int-erased param, so `self.f([])` PROVED `\result == 1` where CPython answers 2 — repaired with `(any int)`. #196: the SAME placeholder is 1024 ELEMENTS LONG at an `array int` param, so `self.g([])` with `ensures \result == \length(ns)` PROVED `\result == 1024` where CPython answers 0, AND CPython's own answer was REFUSED — repaired with the genuinely EMPTY array, which is FAITHFUL rather than merely opaque (witness 1690 now proves what the model could not). THREE of the plane's fourteen baseline entries fell to that one probe within nine hours of the plane landing, with no emitter line changed since gen #29. See `route195-196-the-empty-list-placeholder-at-a-call-boundary.md`.
+##
+## (previous header, 2026-09-20:) **NONE.**
 ##
 ## **ROUTE #194 IS CLOSED, AND THE PLANE THAT LANDED ONE HOUR EARLIER IS WHAT FOUND IT.** `_coerce_to_int` answered the LITERAL `0` for an array- or map-shaped actual reaching an INT-ERASED parameter. The argument-coercion plane's baseline justification for that arm said "the receiving param is int-erased, so no law reads it" — and A CONTRACT ON AN INT-ERASED PARAM IS A LAW THAT READS IT. A callee `def f(self, p)` (un-annotated, so the `val` declares `p: int`) with the TRUE contract `ensures p == 0 ==> \result == 1`, called as `self.f(sorted(xs))`, emitted `(p__f self 0)` — the array discarded, Why3 warning `unused variable xs` — and `\result == 1` PROVED while CPython answers 2. Repaired with Why3's `(any int)` (declaration-free, because the mirror's copy is a CONVERTED method with `assigns \nothing`). Witnesses 1685 (XFAIL), 1686 (PASS). See `route194-an-erased-collection-was-the-integer-zero.md`.
 ##
