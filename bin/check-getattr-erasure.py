@@ -20,10 +20,25 @@ WHAT IT MEASURES. Every fall-through is classified by WHY the field was not reso
     ABSENT    the record type is known and does NOT declare the name. `getattr` really
               does return the default here, so emitting it is faithful.
     UNKNOWN   the object's static type is `Any` / `object` / a non-record mixin, so
-              neither presence nor absence can be established and the default is a
-              GUESS. Not demonstrated to be exploitable — a contract cannot name a field
-              of an object whose type the model does not carry — but it is not sound by
-              argument either, so it is held by a ratchet rather than called safe.
+              neither presence nor absence can be established and the default was a
+              GUESS. *** THIS BUCKET'S OLD JUSTIFICATION WAS REFUTED BY ROUTE #197. ***
+              It read: "Not demonstrated to be exploitable — a contract cannot name a
+              field of an object whose type the model does not carry — but it is not
+              sound by argument either, so it is held by a ratchet rather than called
+              safe." Holding it by a ratchet was right; the reason was wrong. THE
+              CONTRACT DOES NOT HAVE TO NAME THE FIELD — the BODY reads it and the
+              contract reads `\result`:
+                  def peek(o: Any) -> int:           #@ ensures \result == 1
+                      v = getattr(o, "a", 0)
+                      if v == 0: return 1
+                      return 2
+              emitted `let v = ref 0 in v := 0;` with `o` UNUSED (Why3 warns so) and
+              PROVED, while CPython answers 2 for any object with `a = 7` (witness
+              1691). The UNKNOWN fall-through now answers a PER-SITE opaque — route
+              #47's own device, hashed on the call's IR so two reads of the SAME
+              expression agree — so the read is UNDECIDED rather than guessed. The
+              bucket is still ratcheted, because an opaque read is still a read the
+              model cannot resolve, but it is no longer a WRONG ANSWER.
 
 Absent/unknown are RATCHETS (they may only shrink); declared is a HARD ZERO.
 
@@ -50,7 +65,21 @@ CORPUS = os.path.join(ROOT, "test-suite", "corpus", "pycsl-reference")
 # Ratchets, measured at the route-#22 closure (#44).
 MIN_TARGET_FILES = 40   # true population 64; a floor on the INPUT, not a ratchet (gen #4)
 
-MAX_ABSENT = 7
+# (#49) gen #30, ROUTE #197 — BOTH RATCHETS RAISED BY EXACTLY ONE, AND ONLY BECAUSE THE
+# CORPUS GREW BY TWO FILES THAT EXIST TO EXERCISE THESE TWO BUCKETS:
+#   * `1691_route197_an_unknown_typed_getattr_was_its_default.py` adds ONE UNKNOWN site —
+#     it is route #197's carrier, `getattr(o, "a", 0)` on an `Any`-typed object.
+#   * `1692_route197_an_absent_field_still_returns_its_default.py` adds ONE ABSENT site —
+#     it is the control showing the repair did NOT touch the faithful case.
+# This is NOT re-baselining to make a gate green (rule (k)): no emitter residue grew, and
+# the numbers are up by exactly the two sites two new test files contribute. THE PIN THAT
+# MATTERS IS UNTOUCHED — DECLARED stays hard-zero, which is the route-#22 regression gate.
+# NOTE FOR THE NEXT WINDOW, because this is the second time it has bitten: these ratchets
+# count EMISSION SITES ACROSS THE WHOLE CORPUS, so they rise whenever a witness is ADDED,
+# for reasons that have nothing to do with the emitter's residue shrinking. If that keeps
+# happening, the honest redesign is to ratchet the residue PER EMITTER SITE rather than
+# per corpus occurrence.
+MAX_ABSENT = 8
 # UNKNOWN was 19 at the route-#22 closure and this plane went RED at `5342bea1` (routes
 # #47/#48 closing) without anyone noticing, because the plane is driver-run and nobody ran
 # it — found at HEAD by relaunch #51. THE DELTA IS EXACTLY THE FIVE SITES ROUTE #47 ADDED
@@ -62,7 +91,7 @@ MAX_ABSENT = 7
 # arithmetic: `--mirror-only` reports UNKNOWN 19/19 and rc=0 at the same HEAD, so the
 # mirror population has not moved at all. `DECLARED` stays pinned at 0 — that is the half
 # that would mean route #22 is back, and it has not budged.
-MAX_UNKNOWN = 24
+MAX_UNKNOWN = 25
 
 
 def emit_and_collect(path, import_path=None):
