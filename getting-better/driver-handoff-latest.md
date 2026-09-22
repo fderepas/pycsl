@@ -115,6 +115,11 @@
 #         MODEL-INTERNAL) with `pkl.dump` as the standing control that stays OUT of the
 #         first one. The 29 un-audited advice sites are STILL OPEN.
 #         WHAT IT LEFT BEHIND, in priority order:
+#           *** UPDATE 21:05Z: a, b, c AND e ARE ALL DONE. Six of the seven false
+#           contracts are REPAIRED and re-verified; the seventh (`que.qsize`) turned out
+#           INNOCENT on investigation and is reclassified, not fixed. d was a FALSE
+#           FINDING of mine — see (i3). What is left of item 6 is the 29 un-audited
+#           advice sites. Commits faa46282, fa930d45, 70070ad8, b96d9def. ***
 #           a. **Four FALSE contracts in `src/pycsl_lib` with a PROVED FALSE CLAIM
 #              DOWNSTREAM in `src/pycsl_lib_test`**, which is the route standard met
 #              inside the stdlib layer: `formal_csvmod.test_write_row_identity` proves
@@ -160,6 +165,11 @@
 #         zero, and the global totals are printed but gated on nothing. **THE TSV IS NOT
 #         YET GENERATED** (`--emit-baseline` needs a quiet machine; the battery was
 #         running) and the plane REFUSES with rc=2 until it exists.
+#         WHEN YOU GENERATE IT: run `--emit-baseline` TWICE on a quiet machine and check
+#         the two TSVs are identical before committing. `emit_and_collect` returns [] on
+#         a timeout, so a contended run silently UNDER-counts a file, and an under-counted
+#         row would then fail every honest run afterwards. (Lesson (e3), applied before it
+#         bites rather than after.)
 #      7. The `check-avatar-frame-parity` INHERITED segment (7 sites) and the hval
 #         absent-key sentinel's MIRROR side, still priced as infeasible in a short window.
 #
