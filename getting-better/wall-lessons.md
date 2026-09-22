@@ -3,6 +3,25 @@
 Each entry: a wall the driver RESOLVED as CERTIFIED-BOUNDARY / DEFERRED (measured, not a cheap win), with the
 L-input that revealed it. BROKEN walls are in the git log (conversions).
 
+## gen #30's lessons, by letter (2026-09-21/22) — the file is long; this is the index
+
+(h) difficulty is not soundness · (i) name which SPELLINGS were run · (j) predict the TRUE
+twin · (k) the choke-point rule is enforced by two ratchets · (l) build the plane the other
+planes named · (m) a repair that fixes one arm leaves the rest of the function · (n) a
+residue you write down is a work item · (o) the lesson you just banked applies to the fix
+you just shipped · (p) the upper bound is not the blast radius · (q) a gate built from a
+route must be run against the pre-route tree · (r2) `timeout` forwards its signal to its
+child · (u2) when a plane's method is "run the real thing", the scope is a SAFETY property
+· **(v2)** an unmentioned exclusion is an oversight wearing one · **(w2)** attack a marker
+before believing it is forced · **(x2)** trust has a BLAST RADIUS, and a PASS count is not
+a proof count · **(y2)** an enforcement mechanism that writes into a body is only as strong
+as the guarantee the body is COMPILED · **(z2)** a check with no witness has no evidence it
+can FIRE · **(a3)** "verify the dependency" is not "verify the file" · **(b3)** a lowering
+fix must re-run the refusal the old shape was accidentally enforcing · **(c3)** read the
+axiom registry the way you read the docstrings · **(d3)** a repo has FOUR populations that
+must keep working · **(e3)** when a measurement fails under load, re-run it quiet before
+you explain it.
+
 ## 2026-07-20 driver run (count 1030 → 1028; 2 conversions + these walls)
 
 ### BROKEN (converted)
