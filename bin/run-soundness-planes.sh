@@ -113,12 +113,23 @@ PLANES=(
     # while its own postcondition is false of its own program. First measurement: 195
     # AGREE, 0 DISAGREE, 21 not runnable standalone (reported, never dropped).
     check-corpus-contract-truth.py
+    # (#49) gen #30: the STDLIB-CONTRACT-FIDELITY ratchet. `src/pycsl_lib/` holds 93
+    # body-verified stub packages, each CITING the CPython library reference in its
+    # docstring, and nothing compared a stub's contract against the function it cites. A
+    # contract there is proven OF ITS OWN BODY, so it can be perfectly proven and still be
+    # FALSE of the function named in its own citation — this campaign's defect shape, one
+    # layer up. Ratchet = the SET of diverging (package, function) pairs, baselined at the
+    # two found when the gate was written (`mth.remainder`, `stat.filemode`). NOT a
+    # proof-soundness gate TODAY (no name map takes `math` to `mth`, so nothing
+    # substitutes these contracts) — it stops the layer drifting further from the stdlib
+    # it documents. Self-test: `--selftest-empty-baseline` must exit 1.
+    check-stdlib-contract-fidelity.py
 )
 # (#49) gen #30: TIGHTENED to the EXACT fast-plane count. It had been carrying slack —
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=25
+MIN_PLANES=26
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #

@@ -3892,3 +3892,37 @@ Recorded BEFORE the result, because a prediction adjusted after the fact is not 
 prediction. Twice in one generation I have got the suite TOTAL wrong while getting the
 INVARIANT right (same 18, zero XPASS) — the lesson is the one already banked: state it as
 `total - 18` and read the total off the runner's own first line rather than from memory.
+
+## NEW PLANE — `bin/check-stdlib-contract-fidelity.py` (the 26th fast plane)
+The cutoff I declared earlier is LIFTED for this one, deliberately and with the reason: the
+`pycsl_lib` surface was opened and priced hours ago, the supervisor named it the next item,
+and a `bin/` addition changes no emission — so it cannot invalidate the battery running at
+`febbb08a`.
+
+93 body-verified stub packages, each CITING the CPython library reference in its docstring,
+and nothing compared a stub's contract against the function it cites. A contract there is
+proven OF ITS OWN BODY, so it can be perfectly proven and still be FALSE of the function
+named in its own citation — this campaign's defect shape, one layer up from the emitter.
+
+  **2002 contract evaluations against the real stdlib; 2 diverging functions**, both
+  baselined with their fix:
+    `mth.remainder`  — claims `\result >= 0`; `math.remainder(8,5)` is -2.0. The docstring
+                       says "For integers, same as x % y"; `%` FLOORS and IEEE rounds to
+                       NEAREST, so that sentence is false. Fix: correct the citation and
+                       the name, or implement IEEE rounding.
+    `stat.filemode`  — claims the constant `"----------"`; the real one returns
+                       `'?-------w-'`. A verified function whose entire content is a
+                       constant. Fix: implement the mapping, or drop the citation.
+
+DETERMINISTIC BY CONSTRUCTION (fixed input pools, no randomness — a gate that samples
+differently each run cannot carry a ratchet), population guard at 1500 evaluations, and a
+documented self-test: `--selftest-empty-baseline` clears the ratchet and the gate MUST exit
+1. It does, naming all three `stat.filemode` witnesses. Lesson (q) applied before shipping,
+for the third plane running.
+
+SEVERITY STATED IN THE HEADER, not implied: this is NOT a proof-soundness gate today,
+because no name map takes `math` to `mth` and nothing substitutes these contracts for a
+real stdlib import. It stops the layer drifting further from the stdlib it documents — and
+it is the instrument that would catch the drift on the day something does substitute them.
+
+Battery is now **26 fast / 47 with `--slow`**. All 26 green at HEAD.
