@@ -73,6 +73,26 @@ on placeholders, and a surviving one is a REFUSAL); and a refusal not reachable 
 `.py` source at all (`validate_ir`'s eight, demonstrated by
 `bin/check-ir-schema-refusals.py` instead).
 
+THREE OF THE REMAINING UNDEMONSTRATED SAY, IN THEIR OWN COMMENTS, THAT THEY WERE TESTED BY
+DIRECT INJECTION — and they STAY IN THE DEBT COUNT anyway:
+
+    module6_whyml/functions.py:7870   "Negative-tested by feeding it a pair with an
+                                       unresolvable `base_method`."
+    module6_whyml/statements.py:3651  "it is NEGATIVE-TESTED by feeding it the mixed
+                                       spelling directly."
+    module6_whyml/statements.py:3679  "Negative-tested by feeding it a region base that is
+                                       not a parameter."
+
+Each is a guard whose LIVE population is empty by construction, so no corpus program can
+reach it — the same situation as `validate_ir`'s eight. The difference is that
+`validate_ir` takes a dict and can be driven from a plane in ten lines, while these sit
+deep in Module 6 emission and need an IR plus emitter state. Excluding them on the strength
+of a COMMENT would be an exclusion with no gate behind it, which is exactly what lesson
+(f3) is about ("an exclusion you never tested is a guess"), so they stay counted as
+undemonstrated until someone builds the harness. THE REOPENING CAPABILITY is a second
+executable plane in the shape of `bin/check-ir-schema-refusals.py`, driving the Module 6
+emitter directly.
+
 THE RATCHET: the witnessed count may only GROW, and the artifact's own size may only grow
 with the corpus. A NEW refusal added without a witness is visible immediately — it lands in
 the unwitnessed list and the count of unwitnessed sites rises above the ceiling.
