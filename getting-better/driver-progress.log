@@ -4126,3 +4126,20 @@ That certifies the suite over ALL THIRTEEN ROUTES of this generation, the six ne
 pairs and the five value-differential drivers, at `febbb08a`. The `--slow` leg of that
 battery is now running; a SECOND `--slow` leg is running in parallel in the main tree at
 the true final HEAD (49 planes) to close the four-plane gap between the two commits.
+
+### COMPLETENESS AUDIT OF MY OWN RECORD-KEEPING — all thirteen routes, three artefacts each
+Checked that every gen #30 route carries (a) a route doc, (b) a corpus witness, (c) a
+`probes.tsv` presence:
+
+    191-203:  doc YES (196 documented jointly in `route195-196-…md`),
+              witness YES (all thirteen), ledger YES (all thirteen).
+
+THE FIRST PASS REPORTED "NO" FOR 195, 196 AND 197, AND THAT WAS MY REGEX, NOT THE RECORD.
+The audit keyed on `route<N>` as a token; those three are named in prose as `#195`,
+`#196`, `#197` inside the `argument-coercion-plane-entries` baseline-sweep row (the row
+that FOUND them) and a later `setattr` row. Re-read the actual lines before believing the
+audit — the same rule this campaign applies to every other recorded claim, applied to an
+audit I wrote thirty seconds earlier.
+
+>>> AN AUDIT IS A MEASUREMENT AND CAN BE WRONG IN EITHER DIRECTION. A false "missing" costs
+>>> an hour of re-doing work that was already done; a false "present" costs the record.
