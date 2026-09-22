@@ -97,7 +97,11 @@ PLANES=(
     # measured via `--live`, which is also how that blind spot was found before shipping.
     check-fstring-lowering.py
 )
-MIN_PLANES=22
+# (#49) gen #30: TIGHTENED to the EXACT fast-plane count. It had been carrying slack —
+# 20 when 22 planes were listed — so a plane could have been deleted from the array and
+# the zero-check refusal would still have passed. A floor one below the truth is a gate
+# that tolerates exactly the failure it exists to catch. Raise this with the array.
+MIN_PLANES=23
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
