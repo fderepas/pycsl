@@ -4630,3 +4630,31 @@ un-trusted mirror functions that must be VERBATIM copies, so changing its messag
 `check-self-annotate-mirror-sync` — the first of the evening's four message repairs to do
 so. The other three sat in `\trusted` twins and owed nothing, which is the choke-point rule
 working exactly as designed. Mirror synced, file re-proved.
+
+--------------------------------------------------------------------------------
+THE ADVICE AUDIT, CONTINUED — 28 OF 94, AND A SECOND UNSPELLABLE ANNOTATION
+--------------------------------------------------------------------------------
+Twenty-eight advice-bearing refusals followed and run. TWENTY-FOUR WORK. The four that do
+not, by kind:
+
+  UNSPELLABLE (2)  `#@ shared` and `#@ touches_field` are both SYNTAX ERRORS as written:
+                   the grammars are `#@ shared <name>` and `#@ touches_field <name>: <type>`.
+  UNTRIED (2)      "Call `__enter__` explicitly" (a dunder call loses its contract) and
+                   "Use a `None` sentinel" (`Optional[List[T]]` emits unbound `array`).
+  AMBIGUOUS (1)    "Verify it by contract" needs a LOCAL instance and does not say so.
+
+All five messages were repaired to advise something MEASURED to work.
+
+>>> TWO OF TWENTY-EIGHT TOLD THE READER TO WRITE A PROGRAM THE COMPILER CANNOT COMPILE, and
+>>> two more named an annotation without its grammar. Nothing in the repo would have caught
+>>> any of them, because a refusal's advice is the one claim in the system with no gate.
+
+THE BARE-DIRECTIVE SWEEP the second UNSPELLABLE suggested, and its honest result: 16
+messages name an argument-taking `#@` directive in bare backticks (`no_exception` 8,
+`loop variant` 2, `assigns` 1, `depends_method` 1, `requires_method` 1, `footprint` 1,
+`shared` 1, `touches_field` 1). FOURTEEN ARE DESCRIPTIVE — "this function claims
+`#@ no_exception`", "a per-index `#@ footprint` check cannot confine …" — not instructions.
+Only the two already found were telling the reader to TYPE the thing.
+
+>>> A CENSUS THAT COMES BACK MOSTLY INNOCENT IS WORTH THE SAME AS ONE THAT DOES NOT, and
+>>> writing the result down is what stops the next reader re-running it.
