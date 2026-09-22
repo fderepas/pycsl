@@ -131,6 +131,14 @@ PLANES=(
     # file, UPPER to every same-named definition. Both ends ratchet, so a marker added in
     # a hot call path fails this gate even when the marker COUNT is flat.
     check-trust-blast-radius.py
+    # (#49) gen #30: the SECOND vacuity. `pycsl.py::_run_vacuity_gate` is default-on and
+    # probes CONTEXT vacuity (an inconsistent assumed context proves anything). CLAIM
+    # vacuity is the other one: a consistent context and a contract that says nothing.
+    # `#@ ensures True` passes the shipping gate correctly and is discharged by every
+    # program ever written — and 1792 of 3888 corpus files (46%) carry one, including all
+    # 840 `*_call_fails.py` AND all 840 `*_call_proves.py`, two families whose names
+    # assert opposite outcomes over identical contracts. Ceiling may only shrink.
+    check-claim-vacuity.py
     # (#49) gen #30: the STDLIB-CONTRACT-FIDELITY ratchet. `src/pycsl_lib/` holds 93
     # body-verified stub packages, each CITING the CPython library reference in its
     # docstring, and nothing compared a stub's contract against the function it cites. A
@@ -195,7 +203,7 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=34
+MIN_PLANES=35
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
