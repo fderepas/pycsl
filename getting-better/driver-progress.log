@@ -3130,3 +3130,28 @@ that MENTIONS the parameter — which is precisely what the gate keys on.
 That is the difference between a gate keyed on the reason and a gate keyed on a proxy:
 #200 keyed on the annotation because the annotation CORRELATED with danger, and the
 correlation is what #202 walked through.
+
+### Route #202 — THE CENSUS EARNED ITS KEEP IMMEDIATELY: a VARARG false positive
+The first dry run of the #202 predicate over the corpus returned **3 hits**, and only
+one of them was my own witness (1697). The other two were in
+`0931_varargs_membership.py`, a PASSING corpus file:
+
+    def member_of(x: str, *vals: str) -> bool: ...
+    member_of("+", "+", "-")
+
+The scanner mapped actual `[1]` onto formal `[1]` = `vals`, found no annotation for it
+(a vararg carries none in `param_annotations`) and found `vals` mentioned in the
+contract — so the naive gate would have REFUSED a file that verifies today, for a
+program with nothing wrong with it. **A vararg formal PACKS every remaining actual into
+one sequence; those actuals are not a scalar-parameter mismatch at all.**
+
+The IR says so directly: the function carries `"vararg_str_param": "vals"` (set for an
+annotated `*vals: str` AND for a plain `*args`, except when the vararg is
+star-forwarded, in which case it is dropped from the model entirely). The predicate now
+STOPS at the vararg formal, and the census is re-running.
+
+Worth stating plainly, because it is the third time this generation: the census is not a
+formality before the repair, it is the thing that keeps the repair from breaking the
+tree. #200's census re-aimed the fix (declared vs erased), #201's census showed the
+placeholder was dead in both trees, and this one caught a false positive that would have
+turned the suite red.
