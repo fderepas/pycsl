@@ -2645,3 +2645,24 @@ PREDICTION (written first):
 HELD, NOT APPLIED YET: the #198 corpus and mirror emission sweeps are running
 against this working tree right now, and editing the emitter under a running
 sweep would silently conflate two changes. The repair lands after they finish.
+
+### Route #198 — P5 was WRONG, and the gate is what said so
+Predicted: "mirror emissions -> byte-inert." MEASURED: **1 MOVED**,
+`module6_whyml__stmt_control_flow.mlw`, and the diff is exactly this:
+
+    -                                let py_val = ref "0" in
+    +  let _ = (self__add_abstract_op_1 self "val function pycsl_none : int") in ();
+    +                                let py_val = ref "pycsl_none" in
+
+i.e. the mirror of the very method I edited, emitting the new arm. That is not a
+failure of the repair, it is M1 exactly: a non-zero byte-diff is allowed IFF the
+diff is EXACTLY the intended correction AND every affected program re-proves.
+The prediction was sloppy in a way worth naming: I checked whether a MIRROR
+METHOD contains a bare `return` in an int-returning function (none does), and
+forgot that the edited method IS ITSELF mirrored, so ANY edit to a mirrored
+emitter method moves that file. The rule to carry: **an emitter edit inside a
+converted method always moves at least its own mirror; predict byte-inertness
+for the OTHER 52, never for that one.**
+Re-proof of `src/self-annotate/src/module6_whyml/stmt_control_flow.py` LAUNCHED
+(detached, `$SCRATCH/prove198.log`) — lesson (r): only the mirror whose emission
+MOVED is re-proved, not all 53.
