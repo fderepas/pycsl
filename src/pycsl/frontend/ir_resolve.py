@@ -2770,7 +2770,10 @@ def apply_composition(ir_data: Dict[str, Any]) -> None:
                             f"Mixin '{M}' (composed into '{C}'): a method writes "
                             f"`self.{fld}`, a field declared neither `#@ shared_state` nor "
                             f"`#@ touches_field` nor initialised in __init__. Declare every "
-                            f"field a mixin touches so composition can reason about it.")
+                            f"field a mixin touches so composition can reason about it — the "
+                            f"form is `#@ touches_field {fld}: <type>`, and the TYPE is "
+                            f"REQUIRED (`#@ touches_field {fld}` alone is a syntax error; "
+                            f"measured in gen #30).")
         # --- flatten: clone provided methods into the composer ---
         existing = {f.get("name") for f in funcs}
         own_tails = {f["name"][len(c) + 2:] for f in funcs

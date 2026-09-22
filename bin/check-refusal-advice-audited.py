@@ -25,8 +25,8 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 26 AUDITED** —
-22 FOLLOWABLE, 1 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 22 of 26 pieces of advice work,
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 28 AUDITED** —
+24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 24 of 28 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
 below records what was written and what happened.
@@ -219,6 +219,12 @@ AUDITED = {
     ("src/pycsl/module6_whyml/expressions.py",
      'PyCSLSemanticError(f"call to \'{func_name}\' passes {len(expr.get(\'args\', []))} positional argument(s) but parameter \'{nm}\' has no default (ar'): (FOLLOWABLE,
         'The repair is to pass every parameter that has no default; the complete call VERIFIES.'),
+    ("src/pycsl/frontend/ir_resolve.py",
+     'PyCSLSemanticError(f"Mixin \'{M}\' (composed into \'{C}\'): a method writes `self.{fld}`, a field declared neither `#@ shared_state` nor `#@ tou'): (UNSPELLABLE,
+        "'Declare every field a mixin touches' - `#@ touches_field n` ALONE IS A SYNTAX ERROR; the form is `#@ touches_field n: <type>` and the TYPE is required. With the type it VERIFIES. The SECOND message of the audit to name an annotation without its full form, after `#@ shared` - the pattern is worth its own sweep. Message now gives the form."),
+    ("src/pycsl/frontend/ir_resolve.py",
+     'PyCSLSemanticError(f"Mixin composition \'{C}\': dependency \'{d[\'method\']}\' (declared by mixin \'{M}\' via #@ {d[\'kind\']}_method) has NO provider'): (FOLLOWABLE,
+        "'add a mixin that `#@ provides <method>`' - a second mixin providing the dependency, composed with `#@ compose_from`, VERIFIES."),
 }
 
 
@@ -323,7 +329,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 26
+MIN_AUDITED = 28
 
 if __name__ == "__main__":
     sys.exit(main())
