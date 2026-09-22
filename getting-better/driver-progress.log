@@ -4788,3 +4788,21 @@ advice-bearing -> 108, and all 14 newly visible are route refusals THIS CAMPAIGN
 >>> A PLANE WRITTEN TODAY WAS ALREADY BLIND TO TODAY'S WORK, because it was copied from one
 >>> written before it. A population filter does not merely age — it PROPAGATES, and the
 >>> copy inherits the exclusion along with the logic.
+
+--------------------------------------------------------------------------------
+THREE TRIES TO CLASSIFY NINE MODULES
+--------------------------------------------------------------------------------
+Measuring what "84 of 104 stdlib modules verify" is WORTH took three attempts:
+
+  1. count `#@` annotations      -> 9 with no `ensures`, 7 with no `#@` at all. "75, not 84."
+  2. split by `def`              -> 7 shims (nothing to claim, innocent) + 2 informative.
+  3. THE FIRST RUN OF (2) WENT RED at 3 > 2. `fut` and `world` have a `def`, and their ONLY
+     def is `__init__` — returns None, can carry no `\result` claim. They are shims with a
+     constructor. The discriminator is a VALUE-RETURNING function; the informative class is
+     ONE module, `udata`.
+
+>>> A CLASS BOUNDARY DRAWN FROM A STATIC READING IS A HYPOTHESIS. Each version was read off
+>>> the source correctly and none of them was RUN. Banked as (p3), with the one-line
+>>> discipline that would have caught all three on the first pass: BEFORE WRITING A CEILING,
+>>> PRINT THE MEMBERS. Every wrong version had a members list one line away, and every list
+>>> would have shown `kw`, `fut` and `world` sitting next to `udata` looking nothing like it.
