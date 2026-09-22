@@ -247,12 +247,31 @@ PLANES=(
     # `[0] * 64`). The skill for that layer says it carries ZERO trusted markers. The
     # rule existed, the violation existed, and no plane connected them.
     check-stdlib-trusted-markers.py
+    # (#49) gen #30: THE FREE ORACLE. A `pycsl_lib` docstring that states a WEAKER relation
+    # than the `#@ ensures \result ==` clause beside it. Built because two of the seven
+    # false stdlib contracts the identity-stub adjudication found had ALREADY SAID SO in
+    # their own prose — `csvmod.write_row`'s docstring said "Written bytes >= field count"
+    # while its clause pinned "==" — so the divergence was in the file, needing no CPython
+    # call, and was being thrown away. It then found a third the hand pass had missed.
+    # Four of its five standing hits are CONTROLS (QUOTED-RELATION / BRANCH-CONDITION /
+    # GUARD-RESTATED / QUALIFIES-ANOTHER-RELATION), which is the point: a marker-hunting
+    # gate whose every hit is a defect has not met an innocent case yet.
+    check-docstring-contract-disagreement.py
+    # (#49) gen #30: the EIGHT `ir_schema.validate_ir` refusals, demonstrated executably.
+    # `check-refusal-witness-coverage.py` counted them as "no witness", but NO corpus file
+    # can reach them — `validate_ir` runs on the IR the front-end just built, and a `.py`
+    # source cannot make Module 5 emit a `functions` that is not a list. A grep for
+    # `validate_ir` across test-suite/ found ZERO: the IR's own structural contract had no
+    # test of any kind. Eight malformed-IR carriers, a WELL-FORMED control (without which a
+    # `validate_ir` that raised unconditionally would pass all eight), and a #44 guard that
+    # refuses on a rename, a deletion, or a new check with no carrier.
+    check-ir-schema-refusals.py
 )
 # (#49) gen #30: TIGHTENED to the EXACT fast-plane count. It had been carrying slack —
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=40
+MIN_PLANES=42
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
