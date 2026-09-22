@@ -347,6 +347,7 @@ def main():
 
     full, partial, input_blind = [], [], []
     _n_mlw = 0
+    vanished = []
     for root, _dirs, files in os.walk(MIRROR_ROOT):
         for fn in sorted(files):
             if not fn.endswith(".mlw"):
@@ -357,7 +358,20 @@ def main():
                                 fn[:-4] + ".py")
             if not os.path.exists(live):
                 continue
-            emitted = emitted_functions(open(mlw).read())
+            # (#49) A .mlw file that the walk LISTED but that is gone by the time we
+            # open it means something else is regenerating this directory right now —
+            # the mirror .mlw files are shared, gitignored build artifacts, and two
+            # planes running in parallel fight over them. Whatever we measure under
+            # that race is a measurement of a moving target, so it is not a verdict.
+            # Crashing with a traceback (which is what this line used to do) reads as
+            # a broken gate; reporting a green after silently skipping the file would
+            # be worse. Collect and REFUSE below with the instruction.
+            try:
+                _mlw_text = open(mlw).read()
+            except FileNotFoundError:
+                vanished.append(os.path.relpath(mlw))
+                continue
+            emitted = emitted_functions(_mlw_text)
             lf = live_functions(live)
             sf = live_self_fields(live)
             for wname, (wparams, wbody) in emitted.items():
@@ -399,6 +413,15 @@ def main():
     # check-avatar-frame-parity, check-yield-erasure and check-computed-rhs-erasure, and
     # in the first of those it had already cost a ratchet and a relaunch. Zero must never
     # look like success.
+    if vanished:
+        print("[!] emitted-vacuity: %d emitted mirror .mlw file(s) disappeared between "
+              "listing and reading (first: %s). Another process is regenerating "
+              "src/self-annotate/src/**/*.mlw while this plane reads them, so any verdict "
+              "here would describe a moving target. REFUSING: re-run this plane on its own "
+              "(`python3 bin/check-emitted-vacuity.py --emit`), not concurrently with the "
+              "rest of the battery." % (len(vanished), vanished[0]))
+        return 2
+
     if _n_mlw < MIN_EMITTED_MIRRORS:
         print("[!] emitted-vacuity: found %d emitted mirror .mlw file(s) beside the "
               "mirror sources, expected at least %d. REFUSING to report a verdict: "
