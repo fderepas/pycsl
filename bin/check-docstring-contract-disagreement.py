@@ -69,6 +69,24 @@ CLASSES. `DISAGREES` — the prose is right and the clause over-claims. `QUOTED-
 `BRANCH-CONDITION` / `GUARD-RESTATED` / `QUALIFIES-ANOTHER-RELATION` — the four innocent
 shapes above.
 
+WHAT IT MISSES, AND WHY THE OBVIOUS WIDENING DOES NOT WORK. This gate keys on a WEAKENING
+WORD (`>=`, "at least", "may", "approximate"). It therefore missed `csvmod.writerows`,
+whose docstring says "Total bytes written is non-negative" while the clause pins
+`== rows * fields_per_row` — no weakener, but a DIFFERENT QUANTITY. The repair to that
+contract came from the identity-stub adjudication, not from here.
+
+The obvious widening — flag a pinned stub whose docstring names a quantity noun (bytes,
+size, length, count, number, total, depth, index) — was MEASURED before being written:
+**72 hits over the same population**, almost all innocent, because the function's own NAME
+is usually the quantity (`registry_size`, `section_count`, `coll.length`, `ftools.get_hits`)
+and its parameter is that quantity too. A gate with 72 hits and two defects is a gate
+nobody reads. The discriminating rule would be "the docstring's quantity differs from the
+RETURNED PARAMETER's", which needs the parameter's meaning, not its spelling — and that is
+the identity-stub plane's adjudication, done by hand, where it already lives.
+
+So the limitation is NAMED here rather than papered over with a noisy detector, and the
+measurement is recorded so the next reader does not repeat the experiment.
+
 THE RATCHET is the set of (package, function) hits. A NEW one fails: it must be argued into
 a class. One that DISAPPEARS is reported so its entry goes with it. There is no debt
 counter and no ceiling, because a DISAGREES entry is not a debt to be capped — it is a
