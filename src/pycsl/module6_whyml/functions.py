@@ -1005,6 +1005,52 @@ class FunctionEmissionMixin:
                                   or (_is_method161 and (_tail161 in _tails161
                                                          or _tail161 in _R161_METHODS))
                                   or (not _is_method161 and _r65_f in _R161_FUNCS))
+                        # (#49) ROUTE #207 — "A FUNCTION OF THE VERIFIED PROGRAM" IS NOT
+                        # ENOUGH WHEN THE FUNCTION HAS NO BODY. Route #161's rule lets a
+                        # program callee through because "its own contract speaks for it".
+                        # A `\trusted` / `\abstract` callee has NO body lowered and no
+                        # declared `raises`, so what speaks for it is an ASSUMPTION of
+                        # no-raise — and the METHOD arm above admits it on the strength of
+                        # its name alone. MEASURED, and the tool disagreed with itself
+                        # about the same program:
+                        #     class Box:
+                        #         #@ ensures \result >= 0
+                        #         #@ \trusted
+                        #         def boom(self, n: int) -> int:
+                        #             raise ValueError("always")
+                        #         #@ no_exception \all
+                        #         #@ ensures \result >= 0
+                        #         def safe(self, n: int) -> int:
+                        #             return self.boom(n)
+                        # PROVED `no_exception \all` (witness 1713) while CPython raises
+                        # ValueError — and the MODULE-LEVEL twin of exactly that shape was
+                        # already REFUSED, as was the same class with an UNtrusted raising
+                        # `boom` (its body's raise propagates). So the hole was the trusted
+                        # METHOD only, admitted by `_tail161 in _tails161`.
+                        if _ok161 and _is_method161:
+                            _bodyless207 = set()
+                            for _f207 in (self.ir.get("functions", []) or []):
+                                if not (_f207.get("trusted") or _f207.get("abstract")):
+                                    continue
+                                _n207 = str(_f207.get("name", ""))
+                                _bodyless207.add(_n207)
+                                _bodyless207.add(_n207.rsplit("__", 1)[-1])
+                                _bodyless207.add(_n207.rsplit(".", 1)[-1])
+                            if (_tail161 in _bodyless207
+                                    and _tail161 not in _R161_METHODS):
+                                raise PyCSLIRError(
+                                    "`" + _r65_f + "(...)` resolves to a `#@ \\trusted` or "
+                                    "`#@ \\abstract` method of this program, and this "
+                                    "function claims `#@ no_exception`. A bodyless `val` "
+                                    "carries no `raises`, so the claim would be proved by "
+                                    "ASSUMPTION — the same defect route #161 closed for "
+                                    "library calls, reached through a method name (route "
+                                    "#207; measured: a `\\trusted` method whose body is "
+                                    "`raise ValueError` proved `no_exception \\all` for its "
+                                    "caller while CPython raises, and the module-level twin "
+                                    "was already refused). Give the method a `#@ raises` "
+                                    "clause, verify its body, or drop the exception from "
+                                    "the context.")
                         if not _ok161:
                             raise PyCSLIRError(
                                 "`" + _r65_f + "(...)` is not a function of the verified "
