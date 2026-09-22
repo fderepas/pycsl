@@ -4658,3 +4658,32 @@ Only the two already found were telling the reader to TYPE the thing.
 
 >>> A CENSUS THAT COMES BACK MOSTLY INNOCENT IS WORTH THE SAME AS ONE THAT DOES NOT, and
 >>> writing the result down is what stops the next reader re-running it.
+
+--------------------------------------------------------------------------------
+ADVICE AUDIT AT THE HALFWAY MARK: 49 OF 94, FORTY-FOUR WORK
+--------------------------------------------------------------------------------
+Every one of the 49 was audited the same way: WRITE THE PROGRAM THE MESSAGE TELLS YOU TO
+WRITE, RUN IT, RECORD WHAT HAPPENED. Forty-four produce a file that VERIFIES.
+
+THE FIVE THAT DO NOT, and each was repaired the same day:
+  UNSPELLABLE  `#@ shared` and `#@ touches_field` are syntax errors as written.
+  UNTRIED      "Call `__enter__` explicitly" (a dunder call loses its contract) and
+               "Use a `None` sentinel" (`Optional[List[T]]` emits unbound `array`).
+  AMBIGUOUS    "Verify it by contract" needs a LOCAL instance and does not say so.
+
+>>> A FAILURE RATE OF ONE IN TEN ON A SURFACE THAT HAD NEVER BEEN SAMPLED — and two of the
+>>> five were the compiler telling a user to write a program it cannot compile.
+
+FOUR TIMES MY OWN TEST WAS THE THING THAT WAS WRONG, not the advice: a missing loop
+invariant twice, a missing class invariant once, a caller that did not declare the callee's
+exception once. Each is recorded in its baseline entry rather than quietly re-run, because
+"the advice failed" and "I wrote the file badly" are the same observation from the outside
+and only one of them is a finding. (Lesson (i3), earning its place four more times.)
+
+THE THIRD BARE-DIRECTIVE CASE turned up in that fourth mistake: `#@ raises ValueError`
+alone is a syntax error, the form is `#@ raises E when <cond>`. It sits in the DESCRIPTIVE
+fourteen of the bare-directive census, so no message changed — but three times in one
+evening a `#@` directive could not be typed from the backticks around it.
+
+WHAT IS LEFT: 45 unaudited, mostly `happy`-policy and module6 emission messages. The plane
+ratchets the audited count, so the next generation continues rather than repeats.
