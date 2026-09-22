@@ -25,8 +25,8 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 24 AUDITED** —
-20 FOLLOWABLE, 1 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 20 of 24 pieces of advice work,
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 26 AUDITED** —
+22 FOLLOWABLE, 1 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 22 of 26 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
 below records what was written and what happened.
@@ -213,6 +213,12 @@ AUDITED = {
     ("src/pycsl/frontend/Module3_Weaver.py",
      'PyCSLSemanticError(f"`happy {hp_name}`: aliasing the protected base \'{vpath}\' into a local in non-exempt \'{cur_func or \'<module>\'}\' is forbi'): (FOLLOWABLE,
         "'Write through the canonical protected path, or add the method to the `except` set' - a `happy ... protects` policy whose only writer is the excepted owner, writing through the canonical path, VERIFIES."),
+    ("src/pycsl/module6_whyml/expressions.py",
+     'PyCSLSemanticError(f"the truthiness of `{ir_expr.get(\'name\')}` is not modelled: it is bound to {_kindname}, which this lowering emits as a v'): (FOLLOWABLE,
+        "'Test something the model carries instead - len(...) > 0, a membership k in ..., or an element' - the membership form VERIFIES."),
+    ("src/pycsl/module6_whyml/expressions.py",
+     'PyCSLSemanticError(f"call to \'{func_name}\' passes {len(expr.get(\'args\', []))} positional argument(s) but parameter \'{nm}\' has no default (ar'): (FOLLOWABLE,
+        'The repair is to pass every parameter that has no default; the complete call VERIFIES.'),
 }
 
 
@@ -317,7 +323,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 24
+MIN_AUDITED = 26
 
 if __name__ == "__main__":
     sys.exit(main())
