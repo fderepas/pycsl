@@ -2942,3 +2942,40 @@ SUITE LEG launching now in `pycsl-w52` at HEAD. PREDICTION, written before it ru
   3817 + 3 newly-PASSING witnesses (1694, 1696, 1698) = 3820 of 3841
   (3835 + 6 new files, of which 1693/1695/1697 are expected FAIL),
   the same 18 CONFIRMED FAIL, and ZERO XPASS.
+
+## THE SWALLOWED-EXCEPTIONS RATCHET, 4 -> 0 — a named item that was half-done
+`bin/check-swallowed-exceptions.py`'s header said the four recognizers spelling
+their `_PVWBail` decline as `except Exception:` were "left for the next window as
+a named item". READ AS A CLAIM AND RE-MEASURED: the four it NAMES were tightened
+at #44 (the `(#49) TIGHTENED from except Exception:` comments are in the tree),
+and the live baseline had moved to a DIFFERENT four — `recognize_csl_str_cata`,
+`recognize_term_flatten_arrow`, `recognize_term_isinstance_transform`,
+`recognize_term_list_build`. The prose had not moved with it.
+
+Those four already caught `_PVWBail` NARROWLY one line above the broad arm, so the
+broad arm was pure REDUNDANCY: it could only ever swallow a GENUINE bug — a
+TypeError/AttributeError/KeyError from inside the recognizer — and silently
+downgrade the emission to the generic lowering, which routes #22/#24 showed can be
+an ERASING one. DELETED rather than narrowed. `generic_fold.py` is NOT mirrored, so
+there is no mirror-sync or re-proof cost.
+
+Gate re-run: `134 broad swallowing handler(s) exist; 0 fire`. The four baseline
+entries now report "no longer fires" and the baseline is being re-cut to EMPTY —
+a HARD ZERO. This is a ratchet moving DOWN after the cause was fixed, which is what
+ratchets are for; rule (k) forbids the opposite, re-baselining to make a red gate
+green, and that is not what this is.
+One docstring said "Never raises", which was a claim about the deleted arm.
+Corrected in place rather than left to mislead the next reader.
+
+## THREE NEW VALUE-DIFFERENTIAL DRIVERS — the CPython-measured plane now covers #198/#199
+`bin/check-value-differential.py` runs each driver under CPython on every run, so
+its expected values are MEASURED rather than curated. Added:
+  v73 DISAGREE  a bare `return` is `None`, not 0 (#198). CPython 7, claim 0, PyCSL refuses.
+  v74 DISAGREE  the empty f-string is `""`, not 0 (#199). CPython 1, claim 2, PyCSL refuses.
+  v75 AGREE     `f"" == ""` is True and the model PROVES it (#199's faithful repair).
+v75 is the one that earns its place twice over: a later "simplification" of #199 to
+an opaque would keep v74 green and turn v75 RED. The AGREE direction is what stops
+this plane being satisfiable by refusing everything, and it is what tells a faithful
+repair from an opaque one.
+(#200 gets no driver here: it is refused by the PIPELINE, so it has no value to
+measure. Witnesses 1697/1698 carry it.)

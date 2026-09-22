@@ -34,14 +34,27 @@ The gate is their INTERSECTION, pinned at ZERO: no broad swallowing handler may 
 fire. That keeps it sharp and quiet — a new recognizer with its own bail exception moves
 the dynamic set and not the verdict.
 
-THE BASELINE IS NOT ZERO, AND THAT IS THE FINDING. Eight recognizers in
+THE BASELINE WAS NOT ZERO, AND THAT WAS THE FINDING. IT IS ZERO NOW. Eight recognizers in
 `module6_whyml/generic_fold.py` catch their own `_PVWBail` decline signal, and FOUR of them
-spell it `except Exception:` — `recognize_pyval_flatten`, `recognize_pyval_list_search`,
-`recognize_pyval_list_walker`, `recognize_pyval_string_walker`. Those four therefore
-swallow a `TypeError`, an `AttributeError` or a `KeyError` from a genuine bug in exactly
-the same way they swallow their own bail, and the emission falls through to the generic
-lowering with nothing to show for it. Tightening them to `except _PVWBail:` is a
-four-line, byte-inert change and is left for the next window as a named item.
+spelled it `except Exception:`, so they swallowed a `TypeError`, an `AttributeError` or a
+`KeyError` from a genuine bug in exactly the same way they swallowed their own bail, and
+the emission fell through to the generic lowering with nothing to show for it.
+
+  * #44 tightened the first four (`recognize_pyval_flatten`, `recognize_pyval_list_search`,
+    `recognize_pyval_list_walker`, `recognize_pyval_string_walker`).
+  * gen #30 tightened the remaining four (`recognize_csl_str_cata`,
+    `recognize_term_flatten_arrow`, `recognize_term_isinstance_transform`,
+    `recognize_term_list_build`). Those four already caught `_PVWBail` NARROWLY one line
+    above, so the broad arm was pure REDUNDANCY and could only ever swallow a genuine bug;
+    it was DELETED rather than narrowed. Each one's docstring said "Never raises", which
+    was a claim about the broad arm and is now corrected in place.
+
+THIS HEADER ITSELF WAS THE FINDING THAT LED TO THE SECOND HALF. It went on saying
+"Tightening them to `except _PVWBail:` is a four-line, byte-inert change and is left for the
+next window as a named item" LONG AFTER #44 did exactly that to four of them — and it named
+the wrong four, because the live baseline had moved to the other four while the prose had
+not. A gate's prose is a claim about the tree like any other, and this one was read as a
+work item, re-measured, and found half-done.
 
 So the gate is a RATCHET on the SET of broad firings rather than a hard zero: the current
 eight are baselined, and any NEW broad firing — a type the recognizers were never meant to
