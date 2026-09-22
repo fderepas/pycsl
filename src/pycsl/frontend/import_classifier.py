@@ -4,9 +4,20 @@ boundary detection) from the NoException_and_UBDetection workplan.
 Walks a Python AST for `Import` / `ImportFrom` statements and classifies
 each imported module against:
 
-  1. The library-stub set under ``src/pycsl_lib/`` (the trusted-stub
-     mechanism PyCSL already uses for stdlib coverage; renamed from
-     ``data/lib_stubs/`` per StdlibCoverage workplan PR 3).
+  1. The library-stub set under ``src/pycsl_lib/`` — WHICH IS EMPTY IN
+     PRACTICE, and deliberately left that way (#49, gen #30). The lookup
+     globs top-level ``*.py`` files, a shape that fitted the flat
+     ``data/lib_stubs/`` this was renamed from (StdlibCoverage workplan
+     PR 3); the layer now ships 93 PACKAGES and one top-level
+     ``__init__.py``, so ``_stub_set`` returns ``{"__init__"}`` and
+     TRUSTED_STUB resolves NOTHING. That is currently the SAFE state,
+     not merely the broken one: nine of those packages (``os``,
+     ``json``, ``re``, ``stat``, ``errno``, ``http``, ``copyreg``,
+     ``reprlib``, ``token``) carry the real stdlib module's NAME over an
+     integer model whose contracts pin constants — ``os.islink(p) == 0``
+     among them. Repairing the glob without renaming those nine first
+     would point user imports at those contracts. See
+     ``bin/check-stub-import-resolution.py``, which holds both facts.
   2. The configurable deny-list (``ctypes``, ``cffi``,
      ``numpy.ctypeslib``, ``cython``, ``ctypes.util``). Any import
      whose top-level module name matches a deny-list entry is
