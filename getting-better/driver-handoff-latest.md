@@ -3,7 +3,24 @@
 # ## HOW TO RUN ANYTHING: `. scratchpad/g29/env.sh` first (why3 is NOT on the default PATH; it also sets
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #
-# ## IN FLIGHT RIGHT NOW (2026-09-22T04:20Z)
+# ## IN FLIGHT RIGHT NOW (2026-09-22T04:37Z)
+#    - THIRTEEN routes (#191-#203) and FIVE planes this generation. Battery **23 fast /
+#      44 with --slow**, all 23 fast green at HEAD. MIN_PLANES tightened to the exact
+#      fast count (it had carried slack).
+#    - SUITE LEG GREEN at bc0561ec: 3823/3841, 746 XFAIL, 0 XPASS, the same 18.
+#    - ALL BYTE-DIFFS IN for #198-#203 (see driver-progress.log, read line by line).
+#    - RUNNING, do NOT relaunch:
+#        $SCRATCH/prove198.log  RESTARTED 04:36Z with `timeout 43200`. The first attempt
+#                               died at 2h50m because I killed its `timeout` wrapper
+#                               trying to extend the deadline — `timeout` forwards signals
+#                               to its child. `$SCRATCH/prove198-killed.log` is the corpse.
+#        $SCRATCH/prove201.log  #201 mirror re-proof (expressions, the giant, 12h timeout)
+#        $SCRATCH/fuzz11.log    gen11, seed 11 of 60, 0 false proofs
+#    - #203 owes NO re-proof (its edit did not move the mirror); #198 and #201 do.
+#    - FINAL CONTROL BATTERY still held: `$SCRATCH/final_battery.sh <worktree> <commit>`.
+#    - Do NOT push.
+#
+# ## EARLIER (2026-09-22T04:20Z)
 #    - SUITE LEG IS GREEN: 3823/3841, 746 XFAIL, **0 XPASS**, the same 18 CONFIRMED FAIL
 #      (pycsl-reference 0211-0220 + 0701, python-reference 0043/0048/0079/0080/0082/
 #      0095/0110). Run at bc0561ec in pycsl-w52.
