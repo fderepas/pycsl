@@ -14,12 +14,16 @@
 #      record `getting-better/open-routes/route215-generic-function-subscript.md`.
 #      GENERATION TOTAL: 26 demonstrated, 23 closed, 3 open (#212/#213/#214).
 #    - **NEW PLANE `bin/check-refusal-advice-audited.py`** — 94 advice-bearing refusals,
-#      **67 audited** by writing the program each message tells you to write. SIX were
+#      **ALL 108 AUDITED** by writing the program each message tells you to write (the
+#      population went 94 -> 108 when the plane's own alias blind spot was fixed — it had
+#      inherited `sites()` from the coverage plane). **102 WORK.** SIX were
 #      broken and ALL SIX were repaired: 2 UNSPELLABLE (`#@ shared`, `#@ touches_field`
 #      are syntax errors as written), 2 UNTRIED (an explicitly-called DUNDER loses its
 #      contract; `Optional[List[T]]` emits unbound `array`), 2 AMBIGUOUS (one needs a
 #      LOCAL instance and does not say so; one is an OR-list whose first disjunct is
-#      really a conjunction). THE REMAINING 27 ARE THE WORK ITEM and each costs minutes.
+#      really a conjunction). NOTHING IS LEFT UNAUDITED — the plane ratchets at 108, so
+#      the next generation continues from there and a NEW advice-bearing refusal lands
+#      unaudited and visibly lowers the fraction.
 #    - **THE COVERAGE GATE'S SIXTH ARTIFACT, and the worst:** `sites()` required the raised
 #      NAME to start with `PyCSL`, and 21 raises use a local alias (`as _PyCSLSemErr204`) —
 #      every route refusal landed in `pycsl.py` since route #29. They were not
