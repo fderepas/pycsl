@@ -334,6 +334,32 @@ class PyCSLWeaver(ast.NodeVisitor):
     def _validate_function_contracts(node: ast.FunctionDef) -> None:
         """Post-attachment sanity checks: vacuous \\trusted ensures clauses
         get a warning; \\variant+\\diverges combination is a hard error."""
+        # (#49) gen #30 — `#@ complete` / `#@ disjoint` ON A BODYLESS FUNCTION ARE
+        # UNCHECKED CLAIMS. `_desugar_acts` turns them into function-ENTRY `#@ assert`
+        # checkpoints stamped on the first body statement, and a `\trusted` / `\abstract`
+        # body is never lowered, so the stamp evaporates — the same shape as routes
+        # #210/#211 in the `happy` forms. MEASURED: guards `x < 0` and `x > 100` under
+        # `#@ complete small, big` (which leaves 0..100 covered by neither) FAIL for an
+        # ordinary function and PROVE the moment `#@ \trusted` is added.
+        # NOT PROMOTED TO A ROUTE, because the caller exploit was built and REFUSED: a
+        # caller of that function could NOT prove `\result == 1 or \result == 2` (CPython
+        # answers 7), so today nothing downstream consumes the false completeness. This is
+        # sound-by-rejection ahead of the day something does, and it costs nothing: no
+        # corpus file, mirror file or stdlib stub carries `complete`/`disjoint` on a
+        # trusted function (measured: 0 of the 4 files that use them).
+        if (getattr(node, "csl_trusted", False)
+                or getattr(node, "csl_abstract", False)):
+            for _cm in getattr(node, "csl_acts", []) or []:
+                _kind = type(_cm).__name__
+                if _kind in ("Complete", "Disjoint"):
+                    raise PyCSLSemanticError(
+                        f"Function '{node.name}' (line {node.lineno}): "
+                        f"`#@ {_kind.lower()}` is discharged as a function-ENTRY assert "
+                        f"over the act guards, and this function is `#@ \\trusted` / "
+                        f"`#@ \\abstract`, so its body is never lowered and that assert "
+                        f"is never proved. The claim would hold by nothing at all. Drop "
+                        f"the `{_kind.lower()}` line, or give the function a verified "
+                        f"body.")
         if node.csl_trusted:
             for ens in node.csl_ensures:
                 if (isinstance(ens.expr, BinOp) and ens.expr.op == '=='
