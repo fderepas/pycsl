@@ -25,8 +25,8 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 19 AUDITED** —
-15 FOLLOWABLE, 1 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. Fifteen of nineteen pieces of advice work,
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 21 AUDITED** —
+17 FOLLOWABLE, 1 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. Seventeen of twenty-one pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
 below records what was written and what happened.
@@ -198,6 +198,12 @@ AUDITED = {
     ("src/pycsl/module6_whyml/statements.py",
      "PyCSLIRError('`' + func + '(...)` appends to the collection in the field `' + func.split('.')[1] + '`, and no certified lowering models it: "): (FOLLOWABLE,
         "'Rewrite it as an indexed store' — a `self.buf[i] = v` under a `\\length` class invariant and `requires 0 <= i and i < 8` VERIFIES. NOTE the standing counter-case recorded in `bin/check-stdlib-trusted-markers.py`: for `hlib.Sha256.update` the same rewrite FAILS, because that class's `__init__` can leave the field EMPTY so the `index in array bounds` sub-goal is un-dischargeable. The advice is followable when the length is pinned and not otherwise — which the message does not say."),
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('`ord(...)` over a NON-ASCII string is out of scope: PyCSL emits a string literal as its UTF-8 BYTES and models characters with"): (FOLLOWABLE,
+        "'Use an ASCII literal' - ord of an ASCII string literal's first character VERIFIES."),
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('`' + _r65_f + '(<str>)` raises `ValueError` in Python on a non-numeric string, and this function claims `#@ no_exception` over"): (FOLLOWABLE,
+        "'Drop `ValueError` from the context, or validate the string yourself' - an int() over a numeric literal with NO `#@ no_exception ValueError` VERIFIES."),
 }
 
 
@@ -302,7 +308,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 19
+MIN_AUDITED = 21
 
 if __name__ == "__main__":
     sys.exit(main())
