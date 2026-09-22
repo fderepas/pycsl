@@ -6,11 +6,25 @@
 
 ## §A.3 SUMMARY — the four things the skill asks for
 
-**ROUTES RESOLVED.** Twenty-five SEV-1 routes demonstrated (#191–#214): **twenty-two
+**ROUTES RESOLVED.** Twenty-six SEV-1 routes demonstrated (#191–#215): **twenty-three
 CLOSED** with a refusal or a faithful lowering, each carrying an expected-FAIL witness and
 a PASS control, and **three OPEN** (#212, #213, #214) — demonstrated, priced, and left
 open deliberately because every candidate repair was measured and found worse than the
 defect. The open ones have carriers outside the corpus and a plane that runs them.
+
+**ROUTE #215 CAME OUT OF THE ADVICE AUDIT, WHICH IS THE POINT OF THE AUDIT.** Following
+monomorphize's GT4 advice ("the recursive call must use a concrete type") produced a file
+that would not verify; isolating with controls — a generic CLASS verifies, a NON-generic
+function verifies, a generic FUNCTION does not — showed the call lowering to `(any int)`.
+Probing that erasure gave a false contract PROVING: `a = ident[int](1); x = a;
+a = ident[int](2); return x - a` proved `\result == 0`, because the per-NAME erased
+constant is not refreshed on REBINDING. And the ground truth is sharper than the first
+draft of this sentence: `ident[int](1)` is NOT VALID PYTHON — PEP 695 makes a generic CLASS
+subscriptable but a generic FUNCTION is not, and CPython 3.14 raises `TypeError`. The model
+was proving a postcondition about a program that cannot run. REFUSED at `_run_pipeline` (a
+`\trusted` twin, so no marker and no re-proof), blast radius measured first at 2 corpus
+occurrences and ZERO in the mirror, the live tree and `pycsl_lib`; witness 1796, control
+1797.
 
 **CONVERSIONS AND THE COUNT DELTA.** `\trusted` markers: **459 → 459. ZERO conversions.**
 That is the honest headline, and the generation's answer to it is not an excuse but three
