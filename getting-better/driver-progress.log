@@ -3083,3 +3083,29 @@ So every SUBSTITUTING arm of this function now either answers a faithful value, 
 opaque that decides nothing, or is refused before emission. That is a statement about the
 whole function, not about the shapes I happened to try — which is the difference between
 "I probed it" and "it is closed".
+
+## ROUTE #202 CONFIRMED — the residue route #200 left, and it is user-reachable
+#200's repair keys on the DECLARED annotation, because the 46 sites where a string
+literal reaches an `int` param across the mirror are `int` BY ERASURE. I wrote that
+down as the reason the refusal is free. It is also the hole:
+
+    #@ ensures p == 747471683 ==> \result == 1
+    #@ ensures p != 747471683 ==> \result == 2
+    def callee(p) -> int:          # NO annotation — erased to `int`
+        if p == 747471683:
+            return 1
+        return 2
+
+    #@ ensures \result == 1
+    def probe() -> int:
+        return callee("a")
+
+emits `(callee 747471683)` and PROVES. CPython answers 2. TRUE twin REFUSED. SEV-1.
+
+THE REFINEMENT THE MEASUREMENT DICTATES. Keying on the annotation is the wrong axis;
+the hash is only dangerous when a CONTRACT CAN READ THE PARAMETER. So the refusal
+should fire when a string literal actual reaches a parameter — declared scalar OR
+un-annotated — AND the callee's own `requires`/`ensures` MENTIONS that parameter.
+That is the exact soundness condition, and it should leave the 46 mirror sites alone,
+because their callees are `\trusted` stubs with `ensures True`. MEASURED BEFORE BUILT,
+not after.
