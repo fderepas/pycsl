@@ -361,9 +361,22 @@ cannot say "nearly done", and the campaign has been steering by one for six gene
 * **Nothing here measures whether a verified body's contract is meaningful.** A def can be
   proved against a vacuous `ensures`. The vacuity planes cover part of this; the verified
   fraction does not, and should never be quoted as if it did.
-* **The refusal-text surface stays unmeasured.** 62 advice-bearing messages, and #90 came from
-  one. No metric in the report or this plan samples English prose for exploitability; the
-  advice-audit generator remains manual.
+* ~~**The refusal-text surface stays unmeasured.**~~ **MEASURED IN FULL (#49, gen #30.)**
+  The census is 108 advice-bearing messages, not 62 — the earlier count missed every raise
+  whose exception class is imported under a LOCAL ALIAS, which is every route refusal this
+  campaign has landed in `pycsl.py` since route #29. **All 108 have now had their advice
+  FOLLOWED AND RUN**: a file written the way each message says, compiled, verdict recorded,
+  in `bin/check-refusal-advice-audited.py`. **102 work.** The six that did not were all
+  repaired the same evening and fail in four distinct ways — UNSPELLABLE (a `#@` directive
+  named without its argument: `#@ shared`, `#@ touches_field`), UNTRIED (an explicitly-called
+  DUNDER does not carry its contract; `Optional[List[T]]` did not compile — **twice the
+  compiler told a user to write a program it cannot compile**), and AMBIGUOUS (one repair
+  needing an unstated LOCAL instance; one OR-list whose first disjunct is really a
+  conjunction). **Route #215 came out of auditing one of them.** The audit is still MANUAL
+  — the plane cannot check prose — but it is now DONE, RECORDED and RATCHETED, keyed on a
+  message signature plus a whole-message HASH so an edited message re-opens its verdict.
+  The remaining prose risk is the one this method cannot reach: a message that is
+  followable AND misleading.
 * **The second-order rate may be structurally irreducible.** 6 of the last 22 routes were
   repairs-of-repairs. Driving that to zero assumes repairs can be written that never introduce
   a narrower version of the bug they fix — which the record does not yet support. Track it;
