@@ -123,6 +123,14 @@ PLANES=(
     # contracts hold; and a `\trusted` callee makes its CALLERS prove false things too
     # (14 inherited disagreements, ceiling held).
     check-corpus-contract-truth-args.py
+    # (#49) gen #30: the campaign's headline metric is a MARKER COUNT (459). This measures
+    # what those markers CARRY. 1373 mirror function definitions, 433 trusted, and between
+    # 335 and 400 untrusted functions that transitively depend on one — so 56%-61% of the
+    # mirror is trusted-or-trust-dependent and only 39%-44% rests on no marker at all. The
+    # bracket is honest about Python call resolution: LOWER resolves calls only inside one
+    # file, UPPER to every same-named definition. Both ends ratchet, so a marker added in
+    # a hot call path fails this gate even when the marker COUNT is flat.
+    check-trust-blast-radius.py
     # (#49) gen #30: the STDLIB-CONTRACT-FIDELITY ratchet. `src/pycsl_lib/` holds 93
     # body-verified stub packages, each CITING the CPython library reference in its
     # docstring, and nothing compared a stub's contract against the function it cites. A
@@ -187,7 +195,7 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=33
+MIN_PLANES=34
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
