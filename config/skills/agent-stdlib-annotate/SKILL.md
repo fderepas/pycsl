@@ -69,6 +69,36 @@ That is the whole point: replace blanket trust with a citation a reviewer can ch
   generated stubs are body-verified (or carry a `# TODO: body-verify or cite axiom`
   marker, never silent trust).
 
+### TWO GATES ADDED IN gen #30 — this layer had a skill and no plane until then
+
+Both are in the FAST soundness battery (`bin/run-soundness-planes.sh`), so they run on
+every pass. They answer the question body-verification CANNOT answer: **a contract here is
+proven of its own body, so it can be perfectly proven and still be false of the function
+its own docstring cites.**
+
+- `bin/check-stdlib-contract-fidelity.py` — generates inputs satisfying a stub's
+  `#@ requires`, runs the **real** stdlib function, and evaluates the `#@ ensures` against
+  CPython's answer. 5202 evaluations over 24 modules. **It CALLS real code**, so its module
+  map is a SAFETY-restricted subset (no `shutil`/`subprocess`/`tempfile`/`os`/`io`/
+  `signal`/`pathlib`, no `random`/`time`, no `argparse`/`getopt`) — widening it means
+  arguing a module into the pure set, never just adding a name. Ratchet = the set of
+  diverging (package, function) pairs. Self-test: `--selftest-empty-baseline` must exit 1.
+- `bin/check-stdlib-pinned-facades.py` — pure AST, no execution, so it reaches the set the
+  gate above cannot. Flags a function whose body is a single `return <literal>` AND whose
+  contract PINS that literal: verified, computing nothing, claiming exactly that. Twelve
+  today, ten of them in `os`; `islink -> 0` is a proof that nothing is ever a symlink.
+
+**Neither is a proof-soundness gate today**, and the headers say so: `import_classifier`
+resolves stub names by `.py` stem under `src/pycsl_lib/` and no name map takes `math` to
+`mth`, so a user's `import math` never picks up these contracts. They stop the layer
+drifting further from the stdlib it documents — and they are the instruments that would
+catch the drift on the day something does substitute it.
+
+**WHEN YOU WRITE A STUB**: the RST citation in the docstring is a CLAIM about a real
+function. If the body models something else (an int domain, a scaled domain, `%` rather
+than IEEE remainder), say so in the docstring and expect the fidelity gate to carry the
+divergence in its baseline with your reason attached.
+
 ## When you hit a wall
 
 If a stub body won't prove: **do not** add `\trusted`. In order of preference:
