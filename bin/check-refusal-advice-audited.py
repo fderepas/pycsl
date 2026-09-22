@@ -467,6 +467,24 @@ AUDITED = {
     ("src/pycsl/pycsl.py",
      '_PyCSLSemErr43("a COMPLEX literal (%r) has no model (ROUTE #43): `_py_expr_constant` lowers it to `int(value.real)`, so the imaginary part i'): (FOLLOWABLE,
         'Route #43. The repair is a literal the model carries; an int VERIFIES.'),
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr200(f"in \'{_r200_caller}\': the call to \'{_r200_fn}\' passes a string literal to parameter \'{_r200_pname}\', which \'{_r200_fn}\' dec'): (FOLLOWABLE,
+        'Route #200. The repair is a consistent parameter type at the call site; an int passed to an int parameter VERIFIES.'),
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr179(f"{_d179.name!r} constructs an object whose `__init__` / `__post_init__` can raise `{_e179}` (ROUTE #179), directly or throu'): (FOLLOWABLE,
+        'Route #179. The repair is a constructor that cannot raise; a plain `__init__` VERIFIES.'),
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr189(f"{_fd189.name!r} binds {_nm189!r} to more than one class ({\', \'.join(sorted(_bd189[_nm189]))}) and then calls `{_nm189}.{_c'): (FOLLOWABLE,
+        'Route #189. The repair is one name per class; two distinctly-named classes VERIFY.'),
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr187(f"this module declares `#@ fresh_globals`, which ASSUMES each module-global singleton\'s constructor post-state at the driver'): (FOLLOWABLE,
+        'Route #187. The repair is a constructor whose post-state is STATED (`#@ ensures self.n == 0`), which is what `#@ fresh_globals` re-establishes; VERIFIES.'),
+    ("src/pycsl/pycsl.py",
+     "_PyCSLSemErr29(f'the array spec atom `{_r29_names[_r29_hit]}` is not interpreted under the {memory_model!r} memory model (ROUTE #29): its Mo"): (FOLLOWABLE,
+        'Route #29. The repair is a spec the chosen memory model interprets; an ordinary integer contract under the default model VERIFIES.'),
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemanticError(f"{args.file} (function \'{_func.get(\'name\')}\', for-loop near line {v.get(\'loop_line\', \'?\')}): UB-7.1 — the loop body mut'): (FOLLOWABLE,
+        'The repair is a loop shape the model carries; an indexed `while` with an invariant and a variant VERIFIES.'),
 }
 
 
@@ -589,7 +607,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 100
+MIN_AUDITED = 106
 
 if __name__ == "__main__":
     sys.exit(main())
