@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 45 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 47 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -293,6 +293,12 @@ AUDITED = {
     ("src/pycsl/core_ir_semantic.py",
      'PyCSLSemanticError(f"\\\\length is not supported on the {typ}-typed \'{var}\' in {ctx}: dicts/sets are modelled as total maps (`map int (option '): (FOLLOWABLE,
         "The repair the message names ('dicts/sets are modelled as total maps ... use a membership') - a `1 in d` precondition VERIFIES."),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: trusted/abstract function \'{fn.name}\' is not exempt and has no checkable body, so it could write the'): (FOLLOWABLE,
+        'Both repairs work: adding the trusted writer to the `except` set VERIFIES, and so does giving it `#@ \\\\preserves`.'),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: trusted/abstract method \'{fn.name}\' is not exempt and its `assigns` writes a protected path ({\', \'.j'): (FOLLOWABLE,
+        'Same pair of repairs as the function-level sibling, measured the same way: `except` and `#@ \\\\preserves` both VERIFY.'),
 }
 
 
@@ -397,7 +403,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 45
+MIN_AUDITED = 47
 
 if __name__ == "__main__":
     sys.exit(main())
