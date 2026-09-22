@@ -71,6 +71,7 @@ import argparse
 import ast
 import glob
 import os
+import re
 import subprocess
 import sys
 import warnings
@@ -82,14 +83,14 @@ CENSUS_TRUNC = 4000       # the writer's message cap. See the TRUNCATION GUARD b
                           # stored message of EXACTLY this length was cut, and a cut
                           # message silently un-witnesses every site whose fragment falls
                           # past the cut.
-MIN_WITNESSED = 150       # 58 at the first joined measurement; 67 after TEN witnesses were
+MIN_WITNESSED = 154       # 58 at the first joined measurement; 67 after TEN witnesses were
                           # written the same day (Final F1/F2, three lemma arms, two
                           # assigns-region arms, `\length` on a dict, `\result` in a
                           # check, the happy `except` typo); 85 after 31 more; then 86
                           # with witness 1762 — and 131 once the CENSUS ITSELF was
                           # repaired. FORTY-FIVE of the "missing" witnesses had been in
                           # the corpus all along. May only grow.
-MAX_UNWITNESSED = 31      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
+MAX_UNWITNESSED = 27      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
                           # the instrument; 67 -> 59 by DEMONSTRATING the eight that no
                           # corpus witness can reach; 59 -> 50 once the nine this
                           # instrument CANNOT MATCH were counted separately (below).
@@ -184,7 +185,20 @@ def sites():
                 for kw in n.exc.keywords:
                     if kw.arg == "code" and isinstance(kw.value, ast.Constant):
                         code = kw.value.value
-                parts = [p.strip() for p in literal_parts(n.exc) if len(p.strip()) >= 25]
+                # (#49) A LITERAL CONTAINING A `%s` IS NOT A FRAGMENT. Several raises
+                # build their message with %-formatting, so the literal in the AST is
+                # e.g. "function '%s' binds %s with a `with ... as` clause, and no
+                # certified " — and the PLACEHOLDERS never appear in the output, so the
+                # whole literal can never be found in a censused message. Three real
+                # witnesses (1784/1785/1786) fired their refusals and moved the count by
+                # ZERO before this split went in. Same family as the empty-fragment class
+                # below: the matcher was looking for text the compiler never prints.
+                # So: split every literal on its placeholders and keep the longest
+                # PLACEHOLDER-FREE run.
+                runs = []
+                for p in literal_parts(n.exc):
+                    runs.extend(re.split(r"%[-#0-9.]*[sdrifxgeb]|\{[^{}]*\}", p))
+                parts = [r.strip() for r in runs if len(r.strip()) >= 25]
                 frag = max(parts, key=len)[:80] if parts else ""
                 out.append((os.path.relpath(f, ROOT), n.lineno, name, code, frag))
     return out
