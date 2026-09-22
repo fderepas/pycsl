@@ -175,7 +175,7 @@ class FunctionEmissionMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._needs_union_array_use
     def _emit_union_arm_vc(self, name: str, symbol_table: int) -> List[str]:
         return []
     #@ requires True
