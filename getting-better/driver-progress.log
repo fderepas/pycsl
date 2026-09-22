@@ -2905,3 +2905,24 @@ reaches an int-declared parameter as an INT (as it would if that local were int-
 modelled), the literal-only key has a hole and the refusal must grow the variable arm.
 (Source-comment edit HELD: the #200 corpus byte-diff's post sweep is running off this
 working tree right now.)
+
+### Route #200 — corpus byte-diff ZERO at the SETTLED HEAD (re-run, not reused)
+`0 MOVED, 0 GONE, 0 APPEARED, 1 new source file ignored` (1285 baseline / 1286
+candidate: witness 1698 emits, 1697 is refused so it emits nothing). The FIRST
+#200 byte-diff was discarded rather than quoted: its post sweep overlapped the
+window in which I was moving the refusal from `core_ir_semantic` to `pycsl.py`,
+and a sweep that ran over a half-moved edit measures neither tree. Re-run clean
+against `6f229682`. A measurement taken across an edit is not a measurement.
+
+### Re-ran the IR-FIELD MENTION CENSUS rather than inheriting it
+`bin/check-dropped-mutation.py`'s header records a Module-6 census: "only THREE
+[unmentioned fields], and after this window's `finalbody` and `orelse` fixes the
+semantic residue is ZERO — what is left is `ForStmt.line`, `ForStmt.lineno`,
+`ForStmt.allow_iteration_mutation` and `WhileStmt.line`, all metadata."
+RE-MEASURED at this HEAD over all 105 `ir_schema` dataclasses against every
+`module6_whyml` source: TWO classes have an unmentioned field, and both are
+`line` (`ForStmt`, `WhileStmt`). `ForStmt.lineno` and
+`ForStmt.allow_iteration_mutation` are now mentioned. So the recorded residue is
+if anything SMALLER than written, and still metadata-only. The campaign's rule
+cuts both ways: a re-measure that confirms a record is worth the five minutes,
+because the alternative is planning against a number nobody has checked since.
