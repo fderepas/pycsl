@@ -38,20 +38,36 @@ AGREES with the clause. A weakening word inside a quoted relation, a branch cond
 restatement of the guard is not a weakening OF THE CLAIM. Each of the four is baselined
 with which of those three it is, so a future hit has to be argued against them.
 
-TWO OF THE THREE WERE REPAIRED THE SAME HOUR (`csvmod.write_row`, `cvar.context_var_get`
-— see the GONE note in the baseline), so the standing population is 5: one DISAGREES and
-the four controls.
+BOTH OF THE DEFECTS IT WAS BUILT FROM WERE REPAIRED THE SAME HOUR (`csvmod.write_row`,
+`cvar.context_var_get` — see the GONE note in the baseline), so the standing population is
+5 hits and ZERO DISAGREES: the gate is at its floor, holding five innocent shapes against
+the day a sixth is not innocent.
 
-AND THE GATE FOUND A THIRD DEFECT THE HAND PASS MISSED. `que.Queue.qsize` pins
+AND THE GATE FOUND A THIRD HIT THE HAND PASS MISSED — WHICH ON INVESTIGATION IS INNOCENT,
+AND THAT IS WORTH MORE THAN A THIRD DEFECT WOULD HAVE BEEN. `que.Queue.qsize` pins
 `\result == self._size` under a docstring quoting "Return the APPROXIMATE size of the
-queue" — CPython's own word, and it is approximate because another thread may add or remove
-between the call and the answer. The model has no threads, so the exact claim is true OF
-THE MODEL; nothing in the file says the model has no threads. Same defect as `os.getenv`,
-whose empty-env justification lives in a comment: an UNDECLARED modelling assumption
-holding up an exact clause.
+queue". My first reading was that this is the `os.getenv` defect again: an exact clause
+resting on an undeclared modelling assumption ("the model has no threads"). Two things
+refuted it.
+
+First, PyCSL DOES model concurrency — `#@ shared` globals, `thread_entry` nodes and a
+concurrency checker all exist — so "the model has no threads" would have been a false
+premise, not merely an undeclared one. Second, and decisively, CPython's "approximate"
+QUALIFIES A DIFFERENT RELATION THAN THE CLAUSE PINS. `queue.Queue.qsize` is approximate as
+a statement about THE QUEUE'S CONTENTS versus the number returned, because another thread
+may add or remove in between. The clause says something narrower and exactly true: the
+RETURN equals THE FIELD, read at that moment. A weakener that qualifies a relation the
+clause never states is not a weakening of the clause.
+
+So the fourth innocent class, QUALIFIES-ANOTHER-RELATION, exists because this gate produced
+a hit I could not honestly put in any of the first three and could not honestly call a
+defect either. THE RESIDUAL IS RECORDED IN THE ENTRY rather than argued away: under PyCSL's
+own concurrency model `self._size` can be stale relative to another thread's view, and
+nothing about this stub would tell you so — the clause simply does not claim otherwise.
 
 CLASSES. `DISAGREES` — the prose is right and the clause over-claims. `QUOTED-RELATION` /
-`BRANCH-CONDITION` / `GUARD-RESTATED` — the three innocent shapes above.
+`BRANCH-CONDITION` / `GUARD-RESTATED` / `QUALIFIES-ANOTHER-RELATION` — the four innocent
+shapes above.
 
 THE RATCHET is the set of (package, function) hits. A NEW one fails: it must be argued into
 a class. One that DISAPPEARS is reported so its entry goes with it. There is no debt
@@ -94,6 +110,7 @@ WEAKENERS = [
 
 DISAGREES = "DISAGREES"
 QUOTED = "QUOTED-RELATION"
+QUALIFIES = "QUALIFIES-ANOTHER-RELATION"
 BRANCH = "BRANCH-CONDITION"
 GUARD = "GUARD-RESTATED"
 
@@ -109,15 +126,17 @@ BASELINE = {
     # Both of their downstream drivers in `src/pycsl_lib_test/` had been PROVING the false
     # claims and were weakened with them. Do not re-add these rows: a row here is a hit,
     # and there is no hit left to record.
-    ("que", "qsize"): (DISAGREES,
-        "Docstring quotes CPython's own word: 'Return the APPROXIMATE size of the queue.' "
-        "Clause: `ensures \\result == self._size`, exact. `queue.Queue.qsize` is "
-        "approximate because another thread may add or remove between the call and the "
-        "answer; this model has no threads, so the exact claim is true OF THE MODEL and "
-        "NOTHING IN THE FILE SAYS SO. The same undeclared-assumption shape as `os.getenv`, "
-        "whose empty-env justification lives in a comment. CLOSING IT = declare the "
-        "single-threaded model in the contract's own terms, or weaken the clause. FOUND BY "
-        "THIS GATE, not by the hand pass that preceded it."),
+    ("que", "qsize"): (QUALIFIES,
+        "FOUND BY THIS GATE, not by the hand pass before it, and FIRST MISCLASSIFIED HERE "
+        "as DISAGREES on the reasoning 'the model has no threads, so the exact claim is "
+        "true of the model and nothing says so'. That reasoning was wrong twice: PyCSL "
+        "DOES model concurrency (`#@ shared`, `thread_entry`, a concurrency checker), so "
+        "the premise was false; and CPython's 'approximate' qualifies THE QUEUE'S "
+        "CONTENTS versus the number returned, while the clause pins THE RETURN versus THE "
+        "FIELD, read at that moment. The clause is exactly true and says less than the "
+        "docstring's word qualifies. RESIDUAL, recorded rather than argued away: under "
+        "PyCSL's own concurrency model `self._size` can be stale relative to another "
+        "thread's view, and nothing about this stub would tell you so."),
     ("oper", "le"): (QUOTED,
         "Docstring is the RST line 'Return a <= b.' The `<=` IS THE MODELLED RELATION, and "
         "the contract is an exact guarded case split (`a <= b ==> \\result == 1`, "
@@ -225,8 +244,9 @@ def main():
               "`ensures \\result ==` pin carries a weakening word. Argue it into DISAGREES "
               "(the prose is right and the clause over-claims), QUOTED-RELATION (the word "
               "IS the modelled relation), BRANCH-CONDITION (it is the case split the "
-              "clauses discharge) or GUARD-RESTATED (it is the `requires` being "
-              "explained), and add it to the baseline." % k, file=sys.stderr)
+              "clauses discharge), GUARD-RESTATED (it is the `requires` being explained) "
+              "or QUALIFIES-ANOTHER-RELATION (it weakens a relation the clause never "
+              "states), and add it to the baseline." % k, file=sys.stderr)
         rc = 1
     if rc:
         print("[!] docstring-contract-disagreement: NOT OK — the free oracle fired on "
