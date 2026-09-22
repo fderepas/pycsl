@@ -3,28 +3,58 @@
 # ## HOW TO RUN ANYTHING: `. scratchpad/g29/env.sh` first (why3 is NOT on the default PATH; it also sets
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #
-# ## IN FLIGHT RIGHT NOW (2026-09-22T13:34Z)
-#    - THIRTEEN routes (#191-#203). **EIGHT planes added this generation**; battery
-#      **27 fast / 48 with --slow**, all 27 fast green at HEAD.
-#    - THE pycsl_lib STDLIB LAYER, opened and now GATED (it had a skill and no plane):
-#        bin/check-stdlib-contract-fidelity.py  5202 contract evaluations against the REAL
-#          stdlib over 24 PURE modules (map derived from the stubs' own headers; the other
-#          26 are excluded as a SAFETY property — the gate CALLS real code). 6 baselined
-#          divergences: 2 real defects + 4 `csys` DECLARED scalings.
-#          Self-test: `--selftest-empty-baseline` must exit 1.
-#        bin/check-stdlib-pinned-facades.py     pure AST, reaches what the above cannot
-#          (`os` is on its deny-list): 870 functions scanned, **12 with a constant body AND
-#          a contract pinning it**, baselined by name. `os.islink -> 0` is a proof that
-#          nothing is ever a symlink.
-#        Both recorded in config/skills/agent-stdlib-annotate/SKILL.md §Enforcement.
-#        Two docstring defects FIXED (mth.remainder's false "same as x % y";
-#        stat.filemode relabelled with the faithful fix PRICED). Both emission-byte-identical.
-#    - RUNNING, do NOT relaunch:
-#        $SCRATCH/final_battery.log  final control battery at febbb08a — suite is in its
-#          SERIAL RE-RUN of the 18 known failures, then the --slow planes (45 at that
-#          commit; the three later planes were run green at the true HEAD separately).
-#        $SCRATCH/fuzz12.log  gen12, seed 32 of 40, 0 false proofs
-#    - gen13 (the STORE-AND-READ-BACK boundary) smoke-testing; launch over seeds once green.
+# ## IN FLIGHT RIGHT NOW (2026-09-22T15:10Z)
+#    - **NINETEEN routes this generation (#191-#209)**. Six landed in the 14:30-15:05Z
+#      stretch: #204 (an `#@ interface assigns` NARROWER than the definition — the
+#      narrowing VC proves ensures and requires and emits NOTHING for assigns),
+#      #205 (an over-claiming `#@ interface` is refused AT HOME and believed by EVERY
+#      importer — the VC was emitted "only in the owning unit"), #206 + #208 (a
+#      `happy ... total` policy proved over a helper that never returns: `\trusted`
+#      first, then `\diverges` walking through my own repair twenty minutes later),
+#      #207 (`no_exception \all` proved through a `\trusted` METHOD that always raises;
+#      the module-level twin was ALREADY refused), #209 (the `protects` trust boundary
+#      asked a `pure_ast` matcher about a CSL node and had NEVER fired).
+#      Docs: getting-better/open-routes/route204…route209*.md. Witnesses 1707-1717.
+#    - **BATTERY 28 -> 37 fast planes**, all green at HEAD. New today:
+#        check-stdlib-identity-stubs.py      81 `return <param>` stubs pinned by their own
+#          contract; 23 of them are FALSE of the function their header cites.
+#        check-stub-import-resolution.py     TRUSTED_STUB resolves NOTHING (the glob sees
+#          files, the layer ships packages) and NINE package names (os, json, re, stat,
+#          errno, http, copyreg, reprlib, token) would shadow the real module the day the
+#          one-line "typo fix" lands.
+#        check-corpus-contract-truth-args.py 412 corpus functions, 4354 argument-level
+#          evaluations against CPython, 0 disagreements.
+#        check-trust-blast-radius.py         56%-61% of the mirror is trusted OR
+#          trust-dependent, against a marker count of 459.
+#        check-claim-vacuity.py              1791 of 3888 corpus files carry `ensures True`.
+#        check-mirror-claim-strength.py      15% of the UN-trusted mirror says anything
+#          about the VALUE it computes.
+#        check-trusted-termination-honesty.py  52 trusted bodies whose termination is
+#          assumed and unverified (the third honesty plane, after frame and raises).
+#        plus core-only / frontend-only conformance (also run by run-reference-tests.sh —
+#          see the correction in the probe ledger).
+#    - THREE PERCENTAGES worth carrying into any summary: 45% of corpus files run with
+#      `--no-proof` (38 of 40 sampled VERIFY under the prover); 46% carry a contract that
+#      says nothing, including ALL 840 `*_call_fails.py` AND ALL 840 `*_call_proves.py`
+#      (60 of 60 sampled `*_call_fails.py` VERIFY); 15% of the proved mirror makes a value
+#      claim. None is a soundness failure; all three are the gap between what the numbers
+#      say and what a reader hears.
+#    - THIRD L-PLANE for #204-#209: corpus byte-diff vs 41cb466c is **0 MOVED**, 1 GONE
+#      (1617, gen #29's route-#176 carrier, now refused instead of failing — expected FAIL
+#      both ways, still XFAIL). Mirror-sync green at 887 (every repair sits at a choke
+#      point whose mirror twin is `\trusted`, so NO mirror edit and NO re-proof was owed).
+#    - RUNNING, do NOT relaunch (poll the logs):
+#        $SCRATCH/fullsuite.log      full reference suite at HEAD, 3863 tests / 3 suites
+#        $SCRATCH/refusalcensus.log  all 759 expected-FAIL witnesses, classifying each as
+#          REFUSAL / VERIFY-FAIL / XPASS-ALERT — feeds a planned
+#          `check-refusal-witness-coverage` plane (195 raise sites, 47 codes, static side
+#          already extracted) answering route #209's question mechanically: WHICH REFUSALS
+#          HAVE A WITNESS PROVING THEY CAN FIRE?
+#        $SCRATCH/noexcreg.log       134 `no_exception` corpus files re-run after #207
+#    - LANDED EARLIER: the four gen-#30 legs (final battery 45 planes green, slow-planes 49
+#      green at HEAD, sampler 198 generated drivers 0 RED, the 44 real-contract
+#      `--no-proof` files: 17 prove / 25 fail).
+#
 #    - AT THE DEADLINE (2026-09-23T07:59Z) run §A.3: stop iterating, do NOT re-arm the
 #      heartbeat, `rm getting-better/.driver-deadline getting-better/.driver-started`,
 #      emit ONE summary (getting-better/gen30-summary-draft.md is the draft), do NOT push,
