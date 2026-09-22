@@ -3986,3 +3986,29 @@ to their pre-edit `.mlw` (the `stat` one compared against `git show HEAD~1:<file
 into a temp dir). A docstring is a string expression statement in Python, so a docstring
 edit to a body-verified stub COULD move its emission; here neither does, so neither module
 owes a re-proof.
+
+### THE FACADE SET, NAMED: twelve contract-pinned constant bodies
+The earlier census said 124 of 870 `pycsl_lib` functions (14.3%) have a single-constant
+body. That number is too blunt to act on — many are honest empty-defaults. Sharpened it to
+the shape that actually matters: a constant body **whose contract PINS that same constant**
+— verified, computing nothing, and claiming exactly the nothing it computes.
+
+**TWELVE, and here they are by name**, because a list is actionable where a percentage is
+not:
+
+    os/__init__.py    getcwd, get_exec_path, chflags, confstr, copy_file_range,
+                      getxattr, listxattr, _kill, islink, is_junction      (all `-> 0`)
+    stat/__init__.py  filemode  (`-> "----------"`, relabelled this session)
+    sysmod/__init__.py  one
+
+Sound today for the same reason as every other stub — the contract is true of the body and
+nothing substitutes it for the real module. And this is precisely the set that turns FALSE
+the day something does: **a proof that `islink(p) == 0` is a proof that nothing is ever a
+symlink.**
+
+AND IT IS OUTSIDE THE NEW GATE'S REACH, which is worth stating rather than leaving as a
+silent hole in the coverage: `os` is on `check-stdlib-contract-fidelity.py`'s SAFETY
+deny-list, because that gate CALLS the real function and `os.chflags` with a generated
+argument is not a test. So this set needs a STATIC gate (a constant body + a contract
+pinning it), not a differential one — a different instrument, named and not built, with
+the reason it cannot be the one I just built.
