@@ -273,7 +273,9 @@ PLANES=(
     # the only claim in the system with no gate behind it. This plane cannot check prose;
     # what it does is stop the manual work from evaporating — an audit in a commit message
     # is one nobody can build on, an audit in this baseline is one the next generation
-    # continues. 10 of 94 audited: 7 FOLLOWABLE, 1 UNSPELLABLE, 1 UNTRIED, 1 AMBIGUOUS.
+    # continues. ALL 108 AUDITED (the population went 94 -> 108 when the plane's own
+    # alias blind spot was fixed): 102 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED,
+    # 2 AMBIGUOUS, and all six broken messages REPAIRED. Route #215 came out of it.
     check-refusal-advice-audited.py
 )
 # (#49) gen #30: TIGHTENED to the EXACT fast-plane count. It had been carrying slack —
