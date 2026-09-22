@@ -3834,3 +3834,18 @@ shell's own command line and leaves an unpredictable set stopped.
   `kill -STOP 3808726 3878956 3878957`   (loop + worker + child)
   `kill -CONT <same>` to resume.
 Pausing rather than killing keeps the 16 finished seeds and the in-flight one.
+
+### CORRECTION, same hour: the "rate collapse" was a SAMPLING ARTIFACT
+I read the suite's rate as falling from ~45 tests/min to ~4/min and paused gen12 on that
+basis. The 4/min reading came from two polls two minutes apart while a batch of slow corpus
+files happened to be in flight. The honest figure over the whole run is
+**870 tests in 26 minutes = 33/min**, which projects to ~116 minutes total — in line with
+the earlier full-suite run (80 minutes on a MORE loaded box). Nothing had collapsed.
+
+The decision stands (the battery is the last required evidence and gen12 is discretionary),
+but it was taken for a wrong reason, and a decision justified by a number deserves the same
+scrutiny as any other recorded number.
+
+>>> A RATE MEASURED OVER TWO MINUTES IS NOT A RATE. This campaign's standing rule is that a
+>>> recorded price is a claim; the same applies to a price you compute yourself, thirty
+>>> seconds ago, from two samples.
