@@ -3033,3 +3033,20 @@ pycsl-reference files**. So on the corpus side the repair is byte-inert by
 measurement rather than by argument. Mirror half still running; the repair waits
 for it, because the mirror is where this coercion's real users live (`sorted_1`,
 `any_1`, `all_1`, `array_rev`, `array_to_seq`, the field-decode idiom).
+
+### Route #201 — the mirror half of the census: ZERO too
+`(Array.make 1 0)` fires **0 times across all 53 mirror emissions** and **0 times
+across all 1624 corpus files**. The tail is DEAD in both trees, so the repair is
+byte-inert by measurement rather than by argument — and that is worth stating
+plainly: the placeholder that PROVED a false contract about a user's program is
+not used by anything this repository verifies. It existed only to catch actuals
+the emitter could not recover, and its answer to those was a lie with a length.
+
+PREDICTION for the repair (written first):
+  S1 `callee("ab")` / `\result == 1` (false)  -> REFUSED (was PROVED).
+  S2 `\result == 2` (the TRUE twin)           -> still REFUSED. `(any (array int))`
+     stands for every array, so `len(p)` is undecidable and neither twin proves.
+     Sound-but-incomplete, the same stance as #193/#194/#195.
+  S3 `callee(1 + 1)`                          -> REFUSED.
+  S4 corpus byte-diff ZERO, mirror emission byte-diff ZERO — both censused at 0
+     firings, so anything else would mean the census was wrong.
