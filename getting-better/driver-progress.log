@@ -2926,3 +2926,19 @@ RE-MEASURED at this HEAD over all 105 `ir_schema` dataclasses against every
 if anything SMALLER than written, and still metadata-only. The campaign's rule
 cuts both ways: a re-measure that confirms a record is worth the five minutes,
 because the alternative is planning against a number nobody has checked since.
+
+### Route #200 — mirror emission byte-diff ZERO
+`53 baseline / 53 candidate, 0 MOVED, 0 GONE, 0 APPEARED`. The refusal lives in
+`pycsl.py::_run_pipeline`, whose mirror is a `\trusted` stub, so there was nothing
+for it to move — which is exactly the property the choke point was chosen for.
+
+STATE OF THE THREE ROUTES' L-PLANES:
+  #198  mirror-sync OK | corpus byte-diff ZERO | mirror emission 1 MOVED (its own
+        file, exactly the intended correction) | re-proof RUNNING
+  #199  mirror-sync OK | corpus byte-diff ZERO | mirror emission ZERO
+  #200  mirror-sync OK | corpus byte-diff ZERO | mirror emission ZERO
+  fast planes 22/22 green at HEAD (including the new return-boundary plane)
+SUITE LEG launching now in `pycsl-w52` at HEAD. PREDICTION, written before it runs:
+  3817 + 3 newly-PASSING witnesses (1694, 1696, 1698) = 3820 of 3841
+  (3835 + 6 new files, of which 1693/1695/1697 are expected FAIL),
+  the same 18 CONFIRMED FAIL, and ZERO XPASS.
