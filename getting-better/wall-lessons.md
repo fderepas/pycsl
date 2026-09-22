@@ -5177,3 +5177,35 @@ The instrument note that came with it is the same lesson in miniature: the first
 each dependency from the repo root, which makes its OWN imports unresolvable, and reported
 two extra failures that vanished once `--import-path` pointed at the corpus root. The
 measurement's context is part of the measurement.
+
+### (b3) 2026-09-22 gen #30 — A LOWERING FIX MUST RE-RUN THE REFUSAL THE OLD SHAPE WAS ACCIDENTALLY ENFORCING
+
+Auditing a refusal's ADVICE found that `PYCSL-SEM-SUBSCRIPT` ("Use a `bytearray` for a
+mutable byte buffer") pointed at a spelling that could not be compiled: `bytearray(2)` as a
+local emitted `bytearray_new 2` against `val bytearray_new (x: array int)`. The faithful
+lowering already existed ten lines away in the FIELD path (`Array.make 4096 0`), so the
+local path was given the same answer. Clean fix, witness, controls, 39 planes green,
+committed.
+
+**Four minutes later the same probe family found that I had opened a route.** With the
+count form lowered for BOTH constructors, `b = bytes(2); b[0] = 7; return b[0]` PROVED
+`\result == 7`, where CPython raises `TypeError: 'bytes' object does not support item
+assignment`. At the parent commit that program FAILED — because the emission was ILL-TYPED.
+
+>>> THE TYPE ERROR HAD BEEN THE ENFORCEMENT. The `bytes` immutability refusal keys on the
+>>> symbol table typing the local `bytes`, and it never did for `b = bytes(2)`; nothing but
+>>> the accident of an ill-typed `val` call stood between that program and a proof. Making
+>>> the lowering faithful removed the accident and left nothing.
+
+So: before making an ill-typed, unreachable or otherwise fail-closed shape WORK, find out
+what was stopping it and check that the thing still stops it. The fix is now restricted to
+`bytearray`; `bytes(n)` stays fail-closed; 1725 is the negative witness; and the underlying
+refusal gap is recorded so that whoever lowers `bytes(n)` faithfully fixes the refusal FIRST.
+
+**Instrument note, and it nearly cost tracked work.** The before/after was first attempted
+with `git stash` — and **`git stash` on a CLEAN tree is a NO-OP**, so the `git stash pop`
+that followed popped an unrelated entry from a previous session and left
+`module6_whyml/statements.py` in a `UU` conflict. Recovered with `git checkout HEAD --
+<file>`; the old stash entry survived, because a conflicting pop KEEPS it. Before/after
+comparisons now use a detached `git worktree` at `HEAD~n`, which cannot touch the working
+tree at all.
