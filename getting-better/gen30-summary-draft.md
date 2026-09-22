@@ -2,7 +2,12 @@
 
 **Branch** `ghost-assign-bc6`. Nothing pushed; pushing stays gated to the user.
 
-## Routes resolved (SEV-1, each with the decisive signature: a false contract PROVING while the TRUE twin is REFUSED, and CPython run as ground truth)
+## Routes (SEV-1, each with the decisive signature: a false contract PROVING while the TRUE twin is REFUSED, and CPython run as ground truth)
+
+**Twenty-two CLOSED (#191–#212 less the three open ones) and THREE OPEN (#212, #213,
+#214), every one demonstrated with a false contract PROVING while CPython disagrees.** An
+open route here means the defect is demonstrated and the repair is PRICED — not that it
+was left unexamined; each one's doc says exactly what blocks it.
 
 | # | what the model claimed | where |
 |---|---|---|
@@ -27,6 +32,9 @@
 | 209 | the `protects` trust boundary asked a `pure_ast` matcher about a CSL node and had NEVER fired | `Module3_Weaver`, R1.1 |
 | 210 | a `#@ check False` stamped into a `\trusted` body that is never lowered | the `protects` form's site loop |
 | 211 | the same inert stamp in the PARAMETRIC (`footprint`) form; the twin is one annotation line | the R3 site loop |
+| **212** | **OPEN** — the importing unit believes EVERY contract of an imported module: frames, postconditions, class invariants | nothing checks the module was verified; `--verify-imports` built, off by default |
+| **213** | **OPEN** — two reads of the same `getattr` are ONE per-site constant across a call that writes the attribute | the refusal was landed and REVERTED: 212 live / 14 mirror functions use the idiom |
+| **214** | **OPEN** — two reads on DIFFERENT unknown receivers share route #47's default-keyed constant and are EQUAL | the faithful repair breaks corpus 1073; blocked on local-type inference |
 
 ## The second half of the generation (2026-09-22, 14:30-15:30Z) — EIGHT more routes in one stretch
 
