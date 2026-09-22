@@ -225,8 +225,10 @@ change — `import os`, `import json` and `import re` in USER code resolve to th
 11 pinned facades plus 8 identity stubs stop being claims about a model and become claims
 about the world. The gate holds all four facts (live stub set, package floor, collision
 ratchet, exposed-contract counts) and self-tests by pointing the walk at a layer that DOES
-ship `os.py`. They are documentation and
-naming defects in standalone modules. The number that survives: **124 of 870 `pycsl_lib`
+ship `os.py`.
+
+The defects the two instruments found are therefore documentation and naming defects in
+standalone modules, not live unsoundnesses. The number that survives: **124 of 870 `pycsl_lib`
 functions (14.3%) have a single-constant-return body** — harmless while nothing consumes
 them as stdlib models, and exactly what becomes a hole on the day something does.
 
@@ -239,6 +241,15 @@ set. **5202 contract evaluations, 6 baselined divergences** — the two real def
 plus four `csys` functions whose own header declares the 0..1000 integer scaling. It is
 deterministic (fixed pools, no randomness — a sampling gate cannot carry a ratchet), guarded
 at 4500 evaluations, and self-tested: `--selftest-empty-baseline` must exit 1, and does.
+
+**It was widened TWICE more the same generation, each time from a finding rather than a
+plan**: to 34 modules when re-deriving the headers showed thirteen safe ones simply
+unlisted (six new diverging stubs, all of the identity family), and to 35 when
+`strmod.capwords`'s false length bound turned up in the axiom registry. With `\str_length`
+taught to the translator and `==>` split at paren depth zero, it now runs **5612
+evaluations against 12 baselined divergences** — and the header records the four
+exclusions (`csv`, `tokenize`, `linecache`, `glob`: filesystem hazards; `sysconfig`:
+per-install paths) that were previously just absent.
 
 A SECOND stdlib plane followed, because the first one could not reach the sharpest set:
 `bin/check-stdlib-pinned-facades.py` (the 27th). The differential gate CALLS the real
