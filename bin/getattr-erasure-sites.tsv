@@ -1,0 +1,16 @@
+# getattr fall-through sites, per file: file	ABSENT	UNKNOWN
+# Written by bin/check-getattr-erasure.py --emit-baseline (mirror + corpus).
+# DECLARED is never recorded here: it is a hard zero, not a baseline.
+src/self-annotate/src/frontend/desugar.py	0	3
+src/self-annotate/src/frontend/exec_splice.py	0	3
+src/self-annotate/src/module6_whyml/expressions.py	5	0
+src/self-annotate/src/module6_whyml/functions.py	0	13
+src/self-annotate/src/module6_whyml/statements.py	1	0
+src/self-annotate/src/module6_whyml/stmt_control_flow.py	1	0
+test-suite/corpus/pycsl-reference/1070_route47_getattr_default_dict.py	0	1
+test-suite/corpus/pycsl-reference/1071_route47_getattr_default_list.py	0	1
+test-suite/corpus/pycsl-reference/1072_route47_getattr_no_default.py	0	1
+test-suite/corpus/pycsl-reference/1073_route47_same_default_equal.py	0	2
+test-suite/corpus/pycsl-reference/1691_route197_an_unknown_typed_getattr_was_its_default.py	0	1
+test-suite/corpus/pycsl-reference/1692_route197_an_absent_field_still_returns_its_default.py	1	0
+test-suite/corpus/pycsl-reference/1727_route213_two_reads_with_no_call_still_agree.py	0	2
