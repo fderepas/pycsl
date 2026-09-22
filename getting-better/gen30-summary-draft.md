@@ -229,6 +229,27 @@ Five new `value-differential` drivers (v73-v77), the CPython-measured plane, cov
 
 ## Battery evidence
 
+**FINAL STRETCH (2026-09-22 evening → 2026-09-23):**
+
+* Fast planes: **43 of 43 GREEN** at HEAD 95ba418b, after every compiler edit of the
+  evening — three refusal-message repairs, route #215's refusal, the union-array late
+  pull — and the three new planes. MIN_PLANES 40 → 43.
+* Mirror re-proof of `src/self-annotate/src/core_ir_semantic.py`: **all contracts formally
+  proven**. It was owed because `_check_mutable_defaults` is one of the 887 VERBATIM
+  un-trusted twins and its refusal message changed twice; the evening's other three
+  message repairs sat in `\trusted` twins and owed nothing, which is the choke-point rule
+  earning its keep.
+* Mirror-sync **887 verbatim** and mirror-coverage **549 / 41** unmoved by any of it.
+* `check-stdlib-modules-verify` full run: 104 modules, **84 VERIFY**, 20 do not
+  (FAILS 5, REFUSED 13, TIMEOUT 2) — and of the 84, ONE has value-returning functions with
+  no `#@ ensures` and SEVEN have no value-returning function at all, so the honest headline
+  is **76**.
+* TWO gates went RED because of witnesses written the same evening, and BOTH were fixed at
+  the source or by a NAMED exemption, never at the ratchet: `check-claim-vacuity`
+  (`requires True` copied into four new witnesses — deleted) and `check-dropped-mutation`
+  (CTXBIND, because witness 1784 IS a `with ... as` — named in `CTXBIND_EXEMPT`, exactly as
+  1759 was named in `DANGLING_EXEMPT`).
+
 * Suite at `bc0561ec` (#198/#199/#200 + the return-boundary plane): **3823 / 3841**, 746
   XFAIL, **0 XPASS**, and the SAME 18 CONFIRMED FAIL this campaign has carried.
 * Corpus byte-diff: ZERO pre-existing programs moved for every one of #198-#203.
