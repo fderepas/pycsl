@@ -7,12 +7,12 @@ stops the gate being satisfiable by refusing every program.
 from typing import Dict, List  # noqa: F401
 
 def g(type: int) -> int:
-    return type + 3
+    return type + 9
 
-#@ ensures \result == 6
+#@ ensures \result == 11
 #@ assigns \nothing
 def f() -> int:
-    return g(3)
+    return g(2)
 
 
 if __name__ == "__main__":

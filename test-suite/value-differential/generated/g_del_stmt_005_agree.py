@@ -6,11 +6,11 @@ stops the gate being satisfiable by refusing every program.
 """
 from typing import Dict, List  # noqa: F401
 
-#@ ensures \result == 5
+#@ ensures \result == 6
 #@ assigns \nothing
 def f() -> int:
-    xs: List[int] = [3, 5, 4, 0, 0]
-    del xs[0]
+    xs: List[int] = [5, 0, 6, 3]
+    del xs[0:2]
     return xs[0]
 
 

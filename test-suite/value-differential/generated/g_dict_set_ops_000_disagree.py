@@ -9,7 +9,7 @@ from typing import Dict, List  # noqa: F401
 #@ ensures \result == 3
 #@ assigns \nothing
 def f() -> int:
-    d: Dict[int, int] = {0: 4, 1: 1}
+    d: Dict[int, int] = {0: 5, 1: 3}
     return len(d)
 
 

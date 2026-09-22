@@ -8,9 +8,9 @@ from typing import Dict, List  # noqa: F401
 
 class C:
     def __init__(self) -> None:
-        self.xs: List[int] = [0, 8, 3]
+        self.xs: List[int] = [2, 0]
 
-#@ ensures \result == 0
+#@ ensures \result == 2
 #@ assigns \nothing
 def f() -> int:
     c: C = C()

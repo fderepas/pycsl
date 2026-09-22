@@ -6,10 +6,10 @@ stops the gate being satisfiable by refusing every program.
 """
 from typing import Dict, List  # noqa: F401
 
-def g(function: int) -> int:
-    return function + 6
+def g(Model: int) -> int:
+    return Model + 7
 
-#@ ensures \result == 14
+#@ ensures \result == 15
 #@ assigns \nothing
 def f() -> int:
     return g(8)

@@ -8,13 +8,13 @@ from typing import Dict, List  # noqa: F401
 
 class C:
     def __init__(self) -> None:
-        self.xs: List[int] = [8, 1, 6]
+        self.xs: List[int] = [1, 1, 0, 6]
 
-#@ ensures \result == 8
+#@ ensures \result == 0
 #@ assigns \nothing
 def f() -> int:
     c: C = C()
-    return c.xs[0]
+    return c.xs[2]
 
 
 if __name__ == "__main__":

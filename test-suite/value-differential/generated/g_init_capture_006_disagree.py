@@ -7,14 +7,17 @@ this, that is a RED and it outranks a RED from the driver.
 from typing import Dict, List  # noqa: F401
 
 class C:
-    def __init__(self, n: int) -> None:
-        self.v = n
+    def __init__(self) -> None:
+        if 7 > 0:
+            self.v = 7
+        else:
+            self.v = 0
 
-#@ ensures \result == 15
+#@ ensures \result == 13
 #@ assigns \nothing
 def f() -> int:
-    c: C = C(5)
-    return c.v + 9
+    c: C = C()
+    return c.v + 5
 
 
 if __name__ == "__main__":

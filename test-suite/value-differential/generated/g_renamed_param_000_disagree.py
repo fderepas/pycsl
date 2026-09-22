@@ -9,10 +9,10 @@ from typing import Dict, List  # noqa: F401
 def g(function: int) -> int:
     return function + 5
 
-#@ ensures \result == 10
+#@ ensures \result == 12
 #@ assigns \nothing
 def f() -> int:
-    return g(4)
+    return g(6)
 
 
 if __name__ == "__main__":

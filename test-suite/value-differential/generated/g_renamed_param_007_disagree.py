@@ -7,12 +7,12 @@ this, that is a RED and it outranks a RED from the driver.
 from typing import Dict, List  # noqa: F401
 
 def g(type: int) -> int:
-    return type + 3
+    return type + 9
 
-#@ ensures \result == 7
+#@ ensures \result == 12
 #@ assigns \nothing
 def f() -> int:
-    return g(3)
+    return g(2)
 
 
 if __name__ == "__main__":

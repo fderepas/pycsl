@@ -9,7 +9,7 @@ from typing import Dict, List  # noqa: F401
 #@ ensures \result == 2
 #@ assigns \nothing
 def f() -> int:
-    a: List[int] = [4, 7, 8]
+    a: List[int] = [1, 7]
     b: List[int] = a
     b[0] = 2
     return a[0]

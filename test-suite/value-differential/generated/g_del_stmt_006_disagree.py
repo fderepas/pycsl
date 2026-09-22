@@ -6,10 +6,10 @@ this, that is a RED and it outranks a RED from the driver.
 """
 from typing import Dict, List  # noqa: F401
 
-#@ ensures \result == 6
+#@ ensures \result == 1
 #@ assigns \nothing
 def f() -> int:
-    xs: List[int] = [0, 8, 5]
+    xs: List[int] = [2, 1, 0, 7, 7]
     del xs[0:2]
     return xs[0]
 

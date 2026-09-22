@@ -6,12 +6,12 @@ this, that is a RED and it outranks a RED from the driver.
 """
 from typing import Dict, List  # noqa: F401
 
-#@ ensures \result == 15
+#@ ensures \result == 14
 #@ assigns \nothing
 def f() -> int:
-    x: int = 6
-    assert x == 6
-    return x + 8
+    x: int = 4
+    assert x == 4
+    return x + 9
 
 
 if __name__ == "__main__":

@@ -6,8 +6,8 @@ this, that is a RED and it outranks a RED from the driver.
 """
 from typing import Dict, List  # noqa: F401
 
-def g(model: int) -> int:
-    return model + 7
+def g(val: int) -> int:
+    return val + 7
 
 #@ ensures \result == 16
 #@ assigns \nothing

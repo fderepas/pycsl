@@ -9,8 +9,8 @@ from typing import Dict, List  # noqa: F401
 #@ ensures \result == 1
 #@ assigns \nothing
 def f() -> int:
-    x: int = 2
-    if x is True:
+    x: int = 0
+    if x is 1:
         return 7
     return 0
 

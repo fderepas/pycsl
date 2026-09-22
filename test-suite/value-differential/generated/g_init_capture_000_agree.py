@@ -7,14 +7,17 @@ stops the gate being satisfiable by refusing every program.
 from typing import Dict, List  # noqa: F401
 
 class C:
-    def __init__(self, n: int) -> None:
-        self.v = n
+    def __init__(self) -> None:
+        if 5 > 0:
+            self.v = 5
+        else:
+            self.v = 0
 
-#@ ensures \result == 10
+#@ ensures \result == 11
 #@ assigns \nothing
 def f() -> int:
-    c: C = C(2)
-    return c.v + 8
+    c: C = C()
+    return c.v + 6
 
 
 if __name__ == "__main__":

@@ -10,11 +10,11 @@ class C:
     def __init__(self, n: int) -> None:
         self.v = n
 
-#@ ensures \result == 12
+#@ ensures \result == 6
 #@ assigns \nothing
 def f() -> int:
-    c: C = C(7)
-    return c.v + 5
+    c: C = C(4)
+    return c.v + 2
 
 
 if __name__ == "__main__":

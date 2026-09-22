@@ -6,13 +6,13 @@ stops the gate being satisfiable by refusing every program.
 """
 from typing import Dict, List  # noqa: F401
 
-def g(ref: int) -> int:
-    return ref + 2
+def g(val: int) -> int:
+    return val + 3
 
-#@ ensures \result == 3
+#@ ensures \result == 5
 #@ assigns \nothing
 def f() -> int:
-    return g(1)
+    return g(2)
 
 
 if __name__ == "__main__":

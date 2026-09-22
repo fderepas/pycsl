@@ -10,7 +10,7 @@ from typing import Dict, List  # noqa: F401
 #@ assigns \nothing
 def f() -> int:
     x: int = 0
-    if x is False:
+    if x is True:
         return 7
     return 0
 

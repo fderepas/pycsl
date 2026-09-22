@@ -9,8 +9,8 @@ from typing import Dict, List  # noqa: F401
 #@ ensures \result == 1
 #@ assigns \nothing
 def f() -> int:
-    d: Dict[int, int] = {0: 7, 1: 9, 2: 3}
-    return (1 if 0 in d else 0)
+    d: Dict[int, int] = {0: 5, 1: 4}
+    return (1 if 1 in d else 0)
 
 
 if __name__ == "__main__":

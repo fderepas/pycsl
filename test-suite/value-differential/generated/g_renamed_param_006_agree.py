@@ -6,8 +6,8 @@ stops the gate being satisfiable by refusing every program.
 """
 from typing import Dict, List  # noqa: F401
 
-def g(model: int) -> int:
-    return model + 7
+def g(val: int) -> int:
+    return val + 7
 
 #@ ensures \result == 15
 #@ assigns \nothing

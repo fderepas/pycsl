@@ -8,16 +8,13 @@ from typing import Dict, List  # noqa: F401
 
 class C:
     def __init__(self) -> None:
-        if 3 > 0:
-            self.v = 3
-        else:
-            self.v = 0
+        self.v = 7
 
 #@ ensures \result == 9
 #@ assigns \nothing
 def f() -> int:
     c: C = C()
-    return c.v + 5
+    return c.v + 1
 
 
 if __name__ == "__main__":
