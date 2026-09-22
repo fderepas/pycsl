@@ -3062,3 +3062,24 @@ which mirror-sync confirms by still passing.
 Witnesses 1699 (carrier, FAIL) and 1700 (a genuine 3-element list actual still
 reaches the callee with the length it has, and the callee's length-reading contract
 still discharges — the guard against a blunt "make every array slot opaque" fix).
+
+### `_coerce_dotted_args` — EVERY arm enumerated, so the function is closed rather than "probed"
+Route #201 came out of the second of the backlog's three questions ("which OTHER arm of
+the same function reaches the same answer?"), so the honest follow-up is to stop
+sampling that function and ENUMERATE it. All sixteen `coerced.append(...)` sites:
+
+  int slot          `_coerce_to_int(arg)`               #194 (array/map -> `(any int)`),
+                                                        #200 (string literal -> REFUSED)
+  int slot          `'(any int)'`                       #195's repair
+  array int         `_array_coerce_arg(arg)`            #193 (the `"0"` arm), #201 (the TAIL)
+  array int         `'(Array.make 0 0)'`                #196's repair — the FAITHFUL empty array
+  array emit_ir     `'(Array.make 0 (IrOther ""))'`     faithful empty emit_ir array
+  array */string    three `materialize*` bridges        pass-through
+  map               `'(any_map ())'`                    opaque, declaration-free
+  option/union      `(None: ptype)` / `(Some …)` / `(… : ptype)`   #192
+  five sites        bare `arg`                          PASS-THROUGH, nothing substituted
+
+So every SUBSTITUTING arm of this function now either answers a faithful value, answers an
+opaque that decides nothing, or is refused before emission. That is a statement about the
+whole function, not about the shapes I happened to try — which is the difference between
+"I probed it" and "it is closed".
