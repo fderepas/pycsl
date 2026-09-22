@@ -26,8 +26,9 @@
 * `bin/check-proof-reverify.sh` — the axiom-footprint gate. Its ratchet was driven **6 -> 0** (VERIFIED 155 -> 166: eleven `#@ proof` axiom imports nothing had ever checked).
 * `bin/check-trusted-reasons.py` — a full plane that existed and **nothing ran it**; collected into the runner.
 * `bin/check-return-boundary-substitutions.py` — the RETURN side, the gap `check-argument-coercion.py` names in its own header and `check-constant-fallthrough.py` names in its own. Pins occurrence COUNTS, and was demonstrated to fire on the pre-#198 tree via `--live`.
+* `bin/check-fstring-lowering.py` — built because the campaign's own trigger rule fired: TWO routes (#199, #203) in ONE function in ONE session. Pins the return set with counts AND two structural tokens, because #203 added a *wrap* rather than an exit and the return-set half is green on the pre-#203 tree — a blind spot the `--live` self-test found before it shipped.
 
-Battery: **18 -> 22 fast planes, 43 with `--slow`.**
+Battery: **18 -> 23 fast planes, 44 with `--slow`.**
 `check-swallowed-exceptions` ratchet **4 -> 0**, a hard zero.
 Five new `value-differential` drivers (v73-v77), the CPython-measured plane, covering
 #198, #199 and #203 in both the DISAGREE and the AGREE direction.
@@ -55,7 +56,7 @@ the call boundary survived 190 routes.
 run; (j) predict the TRUE twin, and give completeness its own witness; (k) the choke-point
 rule is enforced by two ratchets; (l) build the plane the other planes named; (m) a repair
 that fixes one arm leaves the rest of the function; (n) a residue you write down is a work
-item; (o) the lesson you just banked applies to the fix you just shipped.
+item; (o) the lesson you just banked applies to the fix you just shipped; (p) the upper bound is not the blast radius — read the arm, then count that shape; (q) a gate built from a route must be run against the pre-route tree.
 
 ## Standing, deliberately deferred (re-priced this generation, not inherited)
 
