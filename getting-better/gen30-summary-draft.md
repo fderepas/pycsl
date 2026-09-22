@@ -22,7 +22,41 @@ attacked directly — `hlib.Sha256.update`, the layer's one BARE `\trusted` — 
 FORCED, so the measurement went into the marker and the gate now enforces a `reviewer:`
 clause at zero.
 
-**LESSONS BANKED.** Eight new entries in `getting-better/wall-lessons.md`: (v2) an
+**THE EVENING STRETCH (20:30–23:00Z) — FIVE ARTIFACTS IN ONE INSTRUMENT, AND SEVEN FALSE
+STDLIB CONTRACTS.** Two debts the handoff had priced turned out to be worth more than
+their price, in opposite directions.
+
+*The 24 UNADJUDICATED identity stubs* were all adjudicated against this CPython, and
+**seven carried a contract FALSE of the function their own header cites**: `csvmod.write_row`
+(`writerow(['a','b','c'])` returns 7, the CHARACTER count, not 3 fields — and its own
+docstring said so), `cvar.context_var_get` / `context_var_set`, `dec.getcontext_prec`
+(unguarded above `decimal.MAX_PREC`, where the assignment RAISES), `nums.rational_num` /
+`rational_den` (`Fraction(2,4).numerator` is 1 — `num >= 0`/`den > 0` do not imply
+coprimality), and `csvmod.writerows`. **Two of them were PROVED downstream** in
+`src/pycsl_lib_test/`, which is the route standard met inside the stdlib layer. SIX ARE
+NOW REPAIRED and re-verified; the seventh (`que.qsize`) turned out innocent on
+investigation and is reclassified, not fixed. The pass needed two new classes
+(DECLARED-DOMAIN, MODEL-INTERNAL) with `pkl.dump` as the standing control that stays OUT
+of the first. `MAX_UNADJUDICATED` 24 → 0. A NEW PLANE came out of it —
+`check-docstring-contract-disagreement.py`, the free oracle: a docstring that states a
+weaker relation than the clause beside it, four of its five hits deliberate CONTROLS.
+
+*The 113 refusals with no witness*, priced at "five minutes each" — nine hours of corpus
+files — **was an instrument artifact FIVE times over.** (1) 318 of the census's 437
+refusal rows were cut at 110 characters by a writer three generations old. (2) Eight
+`validate_ir` checks are not reachable from a `.py` source at all. (3) Nine raises have no
+literal of 25 characters, so their fragment is empty and no witness can ever match. (4)
+Several raises use `%s` formatting, so the AST literal contains placeholders the compiler
+never prints — three real witnesses fired and moved the count by ZERO. (5) One row was cut
+MID-UTF-8, leaving a replacement character, and the file proving that refusal
+(`1265_w68_hs_foreign_receiver_call.py`) had sat in the corpus for three generations. The
+instrument was repaired in four conservative passes plus two guards, and now **REFUSES**
+rather than report a number when its own inputs are unusable. **85 → 162 demonstrated,
+113 → 19 undemonstrated**, with all 198 sites partitioned for the first time (162 + 19 + 8
+not-source-reachable + 9 unmatchable). Twenty-five witnesses were written along the way —
+and four more were written, confirmed to fire, and DELETED as redundant.
+
+**LESSONS BANKED.** Thirteen new entries in `getting-better/wall-lessons.md`: (v2) an
 unmentioned exclusion is an oversight wearing one; (w2) attack a marker before believing
 it is forced; (x2) trust has a blast radius and a PASS count is not a proof count; (y2) an
 enforcement mechanism that writes into a body is only as strong as the guarantee the body
@@ -31,7 +65,15 @@ dependency" is not "verify the file"; (b3) a lowering fix must re-run the refusa
 shape was accidentally enforcing; (c3) read the axiom registry the way you read the
 docstrings; (d3) a repo has FOUR populations that must keep working and a refusal measured
 on two has been measured on the easy two; (e3) when a measurement fails under load, re-run
-it quiet before you explain it.
+it quiet before you explain it; (f3) an exclusion you never tested is a guess; (g3) a
+docstring that disagrees with the contract beside it is a free oracle; (h3) a new class
+only earns its place if it comes with a CONTROL that stays out of it; (i3) an absence
+claimed from an instrument that could not have shown the presence is not a measurement —
+banked because I recorded a residual that was itself FALSE and the correction is kept
+beside it; (j3) a coverage gate can be measuring its own artifact, and **a number that
+RECOMMENDS EFFORT deserves the scrutiny of one that reports success**; (k3) four artifacts
+in one instrument is a fact about the instrument, and the fix is a SELF-AUDIT, not a
+fourth patch.
 
 **UNPUSHED COMMITS.** See the final line of the run summary; nothing was pushed, and
 pushing stays gated to the user.
