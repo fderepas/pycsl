@@ -2763,3 +2763,35 @@ a claim): how many string-literal-into-int-param sites fire across all 53 mirror
 emissions. If the mirror relies on the hash anywhere, `(any int)` moves its
 emission and the repair costs a whole-file re-proof; if it fires zero times, the
 change is byte-inert on the mirror side.
+
+### Route #199 — corpus byte-diff ZERO (Q3, corpus half)
+`0 MOVED, 0 GONE, 0 APPEARED, 2 new source file(s) ignored` over 1283 baseline /
+1285 candidate emissions (the two new files are witnesses 1695/1696). Mirror half
+launched.
+
+### Route #200 — the CENSUS refutes the cheap repair, and names the real one
+Instrumented `_coerce_dotted_args` over all 53 mirror emissions: **46** string-
+literal-into-`int`-param sites, across `pure_ast.py` (the bulk: `""`, `"else"`,
+`"@"`, `"("`, `")"`, `"try"`, `"finally"`, `"async def"`, ...), `functions.py`,
+`core_ir_semantic.py`, `monomorphize.py`, `sertop.py`. So the blunt repair —
+answer `(any int)` for every hashed string at this boundary — would move FIVE
+mirror emissions and buy five whole-file re-proofs, one of them a giant. Measured
+BEFORE building it, which is the whole point of the rule.
+
+AND THE CENSUS ALSO SHOWS WHY THE BLUNT REPAIR IS AIMED WRONG. In all 46 mirror
+sites the parameter is `int` BY ERASURE — the callee's parameter carries no
+annotation at all, so the `val` declares `int`. In the route-#200 witness the
+parameter is `int` BY DECLARATION (`def callee(p: int)`) and the actual is a
+`str`. Those are different programs: the first is the emitter's own untyped
+plumbing, the second is a TYPE ERROR in the user's source that Python does not
+enforce and the model BELIEVES — precisely route #51's situation, one argument
+position to the left.
+
+So the repair belongs where route #51's does: a Module 4 REFUSAL of a string
+literal actual against an EXPLICITLY `int`-annotated parameter. It cannot touch
+the 46 erased-parameter sites, because none of them declares anything.
+
+Family measured, not assumed: `callee([])` against the same declared-`int`
+parameter is REFUSED already (routes #195/#196's `(any int)` in the arm above),
+so the empty-list spelling of this shape is closed and only the hash spellings
+(string, and by construction tuple) remain.
