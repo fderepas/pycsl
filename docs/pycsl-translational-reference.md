@@ -2335,11 +2335,21 @@ is worse than a deleted branch: `_coerce_dotted_args` replaces the string by
 `def callee(p: int)` with `ensures p == 747471683 ==> \result == 1` — true of its own
 body — called as `callee("a")` emitted `(callee 747471683)` and PROVED `\result == 1`
 while CPython answers 2, with the TRUE twin REFUSED (witnesses `1697`/`1698`). Module 4's
-`PYCSL-SEM-STRARG` refuses it, keyed on the DECLARED annotation: the 46 sites where a
-string literal reaches an `int` param across the 53 mirror emissions are `int` by ERASURE
-(no annotation at all), and a dry run over 3996 files in four trees found ZERO programs
-that the refusal rejects. The collection spellings of that same arm were already closed by
-routes #194/#195.
+`PYCSL-SEM-STRARG` refuses it. **Route #202 (gen #30) then corrected the key, an hour
+later.** Keying on the DECLARED annotation was chosen because the 46 sites where a string
+literal reaches an `int` param across the 53 mirror emissions are `int` by ERASURE — and
+that population is exactly the hole: an un-annotated parameter is erased to `int` and gets
+the same hash, so `def callee(p) -> int` carrying `ensures p == 747471683 ==> \result == 1`
+called as `callee("a")` still PROVED. The refusal now keys on the condition that actually
+matters — **the callee's own contract MENTIONS the parameter** — because that is the only
+way a nameable hash can reach a caller's proof: a callee's VC quantifies over `p`, so a
+contract that does not name `p` cannot transmit the substitution. The same change covers
+the KEYWORD slot (the IR keeps keyword actuals in `node["keywords"]`, so `callee(p="a")`
+walked past a check that read `args` — witness `1703`) and SKIPS a vararg formal, which
+packs every remaining actual into one sequence (witness `1704`; without it, corpus `0931`'s
+`member_of("+", "+", "-")` would be refused). Witnesses `1697`/`1698`/`1701`/`1702`.
+Censused clean on 1628 corpus files and 53 mirror files. The collection spellings of that
+same arm were already closed by routes #194/#195.
 
 **And that lie was live in the emitter's own `if`-statement handler.**
 `stmt_control_flow::_try_union_is_none_match` declared `-> str` and returned `None`, so its
