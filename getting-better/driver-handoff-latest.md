@@ -10044,3 +10044,10 @@ recorded boundary's *reason* wrong seven times, a recorded *price* wrong twice, 
 reason, capability, AND price — against the emitted `.mlw` and the actual tree**, before you spend
 a window on it. `check-self-annotate-sync.sh` is a live plane for EMITTER edits too, not only
 mirror edits; run it after ANY `src/pycsl/` change.
+
+<!-- gen #30 endgame -->
+# FINAL CONTROL BATTERY: `$SCRATCH/final_battery.sh <worktree> <commit>` — checks the
+# worktree out at <commit>, runs `bin/run-reference-tests.sh` then
+# `bin/run-soundness-planes.sh --slow`, and prints FINAL-BATTERY-DONE. Poll the log; do
+# not relaunch. Expected at the gen #30 final HEAD: suite 3841+ tests with the same 18
+# CONFIRMED FAIL and ZERO XPASS, and 43 planes green (22 fast + 21 slow).
