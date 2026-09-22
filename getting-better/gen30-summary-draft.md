@@ -29,10 +29,12 @@
 * `bin/check-corpus-contract-truth.py` — the value-differential's method (curate nothing,
   re-run CPython every pass) applied to the CORPUS instead of to 75 curated drivers. 216
   PASS-expected corpus files already carry a zero-arg function with a literal
-  `#@ ensures \result == N`: **204 AGREE with CPython, 0 DISAGREE**, 12 unrunnable (a
-  category — programs CPython cannot run, because they name `#@ datatype` types). A failure
-  here is the sharpest verdict the battery can give: a test that passes the prover while
-  its own postcondition is false of its own program.
+  `#@ ensures \result == N`, and so do 162 python-reference files: **367 AGREE with
+  CPython, 0 DISAGREE** across both corpora, 12 unrunnable (a category — programs CPython
+  cannot run, because they name `#@ datatype` types). That is FIVE TIMES the curated
+  population, at no cost in drivers written. A failure here is the sharpest verdict the
+  battery can give: a test that passes the prover while its own postcondition is false of
+  its own program. There are none.
 * `bin/check-coercion-exits.py` — the trigger rule's THIRD firing: `_array_coerce_arg` (#193, #201) and `_coerce_to_int` (#194, #200/#202) each produced two routes, and `check-argument-coercion.py` classifies the call SITES without ever looking inside the helpers. Pins both exit sets with counts; demonstrated to fire on the true pre-#201 source.
 * `bin/check-fstring-lowering.py` — built because the campaign's own trigger rule fired: TWO routes (#199, #203) in ONE function in ONE session. Pins the return set with counts AND two structural tokens, because #203 added a *wrap* rather than an exit and the return-set half is green on the pre-#203 tree — a blind spot the `--live` self-test found before it shipped.
 
