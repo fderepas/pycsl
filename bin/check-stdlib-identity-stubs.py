@@ -50,10 +50,16 @@ three ways and each entry says which it is:
                from the fidelity plane's own scope claim ("an unmentioned exclusion is not
                an exclusion, it is an oversight wearing one").
 
-THE STANDING COUNT AT THE FIRST MEASUREMENT: 81 stubs — 34 FAITHFUL, 6 DIVERGES, 17
-DIVERGES-BY-HAND, 24 UNADJUDICATED. So **23 of the 81 carry a contract that is FALSE of
-the function the stub's own header cites**, and only six of those were reachable by
-calling. That ratio is the argument for this gate.
+THE STANDING COUNT: 81 stubs — 33 FAITHFUL, 6 DIVERGES, 18 DIVERGES-BY-HAND, 24
+UNADJUDICATED. So **24 of the 81 carry a contract that is FALSE of the function the stub's
+own header cites**, and only six of those were reachable by calling. That ratio is the
+argument for this gate.
+
+AND ONE OF THEM MOVED THE SAME DAY IT WAS WRITTEN. `strmod.capwords` was classified
+FAITHFUL on the strength of its guards; mining the axiom registry then showed the OTHER
+clause on the same function — the length bound — is false of CPython for `'ß'`. A
+classification is a claim too, and "the clause I looked at is guarded" is not "the function
+is faithful".
 
 THE RATCHET is the set, keyed by (package, function). A NEW identity-stub fails: it must
 be argued into one of the three classes. One that DISAPPEARS is reported so its entry goes
@@ -140,8 +146,22 @@ BASELINE = {
     ("htmlm", "unescape"): (FAITHFUL, "guarded the same way."),
     ("htmlm", "escape_quote"): (FAITHFUL, "guarded the same way."),
     ("txtwrp", "fill"): (FAITHFUL, "guarded (`text == 0 ==> \\result == 0`)."),
-    ("strmod", "capwords"): (FAITHFUL,
-        "doubly guarded (`sep == \"\" ==> (s == \"\" ==> \\result == \"\")`)."),
+    ("strmod", "capwords"): (HAND,
+        "WAS classified FAITHFUL here on the strength of its guards; gen #30 MEASURED the "
+        "OTHER clause on the same function and it is FALSE of CPython. The model carries "
+        "`#@ ensures sep == \"\" ==> \\str_length(\\result) <= \\str_length(s)` and the "
+        "imported axiom `Pycsl.Strmod.Capwords.capwords_length_nongrowing` says the same "
+        "thing, with the preamble comment justifying it as \"capitalize (first upper, "
+        "rest lower; LENGTH-PRESERVING)\". MEASURED: `string.capwords(\'\\u00df\')` is "
+        "`\'Ss\'` (1 -> 2) and `string.capwords(\'\\ufb01\')` is `\'Fi\'` — "
+        "`str.capitalize()` is not length-preserving for characters with multi-character "
+        "uppercase forms. The calling gate cannot catch it because the model encodes the "
+        "DEFAULT separator as `sep == \"\"` while CPython\'s default is `None` and "
+        "`capwords(s, \"\")` raises ValueError, so the guarded clause is unfalsifiable "
+        "against the real function. NOT a route: the model\'s own body returns the string "
+        "unchanged, so a program proved against it agrees with CPython when CPython runs "
+        "THE MODEL. It is a fidelity defect of the model and a false axiom about the "
+        "real function."),
     ("wref", "ref"): (FAITHFUL,
         "MODEL-DOMAIN identity: the stub's `ref` carries the referent through because the "
         "integer model has no weak references; the calling gate evaluates it and the "
