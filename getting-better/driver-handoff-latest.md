@@ -69,6 +69,13 @@
 #          the union TYPE declares the list arm's payload as `int` while the arm GOAL
 #          quantifies `array int`, so the injection goal is genuinely FALSE. Fixing that
 #          means making the two payload-type computations agree.
+#    - **OWED: A CORPUS BYTE-DIFF SWEEP for the final stretch's emitter edits.** Three of
+#      them are refusal-MESSAGE text (never in emitted WhyML); route #215's refusal is
+#      gated on `f[T](...)` (2 corpus occurrences, both expected-FAIL) and the union-array
+#      late pull on a union arm of `array` type (ZERO corpus files). The byte-inertness is
+#      ARGUED and each gate is measured — but it has NOT been swept, and "byte-inert by
+#      construction" is the claim this campaign has twice caught itself making without
+#      checking. Run `bin/byte-diff-sweep.sh` against 41cb466c and expect 0 MOVED.
 #    - **BATTERY: 43 of 43 FAST PLANES GREEN** at HEAD 95ba418b, after every compiler edit
 #      of the evening (three refusal-message repairs, route #215's refusal, the union-array
 #      late pull) and the three new planes. MIN_PLANES 40 -> 43.

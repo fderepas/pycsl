@@ -245,6 +245,15 @@ Five new `value-differential` drivers (v73-v77), the CPython-measured plane, cov
   (FAILS 5, REFUSED 13, TIMEOUT 2) — and of the 84, ONE has value-returning functions with
   no `#@ ensures` and SEVEN have no value-returning function at all, so the honest headline
   is **76**.
+* **THE CORPUS BYTE-DIFF FOR THE FINAL STRETCH IS ARGUED, NOT SWEPT, AND THAT DISTINCTION
+  IS STATED DELIBERATELY.** Three of the four emitter edits are refusal-MESSAGE text, which
+  appears only in a refusal and never in emitted WhyML. The fourth and fifth are each gated
+  on a construct MEASURED ABSENT from the corpus: route #215's refusal fires only on
+  `f[T](...)` over a generic function (2 corpus occurrences, both in expected-FAIL files),
+  and the union-array late pull fires only when a union arm is an `array` (ZERO corpus
+  files use `Optional`/`Union` over any container spelling). That is a strong argument and
+  it is not a sweep: the sweep is a handoff item, because **"byte-inert by construction" is
+  the claim this campaign has twice caught itself making without checking.**
 * TWO gates went RED because of witnesses written the same evening, and BOTH were fixed at
   the source or by a NAMED exemption, never at the ratchet: `check-claim-vacuity`
   (`requires True` copied into four new witnesses — deleted) and `check-dropped-mutation`
