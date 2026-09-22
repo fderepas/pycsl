@@ -103,9 +103,15 @@
 #         holds them by name). The `json` package is a CPython transcription with zero
 #         annotations in four files — the question is whether it belongs in the layer at
 #         all, not how to prove it.
-#      5. **The 24 UNADJUDICATED identity stubs** and the 29 un-audited advice sites: both
+#      5. **The 113 refusals that still have no witness.** `check-refusal-witness-coverage`
+#         went 58 -> 85 of 198 this generation by WRITING 31 witnesses; the rest are
+#         mostly in `Module3_Weaver` (the `happy` family, ~20) and `core_ir_semantic`
+#         (~13), and each costs about five minutes: probe the shape, confirm the refusal
+#         fires, write the file with `# pycsl-expected: FAIL`, extend the census artifact
+#         (do NOT regenerate — that is a 100-minute sweep), ratchet both counts.
+#      6. **The 24 UNADJUDICATED identity stubs** and the 29 un-audited advice sites: both
 #         are manual, both are cheap per item, and both have a plane that counts them.
-#      6. The `check-avatar-frame-parity` INHERITED segment (7 sites) and the hval
+#      7. The `check-avatar-frame-parity` INHERITED segment (7 sites) and the hval
 #         absent-key sentinel's MIRROR side, still priced as infeasible in a short window.
 #
 #    - LANDED EARLIER: the four gen-#30 legs (final battery 45 planes green, slow-planes 49
