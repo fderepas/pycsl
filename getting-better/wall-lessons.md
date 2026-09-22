@@ -25,7 +25,8 @@ that disagrees with the contract beside it is a free oracle · **(h3)** a new cl
 earns its place if it comes with a CONTROL that stays out of it · **(i3)** an absence
 claimed from an instrument that could not have shown the presence is not a measurement ·
 **(j3)** a coverage gate can be measuring its own artifact, and a number that RECOMMENDS
-EFFORT deserves the scrutiny of one that reports success.
+EFFORT deserves the scrutiny of one that reports success · **(k3)** four artifacts in one
+instrument is a fact about the instrument, and the fix is a SELF-AUDIT, not a fourth patch.
 
 ### (f3) An exclusion you never tested is a guess — check whether the reason still applies
 
@@ -149,6 +150,43 @@ the four repair passes were silently running the wrong file for those rows. They
 damage ONLY because each pass refused to rewrite a row unless the fresh message still
 contained the stored text — the conservative rule that felt like paranoia when I wrote it
 is the reason the repair is trustworthy.
+
+### (k3) Four artifacts in one instrument is a fact about the instrument
+
+Between (j3) and this, `check-refusal-witness-coverage.py` produced FOUR distinct false
+"undemonstrated" verdicts, each found by hand and each only after the number had already
+recommended work:
+
+  1. The census messages were cut at 110 characters by a writer three generations old, so
+     any fragment starting past character 110 could never match. 33 sites.
+  2. Eight `ir_schema.validate_ir` checks are NOT REACHABLE from a `.py` source file at
+     all — they run on the IR the front-end just built — so no corpus witness could ever
+     move them, however many were written.
+  3. Nine raises have no string literal of 25 characters, so their fragment is the empty
+     string and `hit` is False unconditionally. One of them (`Module1_Ingestor:354`) HAS a
+     witness in the corpus; the instrument still cannot see it.
+  4. Several raises use %-formatting, so the literal in the AST is
+     `"function '%s' binds %s with a `with ... as` clause, and no certified "` — and the
+     PLACEHOLDERS are never printed. I wrote three witnesses (1784/1785/1786), watched all
+     three refusals fire, and watched the count move by ZERO.
+
+Each fix was correct. Together they are the actual finding: **an instrument that has
+produced four artifacts is not four unlucky cases, it is an instrument nobody has audited.**
+I patched three of them one at a time, which is exactly what makes the fourth cost as much
+as the first.
+
+So the fourth shipped with a SELF-AUDIT rather than only a patch. Before reporting any
+number the plane checks its OWN fragments and REFUSES (rc=2) if one still contains a format
+placeholder — text the compiler cannot print, against which a match can only ever produce a
+false negative. That is the move #44 makes for populations, applied to the instrument's own
+inputs: a gate must be able to tell "nothing wrong" from "I was looking for something that
+does not exist".
+
+THE TELL WAS AVAILABLE BEFORE THE WORK IN ALL FOUR CASES: 318 rows of identical length; a
+file never reached from a source file; a fragment that is the empty string; a fragment
+containing `%s`. None of them needs a run to notice. **What a gate CANNOT match is as much
+a part of its specification as what it does** — and none of the four was written down
+anywhere until tonight.
 
 ## 2026-07-20 driver run (count 1030 → 1028; 2 conversions + these walls)
 
