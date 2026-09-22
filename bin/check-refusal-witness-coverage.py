@@ -132,19 +132,22 @@ import warnings
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CENSUS = os.path.join(ROOT, "bin", "refusal-witness-census.tsv")
-MIN_SITES = 150           # 195 at the first measurement
+MIN_SITES = 190           # 195 at the first measurement; 219 once import ALIASES
+                          # were resolved (see sites()) — the floor moved with it,
+                          # because a floor set below the truth is the failure this
+                          # plane spent an evening finding in its own inputs.
 CENSUS_TRUNC = 4000       # the writer's message cap. See the TRUNCATION GUARD below: a
                           # stored message of EXACTLY this length was cut, and a cut
                           # message silently un-witnesses every site whose fragment falls
                           # past the cut.
-MIN_WITNESSED = 164       # 58 at the first joined measurement; 67 after TEN witnesses were
+MIN_WITNESSED = 182       # 58 at the first joined measurement; 67 after TEN witnesses were
                           # written the same day (Final F1/F2, three lemma arms, two
                           # assigns-region arms, `\length` on a dict, `\result` in a
                           # check, the happy `except` typo); 85 after 31 more; then 86
                           # with witness 1762 — and 131 once the CENSUS ITSELF was
                           # repaired. FORTY-FIVE of the "missing" witnesses had been in
                           # the corpus all along. May only grow.
-MAX_UNWITNESSED = 17      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
+MAX_UNWITNESSED = 19      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
                           # the instrument; 67 -> 59 by DEMONSTRATING the eight that no
                           # corpus witness can reach; 59 -> 50 once the nine this
                           # instrument CANNOT MATCH were counted separately (below).
@@ -193,7 +196,7 @@ MAX_UNWITNESSED = 17      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by
 # `--list-unwitnessed`. It is NOT an exemption list keyed by name: membership is DERIVED
 # from the empty fragment every run, so a raise that gains a literal leaves the class
 # automatically and rejoins the debt if it still has no witness.
-MAX_UNMATCHABLE = 9
+MAX_UNMATCHABLE = 10
 
 NOT_SOURCE_REACHABLE = {
     "PYCSL-IR-NOTDICT", "PYCSL-IR-MISSINGTOP", "PYCSL-IR-VERSION", "PYCSL-IR-FUNCSLIST",
@@ -228,13 +231,31 @@ def sites():
                 tree = ast.parse(open(f, errors="replace").read())
             except SyntaxError:
                 continue
+            # (#49) RESOLVE IMPORT ALIASES. The walk used to require the raised
+            # name to START WITH "PyCSL", and TWENTY-ONE raises do not: every route
+            # refusal landed in `pycsl.py` since route #29 imports the class under a
+            # local alias (`from errors import PyCSLSemanticError as _PyCSLSemErr204`)
+            # to keep the import out of the enclosing scope. Those sites were NOT IN THE
+            # POPULATION AT ALL — not undemonstrated, INVISIBLE — so the plane was
+            # reporting coverage of 198 sites when there were 219. Found the way the
+            # other five were: a witness fired its refusal and the count did not move.
+            _alias = {}
+            for _n in ast.walk(tree):
+                if isinstance(_n, (ast.Import, ast.ImportFrom)):
+                    for _a in _n.names:
+                        if _a.asname and str(_a.name).startswith("PyCSL"):
+                            _alias[_a.asname] = _a.name
             for n in ast.walk(tree):
                 if not isinstance(n, ast.Raise) or not isinstance(n.exc, ast.Call):
                     continue
                 fn = n.exc.func
                 name = getattr(fn, "id", None) or getattr(fn, "attr", None)
-                if not name or not str(name).startswith("PyCSL"):
+                if not name:
                     continue
+                if not str(name).startswith("PyCSL"):
+                    if name not in _alias:
+                        continue
+                    name = _alias[name]
                 code = None
                 for kw in n.exc.keywords:
                     if kw.arg == "code" and isinstance(kw.value, ast.Constant):

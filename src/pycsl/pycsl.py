@@ -474,6 +474,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     from frontend.exec_splice import splice_constant_exec
     unified_ast = splice_constant_exec(unified_ast)
 
+
     # [Module 4 DROPPED — B-final reorder] The pipeline is now M1-3 → M5 (build IR) →
     # all semantic checks (on the IR, via core_ir_semantic.run_ir_semantic_checks) → M6.
     # Module 4 used to run here between M3 and M5; every one of its language-agnostic
@@ -541,6 +542,71 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # fully RESOLVED IR (the wire Module 6 / the core consumes). Pure relocation: the
     # passes and their order are unchanged, so emission stays byte-identical.
     imported_names = _ir_resolve(ir_data, unified_ast, args.file, deep=args.deep, import_paths=args.import_path)
+
+    # ORDER MATTERS, AND THE FIRST PLACEMENT GOT IT WRONG. Landed before Module 5
+    # this refusal fired BEFORE the TY3 monomorphization checks and made GT4
+    # (polymorphic recursion) DEAD: GT4 keys on a recursive call whose type
+    # ARGUMENT is the generic's own TypeVar, which only the subscripted spelling
+    # can express, so refusing the spelling first would have silently retired
+    # another refusal — and witness 1783 stopped witnessing GT4, which is how it
+    # was caught. Running AFTER `_ir_resolve` (which runs monomorphization) keeps
+    # GT1/GT3/GT4/BOUND firing first and refuses only a call that SURVIVED them.
+    # (#49) ROUTE #215 — `f[T](...)` ON A GENERIC **FUNCTION** IS NOT PYTHON, AND THE
+    # MODEL WAS PROVING THINGS ABOUT IT. PEP 695 makes a generic CLASS subscriptable
+    # (`Box[int]()` runs; `__class_getitem__`), but a generic FUNCTION is NOT: CPython
+    # 3.14 answers `TypeError: 'function' object is not subscriptable` for
+    # `ident[int](1)`. PyCSL accepted the call, failed to resolve it to the specialization,
+    # and ERASED it to the per-name opaque `pycsl_erased_<var>` — so a local REBOUND from
+    # a second such call read the SAME constant and the two values collapsed:
+    #
+    #     def ident[T](n: int) -> int:  return n      #@ ensures \result == n
+    #     def probe() -> int:                         #@ ensures \result == 0
+    #         a = ident[int](1); x = a; a = ident[int](2); return x - a
+    #
+    #   emitted `a := (any int); x := pycsl_erased_a; a := (any int); (!x - pycsl_erased_a)`
+    #   and PROVED `\result == 0` — for a program CPython cannot even run. The TRUE twin
+    #   (`\result == 0 - 1`, the value the UNSUBSCRIPTED spelling computes) is REFUSED.
+    #   The PLAIN call `ident(1)` is lowered faithfully (`a := (ident 1)`) and the false
+    #   claim FAILS there, which is the control.
+    #
+    # MEASURED BLAST RADIUS before landing this (lesson (d3), all four populations):
+    # `f[T](...)` on a locally-defined FUNCTION occurs 2 times in the corpus — both in
+    # witness 1783, an expected-FAIL file that fires the GT4 polymorphic-recursion refusal
+    # first — and ZERO times in the mirror, the live tree and `src/pycsl_lib`. The refusal
+    # is therefore byte-inert everywhere that must keep verifying.
+    #
+    # CHOKE POINT: `_run_pipeline`'s mirror twin is `#@ \trusted`, so this costs no marker,
+    # no mirror edit and no re-proof.
+    # NOTE THE MODULE: the pipeline parses with `frontend.pure_ast`, NOT the stdlib
+    # `ast`, so this scan must use the SAME node classes — the first spelling imported
+    # `ast` and matched nothing, which is the `pure_ast`-vs-`ast` confusion route #209
+    # was made of (a matcher asked about nodes of the wrong family).
+    from frontend import pure_ast as _ast215
+    _fn215 = {_n.name for _n in _ast215.walk(unified_ast)
+              if isinstance(_n, (_ast215.FunctionDef, _ast215.AsyncFunctionDef))
+              and getattr(_n, "type_params", None)}
+    if _fn215:
+        from errors import PyCSLSemanticError as _PyCSLSemErr215
+        for _n215 in _ast215.walk(unified_ast):
+            if (isinstance(_n215, _ast215.Call)
+                    and isinstance(_n215.func, _ast215.Subscript)
+                    and isinstance(_n215.func.value, _ast215.Name)
+                    and _n215.func.value.id in _fn215):
+                raise _PyCSLSemErr215(
+                    f"{args.file} (line {getattr(_n215, 'lineno', 0)}): "
+                    f"`{_n215.func.value.id}[...](...)` SUBSCRIPTS A GENERIC FUNCTION at a "
+                    f"call site, and that is not Python: PEP 695 makes a generic CLASS "
+                    f"subscriptable (`Box[int]()` runs) but a generic FUNCTION is not — "
+                    f"CPython answers `TypeError: 'function' object is not subscriptable`. "
+                    f"PyCSL used to accept it, fail to resolve it to the specialization, "
+                    f"and ERASE the call to an opaque per-name constant, so a local rebound "
+                    f"from a second such call read the SAME constant and two different "
+                    f"values were proved equal (route #215). Write the plain call "
+                    f"`{_n215.func.value.id}(...)`, which IS Python and IS lowered "
+                    f"faithfully; the type argument is inferred at the instantiation sites "
+                    f"the monomorphizer already scans.",
+                    filename=args.file, line=getattr(_n215, "lineno", 0) or 0,
+                    stage="ir-semantic", code="PYCSL-SEM-GENERIC-SUBSCRIPT-CALL")
 
     # (#49) ROUTE #212 — THE MODULE-LEVEL CERTIFICATE. The importing unit believes every
     # contract of an imported module and nothing checks that the module was verified.
