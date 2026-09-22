@@ -78,9 +78,9 @@ import warnings
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CENSUS = os.path.join(ROOT, "bin", "refusal-witness-census.tsv")
 MIN_SITES = 150           # 195 at the first measurement
-MIN_WITNESSED = 63        # 58 at the first joined measurement, 63 after five witnesses
-                          # were written for the Final and lemma families; may only grow
-MAX_UNWITNESSED = 135     # 140 -> 135 with those five; may only shrink
+MIN_WITNESSED = 66        # 58 at the first joined measurement, 66 after nine witnesses
+                          # (Final, lemma, assigns-region, predbase, checkpoint); may only grow
+MAX_UNWITNESSED = 132     # 140 -> 132 with those nine; may only shrink
 
 
 def literal_parts(node):
