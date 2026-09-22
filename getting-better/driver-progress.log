@@ -3766,3 +3766,20 @@ about** — a route witness hiding inside a green test. There are none today, an
 fact nobody had measured.
 
 Battery is now **25 fast / 46 with `--slow`**. All 25 green at HEAD.
+
+### A HONEST NOTE ABOUT WHAT THE FINAL BATTERY COVERS
+The final control battery is running in `pycsl-w52` at **febbb08a**, the HEAD at 12:46Z.
+Two planes were added after it started (`check-corpus-contract-truth.py` and the runner
+bump 24 -> 25), so its `--slow` leg will report **45**, not 46. That is not a gap in the
+evidence and it should not be papered over:
+
+  * the battery's job is to certify the THIRTEEN ROUTES and the emitter state, and every
+    emitter change is in febbb08a — nothing in `src/` has moved since;
+  * the two later planes are `bin/` additions that CHANGE NO EMISSION, and both were run
+    green at the true final HEAD (25/25 fast) the moment they landed;
+  * the mirror has not changed since febbb08a either, so the slow leg's mirror-emission
+    and proof planes measure the same tree.
+
+CUTOFF DECLARED: no further planes or emitter changes after this battery reports. The
+remaining window is for measurement, the summary and the §A.3 finish — a tree that keeps
+moving cannot be certified by a battery that takes hours.
