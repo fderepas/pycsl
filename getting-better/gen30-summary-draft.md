@@ -458,9 +458,11 @@ whether `hlib.Sha256.update`'s trust becomes a reviewer clause or an abstract `v
 
 The base self-tcb-reduction loop's metric is `\trusted` stubs CONVERTED to verified
 methods, and this generation converted **none**: the count stands at **459**, exactly where
-it started. What the window did instead was close **twenty-three SEV-1 unsoundnesses** and add
-**fifteen planes**, and those are not a substitute for conversions — they are the other half
-of the same job.
+it started. What the window did instead was close **twenty-three SEV-1 unsoundnesses**, add **NINE new
+plane files** (counted, not recalled: `git log --diff-filter=A -- 'bin/check-*.py'` since
+the generation baseline) and take the registered fast battery from **24 to 43** — the
+difference being planes that already existed and were being run by NOTHING. Those are not
+a substitute for conversions; they are the other half of the same job.
 
 **AND THE FINAL STRETCH ADDS A THIRD THING THE METRIC DOES NOT SEE.** Six distinct
 artifacts were found and fixed in ONE instrument (`check-refusal-witness-coverage`), the
