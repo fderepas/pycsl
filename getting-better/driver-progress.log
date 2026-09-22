@@ -3636,3 +3636,14 @@ ALL SIX ROUTES (#198-#203) NOW HAVE COMPLETE L-PLANE EVIDENCE: mirror-sync green
 byte-diff accounted for line by line, mirror emission measured, and both moved mirrors
 re-proved. The suite leg is green at bc0561ec. What remains is the FINAL control battery
 at the final HEAD.
+
+### FINAL CONTROL BATTERY LAUNCHED at 12:46:34Z
+`$SCRATCH/final_battery.sh /home/fabrice/git/pycsl-w52 febbb08a` — the suite followed by
+`bin/run-soundness-planes.sh --slow`, on a box that is now idle (load 0.8), at the HEAD
+that carries all thirteen routes, all five new planes and the two re-proved mirrors.
+PREDICTION, written before it runs:
+  * suite: **3841 - 18 = 3823 of 3841** — stated as `total - 18` this time rather than as
+    an increment, which is the correction the last prediction earned. The corpus has not
+    grown since that run (the six new witnesses 1701-1706 were already in it), so the
+    total should be identical. Same 18 CONFIRMED FAIL, **0 XPASS**.
+  * planes: **45 green** (24 fast + 21 slow).
