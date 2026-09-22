@@ -3198,3 +3198,21 @@ NAME (which is more precise than the positional index, and needs no vararg offse
 So the predicate refuses exactly the two carriers and leaves the control — and every
 other corpus program — alone. Mirror-side census with the KEYWORD-aware predicate
 launched ($SCRATCH/dry4_mirror.log).
+
+### Route #202 — the PREDICTION for the repair (written before applying it)
+  T1 `callee("a")` into an UN-ANNOTATED param whose contract reads it -> REFUSED
+     (`PYCSL-SEM-STRARG`, now spelled "ROUTE #200/#202"). Was PROVED.
+  T2 `callee(p="a")` into a DECLARED `int` param — the KEYWORD spelling — -> REFUSED.
+     Was PROVED even after #200 landed, because the check read `node["args"]` only.
+  T3 witness 1702 (un-annotated, contract does NOT read the param) -> still VERIFIES.
+     This is the shape all 46 mirror sites have.
+  T4 witness 1704 (`member_of("+", "+", "-")`, a `*vals: str` vararg) -> still VERIFIES.
+     The vararg formal packs the remaining actuals; they are not a parameter mismatch.
+  T5 corpus byte-diff ZERO and mirror emission byte-diff ZERO. The refusal lives in
+     `pycsl.py::_run_pipeline`, whose mirror is a `\trusted` stub, so there is nothing
+     for it to move; and a refused program emits nothing, so the two new FAIL witnesses
+     appear as "new source file(s) ignored" rather than as emissions.
+  T6 the 22 fast planes stay green, including `check-refusal-reachability` (the new
+     raise re-uses the existing local `from errors import ...` binding) and
+     `check-mirror-coverage` / `check-trusted-raises-honesty` (no new def, and
+     `_run_pipeline` is already on both lists — the lesson #200 paid for).
