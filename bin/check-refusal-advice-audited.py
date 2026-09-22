@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 91 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 94 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -431,6 +431,15 @@ AUDITED = {
     ("src/pycsl/frontend/Module3_Weaver.py",
      'PyCSLSemanticError(f"`happy {hp.name}`: \'{func_name}\' is `#@ \\\\trusted` or `#@ \\\\abstract`, is not exempt, and its BODY writes the protected'): (FOLLOWABLE,
         'Same repair set as the parametric sibling; the `except` and `#@ \\\\preserves` arms were both measured VERIFYING earlier in this audit.'),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError("a name\'s runtime binding is not the `def` the model resolves it to (" + \'; \'.join(sorted(set(_dc_bad))) + \'). A decorato'): (FOLLOWABLE,
+        "'Give each binding its own name' - a file whose every name is bound once VERIFIES."),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError("a name\'s runtime value is not the one the model reads (" + \'; \'.join(sorted(set(_nb_bad))) + \'). An imported name bound '): (FOLLOWABLE,
+        'Same repair, same measurement: one binding per name, no dynamic `exec`/`eval` at module or class-body scope.'),
+    ("src/pycsl/module6_whyml/statements.py",
+     "PyCSLIRError('PYCSL-UNFRAMED-REGION-ASSIGNS: this function is emitted as a bodyless `val` (a `\\\\trusted` / `\\\\abstract` / imported stub) and"): (FOLLOWABLE,
+        'The repair is to make the region base an `array`-typed PARAMETER of the emitted signature; a `\\\\trusted` stub whose `assigns xs[0 .. 1]` names its own list parameter VERIFIES.'),
 }
 
 
@@ -458,11 +467,27 @@ def sites():
                 tree = ast.parse(open(f, errors="replace").read())
             except SyntaxError:
                 continue
+            # (#49) RESOLVE IMPORT ALIASES — the same artifact found in
+            # `check-refusal-witness-coverage` the same evening. Twenty-one raises in
+            # this compiler import the exception class under a local alias
+            # (`from errors import PyCSLSemanticError as _PyCSLSemErr204`), and a filter
+            # keyed on the raised NAME excludes every one of them. They are
+            # disproportionately the CURRENT campaign's own work, because new code is
+            # written in whatever local style it needed. Fixed here too rather than left
+            # inconsistent between two planes that census the same population.
+            _alias = {}
+            for _n in ast.walk(tree):
+                if isinstance(_n, (ast.Import, ast.ImportFrom)):
+                    for _a in _n.names:
+                        if _a.asname and str(_a.name).startswith("PyCSL"):
+                            _alias[_a.asname] = _a.name
             for n in ast.walk(tree):
                 if not isinstance(n, ast.Raise) or not isinstance(n.exc, ast.Call):
                     continue
                 nm = getattr(n.exc.func, "id", None) or getattr(n.exc.func, "attr", None)
-                if not nm or not str(nm).startswith("PyCSL"):
+                if not nm:
+                    continue
+                if not str(nm).startswith("PyCSL") and nm not in _alias:
                     continue
                 raises += 1
                 msg = " ".join(literal_parts(n.exc))
@@ -529,13 +554,15 @@ def main():
         print("[!] refusal-advice-audited: NOT OK.", file=sys.stderr)
     else:
         print("[+] refusal-advice-audited: OK — %d of %d advice-bearing refusal(s) have "
-              "had their advice FOLLOWED and run (floor %d). The rest are unaudited, "
-              "which is a debt this plane exists to make visible rather than a failure."
-              % (len(done), len(advice), MIN_AUDITED))
+              "had their advice FOLLOWED and run (floor %d)%s"
+              % (len(done), len(advice), MIN_AUDITED,
+                 "." if not todo else
+                 ". The remaining %d are unaudited, which is a debt this plane exists to "
+                 "make visible rather than a failure." % len(todo)))
     return rc
 
 
-MIN_AUDITED = 91
+MIN_AUDITED = 94
 
 if __name__ == "__main__":
     sys.exit(main())
