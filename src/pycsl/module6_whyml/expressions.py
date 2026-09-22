@@ -10117,7 +10117,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 elif _ba_arg_ir.get("type") == "Var":
                     _ba_st = getattr(self, "_current_symbol_table", {}) or {}
                     _ba_is_count = _ba_st.get(_ba_arg_ir.get("name")) == "int"
-            if args and _ba_is_count:
+            # AND `bytearray` ONLY — NOT `bytes`. MEASURED FOUR MINUTES AFTER THIS FIX
+            # LANDED, by re-running the refusal the fix was about: with the count form
+            # lowered for BOTH constructors, `b = bytes(2); b[0] = 7; return b[0]` PROVED
+            # `\result == 7` while CPython raises `TypeError: 'bytes' object does not
+            # support item assignment`. At the parent commit that program FAILED — so the
+            # ILL-TYPEDNESS WAS DOING THE ENFORCING, and making the lowering faithful
+            # removed the accident. The `bytes` immutability refusal
+            # (`PYCSL-SEM-SUBSCRIPT`) keys on the symbol table typing the local `bytes`,
+            # which it does not for `b = bytes(2)` — recorded as a separate pre-existing
+            # gap, now masked again by the same fail-closed typing as before.
+            if args and _ba_is_count and func_name == "bytearray":
                 return f"(Array.make {args[0]} 0)"
             if args:
                 # WL-06d soundness: Python `bytes([...])`/`bytearray([...])` raises

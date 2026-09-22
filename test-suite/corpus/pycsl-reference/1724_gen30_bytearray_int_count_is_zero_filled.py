@@ -19,7 +19,9 @@ the IR says is a COUNT (a literal `Number`, or a `Var` the symbol table types `i
 array-valued argument still takes the element-preserving `*_new` path (corpus 0616).
 
 This file pins BOTH halves: the count form is zero-filled and writable, and the
-array-valued form still preserves elements.
+array-valued form still preserves elements. Its NEGATIVE twin is 1725 — `bytes` is
+excluded from the count form, because the first version of this fix lowered both and made
+a `bytes` item assignment PROVE.
 """
 # pycsl-expected: PASS
 _ = 0  # anchor
@@ -42,3 +44,4 @@ def zero_filled() -> int:
 #@ assigns \nothing
 def elements_preserved() -> list:
     return bytes([1, 2, 3])
+
