@@ -4891,3 +4891,35 @@ of #193's docstring (lesson (m)). Three of gen #30's last four routes were found
 campaign's own recent output rather than in the emitter's old code — which is a statement
 about where the defects are, not about who wrote them: **a repair is new code, and new code
 is exactly where the unprobed spellings live.**
+
+## (p) THE UPPER BOUND IS NOT THE BLAST RADIUS — READ THE ARM, THEN COUNT THAT SHAPE
+
+Route #203 looked unlandable for twenty minutes. A static count said the self-annotation
+mirror contains **575 f-strings**, and the repair was to the f-string lowering, so the
+apparent price was "move most of the 53 mirror emissions and buy a full re-proof" — days,
+not the hours left in the window. Two instrumented censuses were launched to price it.
+
+Reading the four lines of the joiner instead answered it exactly:
+
+```python
+acc = _part(parts[0])
+for part in parts[1:]:
+    self._add_abstract_op("val str_concat (x: int) (y: int) : int")
+    acc = f"(str_concat {acc} {p})"
+return acc
+```
+
+A multi-part f-string is wrapped in an abstract op. A string-typed part is wrapped in
+another. **Exactly one shape returns the raw value: a single-part f-string whose part is
+not string-typed.** A pure-AST count of *that* shape is 0 in the corpus, 0 in the mirror, 0
+in `pycsl_lib` — and the repair, scoped to `len(parts) == 1`, is byte-inert by construction.
+The two instrumented censuses were killed unfinished; they would have measured a question
+that no longer needed answering.
+
+>>> BEFORE PRICING A REPAIR, FIND THE ARM THAT IS ACTUALLY WRONG AND COUNT *THAT*. A count
+>>> of the construct is an upper bound on the blast radius, and the gap between the bound
+>>> and the truth can be the whole decision — here, 575 versus 0.
+
+The corollary is lesson (s) read backwards: the emitter gives the distance. Four lines of
+source replaced two multi-minute sweeps, and the scope they justified (`len(parts) == 1`)
+is the same scope that made the change safe.
