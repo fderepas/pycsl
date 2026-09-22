@@ -4111,3 +4111,18 @@ it, and the box is now idle enough to close it properly: `bin/run-soundness-plan
 That gives two independent slow legs — one certifying the emitter state that carries the
 thirteen routes, one certifying the tree as it actually stands — rather than one leg and an
 argument about why the difference does not matter.
+
+## FINAL CONTROL BATTERY — SUITE LEG GREEN, AND THE CORRECTED PREDICTION IS EXACT
+    **Results: 3831 / 3849 passed**, **0 XPASS**, and the SAME EIGHTEEN CONFIRMED FAIL
+    this campaign has carried unchanged: pycsl-reference 0211-0220 and 0701,
+    python-reference 0043/0048/0079/0080/0082/0095/0110.
+
+**3849 - 18 = 3831. The prediction matched exactly**, because it was restated as
+`total - 18` with the total read off the runner's own first line — after getting the
+arithmetic wrong twice by computing an increment from memory. The invariants (same 18,
+zero XPASS) were right all three times; the total was right only once the method changed.
+
+That certifies the suite over ALL THIRTEEN ROUTES of this generation, the six new witness
+pairs and the five value-differential drivers, at `febbb08a`. The `--slow` leg of that
+battery is now running; a SECOND `--slow` leg is running in parallel in the main tree at
+the true final HEAD (49 planes) to close the four-plane gap between the two commits.
