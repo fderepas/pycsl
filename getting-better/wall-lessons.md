@@ -416,6 +416,45 @@ what the record is ABOUT and confirm the key covers that.** A key chosen for sta
 change without moving it. Stability and coverage are different requirements, and it is easy
 to solve the first and believe you have solved both.
 
+### (r3) A gate whose INPUTS can be deleted underneath it must refuse, not crash
+
+`bin/check-emitted-vacuity.py` died mid-battery with a traceback:
+
+    FileNotFoundError: 'src/self-annotate/src/frontend/import_classifier.mlw'
+
+on `open(mlw)` — a path `os.walk` had listed moments earlier. The file was real; it was
+GONE by the time the gate read it.
+
+The cause was me. Three planes (`check-trusted-frame-honesty`, `check-yield-erasure`,
+`check-computed-rhs-erasure`) emit `.mlw` BESIDE the mirror sources and then
+`os.remove`/`shutil.move` them out; `check-emitted-vacuity` reads those same files IN
+PLACE. The battery's loop is sequential precisely so the two never overlap — and I had run
+one of the emitters BY HAND while the battery was running, to confirm a fix. The shared,
+gitignored `.mlw` tree is the battery's private workspace, and reaching into it from
+outside the loop is the one thing the loop's ordering cannot protect against. (e3) already
+says a `--slow` battery should run alone; this is the sharper version: **it is not enough
+that no one else starts a battery — you must not run a single plane by hand either.**
+
+But the instrument lesson survives the excuse. Of the three endings available to a gate
+whose input vanishes mid-read, the one it had was the worst but one:
+
+- SILENTLY SKIP the file — a GREEN over a shrunken population. This plane already has a
+  `#@ (#44)` zero-input guard for exactly that, and skipping would have walked around it.
+- CRASH — rc=1 with a traceback, which reads as *the gate is broken*, not as *the
+  measurement is void*. A driver triaging a red battery will go looking for a bug in the
+  gate's parser.
+- REFUSE — rc=2, naming the vanished file and the instruction ("run this plane on its
+  own"). The measurement is void and says so, which is the true statement.
+
+>>> A GATE MEASURING A MOVING TARGET HAS NO VERDICT. If a gate's inputs are mutable by
+>>> anything but the gate, it needs a guard that distinguishes "I measured a population"
+>>> from "the population changed while I was counting it" — and that guard is a REFUSAL,
+>>> because rc=1 claims a finding and rc=0 claims a clean bill.
+
+The general form is the #44 rule pointed one level lower. #44 asks whether a gate can tell
+"nothing wrong" from "I looked at nothing". This asks whether it can tell "I looked at all
+of it" from "I looked at what was still there."
+
 ## 2026-07-20 driver run (count 1030 → 1028; 2 conversions + these walls)
 
 ### BROKEN (converted)
