@@ -3016,3 +3016,13 @@ SPELLINGS MEASURED, because the repair's blast radius depends on them:
                          not by design.
 Census of how often that tail actually fires across the mirror and the corpus is
 RUNNING before the repair is written, not after.
+
+## THE OWED SLOW-PLANES LEG IS GREEN — 42/42 at HEAD 2072dd8f
+The leg the supervisor recorded as still owed from before the first 529 kill has
+now completed on the record: `[+] soundness-planes: OK — all 42 plane(s) green`,
+re-run at the disputed HEAD (2072dd8f) in the control worktree `pycsl-w51`.
+That settles it with evidence rather than with my recollection — which is the
+right way round, and the reason I re-ran it instead of re-arguing it.
+(A SECOND slow-planes leg is still owed for the CURRENT tree: #198-#201, the
+return-boundary plane and the swallowed-exceptions change all landed after that
+HEAD. It runs as the final control battery.)
