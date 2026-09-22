@@ -26,9 +26,10 @@
 * `bin/check-proof-reverify.sh` — the axiom-footprint gate. Its ratchet was driven **6 -> 0** (VERIFIED 155 -> 166: eleven `#@ proof` axiom imports nothing had ever checked).
 * `bin/check-trusted-reasons.py` — a full plane that existed and **nothing ran it**; collected into the runner.
 * `bin/check-return-boundary-substitutions.py` — the RETURN side, the gap `check-argument-coercion.py` names in its own header and `check-constant-fallthrough.py` names in its own. Pins occurrence COUNTS, and was demonstrated to fire on the pre-#198 tree via `--live`.
+* `bin/check-coercion-exits.py` — the trigger rule's THIRD firing: `_array_coerce_arg` (#193, #201) and `_coerce_to_int` (#194, #200/#202) each produced two routes, and `check-argument-coercion.py` classifies the call SITES without ever looking inside the helpers. Pins both exit sets with counts; demonstrated to fire on the true pre-#201 source.
 * `bin/check-fstring-lowering.py` — built because the campaign's own trigger rule fired: TWO routes (#199, #203) in ONE function in ONE session. Pins the return set with counts AND two structural tokens, because #203 added a *wrap* rather than an exit and the return-set half is green on the pre-#203 tree — a blind spot the `--live` self-test found before it shipped.
 
-Battery: **18 -> 23 fast planes, 44 with `--slow`.**
+Battery: **18 -> 24 fast planes, 45 with `--slow`**, and `MIN_PLANES` tightened from a floor that carried slack to the exact count.
 `check-swallowed-exceptions` ratchet **4 -> 0**, a hard zero.
 Five new `value-differential` drivers (v73-v77), the CPython-measured plane, covering
 #198, #199 and #203 in both the DISAGREE and the AGREE direction.
@@ -41,7 +42,16 @@ Five new `value-differential` drivers (v73-v77), the CPython-measured plane, cov
 * Mirror emission byte-diff: ZERO for #199/#200/#202/#203; exactly ONE file for #198 and
   ONE for #201, each the edited method's own mirror, each a one-line diff that is exactly
   the intended correction (M1).
-* Fast planes: 22/22 green after each of #198, #199, #200, #201, #202 and #203.
+* Fast planes: green after each of #198, #199, #200, #201, #202 and #203 (22/22, then
+  23/23, then 24/24 as the last two planes were added).
+* **Both moved mirrors RE-PROVED**: `module6_whyml/stmt_control_flow` (#198) —
+  `Verification SUCCESS`, 12589 prover results; `module6_whyml/expressions` (#201) —
+  `Verification SUCCESS`, **21347** prover results. M1 satisfied in both: the diff was
+  exactly the intended correction AND the affected program re-proves.
+* **gen11 differential fuzzer**: 60/60 seeds, **960 programs across the RETURN boundary**,
+  ZERO false proofs — the honest negative for the boundary that produced #198.
+* **gen12** (the STRING/INT representation boundary, where #199/#200/#202/#203 all live):
+  800 programs, running.
 
 ## The method, in one sentence
 
