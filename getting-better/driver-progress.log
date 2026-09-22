@@ -4592,3 +4592,41 @@ The message now gives the working repair first and records the measured reason t
 was withdrawn. Witnesses 1784 and 1785 had their census rows refreshed against the new
 text (a message edit moves the fragment the coverage gate matches on — the same coupling
 that made the 110-char truncation invisible).
+
+--------------------------------------------------------------------------------
+THE ADVICE AUDIT, THIRD AND FOURTH FINDINGS — AND A PLANE SO IT ACCUMULATES
+--------------------------------------------------------------------------------
+Thirteen advice-bearing refusals audited now, by the only method that means anything:
+WRITE THE PROGRAM THE MESSAGE TELLS YOU TO WRITE AND RUN IT. Nine work. Four do not, and
+they fail in four distinct ways:
+
+  UNSPELLABLE  "Declare the variable `#@ shared`" — `#@ shared` alone is a syntax error.
+  UNTRIED      "Call `__enter__` explicitly" — an explicitly-called DUNDER does not carry
+               its contract (`enter` verifies, `__enter__` does not, identical otherwise).
+  AMBIGUOUS    "Verify it by contract" — true, but a contract on a global-receiver call
+               does not help and neither does `\trusted`; it needs a LOCAL instance.
+  UNTRIED      "Use a `None` sentinel and initialise the collection in the body" —
+               `xs: Optional[List[int]] = None` emits WhyML with an UNBOUND TYPE SYMBOL
+               `array`. Controls: `List[int]` alone verifies, `Optional[int]` alone
+               verifies; only `Optional[List[T]]` fails.
+
+All four messages were REPAIRED to advise something measured to work.
+
+>>> THE COMPILER WAS TELLING USERS TO WRITE A PROGRAM IT CANNOT COMPILE. Not once — twice,
+>>> out of thirteen sampled. Nothing in the repo would ever have noticed, because a
+>>> refusal's advice is the one claim in the system with no gate behind it.
+
+NEW PLANE `bin/check-refusal-advice-audited.py` so this does not evaporate: 94
+advice-bearing refusals, 13 audited, ratcheted upward. Keyed on a TEXT SIGNATURE (the
+unparsed raise, first 64 chars) rather than a line number — the first version keyed on
+(file, lineno) and went RED when an unrelated edit shifted seven messages down a line.
+
+>>> THE KEY PAID FOR ITSELF WITHIN THE HOUR: editing the mutable-default message made its
+>>> OWN audit entry STALE, and the gate said so before I could forget to re-derive it. A
+>>> verdict about WORDS must be keyed on the words.
+
+AND ONE OF THE FOUR REPAIRS OWED A MIRROR EDIT. `_check_mutable_defaults` is among the 887
+un-trusted mirror functions that must be VERBATIM copies, so changing its message broke
+`check-self-annotate-mirror-sync` — the first of the evening's four message repairs to do
+so. The other three sat in `\trusted` twins and owed nothing, which is the choke-point rule
+working exactly as designed. Mirror synced, file re-proved.
