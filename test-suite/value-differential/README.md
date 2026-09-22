@@ -83,3 +83,26 @@ model gets wrong: `round(2.5)` is **2**, not 3 (BANKER'S rounding — ties go to
 
 Grow it. Every raising-free Python operation whose value the model could plausibly get
 wrong is one more permanent, self-measuring check.
+
+## ADDED IN gen #30 — the ROUTE-BACKED drivers (v73-v77)
+
+Five drivers whose AGREE/DISAGREE pairs come from routes closed in that generation, so each
+one is a permanent re-measurement of a defect that was real:
+
+  * **v73 DISAGREE — a BARE `return` is `None`, not the integer 0** (route #198). A bare
+    `return` in an int-returning function lowered to `raise (Return 0)`, so a caller reading
+    the result against `0` decided wrongly. CPython answers 7; the driver claims 0.
+  * **v74 DISAGREE / v75 AGREE — the EMPTY f-string is `""`, not the integer 0**
+    (route #199). v74 states the wrong answer (2) and must stay refused; **v75 states the
+    RIGHT one (1) and must keep PROVING**, which is what tells #199's FAITHFUL repair apart
+    from an opaque one. A later "simplification" to an opaque would keep v74 green and turn
+    v75 red.
+  * **v76 DISAGREE / v77 AGREE — `f"{5}"` IS `"5"`** (route #203). A single-part f-string
+    returned the integer it interpolated. v77 pins the completeness half: the repair is a
+    VALUE-KEYED opaque, so two f-strings over the same value are still provably equal —
+    which `(any int)`, fresh at every evaluation, would lose.
+
+The pattern worth copying: **when a route's repair is FAITHFUL rather than opaque, it needs
+an AGREE driver as well as a DISAGREE one.** The DISAGREE driver alone cannot tell "the
+false claim is refused because the value is right" from "…because the value is now opaque",
+and those two outcomes have very different worth.
