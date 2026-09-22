@@ -36,8 +36,8 @@ attacked directly — `hlib.Sha256.update`, the layer's one BARE `\trusted` — 
 FORCED, so the measurement went into the marker and the gate now enforces a `reviewer:`
 clause at zero.
 
-**THE EVENING STRETCH (20:30–23:00Z) — FIVE ARTIFACTS IN ONE INSTRUMENT, AND SEVEN FALSE
-STDLIB CONTRACTS.** Two debts the handoff had priced turned out to be worth more than
+**THE EVENING STRETCH (20:30–23:40Z) — SIX ARTIFACTS IN ONE INSTRUMENT, SEVEN FALSE
+STDLIB CONTRACTS, AND THE ADVICE SURFACE CLOSED.** Two debts the handoff had priced turned out to be worth more than
 their price, in opposite directions.
 
 *The 24 UNADJUDICATED identity stubs* were all adjudicated against this CPython, and
@@ -63,11 +63,15 @@ literal of 25 characters, so their fragment is empty and no witness can ever mat
 Several raises use `%s` formatting, so the AST literal contains placeholders the compiler
 never prints — three real witnesses fired and moved the count by ZERO. (5) One row was cut
 MID-UTF-8, leaving a replacement character, and the file proving that refusal
-(`1265_w68_hs_foreign_receiver_call.py`) had sat in the corpus for three generations. The
+(`1265_w68_hs_foreign_receiver_call.py`) had sat in the corpus for three generations.
+(6) And the worst: the walk required the RAISED NAME to start with `PyCSL`, so the
+twenty-one raises that import their exception class under a LOCAL ALIAS — **every route
+refusal this campaign has landed in `pycsl.py` since route #29** — were not in the
+population at all. 198 sites became 219. The
 instrument was repaired in four conservative passes plus two guards, and now **REFUSES**
-rather than report a number when its own inputs are unusable. **85 → 162 demonstrated,
-113 → 19 undemonstrated**, with all 198 sites partitioned for the first time (162 + 19 + 8
-not-source-reachable + 9 unmatchable). Twenty-five witnesses were written along the way —
+rather than report a number when its own inputs are unusable. **85 → 184 demonstrated,
+113 → 17 undemonstrated**, with all 219 sites partitioned for the first time (184 + 17 +
+8 not-source-reachable + 10 unmatchable). Twenty-five witnesses were written along the way —
 and four more were written, confirmed to fire, and DELETED as redundant.
 
 **THE ADVICE SURFACE, MEASURED FOR THE FIRST TIME AND CLOSED.**
