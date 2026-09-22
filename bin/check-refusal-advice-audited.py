@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 31 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 34 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -251,6 +251,15 @@ AUDITED = {
     ("src/pycsl/frontend/desugar.py",
      "PyCSLParseError('`try ... except*` (an exception-GROUP handler) is not modelled: `_PY_STMT_HANDLERS` has no `TryStar` entry and `_py_stmts_t"): (FOLLOWABLE,
         "'Rewrite with a plain `except`' - the plain handler VERIFIES."),
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"""`#@ \\\\diverges` on function \'{func.get(\'name\', \'<anonymous>\')}\' is not justified: its body has no potentially-divergi'): (FOLLOWABLE,
+        "'Remove `#@ \\\\diverges`, or give the body a construct that can actually block or loop' - a `while` loop under `#@ \\\\diverges` VERIFIES. My first attempt failed on a missing loop invariant (my test, not the advice)."),
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"`-> NoReturn` on function \'{name}\' is not justified: its body has no `raise` and no potentially-diverging construct (no'): (FOLLOWABLE,
+        "'Remove `-> NoReturn`, or give the body a raise/divergence' - a body that raises VERIFIES."),
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"Dead code in function \'{fname}\': this statement follows a call to a `NoReturn` function, which never returns normally ('): (FOLLOWABLE,
+        "'Remove the dead statement, or move it before the NoReturn call' - a call to a NoReturn function with no dead code after it VERIFIES. TWO attempts failed first, both on MY file: the caller must declare the exception, and the clause form is `#@ raises E when <cond>` - `#@ raises E` alone is a syntax error, a THIRD bare-directive case."),
 }
 
 
@@ -355,7 +364,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 31
+MIN_AUDITED = 34
 
 if __name__ == "__main__":
     sys.exit(main())
