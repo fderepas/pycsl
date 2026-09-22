@@ -2576,3 +2576,10 @@ whose mirror frame is the SAME pair (`_abstract_ops, _obj_state_written`) that
 `_add_abstract_op` declares, so the new call adds no field to this method's
 effective frame. This is the shape route #193 got wrong on a @staticmethod; here
 the method is already an effectful instance method.
+
+ROUTE #198 REPAIRED. P1/P2/P3 measured and all three match the prediction:
+  bare_false (`\result == 0`)  PROVED -> REFUSED
+  bare_true  (`\result != 0`)  REFUSED (unchanged; the opaque answers neither twin)
+  ctrl       (`return 3`)      PROVES (unchanged)
+Live source and mirror patched identically (the mirror must stay VERBATIM).
+P4/P5 (corpus byte-diff, mirror emissions) next.

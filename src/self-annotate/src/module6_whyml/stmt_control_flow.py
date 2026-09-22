@@ -1545,7 +1545,20 @@ class ControlFlowStmtMixin:
                 # `[x, 1]`. The value cannot be carried by `Return int`; it is UNKNOWN.
                 val = "(any int)"
             elif val == "()":
-                val = "0"
+                # (#49) ROUTE #198 — this was the LITERAL `0`. `val == "()"` here is a
+                # BARE `return` (`val_ir is None`) in an int-returning function, and a
+                # bare `return` IS `return None` in Python. The two spellings lowered to
+                # two different values: `return None` reads back as route #191's opaque
+                # `pycsl_none` and correctly REFUSES `\result == 0`, while the bare
+                # `return` PROVED it — `#@ requires x > 0` / `#@ ensures \result == 0`
+                # over `def f(x: int) -> int: if x > 0: return` was VALID while CPython
+                # answers `None`, and the TRUE twin `\result != 0` was REFUSED. Emitting
+                # the SAME opaque for the SAME statement closes it; `(any int)` would also
+                # be sound but is fresh at every evaluation and could not keep two `None`s
+                # equal. The `unit`-returning function is unaffected — it left above via
+                # `raise Return_void`.
+                self._add_abstract_op("val function pycsl_none : int")
+                val = "pycsl_none"
             elif val == "true":
                 val = "1"
             elif val == "false":
