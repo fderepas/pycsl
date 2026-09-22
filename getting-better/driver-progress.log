@@ -4806,3 +4806,29 @@ Measuring what "84 of 104 stdlib modules verify" is WORTH took three attempts:
 >>> discipline that would have caught all three on the first pass: BEFORE WRITING A CEILING,
 >>> PRINT THE MEMBERS. Every wrong version had a members list one line away, and every list
 >>> would have shown `kw`, `fut` and `world` sitting next to `udata` looking nothing like it.
+
+--------------------------------------------------------------------------------
+REFUSAL COVERAGE, FINAL FOR THIS WINDOW: 184 OF 219
+--------------------------------------------------------------------------------
+Started the evening at a reported "85 of 198 demonstrated, 113 with no witness". Ends at:
+
+    219 raise sites  =  184 DEMONSTRATED
+                      +  17 undemonstrated
+                      +   8 not source-reachable (validate_ir, gated executably)
+                      +  10 unmatchable by this instrument (no literal of 25+ chars)
+
+The population itself moved 198 -> 219 when import ALIASES were resolved. Of the increase,
+every one is a route refusal this campaign landed in `pycsl.py`.
+
+THIRTY-ONE WITNESSES WRITTEN this evening (1762-1799), and SEVEN MORE WERE WRITTEN,
+CONFIRMED TO FIRE, AND DELETED because the census already had a witness for that exact
+message. Checking before committing is the cheap half of the discipline; the expensive half
+is remembering that a file that FIRES a refusal is not automatically a file worth keeping.
+
+>>> A WITNESS THAT DEMONSTRATES SOMETHING ALREADY DEMONSTRATED IS CORPUS WEIGHT, NOT
+>>> EVIDENCE. Seven of thirty-eight candidates were exactly that.
+
+WHAT IS LEFT (17) is mostly shapes whose trigger is narrower than the message suggests —
+route #31's list-local truthiness poison was probed with two spellings and BOTH verify, so
+the file that looked like a witness would have been a PASS wearing a FAIL docstring. Those
+need the trigger read out of the emitter, not guessed from the message.
