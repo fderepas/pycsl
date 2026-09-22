@@ -838,10 +838,21 @@ class Module3_Weaver:
                     # it. Transitive over module-local definitions only — an import is
                     # already a hard error here ("targets '<name>', which is not a method
                     # in this module").
+                    # (#49) ROUTE #208 — AND `\diverges` IS THE THIRD WAY IN, WHICH MY
+                    # OWN #206 REPAIR MISSED TWENTY MINUTES AFTER WRITING IT. #93 rejects
+                    # `#@ \diverges` ON THE TARGET as the first opt-out it ever named;
+                    # #206 added bodyless CALLEES; a `\diverges` CALLEE has a body and no
+                    # termination VC, which is the same erasure by the most EXPLICIT
+                    # declaration of non-termination the language has. MEASURED: the 1711
+                    # shape with `#@ \diverges` in place of `#@ \trusted` on `spin`
+                    # printed "Verification SUCCESS" (witness 1715). The set below is
+                    # therefore "every module-local function with NO termination VC",
+                    # not "every bodyless one" — which is what the rule always meant.
                     _r206_bodyless = set()
                     for _r206_f in funcs:
                         if (getattr(_r206_f, "csl_trusted", False)
-                                or getattr(_r206_f, "csl_abstract", False)):
+                                or getattr(_r206_f, "csl_abstract", False)
+                                or getattr(_r206_f, "csl_diverges", False)):
                             _r206_bodyless.add(_r206_f.name)
                     if _r206_bodyless:
                         _r206_calls = {}
@@ -874,9 +885,11 @@ class Module3_Weaver:
                         if _r206_hit:
                             raise PyCSLSemanticError(
                                 f"`happy {hp.name}`: total target '{hp.target}' reaches "
-                                f"'{_r206_hit}', which is marked `#@ \\trusted` or "
-                                f"`#@ \\abstract` and is therefore emitted as a bodyless "
-                                f"`val` with no goals. A non-terminating body inside "
+                                f"'{_r206_hit}', which is marked `#@ \\trusted`, "
+                                f"`#@ \\abstract` or `#@ \\diverges` and therefore carries "
+                                f"NO termination VC (the first two are emitted as a "
+                                f"bodyless `val` with no goals; the third opts out "
+                                f"explicitly). A non-terminating body inside "
                                 f"'{_r206_hit}' costs the target NOTHING — its call is "
                                 f"assumed to return — so the totality (H-D) guarantee this "
                                 f"policy names is absent for '{hp.target}' too. Give "
