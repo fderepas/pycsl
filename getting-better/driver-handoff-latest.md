@@ -4,8 +4,8 @@
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #
 # ## IN FLIGHT RIGHT NOW (2026-09-22T04:07Z)
-#    - FIFTEEN routes closed this generation: #191-#205 numbering aside, the count is
-#      #191-#203 = THIRTEEN, of which #198-#203 landed after the third 529 kill.
+#    - THIRTEEN routes closed this generation, #191-#203, of which SIX (#198-#203)
+#      landed after the third 529 kill.
 #    - ALL BYTE-DIFFS ARE IN for #198-#203. Corpus: zero pre-existing programs moved in
 #      every case. Mirror emission: ZERO for #199/#200/#202/#203; ONE file for #198
 #      (stmt_control_flow) and ONE for #201 (expressions), each exactly the edited
