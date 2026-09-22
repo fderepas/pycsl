@@ -5209,3 +5209,34 @@ that followed popped an unrelated entry from a previous session and left
 <file>`; the old stash entry survived, because a conflicting pop KEEPS it. Before/after
 comparisons now use a detached `git worktree` at `HEAD~n`, which cannot touch the working
 tree at all.
+
+### (c3) 2026-09-22 gen #30 — READ THE AXIOM REGISTRY THE WAY YOU READ THE DOCSTRINGS
+
+The generation's routes came from reading justifications as claims. The `_AXIOM_REGISTRY`
+in `module6_whyml/preamble.py` is 118 imported facts, each with a comment justifying it,
+and nobody had read it that way. Two findings fell out in twenty minutes.
+
+**It disagrees with itself.** Every `Pycsl.Struct.Std.round_trip_*` is range-guarded, and
+the comment says why: the guards are *"faithful to CPython's out-of-range struct.error"*.
+The legacy `UnixFs.Struct.{i1a1,i2,i18}.round_trip` carry no guard at all, so citing one
+proves a `>HH` round-trip for 70000 that CPython refuses to pack. The cited Rocq theorem
+is unguarded too, and proved by `reflexivity` after unfolding — a theorem about a TRIVIAL
+model in which pack is a tuple and unpack a projection. **The cross-check passes**, because
+the WhyML axiom really does say what the Rocq theorem says. The defect is upstream of the
+bridge, in what the theorem is ABOUT.
+
+**And one comment contains its own refutation.** `capwords_length_nongrowing` is justified
+as *"capitalize (first upper, rest lower; LENGTH-PRESERVING) → single-space join, MATCHING
+string.capwords(s)"*. `str.capitalize()` is not length-preserving: `'ß'` → `'Ss'`, `'ﬁ'` →
+`'Fi'`. The Rocq and Lean proofs are honest about their own `list Z` model; the trusted
+core is the faithfulness of `capwords_def`, which that same comment names.
+
+>>> A CROSS-VALIDATED PROOF GUARANTEES THAT TWO PROOF ASSISTANTS AGREE WITH EACH OTHER AND
+>>> WITH THE WhyML AXIOM. IT GUARANTEES NOTHING ABOUT WHETHER THE SYMBOL BEING REASONED
+>>> ABOUT MEANS WHAT ITS NAME SAYS. Every `val function` an axiom mentions is a place where
+>>> a name is doing the work of a definition, and that is the only place left to look once
+>>> the bridge is mechanically checked.
+
+The practical form of the lesson: for each axiom, ask **what would CPython do**, and try
+the smallest input where the model's answer and CPython's could differ — the out-of-range
+value, the character whose uppercase is two characters, the empty sequence.
