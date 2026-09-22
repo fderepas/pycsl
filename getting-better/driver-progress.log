@@ -4143,3 +4143,28 @@ audit I wrote thirty seconds earlier.
 
 >>> AN AUDIT IS A MEASUREMENT AND CAN BE WRONG IN EITHER DIRECTION. A false "missing" costs
 >>> an hour of re-doing work that was already done; a false "present" costs the record.
+
+### THE NEGATIVE CORPUS: expectations recorded, the runner question left as a NAMED item
+`test-suite/corpus/negative/` holds three witnesses and is in **no runner**:
+`bin/run-reference-tests.sh` hard-codes `pycsl-reference` and `python-reference`, and
+`bin/byte-diff-sweep.sh` sweeps those two. Ran all three by hand at HEAD:
+
+    neg_001_wrong_postcondition      FAILS   (as its name promises)
+    neg_002_broken_invariant         FAILS   (likewise)
+    neg_003_precondition_violation   **PROVES** — and correctly
+
+003's static contracts (`requires x > 0` / `ensures \result > 0` over `return x * 2`) are
+TRUE, so the verifier proves them and should; the violation is a `needs_positive(-1)` call
+inside `if __name__ == "__main__":`, i.e. a DYNAMIC-ORACLE witness. No hole — but a
+negative-looking filename with no expectation is exactly how a green run gets misread, and
+none of the three carried a `# pycsl-expected:` marker.
+
+**All three now carry one** (FAIL, FAIL, PASS), with 003's carrying the four-line
+explanation of why PASS is not a contradiction.
+
+WHAT IS NOT DONE, and why not now: giving them a RUNNER. Moving them under
+`pycsl-reference` would make the suite run them — and would change the suite total while
+two `--slow` legs are mid-flight, one of which (`check-corpus-contract-truth`) scans the
+corpora. Changing the population under a running measurement is the mistake this window
+already made once with the #202 byte-diff. **Named for the next window: either extend
+`run-reference-tests.sh` with a third directory, or move the three files.**
