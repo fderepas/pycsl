@@ -646,13 +646,44 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     #   `check-trusted-raises-honesty` (63 > 62 — a `\trusted` stub whose live body newly
     #   RAISES with no `#@ raises`). `_run_pipeline` is already on both lists, so moving
     #   the refusal here moves neither ratchet.
+    # (#49) ROUTE #202 — THE RESIDUE #200 LEFT, CLOSED ON THE AXIS THAT ACTUALLY MATTERS.
+    #   #200 keys on the DECLARED annotation, because the 46 sites where a string literal
+    #   reaches an `int` param across the 53 mirror emissions are `int` BY ERASURE (no
+    #   annotation at all). That reasoning is what made #200 free, and it is also what it
+    #   missed: a parameter with NO annotation is erased to `int` and gets the SAME hash.
+    #   MEASURED: `def callee(p) -> int` carrying `ensures p == 747471683 ==> \result == 1`
+    #   — true of its own body — called as `callee("a")` emitted `(callee 747471683)` and
+    #   PROVED `\result == 1` while CPython answers 2, with the TRUE twin REFUSED.
+    #
+    #   THE HASH IS ONLY DANGEROUS WHEN A CONTRACT CAN READ THE PARAMETER. So the
+    #   un-annotated case is gated on exactly that: the callee's own `requires`/`ensures`
+    #   must MENTION the parameter. The 46 mirror sites are `\trusted` stubs whose contracts
+    #   do not mention theirs, so they stay untouched — measured by a dry run of this exact
+    #   predicate before it was written, not asserted afterwards.
+    #
+    #   The DECLARED-scalar rule below is NOT narrowed by this: it still fires whether or
+    #   not the contract mentions the param, so this change is strictly MORE refusals than
+    #   the tree had a minute ago, never fewer.
     _r200_sigs = {}
     for _r200_f in (ir_data.get("functions", []) or []):
         _r200_nm = _r200_f.get("name")
         if not _r200_nm:
             continue
+        # the parameter names this function's OWN contract reads
+        _r202_seen = set()
+        _r202_stack = [(_r200_f.get("contracts") or {}).get(_k)
+                       for _k in ("requires", "ensures", "assigns", "raises")]
+        while _r202_stack:
+            _r202_n = _r202_stack.pop()
+            if isinstance(_r202_n, dict):
+                if _r202_n.get("type") == "Var" and _r202_n.get("name"):
+                    _r202_seen.add(_r202_n["name"])
+                _r202_stack.extend(_r202_n.values())
+            elif isinstance(_r202_n, (list, tuple)):
+                _r202_stack.extend(_r202_n)
         _r200_e = (_r200_f.get("formal_params") or [],
-                   _r200_f.get("param_annotations") or {})
+                   _r200_f.get("param_annotations") or {},
+                   _r202_seen, _r200_f.get("vararg_str_param"))
         _r200_sigs[_r200_nm] = _r200_e
         _r200_sigs.setdefault(_r200_nm.rsplit(".", 1)[-1], _r200_e)
     for _r200_f in (ir_data.get("functions", []) or []):
@@ -667,24 +698,54 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _r200_sig = (_r200_sigs.get(_r200_fn)
                                  or _r200_sigs.get(_r200_fn.rsplit(".", 1)[-1]))
                     if _r200_sig:
-                        _r200_formals, _r200_anns = _r200_sig
+                        (_r200_formals, _r200_anns, _r202_reads,
+                         _r202_vararg) = _r200_sig
                         _r200_off = (1 if (_r200_formals
                                            and _r200_formals[0] == "self") else 0)
+                        # POSITIONAL actuals, plus the KEYWORD slot the IR keeps
+                        # SEPARATELY (`{"args": [], "keywords": [{"arg": ..., "value":
+                        # ...}]}`). Route #200's first version read `args` only, so
+                        # `callee(p="a")` walked straight past it and still PROVED — the
+                        # generation's own lesson (i) ("name which SPELLINGS were run"),
+                        # missed on my own repair an hour after banking it.
+                        _r202_pairs = []
                         for _r200_i, _r200_a in enumerate(_r200_n.get("args") or []):
                             _r200_j = _r200_i + _r200_off
                             if _r200_j >= len(_r200_formals):
                                 break
+                            # A VARARG formal PACKS every remaining actual into one
+                            # sequence; those actuals are not a parameter mismatch at all.
+                            # Measured: without this, `member_of("+", "+", "-")` in corpus
+                            # 0931 (a `*vals: str` vararg) would be REFUSED, and that file
+                            # verifies today.
+                            if (_r202_vararg is not None
+                                    and _r200_formals[_r200_j] == _r202_vararg):
+                                break
+                            _r202_pairs.append((_r200_formals[_r200_j], _r200_a))
+                        for _r202_kw in (_r200_n.get("keywords") or []):
+                            if not isinstance(_r202_kw, dict):
+                                continue
+                            _r202_kwname = _r202_kw.get("arg")
+                            if (_r202_kwname and _r202_kwname != _r202_vararg
+                                    and _r202_kwname in _r200_formals):
+                                _r202_pairs.append((_r202_kwname, _r202_kw.get("value")))
+                        for _r200_pname, _r200_a in _r202_pairs:
                             if not (isinstance(_r200_a, dict)
                                     and _r200_a.get("type") == "String"):
                                 continue
-                            _r200_ann = _r200_anns.get(_r200_formals[_r200_j])
-                            if _r200_ann in ("int", "bool", "float"):
+                            _r200_ann = _r200_anns.get(_r200_pname)
+                            _r202_hit = (_r200_ann in ("int", "bool", "float")
+                                         or (_r200_ann is None
+                                             and _r200_pname in _r202_reads))
+                            if _r202_hit:
                                 from errors import PyCSLSemanticError as _PyCSLSemErr200
                                 raise _PyCSLSemErr200(
                                     f"in '{_r200_caller}': the call to '{_r200_fn}' "
                                     f"passes a string literal to parameter "
-                                    f"'{_r200_formals[_r200_j]}', which '{_r200_fn}' "
-                                    f"declares `{_r200_ann}` (ROUTE #200). Python does "
+                                    f"'{_r200_pname}', which '{_r200_fn}' "
+                                    f"declares `{_r200_ann or 'no type at all, so the model '
+                                                 'erases it to int'}` "
+                                    f"(ROUTE #200/#202). Python does "
                                     f"not enforce the hint and the model BELIEVES it: "
                                     f"the string is replaced by a STABLE HASH of its "
                                     f"own text, so a contract of '{_r200_fn}' that "

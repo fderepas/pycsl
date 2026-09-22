@@ -3216,3 +3216,24 @@ launched ($SCRATCH/dry4_mirror.log).
      raise re-uses the existing local `from errors import ...` binding) and
      `check-mirror-coverage` / `check-trusted-raises-honesty` (no new def, and
      `_run_pipeline` is already on both lists — the lesson #200 paid for).
+
+ROUTE #202 REPAIRED (with the KEYWORD spelling and the VARARG skip in the same change).
+T1/T2/T4 measured and match; T3 measured and FAILED, for a reason worth recording:
+
+  1702, the control, was written with `ensures True` on the callee — so the REFUSAL
+  correctly did not fire (no `[ir-semantic]` message), but the caller could not prove
+  `\result == 7` either, because `ensures True` tells a caller nothing. That is the
+  very lesson this campaign keeps quoting — "a callee with `ensures True` hides the
+  entire family" — showing up as a badly-built CONTROL rather than as a missed route.
+  A control that fails for the wrong reason proves nothing about the change. Rewritten
+  with `ensures \result == 7`, a contract that fixes the RESULT and never mentions `p`,
+  which is exactly the shape the gate must leave alone: **a parameter no contract reads
+  cannot decide anything, whatever the model substitutes for it.** It now VERIFIES.
+
+Final state of the six witnesses:
+  1697 (#200 declared `int`, positional)      REFUSED
+  1698 (#200 control, genuine int + genuine str) VERIFIES
+  1701 (#202 un-annotated, contract reads p)  REFUSED
+  1702 (#202 control, contract does NOT read p) VERIFIES
+  1703 (#202 keyword spelling)                REFUSED
+  1704 (#202 control, `*vals: str` vararg)    VERIFIES
