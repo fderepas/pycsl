@@ -3,6 +3,21 @@
 # ## HOW TO RUN ANYTHING: `. scratchpad/g29/env.sh` first (why3 is NOT on the default PATH; it also sets
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #
+# ## WHAT THIS EVENING WAS ABOUT, IN ONE PARAGRAPH (read before the detail)
+#    The campaign steers by numbers its planes produce. SIX of those numbers were wrong,
+#    all in the same instrument family, and every one was found the same way: A WITNESS
+#    THAT FIRED AND MOVED NOTHING. A census truncated at 110 characters by a writer three
+#    generations old; the same census cut mid-UTF-8; a matcher looking for `%s`
+#    placeholders the compiler never prints; a population filter that excluded every route
+#    refusal this campaign writes (they use an aliased exception name); eight refusals no
+#    source file can reach; nine with no literal long enough to match. "113 refusals need
+#    witnesses, five minutes each" — nine hours of work — was 19. Meanwhile the ADVICE
+#    surface, listed as unmeasured for generations, turned out to be 108 messages of which
+#    SIX told the reader to write something that does not work, TWICE something the
+#    compiler cannot compile. Route #215 fell out of auditing one of them.
+#    THE HABIT TO CARRY FORWARD: when new evidence does not move a number, suspect the
+#    number's collector before you suspect the evidence.
+#
 # ## LATE-EVENING ADDENDUM (2026-09-22T23:00Z) — READ THIS FIRST
 #    - **ROUTE #215 DEMONSTRATED AND CLOSED**, and it came out of the ADVICE AUDIT rather
 #      than a hunt for routes. `f[T](...)` on a generic FUNCTION is NOT VALID PYTHON (PEP
