@@ -3647,3 +3647,24 @@ PREDICTION, written before it runs:
     grown since that run (the six new witnesses 1701-1706 were already in it), so the
     total should be identical. Same 18 CONFIRMED FAIL, **0 XPASS**.
   * planes: **45 green** (24 fast + 21 slow).
+
+## gen12 BUILT AND LAUNCHED — the STRING/INT REPRESENTATION boundary
+gen11 crossed the RETURN boundary and found nothing in 960 programs. That is a real
+negative result, and it says to cross a DIFFERENT boundary rather than to fuzz harder.
+
+The boundary the evidence points at is the one FOUR of this generation's routes live on
+and nowhere else — #199, #200, #202, #203 are all the same mechanism: PyCSL carries
+strings in TWO models (a real Why3 `string` and an int-hash domain), and a value that
+crosses between them can come back as a number a comparison DECIDES against.
+
+`scratchpad/g30/fuzz/gen12.py` builds a string by every route the emitter has — f-strings
+with a leading, trailing, doubled or lone interpolation, the empty f-string, `str()`,
+`%`-formatting, `+` on literals and on locals, repetition, `join`, `lower`/`upper`,
+slicing, `replace`, `strip` — and then READS it with a comparison against a literal, an
+inequality, or a length. Twenty builder/read pairs, four claims FALSE of CPython's observed
+answer per program (the gen #29 lesson: a +1-only claim cannot see an ERASED value, and an
+erased value reads as 0).
+
+Smoke test green (`FUZZ12-DONE seed=0 n=2 ran=2 false_proofs=0`). Launched over 40 seeds x
+20 programs = **800 programs**, detached, log `$SCRATCH/fuzz12.log`, `timeout 3600` per
+seed. The box is idle (the final battery is the only other load).
