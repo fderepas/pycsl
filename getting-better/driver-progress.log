@@ -3801,3 +3801,12 @@ run has no ground truth to disagree with. Floor raised 180 -> 195.
 >>> version silently skipped the 21, the plane would have looked finished at 195 and the
 >>> eight recoverable ones would have stayed invisible. This is lesson (g)'s third column
 >>> paying off inside an hour.
+
+### CONSOLIDATED VERIFICATION AT THE FINAL HEAD (13:05Z)
+  mirror-sync        OK — 887 un-trusted mirror functions verbatim, 37 constants subsets
+  doc-coherency      OK — acceptance-syntax in sync with the supervisor
+  fast planes        25/25 green
+  working tree       clean apart from the two pre-existing `scratchpad/w7/base` and
+                     `scratchpad/w8/pre` gitlinks, which have been modified since before
+                     this generation and are not mine to reset
+  unpushed commits   317 — **nothing pushed; pushing stays gated to the user**
