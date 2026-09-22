@@ -7185,8 +7185,12 @@ class FunctionEmissionMixin:
                 "lowering models it: the store lands on a FRESH LOCAL while every read of the "
                 "module variable is one opaque constant, so a read before and after the write "
                 "would be proved equal (measured: `a = N; setn(); return a - N` proved 0 while "
-                "Python returns -2). Declare the variable `#@ shared`, or pass and return the "
-                "value instead of assigning a global."
+                "Python returns -2). FIX (1): declare the variable `#@ shared <name>` at "
+                "module level — the NAME is required, `#@ shared` alone is a syntax error, "
+                "and note that a `#@ shared` variable is NOT nameable in a contract, so "
+                "`#@ assigns <name>` on this function would then be refused as an undefined "
+                "variable. FIX (2), and the simpler one: pass the value in and return it "
+                "instead of assigning a global."
                 % (func.get("name"), ", ".join(_gw_unmodelled)))
         if (func.get("nonlocal_writes")
                 and not (func.get("trusted") or func.get("abstract")

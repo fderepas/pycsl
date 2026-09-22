@@ -4511,3 +4511,48 @@ pinning contract"). 78 MORE functions in the layer are `return <param>` with no
 >>> hours against it. A hedge a reader has to go and find is a hedge that will be lost —
 >>> so all three now PRINT their scope on every run, and the coverage gate REFUSES rather
 >>> than print a number when its own inputs are unusable.
+
+================================================================================
+THE ADVICE AUDIT — FOLLOW THE REFUSAL'S OWN INSTRUCTIONS AND SEE
+================================================================================
+`getting-better/convergence-metric-implement.md` records an unmeasured surface: "62
+advice-bearing messages, and #90 came from one. No metric ... samples English prose for
+exploitability; the advice-audit generator remains manual." The census is now **93
+advice-bearing refusal sites** (up from 62), concentrated in Module3_Weaver (21),
+module6/functions (18) and core_ir_semantic (16).
+
+SEVEN AUDITED by writing the program the message tells you to write:
+
+  desugar:295      "Rewrite it with an explicit flag"          -> VERIFIES
+  desugar:349      "Use an explicit strided loop"               -> needs real invariants;
+                   my first attempt failed on MY loop invariant, not on the advice
+  core_ir:1030     "Use `pass` for an immediate arm"            -> VERIFIES
+  functions:7194   "Return the value from the nested function"  -> VERIFIES
+  statements:2595  "Rebuild the record (`p = Pt(...)`)"         -> VERIFIES
+  functions:7183   "Declare the variable `#@ shared`"           -> SEE BELOW
+  functions:7183   "or pass and return the value"               -> VERIFIES
+
+>>> SIX OF SEVEN PIECES OF ADVICE WORK. That is the result, and it is worth having: the
+>>> prose surface was unmeasured, and the measurement is mostly good news.
+
+THE ONE THAT DOES NOT WORK AS WRITTEN. "`Declare the variable `#@ shared`" fails three
+ways for a reader who follows it literally:
+  1. `#@ shared` ALONE IS A SYNTAX ERROR — the grammar is `#@ shared <name>` and the name
+     is required (`Module2_Parser._parse_shared`).
+  2. It DOES then work, including under the DEFAULT memory model — the refusal lifts and
+     the file verifies. So the advice is sound once spelled correctly.
+  3. But a `#@ shared` variable is NOT NAMEABLE IN A CONTRACT: adding `#@ assigns N` to the
+     very function whose write you just declared is refused with "Undefined variable 'N'
+     referenced in contract". You can take the advice, and then you cannot FRAME the write.
+
+AND I CHECKED WHETHER THAT REOPENS ROUTE #129 rather than assuming. Following the advice
+and re-running the exploit shape — `a = N; setn(); return a - N` claiming `\result == 0`,
+where CPython answers 2 — the prover returns UNKNOWN and the file FAILS. **Sound.** The
+advice leaves the framing awkward, not the model wrong.
+
+The message now gives the form, says the name is required, and warns that the variable
+cannot then be named in a contract.
+
+>>> A REFUSAL'S ADVICE IS A CLAIM THE COMPILER MAKES ABOUT ITSELF, and nothing tests it.
+>>> Six of seven held; the seventh was not wrong, it was UNFOLLOWABLE AS WRITTEN — which a
+>>> reader experiences as the same thing.
