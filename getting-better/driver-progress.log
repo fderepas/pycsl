@@ -4338,3 +4338,56 @@ After the revert: mirror emission 53 of 53 (from 44), all four planes green,
 `bespoke-model-drift` back to its true population of 27. The route keeps its carriers
 outside the corpus, run by `bin/check-open-route-carriers.py`, and its faithful repair —
 the state-keyed device — is priced in the route doc.
+
+================================================================================
+IDENTITY-STUB DEBT: 24 UNADJUDICATED -> 0, AND SEVEN OF THEM WERE FALSE
+================================================================================
+`bin/check-stdlib-identity-stubs.py` shipped with a debt counter at 24 and a one-line
+excuse on each entry ("no citation run", "`os` is on the deny-list"). Measured every one
+against this CPython.
+
+WHAT THE EXCUSES WERE WORTH. "csv is on the filesystem deny-list" — `csv.writer` takes any
+file-like object, so `io.StringIO` measures it with no filesystem at all, and the answer is
+that `writerow(['a','b','c'])` returns 7, the CHARACTER count of `'a,b,c\r\n'`, not the 3
+fields the contract pins. The deny-list had never been in the way; it had been an excuse
+that LOOKED like a scope statement.
+
+>>> AN EXCLUSION YOU NEVER TESTED IS A GUESS. Check whether the reason still applies before
+>>> you write it down a second time.
+
+SEVEN WERE FALSE OF THE CITED FUNCTION (all measured, all now DIVERGES-BY-HAND):
+csvmod.write_row, cvar.context_var_get (`cv.get(0)` is 5 after `cv.set(5)`),
+cvar.context_var_set (returns a `Token`), dec.getcontext_prec (`prec = 10**30` RAISES
+`OverflowError` past `decimal.MAX_PREC`, and the stub guards only `prec > 0`),
+nums.rational_num / rational_den (`Fraction(2,4).numerator` is 1, not 2 — `num >= 0` and
+`den > 0` do not imply coprimality), os.getenv (`os.getenv('PATH', 0)` is not 0).
+
+TWO OF THE SEVEN CONTRADICT THEIR OWN DOCSTRING. `csvmod.write_row`'s docstring says
+"Written bytes >= field count" while its `#@ ensures` pins `== num_fields`;
+`cvar.context_var_get`'s says "returns default if not set" while its clause is
+unconditional. `os.getenv`'s justification is a COMMENT ("this model has an empty env").
+
+>>> A DOCSTRING THAT DISAGREES WITH THE CONTRACT BESIDE IT IS A FREE ORACLE — SOMEONE
+>>> ALREADY KNEW. And a comment is not a contract: the reader who is proving things sees
+>>> the clause, not the apology above it.
+
+FIFTEEN WERE A REAL, DECLARED SIZE/COUNT/LENGTH LAW, measured true — which needed a new
+class, because calling them DIVERGES would have been as false as calling them FAITHFUL.
+DECLARED-DOMAIN requires the declaration to be in the SIGNATURE and the DOCSTRING and the
+quantity's claim to be measured; `pkl.dump` is the control that stays DIVERGES-BY-HAND
+because its declaration is absent. MODEL-INTERNAL covers the two `os._{en,de}code_name`
+helpers, which have no CPython counterpart at all, and names the guard
+(`\str_length(name) <= 30`) that keeps the 30-byte field truncation out of the domain.
+
+>>> WHEN A POPULATION WILL NOT SPLIT INTO YOUR CLASSES, THE CLASSES ARE WRONG — but a new
+>>> class only earns its place if it comes with a CONTROL that stays out of it.
+
+RESIDUAL, written into the entries rather than smoothed over: `hq.heapify_max`,
+`heappushpop_max` and `heapreplace_max` take BOTH `heap: list` and `n: int` and never tie
+them, so `\result == n` is TRUE but VACUOUS as a size law — 3-element heap, `n = 99`,
+proves 99. Under-specified, not false; the repair is a `requires`, and it is left for the
+pycsl_lib pass because it moves the stdlib verification population.
+
+MAX_UNADJUDICATED 24 -> 0, which turns the debt counter into a ratchet: a new stub can no
+longer be parked there. The "false of the cited function" share is now 31 of 81, up from
+the 24 the plane's header previously claimed.
