@@ -28,11 +28,16 @@ SUCCESS" because the emitter produced no goal. `htm.escape(s) -> s` under
 the string unchanged, and it promises nothing about it. So the honest headline is **75
 modules with a postcondition to discharge**, not 84.
 
-AND THE NINE SPLIT IN TWO, which matters because the halves are different facts. SEVEN have
+AND THE NINE SPLIT IN THREE, in two steps, which is itself the lesson: the first split
+(7 shims + 2 informative) was made from a static scan, and the first RUN of the split
+showed it was still wrong — `fut` and `world` have a `def`, but their ONLY def is
+`__init__`, which returns None and can carry no `\result` claim. They are shims with a
+constructor, not modules that compute something and promise nothing. THE DISCRIMINATOR IS
+A VALUE-RETURNING FUNCTION, and the informative class is ONE module: `udata`. SEVEN have
 no `def` at all — `kw` is a constant keyword list, `re` is a re-export shim, `types_stub`
 is three empty classes, `fut` is a `_Feature` constant — so they verify with no
-postcondition because there is NOTHING TO CLAIM, and that is innocent. TWO have function
-bodies and promise nothing: `htm` (escape/unescape, each `return s` under
+postcondition because there is NOTHING TO CLAIM, and that is innocent. TWO had value-returning
+functions and promised nothing: `htm` (escape/unescape, each `return s` under
 `#@ assigns \nothing`) and `udata` (`lookup` returns the NAME while its docstring says it
 returns the character). `htm` was given a true length law the same day
 (`\str_length(\result) >= \str_length(s)` for escape, `<=` for unescape, both measured
@@ -130,14 +135,16 @@ def classify(path, timeout):
 # real `html.escape('<')` is `'&lt;'`, and the model returns the string unchanged while
 # promising nothing about it — so it VERIFIES, truthfully, and the verification is worth
 # nothing. A ceiling that may only shrink, checked against a DERIVED set.
-MAX_NO_ENSURES = 2        # modules that HAVE function bodies and no `#@ ensures`. Nine
+MAX_NO_ENSURES = 1        # modules with a VALUE-RETURNING function and no `#@ ensures`. Nine
                           # verified with no postcondition at the first measurement; SEVEN
                           # of those have no `def` at all (a constant list, a re-export
                           # shim, empty class stubs) and are counted separately, because
                           # "nothing to claim" and "computes something and claims nothing"
                           # are different facts. The two informative ones were `htm` (given
                           # a true length law the same day) and `udata` (no honest claim
-                          # exists; named in the module instead).
+                          # exists; named in the module instead). Then 2 -> 1: `fut` and
+                          # `world` define ONLY `__init__`, which returns None and can
+                          # have no `\result` claim, so they belong with the shims.
 
 
 def main():
@@ -182,7 +189,14 @@ def main():
             src = open(f, encoding="utf-8", errors="replace").read()
             n_ann = len(_re.findall(r"^\s*#@", src, _re.M))
             n_ens = len(_re.findall(r"^\s*#@\s*ensures", src, _re.M))
-            n_def = len(_re.findall(r"^\s*def\s+\w+\s*\(", src, _re.M))
+            # A THIRD DISTINCTION, and the run that produced 9 -> 7 + 2 is what showed
+            # it was needed: `fut` and `world` have a `def`, but their ONLY def is
+            # `__init__`, which returns None and can have no `\result` to claim. Counting
+            # them with `udata` (which has value-returning functions and promises nothing
+            # about them) put two innocent modules in the informative class. So the
+            # discriminator is a def that is NOT a constructor.
+            n_def = len([_m for _m in _re.findall(r"^\s*def\s+(\w+)\s*\(", src, _re.M)
+                         if _m not in ("__init__", "__new__")])
             if n_ann == 0:
                 no_ann.append(rel)
             if n_ens == 0:
@@ -203,8 +217,9 @@ def main():
     _v = len(files) - len(bad)
     print("[*] stdlib-modules-verify: of the %d that VERIFY, %d have FUNCTION BODIES and "
           "no `#@ ensures` (they compute something and promise nothing) and %d have no "
-          "`def` at all (a constant list, a re-export shim, empty class stubs — nothing "
-          "to claim, and innocent). %d carry no `#@` annotation whatever. The honest "
+          "VALUE-RETURNING function at all (a constant list, a re-export shim, empty class "
+          "stubs, or only `__init__` — nothing to claim, and innocent). %d carry no `#@` "
+          "annotation whatever. The honest "
           "headline is %d module(s) with a postcondition to discharge, not %d."
           % (_v, len(vacuous), len(no_defs), len(no_ann),
              _v - len(vacuous) - len(no_defs), _v))

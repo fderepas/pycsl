@@ -2894,10 +2894,14 @@ library's own machine-checked proofs" is 75 modules with a postcondition to disc
 84.** That count is DERIVED from the source on every run of the plane (not a name list) and
 ratcheted downward, so a module that gains a postcondition leaves the class by itself.
 
-The nine split in two, and the halves are different facts. **Seven have no `def` at all** —
+The nine split in THREE, and the split took two attempts — the first was made from a static
+scan and put two innocent modules in the informative class, because `fut` and `world` have
+a `def` whose only member is `__init__`, which returns None and can carry no `\result`
+claim. The discriminator is a VALUE-RETURNING function. **Eight have none** —
 `kw` is a constant keyword list, `re` a re-export shim, `types_stub` three empty classes,
-`fut` a `_Feature` constant — so they verify with no postcondition because there is nothing
-to claim, which is innocent. **Two have function bodies and promise nothing**: `htm`
+`fut` a `_Feature` constant, `world` an aggregate with only a constructor — so they verify
+with no postcondition because there is nothing to claim, which is innocent. **Two had
+value-returning functions and promised nothing**: `htm`
 (`escape`/`unescape`, each `return s` under `#@ assigns \nothing`) and `udata` (`lookup`
 returns the NAME its docstring says it converts to a character). `htm` was given a true
 length law — `\str_length(\result) >= \str_length(s)` for `escape` and `<=` for
