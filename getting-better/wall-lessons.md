@@ -20,7 +20,57 @@ can FIRE · **(a3)** "verify the dependency" is not "verify the file" · **(b3)*
 fix must re-run the refusal the old shape was accidentally enforcing · **(c3)** read the
 axiom registry the way you read the docstrings · **(d3)** a repo has FOUR populations that
 must keep working · **(e3)** when a measurement fails under load, re-run it quiet before
-you explain it.
+you explain it · **(f3)** an exclusion you never tested is a guess · **(g3)** a docstring
+that disagrees with the contract beside it is a free oracle · **(h3)** a new class only
+earns its place if it comes with a CONTROL that stays out of it.
+
+### (f3) An exclusion you never tested is a guess — check whether the reason still applies
+
+`check-stdlib-identity-stubs.py` parked `csvmod.write_row` as UNADJUDICATED with the reason
+"csv is on the filesystem deny-list". The deny-list is real and the reason SOUNDS like a
+scope statement, which is why it survived a whole generation unexamined. But `csv.writer`
+takes any file-like object: `io.StringIO` measures it with no filesystem at all, and the
+answer is that `writerow(['a','b','c'])` returns **7** — the character count of
+`'a,b,c\r\n'` — not the 3 fields the contract pins. The exclusion had never applied.
+
+An excuse written once gets re-read as a finding. The discipline is to re-derive the reason
+at the moment you copy it forward, not to trust the sentence you wrote when you were tired.
+Companion to (v2): an unmentioned exclusion is an oversight wearing one, and a MENTIONED
+exclusion that was never re-checked is a guess wearing one.
+
+### (g3) A docstring that disagrees with the contract beside it is a free oracle
+
+Two of the seven stubs this pass proved false had already TOLD ME they were false.
+`csvmod.write_row`'s docstring says "Written bytes >= field count" while its `#@ ensures`
+pins `== num_fields`; `cvar.context_var_get`'s says "returns default if not set" while its
+clause is unconditional. Whoever wrote the prose knew the shape of the truth and then wrote
+a stronger clause anyway — the divergence was sitting in the file, needing no CPython at
+all. `os.getenv` is the same defect in its third spelling: the empty-env justification lives
+in a COMMENT, and a comment is not a contract. A reader who is proving things sees the
+clause, not the apology above it.
+
+So a cheap, total plane exists and has not been built: flag any stub whose docstring carries
+a WEAKER relation (`>=`, `at least`, "if not set", "may") than the `#@ ensures` beside it.
+Recorded as a work item, not claimed as done.
+
+### (h3) A new class only earns its place if it comes with a CONTROL that stays out of it
+
+Fifteen of the 24 were a genuine size/count/length law: `hq.heapify(n) -> n` does not claim
+to be `heapq.heapify`'s return value (which is `None`), it claims the heap's SIZE is
+preserved, which CPython agrees with. Calling those DIVERGES would have been exactly as
+false as calling them FAITHFUL, so the population needed a class it did not have.
+
+The danger is obvious — a new class is also the easiest way to launder a defect. What keeps
+DECLARED-DOMAIN honest is that its definition has THREE conjuncts (the declaration is in the
+SIGNATURE, *and* in the docstring, *and* the quantity's claim is MEASURED true) and that
+`pkl.dump` is a standing CONTROL that FAILS the first two and stays DIVERGES-BY-HAND: its
+entry already said "the honest reading is a declared domain change — but it is UNDECLARED,
+which is the defect". A class whose boundary no existing member sits outside is not a class,
+it is a synonym for "pass".
+
+And the class must not swallow the residue: the three `hq.*_max` stubs take BOTH
+`heap: list` AND `n: int` and never tie them, so `\result == n` is TRUE but VACUOUS as a
+size law — 3-element heap, `n = 99`, proves 99. That went INTO the entries (per (n)).
 
 ## 2026-07-20 driver run (count 1030 → 1028; 2 conversions + these walls)
 
