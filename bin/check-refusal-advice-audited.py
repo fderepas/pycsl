@@ -25,10 +25,10 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 10 AUDITED** —
-7 FOLLOWABLE, 1 UNSPELLABLE, 1 UNTRIED, 1 AMBIGUOUS. Seven of ten pieces of advice work,
-which is better than I expected and is exactly why the three that do not are worth the cost
-of finding. The failures are in the three distinct ways advice can fail, and each entry
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 17 AUDITED** —
+13 FOLLOWABLE, 1 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. Thirteen of seventeen pieces of advice work,
+which is better than I expected and is exactly why the four that do not are worth the cost
+of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
 below records what was written and what happened.
 
 FOUR MORE WERE AUDITED AND ARE NOT IN THIS POPULATION, recorded here so the work is not
@@ -54,6 +54,13 @@ re-derived, exactly as a message edit invalidates a refusal-witness census row).
 
 THE POPULATION GUARD (the #44 rule): rc=2 below MIN_SITES raise sites or MIN_ADVICE
 advice-bearing ones, so "everything audited" can never mean "I matched nothing".
+
+THE SIGNATURE LENGTH IS 140 AND THAT IS MEASURED, NOT PICKED. At 64 characters, 8 keys
+COLLIDED (189 distinct keys for 198 raises) — two `happy ... total target` raises in
+`Module3_Weaver` share a 64-character prefix, so auditing one would have silently marked
+the other audited. At 96 there are still 2 collisions; at 140 there are none. A key that
+can collide turns a coverage count into an over-count, which is the failure this whole
+evening has been about.
 
 WHY THE KEY IS A TEXT SIGNATURE AND NOT A LINE NUMBER. The first version of this plane
 keyed on (file, lineno) and went RED the moment an unrelated edit three functions above
@@ -87,13 +94,13 @@ UNTRIED = "UNTRIED"
 AMBIGUOUS = "AMBIGUOUS"
 
 def sig(node):
-    """Stable, READABLE key for one raise: its unparsed source, normalised, first 64.
+    """Stable, READABLE key for one raise: its unparsed source, normalised, first 140.
 
     `literal_parts` pops from a stack, so its output order is jumbled — fine for an
     ADVICE keyword match, useless as a human-checkable key. `ast.unparse` gives the
     message in source order and changes exactly when the message text changes."""
     try:
-        return " ".join(ast.unparse(node).split())[:64]
+        return " ".join(ast.unparse(node).split())[:140]
     except Exception:                                   # pragma: no cover
         return "<unparse-failed>"
 
@@ -101,34 +108,34 @@ def sig(node):
 # (file, sig(message)) -> (verdict, what was written and what happened)
 AUDITED = {
     ("src/pycsl/frontend/desugar.py",
-     "PyCSLParseError('`for ... else` / `while ... else` is not modell"): (FOLLOWABLE,
+     "PyCSLParseError('`for ... else` / `while ... else` is not modelled: the `else` clause runs exactly when the loop finished without `break`, a"): (FOLLOWABLE,
         "'Rewrite it with an explicit flag' — a `found` flag plus a `while` with an "
         "invariant and a variant VERIFIES."),
     ("src/pycsl/frontend/desugar.py",
-     "PyCSLParseError('an EXTENDED slice `x[lo:hi:step]` is not modell"): (FOLLOWABLE,
+     "PyCSLParseError('an EXTENDED slice `x[lo:hi:step]` is not modelled: the lowering is `Array.sub x lo (hi - lo)`, which ignores the step entir"): (FOLLOWABLE,
         "'Use an explicit strided loop' — works. My FIRST attempt failed on MY loop "
         "invariant, not on the advice; recorded because that distinction is the whole "
         "discipline (lesson (i3))."),
     ("src/pycsl/core_ir_semantic.py",
-     'PyCSLSemanticError(f"`#@ lemma` \'{name}\' body must not `return` '): (FOLLOWABLE,
+     'PyCSLSemanticError(f"`#@ lemma` \'{name}\' body must not `return` a value — it is a proof (returns unit). Use `pass` for an immediate arm.", c'): (FOLLOWABLE,
         "'Use `pass` for an immediate arm' — the lemma with a `pass` body VERIFIES."),
     ("src/pycsl/module6_whyml/functions.py",
-     'PyCSLIRError("function \'%s\' writes %s through a `nonlocal` decla'): (FOLLOWABLE,
+     'PyCSLIRError("function \'%s\' writes %s through a `nonlocal` declaration, and no certified lowering models it. `nonlocal` has no IR statement:'): (FOLLOWABLE,
         "'Return the value from the nested function instead of assigning through the "
         "closure' — VERIFIES."),
     ("src/pycsl/module6_whyml/statements.py",
-     "PyCSLSemanticError(f'in-place field mutation `{obj}.{field} = .."): (FOLLOWABLE,
+     "PyCSLSemanticError(f'in-place field mutation `{obj}.{field} = ...` of a record whose class `{_obj_cls}` is used as a `List[<record>]` elemen"): (FOLLOWABLE,
         "'Rebuild the record (`p = Pt(...)`) instead' — VERIFIES."),
     ("src/pycsl/module6_whyml/expressions.py",
-     "PyCSLSemanticError('array/list with mixed or non-tuple elements "): (FOLLOWABLE,
+     "PyCSLSemanticError('array/list with mixed or non-tuple elements alongside tuples is not supported: a faithful `array (tuple)` needs one unif"): (FOLLOWABLE,
         "'Use a uniform list of equal-arity tuples' — `[(1, 2), (3, 4)]` VERIFIES."),
     ("src/pycsl/frontend/ir_inline.py",
-     'PyCSLSemanticError(f"cannot alias module global \'{node[\'value\']['): (FOLLOWABLE,
+     'PyCSLSemanticError(f"cannot alias module global \'{node[\'value\'][\'name\']}\' into a local (inline.md Phase 3): a global is a single named objec'): (FOLLOWABLE,
         "'call its methods or read its fields directly' — VERIFIES, with a class "
         "invariant my first attempt lacked (my test, not the advice)."),
 
     ("src/pycsl/module6_whyml/functions.py",
-     'PyCSLIRError("function \'%s\' writes %s through a `global` declara'): (UNSPELLABLE,
+     'PyCSLIRError("function \'%s\' writes %s through a `global` declaration, and no certified lowering models it: the store lands on a FRESH LOCAL '): (UNSPELLABLE,
         "'Declare the variable `#@ shared`' — `#@ shared` ALONE IS A SYNTAX ERROR; the "
         "grammar is `#@ shared <name>`. Spelled correctly it works, including under the "
         "DEFAULT memory model. But a `#@ shared` variable is not nameable in a contract, "
@@ -138,7 +145,7 @@ AUDITED = {
         "FAILS. The message now gives the form and the caveat; its OTHER repair ('pass "
         "and return the value') is FOLLOWABLE."),
     ("src/pycsl/module6_whyml/functions.py",
-     'PyCSLIRError("function \'%s\' binds %s with a `with ... as` clause'): (UNTRIED,
+     'PyCSLIRError("function \'%s\' binds %s with a `with ... as` clause, and no certified lowering models it. `_py_stmt_with` reads only the `with`'): (UNTRIED,
         "'Call `__enter__` explicitly and assign its result' DOES NOT WORK. Two files "
         "identical except for ONE IDENTIFIER — a method returning 7 under "
         "`ensures \\result == 7`, called from a driver claiming the same — VERIFY as "
@@ -148,15 +155,15 @@ AUDITED = {
         "`with <lock>:`) IS followable and is now given FIRST; the broken one was "
         "withdrawn, with its measurement, so nobody re-adds it."),
     ("src/pycsl/core_ir_semantic.py",
-     'PyCSLSemanticError(f"function \'{name}\' is annotated `-> str` but'): (FOLLOWABLE,
+     'PyCSLSemanticError(f"function \'{name}\' is annotated `-> str` but can `return None`. Python does not enforce the hint and the model BELIEVES '): (FOLLOWABLE,
         "'Annotate `-> Optional[str]` ... or remove the `return None`' — the "
         "`Optional[str]` form VERIFIES."),
     ("src/pycsl/core_ir_semantic.py",
-     'PyCSLSemanticError(f"\'\\\\result\' is not allowed in a `#@ {node.ge'): (FOLLOWABLE,
+     'PyCSLSemanticError(f"\'\\\\result\' is not allowed in a `#@ {node.get(\'kind\')}` in {where} (it is bound only at return; use `ensures` for return'): (FOLLOWABLE,
         "'use `ensures` for return values' — moving the claim into `#@ ensures` "
         "VERIFIES."),
     ("src/pycsl/core_ir_semantic.py",
-     'PyCSLSemanticError(f"Mutable default argument in function \'{func'): (UNTRIED,
+     'PyCSLSemanticError(f"Mutable default argument in function \'{func.get(\'name\', \'<anonymous>\')}\': a list/dict/set default is a single object sh'): (UNTRIED,
         "'Use a `None` sentinel and initialise the collection in the body' DOES NOT "
         "COMPILE. `xs: Optional[List[int]] = None` emits WhyML with an UNBOUND TYPE "
         "SYMBOL `array`; isolated by controls — `List[int]` alone VERIFIES and "
@@ -166,13 +173,25 @@ AUDITED = {
         "the form that WORKS — no default at all, the caller supplies the collection, "
         "measured — and records the broken one so nobody re-advises it."),
     ("src/pycsl/frontend/ir_inline.py",
-     'PyCSLSemanticError(f"cannot inline \'{callee}\' on \'{recv}\': it ha'): (AMBIGUOUS,
+     'PyCSLSemanticError(f"cannot inline \'{callee}\' on \'{recv}\': it has a non-tail `return` (early return / return inside a branch). Verify it by '): (AMBIGUOUS,
         "'Verify it by contract' is true and under-specified. Adding a contract while "
         "KEEPING the module-global receiver does not help, and neither does "
         "`#@ \\trusted` — the inliner runs on a global-receiver call regardless. What "
         "works is a LOCAL instance (`c = C(); c.m()`), which uses the contract at the "
         "call site instead of splicing the body. The message now says so and names both "
         "things that do not work."),
+    ("src/pycsl/module6_whyml/expressions.py",
+     "PyCSLIRError('`' + func_name + '(...)` MUTATES an ARGUMENT in place, and no certified lowering models it: the call becomes an abstract opera"): (FOLLOWABLE,
+        "'Model the mutation with indexed stores' — a hand-written swap under `#@ assigns xs[0 .. 1]` VERIFIES."),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: total target \'{hp.target}\' is marked `#@ {marker}`, so it is emitted as a bodyless `val` with no goa'): (FOLLOWABLE,
+        "'give it a verified body (each loop carrying a `#@ loop variant`)' — a counting loop with an invariant and a variant VERIFIES. The SAME advice text appears on the sibling `total target reaches ...` raise; auditing it once covers both words."),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: total target \'{hp.target}\' reaches \'{_r206_hit}\', which is marked `#@ \\\\trusted`, `#@ \\\\abstract` or'): (FOLLOWABLE,
+        "The sibling of the entry above — same repair, same measurement."),
+    ("src/pycsl/module6_whyml/statements.py",
+     "PyCSLSemanticError(f'aliasing a mutated dict is out of scope: `{target} = {_alias_of}` binds a SECOND NAME TO THE SAME dict in Python, and a"): (FOLLOWABLE,
+        "'A read-only rebind is fine' — `e = d` with only reads through both names VERIFIES."),
 }
 
 
@@ -277,7 +296,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 13
+MIN_AUDITED = 17
 
 if __name__ == "__main__":
     sys.exit(main())
