@@ -134,9 +134,10 @@
 #              (`prec = 10**30` RAISES OverflowError past `decimal.MAX_PREC`).
 #           c. `nums.rational_num` / `rational_den` need coprimality
 #              (`Fraction(2,4).numerator` is 1, not 2) — check PyCSL has a `\gcd` first.
-#           d. `hq.heapify_max` / `heappushpop_max` / `heapreplace_max` take BOTH
-#              `heap: list` and `n: int` and never tie them, so their size law is TRUE but
-#              VACUOUS (3-element heap, `n = 99`, proves 99). Wants a `requires`.
+#           d. ~~`hq.*_max` never tie `heap` to `n`~~ **THAT CLAIM WAS FALSE — see
+#              wall-lesson (i3).** All three carry `#@ requires \length(heap) == n`
+#              (hq/__init__.py 80, 105, 114). It was asserted from a `grep -A 4` on the
+#              `def` line, which cannot show the annotation block above it. NOTHING TO DO.
 #           e. `que.qsize` pins `\result == self._size` under a docstring quoting
 #              CPython's own "APPROXIMATE" — true of a single-threaded model, and nothing
 #              in the file says the model is single-threaded.
