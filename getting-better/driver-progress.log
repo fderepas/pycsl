@@ -3611,3 +3611,28 @@ repeating. Checking WHAT THE WORKTREE ACTUALLY CONTAINED, rather than what I had
 it to, is the same reflex the campaign applies to every other recorded fact.)
 
 Battery is now **24 fast / 45 with `--slow`**. All 24 green at HEAD.
+
+## RESUMED 12:45Z AFTER A WEEKLY-RATE-LIMIT KILL (~05:05Z). EVERYTHING DETACHED SURVIVED.
+The three long legs all finished during the 7h40m gap, which is exactly what detaching
+them was for:
+
+  * **#198 MIRROR RE-PROOF: GREEN.** `src/self-annotate/src/module6_whyml/stmt_control_flow.py`
+    — `Verification SUCCESS! All contracts formally proven`, 12589 prover results,
+    RC=0 at 07:26:42Z. So the ONE moved mirror emission for route #198 re-proves, and
+    M1 is satisfied: the diff was exactly the intended correction AND the affected
+    program re-proves. (This is the run I killed at 04:36Z by pulling its `timeout`
+    wrapper; restarted at 04:36:48Z with `timeout 43200`, it needed 2h50m — i.e. the
+    original 4h wrapper would have been enough. The lesson stands anyway: the deadline
+    is set when the command is written.)
+  * **#201 MIRROR RE-PROOF: GREEN.** `src/self-annotate/src/module6_whyml/expressions.py`,
+    the giant — `Verification SUCCESS`, **21347** prover results, RC=0 at 08:01:31Z.
+    Route #201's one-line tail change to `_array_coerce_arg` re-proves its whole file.
+  * **gen11 FUZZER: COMPLETE.** 60 of 60 seeds, 16 programs each — **960 programs across
+    the RETURN boundary, ZERO false proofs.** Not a proof of anything, but the honest
+    negative result for the boundary that produced route #198: after the repair, a
+    960-program differential sweep of return-position shapes finds nothing.
+
+ALL SIX ROUTES (#198-#203) NOW HAVE COMPLETE L-PLANE EVIDENCE: mirror-sync green, corpus
+byte-diff accounted for line by line, mirror emission measured, and both moved mirrors
+re-proved. The suite leg is green at bc0561ec. What remains is the FINAL control battery
+at the final HEAD.
