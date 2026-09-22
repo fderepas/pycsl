@@ -2604,3 +2604,44 @@ TWO NEIGHBOURING SURFACES SWEPT WHILE HERE, both fail-closed, both recorded:
   - `-> int` FALLING OFF THE END (the docstring's own stated RESIDUE): both
     `\result == 0` and `\result != 0` REFUSED. Still fails closed by the type
     accident the docstring names, not by intent — the residue stands as written.
+
+## ROUTE #199 CONFIRMED — the empty f-string is the integer zero
+Same census, next site. `expressions.py::_handle_fstring_expr`:
+
+    parts = expr.get("parts", [])
+    if not parts:
+        return "0"
+
+while the very next arm lowers an all-string f-string to a faithful `string`
+concat chain. So `f""` — which IS the empty string — arrived as an int.
+
+    #@ ensures \result == 2
+    def probe() -> int:
+        s = f""
+        if s == "":
+            return 1
+        return 2
+
+PROVES. CPython answers 1 (`f"" == ""` is True). The TRUE twin `\result == 1`
+is REFUSED. Decisive signature, SEV-1.
+
+THE REPAIR IS FAITHFUL, NOT OPAQUE — the first one this generation. #191-#198 all
+answered "UNKNOWN" because the true value was genuinely unavailable. Here it is
+available and exact: the empty f-string is `""`. An opaque would be a strictly
+worse answer than the truth.
+
+PREDICTION (written first):
+  Q1 `\result == 2` (false)  -> REFUSED.
+  Q2 `\result == 1` (true)   -> PROVES. This route's repair RESTORES a true
+     contract rather than making both twins undecided — the signature of a
+     faithful repair as opposed to an opaque one.
+  Q3 corpus + mirror byte-diff -> ZERO. Censused: there is NOT ONE genuine
+     empty f-string in the corpus, in `src/pycsl/`, in `src/self-annotate/src/`
+     or in `src/pycsl_lib/` (the `grep` hits are all `"""Test ...` docstring
+     text, checked one by one, not assumed).
+  Q4 residue to state: an empty f-string used where the LEGACY int-hash f-string
+     model expects an int now type-clashes in Why3 — loud and fail-closed,
+     which is the direction this campaign accepts.
+HELD, NOT APPLIED YET: the #198 corpus and mirror emission sweeps are running
+against this working tree right now, and editing the emitter under a running
+sweep would silently conflate two changes. The repair lands after they finish.
