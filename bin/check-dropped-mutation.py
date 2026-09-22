@@ -263,6 +263,18 @@ MAX_TRYFINAL = 5
 # the live emitter: not one contract-level `#@` block runs to end-of-file.
 MAX_DANGLING = 0
 
+# (#49) gen #30 — ONE FILE IS EXEMPT, AND IT IS THE WITNESS FOR THE REFUSAL THIS RATCHET
+# GUARDS. `bin/check-refusal-witness-coverage.py` measured that 140 of the compiler's 198
+# refusals had no file proving they can fire; the gen-#33 dangling-block refusal was one of
+# them, so 1759 was written to BE that proof — a trailing `#@ ensures` with no follower,
+# `# pycsl-expected: FAIL`, and it duly fails. It then trips this ratchet, which scans the
+# corpus for exactly that shape. The two gates are both right and they disagree about one
+# file, so the file is named here rather than the ratchet being raised: a hard 0 that
+# quietly became a 1 would be worth less than the witness.
+DANGLING_EXEMPT = frozenset({
+    "1759_gen30_witness_trailing_contract_block.py",
+})
+
 
 def _classify_augassign(node: ast.AugAssign):
     t = node.target
@@ -340,7 +352,13 @@ def _init_annassigns(tree: ast.AST):
 
 
 def scan_dangling(path: str):
-    """CONTRACT-level `#@` blocks that run to end-of-file with nothing to attach to."""
+    """CONTRACT-level `#@` blocks that run to end-of-file with nothing to attach to.
+
+    One file is exempt by name — see DANGLING_EXEMPT: it is the corpus WITNESS for the
+    refusal this ratchet guards, and it has to contain the shape in order to prove the
+    refusal fires."""
+    if os.path.basename(path) in DANGLING_EXEMPT:
+        return []
     try:
         with open(path, encoding="utf-8") as fh:
             lines = fh.read().split("\n")

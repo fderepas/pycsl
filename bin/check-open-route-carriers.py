@@ -19,6 +19,19 @@ message says so, so a green battery cannot quietly outlive a fixed route.
 
 THE CARRIERS (gen #30):
 
+  route #213 — two carriers, `route213-carrier-two-reads-across-a-mutation.py` and
+    `route213-carrier-three-argument-form.py`. Two reads of the SAME `getattr` are one
+    per-site constant (route #197's device), so a call that writes the attribute between
+    them is invisible: `x = getattr(o,"a"); mutate(o); y = getattr(o,"a"); return x - y`
+    PROVES `== 0` where CPython answers -98. A refusal WAS written and then REVERTED after
+    a proper blast-radius census: 212 live and 14 mirror functions read the same `getattr`
+    twice with an intervening call, because `getattr(self, "_x", {})` and `getattr(args,
+    …)` are ubiquitous idioms — the mirror stopped emitting and four planes went red.
+    Narrowing to a non-`self` `Any`-parameter receiver still leaves 12 live and 4 mirror
+    hits, including `pycsl.py::_run_pipeline` itself. The separating fact is the
+    receiver's static CLASS, which only Module 6 knows, so the faithful repair is the
+    state-keyed device priced in the route doc.
+
   route #214 — `getting-better/open-routes/route214-carrier-two-unknown-receivers.py`.
     Two `getattr` reads on DIFFERENT unknown-class objects with DIFFERENT attribute names
     share route #47's DEFAULT-KEYED constant, so `d == e` is provable and
@@ -45,6 +58,13 @@ DRIVER = os.path.join(ROOT, "src", "pycsl", "pycsl.py")
 
 # carrier path -> (expected verdict TODAY, route, what the verdict means)
 CARRIERS = {
+    "getting-better/open-routes/route213-carrier-two-reads-across-a-mutation.py": (
+        "SUCCESS", "#213",
+        "two reads of the same `getattr` are ONE per-site constant across a call that "
+        "writes the attribute, so `\\result == 0` PROVES where CPython answers -98"),
+    "getting-better/open-routes/route213-carrier-three-argument-form.py": (
+        "SUCCESS", "#213",
+        "the same defect through the THREE-ARGUMENT `getattr(o, \"a\", 0)` spelling"),
     "getting-better/open-routes/route214-carrier-two-unknown-receivers.py": (
         "SUCCESS", "#214",
         "two `getattr` reads on different unknown receivers share route #47's "

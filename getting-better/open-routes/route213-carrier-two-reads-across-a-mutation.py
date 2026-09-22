@@ -1,4 +1,4 @@
-r"""Test 1726 — ROUTE #213: two reads of the SAME `getattr` are the same CONSTANT, across a
+r"""CARRIER for the OPEN route #213 (no-default form) — ROUTE #213: two reads of the SAME `getattr` are the same CONSTANT, across a
 call that writes the attribute.
 
 Route #197 made the unknown-class `getattr` device PER-SITE, and said why in its own
@@ -31,9 +31,15 @@ something else).
 
 Control: 1727 — two reads with NO intervening call still agree, which is route #197's
 property and must not be lost.
+
+IT LIVES OUTSIDE THE CORPUS ON PURPOSE. It PROVES today, so `# pycsl-expected: FAIL` would
+be an XPASS (a red suite, by the rule that exists to catch a negative witness that starts
+proving) and `PASS` would write "this false proof is expected" into the corpus.
+`bin/check-open-route-carriers.py` runs it and asserts the recorded verdict; a CHANGE means
+the route is probably closed and the entry must go in the same commit.
+
+Run with: `--memory-model hoare`.
 """
-# pycsl-expected: FAIL
-# pycsl-flags: --memory-model hoare
 from typing import Any
 
 _ = 0  # anchor

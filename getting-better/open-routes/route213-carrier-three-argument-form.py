@@ -1,4 +1,4 @@
-r"""Test 1728 — ROUTE #213, THE SPELLING MY OWN REFUSAL MISSED.
+r"""CARRIER for the OPEN route #213 (three-argument form) — ROUTE #213, THE SPELLING MY OWN REFUSAL MISSED.
 
 The first version of #213's refusal was keyed on `len(args) <= 2`, because the witness
 (1726) happened to use the NO-DEFAULT form. The THREE-ARGUMENT form has exactly the same
@@ -21,9 +21,15 @@ just written instead of from the property the guard is about.
 The refusal is now arity-blind. Controls: 1727 (two reads, no call) and corpus 1073 (two
 DIFFERENT getattr expressions with the same `{}` default, which must stay provably equal —
 route #47's granularity) both still prove.
+
+IT LIVES OUTSIDE THE CORPUS ON PURPOSE. It PROVES today, so `# pycsl-expected: FAIL` would
+be an XPASS (a red suite, by the rule that exists to catch a negative witness that starts
+proving) and `PASS` would write "this false proof is expected" into the corpus.
+`bin/check-open-route-carriers.py` runs it and asserts the recorded verdict; a CHANGE means
+the route is probably closed and the entry must go in the same commit.
+
+Run with: `--memory-model hoare`.
 """
-# pycsl-expected: FAIL
-# pycsl-flags: --memory-model hoare
 from typing import Any
 
 _ = 0  # anchor
