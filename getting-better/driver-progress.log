@@ -3981,3 +3981,8 @@ Both stay in the gate's baseline: the citations are corrected, the divergences a
 until the bodies change, and a baseline entry that disappeared because someone edited a
 comment would be exactly the re-baselining rule (k) forbids.
 26/26 fast planes green after both edits.
+Both stub edits measured, not assumed: `mth` and `stat` emissions are BOTH byte-identical
+to their pre-edit `.mlw` (the `stat` one compared against `git show HEAD~1:<file>` emitted
+into a temp dir). A docstring is a string expression statement in Python, so a docstring
+edit to a body-verified stub COULD move its emission; here neither does, so neither module
+owes a re-proof.
