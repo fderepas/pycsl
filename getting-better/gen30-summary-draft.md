@@ -182,6 +182,26 @@ reader HEARS, which is the same defect class as a false contract, one level up i
 
 ## Planes added or collected
 
+**THE FINAL STRETCH ADDED THREE, and two of them measure a surface nothing measured before:**
+
+* `bin/check-refusal-advice-audited.py` — **the ADVICE surface.** A refusal's advice is a
+  claim the compiler makes about itself, in the one place a user is guaranteed to read, and
+  it was the only claim in the system with no gate behind it (`convergence-metric-implement.md`
+  has listed it as unmeasured for generations). All **108 of 108** audited by WRITING THE
+  PROGRAM EACH MESSAGE DESCRIBES and running it; 102 work, and the six that did not were all
+  repaired. Route #215 came out of this audit. Keyed on a 140-character text signature
+  (measured: 64 collides 8 times) PLUS a whole-message hash, because the key looks at the
+  message's start and the advice lives at its END.
+* `bin/check-ir-schema-refusals.py` — the eight `validate_ir` structural refusals,
+  demonstrated EXECUTABLY because no corpus witness can reach them. A grep for `validate_ir`
+  across `test-suite/` found ZERO: the IR's own structural contract had no test of any kind.
+  Eight malformed-IR carriers, a WELL-FORMED control, and a #44 guard that refuses on a
+  rename or a new uncarried check.
+* `bin/check-docstring-contract-disagreement.py` — the FREE ORACLE: a `pycsl_lib` docstring
+  that states a WEAKER relation than the `#@ ensures \result ==` clause beside it. Built
+  because two of the seven false stdlib contracts had already said so in their own prose.
+  Four of its five standing hits are CONTROLS.
+
 * `bin/check-argument-coercion.py` — every argument substitution classified PASS-THROUGH vs SUBSTITUTION, with a justification each.
 * `bin/check-proof-reverify.sh` — the axiom-footprint gate. Its ratchet was driven **6 -> 0** (VERIFIED 155 -> 166: eleven `#@ proof` axiom imports nothing had ever checked).
 * `bin/check-trusted-reasons.py` — a full plane that existed and **nothing ran it**; collected into the runner.
