@@ -4556,3 +4556,39 @@ cannot then be named in a contract.
 >>> A REFUSAL'S ADVICE IS A CLAIM THE COMPILER MAKES ABOUT ITSELF, and nothing tests it.
 >>> Six of seven held; the seventh was not wrong, it was UNFOLLOWABLE AS WRITTEN — which a
 >>> reader experiences as the same thing.
+
+--------------------------------------------------------------------------------
+THE ADVICE AUDIT, SECOND FINDING: AN EXPLICITLY-CALLED DUNDER LOSES ITS CONTRACT
+--------------------------------------------------------------------------------
+The `with ... as` refusal (`module6_whyml/functions.py:7166`) advised: "Call `__enter__`
+explicitly and assign its result, or use a bare `with <lock>:`". Following the first half
+does not work.
+
+THE DIFFERENTIAL, two files identical except for ONE IDENTIFIER:
+
+    class CM:                                  class CM:
+        #@ ensures \result == 7                    #@ ensures \result == 7
+        def __enter__(self) -> int:                def enter(self) -> int:
+            return 7                                   return 7
+    #@ ensures \result == 7                    #@ ensures \result == 7
+    def read() -> int:                         def read() -> int:
+        c = CM(); v = c.__enter__()                c = CM(); v = c.enter()
+        return v                                   return v
+
+    FAILED or INCOMPLETE                       Verification SUCCESS
+
+`__len__` behaves the same way; `_enter_` (single underscores) verifies. So it is DUNDER
+NAMES, not `__enter__`, and not the `with` machinery.
+
+This is a COMPLETENESS gap, not an unsoundness: the caller cannot use the postcondition, so
+the file FAILS rather than proving something false. But a reader experiences "the advice
+does not work" identically either way, and the second half of the advice ("a bare
+`with <lock>:`") DOES work — measured, under `--memory-model concurrent`.
+
+>>> A REFUSAL THAT OFFERS TWO REPAIRS SHOULD HAVE HAD BOTH TRIED. The one that works was
+>>> second; the one that does not was first, and first is what a reader takes.
+
+The message now gives the working repair first and records the measured reason the other
+was withdrawn. Witnesses 1784 and 1785 had their census rows refreshed against the new
+text (a message edit moves the fragment the coverage gate matches on — the same coupling
+that made the 110-char truncation invisible).

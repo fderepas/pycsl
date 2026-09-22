@@ -7170,8 +7170,15 @@ class FunctionEmissionMixin:
                 "body would run against the PRE-`with` value of the name while the run "
                 "still reported 'All contracts formally proven'. Measured: "
                 "`v = 0; with CM() as v: return v` proved `\\result == 0` while Python "
-                "returns 7. Call `__enter__` explicitly and assign its result, or use a "
-                "bare `with <lock>:` (which IS modelled, as a critical section)."
+                "returns 7. USE A BARE `with <lock>:`, which IS modelled, as a critical "
+                "section. (The advice this message used to give first — call `__enter__` "
+                "explicitly and assign its result — DOES NOT WORK TODAY and was measured "
+                "in gen #30: an explicitly-called DUNDER method does not carry its "
+                "contract to the call site, so the caller cannot use the postcondition. "
+                "Differential: the identical class and contracts with the method renamed "
+                "`enter` VERIFY, and with `__enter__` or `__len__` they do not. That is a "
+                "completeness gap, not an unsoundness — it FAILS rather than proves — but "
+                "it makes the advice unfollowable, so it is no longer given.)"
                 % (func.get("name"), ", ".join(func["with_bindings"])))
         # (#49) ROUTE #129 — a write through `global` to a name that is not a modelled
         # `#@ shared` variable (see Module 5 `global_writes`).
