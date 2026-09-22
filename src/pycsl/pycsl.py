@@ -571,8 +571,13 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 continue
             _env212 = dict(os.environ)
             _env212["PYCSL_VERIFIED_IMPORTS"] = os.pathsep.join(sorted(_seen212 | {_path212}))
+            # `args.memory_model` DEFAULTS TO None, not to "hoare": passing it straight
+            # through made subprocess raise "expected str, bytes or os.PathLike object,
+            # not NoneType" for every import that resolved. Measured on the first
+            # `from pycsl_lib.mth import factorial` this flag ever saw.
+            _mm212 = getattr(args, "memory_model", None) or "hoare"
             _cmd212 = [sys.executable, os.path.abspath(__file__), "--verify-imports",
-                       "--memory-model", getattr(args, "memory_model", "hoare"), _path212]
+                       "--memory-model", _mm212, _path212]
             for _ip212 in (args.import_path or []):
                 _cmd212 += ["--import-path", _ip212]
             _r212 = _sp212.run(_cmd212, capture_output=True, text=True, env=_env212)
