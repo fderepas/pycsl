@@ -26,10 +26,17 @@
 * `bin/check-proof-reverify.sh` — the axiom-footprint gate. Its ratchet was driven **6 -> 0** (VERIFIED 155 -> 166: eleven `#@ proof` axiom imports nothing had ever checked).
 * `bin/check-trusted-reasons.py` — a full plane that existed and **nothing ran it**; collected into the runner.
 * `bin/check-return-boundary-substitutions.py` — the RETURN side, the gap `check-argument-coercion.py` names in its own header and `check-constant-fallthrough.py` names in its own. Pins occurrence COUNTS, and was demonstrated to fire on the pre-#198 tree via `--live`.
+* `bin/check-corpus-contract-truth.py` — the value-differential's method (curate nothing,
+  re-run CPython every pass) applied to the CORPUS instead of to 75 curated drivers. 216
+  PASS-expected corpus files already carry a zero-arg function with a literal
+  `#@ ensures \result == N`: **204 AGREE with CPython, 0 DISAGREE**, 12 unrunnable (a
+  category — programs CPython cannot run, because they name `#@ datatype` types). A failure
+  here is the sharpest verdict the battery can give: a test that passes the prover while
+  its own postcondition is false of its own program.
 * `bin/check-coercion-exits.py` — the trigger rule's THIRD firing: `_array_coerce_arg` (#193, #201) and `_coerce_to_int` (#194, #200/#202) each produced two routes, and `check-argument-coercion.py` classifies the call SITES without ever looking inside the helpers. Pins both exit sets with counts; demonstrated to fire on the true pre-#201 source.
 * `bin/check-fstring-lowering.py` — built because the campaign's own trigger rule fired: TWO routes (#199, #203) in ONE function in ONE session. Pins the return set with counts AND two structural tokens, because #203 added a *wrap* rather than an exit and the return-set half is green on the pre-#203 tree — a blind spot the `--live` self-test found before it shipped.
 
-Battery: **18 -> 24 fast planes, 45 with `--slow`**, and `MIN_PLANES` tightened from a floor that carried slack to the exact count.
+Battery: **18 -> 25 fast planes, 46 with `--slow`**, and `MIN_PLANES` tightened from a floor that carried slack to the exact count.
 `check-swallowed-exceptions` ratchet **4 -> 0**, a hard zero.
 Five new `value-differential` drivers (v73-v77), the CPython-measured plane, covering
 #198, #199 and #203 in both the DISAGREE and the AGREE direction.
