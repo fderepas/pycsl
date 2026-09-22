@@ -944,9 +944,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         when abstract vals (`any_1`, `all_1`, `sorted_1`, `list_new`)
         expect an array but the actual arg is an int — typically because
         the IR dropped an unsupported iterable shape (generator
-        expression, comprehension, variadic *args) to a scalar. A
-        length-1 placeholder array works because the abstract vals have
-        no axioms about their input contents.
+        expression, comprehension, variadic *args) to a scalar.
+
+        (#49) THE DEFENCE THAT USED TO STAND HERE — "a length-1 placeholder array
+        works because the abstract vals have no axioms about their input contents"
+        — IS FALSE TWICE OVER, and each half was measured. It is about CONTENTS and
+        says nothing about LENGTH (route #193: `sorted_1` carries
+        `ensures { Array.length result = Array.length a }`), and it assumes the only
+        consumers are abstract vals, when a USER-DECLARED `List[int]` parameter
+        reaches the same coercion (route #201: `callee("ab")` against
+        `def callee(p: List[int])` emitted `(callee (Array.make 1 0))` and PROVED
+        `len(p) == 1` while CPython answers 2). Both the `"0"` case and the TAIL now
+        answer Why3's `any`, which stands for EVERY array of ints, so neither length
+        nor contents is decidable.
 
         Recognises explicit array-shaped expressions and leaves them
         alone: `Array.make ...`, `Array.get ...`, `sorted_1 ...`, bare
@@ -996,9 +1006,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             head_ok = head.lstrip("!").replace("_", "").replace(".", "").isalnum()
             if head and head_ok and not head.lstrip("!")[:1].isdigit():
                 return whyml_str
-        # Anything else (BinOp result, parenthesised int expression) —
-        # coerce to placeholder since we can't recover the array.
-        return "(Array.make 1 0)"
+        # (#49) ROUTE #201 — this returned `(Array.make 1 0)`, an array whose length
+        # the model KNOWS to be 1. Route #193 repaired the `stripped == "0"` case
+        # above for exactly this reason and left this tail alone; a STRING LITERAL
+        # reaches it (not `"0"`, not array-shaped, not alphanumeric once the quotes
+        # are counted), and so does an int BinOp. MEASURED: a callee declaring
+        # `p: List[int]` and carrying `ensures len(p) == 1 ==> \result == 1` — TRUE of
+        # its own body — called as `callee("ab")` PROVED `\result == 1` while CPython
+        # answers 2 (`len("ab")` is 2), with the TRUE twin REFUSED. `any` and not an
+        # abstract `val` for the same reason as the arm above: declaring one would make
+        # this function EFFECTFUL and its mirror is a CONVERTED method with
+        # `assigns \nothing`, so `any` keeps it a pure @staticmethod.
+        return "(any (array int))"
 
     def _deref(self, expr: str) -> str:
         """Dereference a WhyML ref-typed operand: `x` → `!x` (idempotent — a leading

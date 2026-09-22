@@ -3050,3 +3050,15 @@ PREDICTION for the repair (written first):
   S3 `callee(1 + 1)`                          -> REFUSED.
   S4 corpus byte-diff ZERO, mirror emission byte-diff ZERO — both censused at 0
      firings, so anything else would mean the census was wrong.
+
+ROUTE #201 REPAIRED. S1/S2/S3 measured, all three match the prediction:
+  callee("ab") / `\result == 1`  PROVED -> REFUSED
+  callee("ab") / `\result == 2`  REFUSED (unchanged; the opaque answers neither)
+  callee(1 + 1)                  PROVED -> REFUSED
+Mirror patched identically (`_array_coerce_arg` is a CONVERTED mirror method, so
+its body must stay VERBATIM); mirror-sync green, 887 un-trusted functions.
+The docstring correction did NOT need mirroring — the mirror carries no docstrings,
+which mirror-sync confirms by still passing.
+Witnesses 1699 (carrier, FAIL) and 1700 (a genuine 3-element list actual still
+reaches the callee with the length it has, and the callee's length-reading contract
+still discharges — the guard against a blunt "make every array slot opaque" fix).

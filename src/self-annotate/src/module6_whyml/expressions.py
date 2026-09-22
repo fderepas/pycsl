@@ -215,9 +215,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             head_ok = head.lstrip("!").replace("_", "").replace(".", "").isalnum()
             if head and head_ok and not head.lstrip("!")[:1].isdigit():
                 return whyml_str
-        # Anything else (BinOp result, parenthesised int expression) —
-        # coerce to placeholder since we can't recover the array.
-        return "(Array.make 1 0)"
+        # (#49) ROUTE #201 — this returned `(Array.make 1 0)`, an array whose length
+        # the model KNOWS to be 1. Route #193 repaired the `stripped == "0"` case
+        # above for exactly this reason and left this tail alone; a STRING LITERAL
+        # reaches it (not `"0"`, not array-shaped, not alphanumeric once the quotes
+        # are counted), and so does an int BinOp. MEASURED: a callee declaring
+        # `p: List[int]` and carrying `ensures len(p) == 1 ==> \result == 1` — TRUE of
+        # its own body — called as `callee("ab")` PROVED `\result == 1` while CPython
+        # answers 2 (`len("ab")` is 2), with the TRUE twin REFUSED. `any` and not an
+        # abstract `val` for the same reason as the arm above: declaring one would make
+        # this function EFFECTFUL and its mirror is a CONVERTED method with
+        # `assigns \nothing`, so `any` keeps it a pure @staticmethod.
+        return "(any (array int))"
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
