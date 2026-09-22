@@ -791,3 +791,5 @@ median_high_call_fails.py	VERIFY-FAIL
 1759_gen30_witness_trailing_contract_block.py	REFUSAL	line 17: this `#@` contract block has nothing after it to attach to (it runs to end-of-file), so it would be SILENTLY DISCARDED while the run still reports 'All contracts formally proven'. Move it directly above the `def`/`class` it describes, or delete it. (Directives: ensures.)
 1760_gen30_witness_footprint_unknown_policy.py	REFUSAL	`footprint nosuchpolicy` on 'writer' references no parametric HAPPY named 'nosuchpolicy'. Declared parametric HAPPYs: ['inode_conf'].
 1762_gen30_witness_assigns_region_undefined_base.py	REFUSAL	Assigns region references undefined variable 'ys' in function 'zero_prefix'.
+1763_gen30_witness_lemma_body_returns_value.py	REFUSAL	`#@ lemma` 'add_zero' body must not `return` a value — it is a proof (returns unit). Use `pass` for an immediate arm.
+1765_gen30_witness_namedtuple_arity.py	REFUSAL	[semantic]: NamedTuple construction 'Point(...)' called with 1 argument(s) but the NamedTuple declares 2 field(s) (arity range 2..2; N7 / PEP 526 — a NamedTuple's fields are required positional arguments).
