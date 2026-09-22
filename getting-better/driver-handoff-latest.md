@@ -10134,3 +10134,31 @@ mirror edits; run it after ANY `src/pycsl/` change.
 # `bin/run-soundness-planes.sh --slow`, and prints FINAL-BATTERY-DONE. Poll the log; do
 # not relaunch. Expected at the gen #30 final HEAD: suite 3841+ tests with the same 18
 # CONFIRMED FAIL and ZERO XPASS, and 43 planes green (22 fast + 21 slow).
+
+<!-- gen #30 instrument index -->
+# INSTRUMENTS BUILT IN gen #30 — where they are and what they measure
+#   bin/check-argument-coercion.py             every argument SUBSTITUTION, classified
+#   bin/check-proof-reverify.sh                the axiom footprint (ratchet driven 6 -> 0)
+#   bin/check-return-boundary-substitutions.py every constant a return handler substitutes,
+#                                              pinned WITH COUNTS; `--live DIR` self-test
+#   bin/check-fstring-lowering.py              every value `_handle_fstring_expr` returns,
+#                                              plus two STRUCTURAL tokens (#203 added a
+#                                              wrap, not an exit, so the return set alone
+#                                              is green on the pre-#203 tree)
+#   bin/check-coercion-exits.py                every value `_array_coerce_arg` and
+#                                              `_coerce_to_int` return, with counts
+#   bin/check-corpus-contract-truth.py         BOTH reference corpora's own literal-result
+#                                              postconditions, re-run under CPython every
+#                                              pass: 367 agree, 0 disagree
+#   scratchpad/g30/fuzz/gen11.py               the RETURN boundary (960 programs, 0 found)
+#   scratchpad/g30/fuzz/gen12.py               the STRING/INT REPRESENTATION boundary
+#   scratchpad/g30/stdlib_diff.py              pycsl_lib BODY differential (wrong criterion,
+#                                              kept as the record of why)
+#   scratchpad/g30/stdlib_contract_diff.py     pycsl_lib CONTRACT-vs-CPython differential —
+#                                              the RIGHT criterion; 2 fidelity defects,
+#                                              severity downgraded after tracing the
+#                                              consumer. The named work item for the
+#                                              `agent-stdlib-annotate` owner.
+# SELF-TEST HOOK, worth copying into every new plane: `--live <dir>` runs the gate against
+# another checkout, and `git show <old-sha>:<file> > <tmpdir>/` gives you that checkout for
+# one file without moving a worktree. A gate nobody has seen fail is a claim.
