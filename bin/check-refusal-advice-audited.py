@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 54 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 58 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -320,6 +320,18 @@ AUDITED = {
     ("src/pycsl/frontend/Module3_Weaver.py",
      'PyCSLSemanticError(f"`happy {hp.name}`: aliasing the protected field \'self.{hp.field}\' into a local in non-exempt \'{fn.name}\' is forbidden —'): (FOLLOWABLE,
         'The repair is to read and write THROUGH the protected field; an excepted owner writing it and a reader reading it VERIFY.'),
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"Ghost string variable \'{target}\' does not support \'{op}\' in {where}. Use the ^ operator for string concatenation: #@ gh'): (FOLLOWABLE,
+        '\'Use the ^ operator for string concatenation\' - `#@ ghost acc = acc ^ "x"` VERIFIES.'),
+    ("src/pycsl/frontend/Module5_IREmitter.py",
+     "PyCSLIRError(f'`\\\\forall x in {dv.coll}.items()` (two-binder) is a 07-1311 follow-on; use `.keys()`/`.values()` or the `\\\\forall k in {dv.co"): (FOLLOWABLE,
+        "'use `.keys()`/`.values()` or the `\\\\forall k in d;` key form' - the `.keys()` form VERIFIES."),
+    ("src/pycsl/frontend/Module5_IREmitter.py",
+     "PyCSLIRError('isinstance: a typing.Literal alias is not a valid second argument (LR4 / PEP 586 — use a concrete value equality test)', stage"): (FOLLOWABLE,
+        "'use a concrete value equality test' - `x == 1` in place of `isinstance(x, Literal[1])` VERIFIES."),
+    ("src/pycsl/frontend/desugar.py",
+     'PyCSLParseError("a Python `assert` inside a `try` whose handler can catch `AssertionError` is not modelled: the `assert` is lowered to a NO-'): (FOLLOWABLE,
+        "'Use an explicit `if not <cond>: raise AssertionError(...)`, or move the `assert` out of the `try`' - a `#@ check` outside any `try` VERIFIES."),
 }
 
 
@@ -424,7 +436,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 54
+MIN_AUDITED = 58
 
 if __name__ == "__main__":
     sys.exit(main())
