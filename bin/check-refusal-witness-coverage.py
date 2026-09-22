@@ -39,10 +39,12 @@ set and 140 a CEILING on the undemonstrated one. `--regenerate` keeps 400 charac
 message and will move both numbers the right way; the ratchets below are set to the
 CONSERVATIVE first measurement so that regenerating can only improve them.
 
-THE SECOND JOINED MEASUREMENT (#49, gen #30, the same generation, hours later): **198
-raise sites, 164 DEMONSTRATED and 17 not, plus 8 NOT SOURCE-REACHABLE and 9 UNMATCHABLE.**
+THE SECOND JOINED MEASUREMENT (#49, gen #30, the same generation, hours later): **219
+raise sites, 184 DEMONSTRATED and 17 not, plus 8 NOT SOURCE-REACHABLE and 10 UNMATCHABLE.**
 The four counts now PARTITION the population; the first measurement's two summed to 198
-only because everything unexplained was called a debt.
+only because everything unexplained was called a debt — AND because 21 raise sites were
+not in the population at all (see the alias note in `sites()`), which is why the total
+itself moved from 198 to 219.
 
 AND THE BOUND STATED DIRECTLY ABOVE WAS RIGHT, WHICH IS THE UNCOMFORTABLE PART. The
 paragraph before this one says, in the generation's own words, that the census "truncates
