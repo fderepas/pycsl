@@ -2420,6 +2420,43 @@ always expanded chains correctly", citing `0865`. That was false and is correcte
 
 ---
 
+### §T.5.12t  A PLACEHOLDER HAS EVERY PROPERTY ITS REPRESENTATION HAS
+
+Four routes in gen #30 (#193, #194, #195, #196) and one more a day later (#197) are one
+defect wearing five costumes: **where the model does not know a value, it must not name
+one** — and a stand-in named for one purpose answers every question its representation can
+answer.
+
+| where | the stand-in | the question it answered wrongly | now |
+|---|---|---|---|
+| an iterable the IR cannot represent, at an `array int` param (#193) | `(Array.make 1 0)` | `sorted_1`'s `Array.length result = Array.length a` made `len(sorted(x for x in [3,1,2]))` prove `== 1` | `any (array int)` |
+| an array/map actual at an INT-ERASED param (#194) | the literal `0` | the callee's `ensures p == 0 ==> \result == 1` read it | `(any int)` |
+| `[]` at an INT-ERASED param (#195) | the literal `0` | same contract, `self.f([])` proved `\result == 1` (`[] == 0` is False) | `(any int)` |
+| `[]` at an `array int` param (#196) | `(Array.make 1024 0)` | `\result == \length(ns)` handed the caller `1024`, and CPython's own answer 0 was REFUSED | `(Array.make 0 0)` — FAITHFUL, not opaque |
+| `getattr(o, "a", 0)` on an UNKNOWN-typed `o` (#197) | the DEFAULT | the body read it and the contract read `\result`; the emission even warned `unused variable o` | a PER-SITE opaque |
+
+**THE PROBE THAT FOUND FOUR OF THEM, stated once because it is the transferable part:** give
+the callee a contract that is **TRUE OF ITS OWN BODY** and that **READS** the property the
+substitution changes; call it with the substituted-away shape; run CPython. A callee with
+`ensures True` hides every defect of this family completely, which is why the call boundary
+survived 190 routes unprobed.
+
+**Two distinctions the repairs turn on, and both cost a wrong first attempt:**
+
+* **OPAQUE is not always the right answer — sometimes FAITHFUL is.** `[]` really does have
+  length 0, so #196's repair is the genuinely empty array, and witness `1690` now proves
+  `len([]) == 0` at a call boundary, which the model could not prove before. A repair that
+  only made the length undecided would have left a true fact unprovable.
+* **A PER-SITE opaque is not the same as `any`.** `any` is fresh at every evaluation; a
+  per-site opaque is stable, so two reads of the same expression agree. #197's first version
+  used `any` and the emission census refuted it — it would have replaced route #47's existing
+  per-site opaques and lost that equality for nothing.
+
+And one accident worth keeping: a spelling can be shared. Before #191 the Python `None` and
+the integer `0` both lowered to `"0"`, so a lift recognising `None` **by that spelling** was a
+coincidence, not a rule. #191 broke the coincidence in the safe direction (a missed lift, a
+loud type error) and #192 is the same break read the other way.
+
 ### §T.5.12h  `None` is NOT the integer 0 in a VALUE position
 
 `None` USED TO LOWER to the literal `0`, and that was the **Optional convention** the whole
