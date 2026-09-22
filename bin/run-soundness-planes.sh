@@ -134,6 +134,14 @@ PLANES=(
     # symlink). Sound while nothing substitutes this layer for the real module; the set
     # that turns false the day something does.
     check-stdlib-pinned-facades.py
+    # (#49) gen #30: the pinned-facade gate's SIBLING — bodies that are `return <param>`
+    # under an `ensures \result == <that param>`. Found by widening the calling gate's
+    # map: six of them DIVERGE from the function their own header cites (`ftools.wraps`
+    # returns a partial, `ctxlib.closing` a context manager, `pp.saferepr` a string). 81
+    # exist, most in modules the calling gate must never call (`os`, `shutl`, `rng`), so
+    # this is the static complement. 45 stay UNADJUDICATED under a ceiling that may only
+    # shrink — the debt is printed every run rather than left unmentioned.
+    check-stdlib-identity-stubs.py
     # (#49) gen #30: the STDLIB TRUST-SURFACE ratchet, and the reason it is a THIRD stdlib
     # gate is the finding itself: the campaign's headline `\trusted` metric does not reach
     # this layer. `count-trusted-directives.py` globs `MIRROR/**/*.py` and
@@ -148,7 +156,7 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=28
+MIN_PLANES=29
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
