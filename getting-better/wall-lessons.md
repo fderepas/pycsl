@@ -130,6 +130,27 @@ the SUBJECT and not in the INSTRUMENT. The giveaway was free and I had never loo
 rows sharing one exact length is not what real messages look like. One `awk` on a committed
 artifact, against nine hours of work it was recommending.
 
+**A CORRECTION TO THIS LESSON, MADE THE SAME EVENING AND SHARPER THAN THE LESSON.** I wrote
+the above believing nobody had noticed the truncation. Reading the plane's own docstring
+afterwards: *"the committed census truncates each message to 110 characters. A site whose
+message is assembled from short pieces, or whose distinctive text falls past that cut,
+counts as UNWITNESSED even if a witness exists. So 58 is a FLOOR on the demonstrated set
+and 140 a CEILING on the undemonstrated one. `--regenerate` ... will move both numbers the
+right way."* Every word right, written before the ratchets were set, by the generation that
+set them.
+
+The bound did not fail. **It failed to travel.** It reached
+`getting-better/driver-handoff-latest.md` as "the 113 refusals that still have no witness
+... each costs about five minutes" — a fact about the compiler, with the hedge gone — and
+nine hours of work were priced against it. Repairing the census took about forty minutes.
+
+So the real lesson is narrower and worse than "audit your instrument": **a bound survives
+in the docstring and dies in the queue.** The hedge is written where the measurement is
+made; the number is read where the work is planned; and nothing carries the first to the
+second. The structural answer is not a better comment — it is that a gate whose inputs are
+unusable must REFUSE rather than print a number, which is what all five of tonight's
+guards now do. A hedge a reader must go and find is a hedge that will be lost.
+
 The second: **a number that recommends effort deserves exactly the scrutiny of a number
 that reports success.** Every habit here is built around distrusting green — rule (k) says
 never re-baseline a gate to make it green, and half these lessons are about a PASS that

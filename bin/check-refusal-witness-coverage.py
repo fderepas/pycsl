@@ -39,6 +39,40 @@ set and 140 a CEILING on the undemonstrated one. `--regenerate` keeps 400 charac
 message and will move both numbers the right way; the ratchets below are set to the
 CONSERVATIVE first measurement so that regenerating can only improve them.
 
+THE SECOND JOINED MEASUREMENT (#49, gen #30, the same generation, hours later): **198
+raise sites, 164 DEMONSTRATED and 17 not, plus 8 NOT SOURCE-REACHABLE and 9 UNMATCHABLE.**
+The four counts now PARTITION the population; the first measurement's two summed to 198
+only because everything unexplained was called a debt.
+
+AND THE BOUND STATED DIRECTLY ABOVE WAS RIGHT, WHICH IS THE UNCOMFORTABLE PART. The
+paragraph before this one says, in the generation's own words, that the census "truncates
+each message to 110 characters", that a site whose distinctive text falls past that cut
+"counts as UNWITNESSED even if a witness exists", that the numbers are a FLOOR and a
+CEILING, and that `--regenerate` "will move both numbers the right way". Every word of
+that is true and it was written down before the ratchets were set.
+
+What happened next is the lesson. The CEILING travelled into
+`getting-better/driver-handoff-latest.md` as a work item — "the 113 refusals that still
+have no witness ... each costs about five minutes" — and by then it was a FACT about the
+compiler rather than a bound on an instrument. Nine hours of corpus files were priced
+against it. Repairing the census instead took about forty minutes and moved 85 -> 162; a
+third of the witnesses that item would have produced were already in the corpus.
+
+>>> A BOUND SURVIVES IN THE DOCSTRING AND DIES IN THE QUEUE. The hedge is written where
+>>> the measurement is made, and the number is read where the work is planned. If a
+>>> measurement is a bound, the GATE must say so every time it prints — which is why the
+>>> refusals below (truncated census, placeholder fragments, U+FFFD) are now rc=2 instead
+>>> of a sentence in a comment nobody re-reads.
+
+FOUR THINGS THIS GATE CANNOT SEE, all found in one evening and all now handled rather than
+described (see the constants and guards below): a census message CUT at the writer's cap
+or MID-UTF-8 (both now REFUSALS); a raise with no literal of 25+ characters (its fragment
+is "" and no witness can ever match — counted as UNMATCHABLE, derived every run); a raise
+whose literal contains a `%s` placeholder the compiler never prints (`sites()` now splits
+on placeholders, and a surviving one is a REFUSAL); and a refusal not reachable from a
+`.py` source at all (`validate_ir`'s eight, demonstrated by
+`bin/check-ir-schema-refusals.py` instead).
+
 THE RATCHET: the witnessed count may only GROW, and the artifact's own size may only grow
 with the corpus. A NEW refusal added without a witness is visible immediately — it lands in
 the unwitnessed list and the count of unwitnessed sites rises above the ceiling.
