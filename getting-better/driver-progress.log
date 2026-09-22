@@ -3155,3 +3155,14 @@ formality before the repair, it is the thing that keeps the repair from breaking
 tree. #200's census re-aimed the fix (declared vs erased), #201's census showed the
 placeholder was dead in both trees, and this one caught a false positive that would have
 turned the suite red.
+
+### A scheduling decision, recorded because it changed what got measured
+Load hit 40 on a 12-core box: the suite (6 jobs), the #201 byte-diff sweep (6 jobs),
+the #198 mirror re-proof and THREE census runs were all live at once, and everything
+slowed together. Killed the two SUPERSEDED census runs (the pre-vararg-fix `dry2`
+predicate, whose corpus answer I had already read and whose mirror answer would have
+been wrong for the same vararg reason) and kept the refined `dry3`. The mirror-side
+dry run of the REFINED predicate is owed and will run when the corpus one lands.
+Nothing measured was discarded; what was discarded was a measurement of the wrong
+predicate. Oversubscribing the box does not produce more results per hour, it
+produces the same results later and a worse chance of finishing before a kill.
