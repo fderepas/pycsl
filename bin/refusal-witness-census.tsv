@@ -767,3 +767,4 @@ median_high_call_fails.py	VERIFY-FAIL
 1735_gen30_witness_assigns_region_non_list.py	REFUSAL	Assigns region on non-list variable 'n' (type 'int') in function 'f'.
 1736_gen30_witness_length_on_a_dict.py	REFUSAL	\length is not supported on the dict-typed 'd' in function 'f': dicts/sets are modelled as total maps (`map int (option int)`) with no cardinality. Use \has_key(d, k) for key presence, or a list/array for a length-bearing collection.
 1737_gen30_witness_result_in_a_check.py	REFUSAL	'\result' is not allowed in a `#@ check` in function 'f' (it is bound only at return; use `ensures` for return values).
+1738_gen30_witness_happy_exempt_typo.py	REFUSAL	`happy own`: exempt function 'setterr' is not a method in this module. Known methods: ['__init__', 'setter']. A typo in the exempt set would silently widen the property's coverage, so this is rejected.
