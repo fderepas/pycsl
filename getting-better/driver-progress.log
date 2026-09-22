@@ -4990,3 +4990,9 @@ instruction.
 TO DO (not applied while the battery was running — editing a script bash is reading is the
 hazard this generation already recorded): a `--slow` pre-check that refuses up front with
 the one-line instruction, keeping each plane's own guard as the backstop.
+
+>>> CENSUS INTEGRITY CHECKED: all 827 rows of `bin/refusal-witness-census.tsv` name a file
+>>> that still exists. Seven witness candidates were DELETED this evening after being
+>>> confirmed redundant, and each one's row went with it — which is worth verifying rather
+>>> than assuming, because an orphan row is a witness the gate believes in and nobody can
+>>> re-run.
