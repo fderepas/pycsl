@@ -3347,3 +3347,16 @@ PREDICTION (written first):
   U3 corpus byte-diff ZERO and mirror emission byte-diff ZERO — 0 occurrences of the shape
      in either tree, so anything else means the census is wrong.
   U4 22 fast planes stay green.
+
+ROUTE #203 REPAIRED. U1/U2 measured and both match:
+  `\result == 2` (false, CPython says 1)  PROVED -> REFUSED
+  `\result == 1` (the TRUE twin)          REFUSED (unchanged; the opaque answers neither)
+Mirror-sync green — `_handle_fstring_expr`'s mirror is a RE-TRUSTED STUB, so the live
+edit has no verbatim twin and no `assigns \nothing` frame to respect. That is why #203
+could use a DECLARED opaque (`val function str_of_int_hash`) where #193/#194/#195/#201
+were forced to the declaration-free `(any …)`: the constraint is a property of the
+METHOD's mirror status, not of the campaign, and it is worth checking each time rather
+than assuming the harder answer.
+Witnesses 1705 (carrier, FAIL) and 1706 (the completeness control: two f-strings over the
+SAME value are the SAME string, which Python agrees with and which a switch to `any` —
+fresh at every evaluation — would silently lose while still passing 1705).

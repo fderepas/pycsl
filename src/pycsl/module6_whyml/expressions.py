@@ -15463,6 +15463,35 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             p = _part(part)
             self._add_abstract_op("val str_concat (x: int) (y: int) : int")
             acc = f"(str_concat {acc} {p})"
+        # (#49) ROUTE #203 — A SINGLE-PART f-STRING WAS THE PART ITSELF.
+        #
+        #   Every OTHER shape this joiner produces is already opaque: a multi-part
+        #   f-string is wrapped in `str_concat` (an abstract op with no axioms) and a
+        #   STRING-typed part goes through `str_hash_op`. The one value that escaped raw
+        #   is a SINGLE-part f-string whose part is not string-typed — `f"{n}"` with no
+        #   surrounding literal text — where `acc` is returned exactly as `_part` produced
+        #   it, so the f-string IS the integer.
+        #
+        #   MEASURED: `n = 5; s = f"{n}"` emitted `s := !n`, and `s == "5"` then compared
+        #   `!s = 1359629258` (the hash of the literal `"5"`) against 5 and DECIDED FALSE,
+        #   so `#@ ensures \result == 2` PROVED while CPython answers 1 — `f"{5}"` IS
+        #   `"5"`. The TRUE twin `\result == 1` was REFUSED. A wrong DECISION, not a
+        #   merely-unknown value.
+        #
+        #   The honest answer in the int-hash string model is the hash of `str(n)`, which
+        #   is not computable at emit time for a symbolic `n`, so it is a VALUE-KEYED
+        #   OPAQUE — route #41/#44's device: `str_of_int_hash n` is deterministic, so two
+        #   equal `n`s give equal strings (Python agrees), and no literal's hash is
+        #   provably equal to it, so no comparison against a literal decides.
+        #
+        #   SCOPED TO `len(parts) == 1` DELIBERATELY, and the scope was measured, not
+        #   guessed (the #198 lesson, applied to this arm): wrapping EVERY part would
+        #   change the arguments `str_concat` receives and move every multi-part f-string
+        #   in the mirror. Static census of the single-part shape: **0** in the 1630-file
+        #   pycsl-reference corpus, **0** in the 53 mirror files, **0** in `pycsl_lib`.
+        if len(parts) == 1 and not acc.strip().startswith("(str_hash_op "):
+            self._add_abstract_op("val function str_of_int_hash (x: int) : int")
+            acc = f"(str_of_int_hash {acc})"
         return acc
 
     def _handle_unaryop_expr(
