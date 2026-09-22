@@ -1069,9 +1069,57 @@ class Module3_Weaver:
                         continue
                     if getattr(fn, "csl_preserves", False):
                         continue
-                    assigned = {self._target_dotted_path(t)
-                                for a in getattr(fn, "csl_assigns", [])
-                                for t in getattr(a, "targets", [])}
+                    # (#49) ROUTE #209 — THIS TRUST BOUNDARY HAD NEVER FIRED, BECAUSE IT
+                    # ASKED A PYTHON-AST MATCHER ABOUT A CSL NODE. `_target_dotted_path`
+                    # tests `isinstance(target, ast.Attribute | ast.Subscript | ast.Name)`,
+                    # and an `#@ assigns` target is a CSL object — `assigns g.v` parses to
+                    # `FieldAccess(object='g', field='v')` and `assigns self.disk[i]` to
+                    # `FieldSubscript(field='disk', index=Var(name='i'))`. None of those is
+                    # a `pure_ast` node, so the matcher returned None for EVERY target, the
+                    # set was `{None}`, and the intersection with the protected paths was
+                    # always empty. MEASURED: `happy own: protects g.v except setter` with
+                    # a NON-exempt `#@ \trusted` function declaring `#@ assigns g.v` and a
+                    # body of `g.v = n` printed "Verification SUCCESS" (witness 1716),
+                    # i.e. the confinement policy proved of a program that violates it. The
+                    # untrusted twin is corpus 0612 and has always been refused — the body
+                    # site gets a `#@ check False` injected, and a trusted body has no site.
+                    # The REGION form's identical boundary (0461/0462) does fire, because it
+                    # reads the region and not the assigns targets; so this form's teeth
+                    # were the only ones missing, and nothing noticed because no witness
+                    # exercised THIS form's trust boundary.
+                    assigned = set()
+                    for a in getattr(fn, "csl_assigns", []):
+                        for t in getattr(a, "targets", []):
+                            _p209 = self._target_dotted_path(t)
+                            if _p209:
+                                assigned.add(_p209)
+                                continue
+                            # CSL target: peel `FieldAccess`/`FieldSubscript`/`Var` into a
+                            # dotted path, bounded so a cyclic structure cannot spin.
+                            _parts209 = []
+                            _cur209 = t
+                            _guard209 = 0
+                            while _guard209 < 8:
+                                _guard209 += 1
+                                if isinstance(_cur209, str):
+                                    _parts209.append(_cur209)
+                                    break
+                                _fld209 = getattr(_cur209, "field", None)
+                                if _fld209 is not None:
+                                    _parts209.append(_fld209)
+                                    _obj209 = getattr(_cur209, "object", None)
+                                    if _obj209 is None:
+                                        # `FieldSubscript` has no object: it is `self.<f>`
+                                        _parts209.append("self")
+                                        break
+                                    _cur209 = _obj209
+                                    continue
+                                _nm209 = getattr(_cur209, "name", None)
+                                if _nm209 is not None:
+                                    _parts209.append(_nm209)
+                                break
+                            if _parts209:
+                                assigned.add(".".join(reversed(_parts209)))
                     if assigned & protected:
                         raise PyCSLSemanticError(
                             f"`happy {hp.name}`: trusted/abstract method '{fn.name}' is "
