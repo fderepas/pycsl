@@ -4474,3 +4474,40 @@ The redesign is the one its own note had asked for twice: the global UNKNOWN cei
 been raised 19 -> 24 -> 25 and was about to be raised again, each time because a WITNESS
 was added. Per-file, a growth in an existing file fails and a new witness must be
 registered deliberately.
+
+================================================================================
+THE SAME AUDIT, APPLIED TO THREE MORE HEADLINE NUMBERS
+================================================================================
+After the refusal-coverage instrument produced five artifacts in one evening, I ran the
+same question over the other planes that print a headline: WHAT CAN THIS INSTRUMENT NOT
+SEE, AND IS THAT WRITTEN WHERE IT PRINTS?
+
+`check-claim-vacuity` — 1791 of 3973 corpus files "carry a trivially true postcondition",
+from three exact regexes. MEASURED two broader syntactic families over all 3973 files:
+`ensures A <op> A` for identical text, and `ensures <lit> <op> <lit>` for every comparison.
+ZERO additional files in both. The number is NOT an undercount hiding behind a narrow
+regex, which is the first of tonight's audits to come back CLEAN — and that is worth as
+much as the ones that did not. The operator set was widened anyway so a future
+`ensures 1 > 0` is caught by construction rather than by someone repeating the audit, and
+what stays invisible (semantic tautologies needing the expression evaluator) is now NAMED.
+
+`check-stdlib-modules-verify` — "84 of 104 modules verify", cited in the semantics
+reference's TCB appendix as evidence that "a contract a consumer relies on is discharged by
+the library's own machine-checked proofs". NINE of the 84 carry no `#@ ensures` at all and
+SEVEN carry no `#@` whatever. They return "Verification SUCCESS" because the emitter
+produced no goal. The honest figure is 75.
+
+>>> A PROVER SAYING SUCCESS OVER ZERO GOALS IS NOT EVIDENCE. Every discipline here exists
+>>> to distrust a green gate; a green PROVER got read as a fact for a whole generation.
+
+`check-stdlib-identity-stubs` — "81 identity stubs", scope sentence accurate ("with a
+pinning contract"). 78 MORE functions in the layer are `return <param>` with no
+`\result ==` clause. `htm.escape(s) -> s` under `#@ assigns \nothing` is the example: real
+`html.escape('<')` is `'&lt;'`, the model is SILENT rather than wrong, and it VERIFIES.
+
+>>> THE PATTERN IN ALL THREE: THE NUMBER WAS NOT WRONG. Its SCOPE was accurate in the
+>>> docstring and absent everywhere the number was used. That is the same failure as the
+>>> 113-refusal queue item, which inherited a documented CEILING as a fact and priced nine
+>>> hours against it. A hedge a reader has to go and find is a hedge that will be lost —
+>>> so all three now PRINT their scope on every run, and the coverage gate REFUSES rather
+>>> than print a number when its own inputs are unusable.
