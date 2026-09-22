@@ -87,6 +87,26 @@ CALL_TIMEOUT = 1.0       # seconds; a corpus loop must not hang the battery
 EXEC_TIMEOUT = 2.0
 MIN_EVALS = 3800         # 4340 at the first measurement; the corpus only grows
 TRUST_INHERITED_BASELINE = 14    # disagreements a caller INHERITS from a trusted callee
+MAX_RAISED = 3                   # calls that RAISE on an argument the precondition admits.
+# THE THREE, EACH NAMED, because "3" on its own would be a shrug:
+#   0159.py::diverges_inc(0)      RecursionError. `#@ \diverges` over `return
+#                                 diverges_inc(x)` — the file EXISTS to be non-terminating,
+#                                 and CPython's recursion limit is how non-termination
+#                                 shows up in a differential. Correct, and not a defect.
+#   0496.py::grab(0)              TypeError. `Holder(k)` is a class the oracle's plain
+#                                 `exec` cannot construct the way the model does. An
+#                                 instrument limit, not a claim about the program.
+#   0420.py::roundtrip_two_ints(0, -1)   `struct.error`. THIS ONE IS THE OBSERVATION. The
+#                                 function claims `#@ ensures \result == x0` with NO range
+#                                 precondition and PROVES it by citing
+#                                 `UnixFs.Struct.i2.round_trip`, which is quantified
+#                                 `forall fmt x0 x1 : int` with NO guard — while
+#                                 `struct.pack('>HH', x0, x1)` RAISES for any x0 outside
+#                                 [0, 65536). The SUCCESSOR family in the same registry,
+#                                 `Pycsl.Struct.Std.round_trip_u16u32`, carries
+#                                 `0 <= x0 < 65536 ->` and its comment says the guard is
+#                                 "faithful to CPython's out-of-range struct.error". So the
+#                                 repo's own standard disagrees with the legacy axiom.
 NO_PROOF_SHARE_CEILING = 0.46    # 1754/3881 = 0.452 at the first measurement
 
 
@@ -210,7 +230,7 @@ def main():
         warnings.simplefilter("ignore")
         per, stats = collect(no_exclusions=args.selftest_no_exclusions)
     agree = 0
-    disagree, inherited, unrunnable = [], [], []
+    disagree, inherited, unrunnable, raised = [], [], [], []
     funcs = 0
 
     with warnings.catch_warnings():
@@ -261,7 +281,23 @@ def main():
                                   for e in ens]
                     except BaseException as exc:
                         signal.setitimer(signal.ITIMER_REAL, 0)
-                        unrunnable.append((os.path.basename(f), name, type(exc).__name__))
+                        # (#49) gen #30 — A CALL THAT **RAISES** IS NOT THE SAME AS A
+                        # MODULE THAT WILL NOT LOAD. The first version lumped both into
+                        # "unrunnable", and that hid the sharpest observation this oracle
+                        # has made: `0420.py::roundtrip_two_ints` claims
+                        # `#@ ensures \result == x0` with NO range precondition and PROVES
+                        # it, while `struct.pack('>HH', x0, x1)` RAISES `struct.error` for
+                        # any x0 outside [0, 65536) — the model asserts a normal exit with
+                        # value x0 where CPython has none. §2.1.13 puts exceptional exits
+                        # out of scope unless `#@ no_exception` is declared, so this is
+                        # REPORTED rather than failed — but it is reported, with a ceiling,
+                        # because the repo's OWN standard disagrees with it: the successor
+                        # axiom family `Pycsl.Struct.Std.round_trip_*` carries per-field
+                        # range guards whose comment says they are "faithful to CPython's
+                        # out-of-range struct.error", while the legacy
+                        # `UnixFs.Struct.i2.round_trip` this file cites is UNGUARDED.
+                        raised.append((os.path.basename(f), name, tup,
+                                       type(exc).__name__))
                         break
                     tested += 1
                     got = int(got) if isinstance(got, bool) else got
@@ -281,9 +317,9 @@ def main():
     share = stats["no_proof"] / float(stats["files"]) if stats["files"] else 0.0
     print("[*] corpus-contract-truth-args: %d function(s), %d argument-level "
           "evaluation(s) — %d AGREE, %d DISAGREE, %d inherited from a `\\trusted` "
-          "callee, %d unrunnable."
+          "callee, %d RAISED on an admitted argument, %d unrunnable."
           % (funcs, agree + len(disagree) + len(inherited), agree, len(disagree),
-             len(inherited), len(unrunnable)))
+             len(inherited), len(raised), len(unrunnable)))
     print("[*] corpus-contract-truth-args: EXCLUSIONS — %d file(s) carry `--no-proof` "
           "(%.1f%% of %d corpus files: a PASS there means the pipeline did not crash, "
           "NOT that the contracts hold), %d `\\trusted` function(s), %d behaviour-block "
@@ -291,6 +327,9 @@ def main():
           % (stats["no_proof"], 100.0 * share, stats["files"], stats["trusted"],
              stats["acts"], stats["fun_restricted"]))
     if args.verbose:
+        for r in raised:
+            print("    RAISED     %s::%s%r  -> %s (the contract promises a value on an "
+                  "argument its own `requires` admits)" % r)
         for b in inherited:
             print("    inherited  %s::%s%r  ensures %s -> %r, CPython %r" % b)
         for u in unrunnable[:40]:
@@ -317,6 +356,11 @@ def main():
         print("[!] SELFTEST FAILED: dropping every exclusion found NO disagreement, so "
               "this oracle cannot detect a false contract at all.", file=sys.stderr)
         return 2
+    if len(raised) > MAX_RAISED:
+        print("[!]   RAISED-ON-ADMITTED-ARGUMENT COUNT GREW: %d > %d. Each one is a "
+              "contract that promises a value where CPython has no normal exit at all."
+              % (len(raised), MAX_RAISED), file=sys.stderr)
+        rc = 1
     if len(inherited) > TRUST_INHERITED_BASELINE:
         print("[!]   TRUST BLAST RADIUS GREW: %d caller-level disagreements inherited "
               "from `\\trusted` callees, ceiling %d."
