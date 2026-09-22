@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 42 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 45 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -284,6 +284,15 @@ AUDITED = {
     ("src/pycsl/frontend/Module1_Ingestor.py",
      "PyCSLParseError('tabs are not allowed in `act` block indentation; use 4 spaces', stage='Module1')"): (FOLLOWABLE,
         "'use 4 spaces' - a four-space-indented `act` block VERIFIES."),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"Class \'{node.name}\' (line {node.lineno}): `__del__` finalizer is rejected under UB-7.5. Finalizer timing is non-determi'): (FOLLOWABLE,
+        'The repair is to remove the finalizer - the same class without `__del__` VERIFIES.'),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     "PyCSLSemanticError('a function, method or class NAME is rebound after its definition (' + '; '.join(sorted(set(_rb_bad))) + '). Every call i"): (FOLLOWABLE,
+        "'Give each binding its own name' - two distinctly-named functions VERIFY."),
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"\\\\length is not supported on the {typ}-typed \'{var}\' in {ctx}: dicts/sets are modelled as total maps (`map int (option '): (FOLLOWABLE,
+        "The repair the message names ('dicts/sets are modelled as total maps ... use a membership') - a `1 in d` precondition VERIFIES."),
 }
 
 
@@ -388,7 +397,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 42
+MIN_AUDITED = 45
 
 if __name__ == "__main__":
     sys.exit(main())
