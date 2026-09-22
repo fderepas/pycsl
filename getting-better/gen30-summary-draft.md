@@ -19,6 +19,46 @@
 | 201 | a string actual became a ONE-ELEMENT array at a `List[int]` param | `_array_coerce_arg`, the TAIL |
 | 202 | the same hash through an UN-ANNOTATED param, and through the KEYWORD slot | the #200 refusal's own two blind spots |
 | 203 | a SINGLE-part f-string `f"{n}"` was the integer it interpolates | `expressions._handle_fstring_expr`, the int-model joiner |
+| 204 | an `#@ interface assigns` NARROWER than the definition — the importer framed the call with it | `functions._emit_narrowing_vc` proves `ensures` and `requires` and emits nothing for `assigns` |
+| 205 | an over-claiming `#@ interface ensures` was refused AT HOME and believed by EVERY importer | the narrowing VC was "emitted only in the owning unit" |
+| 206 | a `happy … total` availability policy proved over a target whose helper is a `\trusted` `while True` | `Module3_Weaver`, route #93's check covered the TARGET only |
+| 207 | `no_exception \all` proved through a `\trusted` METHOD that always raises | route #161's method arm, admitted on the strength of a name |
+| 208 | the same `total` policy through a `\diverges` helper — through MY OWN #206 repair, 20 minutes later | the callee set was derived from the witness, not from the rule |
+| 209 | the `protects` trust boundary asked a `pure_ast` matcher about a CSL node and had NEVER fired | `Module3_Weaver`, R1.1 |
+| 210 | a `#@ check False` stamped into a `\trusted` body that is never lowered | the `protects` form's site loop |
+| 211 | the same inert stamp in the PARAMETRIC (`footprint`) form; the twin is one annotation line | the R3 site loop |
+
+## The second half of the generation (2026-09-22, 14:30-15:30Z) — EIGHT more routes in one stretch
+
+Every one came from the same move: **read a justification as a checkable claim, then ask
+which SPELLING it did not run.** Three of them came from ONE sentence
+(`_emit_narrowing_vc`'s docstring), and four are one defect wearing four hats:
+
+>>> A `#@ happy` POLICY ENFORCES ITSELF BY INJECTING A CHECK INTO A BODY, AND A `\trusted`
+>>> BODY IS NEVER LOWERED, SO THE INJECTION EVAPORATES.
+
+`bin/check-happy-trust-boundaries.py` now runs a CARRIER and a CONTROL for each boundary
+through the shipping pipeline (3.2 seconds for ten programs, because a refusal precedes the
+prover). It is executable on purpose: #209 and #211 both READ correctly in the source and
+could not fire.
+
+**#208 is the generation's sharpest lesson about itself.** It walked through my own #206
+repair twenty minutes after that repair landed, because I derived the refusal's callee set
+from HOW #206's witness happened to be written (bodyless) instead of from WHAT the rule
+means (no termination VC). The campaign's own lesson (i) — *name which spellings were run* —
+missed on my own patch, inside the hour.
+
+### Three measurements that reframe the campaign's own numbers
+
+None is a soundness failure. All three are the gap between what a number SAYS and what a
+reader HEARS, which is the same defect class as a false contract, one level up in the prose.
+
+| measured | number |
+|---|---|
+| corpus files that run with `--no-proof` (a PASS means the pipeline did not crash) | **1754 of 3881 — 45%**, and 38 of a 40-file sample VERIFY under the prover |
+| corpus files whose contract says NOTHING (`ensures True`) | **1792 of 3888 — 46%**, including ALL 840 `*_call_fails.py` AND ALL 840 `*_call_proves.py`; 60 of 60 sampled `*_call_fails.py` VERIFY under full proof |
+| the UN-trusted mirror that makes a VALUE claim | **143 of 933 — 15%** (624 carry only a frame claim, 166 no clause at all) |
+| the mirror that is trusted OR trust-dependent | **56%-61%**, against a headline marker count of 459 |
 
 ## Planes added or collected
 
