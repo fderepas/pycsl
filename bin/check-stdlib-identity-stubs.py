@@ -38,11 +38,22 @@ three ways and each entry says which it is:
   DIVERGES   — the real function returns something else. Already PROVEN so by the calling
                gate, and cross-checked here: every DIVERGES entry in a module the fidelity
                map covers must also appear in THAT gate's baseline, or this gate fails.
+  DIVERGES-BY-HAND — the real function returns something else, proven by ONE specific,
+               safe, RECORDED call (`shutil.copy(a, b)` returns `b`; `struct.pack('i', 0)`
+               returns bytes; `os.fsencode('a')` returns `b'a'`). This is how a stub gets
+               adjudicated when the pool-driven gate cannot evaluate its contract or must
+               never call its module. Kept distinct from DIVERGES so the cross-check below
+               stays meaningful.
   UNADJUDICATED — the module is outside the calling gate's reach and no one has ruled on
                it yet. This is the honest state for most of the population, and it is
                WRITTEN DOWN rather than left as an unmentioned gap — the gen #30 lesson
                from the fidelity plane's own scope claim ("an unmentioned exclusion is not
                an exclusion, it is an oversight wearing one").
+
+THE STANDING COUNT AT THE FIRST MEASUREMENT: 81 stubs — 34 FAITHFUL, 6 DIVERGES, 17
+DIVERGES-BY-HAND, 24 UNADJUDICATED. So **23 of the 81 carry a contract that is FALSE of
+the function the stub's own header cites**, and only six of those were reachable by
+calling. That ratio is the argument for this gate.
 
 THE RATCHET is the set, keyed by (package, function). A NEW identity-stub fails: it must
 be argued into one of the three classes. One that DISAPPEARS is reported so its entry goes
@@ -67,6 +78,16 @@ MIN_FUNCTIONS = 700      # 870 at the first measurement
 MIN_STUBS = 70           # 82 at the first measurement; the stub set only grows
 
 FAITHFUL, DIVERGES, UNADJ = "FAITHFUL", "DIVERGES", "UNADJUDICATED"
+# A FOURTH class, added in the same generation as the plane. HAND is a divergence proven
+# by ONE specific, safe, recorded call rather than by the pool-driven calling gate — the
+# route for a stub whose contract the pool cannot evaluate (`struct.pack` needs a real
+# format string) or whose module that gate must never call (`shutil`, `os`). Its entries
+# carry the measured answer verbatim, so the claim is checkable by rerunning one line.
+# It is kept DISTINCT from DIVERGES on purpose: DIVERGES means "the calling gate agrees
+# and has it baselined", and the cross-check below enforces exactly that, so folding
+# hand-measured results into it would make the two planes look like they disagree when
+# they simply never evaluated the same thing.
+HAND = "DIVERGES-BY-HAND"
 
 # (package, function) -> (class, why)
 BASELINE = {
@@ -128,20 +149,25 @@ BASELINE = {
     ("wref", "proxy"): (FAITHFUL, "same model-domain argument as `ref`."),
 
     # ---- UNADJUDICATED: outside the calling gate's reach, not yet ruled on.
-    ("abcmod", "abstractclassmethod"): (UNADJ, "deprecated alias; returns a classmethod "
-        "OBJECT in CPython — likely DIVERGES, needs the call to confirm."),
-    ("abcmod", "abstractstaticmethod"): (UNADJ, "same shape as abstractclassmethod."),
-    ("abcmod", "update_abstractmethods"): (UNADJ, "returns the class; likely FAITHFUL."),
-    ("copyreg", "constructor"): (UNADJ, "`copyreg.constructor` returns None in CPython."),
+    ("abcmod", "abstractclassmethod"): (HAND,
+        "MEASURED: `type(abc.abstractclassmethod(g)).__name__` is `abstractclassmethod` "
+        "and `abc.abstractclassmethod(g) is g` is False — it returns a DESCRIPTOR."),
+    ("abcmod", "abstractstaticmethod"): (HAND,
+        "MEASURED: returns an `abstractstaticmethod` descriptor, not the function."),
+    ("abcmod", "update_abstractmethods"): (FAITHFUL,
+        "MEASURED: `abc.update_abstractmethods(int) is int` is True."),
+    ("copyreg", "constructor"): (HAND,
+        "MEASURED: `copyreg.constructor(len)` returns None, not the callable."),
     ("csvmod", "write_row"): (UNADJ, "csv is on the filesystem deny-list."),
     ("cvar", "context_var_get"): (UNADJ, "contextvars model; no citation run."),
     ("cvar", "context_var_set"): (UNADJ, "contextvars model; no citation run."),
     ("dec", "getcontext_prec"): (UNADJ, "decimal context model; no citation run."),
-    ("ftools", "partial"): (UNADJ,
-        "real `functools.partial(f)` returns a partial OBJECT, not `f` — but it compares "
-        "unequal only because the model has no callables; adjudicate with the six."),
-    ("ftools", "cache"): (UNADJ, "same family as `lru_cache`; the calling gate did not "
-        "reach it (no contract it could evaluate on the pool)."),
+    ("ftools", "partial"): (HAND,
+        "MEASURED: `type(functools.partial(len)).__name__` is `partial` — an object that "
+        "is not the function and does not compare equal to it."),
+    ("ftools", "cache"): (HAND,
+        "MEASURED: `type(functools.cache(len)).__name__` is `_lru_cache_wrapper`. Same "
+        "family as `lru_cache`; the pool gate never evaluated this one."),
     ("hmacmod", "new_hmac"): (UNADJ, "returns an HMAC object; the stub models the digest "
         "SIZE, so this may be a declared domain change."),
     ("hmacmod", "digest"): (UNADJ, "same size-domain question."),
@@ -162,30 +188,47 @@ BASELINE = {
     ("nums", "rational_den"): (UNADJ, "denominator accessor of the rational model."),
     ("os", "_encode_name"): (UNADJ, "`os` is on the calling gate's deny-list."),
     ("os", "_decode_name"): (UNADJ, "`os` is on the calling gate's deny-list."),
-    ("os", "fsdecode"): (UNADJ, "`os.fsdecode(str)` IS the identity; confirm for bytes."),
-    ("os", "fsencode"): (UNADJ, "`os.fsencode(str)` returns BYTES — likely DIVERGES."),
-    ("os", "fspath"): (UNADJ, "`os.fspath(str)` is the identity; confirm for PathLike."),
+    ("os", "fsdecode"): (FAITHFUL,
+        "MEASURED: `os.fsdecode(\'a\')` is `\'a\'`. Identity on `str`, which is this "
+        "model\'s whole domain; on `bytes` it decodes, and the model has no bytes."),
+    ("os", "fsencode"): (HAND,
+        "MEASURED: `os.fsencode(\'a\')` is `b\'a\'` — BYTES, which does not equal the "
+        "`str` it was given."),
+    ("os", "fspath"): (FAITHFUL,
+        "MEASURED: `os.fspath(\'a\')` is `\'a\'`; identity on `str`."),
     ("os", "getenv"): (UNADJ, "returns `default` only when the name is unset."),
-    ("os", "expanduser"): (UNADJ,
-        "marked `#@ interface`; `os.path.expanduser` REWRITES a leading `~`."),
-    ("pkl", "dump"): (UNADJ, "real `pickle.dump` returns None — size-domain model."),
-    ("pp", "pformat"): (UNADJ,
-        "real `pprint.pformat` returns a STRING, like `saferepr`; two stubs share the "
-        "name in this package (one on `obj`, one on `obj_size`) and only the `obj` one "
-        "was evaluated."),
-    ("rng", "sample_len"): (UNADJ, "`random` is on the non-determinism deny-list."),
-    ("shutl", "copy"): (UNADJ,
-        "real `shutil.copy` returns the DESTINATION path, not `src` — likely DIVERGES, "
-        "and unreachable by calling (filesystem)."),
-    ("shutl", "copy2"): (UNADJ, "same as `shutl.copy`."),
-    ("shutl", "move"): (UNADJ, "real `shutil.move` returns the destination."),
-    ("strct", "calcsize"): (UNADJ, "fmt-domain model of struct."),
-    ("strct", "pack"): (UNADJ, "real `struct.pack` returns BYTES."),
-    ("strct", "unpack"): (UNADJ, "real `struct.unpack` returns a TUPLE."),
-    ("strct", "unpack_from"): (UNADJ, "real `struct.unpack_from` returns a TUPLE."),
-    ("strct", "pack_into"): (UNADJ, "real `struct.pack_into` returns None."),
+    ("os", "expanduser"): (HAND,
+        "MEASURED: `os.path.expanduser(\'~/x\')` is `\'/home/<user>/x\'`, not `\'~/x\'`. "
+        "The stub\'s `#@ interface ensures \\result == path` is unqualified and so is "
+        "false of exactly the inputs the function exists for."),
+    ("pkl", "dump"): (HAND,
+        "MEASURED: `pickle.dump(0, f)` returns None. The stub models the SIZE, so the "
+        "honest reading is a declared domain change — but it is undeclared, which is the "
+        "defect: nothing in the stub says `\\result` is a size rather than the object."),
+    ("pp", "pformat"): (HAND,
+        "MEASURED: `pprint.pformat(0)` is the STRING `\'0\'`, like `saferepr`. Two stubs "
+        "share this name in the package (one on `obj`, one on `obj_size`); the pool gate "
+        "evaluated neither."),
+    ("rng", "sample_len"): (FAITHFUL,
+        "`random.sample(pop, k)` is non-deterministic in its CONTENT but its LENGTH is "
+        "exactly `k`, and `k` is all this stub returns. The deny-list keeps the calling "
+        "gate out; the length claim needs no call."),
+    ("shutl", "copy"): (HAND,
+        "MEASURED in a scratch directory: `shutil.copy(a, b)` returns `b`, the "
+        "DESTINATION. The contract pins `src`."),
+    ("shutl", "copy2"): (HAND, "MEASURED: `shutil.copy2(a, c)` returns `c`."),
+    ("shutl", "move"): (HAND, "MEASURED: `shutil.move(c, d)` returns `d`."),
+    ("strct", "calcsize"): (HAND,
+        "MEASURED: `struct.calcsize(\'i\')` is 4 — a SIZE, not the format it was given."),
+    ("strct", "pack"): (HAND,
+        "MEASURED: `struct.pack(\'i\', 0)` is `b\'\\x00\\x00\\x00\\x00\'` — BYTES."),
+    ("strct", "unpack"): (HAND,
+        "MEASURED: `struct.unpack(\'i\', b\'\\0\'*4)` is `(0,)` — a TUPLE."),
+    ("strct", "unpack_from"): (HAND, "same TUPLE answer as `unpack`."),
+    ("strct", "pack_into"): (HAND, "`struct.pack_into` writes into a buffer and returns None."),
 }
-MAX_UNADJUDICATED = 45   # 45 at the first measurement; a debt that may only shrink
+MAX_UNADJUDICATED = 24   # 45 at the first measurement, 24 after the same-day
+                         # hand adjudication; a debt that may only shrink
 
 
 def census():
@@ -254,6 +297,7 @@ def main():
     gone = sorted(k for k in baseline if k not in keys)
     unadj = sorted(k for k in keys if baseline.get(k, (None,))[0] == UNADJ)
     diverges = sorted(k for k in keys if baseline.get(k, (None,))[0] == DIVERGES)
+    hand = sorted(k for k in keys if baseline.get(k, (None,))[0] == HAND)
 
     if args.verbose:
         for p, f, a in sorted(stubs):
@@ -261,8 +305,8 @@ def main():
             print("    %-13s %-9s %-22s <- %s" % (cls, p, f, a))
 
     print("[*] stdlib-identity-stubs: %d function(s) scanned; %d identity stub(s) with a "
-          "pinning contract; %d DIVERGES, %d UNADJUDICATED."
-          % (functions, len(keys), len(diverges), len(unadj)))
+          "pinning contract; %d DIVERGES, %d DIVERGES-BY-HAND, %d UNADJUDICATED."
+          % (functions, len(keys), len(diverges), len(hand), len(unadj)))
 
     rc = 0
     # Cross-check: a DIVERGES in a module the CALLING gate covers must also be in ITS

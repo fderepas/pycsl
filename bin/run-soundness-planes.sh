@@ -139,8 +139,10 @@ PLANES=(
     # map: six of them DIVERGE from the function their own header cites (`ftools.wraps`
     # returns a partial, `ctxlib.closing` a context manager, `pp.saferepr` a string). 81
     # exist, most in modules the calling gate must never call (`os`, `shutl`, `rng`), so
-    # this is the static complement. 45 stay UNADJUDICATED under a ceiling that may only
-    # shrink — the debt is printed every run rather than left unmentioned.
+    # this is the static complement: 34 FAITHFUL, 6 DIVERGES, 17 proven false BY HAND
+    # with one recorded call each (`shutil.copy(a, b)` returns `b`), 24 UNADJUDICATED
+    # under a ceiling that may only shrink. 23 of 81 carry a contract FALSE of the
+    # function their own header cites, and only six were reachable by calling.
     check-stdlib-identity-stubs.py
     # (#49) gen #30: the STDLIB TRUST-SURFACE ratchet, and the reason it is a THIRD stdlib
     # gate is the finding itself: the campaign's headline `\trusted` metric does not reach
