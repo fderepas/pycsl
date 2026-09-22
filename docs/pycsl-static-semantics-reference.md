@@ -2890,8 +2890,8 @@ The set is baselined by name in that plane, so it can only shrink.
 `htm.escape(s) -> s` under `#@ assigns \nothing` is the shape: real `html.escape('<')` is
 `'&lt;'`, the model returns the string unchanged, and it promises nothing about it, so it
 verifies truthfully and the verification is worth nothing. **The honest figure for "the
-library's own machine-checked proofs" is 75 modules with a postcondition to discharge, not
-84.** That count is DERIVED from the source on every run of the plane (not a name list) and
+library's own machine-checked proofs" is 76 modules with a postcondition to discharge, not
+84** — measured after the three-way split, and after `htm` was given a true length law. That count is DERIVED from the source on every run of the plane (not a name list) and
 ratcheted downward, so a module that gains a postcondition leaves the class by itself.
 
 The nine split in THREE, and the split took two attempts — the first was made from a static

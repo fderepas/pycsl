@@ -25,10 +25,13 @@ and was being read as evidence for the appendix's sentence. NINE of those 84 car
 `#@ ensures` at all, and SEVEN carry no `#@` whatever — they come back "Verification
 SUCCESS" because the emitter produced no goal. `htm.escape(s) -> s` under
 `#@ assigns \nothing` is the shape: real `html.escape('<')` is `'&lt;'`, the model returns
-the string unchanged, and it promises nothing about it. So the honest headline is **75
-modules with a postcondition to discharge**, not 84.
+the string unchanged, and it promises nothing about it. So the honest headline is **76
+modules with a postcondition to discharge**, not 84 — measured after the three-way split
+(84 verify, of which 1 has value-returning functions and no `#@ ensures` and 7 have no
+value-returning function at all).
 
-AND THE NINE SPLIT IN THREE, in two steps, which is itself the lesson: the first split
+AND THE NINE SPLIT IN THREE — 1 + 7 after `htm` was repaired, and the split took two
+steps, which is itself the lesson: the first split
 (7 shims + 2 informative) was made from a static scan, and the first RUN of the split
 showed it was still wrong — `fut` and `world` have a `def`, but their ONLY def is
 `__init__`, which returns None and can carry no `\result` claim. They are shims with a
@@ -249,7 +252,7 @@ def main():
     else:
         print("[+] stdlib-modules-verify: OK — the non-verifying set is the known one "
               "(%d module(s)); %d module(s) with BODIES verify with no postcondition "
-              "(ceiling %d), plus %d with no `def` at all."
+              "(ceiling %d), plus %d with no VALUE-RETURNING function at all."
               % (len(bad), len(vacuous), MAX_NO_ENSURES, len(no_defs)))
     return rc
 
