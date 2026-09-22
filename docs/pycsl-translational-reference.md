@@ -2532,6 +2532,29 @@ to the WhyML type `int`, so the WhyML type alone would have fired on
 `_Parser.accept_op` (`ensures \result != None ==> self.i > \old(self.i)`) and handed every
 *caller* an unconditional guarantee that is false on its `return None` path.
 
+**Route #198 (gen #30): the LAST spelling of the same statement.** After #191 the `None`
+*literal* is the opaque everywhere — but Python has a second spelling of `return None`, the
+**bare `return`**, and it never goes through the literal at all: `_handle_return_stmt` sees
+`stmt.value is None`, writes the unit `"()"`, and an int-returning function then collapsed
+that to the literal `"0"` on its way into `raise (Return 0)`.
+
+| program | model (before #198) | Python |
+|---|---|---|
+| `def f(x: int) -> int:` / `if x > 0: return` , `ensures \result == 0` | **PROVED** | `f(1)` is `None`; `None == 0` is **False** |
+| the same, `ensures \result != 0` (TRUE of Python) | REFUSED | **True** |
+| the same program spelled `return None` | REFUSED (correct, via #191) | — |
+
+One statement, two spellings, two different answers. The bare spelling now emits the same
+`pycsl_none`, which is why the repair needed no new device: it made the two spellings agree.
+`(any int)` would have been sound too and was rejected for #191's own reason — `any` is fresh
+at every evaluation and cannot keep two `None`s equal, while the shared constant can.
+Witnesses `1693` (carrier) and `1694` (a real early return still carries its value).
+
+The `-> str` spelling of the same program is REFUSED at the FRONT END instead, by route #51's
+`_check_scalar_return_annotation`; that check's own scope argument — "`-> int` fails closed
+today" — had been measured for the explicit `return None` only, and this is the spelling it
+had not run.
+
 **Residue, stated rather than implied.** The record is *linear* — rebinding clears it — so a
 `None` bound in one branch of an `if` and something else in the other walks past it. That is
 `getting-better/open-routes/route46-none-branch-join.md`, which also records the *sticky*
