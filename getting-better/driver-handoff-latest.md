@@ -54,11 +54,19 @@
 #          the union TYPE declares the list arm's payload as `int` while the arm GOAL
 #          quantifies `array int`, so the injection goal is genuinely FALSE. Fixing that
 #          means making the two payload-type computations agree.
-#    - **STILL RUNNING when this was written** (poll, do NOT relaunch): the mirror re-proof
-#      of `src/self-annotate/src/core_ir_semantic.py` (/tmp/mirror_cis.log — owed because
-#      `_check_mutable_defaults` is an un-trusted VERBATIM mirror twin and its message
-#      changed), and `bin/check-stdlib-modules-verify.py --verbose` (/tmp/mv2.log).
-#      A FULL FAST BATTERY IS OWED at HEAD after those land.
+#    - **BATTERY: 43 of 43 FAST PLANES GREEN** at HEAD 95ba418b, after every compiler edit
+#      of the evening (three refusal-message repairs, route #215's refusal, the union-array
+#      late pull) and the three new planes. MIN_PLANES 40 -> 43.
+#    - **MIRROR RE-PROOF GREEN**: `src/self-annotate/src/core_ir_semantic.py` —
+#      "All contracts formally proven". It was owed because `_check_mutable_defaults` is
+#      one of the 887 VERBATIM un-trusted twins and its message changed twice; the
+#      evening's OTHER three message repairs sat in `\trusted` twins and owed nothing,
+#      which is the choke-point rule earning its keep.
+#    - **STILL RUNNING when this was written** (poll, do NOT relaunch):
+#      `bin/check-stdlib-modules-verify.py --verbose` (/tmp/mv3.log), re-run after the
+#      THREE-WAY split of its "verifies with no postcondition" class. If it comes back
+#      with a NO-ENSURES count above 1, the ceiling (`MAX_NO_ENSURES`) needs the measured
+#      number and the member list printed — see wall-lesson (p3).
 #
 # ## IN FLIGHT RIGHT NOW (2026-09-22T19:30Z)
 #    - **TWENTY-FIVE routes demonstrated this generation (#191-#214); TWENTY-TWO CLOSED and
