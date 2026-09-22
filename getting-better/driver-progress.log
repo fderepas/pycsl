@@ -3360,3 +3360,15 @@ than assuming the harder answer.
 Witnesses 1705 (carrier, FAIL) and 1706 (the completeness control: two f-strings over the
 SAME value are the SAME string, which Python agrees with and which a switch to `any` —
 fresh at every evaluation — would silently lose while still passing 1705).
+
+### The instrumented arm-census was ABANDONED, and why that is the right call
+I launched a runtime census of which f-string arm fires (corpus + mirror) to price
+route #203. Before it finished, READING THE JOINER answered the same question exactly:
+every shape except the single-part non-string one is already wrapped in an abstract op,
+so the arm that is wrong is identified structurally, and a pure-AST count of THAT shape
+(0 / 0 / 0 across the corpus, the mirror and pycsl_lib) is both faster and sharper than
+counting arm firings. The runtime censuses were killed rather than left to finish —
+they would have measured a question I no longer needed answered, on a box that had
+better uses for the cores.
+Lesson (s) again, from the other end: the emitter gives the distance. Reading the four
+lines of the joiner replaced two multi-minute instrumented sweeps.
