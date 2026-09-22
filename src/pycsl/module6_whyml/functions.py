@@ -2757,6 +2757,28 @@ class FunctionEmissionMixin:
                     continue
                 arm_tag = payload[0]
                 arm_whyml = self._union_arm_whyml_type(arm_tag)
+                # (#49) gen #30 — A UNION ARM OF `array` TYPE NEEDS `use array.Array`, AND
+                # NOTHING PULLED IT. `Optional[List[int]]` on a PARAMETER or a LOCAL maps
+                # its Some-arm to `array int` (see `_union_arm_whyml_type`), and the C2/C3
+                # goals below quantify over it — but the preamble's `needs_array` is
+                # computed before any function body is emitted, so a module whose ONLY
+                # `array` is in one of these goals emits them with no `use array.Array`
+                # and L3-tc rejects the file with "unbound type symbol 'array'". MEASURED:
+                # `def f(xs: Optional[List[int]]) -> int` and the same shape on a LOCAL
+                # both FAIL, while `List[int]` alone and `Optional[int]` alone each
+                # VERIFY, and the RETURN position is unaffected (no arm goal is emitted
+                # there). Found by AUDITING the mutable-default refusal's ADVICE, which
+                # tells the reader to write exactly this shape.
+                #
+                # This is the same LATE-PULL situation route #44 fixed for abstract ops,
+                # and the fix is the same shape: set a flag here and let the single
+                # live-only insertion point add the `use`. Corpus occurrences of
+                # `Optional`/`Union` over a container: ZERO (measured), so the corpus
+                # emission cannot move; the mirror's 89 occurrences are in files that
+                # already carry the `use` or do not reach this arm, which the mirror
+                # emission sweep confirms.
+                if "array" in arm_whyml:
+                    self._needs_union_array_use = True
                 safe_name = whyml_ident(name)
                 gname_inj = f"{safe_name}__union_arm_{ctor_name}_inj"
                 gname_proj = f"{safe_name}__union_arm_{ctor_name}_proj"

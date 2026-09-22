@@ -356,6 +356,20 @@ class AbstractOpsMixin:
         the `([])` resolution order that the map.Map/array.Array ordering comment in
         `_emit_preamble_uses` depends on is unchanged. The flag is never set unless the
         binding fired, so every other emitted file is byte-identical."""
+        # (#49) gen #30: the UNION-ARM half of the same late pull. `_emit_union_arm_vc`
+        # sets `_needs_union_array_use` when an arm's WhyML type is an `array`, and this
+        # is the one place that runs after every body is emitted and still holds `out`.
+        # Byte-inert unless that flag is set, which no corpus file sets (measured: ZERO
+        # `Optional`/`Union` over a container in the whole corpus).
+        if getattr(self, "_needs_union_array_use", False):
+            _ua = "  use array.Array"
+            if _ua not in out:
+                _last = None
+                for _i, _l in enumerate(out):
+                    if _l.startswith("  use "):
+                        _last = _i
+                if _last is not None:
+                    out.insert(_last + 1, _ua)
         if not getattr(self, "_needs_array_init", False):
             return
         line = "  use array.Init"
