@@ -298,6 +298,26 @@ def main():
     # unreliable for it. That is a REFUSAL, not a warning — a coverage gate that cannot
     # tell "this refusal has no witness" from "my own record of the witness is too short"
     # must not report a number.
+    # ---- MATCHER SELF-AUDIT (#49). FOUR distinct artifacts turned up in this one
+    # instrument in a single evening — the 110-char census truncation, the eight
+    # not-source-reachable checks, the nine empty-fragment raises, and a literal whose
+    # `%s` placeholders the compiler never prints. Each was found by hand, after the
+    # number had already recommended work. So the plane now audits its OWN fragments
+    # before it reports: a fragment that still carries a format placeholder is text the
+    # compiler cannot print, and matching against it can only ever produce a false
+    # "undemonstrated".
+    bad_frag = [(rel, line, frag) for rel, line, _e, _c, frag in st
+                if frag and re.search(r"%[-#0-9.]*[sdrifxgeb]|\{[^{}]*\}", frag)]
+    if bad_frag:
+        print("[!] refusal-witness-coverage: REFUSING — %d site fragment(s) still contain "
+              "a FORMAT PLACEHOLDER, which the compiler never prints, so they can only "
+              "produce false 'undemonstrated' verdicts: %s. Widen the placeholder split "
+              "in sites()." % (len(bad_frag),
+                               "; ".join("%s:%d %r" % (r, l, f[:40])
+                                         for r, l, f in bad_frag[:3])),
+              file=sys.stderr)
+        return 2
+
     cut = [w for w, c, m in rows if c == "REFUSAL" and len(m) == CENSUS_TRUNC]
     if cut:
         print("[!] refusal-witness-coverage: REFUSING — %d censused message(s) are exactly "
