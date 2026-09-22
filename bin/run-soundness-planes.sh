@@ -113,6 +113,16 @@ PLANES=(
     # while its own postcondition is false of its own program. First measurement: 195
     # AGREE, 0 DISAGREE, 21 not runnable standalone (reported, never dropped).
     check-corpus-contract-truth.py
+    # (#49) gen #30: the sibling that reads the line above's own header as a claim. That
+    # plane says "WHAT IT DOES NOT CHECK: contracts with parameters ... writing a driver
+    # there is the way to cover one" — but a parameterized `#@ ensures \result ==
+    # <arithmetic over the parameters>` IS a Python expression once the parameters have
+    # values, so 412 more corpus functions are runnable for free (4354 evaluations, 0
+    # disagreements). Its exclusions are the finding: 1754 corpus files (45%) carry
+    # `--no-proof`, so their suite PASS means the pipeline did not crash, not that the
+    # contracts hold; and a `\trusted` callee makes its CALLERS prove false things too
+    # (14 inherited disagreements, ceiling held).
+    check-corpus-contract-truth-args.py
     # (#49) gen #30: the STDLIB-CONTRACT-FIDELITY ratchet. `src/pycsl_lib/` holds 93
     # body-verified stub packages, each CITING the CPython library reference in its
     # docstring, and nothing compared a stub's contract against the function it cites. A
@@ -177,7 +187,7 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=32
+MIN_PLANES=33
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
