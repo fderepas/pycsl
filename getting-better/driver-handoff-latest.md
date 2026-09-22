@@ -188,6 +188,17 @@
 #         `src/pycsl_lib/os/UnixInodeFileSystem.py`. That is an adjudicable byte-diff, not
 #         a sweep — which is exactly why it is worth doing as a FIRST act with a full day
 #         rather than squeezed in beside two running jobs.
+#         THE NINE SITES, so the adjudication starts with its targets in hand:
+#           0616:26  b = bytes([1, 2, 3])        0867:16  b = bytes([65, 66, 67])
+#           0656:17  data = bytes(parts)         0867:28  b = bytes([1, 255, 128])
+#           0658:72  rec = bytes(out)            0868:21  b = bytes([300])
+#           1601:10  b = bytes([255])            0868:27  _ = bytes([300])
+#           1725:29  b = bytes(2)                (+ one in pycsl_lib/os/UnixInodeFileSystem)
+#         EIGHT are the ITERABLE form `bytes([...])` and ONE is the COUNT form `bytes(2)`,
+#         and they are not the same question: the iterable form may already carry real
+#         byte values through `_py_expr_constant`, so typing it `"bytes"` could make reads
+#         MORE faithful (`b[0] == 65` provable) rather than merely refusing writes. Decide
+#         the two shapes separately and adjudicate each moved emission.
 #         AFTER the refusal lands, the `bytes` lowering can take the `bytearray` count form
 #         that `expressions.py` already has (`Array.make n 0`), because the type error will
 #         no longer be the only thing holding the line.
