@@ -295,6 +295,15 @@ MIN_PLANES=40
 # therefore never run: gen #29 found its ratchet BROKEN (4 deficit files against 2) since
 # route #116's witnesses landed.
 SLOW_PLANES=(
+    # (#49) gen #30: does the STDLIB MODEL LAYER verify at all? The semantics reference's
+    # TCB appendix says a consumer's contracts are "discharged by the library's own
+    # machine-checked proofs"; measured, 84 of 104 modules verify and 20 do not (13
+    # REFUSED — the whole `json` package, a CPython transcription with four zero-annotation
+    # files, refused by route #119's constant-rebinding guard; 5 FAILING, including
+    # `os/path.py`, whose `basename` postcondition times out and which the appendix names
+    # as its example; 2 TIMEOUT). ~25 minutes, so it lives here. It REFUSES when why3 is
+    # off PATH, because its own first run then reported 104 of 104 failing.
+    check-stdlib-modules-verify.py
     check-getattr-erasure.py
     check-computed-rhs-erasure.py
     check-yield-erasure.py
