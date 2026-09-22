@@ -1153,8 +1153,11 @@ def _check_mutable_defaults(func) -> None:
             f"message used to advise (`xs: Optional[List[int]] = None`, initialised in "
             f"the body) DOES NOT COMPILE TODAY: `Optional[List[T]]` as a parameter type "
             f"emits WhyML with an unbound type symbol `array`, while `List[T]` and "
-            f"`Optional[int]` each compile fine. Measured in gen #30; a completeness "
-            f"gap in the emitter, not an unsoundness.",
+            f"`Optional[int]` each compile fine. Measured in gen #30. The missing "
+            f"`use array.Array` was FIXED the same day; what remains is deeper — the "
+            f"union TYPE declares the list arm's payload as `int` while the arm GOAL "
+            f"quantifies `array int`, so the injection goal is genuinely FALSE. A "
+            f"completeness gap in the emitter, not an unsoundness: it FAILS.",
             code="PYCSL-SEM-MUTDEFAULT",
         )
 
