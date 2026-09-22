@@ -314,6 +314,25 @@ form has a witness" is not evidence about this one; (a3) a module can be meaning
 inside an importing context, so a module-level certificate is not "this file verifies on
 its own".
 
+**THE FINAL STRETCH ADDED TWELVE MORE, AND THEY ARE ABOUT INSTRUMENTS** — (f3) an exclusion
+you never tested is a guess, so re-derive the reason when you copy it forward; (g3) a
+docstring that disagrees with the contract beside it is a FREE ORACLE; (h3) a new class
+only earns its place if it comes with a CONTROL that stays out of it; (i3) an absence
+claimed from an instrument that could not have shown the presence is not a measurement
+(banked because I recorded a residual that was itself FALSE); (j3) a coverage gate can be
+measuring its own artifact, and **a number that RECOMMENDS EFFORT deserves the scrutiny of
+one that reports success** — and the bound was documented, it just died in the queue;
+(k3) four artifacts in one instrument is a fact about the instrument, and the fix is a
+SELF-AUDIT, not a fourth patch; (l3) a single number invites over-reading, a BRACKET or a
+PARTITION does not; (m3) a refusal's ADVICE is a claim the compiler makes about itself and
+nothing tests it — **a refusal offering two repairs should have had BOTH tried**; (n3) a
+new refusal can RETIRE an old one by running first, so look for what STOPS firing; (o3)
+when new evidence does not move a number, suspect the number's COLLECTOR — its population
+filter most likely excludes the work this campaign is busy adding; (p3) a class boundary
+drawn from a STATIC READING is a hypothesis, and the discipline is **print the members
+before you write a ceiling**; (q3) a staleness key must cover the part the verdict is
+ABOUT, not merely be stable.
+
 ## A surface opened this generation: the `pycsl_lib` stdlib layer
 
 93 body-verified stub packages, governed by `config/skills/agent-stdlib-annotate`, with
