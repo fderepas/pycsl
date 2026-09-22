@@ -58,6 +58,27 @@ LIB = os.path.join(ROOT, "src", "pycsl_lib")
 # filesystem or spawn a process; `random` and `time` because a non-deterministic answer
 # cannot carry a ratchet; `argparse`/`getopt` because they can exit the interpreter.
 # Widening this map means arguing a module into the pure set, never just adding a name.
+#
+# GEN #30 SECOND PASS — THE SCOPE CLAIM ABOVE WAS ITSELF MEASURED. Re-deriving the
+# headers mechanically gives 47 packages that name an IMPORTABLE stdlib module, and the
+# first map listed 24 of them. Of the 23 left out, only ten had a stated safety reason
+# (argparse, getopt, io, pathlib, random, shutil, signal, subprocess, tempfile, sys);
+# THIRTEEN were simply unlisted, and widening to the safe ones found SIX new diverging
+# stub functions in three modules that no plane had ever run. That is the whole argument
+# for writing an exclusion DOWN rather than leaving a module unmentioned. The ten added
+# below, each with its purity argument:
+#   abc, collections, dataclasses, typing, weakref, __future__ — introspection and
+#     container/type constructors; no I/O, no process, no clock, no randomness.
+#   contextlib, functools, pprint — pure wrapper/decorator factories and `saferepr`;
+#     `pprint.pprint` writes to a stream, but only contracted stub functions are called
+#     and the stub exposes none that print.
+#   queue — in-memory only; `Queue()` touches no resource outside the object.
+# STILL EXCLUDED, now WITH the reason the first pass omitted:
+#   csv, tokenize, linecache, glob — all four can be handed a generated argument that
+#     becomes a FILENAME (`csv` writers, `tokenize.open`, `linecache.getline`,
+#     `glob.glob`), i.e. the same filesystem hazard as `shutil`/`tempfile`.
+#   sysconfig — deterministic, but its answers are build-path strings that differ per
+#     interpreter install, so a ratchet on them would be green only on this machine.
 MAP = {
     "b64": "base64", "bsect": "bisect", "csys": "colorsys", "cpmod": "copy",
     "copyreg": "copyreg", "enm": "enum", "errno": "errno", "fnm": "fnmatch",
@@ -65,10 +86,14 @@ MAP = {
     "itools": "itertools", "kw": "keyword", "mth": "math", "nums": "numbers",
     "oper": "operator", "reprlib": "reprlib", "stat": "stat", "stats": "statistics",
     "strct": "struct", "txtwrp": "textwrap", "token": "token", "udata": "unicodedata",
+    # widened in gen #30 (see the purity argument above)
+    "abcmod": "abc", "coll": "collections", "ctxlib": "contextlib",
+    "dc": "dataclasses", "ftools": "functools", "pp": "pprint", "que": "queue",
+    "typ": "typing", "wref": "weakref", "fut": "__future__",
 }
 SKIP_TOKENS = ("\\forall", "\\exists", "\\old", "\\at", "\\separated", "\\valid",
                "\\sum", "\\is_sorted", "\\permutation", "\\array_eq")
-MIN_CHECKS = 4500   # 5202 at the widened map; the stub set only grows
+MIN_CHECKS = 5300   # 5432 at the gen #30 SECOND widening (10 more modules); ratchets up only
 
 # (package, function) -> why this divergence is known and what it means
 BASELINE = {
@@ -102,6 +127,48 @@ BASELINE = {
         "whose entire content is a constant, with a contract that pins the constant — the "
         "FACADE shape. FIX = implement the mode-to-string mapping, or drop the RST "
         "citation and say what it really provides.",
+    # --- THE IDENTITY-STUB FAMILY, found by the gen #30 widening. Six functions in three
+    # newly-mapped modules share ONE shape: the stub body is `return x` and the contract
+    # PINS that identity (`ensures \\result == func` / `== obj` / `== val`), while the
+    # real function returns a WRAPPER — a decorating function, a partial, a context
+    # manager, or (for `saferepr`) a string. Every one of these contracts is true of the
+    # body and FALSE of the function its own header cites, the same defect as
+    # `mth.remainder`. They are baselined rather than failed because the gate must land
+    # green, and each entry names the fix. THE SHARED FIX is not "delete the ensures":
+    # it is to say what the integer model can honestly say — that the model carries the
+    # wrapped object through unchanged — and to stop citing a function whose answer is a
+    # wrapper. A user who proves `ftools.wraps(g) == g` today has proven something
+    # CPython contradicts.
+    ("ctxlib", "closing"):
+        "(#49) gen #30, IDENTITY-STUB FAMILY. Body `return obj`, contract `ensures "
+        "\\result == obj`, but contextlib.closing returns a `closing` CONTEXT MANAGER wrapping obj. True of the body, FALSE of the "
+        "cited function. FIX = weaken the contract to what the integer model supports "
+        "and re-word the citation.",
+    ("ctxlib", "contextmanager"):
+        "(#49) gen #30, IDENTITY-STUB FAMILY. Body `return func`, contract `ensures "
+        "\\result == func`, but contextlib.contextmanager returns a generator-driven HELPER function. True of the body, FALSE of the "
+        "cited function. FIX = weaken the contract to what the integer model supports "
+        "and re-word the citation.",
+    ("ctxlib", "nullcontext"):
+        "(#49) gen #30, IDENTITY-STUB FAMILY. Body `return val`, contract `ensures "
+        "\\result == val`, but contextlib.nullcontext returns a `nullcontext` OBJECT, not val itself. True of the body, FALSE of the "
+        "cited function. FIX = weaken the contract to what the integer model supports "
+        "and re-word the citation.",
+    ("ftools", "lru_cache"):
+        "(#49) gen #30, IDENTITY-STUB FAMILY. Body `return func`, contract `ensures "
+        "\\result == func`, but functools.lru_cache returns a DECORATING FUNCTION, not func. True of the body, FALSE of the "
+        "cited function. FIX = weaken the contract to what the integer model supports "
+        "and re-word the citation.",
+    ("ftools", "wraps"):
+        "(#49) gen #30, IDENTITY-STUB FAMILY. Body `return func`, contract `ensures "
+        "\\result == func`, but functools.wraps returns a `functools.partial` of `update_wrapper`. True of the body, FALSE of the "
+        "cited function. FIX = weaken the contract to what the integer model supports "
+        "and re-word the citation.",
+    ("pp", "saferepr"):
+        "(#49) gen #30, IDENTITY-STUB FAMILY. Body `return obj`, contract `ensures "
+        "\\result == obj`, but pprint.saferepr returns the STRING repr of obj (`saferepr(0)` is \'0\'). True of the body, FALSE of the "
+        "cited function. FIX = weaken the contract to what the integer model supports "
+        "and re-word the citation.",
 }
 
 POOL_INT = [0, 1, 2, 3, 5, 8, 13, -1, -5, 20]
