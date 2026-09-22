@@ -4,7 +4,7 @@
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #
 # ## IN FLIGHT RIGHT NOW (2026-09-22T15:10Z)
-#    - **NINETEEN routes this generation (#191-#209)**. Six landed in the 14:30-15:05Z
+#    - **TWENTY-TWO routes this generation (#191-#212)**, of which #212 is OPEN. Six landed in the 14:30-15:05Z
 #      stretch: #204 (an `#@ interface assigns` NARROWER than the definition — the
 #      narrowing VC proves ensures and requires and emits NOTHING for assigns),
 #      #205 (an over-claiming `#@ interface` is refused AT HOME and believed by EVERY
@@ -14,8 +14,16 @@
 #      #207 (`no_exception \all` proved through a `\trusted` METHOD that always raises;
 #      the module-level twin was ALREADY refused), #209 (the `protects` trust boundary
 #      asked a `pure_ast` matcher about a CSL node and had NEVER fired).
-#      Docs: getting-better/open-routes/route204…route209*.md. Witnesses 1707-1717.
-#    - **BATTERY 28 -> 37 fast planes**, all green at HEAD. New today:
+#      Then #210 (a `#@ check False` stamped into a `\trusted` body that is NEVER
+#      LOWERED — the policy enforced by nothing), #211 (the same in the PARAMETRIC
+#      `footprint` form; the twin is ONE annotation line), and #212, DEMONSTRATED AND
+#      LEFT OPEN: an importing unit believes EVERY contract of an imported module —
+#      frames, postconditions, class invariants — and nothing checks the module was
+#      verified. Two ordinary files, no annotation tricks. `--verify-imports` (OFF by
+#      default, transitive, cycle-safe) is the certificate that hole needs and is now
+#      built; the route stays open because the DEFAULT still believes.
+#      Docs: getting-better/open-routes/route204…route212*.md. Witnesses 1707-1723.
+#    - **BATTERY 28 -> 38 fast planes**, all green at HEAD. New today:
 #        check-stdlib-identity-stubs.py      81 `return <param>` stubs pinned by their own
 #          contract; 23 of them are FALSE of the function their header cites.
 #        check-stub-import-resolution.py     TRUSTED_STUB resolves NOTHING (the glob sees
@@ -31,6 +39,12 @@
 #          about the VALUE it computes.
 #        check-trusted-termination-honesty.py  52 trusted bodies whose termination is
 #          assumed and unverified (the third honesty plane, after frame and raises).
+#        check-happy-trust-boundaries.py    an EXECUTABLE gate: a CARRIER and a CONTROL
+#          for each `#@ happy` trust boundary through the shipping pipeline in 3.2s.
+#          Executable on purpose — #209 and #211 both READ correctly and could not fire.
+#        check-refusal-witness-coverage.py  STATIC HALF IN, census sweep in flight: which
+#          of the compiler's 195 raise sites has a witness DEMONSTRATING it can fire?
+#          Refuses until bin/refusal-witness-census.tsv exists (--regenerate builds it).
 #        plus core-only / frontend-only conformance (also run by run-reference-tests.sh —
 #          see the correction in the probe ledger).
 #    - THREE PERCENTAGES worth carrying into any summary: 45% of corpus files run with
