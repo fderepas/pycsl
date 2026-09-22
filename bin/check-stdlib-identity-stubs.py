@@ -59,11 +59,11 @@ three ways and each entry says which it is:
                an exclusion, it is an oversight wearing one"). **The class is now EMPTY**:
                the second pass adjudicated all 24 and MAX_UNADJUDICATED is 0.
 
-THE STANDING COUNT after the second pass and the repairs it triggered: 79 stubs — 34
-FAITHFUL, 6 DIVERGES, 22 DIVERGES-BY-HAND, 15 DECLARED-DOMAIN, 2 MODEL-INTERNAL, 0
+THE STANDING COUNT after the second pass and the repairs it triggered: 79 stubs — 37
+FAITHFUL, 6 DIVERGES, 19 DIVERGES-BY-HAND, 15 DECLARED-DOMAIN, 2 MODEL-INTERNAL, 0
 UNADJUDICATED. (It was 81 with 25 DIVERGES-BY-HAND before two of the false ones were
 REPAIRED out of the census and a third was repaired into FAITHFUL — see the GONE note in
-the baseline.) So **28 of the 79 carry a contract that is FALSE of the function the stub's own header cites**, and only six
+the baseline.) So **25 of the 79 carry a contract that is FALSE of the function the stub's own header cites**, and only six
 of those were reachable by calling. That ratio is the argument for this gate.
 
 WHAT THE SECOND PASS ACTUALLY FOUND, since clearing a debt counter is not by itself a
@@ -240,13 +240,14 @@ BASELINE = {
         "`is_set: int` and carries `requires is_set == 0`, so the claim is made only "
         "about the unset case — which is exactly the case in which CPython returns the "
         "default. The assumption moved out of the docstring and into the contract."),
-    ("dec", "getcontext_prec"): (HAND,
-        "MEASURED: the set-then-get round trip holds for small values (`prec = 5` reads "
-        "back 5), but the stub guards only `requires prec > 0`, and "
-        "`getcontext().prec = 10**30` RAISES `OverflowError` (`decimal.MAX_PREC` is "
-        "999999999999999999). So the unconditional `ensures \\result == prec` is false "
-        "above MAX_PREC - a RAISE divergence rather than a different value, still a fact "
-        "CPython contradicts. CLOSING IT = `requires prec <= 999999999999999999`."),
+    ("dec", "getcontext_prec"): (FAITHFUL,
+        "WAS DIVERGES-BY-HAND: guarded only `requires prec > 0`, while "
+        "`getcontext().prec = 10**30` RAISES `OverflowError` above `decimal.MAX_PREC` "
+        "(999999999999999999 on this build) — a RAISE divergence, not a wrong value. "
+        "REPAIRED in gen #30 with `requires prec <= 999999999999999999`. VERIFIED by "
+        "measurement at 1, 5 and MAX_PREC itself: the set-then-get round trip is exact "
+        "on the whole guarded domain. The driver `formal_dec.test_context_prec_pos` "
+        "discharges the new precondition."),
     ("ftools", "partial"): (HAND,
         "MEASURED: `type(functools.partial(len)).__name__` is `partial` — an object that "
         "is not the function and does not compare equal to it."),
@@ -298,16 +299,16 @@ BASELINE = {
         "MEASURED: `len(list(islice(count(3), 4)))` is 4."),
     ("itools", "repeat_n"): (DECLARED,
         "LENGTH law; MEASURED: `len(list(repeat(7, 4)))` is 4."),
-    ("nums", "rational_num"): (HAND,
-        "MEASURED: `Fraction(2, 4).numerator` is 1, NOT 2. The stub returns the `num` it "
-        "was handed under `requires num >= 0` / `requires den > 0` - guards that do NOT "
-        "imply coprimality, which is what the claim actually needs; its docstring cites "
-        "'Rational has .numerator property', so the cited function is the NORMALISING "
-        "one. CLOSING IT = a coprimality `requires`, or a contract about the reduced "
-        "pair."),
-    ("nums", "rational_den"): (HAND,
-        "MEASURED: `Fraction(2, 4).denominator` is 2, NOT 4. The same missing "
-        "coprimality guard as `rational_num`; the `ensures \\result > 0` half is fine."),
+    ("nums", "rational_num"): (FAITHFUL,
+        "WAS DIVERGES-BY-HAND: `Fraction(2, 4).numerator` is 1, not 2, because `Rational` "
+        "NORMALISES and the guards `num >= 0` / `den > 0` do not imply coprimality. "
+        "REPAIRED in gen #30 with `requires gcd(num, den) == 1` — `gcd` is the module's "
+        "OWN fully-proven Euclidean function, already named in its own `ensures`, so the "
+        "guard costs no new trust. VERIFIED by exhaustive measurement over every coprime "
+        "pair with 0 <= num < 40, 0 < den < 40: zero counterexamples."),
+    ("nums", "rational_den"): (FAITHFUL,
+        "The same repair and the same exhaustive check; `Fraction(2, 4).denominator` was "
+        "2, not 4."),
     ("os", "_encode_name"): (INTERNAL,
         "LEADING UNDERSCORE: there is no `os._encode_name` in CPython, so there is no "
         "cited function to diverge from - this is the model's own directory-entry name "
