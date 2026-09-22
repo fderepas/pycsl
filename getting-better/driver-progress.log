@@ -3481,3 +3481,13 @@ to the numerator. 3841 - 18 = 3823 exactly. The INVARIANTS I actually care about
 predicted correctly and hold: the same 18, and zero XPASS. But a prediction that is
 right about the invariant and wrong about the number is still a prediction I got wrong,
 and the next one should be stated as `total - 18` rather than as an increment.
+
+### SCHEDULING: the FINAL battery is HELD until the #198 re-proof lands or times out
+The suite leg is done, so the obvious next move is the final control battery at the final
+HEAD. It is deliberately NOT launched yet. `prove198` has a `timeout 14400` that expires
+at ~06:07Z and has been running two hours; adding six more suite jobs would make the
+difference between it finishing and being killed by its own wrapper — and a wrapper
+timeout is not a proof verdict (the lesson `Module5_IREmitter` taught at "FAILED (2400s)",
+which passed at 2970s). There are ~27 hours to the deadline and the final battery needs
+about five, so the cheap move is to give the prover the box now and start the battery when
+`prove198` reports. Probing continues meanwhile: a single `pycsl.py` run is one core.
