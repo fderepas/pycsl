@@ -985,10 +985,32 @@ class Module3_Weaver:
                 self._collect_protect_index_sites(python_ast, path, None, psites)
                 psites.sort(key=lambda t: (getattr(t[0], "lineno", 0),
                                            getattr(t[0], "col_offset", 0)))
+                # (#49) ROUTE #211 — THE PARAMETRIC FORM HAD ROUTE #210's HOLE TOO, AND
+                # THE TWIN IS ONE ANNOTATION LINE AWAY. Below, a non-exempt method with no
+                # `#@ footprint` that writes the parametric path gets `check False` — which
+                # is inert in a body that is never lowered. MEASURED on 0614's own shape
+                # (witness 1719): a `#@ \trusted` `rogue` with no footprint writing
+                # `d.disk[900]` PROVED, while the SAME function without `\trusted` FAILED.
+                # One line flips a demonstrated containment violation into a green run.
+                _r211_bodyless = {fn.name for fn in funcs2
+                                  if (getattr(fn, "csl_trusted", False)
+                                      or getattr(fn, "csl_abstract", False))
+                                  and not getattr(fn, "csl_preserves", False)}
                 for stmt, func_name, idx_ast in psites:
                     if func_name in except_set:
                         continue
                     line = getattr(stmt, "lineno", 0)
+                    if func_name in _r211_bodyless and func_name not in fp_arg:
+                        raise PyCSLSemanticError(
+                            f"`happy {hp.name}({hp.param})`: '{func_name}' is "
+                            f"`#@ \\trusted` or `#@ \\abstract`, is not exempt, has no "
+                            f"`#@ footprint {hp.name}(...)`, and its BODY writes the "
+                            f"parametric path '{path}' (line {line}). Its body is never "
+                            f"lowered, so the `#@ check False` this policy stamps on that "
+                            f"write would never be proved and the containment claim would "
+                            f"hold by nothing at all. Bind a footprint, add "
+                            f"`#@ \\preserves`, add '{func_name}' to `except`, or give it "
+                            f"a verified body.")
                     if func_name in fp_arg:
                         arg = fp_arg[func_name]
                         lo_s = self._subst_csl_param(hp.region_lo, hp.param, arg)
