@@ -3,7 +3,24 @@
 # ## HOW TO RUN ANYTHING: `. scratchpad/g29/env.sh` first (why3 is NOT on the default PATH; it also sets
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #
-# ## IN FLIGHT RIGHT NOW (2026-09-22T04:07Z)
+# ## IN FLIGHT RIGHT NOW (2026-09-22T04:20Z)
+#    - SUITE LEG IS GREEN: 3823/3841, 746 XFAIL, **0 XPASS**, the same 18 CONFIRMED FAIL
+#      (pycsl-reference 0211-0220 + 0701, python-reference 0043/0048/0079/0080/0082/
+#      0095/0110). Run at bc0561ec in pycsl-w52.
+#    - ALL BYTE-DIFFS IN for #198-#203; see driver-progress.log for the line-by-line read.
+#    - STILL RUNNING, do NOT relaunch:
+#        $SCRATCH/prove198.log  #198 mirror re-proof (stmt_control_flow). `timeout 14400`
+#                               expires ~06:07Z. IF IT IS KILLED BY THAT, RE-RUN WITH A
+#                               LONGER TIMEOUT — a wrapper timeout is not a proof verdict.
+#        $SCRATCH/prove201.log  #201 mirror re-proof (expressions, the giant; 12h timeout;
+#                               confirmed in the Proof Engine with 4 alt-ergo + 4 z3)
+#        $SCRATCH/fuzz11.log    gen11 return-boundary fuzzer, seed 9 of 60, 0 false proofs
+#    - THE FINAL CONTROL BATTERY IS DELIBERATELY HELD until prove198 reports, so it does
+#      not starve it before its own wrapper timeout. Launch with
+#      `$SCRATCH/final_battery.sh /home/fabrice/git/pycsl-w52 <final HEAD>`.
+#    - 280 commits unpushed. Do NOT push.
+#
+# ## EARLIER (2026-09-22T04:07Z)
 #    - THIRTEEN routes closed this generation, #191-#203, of which SIX (#198-#203)
 #      landed after the third 529 kill.
 #    - ALL BYTE-DIFFS ARE IN for #198-#203. Corpus: zero pre-existing programs moved in
