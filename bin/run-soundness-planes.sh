@@ -139,6 +139,14 @@ PLANES=(
     # 840 `*_call_fails.py` AND all 840 `*_call_proves.py`, two families whose names
     # assert opposite outcomes over identical contracts. Ceiling may only shrink.
     check-claim-vacuity.py
+    # (#49) gen #30: the OTHER end of the trust ledger. The campaign reports how many
+    # mirror functions are TRUSTED; this reports what the PROVED ones claim. 1373
+    # definitions: 440 trusted, 143 with a real `ensures` (a VALUE claim), 624 with only
+    # `assigns` (a FRAME claim — true and useful, but not a claim about the answer), 166
+    # with no clause at all. Of the 933 un-trusted functions, 15% say anything about the
+    # value they compute. Floors and ceilings both ratchet, and neither moves when a
+    # `\trusted` marker is converted — which is why it is a separate gate.
+    check-mirror-claim-strength.py
     # (#49) gen #30: the STDLIB-CONTRACT-FIDELITY ratchet. `src/pycsl_lib/` holds 93
     # body-verified stub packages, each CITING the CPython library reference in its
     # docstring, and nothing compared a stub's contract against the function it cites. A
@@ -203,7 +211,7 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=35
+MIN_PLANES=36
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
