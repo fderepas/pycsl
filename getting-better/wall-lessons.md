@@ -33,7 +33,8 @@ it — a refusal offering two repairs should have had BOTH tried · **(n3)** a n
 RETIRE an old one by running first · **(o3)** when new evidence does not move a number,
 suspect the number's COLLECTOR — its population filter most likely excludes the work this
 campaign is busy adding · **(p3)** a class boundary drawn from a STATIC READING is a
-hypothesis; RUNNING it is the test, and it took three tries.
+hypothesis; RUNNING it is the test, and it took three tries · **(q3)** a key that decides
+when a verdict is STALE must cover the part the verdict is ABOUT.
 
 ### (f3) An exclusion you never tested is a guess — check whether the reason still applies
 
@@ -385,6 +386,34 @@ The cheap discipline that would have caught all three on the first pass: before 
 ceiling, PRINT THE MEMBERS. Each wrong version had a members list one line away, and each
 list would have shown `kw`, `fut` and `world` sitting next to `udata` and looking nothing
 like it.
+
+### (q3) A staleness key must cover the part the verdict is about
+
+`bin/check-refusal-advice-audited.py` records, per refusal, the verdict of having FOLLOWED
+its advice. A verdict about words must go stale when the words change, so the entry is
+keyed on the message text — the first 140 characters of the unparsed raise. That key was
+chosen carefully: 64 characters COLLIDED (measured, 8 collisions over 198 sites), a line
+number is noise, and 140 is where collisions reach zero.
+
+It is still the wrong 140 characters. **A refusal's advice is almost always at the END of
+the message** — the opening states the problem, the repair comes last. So an edit to the
+ADVICE ITSELF does not move the key, and a verdict about exactly those words survives a
+rewrite of exactly those words.
+
+I found it the way these things get found: by doing it. Clarifying the mutable-default
+message (recording that its missing-import half had been fixed the same day) left the entry
+looking fresh and the gate said nothing.
+
+The fix is a second field, not a different key: every entry now carries a HASH of the whole
+message, and a key that still matches with a hash that does not is a REFUSAL — the verdict
+must be re-derived. The readable prefix stays as the key, because a baseline of hashes is a
+baseline nobody can review.
+
+The general form is worth more than the instance: **when you write a staleness check, ask
+what the record is ABOUT and confirm the key covers that.** A key chosen for stability
+(line movement, collisions) optimises for the wrong property if the thing it guards can
+change without moving it. Stability and coverage are different requirements, and it is easy
+to solve the first and believe you have solved both.
 
 ## 2026-07-20 driver run (count 1030 → 1028; 2 conversions + these walls)
 
