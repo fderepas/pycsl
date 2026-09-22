@@ -3294,3 +3294,21 @@ mirror's `_handle_fstring_expr` is a RE-TRUSTED STUB — there is no verbatim mi
 to keep in sync and no `assigns \nothing` frame to respect, which is the constraint that
 forced `(any int)` in #193/#194/#195/#201.
 CENSUS FIRST: how many corpus and mirror emissions contain an int-interpolated f-string.
+
+### Route #203 — the STATIC census first, and it says PRICE THIS CAREFULLY
+Pure-AST count of f-strings (no pipeline cost):
+    pycsl-reference corpus   1630 files    33 JoinedStr,  31 with an interpolation
+    self-annotate mirror       53 files   575 JoinedStr, 563 with an interpolation
+    pycsl_lib                 104 files    10 JoinedStr,  10 with an interpolation
+**575 in the mirror.** If the repair moved the arm those take, it would move most of the
+53 mirror emissions and buy a full 53-file re-proof — days, not the hours left in this
+window. But the static count is an UPPER BOUND on the blast radius, not the blast radius:
+the mirror is almost entirely `@mutable_state` emitter classes, whose f-strings take the
+MIXED str/int arm that already produces a real `string` via `int_to_string`, and the
+route lives in the LEGACY int-hash arm underneath both.
+
+So the number that decides whether #203 can land in this window is not 575, it is HOW
+MANY f-strings actually reach the LEGACY arm. Instrumented census running on the corpus
+(`$SCRATCH/arm_corpus.log`), mirror to follow. THE STATIC COUNT IS THE REASON TO MEASURE,
+not the reason to stop: a 575 that turns out to be 0 in the arm that matters is exactly
+the shape route #201's census had (a placeholder with 0 firings in both trees).
