@@ -4990,3 +4990,30 @@ The corollary the same session paid for twice: the handoff note must name every 
 log and say **do not relaunch**, because the next worker's instinct on seeing a stale log
 is to start it again — and relaunching a proof that is already 90% through is the same
 loss as not having detached it.
+
+## (t2) CHECK WHO CONSUMES A CONTRACT BEFORE CALLING ITS DIVERGENCE A ROUTE
+
+A differential instrument over `src/pycsl_lib/` found two stub contracts that are FALSE of
+the CPython functions their own RST citations name: `mth.remainder` claims `\result >= 0`
+while `math.remainder(8, 5)` is `-2.0`, and `stat.filemode` claims `\result ==
+"----------"` while `stat.filemode(2)` is `'?-------w-'`. Both looked exactly like this
+campaign's SEV-1 shape: a proven contract that is false of real Python.
+
+They are not, and the difference is one `grep`. `import_classifier._stub_set` collects only
+the `.py` stems directly under `src/pycsl_lib/` — a directory of PACKAGES — and there is no
+name map from `math` to `mth`. **Nothing substitutes these contracts for a real stdlib
+import**, so no user's proof is ever about `math.remainder`. They are documentation and
+naming defects in standalone modules whose contracts are true of their own bodies.
+
+>>> A CONTRACT IS ONLY DANGEROUS WHERE SOMETHING CONSUMES IT. Before promoting a
+>>> divergence to a route, trace the path from the contract to a proof that USES it — the
+>>> same discipline as insisting on a decisive twin, applied one level up.
+
+The symmetric error is the one this campaign exists to prevent, so it is worth naming both:
+calling a real hole "not exploitable" without probing it (routes #197, #200 were both
+blessed that way) and calling a harmless divergence a hole without tracing its consumer.
+The cure for both is the same — follow the value to the place a proof reads it.
+
+And the number that survives the downgrade is still worth having: **124 of 870 `pycsl_lib`
+functions (14.3%) have a single-constant-return body.** Harmless today because nothing
+substitutes them; it is precisely what becomes a hole on the day something does.
