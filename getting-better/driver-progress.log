@@ -4996,3 +4996,9 @@ the one-line instruction, keeping each plane's own guard as the backstop.
 >>> confirmed redundant, and each one's row went with it — which is worth verifying rather
 >>> than assuming, because an orphan row is a witness the gate believes in and nobody can
 >>> re-run.
+
+>>> HEADLINE METRIC RE-VERIFIED AT THE END OF THE WINDOW: `bin/count-trusted-directives.py`
+>>> reports **markers 459 · attached 459 · unattached 0**. The count is exactly where the
+>>> generation started, which is the honest headline and has been all along — and it is
+>>> worth RUNNING rather than recalling, because "459" has been repeated in prose a dozen
+>>> times tonight and this is the only place it was measured.
