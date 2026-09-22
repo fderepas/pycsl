@@ -5240,3 +5240,49 @@ core is the faithfulness of `capwords_def`, which that same comment names.
 The practical form of the lesson: for each axiom, ask **what would CPython do**, and try
 the smallest input where the model's answer and CPython's could differ — the out-of-range
 value, the character whose uppercase is two characters, the empty sequence.
+
+### (d3) 2026-09-22 gen #30 — MEASURE THE BLAST RADIUS ON EVERY TREE THAT MUST VERIFY
+
+Route #213 is real: two reads of the same `getattr` are ONE per-site constant, so a call
+that writes the attribute between them is invisible and `x - y == 0` PROVES where CPython
+answers -98. I wrote a refusal for it, and before landing it I measured the blast radius —
+**over the corpus and `src/pycsl_lib`**, where the shape does not occur at all. Zero hits.
+Landed, witnesses, controls, forty planes green.
+
+The trees I did not measure are the two that MUST verify:
+
+    src/self-annotate/src   14 functions read the same `getattr` twice with an intervening call
+    src/pycsl               212 functions do
+
+because `getattr(self, "_x", {})` and `getattr(args, …)` are how this compiler reads
+optional attributes everywhere. **The mirror stopped emitting** — 44 of 53 sources — and
+four emission-dependent planes went red.
+
+>>> A REPO HAS FOUR POPULATIONS THAT HAVE TO KEEP WORKING: the corpus, the stdlib models,
+>>> THE MIRROR, and THE LIVE TREE. A refusal measured on two of them has been measured on
+>>> the easy two.
+
+And narrowing did not save it: restricting to a non-`self` receiver that is an
+`Any`/unannotated PARAMETER still leaves 12 live and 4 mirror hits — **including
+`pycsl.py::_run_pipeline`, the function the refusal was written into**, which reads
+`getattr(args, …)` twice. What separates the route from the idiom is the receiver's static
+CLASS, and that lives in Module 6, not at the IR seam. So the route is OPEN, with the
+state-keyed device priced and its carriers outside the corpus.
+
+### (e3) 2026-09-22 gen #30 — TWO CAUSES, ONE SYMPTOM: THE QUIET RE-RUN IS THE DISCRIMINATOR
+
+The four red planes all said the same thing — *"only 44 of 52 mirrors emitted — the
+population is INCOMPLETE, so this measurement is not a gate result"* — and I diagnosed
+CONTENTION, because the battery really had been sharing twelve cores with the full suite,
+a sampler differential and two prover sweeps. That diagnosis was plausible, written down,
+and wrong.
+
+What settled it was re-running the emission ALONE and counting: still 44. The load was
+never the cause; a refusal I had landed an hour earlier was.
+
+>>> WHEN A MEASUREMENT FAILS UNDER LOAD, RE-RUN IT QUIET BEFORE YOU EXPLAIN IT. The
+>>> explanation that fits the circumstances is not evidence, and "the machine was busy" is
+>>> the most available explanation there is.
+
+The operational rule from the first diagnosis still stands (a `--slow` battery should run
+alone), but it was a coincidence, not the finding.
