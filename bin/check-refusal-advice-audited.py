@@ -121,6 +121,7 @@ Usage:  bin/check-refusal-advice-audited.py [--verbose] [--list-unaudited]
 '''
 import argparse
 import ast
+import hashlib
 import glob
 import os
 import re
@@ -514,6 +515,237 @@ AUDITED = {
         'The repair is a bare `with <lock>:`, which IS modelled as a critical section; it VERIFIES under `--memory-model concurrent`. Same repair as the `with ... as` refusal, whose OTHER arm this audit had to withdraw.'),
 }
 
+# (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
+# key is the first 140 characters of the unparsed raise — stable under line movement, and
+# it CHANGES when the message's opening changes. But a refusal's ADVICE is almost always
+# at the END of the message, so an edit to the advice ITSELF would not move the key: a
+# verdict about the words would survive a rewrite of exactly those words. Measured the
+# moment it mattered — clarifying the mutable-default advice left its entry looking fresh.
+#
+# So every entry also carries a hash of the WHOLE message. A key that still matches but a
+# hash that does not means the message was EDITED SINCE THE AUDIT, and the verdict must be
+# re-derived. That is a REFUSAL, not a warning, for the same reason the coverage gate
+# refuses a truncated census: a stale verdict about prose is indistinguishable from a
+# fresh one from the outside.
+AUDITED_HASH = {
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"""`#@ \\\\diverges` on function \'{func.get(\'name\', \'<anonymous>\')}\' is not justified: its body has no potentially-divergi'): '0da05801a201',
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"\'\\\\result\' is not allowed in a `#@ {node.get(\'kind\')}` in {where} (it is bound only at return; use `ensures` for return'): '9cf34f251207',
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"Dead code in function \'{fname}\': this statement follows a call to a `NoReturn` function, which never returns normally ('): '00f0d8b19c5c',
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"Ghost string variable \'{target}\' does not support \'{op}\' in {where}. Use the ^ operator for string concatenation: #@ gh'): '4991961ff0d1',
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"Invalid use of \'\\\\result\' in {ctx}. It is only allowed in \'ensures\'.", code=\'PYCSL-SEM-RESULT\')'): 'f231be392965',
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"Mutable default argument in function \'{func.get(\'name\', \'<anonymous>\')}\': a list/dict/set default is a single object sh'): 'aae46c3bd27a',
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"Subscript assignment to immutable \'bytes\' variable \'{arr.get(\'name\')}\' in {where} — a Python `bytes` object does not su'): '5490a176f3e0',
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"\\\\length is not supported on the {typ}-typed \'{var}\' in {ctx}: dicts/sets are modelled as total maps (`map int (option '): '546b11d3b375',
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"`#@ lemma` \'{name}\' body must not `return` a value — it is a proof (returns unit). Use `pass` for an immediate arm.", c'): '327ca9d7c3e2',
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"`#@ lemma` \'{name}\' has no `#@ ensures`: a lemma must state the fact it proves (the conclusion). Add at least one `#@ e'): '9daa6cdb089f',
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"`#@ lemma` \'{name}\' is also `#@ \\\\diverges`: a non-terminating lemma proves nothing and would be unsound as a fact. Rem'): 'dc8a1c30dcbe',
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"`-> NoReturn` on function \'{name}\' is not justified: its body contains a `return` statement (a normal-exit path). A NoR'): '0e13ac56469b',
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"`-> NoReturn` on function \'{name}\' is not justified: its body has no `raise` and no potentially-diverging construct (no'): '6b77441c57d6',
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"`happy {hname}`: method \'{m}\' contains a dynamic `exec(...)`, which may write anything (not a compile-time-constant exe'): '98d36b43a935',
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"function \'{name}\' is annotated `-> str` but can `return None`. Python does not enforce the hint and the model BELIEVES '): '1b49d54c91d7',
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"{where}: `#@ fresh_globals` is only allowed on a top-level driver that no other verified function calls. \'{short}\' is c'): '1924b913a4a4',
+    ("src/pycsl/frontend/Module1_Ingestor.py",
+     "PyCSLParseError('tabs are not allowed in `act` block indentation; use 4 spaces', stage='Module1')"): '87d9af064705',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError("a name\'s runtime binding is not the `def` the model resolves it to (" + \'; \'.join(sorted(set(_dc_bad))) + \'). A decorato'): '0d9c05bc78d3',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError("a name\'s runtime value is not the one the model reads (" + \'; \'.join(sorted(set(_nb_bad))) + \'). An imported name bound '): '9bfff38bfd6c',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     "PyCSLSemanticError('a function, method or class NAME is rebound after its definition (' + '; '.join(sorted(set(_rb_bad))) + '). Every call i"): '7df0d0cbe305',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"Class \'{_hk_cls.name}\' (line {_hk_cls.lineno}) defines `{_hk_hit[0]}`, an attribute-access hook the model does not cons'): '6b9be60c77c2',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"Class \'{node.name}\' (line {node.lineno}): `__del__` finalizer is rejected under UB-7.5. Finalizer timing is non-determi'): '917692eadfd7',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"Coroutine \'{_n.name}\' (line {_n.lineno}) carries a `#@` contract, but `async def` is NOT MODELLED: the weaver attaches '): 'bc19305b45b7',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"Function \'{node.name}\' (line {node.lineno}): `#@ {_kind.lower()}` is discharged as a function-ENTRY assert over the act'): 'fd467652562a',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}({hp.param})`: \'{func_name}\' is `#@ \\\\trusted` or `#@ \\\\abstract`, is not exempt, has no `#@ footprint '): '54f350ed0da1',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}({hp.param})`: non-exempt \'{fn.name}\' performs a {kind} store to the protected path \'{path}\' (line {get'): '08c3f3300142',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: \'{func_name}\' is `#@ \\\\trusted` or `#@ \\\\abstract`, is not exempt, and its BODY writes the protected'): '392ed26344cb',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: \'{hp.target}\' is guarded by a capability precondition, but it is called here as `{_shown}.{hp.target'): '875422760137',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: aliasing the protected field \'self.{hp.field}\' into a local in non-exempt \'{fn.name}\' is forbidden —'): 'ccd00ef8e605',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: method \'{fn.name}\' contains a dynamic `exec(...)`, which may read anything — add it to `except` or r'): '102d8d091c4d',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: non-exempt \'{fn.name}\' REBINDS the whole field \'self.{hp.field}\' (line {getattr(nd, \'lineno\', 0)}), '): '19f42bdada58',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: noninterference target \'{hp.target}\' can WRITE state — `{_wfield}` in \'{_wfn}\'{_via}. The synthesize'): 'd4b62c507937',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: total target \'{hp.target}\' is marked `#@ \\\\diverges` — it opts OUT of termination, contradicting the'): 'c2d762450921',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: total target \'{hp.target}\' is marked `#@ {marker}`, so it is emitted as a bodyless `val` with no goa'): '06f5a4565f9b',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: total target \'{hp.target}\' reaches \'{_r206_hit}\', which is marked `#@ \\\\trusted`, `#@ \\\\abstract` or'): 'a525125897e3',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: trusted/abstract function \'{fn.name}\' is not exempt and has no checkable body, so it could write the'): 'e074b98b60c7',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: trusted/abstract method \'{fn.name}\' is not exempt and its `assigns` writes a protected path ({\', \'.j'): '85917ea19250',
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp_name}`: aliasing the protected base \'{vpath}\' into a local in non-exempt \'{cur_func or \'<module>\'}\' is forbi'): 'b9271e525001',
+    ("src/pycsl/frontend/Module5_IREmitter.py",
+     "PyCSLIRError('isinstance: a typing.Literal alias is not a valid second argument (LR4 / PEP 586 — use a concrete value equality test)', stage"): '0e99d9e39cac',
+    ("src/pycsl/frontend/Module5_IREmitter.py",
+     "PyCSLIRError(f'`\\\\forall x in {dv.coll}.items()` (two-binder) is a 07-1311 follow-on; use `.keys()`/`.values()` or the `\\\\forall k in {dv.co"): '8b610c654140',
+    ("src/pycsl/frontend/Module5_IREmitter.py",
+     'PyCSLSemanticError("`del <obj>.<attr>` (an ATTRIBUTE delete) is not modelled: it was lowered to a bare no-op, so the model KEEPS the deleted'): '549792c165e1',
+    ("src/pycsl/frontend/Module5_IREmitter.py",
+     'PyCSLSemanticError("`del <seq>[i:j]` (a SLICE delete) is not modelled: Python\'s slice `del` REMOVES a whole range, shifting every later elem'): '0c296648b92c',
+    ("src/pycsl/frontend/Module5_IREmitter.py",
+     'PyCSLSemanticError("`deque(<iterable>)` with arguments is not modelled: the lowering reduces a deque to the list/array model and DISCARDS ev'): 'b50590a00fdb',
+    ("src/pycsl/frontend/Module5_IREmitter.py",
+     'PyCSLSemanticError(f"augmented assignment to {_aa_kind} is not modelled: this lowering handles `x op= v`, `self.f op= v`, `p.f op= v` (p a l'): 'f3f06ca2dcce',
+    ("src/pycsl/frontend/desugar.py",
+     'PyCSLParseError("a Python `assert` inside a `try` whose handler can catch `AssertionError` is not modelled: the `assert` is lowered to a NO-'): 'd60bfa991b0c',
+    ("src/pycsl/frontend/desugar.py",
+     "PyCSLParseError('`for ... else` / `while ... else` is not modelled: the `else` clause runs exactly when the loop finished without `break`, a"): 'dea2610de1db',
+    ("src/pycsl/frontend/desugar.py",
+     "PyCSLParseError('`try ... except*` (an exception-GROUP handler) is not modelled: `_PY_STMT_HANDLERS` has no `TryStar` entry and `_py_stmts_t"): '4e0ca212e4b8',
+    ("src/pycsl/frontend/desugar.py",
+     "PyCSLParseError('an EXTENDED slice `x[lo:hi:step]` is not modelled: the lowering is `Array.sub x lo (hi - lo)`, which ignores the step entir"): '07bdfae8f1a1',
+    ("src/pycsl/frontend/ir_inline.py",
+     'PyCSLSemanticError(f"cannot alias module global \'{node[\'value\'][\'name\']}\' into a local (inline.md Phase 3): a global is a single named objec'): '9039261a08bf',
+    ("src/pycsl/frontend/ir_inline.py",
+     'PyCSLSemanticError(f"cannot inline \'{callee}\' on \'{recv}\': it has a non-tail `return` (early return / return inside a branch). Verify it by '): 'bff9068886f5',
+    ("src/pycsl/frontend/ir_inline.py",
+     'PyCSLSemanticError(f"cannot inline \'{callee}\' on \'{recv}\': its body refers to {\', \'.join((repr(n) for n in _cap169))}, which the calling fun'): 'f4216f102327',
+    ("src/pycsl/frontend/ir_inline.py",
+     'PyCSLSemanticError(f"cannot inline \'{callee}\': call passes {len(args)} args, method takes {len(formals)}.")'): '74e5c1e1fab4',
+    ("src/pycsl/frontend/ir_inline.py",
+     'PyCSLSemanticError(f"cannot inline call to \'{recv}.{callee.split(\'__\')[-1]}\': method \'{callee}\' not found.")'): 'd13e308b1d78',
+    ("src/pycsl/frontend/ir_resolve.py",
+     'PyCSLSemanticError(f"Mixin \'{M}\' (composed into \'{C}\'): a method writes `self.{fld}`, a field declared neither `#@ shared_state` nor `#@ tou'): '32aade267d66',
+    ("src/pycsl/frontend/ir_resolve.py",
+     'PyCSLSemanticError(f"Mixin composition \'{C}\': \'{C}\' defines its own \'{pm}\', which SHADOWS the provider of \'{pm}\' (from mixin {owners}) that '): '506f3b8f1510',
+    ("src/pycsl/frontend/ir_resolve.py",
+     'PyCSLSemanticError(f"Mixin composition \'{C}\': dependency \'{d[\'method\']}\' (declared by mixin \'{M}\' via #@ {d[\'kind\']}_method) has NO provider'): 'ba31b3388579',
+    ("src/pycsl/frontend/module5/memoization_rt.py",
+     'PyCSLIRError(f"Function \'{f[\'name\']}\': a memoizing decorator (lru_cache / cache / cached_property) requires a referentially transparent func'): '0ec6687bbb52',
+    ("src/pycsl/frontend/monomorphize.py",
+     'PyCSLSemanticError(f"monomorphization: generic {gname!r} declares a {kind} ({tp.get(\'name\')!r}) — GT3: ParamSpec/TypeVarTuple are schema-onl'): '3d56b7df6380',
+    ("src/pycsl/frontend/monomorphize.py",
+     "PyCSLSemanticError(f'monomorphization: generic function {gname!r} calls itself with its own TypeVar {tvar!r} — GT4: polymorphic recursion do"): '8d67b10d57c2',
+    ("src/pycsl/module6_whyml/expressions.py",
+     'PyCSLIRError(\'`\' + func_name + "(...)` MUTATES its receiver in place, and no certified lowering models it: the call becomes an abstract oper'): 'c0865e444c05',
+    ("src/pycsl/module6_whyml/expressions.py",
+     "PyCSLIRError('`' + func_name + '(...)` MUTATES an ARGUMENT in place, and no certified lowering models it: the call becomes an abstract opera"): '41fd3748d0ea',
+    ("src/pycsl/module6_whyml/expressions.py",
+     "PyCSLSemanticError('a comparison over a value that may be NaN on one path and an ordinary number on another is not modelled: NaN is the one "): 'ae832237c1f8',
+    ("src/pycsl/module6_whyml/expressions.py",
+     "PyCSLSemanticError('array/list with mixed or non-tuple elements alongside tuples is not supported: a faithful `array (tuple)` needs one unif"): 'eb0c4e9aeff6',
+    ("src/pycsl/module6_whyml/expressions.py",
+     'PyCSLSemanticError(f"call to \'{func_name}\' passes {len(expr.get(\'args\', []))} positional argument(s) but parameter \'{nm}\' has no default (ar'): 'cb50dbe5fd40',
+    ("src/pycsl/module6_whyml/expressions.py",
+     'PyCSLSemanticError(f"struct format \'{fmt}\': native size/alignment (\'@\' prefix) is unsupported (UB-7.4b). Native layout is platform-dependent'): 'e854f396c734',
+    ("src/pycsl/module6_whyml/expressions.py",
+     'PyCSLSemanticError(f"the call `{func_name}(...)` resolves to a METHOD `{_sh_parts[1]}`, but instances of its class also carry an ATTRIBUTE `'): 'dd9f6f945525',
+    ("src/pycsl/module6_whyml/expressions.py",
+     'PyCSLSemanticError(f"the call `{func_name}(...)` resolves to a METHOD `{_sh_parts[1]}`, but the program also STORES an attribute `{_sh_parts'): 'ef17bbe79799',
+    ("src/pycsl/module6_whyml/expressions.py",
+     'PyCSLSemanticError(f"the truthiness of `{ir_expr.get(\'name\')}` is not modelled: it is bound to {_kindname}, which this lowering emits as a v'): '1980e295d86c',
+    ("src/pycsl/module6_whyml/expressions.py",
+     "PyCSLSemanticError(f'heterogeneous list literal (contains a {_mix} element mixed with other element types) has no faithful WhyML `array` ele"): 'bde6249d2474',
+    ("src/pycsl/module6_whyml/expressions.py",
+     "_R42Err('an IDENTITY test against a `bool` literal (`X is True` / `X is False`) is refused unless the emitter can SHOW `X` is a Python `bool"): 'a722b1e33b02',
+    ("src/pycsl/module6_whyml/functions.py",
+     'PyCSLIRError("function \'%s\' binds %s with a `with ... as` clause, and no certified lowering models it. `_py_stmt_with` reads only the `with`'): '9768bf5fe314',
+    ("src/pycsl/module6_whyml/functions.py",
+     'PyCSLIRError("function \'%s\' writes %s through a `global` declaration, and no certified lowering models it: the store lands on a FRESH LOCAL '): '6b8f61032fa7',
+    ("src/pycsl/module6_whyml/functions.py",
+     'PyCSLIRError("function \'%s\' writes %s through a `nonlocal` declaration, and no certified lowering models it. `nonlocal` has no IR statement:'): '42fa9c75fb9f',
+    ("src/pycsl/module6_whyml/functions.py",
+     'PyCSLIRError("nested function \'%s\' is lifted to a sibling of its enclosing function, and the lift is not faithful here: %s. A lifted body re'): 'e4a6de2819cf',
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('PYCSL-SUBTYPING-PAIR: `--check-behavioral-subtyping` recorded the override pair (' + str(ov.get('sub_method')) + ' refines ' +"): 'afacce4c5ce0',
+    ("src/pycsl/module6_whyml/functions.py",
+     'PyCSLIRError(\'`\' + _f + \'(...)` mutates the collection PARAMETER `\' + _f.rsplit(\'.\', 1)[0] + "`, which this function\'s own contract also NAM'): '7a520ba43d1d',
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('`' + _r65_f + '(...)` can raise `' + _r65_exc + '` in Python, and this function claims `#@ no_exception` over it. `exception_m"): '2ee0ae1ed41b',
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('`' + _r65_f + '(...)` is not a function of the verified program and not on the list of operations known never to raise the exc"): 'b471751d0902',
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('`' + _r65_f + '(...)` raises `ValueError` in Python on an EMPTY separator, and this function claims `#@ no_exception` over `Va"): 'd3cfbfd0ea38',
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('`' + _r65_f + '(...)` resolves to a `#@ \\\\trusted` or `#@ \\\\abstract` method of this program, and this function claims `#@ no_"): 'a9696cdf90f1',
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('`' + _r65_f + '(<str>)` raises `ValueError` in Python on a non-numeric string, and this function claims `#@ no_exception` over"): 'f6a9dba445a9',
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('`' + _r71_f + '(...)` can raise `KeyError` in Python, and this function claims `#@ no_exception` over it — but the mutation of"): '5d6e875abc70',
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('`' + _x178['func'] + '(...)` calls code that can raise `' + '`/`'.join(_hit178) + '` implicitly (a dict or list subscript, an "): '8d58ae379a39',
+    ("src/pycsl/module6_whyml/functions.py",
+     'PyCSLIRError(\'`\' + str(_r63_n.get(\'func\')) + \'(...)` is passed the SAME dict/set `\' + _r63_nm + "` in more than one argument position. In Py'): '883441549356',
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('`ord(...)` over a NON-ASCII string is out of scope: PyCSL emits a string literal as its UTF-8 BYTES and models characters with"): 'ece5445ae54a',
+    ("src/pycsl/module6_whyml/functions.py",
+     'PyCSLIRError(\'the collection PARAMETER `\' + _r62_p + "`, which this function\'s contract NAMES, is passed to `" + str(_r62_n.get(\'func\')) + "'): '68f46b4c7d3f',
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError(_r160_msg + ', and this function claims `#@ no_exception` over it. There is no trigger row for this builtin and no faithful obl"): '5a8a04f805d4',
+    ("src/pycsl/module6_whyml/functions.py",
+     'PyCSLSemanticError(f"storing a mutated dict into a field is out of scope: `{_s.get(\'object\')}.{_s.get(\'field\')} = {_pname}` binds the field '): '0dbf57de0b3e',
+    ("src/pycsl/module6_whyml/preamble.py",
+     "PyCSLIRError(f'#@ proof {qn}: not in Module6 axiom registry. Either add the axiom body to _AXIOM_REGISTRY or run `proof2why3 emit` (when ava"): '8505e4a9a547',
+    ("src/pycsl/module6_whyml/statements.py",
+     "PyCSLIRError('PYCSL-UNFRAMED-REGION-ASSIGNS: this function is emitted as a bodyless `val` (a `\\\\trusted` / `\\\\abstract` / imported stub) and"): '940cd78f51a2',
+    ("src/pycsl/module6_whyml/statements.py",
+     "PyCSLIRError('`' + func + '(...)` appends to the collection in the field `' + func.split('.')[1] + '`, and no certified lowering models it: "): '782d26097a22',
+    ("src/pycsl/module6_whyml/statements.py",
+     'PyCSLIRError(\'`del \' + (arr.get(\'name\') or \'<expr>\') + "[...]` on a non-dict/set receiver is not modelled: Python\'s list `del` SHIFTS every '): '9a6f83140d1f',
+    ("src/pycsl/module6_whyml/statements.py",
+     "PyCSLSemanticError('an `assert` whose TEST may have a SIDE EFFECT is not modelled: the test is lowered to `()`, i.e. DISCARDED, so any mutat"): '055333eadf1e',
+    ("src/pycsl/module6_whyml/statements.py",
+     "PyCSLSemanticError(f'aliasing a mutated dict is out of scope: `{target} = {_alias_of}` binds a SECOND NAME TO THE SAME dict in Python, and a"): 'd2e76aef956c',
+    ("src/pycsl/module6_whyml/statements.py",
+     "PyCSLSemanticError(f'in-place field mutation `{obj}.{field} = ...` of a record whose class `{_obj_cls}` is used as a `List[<record>]` elemen"): 'abcdf79520c2',
+    ("src/pycsl/module6_whyml/statements.py",
+     '_R49("in-place `append` to list parameter \'%s\' is out of scope: Python passes a list argument BY REFERENCE, so the append must be VISIBLE to'): 'eb1056d01f66',
+    ("src/pycsl/module6_whyml/statements.py",
+     '_R49B("in-place `%s=` on list parameter \'%s\' is out of scope: Python `a += b` on lists is an IN-PLACE extend, so the caller\'s list grows, an'): 'a673392745af',
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr179(f"{_d179.name!r} constructs an object whose `__init__` / `__post_init__` can raise `{_e179}` (ROUTE #179), directly or throu'): '9f8110fb27ba',
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr187(f"this module declares `#@ fresh_globals`, which ASSUMES each module-global singleton\'s constructor post-state at the driver'): 'fba5cac5b014',
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr189(f"{_fd189.name!r} binds {_nm189!r} to more than one class ({\', \'.join(sorted(_bd189[_nm189]))}) and then calls `{_nm189}.{_c'): '57dcba462a27',
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr200(f"in \'{_r200_caller}\': the call to \'{_r200_fn}\' passes a string literal to parameter \'{_r200_pname}\', which \'{_r200_fn}\' dec'): '52ea50981615',
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr204(f"{args.file} (function \'{_f204.get(\'name\')}\'): the `#@ interface assigns` frame is NARROWER than the definition\'s `#@ assig'): '38b31375f86c',
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr212(f"{args.file}: `--verify-imports` was given and the imported module \'{_mod212}\' ({_path212}) does NOT verify, so none of its'): '7f2282764908',
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr215(f"{args.file} (line {getattr(_n215, \'lineno\', 0)}): `{_n215.func.value.id}[...](...)` SUBSCRIPTS A GENERIC FUNCTION at a cal'): 'ce1ac8c11fc8',
+    ("src/pycsl/pycsl.py",
+     "_PyCSLSemErr29(f'the array spec atom `{_r29_names[_r29_hit]}` is not interpreted under the {memory_model!r} memory model (ROUTE #29): its Mo"): '8da2d97e88eb',
+    ("src/pycsl/pycsl.py",
+     "_PyCSLSemErr38('a `with` statement in a file that defines a context-manager class (%s) uses a context expression this build cannot positivel"): 'bcf10a03319b',
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr43("a COMPLEX literal (%r) has no model (ROUTE #43): `_py_expr_constant` lowers it to `int(value.real)`, so the imaginary part i'): '2b425e50069d',
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemanticError(f"{args.file} (function \'{_func.get(\'name\')}\', for-loop near line {v.get(\'loop_line\', \'?\')}): UB-7.1 — the loop body mut'): '14c833a221e3',
+}
+
 
 def literal_parts(node):
     out, stack = [], [node]
@@ -564,8 +796,10 @@ def sites():
                 raises += 1
                 msg = " ".join(literal_parts(n.exc))
                 if ADVICE.search(msg):
+                    _src = " ".join(ast.unparse(n.exc).split())
                     advice.append((os.path.relpath(f, ROOT), n.lineno, msg[:90],
-                                   sig(n.exc)))
+                                   sig(n.exc),
+                                   hashlib.sha256(_src.encode()).hexdigest()[:12]))
     return raises, advice
 
 
@@ -587,8 +821,9 @@ def main():
               % (len(advice), MIN_ADVICE), file=sys.stderr)
         return 2
 
-    keys = {(f, sg) for f, _ln, _m, sg in advice}
-    line_of = {(f, sg): ln for f, ln, _m, sg in advice}
+    keys = {(f, sg) for f, _ln, _m, sg, _h in advice}
+    hash_of = {(f, sg): h for f, _ln, _m, sg, h in advice}
+    line_of = {(f, sg): ln for f, ln, _m, sg, _h in advice}
     done = sorted(k for k in keys if k in AUDITED)
     todo = sorted(k for k in keys if k not in AUDITED)
     stale = sorted(k for k in AUDITED if k not in keys)
@@ -603,7 +838,7 @@ def main():
              len(todo)))
 
     if args.verbose or args.list_unaudited:
-        for f, ln, m, sg in sorted(advice):
+        for f, ln, m, sg, _h in sorted(advice):
             if (f, sg) in AUDITED:
                 if args.verbose:
                     print("    %-12s %s:%d" % (AUDITED[(f, sg)][0], f, ln))
@@ -611,6 +846,15 @@ def main():
                 print("    unaudited    %s:%d  %s" % (f, ln, m[:60]))
 
     rc = 0
+    edited = [k for k in done
+              if k in AUDITED_HASH and hash_of.get(k) != AUDITED_HASH[k]]
+    for f, sg in sorted(edited):
+        print("[!]   MESSAGE EDITED SINCE ITS AUDIT: %s / %r. The key still matches (the "
+              "first 140 characters are unchanged) but the MESSAGE HASH does not, and a "
+              "refusal's advice lives at the END. Re-run the audit — write the program "
+              "the NEW message describes — and update the entry and its hash."
+              % (f, sg[:60]), file=sys.stderr)
+        rc = 1
     for f, sg in stale:
         print("[!]   AUDITED ENTRY %s / %r NO LONGER MATCHES an advice-bearing raise. The "
               "message moved or was edited, so its verdict is STALE — re-run the audit "
