@@ -3,6 +3,32 @@
 # ## HOW TO RUN ANYTHING: `. scratchpad/g29/env.sh` first (why3 is NOT on the default PATH; it also sets
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #
+# ## IN FLIGHT RIGHT NOW (2026-09-22T02:4xZ, after the THIRD 529 kill)
+#    - Routes #198, #199, #200 closed and landed since the kill; the RETURN-BOUNDARY plane
+#      `bin/check-return-boundary-substitutions.py` added (battery 22 fast / 43 with --slow).
+#    - #198 a BARE `return` was the integer 0 (`raise (Return 0)`) — the same statement as
+#      `return None`, which route #191 already handled. Corpus byte-diff ZERO; mirror emission
+#      1 MOVED (its own file, exactly the intended correction); re-proof of
+#      `src/self-annotate/src/module6_whyml/stmt_control_flow.py` RUNNING ($SCRATCH/prove198.log).
+#    - #199 the EMPTY f-string `f""` was the integer 0. FAITHFUL repair (`stable_hash('""')`),
+#      so the TRUE contract PROVES, not merely "both twins undecided". Both byte-diffs ZERO.
+#    - #200 a STRING LITERAL actual was hashed into a DECLARED `int` param, and the hash ships
+#      in this repo. Refused at `pycsl.py::_run_pipeline` beside route #29's refusal.
+#      3996-file dry run, zero hits. Corpus byte-diff re-running clean at settled HEAD
+#      ($SCRATCH/bd200b.log); mirror emission sweep still owed.
+#    - NEXT EXACT STEP: when `bd200b.log` says BD-DONE, run the mirror-emit sweep for #200
+#      ($SCRATCH/me200b.sh), then the suite leg (`bin/run-reference-tests.sh` in a worktree)
+#      against the prediction 3817/3835 + 4 new witnesses, 18 CONFIRMED FAIL, ZERO XPASS.
+#    - HELD, ready to apply the moment no sweep is running off the main tree: delete the four
+#      REDUNDANT `except Exception: return None` arms in `module6_whyml/generic_fold.py`
+#      (`recognize_csl_str_cata`, `recognize_term_flatten_arrow`,
+#      `recognize_term_isinstance_transform`, `recognize_term_list_build`). Each already
+#      catches `_PVWBail` NARROWLY one line above, so the broad arm only swallows genuine
+#      bugs. Drives `check-swallowed-exceptions`'s ratchet 4 -> 0. generic_fold is NOT
+#      mirrored, so no mirror cost.
+#    - BACKGROUND, do not relaunch: gen11 return-boundary fuzzer, 60 seeds,
+#      $SCRATCH/fuzz11.log, 0 false proofs through seed 7.
+#
 # ## WHAT gen #30 CLOSED — SIX SEV-1 ROUTES AND ONE NEW PLANE, all landed on ghost-assign-bc6,
 #    every one battery-verified against a prediction written BEFORE the run.
 #   - **#191** a `None` STORED anywhere read back as the integer 0 — route #56's general repair, the
