@@ -283,7 +283,13 @@ class _Inliner:
             if isinstance(st, dict) and st.get("stmt") == "Return":
                 raise PyCSLSemanticError(
                     f"cannot inline '{callee}' on '{recv}': it has a non-tail `return` "
-                    f"(early return / return inside a branch). Verify it by contract.")
+                    f"(early return / return inside a branch). Verify it by contract "
+                    f"instead — call the method on a LOCAL instance (`c = C(); c.m()`), "
+                    f"which uses its contract at the call site rather than splicing its "
+                    f"body. MEASURED in gen #30: adding a contract while KEEPING the "
+                    f"module-global receiver does not help, and neither does "
+                    f"`#@ \\trusted` — the inliner runs on a global-receiver call "
+                    f"regardless of either.")
         out = list(pre)
         if body and isinstance(body[-1], dict) and body[-1].get("stmt") == "Return":
             ret = body.pop()
