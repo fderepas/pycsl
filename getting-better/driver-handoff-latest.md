@@ -65,6 +65,33 @@
 #          already extracted) answering route #209's question mechanically: WHICH REFUSALS
 #          HAVE A WITNESS PROVING THEY CAN FIRE?
 #        $SCRATCH/noexcreg.log       134 `no_exception` corpus files re-run after #207
+#    - THE QUEUE FOR WHOEVER PICKS THIS UP, in the order I would take it:
+#      1. **ROUTE #212, the open one.** Two ordinary files; the importing unit believes
+#         every contract of an imported module. `--verify-imports` is built and OFF by
+#         default. Closing it means a MODULE-LEVEL CERTIFICATE, and the design note is in
+#         `getting-better/open-routes/route212-*.md`: "verify the file on its own" is NOT
+#         the right meaning, because a module can be meaningful only inside an importing
+#         context (measured: 2 of the corpus's 30 dependencies fail standalone for exactly
+#         that reason, with PASS-expected importers). The IR has NO provenance field on a
+#         function — that is the missing primitive.
+#      2. **The `bytes(n)` lowering, and the refusal it needs FIRST.** `bytes(n)` is left
+#         ill-typed on purpose (witness 1725): the type error is the only thing stopping a
+#         `bytes` item assignment from proving, because `PYCSL-SEM-SUBSCRIPT` keys on the
+#         symbol table typing the local `bytes` and never does for `b = bytes(2)`. Fix the
+#         refusal, THEN the lowering. Same shape for `list([1, 2])` (recorded, unfixed).
+#      3. **The 1791 claim-vacuous corpus files**, starting with the 840 `*_call_fails.py`
+#         whose names promise a failure mode they cannot exhibit. 1 repaired as the worked
+#         example (`median_high_call_fails.py`); the ceiling in `check-claim-vacuity.py`
+#         only moves down.
+#      4. **The 20 stdlib modules that do not verify** (`check-stdlib-modules-verify.py`
+#         holds them by name). The `json` package is a CPython transcription with zero
+#         annotations in four files — the question is whether it belongs in the layer at
+#         all, not how to prove it.
+#      5. **The 24 UNADJUDICATED identity stubs** and the 29 un-audited advice sites: both
+#         are manual, both are cheap per item, and both have a plane that counts them.
+#      6. The `check-avatar-frame-parity` INHERITED segment (7 sites) and the hval
+#         absent-key sentinel's MIRROR side, still priced as infeasible in a short window.
+#
 #    - LANDED EARLIER: the four gen-#30 legs (final battery 45 planes green, slow-planes 49
 #      green at HEAD, sampler 198 generated drivers 0 RED, the 44 real-contract
 #      `--no-proof` files: 17 prove / 25 fail).
