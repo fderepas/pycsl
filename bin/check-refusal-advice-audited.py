@@ -42,6 +42,23 @@ plane's matcher does not see them. Widening the matcher to catch them takes the 
 narrow definition — the message TELLS YOU WHAT TO DO — is the surface route #90 came from,
 so it is the one kept.
 
+A PATTERN WORTH ITS OWN SWEEP, AND THE SWEEP'S RESULT. Two of the first 28 audits failed
+the same way: the message named a `#@` directive WITHOUT ITS ARGUMENT, and a reader takes
+backticked text as the thing to type. `#@ shared` and `#@ touches_field` are both syntax
+errors alone. So I censused every refusal message that names an ARGUMENT-TAKING directive
+in bare backticks:
+
+    no_exception 8 · loop variant 2 · assigns 1 · depends_method 1 · requires_method 1
+    footprint 1 · shared 1 · touches_field 1          (16 sites)
+
+FOURTEEN OF THE SIXTEEN ARE DESCRIPTIVE, not instructions — "this function claims
+`#@ no_exception`", "a per-index `#@ footprint` check cannot confine …", "each loop
+carrying a `#@ loop variant`". Only the two already found were telling the reader to TYPE
+the thing, and both are fixed. So the pattern is real and SMALL, and saying so is the
+result: a census that comes back mostly innocent is worth the same as one that does not,
+and it stops the next reader from re-running it. The 16 sites are the candidate list if the
+distinction is ever automated.
+
 THE RATCHET IS THE AUDITED COUNT, AND IT MAY ONLY GROW. This plane cannot check the prose
 itself; what it can do is stop the manual work from evaporating. An audit that lives in a
 commit message is an audit nobody can build on; an audit that lives in a baseline here is
