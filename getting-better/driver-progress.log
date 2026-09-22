@@ -3463,3 +3463,21 @@ than remembered:
 
 A negative result is evidence only if it is written down with the exact program that
 produced it. That is why each of these is a row and not a sentence in a summary.
+
+## SUITE LEG GREEN — 3823/3841, the SAME 18 CONFIRMED FAIL, ZERO XPASS
+Run in `pycsl-w52` at `bc0561ec` (routes #198/#199/#200 + the return-boundary plane).
+  3823 / 3841 passed
+  746 XFAIL (expected failures, every route witness among them)
+  0 XPASS  — nothing that is supposed to fail started passing
+  18 CONFIRMED FAIL, and they are the SAME eighteen this campaign has carried:
+     pycsl-reference 0211-0220 and 0701, python-reference 0043/0048/0079/0080/0082/
+     0095/0110.
+
+MY PREDICTION WAS 3820 AND THE ANSWER IS 3823 — the prediction was WRONG BY THREE, and
+the reason is worth writing down rather than rounding away: I computed "3817 plus the
+three newly-PASSING witnesses" and forgot that an XFAIL counts as a PASS in this
+runner's arithmetic, so the six new witnesses (three FAIL-expected, three PASS) all add
+to the numerator. 3841 - 18 = 3823 exactly. The INVARIANTS I actually care about were
+predicted correctly and hold: the same 18, and zero XPASS. But a prediction that is
+right about the invariant and wrong about the number is still a prediction I got wrong,
+and the next one should be stated as `total - 18` rather than as an increment.
