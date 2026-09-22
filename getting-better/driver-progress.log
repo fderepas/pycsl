@@ -3850,3 +3850,32 @@ scrutiny as any other recorded number.
 >>> recorded price is a claim; the same applies to a price you compute yourself, thirty
 >>> seconds ago, from two samples.
 gen12 RESUMED at 13:12Z once the rate correction showed the box was not the bottleneck.
+
+### SWEEP LEDGER, third instalment — the LANGUAGE's own guarantees
+After the value model and the contract machinery, the last layer worth probing is the
+language's own promises. Six probes, all as documented:
+
+  * **A false `#@ lemma` is NOT accepted.** `#@ lemma` / `ensures 1 == 2` over an empty
+    body FAILS. A lemma's conclusion is discharged like any other postcondition — which
+    matters because `#@ uses` lets any proof cite one, so an accepted false lemma would
+    discharge anything.
+  * **A contract still ATTACHES across a gap.** `check-dropped-mutation`'s DANGLING bucket
+    is a hard 0 for a `#@` block with nothing after it; the two near-miss shapes (a BLANK
+    LINE between the `#@ ensures` and the `def`, and an ORDINARY COMMENT between them) both
+    keep the contract attached — each was written with a postcondition FALSE of its body,
+    so a silent drop would have reported SUCCESS.
+  * **`break` and `continue` do not let the model over-run a loop.** A loop breaking at
+    i==3 claiming `i == 10`, and a loop with a `continue` claiming the tail ran every
+    iteration: both refused.
+  * **A quantified postcondition does not discharge on a partial body** — the `\forall`
+    over a range the body only half-establishes fails.
+  * **There is NO user-writable `#@ assume`.**
+
+AND THE ONE DELIBERATELY-OPEN DOOR, recorded rather than omitted: a `#@ \trusted` stub's
+`ensures` IS an axiom. `#@ \trusted` + `ensures \result == 99` over a body returning 1
+PROVES, and CPython answers 1. That is the documented opt-in mechanism, it is why the 459
+marker count is the campaign's headline metric, and `check-value-differential.py` ships a
+NEGATIVE TEST built on exactly this shape so its RED path is known to fire.
+
+>>> A LEDGER THAT LISTS ONLY THE CLOSED HOLES, AND NEVER THE ONE DOOR HELD OPEN ON PURPOSE,
+>>> MISREPRESENTS THE PERIMETER.
