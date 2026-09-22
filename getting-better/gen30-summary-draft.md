@@ -106,6 +106,39 @@ Five new `value-differential` drivers (v73-v77), the CPython-measured plane, cov
 * **gen13** (the STORE-AND-READ-BACK boundary, route #191's archetype generalised to
   fourteen store/read pairs): 560 programs, running.
 
+### The third stretch (17:00-18:00Z) — mining the axiom registry, and acting on a plane
+
+* **ROUTE #213** and **#213b** — route #197's own sentence ("two reads of the SAME
+  `getattr` expression agree") read as a claim. Sound only while the attribute cannot
+  change: with honest frames, `x = getattr(o,"a"); mutate(o); y = getattr(o,"a"); return
+  x - y` PROVED `== 0` where CPython answers -98. Then my own refusal missed the
+  THREE-ARGUMENT spelling — the second time in one day.
+* **ROUTE #214 (OPEN)** — the other arm: `getattr(o,"a",{})` and `getattr(p,"b",{})` on
+  two different unknown receivers share route #47's default-keyed constant and are EQUAL.
+  Both repairs measured and blocked; `bin/check-open-route-carriers.py` now runs the
+  carrier, because an open route's carrier cannot be a corpus witness.
+* **A `stable_hash` COLLISION, constructed** — `"ah02"` and `"atc3"` both fold to
+  185314078 after 24,726 strings. Three paths probed; none exploitable today, because the
+  one op that receives a folded literal is a `val`, not a `val function`. That is ONE
+  KEYWORD of margin, so `bin/check-hashed-literal-purity.py` now holds it.
+* **THE AXIOM REGISTRY DISAGREES WITH ITSELF** — every `Pycsl.Struct.Std.round_trip_*` is
+  range-guarded "faithful to CPython's out-of-range struct.error"; the legacy
+  `UnixFs.Struct.{i1a1,i2,i18}` are not, and citing one proves a `>HH` round-trip for
+  70000 that CPython refuses to pack.
+* **`capwords` NEVER GROWS A STRING — except it does.** The imported axiom's own comment
+  justifies itself with "capitalize (first upper, rest lower; LENGTH-PRESERVING)".
+  `string.capwords('ß')` is `'Ss'`, 1 → 2. The Rocq and Lean proofs are honest about their
+  `list Z` model; the defect is the faithfulness of `capwords_def`, which that comment
+  names as the trusted core. Four gate improvements came out of it, and the gate STILL
+  cannot fire, because the model encodes the default separator as `sep == ""` while
+  CPython's default is `None` and `capwords(s, "")` raises.
+* **58 OF 198 REFUSALS HAD A WITNESS.** `bin/check-refusal-witness-coverage.py` joins the
+  compiler's raise sites against a census of all 759 expected-FAIL witnesses (404 refusals,
+  355 verification failures, **0 XPASS**). Then twelve witnesses were WRITTEN — Final
+  F1/F2, three lemma arms, two assigns-region arms, `\length` on a dict, `\result` in a
+  check, two `happy` name typos, `d.items()` in a contract — taking it to **68/198**, and
+  both ratchets moved with the measurement.
+
 ### Planes added in the second half (37 -> 39 fast)
 
 * `bin/check-stdlib-identity-stubs.py` — the `return <param>` family: **81 stubs pinned by
