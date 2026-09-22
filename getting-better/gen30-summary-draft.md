@@ -2,6 +2,42 @@
 
 **Branch** `ghost-assign-bc6`. Nothing pushed; pushing stays gated to the user.
 
+---
+
+## §A.3 SUMMARY — the four things the skill asks for
+
+**ROUTES RESOLVED.** Twenty-five SEV-1 routes demonstrated (#191–#214): **twenty-two
+CLOSED** with a refusal or a faithful lowering, each carrying an expected-FAIL witness and
+a PASS control, and **three OPEN** (#212, #213, #214) — demonstrated, priced, and left
+open deliberately because every candidate repair was measured and found worse than the
+defect. The open ones have carriers outside the corpus and a plane that runs them.
+
+**CONVERSIONS AND THE COUNT DELTA.** `\trusted` markers: **459 → 459. ZERO conversions.**
+That is the honest headline, and the generation's answer to it is not an excuse but three
+measurements that say what 459 does not mean: 56%–61% of the mirror is trusted OR
+trust-dependent (`check-trust-blast-radius`), only 15% of the un-trusted mirror says
+anything about the VALUE it computes (`check-mirror-claim-strength`), and 46% of the
+corpus carries a contract that says nothing at all (`check-claim-vacuity`). One marker was
+attacked directly — `hlib.Sha256.update`, the layer's one BARE `\trusted` — and proved
+FORCED, so the measurement went into the marker and the gate now enforces a `reviewer:`
+clause at zero.
+
+**LESSONS BANKED.** Eight new entries in `getting-better/wall-lessons.md`: (v2) an
+unmentioned exclusion is an oversight wearing one; (w2) attack a marker before believing
+it is forced; (x2) trust has a blast radius and a PASS count is not a proof count; (y2) an
+enforcement mechanism that writes into a body is only as strong as the guarantee the body
+is compiled; (z2) a check with no witness has no evidence it can fire; (a3) "verify the
+dependency" is not "verify the file"; (b3) a lowering fix must re-run the refusal the old
+shape was accidentally enforcing; (c3) read the axiom registry the way you read the
+docstrings; (d3) a repo has FOUR populations that must keep working and a refusal measured
+on two has been measured on the easy two; (e3) when a measurement fails under load, re-run
+it quiet before you explain it.
+
+**UNPUSHED COMMITS.** See the final line of the run summary; nothing was pushed, and
+pushing stays gated to the user.
+
+---
+
 ## Routes (SEV-1, each with the decisive signature: a false contract PROVING while the TRUE twin is REFUSED, and CPython run as ground truth)
 
 **Twenty-two CLOSED (#191–#212 less the three open ones) and THREE OPEN (#212, #213,
