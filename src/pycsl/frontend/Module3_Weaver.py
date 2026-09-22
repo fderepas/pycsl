@@ -810,6 +810,78 @@ class Module3_Weaver:
                                 f"guarantee this policy names cannot be discharged for it. "
                                 f"Give '{hp.target}' a verified body (each loop carrying a "
                                 f"`#@ loop variant`), or drop the `total` policy.")
+                    # (#49) ROUTE #206 — THE REPAIR ABOVE REJECTED THE TRUSTED TARGET AND
+                    # NOT THE TRUSTED CALLEE. Route #93 closed "the target is bodyless";
+                    # a target with a perfectly good body whose work is ONE CALL to a
+                    # bodyless stub is the same situation one hop away, and the totality
+                    # VC is just as absent. MEASURED:
+                    #     #@ happy availability: targets parse total
+                    #     class Parser:
+                    #         #@ ensures \result >= 0
+                    #         #@ \trusted
+                    #         def spin(self, n: int) -> int:
+                    #             acc: int = 0
+                    #             while True:          # cannot terminate
+                    #                 acc = acc + 1
+                    #             return acc
+                    #         #@ no_exception \all
+                    #         #@ ensures \result >= 0
+                    #         def parse(self, n: int) -> int:
+                    #             return self.spin(n)
+                    # printed "Verification SUCCESS" (witness 1711) — an AVAILABILITY
+                    # policy, whose stated purpose is that an attacker-controlled input
+                    # cannot cause non-termination, proved of a function that never
+                    # returns. CPython hangs. Controls unchanged: 0726 proves, 0728 fails,
+                    # 1254/1255 stay refused.
+                    # THE RULE: the totality claim covers the target's WHOLE call graph
+                    # inside this module, so no bodyless function may be reachable from
+                    # it. Transitive over module-local definitions only — an import is
+                    # already a hard error here ("targets '<name>', which is not a method
+                    # in this module").
+                    _r206_bodyless = set()
+                    for _r206_f in funcs:
+                        if (getattr(_r206_f, "csl_trusted", False)
+                                or getattr(_r206_f, "csl_abstract", False)):
+                            _r206_bodyless.add(_r206_f.name)
+                    if _r206_bodyless:
+                        _r206_calls = {}
+                        for _r206_f in funcs:
+                            _r206_set = set()
+                            for _r206_n in ast.walk(_r206_f):
+                                if isinstance(_r206_n, ast.Call):
+                                    _r206_fn = _r206_n.func
+                                    if isinstance(_r206_fn, ast.Name):
+                                        _r206_set.add(_r206_fn.id)
+                                    elif isinstance(_r206_fn, ast.Attribute):
+                                        _r206_set.add(_r206_fn.attr)
+                            _r206_calls[_r206_f.name] = _r206_set
+                        _r206_seen = set()
+                        _r206_queue = [hp.target]
+                        _r206_hit = ""
+                        while _r206_queue:
+                            _r206_cur = _r206_queue.pop()
+                            if _r206_cur in _r206_seen:
+                                continue
+                            _r206_seen.add(_r206_cur)
+                            for _r206_callee in sorted(_r206_calls.get(_r206_cur, ())):
+                                if _r206_callee in _r206_bodyless:
+                                    _r206_hit = _r206_callee
+                                    break
+                                if _r206_callee in _r206_calls:
+                                    _r206_queue.append(_r206_callee)
+                            if _r206_hit:
+                                break
+                        if _r206_hit:
+                            raise PyCSLSemanticError(
+                                f"`happy {hp.name}`: total target '{hp.target}' reaches "
+                                f"'{_r206_hit}', which is marked `#@ \\trusted` or "
+                                f"`#@ \\abstract` and is therefore emitted as a bodyless "
+                                f"`val` with no goals. A non-terminating body inside "
+                                f"'{_r206_hit}' costs the target NOTHING — its call is "
+                                f"assumed to return — so the totality (H-D) guarantee this "
+                                f"policy names is absent for '{hp.target}' too. Give "
+                                f"'{_r206_hit}' a verified body (each loop carrying a "
+                                f"`#@ loop variant`), or drop the `total` policy.")
                     continue
                 for fn in target_fns:
                     if hp.context == "postcond":
