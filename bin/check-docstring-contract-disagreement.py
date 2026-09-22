@@ -27,7 +27,7 @@ WHAT IT MEASURES. Every function under `src/pycsl_lib/` that carries an EQUALITY
 (`>=`, `<=`, "at least", "at most", "if not set", "may", "approximate", "or more",
 "roughly", "not guaranteed", "upper/lower bound"). Keyed on (package, function).
 
-THE POPULATION IS 7, AND FOUR OF THEM ARE CONTROLS — which is the point. A marker-hunting
+THE POPULATION WAS 7, AND FOUR OF THEM ARE CONTROLS — which is the point. A marker-hunting
 gate whose every hit is a defect is a gate that has not met an innocent case yet, and the
 innocent cases here are structural, not accidental: `oper.le` / `oper.ge` quote the RST
 line "Return a <= b", where the `<=` IS THE MODELLED RELATION and the contract is an exact,
@@ -37,6 +37,10 @@ of <= 30 chars round-trips exactly", which is its `requires` being EXPLAINED, so
 AGREES with the clause. A weakening word inside a quoted relation, a branch condition, or a
 restatement of the guard is not a weakening OF THE CLAIM. Each of the four is baselined
 with which of those three it is, so a future hit has to be argued against them.
+
+TWO OF THE THREE WERE REPAIRED THE SAME HOUR (`csvmod.write_row`, `cvar.context_var_get`
+— see the GONE note in the baseline), so the standing population is 5: one DISAGREES and
+the four controls.
 
 AND THE GATE FOUND A THIRD DEFECT THE HAND PASS MISSED. `que.Queue.qsize` pins
 `\result == self._size` under a docstring quoting "Return the APPROXIMATE size of the
@@ -94,15 +98,17 @@ BRANCH = "BRANCH-CONDITION"
 GUARD = "GUARD-RESTATED"
 
 BASELINE = {
-    ("csvmod", "write_row"): (DISAGREES,
-        "Docstring: 'Written bytes >= field count.' Clause: `ensures \\result == "
-        "num_fields`. MEASURED on an `io.StringIO`: `csv.writer(sio).writerow("
-        "['a','b','c'])` returns 7 — the CHARACTER count — so the docstring is right and "
-        "the clause over-claims. Also DIVERGES-BY-HAND in check-stdlib-identity-stubs."),
-    ("cvar", "context_var_get"): (DISAGREES,
-        "Docstring: 'returns default if not set.' Clause: `ensures \\result == default`, "
-        "UNCONDITIONAL. MEASURED: after `cv.set(5)`, `cv.get(0)` is 5. Also "
-        "DIVERGES-BY-HAND in check-stdlib-identity-stubs."),
+    # REPAIRED AND GONE (#49) gen #30 — the two hits this gate was built from were both
+    # fixed within the hour, which is the argument for building it:
+    #   csvmod.write_row       `ensures \result == num_fields` -> `>= num_fields`, i.e.
+    #                          the clause now says what its docstring had said all along.
+    #   cvar.context_var_get   gained `is_set: int` and `requires is_set == 0`, moving the
+    #                          "if not set" out of the prose and into the contract; its
+    #                          docstring no longer carries a weakener, so it leaves this
+    #                          census too.
+    # Both of their downstream drivers in `src/pycsl_lib_test/` had been PROVING the false
+    # claims and were weakened with them. Do not re-add these rows: a row here is a hit,
+    # and there is no hit left to record.
     ("que", "qsize"): (DISAGREES,
         "Docstring quotes CPython's own word: 'Return the APPROXIMATE size of the queue.' "
         "Clause: `ensures \\result == self._size`, exact. `queue.Queue.qsize` is "

@@ -20,9 +20,16 @@ def count_fields(line: int) -> int:
     return 1
 
 
+# (#49) gen #30: this clause USED TO BE `ensures \result == num_fields`, which the
+# docstring below already contradicted. MEASURED on an `io.StringIO`:
+# `csv.writer(sio).writerow(['a','b','c'])` returns 7 — the CHARACTER count of
+# `'a,b,c\r\n'` — not 3. The model's `\result` is the BYTE COUNT (that is what the
+# docstring says it is), so the faithful claim is `>=`, and it holds for every row shape:
+# n non-empty fields write at least n-1 separators plus 2 line-end characters, and the
+# degenerate cases measure `writerow(['',''])` -> 3 >= 2 and `writerow([])` -> 2 >= 0.
 #@ requires num_fields >= 0
 #@ ensures \result >= 0
-#@ ensures \result == num_fields
+#@ ensures \result >= num_fields
 def write_row(num_fields: int) -> int:
     """RST: 'writer... converting data into delimited strings.'
     Written bytes >= field count."""
@@ -43,10 +50,16 @@ def get_dialect(dialect: int) -> int:
     return dialect
 
 
+# (#49) gen #30: same repair as `write_row`, and the same docstring already said so
+# ("Total bytes written"). MEASURED: real `csv.writer(...).writerows(...)` returns None,
+# so an EXACT claim about a product of counts is false twice over — wrong quantity and
+# wrong value. As a byte count the bound holds: each of `rows` rows writes at least
+# `fields_per_row - 1` separators plus 2 line-end characters, i.e. at least
+# `rows * (fields_per_row + 1)` characters.
 #@ requires rows >= 0
 #@ requires fields_per_row >= 0
 #@ ensures \result >= 0
-#@ ensures \result == rows * fields_per_row
+#@ ensures \result >= rows * fields_per_row
 def writerows(rows: int, fields_per_row: int) -> int:
     """RST: 'Write all elements in rows to the writer's file object.'
     Total bytes written is non-negative."""

@@ -59,9 +59,11 @@ three ways and each entry says which it is:
                an exclusion, it is an oversight wearing one"). **The class is now EMPTY**:
                the second pass adjudicated all 24 and MAX_UNADJUDICATED is 0.
 
-THE STANDING COUNT after the second pass: 81 stubs — 33 FAITHFUL, 6 DIVERGES, 25
-DIVERGES-BY-HAND, 15 DECLARED-DOMAIN, 2 MODEL-INTERNAL, 0 UNADJUDICATED. So **31 of the 81
-carry a contract that is FALSE of the function the stub's own header cites**, and only six
+THE STANDING COUNT after the second pass and the repairs it triggered: 79 stubs — 34
+FAITHFUL, 6 DIVERGES, 22 DIVERGES-BY-HAND, 15 DECLARED-DOMAIN, 2 MODEL-INTERNAL, 0
+UNADJUDICATED. (It was 81 with 25 DIVERGES-BY-HAND before two of the false ones were
+REPAIRED out of the census and a third was repaired into FAITHFUL — see the GONE note in
+the baseline.) So **28 of the 79 carry a contract that is FALSE of the function the stub's own header cites**, and only six
 of those were reachable by calling. That ratio is the argument for this gate.
 
 WHAT THE SECOND PASS ACTUALLY FOUND, since clearing a debt counter is not by itself a
@@ -153,6 +155,16 @@ BASELINE = {
     ("pp", "saferepr"): (DIVERGES,
         "real `pprint.saferepr` returns the STRING repr — `saferepr(0)` is `'0'`."),
 
+    # GONE (#49) gen #30, and REPAIRED rather than merely reclassified:
+    #   csvmod.write_row     `ensures \result == num_fields` -> `>= num_fields`, which is
+    #                        what its own docstring had said all along. No longer a pinned
+    #                        identity, so it leaves this census.
+    #   cvar.context_var_set `ensures \result == value` -> `\result >= 0` (an opaque
+    #                        token handle; `ContextVar.set` returns a `Token`).
+    # Their downstream drivers in `src/pycsl_lib_test/` were PROVING the false claims and
+    # were weakened with them. `cvar.context_var_get` stays in the census but is now
+    # FAITHFUL: it gained an `is_set: int` parameter and `requires is_set == 0`, so the
+    # unset assumption is IN THE CONTRACT instead of in prose.
     # ---- FAITHFUL: the real function is the identity, here or under the precondition.
     ("mth", "fabs"): (FAITHFUL, "`requires x >= 0`, so `abs(x) == x`."),
     ("mth", "floor"): (FAITHFUL, "integer model: `floor` of an int is the int."),
@@ -220,21 +232,12 @@ BASELINE = {
         "MEASURED: `abc.update_abstractmethods(int) is int` is True."),
     ("copyreg", "constructor"): (HAND,
         "MEASURED: `copyreg.constructor(len)` returns None, not the callable."),
-    ("csvmod", "write_row"): (HAND,
-        "MEASURED on an `io.StringIO` (no filesystem, so the deny-list was never in the "
-        "way): `csv.writer(sio).writerow(['a','b','c'])` returns 7 - the CHARACTER count "
-        "of `'a,b,c\\r\\n'` - not the 3 fields the contract pins. The stub's OWN "
-        "docstring says 'Written bytes >= field count' while its `#@ ensures` pins "
-        "`== num_fields`: docstring and contract contradict each other, and the docstring "
-        "is the one that is right."),
-    ("cvar", "context_var_get"): (HAND,
-        "MEASURED: after `cv.set(5)`, `cv.get(0)` is 5, not 0. The docstring says "
-        "'returns default if not set' but the `#@ ensures \\result == default` is "
-        "UNCONDITIONAL, so it is false of exactly the case the variable exists for. Same "
-        "shape as `os.getenv`."),
-    ("cvar", "context_var_set"): (HAND,
-        "MEASURED: `ContextVar.set(5)` returns a `Token` (what `reset` consumes), not "
-        "the value 5."),
+    ("cvar", "context_var_get"): (FAITHFUL,
+        "WAS DIVERGES-BY-HAND (measured: after `cv.set(5)`, `cv.get(0)` is 5, not 0, "
+        "while the clause was UNCONDITIONAL). REPAIRED in gen #30: the stub now takes "
+        "`is_set: int` and carries `requires is_set == 0`, so the claim is made only "
+        "about the unset case — which is exactly the case in which CPython returns the "
+        "default. The assumption moved out of the docstring and into the contract."),
     ("dec", "getcontext_prec"): (HAND,
         "MEASURED: the set-then-get round trip holds for small values (`prec = 5` reads "
         "back 5), but the stub guards only `requires prec > 0`, and "
