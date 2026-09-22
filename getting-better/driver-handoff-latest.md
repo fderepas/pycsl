@@ -3,7 +3,34 @@
 # ## HOW TO RUN ANYTHING: `. scratchpad/g29/env.sh` first (why3 is NOT on the default PATH; it also sets
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #
-# ## IN FLIGHT RIGHT NOW (2026-09-22T12:47Z, after the weekly-rate-limit kill at ~05:05Z)
+# ## IN FLIGHT RIGHT NOW (2026-09-22T13:34Z)
+#    - THIRTEEN routes (#191-#203). **EIGHT planes added this generation**; battery
+#      **27 fast / 48 with --slow**, all 27 fast green at HEAD.
+#    - THE pycsl_lib STDLIB LAYER, opened and now GATED (it had a skill and no plane):
+#        bin/check-stdlib-contract-fidelity.py  5202 contract evaluations against the REAL
+#          stdlib over 24 PURE modules (map derived from the stubs' own headers; the other
+#          26 are excluded as a SAFETY property — the gate CALLS real code). 6 baselined
+#          divergences: 2 real defects + 4 `csys` DECLARED scalings.
+#          Self-test: `--selftest-empty-baseline` must exit 1.
+#        bin/check-stdlib-pinned-facades.py     pure AST, reaches what the above cannot
+#          (`os` is on its deny-list): 870 functions scanned, **12 with a constant body AND
+#          a contract pinning it**, baselined by name. `os.islink -> 0` is a proof that
+#          nothing is ever a symlink.
+#        Both recorded in config/skills/agent-stdlib-annotate/SKILL.md §Enforcement.
+#        Two docstring defects FIXED (mth.remainder's false "same as x % y";
+#        stat.filemode relabelled with the faithful fix PRICED). Both emission-byte-identical.
+#    - RUNNING, do NOT relaunch:
+#        $SCRATCH/final_battery.log  final control battery at febbb08a — suite is in its
+#          SERIAL RE-RUN of the 18 known failures, then the --slow planes (45 at that
+#          commit; the three later planes were run green at the true HEAD separately).
+#        $SCRATCH/fuzz12.log  gen12, seed 32 of 40, 0 false proofs
+#    - gen13 (the STORE-AND-READ-BACK boundary) smoke-testing; launch over seeds once green.
+#    - AT THE DEADLINE (2026-09-23T07:59Z) run §A.3: stop iterating, do NOT re-arm the
+#      heartbeat, `rm getting-better/.driver-deadline getting-better/.driver-started`,
+#      emit ONE summary (getting-better/gen30-summary-draft.md is the draft), do NOT push,
+#      end with `STATUS: DEADLINE-REACHED`.
+#
+# ## EARLIER (2026-09-22T12:47Z, after the weekly-rate-limit kill at ~05:05Z)
 #    - THIRTEEN routes (#191-#203). SIX PLANES added this generation; battery **24 fast /
 #      45 with --slow**, all 24 fast green at HEAD febbb08a.
 #    - EVERYTHING DETACHED SURVIVED THE 7h40m GAP AND FINISHED GREEN:
