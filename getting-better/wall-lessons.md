@@ -4838,3 +4838,27 @@ were closed and the string spelling was not).
 Corollary about cost, which is why this is cheap: probing a neighbouring arm is one
 `pycsl.py` run against a contract that is TRUE OF THE CALLEE'S OWN BODY. Six of gen #30's
 eleven routes cost less than ten minutes each to find once the method was in hand.
+
+## (n) A RESIDUE YOU WRITE DOWN IS A WORK ITEM, NOT AN EXCUSE — READ YOUR OWN SCOPE NOTE BACK
+
+Route #200's repair note is a good note. It states its scope (a string literal actual
+against a parameter DECLARED `int`/`bool`/`float`), gives the measurement behind that scope
+(the 46 sites in the mirror are `int` BY ERASURE, so keying on the declaration leaves them
+alone), and names the population it excludes. **The population it names is the hole.** A
+parameter with no annotation is erased to `int` and gets the same `stable_hash`
+substitution, so route #202 is one `pycsl.py` run away from #200's own paragraph — and the
+paragraph was written by the same worker, in the same hour.
+
+The same move produced #198 out of route #51's scope note ("the `-> int` spelling fails
+closed today" — for one of its two spellings) and #201 out of #193's docstring (which
+falsified one half of a two-part defence and left the other half standing).
+
+>>> AFTER WRITING A SCOPE, ASK THE SCOPE WHAT IT LETS THROUGH, AND PROBE THAT. The note
+>>> that explains why a fix is narrow has already enumerated the cases the fix does not
+>>> cover; it is a to-do list written in the voice of a justification.
+
+And the repair that follows has to key on the REASON rather than the proxy. #200 keyed on
+the annotation because the annotation correlated with danger. #202 keys on the thing that
+IS the danger: the callee's own contract MENTIONING the parameter, because a nameable hash
+can only decide something a contract reads. Keying on the reason left the 46 plumbing sites
+untouched without needing them to be special-cased at all.
