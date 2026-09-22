@@ -3491,3 +3491,18 @@ timeout is not a proof verdict (the lesson `Module5_IREmitter` taught at "FAILED
 which passed at 2970s). There are ~27 hours to the deadline and the final battery needs
 about five, so the cheap move is to give the prover the box now and start the battery when
 `prove198` reports. Probing continues meanwhile: a single `pycsl.py` run is one core.
+
+### A `pkill -CONT` THAT DID NOT RESUME WHAT I THOUGHT IT DID
+After resuming gen11 I watched the log sit on seed 8 for eleven minutes and assumed the
+seed was slow. It was not: `ps` showed the seed-9 worker in state **T (stopped)**. The
+`pkill -STOP -f 'gen11.py'` / `pkill -CONT -f 'gen11.py'` pair matches BY COMMAND LINE,
+and the shell running the pkill has the pattern in its OWN command line — so the pair
+stops and resumes an unpredictable set that includes the wrapper shells, and a worker
+spawned in the window between them can be left stopped with nothing to resume it.
+Fixed by `kill -CONT <pid>` on the actual worker; it is back in state S.
+
+>>> A PROCESS-CONTROL COMMAND IS A MEASUREMENT TOO: after `pkill -CONT`, CHECK `ps` STATE
+>>> rather than assuming the signal landed. "The log is quiet" has two explanations —
+>>> buffering (instrument fact #6) and *not running* — and they look identical from the
+>>> log alone. This cost eleven minutes of fuzzing; on a longer job it would have cost the
+>>> window.
