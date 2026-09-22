@@ -395,6 +395,31 @@ if [ "${1:-}" = "--slow" ] || [ "${PYCSL_SOUNDNESS_PLANES_SLOW:-0}" = "1" ]; the
     # The refusal guard scales with the set, or `--slow` would silently weaken it.
     MIN_PLANES=$((MIN_PLANES + ${#SLOW_PLANES[@]}))
     echo "[*] soundness-planes: --slow, adding ${#SLOW_PLANES[@]} prover/emission plane(s) (~20 min)"
+    # (#49) THE WHY3 PRE-CHECK. Five of the slow planes SHELL OUT TO why3, and why3 is not
+    # on the default PATH in this environment — it needs `. scratchpad/g29/env.sh`. Each of
+    # those planes guards itself correctly and REFUSES (rc=2) when why3 is missing, which is
+    # the right behaviour per-plane. But the battery then prints five REDs at the END of a
+    # ~40-minute run, and a driver reading that summary has to re-derive, five times, that
+    # the tree is fine and the SHELL was wrong. MEASURED twice this generation: three REDs
+    # the first time, five the second, all spurious, all the same cause.
+    # So: say it ONCE, UP FRONT, with the instruction — and REFUSE rather than spend forty
+    # minutes producing a summary that is known in advance to be wrong about five planes.
+    # The per-plane guards stay as the backstop; this only moves the discovery to second
+    # zero. rc=2 because this is a refusal (the battery did not run), never a pass.
+    if ! command -v why3 >/dev/null 2>&1; then
+        echo "[!] soundness-planes: REFUSING --slow — \`why3\` is not on PATH, and five slow"
+        echo "    planes shell out to it (stdlib-modules-verify, open-route-carriers,"
+        echo "    value-differential, check-proof-crosscheck.sh, check-proof-reverify.sh)."
+        echo "    They would each refuse at the END of a ~40-minute run. Source the"
+        echo "    environment first and re-run:"
+        echo ""
+        echo "        . scratchpad/g29/env.sh && bin/run-soundness-planes.sh --slow"
+        echo ""
+        echo "    THIS IS A REFUSAL, NOT A PASS. (Set PYCSL_PLANES_NO_WHY3=1 to run the"
+        echo "    slow set anyway and accept those five refusals as REDs.)"
+        [ "${PYCSL_PLANES_NO_WHY3:-0}" = "1" ] || exit 2
+        echo "[*] soundness-planes: PYCSL_PLANES_NO_WHY3=1 — continuing without why3."
+    fi
     SHARED_EMIT="$(mktemp -d "${TMPDIR:-/tmp}/pycsl-planes-emit.XXXXXX")"
     trap 'rm -rf "$SHARED_EMIT" "$CORPUS_EMIT"' EXIT
     # THE FILE NAMING IS LOAD-BEARING AND IT IS NOT OBVIOUS. Every consumer maps a `.mlw`
