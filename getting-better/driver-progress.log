@@ -4864,3 +4864,30 @@ measurement: ZERO corpus files use `Optional`/`Union` over any container spellin
 >>> FIXING THE ERROR YOU CAN SEE OFTEN UNCOVERS THE ONE YOU COULD NOT. An unbound symbol
 >>> stops type-checking before any goal is attempted, so the FALSE injection goal underneath
 >>> had never been reached in the three generations this shape has existed.
+
+--------------------------------------------------------------------------------
+TWO INSTRUMENT IMPROVEMENTS, ONE OF THEM A NEGATIVE RESULT WORTH KEEPING
+--------------------------------------------------------------------------------
+(1) THE ADVICE PLANE'S STALENESS KEY WAS LOOKING AT THE WRONG END. Its key is the first 140
+characters of the unparsed raise — chosen carefully (64 chars COLLIDED 8 times over 198
+sites; a line number is noise; 140 is where collisions reach zero). But a refusal's ADVICE
+is almost always at the END of the message, so an edit to the advice ITSELF does not move
+the key. Found by doing it: clarifying the mutable-default message left its entry looking
+fresh and the gate said nothing. Every entry now carries a HASH of the whole message
+alongside the readable key, and a key-match with a hash-mismatch is a REFUSAL. Proven to
+bite by flipping one stored hash. Banked as (q3).
+
+>>> STABILITY AND COVERAGE ARE DIFFERENT REQUIREMENTS FOR A KEY, and it is easy to solve
+>>> the first and believe you have solved both.
+
+(2) THE OBVIOUS WIDENING OF THE DOCSTRING GATE DOES NOT WORK, AND THE MEASUREMENT IS THE
+RESULT. That gate keys on a WEAKENING WORD and so missed `csvmod.writerows`, whose
+docstring says "Total bytes written" while the clause pins a product — a different
+QUANTITY, no weakener. The obvious fix (flag a pinned stub whose docstring names a quantity
+noun) was MEASURED BEFORE BEING WRITTEN: 72 hits over the same population, almost all
+innocent, because the function's own NAME is usually the quantity (`registry_size`,
+`section_count`, `coll.length`). A gate with 72 hits and two defects is a gate nobody reads.
+
+>>> MEASURING A PROPOSED GATE BEFORE WRITING IT IS THE CHEAPEST THING IN THIS WHOLE
+>>> DISCIPLINE, and a negative result is worth writing down — it stops the next reader
+>>> repeating the experiment, which is most of what a ledger is for.
