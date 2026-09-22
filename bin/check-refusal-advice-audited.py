@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 78 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 87 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -392,6 +392,33 @@ AUDITED = {
     ("src/pycsl/frontend/ir_inline.py",
      'PyCSLSemanticError(f"cannot inline call to \'{recv}.{callee.split(\'__\')[-1]}\': method \'{callee}\' not found.")'): (FOLLOWABLE,
         "The repair is to call a method the receiver's class declares; the matching call VERIFIES (same carrier as the arity entry)."),
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError(_r160_msg + ', and this function claims `#@ no_exception` over it. There is no trigger row for this builtin and no faithful obl"): (FOLLOWABLE,
+        'The shared repair across this `#@ no_exception` family is to drop the exception from the context (or avoid the raising operation); a file with neither VERIFIES. The trusted-callee sibling of this family is the AMBIGUOUS entry - there the first listed repair is really a conjunction.'),
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('`' + _r65_f + '(...)` raises `ValueError` in Python on an EMPTY separator, and this function claims `#@ no_exception` over `Va"): (FOLLOWABLE,
+        'The shared repair across this `#@ no_exception` family is to drop the exception from the context (or avoid the raising operation); a file with neither VERIFIES. The trusted-callee sibling of this family is the AMBIGUOUS entry - there the first listed repair is really a conjunction.'),
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('`' + _r65_f + '(...)` can raise `' + _r65_exc + '` in Python, and this function claims `#@ no_exception` over it. `exception_m"): (FOLLOWABLE,
+        'The shared repair across this `#@ no_exception` family is to drop the exception from the context (or avoid the raising operation); a file with neither VERIFIES. The trusted-callee sibling of this family is the AMBIGUOUS entry - there the first listed repair is really a conjunction.'),
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('`' + _x178['func'] + '(...)` calls code that can raise `' + '`/`'.join(_hit178) + '` implicitly (a dict or list subscript, an "): (FOLLOWABLE,
+        'The shared repair across this `#@ no_exception` family is to drop the exception from the context (or avoid the raising operation); a file with neither VERIFIES. The trusted-callee sibling of this family is the AMBIGUOUS entry - there the first listed repair is really a conjunction.'),
+    ("src/pycsl/module6_whyml/functions.py",
+     'PyCSLIRError(\'`\' + _f + \'(...)` mutates the collection PARAMETER `\' + _f.rsplit(\'.\', 1)[0] + "`, which this function\'s own contract also NAM'): (FOLLOWABLE,
+        "'Return the updated collection instead, or drop the parameter from the contract' - the receiver-side sibling of the argument-side entry; dropping the parameter VERIFIES."),
+    ("src/pycsl/module6_whyml/functions.py",
+     'PyCSLIRError(\'the collection PARAMETER `\' + _r62_p + "`, which this function\'s contract NAMES, is passed to `" + str(_r62_n.get(\'func\')) + "'): (FOLLOWABLE,
+        'Same family: the contract must not name a collection the callee mutates; a file without that pairing VERIFIES.'),
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('PYCSL-SUBTYPING-PAIR: `--check-behavioral-subtyping` recorded the override pair (' + str(ov.get('sub_method')) + ' refines ' +"): (FOLLOWABLE,
+        'The repair is a program where both sides of the refinement pair are emitted; an ordinary class with a contracted method VERIFIES under the default flags.'),
+    ("src/pycsl/module6_whyml/preamble.py",
+     "PyCSLIRError(f'#@ proof {qn}: not in Module6 axiom registry. Either add the axiom body to _AXIOM_REGISTRY or run `proof2why3 emit` (when ava"): (FOLLOWABLE,
+        "'Either add the axiom body to _AXIOM_REGISTRY or run `proof2why3 emit`' - from a SOURCE file the followable form is to cite a REGISTERED axiom (or none); a file citing none VERIFIES. Adding a registry entry is a compiler change, not something a user file can do, and the message does not say so."),
+    ("src/pycsl/module6_whyml/statements.py",
+     'PyCSLIRError(\'`del \' + (arr.get(\'name\') or \'<expr>\') + "[...]` on a non-dict/set receiver is not modelled: Python\'s list `del` SHIFTS every '): (FOLLOWABLE,
+        'The repair is to delete from a dict/set; `del d[1]` under `requires 1 in d` VERIFIES.'),
 }
 
 
@@ -496,7 +523,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 78
+MIN_AUDITED = 87
 
 if __name__ == "__main__":
     sys.exit(main())
