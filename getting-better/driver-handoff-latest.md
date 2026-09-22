@@ -3,7 +3,20 @@
 # ## HOW TO RUN ANYTHING: `. scratchpad/g29/env.sh` first (why3 is NOT on the default PATH; it also sets
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #
-# ## IN FLIGHT RIGHT NOW (2026-09-22T03:1xZ)
+# ## IN FLIGHT RIGHT NOW (2026-09-22T03:47Z)
+#    - THIRTEEN routes closed this generation: #191-#202. #198-#202 landed after the third
+#      529 kill. Battery 22 fast / 43 with --slow; swallowed-exceptions ratchet a hard 0.
+#    - RUNNING, do NOT relaunch:
+#        $SCRATCH/suite200.log   suite leg for #198/#199/#200 in pycsl-w52 (1233/3841 done)
+#        $SCRATCH/prove198.log   #198 mirror re-proof, module6_whyml/stmt_control_flow
+#        $SCRATCH/prove201.log   #201 mirror re-proof, module6_whyml/expressions (the giant)
+#    - OWED: #202's corpus + mirror byte-diffs (predict ZERO/ZERO — the refusal is in
+#      `pycsl.py::_run_pipeline`, whose mirror is a `\trusted` stub). Then the FINAL control
+#      battery at the final HEAD via $SCRATCH/final_battery.sh.
+#    - gen11 fuzzer is SIGSTOPped: `pkill -CONT -f fuzz11.sh; pkill -CONT -f gen11.py`.
+#      Reached seed 7 of 60, 0 false proofs.
+#
+# ## EARLIER (2026-09-22T03:1xZ)
 #    - ROUTE #201 CONFIRMED, repair WRITTEN BUT NOT YET APPLIED (patch staged at
 #      $SCRATCH/r201_patch.py, `--apply` to run it): `_array_coerce_arg`'s TAIL answers
 #      `(Array.make 1 0)`, an array with a KNOWN LENGTH 1. `callee("ab")` against
