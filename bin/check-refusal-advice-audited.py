@@ -147,6 +147,24 @@ AUDITED = {
         "COMPLETENESS gap, not an unsoundness. The message's other repair (a bare "
         "`with <lock>:`) IS followable and is now given FIRST; the broken one was "
         "withdrawn, with its measurement, so nobody re-adds it."),
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"function \'{name}\' is annotated `-> str` but'): (FOLLOWABLE,
+        "'Annotate `-> Optional[str]` ... or remove the `return None`' — the "
+        "`Optional[str]` form VERIFIES."),
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"\'\\\\result\' is not allowed in a `#@ {node.ge'): (FOLLOWABLE,
+        "'use `ensures` for return values' — moving the claim into `#@ ensures` "
+        "VERIFIES."),
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"Mutable default argument in function \'{func'): (UNTRIED,
+        "'Use a `None` sentinel and initialise the collection in the body' DOES NOT "
+        "COMPILE. `xs: Optional[List[int]] = None` emits WhyML with an UNBOUND TYPE "
+        "SYMBOL `array`; isolated by controls — `List[int]` alone VERIFIES and "
+        "`Optional[int]` alone VERIFIES, and only `Optional[List[T]]` fails. Three "
+        "spellings of the sentinel were tried before concluding (lesson (i3)). A "
+        "completeness gap in the emitter, not an unsoundness. The message now advises "
+        "the form that WORKS — no default at all, the caller supplies the collection, "
+        "measured — and records the broken one so nobody re-advises it."),
     ("src/pycsl/frontend/ir_inline.py",
      'PyCSLSemanticError(f"cannot inline \'{callee}\' on \'{recv}\': it ha'): (AMBIGUOUS,
         "'Verify it by contract' is true and under-specified. Adding a contract while "
@@ -259,7 +277,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 10
+MIN_AUDITED = 13
 
 if __name__ == "__main__":
     sys.exit(main())

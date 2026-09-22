@@ -1147,8 +1147,14 @@ def _check_mutable_defaults(func) -> None:
             f"Mutable default argument in function '{func.get('name', '<anonymous>')}': "
             f"a list/dict/set default is a single object shared across all calls (a "
             f"shared-aliasing bug) and is outside PyCSL's value-semantics boundary "
-            f"(ownership discipline R2). Use a `None` sentinel and initialise the "
-            f"collection in the body.",
+            f"(ownership discipline R2). Give the parameter NO default and let the "
+            f"caller supply the collection (`def f(xs: List[int])`, called as "
+            f"`f([0, 0])`) — measured, that VERIFIES. The `None`-sentinel form this "
+            f"message used to advise (`xs: Optional[List[int]] = None`, initialised in "
+            f"the body) DOES NOT COMPILE TODAY: `Optional[List[T]]` as a parameter type "
+            f"emits WhyML with an unbound type symbol `array`, while `List[T]` and "
+            f"`Optional[int]` each compile fine. Measured in gen #30; a completeness "
+            f"gap in the emitter, not an unsoundness.",
             code="PYCSL-SEM-MUTDEFAULT",
         )
 
