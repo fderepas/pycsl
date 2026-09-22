@@ -4687,3 +4687,58 @@ evening a `#@` directive could not be typed from the backticks around it.
 
 WHAT IS LEFT: 45 unaudited, mostly `happy`-policy and module6 emission messages. The plane
 ratchets the audited count, so the next generation continues rather than repeats.
+
+================================================================================
+ROUTE #215, AND THE SIXTH ARTIFACT IN THE SAME INSTRUMENT
+================================================================================
+The advice audit found it. Auditing monomorphize's GT4 advice ("the recursive call must
+use a concrete type") produced a file that would not verify, so I isolated with controls:
+a generic CLASS verifies, a NON-generic function verifies, a generic FUNCTION does not.
+The emission said why — `ident[int](3)` lowered to `(any int)`.
+
+Probing that erasure produced the route:
+
+    def ident[T](n: int) -> int:  return n          #@ ensures \result == n
+    def probe() -> int:                             #@ ensures \result == 0
+        a = ident[int](1); x = a; a = ident[int](2); return x - a
+
+PROVED. The emission is `a := (any int); x := pycsl_erased_a; a := (any int);
+(!x - pycsl_erased_a)` — the per-NAME erased constant is not refreshed on REBINDING, so
+two different calls collapse to one value. The TRUE twin is REFUSED.
+
+AND THE GROUND TRUTH IS SHARPER THAN I FIRST WROTE. `ident[int](1)` is NOT VALID PYTHON:
+PEP 695 makes a generic CLASS subscriptable (`Box[int]()` runs) but a generic FUNCTION is
+not — CPython 3.14 raises `TypeError: 'function' object is not subscriptable`. So the model
+was proving a postcondition about a program that CANNOT RUN AT ALL.
+
+>>> I ALMOST WROTE "CPYTHON ANSWERS -1". Running the carrier is what caught it: CPython
+>>> RAISES. The route is realer than the version I nearly recorded, and the difference was
+>>> one command.
+
+REFUSED at `_run_pipeline` (a `\trusted` mirror twin, so no marker and no re-proof).
+Blast radius measured first: 2 occurrences in the corpus (both in witness 1783), ZERO in
+the mirror, the live tree and pycsl_lib. Witness 1796, control 1797.
+
+TWO PLACEMENT MISTAKES, each caught by a control rather than by reading:
+  * the scan used the stdlib `ast` while the pipeline parses with `frontend.pure_ast`, so
+    it matched NOTHING — the exact wrong-node-family error route #209 was made of;
+  * landed before Module 5 it fired BEFORE the TY3 checks and made GT4 DEAD, because GT4
+    keys on a recursive call whose type ARGUMENT is the generic's own TypeVar and only the
+    subscripted spelling expresses that. Witness 1783 stopped witnessing GT4, which is how
+    it was caught.
+
+>>> A NEW REFUSAL CAN RETIRE AN OLD ONE BY RUNNING FIRST. Check what stops firing, not just
+>>> what starts.
+
+THE SIXTH ARTIFACT. The new witness fired its refusal and the coverage count did not move.
+`sites()` required the raised NAME to start with "PyCSL" — and TWENTY-ONE raises do not,
+because every route refusal landed in `pycsl.py` since route #29 imports the class under a
+local alias (`as _PyCSLSemErr204`). Those sites were not undemonstrated; they were INVISIBLE.
+The plane reported coverage of 198 sites when there were 219.
+
+>>> THE GATE THAT MEASURES THE REFUSALS COULD NOT SEE THE REFUSALS THIS CAMPAIGN WRITES.
+>>> Every one of its own routes' refusals was outside its population, and the tell — again —
+>>> was a witness that fired and moved nothing.
+
+Counts after the fix: 182 demonstrated / 19 undemonstrated / 8 not-source-reachable /
+10 unmatchable = 219. MIN_SITES 150 -> 190.
