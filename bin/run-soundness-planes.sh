@@ -304,6 +304,14 @@ SLOW_PLANES=(
     # as its example; 2 TIMEOUT). ~25 minutes, so it lives here. It REFUSES when why3 is
     # off PATH, because its own first run then reported 104 of 104 failing.
     check-stdlib-modules-verify.py
+    # (#49) gen #30: THE OPEN ROUTES' CARRIERS. A closed route gets a corpus witness; an
+    # OPEN one cannot have one, because its carrier PROVES A FALSE CONTRACT TODAY —
+    # `# pycsl-expected: FAIL` would be an XPASS (a red suite) and `PASS` would write "this
+    # false proof is expected" into the corpus. So the carrier lives outside the corpus,
+    # and this gate runs it and asserts the verdict the ledger records. A CHANGE IS THE
+    # POINT: if a carrier stops proving, the route is probably closed and the entry must go
+    # in the same commit. Route #214 is the only one today.
+    check-open-route-carriers.py
     check-getattr-erasure.py
     check-computed-rhs-erasure.py
     check-yield-erasure.py
