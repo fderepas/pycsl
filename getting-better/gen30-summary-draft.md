@@ -38,7 +38,7 @@
 * `bin/check-coercion-exits.py` — the trigger rule's THIRD firing: `_array_coerce_arg` (#193, #201) and `_coerce_to_int` (#194, #200/#202) each produced two routes, and `check-argument-coercion.py` classifies the call SITES without ever looking inside the helpers. Pins both exit sets with counts; demonstrated to fire on the true pre-#201 source.
 * `bin/check-fstring-lowering.py` — built because the campaign's own trigger rule fired: TWO routes (#199, #203) in ONE function in ONE session. Pins the return set with counts AND two structural tokens, because #203 added a *wrap* rather than an exit and the return-set half is green on the pre-#203 tree — a blind spot the `--live` self-test found before it shipped.
 
-Battery: **18 -> 26 fast planes, 47 with `--slow`**, and `MIN_PLANES` tightened from a floor that carried slack to the exact count.
+Battery: **18 -> 27 fast planes, 48 with `--slow`**, and `MIN_PLANES` tightened from a floor that carried slack to the exact count.
 `check-swallowed-exceptions` ratchet **4 -> 0**, a hard zero.
 Five new `value-differential` drivers (v73-v77), the CPython-measured plane, covering
 #198, #199 and #203 in both the DISAGREE and the AGREE direction.
@@ -110,9 +110,24 @@ plus four `csys` functions whose own header declares the 0..1000 integer scaling
 deterministic (fixed pools, no randomness — a sampling gate cannot carry a ratchet), guarded
 at 4500 evaluations, and self-tested: `--selftest-empty-baseline` must exit 1, and does.
 
-What remains for the `agent-stdlib-annotate` owner is the judgement the gate deliberately
-does not make: whether to FIX `mth.remainder` and `stat.filemode` (implement, or correct
-the citation) and what to do about the 124 constant bodies.
+A SECOND stdlib plane followed, because the first one could not reach the sharpest set:
+`bin/check-stdlib-pinned-facades.py` (the 27th). The differential gate CALLS the real
+function, so `os` is on its safety deny-list — and `os` holds ten of the twelve functions
+whose body is a single constant AND whose contract PINS that constant. That gate is pure
+AST: **870 functions scanned, 12 facades baselined by name**, `os.islink -> 0` the sharpest
+(a proof that nothing is ever a symlink). One entry is faithful and baselined anyway
+(`sysmod.get_float_info_max_10_exp -> 308` is the right answer) because **the gate keys on
+shape, not on truth**, and the baseline says so rather than leaving the next reader to
+re-derive it.
+
+Two documentation defects were also FIXED this session, both emission-byte-identical:
+`mth.remainder` lost the false sentence "For integers, same as x % y" (IEEE rounds to
+nearest, `%` floors), and `stat.filemode` was relabelled a ten-character placeholder with
+the faithful fix PRICED (ten independent bit tests over a string model with no
+per-character theory).
+
+What remains for the `agent-stdlib-annotate` owner is the judgement the gates deliberately
+do not make: whether to give those twelve real bodies or weaker contracts.
 
 ## Standing, deliberately deferred (re-priced this generation, not inherited)
 
