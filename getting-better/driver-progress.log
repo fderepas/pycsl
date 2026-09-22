@@ -4947,3 +4947,15 @@ OWED BEFORE THE DEADLINE:
   * one more FAST battery at the true final HEAD (docs-only commits since 95ba418b);
   * `MAX_NO_ENSURES` set to whatever mv3 measures, with the MEMBERS printed (lesson (p3));
   * §A.3: rm the two driver files, finalise the summary, emit ONE summary, do NOT push.
+
+>>> DELIBERATELY NOT LANDED TONIGHT: the `bytes(n)` refusal. It is ONE LINE
+>>> (`_build_function_symbol_table` types a `bytes(...)` local `"bytes"` instead of `"Any"`)
+>>> and the blast radius is measured — 9 corpus sites in 7 files, ZERO mirror, ZERO live,
+>>> one in pycsl_lib — but it MOVES EMISSIONS, and the two shapes in those 9 sites are not
+>>> the same question: eight are `bytes([...])` (the iterable form, which may already carry
+>>> real byte values) and one is `bytes(2)` (the count form, witness 1725). Each moved
+>>> emission needs adjudicating on whether it became MORE faithful.
+>>>
+>>> AN EMISSION-MOVING CHANGE WITH A DEADLINE PROCEDURE PENDING IS THE SQUEEZE (d3) AND
+>>> (e3) WARN ABOUT. Priced, sited, and handed over as the first act of the next window,
+>>> which is what "priced" is supposed to mean.
