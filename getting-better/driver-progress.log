@@ -3668,3 +3668,38 @@ erased value reads as 0).
 Smoke test green (`FUZZ12-DONE seed=0 n=2 ran=2 false_proofs=0`). Launched over 40 seeds x
 20 programs = **800 programs**, detached, log `$SCRATCH/fuzz12.log`, `timeout 3600` per
 seed. The box is idle (the final battery is the only other load).
+
+## THE pycsl_lib STDLIB LAYER — a surface with a SKILL and no GATE, probed for the first time
+`config/skills/agent-stdlib-annotate` governs the 93 body-verified stubs under
+`src/pycsl_lib/`, and nothing in the 24-plane battery compares a stub's BEHAVIOUR against
+the stdlib module it stands in for. A contract there can be perfectly proven OF ITS OWN
+BODY and still be wrong ABOUT PYTHON — the exact shape this campaign hunts, one layer up.
+
+Built a differential harness (`scratchpad/g30/stdlib_diff.py`): 20 stub packages mapped to
+their real modules, 73 functions, ~800 type-domain-valid input comparisons.
+
+**THE HEADLINE NUMBER IS MISLEADING, AND THAT IS THE FINDING.** 129 "mismatches", and every
+one inspected is the stub being an ABSTRACTION rather than a re-implementation:
+
+  * `mth.comb(6, 3)` returns **6** where CPython returns 20 — but its contract claims only
+    `ensures \result >= 1`, which is TRUE of CPython's `comb` under its own `requires
+    0 <= k <= n`. A caller can conclude nothing false.
+  * `mth.fabs(-19)` returns **-19** — but the contract carries `requires x >= 0`, and my
+    harness violated the precondition. Under the precondition, `\result == x` is true.
+  * `fnm.fnmatch(name: int, pat: int)` models a STRING operation in the INT domain and
+    claims only `\result == 1 or \result == 0`. Feeding it strings measured my harness.
+
+And the control: **`bsect`, the one package that IS a faithful re-implementation, compared
+8000 inputs against `bisect` with ZERO mismatches** — so the harness can tell the two kinds
+apart.
+
+>>> BODY EQUALITY IS NOT THE SOUNDNESS CRITERION FOR AN ABSTRACTION. The criterion is
+>>> whether each CONTRACT is TRUE OF CPYTHON *under its own precondition*, and that is a
+>>> different and much harder check than the one I built. Three value-asserting contracts
+>>> were checked that way by hand (`b64.b16encode_len == n*2`, `b64.b16decode_len == n//2`,
+>>> `sysmod.get_float_info_max_10_exp == 308`) and all three are true.
+
+Recorded with the harness committed, so the next window builds the RIGHT instrument
+instead of re-deriving the wrong one. The right one is a `check-value-differential`-shaped
+plane over `pycsl_lib`: generate inputs satisfying the stub's `requires`, run the REAL
+module, and check the stub's `ensures` against the real answer.
