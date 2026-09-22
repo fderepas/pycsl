@@ -3879,3 +3879,16 @@ NEGATIVE TEST built on exactly this shape so its RED path is known to fire.
 
 >>> A LEDGER THAT LISTS ONLY THE CLOSED HOLES, AND NEVER THE ONE DOOR HELD OPEN ON PURPOSE,
 >>> MISREPRESENTS THE PERIMETER.
+
+### PREDICTION CORRECTED BEFORE THE RESULT LANDS: the final battery is 3849 tests, not 3841
+I predicted "3841 - 18 = 3823 — the corpus has not grown since that run". **It had.** The
+battery's own first line says **3849 tests**, and the eight extra are mine: six corpus
+witnesses (1701-1706, added for routes #202/#203) and two value-differential drivers
+(v76/v77). So the corrected prediction is
+
+    **3849 - 18 = 3831 passing, the same 18 CONFIRMED FAIL, 0 XPASS.**
+
+Recorded BEFORE the result, because a prediction adjusted after the fact is not a
+prediction. Twice in one generation I have got the suite TOTAL wrong while getting the
+INVARIANT right (same 18, zero XPASS) — the lesson is the one already banked: state it as
+`total - 18` and read the total off the runner's own first line rather than from memory.
