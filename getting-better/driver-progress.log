@@ -2744,3 +2744,22 @@ Note the callee contract shape: `ensures True` on the callee hides this entire
 family, which is why 199 routes did not find it. The contract has to be TRUE OF
 THE CALLEE'S OWN BODY and READ the property the substitution changes — the method
 that produced five of gen #30's routes, applied to the plane's own residue.
+
+### Route #200 — where it fires, read from the emission rather than inferred
+Traced (a runtime wrapper on `_coerce_to_int`, no source edit) to:
+
+    _handle_call_expr -> _coerce_dotted_args, the `ptype == "int"` arm,
+    `coerced.append(self._coerce_to_int(arg))`
+
+and the emission confirms it: `return callee("a")` emits `(callee 747471683)`.
+This is the SAME arm routes #195/#196 repaired for the empty-list placeholder, one
+line further down — and #195's note already recorded the constraint the repair has
+to respect: "declaration-free ... this function's mirror is a CONVERTED method with
+`#@ assigns \nothing`". So the repair cannot mint a declared opaque here; the
+available honest answer is Why3's `(any int)`, exactly as #194/#195 chose.
+
+Census running before the repair rather than after (the standing rule: a price is
+a claim): how many string-literal-into-int-param sites fire across all 53 mirror
+emissions. If the mirror relies on the hash anywhere, `(any int)` moves its
+emission and the repair costs a whole-file re-proof; if it fires zero times, the
+change is byte-inert on the mirror side.
