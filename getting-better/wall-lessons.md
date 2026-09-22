@@ -5017,3 +5017,30 @@ The cure for both is the same — follow the value to the place a proof reads it
 And the number that survives the downgrade is still worth having: **124 of 870 `pycsl_lib`
 functions (14.3%) have a single-constant-return body.** Harmless today because nothing
 substitutes them; it is precisely what becomes a hole on the day something does.
+
+## (u2) A GATE THAT CALLS REAL CODE NEEDS A DENY-LIST BEFORE IT NEEDS A BASELINE
+
+`bin/check-stdlib-contract-fidelity.py` measures a `pycsl_lib` stub's contract against the
+stdlib function its own docstring cites — which means it **calls the real function with
+generated arguments**. The first version mapped twelve packages I typed by hand. Deriving
+the map from the stubs' own headers found that **50 of the 93 name an importable stdlib
+module**, and the obvious next move was to use all fifty.
+
+`shutil` is one of them. So is `subprocess`, `tempfile`, `os`, `signal`, `pathlib`. A
+generated argument to `shutil.rmtree` is not a test.
+
+The map is therefore restricted to modules argued into a PURE set, with the exclusions and
+their reasons in the gate's header — filesystem and process side effects, non-determinism
+(`random`, `time`, which cannot carry a ratchet anyway), and `argparse`/`getopt`, which can
+exit the interpreter out from under the run.
+
+>>> WHEN A PLANE'S METHOD IS "RUN THE REAL THING", THE SCOPE IS A SAFETY PROPERTY, NOT A
+>>> COVERAGE CHOICE. Write the deny-list and its reasons into the header FIRST, so the next
+>>> person widening the gate has to argue a module into the set rather than just add a name.
+
+And the widening's own finding, which is the other half of the lesson: four of the six
+divergences it surfaced were `csys`, whose header says *"All coordinates modelled as
+integers scaled 0..1000 representing [0.0, 1.0]"* — a **declared domain change**, not a
+defect. They are baselined with the declaration quoted rather than filtered out by a
+header heuristic, because a heuristic that skips a package would hide a real divergence
+behind a line of prose.
