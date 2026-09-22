@@ -45,8 +45,44 @@ DRIVER = os.path.join(ROOT, "src", "pycsl", "pycsl.py")
 MIN_MODULES = 90          # 104 at the first measurement
 
 # module (path relative to src/pycsl_lib) -> why it is here.
-# FILLED FROM THE FIRST MEASUREMENT — see the commit that added this plane.
-BASELINE = {}
+# THE FIRST MEASUREMENT (gen #30): 104 modules, 84 VERIFY, 20 do not — 13 REFUSED, 5
+# FAILS, 2 TIMEOUT. Every entry below was re-run WITH `--import-path src`.
+BASELINE = {
+    # ---- REFUSED: the front end rejects the module outright. Each of these was re-run
+    # WITH `--import-path src` so the verdict is not an artefact of compiling a package
+    # module standalone (that artefact is real: it cost two false failures in the
+    # corpus-dependency sweep the same day).
+    "json/__init__.py": "REFUSED — route #119's constant-rebinding guard: `BACKSLASH` is "
+        "bound as a default argument (`_b=BACKSLASH`). The whole `json` package is a "
+        "near-verbatim transcription of CPython's, not a model written for PyCSL, and "
+        "FOUR of its files carry ZERO `#@` annotations.",
+    "json/_api.py": "REFUSED — same package, same cause.",
+    "json/decoder.py": "REFUSED — same package; this is the file the guard names.",
+    "json/encoder.py": "REFUSED — same package; 370 code lines, ZERO annotations.",
+    "json/scanner.py": "REFUSED — same package.",
+    "json/tool.py": "REFUSED — same package.",
+    "iomod/__init__.py": "REFUSED.",
+    "proc/__init__.py": "REFUSED.",
+    "re/_engine.py": "REFUSED — 478 lines, 35 annotations.",
+    "subproc/__init__.py": "REFUSED.",
+    "sysmod/__init__.py": "REFUSED.",
+    "tmpf/__init__.py": "REFUSED.",
+    "warn/__init__.py": "REFUSED.",
+    # ---- FAILS: the prover leaves a goal. These are the honest "model does not verify"
+    # cases, and one of them is the TCB appendix's own example.
+    "os/path.py": "FAILS — `Sub-goal postcondition of goal basename'vc` is a Timeout at "
+        "5.5M steps. The appendix names the `os` filesystem model as its example of a "
+        "body-verified model.",
+    "os/UnixInodeFileSystem.py": "FAILS — 2990 lines, 717 annotations; the largest model "
+        "in the layer.",
+    "dc/__init__.py": "FAILS.",
+    "syscfg/__init__.py": "FAILS.",
+    "tm/__init__.py": "FAILS.",
+    # ---- TIMEOUT: not a verdict, a budget. Recorded as its own class so nobody reads it
+    # as "fails".
+    "os/__init__.py": "TIMEOUT at 900s (864 lines, 213 annotations).",
+    "csys/__init__.py": "TIMEOUT.",
+}
 
 
 def classify(path, timeout):
@@ -68,6 +104,17 @@ def main():
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--timeout", type=int, default=420)
     args = ap.parse_args()
+
+    # THE INSTRUMENT FACT THIS PLANE MUST NOT TRIP OVER: `why3` is NOT on the default
+    # PATH in this repo (it lives behind `scratchpad/g29/env.sh`). Without it EVERY module
+    # "fails", which is a false RED of the loudest possible kind — measured on this plane's
+    # first run, which reported 104 of 104 not verifying. Refuse instead of reporting.
+    import shutil as _sh
+    if _sh.which("why3") is None:
+        print("[!] stdlib-modules-verify: REFUSING — `why3` is not on PATH, so every "
+              "module would report as failing. Source the environment first "
+              "(`. scratchpad/g29/env.sh`).", file=sys.stderr)
+        return 2
 
     files = sorted(glob.glob(os.path.join(LIB, "**", "*.py"), recursive=True))
     if len(files) < MIN_MODULES:
