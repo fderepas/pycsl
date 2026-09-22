@@ -4814,3 +4814,27 @@ matched that entry. It pins OCCURRENCE COUNTS.
 >>> justifications must pin HOW MANY. And prove the gate fires: `--live <other checkout>` runs
 >>> it against the pre-repair tree, which is how this one was shown to go red rather than
 >>> asserted to. A gate nobody has ever seen fail is a claim, not an instrument.
+
+## (m) A REPAIR THAT FIXES ONE ARM OF A FUNCTION LEAVES THE REST OF THE FUNCTION
+
+Route #193 read `_array_coerce_arg`'s own defence — "a length-1 placeholder array works
+because the abstract vals have no axioms about their input contents" — found it false, and
+repaired the `stripped == "0"` arm. Route #201, one generation later, found the SAME
+defence still false for the same function's TAIL, and for a second independent reason: the
+defence also assumes the only consumers are the emitter's own abstract vals, when a
+USER-DECLARED `List[int]` parameter reaches the same coercion. `callee("ab")` against
+`def callee(p: List[int])` emitted `(callee (Array.make 1 0))` and PROVED `len(p) == 1`
+while CPython answers 2.
+
+The same shape produced #199 out of #191–#198 (the empty f-string sat one arm above a
+faithful all-string lowering) and #200 out of #194/#195 (the collection spellings of an arm
+were closed and the string spelling was not).
+
+>>> WHEN A ROUTE IS CLOSED IN ONE ARM OF A FUNCTION, ENUMERATE THE OTHER ARMS THAT REACH
+>>> THE SAME ANSWER AND PROBE EACH ONE. And when the arm was justified by a docstring,
+>>> re-read the WHOLE docstring: #193 falsified the CONTENTS-vs-LENGTH half of that sentence
+>>> and left the who-are-the-consumers half standing, which is exactly where #201 lived.
+
+Corollary about cost, which is why this is cheap: probing a neighbouring arm is one
+`pycsl.py` run against a contract that is TRUE OF THE CALLEE'S OWN BODY. Six of gen #30's
+eleven routes cost less than ten minutes each to find once the method was in hand.
