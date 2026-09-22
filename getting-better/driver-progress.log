@@ -3421,3 +3421,9 @@ STATE: routes #198-#203 all have mirror-sync green, corpus byte-diff accounted f
 line, and mirror emission measured. The two outstanding legs are the #198 and #201
 whole-file mirror re-proofs (running) and the suite's serial re-run of its 18 known
 failures (running).
+
+### gen11 RESUMED at 04:10Z (seed 8 green, 0 false proofs)
+It was SIGSTOPped — not killed — when load hit 40 on a 12-core box, and resumed when the
+corpus sweeps finished and load fell to 8.9. Pausing rather than killing is the difference
+between losing an hour of fuzzing and losing seven seeds of it; `pkill -STOP` / `pkill
+-CONT` on the loop and its child is all it takes, and the loop picks up mid-seed.
