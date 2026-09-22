@@ -4449,3 +4449,28 @@ message text changed.
 
 MEASURED AFTER PASSES 1-2: 86 -> 119 demonstrated, 112 -> 79 undemonstrated. THIRTY-THREE
 of the "missing" witnesses had been in the corpus the whole time.
+
+================================================================================
+BATTERY CHECKPOINT 21:49Z — 42 OF 42 FAST PLANES GREEN
+================================================================================
+After the evening's work: `bin/run-soundness-planes.sh` reports "OK — all 42 plane(s)
+green". MIN_PLANES 40 -> 42 with two new planes registered
+(`check-docstring-contract-disagreement.py`, `check-ir-schema-refusals.py`).
+
+TWO GATES WENT RED FIRST AND BOTH WERE FIXED AT THE SOURCE, not at the ratchet:
+  * `check-claim-vacuity` 1135 > 1131 `requires True` — four of tonight's witnesses had
+    copied a vacuous `requires True` from the files they were modelled on. Deleted where
+    it said nothing, replaced with `#@ assigns \nothing` where a clause was wanted.
+  * `check-dropped-mutation` CTXBIND 52 > 51 — witness 1784 IS a `with ... as`, the shape
+    that ratchet counts. Named in a new `CTXBIND_EXEMPT`, exactly as 1759 was named in
+    `DANGLING_EXEMPT`, rather than the bound raised.
+
+>>> A GATE THAT GOES RED BECAUSE OF A WITNESS YOU JUST WROTE IS STILL A GATE. The fix is
+>>> the source or a NAMED exemption; the one thing it is never is the number.
+
+`check-getattr-erasure` was redesigned away from its global ratchets to a per-file
+baseline (`bin/getattr-erasure-sites.tsv`, emitted TWICE and diffed before committing).
+The redesign is the one its own note had asked for twice: the global UNKNOWN ceiling had
+been raised 19 -> 24 -> 25 and was about to be raised again, each time because a WITNESS
+was added. Per-file, a growth in an existing file fails and a new witness must be
+registered deliberately.
