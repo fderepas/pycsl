@@ -44,16 +44,39 @@ three ways and each entry says which it is:
                adjudicated when the pool-driven gate cannot evaluate its contract or must
                never call its module. Kept distinct from DIVERGES so the cross-check below
                stays meaningful.
+  DECLARED-DOMAIN — the stub models a DIFFERENT, DECLARED quantity (a size, a count, a
+               length), not the cited function's return value; the declaration is in the
+               signature AND the docstring, and the claim about that quantity is MEASURED
+               true of CPython. The block comment above the class constants says why this
+               is kept distinct from DIVERGES-BY-HAND rather than folded into it.
+  MODEL-INTERNAL — no cited CPython function exists (a leading-underscore helper of the
+               model itself), so the obligation is the stub's own guard, which the entry
+               must name.
   UNADJUDICATED — the module is outside the calling gate's reach and no one has ruled on
-               it yet. This is the honest state for most of the population, and it is
+               it yet. This was the honest state for most of the population, and it was
                WRITTEN DOWN rather than left as an unmentioned gap — the gen #30 lesson
                from the fidelity plane's own scope claim ("an unmentioned exclusion is not
-               an exclusion, it is an oversight wearing one").
+               an exclusion, it is an oversight wearing one"). **The class is now EMPTY**:
+               the second pass adjudicated all 24 and MAX_UNADJUDICATED is 0.
 
-THE STANDING COUNT: 81 stubs — 33 FAITHFUL, 6 DIVERGES, 18 DIVERGES-BY-HAND, 24
-UNADJUDICATED. So **24 of the 81 carry a contract that is FALSE of the function the stub's
-own header cites**, and only six of those were reachable by calling. That ratio is the
-argument for this gate.
+THE STANDING COUNT after the second pass: 81 stubs — 33 FAITHFUL, 6 DIVERGES, 25
+DIVERGES-BY-HAND, 15 DECLARED-DOMAIN, 2 MODEL-INTERNAL, 0 UNADJUDICATED. So **31 of the 81
+carry a contract that is FALSE of the function the stub's own header cites**, and only six
+of those were reachable by calling. That ratio is the argument for this gate.
+
+WHAT THE SECOND PASS ACTUALLY FOUND, since clearing a debt counter is not by itself a
+result. Seven of the 24 turned out to be genuinely false, and were MEASURED so rather than
+reasoned so: `csvmod.write_row` (writerow returns a CHARACTER count, 7, not the 3 fields —
+and the stub's own docstring says ">= field count" while its contract pins "=="),
+`cvar.context_var_get` (`cv.get(0)` is 5 after `cv.set(5)`), `cvar.context_var_set`
+(returns a `Token`), `dec.getcontext_prec` (unbounded above, and `prec = 10**30` RAISES
+`OverflowError` past `decimal.MAX_PREC`), `nums.rational_num` / `rational_den`
+(`Fraction(2, 4).numerator` is 1, not 2 — the guards `num >= 0` / `den > 0` do not imply
+the coprimality the claim needs), and `os.getenv` (`os.getenv('PATH', 0)` is not 0; the
+empty-env justification lives in a COMMENT, which is not a contract). Fifteen are a
+declared size/count/length law and were measured TRUE — with one residual written into the
+entries: the three `hq.*_max` stubs take a `heap: list` and an `n: int` and never tie them,
+so their size law is true but VACUOUS.
 
 AND ONE OF THEM MOVED THE SAME DAY IT WAS WRITTEN. `strmod.capwords` was classified
 FAITHFUL on the strength of its guards; mining the axiom registry then showed the OTHER
@@ -94,6 +117,25 @@ FAITHFUL, DIVERGES, UNADJ = "FAITHFUL", "DIVERGES", "UNADJUDICATED"
 # hand-measured results into it would make the two planes look like they disagree when
 # they simply never evaluated the same thing.
 HAND = "DIVERGES-BY-HAND"
+
+# Gen #30, second adjudication pass. Two classes the first pass did not have, and whose
+# absence is why 24 entries sat in UNADJUDICATED behind a one-line "no citation run".
+#
+# DECLARED-DOMAIN - the stub does not model the cited function's RETURN VALUE AT ALL. It
+#   models a DIFFERENT, DECLARED quantity (a size, a count, a length); the declaration is
+#   visible in the SIGNATURE (an `int` parameter named `n`/`size`/`digest_size` where the
+#   real function takes a container) AND in the module or function docstring; and the
+#   claim about that quantity is TRUE OF CPYTHON AND MEASURED. This is exactly the reading
+#   `pkl.dump`'s entry reasons about and REJECTS - "the honest reading is a declared
+#   domain change, but it is UNDECLARED, which is the defect". Keeping the two classes
+#   apart makes that discriminator executable instead of rhetorical: declared AND measured
+#   lands here; undeclared stays DIVERGES-BY-HAND.
+# MODEL-INTERNAL - there is NO cited CPython function (a leading-underscore helper of the
+#   model itself), so there is nothing to be faithful to and nothing to diverge from. The
+#   obligation is instead that the stub's OWN guard makes the identity true of the model it
+#   defines, and the entry must NAME that guard.
+DECLARED = "DECLARED-DOMAIN"
+INTERNAL = "MODEL-INTERNAL"
 
 # (package, function) -> (class, why)
 BASELINE = {
@@ -178,36 +220,96 @@ BASELINE = {
         "MEASURED: `abc.update_abstractmethods(int) is int` is True."),
     ("copyreg", "constructor"): (HAND,
         "MEASURED: `copyreg.constructor(len)` returns None, not the callable."),
-    ("csvmod", "write_row"): (UNADJ, "csv is on the filesystem deny-list."),
-    ("cvar", "context_var_get"): (UNADJ, "contextvars model; no citation run."),
-    ("cvar", "context_var_set"): (UNADJ, "contextvars model; no citation run."),
-    ("dec", "getcontext_prec"): (UNADJ, "decimal context model; no citation run."),
+    ("csvmod", "write_row"): (HAND,
+        "MEASURED on an `io.StringIO` (no filesystem, so the deny-list was never in the "
+        "way): `csv.writer(sio).writerow(['a','b','c'])` returns 7 - the CHARACTER count "
+        "of `'a,b,c\\r\\n'` - not the 3 fields the contract pins. The stub's OWN "
+        "docstring says 'Written bytes >= field count' while its `#@ ensures` pins "
+        "`== num_fields`: docstring and contract contradict each other, and the docstring "
+        "is the one that is right."),
+    ("cvar", "context_var_get"): (HAND,
+        "MEASURED: after `cv.set(5)`, `cv.get(0)` is 5, not 0. The docstring says "
+        "'returns default if not set' but the `#@ ensures \\result == default` is "
+        "UNCONDITIONAL, so it is false of exactly the case the variable exists for. Same "
+        "shape as `os.getenv`."),
+    ("cvar", "context_var_set"): (HAND,
+        "MEASURED: `ContextVar.set(5)` returns a `Token` (what `reset` consumes), not "
+        "the value 5."),
+    ("dec", "getcontext_prec"): (HAND,
+        "MEASURED: the set-then-get round trip holds for small values (`prec = 5` reads "
+        "back 5), but the stub guards only `requires prec > 0`, and "
+        "`getcontext().prec = 10**30` RAISES `OverflowError` (`decimal.MAX_PREC` is "
+        "999999999999999999). So the unconditional `ensures \\result == prec` is false "
+        "above MAX_PREC - a RAISE divergence rather than a different value, still a fact "
+        "CPython contradicts. CLOSING IT = `requires prec <= 999999999999999999`."),
     ("ftools", "partial"): (HAND,
         "MEASURED: `type(functools.partial(len)).__name__` is `partial` — an object that "
         "is not the function and does not compare equal to it."),
     ("ftools", "cache"): (HAND,
         "MEASURED: `type(functools.cache(len)).__name__` is `_lru_cache_wrapper`. Same "
         "family as `lru_cache`; the pool gate never evaluated this one."),
-    ("hmacmod", "new_hmac"): (UNADJ, "returns an HMAC object; the stub models the digest "
-        "SIZE, so this may be a declared domain change."),
-    ("hmacmod", "digest"): (UNADJ, "same size-domain question."),
-    ("hpq", "heappushpop"): (UNADJ, "size-domain model of heapq."),
-    ("hpq", "heapreplace"): (UNADJ, "size-domain model of heapq."),
-    ("hpq", "heapify"): (UNADJ, "size-domain model of heapq."),
-    ("hpq", "nsmallest"): (UNADJ, "size-domain model of heapq."),
-    ("hpq", "nlargest"): (UNADJ, "size-domain model of heapq."),
-    ("hq", "heapreplace"): (UNADJ, "size-domain model of heapq."),
-    ("hq", "heapify"): (UNADJ, "size-domain model of heapq."),
-    ("hq", "heappushpop"): (UNADJ, "size-domain model of heapq."),
-    ("hq", "heapify_max"): (UNADJ, "size-domain model of heapq."),
-    ("hq", "heappushpop_max"): (UNADJ, "size-domain model of heapq."),
-    ("hq", "heapreplace_max"): (UNADJ, "size-domain model of heapq."),
-    ("itools", "count_n"): (UNADJ, "counter-domain model of itertools."),
-    ("itools", "repeat_n"): (UNADJ, "counter-domain model of itertools."),
-    ("nums", "rational_num"): (UNADJ, "numerator accessor of the rational model."),
-    ("nums", "rational_den"): (UNADJ, "denominator accessor of the rational model."),
-    ("os", "_encode_name"): (UNADJ, "`os` is on the calling gate's deny-list."),
-    ("os", "_decode_name"): (UNADJ, "`os` is on the calling gate's deny-list."),
+    ("hmacmod", "new_hmac"): (DECLARED,
+        "DECLARED: module header 'Models HMAC as digest-size tracker'; parameters "
+        "`key_len`/`digest_size`; docstring 'Create HMAC object, return digest size'. "
+        "MEASURED: `len(hmac.digest(b'k', b'm', 'sha256'))` is 32, the sha256 digest "
+        "size - the modelled quantity is real and the claim about it is true."),
+    ("hmacmod", "digest"): (DECLARED,
+        "Same declaration and the same measurement as `new_hmac`."),
+    # The heapq family: a SIZE LAW, declared in every signature (`n: int` / `size: int`
+    # where real heapq takes a list) and in every docstring ("Size unchanged", "The heap
+    # size doesn't change", "(count model)"). MEASURED against this CPython: heapify,
+    # heappushpop and heapreplace all leave `len(heap)` unchanged; `len(nsmallest(2, xs))`
+    # and `len(nlargest(2, xs))` are 2 under the stubs' own `requires n <= size`; and the
+    # three private max-heap entry points `_heapify_max`, `_heappushpop_max` and
+    # `_heapreplace_max` all EXIST (checked by `hasattr`, so the `_max` stubs are not
+    # modelling functions that are not there) and preserve size too.
+    ("hpq", "heappushpop"): (DECLARED, "size law; measured, size preserved."),
+    ("hpq", "heapreplace"): (DECLARED, "size law; measured, size preserved."),
+    ("hpq", "heapify"): (DECLARED, "size law; measured, size preserved."),
+    ("hpq", "nsmallest"): (DECLARED,
+        "count law under the stub's own `requires n <= size`; measured `len(...) == n`."),
+    ("hpq", "nlargest"): (DECLARED, "count law; measured the same way as `nsmallest`."),
+    ("hq", "heapreplace"): (DECLARED,
+        "size law; and `requires n >= 1` matches the IndexError real `heapreplace` "
+        "raises on an empty heap."),
+    ("hq", "heapify"): (DECLARED, "size law; measured, size preserved."),
+    ("hq", "heappushpop"): (DECLARED, "size law; measured, size preserved."),
+    # RESIDUAL, and it is the thing this class must not be allowed to hide: the three
+    # `_max` stubs take BOTH `heap: list` AND `n: int` and never tie them - no clause says
+    # `\\length(heap) == n`. So `\\result == n` is TRUE but VACUOUS as a size law: a caller
+    # may hand a 3-element heap and `n = 99` and prove 99. Under-specified, not false; the
+    # repair is a `requires`, not a reclassification.
+    ("hq", "heapify_max"): (DECLARED, "size law; `heap` and `n` are not tied (see above)."),
+    ("hq", "heappushpop_max"): (DECLARED, "size law; `heap` and `n` are not tied."),
+    ("hq", "heapreplace_max"): (DECLARED, "size law; `heap` and `n` are not tied."),
+    ("itools", "count_n"): (DECLARED,
+        "LENGTH law, declared by the module header ('we model them by their output "
+        "LENGTH') and by the `_n` suffix on a name real itertools does not have. "
+        "MEASURED: `len(list(islice(count(3), 4)))` is 4."),
+    ("itools", "repeat_n"): (DECLARED,
+        "LENGTH law; MEASURED: `len(list(repeat(7, 4)))` is 4."),
+    ("nums", "rational_num"): (HAND,
+        "MEASURED: `Fraction(2, 4).numerator` is 1, NOT 2. The stub returns the `num` it "
+        "was handed under `requires num >= 0` / `requires den > 0` - guards that do NOT "
+        "imply coprimality, which is what the claim actually needs; its docstring cites "
+        "'Rational has .numerator property', so the cited function is the NORMALISING "
+        "one. CLOSING IT = a coprimality `requires`, or a contract about the reduced "
+        "pair."),
+    ("nums", "rational_den"): (HAND,
+        "MEASURED: `Fraction(2, 4).denominator` is 2, NOT 4. The same missing "
+        "coprimality guard as `rational_num`; the `ensures \\result > 0` half is fine."),
+    ("os", "_encode_name"): (INTERNAL,
+        "LEADING UNDERSCORE: there is no `os._encode_name` in CPython, so there is no "
+        "cited function to diverge from - this is the model's own directory-entry name "
+        "field codec. The identity is made true of the model by the stub's OWN guard "
+        "`requires \\str_length(name) <= 30`, which is what keeps the 30-byte field "
+        "TRUNCATION out of the domain; without it the pinned identity would hide exactly "
+        "that truncation. Guard named, so the entry is honest."),
+    ("os", "_decode_name"): (INTERNAL,
+        "The other half of the same model-internal codec; `_encode_name`'s guard is what "
+        "makes the pair's round-trip compose. NOTE THE ASYMMETRY: `_decode_name` carries "
+        "NO length guard of its own, so it is the identity on a stored field of ANY "
+        "length - sound only because nothing in the model can store one longer than 30."),
     ("os", "fsdecode"): (FAITHFUL,
         "MEASURED: `os.fsdecode(\'a\')` is `\'a\'`. Identity on `str`, which is this "
         "model\'s whole domain; on `bytes` it decodes, and the model has no bytes."),
@@ -216,7 +318,11 @@ BASELINE = {
         "`str` it was given."),
     ("os", "fspath"): (FAITHFUL,
         "MEASURED: `os.fspath(\'a\')` is `\'a\'`; identity on `str`."),
-    ("os", "getenv"): (UNADJ, "returns `default` only when the name is unset."),
+    ("os", "getenv"): (HAND,
+        "MEASURED: `os.getenv('PATH', 0)` is not 0 - it is the PATH string. The "
+        "`ensures \\result == default` is UNCONDITIONAL and its justification lives in a "
+        "COMMENT ('this model has an empty env'), which is not a contract. Sound only "
+        "for a caller who also believes the env is empty, and nothing makes them."),
     ("os", "expanduser"): (HAND,
         "MEASURED: `os.path.expanduser(\'~/x\')` is `\'/home/<user>/x\'`, not `\'~/x\'`. "
         "The stub\'s `#@ interface ensures \\result == path` is unqualified and so is "
@@ -247,8 +353,10 @@ BASELINE = {
     ("strct", "unpack_from"): (HAND, "same TUPLE answer as `unpack`."),
     ("strct", "pack_into"): (HAND, "`struct.pack_into` writes into a buffer and returns None."),
 }
-MAX_UNADJUDICATED = 24   # 45 at the first measurement, 24 after the same-day
-                         # hand adjudication; a debt that may only shrink
+MAX_UNADJUDICATED = 0    # 45 at the first measurement, 24 after the same-day hand
+                         # adjudication, 0 after the second pass added the two classes
+                         # above. A debt that may only shrink - and at zero it is also a
+                         # RATCHET: a new stub can no longer be parked here.
 
 
 def census():
@@ -318,6 +426,8 @@ def main():
     unadj = sorted(k for k in keys if baseline.get(k, (None,))[0] == UNADJ)
     diverges = sorted(k for k in keys if baseline.get(k, (None,))[0] == DIVERGES)
     hand = sorted(k for k in keys if baseline.get(k, (None,))[0] == HAND)
+    decl = sorted(k for k in keys if baseline.get(k, (None,))[0] == DECLARED)
+    intl = sorted(k for k in keys if baseline.get(k, (None,))[0] == INTERNAL)
 
     if args.verbose:
         for p, f, a in sorted(stubs):
@@ -325,8 +435,10 @@ def main():
             print("    %-13s %-9s %-22s <- %s" % (cls, p, f, a))
 
     print("[*] stdlib-identity-stubs: %d function(s) scanned; %d identity stub(s) with a "
-          "pinning contract; %d DIVERGES, %d DIVERGES-BY-HAND, %d UNADJUDICATED."
-          % (functions, len(keys), len(diverges), len(hand), len(unadj)))
+          "pinning contract; %d DIVERGES, %d DIVERGES-BY-HAND, %d DECLARED-DOMAIN, "
+          "%d MODEL-INTERNAL, %d UNADJUDICATED."
+          % (functions, len(keys), len(diverges), len(hand), len(decl), len(intl),
+             len(unadj)))
 
     rc = 0
     # Cross-check: a DIVERGES in a module the CALLING gate covers must also be in ITS
@@ -353,8 +465,13 @@ def main():
     for k in new:
         print("[!]   NEW IDENTITY STUB %s.%s — a body `return <param>` pinned by its own "
               "`ensures`. Argue it into FAITHFUL (the real function IS the identity), "
-              "DIVERGES (it is not, and the calling gate agrees), or UNADJUDICATED, and "
-              "add it to the baseline." % k, file=sys.stderr)
+              "DIVERGES (it is not, and the calling gate agrees), DIVERGES-BY-HAND (it is "
+              "not, proven by one recorded call), DECLARED-DOMAIN (it models a DIFFERENT "
+              "quantity, the signature AND the docstring say so, and the claim about that "
+              "quantity is measured true) or MODEL-INTERNAL (no cited CPython function "
+              "exists; name the guard that makes the identity true of the model), and add "
+              "it to the baseline. UNADJUDICATED is CLOSED: its ceiling is 0."
+              % k, file=sys.stderr)
         rc = 1
     if len(unadj) > MAX_UNADJUDICATED:
         print("[!]   UNADJUDICATED count %d exceeds the ceiling %d — this debt may only "
