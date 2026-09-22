@@ -4923,3 +4923,27 @@ The two long jobs are still in flight and are polled, not relaunched:
 >>>
 >>> A ROUND NUMBER IN A SUMMARY IS A CLAIM. Count it with the command, and when the two
 >>> numbers disagree, the disagreement is usually the finding.
+
+
+================================================================================
+STATE AT 23:35Z — WHAT IS DONE AND WHAT IS IN FLIGHT
+================================================================================
+DONE AND GREEN:
+  * 43 of 43 fast planes at HEAD 95ba418b (MIN_PLANES 40 -> 43 this evening).
+  * The mirror re-proof of `core_ir_semantic.py`: all contracts formally proven.
+  * Mirror-sync 887 verbatim; mirror-coverage 549/41 unmoved by any of the evening's
+    compiler edits — three of the four message repairs sat in `\trusted` twins.
+  * Route #215 closed with a refusal, a witness (1796) and a control (1797).
+  * The ADVICE surface complete: 108 of 108 audited, 102 FOLLOWABLE, six repaired.
+  * Refusal coverage 184 of 219, the four counts partitioning the population.
+  * Identity stubs: 0 UNADJUDICATED (was 24); six of seven false contracts repaired.
+
+IN FLIGHT (poll, do NOT relaunch):
+  * `bin/check-stdlib-modules-verify.py --verbose` -> /tmp/mv3.log, re-run after the
+    THREE-WAY split of its "verifies with no postcondition" class. It has been on
+    `syscfg` for a while, which is a per-module 420s budget doing its job, not a hang.
+
+OWED BEFORE THE DEADLINE:
+  * one more FAST battery at the true final HEAD (docs-only commits since 95ba418b);
+  * `MAX_NO_ENSURES` set to whatever mv3 measures, with the MEMBERS printed (lesson (p3));
+  * §A.3: rm the two driver files, finalise the summary, emit ONE summary, do NOT push.
