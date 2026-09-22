@@ -3188,3 +3188,13 @@ on the positional spelling.
 
 The #202 patch — not yet applied — now covers BOTH slots, and the keyword case binds by
 NAME (which is more precise than the positional index, and needs no vararg offset).
+
+### Route #202 — the corpus census with the VARARG fix: clean
+1628 files, 3 hits, and all three are my own witnesses:
+  1697 (route #200 carrier, declared `int`, contract reads it)      -> refuse
+  1701 (route #202 carrier, UN-annotated, contract reads it)        -> refuse
+  1702 (route #202 control, UN-annotated, contract does NOT read it) -> NOT refused
+`0931_varargs_membership.py` is gone from the list, which is the vararg fix working.
+So the predicate refuses exactly the two carriers and leaves the control — and every
+other corpus program — alone. Mirror-side census with the KEYWORD-aware predicate
+launched ($SCRATCH/dry4_mirror.log).
