@@ -2795,3 +2795,12 @@ Family measured, not assumed: `callee([])` against the same declared-`int`
 parameter is REFUSED already (routes #195/#196's `(any int)` in the arm above),
 so the empty-list spelling of this shape is closed and only the hash spellings
 (string, and by construction tuple) remain.
+
+### Route #200 — the family's extent, measured spelling by spelling
+Only ONE spelling is live, which is why the repair can be narrow:
+  `callee("a")`          plain call, string literal  -> `(callee 747471683)`  **ROUTE**
+  `k.callee("a")`        method call, same literal   -> REFUSED
+  `callee((1, 2))`       tuple actual                -> `(callee (any int))`  closed by #194/#195
+  `callee([])`           empty-list actual           -> REFUSED (closed by #195)
+So routes #194/#195 already took the collection spellings of this arm; the string
+literal is the one they did not reach, and the hash is what makes it decidable.
