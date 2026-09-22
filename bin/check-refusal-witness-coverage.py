@@ -89,9 +89,11 @@ MIN_WITNESSED = 131       # 58 at the first joined measurement; 67 after TEN wit
                           # with witness 1762 — and 131 once the CENSUS ITSELF was
                           # repaired. FORTY-FIVE of the "missing" witnesses had been in
                           # the corpus all along. May only grow.
-MAX_UNWITNESSED = 59      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
+MAX_UNWITNESSED = 50      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
                           # the instrument; 67 -> 59 by DEMONSTRATING the eight that no
-                          # corpus witness can reach (below). May only shrink.
+                          # corpus witness can reach; 59 -> 50 once the nine this
+                          # instrument CANNOT MATCH were counted separately (below).
+                          # May only shrink.
 
 # NOT REACHABLE FROM A `.py` SOURCE FILE, and therefore never a corpus witness's job.
 # `ir_schema.validate_ir` runs on the IR THE FRONT-END JUST BUILT (pycsl.py:511) and again
@@ -107,6 +109,29 @@ MAX_UNWITNESSED = 59      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by
 # plane is deleted or stops passing, these eight stop being demonstrated, and the battery
 # says so. They are excluded from the unwitnessed COUNT and listed by `--list-unwitnessed`
 # with their reason.
+# UNMATCHABLE BY THIS INSTRUMENT, which is a THIRD thing and not a debt either. A site's
+# FRAGMENT is the longest string literal in its raise, and a raise built entirely from
+# short pieces and f-string interpolations has NO literal of 25+ characters:
+#
+#     raise PyCSLSemanticError(f"{where}: {name} is not {what}", code=...)
+#
+# For those, `frag` is "" and `hit` is False FOR EVERY CENSUS, so no witness — present,
+# future, or already written — can ever mark them demonstrated. Thirteen sites are in this
+# shape; four are also NOT_SOURCE_REACHABLE, leaving nine. Counting them as "no witness"
+# pointed at the wrong work a THIRD time, after the 110-char truncation and the eight
+# validate_ir checks.
+#
+# CLOSING THEM is a change to the COMPILER or the CENSUS, not to the corpus: give the raise
+# one distinguishing literal, or print the diagnostic CODE alongside the message so the
+# census can carry it and matching can key on the code. Printing the code is the better fix
+# and moves all 437 census messages, which is why it is RECORDED rather than done here.
+#
+# The count is a RATCHET that may only shrink, and the sites are listed by
+# `--list-unwitnessed`. It is NOT an exemption list keyed by name: membership is DERIVED
+# from the empty fragment every run, so a raise that gains a literal leaves the class
+# automatically and rejoins the debt if it still has no witness.
+MAX_UNMATCHABLE = 9
+
 NOT_SOURCE_REACHABLE = {
     "PYCSL-IR-NOTDICT", "PYCSL-IR-MISSINGTOP", "PYCSL-IR-VERSION", "PYCSL-IR-FUNCSLIST",
     "PYCSL-IR-FUNCDICT", "PYCSL-IR-MISSINGFUNC", "PYCSL-IR-CONTRACTSDICT",
@@ -263,13 +288,15 @@ def main():
 
     refusal_msgs = [m for _w, c, m in rows if c == "REFUSAL"]
     xpass = [w for w, c, _m in rows if c == "XPASS"]
-    witnessed, unwitnessed, elsewhere = [], [], []
+    witnessed, unwitnessed, elsewhere, unmatchable = [], [], [], []
     for rel, line, exc, code, frag in st:
         hit = bool(frag) and any(frag[:60] in m for m in refusal_msgs)
         if hit:
             witnessed.append((rel, line, exc, code, frag))
         elif code in NOT_SOURCE_REACHABLE:
             elsewhere.append((rel, line, exc, code, frag))
+        elif not frag:
+            unmatchable.append((rel, line, exc, code, frag))
         else:
             unwitnessed.append((rel, line, exc, code, frag))
 
@@ -280,6 +307,11 @@ def main():
         print("[*]   plus %d refusal(s) NOT REACHABLE from a `.py` source file, "
               "demonstrated executably by bin/check-ir-schema-refusals.py instead."
               % len(elsewhere))
+    if unmatchable:
+        print("[*]   plus %d refusal(s) UNMATCHABLE by this instrument: their message has "
+              "no string literal of 25+ characters, so no witness can ever mark them "
+              "demonstrated. Closing them is a compiler/census change, not a corpus one."
+              % len(unmatchable))
 
     if args.list_unwitnessed or args.verbose:
         for rel, line, exc, code, frag in unwitnessed[:60]:
@@ -288,6 +320,9 @@ def main():
         for rel, line, exc, code, frag in elsewhere:
             print("    elsewhere    %-44s:%-6d %-22s not source-reachable; see "
                   "bin/check-ir-schema-refusals.py" % (rel, line, code or "-"))
+        for rel, line, exc, code, frag in unmatchable:
+            print("    unmatchable  %-44s:%-6d %-22s no literal of 25+ chars in the raise"
+                  % (rel, line, code or "-"))
 
     rc = 0
     for w in xpass:
@@ -299,6 +334,11 @@ def main():
               "demonstrated no longer is." % (len(witnessed), MIN_WITNESSED),
               file=sys.stderr)
         rc = 1
+    if len(unmatchable) > MAX_UNMATCHABLE:
+        print("[!]   UNMATCHABLE CEILING BROKEN: %d > %d — a refusal lost the literal that "
+              "made it matchable, or a new one landed with none. This count may only "
+              "shrink." % (len(unmatchable), MAX_UNMATCHABLE), file=sys.stderr)
+        rc = 1
     if len(unwitnessed) > MAX_UNWITNESSED:
         print("[!]   UNWITNESSED CEILING BROKEN: %d > %d — a new refusal landed without a "
               "witness that proves it can fire." % (len(unwitnessed), MAX_UNWITNESSED),
@@ -309,8 +349,10 @@ def main():
         print("[!] refusal-witness-coverage: NOT OK.", file=sys.stderr)
     else:
         print("[+] refusal-witness-coverage: OK — %d demonstrated, %d undemonstrated "
-              "(floor %d / ceiling %d)."
-              % (len(witnessed), len(unwitnessed), MIN_WITNESSED, MAX_UNWITNESSED))
+              "(floor %d / ceiling %d); %d not source-reachable, %d unmatchable "
+              "(ceiling %d)."
+              % (len(witnessed), len(unwitnessed), MIN_WITNESSED, MAX_UNWITNESSED,
+                 len(elsewhere), len(unmatchable), MAX_UNMATCHABLE))
     return rc
 
 
