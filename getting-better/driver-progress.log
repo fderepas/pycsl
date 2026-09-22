@@ -3402,3 +3402,22 @@ and every one of the three is accounted for:
 ZERO pre-existing corpus programs moved. That is the claim that matters, and it holds for
 BOTH #202 (a Module 4 refusal in `pycsl.py`) and #203 (the single-part f-string arm in
 `expressions.py`), whose post sweep this run covers jointly.
+
+### Routes #202 + #203 — MIRROR EMISSION BYTE-INERT, 0 MOVED across all 53
+`53 baseline / 53 candidate, 0 MOVED, 0 GONE, 0 APPEARED — byte-inert in all three
+directions.` Two things follow, and the second is the one that matters for the window:
+
+  * #202's refusal lives in `pycsl.py::_run_pipeline`, whose mirror is a `\trusted` stub,
+    so there was nothing for it to move. Predicted and confirmed.
+  * **#203's edit to `expressions.py` did NOT move the mirror** — which is the census's
+    claim (`0` single-part f-strings in the 53 mirror files) verified end-to-end by the
+    plane rather than by my AST script. So #203 owes NO whole-file re-proof, unlike #201,
+    whose one-line tail change DID move `module6_whyml__expressions.mlw` and is being
+    re-proved now. Two edits to the SAME giant file, one hour apart: one moved its mirror
+    and one did not, and the difference is exactly whether the edited arm is reachable
+    from the mirror's own source. That is why the scope is the repair.
+
+STATE: routes #198-#203 all have mirror-sync green, corpus byte-diff accounted for line by
+line, and mirror emission measured. The two outstanding legs are the #198 and #201
+whole-file mirror re-proofs (running) and the suite's serial re-run of its 18 known
+failures (running).
