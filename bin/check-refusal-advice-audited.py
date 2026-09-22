@@ -25,8 +25,8 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 21 AUDITED** —
-17 FOLLOWABLE, 1 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. Seventeen of twenty-one pieces of advice work,
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 24 AUDITED** —
+20 FOLLOWABLE, 1 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 20 of 24 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
 below records what was written and what happened.
@@ -204,6 +204,15 @@ AUDITED = {
     ("src/pycsl/module6_whyml/functions.py",
      "PyCSLIRError('`' + _r65_f + '(<str>)` raises `ValueError` in Python on a non-numeric string, and this function claims `#@ no_exception` over"): (FOLLOWABLE,
         "'Drop `ValueError` from the context, or validate the string yourself' - an int() over a numeric literal with NO `#@ no_exception ValueError` VERIFIES."),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"Coroutine \'{_n.name}\' (line {_n.lineno}) carries a `#@` contract, but `async def` is NOT MODELLED: the weaver attaches '): (FOLLOWABLE,
+        "'Remove the contract, or make the function synchronous' - the synchronous form VERIFIES."),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"Class \'{_hk_cls.name}\' (line {_hk_cls.lineno}) defines `{_hk_hit[0]}`, an attribute-access hook the model does not cons'): (FOLLOWABLE,
+        'The repair is to remove the hook; a class with no `__getattribute__` resolves statically as the model assumes, and VERIFIES.'),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp_name}`: aliasing the protected base \'{vpath}\' into a local in non-exempt \'{cur_func or \'<module>\'}\' is forbi'): (FOLLOWABLE,
+        "'Write through the canonical protected path, or add the method to the `except` set' - a `happy ... protects` policy whose only writer is the excepted owner, writing through the canonical path, VERIFIES."),
 }
 
 
@@ -308,7 +317,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 21
+MIN_AUDITED = 24
 
 if __name__ == "__main__":
     sys.exit(main())
