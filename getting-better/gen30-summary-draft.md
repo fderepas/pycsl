@@ -111,6 +111,22 @@ modules) and a baseline for the 124 constant bodies.
   7 new markers plus a 5-6 iteration caller fixpoint over five mirrors, one at 8250s/proof.
 * the hval absent-key sentinel's MIRROR side, left honestly OPEN with the next step named.
 
+## CONVERSIONS: ZERO, AND THAT IS THE HONEST HEADLINE
+
+The base self-tcb-reduction loop's metric is `\trusted` stubs CONVERTED to verified
+methods, and this generation converted **none**: the count stands at **459**, exactly where
+it started. What the window did instead was close **thirteen SEV-1 unsoundnesses** and add
+**six planes**, and those are not a substitute for conversions — they are the other half of
+the same job. A converted stub reduces what the verifier ASSUMES; a closed route fixes what
+the verifier CLAIMS. A tree with 459 markers and no false proofs is in a better place than
+one with 400 markers and six live routes, and the campaign's own rule — never re-baseline a
+gate to make it green — is the same instinct applied to the metric: **do not convert a stub
+while the emitter under it is still proving things that are false.**
+
+Stated plainly so the next window can disagree with it: if the route yield drops, the
+conversion track is where the budget should go, and the two deferred segments
+(`check-avatar-frame-parity` (B), the hval absent-key mirror side) are priced and waiting.
+
 ## Metrics at the end of this session (measured, not recalled)
 
 | metric | value | note |
