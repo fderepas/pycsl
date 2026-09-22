@@ -3,7 +3,24 @@
 # ## HOW TO RUN ANYTHING: `. scratchpad/g29/env.sh` first (why3 is NOT on the default PATH; it also sets
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #
-# ## IN FLIGHT RIGHT NOW (2026-09-22T04:37Z)
+# ## IN FLIGHT RIGHT NOW (2026-09-22T12:47Z, after the weekly-rate-limit kill at ~05:05Z)
+#    - THIRTEEN routes (#191-#203). SIX PLANES added this generation; battery **24 fast /
+#      45 with --slow**, all 24 fast green at HEAD febbb08a.
+#    - EVERYTHING DETACHED SURVIVED THE 7h40m GAP AND FINISHED GREEN:
+#        #198 mirror re-proof  stmt_control_flow  12589 goals  Verification SUCCESS 07:26Z
+#        #201 mirror re-proof  expressions        21347 goals  Verification SUCCESS 08:01Z
+#        gen11 fuzzer          60/60 seeds, 960 return-boundary programs, 0 false proofs
+#      So all six post-kill routes have COMPLETE three-L-plane evidence.
+#    - RUNNING: $SCRATCH/final_battery.log — the FINAL control battery at febbb08a
+#      (suite then --slow planes) in pycsl-w52, started 12:46:34Z. Poll it; do not relaunch.
+#      Predicted: 3823/3841, same 18 CONFIRMED FAIL, 0 XPASS, 45 planes green.
+#    - AT THE DEADLINE (2026-09-23T07:59Z) run §A.3: stop iterating, do NOT re-arm the
+#      heartbeat, `rm getting-better/.driver-deadline getting-better/.driver-started`,
+#      emit ONE summary (getting-better/gen30-summary-draft.md is the draft), do NOT push,
+#      end with `STATUS: DEADLINE-REACHED`.
+#    - Do NOT push. Nothing has been pushed.
+#
+# ## EARLIER (2026-09-22T04:37Z)
 #    - THIRTEEN routes (#191-#203) and FIVE planes this generation. Battery **23 fast /
 #      44 with --slow**, all 23 fast green at HEAD. MIN_PLANES tightened to the exact
 #      fast count (it had carried slack).
