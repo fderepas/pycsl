@@ -9,7 +9,7 @@ Both came out of ONE sentence that route #197 wrote about its own repair:
 That equality is a CLAIM. It is sound exactly while the thing being read cannot change
 between the reads, and while the two reads really are reads of the same thing.
 
-## Route #213 — CLOSED. Two reads of the same `getattr`, across a call that writes it
+## Route #213 — **OPEN** (the refusal was landed and then reverted). Two reads of the same `getattr`, across a call that writes it
 
 ```python
 #@ assigns o.a
@@ -42,6 +42,30 @@ The device does not depend on the state it is supposed to read.
 HONEST frames on both functions to surface. A guard that hides a defect is not a guard that
 stops it.
 
+**THE REFUSAL WAS LANDED AND THEN REVERTED, and the measurement that removed it is the
+lesson.** Before landing it I censused the blast radius over the CORPUS and
+`src/pycsl_lib` — zero hits — and not over the two trees that must verify:
+
+    src/self-annotate/src    14 functions read the same `getattr` twice with an intervening call
+    src/pycsl               212 functions do
+
+because `getattr(self, "_x", {})` and `getattr(args, …)` are how this compiler reads
+optional attributes. **The mirror stopped emitting (44 of 53 sources)** and four
+emission-dependent planes went red — which I first misdiagnosed as contention, since the
+battery really had been sharing twelve cores. Re-running the emission ALONE gave the same
+44 and named the real cause. With the refusal reverted: **53 of 53**, and all four planes
+green (`bespoke-model-drift` back to its true population of 27 hand-synthesized models).
+
+Narrowing did not save it either: restricting to a non-`self` receiver that is an
+`Any`/unannotated PARAMETER still leaves 12 live and 4 mirror hits — including
+`pycsl.py::_run_pipeline`, the very function the refusal was written into. **What separates
+the route from the idiom is the receiver's static CLASS (`_ga_cls`), which only Module 6
+knows.**
+
+So the route is OPEN, its two carriers (no-default and three-argument spellings) live in
+`getting-better/open-routes/` and are run by `bin/check-open-route-carriers.py`, and the
+control 1727 stays in the corpus.
+
 **The faithful fix is a state-keyed device** — `val function pycsl_getattr_missing_<h> (s:
 int) : int` applied to `!_pyobj_state` — which keeps #197's equality for two reads with no
 intervening write and loses it exactly across one. It changes emission in
@@ -57,7 +81,7 @@ a function that also calls something else).
 defect — an unknown receiver takes the per-site constant whether or not a default is
 written. Second time in one day (route #208 was the first, twenty minutes after #206), same
 cause both times: the guard was derived from the shape of the witness instead of from the
-property. Witnesses 1726 / 1728 (FAIL), 1727 (PASS, #197's equality preserved).
+property. Carriers `route213-carrier-*.py` (both PROVE today, outside the corpus); control 1727 (PASS, #197's equality preserved).
 
 ## Route #214 — OPEN. The other arm: one constant for two different receivers
 
