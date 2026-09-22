@@ -144,6 +144,15 @@ PLANES=(
     # under a ceiling that may only shrink. 23 of 81 carry a contract FALSE of the
     # function their own header cites, and only six were reachable by calling.
     check-stdlib-identity-stubs.py
+    # (#49) gen #30: the two gates above rest on ONE asserted sentence — "nothing
+    # substitutes these contracts for the real module". This one MEASURES it. The import
+    # classifier's stub lookup globs `*.py` while the layer ships 93 PACKAGES, so
+    # TRUSTED_STUB resolves NOTHING (the layer was renamed from a flat `data/lib_stubs/`
+    # and the glob was not renamed with it); and nine package names — copyreg, errno,
+    # http, json, os, re, reprlib, stat, token — were never renamed under the `mth`
+    # convention, so on the day that one-line "typo fix" lands, 11 pinned facades and 8
+    # identity stubs stop being claims about a model and become claims about the world.
+    check-stub-import-resolution.py
     # (#49) gen #30: the STDLIB TRUST-SURFACE ratchet, and the reason it is a THIRD stdlib
     # gate is the finding itself: the campaign's headline `\trusted` metric does not reach
     # this layer. `count-trusted-directives.py` globs `MIRROR/**/*.py` and
@@ -158,7 +167,7 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=29
+MIN_PLANES=30
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
