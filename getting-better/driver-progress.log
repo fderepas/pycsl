@@ -4099,3 +4099,15 @@ claims FALSE of CPython's observed answer.
 programs across the two boundaries this generation repaired, with no false proof after the
 repairs. It is not a proof of anything, and it is the honest negative result the repairs
 are entitled to.
+
+### SLOW PLANES LAUNCHED AT THE TRUE FINAL HEAD (13:40Z), closing the gap I recorded
+The final control battery runs in `pycsl-w52` at **febbb08a**, so its `--slow` leg covers
+45 planes; four more have landed since (the return-boundary/f-string/coercion-exit set and
+the three stdlib gates). I recorded that gap honestly at the time rather than papering over
+it, and the box is now idle enough to close it properly: `bin/run-soundness-planes.sh
+--slow` is running IN THE MAIN TREE at the true HEAD (d5e0ce2b), 49 planes,
+`$SCRATCH/slow_head.log`.
+
+That gives two independent slow legs — one certifying the emitter state that carries the
+thirteen routes, one certifying the tree as it actually stands — rather than one leg and an
+argument about why the difference does not matter.
