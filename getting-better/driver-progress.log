@@ -3524,3 +3524,24 @@ because the blunt version of the repair would have passed the carrier and broken
 control (1700 against "make every array slot opaque", 1702 against "refuse every string
 literal at an erased param", 1704 against the vararg false positive the census caught,
 1706 against a "simplification" from a value-keyed opaque to `any`).
+
+### SWEEP LEDGER, second instalment (the CONTRACT machinery itself)
+After the value model, the natural next question is whether the CONTRACT machinery that
+every route's exploit depends on is itself sound. Four probes, all fail-closed:
+
+  * `#@ requires False` on a callee does NOT leak: the caller must discharge the
+    precondition and cannot, so the vacuously-proved postcondition is unusable. This is
+    the premise every callee-contract exploit in this campaign rests on.
+  * An UNDER-DECLARED `#@ assigns`: a method declaring `assigns self.a` whose body also
+    writes `self.b`, with a caller that reads `k.b` afterwards and claims the old value.
+    REFUSED — the frame obligation holds on both sides of the call.
+  * A `#@ class invariant` that a method's own contract provably breaks: REFUSED. The
+    invariant is CHECKED at the boundary, not assumed there (assumed-not-checked would be
+    a `requires False` in disguise and would make every method of the class vacuous).
+  * GHOST code is isolated in both directions: a ghost value does not become `\result`,
+    and a ghost write does not overwrite the real local a postcondition reads.
+
+Plus the trust surface itself: there is NO user-writable `#@ assume`. So the assumption
+budget is exactly `\trusted` + `assumes bounded_int` + the Module4-enforced, proof-backed
+`fresh_globals` — which is what makes the `\trusted` count a meaningful metric rather than
+a proxy for one.
