@@ -38,7 +38,7 @@
 * `bin/check-coercion-exits.py` — the trigger rule's THIRD firing: `_array_coerce_arg` (#193, #201) and `_coerce_to_int` (#194, #200/#202) each produced two routes, and `check-argument-coercion.py` classifies the call SITES without ever looking inside the helpers. Pins both exit sets with counts; demonstrated to fire on the true pre-#201 source.
 * `bin/check-fstring-lowering.py` — built because the campaign's own trigger rule fired: TWO routes (#199, #203) in ONE function in ONE session. Pins the return set with counts AND two structural tokens, because #203 added a *wrap* rather than an exit and the return-set half is green on the pre-#203 tree — a blind spot the `--live` self-test found before it shipped.
 
-Battery: **18 -> 27 fast planes, 48 with `--slow`**, and `MIN_PLANES` tightened from a floor that carried slack to the exact count.
+Battery: **18 -> 28 fast planes, 49 with `--slow`**, and `MIN_PLANES` tightened from a floor that carried slack to the exact count.
 `check-swallowed-exceptions` ratchet **4 -> 0**, a hard zero.
 Five new `value-differential` drivers (v73-v77), the CPython-measured plane, covering
 #198, #199 and #203 in both the DISAGREE and the AGREE direction.
@@ -60,7 +60,11 @@ Five new `value-differential` drivers (v73-v77), the CPython-measured plane, cov
 * **gen11 differential fuzzer**: 60/60 seeds, **960 programs across the RETURN boundary**,
   ZERO false proofs — the honest negative for the boundary that produced #198.
 * **gen12** (the STRING/INT representation boundary, where #199/#200/#202/#203 all live):
-  800 programs, running.
+  40/40 seeds, **800 programs, ZERO false proofs**. With gen11 that is **1760 differential
+  programs across the two boundaries this generation repaired**, finding nothing after the
+  repairs.
+* **gen13** (the STORE-AND-READ-BACK boundary, route #191's archetype generalised to
+  fourteen store/read pairs): 560 programs, running.
 
 ## The method, in one sentence
 
@@ -126,8 +130,23 @@ nearest, `%` floors), and `stat.filemode` was relabelled a ten-character placeho
 the faithful fix PRICED (ten independent bit tests over a string model with no
 per-character theory).
 
+A THIRD stdlib plane followed from a question the first two provoked: does the campaign's
+own headline metric reach this layer? **It does not.**
+`bin/count-trusted-directives.py` globs `MIRROR/**/*.py` and `bin/check-trusted-reasons.py`
+scopes to `src/self-annotate/src`, so the **459 marker count excludes `src/pycsl_lib/`
+entirely** — and that layer carries two markers, one of them a BARE `#@ \trusted` with no
+reviewer and no reason (`hlib.Sha256.update`, in a class whose `hexdigest` returns
+`[0] * 64`). The skill for that layer says it carries ZERO trusted markers and that an
+opaque kernel becomes an abstract `val` pinned by a cited `#@ proof`, never `\trusted`.
+**The rule existed, the violation existed, and no plane connected them.**
+`bin/check-stdlib-trusted-markers.py` (the 28th) now does, with the bare marker baselined
+and its defect named rather than failed on arrival.
+
+>>> A METRIC THAT DOES NOT REACH A DIRECTORY IS NOT A METRIC FOR THAT DIRECTORY.
+
 What remains for the `agent-stdlib-annotate` owner is the judgement the gates deliberately
-do not make: whether to give those twelve real bodies or weaker contracts.
+do not make: whether to give those twelve facades real bodies or weaker contracts, and
+whether `hlib.Sha256.update`'s trust becomes a reviewer clause or an abstract `val`.
 
 ## Standing, deliberately deferred (re-priced this generation, not inherited)
 
