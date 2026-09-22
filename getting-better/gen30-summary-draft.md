@@ -18,6 +18,7 @@
 | 200 | a string literal actual was HASHED into a declared `int` param, and the hash ships in this repo | `_coerce_dotted_args` -> `_coerce_to_int` |
 | 201 | a string actual became a ONE-ELEMENT array at a `List[int]` param | `_array_coerce_arg`, the TAIL |
 | 202 | the same hash through an UN-ANNOTATED param, and through the KEYWORD slot | the #200 refusal's own two blind spots |
+| 203 | a SINGLE-part f-string `f"{n}"` was the integer it interpolates | `expressions._handle_fstring_expr`, the int-model joiner |
 
 ## Planes added or collected
 
@@ -28,6 +29,18 @@
 
 Battery: **18 -> 22 fast planes, 43 with `--slow`.**
 `check-swallowed-exceptions` ratchet **4 -> 0**, a hard zero.
+Five new `value-differential` drivers (v73-v77), the CPython-measured plane, covering
+#198, #199 and #203 in both the DISAGREE and the AGREE direction.
+
+## Battery evidence
+
+* Suite at `bc0561ec` (#198/#199/#200 + the return-boundary plane): **3823 / 3841**, 746
+  XFAIL, **0 XPASS**, and the SAME 18 CONFIRMED FAIL this campaign has carried.
+* Corpus byte-diff: ZERO pre-existing programs moved for every one of #198-#203.
+* Mirror emission byte-diff: ZERO for #199/#200/#202/#203; exactly ONE file for #198 and
+  ONE for #201, each the edited method's own mirror, each a one-line diff that is exactly
+  the intended correction (M1).
+* Fast planes: 22/22 green after each of #198, #199, #200, #201, #202 and #203.
 
 ## The method, in one sentence
 
