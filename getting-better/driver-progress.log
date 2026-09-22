@@ -4303,3 +4303,38 @@ discharged by the library's own machine-checked proofs"):
 Every one of the 20 was re-run WITH `--import-path src`, because a package module compiled
 standalone fails for reasons that have nothing to do with its contracts. That instrument
 lesson had already cost two false failures in the corpus-dependency sweep the same day.
+
+================================================================================
+2026-09-22 18:45-19:25Z — THE REVERT, AND WHY THE MEASUREMENT THAT CAUSED IT
+                          MATTERS MORE THAN THE ROUTE IT REMOVED
+================================================================================
+
+Route #213 (two reads of the same `getattr` are ONE per-site constant across a call that
+writes the attribute) was closed with a refusal at 17:00Z. It is now OPEN again, and the
+sequence is the lesson:
+
+  1. Before landing the refusal I censused the blast radius — over the CORPUS and
+     `src/pycsl_lib`. Zero hits. Landed with witnesses, controls, 40 planes green.
+  2. The final control battery came back with FOUR RED planes, all saying the same thing:
+     "only 44 of 52 mirrors emitted — the population is INCOMPLETE".
+  3. I diagnosed CONTENTION. The battery really had been sharing twelve cores with the
+     full suite, a sampler differential and two prover sweeps. The diagnosis fitted, was
+     written into the ledger, and was WRONG.
+  4. The quiet re-run settled it: emitting the mirror ALONE gave the same 44.
+  5. The cause was my own refusal. `getattr(self, "_x", {})` and `getattr(args, …)` are how
+     this compiler reads optional attributes: **212 live and 14 mirror functions** read the
+     same `getattr` twice with an intervening call.
+  6. Narrowing to a non-`self` `Any`-parameter receiver still leaves 12 live and 4 mirror
+     hits — including `pycsl.py::_run_pipeline`, the function the refusal was written into.
+
+>>> A REPO HAS FOUR POPULATIONS THAT MUST KEEP WORKING: the corpus, the stdlib models, THE
+>>> MIRROR, and THE LIVE TREE. A refusal measured on two of them has been measured on the
+>>> easy two.
+
+>>> AND WHEN A MEASUREMENT FAILS UNDER LOAD, RE-RUN IT QUIET BEFORE YOU EXPLAIN IT. The
+>>> explanation that fits the circumstances is not evidence.
+
+After the revert: mirror emission 53 of 53 (from 44), all four planes green,
+`bespoke-model-drift` back to its true population of 27. The route keeps its carriers
+outside the corpus, run by `bin/check-open-route-carriers.py`, and its faithful repair —
+the state-keyed device — is priced in the route doc.
