@@ -112,7 +112,22 @@ reads are the same value".
   claim `getattr(c, "missing", {}) == getattr(c, "other", {})` is TRUE of CPython (both
   absent → both `{}`). The cause is measurable with `PYCSL_GETATTR_CENSUS=1`: `c = C()` is
   typed `Any`, so a local of a KNOWN class classifies as UNKNOWN. **The repair is blocked
-  on local-type inference for constructor-assigned locals.**
+  on local-type inference for constructor-assigned locals** — and gen #30 PRICED that
+  block rather than leaving it as an assertion. Counting `x = C()` where `C` is a class
+  declared in the same file:
+
+      corpus   358 constructor-assigned locals in 335 of 3975 files
+      mirror    14 in 4 of 53
+      live      30 in 14 of 94
+      pycsl_lib 13 in 8 of 104
+
+  Teaching `_build_function_symbol_table` to type those locals (today line ~5596 of
+  `Module5_IREmitter.py` writes `"Any"` for every plain `x = <expr>`) would move the
+  emission of up to **335 corpus files**. The corpus byte-inertness plane exists to catch
+  exactly that, and a 335-file MOVED sweep cannot be adjudicated in a short window. So the
+  block is not "we did not try"; it is a measured cost, and the reopening capability is a
+  generation whose FIRST act is the type-inference change with the byte-diff adjudicated
+  file by file.
 * **A refusal** keyed on "collection default on an `Any`/unannotated PARAMETER receiver"
   was measured before being written: **104 such sites**, nearly all in
   `src/self-annotate/` — the mirror itself, which must verify.
