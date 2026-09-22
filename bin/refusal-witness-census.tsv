@@ -771,3 +771,4 @@ median_high_call_fails.py	VERIFY-FAIL
 1739_gen30_witness_happy_target_not_a_method.py	REFUSAL	`happy availability`: targets 'nosuchfn', which is not a method in this module. Known methods: ['parse'].
 1740_gen30_witness_dict_items_in_a_contract.py	REFUSAL	check \length(d.items()) >= 0
 1741_gen30_witness_lock_order_violation.py	REFUSAL	Function 'worker_a': lock_order violation — acquiring 'lock_r' while holding 'lock_s' violates declared order ['lock_r', 'lock_s'].
+1742_gen30_witness_confined_field_alias.py	REFUSAL	happy conf: reading self.secret region 0 .. 4 except reader
