@@ -4914,3 +4914,12 @@ The two long jobs are still in flight and are polled, not relaunched:
 >>> the evening sat in `\trusted` twins and owed nothing — which is the choke-point rule
 >>> doing exactly what it is for, and the one case that did owe something is the measure of
 >>> what the rule saves.
+
+>>> AND ONE MORE COUNT I HAD WRONG, caught by checking before the summary was finalised:
+>>> the draft said the generation "added fifteen planes". `git log --diff-filter=A --
+>>> 'bin/check-*.py'` since the baseline says NINE new plane FILES. The battery did go
+>>> 24 -> 43 registered fast planes — and the gap between those two numbers is the more
+>>> interesting fact: roughly ten planes ALREADY EXISTED and were being run by NOTHING.
+>>>
+>>> A ROUND NUMBER IN A SUMMARY IS A CLAIM. Count it with the command, and when the two
+>>> numbers disagree, the disagreement is usually the finding.
