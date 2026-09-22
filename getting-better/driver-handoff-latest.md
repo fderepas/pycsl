@@ -199,6 +199,19 @@
 #         a timeout, so a contended run silently UNDER-counts a file, and an under-counted
 #         row would then fail every honest run afterwards. (Lesson (e3), applied before it
 #         bites rather than after.)
+#      6d. **NEW PLANE, `bin/check-refusal-advice-audited.py`** — the ADVICE surface,
+#         which `convergence-metric-implement.md` has listed as unmeasured for
+#         generations. 94 advice-bearing refusals of 198 raise sites; **10 audited by
+#         writing the program each message tells you to write**: 7 FOLLOWABLE, 1
+#         UNSPELLABLE (`#@ shared` alone is a syntax error), 1 UNTRIED (an
+#         explicitly-called DUNDER loses its contract — `enter` verifies, `__enter__`
+#         does not, identical otherwise), 1 AMBIGUOUS. All three broken messages were
+#         REPAIRED in the same commits. THE REMAINING 84 ARE THE WORK ITEM, and it is
+#         cheap per item: write the file the message describes, run it, add a baseline
+#         entry. Key is a TEXT SIGNATURE, so a message edit invalidates its verdict.
+#         STANDING FINDING worth its own look: the dunder-contract gap is a real
+#         completeness hole (`c.__len__()` cannot use its own postcondition) and nothing
+#         else in the repo measures it.
 #      7. The `check-avatar-frame-parity` INHERITED segment (7 sites) and the hval
 #         absent-key sentinel's MIRROR side, still priced as infeasible in a short window.
 #
