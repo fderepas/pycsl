@@ -344,6 +344,14 @@ SLOW_PLANES=(
     check-proof-reverify.sh
     check-emitted-vacuity.py
     check-clause-survival.py
+    # (#49) gen #30: NO PURE ABSTRACT OP APPLIED TO A `stable_hash`-FOLDED STRING. The hash
+    # is ~31 bits and a birthday search found a collision in 24,726 strings ("ah02" and
+    # "atc3" both fold to 185314078), so a `val function` — PURE, therefore equal on equal
+    # arguments — applied to a folded literal would equate two different strings. Measured
+    # over the corpus emission: 22 (op, constant) pairs, all `struct` pack/unpack on a
+    # folded FORMAT string, baselined with the argument for why they are not yet
+    # exploitable. Shares the corpus emission with check-clause-survival.
+    check-hashed-literal-purity.py
 )
 # Planes that take the shared mirror emission. Anything not listed runs bare, exactly as
 # before.
@@ -400,7 +408,7 @@ for p in "${PLANES[@]}"; do
     fi
     if [ -n "$SHARED_EMIT" ] && [[ "$EMIT_DIR_PLANES" == *" $p "* ]]; then
         out="$(cd "$PROJECT_ROOT" && python3 "bin/$p" --emit-dir "$SHARED_EMIT" 2>&1)"
-    elif [ "$p" = "check-clause-survival.py" ]; then
+    elif [ "$p" = "check-clause-survival.py" ] || [ "$p" = "check-hashed-literal-purity.py" ]; then
         # (#49) THIS PLANE WANTS A FRESHLY EMITTED CORPUS, not the shared MIRROR emission —
         # handing it the mirror directory would silently compare the wrong population,
         # which is the reason the note above gives for leaving it out. So emit the corpus
