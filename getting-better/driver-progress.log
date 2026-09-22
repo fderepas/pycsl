@@ -4191,3 +4191,18 @@ launched `check-value-differential.py --generated` over them
 today, in exactly the sense the tool's own header claims — and its blind spots are stated
 there too: the template set is itself a choice, so this is ONE independent instrument, not
 a solution.
+
+### THE SAMPLER'S TEMPLATE FINGERPRINT, RECORDED (the convergence clock depends on it)
+The tool says: *"A family whose fingerprint moved has a RESET convergence clock. Three
+consecutive zero-RED runs only count with the template set FROZEN."* So the fingerprint is
+part of the measurement, not trivia. At this HEAD, nine families:
+
+    field-literal    1bda5a2787b6      dict-set-ops     308efcea92c1
+    init-capture     ba77a165d817      del-stmt         ce1c7d979af7
+    aliasing         d72cf72fed69      assert-stmt      1fe1a711829f
+    is-identity      62e107c5ddba      renamed-param    d9123e3fcddd
+                                       arith-edges      e0a033b4edde
+
+Run recorded as: `--count 200 --seed 30` -> 198 drivers. The seed is written down because
+the tool asks for it ("vary it deliberately to widen the sample, and record which seed
+produced a RED"), and because a sampler run nobody can reproduce is an anecdote.
