@@ -153,6 +153,16 @@ PLANES=(
     # convention, so on the day that one-line "typo fix" lands, 11 pinned facades and 8
     # identity stubs stop being claims about a model and become claims about the world.
     check-stub-import-resolution.py
+    # (#49) gen #30, lesson (e) again — "a check that is not in a runner is not a gate",
+    # this time for the TWO CONFORMANCE CORPORA. refactor.md Phase E built them to bracket
+    # the front-end/core seam from both sides (38 golden IRs re-derived to byte-identical
+    # WhyML by the CORE with no front-end imported; the same 38 re-derived from SOURCE by
+    # the FRONT-END with no core and no prover), and both runners were invoked by nothing
+    # but prose. They cost 0.3s and 3.3s. The core one also asserts at import time that no
+    # front-end module leaked into sys.modules, so it is the only mechanical check that
+    # the physical split refactor.md claims is still physical.
+    core-only-conformance.py
+    frontend-only-conformance.py
     # (#49) gen #30: the STDLIB TRUST-SURFACE ratchet, and the reason it is a THIRD stdlib
     # gate is the finding itself: the campaign's headline `\trusted` metric does not reach
     # this layer. `count-trusted-directives.py` globs `MIRROR/**/*.py` and
@@ -167,7 +177,7 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=30
+MIN_PLANES=32
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
