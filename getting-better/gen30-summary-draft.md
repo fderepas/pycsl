@@ -70,6 +70,23 @@ rather than report a number when its own inputs are unusable. **85 → 162 demon
 not-source-reachable + 9 unmatchable). Twenty-five witnesses were written along the way —
 and four more were written, confirmed to fire, and DELETED as redundant.
 
+**THE ADVICE SURFACE, MEASURED FOR THE FIRST TIME AND CLOSED.**
+`getting-better/convergence-metric-implement.md` has listed it as unmeasured for
+generations: *"62 advice-bearing messages, and #90 came from one. No metric ... samples
+English prose for exploitability; the advice-audit generator remains manual."* A refusal's
+advice is a CLAIM THE COMPILER MAKES ABOUT ITSELF, in the one place a user is guaranteed to
+read, and it was the only claim in the system with no gate behind it. **All 108 have now
+had their advice FOLLOWED AND RUN** — a file written the way each message says, compiled,
+verdict recorded — in the new plane `bin/check-refusal-advice-audited.py`. **102 work.**
+The six that did not were all REPAIRED the same evening and fail in four distinct ways:
+UNSPELLABLE (`#@ shared`, `#@ touches_field` — a directive named without its argument, and
+a reader types what is inside the backticks); UNTRIED (an explicitly-called DUNDER does not
+carry its contract; `Optional[List[T]]` emits unbound `array` — **twice the compiler told a
+user to write a program it cannot compile**); AMBIGUOUS (one repair needs an unstated LOCAL
+instance; one OR-list's first disjunct is really a conjunction with the second). **Route
+#215 came out of this audit**, and so did two standing completeness findings nothing else
+in the repo measures.
+
 **LESSONS BANKED.** Thirteen new entries in `getting-better/wall-lessons.md`: (v2) an
 unmentioned exclusion is an oversight wearing one; (w2) attack a marker before believing
 it is forced; (x2) trust has a blast radius and a PASS count is not a proof count; (y2) an
