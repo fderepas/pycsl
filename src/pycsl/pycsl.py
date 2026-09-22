@@ -305,6 +305,17 @@ def _parse_args() -> argparse.Namespace:
                              "hard errors. Off by default to preserve backward "
                              "compatibility for existing concurrent-model corpora. "
                              "See config/skills/pycsl-ub-catalog/SKILL.md §7.3.")
+    g_strict.add_argument("--verify-imports", action="store_true",
+                        help="(#49 gen #30, route #212.) VERIFY each resolved local "
+                             "import before trusting its contracts, transitively. OFF by "
+                             "default, so no existing behaviour or byte output changes. "
+                             "Without it an importing unit BELIEVES every contract of an "
+                             "imported module — frames, postconditions, class invariants "
+                             "— and nothing checks the module was ever verified: an "
+                             "owner declaring `assigns \\nothing` over a body that writes "
+                             "`a[0]` FAILS compiled alone while its importer PROVES "
+                             "`x - a[0] == 0` (CPython: -4). This flag is the module-level "
+                             "certificate that hole needs.")
     g_strict.add_argument("--allow-unverified-imports", action="store_true",
                         help="Permit imports on the C-extension deny-list "
                              "(ctypes, cffi, numpy.ctypeslib, cython) without "
@@ -530,6 +541,53 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # fully RESOLVED IR (the wire Module 6 / the core consumes). Pure relocation: the
     # passes and their order are unchanged, so emission stays byte-identical.
     imported_names = _ir_resolve(ir_data, unified_ast, args.file, deep=args.deep, import_paths=args.import_path)
+
+    # (#49) ROUTE #212 — THE MODULE-LEVEL CERTIFICATE. The importing unit believes every
+    # contract of an imported module and nothing checks that the module was verified.
+    # `--verify-imports` (OFF by default: no existing run changes) discharges the
+    # assumption the only way it can be discharged — by verifying the module. Transitive,
+    # with a seen-set in the environment so a cycle terminates and a diamond is verified
+    # once. Deliberately NOT the default: turning it on re-verifies a dependency on every
+    # run of every importer, which is a policy decision for the user, not for a repair.
+    if getattr(args, "verify_imports", False):
+        import subprocess as _sp212
+        from frontend.ir_resolve import _resolve_module_path as _rmp212
+        _seen212 = set(filter(None, os.environ.get("PYCSL_VERIFIED_IMPORTS", "").split(os.pathsep)))
+        _self212 = os.path.abspath(args.file)
+        _seen212.add(_self212)
+        _targets212 = []
+        for _n212 in _ast.walk(unified_ast):
+            if isinstance(_n212, _ast.Import):
+                for _a212 in _n212.names:
+                    _targets212.append((_a212.name, 0))
+            elif isinstance(_n212, _ast.ImportFrom) and _n212.module:
+                _targets212.append((_n212.module, getattr(_n212, "level", 0) or 0))
+        for _mod212, _lvl212 in _targets212:
+            _path212 = _rmp212(_mod212, _lvl212, args.file)
+            if not _path212:
+                continue
+            _path212 = os.path.abspath(_path212)
+            if _path212 in _seen212:
+                continue
+            _env212 = dict(os.environ)
+            _env212["PYCSL_VERIFIED_IMPORTS"] = os.pathsep.join(sorted(_seen212 | {_path212}))
+            _cmd212 = [sys.executable, os.path.abspath(__file__), "--verify-imports",
+                       "--memory-model", getattr(args, "memory_model", "hoare"), _path212]
+            for _ip212 in (args.import_path or []):
+                _cmd212 += ["--import-path", _ip212]
+            _r212 = _sp212.run(_cmd212, capture_output=True, text=True, env=_env212)
+            if "Verification SUCCESS" not in (_r212.stdout or ""):
+                from errors import PyCSLSemanticError as _PyCSLSemErr212
+                raise _PyCSLSemErr212(
+                    f"{args.file}: `--verify-imports` was given and the imported module "
+                    f"'{_mod212}' ({_path212}) does NOT verify, so none of its contracts "
+                    f"may be believed here. Verify it first, or drop the flag and accept "
+                    f"that its frames, postconditions and class invariants are ASSUMED "
+                    f"(route #212: an owner declaring `assigns \\nothing` over a body "
+                    f"that writes `a[0]` fails alone while its importer proves "
+                    f"`x - a[0] == 0`).",
+                    filename=args.file, stage="imports", code="PYCSL-SEM-IMPORT-UNVERIFIED")
+            _seen212.add(_path212)
 
     # (#49) ROUTE #204 — AN `#@ interface assigns` IS NOT CHECKED AGAINST THE DEFINITION'S.
     # `module6_whyml/functions.py::_emit_narrowing_vc` proves the interface is a sound
