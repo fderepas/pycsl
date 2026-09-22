@@ -4862,3 +4862,32 @@ the annotation because the annotation correlated with danger. #202 keys on the t
 IS the danger: the callee's own contract MENTIONING the parameter, because a nameable hash
 can only decide something a contract reads. Keying on the reason left the 46 plumbing sites
 untouched without needing them to be special-cased at all.
+
+## (o) THE LESSON YOU JUST BANKED APPLIES TO THE FIX YOU JUST SHIPPED
+
+Lesson (i) of this same generation says: *a scope justified by "the other case fails closed"
+must name WHICH SPELLINGS of the other case were run.* Route #200's repair was written an
+hour later, walked the IR's `args` list, and never ran the KEYWORD spelling:
+
+```python
+#@ ensures p == 747471683 ==> \result == 1
+def callee(p: int) -> int: ...
+return callee(p="a")        # keyword, not positional
+```
+
+still PROVED. The IR keeps keyword actuals in a separate slot (`{"args": [], "keywords":
+[{"arg": "p", "value": …}]}`), so a check that reads `args` sees an empty argument list and
+waves the call through. The repair had already been battery-verified — on the positional
+spelling.
+
+>>> APPLY THE GENERATION'S OWN METHOD TO THE GENERATION'S OWN WORK, IN THE SAME SESSION.
+>>> After landing a repair, ask it the three questions you would ask anyone else's code:
+>>> which spelling did it not run, which other arm reaches the same answer, and does its
+>>> justification rest on difficulty? Mine failed the first question within the hour, and
+>>> the check cost one `pycsl.py` run.
+
+The same reflex is what produced #202 out of #200's own scope note (lesson (n)) and #201 out
+of #193's docstring (lesson (m)). Three of gen #30's last four routes were found in the
+campaign's own recent output rather than in the emitter's old code — which is a statement
+about where the defects are, not about who wrote them: **a repair is new code, and new code
+is exactly where the unprobed spellings live.**
