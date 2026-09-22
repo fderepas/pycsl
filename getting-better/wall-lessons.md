@@ -4947,3 +4947,23 @@ reopens the route. Against the pre-#203 tree the gate now exits 1 and names both
 This is the same discipline as `--live` on `check-return-boundary-substitutions.py`, and it
 is worth building the hook into every new plane: a gate nobody has ever seen fail is a
 claim, and the cheapest way to see it fail is the checkout you already have.
+
+## (r2) A `timeout` WRAPPER OWNS ITS CHILD'S SIGNALS — THERE IS NO IN-PLACE EXTENSION
+
+A whole-file mirror re-proof had been running 2h50m under `timeout 14400`, due to expire in
+90 minutes with no verdict yet. Reasoning that the wrapper was just a bystander, I killed
+the wrapper to orphan the python and remove the deadline. `timeout` forwards the signal to
+its child: `PROVE-RC=143`, and 2h50m of prover work was gone.
+
+>>> TO CHANGE A LONG JOB'S DEADLINE YOU RESTART IT. And therefore: SET THE DEADLINE WHEN
+>>> YOU WRITE THE COMMAND, generously. A wrapper timeout is not a proof verdict (the
+>>> `Module5_IREmitter` "FAILED (2400s)" that passed at 2970s), so an over-long timeout
+>>> costs nothing and an under-long one costs the whole run. Every detached prover job gets
+>>> `timeout 43200`.
+
+The wider point, which this campaign keeps paying for in a different currency each time:
+**a process-control action is an experiment, and it deserves the same "measure, don't
+assume" discipline as an emitter edit.** Two hours earlier, a `pkill -CONT` by pattern had
+silently left a fuzz worker stopped because the pkill's own shell matched the pattern. Both
+mistakes were "I know what this command does" applied to a command whose semantics I had
+not checked.
