@@ -34,6 +34,33 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #49 gen #30 STATE (2026-09-22, the 96h autonomous window) — READ FIRST
+
+**ELEVEN SEV-1 ROUTES CLOSED AND FOUR PLANES ADDED IN THIS GENERATION.** #191–#197 landed
+before the 529 outages; #198–#201 after. The plane count went 18 → 22 fast (43 with
+`--slow`), and the axiom-footprint ratchet was driven 6 → 0.
+
+**THE METHOD THAT PRODUCED NINE OF THE ELEVEN, in one sentence:** read a plane's — or a
+function's — OWN WRITTEN JUSTIFICATION as a checkable claim, then probe it by giving the
+callee a contract that is TRUE OF ITS OWN BODY and that READS the property the substitution
+changes. A callee with `ensures True` hides the entire family, which is why the call
+boundary survived 190 routes.
+
+**THE THREE HIGHEST-YIELD QUESTIONS TO ASK NEXT, each of which paid this generation:**
+1. *Which spelling of this construct did the justification NOT run?* (#198 the bare
+   `return`; #199 the empty f-string.)
+2. *Which OTHER ARM of the same function reaches the same answer?* (#201 was #193's
+   function, one arm down. #200 was #194/#195's arm, one actual-kind across.)
+3. *Does this caveat rest on an attacker's difficulty rather than on soundness?* (#200 —
+   "a caller cannot predict the hash", and the hash ships in the repository.)
+
+**STANDING, DELIBERATELY DEFERRED (do not start without the budget, both re-priced this
+generation):** the `check-avatar-frame-parity` (B) INHERITED segment — SEVEN sites, not 11,
+none pre-stubbed, so closing it costs 7 new markers plus a 5–6-iteration caller fixpoint
+over five mirrors, one of which takes 8250s per proof; and the hval absent-key sentinel's
+MIRROR side, left honestly OPEN with the next step named.
+
+
 ### #43 STATE (2026-09-03, relaunch after the #34-#42 `529 Overloaded` outage) — READ FIRST
 
 **ROUTES #14, #16, #17, #18, #19, #20 ALSO FOUND AND CLOSED THIS RELAUNCH; #15 FOUND,
