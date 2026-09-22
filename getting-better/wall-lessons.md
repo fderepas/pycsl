@@ -5044,3 +5044,70 @@ integers scaled 0..1000 representing [0.0, 1.0]"* — a **declared domain change
 defect. They are baselined with the declaration quoted rather than filtered out by a
 header heuristic, because a heuristic that skips a package would hide a real divergence
 behind a line of prose.
+
+### (v2) 2026-09-22 gen #30 — AN UNMENTIONED EXCLUSION IS NOT AN EXCLUSION, IT IS AN OVERSIGHT WEARING ONE
+
+Lesson (u2) above ends by telling the next person to write the deny-list and its reasons
+into the header. One day later I read that header as a checkable claim and it failed its
+own standard. It said "50 of the 93 packages name an importable stdlib module. Only the
+PURE, DETERMINISTIC, SIDE-EFFECT-FREE ones are listed here" and then listed 24. Re-deriving
+the headers mechanically: 47 name an importable module, 24 were mapped, and of the 23
+excluded only **ten** had a reason anywhere in the file. Thirteen were simply absent.
+
+Trialling the safe ones through the gate found **six diverging stub functions in three
+modules no plane had ever run** — `ctxlib.closing/contextmanager/nullcontext`,
+`ftools.lru_cache/wraps`, `pp.saferepr` — all one shape: body `return x`, contract
+`ensures \result == x`, real function returns a WRAPPER. A user who proves
+`ftools.wraps(g) == g` has proven something CPython contradicts.
+
+>>> A NAME THAT IS MERELY ABSENT FROM A SCOPE LIST CARRIES NO ARGUMENT, AND A READER
+>>> CANNOT TELL "EXCLUDED FOR A REASON" FROM "NEVER CONSIDERED". Put every excluded name
+>>> in the file with its one-line reason — the four filesystem hazards (`csv`, `tokenize`,
+>>> `linecache`, `glob`) and `sysconfig` (per-install paths cannot carry a ratchet) are
+>>> now written down, and the thirteen that were silently absent are what this cost.
+
+The corollary, which is where three of today's planes came from: **read your own gate
+headers the day after you write them.** The scope sentence, the safety argument, and the
+"what this does not check" paragraph are all claims, and they are the easiest claims in the
+repo to check because you know exactly what they were supposed to mean.
+
+### (w2) 2026-09-22 gen #30 — A MARKER THAT LOOKS LAZY MAY BE FORCED. ATTACK IT, THEN BANK THE MEASUREMENT IN THE MARKER
+
+`check-stdlib-trusted-markers.py` recorded one BARE `\trusted` in the stdlib layer
+(`hlib.Sha256.update`: no reviewer, no reason) and named removing it as work. It cannot be
+removed. An un-trusted append-to-a-field-collection is REFUSED outright by the compiler
+(emitted against a fresh local with no write-back), and the refusal's own advice —
+"rewrite it as an indexed store" — was followed literally and also fails, with the `index
+in array bounds` sub-goal un-dischargeable because `__init__` can leave the field empty.
+That is exactly the `IndexError` CPython raises for the rewrite: both branches of the
+advice are sound, and the marker buys a MISSING LOWERING, not a value claim.
+
+>>> WHEN A GATE NAMES A DEFECT, THE FIRST MOVE IS TO TRY TO REMOVE IT AND MEASURE WHAT
+>>> STOPS YOU. The measurement belongs in the marker itself (`reviewer:
+>>> field-append-has-no-certified-lowering` plus the failed attempts in the docstring), so
+>>> the next reader inherits the price instead of re-deriving it.
+
+And the ratchet move that follows: with the recorded defect at zero, the gate was tightened
+to ENFORCE a `reviewer:` clause on every marker. A defect driven to zero by measurement is
+the only honest reason to turn a report into a requirement.
+
+### (x2) 2026-09-22 gen #30 — TRUST HAS A BLAST RADIUS, AND A PASS COUNT IS NOT A PROOF COUNT
+
+Two numbers from the parameterized corpus oracle, both invisible before it existed.
+
+**1754 of 3881 corpus files — 45% — carry `# pycsl-flags: --no-proof`.** For nearly half
+the suite, a PASS means the pipeline did not crash. Two of those files hold a deliberately
+too-strong postcondition under `# pycsl-expected: PASS`, which is only consistent because
+proving is off. Nothing is wrong with the files; what was wrong is that no instrument
+printed the 45%, so "3852/3852" read as 3852 proofs.
+
+**A `\trusted` callee makes its CALLERS prove false things.** Corpus 0053 trusts
+`double_int`, whose body is deliberately `x + x + x` under `ensures \result == 2 * x`.
+`foobar` calls it, has a real body of its own, is NOT trusted, and proves `\result == 2 *
+x` while CPython answers `3 * x`. Fourteen such caller-level disagreements exist in the
+corpus today.
+
+>>> COUNT THE INHERITED CLAIMS, NOT THE MARKERS. "One trusted function" and "every caller
+>>> of one trusted function" are different sizes of claim, and only the second is the size
+>>> of the hole. The campaign's headline `\trusted` metric counts markers; this is the
+>>> first instrument that counts what they let through.
