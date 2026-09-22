@@ -1052,9 +1052,43 @@ class Module3_Weaver:
                 self._collect_protect_sites(python_ast, protected, None, psites)
                 psites.sort(key=lambda t: (getattr(t[0], "lineno", 0),
                                            getattr(t[0], "col_offset", 0)))
+                # (#49) ROUTE #210 — A `check False` INJECTED INTO A BODY THAT IS NEVER
+                # LOWERED IS NOT A CHECK. The loop below stamps every non-exempt write
+                # site with an unprovable `#@ check`, which is how 0612 fails. A
+                # `\trusted` / `\abstract` function's body is NOT LOWERED, so its stamped
+                # sites evaporate — and route #209's trust boundary keyed on the DECLARED
+                # `#@ assigns`, so a stub that declares `assigns \nothing` while its body
+                # writes the protected path walks past BOTH. MEASURED (witness 1718):
+                #     #@ assigns \nothing
+                #     #@ \trusted
+                #     def liar(n: int) -> None:
+                #         g.v = n            # protected, not exempt, not \preserves
+                # printed "Verification SUCCESS". The body is RIGHT THERE in the AST —
+                # `\trusted` means "not lowered", not "not readable" — and
+                # `check-trusted-frame-honesty.py` already compares stub frames against
+                # live bodies for exactly this reason. So the sites collected below are
+                # the evidence, and a trusted enclosing function turns one into a refusal
+                # instead of an inert stamp.
+                _r210_bodyless = {fn.name for fn in
+                                  [n for n in ast.walk(python_ast)
+                                   if isinstance(n, ast.FunctionDef)]
+                                  if (getattr(fn, "csl_trusted", False)
+                                      or getattr(fn, "csl_abstract", False))
+                                  and not getattr(fn, "csl_preserves", False)}
                 for stmt, func_name, path in psites:
                     if func_name in except_set:
                         continue
+                    if func_name in _r210_bodyless:
+                        raise PyCSLSemanticError(
+                            f"`happy {hp.name}`: '{func_name}' is `#@ \\trusted` or "
+                            f"`#@ \\abstract`, is not exempt, and its BODY writes the "
+                            f"protected path '{path}' (line "
+                            f"{getattr(stmt, 'lineno', 0)}). Its body is never lowered, "
+                            f"so the `#@ check` this policy stamps on that write would "
+                            f"never be proved — the confinement claim would hold by "
+                            f"nothing at all. Add `#@ \\preserves` to promise the "
+                            f"protected path survives, add '{func_name}' to `except`, or "
+                            f"give it a verified body.")
                     origin = (f"happy {hp.name} protects {path} "
                               f"L{getattr(stmt, 'lineno', 0)}")
                     cp = CheckPoint("check", CSLBool(False), origin=origin)
