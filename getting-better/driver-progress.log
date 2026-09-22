@@ -3823,3 +3823,14 @@ Population floor 350. That is the value-differential's method — curate nothing
 CPython on every pass — applied to **five times its curated population**, at no cost in
 drivers written, and it says something nobody had established: every runnable postcondition
 in either reference corpus is TRUE of the program it is written about.
+
+### gen12 PAUSED at 13:11Z so the final battery gets the box
+The suite's rate collapsed from ~45 tests/min to ~4/min once it reached the slow part of
+the corpus, and the final control battery is the last piece of required evidence before the
+deadline. gen12 (the string/int representation fuzzer, 16 of 40 seeds done, 0 false proofs)
+is the discretionary job, so it is SIGSTOPped — **by PID, not by pattern**, which is the
+correction from this morning's `pkill -CONT` mistake: a pattern kill matches the killing
+shell's own command line and leaves an unpredictable set stopped.
+  `kill -STOP 3808726 3878956 3878957`   (loop + worker + child)
+  `kill -CONT <same>` to resume.
+Pausing rather than killing keeps the 16 finished seeds and the in-flight one.
