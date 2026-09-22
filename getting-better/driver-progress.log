@@ -4891,3 +4891,17 @@ innocent, because the function's own NAME is usually the quantity (`registry_siz
 >>> MEASURING A PROPOSED GATE BEFORE WRITING IT IS THE CHEAPEST THING IN THIS WHOLE
 >>> DISCIPLINE, and a negative result is worth writing down — it stops the next reader
 >>> repeating the experiment, which is most of what a ledger is for.
+
+================================================================================
+BATTERY CHECKPOINT 23:30Z — 43 OF 43 FAST PLANES GREEN
+================================================================================
+At HEAD 95ba418b, after the evening's compiler edits (three refusal-message repairs, the
+route #215 refusal, the union-array late pull) and the three new planes:
+`[+] soundness-planes: OK — all 43 plane(s) green.` MIN_PLANES 40 -> 43 this evening.
+
+The two long jobs are still in flight and are polled, not relaunched:
+  * the mirror re-proof of `src/self-annotate/src/core_ir_semantic.py` (owed because
+    `_check_mutable_defaults` is one of the 887 verbatim un-trusted twins and its message
+    changed twice);
+  * `bin/check-stdlib-modules-verify.py --verbose`, re-run after the three-way split of
+    its "verifies with no postcondition" class.
