@@ -22,7 +22,8 @@ axiom registry the way you read the docstrings · **(d3)** a repo has FOUR popul
 must keep working · **(e3)** when a measurement fails under load, re-run it quiet before
 you explain it · **(f3)** an exclusion you never tested is a guess · **(g3)** a docstring
 that disagrees with the contract beside it is a free oracle · **(h3)** a new class only
-earns its place if it comes with a CONTROL that stays out of it.
+earns its place if it comes with a CONTROL that stays out of it · **(i3)** an absence
+claimed from an instrument that could not have shown the presence is not a measurement.
 
 ### (f3) An exclusion you never tested is a guess — check whether the reason still applies
 
@@ -68,9 +69,38 @@ entry already said "the honest reading is a declared domain change — but it is
 which is the defect". A class whose boundary no existing member sits outside is not a class,
 it is a synonym for "pass".
 
-And the class must not swallow the residue: the three `hq.*_max` stubs take BOTH
-`heap: list` AND `n: int` and never tie them, so `\result == n` is TRUE but VACUOUS as a
-size law — 3-element heap, `n = 99`, proves 99. That went INTO the entries (per (n)).
+And the class must not swallow the residue — which is where I then got it wrong, so the
+correction is lesson (i3) below.
+
+### (i3) An absence claimed from an instrument that could not have shown the presence
+
+Having just written (h3) — "the class must not swallow the residue" — I went looking for
+the residue in the class I had invented, and reported one that does not exist. I wrote into
+the plane, the progress log and (h3) itself that `hq.heapify_max`, `heappushpop_max` and
+`heapreplace_max` "take BOTH `heap: list` AND `n: int` and never tie them", making their
+size law TRUE but VACUOUS. All three carry `#@ requires \length(heap) == n`, at
+`src/pycsl_lib/hq/__init__.py` lines 80, 105 and 114. They are the BEST-specified members
+of the class; I filed them as the weakest.
+
+The instrument is the entire explanation. I had run
+
+    grep -n -A 4 "def heapify_max("
+
+which shows the lines AFTER the `def`. A PyCSL annotation block lives ABOVE it. `-A` on a
+`def` line is structurally incapable of displaying a contract, so "no clause says
+`\length(heap) == n`" was never an observation — it was the shape of my own command,
+read back as a fact.
+
+Two things make this worth a letter of its own rather than a footnote. First, the absence
+FLATTERED THE STORY: I was arguing that a new class must not hide a defect, and finding a
+defect inside it was exactly the evidence that made the argument look rigorous. A finding
+that makes you look careful is the one to re-derive. Second, the fix is mechanical and
+cheap: for anything annotation-bearing, `-B` is the flag that can see the claim, and an
+assertion of the form "no clause says X" must cite the command that WOULD have shown X.
+
+Companion to (e3) — re-run a failed measurement quietly before explaining it — with the
+harder edge: this measurement did not fail. It returned exactly what it was asked, and the
+question was wrong.
 
 ## 2026-07-20 driver run (count 1030 → 1028; 2 conversions + these walls)
 

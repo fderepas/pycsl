@@ -4382,11 +4382,23 @@ helpers, which have no CPython counterpart at all, and names the guard
 >>> WHEN A POPULATION WILL NOT SPLIT INTO YOUR CLASSES, THE CLASSES ARE WRONG — but a new
 >>> class only earns its place if it comes with a CONTROL that stays out of it.
 
-RESIDUAL, written into the entries rather than smoothed over: `hq.heapify_max`,
-`heappushpop_max` and `heapreplace_max` take BOTH `heap: list` and `n: int` and never tie
-them, so `\result == n` is TRUE but VACUOUS as a size law — 3-element heap, `n = 99`,
-proves 99. Under-specified, not false; the repair is a `requires`, and it is left for the
-pycsl_lib pass because it moves the stdlib verification population.
+I RECORDED A RESIDUAL THAT WAS ITSELF FALSE, AND THAT IS THE BIGGER LESSON OF THE PASS.
+I wrote — into the plane, into this log and into wall-lesson (h3) — that `hq.heapify_max`,
+`heappushpop_max` and `heapreplace_max` "take BOTH `heap: list` and `n: int` and never tie
+them", so their size law was TRUE BUT VACUOUS (3-element heap, `n = 99`, proves 99). All
+three carry `#@ requires \length(heap) == n`, at hq/__init__.py lines 80, 105 and 114.
+They are the BEST-SPECIFIED members of the class I had just invented, and I filed them as
+the weakest.
+
+The instrument is the whole explanation: `grep -n -A 4 "def heapify_max("` shows the lines
+AFTER the `def`, and a PyCSL annotation block lives ABOVE it. I asserted an ABSENCE from an
+instrument that could not have shown the PRESENCE — and the absence flattered the story I
+was telling, which is precisely when it goes unchecked.
+
+>>> AN ABSENCE CLAIMED FROM AN INSTRUMENT THAT COULD NOT HAVE SHOWN THE PRESENCE IS NOT A
+>>> MEASUREMENT. `-A` after the def cannot see the contract; `-B` is the flag that can.
+
+The correction is kept BESIDE the entries rather than silently replacing them.
 
 MAX_UNADJUDICATED 24 -> 0, which turns the debt counter into a ratchet: a new stub can no
 longer be parked there. The "false of the cited function" share is now 31 of 81, up from

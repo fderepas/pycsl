@@ -76,9 +76,11 @@ and the stub's own docstring says ">= field count" while its contract pins "==")
 (`Fraction(2, 4).numerator` is 1, not 2 — the guards `num >= 0` / `den > 0` do not imply
 the coprimality the claim needs), and `os.getenv` (`os.getenv('PATH', 0)` is not 0; the
 empty-env justification lives in a COMMENT, which is not a contract). Fifteen are a
-declared size/count/length law and were measured TRUE — with one residual written into the
-entries: the three `hq.*_max` stubs take a `heap: list` and an `n: int` and never tie them,
-so their size law is true but VACUOUS.
+declared size/count/length law and were measured TRUE. (A residual recorded in the first
+pass — that the three `hq.*_max` stubs never tie `heap` to `n` — WAS ITSELF FALSE, and the
+correction is kept in the baseline beside those entries because the mistake is instructive:
+it was asserted from a `grep -A 4` on the `def` line, an instrument that cannot show the
+annotation block above it.)
 
 AND ONE OF THEM MOVED THE SAME DAY IT WAS WRITTEN. `strmod.capwords` was classified
 FAITHFUL on the strength of its guards; mining the axiom registry then showed the OTHER
@@ -277,14 +279,19 @@ BASELINE = {
         "raises on an empty heap."),
     ("hq", "heapify"): (DECLARED, "size law; measured, size preserved."),
     ("hq", "heappushpop"): (DECLARED, "size law; measured, size preserved."),
-    # RESIDUAL, and it is the thing this class must not be allowed to hide: the three
-    # `_max` stubs take BOTH `heap: list` AND `n: int` and never tie them - no clause says
-    # `\\length(heap) == n`. So `\\result == n` is TRUE but VACUOUS as a size law: a caller
-    # may hand a 3-element heap and `n = 99` and prove 99. Under-specified, not false; the
-    # repair is a `requires`, not a reclassification.
-    ("hq", "heapify_max"): (DECLARED, "size law; `heap` and `n` are not tied (see above)."),
-    ("hq", "heappushpop_max"): (DECLARED, "size law; `heap` and `n` are not tied."),
-    ("hq", "heapreplace_max"): (DECLARED, "size law; `heap` and `n` are not tied."),
+    # A CORRECTION, LEFT IN PLACE BECAUSE IT IS THE MORE USEFUL ENTRY. The first pass of
+    # this note claimed the three `_max` stubs "take BOTH `heap: list` AND `n: int` and
+    # never tie them - no clause says `\\length(heap) == n`", and recorded that their size
+    # law was therefore TRUE BUT VACUOUS. THAT WAS FALSE. All three carry exactly that
+    # clause: `#@ requires \\length(heap) == n` (hq/__init__.py lines 80, 105, 114). The
+    # claim came from a `grep -A 4 "def heapify_max("`, which shows the lines AFTER the
+    # def and therefore CANNOT show the annotation block ABOVE it - an absence asserted
+    # from an instrument that could not have displayed the presence. The size law IS tied,
+    # and these three are the best-specified members of this class, not the weakest.
+    ("hq", "heapify_max"): (DECLARED,
+        "size law, and `heap` is TIED to `n` by `requires \\length(heap) == n`."),
+    ("hq", "heappushpop_max"): (DECLARED, "size law; tied, and `requires n >= 1`."),
+    ("hq", "heapreplace_max"): (DECLARED, "size law; tied, and `requires n >= 1`."),
     ("itools", "count_n"): (DECLARED,
         "LENGTH law, declared by the module header ('we model them by their output "
         "LENGTH') and by the `_n` suffix on a name real itertools does not have. "
