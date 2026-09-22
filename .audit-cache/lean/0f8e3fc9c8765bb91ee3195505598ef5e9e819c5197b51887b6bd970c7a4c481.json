@@ -1,0 +1,42 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "",
+  "compile_stderr": "",
+  "elapsed_compile_s": 1.0432875310070813,
+  "qualname_results": [
+    [
+      "Pycsl.Struct.Std.round_trip_u16",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ],
+    [
+      "Pycsl.Struct.Std.round_trip_u16",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ],
+    [
+      "Pycsl.Struct.Std.round_trip_u32",
+      true,
+      [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    ],
+    [
+      "Pycsl.Struct.Std.round_trip_u32",
+      true,
+      [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    ]
+  ]
+}

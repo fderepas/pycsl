@@ -1,0 +1,13 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "",
+  "compile_stderr": "",
+  "elapsed_compile_s": 0.11099541804287583,
+  "qualname_results": [
+    [
+      "Pycsl.Reference.Perm.rev_permutation",
+      true,
+      []
+    ]
+  ]
+}

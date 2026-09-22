@@ -502,7 +502,6 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # The migration target for Module4's language-agnostic checks — runs on the IR
     # alone, no AST reference.
     run_ir_semantic_checks(ir_data)
-
     # [UB-7.1] Mutation-during-iteration check. Walks function bodies for
     # `for x in C: ...` whose body mutates C (and the loop isn't opted
     # out via `#@ allow_iteration_mutation`). Raises PyCSLSemanticError
@@ -531,6 +530,65 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # fully RESOLVED IR (the wire Module 6 / the core consumes). Pure relocation: the
     # passes and their order are unchanged, so emission stays byte-identical.
     imported_names = _ir_resolve(ir_data, unified_ast, args.file, deep=args.deep, import_paths=args.import_path)
+
+    # (#49) ROUTE #204 — AN `#@ interface assigns` IS NOT CHECKED AGAINST THE DEFINITION'S.
+    # `module6_whyml/functions.py::_emit_narrowing_vc` proves the interface is a sound
+    # WEAKENING of the definition for `ensures` (def_req -> def_ens -> iface_ens) and for
+    # `requires` (iface_req -> def_req). It emits NOTHING for `assigns`, while Module 5
+    # carries `interface.assigns` into the IR and importers frame the call with it.
+    # MEASURED:
+    #     # owner
+    #     #@ assigns a[0]
+    #     #@ ensures a[0] == 5
+    #     #@ interface assigns \nothing
+    #     def bump(a: List[int]) -> None:  a[0] = 5
+    #     # importer
+    #     #@ requires \length(a) >= 1
+    #     #@ ensures \result == 0
+    #     def caller(a: List[int]) -> int:
+    #         x = a[0]; bump(a); return x - a[0]
+    # The importer PROVED `\result == 0` (witness 1707) while CPython answers -4 for
+    # `a = [1]`, an argument the precondition admits. The context is NOT inconsistent — the
+    # absurd twin `\result == 999` is refused and the non-vacuity gate stays silent —
+    # because the narrow frame plus the inherited `ensures a[0] == 5` merely force the
+    # caller into "the element was already 5", which is satisfiable and false of the call.
+    # THE RULE: an interface frame may claim MORE writes than the definition, never FEWER.
+    # Checked AFTER `_ir_resolve`, not before it: the exploit needs TWO files, and the
+    # importer is the one that proves the false thing. A check placed at the pre-resolution
+    # seam sees only the importer's own functions and lets `--deep` walk straight past the
+    # owner's narrowed frame — measured, the importer still PROVED with the check in the
+    # earlier position. This is beside route #200's refusal, where the mirror twin is
+    # `\trusted` — so it costs no marker, no emission move and no new definition.
+    from errors import PyCSLSemanticError as _PyCSLSemErr204
+    for _f204 in ir_data.get("functions", []):
+        _if204 = _f204.get("interface") or {}
+        if not _if204:
+            continue
+        _ia204 = _if204.get("assigns")
+        if _ia204 is None:
+            continue                      # absent interface frame inherits the definition
+        _da204 = ((_f204.get("contracts") or {}).get("assigns")) or []
+        _def_t = [_json.dumps(t, sort_keys=True) for t in _da204
+                  if isinstance(t, dict) and t.get("type") != "Nothing"]
+        if not _def_t:
+            continue                      # definition assigns nothing: any interface is a
+                                          # weakening of nothing, which is sound
+        _if_t = [_json.dumps(t, sort_keys=True) for t in (_ia204 or [])
+                 if isinstance(t, dict) and t.get("type") != "Nothing"]
+        _missing = [t for t in _def_t if t not in _if_t]
+        if _missing:
+            raise _PyCSLSemErr204(
+                f"{args.file} (function '{_f204.get('name')}'): the `#@ interface "
+                f"assigns` frame is NARROWER than the definition's `#@ assigns` — it "
+                f"omits {len(_missing)} target(s) the body may write. An importer frames "
+                f"the call with the INTERFACE, so it would carry those locations across "
+                f"the call UNCHANGED while the body changes them, and prove things "
+                f"CPython contradicts. The interface frame may claim MORE writes than "
+                f"the definition, never fewer: list every `#@ assigns` target in the "
+                f"`#@ interface assigns` clause, or drop the interface frame entirely "
+                f"(an absent one inherits the definition's).",
+                filename=args.file, line=_f204.get("line", 0) or 0,
+                stage="ir-semantic", code="PYCSL-SEM-IFACE-FRAME")
 
     # ROUTE #29 (relaunch #45) — REFUSE the four array spec atoms under a HEAP memory
     # model, because Module 6 ERASES them there and a FALSE CONTRACT PROVES.
