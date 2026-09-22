@@ -22,6 +22,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PYCSL_DIR="$PROJECT_ROOT/test-suite/corpus/pycsl-reference"
 PYTHON_DIR="$PROJECT_ROOT/test-suite/corpus/python-reference"
+# (#49) gen #30: THE THIRD SUITE. `test-suite/corpus/negative/` existed from early on and
+# was in NO RUNNER — three witnesses, never executed by anything, so "the negative corpus
+# passes" had never been a true sentence about this repo. It is in the default run now.
+# The witnesses carry `# pycsl-expected:` markers (two FAIL, one PASS — the PASS one is a
+# DYNAMIC-oracle witness whose contracts are true of its body and whose violation is a
+# call in `__main__`, which the static verifier does not model), so the XPASS rule below
+# applies to them exactly as it does to a numbered reference test.
+NEGATIVE_DIR="$PROJECT_ROOT/test-suite/corpus/negative"
 
 # Prefer the project venv's python so workers need no `activate` (why3 is a system tool).
 if [ -x "$PROJECT_ROOT/.venv/bin/python3" ]; then
@@ -88,14 +96,15 @@ if [ "${1:-}" = "--worker" ]; then
 fi
 
 # ── Main mode ──────────────────────────────────────────────────────────────────────────────
-TEST_DIRS=("$PYCSL_DIR" "$PYTHON_DIR")
+TEST_DIRS=("$PYCSL_DIR" "$PYTHON_DIR" "$NEGATIVE_DIR")
 
 usage() {
-    echo "Usage: $0 [--python] [--pycsl] [--start-at N] [--stop-at N] [--jobs K]"
+    echo "Usage: $0 [--python] [--pycsl] [--negative] [--start-at N] [--stop-at N] [--jobs K]"
     echo ""
-    echo "  (no flags)      run both pycsl-reference and python-reference suites"
+    echo "  (no flags)      run all three suites (pycsl-reference, python-reference, negative)"
     echo "  --python        run only test-suite/corpus/python-reference"
     echo "  --pycsl         run only test-suite/corpus/pycsl-reference"
+    echo "  --negative      run only test-suite/corpus/negative"
     echo "  --start-at N    skip tests numbered below N"
     echo "  --stop-at N     stop after test number N"
     echo "  --jobs K        run K tests concurrently (default: half the cores; 1 = serial)"
@@ -108,6 +117,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --python) TEST_DIRS=("$PYTHON_DIR"); shift ;;
         --pycsl)  TEST_DIRS=("$PYCSL_DIR"); shift ;;
+        --negative) TEST_DIRS=("$NEGATIVE_DIR"); shift ;;
         --start-at)
             if [[ -z "${2:-}" ]]; then echo "ERROR: --start-at requires a number"; usage; exit 1; fi
             START_AT="$2"; shift 2 ;;
@@ -218,10 +228,13 @@ echo "[*] $((${#entries[@]})) tests across ${#TEST_DIRS[@]} suite(s); jobs=$JOBS
 # "nothing is wrong" from "I looked at nothing" is not a gate). A full run discovers 3000+
 # tests; anything below this floor means the glob, the corpus path or a --start-at filter
 # has silently emptied the run, and a green on that is not a pass. Skipped when the caller
-# asked for a SUBSET (--start-at / --stop-at / --python / --pycsl), which are the only
-# legitimate ways to run fewer.
+# asked for a SUBSET (--start-at / --stop-at / --python / --pycsl / --negative), which are
+# the only legitimate ways to run fewer. THE COUNT HERE IS THE NUMBER OF SUITES, and it
+# went 2 -> 3 when the negative corpus joined the default run (#49, gen #30): leaving it
+# at 2 would have turned the floor guard OFF for every full run, which is the same class
+# of silent-disable this guard exists to catch.
 if [ -z "$STOP_AT" ] && [ "$START_AT" = "0" ] \
-   && [ "${#TEST_DIRS[@]}" -eq 2 ] && [ "${#entries[@]}" -lt 3000 ]; then
+   && [ "${#TEST_DIRS[@]}" -eq 3 ] && [ "${#entries[@]}" -lt 3000 ]; then
     echo "[!] run-reference-tests: only ${#entries[@]} tests discovered for a FULL run."
     echo "    The corpus glob or path is broken. NOT A PASS."
     exit 2
