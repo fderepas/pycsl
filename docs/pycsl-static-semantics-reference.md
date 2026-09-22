@@ -2894,6 +2894,18 @@ library's own machine-checked proofs" is 75 modules with a postcondition to disc
 84.** That count is DERIVED from the source on every run of the plane (not a name list) and
 ratcheted downward, so a module that gains a postcondition leaves the class by itself.
 
+The nine split in two, and the halves are different facts. **Seven have no `def` at all** —
+`kw` is a constant keyword list, `re` a re-export shim, `types_stub` three empty classes,
+`fut` a `_Feature` constant — so they verify with no postcondition because there is nothing
+to claim, which is innocent. **Two have function bodies and promise nothing**: `htm`
+(`escape`/`unescape`, each `return s` under `#@ assigns \nothing`) and `udata` (`lookup`
+returns the NAME its docstring says it converts to a character). `htm` was given a true
+length law — `\str_length(\result) >= \str_length(s)` for `escape` and `<=` for
+`unescape`, both measured against CPython over 4000 random strings with zero
+counterexamples — and `udata.lookup` has no honest claim available (`\str_length(\result)
+== 1` is true of CPython and false of the model), so its divergence is named in the module.
+The ratchet is on the INFORMATIVE half.
+
 **AND THE CONSUMER'S SIDE OF IT IS AN ASSUMPTION, NOT A CHECK.** An importing program
 believes every contract of an imported module — frames, postconditions, class invariants —
 and nothing verifies that the module was ever verified (route #212: an owner declaring
