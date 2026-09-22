@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 37 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 42 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -269,6 +269,21 @@ AUDITED = {
     ("src/pycsl/module6_whyml/functions.py",
      'PyCSLSemanticError(f"storing a mutated dict into a field is out of scope: `{_s.get(\'object\')}.{_s.get(\'field\')} = {_pname}` binds the field '): (FOLLOWABLE,
         "'A field store whose local is never used again is fine' - `self.d = src` with no later use of `src` VERIFIES."),
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"`#@ lemma` \'{name}\' has no `#@ ensures`: a lemma must state the fact it proves (the conclusion). Add at least one `#@ e'): (FOLLOWABLE,
+        "'a lemma must state the fact it proves' - a lemma carrying an `#@ ensures` VERIFIES."),
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"`#@ lemma` \'{name}\' is also `#@ \\\\diverges`: a non-terminating lemma proves nothing and would be unsound as a fact. Rem'): (FOLLOWABLE,
+        'The repair is to drop `#@ \\\\diverges` from the lemma - the plain lemma VERIFIES.'),
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"Invalid use of \'\\\\result\' in {ctx}. It is only allowed in \'ensures\'.", code=\'PYCSL-SEM-RESULT\')'): (FOLLOWABLE,
+        "'It is only allowed in ensures' - moving the `\\\\result` claim into `#@ ensures` VERIFIES."),
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"Subscript assignment to immutable \'bytes\' variable \'{arr.get(\'name\')}\' in {where} — a Python `bytes` object does not su'): (FOLLOWABLE,
+        'The repair is a `bytearray` - `b = bytearray(2); b[0] = 7` VERIFIES. NOTE the standing route #214 note: `bytes(n)` is left ILL-TYPED on purpose (witness 1725), so the refusal and the type error are doing different halves of the same job.'),
+    ("src/pycsl/frontend/Module1_Ingestor.py",
+     "PyCSLParseError('tabs are not allowed in `act` block indentation; use 4 spaces', stage='Module1')"): (FOLLOWABLE,
+        "'use 4 spaces' - a four-space-indented `act` block VERIFIES."),
 }
 
 
@@ -373,7 +388,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 37
+MIN_AUDITED = 42
 
 if __name__ == "__main__":
     sys.exit(main())
