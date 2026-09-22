@@ -2528,3 +2528,26 @@ Killed ~01:42Z, server-side overload, nothing in the work. On resume:
   ago. When a gate's greenness is disputed, re-run it — do not re-argue it.)
 Discipline for the rest of the run, after three kills: commit each measurement
 as it lands, so a kill costs minutes, not hours.
+
+## ROUTE #198 CONFIRMED — the bare `return` is the integer zero
+Found by the census the return boundary deserved (the gap `check-argument-coercion.py`
+names in its own "what it does not check"). `stmt_control_flow.py:2877`:
+
+    if val_ir is None:        # a BARE `return`
+        val = "()"
+    ...
+    elif val == "()":
+        val = "0"             # <- an int-returning function's early bare return
+
+Witness (proved just now, at HEAD):
+  `#@ requires x > 0` / `#@ ensures \result == 0` over `def f(x: int) -> int:
+   if x > 0: return` — PROVES (`raise (Return 0)`), CPython `f(1)` is `None`
+   and `None == 0` is False. TRUE twin `\result != 0` REFUSED, while CPython
+   says True. Decisive signature, SEV-1.
+
+THE DECIDING EVIDENCE, and the repair it dictates: the SAME Python program
+spelled `return None` instead of bare `return` correctly REFUSES — route #191
+already made the typed None leaf read back as the opaque `pycsl_none`. So a
+single Python statement has two spellings that lower to two different values,
+and exactly one of them is wrong. The repair is not a new invention: emit for
+the bare return what `return None` already emits.
