@@ -10095,6 +10095,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # local), so it is passed through directly (NOT `_array_coerce_arg`, which
             # would clobber a `(let _alit = Array.make …)` literal to a placeholder).
             ctor = func_name
+            # (#49) gen #30 — THE INT-COUNT FORM. The comment above assumes the argument
+            # "already lowers to an `array int` expression", and for `bytearray(2)` it does
+            # not: the argument is a COUNT. That form emitted `bytearray_new 2` against
+            # `val bytearray_new (x: array int)`, and Why3 answered "This expression has
+            # type int, but is expected to have type array.Array.array" — FAIL-CLOSED, and
+            # caught by the default-on typecheck gate, but it made the advice of
+            # `PYCSL-SEM-SUBSCRIPT` ("Use a `bytearray` for a mutable byte buffer") point
+            # at a spelling that cannot be compiled. Found by AUDITING THAT ADVICE.
+            # The faithful lowering already exists ten lines away in the FIELD path, which
+            # emits `Array.make 4096 0` for `self.disk = bytearray(4096)` (corpus 0461), and
+            # CPython agrees: `bytearray(n)` is n zero bytes. So the local path gets the
+            # same answer. Restricted to an argument the IR says is an int COUNT — a
+            # literal `Number`, or a `Var` the symbol table types `int` — so an
+            # array-valued argument still takes the element-preserving `*_new` path.
+            _ba_arg_ir = (expr.get("args") or [{}])[0] if args else {}
+            _ba_is_count = False
+            if isinstance(_ba_arg_ir, dict):
+                if _ba_arg_ir.get("type") == "Number":
+                    _ba_is_count = True
+                elif _ba_arg_ir.get("type") == "Var":
+                    _ba_st = getattr(self, "_current_symbol_table", {}) or {}
+                    _ba_is_count = _ba_st.get(_ba_arg_ir.get("name")) == "int"
+            if args and _ba_is_count:
+                return f"(Array.make {args[0]} 0)"
             if args:
                 # WL-06d soundness: Python `bytes([...])`/`bytearray([...])` raises
                 # `ValueError: bytes must be in range(0, 256)` if ANY source element is
