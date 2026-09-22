@@ -4086,3 +4086,16 @@ Battery is now **28 fast / 49 with `--slow`**. All 28 green at HEAD.
 >>> gates now cover `pycsl_lib` — contract fidelity, pinned facades, and the trust surface
 >>> — and all three exist because the layer had a skill telling it what to do and no
 >>> instrument checking whether it did.
+
+## gen12 COMPLETE — 800 programs across the STRING/INT REPRESENTATION boundary, ZERO false proofs
+40 of 40 seeds, 20 programs each. The boundary where FOUR of this generation's routes live
+(#199, #200, #202, #203) — f-strings with a leading, trailing, doubled or lone
+interpolation, the empty f-string, `str()`, `%`-formatting, `+` on literals and on locals,
+repetition, `join`, `lower`/`upper`, slicing, `replace`, `strip` — each read back with a
+comparison against a literal, an inequality, or a length, and each asserted with four
+claims FALSE of CPython's observed answer.
+
+**Nothing.** Taken with gen11's 960 return-boundary programs, that is 1760 differential
+programs across the two boundaries this generation repaired, with no false proof after the
+repairs. It is not a proof of anything, and it is the honest negative result the repairs
+are entitled to.
