@@ -63,3 +63,25 @@ item; (o) the lesson you just banked applies to the fix you just shipped; (p) th
 * `check-avatar-frame-parity` (B) INHERITED segment: **7 sites, not 11**, none pre-stubbed —
   7 new markers plus a 5-6 iteration caller fixpoint over five mirrors, one at 8250s/proof.
 * the hval absent-key sentinel's MIRROR side, left honestly OPEN with the next step named.
+
+## Metrics at the end of this session (measured, not recalled)
+
+| metric | value | note |
+|---|---|---|
+| `\trusted` markers | **459** | unchanged across all six routes landed after the third kill — every repair was placed so it cost no marker |
+| unmirrored live defs | **549** / 1823 (30.1%) | the mirror-coverage ratchet, unmoved (the two ratchets that caught #200's first placement) |
+| `\trusted` stubs whose live body raises | 76, of which **62 SILENT** | a named ratchet, unmoved; reducing it moves callers' VCs and is a segment, not an increment |
+| broad swallowing handlers that FIRE | **0** | driven 4 -> 0 this session; the baseline is now an empty set, a hard zero |
+| axiom-footprint UNRESOLVED | **0** | driven 6 -> 0 earlier in the generation (VERIFIED 155 -> 166) |
+| fast planes | **23** | MIN_PLANES tightened to the exact count |
+| planes with `--slow` | **44** | |
+| corpus | **1632** `.py` files | +14 this session, seven carrier/control pairs |
+| value-differential drivers | **75** | +5 this session (v73-v77) |
+| unpushed commits | see `git log origin/ghost-assign-bc6..HEAD` | **nothing pushed; pushing stays gated to the user** |
+
+**The metric that did not move is the point.** Thirteen SEV-1 routes were closed this
+generation without adding a single `\trusted` marker and without moving the coverage or
+raises-honesty ratchets: every repair was either an opaque inside an already-effectful
+method, a faithful value, or a refusal placed at a choke point whose mirror is already
+trusted. Two planes (`check-mirror-coverage`, `check-trusted-raises-honesty`) enforce that,
+and they caught the one placement that would have broken it.
