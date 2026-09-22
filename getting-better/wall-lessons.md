@@ -26,7 +26,8 @@ earns its place if it comes with a CONTROL that stays out of it · **(i3)** an a
 claimed from an instrument that could not have shown the presence is not a measurement ·
 **(j3)** a coverage gate can be measuring its own artifact, and a number that RECOMMENDS
 EFFORT deserves the scrutiny of one that reports success · **(k3)** four artifacts in one
-instrument is a fact about the instrument, and the fix is a SELF-AUDIT, not a fourth patch ·
+instrument is a fact about the instrument, and the fix is a SELF-AUDIT, not a fourth patch
+(it reached SIX before the evening ended) ·
 **(l3)** a single number invites over-reading; a BRACKET or a PARTITION does not ·
 **(m3)** a refusal's ADVICE is a claim the compiler makes about itself, and nothing tests
 it — a refusal offering two repairs should have had BOTH tried · **(n3)** a new refusal can
