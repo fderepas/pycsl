@@ -3381,3 +3381,24 @@ the tree moved between the base sweep and now. A combined diff is still M1-check
 the two changes are in different files (`pycsl.py` vs `expressions.py`) and each has a
 separately censused expectation of ZERO — but the attribution is joint, and that is
 recorded rather than glossed.
+
+### Routes #202 + #203 — the CORPUS byte-diff, read line by line
+`1292 baseline / 1292 candidate: 1 MOVED, 2 GONE (0 unexpected once declared), 0 APPEARED`
+and every one of the three is accounted for:
+
+  GONE  1701, 1703 — the two #202 carriers. They EMITTED in the baseline (which predates
+        the repair) and are REFUSED now. That is the route being closed, and
+        `byte-diff-compare.py` has a flag for exactly this case (`--expect-gone`), which
+        it names in its own diagnostic. Declared; the verdict then reports 0 unexpected.
+  MOVED 1702 — MY OWN SOURCE EDIT, not an emitter change. I rewrote the control's callee
+        contract from `ensures True` to `ensures \result == 7` after the base sweep had
+        already emitted it, and the diff is exactly that one line:
+            -    ensures  { true }
+            +    ensures  { (result = 7) }
+        Checked rather than assumed: a MOVED line in a byte-diff is the one place where
+        "oh, that's just my edit" has to be verified against the actual diff, because it
+        is also exactly what a real regression looks like.
+
+ZERO pre-existing corpus programs moved. That is the claim that matters, and it holds for
+BOTH #202 (a Module 4 refusal in `pycsl.py`) and #203 (the single-part f-string arm in
+`expressions.py`), whose post sweep this run covers jointly.
