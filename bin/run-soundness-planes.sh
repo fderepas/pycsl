@@ -154,6 +154,16 @@ PLANES=(
     # assumed to return. That assumption became route #206 (a `happy ... total` policy
     # proved of a target whose helper is `while True`). 52 trusted bodies assume it today.
     check-trusted-termination-honesty.py
+    # (#49) gen #30: FOUR of this generation's routes are one defect wearing four hats — a
+    # `#@ happy` policy enforces itself by INJECTING a `#@ check` into a body, and a
+    # `\trusted` body is never lowered, so the injection evaporates. #209 (a boundary that
+    # asked a pure_ast matcher about a CSL node and never fired), #210 (the stamp in an
+    # unlowered body), #211 (the same in the parametric form), #206/#208 (the `total`
+    # form's callee). This gate runs a CARRIER and a CONTROL for each boundary through the
+    # SHIPPING pipeline with --no-proof (a refusal precedes the prover, so it costs ~3s):
+    # the carrier must be refused, the control must get through. Executable on purpose —
+    # #209 and #211 both READ correctly in the source and could not fire.
+    check-happy-trust-boundaries.py
     # (#49) gen #30: the STDLIB-CONTRACT-FIDELITY ratchet. `src/pycsl_lib/` holds 93
     # body-verified stub packages, each CITING the CPython library reference in its
     # docstring, and nothing compared a stub's contract against the function it cites. A
@@ -225,7 +235,7 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=37
+MIN_PLANES=38
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
