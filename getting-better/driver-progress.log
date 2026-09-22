@@ -4012,3 +4012,27 @@ deny-list, because that gate CALLS the real function and `os.chflags` with a gen
 argument is not a test. So this set needs a STATIC gate (a constant body + a contract
 pinning it), not a differential one — a different instrument, named and not built, with
 the reason it cannot be the one I just built.
+
+## NEW PLANE — `bin/check-stdlib-pinned-facades.py` (the 27th fast plane)
+The static companion to the contract-fidelity gate, and a SEPARATE gate for a concrete
+reason rather than a stylistic one: the differential gate CALLS the real stdlib function,
+so `os` is on its safety deny-list — which puts the sharpest facade set in the whole layer
+outside its reach. This one is pure AST, no execution.
+
+THE SHAPE: a body that is a single `return <literal>` **AND** a contract that PINS that
+literal. A verified function that computes nothing and claims exactly the nothing it
+computes. **870 functions scanned, 12 found**, baselined by name with what removing each
+would take. Ten are in `os`; `islink -> 0` is the sharpest — a caller proving
+`islink(p) == 0` has proved that nothing is ever a symlink.
+
+One entry is deliberately in the baseline although it is FAITHFUL:
+`sysmod.get_float_info_max_10_exp -> 308`, which is the right answer
+(`sys.float_info.max_10_exp` IS 308, checked). **The gate keys on SHAPE, not on truth**, so
+it flags that function like the others — and the baseline says why it is correct, so the
+next reader does not have to re-derive it. A ratchet whose entries explain themselves is
+the difference between a list and a record.
+
+Population guard: refuses if the walk sees fewer than 700 functions, so "no facades" can
+never mean "I parsed nothing".
+
+Battery is now **27 fast / 48 with `--slow`**. All 27 green at HEAD.

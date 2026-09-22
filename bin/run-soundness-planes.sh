@@ -124,12 +124,22 @@ PLANES=(
     # substitutes these contracts) — it stops the layer drifting further from the stdlib
     # it documents. Self-test: `--selftest-empty-baseline` must exit 1.
     check-stdlib-contract-fidelity.py
+    # (#49) gen #30: the PINNED-FACADE ratchet — the STATIC companion to the gate above,
+    # and a second gate rather than part of it for a concrete reason: that one CALLS the
+    # real stdlib function, so `os` is on its safety deny-list, which puts the sharpest
+    # facade set in the layer outside its reach. This one is pure AST. The shape: a body
+    # that is a single `return <literal>` AND a contract that PINS that literal — a
+    # verified function computing nothing and claiming exactly that. Twelve today, ten of
+    # them in `os`; `islink -> 0` is the sharpest (a proof that nothing is ever a
+    # symlink). Sound while nothing substitutes this layer for the real module; the set
+    # that turns false the day something does.
+    check-stdlib-pinned-facades.py
 )
 # (#49) gen #30: TIGHTENED to the EXACT fast-plane count. It had been carrying slack —
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=26
+MIN_PLANES=27
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
