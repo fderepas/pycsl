@@ -4905,3 +4905,12 @@ The two long jobs are still in flight and are polled, not relaunched:
     changed twice);
   * `bin/check-stdlib-modules-verify.py --verbose`, re-run after the three-way split of
     its "verifies with no postcondition" class.
+
+>>> MIRROR RE-PROOF COMPLETE: `src/self-annotate/src/core_ir_semantic.py` — "Verification
+>>> SUCCESS! All contracts formally proven." The debt was owed because
+>>> `_check_mutable_defaults` is one of the 887 VERBATIM un-trusted mirror twins and its
+>>> refusal message changed twice this evening (once to fix unfollowable advice, once to
+>>> record that the missing-import half was repaired). The other three message repairs of
+>>> the evening sat in `\trusted` twins and owed nothing — which is the choke-point rule
+>>> doing exactly what it is for, and the one case that did owe something is the measure of
+>>> what the rule saves.
