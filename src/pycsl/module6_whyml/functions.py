@@ -7590,6 +7590,27 @@ class FunctionEmissionMixin:
                     lines.append(f"    writes {{ {', '.join(_ord2)} }}")
 
         if emit_as_val:
+            # (#49) ROUTE #205 — THE NARROWING VC IS EMITTED IN THE OWNING UNIT ONLY, AND
+            # THE OWNING UNIT IS NOT WHERE THE LIE IS BELIEVED. `_emit_narrowing_vc`'s own
+            # header says "Emitted only in the owning unit (where the function is a real
+            # `let`, so the definition is established by the body)", and the `if _iface:`
+            # call below sits AFTER this early return, so an IMPORTED function's interface
+            # was never checked against its definition anywhere in the importing unit.
+            # MEASURED: an owner declaring `ensures \result == 3` and `#@ interface ensures
+            # \result == 7` over `return 3` FAILS when compiled alone (its narrowing goal is
+            # false) — and an importer of it PROVED `\result == 7`, with AND without
+            # `--deep`, because this unit emitted `val three () : int ensures { result = 7 }`
+            # and nothing else (witness 1709). CPython answers 3.
+            # THE FIX IS THE SAME GOAL, EMITTED HERE. It needs no body: it proves the
+            # interface follows from the DEFINITION CONTRACT, which the owning unit
+            # separately proves of its body. So an importer that never compiles the owner
+            # still cannot believe an interface the definition does not support, and a
+            # HONEST narrowing (0660's `\length(\result) == 2` from a stronger definition)
+            # still discharges here exactly as it does at home.
+            if _iface:
+                lines += self._emit_narrowing_vc(name, args_str, return_type,
+                                                 func.get("contracts", {}), _iface,
+                                                 spec_refs)
             lines.append("")
             return lines
 
