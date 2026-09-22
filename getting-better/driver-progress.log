@@ -3263,3 +3263,34 @@ ROUTE #201's mirror re-proof LAUNCHED ($SCRATCH/prove201.log,
 `src/self-annotate/src/module6_whyml/expressions.py`, the 8250s giant). Two whole-file
 mirror proofs and the suite are now in flight together; nothing else will be launched
 until one of them lands.
+
+## ROUTE #203 CONFIRMED — an int-interpolated f-string IS the integer it interpolates
+Question 2 applied to route #199's own function, `_handle_fstring_expr`. #199 repaired
+the EMPTY-parts arm. The LEGACY int-hash arm, one branch down, is worse:
+
+    s = f"{n}"        with n = 5      emits      s := !n
+
+The f-string is not hashed, not opaque — it IS the integer. So
+
+    #@ ensures \result == 2
+    def probe() -> int:
+        n = 5
+        s = f"{n}"
+        if s == "5":
+            return 1
+        return 2
+
+emits `if (!s = 1359629258)` — the hash of the string literal `"5"` — against `!s = 5`,
+DECIDES FALSE, and PROVES `\result == 2`. CPython answers 1, because `f"{5}"` IS `"5"`.
+The TRUE twin `\result == 1` is REFUSED. SEV-1, and a wrong DECISION rather than a
+merely-unknown value.
+
+REPAIR SHAPE (to be measured before it is written): in the int-hash string model the
+faithful value of `f"{n}"` is the hash of `str(n)`, which is not computable at emit time
+for a symbolic `n` — so it wants a value-keyed opaque (`val function fstring_of_int
+(x: int) : int`), route #41/#44's device: two equal `n`s give equal strings, and no
+literal hash is provably equal to it. THE COST IS UNUSUALLY LOW HERE because the
+mirror's `_handle_fstring_expr` is a RE-TRUSTED STUB — there is no verbatim mirror body
+to keep in sync and no `assigns \nothing` frame to respect, which is the constraint that
+forced `(any int)` in #193/#194/#195/#201.
+CENSUS FIRST: how many corpus and mirror emissions contain an int-interpolated f-string.
