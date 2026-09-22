@@ -92,7 +92,10 @@ instance; one OR-list's first disjunct is really a conjunction with the second).
 #215 came out of this audit**, and so did two standing completeness findings nothing else
 in the repo measures.
 
-**LESSONS BANKED.** Thirteen new entries in `getting-better/wall-lessons.md`: (v2) an
+**LESSONS BANKED.** **Twenty-two** new entries in `getting-better/wall-lessons.md` — ten
+from the route work (v2–e3) and **twelve from the final stretch (f3–q3), all of them about
+INSTRUMENTS**, which is the honest shape of this generation. The full list with worked
+examples is in that file's index; the route half reads: (v2) an
 unmentioned exclusion is an oversight wearing one; (w2) attack a marker before believing
 it is forced; (x2) trust has a blast radius and a PASS count is not a proof count; (y2) an
 enforcement mechanism that writes into a body is only as strong as the guarantee the body
