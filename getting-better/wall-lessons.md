@@ -4727,3 +4727,90 @@ The search that fixed it also had to REPORT WHERE it resolved each citation, and
 earned its keep in its first run: a citation resolved inside `.claude/worktrees/agent-…/`, a
 STALE AGENT WORKTREE checked out inside the repo. **A citation satisfied by an old copy of the
 project is worse than an unresolved one — it looks checked and is not.**
+
+## (h) A CAVEAT THAT RESTS ON AN ATTACKER'S DIFFICULTY IS NOT A SOUNDNESS ARGUMENT
+
+`bin/check-argument-coercion.py` — a plane written THIS generation to classify every argument
+substitution — blessed the one it left standing like this:
+
+> it is injective-by-luck only, and a caller cannot predict the hash it would have to name in a
+> contract to exploit it — but that is a claim about difficulty, not about soundness, so re-probe
+> it if anything ever makes the hash predictable.
+
+The sentence diagnoses itself and then does not act. Nothing had to MAKE the hash predictable:
+`stable_hash` is a deterministic function whose source ships in the repository, so
+`stable_hash('"a"') == 747471683` is one line to compute. Route #200 took that line, gave a
+callee `ensures p == 747471683 ==> \result == 1` — true of its own body — called it as
+`callee("a")`, and the emitter wrote `(callee 747471683)`. `\result == 1` PROVED; CPython
+answers 2; the TRUE twin was REFUSED.
+
+>>> WHEN A JUSTIFICATION SAYS "AN ATTACKER COULD NOT", IT HAS ALREADY TOLD YOU IT IS NOT AN
+>>> ARGUMENT. SPEND THE TEN MINUTES AND FIND OUT — the campaign's own gate carried this one for
+>>> a whole generation.
+
+## (i) ONE PYTHON STATEMENT, TWO SPELLINGS, TWO LOWERINGS — CHECK THE SPELLING NOBODY RAN
+
+Route #51's refusal explains its own scope: "SCOPED TO `-> str` DELIBERATELY, and the scope was
+measured, not guessed: the `-> int` spelling of the same file FAILS CLOSED today." It was
+measured for the EXPLICIT `return None`, and it was true of that spelling. It was never measured
+for the BARE `return` — the SAME Python statement — and Module 6 lowered that one to the literal
+`0`, so `#@ ensures \result == 0` PROVED about a function whose answer is `None` (route #198).
+The check's own helper `_returns_literal_none` counts both spellings; the emitter did not.
+
+Route #199 is the same lesson inside one construct: the all-string f-string had a faithful
+`string` lowering and the EMPTY f-string — `f""`, which is just the degenerate case — answered
+the integer `0` one arm above it.
+
+>>> A SCOPE JUSTIFIED BY "THE OTHER CASE FAILS CLOSED" MUST NAME WHICH SPELLINGS OF THE OTHER
+>>> CASE WERE RUN. Python's surface syntax is full of pairs — bare `return` / `return None`,
+>>> `f""` / `f"{x}"`, `x[:]` / `x[0:len(x)]` — and the emitter dispatches on the SPELLING.
+
+## (j) A FAITHFUL REPAIR AND AN OPAQUE ONE ARE TOLD APART BY THE TRUE TWIN, SO PREDICT IT
+
+Routes #191–#198 all answered UNKNOWN, because the true value was genuinely unavailable; both
+twins end up REFUSED and that is correct. Route #199's value was available and exact, so the
+prediction said the TRUE twin would PROVE — and that line is what caught the first repair being
+wrong. `return '""'` looked obviously right and emitted `let s = ref 0 in s := ""`: ill-typed,
+fail-closed by a TYPE ERROR rather than by an answer, with the true contract still refused. The
+faithful answer in the model the empty case actually lives in was `stable_hash('""')`.
+
+>>> ALWAYS PREDICT THE TRUE TWIN, NOT ONLY THE FALSE ONE. "Both refused" is the right outcome
+>>> for an opaque repair and the WRONG outcome for a faithful one, and nothing else in the
+>>> battery distinguishes them. Then give the completeness case its own witness, or the next
+>>> "simplification" to an opaque will pass the carrier and silently lose it.
+
+## (k) THE CHOKE-POINT RULE IS ENFORCED BY TWO RATCHETS, NOT BY TASTE
+
+Route #200's refusal was first written into `core_ir_semantic.run_ir_semantic_checks` with a
+nested `_walk_str_arg` helper. The fast battery went RED on two planes in one run:
+
+  * `check-mirror-coverage` 550 > 549 — a NESTED DEF is an ABSENT function, not a `\trusted`
+    one (gen #30 has now paid for this twice);
+  * `check-trusted-raises-honesty` 63 > 62 — `run_ir_semantic_checks` is a `\trusted` stub with
+    no `#@ raises`, and adding a `raise` to a trusted stub's LIVE body silently widens what the
+    stub claims about its single exit.
+
+Route #29's own note had already written the rule down: put the refusal where it is "a pure add
+on a `\trusted` mirror method — no mirror body moves, no re-proof is owed, and no new def is
+introduced". Moving it beside route #29's in `pycsl.py::_run_pipeline`, with the SAME iterative
+stack walk and no nested def, turned both green.
+
+>>> A REPAIR HAS A PLACE AS WELL AS A SHAPE, and the tree has ratchets that know where. When two
+>>> unrelated planes go red on a one-function edit, the edit is in the wrong function.
+
+## (l) BUILD THE PLANE THE OTHER PLANES NAMED AND NOBODY BUILT
+
+`check-argument-coercion.py` names the return side as "the honest gap in this instrument".
+`check-constant-fallthrough.py` says a guarded mid-handler constant "is not counted" and names
+two other gates as the instrument for those — neither of which reaches the return handler.
+Route #198 lived exactly there. Two gate headers described the gap and no gate covered it.
+
+The plane that now does (`bin/check-return-boundary-substitutions.py`) taught one thing about
+its own design in the first hour: keyed on the LITERAL alone it would NOT have caught #198,
+because `val = "0"` was already blessed for the `False` arm and a second `val = "0"` would have
+matched that entry. It pins OCCURRENCE COUNTS.
+
+>>> A JUSTIFICATION COVERS THE SITES IT WAS WRITTEN FOR AND NO OTHERS — so a baseline of
+>>> justifications must pin HOW MANY. And prove the gate fires: `--live <other checkout>` runs
+>>> it against the pre-repair tree, which is how this one was shown to go red rather than
+>>> asserted to. A gate nobody has ever seen fail is a claim, not an instrument.
