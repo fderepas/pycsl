@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 64 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 67 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -350,6 +350,15 @@ AUDITED = {
     ("src/pycsl/module6_whyml/functions.py",
      "PyCSLIRError('`' + _r65_f + '(...)` is not a function of the verified program and not on the list of operations known never to raise the exc"): (FOLLOWABLE,
         "'Give the callee a contract ... or drop the exception from the context' - a contracted in-file callee VERIFIES."),
+    ("src/pycsl/module6_whyml/expressions.py",
+     'PyCSLSemanticError(f"struct format \'{fmt}\': native size/alignment (\'@\' prefix) is unsupported (UB-7.4b). Native layout is platform-dependent'): (FOLLOWABLE,
+        "The repair is an explicit byte-order prefix; `struct.pack('>H', v)` under an in-range precondition VERIFIES."),
+    ("src/pycsl/module6_whyml/expressions.py",
+     "PyCSLSemanticError(f'heterogeneous list literal (contains a {_mix} element mixed with other element types) has no faithful WhyML `array` ele"): (FOLLOWABLE,
+        'The repair is a homogeneous literal; `[1, 2, 3]` VERIFIES.'),
+    ("src/pycsl/module6_whyml/expressions.py",
+     "PyCSLSemanticError('a comparison over a value that may be NaN on one path and an ordinary number on another is not modelled: NaN is the one "): (FOLLOWABLE,
+        'The repair is to keep NaN out of the compared value; an integer comparison VERIFIES.'),
 }
 
 
@@ -454,7 +463,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 64
+MIN_AUDITED = 67
 
 if __name__ == "__main__":
     sys.exit(main())
