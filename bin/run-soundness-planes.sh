@@ -147,6 +147,13 @@ PLANES=(
     # value they compute. Floors and ceilings both ratchet, and neither moves when a
     # `\trusted` marker is converted — which is why it is a separate gate.
     check-mirror-claim-strength.py
+    # (#49) gen #30: the THIRD honesty plane for `\trusted`. The frame plane asks whether a
+    # stub's `assigns` is honest about what the live body WRITES; the raises plane whether
+    # it is honest about what the body RAISES. Nothing asked whether the body TERMINATES —
+    # and a bodyless `val` means no loop, no variant obligation, and a caller whose call is
+    # assumed to return. That assumption became route #206 (a `happy ... total` policy
+    # proved of a target whose helper is `while True`). 52 trusted bodies assume it today.
+    check-trusted-termination-honesty.py
     # (#49) gen #30: the STDLIB-CONTRACT-FIDELITY ratchet. `src/pycsl_lib/` holds 93
     # body-verified stub packages, each CITING the CPython library reference in its
     # docstring, and nothing compared a stub's contract against the function it cites. A
@@ -211,7 +218,7 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=36
+MIN_PLANES=37
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
