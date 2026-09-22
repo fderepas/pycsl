@@ -90,10 +90,18 @@ MAP = {
     "abcmod": "abc", "coll": "collections", "ctxlib": "contextlib",
     "dc": "dataclasses", "ftools": "functools", "pp": "pprint", "que": "queue",
     "typ": "typing", "wref": "weakref", "fut": "__future__",
+    # (#49) gen #30, THIRD widening, and this one came from a finding rather than a
+    # census: `strmod` models `string`, is pure, and was in the "named but unmapped" set
+    # both times. Its `capwords` carries `#@ ensures sep == "" ==> \str_length(\result)
+    # <= \str_length(s)`, which is FALSE of CPython — `string.capwords('ß')` is `'Ss'`,
+    # length 1 -> 2, because `str.capitalize()` is NOT length-preserving for characters
+    # with multi-character uppercase forms.
+    "strmod": "string",
 }
 SKIP_TOKENS = ("\\forall", "\\exists", "\\old", "\\at", "\\separated", "\\valid",
                "\\sum", "\\is_sorted", "\\permutation", "\\array_eq")
-MIN_CHECKS = 5300   # 5432 at the gen #30 SECOND widening (10 more modules); ratchets up only
+MIN_CHECKS = 5600   # 5612 after the THIRD widening (strmod) and the `\str_length`
+                    # translation; ratchets up only
 
 # (package, function) -> why this divergence is known and what it means
 BASELINE = {
@@ -172,18 +180,44 @@ BASELINE = {
 }
 
 POOL_INT = [0, 1, 2, 3, 5, 8, 13, -1, -5, 20]
-POOL_STR = ["", "a", "ab", "abc", "A", "a.b", "*", "?"]
+# (#49) gen #30: `"ß"` and `"ﬁ"` are in this pool ON PURPOSE. Every other entry is ASCII,
+# and an ASCII-only pool cannot see the one thing that makes a case transform unfaithful:
+# `'ß'.capitalize()` is `'Ss'` and `'ﬁ'.upper()` is `'FI'`, so a case operation can GROW a
+# string. `strmod.capwords`'s length bound is false for exactly those inputs, and the gate
+# was blind to it while the pool was ASCII.
+POOL_STR = ["", "a", "ab", "abc", "A", "a.b", "*", "?", "\u00df", "\ufb01"]
 POOL_LIST = [[], [0], [1, 2], [0, 1, 2, 3], [5, 5], [-1, 0, 1]]
 
 
 def to_py(e):
     e = e.replace("\\result", "_result")
     e = re.sub(r"\\length\(([^)]*)\)", r"len(\1)", e)
+    # (#49) gen #30: `\str_length` too. Without it EVERY string-model contract was
+    # skipped, which is why `strmod.capwords`'s length bound — FALSE of CPython for
+    # `'ß'` — was invisible to a gate that maps `strmod` and runs the real `string`.
+    e = re.sub(r"\\str_length\(([^)]*)\)", r"len(\1)", e)
     e = e.replace("&&", " and ").replace("||", " or ")
-    while "==>" in e:
-        i = e.index("==>")
-        e = "((not (%s)) or (%s))" % (e[:i], e[i + 3:])
-    return e
+    # (#49) gen #30 — IMPLICATION MUST BE SPLIT AT DEPTH ZERO. The first version split at
+    # the FIRST `==>` anywhere in the string and re-scanned the result, so a NESTED
+    # implication like `sep == "" ==> (s == "" ==> \result == "")` was cut INSIDE its own
+    # parentheses and became a mangled expression that evaluated False for inputs where
+    # the clause is vacuously true. Measured the moment `strmod` joined the map: three
+    # "NEW DIVERGENCE strmod.capwords('', 'a')" reports whose own message said the real
+    # answer was `''` — i.e. the gate contradicting itself. Scan for the first `==>` at
+    # PAREN DEPTH 0 and recurse on both sides.
+    def _imp(x):
+        depth, i = 0, 0
+        while i < len(x):
+            c = x[i]
+            if c == "(":
+                depth += 1
+            elif c == ")":
+                depth -= 1
+            elif depth == 0 and x.startswith("==>", i):
+                return "((not (%s)) or (%s))" % (_imp(x[:i]), _imp(x[i + 3:]))
+            i += 1
+        return x
+    return _imp(e)
 
 
 def contracts(path):
