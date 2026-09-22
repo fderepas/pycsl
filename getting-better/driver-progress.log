@@ -4036,3 +4036,19 @@ Population guard: refuses if the walk sees fewer than 700 functions, so "no faca
 never mean "I parsed nothing".
 
 Battery is now **27 fast / 48 with `--slow`**. All 27 green at HEAD.
+
+## gen13 LAUNCHED — the STORE-AND-READ-BACK boundary
+gen11 (RETURN) found nothing in 960 programs; gen12 (STRING/INT REPRESENTATION) is at
+seed 38 of 40 with nothing. The third boundary this generation's routes point at is the
+one route #191 lives on: **a value STORED into a container or a field and READ BACK.**
+#191 was a `None` read back as the integer 0 in four store positions; gen13 asks whether
+any OTHER value kind survives the round trip wrongly.
+
+Fourteen store/read pairs: a field written once, written twice, a SIBLING field left
+untouched, a negative value, a list element by index, an element left untouched, an
+`append` then a length, an `append` then a read, a dict key written into an empty map,
+a MISSING key tested after a write, a key OVERWRITTEN, a field copied from another field,
+and an element copied from another element. Four claims FALSE of CPython's observed answer
+per program. Smoke test green (`FUZZ13-DONE seed=0 n=2 ran=2 false_proofs=0`). Launched
+over 40 seeds x 14 programs = **560 programs**, detached, `timeout 3600` per seed, log
+`$SCRATCH/fuzz13.log`.
