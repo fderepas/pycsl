@@ -2478,6 +2478,24 @@ the integer `0` both lowered to `"0"`, so a lift recognising `None` **by that sp
 coincidence, not a rule. #191 broke the coincidence in the safe direction (a missed lift, a
 loud type error) and #192 is the same break read the other way.
 
+**Route #201 (gen #30): the same function's TAIL, and the second half of the same false
+defence.** `_array_coerce_arg` opens by explaining itself — "a length-1 placeholder array
+works because the abstract vals have no axioms about their input contents". #193 falsified
+the CONTENTS-vs-LENGTH half of that sentence and repaired the `"0"` arm. The other half —
+*the only consumers are abstract vals* — was still standing, and it is false too: a
+**user-declared `List[int]` parameter** reaches the same coercion.
+
+| program | model (before #201) | Python |
+|---|---|---|
+| `def callee(p: List[int])` reading `len(p) == 1`, called `callee("ab")` | `(callee (Array.make 1 0))`, `\result == 1` **PROVED** | `len("ab")` is 2, so **2** |
+| the same with the TRUE claim `\result == 2` | REFUSED | **True** |
+
+The tail now answers `(any (array int))` like the arm above it. Censused before the change:
+the placeholder fires **0 times** across all 1624 corpus files and all 53 mirror emissions —
+the device that proved a false contract about a user's program was used by nothing this
+repository verifies. Witnesses `1699` (carrier) and `1700` (a genuine 3-element list actual
+still arrives with the length it has, so the repair is a narrowing and not a retreat).
+
 ### §T.5.12h  `None` is NOT the integer 0 in a VALUE position
 
 `None` USED TO LOWER to the literal `0`, and that was the **Optional convention** the whole
