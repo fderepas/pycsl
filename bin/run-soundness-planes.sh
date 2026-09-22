@@ -266,12 +266,21 @@ PLANES=(
     # `validate_ir` that raised unconditionally would pass all eight), and a #44 guard that
     # refuses on a rename, a deletion, or a new check with no carrier.
     check-ir-schema-refusals.py
+    # (#49) gen #30: the ADVICE surface, which `convergence-metric-implement.md` has listed
+    # as unmeasured for generations ("62 advice-bearing messages, and #90 came from one ...
+    # the advice-audit generator remains manual"). A refusal's advice is a CLAIM THE
+    # COMPILER MAKES ABOUT ITSELF, in the one place a user is guaranteed to read, and it is
+    # the only claim in the system with no gate behind it. This plane cannot check prose;
+    # what it does is stop the manual work from evaporating — an audit in a commit message
+    # is one nobody can build on, an audit in this baseline is one the next generation
+    # continues. 10 of 94 audited: 7 FOLLOWABLE, 1 UNSPELLABLE, 1 UNTRIED, 1 AMBIGUOUS.
+    check-refusal-advice-audited.py
 )
 # (#49) gen #30: TIGHTENED to the EXACT fast-plane count. It had been carrying slack —
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=42
+MIN_PLANES=43
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
