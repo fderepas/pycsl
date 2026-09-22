@@ -113,8 +113,11 @@ pushing stays gated to the user.
 
 ## Routes (SEV-1, each with the decisive signature: a false contract PROVING while the TRUE twin is REFUSED, and CPython run as ground truth)
 
-**Twenty-two CLOSED (#191–#212 less the three open ones) and THREE OPEN (#212, #213,
-#214), every one demonstrated with a false contract PROVING while CPython disagrees.** An
+**TWENTY-THREE CLOSED (#191–#215 less the three open ones) and THREE OPEN (#212, #213,
+#214), every one demonstrated with a false contract PROVING while CPython disagrees** —
+with route #215's ground truth sharper still: CPython cannot RUN the program at all
+(`TypeError: 'function' object is not subscriptable`), so the model was proving a
+postcondition about a program that does not exist. An
 open route here means the defect is demonstrated and the repair is PRICED — not that it
 was left unexamined; each one's doc says exactly what blocks it.
 

@@ -69,7 +69,8 @@
 #      number and the member list printed — see wall-lesson (p3).
 #
 # ## IN FLIGHT RIGHT NOW (2026-09-22T19:30Z)
-#    - **TWENTY-FIVE routes demonstrated this generation (#191-#214); TWENTY-TWO CLOSED and
+#    - **[SUPERSEDED — see the late-evening addendum at the top: TWENTY-SIX routes,
+#      #191-#215, TWENTY-THREE CLOSED.]** TWENTY-FIVE routes (#191-#214); TWENTY-TWO CLOSED and
 #      THREE OPEN (#212, #213, #214), each open one with its repair PRICED and its carrier
 #      runnable by `bin/check-open-route-carriers.py`.** Six landed in the 14:30-15:05Z
 #      stretch: #204 (an `#@ interface assigns` NARROWER than the definition — the
