@@ -17,10 +17,13 @@ WHAT A FAILURE HERE MEANS, and it is the sharpest verdict in the battery: a corp
 that PASSES the prover while its own postcondition is FALSE of the program it is written
 about. That is a route witness hiding inside a green test.
 
-FIRST MEASUREMENT (gen #30): 216 runnable contracts, **195 AGREE with CPython, 0 DISAGREE**,
-21 not runnable standalone (imports that need the package context). The 21 are REPORTED,
-never silently dropped — a plane that cannot tell "agreed" from "could not run" is not a
-plane.
+FIRST MEASUREMENT (gen #30): 216 runnable contracts, **195 AGREE with CPython, 0
+DISAGREE**, 21 not runnable standalone. Putting the corpus directory on `sys.path` then
+recovered the multi-file ones. The remainder are programs CPython CANNOT run at all —
+they name types that only a `#@ datatype` declaration introduces — so they have no ground
+truth to disagree with, which is a category and not a gap. Every unrunnable case is
+REPORTED with its exception type, never silently dropped: a plane that cannot tell
+"agreed" from "could not run" is not a plane.
 
 THE POPULATION GUARD (the #44 rule). A gate of this shape is trivially satisfiable by
 running nothing, so it REFUSES (rc=2) if fewer than MIN_RUNNABLE contracts actually
@@ -42,7 +45,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CORPUS = os.path.join(ROOT, "test-suite", "corpus", "pycsl-reference")
-MIN_RUNNABLE = 180   # first measurement 195; the corpus only grows
+MIN_RUNNABLE = 195   # first measurement 204 after the sys.path fix; the corpus only grows
 
 
 def candidates():
@@ -76,6 +79,11 @@ def main():
     for f, fn, claim in rows:
         src = open(f, errors="replace").read()
         ns = {"__name__": "corpus_contract_probe"}
+        # MULTI-FILE tests import a sibling module out of the corpus directory. Putting
+        # that directory on `sys.path` turns 8 `ModuleNotFoundError`s into real
+        # measurements — coverage the first version left on the table. The path entry is
+        # removed again so one test cannot shadow a name for the next.
+        sys.path.insert(0, CORPUS)
         try:
             with contextlib.redirect_stdout(io.StringIO()), \
                  contextlib.redirect_stderr(io.StringIO()):
@@ -87,6 +95,9 @@ def main():
         except Exception as e:
             unrunnable.append((os.path.basename(f), fn, type(e).__name__))
             continue
+        finally:
+            if sys.path and sys.path[0] == CORPUS:
+                sys.path.pop(0)
         if isinstance(got, bool):
             got = int(got)
         if got == claim:

@@ -3783,3 +3783,21 @@ evidence and it should not be papered over:
 CUTOFF DECLARED: no further planes or emitter changes after this battery reports. The
 remaining window is for measurement, the summary and the §A.3 finish — a tree that keeps
 moving cannot be certified by a battery that takes hours.
+
+### The corpus-contract plane's reach, extended before it settled
+The first version reported 195 AGREE / 0 DISAGREE / **21 could not run standalone**, and
+the 21 were reported rather than dropped — which is what made the next step obvious. Eight
+of them were `ModuleNotFoundError`: MULTI-FILE corpus tests importing a sibling module out
+of the corpus directory. Putting that directory on `sys.path` (and popping it again, so one
+test cannot shadow a name for the next) turns them into real measurements:
+
+    216 runnable contracts — **204 AGREE with CPython, 0 DISAGREE**, 12 could not run.
+
+The remaining 12 are a CATEGORY, not a gap: programs CPython cannot run at all, because
+they name types that only a `#@ datatype` declaration introduces. A program CPython cannot
+run has no ground truth to disagree with. Floor raised 180 -> 195.
+
+>>> REPORTING WHAT YOU COULD NOT MEASURE IS WHAT LETS YOU MEASURE IT NEXT. Had the first
+>>> version silently skipped the 21, the plane would have looked finished at 195 and the
+>>> eight recoverable ones would have stayed invisible. This is lesson (g)'s third column
+>>> paying off inside an hour.
