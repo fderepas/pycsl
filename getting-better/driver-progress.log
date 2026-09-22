@@ -3372,3 +3372,12 @@ they would have measured a question I no longer needed answered, on a box that h
 better uses for the cores.
 Lesson (s) again, from the other end: the emitter gives the distance. Reading the four
 lines of the joiner replaced two multi-minute instrumented sweeps.
+
+ROUTE #203: all 22 fast planes green at HEAD (U4 confirmed).
+Byte-diffs for #203 are owed and will be folded into the next sweep pair; the #202 pair
+(`$SCRATCH/bd202.log`) is mid-flight and its POST leg will now cover BOTH #202 and #203,
+which is the honest thing to say about it: the post sweep runs off the working tree, and
+the tree moved between the base sweep and now. A combined diff is still M1-checkable —
+the two changes are in different files (`pycsl.py` vs `expressions.py`) and each has a
+separately censused expectation of ZERO — but the attribution is joint, and that is
+recorded rather than glossed.
