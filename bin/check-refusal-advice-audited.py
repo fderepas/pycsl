@@ -25,20 +25,41 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE MEASUREMENT (#49, gen #30): **219 raise sites, 108 advice-bearing, 94 AUDITED** —
-88 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 2 AMBIGUOUS, and 14 still unaudited. Eighty-eight
-of ninety-four pieces of advice work, which is better than I expected and is exactly why
-the six that do not are worth the cost of finding. TWICE the compiler was telling users to
-write a program IT CANNOT COMPILE. The failures fall into four distinct ways advice can
-fail, and each entry below records what was written and what happened.
+THE MEASUREMENT (#49, gen #30): **219 raise sites, 108 advice-bearing, 108 AUDITED** —
+102 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 2 AMBIGUOUS. **The whole surface, for the first
+time.** A hundred and two pieces of advice produce a file that VERIFIES; the six that do
+not were all REPAIRED the same evening, and they fail in four distinct ways:
+
+  UNSPELLABLE  `#@ shared` and `#@ touches_field` — the message names a directive without
+               its argument, and a reader types what is inside the backticks. Both are
+               syntax errors alone.
+  UNTRIED      "Call `__enter__` explicitly" — an explicitly-called DUNDER does not carry
+               its contract (`enter` verifies, `__enter__` does not, identical otherwise).
+               "Use a `None` sentinel" — `Optional[List[T]]` emits WhyML with an unbound
+               type symbol `array`. TWICE the compiler told a user to write a program it
+               cannot compile.
+  AMBIGUOUS    "Verify it by contract" is true and needs a LOCAL instance, which it does
+               not say. And an OR-list of three repairs whose FIRST disjunct is really a
+               CONJUNCTION with the second — a `#@ raises` clause on a still-`\trusted`
+               method does nothing, because the refusal keys on the bodylessness.
+
+SEVEN TIMES MY OWN TEST FILE WAS THE PROBLEM, not the advice, and each is recorded in its
+entry: three missing loop invariants, a missing class invariant, two callers that did not
+declare a callee's exception, and a constructor with no stated post-state for
+`#@ fresh_globals` to re-establish. "The advice failed" and "I wrote the file badly" are
+the same observation from outside, and only one of them is a finding.
+
+AND ROUTE #215 CAME OUT OF THIS AUDIT. Following `monomorphize`'s GT4 advice produced a
+file that would not verify; three controls isolated a generic-FUNCTION call lowering to
+`(any int)`; probing that erasure produced a false contract that PROVED.
 
 AND THIS PLANE INHERITED THE ARTIFACT IT WAS BUILT BESIDE. Its `sites()` was copied from
 `check-refusal-witness-coverage` and carried the same filter — the raised NAME must start
 with `PyCSL` — so the twenty-one ALIASED raises were outside its population too. Fixing it
 the same evening took the census from 94 advice-bearing to 108, and every one of the 14
-newly visible is a route refusal this campaign landed in `pycsl.py`. A plane written TODAY
-was already blind to TODAY's work, because it was copied from one written before it: a
-population filter does not merely age, it PROPAGATES.
+newly visible was a route refusal this campaign had landed in `pycsl.py`. A plane written
+TODAY was already blind to TODAY's work, because it was copied from one written before it:
+a population filter does not merely age, it PROPAGATES.
 
 FOUR MORE WERE AUDITED AND ARE NOT IN THIS POPULATION, recorded here so the work is not
 lost and the number is not inflated: `Module2_Parser`'s "only .keys()/.values()/.items()
@@ -485,6 +506,12 @@ AUDITED = {
     ("src/pycsl/pycsl.py",
      '_PyCSLSemanticError(f"{args.file} (function \'{_func.get(\'name\')}\', for-loop near line {v.get(\'loop_line\', \'?\')}): UB-7.1 — the loop body mut'): (FOLLOWABLE,
         'The repair is a loop shape the model carries; an indexed `while` with an invariant and a variant VERIFIES.'),
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr212(f"{args.file}: `--verify-imports` was given and the imported module \'{_mod212}\' ({_path212}) does NOT verify, so none of its'): (FOLLOWABLE,
+        "Route #212's certificate. The repair is an imported module that DOES verify; a two-file program whose dependency verifies passes `--verify-imports` end to end."),
+    ("src/pycsl/pycsl.py",
+     "_PyCSLSemErr38('a `with` statement in a file that defines a context-manager class (%s) uses a context expression this build cannot positivel"): (FOLLOWABLE,
+        'The repair is a bare `with <lock>:`, which IS modelled as a critical section; it VERIFIES under `--memory-model concurrent`. Same repair as the `with ... as` refusal, whose OTHER arm this audit had to withdraw.'),
 }
 
 
@@ -607,7 +634,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 106
+MIN_AUDITED = 108
 
 if __name__ == "__main__":
     sys.exit(main())
