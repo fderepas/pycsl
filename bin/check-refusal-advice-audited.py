@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 34 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 37 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -260,6 +260,15 @@ AUDITED = {
     ("src/pycsl/core_ir_semantic.py",
      'PyCSLSemanticError(f"Dead code in function \'{fname}\': this statement follows a call to a `NoReturn` function, which never returns normally ('): (FOLLOWABLE,
         "'Remove the dead statement, or move it before the NoReturn call' - a call to a NoReturn function with no dead code after it VERIFIES. TWO attempts failed first, both on MY file: the caller must declare the exception, and the clause form is `#@ raises E when <cond>` - `#@ raises E` alone is a syntax error, a THIRD bare-directive case."),
+    ("src/pycsl/frontend/module5/memoization_rt.py",
+     'PyCSLIRError(f"Function \'{f[\'name\']}\': a memoizing decorator (lru_cache / cache / cached_property) requires a referentially transparent func'): (FOLLOWABLE,
+        "'Read only fields written by the constructor, or drop the decorator' - an `@lru_cache` method reading a constructor-only field VERIFIES."),
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('`' + _r71_f + '(...)` can raise `KeyError` in Python, and this function claims `#@ no_exception` over it — but the mutation of"): (FOLLOWABLE,
+        "'Return the updated collection instead, or drop the parameter from the contract' - dropping the mutated parameter from the contract VERIFIES."),
+    ("src/pycsl/module6_whyml/functions.py",
+     'PyCSLSemanticError(f"storing a mutated dict into a field is out of scope: `{_s.get(\'object\')}.{_s.get(\'field\')} = {_pname}` binds the field '): (FOLLOWABLE,
+        "'A field store whose local is never used again is fine' - `self.d = src` with no later use of `src` VERIFIES."),
 }
 
 
@@ -364,7 +373,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 34
+MIN_AUDITED = 37
 
 if __name__ == "__main__":
     sys.exit(main())
