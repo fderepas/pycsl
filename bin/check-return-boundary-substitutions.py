@@ -38,6 +38,19 @@ A NEW site with no justification FAILS; a count that moves FAILS; a justificatio
 site has disappeared is reported as STALE (the #44 rule applied to this gate's own
 baseline: an entry that no longer describes the code is not evidence).
 
+AND THE GAP WAS DOCUMENTED TWICE, BY TWO GATES, AND STILL NOBODY COVERED IT.
+`bin/check-constant-fallthrough.py` says in its own header:
+
+    "a constant returned from a GUARDED branch in the middle of a handler is not a
+     fall-through and is not counted -- routes #22 and #24 lived there, and the honest
+     instrument for those is `bin/check-getattr-erasure.py` and
+     `bin/check-computed-rhs-erasure.py`, which watch the real emission."
+
+Route #198's `val = "0"` is exactly such a guarded mid-handler constant, and neither
+named instrument reaches it: one watches `getattr` erasure, the other watches assignments
+in CONVERTED MIRROR methods against their emitted bodies. A defect class can be named in
+two gate headers and still have no gate — which is what this file is for.
+
 WHAT IT DOES NOT CHECK, stated rather than implied:
   * The COMPUTED return values — `_expr_to_whyml(...)`, `_seq_init_expr(...)`,
     `materialize` bridges. Those are pass-through and are the argument plane's shape, not
