@@ -108,11 +108,15 @@ Five new `value-differential` drivers (v73-v77), the CPython-measured plane, cov
 
 ### The third stretch (17:00-18:00Z) — mining the axiom registry, and acting on a plane
 
-* **ROUTE #213** and **#213b** — route #197's own sentence ("two reads of the SAME
-  `getattr` expression agree") read as a claim. Sound only while the attribute cannot
-  change: with honest frames, `x = getattr(o,"a"); mutate(o); y = getattr(o,"a"); return
-  x - y` PROVED `== 0` where CPython answers -98. Then my own refusal missed the
-  THREE-ARGUMENT spelling — the second time in one day.
+* **ROUTE #213 (OPEN)** — route #197's own sentence ("two reads of the SAME `getattr`
+  expression agree") read as a claim. Sound only while the attribute cannot change: with
+  honest frames, `x = getattr(o,"a"); mutate(o); y = getattr(o,"a"); return x - y` PROVED
+  `== 0` where CPython answers -98. My refusal missed the THREE-ARGUMENT spelling (the
+  second time in one day) — and then the refusal itself was REVERTED, because its
+  blast-radius census covered the corpus and `src/pycsl_lib` and not the MIRROR or the
+  LIVE TREE, where 14 and 212 functions respectively read the same `getattr` twice with an
+  intervening call. The mirror stopped emitting (44 of 53) and four planes went red. Both
+  carriers now live outside the corpus under `check-open-route-carriers.py`.
 * **ROUTE #214 (OPEN)** — the other arm: `getattr(o,"a",{})` and `getattr(p,"b",{})` on
   two different unknown receivers share route #47's default-keyed constant and are EQUAL.
   Both repairs measured and blocked; `bin/check-open-route-carriers.py` now runs the

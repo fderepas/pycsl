@@ -1,6 +1,6 @@
 # gen #30 — what to read first
 
-Twenty-three SEV-1 routes (#191–#213 closed, **#214 open**), nineteen planes, and four
+Twenty-three SEV-1 routes (#191–#212 closed, **#213 and #214 OPEN**), nineteen planes, and four
 measurements that change what the campaign's own numbers mean. This file is the map.
 
 ## If you read one thing
@@ -15,8 +15,10 @@ measurements that change what the campaign's own numbers mean. This file is the 
 * `route200…`, `route201…`, `route202…` – string actuals at int/array/un-annotated params
 * `route206-208…` – a `total` policy over a helper that never returns (`\trusted`, then
   `\diverges` through my own repair twenty minutes later)
-* `route213-214…` – the two `getattr` devices, including the three-argument spelling my
-  own refusal missed
+* `route213-214…` – the two `getattr` devices. **Both are OPEN.** #213's refusal was
+  landed and then REVERTED: it broke the mirror's emission (44 of 53), because the census
+  behind it covered the corpus and `src/pycsl_lib` and not the two trees that must verify,
+  where 212 live and 14 mirror functions use the same idiom.
 
 **"What does this docstring actually claim?"**
 * `route204…` – an `#@ interface assigns` narrower than the definition
@@ -41,7 +43,7 @@ measurements that change what the campaign's own numbers mean. This file is the 
 | corpus files whose contract says nothing | 1791 of 3888 (46%) | `check-claim-vacuity.py` |
 | corpus files run with the prover OFF | 1754 of 3881 (45%) | `check-corpus-contract-truth-args.py` |
 | stdlib modules that VERIFY | 84 of 104 | `check-stdlib-modules-verify.py` |
-| compiler refusals with a WITNESS | 84 of 198 (58 at first measurement) | `check-refusal-witness-coverage.py` |
+| compiler refusals with a WITNESS | 85 of 198 (58 at first measurement) | `check-refusal-witness-coverage.py` |
 
 ## The findings that are not routes, and why each is not
 
