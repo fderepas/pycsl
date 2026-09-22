@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 87 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 91 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -419,6 +419,18 @@ AUDITED = {
     ("src/pycsl/module6_whyml/statements.py",
      'PyCSLIRError(\'`del \' + (arr.get(\'name\') or \'<expr>\') + "[...]` on a non-dict/set receiver is not modelled: Python\'s list `del` SHIFTS every '): (FOLLOWABLE,
         'The repair is to delete from a dict/set; `del d[1]` under `requires 1 in d` VERIFIES.'),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"Function \'{node.name}\' (line {node.lineno}): `#@ {_kind.lower()}` is discharged as a function-ENTRY assert over the act'): (FOLLOWABLE,
+        "'Drop the `complete` line, or give the function a verified body' - the same acts on a VERIFIED (un-trusted) body VERIFY."),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: total target \'{hp.target}\' is marked `#@ \\\\diverges` — it opts OUT of termination, contradicting the'): (FOLLOWABLE,
+        'The repair is to drop `#@ \\\\diverges` from a `total` target; a loop with an invariant and a variant under a `total` policy VERIFIES. My first attempt used a RECURSIVE method whose postcondition my contract could not carry - my file, not the advice (lesson (i3), for the seventh time in this audit).'),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}({hp.param})`: \'{func_name}\' is `#@ \\\\trusted` or `#@ \\\\abstract`, is not exempt, has no `#@ footprint '): (FOLLOWABLE,
+        "'Bind a footprint, add `#@ \\\\preserves`, add it to `except`, or give it a verified body' - the footprint-binding arm VERIFIES (per-index store under `#@ footprint <policy>(k)`)."),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: \'{func_name}\' is `#@ \\\\trusted` or `#@ \\\\abstract`, is not exempt, and its BODY writes the protected'): (FOLLOWABLE,
+        'Same repair set as the parametric sibling; the `except` and `#@ \\\\preserves` arms were both measured VERIFYING earlier in this audit.'),
 }
 
 
@@ -523,7 +535,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 87
+MIN_AUDITED = 91
 
 if __name__ == "__main__":
     sys.exit(main())
