@@ -24,6 +24,15 @@
 #      really a conjunction). NOTHING IS LEFT UNAUDITED — the plane ratchets at 108, so
 #      the next generation continues from there and a NEW advice-bearing refusal lands
 #      unaudited and visibly lowers the fraction.
+#    - **REFUSAL COVERAGE FINAL FOR THIS WINDOW: 184 of 219 demonstrated**, and the four
+#      counts PARTITION the population (184 + 17 undemonstrated + 8 not-source-reachable
+#      + 10 unmatchable). Started the evening at a reported 85 of 198 with 113 "missing
+#      witnesses". THIRTY-ONE witnesses written (1762-1799); SEVEN MORE were written,
+#      fired, and DELETED because the census already had a witness for that exact message.
+#      THE REMAINING 17 need the trigger read out of the EMITTER, not guessed from the
+#      message — route #31's list-local poison was probed with two spellings and BOTH
+#      verify, so the file that looked like a witness would have been a PASS wearing a
+#      FAIL docstring.
 #    - **THE COVERAGE GATE'S SIXTH ARTIFACT, and the worst:** `sites()` required the raised
 #      NAME to start with `PyCSL`, and 21 raises use a local alias (`as _PyCSLSemErr204`) —
 #      every route refusal landed in `pycsl.py` since route #29. They were not
