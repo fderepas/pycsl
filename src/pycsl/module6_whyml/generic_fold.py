@@ -34773,8 +34773,14 @@ def recognize_term_isinstance_transform(func: Dict[str, Any],
         return _recognize_term_isinstance_transform(func, spec, const_dicts or {})
     except _PVWBail:
         return None
-    except Exception:
-        return None
+    # (#49) gen #30: the REDUNDANT broad arm DELETED. `except _PVWBail:` one line
+    # above already absorbs this recognizer's own decline signal, so this handler could
+    # only ever swallow a GENUINE bug -- a TypeError/AttributeError/KeyError from inside
+    # the recognizer -- and silently downgrade the emission to the generic lowering,
+    # which routes #22/#24 showed can be an ERASING one. Measured by
+    # `bin/check-swallowed-exceptions.py`, whose baseline named these four and whose
+    # header still claimed the tightening was 'left for the next window'; the other four
+    # it names were tightened at #44. Ratchet 4 -> 0.
 
 
 def _recognize_term_isinstance_transform(func: Dict[str, Any],
@@ -35178,8 +35184,14 @@ def recognize_term_list_build(func: Dict[str, Any],
         return _recognize_term_list_build(func, spec)
     except _PVWBail:
         return None
-    except Exception:
-        return None
+    # (#49) gen #30: the REDUNDANT broad arm DELETED. `except _PVWBail:` one line
+    # above already absorbs this recognizer's own decline signal, so this handler could
+    # only ever swallow a GENUINE bug -- a TypeError/AttributeError/KeyError from inside
+    # the recognizer -- and silently downgrade the emission to the generic lowering,
+    # which routes #22/#24 showed can be an ERASING one. Measured by
+    # `bin/check-swallowed-exceptions.py`, whose baseline named these four and whose
+    # header still claimed the tightening was 'left for the next window'; the other four
+    # it names were tightened at #44. Ratchet 4 -> 0.
 
 
 def _recognize_term_list_build(func: Dict[str, Any],
@@ -35343,8 +35355,14 @@ def recognize_term_flatten_arrow(func: Dict[str, Any],
         return _recognize_term_flatten_arrow(func, spec)
     except _PVWBail:
         return None
-    except Exception:
-        return None
+    # (#49) gen #30: the REDUNDANT broad arm DELETED. `except _PVWBail:` one line
+    # above already absorbs this recognizer's own decline signal, so this handler could
+    # only ever swallow a GENUINE bug -- a TypeError/AttributeError/KeyError from inside
+    # the recognizer -- and silently downgrade the emission to the generic lowering,
+    # which routes #22/#24 showed can be an ERASING one. Measured by
+    # `bin/check-swallowed-exceptions.py`, whose baseline named these four and whose
+    # header still claimed the tightening was 'left for the next window'; the other four
+    # it names were tightened at #44. Ratchet 4 -> 0.
 
 
 def _recognize_term_flatten_arrow(func: Dict[str, Any],
@@ -36280,13 +36298,19 @@ _CSL_STR_CTORS = {
 def recognize_csl_str_cata(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Fail-closed recognizer for the `_csl_to_str` emit_ir string catamorphism.
     Returns a desc {"param","name","arms":{ctor:(binders,val_ast)},"default"} or
-    None. Never raises."""
+    None. Declines with None on its own `_PVWBail`; a GENUINE bug inside it now PROPAGATES (gen #30) instead of being swallowed into a silent decline."""
     try:
         return _recognize_csl_str_cata(func)
     except _PVWBail:
         return None
-    except Exception:
-        return None
+    # (#49) gen #30: the REDUNDANT broad arm DELETED. `except _PVWBail:` one line
+    # above already absorbs this recognizer's own decline signal, so this handler could
+    # only ever swallow a GENUINE bug -- a TypeError/AttributeError/KeyError from inside
+    # the recognizer -- and silently downgrade the emission to the generic lowering,
+    # which routes #22/#24 showed can be an ERASING one. Measured by
+    # `bin/check-swallowed-exceptions.py`, whose baseline named these four and whose
+    # header still claimed the tightening was 'left for the next window'; the other four
+    # it names were tightened at #44. Ratchet 4 -> 0.
 
 
 def _recognize_csl_str_cata(func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
