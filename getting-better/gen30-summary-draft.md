@@ -68,6 +68,34 @@ rule is enforced by two ratchets; (l) build the plane the other planes named; (m
 that fixes one arm leaves the rest of the function; (n) a residue you write down is a work
 item; (o) the lesson you just banked applies to the fix you just shipped; (p) the upper bound is not the blast radius — read the arm, then count that shape; (q) a gate built from a route must be run against the pre-route tree.
 
+## A surface opened this generation: the `pycsl_lib` stdlib layer
+
+93 body-verified stub packages, governed by `config/skills/agent-stdlib-annotate`, with
+**no gate in the 24-plane battery comparing a stub against the module it stands in for.**
+Two instruments were built and run for the first time:
+
+* `scratchpad/g30/stdlib_diff.py` — BODY differential. Its headline (129 "mismatches") is
+  misleading and that is the finding: the stubs are ABSTRACTIONS, not re-implementations,
+  so body equality is the wrong criterion. The control proves the harness works: `bsect`,
+  the one package that IS a faithful re-implementation, matched `bisect` on 8000 inputs.
+* `scratchpad/g30/stdlib_contract_diff.py` — CONTRACT differential, the right criterion:
+  generate inputs satisfying `#@ requires`, run the REAL module, evaluate `#@ ensures`
+  against CPython's answer. 2000 checks, **21 violations in 2 functions** —
+  `mth.remainder` (claims `\result >= 0`; `math.remainder(8,5)` is `-2.0`) and
+  `stat.filemode` (claims the constant `"----------"`; the real one returns `'?-------w-'`).
+
+**Severity checked, not assumed, and downgraded:** `import_classifier._stub_set` reads only
+the `.py` stems directly under `src/pycsl_lib/`, and no name map takes `math` to `mth`, so
+nothing substitutes these contracts for a real stdlib import. They are documentation and
+naming defects in standalone modules. The number that survives: **124 of 870 `pycsl_lib`
+functions (14.3%) have a single-constant-return body** — harmless while nothing consumes
+them as stdlib models, and exactly what becomes a hole on the day something does.
+
+Recorded as a named, priced work item for the `agent-stdlib-annotate` owner, not started:
+turning the contract differential into a registered plane needs a decision on what the
+stubs ARE (the docstrings assume stdlib models, the import path implements standalone
+modules) and a baseline for the 124 constant bodies.
+
 ## Standing, deliberately deferred (re-priced this generation, not inherited)
 
 * `check-avatar-frame-parity` (B) INHERITED segment: **7 sites, not 11**, none pre-stubbed —
