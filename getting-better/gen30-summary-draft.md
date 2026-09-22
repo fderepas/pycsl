@@ -27,10 +27,10 @@
 * `bin/check-trusted-reasons.py` — a full plane that existed and **nothing ran it**; collected into the runner.
 * `bin/check-return-boundary-substitutions.py` — the RETURN side, the gap `check-argument-coercion.py` names in its own header and `check-constant-fallthrough.py` names in its own. Pins occurrence COUNTS, and was demonstrated to fire on the pre-#198 tree via `--live`.
 * `bin/check-corpus-contract-truth.py` — the value-differential's method (curate nothing,
-  re-run CPython every pass) applied to the CORPUS instead of to 75 curated drivers. 216
-  PASS-expected corpus files already carry a zero-arg function with a literal
-  `#@ ensures \result == N`, and so do 162 python-reference files: **367 AGREE with
-  CPython, 0 DISAGREE** across both corpora, 12 unrunnable (a category — programs CPython
+  re-run CPython every pass) applied to BOTH REFERENCE CORPORA instead of to 75 curated
+  drivers. **379** PASS-expected files across `pycsl-reference` and `python-reference`
+  already carry a zero-arg function with a literal `#@ ensures \result == N`: **367 AGREE
+  with CPython, 0 DISAGREE**, 12 unrunnable (a category — programs CPython
   cannot run, because they name `#@ datatype` types). That is FIVE TIMES the curated
   population, at no cost in drivers written. A failure here is the sharpest verdict the
   battery can give: a test that passes the prover while its own postcondition is false of
