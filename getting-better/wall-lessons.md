@@ -29,7 +29,10 @@ EFFORT deserves the scrutiny of one that reports success · **(k3)** four artifa
 instrument is a fact about the instrument, and the fix is a SELF-AUDIT, not a fourth patch ·
 **(l3)** a single number invites over-reading; a BRACKET or a PARTITION does not ·
 **(m3)** a refusal's ADVICE is a claim the compiler makes about itself, and nothing tests
-it — a refusal offering two repairs should have had BOTH tried.
+it — a refusal offering two repairs should have had BOTH tried · **(n3)** a new refusal can
+RETIRE an old one by running first · **(o3)** when new evidence does not move a number,
+suspect the number's COLLECTOR — its population filter most likely excludes the work this
+campaign is busy adding.
 
 ### (f3) An exclusion you never tested is a guess — check whether the reason still applies
 
@@ -299,6 +302,60 @@ The general form: a refusal's advice is a CLAIM the compiler makes about itself,
 place a user is guaranteed to read, and it is the only claim in the system with no gate
 behind it. Seven of nine held, which is better than I expected and is exactly why the two
 that did not are worth the cost of finding.
+
+### (n3) A new refusal can retire an old one by running first
+
+Route #215's refusal ("`f[T](...)` subscripts a generic FUNCTION, which is not Python")
+landed before Module 5, where it fired BEFORE the TY3 monomorphization checks. GT4 —
+polymorphic recursion — keys on a recursive call whose type ARGUMENT is the generic's own
+TypeVar, and ONLY the subscripted spelling can express that. So refusing the spelling first
+made GT4 permanently unreachable: a refusal retired by another refusal, silently, with
+nothing red.
+
+A CONTROL caught it, not reading. Witness 1783 exists to make GT4 fire, and it started
+reporting the new message instead. Moving the check after `_ir_resolve` (which runs
+monomorphization) restored the order — GT1/GT3/GT4/BOUND fire first, and only a call that
+SURVIVED them is refused.
+
+The general form: **a refusal is a claim about what reaches the code after it.** Adding one
+upstream changes that for every check downstream, and the thing to look for is not what
+starts failing but WHAT STOPS FIRING. The witness corpus is what makes that visible — which
+is an argument for `check-refusal-witness-coverage` that its coverage number alone never
+made.
+
+(Same commit, second placement mistake, same note: the scan used the stdlib `ast` while the
+pipeline parses with `frontend.pure_ast`, so it matched NOTHING. That is route #209 exactly
+— a matcher asked about nodes of the wrong family — and running the carrier caught it,
+reading the diff did not.)
+
+### (o3) When new evidence does not move a number, suspect the collector
+
+`check-refusal-witness-coverage` censuses every `raise PyCSL*Error(...)` in the compiler and
+asks which have a witness. Its walk required the RAISED NAME to start with `PyCSL`.
+
+Every route refusal this campaign has landed in `pycsl.py` since route #29 imports the
+exception class under a LOCAL ALIAS —
+
+    from errors import PyCSLSemanticError as _PyCSLSemErr204
+
+— to keep the import out of the enclosing scope. Twenty-one raises do this. They were not
+counted as undemonstrated; they were **not in the population at all**. The plane reported
+coverage over 198 sites when there were 219, and the missing 21 were disproportionately the
+campaign's OWN work: #29, #30, #31, #37, #38, #43, #45, #156, #175, #179, #187, #189, #200,
+#204, #212, #215.
+
+THE TELL, for the sixth time in one evening, was A WITNESS THAT FIRED AND MOVED NOTHING. I
+wrote 1796, watched it refuse, and watched the count stay at 164. That same signal — *the
+evidence arrived and the instrument did not react* — found the 110-character truncation, the
+`%s` placeholders, and the mid-UTF-8 cut. It is worth naming as a first-class debugging
+move: **when new evidence does not move a number, suspect the number's COLLECTOR before you
+suspect the evidence.**
+
+And the specific form is sharper than "audit your instrument": an instrument's population
+filter is a claim about WHAT COUNTS, and the things most likely to fall outside it are the
+things the current campaign is busy ADDING — because those are written in whatever local
+style the new code needed, not the style the filter was written against. A gate that has
+been running for six generations has been filtering against six-generation-old habits.
 
 ## 2026-07-20 driver run (count 1030 → 1028; 2 conversions + these walls)
 
