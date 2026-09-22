@@ -3,6 +3,39 @@
 # ## HOW TO RUN ANYTHING: `. scratchpad/g29/env.sh` first (why3 is NOT on the default PATH; it also sets
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #
+# ## LATE-EVENING ADDENDUM (2026-09-22T23:00Z) — READ THIS FIRST
+#    - **ROUTE #215 DEMONSTRATED AND CLOSED**, and it came out of the ADVICE AUDIT rather
+#      than a hunt for routes. `f[T](...)` on a generic FUNCTION is NOT VALID PYTHON (PEP
+#      695 makes a generic CLASS subscriptable; CPython 3.14 raises `TypeError` for a
+#      function), PyCSL accepted it, erased the call to a per-NAME opaque, and a REBOUND
+#      local read the same constant twice — so `a = ident[int](1); x = a;
+#      a = ident[int](2); return x - a` PROVED `\result == 0` for a program that cannot
+#      run. Refused at `_run_pipeline` (a `\trusted` twin). Witness 1796, control 1797,
+#      record `getting-better/open-routes/route215-generic-function-subscript.md`.
+#      GENERATION TOTAL: 26 demonstrated, 23 closed, 3 open (#212/#213/#214).
+#    - **NEW PLANE `bin/check-refusal-advice-audited.py`** — 94 advice-bearing refusals,
+#      **67 audited** by writing the program each message tells you to write. SIX were
+#      broken and ALL SIX were repaired: 2 UNSPELLABLE (`#@ shared`, `#@ touches_field`
+#      are syntax errors as written), 2 UNTRIED (an explicitly-called DUNDER loses its
+#      contract; `Optional[List[T]]` emits unbound `array`), 2 AMBIGUOUS (one needs a
+#      LOCAL instance and does not say so; one is an OR-list whose first disjunct is
+#      really a conjunction). THE REMAINING 27 ARE THE WORK ITEM and each costs minutes.
+#    - **THE COVERAGE GATE'S SIXTH ARTIFACT, and the worst:** `sites()` required the raised
+#      NAME to start with `PyCSL`, and 21 raises use a local alias (`as _PyCSLSemErr204`) —
+#      every route refusal landed in `pycsl.py` since route #29. They were not
+#      undemonstrated, they were OUTSIDE THE POPULATION. 198 sites -> 219. Counts now
+#      182 demonstrated / 19 undemonstrated / 8 not-source-reachable / 10 unmatchable.
+#    - **TWO MORE COMPLETENESS GAPS WORTH THEIR OWN LOOK**, both measured with controls:
+#      (a) an explicitly-called DUNDER does not carry its contract (`c.enter()` verifies,
+#          `c.__enter__()` does not, identical otherwise; `__len__` too);
+#      (b) `Optional[List[T]]` as a parameter type emits WhyML with an unbound type symbol
+#          `array`, while `List[T]` and `Optional[int]` each compile fine.
+#    - **STILL RUNNING when this was written** (poll, do NOT relaunch): the mirror re-proof
+#      of `src/self-annotate/src/core_ir_semantic.py` (/tmp/mirror_cis.log — owed because
+#      `_check_mutable_defaults` is an un-trusted VERBATIM mirror twin and its message
+#      changed), and `bin/check-stdlib-modules-verify.py --verbose` (/tmp/mv2.log).
+#      A FULL FAST BATTERY IS OWED at HEAD after those land.
+#
 # ## IN FLIGHT RIGHT NOW (2026-09-22T19:30Z)
 #    - **TWENTY-FIVE routes demonstrated this generation (#191-#214); TWENTY-TWO CLOSED and
 #      THREE OPEN (#212, #213, #214), each open one with its repair PRICED and its carrier
