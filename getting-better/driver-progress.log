@@ -3427,3 +3427,39 @@ It was SIGSTOPped — not killed — when load hit 40 on a 12-core box, and resu
 corpus sweeps finished and load fell to 8.9. Pausing rather than killing is the difference
 between losing an hour of fuzzing and losing seven seeds of it; `pkill -STOP` / `pkill
 -CONT` on the loop and its child is all it takes, and the loop picks up mid-seed.
+
+## THE SWEEP LEDGER FOR THIS SESSION — what was probed and found FAIL-CLOSED
+Six routes were found (#198-#203). These are the surfaces probed in the same way and
+found sound, each with a claim FALSE of CPython and each recorded in `probes.tsv` rather
+than remembered:
+
+  VALUE MODEL          empty-container truthiness (dict, list); the empty string's
+                       truthiness; empty `b""` / `""` lengths; GenExp in a value position;
+                       Slice in a value position; tuple and set literal placeholders.
+  STRING MODEL         `str(n)`, `"%d" % n`, `",".join(...)`, `a + b`; case-fold
+                       (`s.lower() == s.upper()`); an actual `stable_hash` COLLISION
+                       (`"ah02"`/`"atc3"`, found in 71382 candidates) pushed through
+                       direct comparison, a dict key and a set member.
+  ARGUMENT BOUNDARY    every one of `_coerce_dotted_args`'s sixteen append sites
+                       enumerated; `str`-declared and `Dict`-declared parameter slots;
+                       the starred `f(*xs)` and double-starred `f(**d)` actual slots.
+  COLLECTION BUILDERS  `[0] * 3`, `[1,2] + [3]`, a list comprehension, a dict
+                       comprehension — every builder's length.
+  CONTROL FLOW         zero-iteration loops (`range(0)`, `range(-3)`); method-override
+                       dispatch and the upcast shape.
+  INTEGER MODEL        seven bit/power operations including the sign-sensitive `-8 >> 1`;
+                       an 18-shape hand-picked semantics batch (negative index, find-miss,
+                       `in`, repetition, `int()`, abs/max, floor-div and mod with negative
+                       operands, upper, lengths, `True == 0`, truncation, negative slice).
+  TRUST SURFACE        there is NO user-writable `#@ assume`; the only assumption surfaces
+                       are `\trusted` (counted), `assumes bounded_int` and the
+                       Module4-enforced, proof-backed `fresh_globals`.
+  EMITTER INTERNALS    the `@mutable_state` IR-node constructor table (user-reachable via
+                       a self-defined decorator, fails closed by a Why3 type error); the
+                       `pycsl_none` opaque's NAME collision, both as a local and as a
+                       user function; the assignment handlers' seven constant sites; the
+                       Module-5 and Module-6 field-mention censuses, re-run rather than
+                       inherited.
+
+A negative result is evidence only if it is written down with the exact program that
+produced it. That is why each of these is a row and not a sentence in a summary.
