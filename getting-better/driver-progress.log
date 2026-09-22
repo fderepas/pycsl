@@ -4753,3 +4753,38 @@ Counts after the fix: 182 demonstrated / 19 undemonstrated / 8 not-source-reacha
 >>> A FILE THAT LOOKS TEMPORARY MAY STILL BE TRACKED, AND `rm` ON A GLOB DOES NOT ASK.
 >>> `git status` BEFORE the rm, not after — and never assume the answer carries over from
 >>> the last time the same glob looked clean.
+
+--------------------------------------------------------------------------------
+THE ADVICE AUDIT, COMPLETE FOR THE ORIGINAL POPULATION — 94 OF 94
+--------------------------------------------------------------------------------
+Every advice-bearing refusal the plane could see has had its advice FOLLOWED AND RUN.
+88 FOLLOWABLE. SIX BROKEN, all six repaired the same evening:
+
+  UNSPELLABLE  `#@ shared` / `#@ touches_field` — syntax errors as written.
+  UNTRIED      "Call `__enter__` explicitly" — an explicitly-called DUNDER does not carry
+               its contract. "Use a `None` sentinel" — `Optional[List[T]]` emits unbound
+               `array`.
+  AMBIGUOUS    "Verify it by contract" needs a LOCAL instance and does not say so. And an
+               OR-list of three repairs whose FIRST disjunct is really a conjunction with
+               the second (a `#@ raises` clause on a still-TRUSTED method does nothing).
+
+SEVEN TIMES MY OWN FILE WAS THE PROBLEM, not the advice — a missing loop invariant (×3), a
+missing class invariant, a caller that did not declare its callee's exception (×2), a
+constructor with no post-state for `#@ fresh_globals` to re-establish. Every one is written
+into its baseline entry rather than quietly re-run.
+
+>>> "THE ADVICE FAILED" AND "I WROTE THE FILE BADLY" ARE THE SAME OBSERVATION FROM OUTSIDE.
+>>> Only one of them is a finding, and the difference is always one more control.
+
+AND ROUTE #215 CAME OUT OF THIS AUDIT — following GT4's advice produced a file that would
+not verify, three controls isolated a generic-FUNCTION call lowering to `(any int)`, and
+probing that erasure produced a false contract that PROVED.
+
+THEN THE POPULATION GREW UNDER ME. This plane's `sites()` was COPIED from
+`check-refusal-witness-coverage` and inherited its filter — the raised NAME must start with
+`PyCSL` — so the 21 ALIASED raises were outside its census too. Resolving aliases: 94
+advice-bearing -> 108, and all 14 newly visible are route refusals THIS CAMPAIGN wrote.
+
+>>> A PLANE WRITTEN TODAY WAS ALREADY BLIND TO TODAY'S WORK, because it was copied from one
+>>> written before it. A population filter does not merely age — it PROPAGATES, and the
+>>> copy inherits the exclusion along with the logic.
