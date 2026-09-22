@@ -1,8 +1,3 @@
 {
-  "allowed": [
-    "src/pycsl/module6_whyml/generic_fold.py::recognize_csl_str_cata::_PVWBail",
-    "src/pycsl/module6_whyml/generic_fold.py::recognize_term_flatten_arrow::_PVWBail",
-    "src/pycsl/module6_whyml/generic_fold.py::recognize_term_isinstance_transform::_PVWBail",
-    "src/pycsl/module6_whyml/generic_fold.py::recognize_term_list_build::_PVWBail"
-  ]
+  "allowed": []
 }
