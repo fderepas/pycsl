@@ -26,7 +26,8 @@ earns its place if it comes with a CONTROL that stays out of it · **(i3)** an a
 claimed from an instrument that could not have shown the presence is not a measurement ·
 **(j3)** a coverage gate can be measuring its own artifact, and a number that RECOMMENDS
 EFFORT deserves the scrutiny of one that reports success · **(k3)** four artifacts in one
-instrument is a fact about the instrument, and the fix is a SELF-AUDIT, not a fourth patch.
+instrument is a fact about the instrument, and the fix is a SELF-AUDIT, not a fourth patch ·
+**(l3)** a single number invites over-reading; a BRACKET or a PARTITION does not.
 
 ### (f3) An exclusion you never tested is a guess — check whether the reason still applies
 
@@ -208,6 +209,50 @@ file never reached from a source file; a fragment that is the empty string; a fr
 containing `%s`. None of them needs a run to notice. **What a gate CANNOT match is as much
 a part of its specification as what it does** — and none of the four was written down
 anywhere until tonight.
+
+### (l3) A single number invites over-reading; a bracket or a partition does not
+
+Having found five artifacts in the refusal-coverage gate, I asked the same question of
+every other plane that prints a headline: **what can this instrument not see, and is that
+written where it prints?** Four audits, and the split between them is the lesson.
+
+OVERSTATED — each reports ONE NUMBER:
+  * `check-stdlib-modules-verify` — "84 of 104 modules verify", cited in the semantics
+    reference as evidence that "a contract a consumer relies on is discharged by the
+    library's own machine-checked proofs". Nine of the 84 carry no `#@ ensures` at all and
+    seven carry no `#@` whatever; they return "Verification SUCCESS" because the emitter
+    produced no goal. Honest figure: 75.
+  * `check-stdlib-identity-stubs` — "81 identity stubs". Its scope sentence is accurate
+    ("with a pinning contract"), and 78 MORE functions in the same layer are
+    `return <param>` with no value claim at all.
+  * `check-refusal-witness-coverage` — "113 refusals with no witness", the one that started
+    this. Actually 19, once the census was repaired.
+
+CLEAN — and this one matters as much:
+  * `check-claim-vacuity` — "1791 files carry a trivially true postcondition", from three
+    exact regexes. Two broader families scanned over all 3973 files: ZERO additional hits.
+    The number is exactly what it says.
+
+AND THE TWO THAT COULD NOT BE OVER-READ, which is where the pattern is:
+  * `check-trust-blast-radius` reports a BRACKET — a floor from same-file call resolution
+    and a ceiling from by-name resolution, both ratcheted, with the reason for each end.
+  * `check-mirror-claim-strength` reports a PARTITION — 440 trusted + 143 value-claiming +
+    624 frame-only + 166 no-clause = 1373, and says in its own docstring what a reader will
+    hear instead ("the mirror verifies" reads as "the mirror's behaviour is specified", and
+    the specified fraction is 15%, not 68%).
+
+Neither of those two needed an audit. Not because they are newer or better written, but
+because their SHAPE has nowhere for a misreading to live: a bracket carries its own
+uncertainty, and a partition that sums to the population cannot have an unexplained
+remainder quietly labelled a debt. The refusal-coverage gate reported 85 and 113; they
+summed to 198 only because everything it could not explain was called a debt. It now
+reports four numbers that partition the population, and the fifth artifact was found the
+same evening BY that partition rather than by luck.
+
+So the cheap structural rule: **if a plane's headline is a single count, ask what the
+population is and what the rest of it is doing.** If the answer does not fit in a partition
+or a bracket, the number is going to be read as more than it says — and the reading will
+happen in a queue, months later, where the docstring is not.
 
 ## 2026-07-20 driver run (count 1030 → 1028; 2 conversions + these walls)
 
