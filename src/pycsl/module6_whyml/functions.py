@@ -1048,9 +1048,17 @@ class FunctionEmissionMixin:
                                     "#207; measured: a `\\trusted` method whose body is "
                                     "`raise ValueError` proved `no_exception \\all` for its "
                                     "caller while CPython raises, and the module-level twin "
-                                    "was already refused). Give the method a `#@ raises` "
-                                    "clause, verify its body, or drop the exception from "
-                                    "the context.")
+                                    "was already refused). TWO repairs, and the first "
+                                    "one is a CONJUNCTION, not an alternative: give the "
+                                    "method a VERIFIED BODY (drop `#@ \\trusted` / "
+                                    "`#@ \\abstract`) — a `#@ raises` clause ALONE does "
+                                    "NOT help, because a bodyless `val` carries no "
+                                    "`raises` and this refusal keys on the bodylessness, "
+                                    "not on the clause (measured in gen #30: adding "
+                                    "`#@ raises ValueError when False` to the trusted "
+                                    "method left this refusal firing). Or drop the "
+                                    "exception from the `#@ no_exception` context, which "
+                                    "works on its own.")
                         if not _ok161:
                             raise PyCSLIRError(
                                 "`" + _r65_f + "(...)` is not a function of the verified "

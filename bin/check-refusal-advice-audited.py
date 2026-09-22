@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 61 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 64 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -341,6 +341,15 @@ AUDITED = {
     ("src/pycsl/core_ir_semantic.py",
      'PyCSLSemanticError(f"{where}: `#@ fresh_globals` is only allowed on a top-level driver that no other verified function calls. \'{short}\' is c'): (FOLLOWABLE,
         "'Remove the call, or drop `#@ fresh_globals`' - a driver nothing calls VERIFIES. My first attempt failed on MY file: the constructor needs an explicit `#@ ensures self.n == 0` for the directive to have a post-state to re-establish (corpus 0713 shows the shape). My mistake, not the advice's - recorded per lesson (i3)."),
+    ("src/pycsl/module6_whyml/functions.py",
+     'PyCSLIRError(\'`\' + str(_r63_n.get(\'func\')) + \'(...)` is passed the SAME dict/set `\' + _r63_nm + "` in more than one argument position. In Py'): (FOLLOWABLE,
+        "'restructure so only one name reaches the callee' - two distinct dict parameters VERIFY."),
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('`' + _r65_f + '(...)` resolves to a `#@ \\\\trusted` or `#@ \\\\abstract` method of this program, and this function claims `#@ no_"): (AMBIGUOUS,
+        "The message used to read as THREE alternatives: 'Give the method a `#@ raises` clause, verify its body, or drop the exception from the context.' MEASURED: adding `#@ raises ValueError when False` to the still-TRUSTED method leaves the refusal FIRING - the refusal keys on the BODYLESSNESS, not on the clause, exactly as its own sentence says ('a bodyless `val` carries no `raises`'). So the first item is a CONJUNCTION with the second, not an alternative to it. A verified body alone VERIFIES; dropping the exception from the context alone VERIFIES. Message rewritten to say so."),
+    ("src/pycsl/module6_whyml/functions.py",
+     "PyCSLIRError('`' + _r65_f + '(...)` is not a function of the verified program and not on the list of operations known never to raise the exc"): (FOLLOWABLE,
+        "'Give the callee a contract ... or drop the exception from the context' - a contracted in-file callee VERIFIES."),
 }
 
 
@@ -445,7 +454,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 61
+MIN_AUDITED = 64
 
 if __name__ == "__main__":
     sys.exit(main())
