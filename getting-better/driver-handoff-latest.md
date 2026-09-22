@@ -65,6 +65,20 @@
 #          already extracted) answering route #209's question mechanically: WHICH REFUSALS
 #          HAVE A WITNESS PROVING THEY CAN FIRE?
 #        $SCRATCH/noexcreg.log       134 `no_exception` corpus files re-run after #207
+#    - LATE-DAY ADDITIONS (17:00-18:45Z): routes #213 (+ its three-argument spelling) and
+#      the OPEN #214, both from route #197's own sentence; a CONSTRUCTED `stable_hash`
+#      collision ("ah02"/"atc3" -> 185314078) that is not exploitable today because the one
+#      op receiving a folded literal is a `val`, not a `val function` — held by
+#      `check-hashed-literal-purity.py`; the AXIOM REGISTRY mined (the legacy
+#      `UnixFs.Struct.*` round-trips are UNGUARDED where their successors are guarded
+#      "faithful to CPython's out-of-range struct.error", and `capwords_length_nongrowing`
+#      is false for 'ß' -> 'Ss'); and **THIRTY refusal witnesses written**, taking
+#      `check-refusal-witness-coverage.py` from 58/198 demonstrated to 84/198.
+#    - OPERATIONAL RULE learned the hard way: a `--slow` battery MUST run alone. Sharing
+#      12 cores with the suite and two sweeps made the mirror emission incomplete (44 of
+#      52) and three emission-dependent planes REFUSED — correctly, and for the wrong
+#      reason. The same set was 49/49 green on a quiet machine.
+#
 #    - THE QUEUE FOR WHOEVER PICKS THIS UP, in the order I would take it:
 #      1. **ROUTE #212, the open one.** Two ordinary files; the importing unit believes
 #         every contract of an imported module. `--verify-imports` is built and OFF by
