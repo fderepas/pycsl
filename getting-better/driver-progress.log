@@ -3954,3 +3954,30 @@ in floats the gate says "no longer diverges" and asks for the entries to go.
 >>> that makes it useful is the same widening that could make it dangerous, and the header
 >>> has to say which modules were excluded and why — otherwise the next person widens it by
 >>> adding a name.
+
+### THE TWO STDLIB DEFECTS: the FALSE SENTENCE removed, the FACADE labelled and PRICED
+The gate names two real divergences. Neither is a proof-soundness hole (nothing
+substitutes these contracts), so the right repair is to stop the DOCUMENTATION lying —
+and, where a faithful body is out of reach, to say so with a price rather than leave the
+citation standing.
+
+  * **`mth.remainder`** — the docstring said *"For integers, same as x % y."* **Removed**,
+    because it is false: IEEE remainder rounds the quotient to NEAREST and `%` FLOORS, so
+    `math.remainder(8, 5)` is -2.0 where `8 % 5` is 3. The docstring now says what the
+    body really provides (Python's `%` on non-negative x and positive y, result in [0, y))
+    and points at the gate. Emission checked and **BYTE-IDENTICAL** — a docstring edit to
+    a `pycsl_lib` stub could have moved its `.mlw`, so it was measured rather than assumed.
+  * **`stat.filemode`** — relabelled as what it is, "a TEN-CHARACTER PLACEHOLDER, not
+    `stat.filemode`", with the facade stated outright ("verified, and computing nothing")
+    and the real fix PRICED: a faithful `filemode` is ten independent bit tests building a
+    ten-character string, and this layer's string model carries concatenation through
+    `str_concat_op` with no per-character theory, so the faithful body needs a per-position
+    lemma set that does not exist. The honest intermediate — weaken to
+    `\length(\result) == 10` — needs `\length`-on-`str` support this stub does not use and
+    a re-proof of the module. **Left as a NAMED work item rather than half-done under a
+    deadline.**
+
+Both stay in the gate's baseline: the citations are corrected, the divergences are real
+until the bodies change, and a baseline entry that disappeared because someone edited a
+comment would be exactly the re-baselining rule (k) forbids.
+26/26 fast planes green after both edits.

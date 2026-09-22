@@ -80,5 +80,22 @@ def S_IFMT(mode: int) -> int:
 #@ ensures \result == "----------"
 #@ assigns \nothing
 def filemode(mode: int) -> str:
-    """RST: 'Convert a file's mode to a string of the form -rwxrwxrwx.'"""
+    """A TEN-CHARACTER PLACEHOLDER, **not** `stat.filemode` — corrected in gen #30.
+
+    The RST line is 'Convert a file's mode to a string of the form -rwxrwxrwx', and this
+    function returns the constant `"----------"` for EVERY mode. `stat.filemode(2)` is
+    `'?-------w-'`, so the contract `\result == "----------"` is true of this body and
+    FALSE of the function the citation names — a FACADE: verified, and computing nothing.
+    Measured by `bin/check-stdlib-contract-fidelity.py`, which carries it in its baseline.
+
+    WHY IT IS NOT SIMPLY FIXED HERE, priced rather than hand-waved: a faithful
+    `filemode` is ten INDEPENDENT bit tests over `mode` building a ten-character string,
+    and the string model this layer uses carries concatenation through
+    `str_concat_op` with no per-character theory — so the faithful body is provable only
+    with a per-position lemma set that does not exist yet. The honest intermediate is to
+    weaken the contract to what is true of BOTH (`\length(\result) == 10`), which needs
+    the `\length`-on-`str` support this stub does not currently use, and to re-prove this
+    module. Left as a NAMED work item for the `agent-stdlib-annotate` owner rather than
+    half-done under a deadline.
+    """
     return "----------"
