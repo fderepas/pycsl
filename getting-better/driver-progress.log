@@ -4052,3 +4052,37 @@ and an element copied from another element. Four claims FALSE of CPython's obser
 per program. Smoke test green (`FUZZ13-DONE seed=0 n=2 ran=2 false_proofs=0`). Launched
 over 40 seeds x 14 programs = **560 programs**, detached, `timeout 3600` per seed, log
 `$SCRATCH/fuzz13.log`.
+
+## NEW PLANE — `bin/check-stdlib-trusted-markers.py` (the 28th fast plane)
+Found by following the campaign's OWN HEADLINE METRIC into the layer I had just gated, and
+discovering the metric does not reach it.
+
+`bin/count-trusted-directives.py` globs `MIRROR/**/*.py`; `bin/check-trusted-reasons.py`
+scopes to `src/self-annotate/src`. **So the 459 marker count EXCLUDES `src/pycsl_lib/`
+entirely** — and that layer is not empty:
+
+  * `mth.isqrt` — `reviewer: newton-method-variant`, reason stated (the Newton VARIANT
+    needs nonlinear arithmetic beyond Alt-Ergo), contract `requires x >= 0` /
+    `ensures \result >= 0` which is TRUE of `math.isqrt`. Honest trust: named, reasoned,
+    and weak enough to be right.
+  * `hlib.Sha256.update` — a **BARE `#@ \trusted`: no reviewer, no reason**, in a class
+    whose `hexdigest` returns `[0] * 64` under `ensures \length(\result) == 64` — an
+    all-zero digest behind a length-only contract.
+
+`config/skills/agent-stdlib-annotate/SKILL.md` is explicit that this layer carries ZERO
+`\trusted` and that an irreducibly-opaque kernel "becomes an abstract `val` pinned by a
+cited `#@ proof` — never `\trusted`". **The rule existed, the violation existed, and no
+plane connected them.**
+
+THE BARE MARKER IS BASELINED, NOT FAILED, and the header says why: a gate that is red the
+day it lands cannot join a green battery, and inventing a `reviewer:` identity to silence
+it would be worse than recording it. Its entry names the defect and what closing it takes.
+That is the same treatment `check-swallowed-exceptions` gave its eight firings — which were
+then driven to zero this generation.
+
+Battery is now **28 fast / 49 with `--slow`**. All 28 green at HEAD.
+
+>>> A METRIC THAT DOES NOT REACH A DIRECTORY IS NOT A METRIC FOR THAT DIRECTORY. Three
+>>> gates now cover `pycsl_lib` — contract fidelity, pinned facades, and the trust surface
+>>> — and all three exist because the layer had a skill telling it what to do and no
+>>> instrument checking whether it did.

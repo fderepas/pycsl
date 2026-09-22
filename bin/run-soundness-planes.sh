@@ -134,12 +134,21 @@ PLANES=(
     # symlink). Sound while nothing substitutes this layer for the real module; the set
     # that turns false the day something does.
     check-stdlib-pinned-facades.py
+    # (#49) gen #30: the STDLIB TRUST-SURFACE ratchet, and the reason it is a THIRD stdlib
+    # gate is the finding itself: the campaign's headline `\trusted` metric does not reach
+    # this layer. `count-trusted-directives.py` globs `MIRROR/**/*.py` and
+    # `check-trusted-reasons.py` scopes to `src/self-annotate/src`, so the 459 count
+    # EXCLUDES `src/pycsl_lib/` — which carries two markers, one of them BARE (no
+    # reviewer, no reason: `hlib.Sha256.update`, in a class whose `hexdigest` returns
+    # `[0] * 64`). The skill for that layer says it carries ZERO trusted markers. The
+    # rule existed, the violation existed, and no plane connected them.
+    check-stdlib-trusted-markers.py
 )
 # (#49) gen #30: TIGHTENED to the EXACT fast-plane count. It had been carrying slack —
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=27
+MIN_PLANES=28
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
