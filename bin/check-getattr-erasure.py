@@ -40,7 +40,35 @@ WHAT IT MEASURES. Every fall-through is classified by WHY the field was not reso
               bucket is still ratcheted, because an opaque read is still a read the
               model cannot resolve, but it is no longer a WRONG ANSWER.
 
-Absent/unknown are RATCHETS (they may only shrink); declared is a HARD ZERO.
+Absent/unknown WERE GLOBAL RATCHETS (they may only shrink); declared is a HARD ZERO.
+
+(#49) gen #30 — THE GLOBAL RATCHETS ARE GONE, REPLACED BY A PER-FILE BASELINE, and this is
+the redesign THIS FILE'S OWN NOTE ASKED FOR two generations running:
+
+    "these ratchets count EMISSION SITES ACROSS THE WHOLE CORPUS, so they rise whenever a
+     witness is ADDED, for reasons that have nothing to do with the emitter's residue
+     shrinking. If that keeps happening, the honest redesign is to ratchet the residue PER
+     EMITTER SITE rather than per corpus occurrence."
+
+It kept happening. UNKNOWN was raised 19 -> 24 for route #47's four witnesses, 24 -> 25 for
+route #197's carrier, and gen #30's refusal witnesses pushed it to 27 — a third bump, each
+one individually justified and the sequence indistinguishable from laundering a ratchet.
+Rule (k) says never re-baseline a gate to make it green, and "the corpus grew" had become
+the standing excuse for doing exactly that.
+
+So the gate is now keyed on (file -> absent, unknown), committed in
+`bin/getattr-erasure-sites.tsv`:
+
+  * a baselined file with MORE sites than its row FAILS — strictly stronger than the old
+    global cap, which a shrink elsewhere could have paid for;
+  * a file with NO row that has ANY site FAILS, so a new witness is a deliberate
+    REGISTRATION (`--emit-baseline`, then read the diff) rather than a number bumped;
+  * a baselined file with FEWER sites is REPORTED so its row can shrink with it;
+  * DECLARED stays a hard zero everywhere, unbaselineable, which is the half that means
+    route #22 is back.
+
+The global totals are still printed, but nothing is gated on them and there is no
+hand-maintained ceiling left to raise.
 
 HOW. The emitter carries an env-gated one-line census at the fall-through
 (`PYCSL_GETATTR_CENSUS=1`, stderr, emits nothing). This script drives the emission over
@@ -49,9 +77,10 @@ a MEASUREMENT of the real lowering, not a syntactic guess about it — a static 
 tell DECLARED from ABSENT, which is the entire distinction that matters here.
 
 USAGE
-    bin/check-getattr-erasure.py                     # check against the ratchets
+    bin/check-getattr-erasure.py                     # check against the per-file baseline
     bin/check-getattr-erasure.py --verbose           # list every site
-    bin/check-getattr-erasure.py --max-absent N --max-unknown N
+    bin/check-getattr-erasure.py --mirror-only       # the TCB half, fast
+    bin/check-getattr-erasure.py --emit-baseline     # rewrite the TSV (READ THE DIFF)
 """
 import argparse
 import os
@@ -65,6 +94,12 @@ CORPUS = os.path.join(ROOT, "test-suite", "corpus", "pycsl-reference")
 # Ratchets, measured at the route-#22 closure (#44).
 MIN_TARGET_FILES = 40   # true population 64; a floor on the INPUT, not a ratchet (gen #4)
 
+SITES_TSV = os.path.join(ROOT, "bin", "getattr-erasure-sites.tsv")
+
+# ---------------------------------------------------------------------------------------
+# HISTORY OF THE RATCHETS THAT USED TO LIVE HERE. Kept because the sequence is the argument
+# for the per-file baseline that replaced them, and deleting it would delete the evidence.
+#
 # (#49) gen #30, ROUTE #197 — BOTH RATCHETS RAISED BY EXACTLY ONE, AND ONLY BECAUSE THE
 # CORPUS GREW BY TWO FILES THAT EXIST TO EXERCISE THESE TWO BUCKETS:
 #   * `1691_route197_an_unknown_typed_getattr_was_its_default.py` adds ONE UNKNOWN site —
@@ -92,6 +127,23 @@ MAX_ABSENT = 8
 # mirror population has not moved at all. `DECLARED` stays pinned at 0 — that is the half
 # that would mean route #22 is back, and it has not budged.
 MAX_UNKNOWN = 25
+# ---------------------------------------------------------------------------------------
+
+
+def load_baseline():
+    """file -> (absent, unknown). Missing file = every site in it is unregistered."""
+    out = {}
+    if not os.path.exists(SITES_TSV):
+        return out
+    for line in open(SITES_TSV, encoding="utf-8"):
+        line = line.rstrip("\n")
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split("\t")
+        if len(parts) != 3:
+            continue
+        out[parts[0]] = (int(parts[1]), int(parts[2]))
+    return out
 
 
 def emit_and_collect(path, import_path=None):
@@ -125,7 +177,10 @@ def main():
     ap.add_argument("--max-absent", type=int, default=MAX_ABSENT)
     ap.add_argument("--max-unknown", type=int, default=MAX_UNKNOWN)
     ap.add_argument("--mirror-only", action="store_true",
-                    help="skip the corpus pass (fast)")
+                    help="skip the corpus pass (fast); checks only the mirror rows")
+    ap.add_argument("--emit-baseline", action="store_true",
+                    help="rewrite bin/getattr-erasure-sites.tsv from this run. READ THE "
+                         "DIFF: a row that GREW is the thing this gate exists to catch.")
     args = ap.parse_args()
 
     targets = []
@@ -169,6 +224,38 @@ def main():
         for cls, f, obj, ty, name in sorted(rows):
             print(f"    {cls:9s} {f:55s} {obj}.{name}  (type={ty})")
 
+    # ---- per-file tally of this run
+    per = {}
+    for cls, f, _o, _t, _n in rows:
+        a, u = per.get(f, (0, 0))
+        if cls == "ABSENT":
+            a += 1
+        elif cls == "UNKNOWN":
+            u += 1
+        per[f] = (a, u)
+
+    if args.emit_baseline:
+        scope = "mirror only" if args.mirror_only else "mirror + corpus"
+        with open(SITES_TSV, "w", encoding="utf-8") as fh:
+            fh.write("# getattr fall-through sites, per file: file\tABSENT\tUNKNOWN\n")
+            fh.write("# Written by bin/check-getattr-erasure.py --emit-baseline (%s).\n"
+                     "# DECLARED is never recorded here: it is a hard zero, not a "
+                     "baseline.\n" % scope)
+            for f in sorted(per):
+                a, u = per[f]
+                fh.write("%s\t%d\t%d\n" % (f, a, u))
+        print("[*] getattr-erasure: wrote %d row(s) to %s — READ THE DIFF."
+              % (len(per), os.path.relpath(SITES_TSV, ROOT)))
+        return 0
+
+    baseline = load_baseline()
+    if not baseline:
+        print("[!] getattr-erasure: REFUSING — %s is missing or empty. The per-file "
+              "baseline IS the gate; without it this script can only print totals, and a "
+              "gate that cannot distinguish 'nothing wrong' from 'I compared nothing' "
+              "must refuse." % os.path.relpath(SITES_TSV, ROOT), file=sys.stderr)
+        return 2
+
     bad = False
     if counts["DECLARED"] > 0:
         print("[-] getattr-erasure: *** ROUTE #22 IS BACK *** "
@@ -179,19 +266,43 @@ def main():
             if cls == "DECLARED":
                 print(f"      {f}: {obj}.{name} (type={ty})")
         bad = True
-    if counts["ABSENT"] > args.max_absent:
-        print(f"[-] getattr-erasure: ABSENT {counts['ABSENT']} > "
-              f"ratchet {args.max_absent}")
+
+    scanned = {os.path.relpath(p2, ROOT) for p2, _i in targets}
+    grew, unregistered, shrank = [], [], []
+    for f in sorted(per):
+        a, u = per[f]
+        if f not in baseline:
+            unregistered.append((f, a, u))
+        else:
+            ba, bu = baseline[f]
+            if a > ba or u > bu:
+                grew.append((f, ba, bu, a, u))
+            elif a < ba or u < bu:
+                shrank.append((f, ba, bu, a, u))
+    for f, (ba, bu) in sorted(baseline.items()):
+        if f in scanned and f not in per and (ba or bu):
+            shrank.append((f, ba, bu, 0, 0))
+
+    for f, ba, bu, a, u in grew:
+        print(f"[-] getattr-erasure: {f} GREW — ABSENT {ba}->{a}, UNKNOWN {bu}->{u}. A "
+              f"file's fall-through residue may only shrink; a new site in an EXISTING "
+              f"file is the emitter erasing more than it used to.")
         bad = True
-    if counts["UNKNOWN"] > args.max_unknown:
-        print(f"[-] getattr-erasure: UNKNOWN {counts['UNKNOWN']} > "
-              f"ratchet {args.max_unknown}")
+    for f, a, u in unregistered:
+        print(f"[-] getattr-erasure: {f} has {a} ABSENT / {u} UNKNOWN site(s) and NO row "
+              f"in {os.path.relpath(SITES_TSV, ROOT)}. Register it deliberately "
+              f"(--emit-baseline, then read the diff) — a new witness is a decision, not "
+              f"a number to bump.")
         bad = True
+    for f, ba, bu, a, u in shrank:
+        print(f"[+] getattr-erasure: {f} SHRANK — ABSENT {ba}->{a}, UNKNOWN {bu}->{u}. "
+              f"Re-emit the baseline so the row goes down with it.")
+
     if bad:
         return 1
-    print(f"[+] getattr-erasure: OK — DECLARED 0 (pinned), "
-          f"ABSENT {counts['ABSENT']}/{args.max_absent}, "
-          f"UNKNOWN {counts['UNKNOWN']}/{args.max_unknown}.")
+    print(f"[+] getattr-erasure: OK — DECLARED 0 (pinned); {len(per)} file(s) with sites, "
+          f"every one at or below its row; totals ABSENT {counts['ABSENT']}, UNKNOWN "
+          f"{counts['UNKNOWN']} (reported, not gated).")
     return 0
 
 
