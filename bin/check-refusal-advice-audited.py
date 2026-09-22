@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 58 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 61 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -332,6 +332,15 @@ AUDITED = {
     ("src/pycsl/frontend/desugar.py",
      'PyCSLParseError("a Python `assert` inside a `try` whose handler can catch `AssertionError` is not modelled: the `assert` is lowered to a NO-'): (FOLLOWABLE,
         "'Use an explicit `if not <cond>: raise AssertionError(...)`, or move the `assert` out of the `try`' - a `#@ check` outside any `try` VERIFIES."),
+    ("src/pycsl/frontend/Module5_IREmitter.py",
+     'PyCSLSemanticError("`deque(<iterable>)` with arguments is not modelled: the lowering reduces a deque to the list/array model and DISCARDS ev'): (FOLLOWABLE,
+        'The repair is an empty `deque()` plus explicit appends; the empty construction VERIFIES.'),
+    ("src/pycsl/frontend/Module5_IREmitter.py",
+     'PyCSLSemanticError(f"augmented assignment to {_aa_kind} is not modelled: this lowering handles `x op= v`, `self.f op= v`, `p.f op= v` (p a l'): (FOLLOWABLE,
+        'The repair is to use a handled shape; both `x += 1` on a local and `self.n += 1` on a field VERIFY.'),
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"{where}: `#@ fresh_globals` is only allowed on a top-level driver that no other verified function calls. \'{short}\' is c'): (FOLLOWABLE,
+        "'Remove the call, or drop `#@ fresh_globals`' - a driver nothing calls VERIFIES. My first attempt failed on MY file: the constructor needs an explicit `#@ ensures self.n == 0` for the directive to have a post-state to re-establish (corpus 0713 shows the shape). My mistake, not the advice's - recorded per lesson (i3)."),
 }
 
 
@@ -436,7 +445,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 58
+MIN_AUDITED = 61
 
 if __name__ == "__main__":
     sys.exit(main())
