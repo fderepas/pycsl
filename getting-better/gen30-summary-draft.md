@@ -30,8 +30,9 @@ occurrences and ZERO in the mirror, the live tree and `pycsl_lib`; witness 1796,
 That is the honest headline, and the generation's answer to it is not an excuse but three
 measurements that say what 459 does not mean: 56%–61% of the mirror is trusted OR
 trust-dependent (`check-trust-blast-radius`), only 15% of the un-trusted mirror says
-anything about the VALUE it computes (`check-mirror-claim-strength`), and 46% of the
-corpus carries a contract that says nothing at all (`check-claim-vacuity`). One marker was
+anything about the VALUE it computes (`check-mirror-claim-strength`), and **45%** of the
+corpus carries a contract that says nothing at all (1791 of 3973, and the detector was
+audited and came back clean) (`check-claim-vacuity`). One marker was
 attacked directly — `hlib.Sha256.update`, the layer's one BARE `\trusted` — and proved
 FORCED, so the measurement went into the marker and the gate now enforces a `reviewer:`
 clause at zero.
@@ -320,7 +321,7 @@ Five new `value-differential` drivers (v73-v77), the CPython-measured plane, cov
   412 functions, **4354 argument-level evaluations, 0 disagreements**, and the exclusions
   that produced the 45% / 46% numbers.
 * `bin/check-trust-blast-radius.py` — 56%–61% of the mirror is trusted or trust-dependent.
-* `bin/check-claim-vacuity.py` — the SECOND vacuity: 1791 of 3888 corpus files say nothing.
+* `bin/check-claim-vacuity.py` — the SECOND vacuity: **1791 of 3973** corpus files say nothing (the denominator grew with this generation's own witnesses; the numerator did not, which is the ratchet working). Its detector was AUDITED at the end of the generation and came back CLEAN: two broader syntactic families — `ensures A <op> A` for identical text, and `ensures <lit> <op> <lit>` for every comparison — scanned over all 3973 files found ZERO additional hits, so the number is not an undercount hiding behind a narrow regex. The operator set was widened anyway, and what stays invisible (SEMANTIC tautologies, which need the expression evaluator) is now named in the plane.
 * `bin/check-mirror-claim-strength.py` — 15% of the un-trusted mirror makes a value claim.
 * `bin/check-trusted-termination-honesty.py` — the third honesty plane (frame, raises, and
   now TERMINATION): 52 trusted bodies whose termination is assumed and unverified.
