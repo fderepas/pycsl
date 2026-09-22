@@ -594,6 +594,65 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     filename=args.file, stage="imports", code="PYCSL-SEM-IMPORT-UNVERIFIED")
             _seen212.add(_path212)
 
+    # (#49) ROUTE #213 — TWO READS OF THE SAME `getattr` ARE THE SAME CONSTANT, ACROSS A
+    # CALL THAT WRITES THE ATTRIBUTE. Route #197 made the unknown-class `getattr` device
+    # PER-SITE, "hashed on the call's IR so two reads of the SAME `getattr` expression
+    # agree (which `(any int)` would NOT give — it is fresh at every evaluation, and losing
+    # that equality is a real loss of faithfulness for no gain)". The equality is sound
+    # only while the attribute cannot change between the reads. MEASURED:
+    #     #@ assigns o.a
+    #     def mutate(o: Any) -> None:  o.a = 99
+    #     #@ assigns o.a
+    #     #@ ensures \result == 0
+    #     def f(o: Any) -> int:
+    #         x = getattr(o, "a"); mutate(o); y = getattr(o, "a"); return x - y
+    # PROVED (witness 1726). The emission says why: BOTH reads are
+    # `pycsl_getattr_missing_1929893044`, a `val function` CONSTANT, while the write goes
+    # through `val setattr_3 ... writes { _pyobj_state }` — the device does not depend on
+    # the state it is supposed to read. CPython answers -98 for an object with `o.a = 1`.
+    # THE FAITHFUL FIX IS A STATE-KEYED DEVICE — `val function pycsl_getattr_missing_<h>
+    # (s: int) : int` applied to `!_pyobj_state`, which keeps #197's equality for two reads
+    # with no intervening write and loses it exactly across one. It changes EMISSION at the
+    # two device sites in `module6_whyml/expressions.py`, which is mirrored UN-trusted, so
+    # it costs a verbatim mirror edit plus that file's whole-file re-proof (21347 goals)
+    # plus a corpus byte-diff. That is the recorded price; this window takes the refusal.
+    # THE REFUSAL IS EXACTLY THE FALSE-EQUALITY SHAPE: the same `getattr` call IR read
+    # twice in one function that also calls something else. Census before landing it: ZERO
+    # functions in the corpus or in `src/pycsl_lib/` have that shape, so the blast radius
+    # is empty.
+    from errors import PyCSLSemanticError as _PyCSLSemErr213
+    for _f213 in ir_data.get("functions", []):
+        _ga213 = {}
+        _other213 = 0
+        _w213 = [_f213.get("body", [])]
+        while _w213:
+            _n213 = _w213.pop()
+            if isinstance(_n213, dict):
+                if _n213.get("type") == "Call":
+                    if _n213.get("func") == "getattr" and len(_n213.get("args") or []) <= 2:
+                        _k213 = _json.dumps(_n213, sort_keys=True)
+                        _ga213[_k213] = _ga213.get(_k213, 0) + 1
+                    elif _n213.get("func") not in ("getattr",):
+                        _other213 += 1
+                _w213.extend(v for v in _n213.values() if isinstance(v, (dict, list)))
+            elif isinstance(_n213, (list, tuple)):
+                _w213.extend(_n213)
+        _dup213 = [k for k, v in _ga213.items() if v >= 2]
+        if _dup213 and _other213:
+            raise _PyCSLSemErr213(
+                f"{args.file} (function '{_f213.get('name')}'): the same "
+                f"`getattr(...)` expression is read {_ga213[_dup213[0]]} times in a "
+                f"function that also calls something else. An unknown-class `getattr` "
+                f"with no default lowers to a PER-SITE CONSTANT (route #197), so both "
+                f"reads are the SAME value in the model — while a call between them may "
+                f"write that attribute, and then they are NOT the same value in CPython "
+                f"(measured: `x = getattr(o, \"a\"); mutate(o); y = getattr(o, \"a\"); "
+                f"return x - y` PROVED `== 0` where CPython answers -98). Read the "
+                f"attribute once and keep the value, or give `getattr` a default so the "
+                f"declared-absent lowering applies.",
+                filename=args.file, line=_f213.get("line", 0) or 0,
+                stage="ir-semantic", code="PYCSL-SEM-GETATTR-REREAD")
+
     # (#49) ROUTE #204 — AN `#@ interface assigns` IS NOT CHECKED AGAINST THE DEFINITION'S.
     # `module6_whyml/functions.py::_emit_narrowing_vc` proves the interface is a sound
     # WEAKENING of the definition for `ensures` (def_req -> def_ens -> iface_ens) and for
