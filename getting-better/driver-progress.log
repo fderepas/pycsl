@@ -2514,3 +2514,17 @@ gen19 GEN #18'S BYTE-DIFF BASELINE IS ORPHANED AND PARTIAL — I WILL NOT USE IT
 2026-09-22T01:30Z gen30 gen10 COMPLETE: 40 seeds, 640 programs, every one run under CPython first and then claimed four wrong ways, ZERO FALSE PROOFS. Together with gen9 (8 seeds / 112 programs, also zero) that is 752 differential programs over the reading-callee cross-product — six parameter shapes x five reading contracts x eleven actuals — with no false proof after the #192/#194/#195/#196 repairs. The surface that produced four of this generation's seven routes is clean.
 2026-09-22T01:50Z gen30 DOC GAP CLOSED: the translational reference carried §T.5.12h's route #191/#192 update but nothing for #193-#197, all five of which CHANGE A LOWERING. New §T.5.12t ("A PLACEHOLDER HAS EVERY PROPERTY ITS REPRESENTATION HAS") tabulates all five as one defect in five costumes, states THE ONE PROBE that found four of them, and records the two distinctions each repair turns on: OPAQUE is not always right (sometimes FAITHFUL is — #196's empty array lets witness 1690 prove `len([]) == 0`, which the model could not prove before), and a PER-SITE opaque is not `any` (`any` is fresh at every evaluation, so it loses the equality of two reads of the same expression — #197's first version used it and the emission census refuted it). NOTE: `§T.5.12i` was already taken by the NaN section, so this is `§T.5.12t`; doc-coherency green.
 2026-09-22T01:41Z gen30 gen11 BUILT AND LAUNCHED (60 seeds x 16 programs, log $SCRATCH/fuzz11.log). It crosses the RETURN boundary — the mirror image of gen9/gen10's argument boundary, and the gap `bin/check-argument-coercion.py` names in its own "what it does not check": "the RETURN side. A callee's result flowing back into a caller's typed slot is the mirror image of this and has no plane yet." The two code paths are disjoint: at the argument boundary the substitution happens at the CALL SITE (`_coerce_dotted_args`, now gated); at the return boundary it happens inside the callee's own lowering and must survive its declared return type, and nothing gates that. Thirteen callee shapes (empty/real/genexp/comprehension/reversed lists, empty and real strings, `Optional[int]` None and 5, empty and real dicts, and an UNKNOWN-typed `getattr`) each read by a caller contract over `\result`, four wrong claims apiece.
+
+## 2026-09-22T02:0xZ — resume after the third 529 kill
+Killed ~01:42Z, server-side overload, nothing in the work. On resume:
+- gen11 SURVIVED the kill (it was detached): seed 1 finished green
+  (`FUZZ11-DONE seed=1 n=16 ran=16 false_proofs=0`), seed 2 in flight.
+  That is the point of detaching long jobs — a kill costs the turn, not the run.
+- the final control battery's SLOW-PLANES leg re-launched on HEAD (2072dd8f)
+  in the control worktree pycsl-w51, detached, log $SCRATCH/planes_slow.log.
+  (My earlier on-disk reading said it had completed 42/42 at 00:51:31Z before
+  the 00:55Z kill; re-running it costs wall clock I have and settles the
+  question with evidence at THIS HEAD rather than at the HEAD of three commits
+  ago. When a gate's greenness is disputed, re-run it — do not re-argue it.)
+Discipline for the rest of the run, after three kills: commit each measurement
+as it lands, so a kill costs minutes, not hours.
