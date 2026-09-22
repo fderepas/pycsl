@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 47 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 49 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -299,6 +299,12 @@ AUDITED = {
     ("src/pycsl/frontend/Module3_Weaver.py",
      'PyCSLSemanticError(f"`happy {hp.name}`: trusted/abstract method \'{fn.name}\' is not exempt and its `assigns` writes a protected path ({\', \'.j'): (FOLLOWABLE,
         'Same pair of repairs as the function-level sibling, measured the same way: `except` and `#@ \\\\preserves` both VERIFY.'),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}({hp.param})`: non-exempt \'{fn.name}\' performs a {kind} store to the protected path \'{path}\' (line {get'): (FOLLOWABLE,
+        "'Write through <path>[i] one index at a time so each write is confined' - a per-index store under `#@ footprint <policy>(k)` VERIFIES."),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: non-exempt \'{fn.name}\' REBINDS the whole field \'self.{hp.field}\' (line {getattr(nd, \'lineno\', 0)}), '): (FOLLOWABLE,
+        'The repair is to write THROUGH the protected field rather than rebind it; an indexed store by the excepted owner VERIFIES.'),
 }
 
 
@@ -403,7 +409,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 47
+MIN_AUDITED = 49
 
 if __name__ == "__main__":
     sys.exit(main())
