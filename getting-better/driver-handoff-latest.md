@@ -3,8 +3,10 @@
 # ## HOW TO RUN ANYTHING: `. scratchpad/g29/env.sh` first (why3 is NOT on the default PATH; it also sets
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #
-# ## IN FLIGHT RIGHT NOW (2026-09-22T15:10Z)
-#    - **TWENTY-TWO routes this generation (#191-#212)**, of which #212 is OPEN. Six landed in the 14:30-15:05Z
+# ## IN FLIGHT RIGHT NOW (2026-09-22T19:30Z)
+#    - **TWENTY-FIVE routes demonstrated this generation (#191-#214); TWENTY-TWO CLOSED and
+#      THREE OPEN (#212, #213, #214), each open one with its repair PRICED and its carrier
+#      runnable by `bin/check-open-route-carriers.py`.** Six landed in the 14:30-15:05Z
 #      stretch: #204 (an `#@ interface assigns` NARROWER than the definition — the
 #      narrowing VC proves ensures and requires and emits NOTHING for assigns),
 #      #205 (an over-claiming `#@ interface` is refused AT HOME and believed by EVERY
