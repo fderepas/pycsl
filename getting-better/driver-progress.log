@@ -4742,3 +4742,14 @@ The plane reported coverage of 198 sites when there were 219.
 
 Counts after the fix: 182 demonstrated / 19 undemonstrated / 8 not-source-reachable /
 10 unmatchable = 219. MIN_SITES 150 -> 190.
+
+>>> AND A NEAR-MISS ON THE ONE RULE THAT HAS NO EXCEPTIONS. Cleaning up what looked like
+>>> temp artifacts (`rm -f test-suite/corpus/pycsl-reference/*/rocq/.tmp*.aux`) deleted
+>>> several HUNDRED files that are TRACKED — a previous generation committed them. The
+>>> first such `rm` was safe (git listed those as untracked) and the second was not, and
+>>> the only reason I noticed is that the next `git commit` printed a wall of `deleted:`
+>>> lines. Restored with `git checkout -- test-suite/corpus/pycsl-reference/`.
+>>>
+>>> A FILE THAT LOOKS TEMPORARY MAY STILL BE TRACKED, AND `rm` ON A GLOB DOES NOT ASK.
+>>> `git status` BEFORE the rm, not after — and never assume the answer carries over from
+>>> the last time the same glob looked clean.
