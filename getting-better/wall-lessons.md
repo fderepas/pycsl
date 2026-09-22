@@ -4967,3 +4967,26 @@ assume" discipline as an emitter edit.** Two hours earlier, a `pkill -CONT` by p
 silently left a fuzz worker stopped because the pkill's own shell matched the pattern. Both
 mistakes were "I know what this command does" applied to a command whose semantics I had
 not checked.
+
+## (s2) DETACH EVERY LONG LEG — THE KILL IS NOT A QUESTION OF IF
+
+This generation was killed four times: three `529 Overloaded`s and one weekly rate limit.
+The last one landed at ~05:05Z and the session did not resume until 12:45Z — **seven hours
+and forty minutes**. In that window, with no agent running at all:
+
+  * the #198 mirror re-proof finished GREEN (12589 goals, `Verification SUCCESS`);
+  * the #201 mirror re-proof finished GREEN (21347 goals — the giant);
+  * the gen11 fuzzer finished all 60 seeds (960 programs, zero false proofs).
+
+Nothing was lost, because every one of them was a `nohup`'d script writing to a polled log
+rather than a foreground command. The same window would have destroyed three multi-hour
+legs if any of them had been run in the foreground "just this once".
+
+>>> A LONG JOB THAT IS NOT DETACHED IS A JOB YOU ARE BETTING THE SESSION ON. Detach it,
+>>> give it `timeout 43200`, write its output to a log, and poll. The cost is one extra
+>>> line; the payoff is that a seven-hour outage costs you the TURN and not the WORK.
+
+The corollary the same session paid for twice: the handoff note must name every detached
+log and say **do not relaunch**, because the next worker's instinct on seeing a stale log
+is to start it again — and relaunching a proof that is already 90% through is the same
+loss as not having detached it.
