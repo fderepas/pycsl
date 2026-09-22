@@ -3586,3 +3586,28 @@ that was already the critical path) and the lesson is cheap:
 The standing fix for the next window: every detached prover run gets `timeout 43200` from
 the start. A wrapper timeout is not a proof verdict, so an over-long timeout costs nothing
 and an under-long one costs the run.
+
+## NEW PLANE — `bin/check-coercion-exits.py` (the 24th fast plane)
+The trigger rule's THIRD firing this session. `bin/check-argument-coercion.py` classifies
+the `coerced.append(...)` SITES of `_coerce_dotted_args`; it does not look inside the two
+helpers those sites delegate to, and BOTH produced two routes each:
+  `_array_coerce_arg`  #193 (the `"0"` arm) and #201 (the TAIL)
+  `_coerce_to_int`     #194 (array/map arms) and #200/#202 (the string-literal hash)
+
+It pins BOTH exit sets with occurrence counts. The count is load-bearing here more than
+anywhere so far: `return whyml_str` appears FIVE times across the two functions and is a
+pass-through for five different reasons, and `'(any (array int))'` appears twice — one of
+which only exists because of #201.
+
+DEMONSTRATED TO FIRE, and the self-test technique is worth keeping: rather than moving a
+worktree, `git show 14ff4bdd:src/pycsl/module6_whyml/expressions.py > <tmpdir>/` and
+`--live <tmpdir>` runs the gate against a single historical FILE. Against the true
+pre-#201 source it exits 1 with exactly the right diagnosis:
+    UNJUSTIFIED coercion exit: ('_array_coerce_arg', "'(Array.make 1 0)'")
+    COUNT MOVED for ('_array_coerce_arg', "'(any (array int))'"): baseline 2, found 1
+(The first attempt at this self-test used worktree `pycsl-w51`, which I had already moved
+PAST #201 for the #202 baseline — it was green, and for a moment looked like lesson (q)
+repeating. Checking WHAT THE WORKTREE ACTUALLY CONTAINED, rather than what I had last set
+it to, is the same reflex the campaign applies to every other recorded fact.)
+
+Battery is now **24 fast / 45 with `--slow`**. All 24 green at HEAD.

@@ -96,12 +96,20 @@ PLANES=(
     # WRAP rather than an exit and the return set alone is green on the pre-#203 tree —
     # measured via `--live`, which is also how that blind spot was found before shipping.
     check-fstring-lowering.py
+    # (#49) gen #30: the COERCION-EXIT ratchet — the trigger rule's THIRD firing this
+    # session. `check-argument-coercion.py` classifies the `coerced.append(...)` SITES of
+    # `_coerce_dotted_args`; it does not look inside the two helpers those sites delegate
+    # to, and BOTH produced two routes each (#193/#201 in `_array_coerce_arg`, #194 and
+    # #200/#202 in `_coerce_to_int`). Pins both exit sets WITH COUNTS, because
+    # `return whyml_str` appears five times across the two functions as five different
+    # pass-throughs. Demonstrated to FIRE on the true pre-#201 source via `--live`.
+    check-coercion-exits.py
 )
 # (#49) gen #30: TIGHTENED to the EXACT fast-plane count. It had been carrying slack —
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=23
+MIN_PLANES=24
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
