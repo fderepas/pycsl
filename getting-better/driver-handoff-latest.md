@@ -109,8 +109,56 @@
 #         (~13), and each costs about five minutes: probe the shape, confirm the refusal
 #         fires, write the file with `# pycsl-expected: FAIL`, extend the census artifact
 #         (do NOT regenerate — that is a 100-minute sweep), ratchet both counts.
-#      6. **The 24 UNADJUDICATED identity stubs** and the 29 un-audited advice sites: both
-#         are manual, both are cheap per item, and both have a plane that counts them.
+#      6. ~~The 24 UNADJUDICATED identity stubs~~ **DONE 20:50Z, and seven were FALSE.**
+#         All 24 adjudicated against this CPython; `MAX_UNADJUDICATED` 24 -> 0, so the
+#         debt counter is now a ratchet. It needed two new classes (DECLARED-DOMAIN,
+#         MODEL-INTERNAL) with `pkl.dump` as the standing control that stays OUT of the
+#         first one. The 29 un-audited advice sites are STILL OPEN.
+#         WHAT IT LEFT BEHIND, in priority order:
+#           a. **Four FALSE contracts in `src/pycsl_lib` with a PROVED FALSE CLAIM
+#              DOWNSTREAM in `src/pycsl_lib_test`**, which is the route standard met
+#              inside the stdlib layer: `formal_csvmod.test_write_row_identity` proves
+#              `\result == n` for a written row's field count (CPython returns 7 for 3
+#              fields — the CHARACTER count) and `formal_cvar.test_set_returns_value`
+#              proves `\result == value` for `ContextVar.set` (CPython returns a Token;
+#              its docstring even says "Returns Token (the value)"). Also
+#              `csvmod.writerows` (`== rows * fields_per_row`; real `writerows` returns
+#              None) and `cvar.context_var_get`. THE REPAIRS ARE WORKED OUT AND MEASURED:
+#              write_row/writerows `==` -> `>=` (bytes >= fields, true of CPython and
+#              exactly what their own docstrings already say); `context_var_set` drops the
+#              identity for an opaque non-negative handle; `context_var_get` takes an
+#              `is_set: int` with `requires is_set == 0` so the assumption is IN THE
+#              CONTRACT. Each needs the matching `src/pycsl_lib_test/formal_*.py` driver
+#              weakened and `check-stdlib-modules-verify.py` re-run for those modules.
+#           b. `dec.getcontext_prec` needs `requires prec <= 999999999999999999`
+#              (`prec = 10**30` RAISES OverflowError past `decimal.MAX_PREC`).
+#           c. `nums.rational_num` / `rational_den` need coprimality
+#              (`Fraction(2,4).numerator` is 1, not 2) — check PyCSL has a `\gcd` first.
+#           d. `hq.heapify_max` / `heappushpop_max` / `heapreplace_max` take BOTH
+#              `heap: list` and `n: int` and never tie them, so their size law is TRUE but
+#              VACUOUS (3-element heap, `n = 99`, proves 99). Wants a `requires`.
+#           e. `que.qsize` pins `\result == self._size` under a docstring quoting
+#              CPython's own "APPROXIMATE" — true of a single-threaded model, and nothing
+#              in the file says the model is single-threaded.
+#      6b. **NEW PLANE, `bin/check-docstring-contract-disagreement.py`** (wall-lesson
+#         (g3), the free oracle): a docstring that states a WEAKER relation than the
+#         `#@ ensures \result ==` clause beside it. 7 hits, 3 DISAGREES and 4 CONTROLS
+#         (QUOTED-RELATION / BRANCH-CONDITION / GUARD-RESTATED). It found `que.qsize`,
+#         which the hand pass had missed. **NOT YET REGISTERED in
+#         `bin/run-soundness-planes.sh`** — the battery was mid-run and bash reads a
+#         script incrementally. Register it and raise MIN_PLANES 40 -> 41.
+#         KNOWN LIMITATION, worth one more plane: it missed `csvmod.writerows`, whose
+#         docstring says "Total bytes written is non-negative" — no weakener WORD, but the
+#         docstring names a DIFFERENT QUANTITY than the clause pins.
+#      6c. **`bin/check-getattr-erasure.py` REDESIGNED, per-file baseline.** It went RED
+#         at 20:40Z (UNKNOWN 27 > ratchet 25) because gen #30's own witnesses grew the
+#         corpus — the THIRD such bump (19->24 for route #47, 24->25 for #197). The
+#         file's own note had asked for this redesign twice. Gated now on
+#         `bin/getattr-erasure-sites.tsv` (file -> ABSENT, UNKNOWN): a baselined file that
+#         GROWS fails, an unregistered file with any site fails, DECLARED stays a hard
+#         zero, and the global totals are printed but gated on nothing. **THE TSV IS NOT
+#         YET GENERATED** (`--emit-baseline` needs a quiet machine; the battery was
+#         running) and the plane REFUSES with rc=2 until it exists.
 #      7. The `check-avatar-frame-parity` INHERITED segment (7 sites) and the hval
 #         absent-key sentinel's MIRROR side, still priced as infeasible in a short window.
 #
