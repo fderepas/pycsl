@@ -194,14 +194,21 @@ PLANES=(
     # convention, so on the day that one-line "typo fix" lands, 11 pinned facades and 8
     # identity stubs stop being claims about a model and become claims about the world.
     check-stub-import-resolution.py
-    # (#49) gen #30, lesson (e) again — "a check that is not in a runner is not a gate",
-    # this time for the TWO CONFORMANCE CORPORA. refactor.md Phase E built them to bracket
-    # the front-end/core seam from both sides (38 golden IRs re-derived to byte-identical
-    # WhyML by the CORE with no front-end imported; the same 38 re-derived from SOURCE by
-    # the FRONT-END with no core and no prover), and both runners were invoked by nothing
-    # but prose. They cost 0.3s and 3.3s. The core one also asserts at import time that no
-    # front-end module leaked into sys.modules, so it is the only mechanical check that
-    # the physical split refactor.md claims is still physical.
+    # (#49) gen #30: the TWO CONFORMANCE CORPORA, which bracket the front-end/core seam
+    # from both sides — 38 golden IRs re-derived to byte-identical WhyML by the CORE with
+    # no front-end imported, and the same 38 re-derived from SOURCE by the FRONT-END with
+    # no core and no prover. The core one also asserts at import time that no front-end
+    # module leaked into sys.modules, which is the only mechanical check that the physical
+    # split refactor.md claims is still physical.
+    #
+    # CORRECTION, SAME DAY: I added these claiming they "were invoked by nothing but
+    # prose". THAT WAS FALSE, and it was my grep's fault, not the repo's —
+    # `bin/run-reference-tests.sh` runs `bin/run-conformance.sh`, which runs BOTH, and I
+    # had grepped for the two SCRIPT NAMES in `*.sh` instead of following the wrapper.
+    # They stay listed here because 0.3s + 3.3s in the battery means the seam is checked
+    # by a run that does NOT take 40 minutes, and because a gate in two runners is not a
+    # defect. The lesson is the grep's: searching for a callee's NAME finds direct calls
+    # and misses every wrapper.
     core-only-conformance.py
     frontend-only-conformance.py
     # (#49) gen #30: the STDLIB TRUST-SURFACE ratchet, and the reason it is a THIRD stdlib
