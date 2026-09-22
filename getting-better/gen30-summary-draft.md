@@ -106,6 +106,33 @@ Five new `value-differential` drivers (v73-v77), the CPython-measured plane, cov
 * **gen13** (the STORE-AND-READ-BACK boundary, route #191's archetype generalised to
   fourteen store/read pairs): 560 programs, running.
 
+### Planes added in the second half (37 -> 39 fast)
+
+* `bin/check-stdlib-identity-stubs.py` — the `return <param>` family: **81 stubs pinned by
+  their own contract, 23 of them FALSE of the function their header cites**, only six of
+  which the calling gate could ever reach.
+* `bin/check-stub-import-resolution.py` — measures the sentence two other gates rest on.
+  TRUSTED_STUB resolves NOTHING, and nine package names would shadow the real module the
+  day the glob is repaired.
+* `bin/check-corpus-contract-truth-args.py` — the parameterized half of the corpus oracle:
+  412 functions, **4354 argument-level evaluations, 0 disagreements**, and the exclusions
+  that produced the 45% / 46% numbers.
+* `bin/check-trust-blast-radius.py` — 56%–61% of the mirror is trusted or trust-dependent.
+* `bin/check-claim-vacuity.py` — the SECOND vacuity: 1791 of 3888 corpus files say nothing.
+* `bin/check-mirror-claim-strength.py` — 15% of the un-trusted mirror makes a value claim.
+* `bin/check-trusted-termination-honesty.py` — the third honesty plane (frame, raises, and
+  now TERMINATION): 52 trusted bodies whose termination is assumed and unverified.
+* `bin/check-happy-trust-boundaries.py` — an EXECUTABLE gate for all six `#@ happy` trust
+  boundaries, carrier and control, 3.2 seconds.
+* `bin/check-refusal-witness-coverage.py` — which of the compiler's 195 raise sites has a
+  witness DEMONSTRATING it can fire (static half in; the two-hour census is the artifact).
+* `bin/check-stdlib-modules-verify.py` — does the stdlib layer verify at all? (SLOW; the
+  first measurement is 83 of 104, and the TCB appendix's own `os` example is among the 21.)
+* collected, not written: `core-only-conformance.py`, `frontend-only-conformance.py`
+  (already run by the suite — a correction recorded in the ledger) and
+  `os-cpython-differential.py`, a CPython differential oracle for the `os` exception model
+  that cost 0.1s and that nothing ran.
+
 ## The method, in one sentence
 
 Read a plane's — or a function's — OWN WRITTEN JUSTIFICATION as a checkable claim, and probe
