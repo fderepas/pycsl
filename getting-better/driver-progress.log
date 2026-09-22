@@ -3312,3 +3312,38 @@ MANY f-strings actually reach the LEGACY arm. Instrumented census running on the
 (`$SCRATCH/arm_corpus.log`), mirror to follow. THE STATIC COUNT IS THE REASON TO MEASURE,
 not the reason to stop: a 575 that turns out to be 0 in the arm that matters is exactly
 the shape route #201's census had (a placeholder with 0 firings in both trees).
+
+### Route #203 — the arm is NARROWER than the static count suggested, and that decides it
+Reading the INT-MODEL joiner instead of guessing from the 575:
+
+    acc = _part(parts[0])
+    for part in parts[1:]:
+        self._add_abstract_op("val str_concat (x: int) (y: int) : int")
+        acc = f"(str_concat {acc} {p})"
+    return acc
+
+A MULTI-part f-string is wrapped in `str_concat`, an abstract op with no axioms — opaque,
+and sound. A part that is STRING-typed goes through `str_hash_op` — also opaque. The raw
+value escapes in exactly ONE shape: a **SINGLE-part f-string whose part is not
+string-typed**, i.e. `f"{n}"` with no surrounding literal text, where `acc = _part(parts[0])`
+is returned unwrapped and the f-string simply IS `n`.
+
+STATIC CENSUS OF THAT EXACT SHAPE (pure AST, no pipeline):
+    pycsl-reference corpus  1630 files   **0**
+    self-annotate mirror      53 files   **0**
+    pycsl_lib                104 files   **0**
+    live src/pycsl            94 files    3  (2 in `llm_client.py`, which is not mirrored;
+                                             1 in `expressions.py`, in a part of the file the
+                                             mirror does not carry — the mirror count is 0)
+So the blast radius is ZERO in both verified trees. 575 was the upper bound; the arm that
+is actually wrong is empty.
+
+PREDICTION (written first):
+  U1 `f"{n}"` / `\result == 2` (false, CPython says 1) -> REFUSED (was PROVED).
+  U2 `\result == 1` (the TRUE twin)                    -> still REFUSED. The honest value
+     of `f"{n}"` in the int-hash model is the hash of `str(n)`, which is not computable at
+     emit time for a symbolic `n`, so the answer is a value-keyed OPAQUE: two equal `n`s
+     give equal strings, and no literal's hash is provably equal to it.
+  U3 corpus byte-diff ZERO and mirror emission byte-diff ZERO — 0 occurrences of the shape
+     in either tree, so anything else means the census is wrong.
+  U4 22 fast planes stay green.
