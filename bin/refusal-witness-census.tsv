@@ -1,0 +1,760 @@
+# witness	class	message — produced by the gen #30 census sweep (every `# pycsl-expected: FAIL` corpus witness run through the pipeline).
+neg_001_wrong_postcondition.py	VERIFY-FAIL	
+neg_002_broken_invariant.py	VERIFY-FAIL	
+0010.py	VERIFY-FAIL	
+0050.py	VERIFY-FAIL	
+0210.py	VERIFY-FAIL	
+0254.py	REFUSAL	Function 'bad_worker': unprotected write to shared variable 'counter' (protected_by 'lock_counter', but held m
+0255.py	REFUSAL	Function 'bad_nested': nested mutex acquisition of 'lock_b' while holding ['lock_a'] requires a module-level '
+0256.py	VERIFY-FAIL	
+0281.py	REFUSAL	Invalid use of '\result' in function 'bad_precondition'. It is only allowed in 'ensures'.
+0282.py	REFUSAL	Invalid use of '\result' in while loop at line 10 inside function 'bad_loop'. It is only allowed in 'ensures'.
+0283.py	REFUSAL	Undefined variable 'unknown_var' referenced in contract for function 'bad_postcondition'. Available variables 
+0284.py	REFUSAL	Undefined variable 'max_allowed' in class invariant for 'BadClass'. Class invariants should only reference sel
+0285.py	REFUSAL	Undefined variable 'limit' in class invariant for 'TypoClass'. Class invariants should only reference self.fie
+0302.py	REFUSAL	\proj index must be an integer literal in function 'bad_dynamic_proj'. Dynamic projection is not supported.
+0303.py	VERIFY-FAIL	
+0304.py	REFUSAL	Ghost string variable 'acc' does not support '+=' in function 'bad_string_aug'. Use the ^ operator for string 
+0317.py	REFUSAL	\proj index must be an integer literal in function 'bad_proj'. Dynamic projection is not supported.
+0356.py	REFUSAL	function 'conflicted' (line 11): contradictory annotations — no_exception ZeroDivisionError and raises { Zer
+0357.py	REFUSAL	function 'passthrough' (line 8): no_exception names unknown exception 'NotARealException'. Known: ['IndexError
+0360.py	VERIFY-FAIL	
+0367.py	VERIFY-FAIL	
+0386.py	REFUSAL	`external_helper(...)` is not a function of the verified program and not on the list of operations known never
+0392.py	VERIFY-FAIL	
+0393.py	REFUSAL	function 'conflicted' (line 9): no_exception \all requires the raises set to be empty; found raises { ZeroDivi
+0396.py	REFUSAL	test-suite/corpus/pycsl-reference/0396.py (line 4): import 'ctypes' is on the C-extension deny-list. Either an
+0398.py	REFUSAL	test-suite/corpus/pycsl-reference/0398.py (line 4): import 'cffi' is on the C-extension deny-list. Either anno
+0401.py	REFUSAL	Class 'WithFinalizer' (line 5): `__del__` finalizer is rejected under UB-7.5. Finalizer timing is non-determin
+0404.py	REFUSAL	test-suite/corpus/pycsl-reference/0404.py (function 'append_during_for', for-loop near line 8): UB-7.1 — the
+0405.py	REFUSAL	test-suite/corpus/pycsl-reference/0405.py (function 'pop_during_for', for-loop near line 8): UB-7.1 — the lo
+0412.py	VERIFY-FAIL	
+0415.py	REFUSAL	test-suite/corpus/pycsl-reference/0415.py: UB-7.3 — concurrent race detected: Variable 'counter' declared sh
+0456.py	VERIFY-FAIL	
+0458.py	VERIFY-FAIL	
+0460.py	VERIFY-FAIL	
+0462.py	REFUSAL	`happy region_integrity`: trusted/abstract function 'ext_scrub' is not exempt and has no checkable body, so it
+0497.py	REFUSAL	Class 'Singleton' (line 12): non-trivial `__new__` is rejected under UB-7.6. Allocation interposition (caching
+0504.py	VERIFY-FAIL	
+0507.py	VERIFY-FAIL	
+0508.py	REFUSAL	Undefined variable 'COUNTER' referenced in contract for function 'get_counter'. Available variables in scope: 
+0509.py	REFUSAL	\length is not supported on the dict-typed 'd' in function 'sum_first_two': dicts/sets are modelled as total m
+0516.py	REFUSAL	Function 'identity': a memoizing decorator (lru_cache / cache / cached_property) requires a referentially tran
+0518.py	VERIFY-FAIL	
+0525.py	VERIFY-FAIL	
+0544.py	REFUSAL	Mutable default argument in function 'f': a list/dict/set default is a single object shared across all calls (
+0550.py	REFUSAL	Mixin composition 'Facade': dependency 'emit' (declared by mixin 'MapOps' via #@ depends_method) has NO provid
+0551.py	REFUSAL	Mixin 'CoreEmit' (composed into 'Facade'): a method writes `self.cache`, a field declared neither `#@ shared_s
+0552.py	REFUSAL	Mixin composition 'Facade': method 'emit' is provided by more than one mixin (CoreEmit, AltEmit) — an unreso
+0556.py	REFUSAL	Quantifier binder 'x: Bogus' in function 'f' has an unresolved type 'Bogus'. A typed binder must name a scalar
+0557.py	VERIFY-FAIL	
+0560.py	VERIFY-FAIL	
+0561.py	VERIFY-FAIL	
+0563.py	VERIFY-FAIL	
+0567.py	VERIFY-FAIL	
+0569.py	VERIFY-FAIL	
+0571.py	REFUSAL	`#@ lemma` 'leaky' calls `\trusted` function 'opaque': a checked lemma may not rest on an unverified (trusted)
+0575.py	VERIFY-FAIL	
+0577.py	VERIFY-FAIL	
+0579.py	VERIFY-FAIL	
+0580.py	REFUSAL	cannot inline recursive method 'counter__loop' on global 'cnt': a recursive method is verified by contract + `
+0586.py	VERIFY-FAIL	
+0589.py	VERIFY-FAIL	
+0591.py	VERIFY-FAIL	
+0592.py	REFUSAL	call to 'clamp_seek' passes 1 positional argument(s) but parameter 'how' has no default (arity 3).
+0594.py	VERIFY-FAIL	
+0596.py	VERIFY-FAIL	
+0601.py	VERIFY-FAIL	
+0608.py	VERIFY-FAIL	
+0610.py	VERIFY-FAIL	
+0612.py	VERIFY-FAIL	
+0613.py	REFUSAL	`happy own`: aliasing the protected base 'g' into a local in non-exempt 'evade' is forbidden — it would evad
+0615.py	VERIFY-FAIL	
+0622.py	VERIFY-FAIL	
+0625.py	VERIFY-FAIL	
+0631.py	VERIFY-FAIL	
+0633.py	VERIFY-FAIL	
+0634.py	VERIFY-FAIL	
+0636.py	VERIFY-FAIL	
+0637.py	VERIFY-FAIL	
+0638.py	VERIFY-FAIL	
+0639.py	VERIFY-FAIL	
+0643.py	REFUSAL	a name's runtime value is not the one the model reads (a constant `exec` naming a builtin, an imported name or
+0644.py	REFUSAL	`happy region_integrity`: method 'run' contains a dynamic `exec(...)`, which may write anything (not a compile
+0667.py	REFUSAL	\length is not supported on the dict-typed 'd' in function 'f': dicts/sets are modelled as total maps (`map in
+0668.py	REFUSAL	\length is not supported on the dict-typed 'd' in while loop at line 16 inside function 'f': dicts/sets are mo
+0669.py	REFUSAL	\length is not supported on the dict-typed 'd' in function 'f' (ghost 'g'): dicts/sets are modelled as total m
+0670.py	REFUSAL	\valid base 'n' is not a list/bytes parameter in function 'f' (got type 'int').
+0671.py	REFUSAL	\separated base 'a' is not a list/bytes parameter in function 'f' (got type 'int').
+0672.py	REFUSAL	\length is not supported on the dict-typed 'd' in function 'f' (ghost 'g[...]'): dicts/sets are modelled as to
+0673.py	REFUSAL	\length is not supported on the dict-typed 'd' in while loop at line 15 inside function 'f': dicts/sets are mo
+0674.py	REFUSAL	Quantifier binder 'x: Bogus' in while loop at line 14 inside function 'f' has an unresolved type 'Bogus'. A ty
+0675.py	REFUSAL	Quantifier binder 'x: Bogus' in function 'f' (ghost 'g') has an unresolved type 'Bogus'. A typed binder must n
+0676.py	REFUSAL	\proj index must be an integer literal in function 'f'. Dynamic projection is not supported.
+0677.py	REFUSAL	\proj index must be an integer literal in function 'f'. Dynamic projection is not supported.
+0678.py	REFUSAL	Subscript assignment to non-list/dict variable 'n' (type 'int') in function 'f'.
+0679.py	REFUSAL	Subscript assignment to undefined variable 'nope' in function 'f'.
+0680.py	REFUSAL	'\result' is not allowed in a `#@ assert` in function 'f' (it is bound only at return; use `ensures` for retur
+0681.py	REFUSAL	'\result' is not allowed in a `#@ check` in function 'f' (it is bound only at return; use `ensures` for return
+0682.py	REFUSAL	Mutable default argument in function 'f': a list/dict/set default is a single object shared across all calls (
+0683.py	REFUSAL	Mutable default argument in function 'f': a list/dict/set default is a single object shared across all calls (
+0684.py	REFUSAL	duplicate act name 'b' in function 'f'.
+0685.py	REFUSAL	act 'b' in function 'f': '\result' is not allowed in a 'given' guard (guards are evaluated in the pre-state).
+0686.py	REFUSAL	`complete` in function 'f' references undefined act 'nope'.
+0687.py	REFUSAL	`happy region_integrity`: exempt function 'nosuchmethod' is not a method in this module. Known methods: ['__in
+0688.py	REFUSAL	Invalid use of '\result' in function 'f'. It is only allowed in 'ensures'.
+0689.py	REFUSAL	Undefined variable 'nope' referenced in contract for function 'f'. Available variables in scope: ['x']
+0690.py	REFUSAL	Undefined variable 'nope' referenced in contract for function 'f'. Available variables in scope: ['a', 'n']
+0691.py	REFUSAL	Mutex invariant for 'lock_counter': variable 'bogus_unshared_variable' is not a shared variable protected by '
+0692.py	REFUSAL	Undefined variable 'nosuchvar' referenced in contract for for loop at line 17 inside function 'f'. Available v
+0693.py	REFUSAL	\proj index must be an integer literal in function 'f'. Dynamic projection is not supported.
+0694.py	REFUSAL	\length is not supported on the dict-typed 'd' in for loop at line 17 inside function 'f': dicts/sets are mode
+0695.py	REFUSAL	`#@ \diverges` on function 'straight_line' is not justified: its body has no potentially-diverging construct (
+0716.py	VERIFY-FAIL	
+0717.py	REFUSAL	`happy key_confine`: aliasing the protected field 'self.disk' into a local in non-exempt 'sneaky' is forbidden
+0718.py	REFUSAL	`happy key_confine`: trusted/abstract function 'opaque_reader' is not exempt and has no checkable body, so it 
+0720.py	VERIFY-FAIL	
+0722.py	VERIFY-FAIL	
+0724.py	VERIFY-FAIL	
+0725.py	VERIFY-FAIL	
+0727.py	REFUSAL	`happy availability`: total target 'parse' is marked `#@ \diverges` — it opts OUT of termination, contradict
+0728.py	VERIFY-FAIL	
+0730.py	VERIFY-FAIL	
+0733.py	REFUSAL	: Literal: bytes literals are not supported (L4a / PEP 586)
+0735.py	REFUSAL	Final: cannot reassign Final name 'x' in function 'f' (F1 — write-once at declaration; PEP 591). The name is
+0737.py	REFUSAL	Final: cannot write Final instance attribute 'self.attr' in function 'c__m' (F2 — __init__-only writes; PEP 
+0739.py	REFUSAL	`-> NoReturn` on function 'bad' is not justified: its body contains a `return` statement (a normal-exit path).
+0740.py	REFUSAL	Dead code in function 'caller': this statement follows a call to a `NoReturn` function, which never returns no
+0752.py	VERIFY-FAIL	
+0754.py	VERIFY-FAIL	
+0758.py	VERIFY-FAIL	
+0764.py	VERIFY-FAIL	
+0768.py	VERIFY-FAIL	
+0771.py	VERIFY-FAIL	
+0776.py	VERIFY-FAIL	
+0780.py	VERIFY-FAIL	
+0781.py	VERIFY-FAIL	
+0782.py	REFUSAL	struct format '@i': native size/alignment ('@' prefix) is unsupported (UB-7.4b). Native layout is platform-dep
+0784.py	VERIFY-FAIL	
+0786.py	VERIFY-FAIL	
+0788.py	VERIFY-FAIL	
+0790.py	VERIFY-FAIL	
+0793.py	VERIFY-FAIL	
+0794.py	VERIFY-FAIL	
+0796.py	VERIFY-FAIL	
+0801.py	VERIFY-FAIL	
+0806.py	VERIFY-FAIL	
+0807.py	VERIFY-FAIL	
+0809.py	VERIFY-FAIL	
+0812.py	VERIFY-FAIL	
+0814.py	VERIFY-FAIL	
+0816.py	VERIFY-FAIL	
+0819.py	VERIFY-FAIL	
+0825.py	VERIFY-FAIL	
+0828.py	VERIFY-FAIL	
+0831.py	VERIFY-FAIL	
+0834.py	VERIFY-FAIL	
+0837.py	VERIFY-FAIL	
+0838.py	REFUSAL	Subscript assignment to immutable 'bytes' variable 'b' in function 'write_byte_UNSOUND' — a Python `bytes` o
+0840.py	VERIFY-FAIL	
+0842.py	VERIFY-FAIL	
+0844.py	VERIFY-FAIL	
+0846.py	VERIFY-FAIL	
+0848.py	VERIFY-FAIL	
+0849.py	VERIFY-FAIL	
+0851.py	REFUSAL	heterogeneous list literal (contains a str element mixed with other element types) has no faithful WhyML `arra
+0852.py	REFUSAL	heterogeneous list literal (contains a float element mixed with other element types) has no faithful WhyML `ar
+0853.py	REFUSAL	heterogeneous list literal (contains a record (Point) element mixed with other element types) has no faithful 
+0856.py	REFUSAL	: in-place mutation of dict/set parameter 'd' (`del d[...]`) is out of scope: Python mutates a dict/set argume
+0857.py	VERIFY-FAIL	
+0860.py	VERIFY-FAIL	
+0861.py	REFUSAL	: in-place field mutation `<Subscript base>.x = ...` is out of scope: a record reached through a subscript/nes
+0863.py	VERIFY-FAIL	
+0866.py	VERIFY-FAIL	
+0868.py	VERIFY-FAIL	
+0870.py	VERIFY-FAIL	
+0871.py	VERIFY-FAIL	
+0873.py	VERIFY-FAIL	
+0875.py	VERIFY-FAIL	
+0877.py	VERIFY-FAIL	
+0879.py	VERIFY-FAIL	
+0881.py	VERIFY-FAIL	
+0884.py	VERIFY-FAIL	
+0894.py	VERIFY-FAIL	
+0901.py	VERIFY-FAIL	
+0937_any_genexp_fold_evil_twin.py	VERIFY-FAIL	
+0939_spec_genexp_evil_twin.py	VERIFY-FAIL	
+0973_except_star_refused.py	REFUSAL	`try ... except*` (an exception-GROUP handler) is not modelled: `_PY_STMT_HANDLERS` has no `TryStar` entry and
+0974_async_contract_refused.py	REFUSAL	Coroutine 'm' (line 45) carries a `#@` contract, but `async def` is NOT MODELLED: the weaver attaches contract
+0975_misplaced_directive_refused.py	REFUSAL	line 33: a `CheckPoint` directive is attached to a FunctionDef anchor ('f'), which does not consume it — the
+0977_nonlocal_refused.py	REFUSAL	function 'inner' writes x through a `nonlocal` declaration, and no certified lowering models it. `nonlocal` ha
+0978_eof_stmt_directive_refused.py	REFUSAL	line 36: this `#@` contract block has nothing after it to attach to (it runs to end-of-file), so it would be S
+0979_continuation_directive_refused.py	REFUSAL	: line 43: this `#@` directive sits INSIDE the continuation lines of the statement that begins on line 42, whe
+0980_self_field_mutator_refused.py	REFUSAL	`self.xs.reverse(...)` MUTATES its receiver in place, and no certified lowering models it: the call becomes an
+0981_self_field_append_refused.py	REFUSAL	`self.xs.append(...)` appends to the collection in the field `xs`, and no certified lowering models it: the ap
+0982_local_list_mutator_refused.py	REFUSAL	`xs.reverse(...)` MUTATES its receiver in place, and no certified lowering models it: the call becomes an abst
+0983_param_list_mutator_refused.py	REFUSAL	`ys.reverse(...)` MUTATES its receiver in place, and no certified lowering models it: the call becomes an abst
+0984_assert_in_try_refused.py	REFUSAL	a Python `assert` inside a `try` whose handler can catch `AssertionError` is not modelled: the `assert` is low
+0985_del_list_subscript_refused.py	REFUSAL	`del xs[...]` on a non-dict/set receiver is not modelled: Python's list `del` SHIFTS every later element left 
+0986_array_local_reassign_refused.py	REFUSAL	reassigning an array LOCAL from a non-literal right-hand side is not modelled: the local is represented as a f
+0987_array_local_alias_refused.py	REFUSAL	reassigning an array LOCAL from a non-literal right-hand side is not modelled: the local is represented as a f
+0988_contract_named_param_mutation_refused.py	REFUSAL	`s.add(...)` mutates the collection PARAMETER `s`, which this function's own contract also NAMES. The mutation
+0989_with_as_binding_refused.py	REFUSAL	function 'f' binds v with a `with ... as` clause, and no certified lowering models it. `_py_stmt_with` reads o
+0990_try_finally_with_handlers_refused.py	REFUSAL	a `try ... except ... finally:` is not modelled: this lowering reads the try BODY and the HANDLERS and neither
+0991_getattr_declared_field_erasure.py	VERIFY-FAIL	
+0993_augassign_subscript_base_refused.py	REFUSAL	: augmented assignment to a field of a SUBSCRIPTED base, `a[i].v op= v` is not modelled: this lowering handles
+0994_augassign_local_record_field_erasure.py	VERIFY-FAIL	
+0996_dynamic_call_literal_erasure.py	REFUSAL	: the truthiness of `o` is not modelled: it is bound to an expression the model does not represent, which this
+0997_genexp_local_truthiness_refused.py	REFUSAL	: the truthiness of `g` is not modelled: it is bound to a generator expression, which this lowering emits as a
+0998_set_literal_truthiness_refused.py	REFUSAL	: the truthiness of `s` is not modelled: it is bound to a non-empty set literal, which this lowering emits as 
+0999_tuple_literal_truthiness_refused.py	REFUSAL	: the truthiness of `x` is not modelled: it is bound to a non-empty tuple literal, which this lowering emits a
+1000_module_global_field_store_erasure.py	VERIFY-FAIL	
+1002_parametric_datatype_false_payload.py	VERIFY-FAIL	
+1004_route29_is_sorted_typed_erasure.py	REFUSAL	: the array spec atom `\is_sorted` is not interpreted under the 'typed' memory model (ROUTE #29): its Module 6
+1005_route29_is_sorted_store_erasure.py	REFUSAL	: the array spec atom `\is_sorted` is not interpreted under the 'store' memory model (ROUTE #29): its Module 6
+1006_route29_array_eq_typed_erasure.py	REFUSAL	: the array spec atom `\array_eq` is not interpreted under the 'typed' memory model (ROUTE #29): its Module 6 
+1007_route29_permutation_typed_erasure.py	REFUSAL	: the array spec atom `\permutation` is not interpreted under the 'typed' memory model (ROUTE #29): its Module
+1008_route29_sum_typed_erasure.py	REFUSAL	: the array spec atom `\sum` is not interpreted under the 'typed' memory model (ROUTE #29): its Module 6 lower
+1009_route29_length2d_typed_erasure.py	REFUSAL	: the array spec atom `\length2d` is not interpreted under the 'typed' memory model (ROUTE #29): its Module 6 
+1010_route29_valid2d_typed_erasure.py	REFUSAL	: the array spec atom `\valid2d` is not interpreted under the 'typed' memory model (ROUTE #29): its Module 6 l
+1011_route30_sequence_pattern_always_matches.py	REFUSAL	: a `match` pattern in this module is not interpreted (ROUTE #30): its arm has no faithful lowering, and every
+1012_route30_undeclared_ctor_pattern_always_matches.py	REFUSAL	: a `match` pattern in this module is not interpreted (ROUTE #30): its arm has no faithful lowering, and every
+1013_route32_len_fold_branch_insensitive.py	VERIFY-FAIL	
+1014_route33_element_fold_branch_insensitive.py	VERIFY-FAIL	
+1015_route31_empty_list_truthiness.py	VERIFY-FAIL	
+1017_route34_element_fold_survives_write.py	VERIFY-FAIL	
+1018_route34_alias_store.py	VERIFY-FAIL	
+1019_route34_alias_append.py	REFUSAL	: aliasing a list that is later APPENDED to is out of scope: `b = a` binds a SECOND NAME TO THE SAME list in P
+1020_route34_slice_assign.py	VERIFY-FAIL	
+1021_route34_callee_mutates.py	VERIFY-FAIL	
+1023_route35_shortcircuit_value_erasure.py	VERIFY-FAIL	
+1025_route36_loop_var_leak.py	VERIFY-FAIL	
+1026_route36_loop_var_leak_no_preassign.py	VERIFY-FAIL	
+1027_route36_sequence_loop_var_leak.py	VERIFY-FAIL	
+1028_route37_try_else_return_dropped.py	REFUSAL	: the `else:` block of a `try` in 'f' jumps out (ROUTE #37): Module 6 appends a lowered `else` to the try body
+1030_route38_context_manager_dropped.py	REFUSAL	: a `with` statement in a file that defines a context-manager class (CM) uses a context expression this build 
+1032_unknown_proof_citation_refused.py	REFUSAL	#@ proof Pycsl.Reference.Totally.Made.Up.false_is_true: not in Module6 axiom registry. Either add the axiom bo
+1033_route39_annassign_cm_bypass.py	REFUSAL	: a `with` statement in a file that defines a context-manager class (CM) uses a context expression this build 
+1035_route39_inherited_cm_bypass.py	REFUSAL	: a `with` statement in a file that defines a context-manager class (Base, CM) uses a context expression this 
+1036_route40_ellipsis_truthiness.py	VERIFY-FAIL	
+1037_route40_ellipsis_eq_zero.py	VERIFY-FAIL	
+1038_route40_int_is_ellipsis.py	VERIFY-FAIL	
+1039_route40_ellipsis_arithmetic.py	VERIFY-FAIL	
+1040_route40_ellipsis_returned.py	VERIFY-FAIL	
+1041_route41_genexp_eq_zero.py	VERIFY-FAIL	
+1042_route41_setlit_eq_zero.py	VERIFY-FAIL	
+1043_route41_tuple_eq_zero.py	VERIFY-FAIL	
+1044_route41_erased_ordering.py	VERIFY-FAIL	
+1045_route41_erased_arithmetic.py	VERIFY-FAIL	
+1046_route41_empty_tuple_eq_zero.py	VERIFY-FAIL	
+1047_route39_allowlist_shadowed_name.py	REFUSAL	: a `with` statement in a file that defines a context-manager class (closing) uses a context expression this b
+1048_route40_ellipsis_name.py	VERIFY-FAIL	
+1050_route43_complex_eq_zero.py	REFUSAL	: a COMPLEX literal (3j) has no model (ROUTE #43): `_py_expr_constant` lowers it to `int(value.real)`, so the 
+1051_route43_complex_real_part.py	REFUSAL	: a COMPLEX literal (2j) has no model (ROUTE #43): `_py_expr_constant` lowers it to `int(value.real)`, so the 
+1052_route43_complex_truthiness.py	REFUSAL	: a COMPLEX literal (3j) has no model (ROUTE #43): `_py_expr_constant` lowers it to `int(value.real)`, so the 
+1053_route42_int_is_true.py	REFUSAL	: an IDENTITY test against a `bool` literal (`X is True` / `X is False`) is refused unless the emitter can SHO
+1054_route42_int_is_false.py	REFUSAL	: an IDENTITY test against a `bool` literal (`X is True` / `X is False`) is refused unless the emitter can SHO
+1055_route42_int_isnot_true.py	REFUSAL	: an IDENTITY test against a `bool` literal (`X is True` / `X is False`) is refused unless the emitter can SHO
+1057_route42_bool_is_true_faithful.py	REFUSAL	: an IDENTITY test against a `bool` literal (`X is True` / `X is False`) is refused unless the emitter can SHO
+1058_route44_none_eq_zero.py	VERIFY-FAIL	
+1059_route44_int_is_none.py	VERIFY-FAIL	
+1060_route44_none_arith.py	VERIFY-FAIL	
+1061_route44_spec_result_eq_none.py	VERIFY-FAIL	
+1065_route45_nan_eq_reflexive.py	VERIFY-FAIL	
+1066_route45_nan_arith_propagates.py	VERIFY-FAIL	
+1070_route47_getattr_default_dict.py	VERIFY-FAIL	
+1071_route47_getattr_default_list.py	VERIFY-FAIL	
+1072_route47_getattr_no_default.py	VERIFY-FAIL	
+1075_chained_comparison_in_contract_false.py	VERIFY-FAIL	
+1076_route48_counter_seed_dropped.py	VERIFY-FAIL	
+1077_route48_ordereddict_seed_dropped.py	VERIFY-FAIL	
+1078_route48_defaultdict_seed_dropped.py	VERIFY-FAIL	
+1080_route49_append_param_dropped.py	REFUSAL	: in-place `append` to list parameter 'a' is out of scope: Python passes a list argument BY REFERENCE, so the 
+1081_route49_append_param_frame_lie.py	REFUSAL	: in-place `append` to list parameter 'a' is out of scope: Python passes a list argument BY REFERENCE, so the 
+1083_route49_iadd_param_dropped.py	REFUSAL	: in-place `+=` on list parameter 'a' is out of scope: Python `a += b` on lists is an IN-PLACE extend, so the 
+1085_route50_str_is_none_after_join.py	VERIFY-FAIL	
+1086_route50_none_as_empty_string.py	VERIFY-FAIL	
+1088_route50_gate_is_mutable_state.py	VERIFY-FAIL	
+1089_route46_none_branch_join.py	VERIFY-FAIL	
+1091_route46_nan_branch_join_refused.py	REFUSAL	: a comparison over a value that may be NaN on one path and an ordinary number on another is not modelled: NaN
+1092_route52_is_on_runtime_string.py	REFUSAL	: an IDENTITY test (`is` / `is not`) over a VALUE-typed operand (here: `str`) is not modelled: PyCSL narrows `
+1095_route54_bool_key_counted_twice.py	VERIFY-FAIL	
+1097_route54_bool_key_read_stale.py	VERIFY-FAIL	
+1100_route51_str_param_is_none.py	VERIFY-FAIL	
+1101_route51_str_field_is_none.py	VERIFY-FAIL	
+1103_route51_str_return_annotation_lie.py	REFUSAL	function 'c__pick' is annotated `-> str` but can `return None`. Python does not enforce the hint and the model
+1104_route55_dict_present_guard_decided.py	VERIFY-FAIL	
+1105_route55_set_present_guard_decided.py	VERIFY-FAIL	
+1106_route55_list_control.py	VERIFY-FAIL	
+1108_route56_optional_int_local_none_is_zero.py	VERIFY-FAIL	
+1110_route56_str_carrier_control.py	VERIFY-FAIL	
+1111_route56_arith_on_none_local.py	VERIFY-FAIL	
+1112_route57_dict_get_missing_is_zero.py	VERIFY-FAIL	
+1113_route57_arith_on_missing_get.py	VERIFY-FAIL	
+1114_route57_str_codomain.py	VERIFY-FAIL	
+1116_route56_bool_carrier.py	VERIFY-FAIL	
+1117_route53_float_add_is_exact_real.py	VERIFY-FAIL	
+1118_route53_float_through_parameter.py	VERIFY-FAIL	
+1119_route53_float_ordering_decided.py	VERIFY-FAIL	
+1121_route58_truediv_ordering_decided.py	VERIFY-FAIL	
+1122_route58_truediv_through_parameters.py	VERIFY-FAIL	
+1125_route59_dict_alias_local.py	REFUSAL	aliasing a mutated dict is out of scope: `b = a` binds a SECOND NAME TO THE SAME dict in Python, and a later s
+1126_route59_dict_alias_symmetric.py	REFUSAL	aliasing a mutated dict is out of scope: `b = a` binds a SECOND NAME TO THE SAME dict in Python, and a later s
+1127_route59_dict_alias_chained.py	REFUSAL	aliasing a mutated dict is out of scope: `c = b` binds a SECOND NAME TO THE SAME dict in Python, and a later s
+1128_route59_dict_field_into_local.py	REFUSAL	aliasing a mutated dict is out of scope: `b = self.d` binds a SECOND NAME TO THE SAME dict in Python, and a la
+1129_route59_getter_returns_internal.py	REFUSAL	aliasing a mutated dict is out of scope: `m = self.get()` binds a SECOND NAME TO THE SAME dict in Python, and 
+1130_route59_field_store_then_mutate.py	REFUSAL	storing a mutated dict into a field is out of scope: `self.d = p` binds the field to the SAME dict as `p` in P
+1132_route59_one_local_two_fields.py	REFUSAL	storing a mutated dict into a field is out of scope: `self.d = p` binds the field to the SAME dict as `p` in P
+1133_route60_dup_literal_key.py	VERIFY-FAIL	
+1134_route60_two_stores_same_key.py	VERIFY-FAIL	
+1135_route60_bool_int_store_key.py	VERIFY-FAIL	
+1136_route60_symbolic_store_key.py	VERIFY-FAIL	
+1137_route60_param_dict_store.py	VERIFY-FAIL	
+1138_route60_conditional_store.py	VERIFY-FAIL	
+1139_route60_loop_store.py	VERIFY-FAIL	
+1143_route61_nonconst_dup_keys.py	VERIFY-FAIL	
+1145_route62_param_mutation_one_call_away.py	REFUSAL	the collection PARAMETER `s`, which this function's contract NAMES, is passed to `self.helper(...)`. A dict/se
+1147_route63_same_set_two_arg_positions.py	REFUSAL	`self.helper(...)` is passed the SAME dict/set `u` in more than one argument position. In Python those two par
+1149_route64_byte_range_no_exception.py	VERIFY-FAIL	
+1151_route65_divmod_dead_trigger_row.py	REFUSAL	`divmod(...)` can raise `ZeroDivisionError` in Python, and this function claims `#@ no_exception` over it. `ex
+1152_route65_index_tautology_row.py	REFUSAL	`xs.index(...)` can raise `ValueError` in Python, and this function claims `#@ no_exception` over it. `excepti
+1154_route66_del_missing_key.py	VERIFY-FAIL	
+1156_route66_int_of_string.py	REFUSAL	`int(<str>)` raises `ValueError` in Python on a non-numeric string, and this function claims `#@ no_exception`
+1158_route66_chr_out_of_range.py	VERIFY-FAIL	
+1160_route67_str_index_out_of_range.py	VERIFY-FAIL	
+1162_route68_zero_pow_negative.py	VERIFY-FAIL	
+1163_route68_negative_shift.py	VERIFY-FAIL	
+1165_route68_float_of_string.py	REFUSAL	`float(<str>)` raises `ValueError` in Python on a non-numeric string, and this function claims `#@ no_exceptio
+1166_route69_ord_nonascii_bound.py	REFUSAL	`ord(...)` over a NON-ASCII string is out of scope: PyCSL emits a string literal as its UTF-8 BYTES and models
+1167_route69_ord_nonascii_via_local.py	REFUSAL	`ord(...)` over a NON-ASCII string is out of scope: PyCSL emits a string literal as its UTF-8 BYTES and models
+1169_route70_dotted_stub_drops_requires.py	VERIFY-FAIL	
+1171_route71_erased_op_satisfies_no_exception.py	REFUSAL	`t.remove(...)` can raise `KeyError` in Python, and this function claims `#@ no_exception` over it — but the
+1173_route72_split_empty_separator.py	REFUSAL	`s.split(...)` raises `ValueError` in Python on an EMPTY separator, and this function claims `#@ no_exception`
+1175_route73_arity_oracle_shadows_user_function.py	VERIFY-FAIL	
+1177_route73_nonneg_default_does_not_rescue.py	VERIFY-FAIL	
+1178_route74_predicate_name_shadows_user_method.py	VERIFY-FAIL	
+1180_route74_predicate_shadow_with_arguments.py	VERIFY-FAIL	
+1182_route75_user_ord_shadowed_by_oracle.py	VERIFY-FAIL	
+1184_route75_user_len_shadowed_by_oracle.py	VERIFY-FAIL	
+1186_route75_user_min_shadowed_by_oracle.py	VERIFY-FAIL	
+1188_route76_eq_class_identity.py	REFUSAL	comparing class instances with `==`/`!=` in a `#@` clause is out of scope for class `C`: PyCSL models an insta
+1189_route76_eq_class_true_twin.py	REFUSAL	comparing class instances with `==`/`!=` in a `#@` clause is out of scope for class `C`: PyCSL models an insta
+1192_route76_ctor_one_call_deeper.py	REFUSAL	comparing class instances with `==`/`!=` in a `#@` clause is out of scope for class `C`: PyCSL models an insta
+1193_route76_list_element_carrier.py	REFUSAL	comparing class instances with `==`/`!=` in a `#@` clause is out of scope for class `C`: PyCSL models an insta
+1194_route77_del_slice_refused.py	REFUSAL	: `del <seq>[i:j]` (a SLICE delete) is not modelled: Python's slice `del` REMOVES a whole range, shifting ever
+1195_route77_del_slice_len_refused.py	REFUSAL	: `del <seq>[i:j]` (a SLICE delete) is not modelled: Python's slice `del` REMOVES a whole range, shifting ever
+1196_route77_del_full_slice_refused.py	REFUSAL	: `del <seq>[i:j]` (a SLICE delete) is not modelled: Python's slice `del` REMOVES a whole range, shifting ever
+1197_route77_del_slice_discharges_requires_refused.py	REFUSAL	: `del <seq>[i:j]` (a SLICE delete) is not modelled: Python's slice `del` REMOVES a whole range, shifting ever
+1198_route78_seeded_deque_refused.py	REFUSAL	: `deque(<iterable>)` with arguments is not modelled: the lowering reduces a deque to the list/array model and
+1200_route81_list_alias_append_refused.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1201_route80_del_attribute_refused.py	REFUSAL	: `del <obj>.<attr>` (an ATTRIBUTE delete) is not modelled: it was lowered to a bare no-op, so the model KEEPS
+1202_route80_del_attribute_arith_refused.py	REFUSAL	: `del <obj>.<attr>` (an ATTRIBUTE delete) is not modelled: it was lowered to a bare no-op, so the model KEEPS
+1203_route80_del_attribute_discharges_requires_refused.py	REFUSAL	: `del <obj>.<attr>` (an ATTRIBUTE delete) is not modelled: it was lowered to a bare no-op, so the model KEEPS
+1207_route82_kwonly_false_claim_refused.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1209_route83_init_conditional_store_refused.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1210_route83_unannotated_store_is_the_same_defect.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1212_route79_init_computed_initialiser_refused.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1213_route79_true_twin_is_also_unprovable.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1214_route79_parameterless_init_was_never_even_scanned.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1216_route85_dict_field_literal_modelled_empty.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1217_route85_dict_field_contents_decided.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1218_route85_set_field_literal_modelled_empty.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1220_route86_map_param_coercion_substitutes_empty_map.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1221_route86_empty_map_discharges_a_callee_requires.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1222_route87_list_field_elements_erased_to_zero.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1224_route87_zero_array_discharges_a_callee_requires.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1225_route87_uniform_nonzero_literal_still_captured.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1227_gap2a_empty_string_witness_would_have_been_a_route.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1228_route88_second_store_to_a_field_is_dropped.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1230_route88_param_store_beats_a_later_literal.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1232_route88_augassign_to_a_field_is_invisible.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1233_route88_nested_augassign_survived_route83.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1235_route88_stale_first_store_discharges_a_callee_requires.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1236_route89_conditional_store_to_a_list_field.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1237_route89_conditional_store_to_a_dict_field.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1240_route90_bool_annot_param_is_true.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1241_route90_bool_annot_param_is_not_true.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1242_route90_bool_annot_param_is_false.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1243_route90_bool_annot_local_is_true.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1244_route90_bool_annot_crosscall.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1246_route90_comparison_arm_admitted_but_illtyped.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1247_route91_region_whole_field_rebind_evades.py	REFUSAL	`happy region_integrity`: non-exempt 'wipe' REBINDS the whole field 'self.disk' (line 45), replacing the prote
+1250_route92_footprint_whole_array_store_evades.py	REFUSAL	`happy inode_conf(n)`: non-exempt 'wipe' performs a whole-array store to the protected path 'd.disk' (line 55)
+1251_route92_footprint_slice_store_evades.py	REFUSAL	`happy inode_conf(n)`: non-exempt 'sl' performs a slice store to the protected path 'd.disk' (line 51), which 
+1254_route93_total_target_trusted_evades.py	REFUSAL	`happy availability`: total target 'parse' is marked `#@ \trusted`, so it is emitted as a bodyless `val` with 
+1255_route93_total_target_abstract_evades.py	REFUSAL	`happy availability`: total target 'parse' is marked `#@ \abstract`, so it is emitted as a bodyless `val` with
+1257_route94_memoized_reads_mutable_field.py	REFUSAL	Function 'c__total': a memoizing decorator (lru_cache / cache / cached_property) requires a referentially tran
+1259_route95_composer_shadows_depended_provider.py	REFUSAL	Mixin composition 'Facade': 'Facade' defines its own 'emit', which SHADOWS the provider of 'emit' (from mixin 
+1260_route95_ctl_no_shadow_weak_provider_still_fails.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1262_w67_ni_target_writes_a_field.py	REFUSAL	`happy ni`: noninterference target 'summarize' can WRITE state — `self.log` in 'summarize'. The synthesized 
+1263_w67_ni_leak_one_call_away.py	REFUSAL	`happy ni`: noninterference target 'summarize' can WRITE state — `self.log` in 'stash' (reached from 'summar
+1265_w68_hs_foreign_receiver_call.py	REFUSAL	`happy authn`: 'transfer' is guarded by a capability precondition, but it is called here as `other.transfer(�
+1267_route96_trusted_val_region_assigns_frame.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1268_route96_abstract_val_region_assigns_frame.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1269_route96_ctl_val_now_matches_let_baseline.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1270_route96_ctl_trusted_twin_of_let_baseline.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1272_route96_ctl_field_assigns_val_unaffected.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1273_route97_fieldless_base_liskov_violation_caught.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1275_route97_fieldless_base_fielded_sub_violation_caught.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1276_route97_ctl_fielded_base_violation_still_caught.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1277_route97_fence_uncloned_fieldless_base_method_is_contract_free.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1278_route98_region_assigns_dropped_for_reserved_param_name.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1279_route98_region_assigns_dropped_for_capitalised_param_name.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1280_route98_unframed_region_assigns_is_now_refused.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1281_route98_fence_renamed_param_in_a_requires_is_loud.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1282_route99_memoization_gate_blind_to_foreign_receiver.py	REFUSAL	Function 'c__total': a memoizing decorator (lru_cache / cache / cached_property) requires a referentially tran
+1283_route99_memoization_gate_coverage_premise_was_false.py	REFUSAL	Function 'c__total': a memoizing decorator (lru_cache / cache / cached_property) requires a referentially tran
+1285_route100_no_exception_dropped_for_a_self_method_call.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1287_route100_ref_free_function_spelling_was_always_refused.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1288_route101_single_index_assigns_on_a_bodyless_val_had_no_frame.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1290_route102_bare_var_assigns_on_a_bodyless_val_had_no_frame.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1291_route103_a_stray_nothing_disarmed_the_whole_frame.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1292_route104_self_field_subscript_assigns_dropped_the_method_frame.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1294_route105_raises_obligation_dropped_for_a_record_var_receiver.py	REFUSAL	invalid syntax (statements.py, line 5589)
+1296_route106_inlining_deleted_the_call_and_with_it_the_obligation.py	VERIFY-FAIL	
+1298_route107_raise_substring_in_an_identifier_deleted_the_else.py	VERIFY-FAIL	
+1301_route108_callee_raise_in_an_else_was_caught_by_that_same_try.py	VERIFY-FAIL	
+1303_route110_user_function_named_like_an_internal_op.py	VERIFY-FAIL	
+1305_route111_dict_field_store_from_a_field_read_was_the_empty_map.py	VERIFY-FAIL	
+1307_route111_dict_field_store_from_a_call_was_the_empty_map.py	VERIFY-FAIL	
+1308_route112_dict_literal_argument_was_the_empty_map.py	VERIFY-FAIL	
+1309_route113_call_with_a_comma_in_a_string_argument_was_hashed.py	VERIFY-FAIL	
+1311_route113_tuple_projection_return_was_hashed.py	VERIFY-FAIL	
+1312_route114_tuple_dict_key_was_hashed_by_its_text.py	VERIFY-FAIL	
+1313_route115_immediately_applied_lambda_was_the_literal_0.py	VERIFY-FAIL	
+1314_route115_subscripted_callee_was_the_literal_0.py	VERIFY-FAIL	
+1315_route116_class_by_name_ternary_decline_was_the_literal_0.py	VERIFY-FAIL	
+1316_route117_list_returned_on_the_int_raise_path_was_the_literal_0.py	VERIFY-FAIL	
+1317_route116_string_factory_callee_was_lowered_by_name.py	VERIFY-FAIL	
+1319_route109_recordvar_receiver_frame_was_dropped.py	VERIFY-FAIL	
+1321_route118_module_level_function_rebinding_was_ignored.py	REFUSAL	a function, method or class NAME is rebound after its definition (`inc` rebound at line 19). Every call is res
+1322_route116_namespace_store_defeated_the_globals_lookup_fence.py	REFUSAL	a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 27)
+1323_route118_class_body_method_rebinding_was_ignored.py	REFUSAL	a function, method or class NAME is rebound after its definition (`m` rebound at line 20). Every call is resol
+1324_route118_module_level_walrus_rebinding_was_ignored.py	REFUSAL	a function, method or class NAME is rebound after its definition (`inc` rebound at line 19). Every call is res
+1325_route119_class_attribute_store_rebinding_a_method.py	REFUSAL	a function, method or class NAME is rebound after its definition (attribute `.m` rebound at line 19; attribute
+1326_route119_store_through_vars_rebinding_a_function.py	REFUSAL	a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 16)
+1327_route119_setattr_on_the_module_object.py	REFUSAL	a function, method or class NAME is rebound after its definition (`setattr`/`delattr` of a function name at li
+1328_route119_dunder_setattr_on_the_class.py	REFUSAL	a function, method or class NAME is rebound after its definition (`setattr`/`delattr` of a function name at li
+1329_route119_rebinding_inside_an_imported_module.py	REFUSAL	a function, method or class NAME is rebound after its definition (`inc` rebound at line 13). Every call is res
+1330_route119_patching_an_imported_modules_function.py	REFUSAL	a function, method or class NAME is rebound after its definition (attribute `.inc` written on `plainlib...` at
+1331_route119_patching_an_imported_classs_method.py	REFUSAL	a function, method or class NAME is rebound after its definition (attribute `.m` written on `K...` at line 7).
+1332_route119_constant_exec_rebinding_a_function.py	REFUSAL	a function, method or class NAME is rebound after its definition (a constant `exec` naming a function or class
+1333_route120_getattribute_hook_redirecting_a_method.py	REFUSAL	Class 'C' (line 4) defines `__getattribute__`, an attribute-access hook the model does not consult: every meth
+1334_route120_setattr_hook_dropping_a_store.py	REFUSAL	a function, method or class NAME is rebound after its definition (method shadowed through `setattr` on self at
+1335_route119_instance_attribute_shadowing_a_method.py	REFUSAL	a function, method or class NAME is rebound after its definition (method `m` shadowed by `self.m` at line 8). 
+1336_route119_instance_attribute_shadowing_an_imported_method.py	REFUSAL	: the call `c.m(...)` resolves to a METHOD `m`, but instances of its class also carry an ATTRIBUTE `m` (a stor
+1337_route120_hook_installed_by_assignment.py	REFUSAL	Class 'C' (line 10) defines `__getattribute__`, an attribute-access hook the model does not consult: every met
+1338_route119_late_instance_shadowing_of_an_imported_method.py	REFUSAL	: the call `c.m(...)` resolves to a METHOD `m`, but the program also STORES an attribute `m` on an object, and
+1339_route119_nonliteral_setattr_over_an_imported_base.py	REFUSAL	a function, method or class NAME is rebound after its definition (method shadowed through `setattr` on self at
+1340_route121_decorator_returning_a_builtin_was_dropped.py	REFUSAL	a name's runtime binding is not the `def` the model resolves it to (decorator `swap` on `inc` (line 15)). A de
+1341_route122_def_inside_if_else_resolved_to_the_last_def.py	REFUSAL	a name's runtime binding is not the `def` the model resolves it to (`inc` defined inside a compound statement 
+1342_route122_try_import_with_a_fallback_def.py	REFUSAL	a name's runtime binding is not the `def` the model resolves it to (`inc` defined inside a compound statement 
+1343_route123_subclass_class_body_lambda_override_was_ignored.py	VERIFY-FAIL	
+1344_route123_class_body_override_of_an_imported_base_method.py	VERIFY-FAIL	
+1345_route124_star_import_after_a_def_rebinds_it.py	REFUSAL	a name's runtime binding is not the `def` the model resolves it to (`from multi_file_lib.r124_starlib import *
+1346_route124_second_star_import_wins_at_runtime.py	REFUSAL	a name's runtime binding is not the `def` the model resolves it to (a second star import `from multi_file_lib.
+1347_route125_diamond_method_was_resolved_depth_first.py	VERIFY-FAIL	
+1349_route127_dunder_builtins_patch_rebinding_len.py	REFUSAL	a function, method or class NAME is rebound after its definition (attribute `.len` written on `__builtins__...
+1350_route127_alias_of_an_imported_module_then_patch.py	REFUSAL	a function, method or class NAME is rebound after its definition (attribute `.inc` written on `pm...` at line 
+1351_route127_computed_dict_subscript_store_on_builtins.py	REFUSAL	a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 12)
+1352_route127_init_subclass_non_literal_setattr_on_cls.py	REFUSAL	a function, method or class NAME is rebound after its definition (`setattr`/`delattr` of a function name at li
+1353_route128_data_descriptor_get_was_ignored.py	REFUSAL	Class 'Seven' (line 8) defines `__get__`, an attribute-access hook the model does not consult: every method ca
+1354_route121_aliased_cached_property_bypassed_the_memo_gate.py	REFUSAL	a name's runtime binding is not the `def` the model resolves it to (decorator `memo_prop` on `total` (line 15)
+1355_route122_class_body_if_else_method_defs.py	REFUSAL	a name's runtime binding is not the `def` the model resolves it to (`m` defined inside a compound statement at
+1356_route126_closure_parameter_became_a_global_constant.py	REFUSAL	nested function 'h' is lifted to a sibling of its enclosing function, and the lift is not faithful here: it re
+1357_route126_closure_write_through_a_captured_list.py	REFUSAL	nested function 'walk' is lifted to a sibling of its enclosing function, and the lift is not faithful here: it
+1358_route122_sibling_nested_helpers_collapsed_to_one.py	REFUSAL	nested function 'h' is lifted to a sibling of its enclosing function, and the lift is not faithful here: anoth
+1359_route122_nested_helper_before_a_same_named_module_function.py	REFUSAL	nested function 'inc' is lifted to a sibling of its enclosing function, and the lift is not faithful here: ano
+1361_route129_global_statement_write_was_dropped.py	REFUSAL	function 'setn' writes N through a `global` declaration, and no certified lowering models it: the store lands 
+1362_route130_second_from_import_of_the_same_name.py	REFUSAL	a name's runtime value is not the one the model reads (imported name `inc` bound again in the same scope). An 
+1363_route130_function_local_import_shadowing_a_module_import.py	REFUSAL	a name's runtime value is not the one the model reads (imported name `inc` in function `f` shadows a module bi
+1364_route130_from_import_in_a_module_if_else.py	REFUSAL	a name's runtime value is not the one the model reads (imported name `inc` bound again in the same scope). An 
+1365_route131_builtin_len_rebound_by_a_module_assignment.py	REFUSAL	a name's runtime value is not the one the model reads (builtin `len` rebound by an assignment and read at line
+1366_route131_constant_exec_rebinding_a_builtin.py	REFUSAL	a name's runtime value is not the one the model reads (a constant `exec` naming a builtin, an imported name or
+1367_route132_module_constant_augmented_at_module_scope.py	REFUSAL	a name's runtime value is not the one the model reads (constant `N` of the module bound again in its scope). A
+1368_route132_module_constant_rebound_inside_a_module_if.py	REFUSAL	a name's runtime value is not the one the model reads (constant `N` of the module bound again in its scope). A
+1369_route132_folded_dict_aliased_and_mutated_in_a_function.py	REFUSAL	a name's runtime value is not the one the model reads (constant `OP` of the module aliased or mutated). An imp
+1370_route132_folded_dict_aliased_by_tuple_unpacking.py	REFUSAL	a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+1371_route132_class_constant_augmented_in_the_class_body.py	REFUSAL	a name's runtime value is not the one the model reads (constant `N` of class `K` bound again in its scope). An
+1372_route133_nested_def_replaced_a_sibling_method.py	REFUSAL	a name's runtime value is not the one the model reads (`h` defined inside method `C.m` at line 18). An importe
+1374_route131_builtin_imported_under_another_builtin_name.py	REFUSAL	a name's runtime value is not the one the model reads (builtin `sum` imported as `len`). An imported name boun
+1375_route131_builtin_exception_name_rebound.py	REFUSAL	a name's runtime value is not the one the model reads (builtin `ValueError` rebound by an assignment and read 
+1376_route131_parameter_named_like_a_builtin.py	REFUSAL	a name's runtime value is not the one the model reads (builtin `len` rebound by an assignment and read at line
+1377_route134_globals_lookup_alias_rebound_in_a_module_if.py	REFUSAL	a name's runtime value is not the one the model reads (constant `_g` of the module bound again in its scope). 
+1378_route135_module_alias_passed_through_a_call_then_patched.py	REFUSAL	a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+1379_route135_literal_setattr_on_a_computed_receiver.py	REFUSAL	a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+1380_route135_module_held_in_a_fresh_instance_field_then_patched.py	REFUSAL	a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+1381_route135_module_alias_exported_by_a_leading_star_import.py	REFUSAL	a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+1382_route136_dynamic_exec_rebinding_a_folded_constant.py	REFUSAL	a name's runtime value is not the one the model reads (a dynamic `exec` that can bind into the module namespac
+1383_route136_dynamic_exec_rebinding_a_builtin.py	REFUSAL	a name's runtime value is not the one the model reads (a dynamic `exec` that can bind into the module namespac
+1384_route136_dynamic_exec_rebinding_an_imported_name.py	REFUSAL	a name's runtime value is not the one the model reads (a dynamic `exec` that can bind into the module namespac
+1385_route136_dynamic_exec_rebinding_a_module_def.py	REFUSAL	a name's runtime value is not the one the model reads (a dynamic `exec` that can bind into the module namespac
+1386_route136_eval_with_a_walrus_binds_at_module_scope.py	REFUSAL	a name's runtime value is not the one the model reads (a dynamic `eval` that can bind into the module namespac
+1387_route136_in_function_exec_with_an_explicit_globals_mapping.py	REFUSAL	a name's runtime value is not the one the model reads (a dynamic `exec` that can bind into the module namespac
+1388_route136_in_function_eval_walrus_with_an_explicit_globals_mapping.py	REFUSAL	a name's runtime value is not the one the model reads (a dynamic `eval` that can bind into the module namespac
+1389_route137_module_scope_patch_inside_a_lambda_body.py	REFUSAL	a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+1390_route137_comprehension_bound_receiver_patched_at_module_scope.py	REFUSAL	a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+1391_route137_class_body_patch_inside_a_lambda_body.py	REFUSAL	a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+1392_route137_patch_hidden_in_a_def_default_argument.py	REFUSAL	a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+1393_route137_setattr_reached_through_an_alias.py	REFUSAL	a name's runtime value is not the one the model reads (the namespace builtin `setattr` read as a value at line
+1394_route136_exec_reached_through_an_alias.py	REFUSAL	a name's runtime value is not the one the model reads (the namespace builtin `exec` read as a value at line 6)
+1395_route136_builtins_module_attribute_setattr.py	REFUSAL	a name's runtime value is not the one the model reads (the namespace builtin `setattr` reached as an attribute
+1396_route136_computed_getattr_used_as_a_callee.py	REFUSAL	a name's runtime value is not the one the model reads (a `getattr` on a namespace object used as a callee at l
+1398_route136_constant_eval_whose_expression_binds.py	REFUSAL	a name's runtime value is not the one the model reads (a dynamic `eval` that can bind into the module namespac
+1399_route136_constant_eval_calling_exec.py	REFUSAL	a name's runtime value is not the one the model reads (a dynamic `eval` that can bind into the module namespac
+1400_route136_namespace_dict_passed_into_a_call.py	REFUSAL	a name's runtime value is not the one the model reads (the module namespace dict `globals()` used outside a na
+1401_route136_namespace_dict_updated_through_dict_update.py	REFUSAL	a name's runtime value is not the one the model reads (the module namespace dict `globals()` used outside a na
+1402_route137_item_store_through_a_functions_dunder_globals.py	REFUSAL	a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 14)
+1403_route137_item_store_through_a_frames_f_globals.py	REFUSAL	a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 8).
+1404_route138_computed_getattr_on_a_local_alias_of_builtins.py	REFUSAL	a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+1405_route138_getattr_result_bound_before_it_is_called.py	REFUSAL	a name's runtime value is not the one the model reads (an attribute or item written, or a namespace reached, a
+1406_route138_eval_text_reaching_the_namespace_without_naming_a_builtin.py	REFUSAL	a name's runtime value is not the one the model reads (a dynamic `eval` that can bind into the module namespac
+1407_route138_namespace_mutated_by_a_method_call_at_module_scope.py	REFUSAL	a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 14)
+1408_route138_unbound_dict_method_makes_the_receiver_the_name_dict.py	REFUSAL	a name's runtime value is not the one the model reads (the namespace mapping `.__globals__` used outside a nam
+1409_route138_namespace_mapping_passed_as_a_call_argument.py	REFUSAL	a name's runtime value is not the one the model reads (the namespace mapping `.__globals__` used outside a nam
+1410_route138_bare_in_function_eval_mutating_through_a_call.py	REFUSAL	a name's runtime value is not the one the model reads (a dynamic `eval` that can bind into the module namespac
+1411_route138_dynamic_in_function_eval_mutating_through_a_call.py	REFUSAL	a name's runtime value is not the one the model reads (a dynamic `eval` that can bind into the module namespac
+1412_route139_negative_literal_init_field_took_the_witness_zero.py	VERIFY-FAIL	
+1413_route139_name_free_binop_init_field_took_the_witness_zero.py	VERIFY-FAIL	
+1414_route140_raises_condition_rendered_in_the_callers_scope.py	VERIFY-FAIL	
+1415_route140_keyword_argument_is_never_bound_on_the_dotted_path.py	VERIFY-FAIL	
+1420_route141_raises_condition_over_a_field_rendered_in_the_callers_scope.py	VERIFY-FAIL	
+1421_route142_globals_alias_passed_to_an_unbound_dict_method.py	REFUSAL	a name's runtime value is not the one the model reads (the name `_g`, bound to the module namespace mapping, u
+1422_route142_globals_alias_passed_as_a_call_argument.py	REFUSAL	a name's runtime value is not the one the model reads (the name `_g`, bound to the module namespace mapping, u
+1423_route142_dunder_globals_alias_passed_to_an_unbound_dict_method.py	REFUSAL	a name's runtime value is not the one the model reads (the name `_g`, bound to the module namespace mapping, u
+1424_route144_derived_dataclass_binds_nothing.py	VERIFY-FAIL	
+1425_route144_classvar_shifts_the_positional_binding.py	VERIFY-FAIL	
+1426_route144_multiple_inheritance_reversed_mro.py	VERIFY-FAIL	
+1427_route144_base_dataclass_with_an_explicit_init.py	VERIFY-FAIL	
+1428_route145_unary_minus_class_body_default.py	VERIFY-FAIL	
+1429_route145_computed_class_body_default.py	VERIFY-FAIL	
+1430_route145_field_default_keyword.py	VERIFY-FAIL	
+1431_route145_field_default_factory_on_a_scalar.py	VERIFY-FAIL	
+1432_route146_field_kw_only_reorders_the_positional_list.py	VERIFY-FAIL	
+1443_route144_multiple_inheritance_binds_nothing.py	VERIFY-FAIL	
+1444_route147_plain_subclass_of_a_dataclass_binds_nothing.py	VERIFY-FAIL	
+1445_route147_plain_subclass_of_an_explicit_init_binds_nothing.py	VERIFY-FAIL	
+1446_route147_undecorated_subclass_declaring_its_own_annotation.py	VERIFY-FAIL	
+1447_route147_ancestor_with_an_uncaptured_signature.py	VERIFY-FAIL	
+1448_route147_diamond_stops_at_an_inheriting_ancestor.py	VERIFY-FAIL	
+1449_route147_diamond_binds_nothing.py	VERIFY-FAIL	
+1457_route147_unmodelled_foreign_ancestor_before_the_definer.py	VERIFY-FAIL	
+1458_route147_stateless_in_module_ancestor_before_the_definer.py	VERIFY-FAIL	
+1459_route147_stateless_ancestor_spelled_abc.py	VERIFY-FAIL	
+1460_route147_stateless_ancestor_spelled_object.py	VERIFY-FAIL	
+1461_route147_dataclass_init_false_inherits_the_constructor.py	VERIFY-FAIL	
+1464_route143_imported_raises_condition_folded_against_the_importers_constant.py	REFUSAL	Imported contract of 'f' (from 'r141_raiselib.py') reads the module-level name 'LIM', which denotes THAT modul
+1465_route143_module_import_spelling.py	REFUSAL	Imported contract of 'f' (from 'r141_raiselib.py') reads the module-level name 'LIM', which denotes THAT modul
+1466_route143_wildcard_import_rebound_afterwards.py	REFUSAL	Imported contract of 'f' (from 'r141_raiselib.py') reads the module-level name 'LIM', which denotes THAT modul
+1467_route143_imported_class_method_condition.py	REFUSAL	Imported contract of 'k__m' (from 'r143_cls.py') reads the module-level name 'LIM', which denotes THAT module'
+1468_route143_name_imported_from_another_module.py	REFUSAL	Imported contract of 'f' (from 'r141_raiselib.py') reads the module-level name 'LIM', which denotes THAT modul
+1469_route143_name_bound_inside_a_module_level_if.py	REFUSAL	Imported contract of 'f' (from 'r141_raiselib.py') reads the module-level name 'LIM', which denotes THAT modul
+1470_route143_name_reaching_through_another_modules_wildcard.py	REFUSAL	Imported contract of 'f' (from 'r141_raiselib.py') reads the module-level name 'LIM', which denotes THAT modul
+1471_route143_contract_calls_a_helper_the_importer_redefines.py	REFUSAL	Imported contract of 'g' (from 'r143_fnlib.py') reads the module-level name 'lim', which denotes THAT module's
+1473_route143_dependency_binds_the_name_through_its_own_wildcard.py	REFUSAL	Imported contract of 'f3' (from 'r143_starlib.py') reads the module-level name 'LIM', which denotes THAT modul
+1474_route143_name_reaching_through_a_two_hop_wildcard.py	REFUSAL	Imported contract of 'f' (from 'r141_raiselib.py') reads the module-level name 'LIM', which denotes THAT modul
+1475_route143_ensures_clause_reads_the_dependencys_constant.py	REFUSAL	Imported contract of 'base' (from 'r143_enslib.py') reads the module-level name 'BASE', which denotes THAT mod
+1477_route149_omitted_positional_ctor_arg_takes_its_default.py	VERIFY-FAIL	
+1478_route149_kwonly_default_that_is_a_module_constant.py	VERIFY-FAIL	
+1479_route149_kwonly_true_default_was_excluded.py	VERIFY-FAIL	
+1480_route148_kwonly_float_default_was_truncated.py	VERIFY-FAIL	
+1481_route149_inherited_ctor_positional_default.py	VERIFY-FAIL	
+1482_route149_keyword_bound_arg_with_an_omitted_positional_default.py	VERIFY-FAIL	
+1483_route149_positional_float_default_is_unknown.py	VERIFY-FAIL	
+1484_route148_float_literal_store_was_truncated.py	VERIFY-FAIL	
+1485_route148_float_literal_last_wins_store_was_truncated.py	VERIFY-FAIL	
+1491_route149_omitted_positional_bool_default.py	VERIFY-FAIL	
+1493_route150_dataclass_post_init_ignored.py	VERIFY-FAIL	
+1494_route150_dataclass_post_init_through_a_method.py	VERIFY-FAIL	
+1495_route150_init_calls_a_helper_method.py	VERIFY-FAIL	
+1496_route150_init_store_through_a_self_alias.py	VERIFY-FAIL	
+1497_route150_init_setattr_on_self.py	VERIFY-FAIL	
+1498_route150_init_passes_self_to_a_function.py	VERIFY-FAIL	
+1499_route150_super_init_argument_was_dropped.py	VERIFY-FAIL	
+1500_route150_inherited_constructor_that_calls_super_init.py	VERIFY-FAIL	
+1501_route150_super_init_argument_over_a_module_constant.py	VERIFY-FAIL	
+1502_route150_inherited_post_init_hook.py	VERIFY-FAIL	
+1507_route151_dataclass_init_false_field_shifted_the_binding.py	VERIFY-FAIL	
+1508_route151_dataclass_init_false_field_took_the_argument.py	VERIFY-FAIL	
+1509_route151_base_init_false_field_through_a_derived_dataclass.py	VERIFY-FAIL	
+1511_route149_omitted_default_under_a_computed_initialiser.py	VERIFY-FAIL	
+1513_route152_store_after_early_return_in_init.py	VERIFY-FAIL	
+1514_route152_store_after_early_return_annotated_default.py	VERIFY-FAIL	
+1515_route153_parameter_rebound_before_the_store.py	VERIFY-FAIL	
+1516_route153_parameter_augmented_before_the_store.py	VERIFY-FAIL	
+1517_route154_init_list_field_element_store.py	VERIFY-FAIL	
+1518_route154_init_dict_field_key_store.py	VERIFY-FAIL	
+1519_route154_init_element_store_through_a_local_alias.py	VERIFY-FAIL	
+1520_route153_match_capture_rebinds_the_parameter.py	VERIFY-FAIL	
+1522_route155_composed_default_in_a_parameterless_ctor.py	VERIFY-FAIL	
+1523_route155_composed_kwonly_default_in_a_parameterless_ctor.py	VERIFY-FAIL	
+1526_route155_two_level_composition_parameterless.py	VERIFY-FAIL	
+1528_route156_handlerless_finally_dropped_when_the_body_raises.py	REFUSAL	: a `try ... finally:` in 'probe' has no handlers and its body jumps out (ROUTE #156): Module 6 appends the `f
+1529_route156_handlerless_finally_then_outer_handler_updates.py	REFUSAL	: a `try ... finally:` in 'probe' has no handlers and its body jumps out (ROUTE #156): Module 6 appends the `f
+1531_route157_slice_assignment_that_grows_kept_the_length.py	VERIFY-FAIL	
+1532_route157_slice_assignment_that_grows_mid_list.py	VERIFY-FAIL	
+1534_route158_all_over_the_empty_list_literal.py	VERIFY-FAIL	
+1535_route158_any_over_the_empty_list_literal.py	VERIFY-FAIL	
+1536_route158_all_over_a_local_bound_to_the_empty_list.py	VERIFY-FAIL	
+1538_route159_index_into_an_empty_local_list.py	VERIFY-FAIL	
+1539_route159_index_into_the_empty_literal.py	VERIFY-FAIL	
+1540_route159_seq_get_past_the_appended_length.py	VERIFY-FAIL	
+1541_route159_store_into_an_empty_local_list.py	VERIFY-FAIL	
+1542_route159_string_index_past_the_end.py	VERIFY-FAIL	
+1543_route159_tuple_index_past_the_end.py	VERIFY-FAIL	
+1546_route159_key_into_the_empty_dict_literal.py	VERIFY-FAIL	
+1547_route160_range_with_a_zero_step.py	REFUSAL	`range(start, stop, step)` raises `ValueError` for a zero step, and this function claims `#@ no_exception` ove
+1548_route160_split_on_an_expression_receiver_with_an_empty_separator.py	REFUSAL	`split(...)` raises `ValueError` in Python on an EMPTY separator, and this function claims `#@ no_exception` o
+1549_route160_pow_with_a_negative_exponent.py	REFUSAL	`pow(base, exp)` raises `ZeroDivisionError` (or `ValueError` with a modulus) for a negative exponent, and this
+1550_route160_max_of_an_empty_iterable.py	REFUSAL	`max(iterable)` raises `ValueError` on an empty iterable without `default=`, and this function claims `#@ no_e
+1554_route161_str_format_index_error.py	REFUSAL	`format(...)` is not a function of the verified program and not on the list of operations known never to raise
+1555_route161_math_factorial_value_error.py	REFUSAL	`math.factorial(...)` is not a function of the verified program and not on the list of operations known never 
+1556_route162_heapify_on_a_list_parameter_under_assigns_nothing.py	REFUSAL	`heapq.heapify(...)` MUTATES an ARGUMENT in place, and no certified lowering models it: the call becomes an ab
+1557_route162_random_shuffle_on_a_local_list.py	REFUSAL	`random.shuffle(...)` MUTATES an ARGUMENT in place, and no certified lowering models it: the call becomes an a
+1558_route163_int_of_a_str_returning_call.py	REFUSAL	`int(<str>)` raises `ValueError` in Python on a non-numeric string, and this function claims `#@ no_exception`
+1559_route163_int_of_a_string_field.py	REFUSAL	`int(<str>)` raises `ValueError` in Python on a non-numeric string, and this function claims `#@ no_exception`
+1560_route164_erased_mapping_read_key_error.py	VERIFY-FAIL	
+1561_route165_receiverless_stub_skips_the_class_invariant.py	VERIFY-FAIL	
+1564_route165_inherited_method_on_a_subclass_local.py	VERIFY-FAIL	
+1565_route165_param_referencing_ensures_with_a_broken_invariant.py	VERIFY-FAIL	
+1566_route166_one_stub_name_two_callees.py	VERIFY-FAIL	
+1568_route166_inherited_clone_dispatches_through_the_base_stub.py	VERIFY-FAIL	
+1569_route167_stubbed_method_call_drops_the_self_field_requires.py	VERIFY-FAIL	
+1570_route167_parameter_receiver_drops_the_requires.py	VERIFY-FAIL	
+1571_route167_sibling_self_call_drops_the_param_requires.py	VERIFY-FAIL	
+1572_route167_class_qualified_static_call_drops_the_requires.py	VERIFY-FAIL	
+1574_route167_chained_attribute_receiver_refuses.py	VERIFY-FAIL	
+1575_route168_discarded_global_method_return_drops_the_division.py	VERIFY-FAIL	
+1576_route168_discarded_global_method_return_drops_the_mutation.py	VERIFY-FAIL	
+1578_route169_inlined_method_reads_a_caller_local_for_a_module_name.py	REFUSAL	cannot inline 'c__f' on '_g': its body refers to 'K', which the calling function binds as a local, so the spli
+1579_route169_inlined_tuple_unpack_overwrites_a_caller_local.py	VERIFY-FAIL	
+1581_route167_computed_receiver_call_drops_the_requires.py	VERIFY-FAIL	
+1582_route167_super_call_drops_the_requires.py	VERIFY-FAIL	
+1583_route170_caught_missing_key_read_proves_the_placeholder.py	VERIFY-FAIL	
+1584_route170_caught_missing_int_key_read.py	VERIFY-FAIL	
+1585_route170_missing_key_caught_by_exception.py	REFUSAL	`except Exception` can be reached by an exception the model does not raise (AttributeError, TypeError, Overflo
+1588_route171_caught_index_error_on_a_placeholder_array.py	VERIFY-FAIL	
+1589_route171_caught_value_error_from_int_of_a_string.py	REFUSAL	`int(<str>)` raises `ValueError` in Python on a non-numeric string, and this function claims `#@ no_exception`
+1590_route171_caught_through_lookup_error.py	VERIFY-FAIL	
+1592_route172_placeholder_read_caught_by_exception.py	REFUSAL	`except Exception` can be reached by an exception the model does not raise (AttributeError, TypeError, Overflo
+1593_route172_int_of_string_caught_by_exception.py	REFUSAL	`except Exception` can be reached by an exception the model does not raise (AttributeError, TypeError, Overflo
+1594_route172_in_bounds_read_under_base_exception_still_proves.py	REFUSAL	`except BaseException` can be reached by an exception the model does not raise (AttributeError, TypeError, Ove
+1595_route172_loop_invariant_on_a_dead_handler_path.py	VERIFY-FAIL	
+1596_route173_tuple_unpack_arity_under_no_exception.py	REFUSAL	a tuple unpack of a value whose length is not statically the target count raises `ValueError` in Python on a m
+1597_route173_caught_tuple_unpack_arity.py	REFUSAL	a tuple unpack of a value whose length is not statically the target count raises `ValueError` in Python on a m
+1599_route174_attribute_error_handler_on_none.py	REFUSAL	`except AttributeError` can be reached by an exception the model does not raise (AttributeError, TypeError, Ov
+1600_route174_overflow_error_handler.py	REFUSAL	`except OverflowError` can be reached by an exception the model does not raise (AttributeError, TypeError, Ove
+1601_route174_unicode_decode_error_handler.py	REFUSAL	`except UnicodeDecodeError` can be reached by an exception the model does not raise (AttributeError, TypeError
+1602_route174_broad_handler_around_an_unmodelled_exception.py	REFUSAL	`except Exception` can be reached by an exception the model does not raise (AttributeError, TypeError, Overflo
+1604_route173_for_tuple_target_over_strings.py	REFUSAL	a `for` loop with a tuple target unpacks every element, which raises `ValueError` in Python when an element's 
+1605_route173_for_three_targets_over_items.py	REFUSAL	a `for` loop with a tuple target unpacks every element, which raises `ValueError` in Python when an element's 
+1606_route174_arithmetic_error_handler_catches_overflow.py	REFUSAL	`except ArithmeticError` can be reached by an exception the model does not raise (AttributeError, TypeError, O
+1607_route174_handler_path_breaks_the_class_invariant.py	REFUSAL	`int(<str>)` raises `ValueError` in Python on a non-numeric string, and this function claims `#@ no_exception`
+1608_route175_user_subclass_of_a_builtin_caught_by_the_base.py	REFUSAL	: `except ValueError` in 'probe' is meant to catch the raised `MyErr`, a user subclass of it (ROUTE #175), but
+1609_route175_user_subclass_caught_by_a_user_base.py	REFUSAL	: `except Base` in 'probe' is meant to catch the raised `Sub`, a user subclass of it (ROUTE #175), but handler
+1611_route176_stubbed_method_call_never_raises.py	VERIFY-FAIL	
+1612_route176_sibling_self_call_never_raises.py	VERIFY-FAIL	
+1613_route175_unannotated_callee_raises_a_user_subclass.py	REFUSAL	: `except ValueError` in 'probe' is meant to catch the raised `MyErr`, a user subclass of it (ROUTE #175), but
+1615_route176_computed_receiver_call_never_raises.py	VERIFY-FAIL	
+1616_route176_method_raises_through_a_helper.py	VERIFY-FAIL	
+1617_route176_imported_class_method_never_raises.py	REFUSAL	`c.go(...)` resolves to a `#@ \trusted` or `#@ \abstract` method of this program, and this function claims `#@
+1618_route175_raise_through_a_class_alias.py	REFUSAL	: `except ValueError` in 'probe' is meant to catch the raised `Alias`, a user subclass of it (ROUTE #175), but
+1619_route175_catch_through_a_class_alias.py	REFUSAL	: `except Alias` in 'probe' is meant to catch the raised `MyErr`, a user subclass of it (ROUTE #175), but hand
+1620_route177_comprehension_missing_key_under_no_exception.py	REFUSAL	a comprehension contains a subscript (IndexError / KeyError), and this function claims (or, through an excepti
+1621_route177_comprehension_division_by_zero.py	REFUSAL	a comprehension contains a division (ZeroDivisionError), and this function claims (or, through an exception ha
+1622_route177_generator_in_sum_division_by_zero.py	REFUSAL	a comprehension contains a division (ZeroDivisionError), and this function claims (or, through an exception ha
+1623_route177_dict_comprehension_missing_key.py	REFUSAL	a comprehension contains a subscript (IndexError / KeyError), and this function claims (or, through an excepti
+1625_route178_helper_missing_key_under_callers_no_exception.py	REFUSAL	`get(...)` calls code that can raise `KeyError` implicitly (a dict or list subscript, an unpack, `int()`/`floa
+1626_route178_helper_missing_key_caught_by_caller.py	REFUSAL	`get(...)` calls code that can raise `KeyError` implicitly (a dict or list subscript, an unpack, `int()`/`floa
+1627_route178_method_missing_key_caught_by_caller.py	REFUSAL	`c.get(...)` calls code that can raise `KeyError` implicitly (a dict or list subscript, an unpack, `int()`/`fl
+1629_route178_imported_helper_missing_key.py	REFUSAL	`get(...)` calls code that can raise `KeyError` implicitly (a dict or list subscript, an unpack, `int()`/`floa
+1630_route179_raising_constructor_under_no_exception.py	REFUSAL	: 'probe' constructs an object whose `__init__` / `__post_init__` can raise `ValueError` (ROUTE #179), directl
+1631_route179_raising_constructor_caught.py	REFUSAL	: 'probe' constructs an object whose `__init__` / `__post_init__` can raise `ValueError` (ROUTE #179), directl
+1632_route179_raising_post_init_caught.py	REFUSAL	: 'probe' constructs an object whose `__init__` / `__post_init__` can raise `ValueError` (ROUTE #179), directl
+1634_route179_constructor_raises_through_a_helper.py	REFUSAL	: 'probe' constructs an object whose `__init__` / `__post_init__` can raise `ValueError` (ROUTE #179), directl
+1635_route179_constructor_raises_through_a_self_method.py	REFUSAL	: 'probe' constructs an object whose `__init__` / `__post_init__` can raise `ValueError` (ROUTE #179), directl
+1636_route180_walrus_in_list_comprehension.py	REFUSAL	an assignment expression `(y := ...)` inside a comprehension rebinds `y` in the enclosing function (PEP 572), 
+1637_route180_walrus_in_generator_passed_to_sum.py	REFUSAL	an assignment expression `(last := ...)` inside a comprehension rebinds `last` in the enclosing function (PEP 
+1639_route181_imported_raising_constructor_caught.py	REFUSAL	: 'probe' constructs an object whose `__init__` / `__post_init__` can raise `ValueError` (ROUTE #179), directl
+1640_route181_imported_user_exception_subclass.py	REFUSAL	: `except ValueError` in 'probe' is meant to catch the raised `MyErr`, a user subclass of it (ROUTE #175), but
+1641_route181_imported_raising_constructor_under_no_exception.py	REFUSAL	: 'probe' constructs an object whose `__init__` / `__post_init__` can raise `ValueError` (ROUTE #179), directl
+1643_route182_imported_division_under_no_exception.py	REFUSAL	`div(...)` calls code that can raise `ZeroDivisionError` implicitly (a dict or list subscript, an unpack, `int
+1644_route182_imported_division_caught.py	REFUSAL	`div(...)` calls code that can raise `ZeroDivisionError` implicitly (a dict or list subscript, an unpack, `int
+1646_route182_helper_negative_shift_under_no_exception.py	REFUSAL	`shift(...)` calls code that can raise `ValueError` implicitly (a dict or list subscript, an unpack, `int()`/`
+1647_route182_helper_negative_shift_caught.py	REFUSAL	`shift(...)` calls code that can raise `ValueError` implicitly (a dict or list subscript, an unpack, `int()`/`
+1648_route183_none_field_reads_as_zero.py	VERIFY-FAIL	
+1649_route183_none_field_still_refuses_the_true_twin.py	VERIFY-FAIL	
+1651_route184_none_list_element_reads_as_zero.py	VERIFY-FAIL	
+1652_route184_none_list_element_arithmetic.py	VERIFY-FAIL	
+1653_route184_none_dict_value_reads_as_zero.py	VERIFY-FAIL	
+1655_route185_guarded_method_through_a_field_receiver.py	VERIFY-FAIL	
+1656_route185_raising_method_through_a_field_receiver.py	VERIFY-FAIL	
+1658_route186_declared_raises_through_a_field_receiver.py	VERIFY-FAIL	
+1659_route186_guarded_method_two_levels_deep.py	VERIFY-FAIL	
+1661_route187_fresh_globals_ignores_a_module_body_field_store.py	REFUSAL	: this module declares `#@ fresh_globals`, which ASSUMES each module-global singleton's constructor post-state
+1662_route187_fresh_globals_ignores_a_module_body_method_call.py	REFUSAL	: this module declares `#@ fresh_globals`, which ASSUMES each module-global singleton's constructor post-state
+1664_route188_the_stub_name_hash_suffix_collides.py	VERIFY-FAIL	
+1666_route189_one_receiver_name_two_classes.py	REFUSAL	: 'probe' binds 'o' to more than one class (C, D) and then calls `o.get(...)` (ROUTE #189). A record local is 
+1668_route190_an_open_ended_string_slice_was_the_empty_string.py	VERIFY-FAIL	
+1669_route190_a_negative_slice_bound_was_the_empty_string.py	VERIFY-FAIL	
+1672_route190_a_dynamic_negative_string_index_was_the_empty_string.py	VERIFY-FAIL	
+1673_route191_a_none_stored_into_a_list_element_read_back_as_zero.py	VERIFY-FAIL	
+1674_route191_a_none_stored_into_a_dict_value_read_back_as_zero.py	VERIFY-FAIL	
+1675_route191_a_none_stored_into_a_field_read_back_as_zero.py	VERIFY-FAIL	
+1676_route191_an_appended_none_read_back_as_zero.py	VERIFY-FAIL	
+1679_route192_a_genuine_integer_zero_became_the_none_singleton.py	VERIFY-FAIL	
+1680_route192_a_genuine_integer_zero_became_a_union_none_arm.py	VERIFY-FAIL	
+1683_route193_a_placeholder_array_had_a_known_length.py	VERIFY-FAIL	
+1685_route194_a_collection_actual_became_the_literal_zero.py	VERIFY-FAIL	
+1687_route195_the_empty_list_placeholder_became_the_integer_zero.py	VERIFY-FAIL	
+1689_route196_the_empty_list_placeholder_was_1024_elements_long.py	VERIFY-FAIL	
+1691_route197_an_unknown_typed_getattr_was_its_default.py	VERIFY-FAIL	
+1693_route198_a_bare_return_was_the_integer_zero.py	VERIFY-FAIL	
+1695_route199_the_empty_fstring_was_the_integer_zero.py	VERIFY-FAIL	
+1697_route200_a_string_actual_was_hashed_into_an_int_param.py	REFUSAL	: in 'probe': the call to 'callee' passes a string literal to parameter 'p', which 'callee' declares `int` (RO
+1699_route201_a_string_actual_became_a_one_element_array.py	VERIFY-FAIL	
+1701_route202_a_string_actual_hashed_into_an_unannotated_param.py	REFUSAL	: in 'probe': the call to 'callee' passes a string literal to parameter 'p', which 'callee' declares `no type 
+1703_route202_the_keyword_spelling_of_the_hashed_actual.py	REFUSAL	: in 'probe': the call to 'callee' passes a string literal to parameter 'p', which 'callee' declares `int` (RO
+1705_route203_an_int_interpolated_fstring_was_the_integer.py	VERIFY-FAIL	
+1707_route204_interface_assigns_narrower_than_definition.py	REFUSAL	test-suite/corpus/pycsl-reference/1707_route204_interface_assigns_narrower_than_definition.py line 23: test-su
+1709_route205_interface_lie_escapes_to_importers.py	VERIFY-FAIL	
+1711_route206_total_target_calls_trusted_stub.py	REFUSAL	`happy availability`: total target 'parse' reaches 'spin', which is marked `#@ \trusted`, `#@ \abstract` or `#
+1713_route207_no_exception_through_a_trusted_method.py	REFUSAL	`self.boom(...)` resolves to a `#@ \trusted` or `#@ \abstract` method of this program, and this function claim
+1715_route208_total_target_calls_diverges_helper.py	REFUSAL	`happy availability`: total target 'parse' reaches 'spin', which is marked `#@ \trusted`, `#@ \abstract` or `#
+1716_route209_protects_trust_boundary_never_fired.py	REFUSAL	`happy own`: 'sneaky_stub' is `#@ \trusted` or `#@ \abstract`, is not exempt, and its BODY writes the protecte
+0044.py	REFUSAL	: a COMPLEX literal (4j) has no model (ROUTE #43): `_py_expr_constant` lowers it to `int(value.real)`, so the 
+0060.py	VERIFY-FAIL	
+0061.py	VERIFY-FAIL	
+0065.py	REFUSAL	: an `assert` whose TEST may have a SIDE EFFECT is not modelled: the test is lowered to `()`, i.e. DISCARDED, 
+0076.py	REFUSAL	Class 'C' (line 7) defines `__setattr__`, an attribute-access hook the model does not consult: every method ca
+0078.py	REFUSAL	a function, method or class NAME is rebound after its definition (`setattr`/`delattr` of a function name at li
+0087.py	VERIFY-FAIL	
+0091.py	VERIFY-FAIL	
+0092.py	VERIFY-FAIL	
+0093.py	REFUSAL	function 'test_with_statement_context' binds c with a `with ... as` clause, and no certified lowering models i
+0099.py	VERIFY-FAIL	
+0111.py	REFUSAL	`try ... except*` (an exception-GROUP handler) is not modelled: `_PY_STMT_HANDLERS` has no `TryStar` entry and
+0140.py	VERIFY-FAIL	
+0141.py	VERIFY-FAIL	
+0146.py	VERIFY-FAIL	
+0151.py	VERIFY-FAIL	
+0166.py	REFUSAL	nested function 'f' is lifted to a sibling of its enclosing function, and the lift is not faithful here: it re
+0175.py	VERIFY-FAIL	
+0181.py	REFUSAL	function 'test_global_statement' writes _test_g through a `global` declaration, and no certified lowering mode
+0182.py	REFUSAL	function 'inner' writes x through a `nonlocal` declaration, and no certified lowering models it. `nonlocal` ha
+0186.py	VERIFY-FAIL	
+0187.py	REFUSAL	`try ... except*` (an exception-GROUP handler) is not modelled: `_PY_STMT_HANDLERS` has no `TryStar` entry and
+0191.py	REFUSAL	function 'test_with_statement' binds f with a `with ... as` clause, and no certified lowering models it. `_py_
+0192.py	REFUSAL	: a `match` pattern in this module is not interpreted (ROUTE #30): its arm has no faithful lowering, and every
+0193.py	VERIFY-FAIL	
+0194.py	VERIFY-FAIL	
+0196.py	REFUSAL	: a `match` pattern in this module is not interpreted (ROUTE #30): its arm has no faithful lowering, and every
+0198.py	VERIFY-FAIL	
+0199.py	VERIFY-FAIL	
+0200.py	VERIFY-FAIL	
+0202.py	REFUSAL	: unexpected token in expression (got NEWLINE '\n') (<unknown>, line 7)
+0203.py	REFUSAL	: pure_ast parser: mapping match pattern not yet implemented (<unknown>, line 8)
+0204.py	REFUSAL	: expected ')' (got OP '=') (<unknown>, line 13)
+0209.py	REFUSAL	: a `with` statement in a file that defines a context-manager class (ACM) uses a context expression this build
+0217.py	VERIFY-FAIL	
+median_high_call_fails.py	VERIFY-FAIL	

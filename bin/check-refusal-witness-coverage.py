@@ -25,6 +25,20 @@ WHAT IT MEASURES. Two halves joined:
 
 A site is WITNESSED when its message fragment appears in some censused refusal message.
 
+THE FIRST JOINED MEASUREMENT (gen #30): **198 raise sites, 759 witnesses censused (404 of
+them refusals), 58 sites DEMONSTRATED to fire and 140 not.** So roughly seven in ten of the
+compiler's refusals have no file in the corpus proving they can fire — which is the
+population route #209 came out of.
+
+READ THOSE TWO NUMBERS AS BOUNDS, NOT AS FACTS. The join is textual: a site is matched when
+the longest literal fragment of its message (first 60 characters) appears in some censused
+refusal message, and the committed census truncates each message to 110 characters. A site
+whose message is assembled from short pieces, or whose distinctive text falls past that
+cut, counts as UNWITNESSED even if a witness exists. So 58 is a FLOOR on the demonstrated
+set and 140 a CEILING on the undemonstrated one. `--regenerate` keeps 400 characters per
+message and will move both numbers the right way; the ratchets below are set to the
+CONSERVATIVE first measurement so that regenerating can only improve them.
+
 THE RATCHET: the witnessed count may only GROW, and the artifact's own size may only grow
 with the corpus. A NEW refusal added without a witness is visible immediately — it lands in
 the unwitnessed list and the count of unwitnessed sites rises above the ceiling.
@@ -64,8 +78,8 @@ import warnings
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CENSUS = os.path.join(ROOT, "bin", "refusal-witness-census.tsv")
 MIN_SITES = 150           # 195 at the first measurement
-MIN_WITNESSED = 0         # set from the first joined measurement; may only grow
-MAX_UNWITNESSED = 10**6   # ditto, from the other side
+MIN_WITNESSED = 58        # first joined measurement (gen #30); may only grow
+MAX_UNWITNESSED = 140     # ditto, from the other side; may only shrink
 
 
 def literal_parts(node):

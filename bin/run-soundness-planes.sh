@@ -173,6 +173,14 @@ PLANES=(
     # check-self-annotate-sync.sh, which is a shell wrapper around the mirror-sync plane
     # already in this list — a duplicate, not a gap.)
     os-cpython-differential.py
+    # (#49) gen #30: WHICH REFUSALS HAVE A WITNESS PROVING THEY CAN FIRE? Route #209 was a
+    # trust boundary that read correctly, had been reviewed, and had NEVER fired. This
+    # joins the compiler's 198 `raise PyCSL*Error` sites against a committed census of all
+    # 759 expected-FAIL witnesses (404 of which are refusals): 58 sites are DEMONSTRATED to
+    # fire, 140 are not. Both numbers are BOUNDS — the join is textual — and the ratchets
+    # are set to the conservative first measurement. The census is an ARTIFACT because
+    # producing it takes two hours; `--regenerate` rebuilds it.
+    check-refusal-witness-coverage.py
     # (#49) gen #30: the STDLIB-CONTRACT-FIDELITY ratchet. `src/pycsl_lib/` holds 93
     # body-verified stub packages, each CITING the CPython library reference in its
     # docstring, and nothing compared a stub's contract against the function it cites. A
@@ -244,7 +252,7 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=39
+MIN_PLANES=40
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
