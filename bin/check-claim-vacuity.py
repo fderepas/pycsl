@@ -29,7 +29,10 @@ under full proof. The corpus runner uses `--no-proof` for fast iteration; the fa
 is exercised manually with `--proof`." Run it with the prover on and it VERIFIES —
 `ensures True` over an unresolved stdlib call is discharged, so the documented failure mode
 does not occur. Measured on a 40-file sample of the `--no-proof` population: 38 verify
-under full proof, 1 fails, 1 reports a mutex-invariant diagnostic.
+under full proof, 1 fails, 1 reports a mutex-invariant diagnostic. Then measured on the
+`*_call_fails.py` family directly, 60 sampled of the 840: **60 of 60 VERIFY under full
+proof.** Not one of the sampled negative witnesses fails, because not one of them claims
+anything a program could contradict.
 
 WHAT THIS IS NOT: not a route, not a compiler defect, and not an argument that `ensures
 True` should be rejected — a placeholder contract is a legitimate thing to write while a
@@ -53,8 +56,9 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CORPUS = os.path.join(ROOT, "test-suite", "corpus")
 MIN_FILES = 3500              # 3888 at the first measurement
-MAX_VACUOUS_FILES = 1792      # first measurement (1791 `ensures True` + 1 `ensures 0 == 0`);
-                              # may only shrink
+MAX_VACUOUS_FILES = 1791      # 1792 at the first measurement; ONE repaired the same day
+                              # (statistics/median_high_call_fails.py), so the ceiling
+                              # follows it down — that is what "may only shrink" means
 MAX_VACUOUS_REQUIRES = 1131   # ditto, for `requires True`
 
 TRIVIAL_ENSURES = (
