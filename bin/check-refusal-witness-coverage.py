@@ -89,8 +89,29 @@ MIN_WITNESSED = 131       # 58 at the first joined measurement; 67 after TEN wit
                           # with witness 1762 — and 131 once the CENSUS ITSELF was
                           # repaired. FORTY-FIVE of the "missing" witnesses had been in
                           # the corpus all along. May only grow.
-MAX_UNWITNESSED = 67      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
-                          # the instrument. May only shrink.
+MAX_UNWITNESSED = 59      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
+                          # the instrument; 67 -> 59 by DEMONSTRATING the eight that no
+                          # corpus witness can reach (below). May only shrink.
+
+# NOT REACHABLE FROM A `.py` SOURCE FILE, and therefore never a corpus witness's job.
+# `ir_schema.validate_ir` runs on the IR THE FRONT-END JUST BUILT (pycsl.py:511) and again
+# at the JSON boundary (pycsl.py:962). No Python source can make Module 5 emit an IR whose
+# `functions` is not a list or whose `contracts` is not a dict — the front-end builds those
+# shapes itself. Counting these eight as "undemonstrated" pointed at the wrong work: an
+# unwritten witness wants a corpus file, an unreachable-from-source refusal wants a DIRECT
+# gate. `bin/check-ir-schema-refusals.py` is that gate — it builds a malformed IR for each,
+# calls the real `validate_ir`, asserts the real code fires, and carries a WELL-FORMED
+# control so a `validate_ir` that refused everything could not pass it.
+#
+# THIS IS AN EXCLUSION WITH A GATE BEHIND IT, NOT AN EXCUSE (lesson (f3), (v2)): if that
+# plane is deleted or stops passing, these eight stop being demonstrated, and the battery
+# says so. They are excluded from the unwitnessed COUNT and listed by `--list-unwitnessed`
+# with their reason.
+NOT_SOURCE_REACHABLE = {
+    "PYCSL-IR-NOTDICT", "PYCSL-IR-MISSINGTOP", "PYCSL-IR-VERSION", "PYCSL-IR-FUNCSLIST",
+    "PYCSL-IR-FUNCDICT", "PYCSL-IR-MISSINGFUNC", "PYCSL-IR-CONTRACTSDICT",
+    "PYCSL-IR-MISSINGCONTRACTS",
+}
 
 
 def literal_parts(node):
@@ -242,19 +263,31 @@ def main():
 
     refusal_msgs = [m for _w, c, m in rows if c == "REFUSAL"]
     xpass = [w for w, c, _m in rows if c == "XPASS"]
-    witnessed, unwitnessed = [], []
+    witnessed, unwitnessed, elsewhere = [], [], []
     for rel, line, exc, code, frag in st:
         hit = bool(frag) and any(frag[:60] in m for m in refusal_msgs)
-        (witnessed if hit else unwitnessed).append((rel, line, exc, code, frag))
+        if hit:
+            witnessed.append((rel, line, exc, code, frag))
+        elif code in NOT_SOURCE_REACHABLE:
+            elsewhere.append((rel, line, exc, code, frag))
+        else:
+            unwitnessed.append((rel, line, exc, code, frag))
 
     print("[*] refusal-witness-coverage: %d raise site(s) in the compiler, %d witness(es) "
           "censused (%d refusals); %d site(s) DEMONSTRATED to fire, %d not."
           % (len(st), len(rows), len(refusal_msgs), len(witnessed), len(unwitnessed)))
+    if elsewhere:
+        print("[*]   plus %d refusal(s) NOT REACHABLE from a `.py` source file, "
+              "demonstrated executably by bin/check-ir-schema-refusals.py instead."
+              % len(elsewhere))
 
     if args.list_unwitnessed or args.verbose:
         for rel, line, exc, code, frag in unwitnessed[:60]:
             print("    unwitnessed  %-44s:%-6d %-22s %s"
                   % (rel, line, code or "-", frag[:50]))
+        for rel, line, exc, code, frag in elsewhere:
+            print("    elsewhere    %-44s:%-6d %-22s not source-reachable; see "
+                  "bin/check-ir-schema-refusals.py" % (rel, line, code or "-"))
 
     rc = 0
     for w in xpass:
