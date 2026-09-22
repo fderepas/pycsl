@@ -2666,3 +2666,48 @@ for the OTHER 52, never for that one.**
 Re-proof of `src/self-annotate/src/module6_whyml/stmt_control_flow.py` LAUNCHED
 (detached, `$SCRATCH/prove198.log`) — lesson (r): only the mirror whose emission
 MOVED is re-proved, not all 53.
+
+### ROUTE #199 REPAIRED — and the FIRST repair this generation had to be re-aimed
+Q1 `\result == 2` (false): PROVED -> REFUSED.
+Q2 `\result == 1` (true):  REFUSED -> PROVES.  A FAITHFUL repair, the first of
+   gen #30: #191-#198 all left both twins undecided because the true value was
+   genuinely unavailable; here it is available and exact.
+
+THE FIRST ATTEMPT WAS WRONG AND THE EMITTED WhyML IS WHAT SAID SO (lesson (s),
+again). `return '""'` — "the empty f-string is the empty string" — looked
+obviously right and produced
+
+    let s = ref 0 in
+    s := "";
+    if (!s = 313406155) then ...
+
+an int ref assigned a string: ill-typed. Fail-closed, but by a TYPE ERROR rather
+than by an answer, and the TRUE contract stayed refused (that is why Q2 was in
+the prediction: an opaque and a faithful repair are told apart by exactly that
+line). The reason is upstream: BOTH `_is_string_expr` FString arms gate on
+`bool(parts)`, so an empty f-string is not string-typed and its local is declared
+`ref 0`. In the int-hash string model the empty string IS `stable_hash('""')` —
+313406155, the very constant already in the comparison. Answering THAT closes the
+false proof and makes the true contract provable, with no type change.
+RECORDED NOT TAKEN: making the empty f-string string-typed (drop `bool(parts)`
+from both arms — `all([])` is already True — and return `""`). Three sites in a
+predicate every consumer reads, for a construct with zero occurrences anywhere.
+It belongs with the next f-string typing change, not with a soundness fix.
+
+Witnesses 1695 (carrier, FAIL) and 1696 (the completeness witness: a later
+"simplification" to an opaque would still pass 1695 and would silently lose 1696).
+Mirror-sync green (the mirror's `_handle_fstring_expr` is a re-trusted stub, so
+the live edit has no mirror twin).
+
+### Three neighbours swept while here (all recorded, none a route)
+- GenExp as a VALUE (`expressions.py`, `if t == "GenExp": return "0"`):
+  `g = (i for i in [1,2]); if g == 0:` — REFUSED. Route #41's per-name constant
+  intercepts the READ before the literal can decide.
+- `\sum` and friends under a heap memory model (`if self._value_semantic:` with a
+  `return "0"` fall-through): already REFUSED at the pipeline level by route #29.
+- `d.get("b", 7)` on an absent key: FAITHFUL. The false claim is refused and the
+  true one proves.
+- `d["b"]` on an absent key DOES read 0 and `\result == 1` proves — but CPython
+  raises KeyError there, so the function never returns and no contract of it is
+  violated. That is PyCSL's opt-in `#@ no_exception` stance, not a route; noted
+  because the read itself looks identical to one.

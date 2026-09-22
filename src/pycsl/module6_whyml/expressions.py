@@ -15345,7 +15345,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         parts = expr.get("parts", [])
         if not parts:
-            return "0"
+            # (#49) ROUTE #199 — this was the LITERAL `0`. An f-string with no segments
+            # is `f""`, and `f""` IS the empty string: `s = f""` then `if s == "":`
+            # DECIDED FALSE in the model, so `#@ ensures \result == 2` PROVED on a
+            # program CPython answers 1 with, and the TRUE twin `\result == 1` was
+            # REFUSED. Unlike #191-#198 this repair is FAITHFUL rather than opaque —
+            # the value is not unknown here, it is exactly `""`, and an opaque would be
+            # a strictly worse answer than the truth. The very next arm already lowers an
+            # all-string f-string to a real Why3 `string`; this is that arm's empty case.
+            # ANSWERED IN THE REPRESENTATION THE EMPTY CASE ACTUALLY LIVES IN. Both
+            # `_is_string_expr` arms gate their FString case on `bool(parts)`, so an
+            # empty f-string is NOT string-typed and its local is declared `ref 0`:
+            # returning the Why3 string `""` there produced `let s = ref 0 in s := ""`,
+            # ill-typed — fail-closed, but by a type error rather than by an answer.
+            # In the int-hash string model the empty string IS `stable_hash('""')`,
+            # which is the very constant the comparison already emits (313406155 in the
+            # witness), so this both closes the false proof AND makes the TRUE contract
+            # `\result == 1` provable. Censused: there is not one genuine `f""` in the
+            # corpus, in `src/pycsl/`, in `src/self-annotate/src/` or in `src/pycsl_lib/`.
+            # THE CLEANER DIRECTION, recorded not taken: make the empty f-string
+            # string-typed (drop `bool(parts)` from both `_is_string_expr` arms —
+            # `all([])` is already True — and return `""` here). That is a three-site
+            # change to a predicate every consumer reads, for a construct with zero
+            # occurrences; it belongs with the next f-string typing change, not with a
+            # soundness fix.
+            return str(stable_hash('""'))
         # b14 B2: an f-string whose EVERY segment is string-typed (literal text and
         # `str`-typed interpolations) lowers to a faithful Why3 `string` concat chain
         # — the same `str_concat_op`/`concat` bridge as `s + t` (strings-plan Stage 2)
