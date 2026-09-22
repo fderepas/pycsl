@@ -2804,3 +2804,29 @@ Only ONE spelling is live, which is why the repair can be narrow:
   `callee([])`           empty-list actual           -> REFUSED (closed by #195)
 So routes #194/#195 already took the collection spellings of this arm; the string
 literal is the one they did not reach, and the hash is what makes it decidable.
+
+### Route #200 — the repair, its CHOKE POINT, and the prediction
+The repair is a Module 4 REFUSAL, inlined into `run_ir_semantic_checks` itself.
+THE CHOKE-POINT CHOICE IS THE LOAD-BEARING PART, and it is route #29's rule applied
+again: a NEW module-level helper in `core_ir_semantic.py` would be an ABSENT function
+on `check-mirror-coverage` (gen #30 already paid for that lesson once, Battery H),
+and giving it a mirror twin — trusted stub or converted — would move that file's
+emission and buy a whole-file re-proof. `run_ir_semantic_checks` is `\trusted` in
+the mirror, so its body needs only signature parity: inlining there costs NO marker,
+NO emission move, NO re-proof, and NO coverage change.
+
+THE REFUSAL IS FREE, MEASURED BEFORE IT WAS WRITTEN. A dry-run of the exact predicate
+over every tree it can reach:
+    test-suite/corpus/pycsl-reference   1622 files   0 hits
+    src/self-annotate/src                 53 files   0 hits
+So no program that verifies today is refused by it.
+
+PREDICTION (written first):
+  R1 the route witness -> REFUSED by the pipeline (`PYCSL-SEM-STRARG`), not by a
+     failed proof. Route #51's shape exactly: a refusal is sound in every clause
+     position, where `false` would be fail-OPEN in a precondition.
+  R2 the TRUE twin is refused too. That is what a refusal MEANS, and it is the
+     honest outcome: the program is a type error Python does not enforce, so
+     neither claim about it should be verifiable.
+  R3 corpus byte-diff ZERO, mirror emission byte-diff ZERO.
+  R4 suite: 18 CONFIRMED FAIL unchanged, ZERO XPASS, plus the new witnesses.
