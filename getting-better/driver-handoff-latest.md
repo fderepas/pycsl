@@ -3,7 +3,23 @@
 # ## HOW TO RUN ANYTHING: `. scratchpad/g29/env.sh` first (why3 is NOT on the default PATH; it also sets
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #
-# ## IN FLIGHT RIGHT NOW (2026-09-22T02:4xZ, after the THIRD 529 kill)
+# ## IN FLIGHT RIGHT NOW (2026-09-22T03:1xZ)
+#    - ROUTE #201 CONFIRMED, repair WRITTEN BUT NOT YET APPLIED (patch staged at
+#      $SCRATCH/r201_patch.py, `--apply` to run it): `_array_coerce_arg`'s TAIL answers
+#      `(Array.make 1 0)`, an array with a KNOWN LENGTH 1. `callee("ab")` against
+#      `def callee(p: List[int])` with `ensures len(p) == 1 ==> \result == 1` PROVES while
+#      CPython answers 2; TRUE twin REFUSED. Corpus census: the tail fires 0 times in 1624
+#      files. MIRROR census RUNNING ($SCRATCH/cens_mirror.log) — apply the patch when it
+#      lands, then witnesses + both byte-diffs.
+#    - SUITE LEG for #198/#199/#200 RUNNING in pycsl-w52 ($SCRATCH/suite200.log), 3841 tests.
+#      Prediction: 3820 pass, 18 CONFIRMED FAIL, ZERO XPASS.
+#    - #198 MIRROR RE-PROOF RUNNING ($SCRATCH/prove198.log, stmt_control_flow).
+#    - OWED SLOW-PLANES LEG: DONE, 42/42 green at 2072dd8f. A SECOND one is owed for the
+#      current tree and is the final control battery.
+#    - gen11 fuzzer is SIGSTOPped (not killed) to free CPU: `pkill -CONT -f fuzz11.sh` and
+#      `pkill -CONT -f gen11.py` to resume. It reached seed 7 of 60 with 0 false proofs.
+#
+# ## EARLIER THIS SESSION (after the THIRD 529 kill)
 #    - Routes #198, #199, #200 closed and landed since the kill; the RETURN-BOUNDARY plane
 #      `bin/check-return-boundary-substitutions.py` added (battery 22 fast / 43 with --slow).
 #    - #198 a BARE `return` was the integer 0 (`raise (Return 0)`) — the same statement as
