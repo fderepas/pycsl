@@ -4832,3 +4832,35 @@ WHAT IS LEFT (17) is mostly shapes whose trigger is narrower than the message su
 route #31's list-local truthiness poison was probed with two spellings and BOTH verify, so
 the file that looked like a witness would have been a PASS wearing a FAIL docstring. Those
 need the trigger read out of the emitter, not guessed from the message.
+
+--------------------------------------------------------------------------------
+A COMPILER FIX OUT OF THE ADVICE AUDIT: `Optional[List[T]]` DID NOT COMPILE
+--------------------------------------------------------------------------------
+The mutable-default refusal told readers to write `xs: Optional[List[int]] = None`. That
+shape emits WhyML with an UNBOUND TYPE SYMBOL `array`.
+
+ISOLATED WITH CONTROLS, not guessed:
+    List[int] alone              VERIFIES
+    Optional[int] alone          VERIFIES
+    Optional[List[int]] param    FAILS   (unbound type symbol 'array')
+    Optional[List[int]] local    FAILS   (same)
+    Optional[List[int]] RETURN   VERIFIES  (no arm goal is emitted there)
+
+CAUSE: `_union_arm_whyml_type` maps a `list` arm to `array int`, the C2/C3 arm goals
+quantify over it, and the preamble's `needs_array` is computed BEFORE any body is emitted.
+A module whose only `array` is in one of those goals gets no `use array.Array`.
+
+FIXED with the same late-pull route #44 used for abstract ops: a flag set in
+`_emit_union_arm_vc` (a `\trusted` mirror twin — no mirror edit, no re-proof) and the
+single live-only insertion point that still holds `out`. Byte-inert by construction AND by
+measurement: ZERO corpus files use `Optional`/`Union` over any container spelling.
+
+>>> AND THE FILE STILL FAILS — NOW FOR THE REAL REASON, which is what a fail-closed fix is
+>>> for. The union TYPE declares `Arm_0_0 int` while the goal quantifies `array int`: the
+>>> arm payload type is computed in TWO PLACES THAT DISAGREE. The missing import was hiding
+>>> a wrong type behind a wrong error. Recorded as the remaining defect rather than papered
+>>> over, and it is a deeper change than an import.
+
+>>> FIXING THE ERROR YOU CAN SEE OFTEN UNCOVERS THE ONE YOU COULD NOT. An unbound symbol
+>>> stops type-checking before any goal is attempted, so the FALSE injection goal underneath
+>>> had never been reached in the three generations this shape has existed.
