@@ -1851,6 +1851,22 @@ A function may carry a narrow **interface** contract alongside its rich **defini
    `requires`) in the owning unit; an over-claiming interface yields an unprovable goal and is rejected.
    So a caller relying on the interface relies only on a fact the definition established — opacity adds
    nothing to the trusted base.
+2b. **The `assigns` direction is the OPPOSITE one, and it is a separate check**
+   (`PYCSL-SEM-IFACE-FRAME`, gen #30 route #204). For `ensures` and `requires`, "weaker"
+   means *claims less*, and the narrowing VC of (2) enforces it. For a **frame** it means
+   *claims MORE writes*: a caller frames the call with the INTERFACE, so every location the
+   interface omits is carried across the call UNCHANGED. An `#@ interface assigns` that
+   omits a target the definition's `#@ assigns` lists therefore lets an importer prove the
+   omitted location is preserved while the body changes it — a false contract that PROVES.
+   The narrowing VC of (2) does not cover this: it relates ensures/requires predicates, not
+   frames, and a frame is not a predicate in that goal. So the check is **syntactic and
+   total**, run over the resolved IR before emission: if the interface frame omits any
+   non-`\nothing` target the definition frame lists, the compile is REFUSED. Two cases are
+   deliberately allowed through — an **absent** interface frame (it inherits the definition's,
+   per (4)) and a definition that `assigns \nothing` (any interface frame is then a
+   widening of nothing). The repair is to list every `#@ assigns` target in the
+   `#@ interface assigns` clause, or to drop the interface frame entirely.
+
 3. **`#@ reveal <fn>`** names a function in scope; it opts the enclosing call site into `<fn>`'s
    definition contract. Within `<fn>`'s owning unit it is a no-op (the definition is the visible `let`).
 4. **Absence is transparent.** With no `#@ interface`, the interface *is* the definition — existing code
