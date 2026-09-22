@@ -449,6 +449,24 @@ AUDITED = {
     ("src/pycsl/module6_whyml/statements.py",
      "PyCSLIRError('PYCSL-UNFRAMED-REGION-ASSIGNS: this function is emitted as a bodyless `val` (a `\\\\trusted` / `\\\\abstract` / imported stub) and"): (FOLLOWABLE,
         'The repair is to make the region base an `array`-typed PARAMETER of the emitted signature; a `\\\\trusted` stub whose `assigns xs[0 .. 1]` names its own list parameter VERIFIES.'),
+    ("src/pycsl/module6_whyml/expressions.py",
+     "_R42Err('an IDENTITY test against a `bool` literal (`X is True` / `X is False`) is refused unless the emitter can SHOW `X` is a Python `bool"): (FOLLOWABLE,
+        "Route #42's refusal. The repair is an ordinary equality/truth test; `n == 1` VERIFIES."),
+    ("src/pycsl/module6_whyml/statements.py",
+     '_R49B("in-place `%s=` on list parameter \'%s\' is out of scope: Python `a += b` on lists is an IN-PLACE extend, so the caller\'s list grows, an'): (FOLLOWABLE,
+        "Route #49B. The repair is an explicit indexed write to the caller's list; VERIFIES."),
+    ("src/pycsl/module6_whyml/statements.py",
+     '_R49("in-place `append` to list parameter \'%s\' is out of scope: Python passes a list argument BY REFERENCE, so the append must be VISIBLE to'): (FOLLOWABLE,
+        'Route #49. Same repair as its sibling, same measurement: an indexed write VERIFIES.'),
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr215(f"{args.file} (line {getattr(_n215, \'lineno\', 0)}): `{_n215.func.value.id}[...](...)` SUBSCRIPTS A GENERIC FUNCTION at a cal'): (FOLLOWABLE,
+        "Route #215's own refusal, audited the day it landed. 'Write the plain call `f(...)`' - the unsubscripted call VERIFIES and is lowered faithfully (control 1797)."),
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr204(f"{args.file} (function \'{_f204.get(\'name\')}\'): the `#@ interface assigns` frame is NARROWER than the definition\'s `#@ assig'): (FOLLOWABLE,
+        "Route #204. 'List every `#@ assigns` target in the `#@ interface assigns` clause, or drop the interface frame entirely' - the matching frame VERIFIES."),
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr43("a COMPLEX literal (%r) has no model (ROUTE #43): `_py_expr_constant` lowers it to `int(value.real)`, so the imaginary part i'): (FOLLOWABLE,
+        'Route #43. The repair is a literal the model carries; an int VERIFIES.'),
 }
 
 
@@ -571,7 +589,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 94
+MIN_AUDITED = 100
 
 if __name__ == "__main__":
     sys.exit(main())
