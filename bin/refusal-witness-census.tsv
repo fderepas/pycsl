@@ -774,3 +774,4 @@ median_high_call_fails.py	VERIFY-FAIL
 1742_gen30_witness_confined_field_alias.py	REFUSAL	happy conf: reading self.secret region 0 .. 4 except reader
 1743_gen30_witness_literal_mixed_kind.py	REFUSAL	: Literal: mixed-kind literals (int + str) are not supported (PyCSL monomorphic parameter types — L4 / PEP 586)
 1744_gen30_witness_literal_float.py	REFUSAL	: Literal: unsupported literal kind float (L4 / PEP 586 — only int/str/bool/None supported)
+1745_gen30_witness_callable_unknown_type.py	REFUSAL	: Callable arg/return type must be a bare Name (got Constant) — C5 sound scope limit.
