@@ -2979,3 +2979,40 @@ this plane being satisfiable by refusing everything, and it is what tells a fait
 repair from an opaque one.
 (#200 gets no driver here: it is refused by the PIPELINE, so it has no value to
 measure. Witnesses 1697/1698 carry it.)
+
+## ROUTE #201 CONFIRMED — a string actual becomes a ONE-ELEMENT array
+Found by asking the next question after #200: #200 covers a string literal into a
+DECLARED SCALAR param. What about a declared COLLECTION param?
+
+    #@ ensures len(p) == 1 ==> \result == 1
+    #@ ensures len(p) != 1 ==> \result == 2
+    def callee(p: List[int]) -> int: ...
+
+    #@ ensures \result == 1
+    def probe() -> int:
+        return callee("ab")
+
+emits `(callee (Array.make 1 0))` and PROVES `\result == 1`. CPython `len("ab")` is
+2, so it answers 2. The TRUE twin `\result == 2` is REFUSED. SEV-1.
+
+THIS IS ROUTE #193'S DEFECT IN THE ARM #193 DID NOT CHANGE. #193 ("the placeholder
+array had a known length") repaired `_array_coerce_arg`'s `stripped == "0"` case to
+`(any (array int))` and left the function's TAIL — "Anything else (BinOp result,
+parenthesised int expression) — coerce to placeholder since we can't recover the
+array" — still answering `(Array.make 1 0)`, an array whose length the model KNOWS
+to be 1. A string literal reaches that tail because it is neither `"0"`, nor
+array-shaped, nor alphanumeric-after-stripping (the quotes).
+
+SPELLINGS MEASURED, because the repair's blast radius depends on them:
+  callee("ab")        -> `(Array.make 1 0)`  PROVES the false claim   **THE ROUTE**
+  callee(1 + 1)       -> same placeholder, also PROVES — but CPython raises
+                         TypeError on `len(2)`, so it is a wrong value rather than
+                         a false proof about a TOTAL program. Recorded, not the
+                         carrier.
+  callee((2))         -> REFUSED
+  callee(len([1,2]))  -> REFUSED
+  callee(5)           -> REFUSED, and by a TYPE ERROR (the bare-identifier
+                         pass-through hands `5` where `array int` is expected),
+                         not by design.
+Census of how often that tail actually fires across the mirror and the corpus is
+RUNNING before the repair is written, not after.
