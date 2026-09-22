@@ -4258,3 +4258,48 @@ THE THREE NUMBERS TO CARRY INTO THE SUMMARY, all of them new today:
 None of those three is a soundness failure. All three are the difference between what
 the campaign's numbers SAY and what a reader HEARS, which is the same defect class as
 a false contract — just one level up, in the prose.
+
+================================================================================
+2026-09-22 15:30-16:30Z — TWO MORE ROUTES, A ROUTE I OPENED MYSELF, AND THE
+                          STDLIB LAYER MEASURED AGAINST ITS OWN TCB CLAIM
+================================================================================
+
+ROUTES #210 and #211 (the `#@ check` stamped into a body that is never lowered) and
+the OPEN #212 (an importing unit believes every contract of an imported module) are
+written up in getting-better/open-routes/route210-211…, route212….
+
+THE EPISODE WORTH RE-READING IS THE ONE WHERE I WAS THE DEFECT.
+
+  1. Auditing a refusal's ADVICE found `PYCSL-SEM-SUBSCRIPT` ("Use a `bytearray` for a
+     mutable byte buffer") pointing at a spelling that could not be compiled:
+     `bytearray(2)` as a LOCAL emitted `bytearray_new 2` against
+     `val bytearray_new (x: array int)`.
+  2. The faithful lowering already existed ten lines away in the FIELD path
+     (`Array.make 4096 0`, corpus 0461). I gave the local path the same answer, added
+     witness 1724, ran the controls, 39 planes green, committed.
+  3. FOUR MINUTES LATER the same probe family showed `b = bytes(2); b[0] = 7` PROVING
+     `\result == 7` — CPython raises TypeError. At HEAD~1 that program FAILED.
+
+>>> THE TYPE ERROR HAD BEEN THE ENFORCEMENT. Nothing but an ill-typed `val` call stood
+>>> between that program and a proof, because the `bytes` immutability refusal keys on the
+>>> symbol table typing the local `bytes` and never did for `b = bytes(2)`.
+
+Restricted to `bytearray`; 1725 is the negative witness; the refusal gap is recorded for
+whoever lowers `bytes(n)` faithfully. Lesson (b3) banked. And an instrument note that
+nearly cost tracked work: `git stash` on a CLEAN tree is a NO-OP, so the pop that follows
+pops an unrelated older entry — recovered with `git checkout HEAD -- <file>`, and
+before/after comparisons now use a detached worktree.
+
+THE STDLIB LAYER, MEASURED AGAINST THE TCB APPENDIX'S OWN SENTENCE ("each model's bodies
+are themselves body-verified within the library ... so a contract a consumer relies on is
+discharged by the library's own machine-checked proofs"):
+
+    104 modules, 84 VERIFY, 20 DO NOT — 13 REFUSED, 5 FAILING, 2 TIMEOUT.
+    The whole `json` package is refused by route #119's constant-rebinding guard; four of
+    its files carry ZERO `#@` annotations (it is a CPython transcription, not a model).
+    `os/path.py` leaves `basename`'s postcondition unproven, and `os/__init__.py` does not
+    finish in 900 seconds — the appendix names the `os` model as its example.
+
+Every one of the 20 was re-run WITH `--import-path src`, because a package module compiled
+standalone fails for reasons that have nothing to do with its contracts. That instrument
+lesson had already cost two false failures in the corpus-dependency sweep the same day.
