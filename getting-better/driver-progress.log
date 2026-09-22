@@ -3506,3 +3506,21 @@ Fixed by `kill -CONT <pid>` on the actual worker; it is back in state S.
 >>> buffering (instrument fact #6) and *not running* — and they look identical from the
 >>> log alone. This cost eleven minutes of fuzzing; on a longer job it would have cost the
 >>> window.
+
+### The fourteen new witnesses, checked as a SET rather than one at a time
+1632 corpus `.py` files, **no duplicate numeric prefixes**, and 1693-1706 form seven
+carrier/control PAIRS with the expectations they should have:
+
+  1693 FAIL / 1694 PASS   #198  bare `return`            / a real early return
+  1695 FAIL / 1696 PASS   #199  empty f-string           / the empty f-string IS `""`
+  1697 FAIL / 1698 PASS   #200  hashed string actual     / genuine int + genuine str
+  1699 FAIL / 1700 PASS   #201  string -> 1-element array/ a real list keeps its length
+  1701 FAIL / 1702 PASS   #202  un-annotated param       / a param no contract reads
+  1703 FAIL / 1704 PASS   #202  the keyword spelling     / a vararg call packs its strings
+  1705 FAIL / 1706 PASS   #203  single-part f-string     / two equal ints, equal f-strings
+
+EVERY ROUTE GOT A CONTROL, and that is not bookkeeping: four of the seven controls exist
+because the blunt version of the repair would have passed the carrier and broken the
+control (1700 against "make every array slot opaque", 1702 against "refuse every string
+literal at an erased param", 1704 against the vararg false positive the census caught,
+1706 against a "simplification" from a value-keyed opaque to `any`).
