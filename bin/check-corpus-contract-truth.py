@@ -7,11 +7,11 @@ observed answer — the strongest instrument in the battery, because it curates 
 re-measures the ground truth on every run. But its population is 75 files that someone
 chose.
 
-The 904 PASS-expected files of `test-suite/corpus/pycsl-reference/` have never been checked
-that way, and **216 of them already contain a ZERO-ARGUMENT function with a LITERAL
-`#@ ensures \result == N`** — a claim that is directly runnable, with no new drivers to
-write. This plane extends the value-differential's reach from a curated 75 to the corpus
-itself, for free.
+The PASS-expected files of `test-suite/corpus/pycsl-reference/` AND
+`test-suite/corpus/python-reference/` have never been checked that way, and **378 of them
+already contain a ZERO-ARGUMENT function with a LITERAL `#@ ensures \result == N`** — a
+claim that is directly runnable, with no new drivers to write. This plane extends the
+value-differential's reach from a curated 75 to both corpora, for free.
 
 WHAT A FAILURE HERE MEANS, and it is the sharpest verdict in the battery: a corpus test
 that PASSES the prover while its own postcondition is FALSE of the program it is written
@@ -44,13 +44,18 @@ import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CORPUS = os.path.join(ROOT, "test-suite", "corpus", "pycsl-reference")
-MIN_RUNNABLE = 195   # first measurement 204 after the sys.path fix; the corpus only grows
+CORPORA = [os.path.join(ROOT, "test-suite", "corpus", "pycsl-reference"),
+           os.path.join(ROOT, "test-suite", "corpus", "python-reference")]
+MIN_RUNNABLE = 350   # first measurement 366 across both corpora; they only grow
 
 
 def candidates():
     out = []
-    for f in sorted(glob.glob(os.path.join(CORPUS, "*.py"))):
+    files = []
+    for c in CORPORA:
+        files += sorted(glob.glob(os.path.join(c, "*.py")))
+        files += sorted(glob.glob(os.path.join(c, "**", "*.py"), recursive=True))
+    for f in sorted(set(files)):
         src = open(f, errors="replace").read()
         if "# pycsl-expected: FAIL" in src:
             continue
@@ -83,7 +88,7 @@ def main():
         # that directory on `sys.path` turns 8 `ModuleNotFoundError`s into real
         # measurements — coverage the first version left on the table. The path entry is
         # removed again so one test cannot shadow a name for the next.
-        sys.path.insert(0, CORPUS)
+        sys.path.insert(0, os.path.dirname(f))
         try:
             with contextlib.redirect_stdout(io.StringIO()), \
                  contextlib.redirect_stderr(io.StringIO()):
@@ -96,7 +101,7 @@ def main():
             unrunnable.append((os.path.basename(f), fn, type(e).__name__))
             continue
         finally:
-            if sys.path and sys.path[0] == CORPUS:
+            if sys.path and sys.path[0] == os.path.dirname(f):
                 sys.path.pop(0)
         if isinstance(got, bool):
             got = int(got)

@@ -3810,3 +3810,16 @@ run has no ground truth to disagree with. Floor raised 180 -> 195.
                      `scratchpad/w8/pre` gitlinks, which have been modified since before
                      this generation and are not mine to reset
   unpushed commits   317 — **nothing pushed; pushing stays gated to the user**
+
+### The corpus-contract plane, extended to BOTH corpora — 367 contracts, 0 disagreements
+The python-reference corpus (2217 files) carries **162 zero-arg literal-result contracts**
+of its own, and they had never been measured against CPython either. All 162 run, and all
+162 AGREE. Folded into the plane:
+
+    379 runnable literal-result contracts across BOTH corpora —
+    **367 AGREE with CPython, 0 DISAGREE**, 12 could not run standalone.
+
+Population floor 350. That is the value-differential's method — curate nothing, re-run
+CPython on every pass — applied to **five times its curated population**, at no cost in
+drivers written, and it says something nobody had established: every runnable postcondition
+in either reference corpus is TRUE of the program it is written about.
