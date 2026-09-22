@@ -4206,3 +4206,55 @@ part of the measurement, not trivia. At this HEAD, nine families:
 Run recorded as: `--count 200 --seed 30` -> 198 drivers. The seed is written down because
 the tool asks for it ("vary it deliberately to widen the sample, and record which seed
 produced a RED"), and because a sampler run nobody can reproduce is an anecdote.
+
+================================================================================
+2026-09-22 14:30-15:00Z — FOUR ROUTES IN ONE STRETCH (#204–#207), SIX PLANES, AND
+                          THE MEASUREMENT THAT REFRAMES THE HEADLINE
+================================================================================
+
+THE METHOD, STATED ONCE MORE BECAUSE IT PRODUCED EVERY ONE OF TODAY'S ROUTES:
+read a justification — a docstring, a scope sentence, a "this is the only opt-out"
+comment — as a CHECKABLE CLAIM, then ask WHICH SPELLING IT DID NOT RUN.
+
+  #204  `_emit_narrowing_vc` proves an `#@ interface` weakens the definition for
+        `ensures` and for `requires`. It emits NOTHING for `assigns`. An importer
+        frames the call with the interface, so `interface assigns \nothing` over a
+        body that writes `a[0]` let the importer prove `\result == 0` where CPython
+        answers -4. Invisible to BOTH vacuity notions: the context is satisfiable,
+        it merely forces "the element was already 5".
+  #205  The same docstring's other half: "emitted only in the owning unit". That is
+        where the interface is CHECKED and not where it is BELIEVED. An owner with
+        `ensures \result == 3` + `interface ensures \result == 7` fails alone; every
+        importer proved 7. Fixed by emitting the same goal in the val path — it needs
+        no body, only the definition CONTRACT.
+  #206  Route #93 wrote "there are two opt-outs, not one" for `happy ... total`.
+        There is a third: a target whose body is ONE CALL to a bodyless stub. The
+        emission shows the inverted incentive — a self-call carries the callee's
+        contract onto the abstract op ONLY when the callee is a `val`, so TRUSTING a
+        helper makes the caller STRONGER and removes its termination VC.
+  #207  The same shape for exceptions, through route #161's method arm. The decisive
+        twin was inside the tool: the module-level spelling was already refused.
+
+PLANES BUILT (28 -> 37 fast): stdlib identity-stubs (81 found, 23 carrying a contract
+FALSE of the function they cite), stub-import-resolution (TRUSTED_STUB resolves NOTHING,
+and nine package names are waiting to shadow the real module), corpus-contract-truth-args
+(412 functions, 4354 evaluations, 0 disagreements), trust-blast-radius, claim-vacuity,
+mirror-claim-strength, trusted-termination-honesty, plus the two conformance corpora
+finally being RUN by something.
+
+THE THREE NUMBERS TO CARRY INTO THE SUMMARY, all of them new today:
+
+  45%   of corpus files (1754/3881) run with `--no-proof`. A PASS there means the
+        pipeline did not crash. A 40-file sample under the prover: 38 verify.
+  46%   of corpus files (1792/3888) carry a contract that says NOTHING (`ensures
+        True`), including ALL 840 `*_call_fails.py` and ALL 840 `*_call_proves.py` —
+        two families whose names assert opposite outcomes over identical contracts.
+        60 of 60 sampled `*_call_fails.py` VERIFY under full proof.
+  15%   of the un-trusted mirror (143 of 933) says anything about the VALUE it
+        computes; 624 carry only a frame claim and 166 carry no clause at all. And
+        56%-61% of the mirror is trusted OR trust-dependent, against a marker count
+        of 459.
+
+None of those three is a soundness failure. All three are the difference between what
+the campaign's numbers SAY and what a reader HEARS, which is the same defect class as
+a false contract — just one level up, in the prose.
