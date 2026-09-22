@@ -36,6 +36,16 @@ well-FORMED. This one asks whether any program in the corpus has ever MADE it fi
 refusal can pass that gate perfectly and still be route #209: correctly spelled, correctly
 imported, and inert.
 
+THE NEXT REFINEMENT, RECORDED SO IT IS NOT RE-DERIVED. The census classifies a witness as
+REFUSAL / VERIFY-FAIL / XPASS. A FOURTH class is worth carving out: **failure by TYPE
+ERROR** — a Why3 "This expression has type int, but is expected to have type
+array.Array.array". Those are the programs whose rejection is an ACCIDENT of an ill-typed
+emission rather than a semantic guard, and gen #30 found one the hard way: making
+`bytearray(n)` lower faithfully removed the type error that had been the only thing
+stopping `b = bytes(2); b[0] = 7` from proving (witness 1725, lesson (b3)). A census that
+separates "refused on purpose" from "rejected by accident" would have named that set in
+advance.
+
 WHAT IT IS NOT. Coverage here does not mean "correct"; it means "demonstrated to fire".
 Route #209's lesson is precisely that those are different, and that only the second one can
 be measured mechanically.
