@@ -94,5 +94,5 @@ The docstring now records the correction.
 | `\result == 0` (false) | REFUSED | REFUSED |
 | `\result != 0` (true twin) | REFUSED (opaque answers neither) | REFUSED |
 | control `return 3` | PROVES | PROVES |
-| corpus byte-diff | ZERO | see the battery record in `driver-progress.log` |
-| mirror emissions | byte-inert | see the battery record in `driver-progress.log` |
+| corpus byte-diff | ZERO | **ZERO** — 0 MOVED, 0 GONE, 0 APPEARED |
+| mirror emissions | byte-inert | **1 MOVED** — `module6_whyml__stmt_control_flow.mlw`, the edited method's OWN mirror, a two-line diff that is exactly the correction. The prediction was wrong in an instructive way: an emitter edit inside a CONVERTED method always moves at least its own mirror. |

@@ -68,8 +68,8 @@ false, and each half was measured.
 
 | | predicted | measured |
 |---|---|---|
-| `\result == 1` (false) | REFUSED | see the battery record in `driver-progress.log` |
-| `\result == 2` (true twin) | REFUSED (opaque answers neither) | " |
-| `callee(1 + 1)` | REFUSED | " |
-| corpus byte-diff | ZERO — the tail fires **0 times across all 1624 pycsl-reference files**, censused before the repair | " |
-| mirror emission byte-diff | measured, not assumed — the mirror is where this coercion's real users live (`sorted_1`, `any_1`, `all_1`, `array_rev`, `array_to_seq`, the field-decode idiom) | " |
+| `\result == 1` (false) | REFUSED | **REFUSED** |
+| `\result == 2` (true twin) | REFUSED (opaque answers neither) | **REFUSED** |
+| `callee(1 + 1)` | REFUSED | **REFUSED** |
+| corpus byte-diff | ZERO | **ZERO** — 0 MOVED, 0 GONE, 0 APPEARED (4 new source files ignored) |
+| mirror emission byte-diff | measured, not assumed | **1 MOVED** — `module6_whyml__expressions.mlw`, ONE line: `raise (Return_str "(Array.make 1 0)")` -> `raise (Return_str "(any (array int))")`. The edited method's own mirror, exactly the correction; the whole-file re-proof is the price and it was paid. |

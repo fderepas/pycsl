@@ -102,4 +102,4 @@ plane written to find exactly this.
 |---|---|---|
 | the witness | REFUSED by the pipeline (`PYCSL-SEM-STRARG`) | REFUSED |
 | the TRUE twin | also refused (that is what a refusal means) | also refused |
-| corpus + mirror byte-diff | ZERO | see the battery record in `driver-progress.log` |
+| corpus + mirror byte-diff | ZERO | **ZERO / ZERO** (the refusal lives in `pycsl.py::_run_pipeline`, whose mirror is a `\trusted` stub) |

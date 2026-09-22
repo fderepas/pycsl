@@ -89,4 +89,4 @@ lose `1706`.
 | `\result == 2` (false) | REFUSED | REFUSED |
 | `\result == 1` (true twin) | REFUSED (opaque answers neither) | REFUSED |
 | two equal `n`s give equal strings | PROVES | PROVES (1706) |
-| corpus + mirror byte-diff | ZERO (0 occurrences of the shape in either) | see the battery record |
+| corpus + mirror byte-diff | ZERO | **ZERO / ZERO** — and the mirror half is the census verified end-to-end: the `expressions.py` edit did NOT move the mirror, so #203 owes no whole-file re-proof (unlike #201's one-line tail change to the same file, which did). |

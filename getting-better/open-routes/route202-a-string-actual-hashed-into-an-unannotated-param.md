@@ -64,7 +64,7 @@ written by the same worker, in the same hour, and read back one route later.
 
 | | predicted | measured |
 |---|---|---|
-| the witness | REFUSED | see the battery record in `driver-progress.log` |
-| the TRUE twin | also refused (a refusal rejects the program) | " |
-| control `1702` (un-annotated, contract does not read the param) | still VERIFIES | " |
-| corpus + mirror byte-diff | ZERO — dry-run of the exact predicate first | " |
+| the witness | REFUSED | **REFUSED** (`PYCSL-SEM-STRARG`) |
+| the TRUE twin | also refused | **also REFUSED** |
+| control `1702` | still VERIFIES | **VERIFIES** — after being rewritten: its first version used `ensures True`, so the refusal correctly did not fire but the caller could not prove anything either. A control that fails for the wrong reason proves nothing. |
+| corpus + mirror byte-diff | ZERO | corpus: 2 GONE (the two intended new refusals, declared with `--expect-gone`) + 1 MOVED (my own edit to witness 1702's contract); **no pre-existing program moved**. Mirror: **ZERO**. |
