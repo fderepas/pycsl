@@ -103,6 +103,35 @@
 #         holds them by name). The `json` package is a CPython transcription with zero
 #         annotations in four files — the question is whether it belongs in the layer at
 #         all, not how to prove it.
+#      *** UPDATE 21:30Z: ITEM 5 WAS WRONG, AND THE CORRECTION IS THE RESULT. The
+#      "113 refusals with no witness, five minutes each" was an INSTRUMENT ARTIFACT
+#      four times over — see wall-lessons (j3) and (k3):
+#        (a) 318 of the census's 437 refusal rows were cut at 110 characters by a
+#            writer three generations old, so any site fragment starting past char
+#            110 could never match. Repaired in four conservative passes (each
+#            rewriting a row only when it could prove the same refusal still fires;
+#            the last pass had to try EVERY file with a given basename, because
+#            0508.py exists in two corpus directories). +33 sites.
+#        (b) Eight `ir_schema.validate_ir` checks are NOT REACHABLE from a `.py`
+#            source file — no corpus witness could ever move them. Now demonstrated
+#            executably by the NEW `bin/check-ir-schema-refusals.py` (eight carriers,
+#            a well-formed CONTROL, and a #44 guard that refuses on a rename or a new
+#            uncarried check). A grep for `validate_ir` across test-suite/ had found
+#            ZERO: the IR's own structural contract had no test of any kind.
+#        (c) Nine raises have no string literal of 25+ chars, so their fragment is ""
+#            and they can NEVER match. Counted separately, ratcheted, and DERIVED
+#            every run rather than listed by name. Corpus file 1772 is the standing
+#            illustration: it fires one of them and the instrument still cannot see it.
+#        (d) Several raises use %-formatting, so the AST literal contains `%s`, which
+#            the compiler never prints. Three real witnesses (1784/1785/1786) fired
+#            and moved the count by ZERO before `sites()` learned to split on
+#            placeholders. The plane now REFUSES if any fragment still holds one.
+#      TWENTY-FIVE WITNESSES WRITTEN (1762-1788, minus four deleted as redundant —
+#      always check the census before writing one). Counts: 85 -> 156 demonstrated,
+#      113 -> 25 undemonstrated, and all 198 sites now partition:
+#      156 + 25 + 8 not-source-reachable + 9 unmatchable.
+#      WHAT IS LEFT of item 5 is 25 real ones, mostly Module3_Weaver's `happy` family
+#      and module6 statements/expressions. ***
 #      5. **The 113 refusals that still have no witness.** `check-refusal-witness-coverage`
 #         went 58 -> 85 of 198 this generation by WRITING 31 witnesses; the rest are
 #         mostly in `Module3_Weaver` (the `happy` family, ~20) and `core_ir_semantic`
