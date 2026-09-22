@@ -3568,3 +3568,21 @@ pre-#203 tree it now exits 1 and names both.
 >>> DESIGN OF THIS ONE PASSED THERE.
 
 Battery is now **23 fast / 44 with `--slow`**. All 23 green at HEAD.
+
+### I KILLED THE #198 RE-PROOF BY TRYING TO EXTEND ITS DEADLINE. RECORDED, NOT HIDDEN.
+`prove198` was wrapped in `timeout 14400`, due to expire at ~06:07Z with the proof still
+running after 2h50m. I reasoned that killing the `timeout` WRAPPER would orphan the python
+child and let it run without a deadline. **`timeout` forwards the signal to its child**, so
+`kill -TERM <wrapper>` killed the proof: `PROVE-RC=143`, 2h50m of prover work gone.
+
+Restarted immediately with `timeout 43200`. The cost is real (~3h of wall clock on a leg
+that was already the critical path) and the lesson is cheap:
+
+>>> A `timeout` WRAPPER IS NOT A SEPARATE PROCESS YOU CAN REMOVE — it is the parent that
+>>> owns the child's signals. To change a long job's deadline you RESTART it with the new
+>>> one; there is no in-place extension. And the time to notice a deadline is too short is
+>>> when you WRITE it, not at minute 170 of a run you cannot afford to lose.
+
+The standing fix for the next window: every detached prover run gets `timeout 43200` from
+the start. A wrapper timeout is not a proof verdict, so an over-long timeout costs nothing
+and an under-long one costs the run.
