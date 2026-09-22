@@ -2604,6 +2604,26 @@ The `-> str` spelling of the same program is REFUSED at the FRONT END instead, b
 today" — had been measured for the explicit `return None` only, and this is the spelling it
 had not run.
 
+**Route #203 (gen #30): the f-string arm underneath #199's.** `_handle_fstring_expr` has
+three lowerings — a faithful `string` concat chain when every segment is string-typed, the
+same chain via `int_to_string` inside a `@mutable_state` class or a `-> str` function, and
+an INT-MODEL joiner underneath both. In that joiner a multi-part f-string is wrapped in
+`str_concat` (an abstract op with no axioms) and a string-typed part in `str_hash_op`, so
+both are opaque. A **single-part** f-string whose part is not string-typed returned the part
+itself:
+
+| program | model (before #203) | Python |
+|---|---|---|
+| `n = 5; s = f"{n}"; s == "5"` | `s := !n`, then `!s = 1359629258` — **decided FALSE** | `f"{5}"` IS `"5"`, so **True** |
+
+so `#@ ensures \result == 2` PROVED and the TRUE twin was REFUSED. This is a wrong
+*decision*, not a lost value. The single-part case now answers a **value-keyed opaque**
+(`val function str_of_int_hash`), so no literal's hash is provably equal to it and
+`f"{n}" == f"{n}"` still proves (witnesses `1705`/`1706`). Scoped to `len(parts) == 1`
+because that is the only shape that escaped: censused at **0** occurrences across the 1630
+corpus files, the 53 mirror files and `pycsl_lib`, against 575 f-strings in the mirror
+overall.
+
 **Residue, stated rather than implied.** The record is *linear* — rebinding clears it — so a
 `None` bound in one branch of an `if` and something else in the other walks past it. That is
 `getting-better/open-routes/route46-none-branch-join.md`, which also records the *sticky*
