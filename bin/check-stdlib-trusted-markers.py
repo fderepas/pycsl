@@ -13,9 +13,16 @@ It is not empty. Two markers live there, and one of them is bare:
     Newton's-method VARIANT needs nonlinear arithmetic beyond Alt-Ergo's reach) and a
     contract (`requires x >= 0`, `ensures \result >= 0`) that is TRUE of `math.isqrt`.
     Honest trust: named, reasoned, and weak enough to be right.
-  * `hlib.Sha256.update` — a BARE `#@ \trusted`: **no reviewer, no reason**, in a class
-    whose `hexdigest` returns `[0] * 64` under `ensures \length(\result) == 64`, i.e. an
-    all-zero digest behind a length-only contract.
+  * `hlib.Sha256.update` — WAS a BARE `#@ \trusted` (no reviewer, no reason) when this
+    plane landed; gen #30 MEASURED why it cannot be dropped and gave it
+    `reviewer: field-append-has-no-certified-lowering`. The body appends to a collection
+    held in a FIELD, which PyCSL refuses outright (the append is emitted against a fresh
+    local with no write-back); and the refusal's own advice, "rewrite it as an indexed
+    store", was followed literally and ALSO fails — the `index in array bounds` sub-goal
+    is un-dischargeable because `__init__` can leave `self._input` empty, which is exactly
+    the `IndexError` CPython raises for that rewrite. The marker is forced, not lazy. The
+    class still returns `[0] * 64` from `hexdigest` under a length-only contract, and that
+    remains the open item.
 
 `config/skills/agent-stdlib-annotate/SKILL.md` is explicit that this layer carries ZERO
 `\trusted` and that an irreducibly-opaque kernel "becomes an abstract `val` pinned by a
@@ -27,11 +34,14 @@ WHAT IT MEASURES. Every `#@ \trusted` marker under `src/pycsl_lib/`, keyed on
 whether it carries a `reviewer:` clause and what closing it would take. A marker that
 DISAPPEARS is reported so its entry can go with it.
 
-WHY THE BARE ONE IS BASELINED RATHER THAN FAILED. A gate that is red the day it lands
-cannot be added to a green battery, and inventing a `reviewer:` identity to silence it
-would be worse than recording it. It is in the baseline WITH ITS DEFECT NAMED, which is the
-same treatment `check-swallowed-exceptions` gave its eight firings before they were driven
-to zero.
+WHY THE BARE ONE WAS BASELINED RATHER THAN FAILED, AND WHY IT NO LONGER IS. A gate that is
+red the day it lands cannot be added to a green battery, and inventing a `reviewer:`
+identity to silence it would be worse than recording it — so it went into the baseline WITH
+ITS DEFECT NAMED, the treatment `check-swallowed-exceptions` gave its eight firings before
+they were driven to zero. The count then reached zero the same way theirs did: by MEASURING
+the marker (see above) and writing the measured reason into it, not by editing this file.
+The `reviewer:` requirement is therefore now ENFORCED — a marker without one fails — which
+is the whole point of driving a recorded defect to zero.
 
 Usage:  bin/check-stdlib-trusted-markers.py [--verbose]
 """
@@ -54,14 +64,20 @@ BASELINE = {
         "termination, not a value claim. CLOSING IT = a variant proof, or an abstract "
         "`val` pinned by a cited `#@ proof rocq|lean` lemma (the skill's prescribed route "
         "for an irreducibly-opaque kernel)."),
-    ("hlib", "update"): (False,
-        "**BARE `#@ \\trusted` — NO reviewer, NO reason.** In `Sha256`, whose `hexdigest` "
-        "returns `[0] * 64` under `ensures \\length(\\result) == 64`: an all-zero digest "
-        "behind a length-only contract. The skill says this layer carries ZERO `\\trusted` "
-        "and that an opaque kernel becomes an abstract `val` pinned by a cited proof, "
-        "never `\\trusted`. CLOSING IT = give the marker a `reviewer:` and a reason at "
-        "minimum; properly, make the compression function an abstract `val` and let "
-        "`hexdigest`'s contract say only what the model supports."),
+    ("hlib", "update"): (True,
+        "`reviewer: field-append-has-no-certified-lowering` (gen #30; it was BARE when "
+        "this plane landed). The body appends to a collection held in a FIELD. PyCSL "
+        "REFUSES an un-trusted field-append: it is emitted against a fresh local array "
+        "with no write-back, so the method would satisfy `assigns \\nothing` and "
+        "re-establish a `\\length` class invariant while the model left the field "
+        "unchanged. The refusal advises 'rewrite it as an indexed store'; followed "
+        "literally (`self._input[i] = data[i]`, `data: list`, invariants + variant) the "
+        "`index in array bounds` sub-goal is UN-DISCHARGEABLE, because `__init__` can "
+        "leave `self._input` empty — the same `IndexError` CPython raises. The marker "
+        "buys the missing lowering, not a value claim. CLOSING IT = a certified "
+        "field-append lowering (write-back plus a length model), NOT an annotation "
+        "change. STILL OPEN AND SEPARATE: `hexdigest` returns `[0] * 64` under a "
+        "length-only contract — an all-zero digest the length contract cannot see."),
 }
 
 
@@ -102,6 +118,9 @@ def main():
     new = sorted(k for k in keys if k not in BASELINE)
     gone = sorted(k for k in BASELINE if k not in keys)
     noreviewer = sorted((m, f) for m, f, r in found if not r)
+    # Gen #30: the recorded defect was driven to zero by measuring the one bare marker and
+    # writing its measured reason into it, so the requirement is now ENFORCED, not merely
+    # reported. A marker without a `reviewer:` clause fails whether or not it is baselined.
 
     if args.verbose:
         for m, f, r in sorted(found):
@@ -114,6 +133,11 @@ def main():
     rc = 0
     for k in gone:
         print("[+]   baselined marker %s.%s IS GONE — remove its baseline entry." % k)
+    for k in noreviewer:
+        print("[!]   `\\trusted` MARKER %s.%s CARRIES NO `reviewer:` CLAUSE. Every marker "
+              "under src/pycsl_lib/ must name who trusts it and why; the count reached "
+              "zero in gen #30 and this gate holds it there." % k, file=sys.stderr)
+        rc = 1
     for k in new:
         print("[!]   NEW `\\trusted` MARKER %s.%s under src/pycsl_lib/. This layer's skill "
               "says it carries ZERO trusted markers and that an opaque kernel becomes an "
@@ -121,11 +145,16 @@ def main():
               file=sys.stderr)
         rc = 1
     if rc:
-        print("[!] stdlib-trusted-markers: NOT OK — the stdlib trust surface grew.",
+        why = []
+        if new:
+            why.append("the stdlib trust surface grew")
+        if noreviewer:
+            why.append("a marker carries no `reviewer:` clause")
+        print("[!] stdlib-trusted-markers: NOT OK — %s." % " and ".join(why),
               file=sys.stderr)
     else:
-        print("[+] stdlib-trusted-markers: OK — %d known marker(s), none new (%d of them "
-              "still lack a `reviewer:` clause and are named in the baseline)."
+        print("[+] stdlib-trusted-markers: OK — %d known marker(s), none new, %d without "
+              "a `reviewer:` clause (enforced at zero since gen #30)."
               % (len(BASELINE), len(noreviewer)))
     return rc
 
