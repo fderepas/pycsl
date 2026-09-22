@@ -3,7 +3,26 @@
 # ## HOW TO RUN ANYTHING: `. scratchpad/g29/env.sh` first (why3 is NOT on the default PATH; it also sets
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #
-# ## IN FLIGHT RIGHT NOW (2026-09-22T03:47Z)
+# ## IN FLIGHT RIGHT NOW (2026-09-22T04:07Z)
+#    - FIFTEEN routes closed this generation: #191-#205 numbering aside, the count is
+#      #191-#203 = THIRTEEN, of which #198-#203 landed after the third 529 kill.
+#    - ALL BYTE-DIFFS ARE IN for #198-#203. Corpus: zero pre-existing programs moved in
+#      every case. Mirror emission: ZERO for #199/#200/#202/#203; ONE file for #198
+#      (stmt_control_flow) and ONE for #201 (expressions), each exactly the edited
+#      method's own mirror, each one line, each M1-checked.
+#    - RUNNING, do NOT relaunch:
+#        $SCRATCH/prove198.log  #198 mirror re-proof (stmt_control_flow) — `timeout 14400`
+#                               expires ~06:07Z; if it is killed by that, RE-RUN with a
+#                               longer timeout, it is not a proof failure.
+#        $SCRATCH/prove201.log  #201 mirror re-proof (expressions, the giant, timeout 12h)
+#        $SCRATCH/suite200.log  suite for #198/#199/#200 — in its serial re-run of the 18
+#                               known failures (first one confirmed: 0211)
+#    - #203 owes NO re-proof: its edit to `expressions.py` did not move the mirror.
+#    - NEXT: when the suite lands, run the FINAL control battery at the final HEAD with
+#      $SCRATCH/final_battery.sh (suite + `--slow` planes, 43 expected green).
+#    - gen11 fuzzer still SIGSTOPped: `pkill -CONT -f fuzz11.sh; pkill -CONT -f gen11.py`.
+#
+# ## EARLIER (2026-09-22T03:47Z)
 #    - THIRTEEN routes closed this generation: #191-#202. #198-#202 landed after the third
 #      529 kill. Battery 22 fast / 43 with --slow; swallowed-exceptions ratchet a hard 0.
 #    - RUNNING, do NOT relaunch:
