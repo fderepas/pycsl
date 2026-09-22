@@ -2318,7 +2318,28 @@ answer, and a repair that made every string `is None` opaque would lose it.
 caller.** A local bound from a call *is* a bound name, so $\mathcal{T}$ should keep deciding
 with it; what makes that decision honest is the callee's annotation being TRUE. Module 4's
 `PYCSL-SEM-RETANN` therefore refuses a function annotated `-> str` that can `return None`,
-scoped to `-> str` because the `-> int` spelling already fails closed.
+scoped to `-> str` because the `-> int` spelling already fails closed. **That scope claim
+was measured for the EXPLICIT `return None` only, and route #198 (gen #30) found the
+spelling it had not run:** a BARE `return` in an int-returning function lowered to
+`raise (Return 0)`, so `#@ ensures \result == 0` PROVED while CPython answers `None`
+(§T.5.12h). The check's own helper `_returns_literal_none` counts both spellings; Module 6
+did not. Repaired at the emitter, so the scope claim is true again — this time for both
+spellings, and this time both were measured.
+
+**The same lie one argument position to the left: route #200 (gen #30).** A `str` actual
+passed to a parameter the callee DECLARES `int` is the argument-side twin of a `-> str`
+that returns `None` — Python does not enforce the hint, and the model believes it. There it
+is worse than a deleted branch: `_coerce_dotted_args` replaces the string by
+`stable_hash` of its own text, so a callee contract that NAMES that integer is DECIDED.
+`stable_hash` ships in this repository, so the integer is one line to compute:
+`def callee(p: int)` with `ensures p == 747471683 ==> \result == 1` — true of its own
+body — called as `callee("a")` emitted `(callee 747471683)` and PROVED `\result == 1`
+while CPython answers 2, with the TRUE twin REFUSED (witnesses `1697`/`1698`). Module 4's
+`PYCSL-SEM-STRARG` refuses it, keyed on the DECLARED annotation: the 46 sites where a
+string literal reaches an `int` param across the 53 mirror emissions are `int` by ERASURE
+(no annotation at all), and a dry run over 3996 files in four trees found ZERO programs
+that the refusal rejects. The collection spellings of that same arm were already closed by
+routes #194/#195.
 
 **And that lie was live in the emitter's own `if`-statement handler.**
 `stmt_control_flow::_try_union_is_none_match` declared `-> str` and returned `None`, so its
