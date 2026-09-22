@@ -4923,3 +4923,27 @@ that no longer needed answering.
 The corollary is lesson (s) read backwards: the emitter gives the distance. Four lines of
 source replaced two multi-minute sweeps, and the scope they justified (`len(parts) == 1`)
 is the same scope that made the change safe.
+
+## (q) A GATE BUILT FROM A ROUTE MUST BE RUN AGAINST THE PRE-ROUTE TREE
+
+`bin/check-fstring-lowering.py` was built because the campaign's own trigger rule fired —
+two routes (#199, #203) in one function (`_handle_fstring_expr`) in one session. Its first
+design pinned the function's RETURN SET, keyed on source text, with occurrence counts. It
+looked right. Run against the pre-#203 checkout with `--live`, **it was green**.
+
+Route #203 had not added or changed an exit. It added a *wrap* before an exit whose source
+text (`return acc`) was already present and already justified — one of three textually
+identical `return acc`s, only one of which was wrong. A return-set gate cannot see that.
+
+The fix was a second, deliberately crude half: pin the two TOKENS that make the repair the
+repair (`len(parts) == 1` for its scope, `str_of_int_hash` for its answer), each labelled
+as a structural check rather than a semantic one, each carrying the reason its deletion
+reopens the route. Against the pre-#203 tree the gate now exits 1 and names both.
+
+>>> BEFORE REGISTERING A NEW PLANE, RUN IT AGAINST THE TREE THE ROUTE CAME FROM. If it is
+>>> green there, it does not gate the thing you built it for — and you will not find that
+>>> out later, because a green gate never asks to be re-examined.
+
+This is the same discipline as `--live` on `check-return-boundary-substitutions.py`, and it
+is worth building the hook into every new plane: a gate nobody has ever seen fail is a
+claim, and the cheapest way to see it fail is the checkout you already have.
