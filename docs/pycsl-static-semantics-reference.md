@@ -2858,6 +2858,28 @@ trusted computing base reduces to:
 This is a strictly smaller TCB than blanket trust in hand-curated contracts. See
 `config/skills/pycsl-stdlib-coverage/SKILL.md` for the model-building discipline.
 
+**MEASURED (#49, gen #30), because the sentence above is a checkable claim.**
+`bin/check-stdlib-modules-verify.py` compiles every module under `src/pycsl_lib/` with
+`--import-path src` and records the verdict: **84 of 104 verify; 20 do not.** Thirteen are
+REFUSED outright — the whole `json` package, which is a near-verbatim CPython transcription
+(four of its files carry ZERO `#@` annotations) and trips route #119's constant-rebinding
+guard — five leave a goal unproven, and two exceed a seven-minute budget. **The `os`
+filesystem model this appendix names as its example is among them**: `os/path.py` leaves
+`basename`'s postcondition unproven, and `os/__init__.py` does not finish in ten minutes.
+The set is baselined by name in that plane, so it can only shrink.
+
+**AND THE CONSUMER'S SIDE OF IT IS AN ASSUMPTION, NOT A CHECK.** An importing program
+believes every contract of an imported module — frames, postconditions, class invariants —
+and nothing verifies that the module was ever verified (route #212: an owner declaring
+`assigns \nothing` over a body that writes `a[0]` FAILS compiled alone while its importer
+PROVES `x - a[0] == 0`, where CPython answers -4). `--verify-imports` (OFF by default)
+discharges that assumption the only way it can be discharged — by verifying each resolved
+import, transitively, with a cycle-safe seen-set — and refuses with
+`PYCSL-SEM-IMPORT-UNVERIFIED` naming the module that failed. It is opt-in because "verify
+the dependency standalone" is not always well-defined: measured over the corpus's own 30
+local dependencies, two fail for CONTEXT reasons while their importers pass, one of them
+because a contract names a constant that only resolves inside the importing compilation.
+
 ---
 
 ## §S.TY3 — TypeVar / Generic static semantics (PEP 484 + PEP 695)
