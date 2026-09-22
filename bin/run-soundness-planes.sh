@@ -164,6 +164,15 @@ PLANES=(
     # the carrier must be refused, the control must get through. Executable on purpose —
     # #209 and #211 both READ correctly in the source and could not fire.
     check-happy-trust-boundaries.py
+    # (#49) gen #30, lesson (e) yet again, found by diffing `ls bin/` against this array:
+    # `bin/os-cpython-differential.py` is a CPYTHON DIFFERENTIAL ORACLE for the `os`
+    # exception model — it runs each documented failure input against REAL CPython and
+    # asserts that CPython raises an OSError-or-subclass AND that the model's `#@ raises`
+    # names one on the same condition. It was written for a root-cause fix, it passes, it
+    # costs 0.1s, and nothing ran it. (The other uncollected `check-*` in bin/ is
+    # check-self-annotate-sync.sh, which is a shell wrapper around the mirror-sync plane
+    # already in this list — a duplicate, not a gap.)
+    os-cpython-differential.py
     # (#49) gen #30: the STDLIB-CONTRACT-FIDELITY ratchet. `src/pycsl_lib/` holds 93
     # body-verified stub packages, each CITING the CPython library reference in its
     # docstring, and nothing compared a stub's contract against the function it cites. A
@@ -235,7 +244,7 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=38
+MIN_PLANES=39
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
