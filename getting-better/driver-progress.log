@@ -2840,3 +2840,50 @@ The dry-run is now complete across every tree the change can reach:
 Control 1698 verifies: a genuine int into an `int` param and a genuine string
 into a `str` param both still pass, so the refusal is keyed where it claims.
 Witnesses 1697 (carrier, FAIL) and 1698 (control).
+
+## NEW PLANE — `bin/check-return-boundary-substitutions.py` (the 22nd fast plane)
+The gap is one `check-argument-coercion.py` names about itself:
+  "the RETURN side. A callee's result flowing back into a caller's typed slot is
+   the mirror image of this and has no plane yet — the honest gap in this
+   instrument."
+Route #198 came out of exactly that gap, and nothing in the battery looked at the
+line it lived on. The plane enumerates every STRING CONSTANT assigned to a return
+handler's value variable (`val`, `seq_val`) and requires a justification for each.
+
+TWO THINGS MAKE IT AN INSTRUMENT RATHER THAN A CLAIM:
+
+1. THE BASELINE PINS OCCURRENCE COUNTS, not just literals — and that is this gate's
+   first finding about itself. Keyed on the literal alone it would NOT have caught
+   #198: `val = "0"` was already justified for the `False`-literal arm, so the
+   bare-return arm's second `val = "0"` would have matched that entry and PASSED.
+   A justification covers the sites it was written for and no others.
+2. IT WAS DEMONSTRATED TO FIRE, not asserted to. `--live <other checkout>` runs the
+   same walk over another tree; against the pre-#198 emitter (`pycsl-w51`, HEAD
+   2072dd8f) it exits 1 with exactly the right diagnosis:
+       COUNT MOVED for (…, 'val', '0'): baseline 2, found 3
+       STALE justification (…, 'val', 'pycsl_none')
+   A gate nobody has ever seen fail is a claim, not an instrument.
+
+Registered in the FAST set; MIN_PLANES 20 -> 21 (the runner's zero-check refusal).
+Battery is now 22 fast / 43 with --slow.
+
+### Route #200 — TWO PLANES CAUGHT MY OWN REPAIR, and that is the system working
+The first implementation put the refusal in `core_ir_semantic.run_ir_semantic_checks`
+with a nested `_walk_str_arg` helper. The fast battery went RED on two planes:
+  `check-mirror-coverage`        550 > 549 — a NESTED DEF is an ABSENT function, not
+                                 a `\trusted` one. Gen #30 has now paid for this
+                                 lesson TWICE (Battery H was the first).
+  `check-trusted-raises-honesty`  63 > 62 — `run_ir_semantic_checks` is a `\trusted`
+                                 stub with no `#@ raises`, and its live body did not
+                                 raise DIRECTLY before. Adding a `raise` to a trusted
+                                 stub's live body silently widens what the stub claims.
+Neither is a false alarm; both are exactly the defect they describe. The refusal moved
+to `pycsl.py::_run_pipeline`, beside route #29's — which is where route #29's own note
+said this class of refusal belongs, and which documents the two constraints verbatim:
+"a pure add on a `\trusted` mirror method — no mirror body moves, no re-proof is owed,
+and no new def is introduced (which would move the mirror-coverage ratchet)". It uses
+the SAME iterative stack walk for the same reason. `_run_pipeline` is already on both
+ratchets' lists, so neither moves.
+AFTER THE MOVE: all 22 fast planes green, witnesses 1697 (refused) / 1698 (verifies).
+THE LESSON: the choke-point rule is not a style preference. It is enforced by two
+independent ratchets, and a repair that ignores it turns them red in the same run.

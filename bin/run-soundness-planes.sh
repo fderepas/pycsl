@@ -80,8 +80,16 @@ PLANES=(
     check-ir-field-coverage.py
     check-statement-block-coverage.py
     check-vacuous-drivers.py
+    # (#49) gen #30: the RETURN-BOUNDARY ratchet — the gap `check-argument-coercion.py`
+    # names in its own header ("the RETURN side ... has no plane yet — the honest gap in
+    # this instrument"). Route #198 came out of exactly that gap: a bare `return` lowered
+    # to the literal `0`, so an int-returning function PROVED `\result == 0` about `None`.
+    # The baseline pins each substituted constant WITH ITS OCCURRENCE COUNT, because a
+    # literal-only key would not have caught #198 (`val = "0"` was already blessed for
+    # the `False` arm). Demonstrated to FIRE on the pre-#198 emitter via `--live`.
+    check-return-boundary-substitutions.py
 )
-MIN_PLANES=20
+MIN_PLANES=21
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #

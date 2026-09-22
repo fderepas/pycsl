@@ -606,6 +606,97 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 f"where the atom lowers to its real quantified formula.",
                 stage="whyml-emit", code="PYCSL-R29-HEAP-SPEC-ERASURE")
 
+    # (#49) ROUTE #200 — REFUSE A STRING LITERAL ACTUAL AGAINST A PARAMETER THE CALLEE
+    # DECLARES `int` / `bool` / `float`.
+    #
+    #   `module6_whyml/expressions.py::_coerce_dotted_args` coerces each actual to its
+    #   declared param type, and for a scalar param that runs `_coerce_to_int`, whose
+    #   string arm answers `stable_hash(<literal>)`. `bin/check-argument-coercion.py`
+    #   left that substitution standing with a caveat about it: "a caller cannot predict
+    #   the hash it would have to name in a contract to exploit it -- but that is a claim
+    #   about difficulty, not about soundness, so re-probe it if anything ever makes the
+    #   hash predictable." NOTHING HAD TO. `stable_hash` is deterministic and its source
+    #   ships in this repository. MEASURED:
+    #
+    #       #@ ensures p == 747471683 ==> \result == 1
+    #       #@ ensures p != 747471683 ==> \result == 2
+    #       def callee(p: int) -> int:
+    #           if p == 747471683: return 1
+    #           return 2
+    #       #@ ensures \result == 1
+    #       def probe() -> int: return callee("a")
+    #
+    #   emitted `(callee 747471683)` and PROVED `\result == 1`, while CPython answers 2
+    #   and the TRUE twin `\result == 2` was REFUSED (witnesses 1697/1698).
+    #
+    #   KEYED ON THE DECLARED ANNOTATION, WHICH IS WHAT MAKES IT FREE. The 46 sites where
+    #   a string literal reaches an `int` param across the 53 mirror emissions are `int`
+    #   BY ERASURE — the callee's parameter carries no annotation at all. The witness's
+    #   parameter is `int` BY DECLARATION and the actual is a `str`: a type error Python
+    #   does not enforce and the model BELIEVES, which is route #51's situation one
+    #   argument position to the left, and route #51's answer is a refusal. Dry-run of
+    #   this exact predicate before it was written: 1622 pycsl-reference + 53
+    #   self-annotate + 2217 python-reference + 104 pycsl_lib files, ZERO hits.
+    #
+    #   WHY HERE, and it is route #29's rule three paragraphs up applied again: this is a
+    #   pure add inside a `\trusted` mirror method, with an ITERATIVE walk and NO nested
+    #   def. The first attempt put it in `core_ir_semantic.run_ir_semantic_checks` with a
+    #   nested `_walk_str_arg`, and TWO planes caught that: `check-mirror-coverage` (550 >
+    #   549 — a nested def is an ABSENT function, the Battery H lesson) and
+    #   `check-trusted-raises-honesty` (63 > 62 — a `\trusted` stub whose live body newly
+    #   RAISES with no `#@ raises`). `_run_pipeline` is already on both lists, so moving
+    #   the refusal here moves neither ratchet.
+    _r200_sigs = {}
+    for _r200_f in (ir_data.get("functions", []) or []):
+        _r200_nm = _r200_f.get("name")
+        if not _r200_nm:
+            continue
+        _r200_e = (_r200_f.get("formal_params") or [],
+                   _r200_f.get("param_annotations") or {})
+        _r200_sigs[_r200_nm] = _r200_e
+        _r200_sigs.setdefault(_r200_nm.rsplit(".", 1)[-1], _r200_e)
+    for _r200_f in (ir_data.get("functions", []) or []):
+        _r200_caller = _r200_f.get("name", "<anonymous>")
+        _r200_stack = [_r200_f.get("body", []) or []]
+        while _r200_stack:
+            _r200_n = _r200_stack.pop()
+            if isinstance(_r200_n, dict):
+                if (_r200_n.get("type") == "Call"
+                        and isinstance(_r200_n.get("func"), str)):
+                    _r200_fn = _r200_n["func"]
+                    _r200_sig = (_r200_sigs.get(_r200_fn)
+                                 or _r200_sigs.get(_r200_fn.rsplit(".", 1)[-1]))
+                    if _r200_sig:
+                        _r200_formals, _r200_anns = _r200_sig
+                        _r200_off = (1 if (_r200_formals
+                                           and _r200_formals[0] == "self") else 0)
+                        for _r200_i, _r200_a in enumerate(_r200_n.get("args") or []):
+                            _r200_j = _r200_i + _r200_off
+                            if _r200_j >= len(_r200_formals):
+                                break
+                            if not (isinstance(_r200_a, dict)
+                                    and _r200_a.get("type") == "String"):
+                                continue
+                            _r200_ann = _r200_anns.get(_r200_formals[_r200_j])
+                            if _r200_ann in ("int", "bool", "float"):
+                                from errors import PyCSLSemanticError as _PyCSLSemErr200
+                                raise _PyCSLSemErr200(
+                                    f"in '{_r200_caller}': the call to '{_r200_fn}' "
+                                    f"passes a string literal to parameter "
+                                    f"'{_r200_formals[_r200_j]}', which '{_r200_fn}' "
+                                    f"declares `{_r200_ann}` (ROUTE #200). Python does "
+                                    f"not enforce the hint and the model BELIEVES it: "
+                                    f"the string is replaced by a STABLE HASH of its "
+                                    f"own text, so a contract of '{_r200_fn}' that "
+                                    f"names that integer is DECIDED — and the hash is "
+                                    f"computable from this repository. Pass a value of "
+                                    f"the declared type, or annotate the parameter "
+                                    f"`str`.",
+                                    stage="ir-semantic", code="PYCSL-SEM-STRARG")
+                _r200_stack.extend(_r200_n.values())
+            elif isinstance(_r200_n, (list, tuple)):
+                _r200_stack.extend(_r200_n)
+
     # 07-1143 R4: the Soundness Ledger is a provenance view of the fully-resolved IR
     # (after imports/inheritance/composition), so it runs here and short-circuits before
     # WhyML emission / proving.
