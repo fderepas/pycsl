@@ -25,11 +25,20 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 94 AUDITED** —
-24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
-which is better than I expected and is exactly why the four that do not are worth the cost
-of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
-below records what was written and what happened.
+THE MEASUREMENT (#49, gen #30): **219 raise sites, 108 advice-bearing, 94 AUDITED** —
+88 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 2 AMBIGUOUS, and 14 still unaudited. Eighty-eight
+of ninety-four pieces of advice work, which is better than I expected and is exactly why
+the six that do not are worth the cost of finding. TWICE the compiler was telling users to
+write a program IT CANNOT COMPILE. The failures fall into four distinct ways advice can
+fail, and each entry below records what was written and what happened.
+
+AND THIS PLANE INHERITED THE ARTIFACT IT WAS BUILT BESIDE. Its `sites()` was copied from
+`check-refusal-witness-coverage` and carried the same filter — the raised NAME must start
+with `PyCSL` — so the twenty-one ALIASED raises were outside its population too. Fixing it
+the same evening took the census from 94 advice-bearing to 108, and every one of the 14
+newly visible is a route refusal this campaign landed in `pycsl.py`. A plane written TODAY
+was already blind to TODAY's work, because it was copied from one written before it: a
+population filter does not merely age, it PROPAGATES.
 
 FOUR MORE WERE AUDITED AND ARE NOT IN THIS POPULATION, recorded here so the work is not
 lost and the number is not inflated: `Module2_Parser`'s "only .keys()/.values()/.items()
