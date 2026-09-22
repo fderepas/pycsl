@@ -4168,3 +4168,26 @@ two `--slow` legs are mid-flight, one of which (`check-corpus-contract-truth`) s
 corpora. Changing the population under a running measurement is the mistake this window
 already made once with the #202 byte-diff. **Named for the next window: either extend
 `run-reference-tests.sh` with a third directory, or move the three files.**
+
+## THE HUNTER-INDEPENDENT SAMPLER WAS BUILT AND ITS CORPUS WAS EMPTY
+`bin/gen-differential-drivers.py` exists, is 18KB, and explains itself better than I could:
+
+> Measured 2026-09-13: **0 of 56 route files record a plane, ratchet or differential corpus
+> going red as the way the route was DISCOVERED.** All 56 were found by the driver probing.
+> … the campaign has no instrument independent of the hunter … **A RED here outranks a RED
+> from the driver, because the sampler did not know what it was looking for.**
+
+`test-suite/value-differential/generated/` — the directory it writes to, and which
+`check-value-differential.py --generated` reads — **held ZERO files.** The instrument that
+exists specifically to be independent of me had never been pointed at anything.
+
+This is lesson (e) in its sharpest form yet. The earlier instances were gates not wired
+into a runner; this is a generator whose OUTPUT CORPUS is empty, so the plane that consumes
+it has nothing to consume and reports nothing, forever, without ever looking wrong.
+
+Generated 198 drivers (`--count 200 --seed 30`, seed RECORDED as the tool asks) and
+launched `check-value-differential.py --generated` over them
+(`$SCRATCH/gendiff.log`). Whatever it says is worth more than anything I found by hand
+today, in exactly the sense the tool's own header claims — and its blind spots are stated
+there too: the template set is itself a choice, so this is ONE independent instrument, not
+a solution.
