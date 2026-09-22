@@ -3166,3 +3166,25 @@ dry run of the REFINED predicate is owed and will run when the corpus one lands.
 Nothing measured was discarded; what was discarded was a measurement of the wrong
 predicate. Oversubscribing the box does not produce more results per hour, it
 produces the same results later and a worse chance of finishing before a kill.
+
+## THE KEYWORD SPELLING — MY OWN ROUTE #200 REPAIR HAD THE HOLE ITS OWN LESSON NAMES
+Lesson (i), banked THIS generation, says: *a scope justified by "the other case fails
+closed" must name WHICH SPELLINGS of the other case were run.* I then wrote route #200's
+refusal to walk `node["args"]` and did not run the KEYWORD spelling.
+
+    #@ ensures p == 747471683 ==> \result == 1
+    def callee(p: int) -> int: ...
+    return callee(p="a")          # keyword, not positional
+
+**PROVES.** CPython answers 2. The IR keeps keyword actuals in a separate slot —
+`{"type": "Call", "func": "callee", "args": [], "keywords": [{"arg": "p", "value":
+{"type": "String", ...}}]}` — so a check that reads `args` sees an EMPTY argument list
+and passes the call.
+
+Found by turning the generation's own method on the generation's own work, one hour
+after writing it. It costs one `pycsl.py` run to ask "and what about the other spelling?"
+and the answer here was a live SEV-1 in a repair that had already been battery-verified
+on the positional spelling.
+
+The #202 patch — not yet applied — now covers BOTH slots, and the keyword case binds by
+NAME (which is more precise than the positional index, and needs no vararg offset).
