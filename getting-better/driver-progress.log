@@ -3703,3 +3703,44 @@ Recorded with the harness committed, so the next window builds the RIGHT instrum
 instead of re-deriving the wrong one. The right one is a `check-value-differential`-shaped
 plane over `pycsl_lib`: generate inputs satisfying the stub's `requires`, run the REAL
 module, and check the stub's `ensures` against the real answer.
+
+## THE STDLIB CONTRACT INSTRUMENT — built, fired, and its findings SEVERITY-CHECKED
+The previous entry said the right instrument was "a `check-value-differential`-shaped
+plane over `pycsl_lib`: generate inputs satisfying the stub's `requires`, run the REAL
+module, and check the stub's `ensures` against the real answer." Built it
+(`scratchpad/g30/stdlib_contract_diff.py`) rather than leaving it as a recommendation.
+
+**2000 contract checks over 12 packages; 21 VIOLATIONS in 2 functions.**
+
+  (a) `mth.remainder(x: int, y: int)` — `requires x >= 0, y > 0`,
+      `ensures \result >= 0` and `\result < y`, body `return x % y`, docstring:
+      *"Return the IEEE 754-style remainder of x with respect to y. For integers, same as
+      x % y."* **That sentence is false.** `math.remainder` rounds to NEAREST and `%`
+      FLOORS: `math.remainder(8, 5)` is **-2.0** where `8 % 5` is 3. So the contract
+      `\result >= 0` is false of the function the RST citation names, for 13 of the input
+      pairs tried.
+  (b) `stat.filemode(mode: int) -> str` — `ensures \result == "----------"`, body returns
+      exactly that constant, while `stat.filemode(2)` is `'?-------w-'`. A verified
+      function whose entire content is a constant, with a contract that pins the constant.
+
+**SEVERITY DOWNGRADED, AND THE CHECK IS THE POINT.** Before calling these routes I checked
+how a user's `import math` actually resolves: `import_classifier._stub_set` collects only
+the `.py` STEMS directly under `src/pycsl_lib/` (which holds packages, not modules), and
+there is NO name map from `math` to `mth` or `stat` to `stat`'s stub. So these contracts
+are never substituted for a real stdlib import; they are standalone modules whose contracts
+are true of their own bodies. **Documentation/naming fidelity defects, not proof-soundness
+holes** — and recording them as routes would have been the mirror image of the campaign's
+own complaint about unfalsifiable claims.
+
+THE CENSUS THAT FRAMES THEM, because the number is the finding: **124 of 870 `pycsl_lib`
+functions (14.3%) have a single-constant-return body.** That is the facade shape, at scale,
+in a layer with a skill and no gate. It is not a soundness hole while nothing substitutes
+these contracts for the real stdlib — and it is exactly what would become one on the day
+something does.
+
+RECORDED AS A NAMED, PRICED WORK ITEM rather than started: turning
+`stdlib_contract_diff.py` into a registered plane needs (i) a decision on what the stubs
+ARE (substitute implementations or stdlib models — the docstrings assume the second and the
+import path implements the first), and (ii) a baseline for the 124 constant bodies. Both
+are judgement calls that belong with the `agent-stdlib-annotate` owner, not with a
+five-hour window.
