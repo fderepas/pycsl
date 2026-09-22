@@ -119,7 +119,19 @@ the call boundary survived 190 routes.
 run; (j) predict the TRUE twin, and give completeness its own witness; (k) the choke-point
 rule is enforced by two ratchets; (l) build the plane the other planes named; (m) a repair
 that fixes one arm leaves the rest of the function; (n) a residue you write down is a work
-item; (o) the lesson you just banked applies to the fix you just shipped; (p) the upper bound is not the blast radius — read the arm, then count that shape; (q) a gate built from a route must be run against the pre-route tree.
+item; (o) the lesson you just banked applies to the fix you just shipped; (p) the upper bound is not the blast radius — read the arm, then count that shape; (q) a
+gate built from a route must be run against the pre-route tree; (r2) `timeout` forwards its
+signal to its child, so kill the wrapper; (u2) when a plane's method is "run the real
+thing", the scope is a SAFETY property; (v2) an unmentioned exclusion is not an exclusion,
+it is an oversight wearing one — READ YOUR OWN GATE HEADERS THE DAY AFTER YOU WRITE THEM;
+(w2) a marker that looks lazy may be FORCED: attack it, measure what stops you, and bank
+the measurement IN the marker; (x2) trust has a BLAST RADIUS, and a PASS count is not a
+proof count; (y2) an enforcement mechanism that writes into a body is only as strong as the
+guarantee that the body is COMPILED — enumerate every way a subject can fail to be
+compiled; (z2) a check with no witness has no evidence that it can FIRE, and "the sibling
+form has a witness" is not evidence about this one; (a3) a module can be meaningful only
+inside an importing context, so a module-level certificate is not "this file verifies on
+its own".
 
 ## A surface opened this generation: the `pycsl_lib` stdlib layer
 
@@ -139,7 +151,21 @@ Two instruments were built and run for the first time:
 
 **Severity checked, not assumed, and downgraded:** `import_classifier._stub_set` reads only
 the `.py` stems directly under `src/pycsl_lib/`, and no name map takes `math` to `mth`, so
-nothing substitutes these contracts for a real stdlib import. They are documentation and
+nothing substitutes these contracts for a real stdlib import.
+
+**AND THEN THAT SENTENCE WAS ITSELF MEASURED** (`bin/check-stub-import-resolution.py`, the
+30th plane). It is true today and for a SECOND reason nobody had stated: the lookup globs
+top-level `*.py` while the layer ships 93 PACKAGES, so the live stub set is `{"__init__"}`
+and **TRUSTED_STUB resolves NOTHING AT ALL** — the layer was renamed from a flat
+`data/lib_stubs/` and the glob was never renamed with it. What does NOT survive a repair:
+**nine package names were never renamed under the `mth` convention and ARE real stdlib
+module names — `copyreg`, `errno`, `http`, `json`, `os`, `re`, `reprlib`, `stat`,
+`token`.** On the day someone fixes that glob — a one-line, obviously-correct-looking
+change — `import os`, `import json` and `import re` in USER code resolve to this layer, and
+11 pinned facades plus 8 identity stubs stop being claims about a model and become claims
+about the world. The gate holds all four facts (live stub set, package floor, collision
+ratchet, exposed-contract counts) and self-tests by pointing the walk at a layer that DOES
+ship `os.py`. They are documentation and
 naming defects in standalone modules. The number that survives: **124 of 870 `pycsl_lib`
 functions (14.3%) have a single-constant-return body** — harmless while nothing consumes
 them as stdlib models, and exactly what becomes a hole on the day something does.
