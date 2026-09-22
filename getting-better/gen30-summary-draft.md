@@ -78,7 +78,7 @@ reader HEARS, which is the same defect class as a false contract, one level up i
 * `bin/check-coercion-exits.py` — the trigger rule's THIRD firing: `_array_coerce_arg` (#193, #201) and `_coerce_to_int` (#194, #200/#202) each produced two routes, and `check-argument-coercion.py` classifies the call SITES without ever looking inside the helpers. Pins both exit sets with counts; demonstrated to fire on the true pre-#201 source.
 * `bin/check-fstring-lowering.py` — built because the campaign's own trigger rule fired: TWO routes (#199, #203) in ONE function in ONE session. Pins the return set with counts AND two structural tokens, because #203 added a *wrap* rather than an exit and the return-set half is green on the pre-#203 tree — a blind spot the `--live` self-test found before it shipped.
 
-Battery: **18 -> 28 fast planes, 49 with `--slow`**, and `MIN_PLANES` tightened from a floor that carried slack to the exact count.
+Battery: **18 -> 39 fast planes** (49 with `--slow` at the mid-generation mark; the slow set grows with the fast one), and `MIN_PLANES` tightened from a floor that carried slack to the exact count. The second half added eleven more, listed below.
 `check-swallowed-exceptions` ratchet **4 -> 0**, a hard zero.
 Five new `value-differential` drivers (v73-v77), the CPython-measured plane, covering
 #198, #199 and #203 in both the DISAGREE and the AGREE direction.
