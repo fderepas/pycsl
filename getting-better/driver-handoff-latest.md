@@ -78,10 +78,12 @@
 #      evening's OTHER three message repairs sat in `\trusted` twins and owed nothing,
 #      which is the choke-point rule earning its keep.
 #    - **STILL RUNNING when this was written** (poll, do NOT relaunch):
-#      `bin/check-stdlib-modules-verify.py --verbose` (/tmp/mv3.log), re-run after the
-#      THREE-WAY split of its "verifies with no postcondition" class. If it comes back
-#      with a NO-ENSURES count above 1, the ceiling (`MAX_NO_ENSURES`) needs the measured
-#      number and the member list printed — see wall-lesson (p3).
+#      — NOTHING. `bin/check-stdlib-modules-verify.py` finished GREEN at the three-way
+#      split: 104 modules, 84 VERIFY, 20 do not (FAILS 5, REFUSED 13, TIMEOUT 2); of the
+#      84, ONE has value-returning functions and no `#@ ensures` (`udata`) and SEVEN have
+#      no value-returning function at all. `MAX_NO_ENSURES = 1` is the measured ceiling,
+#      and the honest headline for the TCB appendix is **76** modules with a postcondition
+#      to discharge, not 84.
 #
 # ## IN FLIGHT RIGHT NOW (2026-09-22T19:30Z)
 #    - **[SUPERSEDED — see the late-evening addendum at the top: TWENTY-SIX routes,

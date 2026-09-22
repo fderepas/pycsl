@@ -503,7 +503,7 @@ conversion track is where the budget should go, and the two deferred segments
 | refusal coverage | **184 of 219** demonstrated | a partition: 184 + 17 undemonstrated + 8 not-source-reachable + 10 unmatchable. Began the evening reported as 85 of 198 |
 | advice-bearing refusals AUDITED | **108 of 108** | 102 FOLLOWABLE; the six broken ones all repaired. A surface `convergence-metric-implement.md` had listed as unmeasured for generations |
 | stdlib identity stubs UNADJUDICATED | **0** (was 24) | and SEVEN of the 24 were false of the function they cite; six repaired |
-| stdlib modules verifying WITH a postcondition | **75** of 104 | the honest reading of "84 of 104 verify" |
+| stdlib modules verifying WITH a postcondition | **76** of 104 | the honest reading of "84 of 104 verify": of the 84, one has value-returning functions and no `#@ ensures` and seven have no value-returning function at all |
 | value-differential drivers | **75** | +5 earlier this session (v73-v77) |
 | unpushed commits | see `git log origin/ghost-assign-bc6..HEAD` | **nothing pushed; pushing stays gated to the user** |
 
