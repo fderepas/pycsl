@@ -796,3 +796,7 @@ median_high_call_fails.py	VERIFY-FAIL
 1766_gen30_witness_for_else_not_modelled.py	REFUSAL	`for ... else` / `while ... else` is not modelled: the `else` clause runs exactly when the loop finished without `break`, and the IR emitter reads only the loop body, so the clause would be silently DROPPED from the model. Rewrite it with an explicit flag.
 1767_gen30_witness_extended_slice_not_modelled.py	REFUSAL	an EXTENDED slice `x[lo:hi:step]` is not modelled: the lowering is `Array.sub x lo (hi - lo)`, which ignores the step entirely, so the model would carry a DIFFERENT sequence — different length and different elements — from the one Python builds. Use an explicit strided loop.
 1768_gen30_witness_unsupported_dict_method_in_contract.py	REFUSAL	unsupported method '.clear()' in a contract; only .keys()/.values()/.items() are recognised (07-1311)
+1769_gen30_witness_ni_target_not_a_method.py	REFUSAL	`happy ni`: noninterference targets 'no_such_method', which is not a method of any class in this module.
+1770_gen30_witness_ni_secret_not_a_parameter.py	REFUSAL	`happy ni`: secret 'not_a_param' is not a parameter of 'summarize' (parameters: ['public_id', 'balance']).
+1771_gen30_witness_for_range_bound_not_literal.py	REFUSAL	[Module3]: `for i in range(...)`: range bound must be an integer literal (got Var); named-constant bounds are not yet supported
+1772_gen30_witness_for_range_empty_body.py	REFUSAL	[Module1]: `for i in range(0, 3)`: empty body

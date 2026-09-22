@@ -82,14 +82,14 @@ CENSUS_TRUNC = 4000       # the writer's message cap. See the TRUNCATION GUARD b
                           # stored message of EXACTLY this length was cut, and a cut
                           # message silently un-witnesses every site whose fragment falls
                           # past the cut.
-MIN_WITNESSED = 136       # 58 at the first joined measurement; 67 after TEN witnesses were
+MIN_WITNESSED = 139       # 58 at the first joined measurement; 67 after TEN witnesses were
                           # written the same day (Final F1/F2, three lemma arms, two
                           # assigns-region arms, `\length` on a dict, `\result` in a
                           # check, the happy `except` typo); 85 after 31 more; then 86
                           # with witness 1762 — and 131 once the CENSUS ITSELF was
                           # repaired. FORTY-FIVE of the "missing" witnesses had been in
                           # the corpus all along. May only grow.
-MAX_UNWITNESSED = 45      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
+MAX_UNWITNESSED = 42      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
                           # the instrument; 67 -> 59 by DEMONSTRATING the eight that no
                           # corpus witness can reach; 59 -> 50 once the nine this
                           # instrument CANNOT MATCH were counted separately (below).
@@ -125,6 +125,14 @@ MAX_UNWITNESSED = 45      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by
 # one distinguishing literal, or print the diagnostic CODE alongside the message so the
 # census can carry it and matching can key on the code. Printing the code is the better fix
 # and moves all 437 census messages, which is why it is RECORDED rather than done here.
+#
+# A CONCRETE ILLUSTRATION now sits in the corpus. `Module1_Ingestor.py:354` raises
+# `f"`{kw} {name}`: empty body"` — every literal in it is under 25 characters, so its
+# fragment is "". Corpus witness `1772_gen30_witness_for_range_empty_body.py` MAKES THAT
+# REFUSAL FIRE, and its message is in the census. The site is still counted unmatchable,
+# because it is: the witness exists, the evidence is recorded, and this instrument cannot
+# see the connection. That is the honest shape of the class — not "no witness", but "no
+# way for me to tell".
 #
 # The count is a RATCHET that may only shrink, and the sites are listed by
 # `--list-unwitnessed`. It is NOT an exemption list keyed by name: membership is DERIVED
