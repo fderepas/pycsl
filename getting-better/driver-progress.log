@@ -4966,3 +4966,27 @@ OWED BEFORE THE DEADLINE:
 >>> measurement). The generation's own census lesson was that "a negative-looking filename
 >>> with no expectation is how a green run gets misread", and it applies to files written
 >>> the same night as much as to inherited ones.
+
+--------------------------------------------------------------------------------
+THE --slow BATTERY DOES NOT SOURCE ITS OWN ENVIRONMENT
+--------------------------------------------------------------------------------
+Launching `bin/run-soundness-planes.sh --slow` without first sourcing
+`scratchpad/g29/env.sh` produces TWO REDs that are really the SAME fact:
+
+    RED  check-stdlib-modules-verify.py   rc=2  REFUSING — `why3` is not on PATH
+    RED  check-open-route-carriers.py     rc=2  REFUSING — `why3` is not on PATH
+
+Both refusals are CORRECT — they are the guards this campaign added precisely so a
+missing prover cannot look like a wall of failures — and both planes are green when run
+with the environment. But the battery itself does not check, so the information arrives
+TWICE, LATE (after ~40 minutes of other planes), and as a RED rather than as an
+instruction.
+
+>>> A REFUSAL THAT ARRIVES LATE AND TWICE IS A CORRECT ANSWER DELIVERED BADLY. The guard
+>>> belongs where the run STARTS, not in each plane that happens to need the tool: with
+>>> `--slow` the battery knows it is about to drive the prover, and it can say so in one
+>>> line before spending the forty minutes.
+
+TO DO (not applied while the battery was running — editing a script bash is reading is the
+hazard this generation already recorded): a `--slow` pre-check that refuses up front with
+the one-line instruction, keeping each plane's own guard as the backstop.
