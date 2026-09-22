@@ -2711,3 +2711,36 @@ the live edit has no mirror twin).
   raises KeyError there, so the function never returns and no contract of it is
   violated. That is PyCSL's opt-in `#@ no_exception` stance, not a route; noted
   because the read itself looks identical to one.
+
+## ROUTE #200 CONFIRMED — a string actual is hashed into an int parameter, and the hash is nameable
+`bin/check-argument-coercion.py` — a plane I WROTE this generation — carries this
+caveat about the one substitution it left standing:
+
+    "What remains here is the STRING/TUPLE hash (routes #113/#114): it is
+     injective-by-luck only, and a caller cannot predict the hash it would have
+     to name in a contract to exploit it -- but that is a claim about difficulty,
+     not about soundness, so re-probe it if anything ever makes the hash
+     predictable."
+
+Nothing had to MAKE it predictable. `stable_hash` is a deterministic function whose
+source ships in the repository (`src/pycsl/module6_whyml/identifiers.py`); computing
+`stable_hash('"a"') == 747471683` takes one line. The caveat was a claim about an
+attacker's difficulty, and the difficulty was zero.
+
+    #@ ensures p == 747471683 ==> \result == 1
+    #@ ensures p != 747471683 ==> \result == 2
+    def callee(p: int) -> int:
+        if p == 747471683: return 1
+        return 2
+
+    #@ ensures \result == 1
+    def probe() -> int:
+        return callee("a")
+
+PROVES. CPython answers 2 (`"a" == 747471683` is False). The TRUE twin
+`\result == 2` is REFUSED. Decisive signature, SEV-1.
+
+Note the callee contract shape: `ensures True` on the callee hides this entire
+family, which is why 199 routes did not find it. The contract has to be TRUE OF
+THE CALLEE'S OWN BODY and READ the property the substitution changes — the method
+that produced five of gen #30's routes, applied to the plane's own residue.
