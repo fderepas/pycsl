@@ -88,8 +88,16 @@ PLANES=(
     # literal-only key would not have caught #198 (`val = "0"` was already blessed for
     # the `False` arm). Demonstrated to FIRE on the pre-#198 emitter via `--live`.
     check-return-boundary-substitutions.py
+    # (#49) gen #30: the F-STRING LOWERING ratchet, built on the campaign's own trigger
+    # rule (lesson (d): build the plane when TWO routes land in ONE function in ONE day).
+    # #199 (the empty f-string was the integer 0) and #203 (a single-part f-string WAS the
+    # integer it interpolates) are both `_handle_fstring_expr`, both found this session.
+    # It pins the RETURN SET with counts AND two structural tokens, because #203 added a
+    # WRAP rather than an exit and the return set alone is green on the pre-#203 tree —
+    # measured via `--live`, which is also how that blind spot was found before shipping.
+    check-fstring-lowering.py
 )
-MIN_PLANES=21
+MIN_PLANES=22
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #

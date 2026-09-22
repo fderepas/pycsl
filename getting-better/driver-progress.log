@@ -3545,3 +3545,26 @@ Plus the trust surface itself: there is NO user-writable `#@ assume`. So the ass
 budget is exactly `\trusted` + `assumes bounded_int` + the Module4-enforced, proof-backed
 `fresh_globals` — which is what makes the `\trusted` count a meaningful metric rather than
 a proxy for one.
+
+## NEW PLANE — `bin/check-fstring-lowering.py` (the 23rd fast plane)
+Built on the campaign's OWN trigger rule, not on a hunch. Lesson (d): *build the plane
+when two routes land in one function in one day.* Two did, in one session — #199 (the
+empty f-string was the integer 0) and #203 (a single-part f-string WAS the integer it
+interpolates), both in `_handle_fstring_expr`. The rule fired; the plane got built.
+
+IT PINS THE RETURN SET WITH COUNTS — and the count is load-bearing, because route #203's
+sound-and-unsound siblings are textually IDENTICAL: three different exits all read
+`return acc`, and only one of them was wrong.
+
+AND IT NEEDED A SECOND HALF, WHICH THE SELF-TEST FOUND BEFORE SHIPPING. Run against the
+pre-#203 checkout via `--live`, the return-set half was **GREEN** — because #203 added a
+WRAP before an existing, already-justified exit rather than adding an exit. A gate built
+from a route that does not fire on that route is a claim, not an instrument. So it also
+pins two STRUCTURAL TOKENS (`len(parts) == 1` and `str_of_int_hash`), each labelled as the
+crude check it is, each carrying the reason its deletion reopens the route. Against the
+pre-#203 tree it now exits 1 and names both.
+
+>>> A GATE BUILT FROM A ROUTE MUST BE RUN AGAINST THE PRE-ROUTE TREE, AND THE FIRST
+>>> DESIGN OF THIS ONE PASSED THERE.
+
+Battery is now **23 fast / 44 with `--slow`**. All 23 green at HEAD.
