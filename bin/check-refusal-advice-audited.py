@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 74 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 78 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -380,6 +380,18 @@ AUDITED = {
     ("src/pycsl/frontend/monomorphize.py",
      "PyCSLSemanticError(f'monomorphization: generic function {gname!r} calls itself with its own TypeVar {tvar!r} — GT4: polymorphic recursion do"): (FOLLOWABLE,
         "'The recursive call must use a concrete type' - and route #215 changed what that can mean: the subscripted spelling `f[int](...)` is now REFUSED as invalid Python, so the followable readings are a NON-generic recursion (VERIFIES, with `#@ \\\\variant`) or a non-recursive generic (VERIFIES). Recorded so the interaction is not rediscovered."),
+    ("src/pycsl/frontend/ir_inline.py",
+     'PyCSLSemanticError(f"cannot inline \'{callee}\': call passes {len(args)} args, method takes {len(formals)}.")'): (FOLLOWABLE,
+        'The repair is to pass the declared number of arguments; the matching call VERIFIES.'),
+    ("src/pycsl/frontend/ir_inline.py",
+     'PyCSLSemanticError(f"cannot inline \'{callee}\' on \'{recv}\': its body refers to {\', \'.join((repr(n) for n in _cap169))}, which the calling fun'): (FOLLOWABLE,
+        "'Rename the local' - a caller whose local does not collide with a name in the spliced body VERIFIES."),
+    ("src/pycsl/frontend/ir_resolve.py",
+     'PyCSLSemanticError(f"Mixin composition \'{C}\': \'{C}\' defines its own \'{pm}\', which SHADOWS the provider of \'{pm}\' (from mixin {owners}) that '): (FOLLOWABLE,
+        'The repair is not to define the shadowing method on the composing class; the composition without it VERIFIES.'),
+    ("src/pycsl/frontend/ir_inline.py",
+     'PyCSLSemanticError(f"cannot inline call to \'{recv}.{callee.split(\'__\')[-1]}\': method \'{callee}\' not found.")'): (FOLLOWABLE,
+        "The repair is to call a method the receiver's class declares; the matching call VERIFIES (same carrier as the arity entry)."),
 }
 
 
@@ -484,7 +496,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 74
+MIN_AUDITED = 78
 
 if __name__ == "__main__":
     sys.exit(main())
