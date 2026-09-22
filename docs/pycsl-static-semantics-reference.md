@@ -2884,6 +2884,16 @@ filesystem model this appendix names as its example is among them**: `os/path.py
 `basename`'s postcondition unproven, and `os/__init__.py` does not finish in ten minutes.
 The set is baselined by name in that plane, so it can only shrink.
 
+**AND "84 VERIFY" IS ITSELF WORTH LESS THAN IT READS.** Nine of the 84 carry NO
+`#@ ensures` at all, and seven carry no `#@` annotation whatever — they return
+"Verification SUCCESS" because the emitter produced no goal for the prover to discharge.
+`htm.escape(s) -> s` under `#@ assigns \nothing` is the shape: real `html.escape('<')` is
+`'&lt;'`, the model returns the string unchanged, and it promises nothing about it, so it
+verifies truthfully and the verification is worth nothing. **The honest figure for "the
+library's own machine-checked proofs" is 75 modules with a postcondition to discharge, not
+84.** That count is DERIVED from the source on every run of the plane (not a name list) and
+ratcheted downward, so a module that gains a postcondition leaves the class by itself.
+
 **AND THE CONSUMER'S SIDE OF IT IS AN ASSUMPTION, NOT A CHECK.** An importing program
 believes every contract of an imported module — frames, postconditions, class invariants —
 and nothing verifies that the module was ever verified (route #212: an owner declaring

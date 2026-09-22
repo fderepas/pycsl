@@ -88,6 +88,15 @@ clause on the same function — the length bound — is false of CPython for `'�
 classification is a claim too, and "the clause I looked at is guarded" is not "the function
 is faithful".
 
+(#49) AND THE OTHER HALF OF THE POPULATION, so "81 identity stubs" is not read as "every
+identity body in the layer": **78 more functions are `return <param>` with NO
+`\result ==` clause at all.** They are not adjudicable here — a function that claims
+nothing about its value cannot be false of the function it cites — but they are the same
+SHAPE and they are the pool a future pinning is drawn from. `htm.escape(s) -> s` under
+`#@ assigns \nothing` is the example: real `html.escape('<')` is `'&lt;'`, so the model
+is SILENT rather than wrong, and it VERIFIES. The count is printed every run, DERIVED, and
+ratcheted so the pool cannot quietly grow.
+
 THE RATCHET is the set, keyed by (package, function). A NEW identity-stub fails: it must
 be argued into one of the three classes. One that DISAPPEARS is reported so its entry goes
 with it. UNADJUDICATED is a debt counter, printed every run, and MAX_UNADJUDICATED holds
@@ -364,6 +373,9 @@ BASELINE = {
     ("strct", "unpack_from"): (HAND, "same TUPLE answer as `unpack`."),
     ("strct", "pack_into"): (HAND, "`struct.pack_into` writes into a buffer and returns None."),
 }
+MAX_UNPINNED = 78        # identity BODIES with no `\result ==` clause: the same shape as
+                         # the census above, saying nothing. Measured at 78 the day the
+                         # count was added. May only shrink.
 MAX_UNADJUDICATED = 0    # 45 at the first measurement, 24 after the same-day hand
                          # adjudication, 0 after the second pass added the two classes
                          # above. A debt that may only shrink - and at zero it is also a
@@ -373,7 +385,7 @@ MAX_UNADJUDICATED = 0    # 45 at the first measurement, 24 after the same-day ha
 def census():
     """Every (package, function, param) whose body is `return <param>` under a pinning
     `#@ ensures` that mentions that parameter. Pure AST; nothing is imported or called."""
-    stubs, functions = [], 0
+    stubs, functions, unpinned = [], 0, []
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         for path in sorted(glob.glob(os.path.join(LIB, "**", "*.py"), recursive=True)):
@@ -407,7 +419,9 @@ def census():
                     i -= 1
                 if any("ensures" in a and "\\result ==" in a for a in ann):
                     stubs.append((pkg, node.name, ret.id))
-    return stubs, functions
+                else:
+                    unpinned.append((pkg, node.name, ret.id))
+    return stubs, functions, unpinned
 
 
 def main():
@@ -418,7 +432,7 @@ def main():
     args = ap.parse_args()
 
     baseline = {} if args.selftest_empty_baseline else BASELINE
-    stubs, functions = census()
+    stubs, functions, unpinned = census()
 
     if functions < MIN_FUNCTIONS:
         print("[!] stdlib-identity-stubs: REFUSING — the walk saw only %d function(s), "
@@ -450,6 +464,20 @@ def main():
           "%d MODEL-INTERNAL, %d UNADJUDICATED."
           % (functions, len(keys), len(diverges), len(hand), len(decl), len(intl),
              len(unadj)))
+    # (#49) gen #30 — THE OTHER HALF OF THE POPULATION, so "81 identity stubs" is not read
+    # as "every identity body in the layer". A body that is `return <param>` with NO
+    # `\result ==` clause is NOT adjudicable here — it claims nothing about the value, so
+    # it cannot be false of the cited function — but it is the same SHAPE, and it is the
+    # pool a future pinning would be drawn from. `htm.escape(s) -> s` under
+    # `#@ assigns \nothing` is the example: real `html.escape('<')` is `'&lt;'`, and the
+    # model is silent rather than wrong. Reported every run, DERIVED, and ratcheted so the
+    # unpinned pool cannot quietly grow.
+    print("[*] stdlib-identity-stubs: plus %d identity body(ies) with NO `\\result ==` "
+          "claim at all — the same shape, saying nothing, so not adjudicable here."
+          % len(unpinned))
+    if args.verbose:
+        for pkg, fn, a in sorted(unpinned):
+            print("    UNPINNED      %-9s %-22s <- %s" % (pkg, fn, a))
 
     rc = 0
     # Cross-check: a DIVERGES in a module the CALLING gate covers must also be in ITS
@@ -483,6 +511,11 @@ def main():
               "exists; name the guard that makes the identity true of the model), and add "
               "it to the baseline. UNADJUDICATED is CLOSED: its ceiling is 0."
               % k, file=sys.stderr)
+        rc = 1
+    if len(unpinned) > MAX_UNPINNED:
+        print("[!]   UNPINNED IDENTITY-BODY COUNT GREW: %d > %d. A new `return <param>` "
+              "with no value claim is a new place for a future pinning to be wrong; this "
+              "pool may only shrink." % (len(unpinned), MAX_UNPINNED), file=sys.stderr)
         rc = 1
     if len(unadj) > MAX_UNADJUDICATED:
         print("[!]   UNADJUDICATED count %d exceeds the ceiling %d — this debt may only "
