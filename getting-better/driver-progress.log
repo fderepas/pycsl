@@ -2830,3 +2830,13 @@ PREDICTION (written first):
      neither claim about it should be verifiable.
   R3 corpus byte-diff ZERO, mirror emission byte-diff ZERO.
   R4 suite: 18 CONFIRMED FAIL unchanged, ZERO XPASS, plus the new witnesses.
+
+ROUTE #200 REPAIRED. R1/R2 measured, both match:
+  the witness and its TRUE twin are BOTH refused by the pipeline
+  (`PYCSL-SEM-STRARG`), which is what a refusal means.
+The dry-run is now complete across every tree the change can reach:
+  pycsl-reference 1622, self-annotate 53, python-reference 2217, pycsl_lib 104
+  — 3996 files, ZERO hits. No program that verifies today is refused.
+Control 1698 verifies: a genuine int into an `int` param and a genuine string
+into a `str` param both still pass, so the refusal is keyed where it claims.
+Witnesses 1697 (carrier, FAIL) and 1698 (control).
