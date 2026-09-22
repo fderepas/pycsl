@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 71 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 74 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -371,6 +371,15 @@ AUDITED = {
     ("src/pycsl/module6_whyml/functions.py",
      'PyCSLIRError("nested function \'%s\' is lifted to a sibling of its enclosing function, and the lift is not faithful here: %s. A lifted body re'): (FOLLOWABLE,
         'The repair is a distinctly-named top-level helper called normally; it VERIFIES.'),
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"`-> NoReturn` on function \'{name}\' is not justified: its body contains a `return` statement (a normal-exit path). A NoR'): (FOLLOWABLE,
+        "'raise instead, or call another NoReturn function' - a NoReturn body that calls another NoReturn function VERIFIES. My first attempt failed on MY file: the caller must declare the callee's exception (`#@ raises E when <cond>`). Lesson (i3) again."),
+    ("src/pycsl/frontend/monomorphize.py",
+     'PyCSLSemanticError(f"monomorphization: generic {gname!r} declares a {kind} ({tp.get(\'name\')!r}) — GT3: ParamSpec/TypeVarTuple are schema-onl'): (FOLLOWABLE,
+        "'Use a plain TypeVar `T`' - the plain-TypeVar generic class VERIFIES."),
+    ("src/pycsl/frontend/monomorphize.py",
+     "PyCSLSemanticError(f'monomorphization: generic function {gname!r} calls itself with its own TypeVar {tvar!r} — GT4: polymorphic recursion do"): (FOLLOWABLE,
+        "'The recursive call must use a concrete type' - and route #215 changed what that can mean: the subscripted spelling `f[int](...)` is now REFUSED as invalid Python, so the followable readings are a NON-generic recursion (VERIFIES, with `#@ \\\\variant`) or a non-recursive generic (VERIFIES). Recorded so the interaction is not rediscovered."),
 }
 
 
@@ -475,7 +484,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 71
+MIN_AUDITED = 74
 
 if __name__ == "__main__":
     sys.exit(main())
