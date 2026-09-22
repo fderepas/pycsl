@@ -3926,3 +3926,31 @@ real stdlib import. It stops the layer drifting further from the stdlib it docum
 it is the instrument that would catch the drift on the day something does substitute them.
 
 Battery is now **26 fast / 47 with `--slow`**. All 26 green at HEAD.
+
+### The stdlib plane, WIDENED the same hour — 12 packages to 24, 2002 checks to 5202
+The first map was twelve packages I typed by hand. Deriving it from the stubs' OWN HEADERS
+instead ("# pycsl_lib/bsect — pure-Python bisect module") found that **50 of the 93 packages
+name an importable stdlib module**. Twenty-four of those are in the map now; the other
+twenty-six are excluded, and the exclusion is a SAFETY requirement rather than a scoping
+preference, stated in the gate's header:
+
+  * `shutil`, `subprocess`, `tempfile`, `os`, `io`, `signal`, `pathlib` — **this gate CALLS
+    the real function with generated arguments.** A generated argument to `shutil.rmtree`
+    is not a test, it is an accident waiting to be committed.
+  * `random`, `time` — a non-deterministic answer cannot carry a ratchet.
+  * `argparse`, `getopt` — they can exit the interpreter.
+
+Widening it immediately found four more divergences, ALL IN `csys`, and reading that
+stub's header explains them: *"All coordinates modelled as integers scaled 0..1000
+representing [0.0, 1.0]."* A DECLARED DOMAIN CHANGE is not a defect. They are baselined
+WITH the declaration quoted, rather than filtered out by a header heuristic, so that a new
+divergence in `csys` that is NOT the scaling still fails — and if `csys` is ever re-modelled
+in floats the gate says "no longer diverges" and asks for the entries to go.
+
+  **5202 contract evaluations, 6 known divergences (2 real defects + 4 declared scalings),
+  no new ones.** Population guard raised 1500 -> 4500. Self-test still exits 1.
+
+>>> A GATE THAT CALLS REAL CODE NEEDS A DENY-LIST BEFORE IT NEEDS A BASELINE. The widening
+>>> that makes it useful is the same widening that could make it dangerous, and the header
+>>> has to say which modules were excluded and why — otherwise the next person widens it by
+>>> adding a name.

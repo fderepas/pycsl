@@ -47,15 +47,28 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIB = os.path.join(ROOT, "src", "pycsl_lib")
 
-# stub package -> the stdlib module it documents itself against
+# stub package -> the stdlib module it documents itself against.
+#
+# DERIVED FROM THE STUBS' OWN HEADERS, not hand-written: 50 of the 93 packages name an
+# importable stdlib module in their first lines ("pycsl_lib/bsect — pure-Python bisect
+# module"). Only the PURE, DETERMINISTIC, SIDE-EFFECT-FREE ones are listed here, and the
+# exclusion is a SAFETY requirement, not a scoping preference: this gate CALLS the real
+# function with generated arguments, so `shutil`, `subprocess`, `tempfile`, `os`, `io`,
+# `signal` and `pathlib` are excluded because a generated argument could touch the
+# filesystem or spawn a process; `random` and `time` because a non-deterministic answer
+# cannot carry a ratchet; `argparse`/`getopt` because they can exit the interpreter.
+# Widening this map means arguing a module into the pure set, never just adding a name.
 MAP = {
-    "bsect": "bisect", "mth": "math", "oper": "operator", "hq": "heapq",
-    "b64": "base64", "frac": "fractions", "stat": "stat", "kw": "keyword",
-    "txtwrp": "textwrap", "glb": "glob", "nums": "numbers", "fnm": "fnmatch",
+    "b64": "base64", "bsect": "bisect", "csys": "colorsys", "cpmod": "copy",
+    "copyreg": "copyreg", "enm": "enum", "errno": "errno", "fnm": "fnmatch",
+    "frac": "fractions", "hlib": "hashlib", "hq": "heapq", "htmlm": "html",
+    "itools": "itertools", "kw": "keyword", "mth": "math", "nums": "numbers",
+    "oper": "operator", "reprlib": "reprlib", "stat": "stat", "stats": "statistics",
+    "strct": "struct", "txtwrp": "textwrap", "token": "token", "udata": "unicodedata",
 }
 SKIP_TOKENS = ("\\forall", "\\exists", "\\old", "\\at", "\\separated", "\\valid",
                "\\sum", "\\is_sorted", "\\permutation", "\\array_eq")
-MIN_CHECKS = 1500
+MIN_CHECKS = 4500   # 5202 at the widened map; the stub set only grows
 
 # (package, function) -> why this divergence is known and what it means
 BASELINE = {
@@ -67,6 +80,22 @@ BASELINE = {
         "`math.remainder(8, 5)` is -2.0 where `8 % 5` is 3. The contract is true of the "
         "BODY and false of the function the citation names. FIX = correct the citation "
         "and the name (it models `%`, not IEEE remainder), or implement IEEE rounding.",
+    # --- DECLARED DOMAIN CHANGES, not defects. `csys`'s own header says: "All
+    # coordinates modelled as integers scaled 0..1000 representing [0.0, 1.0]." So the
+    # stub works in a scaled INTEGER domain while `colorsys` works in floats on [0,1],
+    # and every contract about a scaled coordinate is necessarily false of the float
+    # answer. They stay in the baseline rather than being filtered out by a header
+    # heuristic, so that a NEW divergence in `csys` — one that is NOT the scaling — still
+    # fails the gate. THE STANDING CONDITION: if `csys` is ever re-modelled in floats,
+    # these four must be REMOVED, and the gate will say so ("no longer diverges").
+    ("csys", "rgb_to_yiq"):
+        "DECLARED SCALING: integers 0..1000 vs `colorsys`'s floats on [0,1].",
+    ("csys", "rgb_to_hls"):
+        "DECLARED SCALING: integers 0..1000 vs `colorsys`'s floats on [0,1].",
+    ("csys", "hls_to_rgb"):
+        "DECLARED SCALING: integers 0..1000 vs `colorsys`'s floats on [0,1].",
+    ("csys", "hsv_to_rgb"):
+        "DECLARED SCALING: integers 0..1000 vs `colorsys`'s floats on [0,1].",
     ("stat", "filemode"):
         "(#49) gen #30. `ensures \\result == \"----------\"` with a body returning exactly "
         "that constant, while `stat.filemode(2)` is '?-------w-'. A verified function "
