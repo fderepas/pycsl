@@ -29,6 +29,13 @@ THE RATCHET: the witnessed count may only GROW, and the artifact's own size may 
 with the corpus. A NEW refusal added without a witness is visible immediately — it lands in
 the unwitnessed list and the count of unwitnessed sites rises above the ceiling.
 
+NOT THE SAME AS `bin/check-refusal-reachability.py`, and the difference is worth stating
+because the names are close. That plane asks whether a refusal's exception NAME is bound —
+whether it raises its own message or a `NameError` — i.e. whether the refusal is
+well-FORMED. This one asks whether any program in the corpus has ever MADE it fire. A
+refusal can pass that gate perfectly and still be route #209: correctly spelled, correctly
+imported, and inert.
+
 WHAT IT IS NOT. Coverage here does not mean "correct"; it means "demonstrated to fire".
 Route #209's lesson is precisely that those are different, and that only the second one can
 be measured mechanically.
