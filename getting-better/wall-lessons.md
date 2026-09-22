@@ -32,7 +32,8 @@ instrument is a fact about the instrument, and the fix is a SELF-AUDIT, not a fo
 it — a refusal offering two repairs should have had BOTH tried · **(n3)** a new refusal can
 RETIRE an old one by running first · **(o3)** when new evidence does not move a number,
 suspect the number's COLLECTOR — its population filter most likely excludes the work this
-campaign is busy adding.
+campaign is busy adding · **(p3)** a class boundary drawn from a STATIC READING is a
+hypothesis; RUNNING it is the test, and it took three tries.
 
 ### (f3) An exclusion you never tested is a guess — check whether the reason still applies
 
@@ -356,6 +357,34 @@ filter is a claim about WHAT COUNTS, and the things most likely to fall outside 
 things the current campaign is busy ADDING — because those are written in whatever local
 style the new code needed, not the style the filter was written against. A gate that has
 been running for six generations has been filtering against six-generation-old habits.
+
+### (p3) A class boundary drawn from a static reading is a hypothesis
+
+Measuring what `"84 of 104 stdlib modules verify"` is worth took three attempts, and each
+wrong version was wrong in the same way — a class boundary I could SEE in the source but
+had not RUN.
+
+1. **Count `#@` annotations.** Nine of the 84 carry no `#@ ensures`; seven carry no `#@` at
+   all. Reported as "the honest headline is 75, not 84".
+2. **Split by `def`.** The nine are not one fact: seven have NO `def` (a constant keyword
+   list, a re-export shim, three empty classes) and verify with nothing to claim, which is
+   innocent; two have function bodies and promise nothing. Ceiling set to 2.
+3. **The first RUN of (2) went RED at 3 > 2.** `fut` and `world` have a `def` — and their
+   only def is `__init__`, which returns None and can carry no `\result` claim. They are
+   shims with a constructor. The discriminator is a VALUE-RETURNING function, and the
+   informative class is ONE module.
+
+Nothing about (1) or (2) was careless; each was read off the source correctly. What neither
+did was RUN, and running is what distinguishes "a module with a body" from "a module with
+something to claim". The same shape produced the false `hq.*_max` residual earlier the same
+evening — (i3) is the special case where the instrument could not show the presence, and
+this is the general one: **a classification is a claim about the population, and a claim
+about the population is checked by enumerating it, not by reading a representative.**
+
+The cheap discipline that would have caught all three on the first pass: before writing a
+ceiling, PRINT THE MEMBERS. Each wrong version had a members list one line away, and each
+list would have shown `kw`, `fut` and `world` sitting next to `udata` and looking nothing
+like it.
 
 ## 2026-07-20 driver run (count 1030 → 1028; 2 conversions + these walls)
 
