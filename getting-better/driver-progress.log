@@ -3026,3 +3026,10 @@ right way round, and the reason I re-ran it instead of re-arguing it.
 (A SECOND slow-planes leg is still owed for the CURRENT tree: #198-#201, the
 return-boundary plane and the swallowed-exceptions change all landed after that
 HEAD. It runs as the final control battery.)
+
+### Route #201 — the corpus half of the census: ZERO
+`(Array.make 1 0)` — the tail placeholder — fires **0 times across all 1624
+pycsl-reference files**. So on the corpus side the repair is byte-inert by
+measurement rather than by argument. Mirror half still running; the repair waits
+for it, because the mirror is where this coercion's real users live (`sorted_1`,
+`any_1`, `all_1`, `array_rev`, `array_to_seq`, the field-decode idiom).
