@@ -782,3 +782,5 @@ median_high_call_fails.py	VERIFY-FAIL
 1750_gen30_witness_callable_c1.py	REFUSAL	: Callable arg/return type `Any` is refused — GT1: Any never instantiates a function-type obligation (the consistency relation is deliberately unsound).
 1751_gen30_witness_callable_c2.py	REFUSAL	: Callable annotation's first argument must be a literal list [A1, ..., An] of argument types.
 1752_gen30_witness_callable_c3.py	REFUSAL	: A nested generic/Callable arg or return type is not interpreted (C5 sound scope limit, stricter than S1). Callable arg/return types must be bare primitive or class names in this delivery.
+1753_gen30_witness_conforms_to_non_protocol.py	REFUSAL	class 'C' (line 18): `#@ conforms_to NotAProtocol` but 'NotAProtocol' is not a recognized Protocol class. Conformance targets must be `class P(Protocol)` declarations in the same module.
+1754_gen30_witness_conforms_to_missing_member.py	REFUSAL	class 'C' (line 22): `#@ conforms_to P` but 'C' does not provide member 'm'. Conformance requires every protocol member to be present with a refining contract.
