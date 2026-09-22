@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 49 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 52 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -305,6 +305,15 @@ AUDITED = {
     ("src/pycsl/frontend/Module3_Weaver.py",
      'PyCSLSemanticError(f"`happy {hp.name}`: non-exempt \'{fn.name}\' REBINDS the whole field \'self.{hp.field}\' (line {getattr(nd, \'lineno\', 0)}), '): (FOLLOWABLE,
         'The repair is to write THROUGH the protected field rather than rebind it; an indexed store by the excepted owner VERIFIES.'),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: \'{hp.target}\' is guarded by a capability precondition, but it is called here as `{_shown}.{hp.target'): (FOLLOWABLE,
+        "The repair is to call through `self.<target>(...)`, which IS a capability check site; a `self.transfer(...)` call under the policy's precondition VERIFIES."),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: method \'{fn.name}\' contains a dynamic `exec(...)`, which may read anything — add it to `except` or r'): (FOLLOWABLE,
+        'The repair is to remove the dynamic `exec`; the same policy with no `exec` VERIFIES.'),
+    ("src/pycsl/core_ir_semantic.py",
+     'PyCSLSemanticError(f"`happy {hname}`: method \'{m}\' contains a dynamic `exec(...)`, which may write anything (not a compile-time-constant exe'): (FOLLOWABLE,
+        'Sibling of the entry above, same repair and same measurement.'),
 }
 
 
@@ -409,7 +418,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 49
+MIN_AUDITED = 52
 
 if __name__ == "__main__":
     sys.exit(main())
