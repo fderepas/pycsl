@@ -758,3 +758,8 @@ neg_002_broken_invariant.py	VERIFY-FAIL
 0209.py	REFUSAL	: a `with` statement in a file that defines a context-manager class (ACM) uses a context expression this build
 0217.py	VERIFY-FAIL	
 median_high_call_fails.py	VERIFY-FAIL	
+1729_gen30_witness_final_reassignment_f1.py	REFUSAL	Final: cannot reassign Final name 'LIMIT' in function 'f' (F1 — write-once at declaration; PEP 591). The name is declared `Final` at module/class scope and may be written only at its declaration.
+1730_gen30_witness_final_attribute_f2.py	REFUSAL	Final: cannot write Final instance attribute 'self.k' in function 'c__bump' (F2 — __init__-only writes; PEP 591). The attribute is declared `Final` and may be written only in the declaring class's __init__.
+1731_gen30_witness_lemma_discipline.py	REFUSAL	`#@ lemma` 'triv' must be annotated `-> None`: a lemma computes nothing (its WhyML result is `unit`); the body is the proof.
+1732_gen30_witness_lemma_frame.py	REFUSAL	`#@ lemma` 'triv' must be `assigns \nothing`: a lemma is erased at extraction and may not mutate non-ghost state.
+1733_gen30_witness_lemma_diverges.py	REFUSAL	`#@ lemma` 'triv' is also `#@ \diverges`: a non-terminating lemma proves nothing and would be unsound as a fact. Remove one.
