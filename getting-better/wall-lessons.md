@@ -27,7 +27,9 @@ claimed from an instrument that could not have shown the presence is not a measu
 **(j3)** a coverage gate can be measuring its own artifact, and a number that RECOMMENDS
 EFFORT deserves the scrutiny of one that reports success · **(k3)** four artifacts in one
 instrument is a fact about the instrument, and the fix is a SELF-AUDIT, not a fourth patch ·
-**(l3)** a single number invites over-reading; a BRACKET or a PARTITION does not.
+**(l3)** a single number invites over-reading; a BRACKET or a PARTITION does not ·
+**(m3)** a refusal's ADVICE is a claim the compiler makes about itself, and nothing tests
+it — a refusal offering two repairs should have had BOTH tried.
 
 ### (f3) An exclusion you never tested is a guess — check whether the reason still applies
 
@@ -253,6 +255,50 @@ So the cheap structural rule: **if a plane's headline is a single count, ask wha
 population is and what the rest of it is doing.** If the answer does not fit in a partition
 or a bracket, the number is going to be read as more than it says — and the reading will
 happen in a queue, months later, where the docstring is not.
+
+### (m3) A refusal's advice is a claim the compiler makes about itself
+
+`getting-better/convergence-metric-implement.md` has had this on its unmeasured list for
+generations: *"The refusal-text surface stays unmeasured. 62 advice-bearing messages, and
+#90 came from one. No metric in the report or this plan samples English prose for
+exploitability; the advice-audit generator remains manual."* The census is now 93 sites.
+
+I audited nine of them the only way that means anything: **write the program the message
+tells you to write, and run it.**
+
+SEVEN WORKED. "Rewrite it with an explicit flag" (for…else), "Use `pass` for an immediate
+arm" (lemma), "Return the value from the nested function" (nonlocal), "Rebuild the record"
+(list-element store), "pass and return the value" (global write), "only
+.keys()/.values()/.items()" (dict in a contract) and "only int/str/bool/None literals"
+(Literal) each produce a file that VERIFIES. That is the result, and it is good news about
+a surface nobody had sampled.
+
+TWO DID NOT, and they fail in the two different ways advice can fail.
+
+**Unspellable.** "Declare the variable `#@ shared`" — `#@ shared` alone is a SYNTAX ERROR;
+the grammar needs `#@ shared <name>`. Spelled correctly it works, including under the
+default memory model. But a `#@ shared` variable is not nameable in a contract, so adding
+`#@ assigns N` to the very function whose write you just declared is refused as an
+undefined variable: you can take the advice and then be unable to FRAME the write. (I
+checked whether that reopens route #129 rather than assuming — the exploit shape leaves the
+prover at UNKNOWN and the file FAILS. Sound.)
+
+**Untried.** "Call `__enter__` explicitly and assign its result" simply does not work. Two
+files identical except for ONE IDENTIFIER — a method returning 7 under
+`#@ ensures \result == 7`, called from a driver claiming the same — VERIFY as `enter` and
+FAIL as `__enter__`. `__len__` fails too; `_enter_` verifies. An explicitly-called DUNDER
+does not carry its contract to the call site. A completeness gap, not an unsoundness, but a
+reader cannot tell the difference from where they stand.
+
+THE SHARP PART: that message offered TWO repairs, and the one that WORKS was second. **A
+refusal that offers two repairs should have had both tried** — and first is what a reader
+takes. The message now leads with the working one and records the measurement that withdrew
+the other, so nobody re-adds it.
+
+The general form: a refusal's advice is a CLAIM the compiler makes about itself, in the one
+place a user is guaranteed to read, and it is the only claim in the system with no gate
+behind it. Seven of nine held, which is better than I expected and is exactly why the two
+that did not are worth the cost of finding.
 
 ## 2026-07-20 driver run (count 1030 → 1028; 2 conversions + these walls)
 
