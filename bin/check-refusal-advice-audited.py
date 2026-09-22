@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 67 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 71 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -359,6 +359,18 @@ AUDITED = {
     ("src/pycsl/module6_whyml/expressions.py",
      "PyCSLSemanticError('a comparison over a value that may be NaN on one path and an ordinary number on another is not modelled: NaN is the one "): (FOLLOWABLE,
         'The repair is to keep NaN out of the compared value; an integer comparison VERIFIES.'),
+    ("src/pycsl/module6_whyml/expressions.py",
+     'PyCSLSemanticError(f"the call `{func_name}(...)` resolves to a METHOD `{_sh_parts[1]}`, but the program also STORES an attribute `{_sh_parts'): (FOLLOWABLE,
+        'The repair is to give the method and the attribute distinct names; a class whose method name is not also stored as a field VERIFIES.'),
+    ("src/pycsl/module6_whyml/expressions.py",
+     'PyCSLSemanticError(f"the call `{func_name}(...)` resolves to a METHOD `{_sh_parts[1]}`, but instances of its class also carry an ATTRIBUTE `'): (FOLLOWABLE,
+        'The repair is to give the method and the attribute distinct names; a class whose method name is not also stored as a field VERIFIES.'),
+    ("src/pycsl/module6_whyml/expressions.py",
+     'PyCSLIRError(\'`\' + func_name + "(...)` MUTATES its receiver in place, and no certified lowering models it: the call becomes an abstract oper'): (FOLLOWABLE,
+        "'Model the mutation with indexed stores' - a hand-written swap under `#@ assigns xs[0 .. 1]` VERIFIES (the receiver-side sibling of the argument-side entry)."),
+    ("src/pycsl/module6_whyml/functions.py",
+     'PyCSLIRError("nested function \'%s\' is lifted to a sibling of its enclosing function, and the lift is not faithful here: %s. A lifted body re'): (FOLLOWABLE,
+        'The repair is a distinctly-named top-level helper called normally; it VERIFIES.'),
 }
 
 
@@ -463,7 +475,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 67
+MIN_AUDITED = 71
 
 if __name__ == "__main__":
     sys.exit(main())
