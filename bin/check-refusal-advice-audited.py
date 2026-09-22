@@ -25,8 +25,8 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 17 AUDITED** —
-13 FOLLOWABLE, 1 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. Thirteen of seventeen pieces of advice work,
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 19 AUDITED** —
+15 FOLLOWABLE, 1 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. Fifteen of nineteen pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
 below records what was written and what happened.
@@ -192,6 +192,12 @@ AUDITED = {
     ("src/pycsl/module6_whyml/statements.py",
      "PyCSLSemanticError(f'aliasing a mutated dict is out of scope: `{target} = {_alias_of}` binds a SECOND NAME TO THE SAME dict in Python, and a"): (FOLLOWABLE,
         "'A read-only rebind is fine' — `e = d` with only reads through both names VERIFIES."),
+    ("src/pycsl/module6_whyml/statements.py",
+     "PyCSLSemanticError('an `assert` whose TEST may have a SIDE EFFECT is not modelled: the test is lowered to `()`, i.e. DISCARDED, so any mutat"): (FOLLOWABLE,
+        "'Move the call out of the assert and assert over the result, or give the callee `#@ assigns \\nothing`' — both halves work; the audited file binds the call to a local, gives the callee `assigns \\nothing`, and `#@ check` over the result VERIFIES."),
+    ("src/pycsl/module6_whyml/statements.py",
+     "PyCSLIRError('`' + func + '(...)` appends to the collection in the field `' + func.split('.')[1] + '`, and no certified lowering models it: "): (FOLLOWABLE,
+        "'Rewrite it as an indexed store' — a `self.buf[i] = v` under a `\\length` class invariant and `requires 0 <= i and i < 8` VERIFIES. NOTE the standing counter-case recorded in `bin/check-stdlib-trusted-markers.py`: for `hlib.Sha256.update` the same rewrite FAILS, because that class's `__init__` can leave the field EMPTY so the `index in array bounds` sub-goal is un-dischargeable. The advice is followable when the length is pinned and not otherwise — which the message does not say."),
 }
 
 
@@ -296,7 +302,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 17
+MIN_AUDITED = 19
 
 if __name__ == "__main__":
     sys.exit(main())
