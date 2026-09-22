@@ -25,8 +25,8 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 28 AUDITED** —
-24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 24 of 28 pieces of advice work,
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 31 AUDITED** —
+24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
 below records what was written and what happened.
@@ -242,6 +242,15 @@ AUDITED = {
     ("src/pycsl/frontend/ir_resolve.py",
      'PyCSLSemanticError(f"Mixin composition \'{C}\': dependency \'{d[\'method\']}\' (declared by mixin \'{M}\' via #@ {d[\'kind\']}_method) has NO provider'): (FOLLOWABLE,
         "'add a mixin that `#@ provides <method>`' - a second mixin providing the dependency, composed with `#@ compose_from`, VERIFIES."),
+    ("src/pycsl/frontend/Module5_IREmitter.py",
+     'PyCSLSemanticError("`del <seq>[i:j]` (a SLICE delete) is not modelled: Python\'s slice `del` REMOVES a whole range, shifting every later elem'): (FOLLOWABLE,
+        "'Rewrite the deletion as an explicit shift loop, or delete the elements one at a time' - an indexed loop with an invariant and a variant VERIFIES."),
+    ("src/pycsl/frontend/Module5_IREmitter.py",
+     'PyCSLSemanticError("`del <obj>.<attr>` (an ATTRIBUTE delete) is not modelled: it was lowered to a bare no-op, so the model KEEPS the deleted'): (FOLLOWABLE,
+        "'model the reset explicitly with an assignment' - a `self.n = 0` method under `#@ assigns self.n` VERIFIES."),
+    ("src/pycsl/frontend/desugar.py",
+     "PyCSLParseError('`try ... except*` (an exception-GROUP handler) is not modelled: `_PY_STMT_HANDLERS` has no `TryStar` entry and `_py_stmts_t"): (FOLLOWABLE,
+        "'Rewrite with a plain `except`' - the plain handler VERIFIES."),
 }
 
 
@@ -346,7 +355,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 28
+MIN_AUDITED = 31
 
 if __name__ == "__main__":
     sys.exit(main())
