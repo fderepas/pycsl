@@ -800,3 +800,7 @@ median_high_call_fails.py	VERIFY-FAIL
 1770_gen30_witness_ni_secret_not_a_parameter.py	REFUSAL	`happy ni`: secret 'not_a_param' is not a parameter of 'summarize' (parameters: ['public_id', 'balance']).
 1771_gen30_witness_for_range_bound_not_literal.py	REFUSAL	[Module3]: `for i in range(...)`: range bound must be an integer literal (got Var); named-constant bounds are not yet supported
 1772_gen30_witness_for_range_empty_body.py	REFUSAL	[Module1]: `for i in range(0, 3)`: empty body
+1773_gen30_witness_global_aliased_into_local.py	REFUSAL	cannot alias module global 'g' into a local (inline.md Phase 3): a global is a single named object — call its methods or read its fields directly.
+1774_gen30_witness_global_passed_as_argument.py	REFUSAL	cannot pass module global 'g' as an argument (inline.md Phase 3): would alias the global; operate on it via its own methods/fields.
+1775_gen30_witness_inline_non_tail_return.py	REFUSAL	cannot inline 'counter__get' on 'g': it has a non-tail `return` (early return / return inside a branch). Verify it by contract.
+1776_gen30_witness_inline_returns_no_value.py	REFUSAL	cannot inline 'counter__touch' in expression position: it returns no value.
