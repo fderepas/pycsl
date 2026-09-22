@@ -147,6 +147,24 @@
 #         context (measured: 2 of the corpus's 30 dependencies fail standalone for exactly
 #         that reason, with PASS-expected importers). The IR has NO provenance field on a
 #         function — that is the missing primitive.
+#      2b. *** PRICED AND READY, 2026-09-23T00:00Z — DO THIS FIRST NEXT WINDOW. ***
+#         The refusal (`PYCSL-SEM-SUBSCRIPT`, core_ir_semantic ~585) keys on
+#         `symtab.get(<var>) == "bytes"`, and `_build_function_symbol_table`
+#         (Module5_IREmitter ~5596) types EVERY plain `x = <expr>` local as `"Any"` with
+#         ONE exception: a bytes LITERAL. Its own comment says a `bytes(...)` /
+#         `bytearray(...)` CONSTRUCTOR call "stays Any (unchanged — 0616/0658/0665
+#         untouched)". So the one-line change is to type a local assigned from `bytes(...)`
+#         as `"bytes"`, which makes the refusal fire and removes the reliance on
+#         ill-typedness that witness 1725 pins.
+#         BLAST RADIUS MEASURED (all four populations, lesson (d3)): locals assigned from
+#         `bytes(...)` occur **9 times in the corpus** (1601, 1725, 0868×2, 0658, …),
+#         **ZERO in the mirror**, **ZERO in the live tree**, and ONCE in
+#         `src/pycsl_lib/os/UnixInodeFileSystem.py`. That is an adjudicable byte-diff, not
+#         a sweep — which is exactly why it is worth doing as a FIRST act with a full day
+#         rather than squeezed in beside two running jobs.
+#         AFTER the refusal lands, the `bytes` lowering can take the `bytearray` count form
+#         that `expressions.py` already has (`Array.make n 0`), because the type error will
+#         no longer be the only thing holding the line.
 #      2. **The `bytes(n)` lowering, and the refusal it needs FIRST.** `bytes(n)` is left
 #         ill-typed on purpose (witness 1725): the type error is the only thing stopping a
 #         `bytes` item assignment from proving, because `PYCSL-SEM-SUBSCRIPT` keys on the
