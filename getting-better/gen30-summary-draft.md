@@ -447,6 +447,17 @@ conversion track is where the budget should go, and the two deferred segments
 | value-differential drivers | **75** | +5 earlier this session (v73-v77) |
 | unpushed commits | see `git log origin/ghost-assign-bc6..HEAD` | **nothing pushed; pushing stays gated to the user** |
 
+**AND THE METRICS THAT MOVED MOST WERE INSTRUMENTS, NOT THE COMPILER.** Refusal coverage
+went 85 -> 184 with only 31 witnesses written: the rest came from repairing the CENSUS
+(truncated at 110 characters by a writer three generations old, and again mid-UTF-8), the
+MATCHER (a `%s` placeholder the compiler never prints), and the POPULATION FILTER (21
+raises invisible because the campaign's own route refusals import their exception class
+under an alias). "84 of 104 stdlib modules verify" is worth 75. "81 identity stubs" had 78
+more of the same shape beside it. "113 refusals need witnesses, five minutes each" was 19.
+
+>>> Six distinct artifacts in ONE instrument in one evening, and the tell was the same
+>>> every time: A WITNESS THAT FIRED AND MOVED NOTHING. Banked as (j3), (k3), (l3), (o3).
+
 **The metric that did not move is the point.** Thirteen SEV-1 routes were closed this
 generation without adding a single `\trusted` marker and without moving the coverage or
 raises-honesty ratchets: every repair was either an opaque inside an already-effectful
