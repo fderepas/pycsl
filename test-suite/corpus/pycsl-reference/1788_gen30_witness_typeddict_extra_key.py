@@ -16,7 +16,6 @@ class Pt(TypedDict):
     y: int
 
 
-#@ requires True
 #@ assigns \nothing
 def build() -> Pt:
     return {"x": 1, "y": 2, "z": 3}

@@ -11,7 +11,7 @@ refusals `bin/check-refusal-witness-coverage.py` measured as having no witness.
 #@     targets summarize
 #@     noninterference secret not_a_param
 class Acct:
-    #@ requires True
+    #@ assigns \nothing
     #@ ensures \result == public_id * 2
     def summarize(self, public_id: int, balance: int) -> int:
         return public_id * 2

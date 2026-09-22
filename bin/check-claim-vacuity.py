@@ -61,11 +61,29 @@ MAX_VACUOUS_FILES = 1791      # 1792 at the first measurement; ONE repaired the 
                               # follows it down — that is what "may only shrink" means
 MAX_VACUOUS_REQUIRES = 1131   # ditto, for `requires True`
 
+# (#49) gen #30 — WHAT THIS DETECTOR CANNOT SEE, MEASURED RATHER THAN ASSUMED. The count
+# below is reported as "N files carry a trivially true postcondition", which reads as a
+# complete census and was never checked to be one. Three broader syntactic families were
+# scanned over all 3973 corpus files to find out what the three spellings miss:
+#   * `ensures A <op> A` for the SAME text on both sides (`\result >= \result`,
+#     `x == x`, `\old(n) <= \old(n)`): ZERO additional files.
+#   * `ensures <lit> <op> <lit>` for every comparison, not just `==` (`1 > 0`, `2 != 3`):
+#     ZERO additional files beyond the one `1 == 1` already counted (corpus 0317).
+# So for THIS corpus the three spellings are complete over literal and reflexive
+# tautologies, and the headline number is not an undercount hiding behind a narrow regex.
+# The operator set of TRIVIAL_LIT was widened anyway, so a future `ensures 1 > 0` is caught
+# by construction rather than by someone repeating this audit.
+#
+# STILL INVISIBLE, and named so the claim stays honest: SEMANTIC tautologies that are not
+# syntactic (`ensures \result == \result + 0`, `ensures n >= 0 or n < 0`,
+# `ensures True and \result == \result`). Catching those needs the expression
+# evaluator, not a regex — `pycsl.py::_run_vacuity_gate` is the mechanism that could, and
+# wiring it to this census is the reopening capability.
 TRIVIAL_ENSURES = (
     re.compile(r"#@\s*ensures\s+True\s*$"),
     re.compile(r"#@\s*ensures\s+\\result\s*==\s*\\result\s*$"),
 )
-TRIVIAL_LIT = re.compile(r"#@\s*ensures\s+(-?\d+)\s*==\s*(-?\d+)\s*$")
+TRIVIAL_LIT = re.compile(r"#@\s*ensures\s+(-?\d+)\s*(==|!=|>=|<=|>|<)\s*(-?\d+)\s*$")
 TRIVIAL_REQUIRES = re.compile(r"#@\s*requires\s+True\s*$")
 
 
@@ -79,7 +97,10 @@ def scan():
             hit = any(p.match(line) for p in TRIVIAL_ENSURES)
             if not hit:
                 m = TRIVIAL_LIT.match(line)
-                hit = bool(m) and m.group(1) == m.group(2)
+                if m:
+                    _a, _op, _b = int(m.group(1)), m.group(2), int(m.group(3))
+                    hit = {"==": _a == _b, "!=": _a != _b, ">=": _a >= _b,
+                           "<=": _a <= _b, ">": _a > _b, "<": _a < _b}[_op]
             if hit:
                 occurrences += 1
                 vac_files.add(f)

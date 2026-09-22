@@ -11,7 +11,7 @@ One of the refusals `bin/check-refusal-witness-coverage.py` measured as having n
 #@     targets no_such_method
 #@     noninterference secret balance
 class Acct:
-    #@ requires True
+    #@ assigns \nothing
     #@ ensures \result == public_id * 2
     def summarize(self, public_id: int, balance: int) -> int:
         return public_id * 2
