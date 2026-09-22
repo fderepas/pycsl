@@ -3237,3 +3237,20 @@ Final state of the six witnesses:
   1702 (#202 control, contract does NOT read p) VERIFIES
   1703 (#202 keyword spelling)                REFUSED
   1704 (#202 control, `*vals: str` vararg)    VERIFIES
+
+### Route #201 — both byte-diffs measured, and the mirror MOVED exactly one line
+  CORPUS: `1286 baseline / 1290 candidate, 0 MOVED, 0 GONE, 0 APPEARED, 4 new source
+  file(s) ignored` — byte-inert in all three directions.
+  MIRROR: **1 MOVED, `module6_whyml__expressions.mlw`**, and the diff is ONE LINE:
+
+      -          raise (Return_str "(Array.make 1 0)")
+      +          raise (Return_str "(any (array int))")
+
+  i.e. the mirror of the very method I edited, emitting the new tail. M1 exactly: a
+  non-zero byte-diff is allowed iff the diff is EXACTLY the intended correction AND
+  every affected program re-proves. This is the same shape #198 produced, and the rule
+  banked then holds: an emitter edit inside a CONVERTED method always moves at least
+  its own mirror; predict byte-inertness for the OTHER 52, never for that one.
+  The re-proof owed is `src/self-annotate/src/module6_whyml/expressions.py` — the
+  8250s giant, and the machine is oversubscribed, so it is queued rather than launched
+  on top of the suite and the #198 re-proof.
