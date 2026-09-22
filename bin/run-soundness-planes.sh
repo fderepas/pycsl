@@ -104,12 +104,21 @@ PLANES=(
     # `return whyml_str` appears five times across the two functions as five different
     # pass-throughs. Demonstrated to FIRE on the true pre-#201 source via `--live`.
     check-coercion-exits.py
+    # (#49) gen #30: the CORPUS-CONTRACT-TRUTH plane. `check-value-differential.py` is the
+    # battery's strongest instrument because it CURATES NOTHING — it re-runs CPython on
+    # every pass — but its population is 75 files someone chose. 216 PASS-expected corpus
+    # files already carry a zero-arg function with a LITERAL `ensures \result == N`, which
+    # is directly runnable, so the same measurement extends to the corpus for free. A
+    # failure here is the sharpest verdict in the battery: a test that PASSES the prover
+    # while its own postcondition is false of its own program. First measurement: 195
+    # AGREE, 0 DISAGREE, 21 not runnable standalone (reported, never dropped).
+    check-corpus-contract-truth.py
 )
 # (#49) gen #30: TIGHTENED to the EXACT fast-plane count. It had been carrying slack —
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=24
+MIN_PLANES=25
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #

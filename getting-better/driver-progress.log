@@ -3744,3 +3744,25 @@ ARE (substitute implementations or stdlib models — the docstrings assume the s
 import path implements the first), and (ii) a baseline for the 124 constant bodies. Both
 are judgement calls that belong with the `agent-stdlib-annotate` owner, not with a
 five-hour window.
+
+## NEW PLANE — `bin/check-corpus-contract-truth.py` (the 25th fast plane)
+`bin/check-value-differential.py` is the battery's strongest instrument for one reason: it
+CURATES NOTHING. Each driver states a literal in its own `#@ ensures \result == <int>` and
+RUNS ITSELF under CPython on every pass, so a claim that drifts from Python reclassifies
+itself automatically. Its weakness is population: 75 files someone chose.
+
+**216 of the 904 PASS-expected corpus files ALREADY carry a zero-argument function with a
+literal `#@ ensures \result == N`** — directly runnable, no drivers to write. So the same
+measurement extends from a curated 75 to the corpus itself, for free.
+
+FIRST MEASUREMENT: **195 AGREE with CPython, 0 DISAGREE**, 21 not runnable standalone
+(reported, never dropped — a plane that cannot tell "agreed" from "could not run" is not a
+plane). Population guard at 180, just under the first measurement, since the corpus only
+grows.
+
+A failure here would be the sharpest verdict the battery can produce: **a corpus test that
+PASSES the prover while its own postcondition is FALSE of the program it is written
+about** — a route witness hiding inside a green test. There are none today, and that is a
+fact nobody had measured.
+
+Battery is now **25 fast / 46 with `--slow`**. All 25 green at HEAD.
