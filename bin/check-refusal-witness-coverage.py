@@ -83,14 +83,14 @@ CENSUS_TRUNC = 4000       # the writer's message cap. See the TRUNCATION GUARD b
                           # stored message of EXACTLY this length was cut, and a cut
                           # message silently un-witnesses every site whose fragment falls
                           # past the cut.
-MIN_WITNESSED = 161       # 58 at the first joined measurement; 67 after TEN witnesses were
+MIN_WITNESSED = 162       # 58 at the first joined measurement; 67 after TEN witnesses were
                           # written the same day (Final F1/F2, three lemma arms, two
                           # assigns-region arms, `\length` on a dict, `\result` in a
                           # check, the happy `except` typo); 85 after 31 more; then 86
                           # with witness 1762 — and 131 once the CENSUS ITSELF was
                           # repaired. FORTY-FIVE of the "missing" witnesses had been in
                           # the corpus all along. May only grow.
-MAX_UNWITNESSED = 20      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
+MAX_UNWITNESSED = 19      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
                           # the instrument; 67 -> 59 by DEMONSTRATING the eight that no
                           # corpus witness can reach; 59 -> 50 once the nine this
                           # instrument CANNOT MATCH were counted separately (below).
@@ -315,6 +315,23 @@ def main():
               "in sites()." % (len(bad_frag),
                                "; ".join("%s:%d %r" % (r, l, f[:40])
                                          for r, l, f in bad_frag[:3])),
+              file=sys.stderr)
+        return 2
+
+    # A FIFTH TRUNCATION SHAPE, and a sharper detector than length. `1265`'s row was 109
+    # characters — not the 110/108/400 the repair passes looked for — and ended
+    # `other.transfer(\ufffd`: the old writer cut the message by BYTES, mid-UTF-8, and the
+    # decoder left a REPLACEMENT CHARACTER behind. So the site it witnesses read as
+    # undemonstrated for three generations and the length-based sweep could not see it.
+    # U+FFFD in a censused message is unambiguous evidence of a byte-truncated write (no
+    # PyCSL diagnostic contains one), so it is a REFUSAL like the length cut.
+    mangled = [w for w, c, m in rows if c == "REFUSAL" and "\ufffd" in m]
+    if mangled:
+        print("[!] refusal-witness-coverage: REFUSING — %d censused message(s) contain a "
+              "U+FFFD REPLACEMENT CHARACTER (%s%s), which means the row was cut mid-UTF-8 "
+              "by a byte-truncating write. The tail after the cut can never match a site "
+              "fragment. Re-run those witnesses and store the full message."
+              % (len(mangled), ", ".join(mangled[:3]), " …" if len(mangled) > 3 else ""),
               file=sys.stderr)
         return 2
 
