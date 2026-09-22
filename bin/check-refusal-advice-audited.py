@@ -25,7 +25,7 @@ it — the only method that means anything here:
   AMBIGUOUS    the repair is true but under-specified — a reader who follows it the
                obvious way still gets the refusal.
 
-THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 52 AUDITED** —
+THE FIRST MEASUREMENT (#49, gen #30): **198 raise sites, 94 advice-bearing, 54 AUDITED** —
 24 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED, 1 AMBIGUOUS. 27 of 31 pieces of advice work,
 which is better than I expected and is exactly why the four that do not are worth the cost
 of finding. TWICE the compiler was telling users to write a program IT CANNOT COMPILE. The failures are in the three distinct ways advice can fail, and each entry
@@ -314,6 +314,12 @@ AUDITED = {
     ("src/pycsl/core_ir_semantic.py",
      'PyCSLSemanticError(f"`happy {hname}`: method \'{m}\' contains a dynamic `exec(...)`, which may write anything (not a compile-time-constant exe'): (FOLLOWABLE,
         'Sibling of the entry above, same repair and same measurement.'),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: noninterference target \'{hp.target}\' can WRITE state — `{_wfield}` in \'{_wfn}\'{_via}. The synthesize'): (FOLLOWABLE,
+        'The repair is a state-free target; a `summarize` under `#@ assigns \\\\nothing` VERIFIES.'),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"`happy {hp.name}`: aliasing the protected field \'self.{hp.field}\' into a local in non-exempt \'{fn.name}\' is forbidden —'): (FOLLOWABLE,
+        'The repair is to read and write THROUGH the protected field; an excepted owner writing it and a reader reading it VERIFY.'),
 }
 
 
@@ -418,7 +424,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 52
+MIN_AUDITED = 54
 
 if __name__ == "__main__":
     sys.exit(main())
