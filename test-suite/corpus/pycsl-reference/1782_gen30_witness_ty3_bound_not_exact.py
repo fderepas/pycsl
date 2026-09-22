@@ -13,7 +13,7 @@ class Box[T: int]:
     def __init__(self, v: T) -> None:
         self.v: T = v
 
-    #@ ensures True
+    #@ assigns \nothing
     def get(self) -> T:
         return self.v
 

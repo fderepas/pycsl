@@ -275,6 +275,22 @@ DANGLING_EXEMPT = frozenset({
     "1759_gen30_witness_trailing_contract_block.py",
 })
 
+# (#49) gen #30, THE SAME SITUATION ONE RATCHET OVER, AND THE SAME TREATMENT. The CTXBIND
+# comment above records that every site this counter still sees is "either inside a
+# `\trusted`/`\abstract` function — whose body is never lowered — or inside a
+# `pycsl-expected: FAIL` witness", and that the +1 to 51 was corpus 0989, the witness for
+# route #20. `bin/check-refusal-witness-coverage.py` then measured that Module 6's
+# `with_bindings` REFUSAL — the one route #20 produced — had no witness of its own, so
+# 1784 was written to BE that proof. It duly fails, and it duly trips this ratchet.
+#
+# Naming the file is better than raising 51 to 52 for the reason the DANGLING note gives:
+# a bound that quietly absorbs its own witness stops distinguishing "a new `with ... as`
+# appeared in code we lower" from "someone added a test". The ratchet keeps its meaning
+# and the exemption states exactly which file it covers and why.
+CTXBIND_EXEMPT = frozenset({
+    "1784_gen30_witness_with_as_binding_unmodelled.py",
+})
+
 
 def _classify_augassign(node: ast.AugAssign):
     t = node.target
@@ -403,6 +419,8 @@ def scan_file(path: str):
             bucket, why = "REFUSED", "extended slice `x[lo:hi:step]` (desugar.reject_unmodelled)"
         elif isinstance(node, ast.With) and any(
                 it.optional_vars is not None for it in node.items):
+            if os.path.basename(path) in CTXBIND_EXEMPT:
+                continue     # the WITNESS for the refusal this ratchet guards; see above
             bucket, why = "CTXBIND", "`with ... as X` — the binding is not read"
         elif isinstance(node, ast.Try) and (node.finalbody or node.orelse):
             if node.finalbody and not node.handlers and not _jumps_out(node.body):
