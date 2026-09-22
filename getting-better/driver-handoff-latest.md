@@ -38,11 +38,22 @@
 #      every route refusal landed in `pycsl.py` since route #29. They were not
 #      undemonstrated, they were OUTSIDE THE POPULATION. 198 sites -> 219. Counts now
 #      182 demonstrated / 19 undemonstrated / 8 not-source-reachable / 10 unmatchable.
-#    - **TWO MORE COMPLETENESS GAPS WORTH THEIR OWN LOOK**, both measured with controls:
-#      (a) an explicitly-called DUNDER does not carry its contract (`c.enter()` verifies,
-#          `c.__enter__()` does not, identical otherwise; `__len__` too);
-#      (b) `Optional[List[T]]` as a parameter type emits WhyML with an unbound type symbol
-#          `array`, while `List[T]` and `Optional[int]` each compile fine.
+#    - **TWO MORE COMPLETENESS GAPS, both measured with controls and both now RECORDED
+#      IN THE REPO rather than only in a commit message:**
+#      (a) an explicitly-called DUNDER does not carry its contract. The emission says why:
+#          the method is not emitted as a `let` at all and the call becomes a CONTRACTLESS
+#          abstract op (`val c___enter___0 () : int`, no ensures, no receiver). SOUND (a
+#          contractless val is fresh, so a caller proves LESS, never more). Recorded as
+#          corpus **1800**, an expected-PASS that claims only what the model carries — a
+#          FAIL witness would be an XPASS the day the gap closes. POPULATION: 49
+#          non-`__init__` dunder defs in the corpus, 10 mirror, 14 live, 8 pycsl_lib.
+#      (b) `Optional[List[T]]` as a parameter or local emitted WhyML with an unbound type
+#          symbol `array`. **THE IMPORT HALF IS FIXED** (a late pull in the same shape as
+#          route #44's, byte-inert: ZERO corpus files use Optional/Union over a container).
+#          What remains is DEEPER and is now visible because the import no longer hides it:
+#          the union TYPE declares the list arm's payload as `int` while the arm GOAL
+#          quantifies `array int`, so the injection goal is genuinely FALSE. Fixing that
+#          means making the two payload-type computations agree.
 #    - **STILL RUNNING when this was written** (poll, do NOT relaunch): the mirror re-proof
 #      of `src/self-annotate/src/core_ir_semantic.py` (/tmp/mirror_cis.log — owed because
 #      `_check_mutable_defaults` is an un-trusted VERBATIM mirror twin and its message
