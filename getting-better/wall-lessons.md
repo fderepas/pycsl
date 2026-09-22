@@ -5111,3 +5111,69 @@ corpus today.
 >>> of one trusted function" are different sizes of claim, and only the second is the size
 >>> of the hole. The campaign's headline `\trusted` metric counts markers; this is the
 >>> first instrument that counts what they let through.
+
+### (y2) 2026-09-22 gen #30 — AN ENFORCEMENT MECHANISM THAT WRITES INTO A BODY IS ONLY AS STRONG AS THE GUARANTEE THAT THE BODY IS COMPILED
+
+Four routes in one hour (#206, #208, #210, #211) are one sentence:
+
+>>> A `#@ happy` POLICY ENFORCES ITSELF BY INJECTING SOMETHING INTO A BODY — A `#@ check`
+>>> AT EACH WRITE SITE, A `#@ check False` AT A FORBIDDEN ONE, A TERMINATION VC AT EACH
+>>> LOOP — AND A `\trusted` / `\abstract` BODY IS NEVER LOWERED, SO THE INJECTION
+>>> EVAPORATES.
+
+Two of the forms had correct trust boundaries from the day they were written (`region …
+writes outside region` demands `#@ \preserves` of ANY non-exempt trusted function;
+`reading` demands `except` membership). Three did not, and each failed differently:
+
+* the `protects` form's boundary **existed and could not fire** — it asked a `pure_ast`
+  matcher about a CSL node (#209);
+* once repaired, it keyed on the stub's DECLARED `#@ assigns`, **the one line a liar
+  controls** (#210);
+* the parametric form had no boundary at all (#211);
+* the `total` form's boundary covered the TARGET and not the CALLEE (#206), and then not
+  the `\diverges` callee either (#208).
+
+The general rule for anyone adding a policy: **enumerate every way a subject can fail to be
+compiled** (`\trusted`, `\abstract`, `\diverges`, imported, `--fun`-excluded), and write the
+boundary against THAT list rather than against the shape of the first counter-example.
+
+### (z2) 2026-09-22 gen #30 — A CHECK WITH NO WITNESS HAS NO EVIDENCE THAT IT CAN FIRE
+
+Route #209's boundary read correctly in the source. Every reviewer who looked at it —
+including me, twice — would have called it sound. It had never fired in its life, because
+`_target_dotted_path` tests `isinstance(target, ast.Attribute)` and an `#@ assigns` target
+is `FieldAccess(object='g', field='v')`, a CSL node. The computed set was `{None}` and the
+intersection with the protected paths was always empty.
+
+Nothing noticed because the SIBLING form's identical boundary (the region form, witnesses
+0461/0462) DOES fire. An untested inert check sat beside a tested live one and looked
+exactly the same from outside.
+
+>>> "THE SIBLING FORM HAS A WITNESS" IS NOT EVIDENCE ABOUT THIS ONE. A refusal you cannot
+>>> point at a file for is a refusal you have not tested, and the fix is not a code review —
+>>> it is `bin/check-happy-trust-boundaries.py`, which RUNS a carrier and a control for each
+>>> boundary through the shipping pipeline in three seconds.
+
+The static-gate instinct is wrong here for a reason worth remembering: a grep would have
+found the boundary and passed it. Only execution distinguishes "present" from "effective".
+
+### (a3) 2026-09-22 gen #30 — "VERIFY THE DEPENDENCY" IS NOT AS SIMPLE AS "VERIFY THE FILE"
+
+Route #212 (an importing unit believes every contract of an imported module — frames,
+postconditions, class invariants — and nothing checks the module was ever verified) has an
+obvious repair: verify the dependency. The mechanism was built (`--verify-imports`,
+transitive, cycle-safe, off by default) and then MEASURED against the repo's own 30
+locally-imported modules: 23 verify standalone, 7 do not. Five of the seven are
+deliberately-bad fixtures whose non-verification IS the scenario of an expected-FAIL
+witness. Two fail for CONTEXT reasons with PASS-expected importers — `r143_viaconsts`
+cannot even resolve the constant its own contract names when compiled alone.
+
+>>> A MODULE CAN BE MEANINGFUL ONLY INSIDE AN IMPORTING CONTEXT, so a module-level
+>>> certificate cannot simply mean "this file verifies on its own". That is why the flag
+>>> stays opt-in and why the route stays OPEN with its price written down instead of being
+>>> closed with a rule that would be wrong.
+
+The instrument note that came with it is the same lesson in miniature: the first sweep ran
+each dependency from the repo root, which makes its OWN imports unresolvable, and reported
+two extra failures that vanished once `--import-path` pointed at the corpus root. The
+measurement's context is part of the measurement.
