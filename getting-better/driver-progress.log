@@ -3254,3 +3254,12 @@ Final state of the six witnesses:
   The re-proof owed is `src/self-annotate/src/module6_whyml/expressions.py` — the
   8250s giant, and the machine is oversubscribed, so it is queued rather than launched
   on top of the suite and the #198 re-proof.
+
+ROUTE #202: all 22 fast planes green at HEAD (T6 confirmed), including
+`check-mirror-coverage` and `check-trusted-raises-honesty` — the two that caught #200's
+first placement. The refusal lives in `_run_pipeline`, already on both ratchets' lists,
+so neither moved; no new def, no new `\trusted` marker.
+ROUTE #201's mirror re-proof LAUNCHED ($SCRATCH/prove201.log,
+`src/self-annotate/src/module6_whyml/expressions.py`, the 8250s giant). Two whole-file
+mirror proofs and the suite are now in flight together; nothing else will be launched
+until one of them lands.
