@@ -38,7 +38,7 @@
 * `bin/check-coercion-exits.py` — the trigger rule's THIRD firing: `_array_coerce_arg` (#193, #201) and `_coerce_to_int` (#194, #200/#202) each produced two routes, and `check-argument-coercion.py` classifies the call SITES without ever looking inside the helpers. Pins both exit sets with counts; demonstrated to fire on the true pre-#201 source.
 * `bin/check-fstring-lowering.py` — built because the campaign's own trigger rule fired: TWO routes (#199, #203) in ONE function in ONE session. Pins the return set with counts AND two structural tokens, because #203 added a *wrap* rather than an exit and the return-set half is green on the pre-#203 tree — a blind spot the `--live` self-test found before it shipped.
 
-Battery: **18 -> 25 fast planes, 46 with `--slow`**, and `MIN_PLANES` tightened from a floor that carried slack to the exact count.
+Battery: **18 -> 26 fast planes, 47 with `--slow`**, and `MIN_PLANES` tightened from a floor that carried slack to the exact count.
 `check-swallowed-exceptions` ratchet **4 -> 0**, a hard zero.
 Five new `value-differential` drivers (v73-v77), the CPython-measured plane, covering
 #198, #199 and #203 in both the DISAGREE and the AGREE direction.
@@ -100,10 +100,19 @@ naming defects in standalone modules. The number that survives: **124 of 870 `py
 functions (14.3%) have a single-constant-return body** — harmless while nothing consumes
 them as stdlib models, and exactly what becomes a hole on the day something does.
 
-Recorded as a named, priced work item for the `agent-stdlib-annotate` owner, not started:
-turning the contract differential into a registered plane needs a decision on what the
-stubs ARE (the docstrings assume stdlib models, the import path implements standalone
-modules) and a baseline for the 124 constant bodies.
+**AND THEN IT WAS BUILT**: `bin/check-stdlib-contract-fidelity.py`, the 26th fast plane.
+The map is derived from the stubs' OWN headers (50 of the 93 name an importable stdlib
+module) and restricted to 24 PURE, DETERMINISTIC modules — the exclusion is a SAFETY
+property, since the gate calls the real function with generated arguments and `shutil`,
+`subprocess`, `tempfile`, `os`, `io`, `signal` and `pathlib` are all in the header-derived
+set. **5202 contract evaluations, 6 baselined divergences** — the two real defects above
+plus four `csys` functions whose own header declares the 0..1000 integer scaling. It is
+deterministic (fixed pools, no randomness — a sampling gate cannot carry a ratchet), guarded
+at 4500 evaluations, and self-tested: `--selftest-empty-baseline` must exit 1, and does.
+
+What remains for the `agent-stdlib-annotate` owner is the judgement the gate deliberately
+does not make: whether to FIX `mth.remainder` and `stat.filemode` (implement, or correct
+the citation) and what to do about the 124 constant bodies.
 
 ## Standing, deliberately deferred (re-priced this generation, not inherited)
 
