@@ -2887,3 +2887,21 @@ ratchets' lists, so neither moves.
 AFTER THE MOVE: all 22 fast planes green, witnesses 1697 (refused) / 1698 (verifies).
 THE LESSON: the choke-point rule is not a style preference. It is enforced by two
 independent ratchets, and a repair that ignores it turns them red in the same run.
+
+### Route #200 — the residue I went looking for BEFORE anyone asked, and it is real
+My refusal keys on a STRING LITERAL actual. So I asked the obvious next question: what
+about a string-typed LOCAL?
+
+    s = "a"
+    return callee(s)        # callee declares `p: int`
+
+MEASURED, by reading the emission rather than guessing: `let s = ref "a" in (callee !s)`
+— a Why3 `string` handed to an `int` parameter, which is an L3 TYPE ERROR. Fail-closed,
+and LOUD. But fail-closed BY A TYPE ACCIDENT, exactly the kind route #51's docstring
+records as a residue rather than a guarantee: the string model happens to give the local
+a real `string` type here, and `_coerce_to_int`'s hash arm is only reached for a literal.
+STANDING CONDITION, to be written beside the refusal: if a string-typed local ever
+reaches an int-declared parameter as an INT (as it would if that local were int-hash
+modelled), the literal-only key has a hole and the refusal must grow the variable arm.
+(Source-comment edit HELD: the #200 corpus byte-diff's post sweep is running off this
+working tree right now.)
