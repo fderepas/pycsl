@@ -5002,3 +5002,40 @@ the one-line instruction, keeping each plane's own guard as the backstop.
 >>> generation started, which is the honest headline and has been all along — and it is
 >>> worth RUNNING rather than recalling, because "459" has been repeated in prose a dozen
 >>> times tonight and this is the only place it was measured.
+
+## 2026-09-22 23:53 UTC — THE TO-DO ABOVE, APPLIED; AND THE BATTERY CAUGHT ME TWICE MORE
+
+The `--slow` pre-check is landed (827f4038). Bare `--slow` now refuses rc=2 in under a
+second naming why3, the five planes that need it, and the one-line fix; with
+`. scratchpad/g29/env.sh` sourced the guard passes. An escape hatch
+(`PYCSL_PLANES_NO_WHY3=1`) runs the other 62 planes for anyone who wants them anyway.
+
+The `--slow` battery at b7cdf184 finished: **8 of 67 RED**. Five were the why3 refusals the
+pre-check now pre-empts. The other three were real, and TWO OF THE THREE WERE MINE:
+
+1. `check-trusted-frame-honesty` rc=1, "total RATCHET BROKEN — 2 > 1". My union-array
+   repair made `_emit_union_arm_vc` write `self._needs_union_array_use`, while its mirror
+   `\trusted` stub still declared `#@ assigns \nothing`. A `\trusted` frame is ASSUMED,
+   never checked, so that is not a stale annotation, it is a false assumption everything
+   downstream rests on. Declared the write; did NOT raise the ratchet (rule (k)). Plane now
+   measures trusted 0 model-visible / 1 total and is green. Commit 0030cbb7.
+
+2. `check-emitted-vacuity` rc=1, a TRACEBACK: `FileNotFoundError` on a `.mlw` that
+   `os.walk` had just listed. Cause: I ran `check-trusted-frame-honesty` BY HAND while the
+   battery was running, and that plane emits `.mlw` beside the mirror sources and then
+   moves them out — under the feet of the plane that reads them in place. The battery's
+   loop is sequential precisely so that cannot happen. Lesson (r3), and the plane now
+   REFUSES (rc=2) naming the vanished file rather than crashing: a gate measuring a moving
+   target has no verdict, and a traceback reads as "the gate is broken" when the truth is
+   "the measurement is void". Commit 5f65ddda.
+
+3. `check-clause-survival` rc=1, "RATCHET BROKEN — 3 > 2" — under investigation with a
+   fresh corpus emission. One of the three deficits is `1800_gen30_dunder_call_loses_its
+   _contract.py` (ensures 2 -> 1), which is THE POINT OF THAT FILE: the explicitly-called
+   dunder's `#@ ensures \result == 7` does not reach the emitted module. Whether that is a
+   documented deficit to be classified or a ratchet to leave broken is the open question;
+   raising the constant is not on the table.
+
+>>> TWO OF THE THREE REAL REDS IN A 67-PLANE BATTERY WERE CAUSED BY THE AUTHOR, THAT
+>>> EVENING, AND NEITHER WAS VISIBLE IN THE EDIT THAT CAUSED IT. That is the argument for
+>>> the battery in one line.
