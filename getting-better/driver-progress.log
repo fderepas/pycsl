@@ -3109,3 +3109,24 @@ un-annotated — AND the callee's own `requires`/`ensures` MENTIONS that paramet
 That is the exact soundness condition, and it should leave the 46 mirror sites alone,
 because their callees are `\trusted` stubs with `ensures True`. MEASURED BEFORE BUILT,
 not after.
+
+### Route #202 — why "the contract mentions the parameter" is the EXACT condition, not a proxy
+I checked the obvious objection to my own gate before building it. What about a callee
+whose contract does NOT mention the parameter but whose BODY reads it, with a contract
+that constrains only `\result`?
+
+    #@ ensures \result == 1
+    def callee(p) -> int:
+        if p == 747471683:
+            return 1
+        return 2
+
+That contract cannot verify AT ALL: the callee is proved independently of any call site,
+with `p` universally quantified, and `forall p. result = 1` is false of its own body. The
+call-site substitution cannot rescue it, because the callee's own VC never sees the call
+site. So the only way a nameable hash reaches a CALLER's proof is through a callee contract
+that MENTIONS the parameter — which is precisely what the gate keys on.
+
+That is the difference between a gate keyed on the reason and a gate keyed on a proxy:
+#200 keyed on the annotation because the annotation CORRELATED with danger, and the
+correlation is what #202 walked through.
