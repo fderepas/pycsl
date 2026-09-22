@@ -629,7 +629,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _n213 = _w213.pop()
             if isinstance(_n213, dict):
                 if _n213.get("type") == "Call":
-                    if _n213.get("func") == "getattr" and len(_n213.get("args") or []) <= 2:
+                    # ANY ARITY. The first version of this refusal said
+                    # `len(args) <= 2`, because the witness was written with the
+                    # no-default form — and the 3-ARGUMENT form has the SAME defect:
+                    # `x = getattr(o, "a", 0); mutate(o); y = getattr(o, "a", 0)` under
+                    # `ensures \result == 0` PROVED with the narrow check in place
+                    # (witness 1728), because an UNKNOWN-class receiver takes route #197's
+                    # per-site constant whether or not a default is written. That is this
+                    # campaign's lesson (i) — name which SPELLINGS were run — missed on my
+                    # own patch for the SECOND time in one day (route #208 was the first).
+                    if _n213.get("func") == "getattr":
                         _k213 = _json.dumps(_n213, sort_keys=True)
                         _ga213[_k213] = _ga213.get(_k213, 0) + 1
                     elif _n213.get("func") not in ("getattr",):
