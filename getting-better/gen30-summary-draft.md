@@ -458,9 +458,21 @@ whether `hlib.Sha256.update`'s trust becomes a reviewer clause or an abstract `v
 
 The base self-tcb-reduction loop's metric is `\trusted` stubs CONVERTED to verified
 methods, and this generation converted **none**: the count stands at **459**, exactly where
-it started. What the window did instead was close **thirteen SEV-1 unsoundnesses** and add
-**six planes**, and those are not a substitute for conversions — they are the other half of
-the same job. A converted stub reduces what the verifier ASSUMES; a closed route fixes what
+it started. What the window did instead was close **twenty-three SEV-1 unsoundnesses** and add
+**fifteen planes**, and those are not a substitute for conversions — they are the other half
+of the same job.
+
+**AND THE FINAL STRETCH ADDS A THIRD THING THE METRIC DOES NOT SEE.** Six distinct
+artifacts were found and fixed in ONE instrument (`check-refusal-witness-coverage`), the
+ADVICE surface was audited end to end for the first time (108 of 108, six broken messages
+repaired), and three headline numbers were corrected downward because they were being read
+as more than they said. None of that converts a marker. All of it changes what the campaign
+KNOWS — and the 113-refusal work item it retired was priced at nine hours against a number
+that was wrong by a factor of six.
+
+>>> A GENERATION SPENT FIXING ITS OWN INSTRUMENTS LOOKS LIKE A GENERATION THAT DID NOTHING,
+>>> ON A METRIC THAT COUNTS MARKERS. The honest accounting is that the measurements this
+>>> campaign steers by were wrong in six distinguishable ways, and are now right. A converted stub reduces what the verifier ASSUMES; a closed route fixes what
 the verifier CLAIMS. A tree with 459 markers and no false proofs is in a better place than
 one with 400 markers and six live routes, and the campaign's own rule — never re-baseline a
 gate to make it green — is the same instinct applied to the metric: **do not convert a stub
