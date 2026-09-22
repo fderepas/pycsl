@@ -2583,3 +2583,24 @@ ROUTE #198 REPAIRED. P1/P2/P3 measured and all three match the prediction:
   ctrl       (`return 3`)      PROVES (unchanged)
 Live source and mirror patched identically (the mirror must stay VERBATIM).
 P4/P5 (corpus byte-diff, mirror emissions) next.
+
+### Where route #198 actually came from, and the two surfaces it swept on the way
+The emitter arm was the symptom. The SOURCE was a written justification:
+`core_ir_semantic._check_scalar_return_annotation` (route #51's refusal of a
+`-> str` that can `return None`) explains its own scope with
+
+    "SCOPED TO `-> str` DELIBERATELY, and the scope was measured, not guessed:
+     the `-> int` spelling of the same file FAILS CLOSED today (it reaches
+     route #44's opaque `pycsl_none`), so a refusal there would buy nothing"
+
+That was measured for the EXPLICIT `return None` — and it was true of it. It was
+never measured for the BARE `return`, the same Python statement. The check's own
+helper `_returns_literal_none` counts BOTH spellings; Module 6 did not. Docstring
+corrected in place (the mirror carries no docstrings, so the edit is emission-free).
+
+TWO NEIGHBOURING SURFACES SWEPT WHILE HERE, both fail-closed, both recorded:
+  - `-> str` with a bare `return`: REFUSED by Module 4 with the route-#51
+    diagnostic. Both spellings are caught there; only `-> int` had the hole.
+  - `-> int` FALLING OFF THE END (the docstring's own stated RESIDUE): both
+    `\result == 0` and `\result != 0` REFUSED. Still fails closed by the type
+    accident the docstring names, not by intent — the residue stands as written.

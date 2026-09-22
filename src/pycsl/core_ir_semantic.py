@@ -1100,6 +1100,19 @@ def _check_scalar_return_annotation(func) -> None:
     nine mirror re-annotations. Census at `27cf17b1`: ten mirror functions declare a
     scalar return and `return None`, and exactly ONE is `-> str`.
 
+    (#49) ROUTE #198 CORRECTS THE SCOPE ARGUMENT ABOVE. "The `-> int` spelling of the
+    same file FAILS CLOSED today" was measured for the EXPLICIT `return None` — and it
+    was true of that spelling. It was never measured for the BARE `return`, which is the
+    same Python statement: `_returns_literal_none` (above) counts both, but Module 6 did
+    not. A bare `return` in an int-returning function lowered to `raise (Return 0)`, so
+    `#@ requires x > 0` / `#@ ensures \result == 0` over `def f(x: int) -> int: if x > 0:
+    return` PROVED while CPython answers `None`, with the TRUE twin `\result != 0`
+    REFUSED. Repaired at the emitter (`stmt_control_flow.py`, the `val == "()"` arm), which
+    now emits the same `pycsl_none` the explicit spelling gets — so the scope argument is
+    true again, for both spellings, and this time both were measured. THE LESSON IS ABOUT
+    THIS DOCSTRING, not about that arm: a scope that is justified by "the other case fails
+    closed" has to name WHICH SPELLINGS of the other case were run.
+
     RESIDUE, STATED RATHER THAN HIDDEN: a callee that returns `None` IMPLICITLY, by
     falling off the end, has no `return None` for this check to see
     (`scratchpad/w51/q6.py`). It fails closed today, but by a TYPE ACCIDENT — the
