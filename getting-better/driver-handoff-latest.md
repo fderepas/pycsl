@@ -43,7 +43,22 @@
 #    - **REFUSAL COVERAGE ENDS AT 191 of 220** (6 undemonstrated, 13 not-source-reachable,
 #      10 unmatchable-by-measurement). `--append-new` keeps the census from rotting; use it
 #      after every witness you land, it takes seconds.
+#    - **ROUTE #218 (OPEN, found in the last two hours) — START HERE.** An explicitly-called
+#      DUNDER that writes self state is emitted as a `val` with NO `writes`, and Why3 reads
+#      that as PURE: `before = c.v; c.__enter__(); after = c.v; return before - after`
+#      PROVES `\result == 0` while CPython answers -7, and the TRUE twin FAILS. It needs no
+#      `#@ assigns` clause — a BODY that writes self is enough (measured: deleting the
+#      annotations changes nothing). The IMPLICIT dispatch (`len(c)`) is CLEAN, so the
+#      defect is the explicit call site. Blast radius took THREE passes and two were wrong;
+#      the right answer is ONE file, `python-reference/0076.py`, and deciding whether to
+#      refuse it is a judgement about that suite's intent. Repair 2 in the route file —
+#      emit the `writes` the `#@ assigns` already declares — is the one to price first,
+#      because it turns a FALSE claim into an ABSENT one. It also CORRECTS witness 1800's
+#      recorded soundness argument, which was true about the result and silent about the
+#      frame.
 #    - **NEXT WINDOW, IN ORDER:**
+#      0. ROUTE #218's repair (above). It is the only OPEN SEV-1 with a repair that might
+#         be cheap, and it shares a population with items 1 and 2.
 #      1. EMIT DUNDERS. It closes witness 1800's gap, makes route #216's obligation
 #         CHECKABLE (the refusal only stops the lie), and removes the only non-dunder-free
 #         entry from `check-emitted-function-coverage`. Byte-diff-RISKY: authorize-first.
