@@ -6,12 +6,11 @@
 
 ## §A.3 SUMMARY — the four things the skill asks for
 
-**ROUTES RESOLVED.** Twenty-seven SEV-1 routes demonstrated (#191–#216): **twenty-three
+**ROUTES RESOLVED.** Twenty-seven SEV-1 routes demonstrated (#191–#216): **twenty-four
 CLOSED** with a refusal or a faithful lowering, each carrying an expected-FAIL witness and
-a PASS control, and **four OPEN** (#212, #213, #214, #216) — demonstrated, priced, and left
+a PASS control, and **three OPEN** (#212, #213, #214) — demonstrated, priced, and left
 open deliberately because every candidate repair was measured and found worse than the
-defect, or (for #216) because pricing it needs a byte-diff this window did not run. The
-open ones have carriers outside the corpus and a plane that runs them.
+defect. The open ones have carriers outside the corpus and a plane that runs them.
 
 **ROUTE #216 WAS FOUND BY CHASING AN UNDEMONSTRATED REFUSAL, on the last night.** Two files
 identical except for ONE IDENTIFIER, under `--check-behavioral-subtyping`: `Sub.m` returning
@@ -23,7 +22,13 @@ substitutability obligation never recorded, so never checked) with a new trigger
 guard written for #97 misses it because **it covers "recorded but unresolvable" and not
 "never recorded"**. Blast radius measured: ZERO existing dunder override pairs anywhere in
 the repository, so it is LATENT — which is the argument for writing it down, not against:
-`__len__`, `__eq__` and `__lt__` are the first methods a real user overrides.
+`__len__`, `__eq__` and `__lt__` are the first methods a real user overrides. **CLOSED the
+same night** by `PYCSL-SEM-DUNDER-OVERRIDE-UNCHECKED` at the `_run_pipeline` choke point
+(a `\trusted` twin: no marker, no mirror edit, no re-proof), gated on the flag so no
+default run changes: witnesses 1805/1806, controls 1807 (a dunder with no override still
+PASSES) and 1808 (the same violation spelled `m` still FAILS), plus two negative controls
+by hand. What it does NOT buy is a CHECKED dunder override — that needs dunders emitted,
+which is the same work witness 1800 waits on, and the route file says so.
 
 **ROUTE #215 CAME OUT OF THE ADVICE AUDIT, WHICH IS THE POINT OF THE AUDIT.** Following
 monomorphize's GT4 advice ("the recursive call must use a concrete type") produced a file
