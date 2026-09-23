@@ -1,4 +1,4 @@
-# Route #219 (OPEN) — every check, VC and UB detector is switched off by the method's NAME
+# Route #219 (CLOSED, gen #31) — every check, VC and UB detector was switched off by the method's NAME
 
 **Found:** 2026-09-23, gen #31, by applying lesson (t3) to the one collection the campaign
 had just spent a morning learning about: `ir_data["functions"]`.
@@ -133,3 +133,43 @@ repair exactly "stop dropping dunders" and nothing wider.
 
 All four registered in `bin/check-open-route-carriers.py`, so the day one of them changes,
 somebody notices.
+
+
+---
+
+## CLOSED — 2026-09-23, gen #31, by EMITTING the dunders
+
+The repair is the one this record priced: `Module5_IREmitter._should_skip_method` now skips
+only the CONSTRUCTOR HOOKS — `__init__`, `__new__`, `__post_init__` — and every other dunder
+is emitted as an ordinary method, so it enters `ir_data["functions"]` and every check that
+iterates that list sees it.
+
+**All three carriers close, and their one-identifier-apart controls are unchanged:**
+
+    1828  `#@ no_exception \all` over `10 // 0` in `__enter__`   SUCCESS -> FAILED
+    1829  the same body in `enter`                              FAILED  -> FAILED
+    1830  UB-7.1's loop in `__enter__`                          SUCCESS -> REFUSED
+    1831  `#@ happy ... postcond` targeting `__enter__`         SUCCESS -> FAILED
+    1832  the same policy targeting `bump`                      FAILED  -> FAILED
+    1827  a dunder override that REFINES, under
+          `--check-behavioral-subtyping`                        REFUSED -> SUCCESS
+
+The last line is the one worth reading twice. Route #216's refusal stopped the LIE but also
+meant a CORRECT dunder override could only be DECLINED, never certified. With the methods
+emitted, `goal sub____len___refines_base` is BUILT: 1805 (a weakened override) still fails
+and now fails ON THAT GOAL rather than on the refusal, and 1827 discharges. The difference
+is between "we refuse to look" and "we looked and it holds".
+
+**THE TWO SKIPPED HOOKS KEEP THE REFUSAL**, because for them the original hazard is
+unchanged. `__new__` is not a method and becomes a Why3 type error when emitted with a
+return annotation (review oracle O9); `__post_init__` is owned by route #150's dedicated
+mechanism, and emitting it closes nothing while costing a failing frame goal on every honest
+dataclass (spiked before deciding).
+
+**WHAT IT COST, and every number was measured rather than estimated:** the `\trusted` count
+goes 459 -> 461. Both new markers are CORRECTIONS: `errors.py::PyCSLError.__str__` and
+`Module2_Parser.py::_Tok.__repr__` were counted among the 887 VERBATIM UN-TRUSTED TWINS —
+the population this project calls verified — while never being emitted or proved, because
+`check-untrusted-emitted` allow-listed `__repr__`/`__str__`/`__enter__`/`__exit__` as
+EXPECTED-ABSENT on the stated grounds that "dunders are modelled structurally", which was not
+what the emitter did with them. That allow-list now names only the skipped hooks.

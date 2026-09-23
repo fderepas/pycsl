@@ -163,3 +163,32 @@ The refusal makes the tool stop LYING about this pair. It does not make the pair
 — that is option 3, and witness 1800 is the standing reminder. A user who wants
 substitutability checked on `__len__` must today rename the method, which the refusal's
 message says in as many words.
+
+
+---
+
+## ADDENDUM — 2026-09-23, gen #31: the obligation is now CHECKABLE, and the refusal narrowed
+
+This record's own closing line was "STILL OWED: the pair is not CHECKABLE — that needs
+dunders EMITTED". That landed. `Module5_IREmitter._should_skip_method` now skips only the
+constructor hooks (`__init__`, `__new__`, `__post_init__`), so an overriding `__len__` IS
+emitted, the override pair IS recorded, and the refinement goal IS built.
+
+**The refusal is NARROWED, not removed**, and the distinction is load-bearing. The
+independent reviewer of the emit-dunders report measured it both ways (oracle O6): with the
+skip removed but the refusal still firing, corpus 1805 is STILL refused and NO goal is
+built — so a build that removed the skip alone would have shipped the claim "the Liskov
+obligation is now checkable" while delivering nothing. The refusal now fires only for the
+dunders that are still DROPPED, where its original reasoning is unchanged word for word.
+
+**What changed, in verdicts:**
+
+    1805  a WEAKENED dunder override    FAILED (by the refusal)
+                                     -> FAILED, on `goal sub____len___refines_base`
+    1827  a REFINING dunder override    REFUSED
+                                     -> SUCCESS
+
+The second line is the one this record could not have predicted. The refusal stopped the LIE
+and, in doing so, made a CORRECT dunder override impossible to certify — only to decline.
+The difference between "we refuse to look" and "we looked and it holds" is the whole value
+of the build, and it is why 1827 exists as a corpus witness rather than as a sentence here.

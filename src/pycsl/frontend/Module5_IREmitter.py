@@ -4275,8 +4275,25 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # whole-program fact cannot live in a per-node visitor, and a class is still a node.
         self._current_class = None
 
+    # (#49) gen #31 — THE TWO DUNDERS THAT STAY SKIPPED, each for a measured reason and
+    # neither for "dunders are unsupported".
+    #   `__new__`   is not a method, it is a static constructor hook, and UB-7.6 already
+    #               pins it to the trivial form. MEASURED (the emit-dunders review, O9):
+    #               `def __new__(cls) -> "N": return object.__new__(cls)` is SUCCESS today
+    #               and a Why3 TYPE ERROR when emitted; corpus 0496 survives only because it
+    #               carries no return annotation, i.e. the trigger is the annotation.
+    #   `__post_init__` is a dataclass hook that ROUTE #150 ALREADY OWNS, with a dedicated
+    #               mechanism (`has_post_init150` / `post_init_nonrecord150`) that refuses
+    #               rather than answering wrongly. SPIKED before deciding: a `@dataclass`
+    #               whose `__post_init__` sets `self.a = 7`, read back through `D(1).a`,
+    #               FAILS today under BOTH `\result == 1` and `== 7`. Emitting it closes
+    #               nothing and costs a failing synthesized-frame goal on every honest
+    #               dataclass (the hook exists to write fields and almost never declares
+    #               `#@ assigns`). REOPENING CAPABILITY: if route #150's mechanism is ever
+    #               replaced by a real field-initialisation model, this hook should be
+    #               re-examined WITH it — they are one question, not two.
     def _should_skip_method(self, node: ast.FunctionDef) -> bool:
-        """Return True if this method should be skipped: DUNDERS ONLY.
+        """Return True if this method should be skipped: the CONSTRUCTOR HOOKS ONLY.
 
         (#49) The docstring used to say "(dunders, @property)" and it had been WRONG since
         the `@property` branch was removed — a `@property` getter is emitted as an ordinary
@@ -4292,7 +4309,31 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if not self._current_class:
             return False
         if node.name.startswith('__') and node.name.endswith('__'):
-            return True
+            # (#49) gen #31 — ROUTE #219. Every OTHER dunder is now emitted as an ordinary
+            # method, because dropping it switched off EVERY check that iterates
+            # `ir_data["functions"]`: a `#@ no_exception \all` over `10 // 0` reported "All
+            # contracts formally proven" inside `__enter__` and FAILED one identifier away
+            # in `enter`; UB-7.1's HARD REFUSAL was evaded by moving the loop into a dunder;
+            # and a `#@ happy ... postcond` SECURITY policy targeting a dunder was accepted
+            # by Module 3 (which walks the AST, where dunders are present) and then never
+            # checked. Other method kinds were measured and are clean — plain, static,
+            # class, property, nested and module-level all FAIL or are REFUSED — so the
+            # repair is exactly this and nothing wider.
+            # THREE EXPLICIT EQUALITIES, not a set membership, and the reason is the
+            # MIRROR. This method's un-trusted twin is a FAITHFUL LOWERING built from
+            # `str_startswith_op`/`str_endswith_op` over `func_name_ast node`; a
+            # `name in self._KEEP_SKIPPED_DUNDERS` has no lowering there, while `==` on a
+            # string does (`str_eq_op`). The live body is the specification the mirror must
+            # copy VERBATIM, so its shape is constrained by what the mirror can prove —
+            # which is the self-annotation discipline working as designed, not a
+            # concession.
+            if node.name == '__init__':
+                return True
+            if node.name == '__new__':
+                return True
+            if node.name == '__post_init__':
+                return True
+            return False
         return False
 
     # --- refactor.md B-final wedge: Module5 builds the IR symbol_table itself ---

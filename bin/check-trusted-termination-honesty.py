@@ -58,7 +58,21 @@ TREES = (("mirror", os.path.join(ROOT, "src", "self-annotate", "src")),
          ("stdlib", os.path.join(ROOT, "src", "pycsl_lib")),
          ("corpus", os.path.join(ROOT, "test-suite", "corpus")))
 MIN_FUNCTIONS = 6500          # 7440 across the three trees at the first measurement
-MAX_SILENT = 52               # 47 mirror + 2 stdlib + 3 corpus at the first measurement
+MAX_SILENT = 53               # (#49) gen #31: 52 -> 53, DELIBERATELY and with the member
+                              # named. Route #219's build stopped dropping dunders, so
+                              # `errors.py::PyCSLError.__str__` became emittable, failed as a
+                              # Why3 TYPE ERROR (an int-modelled field into a `seq string`)
+                              # and took an honest `#@ \trusted` marker — which is what puts
+                              # it in THIS population. The "loop" this plane reports is a
+                              # SELF-CALL, and the self-call is `super().__str__()`: a call to
+                              # the BASE class's method, not recursion. The heuristic is
+                              # CONSERVATIVE BY DESIGN (it cannot tell `super().m()` from
+                              # `self.m()` without a class graph) and is left that way — an
+                              # exception carved for one entry is how a population filter
+                              # starts lying, which this campaign has now measured six times.
+                              # It retires with the marker: see driver-backlog.md heading
+                              # "the two mirror dunder markers".
+                              # 47 mirror + 2 stdlib + 3 corpus at the first measurement
                               # (the mirror figure counts self-recursive trusted bodies too,
                               # which a first pass double-counted against the loop figure)
 

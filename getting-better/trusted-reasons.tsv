@@ -67,6 +67,7 @@ core_ir_semantic.py	_namedtuple_check_call	unclassified	-
 core_ir_semantic.py	_namedtuple_check_subscript	unclassified	-
 errors.py	PyCSLError.message	unclassified	-
 errors.py	PyCSLError.as_dict	unclassified	-
+errors.py	PyCSLError.__str__	cost-scale:string-field-model	the two mirror dunder markers
 exception_model.py	bases_closure	unclassified	-
 frontend/ConcurrencyChecker.py	ConcurrencyChecker.check	unclassified	-
 frontend/ConcurrencyChecker.py	ConcurrencyChecker._check_function	unclassified	-
@@ -110,6 +111,7 @@ frontend/Module2_Parser.py	_ContractParser._parse_atom_name	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_atom_bs	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_expr_list	unclassified	-
 frontend/Module2_Parser.py	Module2_Parser.parse_contract	unclassified	-
+frontend/Module2_Parser.py	_Tok.__repr__	cost-scale:return-annotation	the two mirror dunder markers
 frontend/Module3_Weaver.py	PyCSLWeaver._subst_var	unclassified	-
 frontend/Module3_Weaver.py	PyCSLWeaver._desugar_acts	unclassified	-
 frontend/Module3_Weaver.py	PyCSLWeaver._extract_mixin_directives	unclassified	-

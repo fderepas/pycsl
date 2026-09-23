@@ -55,20 +55,35 @@ import warnings
 
 CORPUS = "test-suite/corpus/pycsl-reference"
 
-# A dropped DUNDER is a known, named completeness gap: witness
-# `1800_gen30_dunder_call_loses_its_contract.py` pins the call-site shape (a contractless
-# `val`, sound because the caller proves LESS) and route #216 pins the dangerous corollary
-# (a dropped dunder takes a Liskov obligation with it and the run still says SUCCESS).
-# It closes when dunders are emitted. Until then a dunder drop is EXPLAINED; anything else
-# is not.
-MAX_ZERO_COVERAGE = 1
+# A dropped DUNDER was a known, named completeness gap: witness
+# `1800_gen30_dunder_call_loses_its_contract.py` pinned the call-site shape (a contractless
+# `val`) and route #216 pinned the dangerous corollary (a dropped dunder takes a Liskov
+# obligation with it and the run still says SUCCESS). This header said "It closes when
+# dunders are emitted."
+#
+# (#49) gen #31 — IT CLOSED. Route #219 (every check, VC and UB detector switched off by the
+# method's NAME) made the case, and `Module5_IREmitter._should_skip_method` now skips only
+# the CONSTRUCTOR HOOKS. The measurement across the same 922 corpus files went
+#     8 dropped functions, 1 ZERO-COVERAGE   ->   1 dropped function, 0 ZERO-COVERAGE
+# and the one that remains is `0496.py::__new__`, still skipped because emitting a
+# return-annotated `__new__` is a Why3 TYPE ERROR (review oracle O9) and UB-7.6 already pins
+# it to the trivial form. `__post_init__` is skipped too, for route #150's reasons, and does
+# not appear here because no corpus file loses its ONLY function to it.
+#
+# MAX_ZERO_COVERAGE IS NOW ZERO AND THAT IS THE RATCHET THAT MATTERS: 0402 used to be the
+# one file whose every function was dropped, and it now emits (and verifies) its `__del__`
+# under an honest `#@ assigns self._n`, with corpus 1826 as the twin that proves the check
+# bites. A file losing ALL its functions again is a regression, not a known gap.
+MAX_ZERO_COVERAGE = 0
 MIN_COMPARED = 800
 
-# The one file whose every function is dropped, with the reason. Mechanically re-checked:
-# the entry is only honoured while all of that file's missing defs really are dunders.
-KNOWN_ZERO = {
-    "0402.py": "its only function is `__del__` (UB-7.5, `#@ allow_finalizer`), a dunder",
-}
+# Empty, and it should stay that way. An entry here says "every function in this file is
+# dropped and that is fine"; the campaign spent a generation learning that such a sentence
+# outlives its reason (`check-untrusted-emitted`'s allow-list said "dunders are modelled
+# structurally" while the emitter simply dropped them, and two mirror functions sat in the
+# VERIFIED population for a generation because of it). Mechanically re-checked: an entry is
+# only honoured while all of that file's missing defs really are dunders.
+KNOWN_ZERO = {}
 
 _KW = r"(?:rec|ghost|function|predicate|lemma|constant)\s+"
 _DEF_RE = re.compile(r"\b(?:let|val|with)\s+(?:" + _KW + r")*([A-Za-z_][A-Za-z0-9_']*)")

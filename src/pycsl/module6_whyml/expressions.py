@@ -8788,7 +8788,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # the repository (3 sites, all `errors.py`, plus 5 in the live tree; ZERO in
             # either corpus, re-counted rather than inherited from this comment's own
             # "byte-clean" claim) — is untouched and keeps the nullary op.
+            # (#49) gen #31 — THE RECOGNIZER MUST STAND DOWN WHEN THE METHOD IS EMITTED.
+            # ROUTE #219's build stopped dropping `__str__`, and corpus 1820 — route #220's
+            # own witness — WENT XPASS THE SAME HOUR: with `__str__` emitted, the
+            # `skipped_dunder_writes` table has no entry for it, the #220 frame below cannot
+            # fire, and this branch fell back to the nullary `str_dunder_op ()`, restoring
+            # exactly the purity claim #220 had just removed. The witness earned its place
+            # in under a day, and it is lesson (d4) a second time: this recognizer runs
+            # FIRST, so a repair made anywhere downstream is only as good as the set of
+            # inputs that reach it.
+            # So when the receiver's class emits its OWN `__str__`, fall through to the
+            # ordinary dotted-call path, which carries the real contract, the real receiver
+            # and the real frame. `super().__str__()` — the only spelling that occurs
+            # anywhere in this repository — has no record receiver and still takes the
+            # nullary op, which is what this recognizer was written for.
             _r220 = func_name[: -len(".__str__")] if func_name != "__str__" else ""
+            if _r220 and "." not in _r220:
+                _ec220 = ((getattr(self, "_current_record_var_classes", {}) or {}).get(_r220)
+                          or (getattr(self, "_module_global_classes", {}) or {}).get(_r220)
+                          or (self._current_self_type if _r220 == "self" else ""))
+                if (_ec220 and f"{str(_ec220).lower()}____str__"
+                        in getattr(self, "_module_method_return_types", {})):
+                    # `.__str__()` takes no arguments — the branch's own guard is
+                    # `not expr.get("args")` — so the lowered-argument list is literally
+                    # empty. (`args` is not in scope here; it is bound further down the
+                    # dispatcher, which is the same "this recognizer runs FIRST" fact that
+                    # made route #220 possible.)
+                    return self._handle_dotted_call(func_name, [])
             _sdw220 = (self.ir.get("skipped_dunder_writes") or {})
             if _r220 and "." not in _r220 and _sdw220:
                 _c220 = ((getattr(self, "_current_record_var_classes", {}) or {}).get(_r220)

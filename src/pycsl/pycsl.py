@@ -634,8 +634,29 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     #
     # IT CANNOT RETIRE AN EARLIER REFUSAL (lesson (n3)): it fires only on DUNDER pairs,
     # and a dunder pair is precisely what no other check can see.
+    # (#49) gen #31 — THE REFUSAL IS NOW SCOPED TO THE DUNDERS THAT ARE STILL DROPPED.
+    # "Emitting dunders is the real fix" (above) LANDED. With it, an overriding `__len__`
+    # IS emitted, the pair IS recorded, and `goal sub____len___refines_base` IS built and
+    # correctly FAILS for a weakened contract — measured by the independent reviewer of the
+    # emit-dunders report (oracle O6), first with the refusal in place (still refused, no
+    # goal built, so the "obligation becomes checkable" claim would have SHIPPED FALSE) and
+    # then with it gated off (goal built, goal fails). So the refusal is lifted for every
+    # emitted dunder and KEPT for `__new__` and `__post_init__`, which remain dropped for
+    # their own measured reasons (`Module5_IREmitter._KEEP_SKIPPED_DUNDERS`) and for which
+    # the original hazard is unchanged: the pair is still never recorded, and a run would
+    # still report `All contracts formally proven` with the obligation silently absent.
+    # A refusal whose stated cause has been REPAIRED must narrow to what is still true, or
+    # it becomes the third kind of wrong number this campaign keeps finding — a gate that
+    # is green, loud, and about something that no longer exists.
     if getattr(args, "check_behavioral_subtyping", False):
         from frontend import pure_ast as _ast216
+        # The dunders `Module5_IREmitter._should_skip_method` still drops. Kept as a
+        # literal here rather than imported from the emitter: that method's body is a
+        # VERBATIM-MIRRORED specification whose shape is constrained by what the mirror can
+        # lower, so it holds no constant to import. The pairing is enforced by corpus
+        # 1805/1806 (still refused) and 1827 (an emitted-dunder override whose Liskov goal
+        # is now BUILT and fails) — a drift between the two lists moves one of those files.
+        _still_dropped216 = {"__init__", "__new__", "__post_init__"}
         _cls216 = {}
         for _n216 in _ast216.walk(unified_ast):
             if isinstance(_n216, _ast216.ClassDef):
@@ -643,6 +664,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     {_m.name for _m in _n216.body
                      if isinstance(_m, (_ast216.FunctionDef, _ast216.AsyncFunctionDef))
                      and _m.name.startswith("__") and _m.name.endswith("__")
+                     and _m.name in _still_dropped216
                      and _m.name != "__init__"},
                     [_b.id for _b in _n216.bases if isinstance(_b, _ast216.Name)],
                     getattr(_n216, "lineno", 0))

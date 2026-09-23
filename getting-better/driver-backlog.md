@@ -80,6 +80,35 @@ artifacts are still TRACKED, which is a decision nobody has made rather than one
 made.
 
 
+### #51 gen #31 — the two mirror dunder markers, and the capability that retires each
+
+Route #219's build (emit every dunder but the constructor hooks) added exactly TWO `\trusted`
+markers, 459 -> 461, and both are CORRECTIONS rather than regressions: each method sat in the
+887 VERBATIM UN-TRUSTED TWINS — the population this project calls verified — while never
+being emitted or proved, because `check-untrusted-emitted` allow-listed
+`__repr__`/`__str__`/`__enter__`/`__exit__` as EXPECTED-ABSENT with the reason "dunders are
+modelled structurally", which is not what the emitter did with them.
+
+Both fail as Why3 TYPE ERRORS, not as proof failures, so `\trusted` HIDES rather than
+RESOLVES them — which is exactly why each carries its retiring capability here:
+
+* **`errors.py::PyCSLError.__str__` — `cost-scale:string-field-model`.**
+  `parts := Seq.snoc !parts self.pycslerror_filename` puts an int-modelled field into a
+  `seq string` (`This expression has type int, but is expected to have type string`). The
+  string-typed self fields (`filename`, `stage`) are carried as ints in the record model. A
+  faithful string-field model retires this marker and several others; it is the same
+  capability the `hval`/string track has been circling for generations.
+* **`frontend/Module2_Parser.py::_Tok.__repr__` — `cost-scale:return-annotation`.**
+  The def has no return annotation, the emitter types it `int`, and the body returns an
+  f-string (`This expression has type string, but is expected to have type int`). Annotating
+  the LIVE twin `-> str` retires it — a LIVE SOURCE edit, so it owes the fidelity plane a
+  matching mirror edit and that file a whole-file re-proof. Cheap, and not attempted here
+  because it is a second change riding on a large one.
+
+NEITHER IS A CORRECTNESS BOUNDARY. Both are cost/scale, both name their capability, and the
+second is small enough to be a good first item for a window with spare budget.
+
+
 ### #49 gen #30 STATE (2026-09-22, the 96h autonomous window) — READ FIRST
 
 **ELEVEN SEV-1 ROUTES CLOSED AND FOUR PLANES ADDED IN THIS GENERATION.** #191–#197 landed

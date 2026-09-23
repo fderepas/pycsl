@@ -58,34 +58,13 @@ DRIVER = os.path.join(ROOT, "src", "pycsl", "pycsl.py")
 
 # carrier path -> (expected verdict TODAY, route, what the verdict means)
 CARRIERS = {
-    # (#49) ROUTE #219 — EVERY check, VC and UB detector is switched off by the method's
-    # NAME. `_should_skip_method` drops every dunder before any IR is built, so the method
-    # never enters `ir_data["functions"]` and nothing that iterates that list can see it.
-    # Two carriers and their one-identifier-apart controls; the controls are registered too,
-    # because a carrier that "still proves" means nothing unless the control still fails.
-    "getting-better/open-routes/route219-carrier-no-exception-inside-a-dunder.py": (
-        "SUCCESS", "#219",
-        "`#@ no_exception \\all` over `10 // 0` inside `__enter__` reports All contracts "
-        "formally proven; renamed `enter`, the identical file FAILS"),
-    "getting-better/open-routes/route219-control-no-exception-non-dunder.py": (
-        "FAILED", "#219",
-        "the control: the same body under the same contract in a NON-dunder method, which "
-        "is what makes #219 a route and not a missing feature"),
-    "getting-better/open-routes/route219-carrier-ub71-inside-a-dunder.py": (
-        "SUCCESS", "#219",
-        "UB-7.1 (mutation during iteration) is a HARD REFUSAL and it is evaded by putting "
-        "the loop in `__enter__`"),
-    "getting-better/open-routes/route219-control-ub71-plain-function.py": (
-        "REFUSED", "#219",
-        "the control: the identical loop in a plain function IS refused by the UB detector"),
-    "getting-better/open-routes/route219-carrier-happy-policy-on-a-dunder.py": (
-        "SUCCESS", "#219",
-        "a `#@ happy ... postcond` SECURITY policy targeting a dunder is ACCEPTED by "
-        "Module 3 (which walks the AST and finds the target) and then never checked, "
-        "because Module 5 drops the method"),
-    "getting-better/open-routes/route219-control-happy-policy-on-a-method.py": (
-        "FAILED", "#219",
-        "the control: the same policy on a NON-dunder target is enforced and the file fails"),
+    # (#49) ROUTE #219 IS CLOSED (gen #31) — dunders are now EMITTED, so every check that
+    # iterates `ir_data["functions"]` sees them. The six carriers moved INTO the corpus as
+    # witnesses 1828-1832 (plus 1827, the Liskov override that is now CERTIFIED rather than
+    # merely un-lied-about), each with its one-identifier-apart control. The carrier files
+    # are retained in this directory as the route's historical evidence and are no longer
+    # gated here: they now FAIL or are REFUSED, and entries asserting SUCCESS would make
+    # this plane red for the right reason at the wrong time.
     # (#49) ROUTE #221 — `--fun` ASSUMES A FRAME NOBODY WROTE AND NOTHING CHECKS. Found by
     # the independent fable reviewer of the emit-dunders report, as a finding EXPLICITLY NOT
     # about that build (it reproduces at base, for ORDINARY methods). Three entries: the

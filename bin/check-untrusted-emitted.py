@@ -46,8 +46,22 @@ MIRROR = os.path.join(ROOT, "src/self-annotate/src")
 LIVE_IMPORT = os.path.join(ROOT, "src/pycsl")
 
 # ABSENT is expected for these SHAPES: constructors are inlined into the record's `by`
-# witness, and dunders are modelled structurally rather than emitted as functions.
-EXPECTED_ABSENT = ("__init__", "__repr__", "__str__", "__enter__", "__exit__")
+# witness, and the two remaining constructor HOOKS are still skipped by
+# `Module5_IREmitter._should_skip_method` for their own measured reasons.
+#
+# (#49) gen #31 — THE LIST USED TO READ
+#     ("__init__", "__repr__", "__str__", "__enter__", "__exit__")
+# with the justification "dunders are modelled structurally rather than emitted as
+# functions". THAT JUSTIFICATION WAS NOT WHAT THE EMITTER DID: dunders were DROPPED before
+# any IR was built, not modelled. The consequence was small in count and sharp in kind —
+# TWO un-trusted mirror functions (`errors.py::PyCSLError.__str__`,
+# `Module2_Parser.py::_Tok.__repr__`) were counted among the 887 VERBATIM UN-TRUSTED TWINS,
+# i.e. in the population this project calls verified, while NEVER BEING EMITTED OR PROVED.
+# An allow-list entry with a wrong reason is how that survives a whole campaign.
+# Route #219's repair emits every dunder but `__init__`/`__new__`/`__post_init__`, so the
+# list narrows to exactly those, and the two mirror methods now carry honest `#@ \trusted`
+# markers (459 -> 461) instead of an exemption.
+EXPECTED_ABSENT = ("__init__", "__new__", "__post_init__")
 
 # CLUSTER-EMITTED functions. Several recognizers emit a whole GROUP of mirror functions as
 # ONE self-contained `let rec` block whose members carry GENERATED names, so the Python

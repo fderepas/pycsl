@@ -5870,3 +5870,69 @@ produced BY a flag. The per-carrier `EXTRA_FLAGS` table's first draft keyed on t
 path while the table held RELATIVE ones — so the carrier ran WITHOUT `--fun`, reported
 FAILED, and looked EXACTLY like a closed route. It now refuses when a flags key names no
 carrier. Lesson (f4).
+
+## 2026-09-23 10:30 UTC — THE EMIT-DUNDERS BUILD, WITH EVERY NAMED CHANGE THE REVIEW ASKED FOR
+
+Gate S: PASSED (independently reproduced). Gate R: PASSED with TEN oracle runs, verdict
+PROCEED-WITH-NAMED-CHANGES. Gate P: the plan is spike-first with two refutation exits
+(R-A the mirror typing, R-B the plib contract), the three-plane battery, and costed scope.
+
+WHAT LANDED, in the order the plan gives:
+
+  1. `__new__` and `__post_init__` STAY SKIPPED, each for a measured reason. `__new__` is a
+     static constructor hook that becomes a Why3 TYPE ERROR when emitted with a return
+     annotation (review O9; corpus 0496 survives only because it has none).
+     `__post_init__` is owned by ROUTE #150's dedicated mechanism — spiked before deciding:
+     a `@dataclass` whose hook sets `self.a = 7`, read back through `D(1).a`, FAILS today
+     under BOTH `== 1` and `== 7`, so emitting it closes nothing and costs a failing frame
+     goal on every honest dataclass.
+
+  2. THE LIVE BODY'S SHAPE IS CONSTRAINED BY WHAT THE MIRROR CAN PROVE, and that is the
+     self-annotation discipline working rather than a concession. The first draft used
+     `node.name in self._KEEP_SKIPPED_DUNDERS`; `_should_skip_method`'s UN-TRUSTED mirror
+     twin is a FAITHFUL LOWERING built from `str_startswith_op`/`str_endswith_op`, where a
+     set membership has no lowering and `==` does. Rewritten as three explicit equalities;
+     mirror synced verbatim; Module5 mirror L3-tc GREEN.
+
+  3. ROUTE #216's REFUSAL NARROWED IN THE SAME INCREMENT, which the review said was
+     load-bearing: with the skip removed but the refusal in place, 1805 is STILL refused and
+     no goal is built, so "the Liskov obligation becomes CHECKABLE" would have SHIPPED
+     FALSE. Narrowed to the still-dropped hooks, `goal sub____len___refines_base` is BUILT —
+     1805 now fails ON THAT GOAL and corpus 1827 (a refining override) VERIFIES, which it
+     could never do before: the refusal stopped the lie and also made a correct override
+     un-certifiable.
+
+  4. 0402 gains `#@ assigns self._n` AND a twin (1826) whose finalizer sets `self._n = -1`.
+     The twin PROVED before (nothing looked at the body) and now fails on the class
+     invariant. `#@ allow_finalizer` moves from "we ignore your finalizer" to "your
+     finalizer must respect the invariant and its frame". The perimeter is unchanged in what
+     it does NOT promise: finalizer TIMING is still unmodelled.
+
+  5. TWO MIRROR MARKERS, 459 -> 461, AND BOTH ARE CORRECTIONS.
+     `errors.py::PyCSLError.__str__` and `Module2_Parser.py::_Tok.__repr__` were counted
+     among the 887 VERBATIM UN-TRUSTED TWINS — the population this project calls verified —
+     while NEVER BEING EMITTED OR PROVED, because `check-untrusted-emitted` allow-listed
+     `__repr__`/`__str__`/`__enter__`/`__exit__` as EXPECTED-ABSENT with the reason "dunders
+     are modelled structurally". That was not what the emitter did with them. Both are Why3
+     TYPE ERRORS when emitted, not proof failures, and each marker records its REOPENING
+     CAPABILITY (a `-> str` annotation for one; a faithful string-field model for the other).
+     The allow-list now names only the skipped hooks.
+
+  6. `pycsl_lib/plib`'s `PurePath.__str__` carried `#@ ensures \result >= 0` over
+     `return self._path` — an opaque handle nothing said was non-negative. The clause had no
+     basis in the model and was never checked. The assumption moves INTO the contract
+     (`#@ class invariant self._path >= 0` + `#@ requires path >= 0` on `__init__`), the
+     same repair gen #30's identity-stub audit applied to `context_var_get`. plib and
+     formal_plib both VERIFY. The three other stdlib modules with dunders that are REFUSED
+     (json/decoder, tmpf, warn) were re-checked AT BASE and are refused there too.
+
+  7. `preamble.py`'s UB-7.2 comment asserted the skip as its justification. Corrected, with
+     the consequence stated plainly: there is NO double declaration (the emitted bodies are
+     `<cls>____hash__`, the axiom's symbols are `<cls>_hash_`), but the axiom and the strict
+     goal now relate symbols the program never uses. Not a new unsoundness; strict mode
+     LOOKS like it checks the real methods and does not. Recorded as a follow-on with its
+     own spike, not absorbed here.
+
+ROUTE #219 CLOSED. Six carriers promoted into the corpus as 1827-1832, each with its
+one-identifier-apart control; the entries retired from `check-open-route-carriers` in the
+same commit, as that plane's own message asks.

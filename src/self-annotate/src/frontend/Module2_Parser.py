@@ -787,9 +787,23 @@ class _Tok:
         self.string: str = string
         self.start: int = start
 
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    # (#49) gen #31 — TRUSTED THE DAY IT FIRST BECAME EMITTABLE, and the marker is an
+    # HONEST CORRECTION rather than a regression. Dunders used to be dropped before any IR
+    # was built, so this method was counted among the UN-TRUSTED mirror functions (it
+    # carried no marker) while NEVER BEING EMITTED OR PROVED — `check-untrusted-emitted`
+    # allow-listed `__repr__` as EXPECTED-ABSENT on the stated grounds that "dunders are
+    # modelled structurally", which was not what the emitter did with them.
+    # Now that it is emitted, the body is a Why3 TYPE ERROR, not a proof failure: the method
+    # has no return annotation, the emitter types it `int`, and the body returns an f-string
+    # (`This expression has type string, but is expected to have type int`). Measured by the
+    # independent reviewer of the emit-dunders report (oracle O8) and reproduced here.
+    # REOPENING CAPABILITY: annotate the live twin `-> str` and re-check. That is a LIVE
+    # SOURCE edit, so it owes the fidelity plane a matching mirror edit and this file a
+    # re-proof; it is a real follow-on, not a boundary.
     def __repr__(self):
         return f"_Tok({self.type}, {self.string!r})"
 

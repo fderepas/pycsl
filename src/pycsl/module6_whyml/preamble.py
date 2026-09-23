@@ -9148,6 +9148,26 @@ class PreambleEmissionMixin:
                 # as abstract `val` functions here and emit the
                 # consistency relationship.
                 #
+                # (#49) gen #31 — THAT JUSTIFICATION IS NO LONGER TRUE, AND SAYING SO IS
+                # THE POINT. Module 5 now EMITS `__hash__` and `__eq__` as ordinary
+                # methods (route #219: dropping them switched off every check that
+                # iterates `ir_data["functions"]`). The symbols below are still declared
+                # and still uninterpreted, and there is NO double declaration — the
+                # emitted bodies are `<cls>____hash__` / `<cls>____eq__` while these are
+                # `<cls>_hash_` / `<cls>_eq_`, measured on the emission by the independent
+                # reviewer of the emit-dunders report (oracle O10).
+                #
+                # WHAT THAT LEAVES, STATED PLAINLY RATHER THAN LEFT IMPLICIT: the axiom
+                # (and, under `--strict-hash-eq-consistency`, the GOAL) relates the two
+                # UNINTERPRETED symbols, which the program now never uses, and NOT the two
+                # emitted bodies, which it does. That is NOT a new unsoundness — an axiom
+                # over symbols nothing applies constrains nothing — but strict mode LOOKS
+                # like it checks the real methods and does not. Tying the goal to the
+                # emitted bodies is a follow-on build, recorded in
+                # `getting-better/emit-dunders-impl.md` §3.5 rather than done here, because
+                # it is a change to what the UB-7.2 perimeter MEANS and deserves its own
+                # spike. Corpus 0411-0414 pin the current behaviour and keep their verdicts.
+                #
                 # Default mode emits an *axiom* — the user is on the
                 # hook to keep hash and eq consistent; the axiom
                 # documents the assumption. Strict mode (CLI flag

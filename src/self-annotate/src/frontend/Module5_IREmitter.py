@@ -2768,7 +2768,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if not self._current_class:
             return False
         if node.name.startswith('__') and node.name.endswith('__'):
-            return True
+            if node.name == '__init__':
+                return True
+            if node.name == '__new__':
+                return True
+            if node.name == '__post_init__':
+                return True
+            return False
         return False
 
     _UNION_ARM_TAGS = {'int', 'bool', 'str', 'bytes', 'float', 'list', 'dict', 'set'}
