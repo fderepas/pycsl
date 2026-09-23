@@ -894,12 +894,22 @@ The following Python constructs are **not valid** in `#@` expressions:
 
 | # | Construct | Reason |
 |---|---|---|
-| 1 | `len(...)` | Use `\length(arr)` instead |
+| 1 | ~~`len(...)`~~ | **Now supported** — see below |
 | 2 | ~~Function calls~~ | **Now supported** for pure functions (see Section 4.1) |
 | 3 | List comprehensions | Not in grammar |
 | 4 | `if`/`else` ternary | Not in grammar |
 
+Rows 3 and 4 were re-measured in gen #31 and HOLD (`[x for x in a]` in a `#@ assert` →
+`unexpected token in expression (got OP '[')`; `(1 if True else 2)` in an `#@ ensures` →
+`expected ')' (got NAME 'if')`).
+
 **Formerly unsupported, now supported:**
+- `len(arr)` — accepted in `#@` expressions and FAITHFUL: it is the SAME symbol as
+  `\length(arr)`, not an uninterpreted stand-in. Measured gen #31 — `#@ requires
+  \length(a) == 3` discharges `#@ ensures len(a) == 3`, `#@ requires len(a) == 3`
+  discharges `#@ ensures \result == 3` over `return len(a)`, and the false twin
+  (`\result == 4`) FAILS. `\length` remains the spelling the grammar documents and the
+  one to prefer; `len` is no longer an error.
 - `//` (floor division) and `%` (modulo) — added to grammar (see §3.2 row 8)
 - `True` / `False` / `None` — added as atoms (see §3.1 rows 18–19)
 - `in`, `not in` — added as membership operators (see §3.2 row 6b)
