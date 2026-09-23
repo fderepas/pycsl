@@ -2258,7 +2258,11 @@ totality) is **lowered at the front-end normalization seam** to a record
 rule (`typing-global-impl.md` §5, TY2): a TypedDict class synthesizes a WhyML
 record `type td = { x: int; y: int }`, field access `p["x"]` becomes
 record-field access `p.x`, and construction `{"x": 1, "y": 2}` becomes a
-record literal.
+record literal — in EVERY position: a `return` in a `-> Pt` function, a
+`Pt`-typed parameter, and (since gen #31) an ANNOTATED LOCAL `p: Pt = {…}`.
+The local form used to be BUILT as a generic body dict and READ as a record, so
+the two halves of one variable disagreed about its type and Why3 rejected the
+file; drivers `1865` (local, verifies) / `1866` (its false twin).
 
 **Normalization** (`Module5_IREmitter._emit_typeddict_record`): the
 `visit_ClassDef` seam recognizes `class X(TypedDict)` (a base name `TypedDict`)

@@ -1,8 +1,8 @@
 # FINDING (#49, gen #31) — a TypedDict LOCAL is BUILT as a dict and READ as a record
 
-**STATUS: CONFIRMED LIVE by measurement, with the emitted WhyML read. NOT a soundness
-route — Why3 rejects the mismatch, so it is fail-closed. NOT repaired here; the capability
-is named at the end.**
+**STATUS: CLOSED (2026-09-23, gen #31).** Was: confirmed live, fail-closed, not a
+soundness route. The repair is at the end; the prototype and the price that made it cheap
+are the two sections before it.
 
 ## THE CLAIM
 
@@ -159,3 +159,26 @@ So the price is settled: **no un-trusted mirror edit, no `expressions.py` re-pro
 trusted-side changes, and a census that already says zero corpus files declare a TypedDict
 local. What remains before landing is the ordinary discipline — byte-diff, the corpus
 TypedDict drivers (`1787`, `1788`, `0891`), and a positive/false-twin pair in the corpus.
+
+
+---
+
+## LANDED (2026-09-23, gen #31)
+
+Both changes are exactly the prototype above, in the live tree:
+
+* `_handle_assign_stmt` (twin `\trusted`) supplies the construction context from the
+  TARGET's declared type, scoped to that one lowering and restored immediately;
+* `_emit_first_assign` (twin `\trusted`) returns `let X = ref { … } in` for a TypedDict
+  target instead of falling into the dict path that rebuilds the `map_update_some` fold.
+
+`_typeddict_record_literal` and `_first_assign_kind` — both UN-TRUSTED twins — are
+untouched, so no `expressions.py` or `types.py` re-proof is owed.
+
+MEASURED: the LOCAL form verifies (`1865`), its false twin `== 4` FAILS (`1866`), and the
+RETURN and PARAMETER positions are unchanged. All SEVEN corpus TypedDict drivers keep their
+verdicts (`0743`, `0888`, `0889`, `0890`, `0891` PASS; `1787`, `1788` REFUSED). BYTE-DIFF
+1345 -> 1349 (the four new drivers across this batch), **0 MOVED / 0 GONE / 0 unexpected
+APPEARED**; 2199 python-reference `.mlw` byte-identical — corpus-byte-inert exactly as the
+census predicted, because zero corpus files declared a TypedDict local. Fidelity 886
+verbatim; IR conformance 38 goldens 0 MISMATCH.

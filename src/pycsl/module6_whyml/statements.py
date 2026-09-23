@@ -48,6 +48,31 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             self._array_locals.add(target)
             return f"{indent}let {safe_target} = {val} in\n"
         if kind == "dict":
+            # (#49) gen #31 — A TYPEDDICT LOCAL IS A RECORD, NOT A DICT. The hint above
+            # already lowered the literal to `{ x = 1; y = 2 }`; without this branch the
+            # dict path below throws it away and rebuilds a `map_update_some` fold, which is
+            # exactly the half-and-half emission the finding measured.
+            #
+            # `_first_assign_kind` is what classifies the local as `"dict"`, and it is NOT
+            # edited on purpose: its mirror twin is UN-TRUSTED, so touching it would cost
+            # the `types.py` whole-file re-proof, while `_emit_first_assign`'s twin is
+            # `\trusted`. The classification stays wrong and its consequence is corrected
+            # here — the cheaper half of the same repair.
+            #
+            # `ref { … }`, NOT a bare value binding: the READ side
+            # (`_typeddict_field_access`) emits `!p.x`, so a value gives
+            # `This expression has type PyCSL_Program.pt @rho`. Measured — one token, and
+            # the difference between the two attempts.
+            #
+            # CENSUS (lesson d3): ZERO corpus files declare a TypedDict LOCAL, precisely
+            # because it did not work; every TypedDict driver either RETURNS a literal
+            # (1787, 1788) or reads a PARAMETER (0891). Corpus-byte-inert by construction.
+            _td_rec2 = (getattr(self, "_record_types", {}) or {}).get(
+                (getattr(self, "_current_symbol_table", {}) or {}).get(target))
+            if (isinstance(val_ir, dict) and val_ir.get("type") == "DictLit"
+                    and isinstance(_td_rec2, dict) and _td_rec2.get("is_typeddict")
+                    and val.startswith("{")):
+                return f"{indent}let {safe_target} = ref {val} in\n"
             self._dict_locals.add(target)
             # The dict's value type ν drives the empty-map literal (string /
             # seq-int snapshot / nested-map / int-default). Consolidated in
@@ -735,7 +760,36 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _prev_pgas = getattr(self, "_pyval_get_as_string", False)
         if target in getattr(self, "_string_local_vars", set()):
             self._pyval_get_as_string = True
+        # (#49) gen #31 — THE TYPEDDICT CONSTRUCTION CONTEXT, SUPPLIED FROM THE TARGET.
+        # annotations.md §12.12 promises, with no position excepted, that "construction
+        # `{"x": 1, "y": 2}` becomes a record literal" and "field access `p["x"]` becomes
+        # record-field access `p.x`". MEASURED in three positions: RETURN works, PARAMETER
+        # works, LOCAL failed — and the emission showed both halves of ONE variable
+        # disagreeing about its type, the construction taking the generic body-dict path
+        # (`map_update_some` over `map int (option int)`) while the read took the record
+        # projection (`!p.x`). Why3 rejects the mismatch, so it was fail-closed; what a user
+        # following §12.12 got was an error naming two types neither of which they wrote.
+        #
+        # `_typeddict_record_literal` detects the construction context from
+        # `_func_return_type` ALONE — its own docstring says so, and its first two lines
+        # return None when there is no return type. Its mirror twin is UN-TRUSTED, so giving
+        # it a second context would cost the `expressions.py` whole-file re-proof (21347
+        # goals); `_handle_assign_stmt`'s twin is `\trusted`, so supplying the context from
+        # HERE costs nothing. Lesson (n4): the mirror cost is a property of the function.
+        #
+        # The hint is scoped to exactly this lowering and restored immediately.
+        _td_saved_frt = getattr(self, "_func_return_type", "")
+        _td_fired = False
+        if vt == "DictLit":
+            _td_decl = (getattr(self, "_current_symbol_table", {}) or {}).get(target)
+            _td_rec = ((getattr(self, "_record_types", {}) or {}).get(_td_decl)
+                       if _td_decl else None)
+            if isinstance(_td_rec, dict) and _td_rec.get("is_typeddict"):
+                self._func_return_type = _td_rec.get("whyml_name", "")
+                _td_fired = True
         val = self._expr_to_whyml(val_ir, local_refs)
+        if _td_fired:
+            self._func_return_type = _td_saved_frt
         self._pyval_get_as_string = _prev_pgas
         self._pyval_get_raw_coll = _prev_pgrc
         self._decode_to_string = _prev_dts

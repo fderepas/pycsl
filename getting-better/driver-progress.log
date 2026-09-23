@@ -7183,3 +7183,49 @@ DIRECTIVE PLANE 45 -> 46 of 53. `mutex_invariant` leaves the uncovered list, and
 runs the PROVER on purpose: the concurrent family's shared header carries `--no-proof`,
 which is precisely the mode in which this directive is not checked, so a pair built on it
 would have passed without measuring anything.
+
+================================================================================
+2026-09-23 23:55Z — THE TYPEDDICT LOCAL IS A RECORD, AND THE PRICE WAS THE POINT
+================================================================================
+
+§12.12 promises, with no position excepted, that a TypedDict construction becomes a record
+literal and a field access becomes a record projection. Three positions, measured:
+
+    RETURN     def build() -> Pt: return {"x": 1, "y": 2}     SUCCESS
+    PARAMETER  def getx(p: Pt) -> int: return p["x"]          SUCCESS
+    LOCAL      p: Pt = {"x": 1, "y": 2}; return p["x"]        FAILED
+
+and the local case's emission had both halves of ONE variable disagreeing about its type —
+the construction on the generic body-dict path, the read on the record projection.
+
+THE CAUSE WAS ONE CONTEXT TEST: `_typeddict_record_literal` detects the construction
+context from `_func_return_type` ALONE (its docstring says so, and its first two lines
+return None without one) while the READ side looks the receiver up in `_record_types`.
+
+THE PRICE IS WHAT MADE THIS A ONE-EVENING ITEM, and it is lesson (n4) applied twice:
+
+    _typeddict_record_literal   twin UN-TRUSTED  -> expressions.py re-proof, 21347 goals
+    _first_assign_kind          twin UN-TRUSTED  -> types.py re-proof
+    _handle_assign_stmt         twin `\trusted`  -> free
+    _emit_first_assign          twin `\trusted`  -> free
+
+Both obvious edits are on the expensive side. The repair is therefore on the CHEAP side of
+BOTH seams: `_handle_assign_stmt` supplies the construction context from the target's
+declared type, and `_emit_first_assign` stops the dict path from overwriting the record
+literal that produces. The wrong classification in `_first_assign_kind` is left in place and
+its CONSEQUENCE corrected downstream — which is not a workaround but the cheaper half of
+the same repair, and it is written down as such.
+
+PROTOTYPED IN A SCRATCH COPY of the compiler first, because the tree was frozen for a suite
+— which also caught the one-token mistake: `ref { … }`, not a bare value binding, because
+the READ side emits `!p.x` and a value gives `This expression has type
+PyCSL_Program.pt @rho`.
+
+MEASURED: `1865` (local, verifies) / `1866` (false twin `== 4`, FAILS); all SEVEN corpus
+TypedDict drivers keep their verdicts; BYTE-DIFF 1345 -> 1349 (the four new drivers across
+this batch), 0 MOVED / 0 GONE / 0 unexpected APPEARED, 2199 python-reference identical —
+corpus-byte-inert exactly as the census predicted, since zero corpus files declared a
+TypedDict local. All 46 fast planes green; fidelity 886; IR conformance 38/0.
+
+SUITE at the mutex tree before this landed: **3988/4006, the standing EIGHTEEN, ZERO
+XPASS** — the 30-file byte-diff of the `#@ mutex_invariant` repair regresses nothing.
