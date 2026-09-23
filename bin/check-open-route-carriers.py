@@ -58,6 +58,26 @@ DRIVER = os.path.join(ROOT, "src", "pycsl", "pycsl.py")
 
 # carrier path -> (expected verdict TODAY, route, what the verdict means)
 CARRIERS = {
+    # (#49) ROUTE #219 — EVERY check, VC and UB detector is switched off by the method's
+    # NAME. `_should_skip_method` drops every dunder before any IR is built, so the method
+    # never enters `ir_data["functions"]` and nothing that iterates that list can see it.
+    # Two carriers and their one-identifier-apart controls; the controls are registered too,
+    # because a carrier that "still proves" means nothing unless the control still fails.
+    "getting-better/open-routes/route219-carrier-no-exception-inside-a-dunder.py": (
+        "SUCCESS", "#219",
+        "`#@ no_exception \\all` over `10 // 0` inside `__enter__` reports All contracts "
+        "formally proven; renamed `enter`, the identical file FAILS"),
+    "getting-better/open-routes/route219-control-no-exception-non-dunder.py": (
+        "FAILED", "#219",
+        "the control: the same body under the same contract in a NON-dunder method, which "
+        "is what makes #219 a route and not a missing feature"),
+    "getting-better/open-routes/route219-carrier-ub71-inside-a-dunder.py": (
+        "SUCCESS", "#219",
+        "UB-7.1 (mutation during iteration) is a HARD REFUSAL and it is evaded by putting "
+        "the loop in `__enter__`"),
+    "getting-better/open-routes/route219-control-ub71-plain-function.py": (
+        "REFUSED", "#219",
+        "the control: the identical loop in a plain function IS refused by the UB detector"),
     # (#49) ROUTE #218 IS CLOSED (gen #31) — the carrier moved INTO the corpus as witness
     # 1815 (expected FAIL), with controls 1816 (read-only dunder still verifies) and 1817
     # (the non-dunder spelling, which always failed). `Module5._record_skipped_dunder_writes`
