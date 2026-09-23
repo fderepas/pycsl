@@ -89,3 +89,31 @@ either returns a literal (`1787`, `1788`) or reads a parameter (`0891`). A repai
 corpus-byte-inert by construction and wants one positive driver plus a false twin.
 
 Measured 2026-09-23.
+
+
+---
+
+## PRICE (added 2026-09-23, after route #213 showed why this matters)
+
+Route #213's record priced its own repair an order of magnitude too high by ASSUMING that
+a function in `module6_whyml/expressions.py` is mirrored un-trusted; `_lower_getattr` turned
+out to have no mirror twin at all, and the fix cost one small mirror re-proof instead of the
+largest in the tree. So this finding's price is CHECKED rather than assumed:
+
+| function | mirror twin | cost of editing it |
+|---|---|---|
+| `_typeddict_record_literal` | **UN-TRUSTED** (verbatim body port) | verbatim mirror edit + the `expressions.py` mirror whole-file re-proof (21347 goals, ~4 h) |
+| `_expr_to_whyml` (its only caller) | `\trusted` | free — no verbatim sync, no re-proof |
+
+So the OBVIOUS edit — give `_typeddict_record_literal` a second construction context — is
+the EXPENSIVE one. The cheap shape is to leave that function alone and supply the context
+from the `\trusted` side: `_expr_to_whyml`'s `DictLit` branch can set
+`self._func_return_type` to the annotated assignment target's type around the call and
+restore it afterwards, so the existing record lookup fires unchanged.
+
+What still has to be found is where the TARGET's declared type is available at that point.
+`_expr_to_whyml` does not know the assignment target, so either the annotated-assign
+statement handler passes it down through an instance field (check ITS mirror twin first —
+the same way), or the DictLit branch reads it from the symbol table for the local being
+assigned. **That lookup is the open question, and it is the only one**; the rest of the
+repair is the context switch above.
