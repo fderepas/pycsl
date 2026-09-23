@@ -35,7 +35,7 @@ only goes up, and the uncovered set is printed by name every run so the debt has
 rather than a number.
 
 WHY THE UNCOVERED SET IS NOT JUST "NOT DONE YET". Nine directives have no pair, and the
-reason differs by kind. FOUR of them have no pair because **there is no violating program
+reason differs by kind. FIVE of them have no pair because **there is no violating program
 to write** — the directive has no enforced consequence, which is itself a result and is
 filed as a finding rather than papered over with a vacuous pair:
 
@@ -55,8 +55,19 @@ filed as a finding rather than papered over with a vacuous pair:
                         program. All 19 corpus drivers that declare it pass `--no-proof`.
                         See `finding-mutex-invariant-initial-check-unprovable.md`.
 
-The remaining FIVE are pair-shaped but out of reach of a single-file harness:
-`reveal` (a no-op within the owning unit by design — needs two units and `--import-path`),
+  * `reveal`          — a FIFTH, found after the four above and worse than any of them
+                        because the documentation contradicts it rather than overstating
+                        it. §2.10 says `#@ reveal` is a no-op within the owning unit but
+                        "across modules it cites the exported definition-fact"; it is
+                        parsed, woven onto `node.csl_reveal`, written into the IR as
+                        `func_ir["reveal"]`, and read by NO Module-6 consumer. Measured
+                        across `--import-path` with two files differing by that one line:
+                        both FAIL and the emitted WhyML is byte-identical. Contract
+                        opacity is one-way — you can hide the rich contract, and there is
+                        no way to opt back in. See
+                        `finding-reveal-is-unimplemented-across-modules.md`.
+
+The remaining FOUR are pair-shaped but out of reach of a single-file harness:
 `verify_module` and `proof` (need a second module / real Rocq-Lean artifacts),
 `sibling_concrete` (probed: Why3's own type invariants hold at a `val` boundary, so the
 documented advantage is not observable in a minimal program), and `propagate_frame`
