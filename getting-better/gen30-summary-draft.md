@@ -234,6 +234,18 @@ reader HEARS, which is the same defect class as a false contract, one level up i
 
 ## Planes added or collected
 
+**THE LAST NIGHT ADDED TWO MORE, both out of reading the undemonstrated-refusal list — and
+one MECHANISM that is not a plane:**
+
+* `bin/lib_plane_lock.py` + a lock in `bin/run-soundness-planes.sh`. Five planes EMIT
+  `.mlw` beside the mirror or corpus sources and others READ them in place; the battery's
+  loop is sequential exactly so they never overlap, and a hand-run from another shell
+  defeats that. **It happened three times in one night, to the driver who had just written
+  the lesson about it** — once producing a traceback and a spurious RED in a 67-plane run.
+  A rule a careful driver breaks three times in one night is a rule that needs a mechanism.
+  Fail-open for the battery, fail-closed for the hand-run; stale locks ignored; all four
+  behaviours verified by running them.
+
 **THE LAST NIGHT ADDED TWO MORE, both out of reading the undemonstrated-refusal list:**
 
 * `bin/check-frontend-ir-backstop-refusals.py` — five front-end / lowering BACKSTOPS
