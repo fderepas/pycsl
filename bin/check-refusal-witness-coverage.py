@@ -149,7 +149,12 @@ MIN_WITNESSED = 191       # 58 at the first joined measurement; 67 after TEN wit
                           # with witness 1762 — and 131 once the CENSUS ITSELF was
                           # repaired. FORTY-FIVE of the "missing" witnesses had been in
                           # the corpus all along. May only grow.
-MAX_UNWITNESSED = 6       # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
+MAX_UNWITNESSED = 5       # (#49) gen #31: 6 -> 5 by PROVING the Module 3 for-block
+                          # empty-body refusal unreachable rather than hunting a spelling
+                          # for it — `ForExpand` has exactly ONE construction site and it
+                          # is guarded by `if not clauses: self._err(...)`, an invariant
+                          # re-derived from the shipping AST on every backstop-plane run.
+                          # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
                           # the instrument; 67 -> 59 by DEMONSTRATING the eight that no
                           # corpus witness can reach; 59 -> 50 once the nine this
                           # instrument CANNOT MATCH were counted separately (below).
@@ -255,6 +260,31 @@ NOT_SOURCE_REACHABLE = {
 # ceiling of 10 is a measurement, not a shrug.
 NOT_SOURCE_REACHABLE_FRAGMENTS = {
     "pure_ast parser: type_comments not yet implemented",
+    # (#49) gen #31 — `Module3_Weaver._desugar_for`'s `if not c.clauses`. Gen #30
+    # DEMONSTRATED this one executably in bin/check-frontend-ir-backstop-refusals.py and
+    # deliberately did NOT reclassify it here, giving the right reason: "an earlier check
+    # owns the shape" (Module 1 refuses an empty `#@ for` body first, which is why corpus
+    # 1772 fires `[Module1]` and not `[Module3]`) is WEAKER than "the front-end constructs
+    # the shape itself". Gen #31 upgraded the evidence to the stronger kind, and it is
+    # STRUCTURAL rather than a search for spellings:
+    #
+    #     `ForExpand` is constructed in EXACTLY ONE place in the whole front-end
+    #     (`Module2_Parser._parse_for_block`), as that function's final `return`, and the
+    #     statement immediately before it is `if not clauses: self._err(...)`.
+    #
+    # So an empty-clause `ForExpand` cannot exist in any tree the parser produces, and the
+    # Module 3 check is a backstop on a shape only a hand-built node can have — the same
+    # category as span / callable-tag / opaque-stmt. Three spellings were RUN before this
+    # was written down (an empty body; a body holding only a comment; a body holding a
+    # nested `#@ for` or an `assigns`), and TWO DIFFERENT refusals stand in front of it:
+    # Module 1's block-structure check and the Module 2 grammar's "for block requires at
+    # least one clause". The invariant is why there is no third spelling to hunt.
+    #
+    # `bin/check-frontend-ir-backstop-refusals.py::forexpand_construction_invariant()`
+    # RE-DERIVES that invariant from the shipping AST every run and REFUSES if a second
+    # construction site appears or the guard is removed — so this reclassification cannot
+    # outlive the fact it rests on.
+    "in range(...)`: empty body",
 }
 
 

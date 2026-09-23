@@ -25,10 +25,16 @@ all, for two different reasons, and the two call for opposite work:
       is real, the refusal is real, and they are DIFFERENT REFUSALS — lesson (n3), a check
       that runs first retires the one behind it.
 
-      THE DISTINCTION IS KEPT: (B) is demonstrated here but is NOT moved into the coverage
-      plane's NOT_SOURCE_REACHABLE set, because "no spelling I know of reaches it" is
-      weaker than "the front-end constructs the shape itself". Only the (A) sites are
-      reclassified.
+      THE DISTINCTION WAS KEPT IN GEN #30, and gen #31 DISSOLVED IT for this one site by
+      making the evidence structural instead of a search. `ForExpand` is constructed in
+      EXACTLY ONE place in the front-end (`Module2_Parser._parse_for_block`, as its final
+      `return`), and the statement immediately before it is `if not clauses:
+      self._err(...)`. An empty-clause `ForExpand` therefore cannot exist in any tree the
+      parser produces — which is (A)-strength, not "no spelling I know of". The site is now
+      in the coverage plane's NOT_SOURCE_REACHABLE_FRAGMENTS, and
+      `forexpand_construction_invariant()` below re-derives the invariant from the shipping
+      AST on every run and REFUSES if a second construction site appears, so the
+      reclassification cannot outlive the fact it rests on.
 
 WHAT THIS PLANE DOES. For each carrier it calls the REAL function with the malformed
 input and asserts the real code raises with the expected error code (or message fragment,
@@ -44,6 +50,7 @@ carriers fire" from "the carrier I no longer have does not fire" must refuse.
 Usage:  bin/check-frontend-ir-backstop-refusals.py [--verbose] [--selftest-missing-carrier]
 '''
 import argparse
+import ast
 import os
 import sys
 
@@ -103,6 +110,90 @@ def carriers():
     ]
 
 
+def forexpand_construction_invariant():
+    """(#49) gen #31 — PROVE the `for-expand-empty-body` refusal is UNREACHABLE from source,
+    rather than reporting that no spelling was found.
+
+    Gen #30 demonstrated this carrier here but DECLINED to reclassify the site in
+    `check-refusal-witness-coverage.py`, and said exactly why: "no spelling I know of
+    reaches it" is weaker than "the front-end constructs the shape itself". That was the
+    right call on the evidence it had. The evidence is now stronger, and it is STRUCTURAL:
+
+      * `ForExpand` is CONSTRUCTED IN EXACTLY ONE PLACE in the whole front-end —
+        `Module2_Parser._parse_for_block` — and
+      * that construction is immediately preceded by `if not clauses: self._err(...)`,
+        which raises.
+
+    So a `ForExpand` whose `clauses` is empty cannot exist in any tree the parser produces,
+    and `Module3_Weaver._desugar_for`'s `if not c.clauses` is a backstop on a shape only a
+    hand-built node can have — the SAME category as the span / callable-tag / opaque-stmt
+    sites, not the weaker "an earlier check owns the shape" category.
+
+    THE THREE SPELLINGS THAT WERE RUN before this was written down, because "unreachable"
+    earns nothing from a reading alone: an empty `#@ for` body is refused by
+    `Module1_Ingestor._fold_blocks` ("`for i in range(0, 3)`: empty body" — that is what
+    corpus 1772 actually fires); a body holding only a comment, a nested `#@ for`, or an
+    `assigns` clause is refused by the Module 2 grammar ("for block requires at least one
+    clause (got NAME 'assigns')"). Two different refusals stand in front of this one, and
+    the invariant below is why there is no third spelling to look for.
+
+    This function RE-DERIVES the invariant from the shipping AST every run. If a second
+    construction site appears, or the guard in front of the existing one is removed or
+    renamed, it returns a reason string and this plane REFUSES — which also invalidates the
+    reclassification in the coverage plane, by design.
+    """
+    rel = "src/pycsl/frontend/Module2_Parser.py"
+    path = os.path.join(ROOT, rel)
+    try:
+        tree = ast.parse(open(path, errors="replace").read())
+    except Exception as exc:
+        return "%s does not parse: %s" % (rel, exc)
+
+    sites = []
+    for fn in ast.walk(tree):
+        if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for node in ast.walk(fn):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                    and node.func.id == "ForExpand"):
+                sites.append((fn, node))
+    if len(sites) != 1:
+        return ("ForExpand is constructed at %d site(s), expected exactly 1 (%s)"
+                % (len(sites), ", ".join(sorted({f.name for f, _ in sites})) or "none"))
+
+    fn, call = sites[0]
+    # The construction must be the function's LAST statement, and the statement before it
+    # must be `if not <name>: <something that raises>` over the SAME name passed as the
+    # clause list argument.
+    if len(fn.body) < 2:
+        return "%s has no guard statement before the ForExpand construction" % fn.name
+    last, prev = fn.body[-1], fn.body[-2]
+    if not (isinstance(last, ast.Return) and last.value is call):
+        return ("the single ForExpand construction is not %s's final `return` — the guard "
+                "below no longer dominates it" % fn.name)
+    clause_arg = call.args[3] if len(call.args) >= 4 else None
+    if clause_arg is None:
+        for kw in call.keywords:
+            if kw.arg == "clauses":
+                clause_arg = kw.value
+    if not isinstance(clause_arg, ast.Name):
+        return "the ForExpand `clauses` argument is not a plain name; the guard cannot be matched"
+    if not (isinstance(prev, ast.If) and isinstance(prev.test, ast.UnaryOp)
+            and isinstance(prev.test.op, ast.Not)
+            and isinstance(prev.test.operand, ast.Name)
+            and prev.test.operand.id == clause_arg.id):
+        return ("the statement before the ForExpand construction is not `if not %s:` — the "
+                "emptiness guard is gone or renamed" % clause_arg.id)
+    raises = any(isinstance(n, ast.Raise)
+                 or (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                     and n.func.attr == "_err")
+                 for n in ast.walk(prev))
+    if not raises:
+        return ("`if not %s:` no longer raises (no `raise` and no `self._err(...)`), so an "
+                "empty-clause ForExpand can now be built" % clause_arg.id)
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--verbose", action="store_true")
@@ -125,6 +216,21 @@ def main():
         print("    A gate that cannot tell 'all carriers fire' from 'the carrier I no "
               "longer have does not fire' must REFUSE. Re-point the carrier or delete it "
               "deliberately. THIS IS A REFUSAL, NOT A PASS.")
+        return 2
+
+    # (#49) gen #31 — the STRUCTURAL invariant that licenses reclassifying
+    # `for-expand-empty-body` as NOT SOURCE-REACHABLE in check-refusal-witness-coverage.py.
+    # It is re-derived from the shipping AST on every run, so the reclassification cannot
+    # outlive the fact it rests on.
+    why = forexpand_construction_invariant()
+    if why is not None:
+        print("[!] frontend-ir-backstops: REFUSING — the ForExpand single-construction-site "
+              "invariant no longer holds:")
+        print("        " + why)
+        print("    `check-refusal-witness-coverage.py` classifies the Module 3 for-block "
+              "empty-body refusal as NOT SOURCE-REACHABLE ON THE STRENGTH OF THIS "
+              "INVARIANT. With it broken, that site may now be reachable and owes a corpus "
+              "witness again. THIS IS A REFUSAL, NOT A PASS.")
         return 2
 
     from errors import PyCSLSemanticError, PyCSLParseError
@@ -194,11 +300,13 @@ def main():
 
     print("[*] frontend-ir-backstops: %d backstop refusal(s) DEMONSTRATED executably, "
           "each with a well-formed control that is accepted." % len(rows))
-    print("[+] frontend-ir-backstops: OK — FIVE are unreachable from a .py source: four "
+    print("[+] frontend-ir-backstops: OK — ALL SIX are unreachable from a .py source: four "
           "because the front-end builds the shape itself (span, callable tag, opaque "
-          "stmt) and one because `type_comments` is an API parameter the pipeline never "
-          "passes; the sixth (for-expand empty body) is owned by Module1's earlier block "
-          "check, which is why corpus witness 1772 fires [Module1] and not [Module3].")
+          "stmt), one because `type_comments` is an API parameter the pipeline never "
+          "passes, and the for-expand empty body because ForExpand has EXACTLY ONE "
+          "construction site, guarded by `if not clauses: self._err(...)` (invariant "
+          "re-derived from the shipping AST above). That is why corpus witness 1772 fires "
+          "[Module1] and not [Module3], and why gen #31 could reclassify the site.")
     return 0
 
 
