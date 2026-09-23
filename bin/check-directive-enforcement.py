@@ -34,6 +34,41 @@ COVERAGE IS DERIVED, NOT LISTED. The directive population comes from
 only goes up, and the uncovered set is printed by name every run so the debt has members
 rather than a number.
 
+WHY THE UNCOVERED SET IS NOT JUST "NOT DONE YET". Nine directives have no pair, and the
+reason differs by kind. FOUR of them have no pair because **there is no violating program
+to write** — the directive has no enforced consequence, which is itself a result and is
+filed as a finding rather than papered over with a vacuous pair:
+
+  * `mixin`           — neither documented consequence is enforced; a class named in
+                        `#@ compose_from` need not carry the marker, and a `#@ mixin` class
+                        may be instantiated directly. See
+                        `getting-better/open-routes/finding-mixin-marker-has-no-teeth.md`.
+  * `thread_entry`    — `ConcurrencyChecker` collects the names into `_thread_entries`,
+                        which is never read; the IR key has no Module-6 consumer. The
+                        UB-7.3 refusal fires identically with and without it.
+  * `releases`        — parsed onto `node.csl_releases`, read by nothing (and honestly
+                        documented as informational). Both in
+                        `finding-thread-entry-and-releases-are-inert.md`.
+  * `mutex_invariant` — bites at the release point, but the emitted
+                        `_check_initial_lock_counter` asserts the invariant of an
+                        unconstrained `val ref`, so the SATISFYING half cannot pass in any
+                        program. All 19 corpus drivers that declare it pass `--no-proof`.
+                        See `finding-mutex-invariant-initial-check-unprovable.md`.
+
+The remaining FIVE are pair-shaped but out of reach of a single-file harness:
+`reveal` (a no-op within the owning unit by design — needs two units and `--import-path`),
+`verify_module` and `proof` (need a second module / real Rocq-Lean artifacts),
+`sibling_concrete` (probed: Why3's own type invariants hold at a `val` boundary, so the
+documented advantage is not observable in a minimal program), and `propagate_frame`
+(probed and CONFIRMED to propagate — with the marker the stub gains
+`ensures { forall i [decode (self.d[i])]. … }`, without it only `writes { self.d }` — but
+the frame's trigger term must be a `Call` (`_frame_trigger_term`), and the callee it names
+is emitted as a program `let`, so the minimal carrier dies on `unbound function or
+predicate symbol`).
+
+A pair whose satisfying half cannot pass is not a pair. The covered fraction here is a
+floor on ENFORCED directives, not on parsed ones.
+
 Usage:  bin/check-directive-enforcement.py [--verbose] [--list-uncovered]
 Exit 1 if any covered directive fails its pair, or coverage falls below the ratchet.
 Exit 2 if the population cannot be derived (a refusal, never a pass).
@@ -55,7 +90,7 @@ DRIVER = os.path.join(ROOT, "src", "pycsl", "pycsl.py")
 # (#49) gen #31 — the floor. It starts at the number of pairs written in the commit that
 # introduced the plane, and only ever rises. A directive whose pair is DELETED, or a new
 # directive added to annotations.md without one, drops the fraction and turns this red.
-MIN_COVERED = 32
+MIN_COVERED = 44
 
 
 def population():
@@ -80,6 +115,86 @@ _ANCHOR = "_ = 0  # anchor\n"
 # and a `#@ thread_entry` worker. Each case supplies only the worker's BODY.
 _CONC_HDR = (
     "# pycsl-flags: --memory-model concurrent --strict-concurrent-checks --no-proof\n#@ shared counter protected_by lock_counter\n#@ mutex_invariant lock_counter: counter >= 0\nimport threading\nlock_counter = threading.Lock()\nlock_other = threading.Lock()\ncounter = 0\n_ = 0  # anchor\n\n\n#@ thread_entry\n#@ \\diverges\n#@ requires True\n#@ ensures True\ndef worker() -> int:\n")
+
+
+# The `#@ lock_order` header: TWO protected globals and a declared total order, with the
+# order itself left as a `%s` slot. The worker body is fixed; only the order varies.
+_LOCK_ORDER_HDR = (
+    "# pycsl-flags: --memory-model concurrent --strict-concurrent-checks --no-proof\n"
+    "#@ shared counter protected_by lock_counter\n"
+    "#@ shared other protected_by lock_other\n"
+    "#@ lock_order %s\n"
+    "#@ mutex_invariant lock_counter: counter >= 0\n"
+    "import threading\nlock_counter = threading.Lock()\nlock_other = threading.Lock()\n"
+    "counter = 0\nother = 0\n_ = 0  # anchor\n\n\n"
+    "#@ thread_entry\n#@ \\diverges\n#@ requires True\n#@ ensures True\n"
+    "def worker() -> int:\n"
+    "    #@ critical lock_counter\n    with lock_counter:\n        counter = 1\n"
+    "        #@ critical lock_other\n        with lock_other:\n            other = 1\n"
+    "    return 0\n")
+
+
+# --- the MIXIN family (annotations.md §2.7, corpus 0549-0553) -------------------------
+# Three skeletons, because the family's directives bite in three different places: the
+# COMPOSITION algebra (provides / compose_from / requires_method), the field
+# CLASSIFICATION (shared_state / touches_field) and the dependency CONTRACT
+# (depends_method). Each skeleton leaves exactly one slot open so the pair differs by the
+# directive under test and nothing else.
+#
+# NOT COVERED, AND MEASURED, NOT ASSUMED: `#@ mixin` itself. Its two documented
+# consequences are "marks the class as a composable mixin" and "not instantiated
+# directly", and NEITHER is enforced — a class named in `#@ compose_from` is flattened
+# whether or not it carries the marker (measured: the flagship 0549 with `#@ mixin`
+# deleted from `CoreEmit` still verifies), and a `#@ mixin` class instantiated directly
+# verifies too (both halves SUCCESS). There is no violating program to write, so `mixin`
+# stays in the UNCOVERED list rather than getting a pair that would pass vacuously. It is
+# not a soundness hole — the flatten-and-re-verify compensation (S2b, finding w66) still
+# checks the real provider — it is a directive with no teeth, which is the other thing
+# this plane exists to name.
+_MIX_ALGEBRA = (
+    "# pycsl-flags: --memory-model hoare\n_ = 0  # anchor\n\n%s\n"
+    "#@ mixin\nclass MapOps:\n"
+    "    #@ %s emit: (self, x: int) -> int\n"
+    "    #@   ensures \\result >= 0\n"
+    "    #@ provides handle_get\n"
+    "    #@ ensures \\result >= 0\n    #@ assigns \\nothing\n"
+    "    def handle_get(self, k: int) -> int:\n        return self.emit(k)\n\n\n"
+    "#@ compose_from %s\nclass Facade:\n"
+    "    #@ ensures \\result >= 0\n    #@ assigns \\nothing\n"
+    "    def run(self, k: int) -> int:\n        return self.handle_get(k)\n")
+_MIX_PROVIDER = (
+    "\n#@ mixin\nclass CoreEmit:\n"
+    "    #@ shared_state program_ir: int\n%s"
+    "    #@ ensures \\result >= 0\n    #@ assigns \\nothing\n"
+    "    def emit(self, x: int) -> int:\n        return x if x >= 0 else 0\n\n")
+# The field-classification skeleton: the `%s` slot is the declaration of `cache`.
+_MIX_FIELD = (
+    "# pycsl-flags: --memory-model hoare\n_ = 0  # anchor\n\n\n"
+    "#@ mixin\nclass CoreEmit:\n%s"
+    "    #@ provides emit\n"
+    "    #@ ensures \\result >= 0\n    #@ assigns self.cache\n"
+    "    def emit(self, x: int) -> int:\n        self.cache = x\n"
+    "        return x if x >= 0 else 0\n\n\n"
+    "#@ compose_from CoreEmit\nclass Facade:\n"
+    "    def __init__(self) -> None:\n        self.cache: int = 0\n\n"
+    "    #@ ensures \\result >= 0\n    #@ assigns self.cache\n"
+    "    def run(self, k: int) -> int:\n        return self.emit(k)\n")
+# The dependency-contract skeleton: `%s` is the bound BOTH the declared dependency and
+# every downstream `ensures` claim. The provider always returns 0.
+_MIX_DEP = (
+    "# pycsl-flags: --memory-model hoare\n_ = 0  # anchor\n\n\n"
+    "#@ mixin\nclass CoreEmit:\n    #@ provides emit\n"
+    "    #@ ensures \\result >= 0\n    #@ assigns \\nothing\n"
+    "    def emit(self, x: int) -> int:\n        return 0\n\n\n"
+    "#@ mixin\nclass MapOps:\n"
+    "    #@ depends_method emit: (self, x: int) -> int\n"
+    "    #@   ensures \\result >= %s\n"
+    "    #@ provides handle_get\n"
+    "    #@ ensures \\result >= %s\n    #@ assigns \\nothing\n"
+    "    def handle_get(self, k: int) -> int:\n        return self.emit(k)\n\n\n"
+    "#@ compose_from CoreEmit, MapOps\nclass Facade:\n"
+    "    #@ ensures \\result >= %s\n    #@ assigns \\nothing\n"
+    "    def run(self, k: int) -> int:\n        return self.handle_get(k)\n")
 
 
 # directive -> (violating source, satisfying source, extra flags)
@@ -253,6 +368,91 @@ CASES = {
         _CONC_HDR + '    #@ critical lock_counter\n    with lock_counter:\n'
         '        counter = 1\n    return 0\n',
         ["--memory-model", "concurrent", "--strict-concurrent-checks", "--no-proof"]),
+    "acquires": (  # `#@ acquires L` — the explicit-acquire spelling of `#@ critical`
+        # VIOLATE: the block names (and takes) the WRONG lock for `counter`, so UB-7.3 fires.
+        # The documented claim is that `acquires` and `critical` are EQUIVALENT in Module5/6;
+        # this pair is what makes that claim falsifiable rather than a sentence in a table.
+        _CONC_HDR + '    #@ acquires lock_other\n    with lock_other:\n'
+        '        counter = 1\n    return 0\n',
+        _CONC_HDR + '    #@ acquires lock_counter\n    with lock_counter:\n'
+        '        counter = 1\n    return 0\n',
+        ["--memory-model", "concurrent", "--strict-concurrent-checks", "--no-proof"]),
+    "lock_order": (  # `#@ lock_order m1, m2` — a TOTAL order on nested acquisition
+        # Needs its own header (a second protected global, and the order declaration itself),
+        # so it does not reuse _CONC_HDR. The body is IDENTICAL in both halves — it takes
+        # lock_counter and then, still holding it, lock_other. Only the DECLARED order moves.
+        # That is the point: the directive is the entire difference between the two runs, so
+        # a `lock_order` that were parsed and filed away would make both halves verify.
+        _LOCK_ORDER_HDR % "lock_other, lock_counter",
+        _LOCK_ORDER_HDR % "lock_counter, lock_other",
+        ["--memory-model", "concurrent", "--strict-concurrent-checks", "--no-proof"]),
+    "provides": (  # `#@ provides <m>` — THIS method is the provider a sibling depends on
+        # VIOLATE: delete the marker and `emit` is still there, still verified, still
+        # callable — but no longer OFFERED, so `MapOps`'s dependency has no provider and
+        # composition is refused by name.
+        _MIX_ALGEBRA % (_MIX_PROVIDER % "", "depends_method", "CoreEmit, MapOps"),
+        _MIX_ALGEBRA % (_MIX_PROVIDER % "    #@ provides emit\n", "depends_method",
+                        "CoreEmit, MapOps"),
+        ["--memory-model", "hoare"]),
+    "compose_from": (  # `#@ compose_from M1, M2` — the composition itself
+        # VIOLATE: name only `CoreEmit`. `MapOps` is then never flattened, so `Facade.run`
+        # calls a `handle_get` the composer does not have. The provider mixin is present
+        # and correct in BOTH halves — only the composition list moves.
+        _MIX_ALGEBRA % (_MIX_PROVIDER % "    #@ provides emit\n", "depends_method",
+                        "CoreEmit"),
+        _MIX_ALGEBRA % (_MIX_PROVIDER % "    #@ provides emit\n", "depends_method",
+                        "CoreEmit, MapOps"),
+        ["--memory-model", "hoare"]),
+    "requires_method": (  # `#@ requires_method` — an ABSTRACT operation the composer supplies
+        # VIOLATE: compose `MapOps` alone. The abstract `emit` it was verified against has
+        # no provider in the composition, so the hole is never filled — refused.
+        _MIX_ALGEBRA % ("", "requires_method", "MapOps"),
+        _MIX_ALGEBRA % (_MIX_PROVIDER % "    #@ provides emit\n", "requires_method",
+                        "CoreEmit, MapOps"),
+        ["--memory-model", "hoare"]),
+    "shared_state": (  # `#@ shared_state <f>: <t>` — DELIBERATELY shared facade state (D1)
+        # VIOLATE: write `self.cache` with no classification at all (corpus 0551's shape).
+        # SATISFY: classify it as shared. The `touches_field` case below is the SAME
+        # violating program with the other classification — which is the honest way to say
+        # that what is enforced is "classify the field", and the two spellings then differ
+        # in the ownership rule (one owner vs many), not in whether the write is allowed.
+        _MIX_FIELD % "",
+        _MIX_FIELD % "    #@ shared_state cache: int\n",
+        ["--memory-model", "hoare"]),
+    "touches_field": (  # `#@ touches_field <f>: <t>` — an OWNED field (at most one owner)
+        _MIX_FIELD % "",
+        _MIX_FIELD % "    #@ touches_field cache: int\n",
+        ["--memory-model", "hoare"]),
+    "depends_method": (  # `#@ depends_method <m>: <sig>` + its declared contract
+        # VIOLATE: declare that `emit` returns >= 1 and draw the consequence through
+        # `handle_get` up to `Facade.run`. The provider returns 0. The composed file FAILS.
+        # Worth knowing exactly WHERE it fails, because the obligation named S2b
+        # (`provider refines dependency`) has NO implementation — `ir_resolve` says so in
+        # a comment: it is discharged by the FLATTENING, which re-emits `handle_get`
+        # against the concrete `CoreEmit.emit` and cannot prove >= 1. Verified by reading
+        # the emitted WhyML for this exact file: `mapops__handle_get` proves against the
+        # ASSUMED `val self_emit_1 ensures { result >= 1 }`, and it is `facade__handle_get`
+        # — the clone — that fails. This pair is therefore a regression test on the
+        # COMPENSATION, not on a check: anything that made flattening lazier would turn it
+        # green while re-opening route #95's severity-1 shape.
+        _MIX_DEP % ("1", "1", "1"),
+        _MIX_DEP % ("0", "0", "0"),
+        ["--memory-model", "hoare"]),
+    "for": (  # `#@ for k in range(lo, hi):` — BOUNDED macro-expansion, one ground clause per index
+        # Both halves have the SAME body and the same `ensures`; only the range's upper bound
+        # moves, 3 vs 4. With `range(0, 3)` the fourth byte carries no bound, so the sum's
+        # `<= 1020` is unprovable. That is the precise thing the directive promises and the
+        # precise thing a wrong implementation would get wrong in either direction: an
+        # expansion that ignored the range (or quietly emitted a `\forall k` over the whole
+        # index space instead of ground clauses) would make BOTH halves verify.
+        _ANCHOR + '\n\n#@ requires \\length(buf) >= 4\n#@ for k in range(0, 3):\n'
+        '#@     requires 0 <= buf[k] and buf[k] <= 255\n'
+        '#@ ensures \\result >= 0 and \\result <= 1020\n'
+        'def sum4(buf: list) -> int:\n    return buf[0] + buf[1] + buf[2] + buf[3]\n',
+        _ANCHOR + '\n\n#@ requires \\length(buf) >= 4\n#@ for k in range(0, 4):\n'
+        '#@     requires 0 <= buf[k] and buf[k] <= 255\n'
+        '#@ ensures \\result >= 0 and \\result <= 1020\n'
+        'def sum4(buf: list) -> int:\n    return buf[0] + buf[1] + buf[2] + buf[3]\n', []),
     "no_inline": (  # `#@ no_inline` — verify the body ONCE, reuse the CONTRACT at callers
         # VIOLATE: the body does not satisfy its own `ensures`, which must still be checked —
         # the whole soundness argument for `no_inline` is that the callee stays a verified
@@ -318,9 +518,9 @@ CASES = {
         # `[512 + k*64, 512 + (k+1)*64)` for every legal `k`. The meta-pass injects a
         # CONTAINMENT `#@ check` at each write, and it must not discharge.
         '# pycsl-flags: --memory-model hoare\n\n#@ happy inode_conf(n):\n#@     protects d.disk[512 + n * 64 : 512 + (n + 1) * 64]\n\n#@ class invariant \\length(self.disk) >= 1024\nclass Disk:\n    def __init__(self) -> None:\n        self.disk: list = [0] * 1024\n\n\nd = Disk()\n\n\n#@ requires 0 <= k and k < 8\n#@ footprint inode_conf(k)\n#@ assigns d.disk\ndef writer(k: int, v: int) -> None:\n'
-        "'    d.disk[0] = v\n'",
+        '    d.disk[0] = v\n',
         '# pycsl-flags: --memory-model hoare\n\n#@ happy inode_conf(n):\n#@     protects d.disk[512 + n * 64 : 512 + (n + 1) * 64]\n\n#@ class invariant \\length(self.disk) >= 1024\nclass Disk:\n    def __init__(self) -> None:\n        self.disk: list = [0] * 1024\n\n\nd = Disk()\n\n\n#@ requires 0 <= k and k < 8\n#@ footprint inode_conf(k)\n#@ assigns d.disk\ndef writer(k: int, v: int) -> None:\n'
-        "'    d.disk[512 + k * 64] = v\n'",
+        '    d.disk[512 + k * 64] = v\n',
         ["--memory-model", "hoare"]),
     "uses": (   # `#@ uses L` — cite lemma L so its general fact is in scope
         # An ASSUMPTION-SHAPED pair like `fresh_globals`: the goal `\forall x: Nat.
@@ -374,6 +574,26 @@ CASES = {
         'def one() -> int:\n    return to_int(S(Z()))\n',
         _ANCHOR + '\n\n#@ datatype Nat = Z | S(Nat)\n\n\n#@ \\variant n\n#@ assigns \\nothing\ndef to_int(n: Nat) -> int:\n    match n:\n        case Z():\n            return 0\n        case S(m):\n            return 1 + to_int(m)\n\n\n''#@ ensures \\result == 1\n#@ assigns \\nothing\n'
         'def one() -> int:\n    return to_int(S(Z()))\n', []),
+    "lemma": (  # `#@ lemma` — proved HERE (not assumed, not cited): Why3 checks the body
+        # VIOLATE: a lemma whose `ensures` is FALSE of its own precondition (a = b = 0 gives
+        # 0, not >= 1). A `#@ lemma` that were merely REGISTERED rather than checked would let
+        # this through and then export it as a usable fact — the worst failure shape available
+        # to this directive, since every later goal would inherit the falsehood.
+        _ANCHOR + '\n\n#@ lemma\n#@ requires a >= 0 and b >= 0\n#@ ensures a + b >= 1\n'
+        '#@ assigns \\nothing\ndef sum_bound(a: int, b: int) -> None:\n    pass\n',
+        _ANCHOR + '\n\n#@ lemma\n#@ requires a >= 0 and b >= 0\n#@ ensures a + b >= 0\n'
+        '#@ assigns \\nothing\ndef sum_bound(a: int, b: int) -> None:\n    pass\n', []),
+    "inductive": (  # `#@ inductive p(x): <rules>` — a least fixpoint, not an opaque predicate
+        # VIOLATE: `even(3)` is NOT derivable from the two rules. SATISFY: `even(4)` is
+        # (even(0) -> even(2) -> even(4)). The pair is what separates a REAL least fixpoint
+        # from an uninterpreted predicate symbol: an opaque `even` would leave BOTH halves
+        # unprovable, so the satisfying half is the half that proves the rules were emitted.
+        _ANCHOR + '\n\n#@ inductive even(n: int):\n#@     even_zero: even(0)\n'
+        '#@     even_step: \\forall m: int; even(m) ==> even(m + 2)\n\n\n'
+        '#@ ensures even(3)\n#@ assigns \\nothing\ndef go() -> int:\n    return 0\n',
+        _ANCHOR + '\n\n#@ inductive even(n: int):\n#@     even_zero: even(0)\n'
+        '#@     even_step: \\forall m: int; even(m) ==> even(m + 2)\n\n\n'
+        '#@ ensures even(4)\n#@ assigns \\nothing\ndef go() -> int:\n    return 0\n', []),
     "allow_finalizer": (
         # WITHOUT the acknowledgement a `__del__` is refused (UB-7.5); with it, and with an
         # honest frame, the class verifies. Route #219's build made the BODY real too.
@@ -399,6 +619,26 @@ CASES = {
 # rather than flagging rows inside one is deliberate — the question each answers is
 # different, and a reader should not have to check a boolean to know which one a row is.
 ASSUMPTION_CASES = {
+    "\\preserves": (  # `#@ \preserves` — opts a bodyless `\trusted` into the HAPPY boundary
+        # An ASSUMPTION case because the directive's absence is a HARD ERROR, not a failed
+        # goal: a non-exempt `\trusted` method whose `assigns` names a HAPPY-protected field
+        # has no checkable body, so the region policy cannot hold unless the method PROMISES
+        # preservation. Corpus 0461/0462 are this pair at full size; this is the two-method
+        # miniature, and it is here so the promise keeps having teeth rather than becoming a
+        # comment. WITHOUT: refused. WITH: the synthesized region-preservation `ensures` is
+        # attached at the boundary and the file verifies.
+        '_ = 0  # anchor\n#@ class invariant \\length(self.disk) >= 4096\n'
+        '#@ happy region_integrity:\n#@     region 512 .. 2560\n'
+        '#@     writes self.disk outside region\nclass Store:\n'
+        '    def __init__(self) -> None:\n        self.disk: list = bytearray(4096)\n\n'
+        '    #@ \\trusted reviewer: demo\n    #@ assigns self.disk\n'
+        '    def ext_scrub(self, x: int) -> None:\n        self.disk[3000] = x\n',
+        '_ = 0  # anchor\n#@ class invariant \\length(self.disk) >= 4096\n'
+        '#@ happy region_integrity:\n#@     region 512 .. 2560\n'
+        '#@     writes self.disk outside region\nclass Store:\n'
+        '    def __init__(self) -> None:\n        self.disk: list = bytearray(4096)\n\n'
+        '    #@ \\trusted reviewer: demo\n    #@ \\preserves\n    #@ assigns self.disk\n'
+        '    def ext_scrub(self, x: int) -> None:\n        self.disk[3000] = x\n', []),
     "\\trusted": (
         _ANCHOR + '\n\n#@ ensures \\result == 99\ndef f() -> int:\n    return 1\n',
         _ANCHOR + '\n\n#@ \\trusted\n#@ ensures \\result == 99\n'
@@ -428,6 +668,52 @@ def verdict(src, flags):
             os.unlink(path)
         except OSError:
             pass
+
+
+# (#49) gen #31 — RUN THE PAIRS CONCURRENTLY. This plane lives in the FAST set of
+# `bin/run-soundness-planes.sh` on the explicit argument that a plane which only runs with
+# `--slow` would not have protected the increments that needed it most (it found route #224
+# on its first run). That argument is only honest if the plane STAYS fast, and it did not:
+# at 24 prover invocations it cost ~2 minutes, at 88 it cost ~22, which is how a fast set
+# quietly becomes a slow one. The pairs are INDEPENDENT — separate temp files, separate
+# `pycsl.py` processes, no shared state — so the fix is a thread pool around the same
+# `subprocess.run` calls, not a smaller table. Threads (not processes) because every worker
+# spends its whole life blocked in `subprocess.run`, where the GIL is released.
+#
+# WORKERS: the machine's core count, capped at 8. Each `pycsl.py` run itself spawns provers,
+# so going wider than the cores buys nothing and starts making pairs TIME OUT rather than
+# fail — which would turn a green plane red for a reason that has nothing to do with any
+# directive. `PYCSL_DIRENF_JOBS` overrides it for a machine that wants a different trade.
+def _jobs() -> int:
+    try:
+        n = int(os.environ.get("PYCSL_DIRENF_JOBS", "") or 0)
+    except ValueError:
+        n = 0
+    if n > 0:
+        return n
+    return max(1, min(8, (os.cpu_count() or 2)))
+
+
+def run_pairs(table):
+    """{name: (src_a, src_b, flags)} -> {name: (verdict_a, out_a, verdict_b, out_b)}.
+
+    Order-independent by construction: results are keyed by name and the caller iterates
+    `sorted(table)`, so the report reads identically however the pool schedules the work."""
+    from concurrent.futures import ThreadPoolExecutor
+    jobs = []
+    for name in sorted(table):
+        a, b, flags = table[name]
+        jobs.append((name, 0, a, flags))
+        jobs.append((name, 1, b, flags))
+    out = {name: [None, None, None, None] for name in table}
+    with ThreadPoolExecutor(max_workers=_jobs()) as pool:
+        futs = {pool.submit(verdict, src, flags): (name, half)
+                for (name, half, src, flags) in jobs}
+        for fut, (name, half) in futs.items():
+            got, text = fut.result()
+            out[name][half * 2] = got
+            out[name][half * 2 + 1] = text
+    return {k: tuple(v) for k, v in out.items()}
 
 
 def main():
@@ -465,10 +751,10 @@ def main():
         return 2
 
     bad = []
+    case_results = run_pairs(CASES)
+    assumption_results = run_pairs(ASSUMPTION_CASES)
     for name in sorted(CASES):
-        viol, sat, flags = CASES[name]
-        v_got, v_out = verdict(viol, flags)
-        s_got, s_out = verdict(sat, flags)
+        v_got, v_out, s_got, s_out = case_results[name]
         if v_got == "SUCCESS":
             bad.append((name, "the VIOLATING program VERIFIES — the directive is not enforced",
                         v_out))
@@ -479,9 +765,7 @@ def main():
             print("    ok       %-28s violate=%-8s satisfy=SUCCESS" % (name, v_got))
 
     for name in sorted(ASSUMPTION_CASES):
-        without, with_, flags = ASSUMPTION_CASES[name]
-        w_got, w_out = verdict(without, flags)
-        d_got, d_out = verdict(with_, flags)
+        w_got, w_out, d_got, d_out = assumption_results[name]
         if w_got == "SUCCESS":
             bad.append((name, "the program WITHOUT the directive already verifies — the "
                         "pair proves nothing about the directive", w_out))

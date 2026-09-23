@@ -6135,3 +6135,82 @@ and none of them reports that it did.
 **THE RULE: for process checks use `pgrep -f` (which matches the full command line by
 construction) or `ps -o pid,etime,args` with NO width limit and post-process with awk.** More
 generally, put the filter BEFORE the formatter, never after.
+
+---
+
+### (k4) `--keep-mlw` writes into the CURRENT directory, and the repo root is not empty
+
+Debugging a directive pair, I wanted the generated WhyML. `--keep-mlw` does not take a
+path: `pycsl.py` computes `base_name = os.path.splitext(args.file)[0]` and then
+`mlw_filename = f"{base_name}.mlw"`, so for a source under `$SCRATCH` it writes beside the
+source — but my first two attempts ran with `/tmp` as the implied target and produced
+nothing I could find, so I reached for the obvious tidy-up:
+
+```bash
+for f in *.mlw; do mv "$f" $SCRATCH/g31/pairs/; done
+```
+
+The repo root contains **two tracked `.mlw` files** from August (`gh-spike.mlw`,
+`gh-spike-controls.mlw`). The glob moved both out of the tree. `git status --short` showed
+` D gh-spike-controls.mlw` / ` D gh-spike.mlw`; moving them back left `git diff` clean, so
+the cost was zero — but only because the next command I ran was a `git status`, not another
+step of the experiment.
+
+This is lesson (i4) (`git add -A` staged 75 build artifacts) in a new costume, and the
+shared shape is worth naming once:
+
+>>> **NEVER LET A WILDCARD DECIDE THE SCOPE OF A DESTRUCTIVE OPERATION INSIDE A DIRECTORY
+>>> YOU DID NOT CREATE.** `git add -A`, `mv *.x`, `rm *.tmp`, `find . -delete` — each of
+>>> them takes its extent from the directory's contents rather than from your intent, and
+>>> the working tree of a long-lived repository always contains something you have not
+>>> thought about. Name the file, or work in a directory you made this minute.
+
+The specific correction: run the dumping command from a scratch directory (`cd $SCRATCH/out
+&& python3 <abs-path>/pycsl.py …`), or read the emitted file at the path the tool actually
+uses — `<source-without-.py>.mlw`, which for a scratch source is already outside the tree.
+
+---
+
+### (l4) `cmd | tail -40` REPORTS THE EXIT STATUS OF `tail`, and `tail` always succeeds
+
+The directive-enforcement plane was run as a background task spelled
+
+```bash
+timeout 1700 python3 bin/check-directive-enforcement.py --verbose 2>&1 | tail -40
+```
+
+and the harness reported **"completed (exit code 0)"**. I read that as the plane being
+green at 32 of 53 and committed it (`66e1e7f1`). It was not green. A shell pipeline's
+status is the status of its LAST command, and `tail` exits 0 whatever it was fed. The
+plane had actually printed, in the lines `tail -40` cut off the TOP of:
+
+```
+[-]   footprint   the SATISFYING program does not verify (REFUSED) …
+        [!] UNEXPECTED PIPELINE ERROR: ('unterminated string literal (detected at line 19)', (19, 1))
+[-] directive-enforcement: 1 directive(s) failed their pair.
+```
+
+The `footprint` case's source string had been written as `"'    d.disk[0] = v\n'"` — a
+double-quoted string CONTAINING the single quotes, instead of a single-quoted continuation
+of the adjacent literal — so every generated program ended in a stray `'` and could not be
+parsed. Two commits carried it.
+
+Two independent mistakes, and it is worth separating them because they need different
+fixes:
+
+1. **The status was masked by the pipe.** Fix: never end a checked command with a pipe.
+   Write the log to a file and read it (`cmd > log 2>&1; rc=$?; tail -40 log`), or use
+   `set -o pipefail`, or capture with `PIPESTATUS[0]`.
+2. **The failure was printed FIRST and the filter kept the LAST 40 lines.** This plane
+   prints its `[-]` defect lines before its `ok` roll-call, so `tail` is exactly the wrong
+   end. Fix: `grep -E '^\[-\]|^\[!\]' log` for the verdict, and use `tail` only for
+   flavour.
+
+>>> **THE RULE: A GREEN YOU READ OFF A PIPELINE IS NOT A GREEN.** The exit code has to come
+>>> from the process you care about, and the evidence has to come from the whole log, not
+>>> from whichever end the formatter happened to keep. This is lesson (o3) — *when new
+>>> evidence does not move a number, suspect the number's COLLECTOR* — arriving from the
+>>> opposite direction: here the collector invented a number that was never measured.
+
+Cost: two commits claimed a coverage figure one higher than the plane could support, and
+the repair (two string literals) took a minute once the log was read from the top.

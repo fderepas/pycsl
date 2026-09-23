@@ -6310,3 +6310,139 @@ both were MINE rather than the compiler's:
 These cost minutes, not correctness — the tree was never touched — and they belong in the
 log because the campaign's standing claim is that it measures rather than assumes, and that
 has to include measuring its own scaffolding.
+
+================================================================================
+2026-09-23 12:13Z — THE DIRECTIVE PLANE FINDS ITS SECOND KIND OF ANSWER
+================================================================================
+
+The plane asks one question per directive: "if I write this and then violate it, does
+anything happen?" Until today every answer was YES (write the pair, ratchet the floor) or
+a ROUTE (#224: a `#@ conforms_to` whose contract does not refine the protocol's verifies by
+default). This session produced a third answer, three times: **NO, AND THERE IS NOTHING TO
+WRITE** — the directive has no enforced consequence at all, so there is no violating
+program, so there is no pair, and the only honest output is a measurement.
+
+Four findings filed, none of them soundness routes, all of them measured:
+
+  * `finding-mixin-marker-has-no-teeth.md` — `#@ mixin`'s two documented consequences
+    ("composable" / "not instantiated directly") are BOTH unenforced. The flagship 0549
+    with the marker deleted from `CoreEmit` still composes and verifies; a `#@ mixin` class
+    instantiated directly verifies too. `ir_resolve` reads the names off the
+    `#@ compose_from` line and never consults the marker.
+
+  * `finding-thread-entry-and-releases-are-inert.md` — `ConcurrencyChecker` collects
+    `#@ thread_entry` function names into `self._thread_entries`, which is written at line
+    88 and READ NOWHERE; `Module5` writes `func_ir["thread_entry"]` and no Module-6
+    consumer exists. Measured one line apart: the UB-7.3 race refusal fires identically
+    with and without the marker. `#@ releases` is the same shape but honestly documented
+    as a placeholder.
+
+  * `finding-mutex-invariant-initial-check-unprovable.md` — the sharpest of the four. The
+    directive DOES bite (the release-point assertion is emitted and discharged), but the
+    emitted `_check_initial_lock_counter` asserts the invariant of `val counter : ref int`
+    — the module-level initialiser `counter = 0` is dropped — so it is unprovable for any
+    invariant that is not vacuously true, in any program. Consequence, grepped: 19 corpus
+    drivers declare `#@ mutex_invariant` and every one of them passes `--no-proof`; of the
+    five concurrent drivers that DO run the prover, none declares one. The obligation has
+    never been discharged by anything in the tree, and the corpus cannot notice.
+
+  * an UPDATE appended to `finding-w56-frameless-dependency-is-fail-open.md`. w56 could not
+    demonstrate its route because "a composed mixin whose provider actually WRITES a field
+    does not emit at all" — four spellings, four emission failures. The cause is now known
+    and is one line: the composer's record is built from the COMPOSER's `__init__`, not
+    from the mixins' `#@ shared_state`/`#@ touches_field`, so add
+    `def __init__(self) -> None: self.cache: int = 0` to the composer and it emits. I then
+    ran w56's experiment properly and it FAILS — at the CLONE. The emitted WhyML shows
+    `handler__handle` (isolated) carrying NO frame, exactly as w56 says, and
+    `facade__handle` (the clone) carrying `ensures { self.facade_n = old self.facade_n }`
+    against a provider that writes. w56 stays not-a-route, but now for a positive reason.
+
+COVERAGE. 32 -> 44 of 53, in four commits' worth of pairs:
+  * the `act` family (`act`/`given`/`complete`/`disjoint`) + `datatype`  [committed 66e1e7f1]
+  * `lemma`, `inductive`  — a lemma whose `ensures` is false of its own `requires` must not
+    become a globally usable fact; `even(3)` must not be derivable from the two Horn rules
+    while `even(4)` must be (the satisfying half is what proves the rules were emitted at
+    all rather than an uninterpreted symbol)
+  * `acquires`, `lock_order` — `lock_order` gets its own header because the two halves must
+    differ ONLY in the declared order, with the nesting body byte-identical
+  * the MIXIN family, six at once: `provides`, `compose_from`, `requires_method`,
+    `shared_state`, `touches_field`, `depends_method`
+  * `for` (bounded expansion: `range(0,3)` vs `range(0,4)`, same body, same `ensures`),
+    `\preserves` (an ASSUMPTION case — its absence is a hard error, corpus 0461/0462 in
+    miniature)
+
+The `depends_method` pair is worth singling out because it is a regression test on a
+COMPENSATION rather than on a check. `ir_resolve` states in a comment that S2b
+(`provider refines dependency`) has no implementation and is discharged implicitly by
+flattening. Reading the emitted WhyML for the violating half confirms it exactly:
+`mapops__handle_get` proves against the ASSUMED `val self_emit_1 ensures { result >= 1 }`
+and it is `facade__handle_get`, the clone, that fails. Anything that made flattening lazier
+would turn this pair green while re-opening route #95's severity-1 shape.
+
+STILL UNCOVERED (9): `mixin`, `thread_entry`, `releases`, `mutex_invariant` (the four
+findings above — no pair is possible without lowering the bar to what the implementation
+does), plus `propagate_frame`, `verify_module`, `reveal`, `sibling_concrete`, `proof`.
+Of those five, `propagate_frame` was probed and DOES propagate — with the marker the
+abstract stub gains `ensures { forall i [decode (self.d[i])]. … }` and without it the stub
+carries only `writes { self.d }` — but the minimal carrier then dies on
+`unbound function or predicate symbol 'decode'`, because the frame's trigger term must be a
+CALL (`_frame_trigger_term` returns only `Call` IR) and the callee it names is emitted as a
+program `let`, not a logic symbol. Recorded rather than forced: a pair whose satisfying half
+cannot pass is not a pair.
+
+SCAFFOLDING LESSON (k4). `--keep-mlw` writes `<basename>.mlw` INTO THE CURRENT DIRECTORY,
+and the repo root already contains two TRACKED `.mlw` files (`gh-spike.mlw`,
+`gh-spike-controls.mlw`). A `for f in *.mlw; do mv "$f" $SCRATCH/; done` tidy-up moved both
+out of the tree; `git status` caught it as two deletions and they were moved back byte for
+byte (`git diff` clean). The rule is the same one as (i4) in a new costume: NEVER GLOB OVER
+A DIRECTORY YOU DID NOT CREATE. Run the dumping command from a scratch directory, or name
+the one file you expect.
+
+--------------------------------------------------------------------------------
+2026-09-23 12:38Z — A CORRECTION TO THE ENTRY ABOVE, AND THE PLANE GETS FAST
+--------------------------------------------------------------------------------
+
+TWO THINGS TO PUT RIGHT BEFORE THE COVERAGE NUMBER IS QUOTED ANYWHERE.
+
+(1) THE 32-OF-53 RUN WAS NEVER GREEN. Commit `66e1e7f1` says the plane "runs green at
+32/53". It did not. The run was spelled `… --verbose 2>&1 | tail -40`, the harness reported
+"exit code 0" — which was `tail`'s exit code, not the plane's — and `tail` kept the WRONG
+END of a log whose defect lines are printed FIRST. The plane had said:
+
+    [-]   footprint   the SATISFYING program does not verify (REFUSED) …
+            [!] UNEXPECTED PIPELINE ERROR: ('unterminated string literal …', (19, 1))
+    [-] directive-enforcement: 1 directive(s) failed their pair.
+
+`footprint`'s two source strings had been written `"'    d.disk[0] = v\n'"` — a
+double-quoted string CONTAINING the quotes rather than a single-quoted continuation of the
+literal above it — so every generated program ended in a stray `'`. Repaired (two
+literals); the pair now measures what it is named after: violate FAILED (containment check
+undischarged), satisfy SUCCESS. Lesson (l4) in `wall-lessons.md`.
+
+(2) THE PLANE NOW RUNS ITS PAIRS CONCURRENTLY, and it had to. It sits in the FAST set of
+`run-soundness-planes.sh` on an explicit argument — a plane that only runs with `--slow`
+would not have protected the increments that needed it most, and it found route #224 on
+its first run. That argument is only honest while the plane stays fast, and it had stopped:
+24 prover invocations ~2 min, 88 invocations ~22 min. The pairs are independent (separate
+temp files, separate `pycsl.py` processes, no shared state), so a `ThreadPoolExecutor` of
+`min(8, cpu_count)` workers around the same `subprocess.run` calls fixes it without
+shrinking the table. Threads, not processes: every worker spends its life blocked in
+`subprocess.run` with the GIL released.
+
+**MEASURED: 44 of 53, rc=0, 44 ok lines, 0 defect lines, ELAPSED 90 SECONDS.** Down from
+~22 minutes, and it is the first run of this plane whose green was read from the exit code
+of the plane itself.
+
+ALSO LANDED THIS HOUR, and committed separately at `c8d77d5c`: **markers 461 -> 460**, the
+first `\trusted` conversion since gen #30. Backlog #51's second bullet, spent exactly as
+written: `def __repr__(self) -> str:` on the live `_Tok`, the mirror matched verbatim, the
+marker deleted, the orphaned `trusted-reasons.tsv` row deleted (the ledger refused until it
+was). Three L-planes measured, none assumed: fidelity green with the un-trusted mirror
+population 885 -> 886; the whole Module2_Parser mirror re-proved with `_tok____repr__'vc`
+among the discharged goals; and a byte-diff from a worktree at HEAD showing 1331 reference
++ 2199 python-reference `.mlw` byte-identical, 0 MOVED / 0 GONE / 0 APPEARED.
+
+AND THE FULL REFERENCE SUITE FINISHED: **3965/3983, the standing EIGHTEEN confirmed
+failures, ZERO XPASS.** The set matches the accepted baseline member for member
+(0211-0220 Rocq-required, 0701, 0043, 0048, 0079, 0080, 0082, 0095, 0110). Nothing this
+generation landed regressed anything in 3983 tests.
