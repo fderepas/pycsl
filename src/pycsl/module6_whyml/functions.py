@@ -4503,6 +4503,22 @@ class FunctionEmissionMixin:
             "      (String.length suffix <= String.length s /\\\n"
             "       String.substring s (String.length s - String.length suffix)\n"
             "         (String.length suffix) = suffix) }")
+        # (#49) gen #31 — THE MODEL FOLLOWS THE BODY, AND IT HAD STOPPED. Route #219's
+        # build narrowed `_should_skip_method` from "skip every dunder" to "skip the three
+        # CONSTRUCTOR HOOKS only": the live method now returns True for `__init__`,
+        # `__new__` and `__post_init__` and FALSE for every other dunder. This synthesized
+        # body still said `then true` for any name starting and ending in `__`, so the
+        # emitted theory asserted the OLD behaviour while every other plane stayed green —
+        # exactly the failure `check-bespoke-model-drift.py`'s own docstring predicts, and
+        # it is the plane that caught it.
+        #
+        # The three equalities are three `str_eq_op` applications, one per hook, mirroring
+        # the source's three separate `if node.name == '...'` statements rather than a set
+        # membership — the live code is written that way precisely so the lowering is a
+        # sequence of string equalities with nothing to model beyond `str_eq_op`.
+        self._add_abstract_op(
+            "val str_eq_op (a b: string) : bool\n"
+            "    ensures { result <-> a = b }")
         return [
             f"  let {name} (self: {cls}) (node: py_functiondef_node) : bool",
             "    requires { true }",
@@ -4510,7 +4526,11 @@ class FunctionEmissionMixin:
             "  =",
             "    if not (m5_current_class_present ()) then false",
             "    else if (str_startswith_op (func_name_ast node) \"__\" = 1)"
-            " && (str_endswith_op (func_name_ast node) \"__\" = 1) then true",
+            " && (str_endswith_op (func_name_ast node) \"__\" = 1) then begin",
+            "      if str_eq_op (func_name_ast node) \"__init__\" then true",
+            "      else if str_eq_op (func_name_ast node) \"__new__\" then true",
+            "      else if str_eq_op (func_name_ast node) \"__post_init__\" then true",
+            "      else false end",
             "    else false",
         ]
 

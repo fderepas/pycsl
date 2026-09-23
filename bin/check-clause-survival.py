@@ -100,20 +100,20 @@ KNOWN_DEFICITS = {
     # param-dependent non-scalar field is threaded faithfully (routes #13/#17/#18).
     "0661.py": ("__init__", "route #15 residue: param-dependent list field, no let inode__init"),
     "0662.py": ("__init__", "route #15 residue: param-dependent list field, no let inode__init"),
-    # (#49) The dunder gap that witness 1800 exists to pin: an explicitly-called dunder is
-    # emitted as a CONTRACTLESS `val c___enter___0 () : int` — no receiver, no `ensures` —
-    # so the method's own clause never reaches the module. SOUND (a contractless `val` is
-    # fresh at every call, so the caller proves LESS), and the file passes because it claims
-    # only what the model can carry. It is a completeness gap with a name, not a hole.
-    "1800_gen30_dunder_call_loses_its_contract.py":
-        ("__enter__", "dunder dropped from emission; call site is a contractless val"),
-    # (#49) Route #216's PASS control: a class with a `__len__` and NO override, which
-    # must still verify under `--check-behavioral-subtyping`. Its `#@ ensures \result >= 5`
-    # on the dunder is dropped for the same reason as 1800's — and the plane found it the
-    # first time the file was in the corpus, which is the ledger doing its job on the
-    # author. Same family, same close condition (emit dunders).
-    "1807_route216_ctl_dunder_without_an_override_still_verifies.py":
-        ("__len__", "dunder dropped from emission (route #216's control)"),
+    # (#49) gen #31 — THE TWO DUNDER ENTRIES THAT USED TO LIVE HERE ARE GONE, AND THAT IS
+    # THE POINT OF WRITING A CLOSE CONDITION DOWN. Both said "dunder dropped from
+    # emission", both named the same close condition ("emit dunders"), and route #219's
+    # build met it in this same generation. MEASURED before removing them, by emitting each
+    # driver and reading the `.mlw`:
+    #   1807 — `let only____len__ (self: only) : int ensures { (result >= 5) }`. The
+    #          clause reaches the module; the deficit is gone.
+    #   1800 — `let cm____enter__` is emitted AND the explicit call site's stub now reads
+    #          `val c___enter___0 () : int ensures { (result = 7) }`. It is no longer
+    #          contractless, which was the whole content of the entry.
+    # A stale allow-list entry is a gate tolerating exactly the failure it exists to catch,
+    # so they come out and the plane tightens by two. Found by re-reading the allow-lists
+    # of every plane rather than by the plane itself — an exemption never goes red on its
+    # own.
 }
 MAX_UNEXPLAINED = 0
 

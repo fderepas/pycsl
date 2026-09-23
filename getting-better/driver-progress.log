@@ -6580,3 +6580,70 @@ LESSON (m4), from the same hour: `echo "=== END $(date …) rc=$?"` reports the 
 of `date`. A log read `rc=0` two lines under `[-] Verification FAILED`. `$?` is a
 single-slot register and every command overwrites it, decoration included. Capture with
 `rc=$?` on its own line.
+
+--------------------------------------------------------------------------------
+2026-09-23 14:16Z — A DEAD GUARD, A STALE MODEL, AND TWO PROBES THAT DID NOT LAND
+--------------------------------------------------------------------------------
+
+THE DEAD GUARD (committed, `062b304d`). `#@ verify_module`'s audit led straight into the
+generics plane, and the same question — "write the program the documentation describes" —
+found that the LEGACY `class C(Generic[T])` spelling, which annotations.md §12.16 lists in
+its Surface, bypassed ALL FOUR TY3 loud-fails. One program, two spellings:
+
+    class Box[T]          + `b: Box[Any]`  ->  REFUSED (PYCSL-TY3-GT1)
+    class Box(Generic[T]) + `b: Box[Any]`  ->  Verification SUCCESS
+
+Root cause: `visit_ClassDef` attached the IR's `type_params` under
+`if getattr(node, "type_params", None)` — the PEP 695 ATTRIBUTE — so the legacy half of
+`_collect_type_params` (which walks the bases for `Generic[...]`, extracts the names, and
+resolves each against the `T = TypeVar(...)` registry to recover the BOUND) was DEAD CODE
+BY CONSTRUCTION. It could never run. The monomorphization pass then early-returned and `T`
+was modelled as plain `int`. Repaired by calling the helper first and testing its result;
+witnesses `1849` (GT1) / `1850` (GT2), control `1851` (an un-instantiated legacy generic
+still verifies, so the spelling is not banned). Byte-inert; the census says zero corpus,
+zero `pycsl_lib` and zero mirror sources use the spelling — which is why a dead branch
+could sit there with a docstring describing what it would have done.
+
+NOT A DEMONSTRATED ROUTE, and the honest version matters: three carriers were built and all
+three FAILED, and in every case what stopped them was WHY3'S TYPECHECKER, not PyCSL. With
+`T` modelled as `int`, `Box[str]` holding `"abc"` emits `let b = { v = "abc" }` against
+`type box = { mutable v: int }` and Why3 rejects it. Resting a deliberately-unsound
+consistency relation on the backend's type checker is not a design.
+
+THE STALE MODEL (uncommitted while the plane battery holds the emission lock).
+`check-bespoke-model-drift.py` went RED on
+`Module5_IREmitter.PyCSLToJSONEmitter._should_skip_method`. Route #219's build narrowed the
+live method from "skip every dunder" to "skip the three CONSTRUCTOR HOOKS only", and the
+SYNTHESIZED model in `_emit_should_skip_method_bespoke` still emitted `then true` for any
+`__…__` name — so the emitted theory asserted the OLD behaviour. This is precisely the
+failure that plane's own docstring predicts ("a SYNTHESIZED body is a second producer"),
+and the tell it names is the one that showed up: every other plane stayed green. Model
+rewritten as three `str_eq_op` applications mirroring the source's three `if node.name ==`
+statements; L3-tc green on the Module5 mirror and the emitted `let` now reads the new
+shape. The baseline re-key (`--update`) and the whole-file re-proof are queued behind the
+running battery.
+
+A FALSE ALARM WORTH RECORDING. The same battery also reported
+`check-internal-crash-free.py` RED with `name '_tp695' is not defined` on two drivers. That
+was MINE, and transient: the battery's crash plane ran inside the ~90 seconds between my
+adding the reference to `_tp695` and adding its assignment. Both drivers pass now.
+>>> THE LESSON: A LONG BATTERY RUN AGAINST A TREE YOU ARE STILL EDITING MEASURES A TREE
+>>> THAT NEVER EXISTED. Either freeze the tree for the battery or treat its output as a
+>>> hint. The plane was right to shout; the thing it saw was a half-written edit.
+
+TWO PROBES THAT DID NOT LAND, recorded so the next window does not re-run them blind:
+
+  * `#@ ghost s += expr` on a string ghost. annotations.md §11.4 calls it a Module4
+    semantic error and it IS one — but only for the documented spelling
+    `#@ ghost s : string = "a"`. Written `#@ ghost s: str = "a"` the ban does not fire
+    (`_check_ghost_string_ops` tests `symtab.get(target) == "string"`), and the program
+    dies later as a Why3 type error. A spelling inconsistency, not a hole; noted, not
+    repaired.
+  * `#@ no_exception \all` on a caller of a `#@ raises` callee. `_callee_implicit_exceptions`
+    (`Module6_WhyMLTranspiler.py:277`) computes `declared - proved` and IS NEVER CALLED —
+    found by an unreferenced-function sweep over `src/pycsl` (277 names, almost all
+    dispatch-table entries resolved by `getattr`; this one is not). The obvious carrier —
+    a caller claiming `no_exception \all` over a callee declaring `raises ValueError` —
+    does not emit: `This function has side effects, it cannot be used as pure`. So the
+    question "is a callee's declared raise propagated to a caller's no_exception set?"
+    is STILL OPEN, and the vestigial helper is the reason to keep asking it.

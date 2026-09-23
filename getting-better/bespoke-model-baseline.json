@@ -97,7 +97,7 @@
   },
   "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._should_skip_method": {
     "emitter": "_emit_should_skip_method_bespoke",
-    "fingerprint": "96a73de39d48427b"
+    "fingerprint": "a4221881da6faac7"
   },
   "frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._synthesize_overload_guard": {
     "emitter": "_emit_synthesize_overload_guard_bespoke",
