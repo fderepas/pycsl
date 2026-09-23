@@ -64,7 +64,94 @@ CORPUS = "test-suite/corpus/pycsl-reference"
 # so a check there would be about the modelling gap and not about the contract. They go to
 # 0 when a param-dependent non-scalar field is threaded faithfully — the same
 # value-model capability routes #13/#17/#18 need.
-MAX_DEFICIT_FILES = 2
+MAX_DEFICIT_FILES = 3
+
+# (#49) THE LEDGER, AND WHY THE BARE COUNT WAS NOT ENOUGH. The ratchet above was 2 and the
+# battery found it BROKEN at 3. The third file was
+# `1800_gen30_dunder_call_loses_its_contract.py`, added the same evening, whose deficit is
+# THE POINT OF THE FILE: `CM.__enter__` carries `#@ ensures \result == 7`, the dunder is
+# not emitted as a `let` at all, and the clause goes with it.
+#
+# Raising the constant to 3 and saying nothing would be rule (k) — re-baselining a gate to
+# make it green. What makes 3 honest is that the count is no longer the gate. Each deficit
+# file now names the DEF whose disappearance explains it, and the plane CONFIRMS that
+# mechanically: the named def must be absent from the emitted module AND must carry enough
+# clauses to cover the shortfall. A deficit with no entry, or an entry whose evidence no
+# longer holds, is UNEXPLAINED and the plane refuses. The ratchet that matters is therefore
+# `MAX_UNEXPLAINED = 0`, which is strictly stronger than "at most 3 files, cause unknown".
+#
+# All three are ONE PHENOMENON seen twice: A METHOD THE EMITTER DROPS TAKES ITS CONTRACT
+# WITH IT. 0661/0662 lose a constructor's nineteen `requires`; 1800 loses a dunder's single
+# `ensures`. The directions of risk differ and both are recorded below.
+KNOWN_DEFICITS = {
+    # Route #15 residue, already documented above: `Inode.__init__(self, initial: list)`
+    # binds a LIST field from a parameter, which `_call_record_constructor` models as the
+    # empty-array default rather than the parameter, so the checking-only `let inode__init`
+    # route #15 added is not emitted here. Nineteen `requires` go nowhere. Closes when a
+    # param-dependent non-scalar field is threaded faithfully (routes #13/#17/#18).
+    "0661.py": ("__init__", "route #15 residue: param-dependent list field, no let inode__init"),
+    "0662.py": ("__init__", "route #15 residue: param-dependent list field, no let inode__init"),
+    # (#49) The dunder gap that witness 1800 exists to pin: an explicitly-called dunder is
+    # emitted as a CONTRACTLESS `val c___enter___0 () : int` — no receiver, no `ensures` —
+    # so the method's own clause never reaches the module. SOUND (a contractless `val` is
+    # fresh at every call, so the caller proves LESS), and the file passes because it claims
+    # only what the model can carry. It is a completeness gap with a name, not a hole.
+    "1800_gen30_dunder_call_loses_its_contract.py":
+        ("__enter__", "dunder dropped from emission; call site is a contractless val"),
+}
+MAX_UNEXPLAINED = 0
+
+
+def _emitted_idents(text):
+    """Every `let` / `val` name in an emitted module."""
+    return set(re.findall(r"\b(?:let|val)\s+(?:rec\s+)?(?:ghost\s+)?(?:function\s+)?"
+                          r"(?:predicate\s+)?([A-Za-z_][A-Za-z0-9_']*)", text))
+
+
+def _def_is_emitted(name, idents):
+    """Is source `def name` present in the emission?
+
+    Module-level functions keep their name (`_pack_inode`); methods are prefixed with the
+    lowercased class (`inode__pack`). A DUNDER CALL SITE is minted as `c___enter___0`,
+    which must NOT count as the method being emitted — hence the exact `__`-suffix match
+    rather than a substring test.
+    """
+    return any(i == name or i.endswith("__" + name) for i in idents)
+
+
+def _source_defs(path):
+    """[(def_name, requires, ensures)] — clauses attributed to the def they sit above.
+
+    Same COMMENT-token discipline as `_source_counts`: a `#@` inside a docstring is text,
+    not a clause, and counting it is how the route-#12 census reported 95 hits where the
+    truth was 0.
+    """
+    src = open(path, encoding="utf-8").read()
+    try:
+        toks = list(tokenize.generate_tokens(io.StringIO(src).readline))
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        return None
+    defs = []          # (lineno, name)
+    pending = []       # (lineno, kind)
+    prev = None
+    for t in toks:
+        if t.type == tokenize.NAME and prev == "def":
+            defs.append((t.start[0], t.string))
+        if t.type == tokenize.NAME:
+            prev = t.string
+        elif t.type == tokenize.COMMENT:
+            st = t.string.strip()
+            if st.startswith("#@ requires") and st.split(None, 2)[2:] != ["True"]:
+                pending.append((t.start[0], "requires"))
+            elif st.startswith("#@ ensures") and st.split(None, 2)[2:] != ["True"]:
+                pending.append((t.start[0], "ensures"))
+    out = []
+    for i, (dline, dname) in enumerate(defs):
+        prev_line = defs[i - 1][0] if i else 0
+        req = sum(1 for (l, k) in pending if prev_line < l < dline and k == "requires")
+        ens = sum(1 for (l, k) in pending if prev_line < l < dline and k == "ensures")
+        out.append((dname, req, ens))
+    return out
 
 
 def _source_counts(path):
@@ -99,7 +186,20 @@ def main():
     ap.add_argument("--corpus", default=CORPUS)
     ap.add_argument("--max-deficit-files", type=int, default=MAX_DEFICIT_FILES)
     ap.add_argument("--verbose", action="store_true")
+    # (#49) TWO SELF-TESTS, because a ledger that cannot be shown to REFUSE is a ledger
+    # that only ever makes things green. Each mutates the ledger for one run and the
+    # expected outcome is rc=1.
+    ap.add_argument("--selftest-forget", metavar="FILE",
+                    help="drop FILE's ledger entry (its deficit must become UNEXPLAINED)")
+    ap.add_argument("--selftest-misname", metavar="FILE",
+                    help="repoint FILE's entry at a def that IS emitted (must be refused)")
     args = ap.parse_args()
+    if args.selftest_forget:
+        KNOWN_DEFICITS.pop(args.selftest_forget, None)
+    if args.selftest_misname:
+        _e = KNOWN_DEFICITS.get(args.selftest_misname)
+        if _e:
+            KNOWN_DEFICITS[args.selftest_misname] = ("pack", _e[1] + " [SELFTEST]")
 
     deficits = []
     compared = 0
@@ -145,9 +245,60 @@ def main():
         for d in deficits:
             print("    DEFICIT  %-50s requires %d->%d  ensures %d->%d" % d)
 
+    # (#49) CLASSIFY, DON'T JUST COUNT. Each deficit must be EXPLAINED by a ledger entry
+    # naming a def that (a) is genuinely absent from the emitted module and (b) carries
+    # enough clauses to cover the shortfall. Both halves are checked here rather than
+    # believed, so an entry cannot keep a file green after its cause has changed.
+    unexplained, explained = [], []
+    for d in deficits:
+        f, s_req, e_req, s_ens, e_ens = d
+        entry = KNOWN_DEFICITS.get(f)
+        if entry is None:
+            unexplained.append((d, "no KNOWN_DEFICITS entry"))
+            continue
+        want, why = entry
+        text = open(os.path.join(args.emit_dir, f[:-3] + ".mlw"), encoding="utf-8").read()
+        idents = _emitted_idents(text)
+        sdefs = _source_defs(os.path.join(args.corpus, f)) or []
+        named = [(n, r, e) for (n, r, e) in sdefs if n == want]
+        if not named:
+            unexplained.append((d, "entry names `%s`, which the source does not define" % want))
+            continue
+        if _def_is_emitted(want, idents):
+            unexplained.append((d, "entry names `%s`, but it IS emitted — the clause was "
+                                   "lost in place, which is the dangerous case" % want))
+            continue
+        gone_req = sum(r for (_n, r, _e) in named)
+        gone_ens = sum(e for (_n, _r, e) in named)
+        if gone_req < max(0, s_req - e_req) or gone_ens < max(0, s_ens - e_ens):
+            unexplained.append((d, "`%s` is absent but carries only %d requires / %d "
+                                   "ensures, short of the %d / %d missing"
+                                % (want, gone_req, gone_ens,
+                                   max(0, s_req - e_req), max(0, s_ens - e_ens))))
+            continue
+        explained.append((d, want, why))
+
+    for (d, want, why) in explained:
+        print("    EXPLAINED  %-50s def `%s` absent from the emission — %s"
+              % (d[0], want, why))
+    for (d, reason) in unexplained:
+        print("    UNEXPLAINED  %-48s %s" % (d[0], reason))
+
+    stale = sorted(set(KNOWN_DEFICITS) - {d[0] for d in deficits})
+    for f in stale:
+        print("[+] clause-survival: %s no longer carries a deficit — delete its "
+              "KNOWN_DEFICITS entry." % f)
+
     if compared == 0:
         print("[!] clause-survival: ZERO files compared — the --emit-dir is empty or "
               "stale. That is a FALSE GREEN, not a pass.")
+        return 1
+    if len(unexplained) > MAX_UNEXPLAINED:
+        print("[!] clause-survival: %d UNEXPLAINED deficit(s) — a clause the author wrote "
+              "did not reach the emitted module, and no ledger entry accounts for it. The "
+              "run will still report 'All contracts formally proven'. Diagnose it and add "
+              "a KNOWN_DEFICITS entry naming the dropped def, or fix the emitter."
+              % len(unexplained))
         return 1
     if len(deficits) > args.max_deficit_files:
         print("[!] clause-survival: RATCHET BROKEN — %d > %d. A clause the author wrote "
