@@ -7089,3 +7089,40 @@ That is the full three-plane picture for the day, all measured rather than argue
   PROOF      18 whole-file mirror proofs green, including every file this window edited.
   INERTNESS  seven byte-diff sweeps; every one either clean or MOVED exactly where the
              correction was intended, with each moved file re-run and its verdict unchanged.
+
+--------------------------------------------------------------------------------
+2026-09-23 21:25Z — `#@ mixin` IS FULLY ENFORCED: BOTH documented halves
+--------------------------------------------------------------------------------
+
+The second half of §2.7 row 1 — "not instantiated directly" — is now a refusal too
+(`PYCSL-SEM-MIXIN-INSTANTIATED`), witness `1861`, control `1862` (the identical file with
+the marker removed, which verifies, so the rule is about the MARKER and not about
+constructing a class).
+
+One AST walk beside the compose-side scan in `_run_pipeline`, reusing the marked-name set
+that scan already computes. ONLY the callee position counts: a mixin name in an ARGUMENT
+(`isinstance(x, MixinCls)`) or in an annotation is not a construction.
+
+THE CENSUS THAT HAD TO COME FIRST — the earlier finding said so explicitly ("what has NOT
+been measured is whether any legitimate shape constructs a mixin") — done by AST rather
+than by grep: 20 sources declare `#@ mixin`, 19 marked classes between them, **ZERO
+constructor calls of any of them** in the corpus, `src/`, the mirror or `pycsl_lib`. The
+question is answered for this tree: none does. Byte-diff 1342 -> 1345 (three new drivers),
+0 MOVED / 0 GONE / 0 unexpected APPEARED; 2199 python-reference byte-identical. All
+fourteen corpus files that declare `#@ mixin` or `#@ compose_from` keep their exact
+verdicts.
+
+Read with `1857`/`1858`, the four drivers pin both halves in both directions: a
+`#@ compose_from` name must carry the marker, a marked class must not be constructed, and
+neither rule fires on the shape it is not about.
+
+`MIN_WITNESSED` 198 -> 199. Directive plane 45 of 53, rc=0, and its UNCOVERED SET is now
+printed on every run rather than behind `--list-uncovered` — the docstring had claimed the
+names were printed "every run so the debt has members rather than a number" and they were
+not, so the battery only ever showed a count.
+
+THE DAY'S FOUR `finding-*` FILES THAT NAMED A CAPABILITY HAVE NOW BEEN SPENT OR PRICED:
+`mixin` fully closed; `typeddict-local` re-priced after lesson (n4) (its natural edit is
+the expensive one, the cheap shape is named); `callable-scope` half closed with the
+remaining half needing the Module 6 record table; `reveal`, `mutex_invariant` and
+`thread_entry`/`releases` still open with their mechanisms written down.

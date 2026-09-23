@@ -39,11 +39,12 @@ reason differs by kind. FOUR of them have no pair because **there is no violatin
 to write** — the directive has no enforced consequence, which is itself a result and is
 filed as a finding rather than papered over with a vacuous pair.
 
-`mixin` used to head this list and no longer does: gen #31 gave it teeth on its
-compose-from half (`#@ compose_from` naming a class without the marker is refused), so the
-pair exists and is written below. Its OTHER documented half — "not instantiated directly"
-— is still unenforced, and the pair deliberately does not reach for it: a pair that passes
-on the half that works would make the directive look fully covered. See
+`mixin` used to head this list and no longer does: gen #31 gave it teeth on BOTH of its
+documented halves — `#@ compose_from` naming a class without the marker is refused
+(`PYCSL-SEM-COMPOSE-FROM-NOT-A-MIXIN`), and a marked class constructed directly is refused
+(`PYCSL-SEM-MIXIN-INSTANTIATED`). The pair below exercises the compose-side half, whose
+violating program is the smaller diff from the flagship 0549; the instantiation half has
+its own witness/control pair in the corpus (`1861`/`1862`). See
 `getting-better/open-routes/finding-mixin-marker-has-no-teeth.md`.
 
   * `thread_entry`    — `ConcurrencyChecker` collects the names into `_thread_entries`,

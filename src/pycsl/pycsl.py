@@ -1006,6 +1006,39 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     % (_ln_no_mx, _nm_mx, _nm_mx, _nm_mx),
                     filename=args.file, line=_ln_no_mx,
                     stage="ir-semantic", code="PYCSL-SEM-COMPOSE-FROM-NOT-A-MIXIN")
+    # ... and the OTHER half of the same sentence: "not instantiated directly". The
+    # marked-name set is already in hand, so this is one AST walk. A mixin's `__init__`
+    # and its class invariant are written to be read AS PART OF A COMPOSER — the whole
+    # point of the flatten-and-re-verify discipline is that the composer's record is what
+    # the methods are proved against — so a direct construction gets a record the mixin's
+    # own methods were never verified over.
+    #
+    # ONLY the CALLEE position: `MixinCls(...)`. A mixin name in an ARGUMENT
+    # (`isinstance(x, MixinCls)`) or an annotation is not a construction and is left alone.
+    #
+    # CENSUS BEFORE LANDING (lesson d3), by AST rather than by grep: 20 sources declare
+    # `#@ mixin`, 19 marked classes between them, and ZERO constructor calls of any of
+    # them anywhere in the corpus, `src/`, the mirror or `pycsl_lib`. Corpus-inert.
+    if _mx_marked:
+        for _n_mi in _ast.walk(unified_ast):
+            if (isinstance(_n_mi, _ast.Call)
+                    and isinstance(_n_mi.func, _ast.Name)
+                    and _n_mi.func.id in _mx_marked):
+                from errors import PyCSLSemanticError as _PyCSLSemErrMi
+                raise _PyCSLSemErrMi(
+                    "`#@ mixin` class '%s' is CONSTRUCTED here (line %d). A mixin is "
+                    "declared composable, not instantiable: its methods are verified "
+                    "against the COMPOSER's record (the flatten-and-re-verify discipline), "
+                    "so a direct construction produces an object whose own methods were "
+                    "never proved over it, and its `__init__` and class invariant are "
+                    "written to be read as part of a composer. Until gen #31 neither half "
+                    "of `#@ mixin` was enforced. FIX: construct the `#@ compose_from` "
+                    "class that composes '%s', or drop the `#@ mixin` marker if '%s' is "
+                    "meant to be used on its own."
+                    % (_n_mi.func.id, getattr(_n_mi, "lineno", 0),
+                       _n_mi.func.id, _n_mi.func.id),
+                    filename=args.file, line=getattr(_n_mi, "lineno", 0),
+                    stage="ir-semantic", code="PYCSL-SEM-MIXIN-INSTANTIATED")
 
     # (#49) gen #31 — A `#@ lemma` WITH NO `#@ assigns` CLAUSE AT ALL. annotations.md
     # §2.1.16 states five hard-error rules for a lemma; four were enforced and the fifth

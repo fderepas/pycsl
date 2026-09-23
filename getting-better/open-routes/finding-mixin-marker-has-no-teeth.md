@@ -1,5 +1,5 @@
 # FINDING (#49, gen #31) — `#@ mixin` has no enforced consequence, in either direction
-# (HALF CLOSED the same day — see CLOSURE at the end; the instantiation half is still open)
+# (FULLY CLOSED the same day — see the two CLOSURE sections at the end)
 
 **STATUS: CONFIRMED LIVE by measurement. NOT a soundness route.** Found by
 `bin/check-directive-enforcement.py` while trying to write the directive's enforcement
@@ -83,14 +83,26 @@ list; all ten corpus `#@ compose_from` drivers keep their exact verdicts and the
 refusal messages (0550 "dependency has NO provider", 0551 "writes `self.cache`", 0552
 "provided by more than one mixin", 1259 route #95, 1814 element-write). Corpus-inert.
 
-## STILL OPEN — "not instantiated directly"
+## THE SECOND HALF — ALSO CLOSED, the same day
 
-The other documented consequence is unenforced: a `#@ mixin` class constructed directly
-still verifies. The enforcement plane's `mixin` pair deliberately does NOT reach for it —
-a pair that passes on the half that works would make the directive look fully covered.
+"Not instantiated directly" is now a refusal too: `PYCSL-SEM-MIXIN-INSTANTIATED`, witness
+`1861`, control `1862` (the identical file with the marker removed, which verifies — so the
+rule is about the MARKER and not about constructing a class).
 
-The capability: a `#@ mixin` class name appearing as a CONSTRUCTOR CALL is an AST question
-(`ast.Call(func=ast.Name(id=<marked class>))`), so it fits the same `_run_pipeline` scan
-that now holds the compose-side half — the marked-name set is already computed there.
-What has NOT been measured is whether any legitimate shape constructs a mixin (a test
-double, a `__init__`-only base), which is the census that has to come first.
+It is one AST walk beside the compose-side scan in `_run_pipeline`, reusing the marked-name
+set that scan already computes. ONLY the callee position counts: a mixin name in an
+ARGUMENT (`isinstance(x, MixinCls)`) or in an annotation is not a construction.
+
+THE CENSUS THAT HAD TO COME FIRST, done by AST rather than by grep: 20 sources declare
+`#@ mixin`, 19 marked classes between them, and **ZERO constructor calls of any of them**
+anywhere in the corpus, `src/`, the mirror or `pycsl_lib`. So the question the earlier
+paragraph raised — whether any legitimate shape constructs a mixin (a test double, an
+`__init__`-only base) — is answered for this tree: none does.
+
+Read with `1857`/`1858`, the four drivers pin both halves in both directions: a
+`#@ compose_from` name must carry the marker, a marked class must not be constructed, and
+neither rule fires on the shape it is not about.
+
+`#@ mixin` is therefore a COVERED directive in `bin/check-directive-enforcement.py`, and
+its pair exercises the compose-side half — the one whose violating program is the smaller
+diff from the flagship 0549.
