@@ -343,6 +343,12 @@ Five new `value-differential` drivers (v73-v77), the CPython-measured plane, cov
   (CTXBIND, because witness 1784 IS a `with ... as` — named in `CTXBIND_EXEMPT`, exactly as
   1759 was named in `DANGLING_EXEMPT`).
 
+* **AND THE GENERATION ENDS WITH `[+] soundness-planes: OK — all 69 plane(s) green.`** at
+  `760f7601`, with the environment sourced and the new plane lock held for the whole run —
+  the first all-green `--slow` battery of the generation, and it is the same battery that
+  ended 8 RED the first time it was run honestly. The headline metric was re-measured by
+  RUNNING it rather than recalling it: `markers 459 · attached 459 · unattached 0`.
+
 * **THE FIRST FULL `--slow` BATTERY OF THE GENERATION (67 planes) ENDED 8 RED, AND THREE
   OF THE EIGHT WERE REAL — TWO OF THOSE THREE WERE CAUSED BY ME, THAT EVENING, AND NEITHER
   WAS VISIBLE IN THE EDIT THAT CAUSED IT.** That sentence is the argument for the battery.
