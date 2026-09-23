@@ -665,14 +665,15 @@ conversion track is where the budget should go, and the two deferred segments
 | `\trusted` stubs whose live body raises | 76, of which **62 SILENT** | a named ratchet, unmoved; reducing it moves callers' VCs and is a segment, not an increment |
 | broad swallowing handlers that FIRE | **0** | driven 4 -> 0 this session; the baseline is now an empty set, a hard zero |
 | axiom-footprint UNRESOLVED | **0** | driven 6 -> 0 earlier in the generation (VERIFIED 155 -> 166) |
-| fast planes | **43** | MIN_PLANES tightened to the exact count each time it moved (40 -> 43 in the final stretch) |
-| planes with `--slow` | **64** | |
+| fast planes | **44** | MIN_PLANES tightened to the exact count each time it moved (40 -> 43 -> 44) |
+| planes with `--slow` | **69** | and the first ALL-GREEN `--slow` run of the generation, with `. scratchpad/g29/env.sh` sourced; `--slow` now REFUSES up front when why3 is off PATH instead of printing five spurious REDs forty minutes later |
 | corpus | see `ls test-suite/corpus/pycsl-reference/*.py` | +39 in the final stretch (1762-1800), of which seven candidates were written, CONFIRMED TO FIRE, and DELETED as redundant |
-| refusal coverage | **184 of 219** demonstrated | a partition: 184 + 17 undemonstrated + 8 not-source-reachable + 10 unmatchable. Began the evening reported as 85 of 198 |
+| refusal coverage | **191 of 220** demonstrated | a partition: 191 + 6 undemonstrated + 13 not-source-reachable + 10 unmatchable-BY-MEASUREMENT (the widening was prototyped and moves exactly one). Began the evening reported as 85 of 198 |
 | advice-bearing refusals AUDITED | **108 of 108** | 102 FOLLOWABLE; the six broken ones all repaired. A surface `convergence-metric-implement.md` had listed as unmeasured for generations |
 | stdlib identity stubs UNADJUDICATED | **0** (was 24) | and SEVEN of the 24 were false of the function they cite; six repaired |
 | stdlib modules verifying WITH a postcondition | **76** of 104 | the honest reading of "84 of 104 verify": of the 84, one has value-returning functions and no `#@ ensures` and seven have no value-returning function at all |
 | value-differential drivers | **75** | +5 earlier this session (v73-v77) |
+| corpus byte-diff, whole generation's final stretch | **0 MOVED · 0 GONE · 0 APPEARED** | MEASURED, not argued: baseline `86b6287a` in a worktree against HEAD, both sides emitted fresh, 1301 vs 1303 `.mlw`; and again after routes #216/#217 (1303 -> 1302, the single GONE being witness 1725's intended new refusal) and after the composition fix (1306/1306, all three zero) |
 | unpushed commits | see `git log origin/ghost-assign-bc6..HEAD` | **nothing pushed; pushing stays gated to the user** |
 
 **AND THE METRICS THAT MOVED MOST WERE INSTRUMENTS, NOT THE COMPILER.** Refusal coverage
