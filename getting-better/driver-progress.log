@@ -6818,3 +6818,45 @@ the standing EIGHTEEN confirmed failures, ZERO XPASS. Every live-source change o
 — the `-> str` annotation, the `verify_module` refusal and reordering, the frameless-lemma
 refusal, the legacy-generics guard, the `Callable` scope chain and the bespoke model —
 regresses nothing.
+
+--------------------------------------------------------------------------------
+2026-09-23 16:47Z — THE THREE L-PLANES, MEASURED AT THE CLOSING TREE
+--------------------------------------------------------------------------------
+
+PROOF. `src/self-annotate/src/frontend/Module5_IREmitter.py` re-proved whole-file against
+`--import-path src/pycsl`: **`[+] Verification SUCCESS! All contracts formally proven.`**
+That run covers BOTH of the day's un-trusted-mirror edits in that file — the `Callable`
+C5 equality chain in `_callable_type_tag` (whose twin is un-trusted, so its text is emitted
+verbatim and must prove) and the re-synthesized `_should_skip_method` bespoke model. Route
+#224's Module5 edit is in `_populate_protocol_conformance`, whose twin is `\trusted`, so
+the mirror's text and emission are untouched by it and the green stands at the current
+tree.
+
+FIDELITY. 886 un-trusted mirror functions verbatim; mirror signature drift 0 (the trusted
+`_emit_subtyping_goals` stub's signature followed the live one in the same commit).
+
+INERTNESS. Four byte-diff sweeps today, each against the tree immediately before its
+increment, every one clean in both corpora:
+    m2p   1331 -> 1331 / 2199   (the `-> str` conversion)
+    vm    1331 -> 1335 / 2199   (verify_module: refusal + Sig reordering)
+    lem   1335 -> 1336 / 2199   (the frameless-lemma refusal)
+    gen   1336 -> 1337 / 2199   (the legacy-`Generic[T]` guard)
+    cal   1337 -> 1339 / 2199   (the `Callable` scope chain + the bespoke model)
+    224   1339 -> 1341 / 2199   (route #224)
+0 MOVED, 0 GONE, 0 unexpected APPEARED throughout; every increase is a new driver that
+emits.
+
+PLANES. `bin/run-soundness-planes.sh`: **all 46 fast planes green, 209s.** The `--slow`
+run earlier was 69 of 71 with both REDs explained and since repaired
+(`check-bespoke-model-drift` — the stale model, now re-baselined;
+`check-internal-crash-free` — my own half-written edit, re-run clean at 1773 drivers / 0
+crashes). One more RED appeared and was closed inside ten minutes:
+`check-claim-vacuity.py` caught `requires True` FILE COUNT GREW: 1134 > 1131 — three
+`#@ requires True` lines that rode in from the scratch probe that produced the `Callable`
+drivers. Deleted; the plane is back at its ceiling. A vacuity ratchet is exactly the
+constant a new-driver commit erodes one line at a time, and the only reason this did not is
+that the number is a hard ceiling rather than an estimate.
+
+SUITE. 3978/3996 with the standing EIGHTEEN and ZERO XPASS at `bcc33d92`; a fresh full run
+is in flight at the closing tree, since route #224 is a live-source change and the rule
+adopted this afternoon is that a suite result belongs to the tree it ran on.
