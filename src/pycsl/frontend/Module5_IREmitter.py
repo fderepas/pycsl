@@ -4276,7 +4276,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         self._current_class = None
 
     def _should_skip_method(self, node: ast.FunctionDef) -> bool:
-        """Return True if this method should be skipped (dunders, @property)."""
+        """Return True if this method should be skipped: DUNDERS ONLY.
+
+        (#49) The docstring used to say "(dunders, @property)" and it had been WRONG since
+        the `@property` branch was removed — a `@property` getter is emitted as an ordinary
+        nullary method now, which is what retired the recorded [UNEMITTABLE @property]
+        boundary. Measured two ways rather than read off the code: a `@property` with
+        `#@ ensures \result == 5` over a body returning 7 FAILS (so the contract is
+        CHECKED, not assumed), and `bin/check-emitted-function-coverage.py` finds ZERO
+        non-dunder functions dropped across 914 corpus files. A docstring that names a
+        skip the code no longer performs sends the next reader looking for a branch that
+        is not there — and `getting-better/driver-backlog.md` still prices six `\trusted`
+        markers as "trusted purely because" of it.
+        """
         if not self._current_class:
             return False
         if node.name.startswith('__') and node.name.endswith('__'):

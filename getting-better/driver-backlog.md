@@ -1453,7 +1453,31 @@ regex (CORRECTNESS-floors).
    (untyped-pyval values) devices — a review-gated multi-session build whose cert feasibility must be proven first.
    Floor 749 holds; this vein is review-gated.
 
-   **@property-EMISSION CLUSTER — BUILD-MEASURED, REVERTED, ROI-GATE STOP (2026-08-11, count 749).** Distinct NON-value-
+   **[STALE AS OF 2026-09-23 — RE-MEASURED, SEE BELOW] @property-EMISSION CLUSTER — BUILD-MEASURED, REVERTED, ROI-GATE STOP (2026-08-11, count 749).**
+
+   (#49) gen #30, MEASURED: `Module5_IREmitter._should_skip_method` NO LONGER SKIPS
+   `@property` — it skips dunders only, and its docstring saying otherwise was fixed at the
+   same time. Two independent measurements: a `@property` carrying
+   `#@ ensures \result == 5` over a body returning 7 FAILS (the contract is CHECKED, not
+   assumed) and its consistent twin emits `let box__size (self: box) : int` and PROVES;
+   and `bin/check-emitted-function-coverage.py` finds ZERO non-dunder functions dropped
+   across 914 corpus files. Three corpus files now use `@property`, one of them
+   `0967_property_getter_supported.py`, so the entry's "0 reference-corpus files use the
+   @property decorator" is stale too.
+
+   CONSEQUENCE FOR THE CONVERSION CLAIM BELOW: of the ~6 markers this entry prices as
+   "trusted purely because" of the skip, **FIVE ARE ALREADY UN-TRUSTED**
+   (`Module6_WhyMLTranspiler._heap_var`, `audit_proof_reverify.ok`,
+   `struct_format.arity`, `crosscheck.pairwise`) and exactly ONE remains:
+   `proof2why3/crosscheck_ir.py::pairwise`. That one is NOT blocked by the skip — its own
+   stub already records why, and the reason survives: a NESTED `def cmp`, `Optional[Term]`
+   params, and a `Dict[str, Optional[bool]]` return, needing all three of the capabilities
+   its comment lists. FORCED, with the measurement in the marker (lesson (w2)).
+
+   The original entry follows, unedited, because the way its estimate went stale is the
+   lesson: a cost recorded against a branch that has since been DELETED reads exactly like
+   a cost that is still owed.
+ Distinct NON-value-
    model class: ~6 `@property` trusted stubs (arity/struct_format, _heap_var/Module6, ok/audit_proof_reverify,
    all_agree+pairwise/crosscheck, pairwise/crosscheck_ir) are trusted purely because `Module5_IREmitter._should_skip_method`
    (:3195-3197) DROPS @property methods from IR emission entirely (same tier as dunders). Removing that branch (4-line
