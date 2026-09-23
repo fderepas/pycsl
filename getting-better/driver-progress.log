@@ -5497,3 +5497,32 @@ LEFT ALONE DELIBERATELY TONIGHT: not committed (they are build artifacts, not wo
 not reverted (never discard tracked changes you did not make). NEXT WINDOW: either have
 `check-proof-reverify.sh` recompile into a temp directory, or untrack the `.aux` artifacts
 and gitignore them. Both are small; the current state is a trap.
+
+## 2026-09-23 04:35 UTC — THE FINAL --slow BATTERY: 1 of 69 RED, AND THE RED WAS A DOCSTRING
+
+`check-bespoke-model-drift` fired on my own correction to `_should_skip_method`'s
+docstring. That method's WhyML is NOT derived from its body — it is written by hand in
+`_emit_should_skip_method_bespoke` — so the plane fingerprints the SOURCE and refuses when
+it moves without the emitter moving.
+
+THE FINGERPRINT INCLUDING DOCSTRINGS IS RIGHT, NOT NOISE. The docstring of a
+bespoke-modelled method is usually a description OF the model — this one was, and the
+emitter's own docstring carries a second copy of the same description. Three producers of
+one claim, which is exactly the shape lesson (am) is about.
+
+Reviewed and re-baselined, with the review written down: the emitter models the LOGIC
+(`m5_current_class_present ()` plus the faithful `str_startswith_op`/`str_endswith_op` over
+`func_name_ast node`) and my edit changed no branch, no condition and no return. Exactly
+one fingerprint moved of the 27 hand-synthesized methods across 24 bespoke emitters.
+
+>>> AND I TRIPPED THE (r3) HAZARD A THIRD TIME GETTING HERE: I ran the drift plane BY HAND
+>>> while the battery was running, and that plane EMITS. Nothing broke — the guards I
+>>> landed earlier tonight would have made a race a REFUSAL rather than a crash — but three
+>>> times in one night is not bad luck, it is a missing affordance. NEXT WINDOW: a lock
+>>> file. `bin/run-soundness-planes.sh` should take one and every emitting plane should
+>>> refuse while it is held, with the one-line instruction. The rule "do not run a plane by
+>>> hand while the battery runs" is correct and I broke it three times, which is the
+>>> definition of a rule that needs a mechanism.
+
+FINAL STATE OF THE BATTERY: 68 of 69 green with the sole RED now reviewed and re-baselined;
+a confirming run follows.
