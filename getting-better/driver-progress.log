@@ -5266,3 +5266,66 @@ all three so a future narrowing puts none of them back:
 
 >>> THAT IS (p3) A THIRD TIME: PRINT THE MEMBERS BEFORE YOU WRITE THE CEILING. Three
 >>> repairs, and the third would have produced a RED that was entirely mine.
+
+## 2026-09-23 01:30 UTC — THE FULL --slow BATTERY, GREEN; AND ROUTE #217
+
+**`[+] soundness-planes: OK — all 67 plane(s) green.`** — the first all-green `--slow` run
+of the generation, with `. scratchpad/g29/env.sh` sourced. The five why3 planes
+(stdlib-modules-verify, open-route-carriers, value-differential, proof-crosscheck,
+proof-reverify) all pass; trusted-frame-honesty, emitted-vacuity and clause-survival pass
+after the evening's three repairs. CAVEAT RECORDED HONESTLY: the tree changed under that
+run (route #216's refusal and route #217's typing landed mid-battery), so a FINAL battery
+at the true final HEAD is owed and is being run.
+
+## ROUTE #217 — AND THE HANDOFF'S "FULL DAY" ITEM COST FORTY MINUTES
+
+The handoff's 2b said: *"PRICED AND READY — DO THIS FIRST NEXT WINDOW... an adjudicable
+byte-diff, not a sweep — which is exactly why it is worth doing as a FIRST act with a full
+day rather than squeezed in beside two running jobs."*
+
+I priced it in a WORKTREE instead of the main tree, which is what made it cheap:
+
+  * The change is one branch in `_build_function_symbol_table`. Its mirror twin is
+    `\trusted`, so NO verbatim mirror edit and NO whole-file re-proof — the expensive part
+    the estimate assumed. Mirror sync after landing: 887 verbatim, unmoved.
+  * WHOLE-CORPUS BYTE-DIFF, both sides emitted fresh: **1303 baseline, 0 MOVED, 0
+    APPEARED, exactly 1 GONE** — and the GONE is `1725_gen30_bytes_count_form_excluded`,
+    which is `# pycsl-expected: FAIL` either way and now fails BY THE REFUSAL instead of by
+    the ill-typedness its own docstring flags as an accident doing the enforcing. That
+    comparison also covered route #216's refusal, so #216 is byte-verified inert too.
+  * `src/pycsl_lib/os/UnixInodeFileSystem` — the only `pycsl_lib` site — emits
+    byte-identically. Mirror and live tree: zero such locals.
+
+AND WHILE PRICING IT, THE EXPLOIT:
+
+    #@ ensures \result == 9
+    def f() -> int:
+        b = bytes([1, 2, 3]); b[0] = 9; return b[0]
+
+    [+] Verification SUCCESS! All contracts formally proven.
+
+CPython: `TypeError: 'bytes' object does not support item assignment`. Witness 1725 pins
+the COUNT form and calls this gap "pre-existing and separate"; the ITERABLE form — eight of
+the nine corpus sites — had NO WITNESS AT ALL. `PYCSL-SEM-SUBSCRIPT` already carries the
+perfect message and never saw the local, because the guard's population is "locals the
+symbol table calls `bytes`" and the constructor form never entered it. **Lesson (t3), for
+the second time in one night, in a different file.**
+
+A GUESS IN THE HANDOFF WAS CHECKED AND IS WRONG, which is the reason to check guesses:
+typing the ITERABLE form was expected to possibly make reads MORE faithful (`b[0] == 65`
+provable from the real byte values). All five surviving corpus emissions are byte-identical.
+
+## THE CENSUS STOPPED ROTTING
+
+Landing ten witnesses turned `check-refusal-witness-coverage` RED — correctly: a witness
+with no census row is a witness the gate cannot see. The census's only refresh
+(`--regenerate`) costs about two hours, which is exactly the pressure that makes someone
+hand-edit a TSV, and **a hand-written census row is a measurement nobody made.**
+
+`--append-new` runs only the witnesses with no row, through the SAME `_census_row` helper
+as `--regenerate` so the two cannot drift. It found FOURTEEN, not ten: 1718-1721 had been
+uncensused since before tonight, so "827 censused" was already stale by four.
+
+    220 raise sites · 841 censused · 188 DEMONSTRATED (was 184) · 10 undemonstrated (was 13)
+
+Both ratchets tightened to the measurement. FAST BATTERY at 66d67dcb: **all 44 green.**
