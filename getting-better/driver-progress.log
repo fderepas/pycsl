@@ -7059,3 +7059,33 @@ ROUTE #214 STAYS OPEN, deliberately. It is a claim about the DEFAULT-keyed devic
 across sites BY DESIGN, and its repair is blocked on local-type inference for
 constructor-assigned locals (335 corpus files would move). The state key was NOT extended
 to it.
+
+================================================================================
+2026-09-23 21:16Z — THE MIRROR RE-PROOF CAMPAIGN IS COMPLETE: 17 OF 17 GREEN
+================================================================================
+
+Every file on the campaign list re-proved WHOLE-FILE against `--import-path src/pycsl`:
+
+    errors.py                   ir_schema.py                frontend/exec_splice.py
+    frontend/import_classifier  proof2why3/parser.py        proof2why3/sertop.py
+    frontend/monomorphize.py    frontend/ConcurrencyChecker frontend/ir_inline.py
+    frontend/Module1_Ingestor   core_ir_semantic.py         frontend/Module2_Parser.py
+    frontend/Module3_Weaver.py  module6_whyml/statements    module6_whyml/expressions
+    pycsl.py                    frontend/Module5_IREmitter.py
+
+plus `module6_whyml/functions.py`, proved out of band for route #213's emission change, and
+`frontend/Module5_IREmitter.py` also proved out of band earlier for the `Callable` chain
+and the bespoke model. EIGHTEEN whole-file mirror proofs green today.
+
+Two of those carry today's live-source work directly: **`pycsl.py`** is where every refusal
+of the day lives (`verify_module` name, frameless `lemma`, `compose_from`-not-a-mixin), and
+its mirror proved AFTER they landed; **`Module5_IREmitter.py`** carries the `Callable` C5
+equality chain, which is an UN-TRUSTED twin and therefore had to prove as written.
+
+SUITE at the route-#213 tree: **3984/4002, the standing EIGHTEEN, ZERO XPASS.**
+
+That is the full three-plane picture for the day, all measured rather than argued:
+  FIDELITY   886 un-trusted mirror functions verbatim; signature drift 0; field parity 335.
+  PROOF      18 whole-file mirror proofs green, including every file this window edited.
+  INERTNESS  seven byte-diff sweeps; every one either clean or MOVED exactly where the
+             correction was intended, with each moved file re-run and its verdict unchanged.
