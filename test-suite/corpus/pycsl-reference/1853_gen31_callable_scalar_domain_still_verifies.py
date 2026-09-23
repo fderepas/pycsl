@@ -9,7 +9,6 @@ from typing import Callable
 _ = 0  # anchor
 
 
-#@ requires True
 #@ ensures \result >= 0
 #@ assigns \nothing
 def apply(f: Callable[[int], int], x: int) -> int:

@@ -20,7 +20,6 @@ class Rec:
         self.v: int = 0
 
 
-#@ requires True
 #@ ensures \result >= 0
 #@ assigns \nothing
 def apply(f: Callable[[Rec], int], r: Rec) -> int:
