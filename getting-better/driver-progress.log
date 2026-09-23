@@ -5816,3 +5816,57 @@ source". MEASURED IN A WORKTREE AT ae0a3e8a: the SAME three, identically. So it 
 pre-existing, not caused by this window — but gen #30's closing report said "mirror-sync 887
 verbatim", which is `check-self-annotate-sync.sh`, a DIFFERENT plane. The driver's L-plane
 definition names both. Recorded so the next window does not re-derive it.
+
+## 2026-09-23 09:50 UTC — THE INDEPENDENT REVIEWER FOUND THE THING THE MORNING'S OWN GATES
+##                        COULD NOT, AND IT WAS ONE GREP FROM THE REPAIR
+
+Gate R on the emit-dunders report returned PROCEED-WITH-NAMED-CHANGES with TEN oracle runs,
+and its most important finding was not about the build at all:
+
+  ROUTE #220. `x.__str__()` has its OWN recognizer in `_handle_call_expr` — nullary,
+  contractless, no `writes`, and it RETURNS long before `_resolve_dotted_signature`, where
+  route #218's morning repair lives. The identical carrier proved the identical false
+  contract through the identical mechanism. Every gate #218 passed was silent, because ZERO
+  corpus files call `.__str__()` explicitly, so the byte-diff had nothing to move.
+
+>>> LESSON (d4): (n3) said a new refusal can RETIRE an old one by running first. The same
+>>> is true of a REPAIR, and the repair's own gates cannot see it. AFTER LANDING A FIX AT A
+>>> DISPATCH POINT, ENUMERATE EVERY EARLIER RETURN IN THE SAME DISPATCHER.
+
+  ROUTE #221 (OPEN). `--fun use` proves `\result == 0` for a callee that sets `self.v = 7`
+  and declares no `#@ assigns`; the TRUE twin under the same flag fails; the same file
+  WITHOUT `--fun` fails. The frame was SYNTHESIZED by the emitter from the ABSENCE of a
+  clause, ASSUMED at the call site, and never discharged. It is about METHODS, not dunders
+  — corpus 1817's plain `enter` carries it at base. Every gate in the battery runs the
+  WHOLE-FILE proof, which is correct policy and exactly why nothing had ever measured what
+  `--fun` alone certifies.
+
+## 2026-09-23 09:50 UTC — WITNESS 1804's REPAIR NEEDED THREE PARTS WHERE THE TRIPWIRE NAMED ONE
+
+Gen #30 left 1804 as an explicit tripwire for "the day someone declares the counter". Gen
+#31 declared it. Two OTHER things fired first:
+
+  1. `len()` was the real hole. Counter declared + truthiness routed through it, `len` left
+     alone: `a: list = [7,8,9]; if n > 0: a = [1,2]; return len(a)` PROVED `\result == 3`
+     where CPython answers 2. `len` had fallen through to `Array.length a` — the length of
+     the array the FIRST literal allocated.
+  2. Corpus 1013 went XPASS. The first gate was "assigned a literal twice"; 1013 (route
+     #32's witness) binds `a` in BOTH ARMS of an if/else and NEVER at top level, so the
+     counter had no correct initial value and a FALSE contract started proving. The gate is
+     now "the FIRST literal binding in SOURCE ORDER is at depth 0".
+
+>>> LESSON (e4): a tripwire is a LOWER bound on what your change can break, never an upper
+>>> one. When you deliberately disarm one, re-derive from scratch what else its blocked
+>>> emission was holding back.
+
+And lesson (a4) applied a SECOND time, to a NESTED def this time: `def _lrb_walk(...)` inside
+`_emit_body_code` moved `check-mirror-coverage` 549 -> 550. Rewritten as an explicit stack.
+The lesson's own first instance had not said nested functions count; it does now.
+
+## 2026-09-23 09:50 UTC — THE CARRIER PLANE COULD NOT HOLD ROUTE #221 UNTIL IT GREW FLAGS
+
+`check-open-route-carriers.py` ran every carrier under ONE fixed flag set. #221's defect is
+produced BY a flag. The per-carrier `EXTRA_FLAGS` table's first draft keyed on the ABSOLUTE
+path while the table held RELATIVE ones — so the carrier ran WITHOUT `--fun`, reported
+FAILED, and looked EXACTLY like a closed route. It now refuses when a flags key names no
+carrier. Lesson (f4).

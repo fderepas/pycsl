@@ -30,6 +30,29 @@ WHAT IS FAITHFUL HERE, measured, so the fix is not over-scoped: with NO rebindin
 `a: list = []` proves `\result == 2` and refuses `\result == 1`; rebinding from a
 NON-literal (`a = b`) is refused with a message that explains the representation. It is
 the literal-rebinding spelling alone that is unguarded.
+
+GEN #31 — THE COUNTER IS DECLARED, AND THIS FILE STILL FAILS, WHICH IS THE POINT. The
+tripwire did its job twice over.
+
+  * The counter is now emitted for a literal-rebound list local (`let a_len = ref 0 in`,
+    initialised to the FIRST literal's length), so the module type-checks.
+  * Truthiness reads `!a_len <> 0` instead of `Array.length a <> 0`. With `n == 0` the list
+    is empty, the test is false, and `\result == 1` is UNPROVABLE — for the right reason
+    this time. The TRUE twin is corpus **1822** and it PROVES.
+  * `len()` reads the counter too, and that half was PROVED NECESSARY BY A FALSE CLAIM
+    rather than reasoned into existence: with the counter declared and truthiness fixed but
+    `len` left alone, `a: list = [7,8,9]; if n > 0: a = [1,2]; return len(a)` PROVED
+    `\result == 3` where CPython answers 2. Corpus 1823/1824/1825 pin both paths and the
+    false twin. DECLARING THE COUNTER ALONE REALLY DOES OPEN A HOLE — just not the one this
+    file was watching.
+
+AND A SECOND TRIPWIRE FIRED DURING THE REPAIR, which is why the gate is narrower than
+"assigned a literal twice". The first draft qualified any such name, and corpus **1013**
+(route #32's negative witness — `a` bound in BOTH ARMS of an if/else and never at top
+level) went XPASS: the counter had no correct initial value and a contract that is FALSE of
+the program started proving. A name now qualifies only when its FIRST literal binding IN
+SOURCE ORDER is UNCONDITIONAL, at depth 0 of the function body. 1013 and 1014 fall outside
+and are unchanged.
 """
 # pycsl-expected: FAIL
 _ = 0  # anchor

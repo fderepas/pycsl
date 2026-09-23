@@ -34,6 +34,52 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #50 gen #31 STATE (2026-09-23, the second 96h autonomous window) — READ FIRST
+
+**THE LIVE ITEM IS THE EMIT-DUNDERS BUILD**, and it is the first item in this campaign to
+arrive with a spike that PASSED, an INDEPENDENT REVIEW that ran ten oracles, and an
+implementation plan that survived Gate P. The three documents are
+`getting-better/emit-dunders-wall.md` (report), `-response.md` (the fable review, verdict
+PROCEED-WITH-NAMED-CHANGES) and `-impl.md` (the plan). Work the plan; do not re-spike it.
+
+**FOUR ROUTES IN THE FIRST NINETY MINUTES, and the shape of where they came from matters
+more than the count:**
+  · **#218 CLOSED** — a skipped dunder's self-writes now frame the `val` its call mints.
+    The route's own TITLE was wrong (`#@ assigns` is not the trigger; a BODY that writes
+    self is) and its own pass 2 had said so.
+  · **#219 OPEN** — EVERY check, VC and UB detector is switched off by the method's NAME.
+    Found by asking lesson (t3)'s question of `ir_data["functions"]`, the largest collection
+    in the system. Six carriers with one-identifier-apart controls, including a
+    `#@ happy ... postcond` SECURITY policy that is accepted and silently unenforced.
+    THE EMIT-DUNDERS BUILD CLOSES IT — that is now the build's strongest justification.
+  · **#220 CLOSED** — `x.__str__()` had its OWN recognizer, running BEFORE #218's repair.
+    Found by the independent reviewer, one grep from the repair. Lesson (d4).
+  · **#221 OPEN** — `--fun` assumes a SYNTHESIZED frame nobody wrote and nothing checks.
+    About METHODS, not dunders. Three repairs named, none priced; the right one depends on
+    what `--fun` is FOR.
+
+**THE TWO QUESTIONS THAT PAID THIS WINDOW, to ask again:**
+1. *What never ENTERS the collection this check iterates?* (#219, from
+   `ir_data["functions"]`.) 116 `for` loops in the shipping compiler contain a
+   `raise PyCSL*Error`, over 94 distinct collections. ONE has been walked.
+2. *Which EARLIER return in this dispatcher does my repair never reach?* (#220.) Ask it of
+   every repair landed at a dispatch point — the repair's own gates cannot answer it.
+
+**ALSO LANDED:** the `.aux` trap closed with `bin/check-artifact-cleanup.sh` (a new fast
+plane driving the SHIPPED epilogue lines against a throwaway repo, 8 cases, MIN_PLANES
+44 -> 45); the Module 3 for-block empty-body refusal PROVED unreachable (undemonstrated
+ceiling 6 -> 5) rather than hunted; `bytes(n)` lowered faithfully because the exclusion's own
+stated precondition came true; and witness 1804's shape repaired in THREE parts where the
+tripwire named one.
+
+**STILL OWED FROM THIS WINDOW:** routes #212, #213, #214, #219, #221 are OPEN;
+`self-annotate-mirror-check.sh` is RED at HEAD with three pre-existing drifted mirrors (it
+was red before this window — measured in a worktree at ae0a3e8a — and gen #30's closing
+report said "mirror-sync 887 verbatim", which is the OTHER fidelity plane); and 990 build
+artifacts are still TRACKED, which is a decision nobody has made rather than one this window
+made.
+
+
 ### #49 gen #30 STATE (2026-09-22, the 96h autonomous window) — READ FIRST
 
 **ELEVEN SEV-1 ROUTES CLOSED AND FOUR PLANES ADDED IN THIS GENERATION.** #191–#197 landed

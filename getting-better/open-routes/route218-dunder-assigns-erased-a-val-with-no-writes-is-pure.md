@@ -189,3 +189,23 @@ would have closed one spelling and left the other. Both now carry the receiver a
 
 Its entry in `bin/check-open-route-carriers.py` is retired in the same commit (the plane's
 own message asks for exactly that when a carrier stops proving).
+
+
+---
+
+## ADDENDUM, SAME DAY — THE REPAIR HAD A HOLE, AND AN INDEPENDENT REVIEWER FOUND IT
+
+`x.__str__()` never reached `_resolve_dotted_signature` at all: `_handle_call_expr`
+recognizes it EARLIER and returns the nullary `val str_dunder_op () : string`. So the
+identical carrier, with `__enter__` replaced by `__str__`, kept proving the identical false
+contract — through the identical mechanism — after this repair landed, was spiked, was
+byte-swept over 3509 programs and passed a 45-plane battery.
+
+Recorded as **route #220** (`route220-str-dunder-call-bypasses-the-218-frame.md`), closed
+the same day with the same remedy, witnesses 1820/1821.
+
+**Lesson (d4), banked from it:** after landing a repair at a dispatch point, ENUMERATE EVERY
+EARLIER RETURN IN THE SAME DISPATCHER. None of this repair's gates could have caught it —
+ZERO corpus files call `.__str__()` explicitly, so the byte-diff had nothing to move, and
+the recognizer's own comment ("byte-clean") had scoped the EMISSION risk correctly while
+saying nothing about the SOUNDNESS risk over the same set.

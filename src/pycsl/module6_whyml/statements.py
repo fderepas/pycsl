@@ -6723,6 +6723,78 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # invariants/specs resolves to `!X_len` (the dynamic counter)
         # instead of constant-folding to the initial-list size.
         self._current_append_targets = append_targets
+        # (#49) gen #31 — WITNESS 1804's SHAPE: a LITERAL-REBOUND list local had NO LENGTH
+        # AT ALL, and two false claims were held back only by a Why3 type error.
+        #
+        #     a: list = []
+        #     if n > 0: a = [1, 2]
+        #     if a: return 1
+        #     return 2                      # CPython f(0) -> 2
+        #
+        # `_emit_array_local_reassign` lowers the rebinding as "reset the counter, then
+        # append each element" — it WRITES `a_len` — but the `let <tgt>_len = ref 0 in`
+        # declaration below was emitted only for `.append` targets, so `a_len` was UNBOUND
+        # and L3-tc refused the module. Behind that accident sat TWO wrong answers, both
+        # MEASURED on the emitted WhyML:
+        #   * truthiness lowered to `Array.length a <> 0` over the `Array.make 1024 0`
+        #     shadow — ALWAYS TRUE, route #31's archetype verbatim; and
+        #   * `len(a)` lowered to `Array.length a`, i.e. the INITIAL literal's size —
+        #     `a: list = [7,8,9]; if n > 0: a = [1,2]; return len(a)` would prove
+        #     `\result == 3` where CPython answers 2.
+        # 1804 is the tripwire the previous generation left for "the day someone declares
+        # the counter", which is exactly half of this repair; the other half is that the
+        # LENGTH ANSWERS must come from the counter too. Declaring it alone opens the hole.
+        #
+        # THE SET IS A PRE-PASS over the IR, computed BEFORE `_stmts_to_whyml`, because the
+        # truthiness and `len` lowerings are emitted DURING that walk and so cannot wait for
+        # `_emit_array_local_reassign` to record anything. A name qualifies when it is
+        # assigned an `ArrayLit` at least TWICE anywhere in the body — the same shape that
+        # reaches `_emit_array_local_reassign`'s literal arm (its non-literal arm is route
+        # #18's refusal and is unaffected). The counter's initial value is the FIRST
+        # literal's length, which is also the length of the array the first binding
+        # allocates, so a rebinding to a LONGER literal still fails closed on Why3's own
+        # index bound rather than silently growing.
+        # THE GATE IS NARROWER THAN "assigned a literal twice", AND A TRIPWIRE PROVED IT HAS
+        # TO BE. The first draft qualified any name with two literal bindings. Corpus
+        # 1013 — route #32's negative witness — then went XPASS: it binds `a` in BOTH ARMS
+        # of an if/else and NEVER at top level, so the counter had no correct initial value,
+        # and `\result == 2` (FALSE: `c == 0`, CPython answers 3) started PROVING. The
+        # counter is written only by `_emit_array_local_reassign`, i.e. by REBINDINGS; a
+        # FIRST binding does not touch it. So a name qualifies only when its FIRST literal
+        # binding IN SOURCE ORDER is UNCONDITIONAL — at depth 0 of the function body — which
+        # makes the initial value right on every path and every later literal binding a
+        # rebinding that maintains it. 1013 and 1014 fall outside and keep their old
+        # behaviour; 1804's `a: list = []` is inside.
+        # ITERATIVE ON PURPOSE, not for speed: a nested `def _lrb_walk(...)` is a LIVE DEF
+        # with no mirror counterpart, and `check-mirror-coverage`'s ratchet counts it
+        # (549 -> 550, measured — lesson (a4) applies to nested functions too, which the
+        # lesson's own first instance did not say). The stack pushes children REVERSED so
+        # the pop order is SOURCE order, which is what the depth-0 test below depends on.
+        _lrb_seq: List[Tuple[int, str, int]] = []
+        _lrb_stack: List[Tuple[Any, int]] = [(_s, 0) for _s in reversed(body_stmts)]
+        while _lrb_stack:
+            _node, _depth = _lrb_stack.pop()
+            if isinstance(_node, list):
+                _lrb_stack.extend((_x, _depth) for _x in reversed(_node))
+                continue
+            if not isinstance(_node, dict):
+                continue
+            if (_node.get("stmt") == "Assign" and isinstance(_node.get("target"), str)
+                    and isinstance(_node.get("value"), dict)
+                    and _node["value"].get("type") == "ArrayLit"):
+                _lrb_seq.append((_depth, _node["target"],
+                                 len(_node["value"].get("elts") or [])))
+            _lrb_kids = [_v for _v in _node.values() if isinstance(_v, (dict, list))]
+            _lrb_stack.extend((_v, _depth + 1) for _v in reversed(_lrb_kids))
+        _lrb_counts: Dict[str, int] = {}
+        _lrb_first: Dict[str, Tuple[int, int]] = {}
+        for _d, _t, _n in _lrb_seq:
+            _lrb_counts[_t] = _lrb_counts.get(_t, 0) + 1
+            _lrb_first.setdefault(_t, (_d, _n))
+        self._literal_rebind_lens = {
+            t: _lrb_first[t][1] for t, c in _lrb_counts.items()
+            if c >= 2 and _lrb_first[t][0] == 0}
+        self._literal_rebind_targets = set(self._literal_rebind_lens)
         # `_has_early_ret` gates the `try ... with Return r -> r end` wrap.
         # Module6 emits `raise (Return ...)` whenever `in_loop` is true at a
         # Return site, not only when `has_early_return` would catch it (an
@@ -7112,7 +7184,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         }
         body_code = self._stmts_to_whyml(
             body_stmts,
-            (local_refs | {f"{t}_len" for t in append_targets} | seq_promoted_params
+            (local_refs | {f"{t}_len" for t in append_targets}
+             | {f"{t}_len" for t in self._literal_rebind_targets} | seq_promoted_params
              | set(_seqrec_predecl))
                 - struct_array_targets - struct_pack_targets - _uput,
             initial_declared
@@ -7248,6 +7321,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if tgt not in local_refs and tgt not in ref_params:
                 body_code = f"    let {safe_tgt} = Array.make 1024 0 in\n{body_code}"
                 self._array_locals.add(tgt)
+
+        # (#49) gen #31 — the counter for a LITERAL-REBOUND list local (witness 1804's
+        # shape). Declared AFTER the append-target loop and only for names that loop did not
+        # already cover, so a name that is BOTH appended to and rebound keeps exactly one
+        # declaration. The initial value is the first literal's length, not `pfx`: a name
+        # bound `a: list = [7, 8, 9]` and rebound later must answer 3 before the rebinding.
+        for tgt in sorted(self._literal_rebind_targets - set(append_targets)):
+            safe_tgt = whyml_ident(tgt)
+            body_code = (f"    let {safe_tgt}_len = ref "
+                         f"{self._literal_rebind_lens[tgt]} in\n{body_code}")
 
         if not body_code.strip():
             body_code = "    ()"

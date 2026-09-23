@@ -86,6 +86,24 @@ CARRIERS = {
     "getting-better/open-routes/route219-control-happy-policy-on-a-method.py": (
         "FAILED", "#219",
         "the control: the same policy on a NON-dunder target is enforced and the file fails"),
+    # (#49) ROUTE #221 — `--fun` ASSUMES A FRAME NOBODY WROTE AND NOTHING CHECKS. Found by
+    # the independent fable reviewer of the emit-dunders report, as a finding EXPLICITLY NOT
+    # about that build (it reproduces at base, for ORDINARY methods). Three entries: the
+    # carrier under `--fun`, its TRUE twin under `--fun` (which must keep failing, or the
+    # flag is merely broken rather than unsound), and the SAME file whole-file (which must
+    # keep failing, which is what localises the defect to the flag).
+    "getting-better/open-routes/route221-carrier-fun-assumes-a-synthesized-frame.py": (
+        "SUCCESS", "#221",
+        "`--fun use` proves `\\result == 0` for a callee whose body sets `self.v = 7` and "
+        "declares no `#@ assigns`; CPython answers -7"),
+    "getting-better/open-routes/route221-control-fun-true-twin-still-fails.py": (
+        "FAILED", "#221",
+        "the TRUE twin under the same flag still fails — a false contract proves while the "
+        "true one is rejected, which is the route standard"),
+    "getting-better/open-routes/route221-control-whole-file-still-fails.py": (
+        "FAILED", "#221",
+        "the identical file WITHOUT `--fun` fails, which is what localises the defect to "
+        "the flag rather than to the model"),
     # (#49) ROUTE #218 IS CLOSED (gen #31) — the carrier moved INTO the corpus as witness
     # 1815 (expected FAIL), with controls 1816 (read-only dunder still verifies) and 1817
     # (the non-dunder spelling, which always failed). `Module5._record_skipped_dunder_writes`
@@ -107,10 +125,28 @@ CARRIERS = {
 }
 FLAGS = ["--memory-model", "hoare"]
 
+# (#49) gen #31 — PER-CARRIER EXTRA FLAGS. Route #221's carrier is a false certificate
+# produced by a SHIPPING FLAG (`--fun`), so the carrier is only a carrier when that flag is
+# passed; run bare it merely fails, like any honest file. A gate that can only run one flag
+# combination cannot hold a route whose defect lives in another one.
+EXTRA_FLAGS = {
+    "getting-better/open-routes/route221-carrier-fun-assumes-a-synthesized-frame.py":
+        ["--fun", "use"],
+    "getting-better/open-routes/route221-control-fun-true-twin-still-fails.py":
+        ["--fun", "use"],
+    "getting-better/open-routes/route221-control-whole-file-still-fails.py": [],
+}
 
-def verdict(path):
-    p = subprocess.run([PY, DRIVER] + FLAGS + [path], capture_output=True, text=True,
-                       timeout=600)
+
+def verdict(path, rel=None):
+    # The caller passes an ABSOLUTE path; EXTRA_FLAGS is keyed on the REPO-RELATIVE one, so
+    # the lookup takes `rel` explicitly rather than guessing. A first draft keyed it on
+    # `path` and the route #221 carrier silently ran WITHOUT `--fun` — reporting FAILED and
+    # looking like a closed route. A flags table that can miss must not miss SILENTLY, so
+    # an unknown `rel` for a path listed in EXTRA_FLAGS is impossible by construction here:
+    # both dicts are keyed the same way and the guard below checks it.
+    p = subprocess.run([PY, DRIVER] + FLAGS + EXTRA_FLAGS.get(rel, []) + [path],
+                       capture_output=True, text=True, timeout=600)
     out = (p.stdout or "") + (p.stderr or "")
     if "PIPELINE ERROR" in out:
         return "REFUSED"
@@ -130,6 +166,14 @@ def main():
               "would report FAILED. Source the environment first.", file=sys.stderr)
         return 2
 
+    _orphan = sorted(set(EXTRA_FLAGS) - set(CARRIERS))
+    if _orphan:
+        print("[!] open-route-carriers: REFUSING — EXTRA_FLAGS names %d path(s) that are "
+              "not carriers: %s. A flags entry that matches nothing is a carrier running "
+              "under the WRONG flags and reporting a verdict about a different question."
+              % (len(_orphan), ", ".join(_orphan)), file=sys.stderr)
+        return 2
+
     rc = 0
     for rel, (want, route, why) in sorted(CARRIERS.items()):
         path = os.path.join(ROOT, rel)
@@ -138,7 +182,7 @@ def main():
                   "an open route nobody can reproduce." % (rel, route), file=sys.stderr)
             rc = 1
             continue
-        got = verdict(path)
+        got = verdict(path, rel)
         if args.verbose:
             print("    %-9s %s (route %s)" % (got, rel, route))
         if got != want:

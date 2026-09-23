@@ -42,7 +42,10 @@ when a verdict is STALE must cover the part the verdict is ABOUT.
 **(a4)** a new live HELPER METHOD is not free — it costs a ratchet and two re-proofs ·
 **(b4)** an additive IR key is caught by the conformance goldens, and that is the gate
 working · **(c4)** a cleanup that restores files must be keyed on the PATH, and it must be
-RUN before it is believed.
+RUN before it is believed. · **(d4)** a recognizer that runs FIRST can retire a
+REPAIR as easily as a refusal · **(e4)** a tripwire someone else left for you will fire on
+your own fix, and it will be right · **(f4)** a gate that can only run ONE flag combination
+cannot hold a route whose defect lives in another one.
 
 ### (f3) An exclusion you never tested is a guess — check whether the reason still applies
 
@@ -5955,3 +5958,74 @@ Two rules come out of it:
   deleted by the run — is the one that caught the defect, and the negative control (restore
   the line-keyed draft, watch case 7 go red and the other seven stay green) is what proves
   the fixture can fire at all.
+
+
+### (d4) A recognizer that runs FIRST can retire a REPAIR as easily as a refusal
+
+Lesson (n3) was banked as "a new refusal can RETIRE an old one by running first". Gen #31
+paid for the other half of that sentence. Route #218's repair — derive an explicitly-called
+dunder's frame from its dropped body — was landed, make-or-break-spiked, byte-swept over
+3509 programs and battery-gated in one morning. An INDEPENDENT REVIEWER then found, one grep
+from the site the repair touched, that `x.__str__()` has its OWN recognizer in
+`_handle_call_expr`:
+
+    if func_name == "__str__" or func_name.endswith(".__str__"):
+        self._add_abstract_op("val str_dunder_op () : string")
+        return "(str_dunder_op ())"
+
+— nullary, contractless, no `writes`, and it RETURNS long before `_resolve_dotted_signature`
+where the repair lives. So the identical carrier proved the identical false contract through
+the identical mechanism, and every gate the repair passed was silent: ZERO corpus files call
+`.__str__()` explicitly, so the byte-diff had nothing to move.
+
+THE RULE: **after landing a repair at a dispatch point, enumerate every EARLIER return in
+the same dispatcher.** Not every caller — every earlier return. The repair's blast radius is
+bounded below by the set of inputs that never reach it, and in a 19,000-line dispatcher that
+set is not visible from the repair's own site.
+
+The corollary about the instruments is worth stating too. The recognizer's comment said
+"byte-clean (no corpus driver calls `.__str__()`)" and that sentence was TRUE and still is.
+It scoped the EMISSION risk correctly and was silent about the SOUNDNESS risk over the same
+set — which is exactly what a byte-diff measures and does not measure.
+
+### (e4) A tripwire someone else left for you will fire on your own fix, and it will be right
+
+Gen #30 left corpus 1804 as an explicit tripwire: "this file is the tripwire for the day
+someone declares the counter — a tidy-up that looks harmless. If that happens this file
+starts PROVING, becomes an XPASS, and the suite says so loudly." Gen #31 declared the
+counter. TWO tripwires fired, and neither was the one 1804 was watching:
+
+* **`len()` was the real hole.** With the counter declared and TRUTHINESS routed through it,
+  `a: list = [7,8,9]; if n > 0: a = [1,2]; return len(a)` PROVED `\result == 3` where
+  CPython answers 2 — `len` had fallen through to `Array.length a`, the length of the array
+  the FIRST literal allocated. Declaring the counter really does open a hole; just not the
+  one the tripwire named.
+* **Corpus 1013 went XPASS.** The first draft qualified any name bound to a literal twice.
+  1013 (route #32's witness) binds `a` in BOTH ARMS of an if/else and never at top level, so
+  the counter had no correct initial value and a FALSE contract started proving. The gate is
+  now "the FIRST literal binding in SOURCE ORDER is at depth 0".
+
+So the fix needed THREE parts where the tripwire named one, and the other two were found by
+running, not by reading. **A tripwire is a lower bound on what your change can break, never
+an upper one** — and the discipline it earns is: when you deliberately disarm a tripwire,
+re-derive from scratch what else its blocked emission was holding back.
+
+### (f4) A gate that can only run ONE flag combination cannot hold a route whose defect lives in another one
+
+`check-open-route-carriers.py` ran every carrier under a fixed `--memory-model hoare`. Route
+#221's defect is produced by `--fun`: the same file fails without it. The carrier could not
+be registered at all until the plane grew a per-carrier `EXTRA_FLAGS` table.
+
+The first draft of that table keyed the lookup on the ABSOLUTE path while the table held
+REPO-RELATIVE ones, so the #221 carrier silently ran WITHOUT `--fun`, reported FAILED, and
+looked EXACTLY like a closed route — the failure mode a carrier gate exists to prevent,
+produced by the gate. It now refuses when a flags key names no carrier, because **a flags
+entry that matches nothing is a carrier running under the wrong flags and answering a
+different question**.
+
+Generalise past this plane: every gate has an implicit configuration, and a defect that
+lives in a configuration the gate does not run is invisible to it no matter how thorough it
+is within the one it does. The campaign's own discipline already says "a `--fun` pass never
+substitutes for the whole-file proof" — correct policy, and the reason nothing had ever
+measured what `--fun` ALONE certifies. A flag that prints a verification verdict is a claim
+surface and needs a witness like any other.

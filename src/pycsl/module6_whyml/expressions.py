@@ -777,7 +777,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # below get their chance; the refusal is the last word, after them.
                 # (The mirror's own `stmt_control_flow.py` is the case that proved
                 # this necessary — refusing here broke its emission outright.)
-                if name in getattr(self, "_current_append_targets", set()):
+                if (name in getattr(self, "_current_append_targets", set())
+                        # (#49) gen #31 — a LITERAL-REBOUND list local now carries the same
+                        # counter (statements.py's `_literal_rebind_targets` pre-pass), so
+                        # its truthiness is the counter's, not `Array.length` over a shadow
+                        # array that is always allocated. THIS HALF IS NOT OPTIONAL:
+                        # declaring the counter without it is precisely what witness 1804
+                        # was left as a tripwire for — the emission would type-check and the
+                        # always-true `Array.length a <> 0` would start PROVING a contract
+                        # that is FALSE of CPython.
+                        or name in getattr(self, "_literal_rebind_targets", set())):
                     return f"(!{whyml_ident(name)}_len <> 0)"
                 _r31_sizes = getattr(self, "_known_collection_sizes", {})
                 if (name in _r31_sizes
@@ -6448,9 +6457,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # runtime, so the static fold is unsound in invariants
             # (`len(entries) <= i` collapses to `0 <= i`).
             append_targets = getattr(self, "_current_append_targets", set())
-            if vname in known and vname not in append_targets:
+            # (#49) gen #31 — A LITERAL-REBOUND LIST LOCAL ANSWERS FROM ITS COUNTER, and
+            # this half of the repair was PROVED NECESSARY BY A FALSE CLAIM, not reasoned
+            # into existence. With the counter declared and truthiness routed through it but
+            # `len` left alone, this file PROVED:
+            #     a: list = [7, 8, 9]
+            #     if n > 0: a = [1, 2]
+            #     return len(a)          #@ ensures \result == 3   <-- CPython gives 2
+            # because `len` fell through to `Array.length a`, the length of the array the
+            # FIRST literal allocated. The constant fold is already poisoned for these names
+            # (`_rebound_collections`), which is why nothing caught it earlier: the fold
+            # declines and the array length answers instead. So the rebind targets are
+            # handled exactly like append targets — counter first, fold never.
+            _lrb = getattr(self, "_literal_rebind_targets", set())
+            if vname in known and vname not in append_targets and vname not in _lrb:
                 return str(known[vname])
-            if vname in append_targets:
+            if vname in append_targets or vname in _lrb:
                 # Append-target len is tracked in a sidecar ref `X_len`.
                 return f"!{vname}_len"
         if self._is_string_expr(arg_ir):
@@ -8738,6 +8760,50 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (isinstance(func_name, str)
                 and (func_name == "__str__" or func_name.endswith(".__str__"))
                 and not expr.get("args")):
+            # (#49) ROUTE #220 — THIS SITE IS ROUTE #218's HOLE IN ITS SECOND SPELLING, and
+            # the nullary `val` above is why. Found by an INDEPENDENT REVIEWER running the
+            # oracle on route #218's own repair, one grep from the site the repair touched.
+            # A `val` with no `writes` is PURE to Why3, and this one has no receiver either:
+            #     #@ class invariant self.v >= 0
+            #     class C:
+            #         def __init__(self) -> None: self.v: int = 0
+            #         #@ assigns self.v
+            #         def __str__(self) -> str:
+            #             self.v = 7
+            #             return "x"
+            #     #@ ensures \result == 0
+            #     def use() -> int:
+            #         c = C(); before: int = c.v; _s: str = c.__str__(); after: int = c.v
+            #         return before - after
+            # PROVED `\result == 0` while CPython answers -7, and the TRUE twin FAILED.
+            # Route #218's frame never applied here because this branch RETURNS long before
+            # `_resolve_dotted_signature` is consulted — a recognizer that runs first, which
+            # is lesson (n3) in the direction nobody looks for: a check that runs first can
+            # retire a REPAIR as easily as it retires a refusal.
+            #
+            # SAME REMEDY, SAME HONESTY: the result stays an opaque string (nothing is
+            # claimed about it), and the receiver's fields stop being provably UNCHANGED.
+            # Gated on a receiver that is a KNOWN RECORD VAR whose class's `__str__` writes
+            # self state, so `super().__str__()` — the ONLY spelling that occurs anywhere in
+            # the repository (3 sites, all `errors.py`, plus 5 in the live tree; ZERO in
+            # either corpus, re-counted rather than inherited from this comment's own
+            # "byte-clean" claim) — is untouched and keeps the nullary op.
+            _r220 = func_name[: -len(".__str__")] if func_name != "__str__" else ""
+            _sdw220 = (self.ir.get("skipped_dunder_writes") or {})
+            if _r220 and "." not in _r220 and _sdw220:
+                _c220 = ((getattr(self, "_current_record_var_classes", {}) or {}).get(_r220)
+                         or (getattr(self, "_module_global_classes", {}) or {}).get(_r220)
+                         or (self._current_self_type if _r220 == "self" else ""))
+                if _c220:
+                    _lc220 = str(_c220).lower()
+                    _w220 = self._writes_filtered_to_labels(
+                        _lc220, _sdw220.get(f"{_lc220}____str__") or [])
+                    if _w220:
+                        _nm220 = f"{whyml_ident(_lc220)}_str_dunder_op"
+                        self._add_abstract_op(
+                            f"val {_nm220} (self: {whyml_ident(_lc220)}) : string\n"
+                            f"    writes {{ " + ", ".join(f"self.{f}" for f in _w220) + " }")
+                        return f"({_nm220} {whyml_ident(_r220)})"
             self._add_abstract_op("val str_dunder_op () : string")
             return "(str_dunder_op ())"
         # item34.md CF2: `IRScanner.<pred>(<stmt-list>)` (e.g. `ends_with_return`,
