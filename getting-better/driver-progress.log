@@ -5163,3 +5163,54 @@ refusal, and printing the six actual messages found:
 Both carriers repaired, every case now pins its expected message fragment, mismatch =
 BOUNDARY MISATTRIBUTED, `--selftest-misattribute` proves it fires. Six carriers now refused
 by their OWN refusal; four controls accepted. Lesson (s3).
+
+## 2026-09-23 00:32 UTC — A SOUNDNESS HOLE PLUGGED BY AN UNRELATED TYPE ERROR
+
+Working the undemonstrated refusal `pycsl.py:1928`
+(`PYCSL-R31-UNMODELLED-LIST-TRUTHINESS`) I could not make it fire, and what I found
+instead is worth more than the witness.
+
+THE SHAPE. A list local bound to `[]` and REBOUND to a literal inside a branch:
+
+    a: list = []
+    if n > 0:
+        a = [1, 2]
+    if a:            # CPython: FALSY when n == 0, so f(0) == 2
+        return 1
+    return 2
+
+lowers to
+
+    let a = (Array.make 1024 0) in
+    if (n > 0) then begin a_len := 0; a[!a_len] <- 1; ... end;
+    if (Array.length a <> 0) then ...
+
+TWO THINGS ARE WRONG AND ONLY ONE OF THEM IS LOUD.
+
+1. `a_len` is WRITTEN AND NEVER DECLARED — the `let <tgt>_len = ref …` is emitted only
+   for `.append` targets, and a list-literal REBINDING is not one. Why3 says "unbound
+   function or predicate symbol 'a_len'" and L3-tc refuses the module. Fail-closed.
+2. The truthiness test is `Array.length a <> 0` over `Array.make 1024 0`, which is
+   **ALWAYS TRUE**. That is route #31's archetype verbatim: the emitter answering "a list
+   local is truthy because the array is always allocated", which is FALSE of `[]`.
+
+>>> SO `#@ ensures \result == 1` WOULD PROVE HERE WHILE CPython RETURNS 2, AND THE R31
+>>> REFUSAL — WHICH EXISTS FOR EXACTLY THIS RESIDUE — DOES NOT FIRE. The only reason this
+>>> is not a route today is that the module does not TYPE-CHECK, for an unrelated reason.
+>>> A soundness hole plugged by a type error is one bug-fix away from being open, and the
+>>> bug-fix (declare the counter) looks like a tidy-up.
+
+A SECOND ILL-TYPED EMISSION IN THE SAME FAMILY: `a: list = []` followed by a conditional
+`a.append(1)` emits a `seq.Seq.seq int` where an `array.Array.array` is expected (L3-tc ✗).
+That is the OTHER spelling that would reach the empty-at-runtime case.
+
+WHAT IS FAITHFUL, MEASURED RATHER THAN ASSUMED:
+  * `a: list = []` with NO rebinding: `#@ ensures \result == 2` PROVES and the false twin
+    `== 1` FAILS. The literal-size path is correct.
+  * rebinding a list local from a NON-literal (`a = b`) is REFUSED with a message that
+    says exactly why ("the local is represented as a fixed `Array.make` plus a length
+    counter, not a rebindable reference").
+
+So the residue R31 names is real, and its two reachable spellings are both blocked by
+emitter defects rather than by the refusal. Recorded as a LATENT hazard, not a route: the
+route standard is a false contract PROVING, and nothing proves here today.
