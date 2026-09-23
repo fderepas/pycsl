@@ -2717,6 +2717,28 @@ def apply_composition(ir_data: Dict[str, Any]) -> None:
                 if (n.get("stmt") in ("FieldAssign", "FieldAugAssign")
                         and n.get("object") == "self"):
                     written.add(n.get("field"))
+                # (#49) AN ELEMENT WRITE IS A WRITE. `self.cache[0] = x` is emitted as
+                # `{"stmt": "ArraySet", "array": {"type": "FieldGet", "object": "self",
+                # "field": "cache"}, ...}` — NOT a `FieldAssign` — so this guard could not
+                # see it. MEASURED, two files one character apart (corpus 0551's shape):
+                # `self.cache = x` is REFUSED with the "declare every field a mixin
+                # touches" message and `self.cache[0] = x` was ACCEPTED.
+                #
+                # It is NOT a soundness hole and the honest version of that matters: with
+                # the field real, the CLONE carries `ensures { self.cache = old self.cache }`
+                # from `assigns \nothing` and the element write makes it unprovable, so the
+                # program FAILS (measured: CPython -7, PyCSL FAILED). What was lost is the
+                # DIAGNOSIS — the user got an unprovable frame goal instead of the sentence
+                # naming the undeclared field. This guard exists to produce that sentence.
+                #
+                # Blast radius measured before landing: 10 corpus files declare `#@ mixin`
+                # and ZERO of them write a self field by element; the mirror, the live tree
+                # and `pycsl_lib` declare no mixin classes at all. Byte-inert.
+                if n.get("stmt") in ("ArraySet", "ArraySliceSet"):
+                    _arr = n.get("array")
+                    if (isinstance(_arr, dict) and _arr.get("type") == "FieldGet"
+                            and _arr.get("object") == "self"):
+                        written.add(_arr.get("field"))
                 for v in n.values():
                     walk(v)
             elif isinstance(n, list):
