@@ -77,6 +77,21 @@ which is `# pycsl-expected: FAIL`. Corpus-wide there are 9 explicit dunder calls
 dunders declaring `assigns self.`; the mirror, the live tree and `pycsl_lib` have 10
 explicit dunder calls between them and ZERO writing dunders.
 
+## Two more measurements that narrow it
+
+* **The IMPLICIT dispatch does NOT have the hole.** The same class with `len(c)` instead of
+  `c.__len__()` — a `__len__` declaring `#@ assigns self.v` and setting it — **FAILS**. So
+  the defect is specific to the EXPLICIT `c.__dunder__(...)` call site, which is exactly
+  where the contractless `val` is minted. That makes a repair keyed on the explicit call
+  narrower than it first looks.
+* **The abstract-op TEMPLATES are clean.** All 96 `_add_abstract_op` `val` templates in
+  `module6_whyml/` were scanned: 13 take a non-scalar first parameter and declare no
+  `writes`, and every one of those is genuinely READ-ONLY (`join_array`, `sorted_seq`,
+  `array_rev`, `array_slice`, `subscript_get_str`, …). The hole is not in the op library;
+  it is in the per-call-site `val` minted for a method the emitter DROPPED — and
+  `bin/check-emitted-function-coverage.py` says every dropped function in the corpus is a
+  dunder, so this route's population and that plane's population are the same set.
+
 ## Why it is OPEN and not closed tonight
 
 The obvious refusal would land on 1334 — **route #120's own witness** — and a refusal that

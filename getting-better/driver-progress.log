@@ -5647,3 +5647,17 @@ the mirror, the live tree or `pycsl_lib`).
 >>> claims.** 1800's was written carefully, by me, four hours earlier, and it was half a
 >>> claim. The corpus is full of prose that says "this is sound because…" and none of it
 >>> has a gate behind it.
+
+## 2026-09-23 06:20 UTC — TWO MEASUREMENTS THAT NARROW ROUTE #218
+
+* The IMPLICIT dispatch does NOT have the hole: the same class with `len(c)` instead of
+  `c.__len__()` FAILS. The defect is specific to the EXPLICIT call site, which is where the
+  contractless `val` is minted — so a repair keyed on the explicit call is narrower than it
+  first looked.
+* The abstract-op TEMPLATES are clean: all 96 `_add_abstract_op` `val` templates in
+  `module6_whyml/` scanned; 13 take a non-scalar first parameter with no `writes`, and every
+  one is genuinely read-only (`join_array`, `sorted_seq`, `array_rev`, `array_slice`,
+  `subscript_get_str`, …). The hole is not in the op library — it is in the per-call-site
+  `val` minted for a DROPPED method, and `check-emitted-function-coverage` says every
+  dropped function in the corpus is a dunder. **The route's population and that plane's
+  population are the same set**, which is the most useful thing either of them says.
