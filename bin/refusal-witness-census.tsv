@@ -844,3 +844,15 @@ median_high_call_fails.py	VERIFY-FAIL
 1812_gen30_witness_inline_expression_position_no_return.py	REFUSAL	cannot inline 'c__bump' in expression position: its body does not end in a `return`.
 1813_gen30_witness_contract_syntax_error.py	REFUSAL	[parse]: PyCSL Syntax Error around line 18:
 1814_gen30_witness_mixin_element_write_undeclared_field.py	REFUSAL	Mixin 'CoreEmit' (composed into 'Facade'): a method writes `self.cache`, a field declared neither `#@ shared_state` nor `#@ touches_field` nor initialised in __init__. Declare every field a mixin touches so composition can reason about it — the form is `#@ touches_field cache: <type>`, and the TYPE is REQUIRED (`#@ touches_field cache` alone is a syntax error; measured in gen #30).
+1815_route218_witness_dunder_self_write_is_not_pure.py	VERIFY-FAIL	
+1817_route218_ctl_nondunder_spelling_always_failed.py	VERIFY-FAIL	
+1819_gen31_bytes_count_form_false_twin.py	VERIFY-FAIL	
+1820_route220_str_dunder_call_was_pure.py	VERIFY-FAIL	
+1825_gen31_rebound_list_len_false_twin.py	VERIFY-FAIL	
+1826_gen31_finalizer_breaking_the_invariant_now_fails.py	VERIFY-FAIL	
+1828_gen31_no_exception_inside_a_dunder_is_now_checked.py	VERIFY-FAIL	
+1829_gen31_no_exception_non_dunder_control.py	VERIFY-FAIL	
+1830_gen31_ub71_inside_a_dunder_is_now_refused.py	REFUSAL	/home/fabrice/git/pycsl/test-suite/corpus/pycsl-reference/1830_gen31_ub71_inside_a_dunder_is_now_refused.py (function 'c____enter__', for-loop near line 26): UB-7.1 — the loop body mutates the iterated collection 'xs'. This is undefined behaviour in CPython (iterator state corruption). Either rewrite to iterate over a snapshot (`for k in list(xs):`) or annotate the loop with `#@ allow_iteration_mutation` to acknowledge the boundary. See config/skills/pycsl-ub-catalog/SKILL.md §7.1.
+1831_gen31_happy_policy_on_a_dunder_is_now_enforced.py	VERIFY-FAIL	
+1832_gen31_happy_policy_on_a_method_control.py	VERIFY-FAIL	
+1833_gen31_still_dropped_hook_override_is_still_refused.py	REFUSAL	[ir-semantic] /home/fabrice/git/pycsl/test-suite/corpus/pycsl-reference/1833_gen31_still_dropped_hook_override_is_still_refused.py line 28: /home/fabrice/git/pycsl/test-suite/corpus/pycsl-reference/1833_gen31_still_dropped_hook_override_is_still_refused.py (line 28): class `Sub` overrides `Base`'s `__new__` and `--check-behavioral-subtyping` was requested, but a DUNDER is not emitted as a function, so no override pair is recorded and NO refinement goal is built. The run would report `All contracts formally proven` with the substitutability obligation silently absent (route #216, the same shape as route #97). Refusing instead of certifying. FIX: give the method a non-dunder name — the identical program spelled `m` instead of `__len__` produces the goal `sub__m_refines_base` and is checked — or drop `--check-behavioral-subtyping`, which then claims nothing about this pair rather than claiming something false.
