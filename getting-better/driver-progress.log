@@ -5573,3 +5573,25 @@ HEADLINE METRIC RE-VERIFIED BY RUNNING IT, not by recalling it:
 
 **459 → 459. ZERO conversions**, which is the honest headline of this generation and has
 been all along.
+
+## 2026-09-23 06:10 UTC — TWO MORE NEGATIVES ON THE GENERIC PATH, AND WHY #215 DOES NOT TRANSFER
+
+`monomorphize._collect_instantiations` is another `for x in COLLECTION` guard (GT1 refuses
+`Any` as a type argument by iterating the collected set), so it gets the (t3) question too.
+
+MEASURED: a generic CLASS instantiation `Box[int](5)` — which IS valid Python, unlike route
+#215's generic FUNCTION subscript — lowers to
+
+    let b = ref 0 in
+    b := (any int);
+
+so the constructor is ERASED. Both twins of `#@ ensures \result == 5` FAIL, and so does the
+route-#215 REBINDING shape (`a = Box[int](1); x = a; a = Box[int](2); return x.get() -
+a.get()`, CPython -1). **The erasure is `any int`, which is FRESH at every occurrence, not
+the per-NAME opaque CONSTANT that made route #215 an unsoundness.** That distinction is the
+whole difference between an incompleteness and a route, and it is worth having written
+down: the next person who finds an erased generic call should check WHICH KIND of erasure
+before reaching for the route standard.
+
+That makes SEVEN loops attacked tonight from the list of 98: one route (#216), one landed
+diagnostic fix (the composition guard's element write), and five negatives, all recorded.
