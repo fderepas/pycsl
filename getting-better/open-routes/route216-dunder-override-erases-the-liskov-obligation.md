@@ -100,8 +100,17 @@ second is the reachable one.** That is also why the refusal is one of the sites
 * 49 non-`__init__` dunder defs in the corpus, 10 in the mirror, 14 in the live tree, 8 in
   `src/pycsl_lib` (the census witness 1800 already carries).
 * This route needs a dunder OVERRIDE (a base/protocol member and a subclass member of the
-  same dunder name) plus `--check-behavioral-subtyping`. Corpus occurrences of that
-  combination: to be counted before any repair is priced.
+  same dunder name) plus `--check-behavioral-subtyping`. **MEASURED: ZERO such pairs
+  exist** — 1722 corpus files, 53 mirror, 94 live, 104 `pycsl_lib`, all scanned by AST for
+  a class whose base (by name, same file) defines the same non-`__init__` dunder. So the
+  route is LATENT: nothing in the repository exercises it today, and no repair would move
+  a byte of the current emission.
+
+  That cuts both ways and the second way is the reason it is written down. A hole nothing
+  in the corpus touches is a hole no gate will ever report, and this one produces the
+  strongest sentence the tool can print over a module with no content in it. It is exactly
+  the shape a USER hits first, because `__len__`, `__eq__` and `__lt__` are the methods a
+  Python class overrides.
 
 ## Carriers
 
