@@ -6,7 +6,7 @@
 
 ## §A.3 SUMMARY — the four things the skill asks for
 
-**ROUTES RESOLVED.** Twenty-seven SEV-1 routes demonstrated (#191–#216): **twenty-four
+**ROUTES RESOLVED.** Twenty-eight SEV-1 routes demonstrated (#191–#217): **twenty-five
 CLOSED** with a refusal or a faithful lowering, each carrying an expected-FAIL witness and
 a PASS control, and **three OPEN** (#212, #213, #214) — demonstrated, priced, and left
 open deliberately because every candidate repair was measured and found worse than the
@@ -43,6 +43,22 @@ was proving a postcondition about a program that cannot run. REFUSED at `_run_pi
 `\trusted` twin, so no marker and no re-proof), blast radius measured first at 2 corpus
 occurrences and ZERO in the mirror, the live tree and `pycsl_lib`; witness 1796, control
 1797.
+
+**ROUTE #217 CAME OUT OF PRICING THE HANDOFF'S OWN "FULL DAY" ITEM, AND IT COST FORTY
+MINUTES.** `b = bytes([1, 2, 3]); b[0] = 9; return b[0]` PROVED `\result == 9` while CPython
+raises `TypeError: 'bytes' object does not support item assignment`. `PYCSL-SEM-SUBSCRIPT`
+already carried the perfect refusal and never saw the local: it keys on the symbol table
+typing the local `"bytes"`, and only a bare bytes LITERAL got that classification — the
+CONSTRUCTOR form stayed `"Any"`. Witness 1725 pins the COUNT form and calls this gap
+"pre-existing and separate"; the ITERABLE form, eight of the nine corpus sites, had NO
+witness at all. Closed by one branch in `_build_function_symbol_table`, whose mirror twin
+is `\trusted` (no mirror edit, no re-proof — the expensive part the estimate assumed).
+**Whole-corpus byte-diff, both sides emitted fresh: 1303 baseline, 0 MOVED, 0 APPEARED,
+exactly 1 GONE** — witness 1725 itself, expected-FAIL either way, now failing BY THE
+REFUSAL instead of by the ill-typedness its own docstring flags as an accident doing the
+enforcing. The same comparison covers route #216, so that refusal is byte-verified inert
+too. And a guess in the handoff was CHECKED AND IS WRONG: typing the iterable form does not
+make reads more faithful — all five surviving emissions are byte-identical.
 
 **CONVERSIONS AND THE COUNT DELTA.** `\trusted` markers: **459 → 459. ZERO conversions.**
 That is the honest headline, and the generation's answer to it is not an excuse but three
