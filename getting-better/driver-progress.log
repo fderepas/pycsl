@@ -6990,3 +6990,72 @@ that works would make the directive look fully covered. The capability is named 
 finding: the marked-name set is already computed in `_run_pipeline`, so a constructor-call
 AST scan fits beside it; what has NOT been measured is whether any legitimate shape
 constructs a mixin, and that census comes first.
+
+================================================================================
+2026-09-23 19:44Z — ROUTE #213 IS CLOSED, WITH THE REPAIR ITS OWN RECORD PRICED
+================================================================================
+
+A SEV-1 route, open since gen #30, closed with a change of two lines in an emitter and one
+mirror re-proof. **The per-site `getattr` device is now applied to `!_pyobj_state`.**
+
+Route #197 made those devices PER-SITE CONSTANTS so two reads of the same expression agree,
+and wrote the justification down: `(any int)` is fresh at every evaluation, "and losing
+that equality is a real loss of faithfulness for no gain". That justification is a CLAIM,
+sound exactly while the thing being read CANNOT CHANGE BETWEEN THE READS — and a constant
+depends on nothing, so it survived a write:
+
+    x = getattr(o, "a"); mutate(o); y = getattr(o, "a"); return x - y
+    #@ ensures \result == 0        PROVED.  CPython answers -98.
+
+Applying the device to the object-state ref keeps #197's equality EXACTLY where #197
+justified it (two reads with no intervening write read the same state, so the same term)
+and loses it EXACTLY across a write (`setattr` is emitted `writes { _pyobj_state }`).
+
+THE EARLIER PRICE WAS WRONG, AND THAT IS THE REUSABLE PART. The route record priced this
+fix at "a verbatim mirror edit, that file's whole-file re-proof (21347 goals) and a corpus
+byte-diff", on the assumption that `module6_whyml/expressions.py` is mirrored un-trusted.
+**`_lower_getattr` HAS NO MIRROR TWIN AT ALL** — one of the 549 unmirrored live defs the
+coverage plane already ratchets, present in the mirror only inside comments. So the emitter
+edit cost no verbatim sync and no `expressions.py` re-proof. What it DID cost was measured
+rather than assumed: all 53 mirrors emitted before and after, **exactly ONE moves**
+(`module6_whyml/functions.mlw`, two devices, eight lines).
+
+>>> CHECK WHETHER THE FUNCTION YOU ARE ABOUT TO EDIT IS ACTUALLY MIRRORED BEFORE PRICING
+>>> THE EDIT. A price written from "that file is mirrored un-trusted" can be an order of
+>>> magnitude too high, and a price too high is why a route stays open.
+
+WHERE THE DEVICE STAYS A CONSTANT, and it is not a compromise. The first attempt emitted
+the ref deref everywhere and the mirror's `_is_constant_exec` failed with `This function
+depends on external variables, it cannot be used as pure` — a Why3 `let function` and any
+contract term simply cannot dereference a mutable ref. That is ALSO exactly where the
+constant is SOUND: a pure function has no effects, so no write can occur between two reads
+inside it, which is precisely route #197's condition. `_ga_state_keyable()` returns False
+in a spec context and for a `pure` function, True otherwise. THE RULE IS THE PROPERTY, NOT
+THE SHAPE — the lesson gen #30's reverted refusal paid for twice (keyed on
+`len(args) <= 2` it missed the three-argument spelling; keyed on the call shape it broke 44
+of 53 mirrors).
+
+MEASURED:
+
+    carrier, no-default            PROVED   -> FAILED
+    carrier, three-argument form   PROVED   -> FAILED
+    control 1727 (no call between) SUCCESS  -> SUCCESS
+    1691 / 1072 / 1070 / 1071      FAILED   -> FAILED   (all expected FAIL)
+    1073 (granularity control)     SUCCESS  -> SUCCESS
+    route #214's carrier           PROVED   -> PROVED   (correctly STILL OPEN)
+
+Both carriers moved into the corpus as witnesses `1859` and `1860`;
+`check-open-route-carriers.py`'s two route-#213 rows are retired in the same commit,
+6 carriers -> 4. All 53 mirrors L3-tc green.
+
+BYTE-DIFF: 1342 reference `.mlw`, **2 MOVED** (1691, 1727), 0 GONE, 0 APPEARED; 2199
+python-reference byte-identical. Not inert — and M1 allows that when the diff IS the
+correction and every affected program re-proves, which is the case: the diff is the device
+gaining its state parameter and the applications passing `!_pyobj_state`, and in 1727 both
+reads still take the SAME argument, which is why the control still passes and why it is
+the control.
+
+ROUTE #214 STAYS OPEN, deliberately. It is a claim about the DEFAULT-keyed device, shared
+across sites BY DESIGN, and its repair is blocked on local-type inference for
+constructor-assigned locals (335 corpus files would move). The state key was NOT extended
+to it.

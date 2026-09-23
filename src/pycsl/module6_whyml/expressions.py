@@ -12015,6 +12015,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return (_info.get("field_types") or {}).get(field)
         return None
 
+    def _ga_state_keyable(self) -> bool:
+        """(#49) ROUTE #213 — may the per-site `getattr` device be applied to
+        `!_pyobj_state` HERE?
+
+        NO in a PURE context, and that is not a compromise: a Why3 `let function` (and any
+        `requires`/`ensures` term) cannot dereference a mutable ref — emitting one there
+        gives `This function depends on external variables, it cannot be used as pure`,
+        measured on the mirror's `_is_constant_exec`. It is also exactly where the CONSTANT
+        form is SOUND: a pure function has no effects, so no write can occur between two
+        reads inside it, which is precisely the condition route #197 gave for the equality.
+        The state key is needed only where a write CAN happen, and there it is emitted.
+
+        So the rule is the property, not the shape: keyed on state wherever state can move,
+        constant where it provably cannot."""
+        if getattr(self, "_in_spec", False):
+            return False
+        _cef = getattr(self, "_current_emitting_func", None)
+        if not _cef:
+            return True
+        for _f in (self.ir.get("functions") or []):
+            if _f.get("name") == _cef:
+                return not _f.get("pure", False)
+        return True
+
     def _lower_getattr(self, expr: Dict[str, Any], args: List[str],
                        local_refs: Set[str], invariant_ctx: bool,
                        subst: Optional[Dict[str, str]]) -> str:
@@ -12237,9 +12261,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         #   opacity models "some value" where Python has NO value at all, so a contract
         #   about the AttributeError itself is still not expressible here.
         if len(args_ir) <= 2:
+            # (#49) ROUTE #213 — THE PER-SITE DEVICE IS NOW KEYED ON THE OBJECT STATE.
+            # Route #197 made these per-site constants so that TWO READS OF THE SAME
+            # `getattr` EXPRESSION AGREE, and wrote the reason down: `(any int)` is fresh
+            # at every evaluation, "and losing that equality is a real loss of faithfulness
+            # for no gain". That equality is a CLAIM, sound exactly while the thing being
+            # read CANNOT CHANGE BETWEEN THE READS — and a constant depends on nothing, so
+            # it survived a write. MEASURED (carrier
+            # `route213-carrier-two-reads-across-a-mutation.py`):
+            #
+            #     x = getattr(o, "a"); mutate(o); y = getattr(o, "a"); return x - y
+            #     #@ ensures \result == 0        PROVED. CPython answers -98.
+            #
+            # and the emission said why — `x := pycsl_getattr_missing_…; (mutate o);
+            # y := pycsl_getattr_missing_…` with the device depending on nothing.
+            #
+            # APPLYING IT TO `!_pyobj_state` keeps #197's equality EXACTLY where #197
+            # justified it (two reads with no intervening write read the same state, so
+            # the same term) and loses it EXACTLY across a write (`setattr` is emitted
+            # `writes { _pyobj_state }`, so the argument differs and the two applications
+            # are unrelated). It is the repair route #213's record priced as "the faithful
+            # fix"; gen #30 took a refusal instead and REVERTED it, because a refusal keyed
+            # on the shape broke 44 of the 53 mirrors — `getattr(self, "_x", {})` is how
+            # this compiler reads optional attributes.
+            #
+            # `_pyobj_state` is declared here rather than assumed: it is otherwise emitted
+            # only when a `setattr_` op is added, and a module may read without writing.
             _r47 = "pycsl_getattr_missing_%d" % (stable_hash(repr(expr)) & 0xffffffff)
-            self._add_abstract_op("val function %s : int" % _r47)
-            return _r47
+            if not self._ga_state_keyable():
+                self._add_abstract_op("val function %s : int" % _r47)
+                return _r47
+            self._add_abstract_op("val _pyobj_state : ref int")
+            self._add_abstract_op("val function %s (s: int) : int" % _r47)
+            return "(%s !_pyobj_state)" % _r47
         nt = default_ir.get("type") if isinstance(default_ir, dict) else ""
         if nt in ("DictLit", "ArrayLit", "SetLit", "Call"):
             _r47 = "pycsl_getattr_default_%d" % (
@@ -12262,9 +12316,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `(any int)` would NOT give — it is fresh at every evaluation, and losing that
         # equality is a real loss of faithfulness for no gain).
         if _ga_cls == "UNKNOWN":
+            # (#49) ROUTE #213, the other arm of the same claim — the THREE-ARGUMENT
+            # spelling has the identical defect, because an UNKNOWN receiver takes the
+            # per-site constant whether or not a default is written (carrier
+            # `route213-carrier-three-argument-form.py`, which proves the same
+            # `\result == 0` over `x - y`). State-keyed for the same reason and with the
+            # same two consequences: equality preserved for two reads with no intervening
+            # write (control `1727`), lost across one.
+            #
+            # DELIBERATELY NOT EXTENDED to the `pycsl_getattr_default_…` arm above. That
+            # device is keyed on the DEFAULT's IR and SHARED across sites on purpose — two
+            # syntactically identical defaults denote equal values — and route #214 is the
+            # separate claim that sharing makes about two UNKNOWN receivers. Its repair is
+            # blocked on local-type inference for constructor-assigned locals (335 corpus
+            # files would move), which is priced in its own record and is not this change.
             _r197 = "pycsl_getattr_unknown_%d" % (stable_hash(repr(expr)) & 0xffffffff)
-            self._add_abstract_op("val function %s : int" % _r197)
-            return _r197
+            if not self._ga_state_keyable():
+                self._add_abstract_op("val function %s : int" % _r197)
+                return _r197
+            self._add_abstract_op("val _pyobj_state : ref int")
+            self._add_abstract_op("val function %s (s: int) : int" % _r197)
+            return "(%s !_pyobj_state)" % _r197
         return self._expr_to_whyml(default_ir, local_refs, invariant_ctx, subst)
 
     def _subst_params(self, ir: Any, arg_nodes: Dict[str, Any]) -> Any:

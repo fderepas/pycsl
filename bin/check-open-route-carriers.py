@@ -100,13 +100,17 @@ CARRIERS = {
     # them, so the FALSE purity claim became an ABSENT one. The carrier file is retained as
     # the route's historical evidence and is no longer gated here: it now FAILS, and an entry
     # asserting SUCCESS would make this plane red for the right reason at the wrong time.
-    "getting-better/open-routes/route213-carrier-two-reads-across-a-mutation.py": (
-        "SUCCESS", "#213",
-        "two reads of the same `getattr` are ONE per-site constant across a call that "
-        "writes the attribute, so `\\result == 0` PROVES where CPython answers -98"),
-    "getting-better/open-routes/route213-carrier-three-argument-form.py": (
-        "SUCCESS", "#213",
-        "the same defect through the THREE-ARGUMENT `getattr(o, \"a\", 0)` spelling"),
+    # (#49) ROUTE #213 IS CLOSED (gen #31) — BOTH carriers moved INTO the corpus, as
+    # witnesses 1859 (no-default) and 1860 (the three-argument spelling), with control 1727
+    # (two reads with NO intervening call still agree) already there. The per-site device
+    # is now APPLIED TO `!_pyobj_state`, which is the repair the route's own record priced
+    # as "the faithful fix": #197's equality is kept exactly where #197 justified it and
+    # lost exactly across a write. Inside a pure `let function` or a contract term the
+    # device stays a CONSTANT — a mutable ref cannot be dereferenced there, and a pure
+    # function has no effects, so no write can occur between two reads inside it. The
+    # carrier files are retained as the route's historical evidence and are no longer
+    # gated here: both now FAIL, and an entry asserting SUCCESS would make this plane red
+    # for the right reason at the wrong time (the disposition routes #218 and #224 took).
     "getting-better/open-routes/route214-carrier-two-unknown-receivers.py": (
         "SUCCESS", "#214",
         "two `getattr` reads on different unknown receivers share route #47's "
