@@ -5126,3 +5126,40 @@ TWO INDEPENDENT OBLIGATIONS STOP IT, and reading the emission says which:
 The same question for witness 1800's dunder is answered by the file itself: the dropped
 dunder's call site is a CONTRACTLESS `val`, fresh at every call, so the caller proves LESS.
 Both dropped-method families are sound; both are incomplete; neither is a route.
+
+## 2026-09-23 00:25 UTC — TWO MORE FALSE GREENS, IN A PLANE I TRUSTED
+
+Reading the 17 undemonstrated refusals ONE BY ONE (rather than as seventeen unwritten
+witnesses) paid twice.
+
+**FOUR WERE NEVER WITNESSABLE.** `PYCSL-SEM-SPAN`, `PYCSL-TY3-CALLABLE-SHAPE` (2 sites) and
+`PYCSL-IR-OPAQUESTMT` fire on shapes the FRONT-END ITSELF constructs — Module 5 stamps the
+spans, writes the `callable:` tags and classes the statements — so no `.py` file can reach
+them. New plane `bin/check-frontend-ir-backstop-refusals.py` demonstrates each executably,
+with a well-formed CONTROL per carrier, a #44 source-text guard and a carrier-count guard
+(`--selftest-missing-carrier` -> rc=2). Coverage: 219 sites, 184 demonstrated, **17 -> 13**
+undemonstrated, 8 -> 12 not-source-reachable. The ceiling went down because the work was
+done.
+
+**A FIFTH IS OWNED BY AN EARLIER CHECK.** `Module3_Weaver._desugar_for`'s empty-body refusal
+cannot be reached from source because `Module1_Ingestor._fold_blocks` refuses the same
+spelling first — and the proof was already in the census: witness 1772 was written FOR the
+Module 3 site and its row reads `[Module1]`. Demonstrated by the new plane, deliberately NOT
+reclassified as unreachable: "no spelling I know of reaches it" is weaker than "the
+front-end builds the shape".
+
+**AND THEN THE SIXTH ONE BROKE A PLANE OPEN.** `Module3_Weaver:1206` (the `\preserves`
+refusal) is supposedly covered by `bin/check-happy-trust-boundaries.py`, route #209's
+carrier. It is not. That plane asserts only that the carrier IS REFUSED, never WHICH
+refusal, and printing the six actual messages found:
+
+  * route #209's carrier is refused by ROUTE #210's check ("its BODY writes the protected
+    path"). The `\preserves` boundary was NEVER EXERCISED — which is exactly why the
+    coverage plane still called 1206 undemonstrated while this plane called it covered.
+    **Two instruments disagreed for weeks and neither was read against the other.**
+  * `reading/trusted-reader`'s carrier is refused by a SYNTAX ERROR at line 7: it spells a
+    `happy` policy the grammar does not have. That boundary had never been tested AT ALL.
+
+Both carriers repaired, every case now pins its expected message fragment, mismatch =
+BOUNDARY MISATTRIBUTED, `--selftest-misattribute` proves it fires. Six carriers now refused
+by their OWN refusal; four controls accepted. Lesson (s3).

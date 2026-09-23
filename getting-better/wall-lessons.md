@@ -455,6 +455,40 @@ The general form is the #44 rule pointed one level lower. #44 asks whether a gat
 "nothing wrong" from "I looked at nothing". This asks whether it can tell "I looked at all
 of it" from "I looked at what was still there."
 
+### (s3) "It was refused" is not the claim. "It was refused FOR THIS REASON" is.
+
+`bin/check-happy-trust-boundaries.py` is one of the better instruments in this repo: six
+`#@ happy` trust boundaries, a CARRIER and a CONTROL for each, run through the SHIPPING
+pipeline, three seconds. It has been green every run. I printed the actual refusal message
+for all six carriers, and TWO OF THE SIX WERE GREEN FOR THE WRONG REASON.
+
+**A neighbouring guard.** Route #209's carrier is a `\trusted` function with
+`#@ assigns g.v` over a body `g.v = n`. It was refused — by ROUTE #210's check, *"its BODY
+writes the protected path"*. The `\preserves` refusal that case exists for was never
+exercised. The corroboration was sitting in another plane the whole time:
+`check-refusal-witness-coverage` still listed `Module3_Weaver:1206` as UNDEMONSTRATED while
+this plane claimed the boundary was covered. **Two instruments disagreed and neither was
+read against the other.**
+
+**A typo.** The `reading/trusted-reader` carrier was refused by a SYNTAX ERROR at line 7.
+It spelled a policy the grammar does not have — `expected 'region'/'targets'/'protects'
+after 'happy NAME:'`. That boundary had never been tested, ever, and the plane reported it
+green on every run it has ever had.
+
+The fix is one field: each case now names the MESSAGE FRAGMENT its refusal must contain,
+and a mismatch is BOUNDARY MISATTRIBUTED. A self-test gives case 0 case 1's fragment and
+the plane goes red, so the new check is itself demonstrated.
+
+>>> ANY GATE WHOSE ORACLE IS "THE COMPILER REFUSED THIS" MUST PIN WHICH REFUSAL. The space
+>>> of refusals is large, they cluster around the same constructs, and a carrier written to
+>>> trip guard N sits one edit away from tripping guard N-1 — or from not compiling at all.
+>>> A refusal is a rich signal being read as one bit.
+
+The general form generalises past this plane: it is the same defect as a test that asserts
+`raises(Exception)`, and the same defect as #44 (a gate that cannot tell "nothing wrong"
+from "I looked at nothing"), one level in: this one cannot tell "the thing I meant fired"
+from "something fired".
+
 ## 2026-07-20 driver run (count 1030 → 1028; 2 conversions + these walls)
 
 ### BROKEN (converted)
