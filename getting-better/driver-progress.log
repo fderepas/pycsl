@@ -5661,3 +5661,31 @@ the mirror, the live tree or `pycsl_lib`).
   `val` minted for a DROPPED method, and `check-emitted-function-coverage` says every
   dropped function in the corpus is a dunder. **The route's population and that plane's
   population are the same set**, which is the most useful thing either of them says.
+
+## 2026-09-23 06:25 UTC — #218's BLAST RADIUS TOOK THREE PASSES, AND TWO OF THEM WERE WRONG
+
+A worked example of (p3), recorded because the wrong answers were plausible:
+
+1. **Wrong key, wrong scan.** "A dunder declaring `#@ assigns self.<f>`", scanned with an
+   8-line window above each `def` — which swallows the PREVIOUS method's annotations. It
+   named `1334_route120_setattr_hook_dropping_a_store.py` and made the repair look like it
+   would retire route #120's own witness. FALSE: 1334's `__setattr__` carries no annotation
+   at all. With contiguous-block attribution, **ZERO dunders anywhere declare `#@ assigns
+   self.`** — in any of the five populations.
+2. **Right question, wrong key.** So the clause is not the trigger. MEASURED: the identical
+   program with the dunder's annotations DELETED still reports `All contracts formally
+   proven`. The hole needs only a BODY that writes self state.
+3. **Third pass.** 12 files have a self-writing non-`__init__` dunder; exactly ONE also
+   calls it explicitly — and it printed as `0076.py`, which I then opened and found PASSES
+   and contains no `__setattr__`. **Basenames are not unique across corpus directories**
+   (`check-refusal-witness-coverage`'s own header says so). The real file is
+   `python-reference/0076.py`, a different population with different rules.
+
+>>> TWO OF THE THREE MEASUREMENTS WERE WRONG AND BOTH WERE PLAUSIBLE ENOUGH TO ACT ON —
+>>> one would have blocked a good repair, the other would have shipped a refusal keyed on
+>>> a clause that never appears. The only reason either was caught is that the number was
+>>> PRINTED WITH ITS MEMBERS and the members were opened. A count with no names attached
+>>> cannot be checked, and this one was checked three times before it was right.
+
+ROUTE #218 STAYS OPEN, deliberately: the remaining judgement is about another suite's
+intent, made ninety minutes from a deadline, and that is not when to make it.
