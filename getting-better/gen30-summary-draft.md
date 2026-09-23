@@ -521,7 +521,12 @@ in a policy the grammar does not have); (t3) **a guard written for a defect cove
 case you HAD, not the case you can HAVE** — `PYCSL-SUBTYPING-PAIR` names route #97's
 hazard exactly and still misses route #216, because it covers "recorded but unresolvable"
 and #216 is "never recorded", so for every `for x in COLLECTION: if bad(x): refuse`, ask
-what stops an x from reaching COLLECTION at all.
+what stops an x from reaching COLLECTION at all; (u3) **the choke point is a property of
+the FUNCTION, not of the FILE** — twice in one night an edit was priced as expensive
+because its FILE is a mirrored un-trusted twin, and both times the FUNCTION's twin was
+`\trusted`, so it owed no mirror copy and no re-proof: forty minutes against a day, and a
+cost estimate written without that one check reads later exactly like a cost that was
+measured.
 
 ## A surface opened this generation: the `pycsl_lib` stdlib layer
 
