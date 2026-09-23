@@ -6860,3 +6860,43 @@ that the number is a hard ceiling rather than an estimate.
 SUITE. 3978/3996 with the standing EIGHTEEN and ZERO XPASS at `bcc33d92`; a fresh full run
 is in flight at the closing tree, since route #224 is a live-source change and the rule
 adopted this afternoon is that a suite result belongs to the tree it ran on.
+
+--------------------------------------------------------------------------------
+2026-09-23 16:53Z — TWO MORE DOCUMENTATION LAGS, AND ONE PROMISED HOLE THAT IS SHUT
+--------------------------------------------------------------------------------
+
+Same method, different sections. Where §12's audit found rules that were documented and
+UNENFORCED, §2.5 and §12.1 turned up the opposite: behaviour that is BETTER than the
+document says, which is its own kind of defect because a reader writes around it.
+
+  * §2.5 HAPPY row 8 (H-S, check-before-use capability) carried the sentence "*Currently
+    injected at `self.<method>(…)` self-call sites; receiver-var call sites are a
+    follow-up.*" A follow-up that is not done is a documented hole in a SECURITY policy —
+    the capability check skipped by spelling the call `b.transfer(…)` instead of
+    `self.transfer(…)`. MEASURED: the self-call form without the grant FAILS on the
+    injected check, and the receiver-var form is REFUSED BY NAME — "'transfer' is guarded
+    by a capability precondition, but it is called here as `b.transfer(…)` … through a
+    receiver other than `self`. The call-site capability check can only be injected at a
+    `self.transfer(…)` site: the guarding formula speaks about `self`". The follow-up
+    landed; the sentence did not. Corrected, with the reasoning kept (a silent skip would
+    be the whole policy bypassed by a spelling).
+
+  * §12.1's `Forbidden` list named `d.get(k, default)`. It is interpreted and FAITHFUL —
+    all four combinations of present/absent key and matching/false claim behave as CPython.
+    Corrected two entries below the sentence that already records `del d[k]` having been
+    listed there wrongly.
+
+  * §3 "`\forall x: T, y: U;` are not yet supported; nest explicitly" — HOLDS (refused at
+    the parser, `expected ';' (got OP ',')`).
+
+AND A NEW FINDING, filed and NOT repaired (`finding-typeddict-local-is-built-as-a-dict-
+and-read-as-a-record.md`): a TypedDict LOCAL is built as a dict and read as a record.
+RETURN position works, PARAMETER position works, LOCAL fails — and the emission shows both
+halves of one variable disagreeing about its type. The mechanism is in
+`_typeddict_record_literal`'s own docstring ("the construction context is detected from
+`_func_return_type`"), and its first two lines return None when there is no return type.
+Fail-closed (Why3 rejects), so not a route — but the third finding of the day whose
+soundness rests on the BACKEND's typechecker rather than on a rule in PyCSL, after the
+legacy-`Generic[T]` and bare-`Callable`-domain ones. That pattern is worth naming on its
+own: when a front-end rule is missing, what usually saves the campaign is Why3, and Why3
+is not part of the specification.
