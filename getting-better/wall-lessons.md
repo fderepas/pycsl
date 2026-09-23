@@ -550,6 +550,40 @@ exactly like a cost that was measured. An estimate should carry the one fact it 
 here, the twin's marker — or it should not be written in the imperative ("DO THIS FIRST
 NEXT WINDOW" is an instruction; "a full day" was a guess).
 
+### (v3) Re-read the SOUNDNESS ARGUMENT your own witness makes, as a claim
+
+Witness `1800_gen30_dunder_call_loses_its_contract.py` records that an explicitly-called
+dunder lowers to a contractless `val`, and argues:
+
+> SOUND, NOT UNSOUND: a contractless `val` is fresh and unconstrained at every call, so the
+> caller can prove LESS, never more.
+
+I wrote that. It was careful, it was the reason the file is `# pycsl-expected: PASS`, and
+it is HALF A CLAIM. A call does two things — it returns a value and it touches the heap.
+"Fresh and unconstrained" is about the RETURN. Four hours later, re-reading the sentence
+while writing a summary, the other half was missing, and the emitted line answered it:
+
+    val c___enter___0 (self: c) : int      -- and no `writes` clause
+
+**A `val` with no `writes` is PURE.** Purity is not the absence of a claim, it is a
+POSITIVE claim about the entire heap. So a dunder that declares `#@ assigns self.v` and
+sets it to 7 lets its caller PROVE THE FIELD UNCHANGED across the call, while CPython
+changes it — route #218, with the true twin failing, found by reading my own prose.
+
+>>> A CORPUS WITNESS'S DOCSTRING IS THE ONE PLACE THIS CAMPAIGN STATES *WHY SOMETHING IS
+>>> SOUND*, AND IT IS THE ONLY CLAIM IN THE SYSTEM WITH NO GATE BEHIND IT. Every "this is
+>>> sound because…" is an unchecked theorem written by whoever was closest to the bug.
+
+The mechanical version of the question, which is cheap and which I now owe the other
+witnesses: **for every soundness argument about a CALL, say what it claims about the
+RESULT and what it claims about the FRAME, separately.** One of the two is usually
+missing, and the frame is the one that gets forgotten, because it is the one the source
+language does not mention.
+
+This is the same shape as (m3) — a refusal's ADVICE is a claim the compiler makes about
+itself, and nothing tests it — one level over: a witness's RATIONALE is a claim the
+campaign makes about itself.
+
 ## 2026-07-20 driver run (count 1030 → 1028; 2 conversions + these walls)
 
 ### BROKEN (converted)
