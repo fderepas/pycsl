@@ -642,5 +642,10 @@
       0,
       true
     ]
-  ]
+  ],
+  "skipped_dunder_writes": {
+    "functionanalyzer____init__": [
+      "count"
+    ]
+  }
 }

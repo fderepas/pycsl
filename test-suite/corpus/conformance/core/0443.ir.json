@@ -360,5 +360,10 @@
       0,
       false
     ]
-  ]
+  ],
+  "skipped_dunder_writes": {
+    "sub____init__": [
+      "cap"
+    ]
+  }
 }

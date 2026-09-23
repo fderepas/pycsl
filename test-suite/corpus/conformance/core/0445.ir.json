@@ -297,6 +297,11 @@
       "self_type": "Sub"
     }
   ],
+  "skipped_dunder_writes": {
+    "base____init__": [
+      "v"
+    ]
+  },
   "overrides": [
     {
       "sub_method": "sub__f",

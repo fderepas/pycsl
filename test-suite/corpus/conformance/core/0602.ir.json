@@ -134,5 +134,10 @@
         "args": []
       }
     }
-  ]
+  ],
+  "skipped_dunder_writes": {
+    "match____init__": [
+      "pos"
+    ]
+  }
 }

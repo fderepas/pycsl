@@ -5728,3 +5728,91 @@ last two log/doc commits.
 
 THIS SESSION MADE **69 COMMITS** (`git log e731d673..HEAD`), which is the honest measure of
 the window's output regardless of where the remote ref now points.
+
+# ============================================================================
+# GENERATION #31 — autonomous 96h window, deadline 2026-09-27T08:19Z
+# ============================================================================
+
+## 2026-09-23 08:20 UTC — START. HEAD ae0a3e8a, markers 459, four routes OPEN
+   (#212, #213, #214, #218). Deadline file already written by the supervisor.
+   Twelve tracked `.aux` files dirty from gen #30's battery, left alone on purpose.
+
+## 2026-09-23 09:05 UTC — ROUTE #218 CLOSED, and the route's own title was wrong
+
+The handoff put #218 first as "the only OPEN SEV-1 with a repair that might be cheap".
+It was, and REPAIR 2 is what landed: `Module5._should_skip_method` drops every dunder
+before any IR is built, so an explicit `c.__enter__()` minted `val c___enter___0 (self: c)
+: int` with NO `writes`, and Why3 reads that as PURE. The frame now comes from the DROPPED
+BODY, recorded at the skip.
+
+THE TITLE SAID `#@ assigns`. The route's own pass 2 had already measured that deleting the
+dunder's annotations leaves the false proof standing, and that ZERO dunders in any of the
+five populations declare `#@ assigns self.` — so a repair keyed on the clause would have
+been keyed on something that never occurs. The repair keys on the body.
+
+MAKE-OR-BREAK SPIKE FIRST: a hand `.mlw` with `writes { self.v }` on that exact `val` takes
+`py_use_false'vc` from Valid to Unknown under alt-ergo. Only then the emitter edit.
+
+THE MEASUREMENT THE ROUTE DOC DID NOT HAVE: the carrier gets its `(self: c)` receiver from
+route #165 because the class declares invariants. THE SAME PROGRAM WITH THE INVARIANT
+DELETED emitted a receiver-LESS `val` and proved just the same. A repair that only added
+`writes` to an existing receiver would have closed one spelling and left the other open.
+
+HONEST ACCOUNTING OF WHAT IT BUYS: a FALSE claim became an ABSENT one. Both `\result == 0`
+(1815) and `\result == -7` now FAIL. The true twin PROVING needs dunders EMITTED.
+
+## 2026-09-23 09:05 UTC — THE BATTERY CAUGHT THE FIRST DRAFT TWICE, AND BOTH WERE REAL
+
+The repair passed fidelity (887 verbatim) and the corpus byte-diff (0 MOVED, 0 GONE, 0
+APPEARED over 1307/1310 pycsl-reference plus 2199 python-reference emissions differing in
+NOTHING but a `find`-ordered SOURCES.txt) — and was still wrong twice:
+
+  * `check-mirror-coverage` RATCHET BROKEN, 550 > 549. The private helper
+    `_record_skipped_dunder_writes` was a new live def with no mirror twin. A live function
+    with no mirror counterpart is not `\trusted`, it is ABSENT — no marker, so the headline
+    count cannot see it.
+  * Two MIRROR EMISSIONS moved: `frontend/__init__.mlw` and `frontend/ir_resolve.mlw` each
+    gained an unused `val pycsltojsonemitter___record_skipped_dunder_writes`, because the
+    mirrors import live Module 5 and the emitter declares a val per method of an imported
+    class. By lesson (r) that owed two whole-file re-proofs for a function nothing calls.
+
+INLINING the block into `visit_FunctionDef` removed all three costs — ratchet back to 549,
+all 53 mirror emissions BYTE-IDENTICAL to HEAD, no proofs owed — and is safe exactly because
+that method's mirror twin is `\trusted`. Lesson (a4).
+
+  * `frontend-only-conformance` 25 OK / 13 MISMATCH, every one
+    `KEYS <root>: only-derived=['skipped_dunder_writes']`. The byte-diff compares EMISSIONS;
+    the goldens freeze the INTERMEDIATE IR, and an additive front-end key is invisible to the
+    first and loud in the second. Regenerated after proving the per-golden delta was only
+    that key (`missing=[] changed=[]` x13); `core-only-conformance` re-derives WhyML FROM the
+    regenerated goldens and stayed 38 OK / 0 MISMATCH. Lesson (b4).
+
+## 2026-09-23 09:05 UTC — THE `.aux` TRAP IS CLOSED, WITH A PLANE OF ITS OWN
+
+Handoff item 5. `check-proof-reverify.sh` recompiles cited proofs IN PLACE; 990 build
+artifacts are TRACKED here (611 `.aux`, 94 each of `.vo`/`.vok`/`.vos`/`.glob`, 3 `.olean`),
+and gen #30 came within one command of clearing the exhaust with a glob aimed at that
+directory. The gate now snapshots `git status` over the proof trees and restores exactly
+what IT dirtied: untracked files removed BY EXPLICIT NAME, one `rm -f --` per path, never by
+pattern; `git checkout --` only on a path that was clean when the run started.
+
+THE FIRST DRAFT HAD THE SAME DEFECT IN THE OPPOSITE DIRECTION. Keyed on the whole `git
+status` LINE, a file that was ` M` before the run and ` D` after no longer matched, so the
+epilogue RESURRECTED it — writing committed content over a tree state the user owned.
+Caught by `bin/check-artifact-cleanup.sh` (new fast plane, MIN_PLANES 44 -> 45), which
+EXTRACTS the shipped epilogue lines out of the gate and drives them against a throwaway
+repository with eight cases. Negative control run: restore the line-keyed draft and case 7
+goes red while the other seven stay green.
+
+OWED, NOT DONE: the untracking question itself. Whether 990 build artifacts SHOULD be
+tracked is a separate decision — removing the shipped `.vo` files would change what the
+proof replay reads — and it is not made here.
+
+## 2026-09-23 09:05 UTC — A SECOND FIDELITY PLANE IS RED AT HEAD, AND WAS BEFORE I TOUCHED IT
+
+`bin/self-annotate-mirror-check.sh` reports 3 drifted mirrors (`expr_ghost_collections.py`,
+`statements.py`, `stmt_control_flow.py`), all of the form "un-trusted mirror def not in
+source". MEASURED IN A WORKTREE AT ae0a3e8a: the SAME three, identically. So it is
+pre-existing, not caused by this window — but gen #30's closing report said "mirror-sync 887
+verbatim", which is `check-self-annotate-sync.sh`, a DIFFERENT plane. The driver's L-plane
+definition names both. Recorded so the next window does not re-derive it.

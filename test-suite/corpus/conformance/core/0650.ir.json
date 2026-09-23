@@ -196,5 +196,10 @@
         "args": []
       }
     }
-  ]
+  ],
+  "skipped_dunder_writes": {
+    "lib____init__": [
+      "x"
+    ]
+  }
 }

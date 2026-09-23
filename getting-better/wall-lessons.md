@@ -37,6 +37,13 @@ campaign is busy adding · **(p3)** a class boundary drawn from a STATIC READING
 hypothesis; RUNNING it is the test, and it took three tries · **(q3)** a key that decides
 when a verdict is STALE must cover the part the verdict is ABOUT.
 
+### gen #31's lessons, by letter (2026-09-23)
+
+**(a4)** a new live HELPER METHOD is not free — it costs a ratchet and two re-proofs ·
+**(b4)** an additive IR key is caught by the conformance goldens, and that is the gate
+working · **(c4)** a cleanup that restores files must be keyed on the PATH, and it must be
+RUN before it is believed.
+
 ### (f3) An exclusion you never tested is a guess — check whether the reason still applies
 
 `check-stdlib-identity-stubs.py` parked `csvmod.write_row` as UNADJUDICATED with the reason
@@ -5867,3 +5874,84 @@ never the cause; a refusal I had landed an hour earlier was.
 
 The operational rule from the first diagnosis still stands (a `--slow` battery should run
 alone), but it was a coincidence, not the finding.
+
+
+### (a4) A new live HELPER METHOD is not free — it costs a ratchet and two re-proofs
+
+Route #218's repair needed ~30 lines at `Module5._should_skip_method`'s early return. The
+obvious shape is a private helper, `self._record_skipped_dunder_writes(node)`, and that is
+what the first draft did. The battery said no, twice, and both reasons are structural
+rather than stylistic:
+
+* `check-mirror-coverage.py` went **RATCHET BROKEN — 550 > 549**. A live def with no mirror
+  counterpart is not `\trusted`, it is ABSENT: it carries no marker, so the headline
+  `\trusted` count cannot see it. Every new private method in a mirrored file enlarges that
+  invisible population by one.
+* The mirror EMISSION moved in two files. `frontend/__init__.mlw` and
+  `frontend/ir_resolve.mlw` each gained
+  `val pycsltojsonemitter___record_skipped_dunder_writes (self: ...) (node: int) : unit` —
+  an abstract, uninterpreted, entirely UNUSED symbol, because the mirrors import the live
+  Module 5 and the emitter declares a val per method of an imported class. By lesson (r)
+  that owes a whole-file re-proof of exactly those two mirrors, one of which had not
+  finished four minutes in.
+
+INLINING the same code into `visit_FunctionDef` cost nothing and removed all three: the
+ratchet returned to 549, the mirror emission came back BYTE-IDENTICAL to HEAD across all 53
+files, and the two owed proofs evaporated. It is safe precisely because
+`visit_FunctionDef`'s mirror twin is `\trusted`, so the live body is free — which is the
+choke-point rule paying out in a direction it had not been asked to before.
+
+THE RULE: before extracting a helper in a MIRRORED file, ask what it costs on the two planes
+that count defs rather than markers. In an un-trusted twin, extraction is a fidelity
+divergence; in a `\trusted` one it is a coverage-ratchet entry plus an emission delta. Both
+are avoidable by writing the block where it runs. This is the inverse of ordinary
+refactoring advice, and it is right here for a reason that does not generalize past a
+self-annotating compiler: the code is also the specification's subject.
+
+### (b4) An additive IR key is caught by the conformance goldens, and that is the gate working
+
+The same repair added one optional top-level key, `skipped_dunder_writes`, to the IR. The
+corpus byte-diff was ZERO in both corpora — the key changes no emission unless an explicit
+dunder call resolves through it — and the whole thing would have looked inert. It was not:
+`frontend-only-conformance.py` went **25 OK / 13 MISMATCH**, every one of them
+`KEYS <root>: only-derived=['skipped_dunder_writes']`.
+
+That is the gate doing exactly its job: the goldens freeze the IR a second time, so a
+Module 1-5 change that alters it cannot pass as a Module 6 non-event. The disciplined
+response is not to silence it and not to regenerate blindly — it is to PROVE the delta is
+only what was intended, per golden, before touching them:
+
+    only-new: ['skipped_dunder_writes']   missing: []   changed: []      x13
+
+and only then rewrite those thirteen. `core-only-conformance.py` then re-derives WhyML FROM
+the regenerated goldens and stayed 38 OK / 0 MISMATCH, which is the second half of the
+check: an IR key that changed emission would have surfaced there even though the corpus
+sweep said inert.
+
+Note what the two planes catch that the byte-diff cannot. The byte-diff compares EMISSIONS;
+these compare the INTERMEDIATE FORM. A front-end change that is emission-inert today and
+becomes load-bearing tomorrow is invisible to the first and loud in the second.
+
+### (c4) A cleanup that restores files must be keyed on the PATH, and it must be RUN
+
+`check-proof-reverify.sh` recompiles cited proofs in place and had dirtied tracked artifacts
+for two generations; gen #30 came within one command of clearing that exhaust with a glob
+aimed at a directory holding 990 TRACKED build artifacts. The epilogue written to fix it
+snapshots `git status` before and after and restores only what the run dirtied.
+
+The first draft keyed the snapshot on the whole status LINE. A file that was ` M` before the
+run and ` D` after no longer matched, so the epilogue did not recognise the path as
+pre-existing and RESURRECTED it — writing committed content over a tree state the user
+owned. That is the same defect class as the near-miss it was written to prevent, in the
+opposite direction, and NOTHING about reading the code suggests it.
+
+Two rules come out of it:
+* **Key on the identity, not on the observation.** A status code is what the tree looks like
+  right now; the path is what the rule is about. Lesson (q3) said the same thing about
+  staleness keys and this is its second instance in two days.
+* **An epilogue is code, and code that deletes gets a fixture.** `bin/check-artifact-cleanup.sh`
+  EXTRACTS the shipped lines out of the gate (a restructure makes it REFUSE, not pass) and
+  drives them against a throwaway repository with eight cases. Case 7 — pre-dirty, then
+  deleted by the run — is the one that caught the defect, and the negative control (restore
+  the line-keyed draft, watch case 7 go red and the other seven stay green) is what proves
+  the fixture can fire at all.

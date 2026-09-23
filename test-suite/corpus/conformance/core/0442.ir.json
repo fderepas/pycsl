@@ -351,5 +351,13 @@
       "kind": "method",
       "self_type": "Sub"
     }
-  ]
+  ],
+  "skipped_dunder_writes": {
+    "base____init__": [
+      "start"
+    ],
+    "sub____init__": [
+      "extra"
+    ]
+  }
 }

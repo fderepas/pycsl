@@ -6596,57 +6596,58 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     if symbol_table.get(v) in (None, "Any"):
                         symbol_table[v] = "str"
 
-    def _record_skipped_dunder_writes(self, node: ast.FunctionDef) -> None:
-        """(#49) ROUTE #218 — A SKIPPED DUNDER'S SELF-WRITES MUST SURVIVE THE SKIP.
-
-        `_should_skip_method` drops every dunder before any IR is built, so Module 6 knows
-        nothing about `__enter__` at all: an explicit `c.__enter__()` call mints an abstract
-        `val c___enter___0 (self: c) : int` with NO `writes`, and Why3 reads a `val` with no
-        `writes` as PURE. MEASURED (the route carrier): with a body setting `self.v = 7`,
-        `before = c.v; c.__enter__(); after = c.v; return before - after` PROVED
-        `\result == 0` while CPython answers -7, and the TRUE twin (`== -7`) FAILED. The
-        `#@ assigns` clause is NOT the trigger — deleting the dunder's annotations changes
-        nothing; a BODY that writes self state is enough. The NON-dunder control
-        (`def enter`) correctly FAILS, which is what pins the defect to the skip.
-
-        So the skip records, per `<class_lower>__<dunder>` key, the self-attribute names the
-        dropped body writes (plain store, augmented store, element store). Module 6's
-        `_resolve_dotted_signature` reads the table and frames the minted `val` with
-        `writes { self.<f>, ... }` — turning a FALSE purity claim into an ABSENT one. It does
-        NOT resurrect the dunder's contract or body (that is the larger "emit dunders" build);
-        it only stops the model from asserting a preservation the source does not make.
-        """
-        cls = self._current_class
-        if not cls:
-            return
-        written: Set[str] = set()
-        for sub in ast.walk(node):
-            tgts: List[ast.expr] = []
-            if isinstance(sub, ast.Assign):
-                tgts = list(sub.targets)
-            elif isinstance(sub, (ast.AugAssign, ast.AnnAssign)):
-                tgts = [sub.target]
-            for t in tgts:
-                # `self.f = ...` / `self.f += ...`
-                if (isinstance(t, ast.Attribute) and isinstance(t.value, ast.Name)
-                        and t.value.id == "self"):
-                    written.add(t.attr)
-                # `self.f[i] = ...` / `self.f[a:b] = ...` — an element write is a write
-                # (the same carve-out `ir_resolve.self_field_writes` already carries).
-                elif isinstance(t, ast.Subscript):
-                    b = t.value
-                    if (isinstance(b, ast.Attribute) and isinstance(b.value, ast.Name)
-                            and b.value.id == "self"):
-                        written.add(b.attr)
-        if not written:
-            return
-        tbl = self.program_ir.setdefault("skipped_dunder_writes", {})
-        key = f"{str(cls).lower()}__{node.name}"
-        tbl[key] = sorted(set(tbl.get(key, [])) | written)
-
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         if self._should_skip_method(node):
-            self._record_skipped_dunder_writes(node)
+            # (#49) ROUTE #218 — A SKIPPED DUNDER'S SELF-WRITES MUST SURVIVE THE SKIP.
+            #
+            # `_should_skip_method` drops every dunder before any IR is built, so Module 6
+            # knows nothing about `__enter__` at all: an explicit `c.__enter__()` call mints
+            # an abstract `val c___enter___0 (self: c) : int` with NO `writes`, and Why3
+            # reads a `val` with no `writes` as PURE. MEASURED (the route carrier): with a
+            # body setting `self.v = 7`, `before = c.v; c.__enter__(); after = c.v; return
+            # before - after` PROVED `\result == 0` while CPython answers -7, and the TRUE
+            # twin (`== -7`) FAILED. The `#@ assigns` clause is NOT the trigger — deleting
+            # the dunder's annotations changes nothing; a BODY that writes self state is
+            # enough. The NON-dunder control (`def enter`) correctly FAILS, which is what
+            # pins the defect to the skip.
+            #
+            # So the skip records, per `<class_lower>__<dunder>` key, the self-attribute
+            # names the dropped body writes (plain store, augmented store, annotated store,
+            # element store — the carve-out `ir_resolve.self_field_writes` already carries
+            # for mixins). Module 6's `_resolve_dotted_signature` reads the table and frames
+            # the minted `val` with `writes { self.<f>, ... }`, turning a FALSE purity claim
+            # into an ABSENT one. It does NOT resurrect the dunder's contract or body — that
+            # is the larger "emit dunders" build witness 1800 and route #216 wait on.
+            #
+            # INLINE ON PURPOSE, not extracted into a helper. A new live METHOD is a new
+            # UNMIRRORED def (`check-mirror-coverage`'s ratchet went 549 -> 550) AND a new
+            # abstract `val` in two mirror emissions that import this module, which owes two
+            # whole-file re-proofs for a function nothing calls. Both costs vanish inline,
+            # and `visit_FunctionDef`'s mirror twin is `\trusted`, so the live body is free.
+            cls218 = self._current_class
+            if cls218:
+                written218: Set[str] = set()
+                for sub218 in ast.walk(node):
+                    tgts218: List[Any] = []
+                    if isinstance(sub218, ast.Assign):
+                        tgts218 = list(sub218.targets)
+                    elif isinstance(sub218, (ast.AugAssign, ast.AnnAssign)):
+                        tgts218 = [sub218.target]
+                    for t218 in tgts218:
+                        if (isinstance(t218, ast.Attribute)
+                                and isinstance(t218.value, ast.Name)
+                                and t218.value.id == "self"):
+                            written218.add(t218.attr)
+                        elif isinstance(t218, ast.Subscript):
+                            b218 = t218.value
+                            if (isinstance(b218, ast.Attribute)
+                                    and isinstance(b218.value, ast.Name)
+                                    and b218.value.id == "self"):
+                                written218.add(b218.attr)
+                if written218:
+                    tbl218 = self.program_ir.setdefault("skipped_dunder_writes", {})
+                    key218 = f"{str(cls218).lower()}__{node.name}"
+                    tbl218[key218] = sorted(set(tbl218.get(key218, [])) | written218)
             return
         # typing-engagement ty2 / 31-1700-typing-spec-7 §1.3: an `@overload`
         # stub (`@overload def f(x: T) -> R: ...`) is collected into

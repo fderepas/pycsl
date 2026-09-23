@@ -431,6 +431,11 @@
       ]
     }
   ],
+  "skipped_dunder_writes": {
+    "service____init__": [
+      "count"
+    ]
+  },
   "composed_provider_methods": [
     "service__bump"
   ]

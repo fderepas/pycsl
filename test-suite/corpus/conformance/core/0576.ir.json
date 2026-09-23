@@ -149,5 +149,10 @@
         "args": []
       }
     }
-  ]
+  ],
+  "skipped_dunder_writes": {
+    "account____init__": [
+      "balance"
+    ]
+  }
 }

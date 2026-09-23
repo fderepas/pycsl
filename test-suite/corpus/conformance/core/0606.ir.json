@@ -194,5 +194,10 @@
       "col": 0,
       "pure": true
     }
-  ]
+  ],
+  "skipped_dunder_writes": {
+    "c____init__": [
+      "v"
+    ]
+  }
 }
