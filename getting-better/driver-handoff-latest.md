@@ -56,8 +56,30 @@
 #         DECLINED — 6 mirror and 32 live functions share the shape, and a blanket refusal
 #         breaks the mirror (route #213's mistake). The faithful fix is to declare the
 #         counter AND test `!a_len <> 0`; 1804 is the tripwire until then.
-#      4. The six remaining undemonstrated refusals are diagnosed in
-#         `check-refusal-witness-coverage`'s header; three are owned by earlier checks.
+#      4. The SIX remaining undemonstrated refusals are diagnosed in
+#         `check-refusal-witness-coverage`'s header; three are owned by earlier checks and
+#         one (the inline-DEPTH refusal) is guarded on both sides — a finite chain
+#         converges in far fewer than 16 passes and a cycle is caught by the
+#         recursive-method refusal first.
+#      5. **THE BATTERY DIRTIES TRACKED FILES.** A `--slow` run leaves 13 TRACKED `.aux`
+#         files modified under `test-suite/corpus/pycsl-reference/*.proofs/rocq/` plus 26
+#         untracked `.tmp*.aux`, because `check-proof-reverify.sh` recompiles in place.
+#         This is the trap behind the near-miss earlier in this generation, where an
+#         `rm -f .../rocq/.tmp*.aux` DELETED SEVERAL HUNDRED TRACKED FILES. Fix: recompile
+#         into a temp directory, or untrack the artifacts and gitignore them. Left dirty
+#         tonight on purpose — not committed (they are artifacts) and not reverted (never
+#         discard tracked changes you did not make).
+#      6. **THE GENERATOR THAT FOUND ROUTE #216 IS MECHANICAL AND HAS 97 UNWALKED ENTRIES.**
+#         `98 refusals in the shipping compiler sit inside a `for` loop`, over 76 distinct
+#         collections (enumerate them with an ast walk for `Raise` inside `For`). For each,
+#         ask lesson (t3)'s question: what stops an x from reaching COLLECTION at all?
+#         Six were attacked tonight: one yielded route #216, one yielded the composition
+#         guard's element-write blindness (landed), four held and are written up in
+#         `driver-progress.log` so nobody re-runs them.
+#      7. The `self.cache[0]`-shaped gap in `self_field_writes` is CLOSED, but a mixin with
+#         a LIST field is still ill-typed (`coreemit <array.Array.array int @rho1> @rho`),
+#         so there is no accepting control for that path. That modelling gap is the next
+#         thing standing between the composition layer and a real test.
 #
 # ## LATE-EVENING ADDENDUM (2026-09-22T23:00Z) — READ THIS FIRST
 #    - **ROUTE #215 DEMONSTRATED AND CLOSED**, and it came out of the ADVICE AUDIT rather
