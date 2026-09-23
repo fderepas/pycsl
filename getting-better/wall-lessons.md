@@ -45,7 +45,10 @@ working · **(c4)** a cleanup that restores files must be keyed on the PATH, and
 RUN before it is believed. · **(d4)** a recognizer that runs FIRST can retire a
 REPAIR as easily as a refusal · **(e4)** a tripwire someone else left for you will fire on
 your own fix, and it will be right · **(f4)** a gate that can only run ONE flag combination
-cannot hold a route whose defect lives in another one.
+cannot hold a route whose defect lives in another one. · **(g4)** the skip is exactly as
+wide as the claim beside it is wrong · **(h4)** a refusal's PLACEMENT has a cost the corpus
+byte-diff cannot see · **(i4)** `git add -A` is not safe in a tree that holds build
+exhaust — read the staged COUNT.
 
 ### (f3) An exclusion you never tested is a guess — check whether the reason still applies
 
@@ -6029,3 +6032,80 @@ is within the one it does. The campaign's own discipline already says "a `--fun`
 substitutes for the whole-file proof" — correct policy, and the reason nothing had ever
 measured what `--fun` ALONE certifies. A flag that prints a verification verdict is a claim
 surface and needs a witness like any other.
+
+
+### (g4) The skip is exactly as wide as the claim beside it is wrong
+
+Gen #31 found three routes in one afternoon from a single question asked of one file:
+
+    WHAT DOES THIS DISPATCHER DECLINE TO VISIT, AND WHAT DID THE COMMENT BESIDE IT PROMISE
+    ABOUT THAT?
+
+    Module5.visit_FunctionDef, early return #1 (the dunder skip)     -> ROUTE #219
+    Module5.visit_FunctionDef, early return #2 (the @overload stub)  -> ROUTE #222
+    Module5.visit_ClassDef,    the Protocol branch                   -> ROUTE #223
+
+The first two are lesson (t3) in its familiar form: something never ENTERS the collection the
+check iterates. The THIRD is sharper and is why this is a separate lesson. Its comment did
+not merely fail to mention the case — **it asserted the opposite, as the justification for
+the skip**:
+
+> NOTE: no `generic_visit(node)` ... **The protocol class body carries ONLY member
+> declarations** (no nested classes / assigns that need visiting), so skipping the walk is
+> correct.
+
+That is a CLAIM ABOUT PYTHON, and PEP 544 permits a default implementation. The claim is
+wrong by exactly one construct, and the skip is wrong by exactly that construct: a
+`Protocol` member with a body had its CODE discarded and its CONTRACT assumed, so
+`#@ ensures \result == 99` over `return 1` certified, with the true twin rejected.
+
+This repository has learned the same thing once before, in `Module5_IREmitter` ~2080: "out of
+scope because it raises" is itself a CLAIM ABOUT PYTHON and must be PROBED, not reasoned
+about — one language feature turned a non-total residue into a total soundness route.
+
+**THE RULE: a justification written beside a skip is the highest-yield thing in the file to
+falsify.** Not the code — the sentence. Code that handles a case wrongly usually fails
+loudly; a sentence that says a case cannot arise buys silence for exactly as many inputs as
+it is wrong about, and nothing in the pipeline will contradict it.
+
+### (h4) A refusal's PLACEMENT has a cost the corpus byte-diff cannot see
+
+Route #222's refusal was first written where it belongs logically: at
+`visit_FunctionDef`'s own early return. That version passed the fidelity plane (885
+verbatim) and passed the corpus byte-diff (0 MOVED over 1328 pycsl-reference emissions plus
+2199 python-reference). It was still not free:
+
+    check-trusted-raises-honesty   62 -> 64 SILENT
+    frontend/__init__.mlw          + `exception PyCSLSemErr222`, + `raises { ... }`
+
+Adding a `raise` to a LIVE function whose MIRROR twin is `\trusted` and declares no
+`#@ raises` makes that stub silent about an exit path the live code now has — and TWO mirror
+files carry a `\trusted` stub named `visit_FunctionDef`, so ONE new raise counted TWICE.
+Moved to `_run_pipeline`, whose twin is `\trusted` AND ALREADY IN THAT POPULATION, both
+ratchets and the mirror emission are untouched. That is the choke-point rule routes
+#206-#215 used, now with a measured price tag for ignoring it.
+
+**THE GENERAL POINT IS ABOUT INSTRUMENTS, NOT ABOUT THIS REFUSAL: a byte-diff over the
+CORPUS cannot see a cost that lands in the MIRROR.** The sweep was green and the change was
+not free. Lesson (b4) made the same argument this morning from the conformance goldens (a
+front-end change can be emission-inert and still alter the IR); this is the third direction
+it arrived from in one day, and the conclusion each time is the same — run the WHOLE
+BATTERY on a front-end change, never the sweep alone.
+
+### (i4) `git add -A` is not safe in a tree that holds build exhaust — read the staged COUNT
+
+`git add -A bin/ getting-better/ src/pycsl/ test-suite/` staged **88** files for a commit
+that touched 13. The other 75 were `.aux` build artifacts: 10 modified tracked ones the
+handoff explicitly said to leave alone, and 65 UNTRACKED `.tmp*.aux`. The commit was made and
+then amended away (`reset --soft` + `git reset HEAD -- '*.aux'`), which preserves the working
+tree exactly.
+
+Nothing was lost. What almost happened is the point: the 65 untracked files would have become
+TRACKED, permanently, making the exhaust problem worse for every future run — the same
+problem `bin/check-artifact-cleanup.sh` was written that morning to prevent, arriving from
+the opposite direction. A repository that deliberately tracks 990 build artifacts has no
+`.gitignore` defence to fall back on.
+
+**THE CHECK IS THE COUNT.** Stage by explicit path, and compare the staged file count with
+the number of files you actually edited before committing. 88 against 13 is visible at a
+glance, and nothing else in the workflow says a word.

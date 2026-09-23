@@ -55,7 +55,7 @@ DRIVER = os.path.join(ROOT, "src", "pycsl", "pycsl.py")
 # (#49) gen #31 — the floor. It starts at the number of pairs written in the commit that
 # introduced the plane, and only ever rises. A directive whose pair is DELETED, or a new
 # directive added to annotations.md without one, drops the fraction and turns this red.
-MIN_COVERED = 19
+MIN_COVERED = 21
 
 
 def population():
@@ -75,6 +75,11 @@ def population():
 
 
 _ANCHOR = "_ = 0  # anchor\n"
+
+# The shared preamble for the CONCURRENT family: one protected global, two locks,
+# and a `#@ thread_entry` worker. Each case supplies only the worker's BODY.
+_CONC_HDR = (
+    "# pycsl-flags: --memory-model concurrent --strict-concurrent-checks --no-proof\n#@ shared counter protected_by lock_counter\n#@ mutex_invariant lock_counter: counter >= 0\nimport threading\nlock_counter = threading.Lock()\nlock_other = threading.Lock()\ncounter = 0\n_ = 0  # anchor\n\n\n#@ thread_entry\n#@ \\diverges\n#@ requires True\n#@ ensures True\ndef worker() -> int:\n")
 
 
 # directive -> (violating source, satisfying source, extra flags)
@@ -231,6 +236,23 @@ CASES = {
         _ANCHOR + '\n\n#@ \\diverges\n#@ requires n >= 0\n#@ ensures \\result >= 0\n'
         'def f(n: int) -> int:\n    i: int = 0\n'
         '    #@ loop invariant i >= 0\n    while i < n:\n        i = i + 1\n    return i\n', []),
+    # THE CONCURRENT FAMILY. `--no-proof` for the reason the corpus's OWN concurrency
+    # witnesses give (0417 and 0259 both carry it): these checks are STATIC concurrency
+    # analysis that runs before any proof, and the proof side of a `#@ \diverges` thread
+    # entry is not what the directives are about. Each violating half is a REFUSAL, which
+    # is exactly how this family is enforced.
+    "shared": (   # `#@ shared X protected_by L` — X may only be touched holding L
+        _CONC_HDR + '    counter = 1\n    return 0\n',
+        _CONC_HDR + '    #@ critical lock_counter\n    with lock_counter:\n'
+        '        counter = 1\n    return 0\n',
+        ["--memory-model", "concurrent", "--strict-concurrent-checks", "--no-proof"]),
+    "critical": (  # `#@ critical L` — this `with` block is a critical section for L
+        # VIOLATE: the block is annotated (and takes) the WRONG lock for `counter`.
+        _CONC_HDR + '    #@ critical lock_other\n    with lock_other:\n'
+        '        counter = 1\n    return 0\n',
+        _CONC_HDR + '    #@ critical lock_counter\n    with lock_counter:\n'
+        '        counter = 1\n    return 0\n',
+        ["--memory-model", "concurrent", "--strict-concurrent-checks", "--no-proof"]),
     "allow_finalizer": (
         # WITHOUT the acknowledgement a `__del__` is refused (UB-7.5); with it, and with an
         # honest frame, the class verifies. Route #219's build made the BODY real too.
