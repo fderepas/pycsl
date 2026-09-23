@@ -142,11 +142,13 @@ CENSUS_TRUNC = 4000       # the writer's message cap. See the TRUNCATION GUARD b
                           # stored message of EXACTLY this length was cut, and a cut
                           # message silently un-witnesses every site whose fragment falls
                           # past the cut.
-MIN_WITNESSED = 196       # (#49) gen #31: 191 -> 196 with routes #222 and #223, the
+MIN_WITNESSED = 197       # (#49) gen #31: 191 -> 197 with routes #222 and #223, the
                           # `bounded_int` width refusal, the lowercase
                           # `#@ verify_module` name refusal (witness 1842, control
-                          # 1843) and the frameless `#@ lemma` refusal (witness 1847,
-                          # control 1848) — each landing its refusal and its
+                          # 1843), the frameless `#@ lemma` refusal (witness 1847,
+                          # control 1848) and the bare-collection `Callable` domain
+                          # (witness 1852, controls 1853/1854) — each landing its
+                          # refusal and its
                           # witness together. A refusal and its witness arrive
                           # in ONE commit or the count is a promise; this floor is what
                           # makes that a rule rather than a habit.

@@ -6647,3 +6647,51 @@ TWO PROBES THAT DID NOT LAND, recorded so the next window does not re-run them b
     does not emit: `This function has side effects, it cannot be used as pure`. So the
     question "is a callee's declared raise propagated to a caller's no_exception set?"
     is STILL OPEN, and the vestigial helper is the reason to keep asking it.
+
+--------------------------------------------------------------------------------
+2026-09-23 15:08Z — THE `Callable` SCOPE LIMIT WAS HALF A RULE
+--------------------------------------------------------------------------------
+
+Continuing the §12 two-plane audit. annotations.md §12.17's C5: "only `int`/`bool`/`str`/
+`float` and record/variant names are admissible as arg/return types (stricter than S1,
+sound; `bytes`/`list`/`dict`/`set`/`Any`/nested-`Callable`/ellipsis rejected with
+`PYCSL-TY3-CALLABLE-SCOPE`)."
+
+Five of the seven rejections were real. The collection ones were NOT — and the way they
+appeared to be is the interesting part. `Callable[[List[int]], int]` IS refused, but only
+because `List[int]` is an `ast.Subscript`, which is a different rule. The BARE spellings
+are `ast.Name` nodes, so `_callable_type_tag` fell through to `return tag`; Module 6 found
+no record or variant of that name and DEFAULTED THE ARROW DOMAIN TO `int`. Measured:
+
+    Callable[[bytes], int] -> let function apply (f: int -> int) (x: int) : int
+    Callable[[list],  int] -> (the same)
+    Callable[[dict],  int] -> (the same)
+    Callable[[set],   int] -> (the same)
+
+byte-identical to `Callable[[int], int]`. And the class constant `_CALLABLE_SCALAR_TAGS =
+frozenset({"int","bool","str","float"})` sits two screens above the check, REFERENCED
+NOWHERE — the residue of the rule the documentation describes. That is the second dead
+artefact of a documented check found today (the first was `_collect_type_params`'s legacy
+branch).
+
+Repaired with an explicit equality chain over the seven collection builtins — a CHAIN and
+not a set membership, because this method's mirror twin is UN-TRUSTED and a verbatim body
+port, the same constraint that dictated route #218's dunder-hook shape. Witness `1852`,
+controls `1853` (scalar still verifies) and `1854` (a bare RECORD name is still
+admissible). 1854 is the control that matters: the natural over-broad repair — "refuse any
+bare Name that is not one of the four scalars" — would have taken the record case with it,
+and §12.17 promises record/variant names are admissible.
+
+STILL OPEN AND NAMED: an UNKNOWN bare class name (a typo, `Callable[[Rekt], int]`) is
+silently `int` for exactly the same reason. Refusing it needs the record/variant table,
+which lives in Module 6, not in the Module 5 emitter where this check sits — the method's
+own comment says so. Recorded in `finding-callable-scope-limit-not-enforced.md` with the
+smaller of the two candidate fixes named (have Module 6 refuse an unresolved `callable:`
+tag instead of defaulting its domain to `int`).
+
+PROCESS NOTE, AND IT COST EIGHT MINUTES. I had a full reference-suite run in flight when I
+made this live-source edit, which is precisely lesson-of-the-day "a long battery run
+against a tree you are still editing measures a tree that never existed". Killed it rather
+than keep a contaminated result. From here the rule for this window is explicit: NO LIVE
+SOURCE EDITS WHILE A SUITE OR BATTERY IS IN FLIGHT — bookkeeping, docs and route records
+only, then relaunch on a frozen tree.

@@ -2547,7 +2547,15 @@ value `ensures` on the enclosing function is correctly unprovable, NOT a
 `\trusted` shortcut). Scope limit (C5): only `int`/`bool`/`str`/`float` and
 record/variant names are admissible as arg/return types (stricter than S1,
 sound; `bytes`/`list`/`dict`/`set`/`Any`/nested-`Callable`/ellipsis rejected
-with `PYCSL-TY3-CALLABLE-SCOPE`).
+with `PYCSL-TY3-CALLABLE-SCOPE`). The collection names are refused in their BARE
+spelling too (`Callable[[bytes], int]`, `Callable[[list], int]`, …), not only when
+written as a subscript — until gen #31 a bare collection name fell through to the
+class-name branch, no record or variant matched, and the arrow domain silently became
+`int`, so `Callable[[bytes], R]` and `Callable[[int], R]` emitted the same arrow
+(witness `1852`, controls `1853` scalar / `1854` record). **Still open:** an UNKNOWN
+bare class name (a typo) is silently `int` for the same reason; refusing it needs the
+Module 6 record/variant table — see
+`getting-better/open-routes/finding-callable-scope-limit-not-enforced.md`.
 
 **Runtime plane** (Shimmed): `Callable[[...], R]` constructs an introspectable
 alias object (R1); `callable(x)` / `isinstance(x, Callable)` is a PRESENCE

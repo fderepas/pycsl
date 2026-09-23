@@ -3121,6 +3121,49 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     "consistency relation is deliberately unsound).",
                     stage="ir-emit", code="PYCSL-TY3-GT1",
                 )
+            # (#49) gen #31 — THE DOCUMENTED C5 SCOPE LIMIT, WHICH WAS NOT ENFORCED.
+            # annotations.md §12.17 says only `int`/`bool`/`str`/`float` and
+            # record/variant names are admissible, and that
+            # "`bytes`/`list`/`dict`/`set`/`Any`/nested-`Callable`/ellipsis" are
+            # "rejected with `PYCSL-TY3-CALLABLE-SCOPE`". Five of the seven were: `Any`
+            # above, the nested/subscripted forms below, the ellipsis at the caller, and
+            # `List[int]`/`Dict[...]`/`Set[...]` only because they are SUBSCRIPTS. The BARE
+            # spellings were not — `Callable[[bytes], int]`, `Callable[[list], int]`,
+            # `Callable[[dict], int]`, `Callable[[set], int]` are bare `Name` nodes, fell
+            # through to `return tag`, and Module 6 then had no record/variant of that name
+            # and defaulted the arrow domain to `int`. MEASURED: all four emit
+            # `let function apply (f: int -> int) (x: int) : int`, identical to
+            # `Callable[[int], int]`.
+            #
+            # The class constant `_CALLABLE_SCALAR_TAGS` sitting two screens above is the
+            # residue of the check that was meant to be here: defined, and referenced
+            # NOWHERE in the file.
+            #
+            # An EXPLICIT EQUALITY CHAIN, not a set membership or a `frozenset` literal.
+            # This method's mirror twin is UN-TRUSTED and a verbatim body port, so the text
+            # has to lower faithfully; route #218's dunder-hook test is written the same way
+            # for the same reason (`==` lowers via `str_eq_op`, a set literal does not).
+            #
+            # NOT EXTENDED TO AN UNKNOWN CLASS NAME, deliberately. A typo'd record name
+            # (`Callable[[Rekt], int]`) is silently `int -> int` too, and refusing it needs
+            # the record/variant table — which lives in Module 6, not here. Recorded as the
+            # open half in `finding-callable-scope-limit-not-enforced.md` rather than
+            # half-implemented.
+            if (tag == "bytes" or tag == "bytearray" or tag == "list" or tag == "dict"
+                    or tag == "set" or tag == "frozenset" or tag == "tuple"):
+                raise PyCSLSemanticError(
+                    f"Callable arg/return type `{tag}` is not an admissible arrow domain "
+                    f"(C5 sound scope limit, stricter than S1): only `int`, `bool`, `str`, "
+                    f"`float` and bare record/variant class names lower to a WhyML "
+                    f"function-type parameter. A collection type has no value-semantic "
+                    f"arrow domain here, and `bytes` is modelled as a (loc, len) pair "
+                    f"rather than a single type. Until this refusal it was accepted and "
+                    f"the domain silently became `int`, so `Callable[[{tag}], R]` and "
+                    f"`Callable[[int], R]` emitted the SAME arrow. FIX: use a scalar or a "
+                    f"record/variant class, or pass the collection as a separate parameter "
+                    f"beside a `Callable` over scalars.",
+                    stage="ir-emit", code="PYCSL-TY3-CALLABLE-SCOPE",
+                )
             # Primitive scalar OR a bare class name (record/variant) — Module 6
             # resolves the class name against the known record/variant types.
             return tag
