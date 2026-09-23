@@ -149,10 +149,15 @@ MIN_WITNESSED = 184       # 58 at the first joined measurement; 67 after TEN wit
                           # with witness 1762 — and 131 once the CENSUS ITSELF was
                           # repaired. FORTY-FIVE of the "missing" witnesses had been in
                           # the corpus all along. May only grow.
-MAX_UNWITNESSED = 17      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
+MAX_UNWITNESSED = 13      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
                           # the instrument; 67 -> 59 by DEMONSTRATING the eight that no
                           # corpus witness can reach; 59 -> 50 once the nine this
                           # instrument CANNOT MATCH were counted separately (below).
+                          # (#49) 17 -> 13 by READING THE REMAINING SEVENTEEN ONE BY ONE
+                          # instead of treating them as seventeen unwritten witnesses:
+                          # four raise sites (span, two callable-tag, opaque stmt) fire on
+                          # shapes the FRONT-END constructs, and are now demonstrated
+                          # executably by bin/check-frontend-ir-backstop-refusals.py.
                           # May only shrink.
 
 # NOT REACHABLE FROM A `.py` SOURCE FILE, and therefore never a corpus witness's job.
@@ -204,6 +209,19 @@ NOT_SOURCE_REACHABLE = {
     "PYCSL-IR-NOTDICT", "PYCSL-IR-MISSINGTOP", "PYCSL-IR-VERSION", "PYCSL-IR-FUNCSLIST",
     "PYCSL-IR-FUNCDICT", "PYCSL-IR-MISSINGFUNC", "PYCSL-IR-CONTRACTSDICT",
     "PYCSL-IR-MISSINGCONTRACTS",
+    # (#49) THREE MORE OF THE SAME KIND, found by reading the 17 undemonstrated sites one
+    # by one instead of treating them as seventeen unwritten witnesses. Each fires on a
+    # shape the FRONT-END ITSELF constructs, so no `.py` source file can produce it:
+    #   PYCSL-SEM-SPAN            an IR function with no `line` — Module 5 stamps spans.
+    #   PYCSL-TY3-CALLABLE-SHAPE  a malformed `callable:<a>,...-><r>` tag — the front-end
+    #                             writes that encoding (2 raise sites, one code).
+    #   PYCSL-IR-OPAQUESTMT       an `OpaqueStmt` reaching the Module 6 dispatch — the
+    #                             front-end classes the statements.
+    # All three are DEMONSTRATED EXECUTABLY by bin/check-frontend-ir-backstop-refusals.py,
+    # which calls the real function with the malformed input AND runs a well-formed control
+    # that must be accepted. They are reclassified, not excused: the debt counter goes down
+    # because the work was done, and the ceiling below goes down with it.
+    "PYCSL-SEM-SPAN", "PYCSL-TY3-CALLABLE-SHAPE", "PYCSL-IR-OPAQUESTMT",
 }
 
 
@@ -441,7 +459,8 @@ def main():
           % (len(st), len(rows), len(refusal_msgs), len(witnessed), len(unwitnessed)))
     if elsewhere:
         print("[*]   plus %d refusal(s) NOT REACHABLE from a `.py` source file, "
-              "demonstrated executably by bin/check-ir-schema-refusals.py instead."
+              "demonstrated executably by bin/check-ir-schema-refusals.py and "
+              "bin/check-frontend-ir-backstop-refusals.py instead."
               % len(elsewhere))
     if unmatchable:
         print("[*]   plus %d refusal(s) UNMATCHABLE by this instrument: their message has "
