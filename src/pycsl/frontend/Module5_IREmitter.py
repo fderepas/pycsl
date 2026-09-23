@@ -3167,9 +3167,23 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         f"provide member '{m}'. Conformance requires every protocol "
                         f"member to be present with a refining contract.")
                 base_method = f"{proto_lower}__{m}"
+                # (#49) ROUTE #224 — PROVENANCE, so the refinement goal can follow the
+                # DIRECTIVE rather than the flag. `overrides` carries two kinds of pair:
+                # ordinary INHERITANCE overrides (implicit, discovered by
+                # `ir_resolve.apply_inheritance`) and CONFORMANCE pairs (explicit, written
+                # by the user as `#@ conforms_to P`). Only `--check-behavioral-subtyping`
+                # ever turned either into a goal, so a declared conformance was UNCHECKED
+                # by default and the run still said "All contracts formally proven".
+                # Tagging the conformance pairs lets Module 6 emit THEIR goals always,
+                # while the implicit Liskov obligation stays opt-in as before — the
+                # distinction route #224's repair 2 rests on ("the directive is an
+                # explicit, opt-in declaration, so the goal it names could simply follow
+                # it"). Emitted only on conformance pairs, so an `overrides` list built
+                # purely by inheritance is byte-identical and no golden moves.
                 self.program_ir.setdefault("overrides", []).append({
                     "sub_method": sub_method, "base_method": base_method,
                     "sub_type": sub_lower, "base_type": proto_lower,
+                    "from_conforms_to": True,
                 })
 
     def _collect_class_fields(self, node: ast.ClassDef) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:

@@ -1088,8 +1088,12 @@ class Module6_WhyMLTranspiler(
         for func in sorted_functions:
             out += self._emit_function(func, scc_info)
 
+        # (#49) ROUTE #224 — a DECLARED `#@ conforms_to` is checked whether or not the
+        # flag is passed; the implicit inheritance overrides stay opt-in.
         if self.check_behavioral_subtyping:
             out += self._emit_subtyping_goals(functions)
+        else:
+            out += self._emit_subtyping_goals(functions, conforms_to_only=True)
 
         out.append("end")
         self._insert_abstract_val_block(out)
@@ -1656,8 +1660,11 @@ class Module6_WhyMLTranspiler(
         self._axiom_emitted_decls = set(self._shared_symbol_decls)
         main += self._emit_preamble_axioms(main_ir)
         main += _emit_funcs(main_funcs, None)
+        # (#49) ROUTE #224 — same rule on the `#@ verify_module` path.
         if self.check_behavioral_subtyping:
             main += self._emit_subtyping_goals(functions)
+        else:
+            main += self._emit_subtyping_goals(functions, conforms_to_only=True)
         main.append("end")
         self._insert_abstract_val_block(main)
         # cleared-array item 1: flush any deferred call-comprehension content-law

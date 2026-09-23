@@ -7894,8 +7894,19 @@ class FunctionEmissionMixin:
         lines.append(f"  = pp_term ({inject})")
         return lines
 
-    def _emit_subtyping_goals(self, functions: List[Dict[str, Any]]) -> List[str]:
+    def _emit_subtyping_goals(self, functions: List[Dict[str, Any]],
+                              conforms_to_only: bool = False) -> List[str]:
         """Layer D — emit a Liskov refinement goal per overriding method.
+
+        (#49) ROUTE #224. `conforms_to_only=True` restricts the emission to the pairs an
+        explicit `#@ conforms_to P` created (tagged `from_conforms_to` by
+        `Module5_IREmitter._populate_protocol_conformance`). That is how the refinement
+        goal follows the DIRECTIVE instead of the `--check-behavioral-subtyping` flag: a
+        user who writes `#@ conforms_to P` has declared the obligation, and until this
+        change nothing checked it unless the flag was also remembered — the tool printed
+        "All contracts formally proven" over a module carrying a declared obligation that
+        nothing discharged. The IMPLICIT inheritance overrides keep their opt-in behaviour
+        exactly, because nobody wrote them down.
 
         For `Sub.m` overriding `Base.m`, prove
         `(pre_base -> pre_sub) /\\ (post_sub -> post_base)`: the override may
@@ -7905,6 +7916,8 @@ class FunctionEmissionMixin:
         contract is enforced mechanically.
         """
         overrides = self.ir.get("overrides", [])
+        if conforms_to_only:
+            overrides = [o for o in overrides if o.get("from_conforms_to")]
         if not overrides:
             return []
         by_name = {f["name"]: f for f in functions}

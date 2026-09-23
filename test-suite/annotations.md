@@ -1830,8 +1830,14 @@ body type-checks under Why3 and SMT can discharge non-trivial properties.
 | `k not in d` | same with arms swapped | |
 | `del d[k]` (DelSubscript) | `d := map_update_none !d k` | Wrapper `val` whose `ensures` equals `Map.set m k None` (key cleared). **LOCAL** dict/set only; on a **STANDALONE** dict/set PARAMETER the same op runs on the caller-visible `ref (map …)` (WL-05c, seeded like `d[k]=v`). On a dict/set **METHOD** parameter `del d[k]` is REJECTED — the WL-05 caller-visible-mutation boundary (see §7.9 / wrong-lowering §WL-05c) |
 
-**Forbidden** (still): `d.items()`, `d.keys()`, `d.values()`, `d.get(k, default)`,
-iteration over `for k in d:`. (`del d[k]` was previously listed here as a blanket
+**Forbidden** (still): `d.items()`, `d.keys()`, `d.values()`, iteration over
+`for k in d:`. (`d.get(k, default)` was listed here and is NOT forbidden — it has been
+interpreted, and FAITHFULLY, for some time: measured on `{1: 10, 2: 20}`,
+`d.get(3, 99)` proves `== 99` and refuses `== 0`, `d.get(1, 99)` proves `== 10` and
+refuses `== 99`, matching CPython in all four. Fifteen corpus files already use it. The
+line is corrected rather than the behaviour: a `Forbidden` list that names a working
+construct sends a reader to write around something that works, and it is the same class of
+staleness as the `del d[k]` entry the sentence below records.) (`del d[k]` was previously listed here as a blanket
 no-op; WL-05c made it FAITHFUL for a local/standalone-param dict/set — `map_update_none`
 — and a clean REJECTION on a method param. It used to be a silent no-op that unsoundly
 proved a deleted key survived.)
@@ -2412,9 +2418,14 @@ refinement VCs.
 `abstract: True` function (a bodyless `val` with its contract — the refinement target,
 P1a). The `#@ ensures/requires/assigns` on a member is the refinement TARGET. Conformance
 `C conforms to P` (declared via `#@ conforms_to P`) populates the EXISTING `overrides` IR
-list with `(C__m, P__m)` pairs; `--check-behavioral-subtyping` emits the per-method
-refinement goal `((pre_P -> pre_C) /\\ (post_C -> post_P))` (P2/P4 — per-method
-behavioural refinement, NOT attribute presence). A class missing a member raises a static
+list with `(C__m, P__m)` pairs, TAGGED `from_conforms_to`; the per-method refinement
+goal `((pre_P -> pre_C) /\\ (post_C -> post_P))` (P2/P4 — per-method behavioural
+refinement, NOT attribute presence) is emitted for those pairs **whether or not
+`--check-behavioral-subtyping` is passed**: the DIRECTIVE carries its own obligation.
+Until gen #31 the goal was flag-gated, so a declared conformance whose contract did
+NOT refine the protocol's reported `All contracts formally proven` by default with no
+warning (route #224, CLOSED; witness `1855`, control `1856`). The flag still governs
+the IMPLICIT inheritance overrides, which nobody wrote down and which stay opt-in. A class missing a member raises a static
 error (P3); a non-refining contract makes the goal unprovable (P3). PEP 544 conformance is
 structural/implicit; PyCSL's TY2 scope requires the explicit `#@ conforms_to` directive
 (divergence-by-strictness — an implicit structural search is outside the per-module

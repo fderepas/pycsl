@@ -6695,3 +6695,126 @@ against a tree you are still editing measures a tree that never existed". Killed
 than keep a contaminated result. From here the rule for this window is explicit: NO LIVE
 SOURCE EDITS WHILE A SUITE OR BATTERY IS IN FLIGHT — bookkeeping, docs and route records
 only, then relaunch on a frozen tree.
+
+--------------------------------------------------------------------------------
+2026-09-23 15:44Z — THE §12 TWO-PLANE AUDIT, AND WHAT IT LEFT STANDING
+--------------------------------------------------------------------------------
+
+§12 gives each typing construct a Static plane classified Interpreted / Shimmed / Ignored,
+plus a list of named obligations. Taking the "Interpreted" ones and writing the program
+each obligation describes:
+
+  HELD (measured, not read):
+    §12.9  `Literal[1,2]` — `f(3)` FAILS on the synthesized `requires`, `f(2)` verifies.
+    §12.10 `Final` — F1 (module-level reassign), F2 (`self.attr =` outside `__init__`) and
+           the `+=` variant are each refused by name.
+    §12.11 `-> NoReturn` — an unjustified one is REFUSED ("its body neither raises nor
+           diverges").
+    §12.14 `@overload` — the stub's `ensures` becomes the guarded postcondition
+           `ensures { (subtag tag_int tag_int) -> (result = 1) }` on the implementation,
+           and a positive driver verifies.
+    §12.15 `Protocol` P3 — a `#@ conforms_to` class missing a member is refused, with and
+           without `--check-behavioral-subtyping`.
+    §12.1  the dict `Forbidden` list — `d.items()`, `d.keys()`, `d.values()` and
+           `for k in d:` all fail closed.
+    §12.2  the set `Forbidden` list — `union`/`intersection`/`difference`/`len` all fail
+           closed.
+
+  DID NOT HOLD (both repaired, committed):
+    §12.16 the legacy `class C(Generic[T])` spelling bypassed all four TY3 loud-fails.
+    §12.17 the `Callable` C5 scope limit missed the BARE collection names.
+
+  A DOCUMENTATION LAG, corrected here: §12.1 listed `d.get(k, default)` as FORBIDDEN. It
+  is interpreted and FAITHFUL — on `{1: 10, 2: 20}`, `d.get(3, 99)` proves `== 99` and
+  refuses `== 0`; `d.get(1, 99)` proves `== 10` and refuses `== 99`; all four match
+  CPython. Fifteen corpus files already use it. A `Forbidden` list that names a working
+  construct sends a reader to write around something that works — the same staleness the
+  `del d[k]` sentence two lines below already records having had.
+
+  AN OPEN PROBE, parked with its state: a minimal `class Point(TypedDict)` with
+  `p: Point = {"x": 1, "y": 2}` and `p["x"] + p["y"]` does NOT verify — nor does the
+  false twin, nor an undeclared-key read `p["z"]` (which §12.12 implies should be a hard
+  error, and which merely FAILS). All three FAILED, including the POSITIVE one, so the
+  shape is wrong or the construction path is narrower than §12.12 describes. The corpus's
+  TypedDict drivers all READ an existing value (`node.get("kind", "")`) rather than
+  CONSTRUCT one. Worth re-running on an idle machine before drawing a conclusion — three
+  probes under a loaded box is not a measurement of the compiler.
+
+ROUTE-SUPPLY OBSERVATION, for the ledger and per the launch instruction. Every finding
+today is FAIL-CLOSED: nothing false has been proved since route #224, which the directive
+plane found on its first run. Eight findings, five repairs, one `\trusted` conversion, and
+not one new SEV-1. The generator that keeps producing is "write the program the
+documentation describes"; what it produces is directives and obligations that are
+DOCUMENTED-BUT-UNENFORCED rather than unsound. That is a real and useful yield — two of
+today's were dead code that could never have run — but it is not route supply, and the
+distinction is worth stating before anyone reads the count as seven near-misses.
+
+NOT SWITCHING TRACKS YET, and the reason is concrete rather than hopeful: route #224 is
+OPEN with a REPAIR ALREADY PRICED in its own record ("emit the refinement goal whenever
+`#@ conforms_to` is written, flag or not"), and the population has now been measured — the
+five corpus files that declare `#@ conforms_to` are three refusals plus `1806` (already
+`# pycsl-flags: --check-behavioral-subtyping`, already expected-FAIL) and `1807` (same
+flags, SUCCESS under both modes). So the repair changes ZERO corpus verdicts and the
+byte-diff sweep stays inert, because both emitting files already pass the flag. Closing an
+open route with no corpus churn is worth more than a new probe, and it is the next
+increment as soon as the suite and the Module5 mirror proof clear the tree.
+
+================================================================================
+2026-09-23 16:35Z — ROUTE #224 IS CLOSED, THE SAME DAY IT WAS FOUND
+================================================================================
+
+The directive plane found it on its first run this morning; the repair is the one route
+#224's own record priced as option 2 — **the refinement goal follows the DIRECTIVE, not
+the flag.**
+
+`_populate_protocol_conformance` tags each pair it appends to `overrides` with
+`"from_conforms_to": True`, and `Module6_WhyMLTranspiler` calls
+`_emit_subtyping_goals(functions, conforms_to_only=True)` when
+`--check-behavioral-subtyping` is off — on BOTH transpile paths, flat and
+`#@ verify_module`.
+
+THE HALF THAT WAS EASY TO GET WRONG, and which control `1856` exists to pin: the
+IMPLICIT inheritance overrides keep their opt-in behaviour exactly. The obvious
+over-broad repair — "emit every `overrides` refinement goal by default" — would have
+turned on the Liskov obligation for every based class in the corpus, a change nobody asked
+for and nobody wrote down. The user WROTE `#@ conforms_to`; nobody wrote the inheritance
+pairs. Only the tagged ones are emitted.
+
+MEASURED, with the "before" column from the carrier that has been sitting in
+`getting-better/open-routes/` since this morning:
+
+    carrier (NO flags)                       BEFORE "All contracts formally proven"
+                                             AFTER  FAILED
+    control (--check-behavioral-subtyping)   FAILED both (unchanged — it always worked)
+    corpus 1806 (carries the flag, exp FAIL) FAILED both
+    corpus 1807 (carries the flag, control)  SUCCESS both
+    corpus 1753 / 1754 / 1837                REFUSED both
+
+ZERO corpus verdict changes across 3996 tests' worth of population, because the only two
+`#@ conforms_to` files that reach emission already pass the flag in their own
+`# pycsl-flags`. BYTE-DIFF: 1339 -> 1341 reference `.mlw` (the two new drivers), 0 MOVED /
+0 GONE / 0 unexpected APPEARED; 2199 python-reference `.mlw` byte-identical. IR
+CONFORMANCE: 38 goldens, 0 MISMATCH — the new IR key touches no golden, because no
+conformance golden is a conformance driver. Fidelity green; mirror signature drift 0 after
+the trusted stub's signature followed the live one.
+
+The carrier moved into the corpus as witness `1855` (expected FAIL, and deliberately with
+NO `# pycsl-flags` — that is the whole claim) with control `1856`.
+`check-open-route-carriers.py`'s two route-#224 rows are retired in the same commit, which
+is what that plane's own message demands ("give it a corpus witness and remove this entry
+IN THE SAME COMMIT"); the carrier files stay as historical evidence. 8 carriers -> 6, all
+green.
+
+NOT CLOSED, AND THE REASON IS WORTH KEEPING: **route #212** is the same shape — an
+importing unit believes every contract of an imported module, `--verify-imports` OFF by
+default, "the DEFAULT still believes". The argument that closed #224 does NOT transfer.
+`#@ conforms_to` is a declaration the user wrote about contracts, so making its own
+obligation follow it is honest. An `import` is not. Closing #212 means deciding to
+re-verify a dependency on every run of every importer, which is a policy choice for the
+user rather than a repair — exactly what its record already says.
+
+SUITE AT THIS TREE, run BEFORE this increment on a frozen tree (bcc33d92): 3978/3996,
+the standing EIGHTEEN confirmed failures, ZERO XPASS. Every live-source change of the day
+— the `-> str` annotation, the `verify_module` refusal and reordering, the frameless-lemma
+refusal, the legacy-generics guard, the `Callable` scope chain and the bespoke model —
+regresses nothing.

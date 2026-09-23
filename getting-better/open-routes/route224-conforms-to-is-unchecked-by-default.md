@@ -1,4 +1,4 @@
-# Route #224 (OPEN) — a declared `#@ conforms_to` is UNCHECKED by default, with no warning
+# Route #224 (CLOSED, same day) — a declared `#@ conforms_to` is UNCHECKED by default, with no warning
 
 **Found:** 2026-09-23, gen #31, **by the first run of a new plane**
 (`bin/check-directive-enforcement.py`), which asks of each documented `#@` directive: if I
@@ -83,3 +83,48 @@ one: the population is the three corpus files that declare `#@ conforms_to`.
 * `route224-control-conforms-to-with-the-flag.py` — expects FAILED (the same file under
   `--check-behavioral-subtyping`), which is what localises the gap to the DEFAULT rather than
   to the checker.
+
+
+---
+
+## CLOSED (2026-09-23, gen #31) — repair 2, exactly as priced above
+
+**The goal follows the DIRECTIVE.** `_populate_protocol_conformance` now tags each pair it
+appends to the `overrides` IR list with `"from_conforms_to": True`, and
+`Module6_WhyMLTranspiler` calls `_emit_subtyping_goals(functions, conforms_to_only=True)`
+when `--check-behavioral-subtyping` is OFF. Both transpile paths (flat and
+`#@ verify_module`) take the same rule.
+
+**The implicit inheritance overrides keep their opt-in behaviour exactly**, and that is the
+half that was easy to get wrong. The obvious over-broad version — "emit every `overrides`
+refinement goal by default" — would have turned on the Liskov obligation for every based
+class in the corpus, a change nobody asked for and nobody wrote down. Only the pairs an
+explicit `#@ conforms_to` created are tagged, and only those are emitted. Control `1856`
+pins it.
+
+MEASURED:
+
+| file | before | after |
+|---|---|---|
+| the carrier (no flags) | `All contracts formally proven` | **FAILED** |
+| the control (`--check-behavioral-subtyping`) | FAILED | FAILED (unchanged) |
+| corpus `1806` (already carries the flag, expected FAIL) | FAILED | FAILED |
+| corpus `1807` (already carries the flag, control) | SUCCESS | SUCCESS |
+| corpus `1753` / `1754` / `1837` | REFUSED | REFUSED |
+
+ZERO corpus verdict changes, because the only two `#@ conforms_to` files that reach
+emission already pass the flag in their own `# pycsl-flags`. IR conformance: 38 goldens,
+0 MISMATCH — no golden is a conformance driver, so the new IR key moves nothing.
+
+The carrier moved into the corpus as **witness `1855`** (expected FAIL, NO
+`# pycsl-flags` — the whole point) with **control `1856`** (a REFINING conformance still
+verifies by default). `bin/check-open-route-carriers.py`'s two route-#224 rows are retired
+in the same commit, the disposition route #218's entry took: the carrier files stay as
+historical evidence and are no longer gated, because an entry asserting SUCCESS would make
+that plane red for the right reason at the wrong time.
+
+**What is NOT closed, and is a different route:** #212, the importing unit that believes
+every contract of an imported module with `--verify-imports` OFF by default. The shape is
+the same ("the DEFAULT still believes") and the argument that closed this one — *an
+explicit directive the user wrote should carry its own obligation* — does not transfer,
+because an `import` is not a declaration of intent about contracts.
