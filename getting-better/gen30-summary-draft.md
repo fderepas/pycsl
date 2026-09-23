@@ -674,6 +674,27 @@ whether `hlib.Sha256.update`'s trust becomes a reviewer clause or an abstract `v
 * `check-avatar-frame-parity` (B) INHERITED segment: **7 sites, not 11**, none pre-stubbed —
   7 new markers plus a 5-6 iteration caller fixpoint over five mirrors, one at 8250s/proof.
 * the hval absent-key sentinel's MIRROR side, left honestly OPEN with the next step named.
+* **ROUTE #218's repair**, deferred by ninety minutes rather than by cost: the remaining
+  judgement is whether refusing an explicit self-writing dunder call is right for
+  `python-reference/0076.py`, a different suite with different rules, and two of the three
+  measurements that got to that single file were wrong on the first try. Repair 2 — emit
+  the `writes` the `#@ assigns` already declares — is named as the one to price first.
+* **EMIT DUNDERS**, which is the single change that would close route #216's remaining
+  half (the obligation is refused, not CHECKED), route #218, witness 1800's gap and the one
+  zero-coverage file in `check-emitted-function-coverage`. Byte-diff-RISKY:
+  authorize-first, and it is item 1 in the handoff.
+* the `bytes` COUNT-form lowering (`Array.make n 0`, as `bytearray` already has) — route
+  #217's refusal now holds the line, so the type error is no longer load-bearing, which
+  was the precondition the old note named.
+* **witness 1804's shape**: `a: list = []` rebound to a literal in a branch emits an
+  UNDECLARED `a_len` AND an always-true `Array.length a <> 0` truthiness test, so route
+  #31's archetype is blocked only by a type error. A refusal was PRICED AND DECLINED — 6
+  mirror and 32 live functions share the shape and a blanket refusal breaks the mirror,
+  which is route #213's mistake. The faithful fix is to declare the counter AND test
+  `!a_len <> 0`; 1804 is the tripwire until then.
+* **`check-proof-reverify.sh` dirties 13 TRACKED `.aux` files** on every `--slow` run. That
+  is the trap behind this generation's near-miss, where tidying them by glob deleted
+  several hundred tracked files. Recompile into a temp directory, or untrack them.
 
 ## CONVERSIONS: ZERO, AND THAT IS THE HONEST HEADLINE
 
