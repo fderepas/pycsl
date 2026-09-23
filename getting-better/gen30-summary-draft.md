@@ -106,7 +106,9 @@ population at all. 198 sites became 219. The
 instrument was repaired in four conservative passes plus two guards, and now **REFUSES**
 rather than report a number when its own inputs are unusable. **85 → 184 demonstrated,
 113 → 17 undemonstrated**, with all 219 sites partitioned for the first time (184 + 17 +
-8 not-source-reachable + 10 unmatchable). Twenty-five witnesses were written along the way —
+8 not-source-reachable + 10 unmatchable). (It ends the generation at **191 of 220**, 6
+undemonstrated — see the bullet further down; the numbers here are where the evening
+stretch left it.) Twenty-five witnesses were written along the way —
 and four more were written, confirmed to fire, and DELETED as redundant.
 
 **THE ADVICE SURFACE, MEASURED FOR THE FIRST TIME AND CLOSED.**
@@ -126,9 +128,14 @@ instance; one OR-list's first disjunct is really a conjunction with the second).
 #215 came out of this audit**, and so did two standing completeness findings nothing else
 in the repo measures.
 
-**LESSONS BANKED.** **Twenty-two** new entries in `getting-better/wall-lessons.md` — ten
-from the route work (v2–e3) and **twelve from the final stretch (f3–q3), all of them about
-INSTRUMENTS**, which is the honest shape of this generation. The full list with worked
+**LESSONS BANKED.** **Twenty-six** new entries in `getting-better/wall-lessons.md` — ten
+from the route work (v2–e3) and **sixteen from the final stretch (f3–u3), all of them about
+INSTRUMENTS**, which is the honest shape of this generation. The last four were banked in
+the closing hours and each came from a gate catching its own author: (r3) a gate whose
+INPUTS can be deleted underneath it must REFUSE, not crash; (s3) "it was refused" is not
+the claim, "it was refused FOR THIS REASON" is; (t3) a guard written for a defect covers
+the case you HAD, not the case you can HAVE — ask what never ENTERS the collection it
+iterates; (u3) the choke point is a property of the FUNCTION, not of the FILE. The full list with worked
 examples is in that file's index; the route half reads: (v2) an
 unmentioned exclusion is an oversight wearing one; (w2) attack a marker before believing
 it is forced; (x2) trust has a blast radius and a PASS count is not a proof count; (y2) an
