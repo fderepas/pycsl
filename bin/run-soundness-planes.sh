@@ -293,12 +293,25 @@ PLANES=(
     # asserts the run touches exactly the paths it dirtied. Case 7 already caught a real
     # defect in the first draft. Runs in about a second; no prover, no emission.
     check-artifact-cleanup.sh
+    # (#49) gen #31: the question the battery had no instrument for — IF I WRITE THIS
+    # DIRECTIVE AND THEN VIOLATE IT, DOES ANYTHING HAPPEN? There was a plane for whether a
+    # directive is DOCUMENTED everywhere, one for whether a refusal has a WITNESS, and one
+    # for whether a refusal's ADVICE is followable. None of them can see a directive that is
+    # READ AND THEN IGNORED, which is exactly what routes #219 and #222 were, six hours
+    # apart. Each covered directive gets a VIOLATE program (must not verify) and a SATISFY
+    # twin (must verify — without it, a directive "enforced" by banning the construct would
+    # pass and mean nothing). Coverage is DERIVED from annotations.md, so a NEW directive
+    # lands UNCOVERED and lowers the fraction; 12 of 53 today and the ratchet only rises.
+    # IT FOUND ROUTE #224 ON ITS FIRST RUN. In the FAST set despite driving the prover ~24
+    # times (~2 min): a plane that only runs with `--slow` would not have protected the
+    # increments that needed it most.
+    check-directive-enforcement.py
 )
 # (#49) gen #30: TIGHTENED to the EXACT fast-plane count. It had been carrying slack —
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=45
+MIN_PLANES=46
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #

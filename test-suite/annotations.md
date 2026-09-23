@@ -32,7 +32,7 @@ Python construct they annotate (function, class, loop, or statement).
 | 5 | Structural variant | `#@ \variant (<expr>, <ordering>)` | Function/method | Termination via well-founded ordering |
 | 6 | Diverges | `#@ \diverges` | Function/method | Function may not terminate (no termination proof required) |
 | 7 | Trusted | `#@ \trusted` or `#@ \trusted reviewer: <REVIEWER_ID>` | Function/method | Body is not verified; contracts are assumed (axiom). The optional `reviewer:` clause names a human or process accountable for the trust assumption. See §2.1.7 below. |
-| 8 | Bounded integers | `#@ assumes bounded_int(N)` | Function/method | Use `mach.int.IntN` types; auto-generates overflow VCs on `+`, `-`, `*` |
+| 8 | Bounded integers | `#@ assumes bounded_int(N)`, **N in {16, 31, 32, 63, 64}** | Function/method | Use `mach.int.IntN` types; auto-generates overflow VCs on `+`, `-`, `*`. The width set is Why3's, not PyCSL's: `mach/int.mlw` defines Int16/Int31/Int32/Int63/Int64 and NOTHING ELSE — in particular there is no `Int8`. Any other N is REFUSED (`PYCSL-SEM-BOUNDED-INT-WIDTH`); before gen #31 it emitted `use mach.int.Int<N>` and the run ended on a why3 LIBRARY error (`Module Int8 not found in library mach.int`) for a directive PyCSL had accepted. |
 | 9 | Raises | `#@ raises ExcType when <cond>` | Function/method | Exceptional postcondition: exception raised only when `cond` holds |
 | 10 | Thread entry | `#@ thread_entry` | Function/method | Marks function as a concurrent thread entry point; used with `--memory-model concurrent` |
 | 11 | _(reserved — `proof` directive removed 2026-05-27)_ | | | |

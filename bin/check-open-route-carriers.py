@@ -83,6 +83,19 @@ CARRIERS = {
         "FAILED", "#221",
         "the identical file WITHOUT `--fun` fails, which is what localises the defect to "
         "the flag rather than to the model"),
+    # (#49) ROUTE #224 — `#@ conforms_to` is UNCHECKED BY DEFAULT, with no warning. Found
+    # by the FIRST RUN of `bin/check-directive-enforcement.py`. The same division of labour
+    # as #212: the checker exists and works under `--check-behavioral-subtyping`; what is
+    # open is that the DEFAULT believes the declaration and says `All contracts formally
+    # proven` over it.
+    "getting-better/open-routes/route224-carrier-conforms-to-unchecked-by-default.py": (
+        "SUCCESS", "#224",
+        "a class declared `#@ conforms_to P` whose `m` ensures `\\result == 1` against the "
+        "protocol's `\\result == 99` VERIFIES by default, with no warning"),
+    "getting-better/open-routes/route224-control-conforms-to-with-the-flag.py": (
+        "FAILED", "#224",
+        "the identical file under `--check-behavioral-subtyping`, where the refinement goal "
+        "IS built and correctly fails — which localises the gap to the DEFAULT"),
     # (#49) ROUTE #218 IS CLOSED (gen #31) — the carrier moved INTO the corpus as witness
     # 1815 (expected FAIL), with controls 1816 (read-only dunder still verifies) and 1817
     # (the non-dunder spelling, which always failed). `Module5._record_skipped_dunder_writes`
@@ -114,6 +127,9 @@ EXTRA_FLAGS = {
     "getting-better/open-routes/route221-control-fun-true-twin-still-fails.py":
         ["--fun", "use"],
     "getting-better/open-routes/route221-control-whole-file-still-fails.py": [],
+    "getting-better/open-routes/route224-carrier-conforms-to-unchecked-by-default.py": [],
+    "getting-better/open-routes/route224-control-conforms-to-with-the-flag.py":
+        ["--check-behavioral-subtyping"],
 }
 
 

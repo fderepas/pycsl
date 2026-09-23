@@ -712,6 +712,50 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     filename=args.file, line=_line216,
                     stage="ir-semantic", code="PYCSL-SEM-DUNDER-OVERRIDE-UNCHECKED")
 
+    # (#49) gen #31 — `#@ assumes bounded_int(N)` FOR AN N WHY3 HAS NO MODULE FOR.
+    # `preamble.py` emits `use mach.int.Int<N>` with N interpolated straight from the
+    # directive, and why3's `mach/int.mlw` defines EXACTLY Int16, Int31, Int32, Int63 and
+    # Int64. `#@ assumes bounded_int(8)` therefore emits `use mach.int.Int8` and the run
+    # ends with
+    #     Module Int8 not found in library mach.int
+    #     [-] Verification FAILED or INCOMPLETE.
+    # — a why3 LIBRARY error for a directive PyCSL accepted, with nothing to tell the
+    # reader which widths exist. It FAILS CLOSED, so this is a diagnosability defect and
+    # not a soundness one, and it is the same family as the six broken advice messages gen
+    # #30's audit repaired: the compiler told the user to write something that does not
+    # compile, and said nothing when they did.
+    # annotations.md documents the form as `bounded_int(N)` with N unconstrained ("Use
+    # `mach.int.IntN` types"), so the DOCUMENTATION is repaired alongside this.
+    # FOUND BY `bin/check-directive-enforcement.py`: the SATISFYING half of the `assumes`
+    # pair would not verify, which is exactly what that half is for — a violation that
+    # fails tells you nothing if the honest program fails too.
+    # CENSUS: the corpus uses only 32 and 64; the mirror, the live tree and `pycsl_lib` use
+    # `bounded_int` not at all. Byte-inert by measurement.
+    _BI_OK = (16, 31, 32, 63, 64)
+    try:
+        _lines_bi = open(args.file, encoding="utf-8", errors="replace").read().splitlines()
+    except OSError:
+        _lines_bi = []
+    for _i_bi, _ln_bi in enumerate(_lines_bi):
+        _st_bi = _ln_bi.strip()
+        if not _st_bi.startswith("#@ assumes bounded_int("):
+            continue
+        _arg_bi = _st_bi[len("#@ assumes bounded_int("):].split(")")[0].strip()
+        if not _arg_bi.isdigit() or int(_arg_bi) in _BI_OK:
+            continue
+        from errors import PyCSLSemanticError as _PyCSLSemErrBI
+        raise _PyCSLSemErrBI(
+            "`#@ assumes bounded_int(%s)` (line %d): Why3's `mach.int` library defines "
+            "machine-integer modules for widths %s ONLY. This directive lowers to "
+            "`use mach.int.Int%s`, which why3 answers with `Module Int%s not found in "
+            "library mach.int` — a LIBRARY error for a directive PyCSL accepted, telling "
+            "you nothing about which widths exist. Refusing instead. FIX: use one of %s, "
+            "or drop the directive and reason about unbounded integers (PyCSL's default)."
+            % (_arg_bi, _i_bi + 1, ", ".join(str(_w) for _w in _BI_OK), _arg_bi, _arg_bi,
+               ", ".join(str(_w) for _w in _BI_OK)),
+            filename=args.file, line=_i_bi + 1,
+            stage="ir-semantic", code="PYCSL-SEM-BOUNDED-INT-WIDTH")
+
     # (#49) ROUTE #223 — A `Protocol` MEMBER'S BODY IS DISCARDED AND ITS CONTRACT IS
     # ASSUMED, SO AN IMPLEMENTATION THAT CONTRADICTS ITS OWN CONTRACT CERTIFIES.
     # `_emit_protocol_interface` emits each member as an `abstract: True` function — a

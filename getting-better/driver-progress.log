@@ -6094,3 +6094,131 @@ with a well-formed control, AND DELIBERATELY NOT RECLASSIFIED in the coverage pl
 >>> #30 called weaker than "the front-end constructs the shape itself", and it still is when
 >>> I am the one who would benefit from the count moving. The undemonstrated ceiling stays
 >>> at 5.
+
+## 2026-09-23 11:05 UTC — A NEW PLANE, AND IT FOUND A ROUTE ON ITS FIRST RUN
+
+`bin/check-directive-enforcement.py` asks the question the battery had no instrument for:
+
+    IF I WRITE THIS DIRECTIVE AND THEN VIOLATE IT, DOES ANYTHING HAPPEN?
+
+The campaign already had a plane for whether every directive is DOCUMENTED on all five
+surfaces, one for whether every refusal has a WITNESS proving it can fire, and one for
+whether a refusal's ADVICE is followable. None of them can see a directive that is READ AND
+THEN IGNORED — which is exactly what routes #219 and #222 were, six hours apart. Neither was
+an undocumented directive; neither was a refusal that failed to fire.
+
+Each covered directive gets a PAIR: a program where it is FALSE (must not verify) and the
+nearest program where it HOLDS (must verify). The satisfying half is not decoration — without
+it, a directive "enforced" by a compiler that rejects the construct outright would pass and
+mean nothing. Coverage is DERIVED from annotations.md via doc-coherency, so a NEW directive
+lands UNCOVERED and lowers the fraction. 12 of 53 covered; the ratchet only goes up.
+
+>>> ROUTE #224, FROM THE FIRST RUN. `#@ conforms_to P` on a class whose method does NOT
+>>> refine the protocol's contract VERIFIES BY DEFAULT, with no warning of any kind; the
+>>> identical file under `--check-behavioral-subtyping` FAILS. Same shape as route #212 (the
+>>> importing unit believes everything, `--verify-imports` OFF by default), which gen #30
+>>> recorded OPEN for exactly this reason: THE DEFAULT STILL BELIEVES. And annotations.md
+>>> §12.15 says both things three lines apart — the opening sentence attributes the
+>>> refinement VCs to the DIRECTIVE, the Static-plane paragraph attributes the goal to the
+>>> FLAG. Carrier + control registered.
+
+TWO MORE THINGS THE FIRST RUN TAUGHT, both about the SATISFYING half, and both worth having:
+  · `allow_iteration_mutation`'s satisfying twin cannot be proved — a loop over a list the
+    body GROWS has no termination measure and times out at 51M steps. The project's OWN
+    witness (corpus 0407) carries `--no-proof` and says why. The pair now does the same, and
+    the weakness is stated in the case rather than hidden: what it shows is that the
+    acknowledgement lets the construct THROUGH the detector, which is what the directive is
+    for.
+  · the first `happy` satisfying twin set `self.v = 9` from 5 and did NOT verify — correctly,
+    because a method's postcondition must hold from EVERY entry state and `9 >= old self.v`
+    is not provable for an arbitrary old. `self.v = self.v + 1` is the honest twin. A
+    satisfying program that "obviously holds" for the one initial value in the file is not a
+    satisfying program.
+
+## 2026-09-23 11:10 UTC — WHY THIS WINDOW IS STILL ON THE ROUTE TRACK, SAID EXPLICITLY
+
+The driver skill asks that a switch from the route track to the value-model / conversion
+track be DECLARED in the ledger rather than drifted into, when route supply thins. The
+reverse is also worth declaring, because the marker count is the campaign's headline and it
+has not moved down this generation:
+
+    routes found in the first three hours   SIX (#219 #220 #221 #222 #223 #224)
+    of which CLOSED                         FOUR (#219 #220 #222 #223)
+    `\trusted` markers                      459 -> 461, both CORRECTIONS (two mirror methods
+                                            that sat in the VERIFIED population while never
+                                            being emitted or proved)
+
+ROUTE SUPPLY IS NOT THINNING — it accelerated, because gen #31 found a GENERATOR rather than
+a route: "what does this dispatcher decline to visit, and what did the comment beside it
+promise about that?" produced three of the six, and a NEW PLANE
+(`check-directive-enforcement`) produced a fourth on its first run with 41 of 53 directives
+still uncovered. The honest read is that the instrument supply is what was thin, not the
+defect supply.
+
+SO THE TRACK STAYS. The conversion track's next item is named and ready whenever this
+reverses: driver-backlog.md's "#51 gen #31 — the two mirror dunder markers", of which
+`_Tok.__repr__`'s is a one-line `-> str` annotation on the live twin plus a re-proof.
+
+## 2026-09-23 11:20 UTC — AND THE SATISFYING HALF EARNED ITS KEEP IMMEDIATELY
+
+`#@ assumes bounded_int(N)` lowers to `use mach.int.Int<N>` with N interpolated straight from
+the directive. Why3's `mach/int.mlw` defines EXACTLY Int16, Int31, Int32, Int63 and Int64.
+There is no Int8. So `bounded_int(8)` ended on
+
+    Module Int8 not found in library mach.int
+    [-] Verification FAILED or INCOMPLETE.
+
+a WHY3 LIBRARY error for a directive PyCSL had accepted, with nothing to tell the reader
+which widths exist. It FAILS CLOSED — a diagnosability defect, not a soundness one, and the
+same family as the six broken advice messages gen #30's audit repaired: the compiler told the
+user to write something that does not compile, and said nothing when they did.
+
+Now refused (`PYCSL-SEM-BOUNDED-INT-WIDTH`) with the five supported widths in the message,
+and `annotations.md`'s table — which documented `bounded_int(N)` with N unconstrained — now
+says the width set is WHY3'S, not PyCSL's. Witnesses 1840 (refused) / 1841 (32 still
+verifies, so the refusal is not a ban on the feature). The corpus uses 32 and 64 only.
+
+>>> WHAT FOUND IT: the SATISFYING half of the new plane's `assumes` pair. The violating
+>>> program failed, as a violating program should; the honest one failed too, for a reason
+>>> that had nothing to do with the directive. A plane that only checked violations would
+>>> have called this GREEN. That is the whole argument for the two-sided pair, made by the
+>>> plane on its second run.
+
+## 2026-09-23 11:15 UTC — DIRECTIVE-ENFORCEMENT COVERAGE 17 of 53, ALL GREEN
+
+    \diverges  \variant  allow_finalizer  allow_iteration_mutation  assert  assigns
+    assumes  check  class  conforms_to  ensures  ghost  happy  loop  no_exception
+    raises  requires
+
+Two of the seventeen are enforced by a REFUSAL rather than by a failing goal
+(`allow_finalizer`, `allow_iteration_mutation`), which is exactly why the plane accepts both
+FAILED and REFUSED on the violating side: a refusal is a perfectly good way to enforce a
+directive, and insisting on a proof failure would have called those two broken.
+
+THIRTY-SIX UNCOVERED, and each is a chance of another #219/#222/#224. In rough order of how
+likely the pair is to be writable without new machinery:
+    \abstract  \trusted  no_inline  interface  reveal  label  uses  lemma  footprint
+    preserves  propagate_frame  sibling_concrete  fresh_globals  verify_module  proof
+    datatype  inductive  complete  disjoint  given  act  for  shared
+    mixin  provides  shared_state  touches_field  compose_from  requires_method
+    depends_method  acquires  releases  critical  mutex_invariant  lock_order  thread_entry
+The last seven need `--memory-model concurrent`; the mixin family needs a composition.
+
+## 2026-09-23 11:18 UTC — A NEAR-MISS OF MY OWN, CAUGHT BY READING THE FILE COUNT
+
+`git add -A bin/ getting-better/ src/pycsl/ test-suite/` staged **88** files for a commit that
+touched 13. The other 75 were the `.aux` BUILD EXHAUST the handoff explicitly said to leave
+alone — 10 modified tracked ones from gen #30's battery and 65 untracked `.tmp*.aux`. The
+commit was made and then AMENDED (`reset --soft` + `git reset HEAD -- '*.aux'`), which
+preserves the working tree exactly: the 10 are modified again and the 65 untracked again,
+byte for byte as they were.
+
+Nothing was lost, and it is worth recording anyway because of WHAT ALMOST HAPPENED: the 65
+untracked ones would have become TRACKED, permanently, making the exhaust problem worse for
+every future run — the same problem `bin/check-artifact-cleanup.sh` was written this morning
+to prevent, arriving from the opposite direction.
+
+>>> THE RULE: `git add -A <dir>` IS NOT SAFE IN A TREE THAT HOLDS BUILD EXHAUST. Stage by
+>>> explicit path, and read the staged COUNT against the number of files you actually
+>>> touched before committing. The count is the check; 88 against 13 is visible at a glance
+>>> and nothing else in the workflow would have said a word.
