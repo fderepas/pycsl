@@ -143,14 +143,16 @@ instance; one OR-list's first disjunct is really a conjunction with the second).
 #215 came out of this audit**, and so did two standing completeness findings nothing else
 in the repo measures.
 
-**LESSONS BANKED.** **Twenty-six** new entries in `getting-better/wall-lessons.md` — ten
-from the route work (v2–e3) and **sixteen from the final stretch (f3–u3), all of them about
-INSTRUMENTS**, which is the honest shape of this generation. The last four were banked in
-the closing hours and each came from a gate catching its own author: (r3) a gate whose
+**LESSONS BANKED.** **Twenty-seven** new entries in `getting-better/wall-lessons.md` — ten
+from the route work (v2–e3) and **seventeen from the final stretch (f3–v3), all of them about
+INSTRUMENTS**, which is the honest shape of this generation. The last five were banked in
+the closing hours and each came from a gate, or a sentence, catching its own author: (r3) a gate whose
 INPUTS can be deleted underneath it must REFUSE, not crash; (s3) "it was refused" is not
 the claim, "it was refused FOR THIS REASON" is; (t3) a guard written for a defect covers
 the case you HAD, not the case you can HAVE — ask what never ENTERS the collection it
-iterates; (u3) the choke point is a property of the FUNCTION, not of the FILE. The full list with worked
+iterates; (u3) the choke point is a property of the FUNCTION, not of the FILE;
+(v3) re-read the SOUNDNESS ARGUMENT your own witness makes, AS A CLAIM — the half of it
+that is missing is usually about the FRAME, and route #218 is that missing half. The full list with worked
 examples is in that file's index; the route half reads: (v2) an
 unmentioned exclusion is an oversight wearing one; (w2) attack a marker before believing
 it is forced; (x2) trust has a blast radius and a PASS count is not a proof count; (y2) an
