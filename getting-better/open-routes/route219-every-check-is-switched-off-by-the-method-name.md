@@ -88,6 +88,42 @@ Emit non-`__init__` dunders as ordinary methods. MEASURED, spike-gated, in
   those two are currently counted among the UN-trusted mirror functions while never being
   emitted, so marking them is a CORRECTION of the headline number, not a regression.
 
+## A SECURITY POLICY is accepted and silently unenforced — the third carrier
+
+`#@ happy NAME: targets M postcond P` is the trust-boundary surface: a NAMED property
+attached to a target method and discharged as an ordinary contract. Module 3 attaches it by
+walking the AST, **where dunders are present**, so the "a missing target is a hard error"
+refusal (`Module3_Weaver.py:781`, the loop with fifteen raises in it) does NOT fire. Then
+Module 5 drops the method and nothing is checked:
+
+```python
+#@ happy no_decrease:
+#@     targets __enter__
+#@     postcond self.v >= \old(self.v)
+class C:
+    def __init__(self) -> None: self.v: int = 5
+    #@ assigns self.v
+    def __enter__(self) -> int:
+        self.v = 0              # 5 -> 0 plainly violates the policy
+        return 0
+```
+
+    [+] Verification SUCCESS! All contracts formally proven.
+
+Rename `__enter__` to `bump` and the identical file FAILS. This carrier matters more than
+the other two because the `happy` family is the surface a reader would point at to say
+"this property is enforced across the module" — and the enforcement is decided by the
+target's NAME. It is also the shape routes #206/#208/#210/#211 kept finding from the other
+side (a policy stamped into a body that is never lowered); this is the same defect reached
+through the TARGET rather than through the body.
+
+## OTHER METHOD KINDS ARE CLEAN — measured, so the scope is not guessed
+
+The same `#@ no_exception ll` over `10 // 0` was run as a plain method, a `@staticmethod`,
+a `@classmethod`, a `@property`, a nested function and a module-level function. Every one of
+them FAILS or is REFUSED. **Only the dunder spelling evades**, which is what makes the
+repair exactly "stop dropping dunders" and nothing wider.
+
 ## Carriers
 
 * `route219-carrier-no-exception-inside-a-dunder.py`  — expects SUCCESS (the false certificate)

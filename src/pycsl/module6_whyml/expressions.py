@@ -10175,7 +10175,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # (`PYCSL-SEM-SUBSCRIPT`) keys on the symbol table typing the local `bytes`,
             # which it does not for `b = bytes(2)` — recorded as a separate pre-existing
             # gap, now masked again by the same fail-closed typing as before.
-            if args and _ba_is_count and func_name == "bytearray":
+            # (#49) gen #31 — THE `bytes` EXCLUSION IS LIFTED, BECAUSE THE REASON IT NAMES
+            # IS NOW FALSE. The note above ends "the `bytes` immutability refusal
+            # (`PYCSL-SEM-SUBSCRIPT`) keys on the symbol table typing the local `bytes`,
+            # which it does not for `b = bytes(2)`". ROUTE #217 CLOSED EXACTLY THAT: a local
+            # bound from the `bytes(...)` constructor is now typed `"bytes"` in
+            # `_build_function_symbol_table`, and the refusal fires. RE-RUN, not inherited:
+            #     b = bytes(2); b[0] = 9; return b[0]
+            #     [!] PIPELINE ERROR: Subscript assignment to immutable 'bytes' variable 'b'
+            #         ... does not support item assignment (TypeError). Use a `bytearray` ...
+            # So the ILL-TYPEDNESS is no longer the thing enforcing immutability, which is
+            # the precondition the old note set for this exclusion, in its own words.
+            # Lesson (f3): an exclusion you never re-test is a guess, and a MENTIONED one
+            # that was never re-checked is a guess wearing a reason.
+            # CPython agrees on the value: `bytes(n)` is n zero bytes, exactly like
+            # `bytearray(n)`. Witness 1725 keeps the immutability line; 1818/1819 pin this.
+            if args and _ba_is_count and func_name in ("bytearray", "bytes"):
                 return f"(Array.make {args[0]} 0)"
             if args:
                 # WL-06d soundness: Python `bytes([...])`/`bytearray([...])` raises

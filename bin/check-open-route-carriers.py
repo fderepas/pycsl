@@ -78,6 +78,14 @@ CARRIERS = {
     "getting-better/open-routes/route219-control-ub71-plain-function.py": (
         "REFUSED", "#219",
         "the control: the identical loop in a plain function IS refused by the UB detector"),
+    "getting-better/open-routes/route219-carrier-happy-policy-on-a-dunder.py": (
+        "SUCCESS", "#219",
+        "a `#@ happy ... postcond` SECURITY policy targeting a dunder is ACCEPTED by "
+        "Module 3 (which walks the AST and finds the target) and then never checked, "
+        "because Module 5 drops the method"),
+    "getting-better/open-routes/route219-control-happy-policy-on-a-method.py": (
+        "FAILED", "#219",
+        "the control: the same policy on a NON-dunder target is enforced and the file fails"),
     # (#49) ROUTE #218 IS CLOSED (gen #31) — the carrier moved INTO the corpus as witness
     # 1815 (expected FAIL), with controls 1816 (read-only dunder still verifies) and 1817
     # (the non-dunder spelling, which always failed). `Module5._record_skipped_dunder_writes`
