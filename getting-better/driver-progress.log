@@ -5454,3 +5454,28 @@ in minutes.
 >>> THAT IS FIVE LOOPS ATTACKED AND FIVE HELD, AFTER ONE (`for ov in overrides`) YIELDED
 >>> ROUTE #216. A 1-in-6 hit rate on a mechanical question is a good generator, and the
 >>> 98-loop list is now written down for whoever runs it next.
+
+## 2026-09-23 03:15 UTC — THE ELEMENT-WRITE BLINDNESS, LANDED AFTER ALL
+
+The fix I declined an hour earlier turned out to be cheap for the same reason routes #216
+and #217 were: `self_field_writes` is nested inside `apply_composition`, **whose mirror twin
+is `\trusted`** — no verbatim mirror edit, no whole-file re-proof. I had priced it against
+`ir_resolve.py` being an un-trusted twin without checking WHICH FUNCTION the edit lands in.
+
+>>> THAT IS THE SAME MISTAKE THE HANDOFF MADE ABOUT ITEM 2b, MADE BY ME, THREE HOURS AFTER
+>>> WRITING UP THE HANDOFF'S VERSION OF IT. The choke-point rule is not a property of a
+>>> FILE, it is a property of the FUNCTION, and "this file is mirrored" is not the cost.
+
+Landed with the full measurement:
+  * blast radius BEFORE: 10 corpus files declare `#@ mixin`, ZERO write a self field by
+    element; the mirror, live tree and `pycsl_lib` declare no mixin classes at all;
+  * all ten re-run against their expectations AFTER: unchanged;
+  * corpus byte-diff, both sides emitted fresh: **1306 / 1306, 0 MOVED, 0 GONE, 0
+    APPEARED** — which also covers witnesses 1811-1814;
+  * mirror sync 887 verbatim, unmoved;
+  * FAST BATTERY at b0aca049: all 44 green.
+
+THE CONTROL IS THE GUARD'S SILENCE, and saying so is better than inventing a PASS: a mixin
+whose element write is on a DECLARED field is not refused by this check — it fails with a
+TYPE error from a separate, pre-existing gap (a list field in a mixin is not modelled), and
+the message says which. Witness 1814.
