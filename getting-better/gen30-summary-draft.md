@@ -476,7 +476,15 @@ REFUSE, not crash** — of the three endings available when a file vanishes mid-
 silently skipping it is a green over a shrunken population and a traceback reads as "the
 gate is broken" when the truth is "the measurement is void", so the #44 rule points one
 level lower: a gate must be able to tell "I looked at all of it" from "I looked at what
-was still there".
+was still there"; (s3) **"it was refused" is not the claim, "it was refused FOR THIS
+REASON" is** — a gate whose oracle is "the compiler refused this" must pin WHICH refusal,
+or it cannot tell a working guard from a neighbouring guard, or from a typo (two of the
+six `#@ happy` boundaries were green for the wrong reason, one of them on a SYNTAX ERROR
+in a policy the grammar does not have); (t3) **a guard written for a defect covers the
+case you HAD, not the case you can HAVE** — `PYCSL-SUBTYPING-PAIR` names route #97's
+hazard exactly and still misses route #216, because it covers "recorded but unresolvable"
+and #216 is "never recorded", so for every `for x in COLLECTION: if bad(x): refuse`, ask
+what stops an x from reaching COLLECTION at all.
 
 ## A surface opened this generation: the `pycsl_lib` stdlib layer
 
