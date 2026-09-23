@@ -521,6 +521,35 @@ and whether that path is silent. Here it was: the drop of dunders from emission 
 reported anywhere, which is why `bin/check-emitted-function-coverage.py` now exists and
 measures it (912 corpus files, every dropped function a dunder, non-dunder drops refuse).
 
+### (u3) The choke point is a property of the FUNCTION, not of the FILE
+
+Twice in one night, an edit was priced as expensive because the FILE it lands in is a
+mirrored, un-trusted twin — and both times the FUNCTION it lands in is `\trusted`, so the
+edit owed no verbatim mirror copy and no whole-file re-proof.
+
+**First, in a handoff I did not write.** Item 2b — "type a `bytes(...)`-bound local as
+`bytes`" — was recorded as *"worth doing as a FIRST act with a full day rather than squeezed
+in beside two running jobs"*. It lands in `_build_function_symbol_table` in
+`Module5_IREmitter.py`. The file is mirrored. The function's twin is a `\trusted` STUB. The
+whole thing took forty minutes, most of it the byte-diff.
+
+**Second, in a note I wrote myself, three hours later.** I priced a one-line repair to
+`self_field_writes` as "not a thing to start four hours from a deadline, because
+`ir_resolve.py` is an un-trusted mirror twin" — and wrote that down as declined. It is
+nested inside `apply_composition`, whose twin is `\trusted`. I had just written the lesson
+up in the other direction and still did not check.
+
+>>> BEFORE YOU PRICE A COMPILER EDIT, LOOK UP THE MIRROR TWIN OF THE FUNCTION YOU ARE ABOUT
+>>> TO EDIT, NOT THE FILE. It is one `sed` away, and the answer is the difference between
+>>> forty minutes and a day. The choke-point rule already says this — "place refusals where
+>>> the mirror twin is `\trusted`" — and it is stated about PLACING refusals, which is why
+>>> it does not fire when you are ESTIMATING one.
+
+The corollary is worth as much: a cost estimate written down without the check reads, later,
+exactly like a cost that was measured. An estimate should carry the one fact it turns on —
+here, the twin's marker — or it should not be written in the imperative ("DO THIS FIRST
+NEXT WINDOW" is an instruction; "a full day" was a guess).
+
 ## 2026-07-20 driver run (count 1030 → 1028; 2 conversions + these walls)
 
 ### BROKEN (converted)
