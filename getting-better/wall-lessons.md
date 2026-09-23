@@ -489,6 +489,38 @@ The general form generalises past this plane: it is the same defect as a test th
 from "I looked at nothing"), one level in: this one cannot tell "the thing I meant fired"
 from "something fired".
 
+### (t3) A guard written for a defect covers the case you HAD, not the case you can HAVE
+
+Route #97 was "the Liskov obligation was never recorded, so never checked, and the run
+reported success". It was closed, and a REFUSAL was added so it could not come back:
+
+    PYCSL-SUBTYPING-PAIR: `--check-behavioral-subtyping` recorded the override pair
+    (... refines ...) but the base method `...` is not among the emitted functions, so
+    the Liskov refinement goal cannot be built. Emitting nothing here would report the
+    file as fully proven with the substitutability obligation silently absent (route
+    #97), so this is a refusal.
+
+Read that message again. It names the hazard EXACTLY. It is one of the best-written
+refusals in the repository. And it does not fire on route #216, which is the same hazard,
+because it covers **"recorded but unresolvable"** and #216 is **"never recorded"**.
+
+The pair is recorded by walking the EMITTED FUNCTIONS. A dunder is never emitted as a
+function. So the loop that would have noticed the problem never sees the pair, and the
+guard that would have refused is inside that loop. Two files one identifier apart: `m`
+FAILS with `goal sub__m_refines_base`; `__len__` reports **"All contracts formally
+proven"** over a module whose entire body is `type sub = {  }`.
+
+>>> WHEN YOU CLOSE A ROUTE WITH A GUARD, WRITE DOWN WHAT THE GUARD'S POPULATION IS, AND
+>>> ASK WHAT FALLS OUTSIDE IT. A guard that iterates over a collection can only refuse
+>>> things that got INTO the collection. The defect you just fixed put them in; the next
+>>> one keeps them out.
+
+The cheap mechanical version of the question: **for every guard of the form "for x in
+COLLECTION: if bad(x): refuse", ask what stops an x from reaching COLLECTION at all** —
+and whether that path is silent. Here it was: the drop of dunders from emission is not
+reported anywhere, which is why `bin/check-emitted-function-coverage.py` now exists and
+measures it (912 corpus files, every dropped function a dunder, non-dunder drops refuse).
+
 ## 2026-07-20 driver run (count 1030 → 1028; 2 conversions + these walls)
 
 ### BROKEN (converted)

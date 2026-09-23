@@ -454,7 +454,7 @@ form has a witness" is not evidence about this one; (a3) a module can be meaning
 inside an importing context, so a module-level certificate is not "this file verifies on
 its own".
 
-**THE FINAL STRETCH ADDED THIRTEEN MORE, AND THEY ARE ABOUT INSTRUMENTS** — (f3) an exclusion
+**THE FINAL STRETCH ADDED FIFTEEN MORE, AND THEY ARE ABOUT INSTRUMENTS** — (f3) an exclusion
 you never tested is a guess, so re-derive the reason when you copy it forward; (g3) a
 docstring that disagrees with the contract beside it is a FREE ORACLE; (h3) a new class
 only earns its place if it comes with a CONTROL that stays out of it; (i3) an absence
