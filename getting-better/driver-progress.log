@@ -5479,3 +5479,21 @@ THE CONTROL IS THE GUARD'S SILENCE, and saying so is better than inventing a PAS
 whose element write is on a DECLARED field is not refused by this check — it fails with a
 TYPE error from a separate, pre-existing gap (a list field in a mixin is not modelled), and
 the message says which. Witness 1814.
+
+## 2026-09-23 03:25 UTC — THE BATTERY DIRTIES TRACKED FILES, AND THAT IS HOW A NEAR-MISS HAPPENED
+
+`git status` during a `--slow` run shows **13 TRACKED `.aux` files modified** under
+`test-suite/corpus/pycsl-reference/*.proofs/rocq/` and 26 untracked `.tmp*.aux` beside
+them. `check-proof-reverify.sh` recompiles the cited Rocq proofs IN PLACE, so every
+`--slow` battery leaves the working tree dirty in files the repo tracks.
+
+THIS IS NOT COSMETIC. Earlier this generation an `rm -f .../rocq/.tmp*.aux` to tidy exactly
+this mess DELETED SEVERAL HUNDRED TRACKED FILES, caught only by the wall of `deleted:`
+lines in the next `git commit`. A gate that dirties the tree trains the driver to clean it,
+and cleaning it by glob is one keystroke from discarding tracked work — the rule this
+campaign holds above all others.
+
+LEFT ALONE DELIBERATELY TONIGHT: not committed (they are build artifacts, not work) and
+not reverted (never discard tracked changes you did not make). NEXT WINDOW: either have
+`check-proof-reverify.sh` recompile into a temp directory, or untrack the `.aux` artifacts
+and gitignore them. Both are small; the current state is a trap.
