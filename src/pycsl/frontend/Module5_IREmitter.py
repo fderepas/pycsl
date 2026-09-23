@@ -4161,6 +4161,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     _cbq123.extend(ast.iter_child_nodes(_cbx123))
                 _cbb123.sort()
             _icc = self._collect_init_contract_check(node)
+            _tp695 = self._collect_type_params(node)
             self.program_ir["type_decls"].append({
                 "kind": "record", "name": node.name, "fields": fields,
             "mutable_state": self._is_mutable_state_decorated(node),
@@ -4256,8 +4257,40 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # (emitted only when non-empty → byte-identical for unaffected
                 # drivers, additive IR v1.4). Consumed by the monomorphization
                 # IR-resolution pass (frontend/monomorphize.apply_monomorphization).
-                **({"type_params": self._collect_type_params(node)}
-                   if getattr(node, "type_params", None) else {}),
+                # (#49) gen #31 — THE GUARD USED TO BE `if getattr(node,
+                # "type_params", None)`, i.e. the PEP 695 ATTRIBUTE, and that made the
+                # legacy branch of `_collect_type_params` DEAD CODE BY CONSTRUCTION. That
+                # helper has a whole second half for `class C(Generic[T])` — it resolves
+                # the TypeVar names against `program_ir["typevar_registry"]`, which
+                # `_collect_typevar_registry` populates from module-level
+                # `T = TypeVar("T"[, bound=B])` assigns, and it has its own helper
+                # `_extract_generic_arg_names`. None of it could ever run: for the legacy
+                # spelling `node.type_params` is `[]`, so the helper was never called.
+                #
+                # MEASURED, the same program in the two spellings of the same construct:
+                #   class Box[T]         + `b: Box[int]`  ->  type box_int  (monomorphized)
+                #   class Box(Generic[T])+ `b: Box[int]`  ->  type box      (NOT)
+                # and with `Any`:
+                #   class Box[T]         + `b: Box[Any]`  ->  REFUSED (PYCSL-TY3-GT1)
+                #   class Box(Generic[T])+ `b: Box[Any]`  ->  VERIFICATION SUCCESS
+                # so every TY3 loud-fail — GT1 (`Any` never instantiates a TypeVar, "the
+                # consistency relation is deliberately unsound"), GT2 (the bound is an
+                # instantiation-time obligation), GT3 (ParamSpec/TypeVarTuple), GT4
+                # (polymorphic recursion) — was silently inert for a spelling
+                # annotations.md §12.16 lists in its SURFACE, and `T` was modelled as
+                # plain `int`.
+                #
+                # Calling the helper first and testing ITS result is the whole fix; the
+                # local keeps it to one call. `visit_ClassDef`'s mirror twin is `\trusted`,
+                # so this body owes no verbatim sync and no re-proof.
+                #
+                # CENSUS BEFORE LANDING (lesson d3): ZERO corpus files, ZERO `pycsl_lib`
+                # and ZERO mirror/live sources declare `class C(Generic[T])` or call
+                # `TypeVar(...)` outside comments and string literals, so no IR gains the
+                # key and no conformance golden moves. The whole observable effect is on
+                # programs nobody has written yet — which is exactly why a dead branch
+                # could sit here with documentation describing what it would have done.
+                **({"type_params": _tp695} if _tp695 else {}),
             })
         self.generic_visit(node)
         # typing-engagement ty2 / 32-1700-typing-spec-8: populate the per-method

@@ -2492,7 +2492,13 @@ drivers (authored by the conformance-agent, never the core-agent).
 
 **Surface** (PEP 484 + PEP 695 / S2, resolved by S1): `class C[T]: ...`, `def
 f[T](): ...`, `T = TypeVar("T", bound=B)` + `class C(Generic[T])`. A generic
-class/function parameterized by a type variable `T`.
+class/function parameterized by a type variable `T`. **Both class spellings are
+monomorphized identically and subject to the same GT1–GT4 loud-fails** — until gen #31 the
+legacy `Generic[T]` form produced no IR `type_params` (the recogniser existed but its call
+site was guarded on the PEP 695 attribute, so its legacy branch was dead code), the
+monomorphization pass early-returned, and `T` was silently modelled as `int`. Drivers:
+`1849` (legacy + `Any` → GT1), `1850` (legacy + a violated bound → GT2), `1851` (legacy,
+un-instantiated → still verifies, GT8).
 
 **Static plane** (Interpreted): whole-module monomorphization. The
 `frontend/monomorphize.py` step-5 IR-resolution pass COLLECTs concrete
