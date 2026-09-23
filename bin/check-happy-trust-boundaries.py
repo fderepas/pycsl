@@ -37,7 +37,31 @@ This is deliberately an EXECUTABLE gate rather than a source-grep: routes #209 a
 both look perfectly fine in the source, and #209 in particular had a boundary that READ
 correctly and could not fire.
 
+(#49) AND IT WAS ITSELF A FALSE GREEN, TWICE, FOR THE SAME REASON: it asserted only that
+the carrier WAS REFUSED, never that it was refused BY THE BOUNDARY THE CASE NAMES. Measured
+by printing the actual refusal for all six carriers:
+
+  * `protects/declared-assigns (route #209)` — its carrier (`#@ \trusted` + `#@ assigns g.v`
+    over a body `g.v = n`) was refused by ROUTE #210's check, "its BODY writes the protected
+    path". The `\preserves` refusal this case exists for was NEVER EXERCISED. The carrier
+    now declares the protected path in `assigns` and does NOT write it in the body, which
+    isolates #209.
+  * `reading/trusted-reader` — its carrier was refused by a SYNTAX ERROR at line 7. It
+    spelled the policy `reading self.secret` / `region 0 .. 4`, which the grammar does not
+    have (`expected 'region'/'targets'/'protects' after 'happy NAME:'`). The real spelling
+    is `region 0 .. 4 reads self.secret outside region`. That boundary had never been tested
+    at all, and the plane reported it green every run.
+
+So each case now carries the MESSAGE FRAGMENT its refusal must contain, and a refusal that
+does not match is reported as BOUNDARY MISATTRIBUTED. `--selftest-misattribute` proves the
+new check fires (it gives case 0 case 1's expected message; rc=1).
+
+>>> A GATE THAT ACCEPTS ANY REFUSAL AS EVIDENCE THAT *THIS* GUARD BITES CANNOT TELL A
+>>> WORKING GUARD FROM A NEIGHBOURING GUARD, OR FROM A TYPO. "It was refused" is not the
+>>> claim; "it was refused for this reason" is.
+
 Usage:  bin/check-happy-trust-boundaries.py [--verbose] [--selftest]
+                                            [--selftest-misattribute]
 """
 import argparse
 import os
@@ -105,8 +129,8 @@ CASES = [
 #@ requires n >= 0
 #@ assigns g.v
 #@ \\trusted
-def sneaky(n: int) -> None:
-    g.v = n
+def declares_but_does_not_write(n: int) -> None:
+    return
 ''',
      _PROTECTS_HEAD + '''
 
@@ -117,7 +141,8 @@ def sneaky(n: int) -> None:
 def declared(n: int) -> None:
     g.v = n
 ''',
-     "a non-exempt trusted writer of a protected path must carry `#@ \\preserves`"),
+     "a non-exempt trusted writer of a protected path must carry `#@ \\preserves`",
+     "Add `#@ \\preserves` to promise it preserves the protected"),
 
     ("protects/trusted-body (route #210)",
      _PROTECTS_HEAD + '''
@@ -136,7 +161,8 @@ def liar(n: int) -> None:
 def elsewhere(n: int) -> None:
     g.w = n
 ''',
-     "a trusted BODY that writes the protected path is caught even when its frame lies"),
+     "a trusted BODY that writes the protected path is caught even when its frame lies",
+     "and its BODY writes the protected path"),
 
     ("parametric/footprint (route #211)",
      _PARAM_HEAD + '''
@@ -155,7 +181,8 @@ def rogue(v: int) -> None:
 def writer(k: int, v: int) -> None:
     d.disk[512 + k * 64] = v
 ''',
-     "a trusted rogue with no `#@ footprint` writing the parametric path is caught"),
+     "a trusted rogue with no `#@ footprint` writing the parametric path is caught",
+     "has no `#@ footprint"),
 
     ("total/bodyless-callee (routes #206, #208)",
      _TOTAL_HEAD + '''    #@ ensures \\result >= 0
@@ -182,7 +209,8 @@ def writer(k: int, v: int) -> None:
         acc: int = self.step(n)
         return 0
 ''',
-     "a `total` target may not reach a function with no termination VC"),
+     "a `total` target may not reach a function with no termination VC",
+     "which is marked `#@ \\trusted`, `#@ \\abstract` or `#@ \\diverges`"),
 
     ("total/diverges-callee (route #208)",
      _TOTAL_HEAD + '''    #@ ensures \\result >= 0
@@ -199,14 +227,15 @@ def writer(k: int, v: int) -> None:
         return self.spin(n)
 ''',
      None,   # the control above covers this form
-     "`#@ \\diverges` on a reachable helper is the same erasure as a bodyless one"),
+     "`#@ \\diverges` on a reachable helper is the same erasure as a bodyless one",
+     "which is marked `#@ \\trusted`, `#@ \\abstract` or `#@ \\diverges`"),
 
     ("reading/trusted-reader (pre-existing)",
      '''_ = 0  # anchor
 #@ happy conf:
-#@     reading self.secret
-#@     region 0 .. 4
+#@     region 0 .. 4 reads self.secret outside region
 #@     except reader
+
 #@ class invariant \\length(self.secret) >= 8
 class S:
     def __init__(self) -> None:
@@ -222,7 +251,8 @@ class S:
         return self.secret[0]
 ''',
      None,
-     "a non-exempt trusted READER must be listed in `except`"),
+     "a non-exempt trusted READER must be listed in `except`",
+     "has no checkable body, so it could read the protected region"),
 ]
 
 
@@ -239,20 +269,43 @@ def run(src, tmpdir, idx):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--selftest-misattribute", action="store_true",
+                    help="swap the first case's expected message for the second's; the "
+                         "attribution check must report BOUNDARY MISATTRIBUTED (rc=1)")
     ap.add_argument("--selftest", action="store_true",
                     help="also assert that a case with the trust marker REMOVED is "
                          "accepted, proving the gate is not refusing everything")
     args = ap.parse_args()
 
+    if args.selftest_misattribute:
+        # Case 0 is then expecting case 1's message, which its own refusal does not carry.
+        CASES[0] = CASES[0][:4] + (CASES[1][4],)
+
     rc = 0
     checked = 0
     with tempfile.TemporaryDirectory(prefix="happy-boundaries-") as tmp:
-        for i, (name, carrier, control, what) in enumerate(CASES):
+        for i, (name, carrier, control, what, expect) in enumerate(CASES):
             refused, out = run(carrier, tmp, 2 * i)
             checked += 1
             if not refused:
                 print("[!]   BOUNDARY NOT BITING: %s — the carrier was ACCEPTED. %s"
                       % (name, what), file=sys.stderr)
+                rc = 1
+            elif expect not in out:
+                # (#49) THE REFUSAL MUST BE THE ONE THIS CASE NAMES. Accepting ANY refusal
+                # as evidence that THIS boundary bites is a false green, and it had already
+                # produced two: the route-#209 carrier was being refused by route #210's
+                # BODY-write check (so the `\preserves` boundary was never exercised), and
+                # the reading/trusted-reader carrier was being refused by a SYNTAX ERROR —
+                # it spelled a `happy` policy the grammar does not have, so that boundary
+                # had never been tested at all while the plane reported it green.
+                print("[!]   BOUNDARY MISATTRIBUTED: %s — the carrier WAS refused, but not "
+                      "by the refusal this case is about. Expected a message containing "
+                      "%r. A gate that accepts any refusal as evidence that THIS boundary "
+                      "bites cannot tell a working guard from a neighbouring guard, or "
+                      "from a typo." % (name, expect), file=sys.stderr)
+                if args.verbose:
+                    print(out[-700:], file=sys.stderr)
                 rc = 1
             elif args.verbose:
                 print("    ok   carrier refused   %s" % name)
@@ -270,12 +323,13 @@ def main():
                     print("    ok   control accepted %s" % name)
 
     print("[*] happy-trust-boundaries: %d program(s) run through the shipping pipeline "
-          "across %d boundary case(s)." % (checked, len(CASES)))
+          "across %d boundary case(s); each refusal CHECKED AGAINST THE MESSAGE that "
+          "case is about." % (checked, len(CASES)))
     if rc:
         print("[!] happy-trust-boundaries: NOT OK.", file=sys.stderr)
     else:
         print("[+] happy-trust-boundaries: OK — every `#@ happy` trust boundary refuses "
-              "its carrier and accepts its control.")
+              "its carrier WITH ITS OWN REFUSAL and accepts its control.")
     return rc
 
 
