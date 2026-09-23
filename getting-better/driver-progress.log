@@ -6527,3 +6527,56 @@ directives that are read and ignored; what it actually catches is any gap betwee
 directive SAYS and what the compiler DOES, in either direction. That is a broader
 instrument than it was designed to be, and the uncovered list is where it keeps its
 findings.
+
+--------------------------------------------------------------------------------
+2026-09-23 13:23Z — THE DOCUMENTATION AS A TEST SUITE: NINE "hard error" CLAIMS RUN
+--------------------------------------------------------------------------------
+
+`grep -nE 'hard error' test-suite/annotations.md` returns eight sentences, several of which
+bundle more than one rule — nine testable claims. For each, write the program the sentence
+describes and run it. SEVEN were enforced exactly as written; TWO were not.
+
+  ENFORCED: lemma `-> None`; lemma >= 1 `#@ ensures`; lemma not `#@ \diverges`; lemma may
+  not call a `\trusted` function; lemma with a DECLARED non-`\nothing` frame; a `#@ happy`
+  `except` name that is not a real method; an `#@ act` body line not indented exactly 4
+  spaces; a `match` naming an EXTRA constructor.
+
+  NOT ENFORCED (1) — a `#@ lemma` with NO `#@ assigns` clause at all. `_check_lemma` walks
+  `contracts.get("assigns", []) or []` and rejects any target that is not `\nothing`; an
+  EMPTY list satisfies that loop vacuously. Refused now as `PYCSL-SEM-LEMMA-NO-ASSIGNS`,
+  witness `1847`, control `1848`, `MIN_WITNESSED` 195 -> 196.
+
+  NOT ENFORCED (2) — a `match` over a `#@ datatype` that OMITS a constructor. Why3 fills
+  the gap with `absurd` and the unreachability VC is unprovable, so it is FAIL-CLOSED and
+  sound; what the user gets is "Sub-goal unreachable point" instead of "your match is
+  missing `Empty`". LEFT OPEN deliberately: the refusal must distinguish a genuinely
+  non-exhaustive match from the legitimately partial shapes (guards, or-patterns, `case _`,
+  a match followed by a fall-through return), and that census has not been done. Landing a
+  refusal without the census is exactly lesson (d3). The capability is named in
+  `finding-hard-error-claims-audited.md` so the next window can price it.
+
+THE INTERESTING PART IS WHERE THE FIRST REPAIR HAD TO GO, and it is a measurement, not a
+preference. The rule belongs in `_check_lemma`. `_check_lemma`'s mirror twin is UN-TRUSTED,
+so its text is emitted verbatim and must PROVE — and BOTH natural spellings broke the
+self-proof:
+
+  * `if not (contracts.get("assigns", []) or []):` — an `or`-defaulted `.get` on a
+    heterogeneous dict in BOOLEAN context;
+  * an integer counter incremented inside the loop that already walks the list — which
+    ALSO broke it, and not at the new line: at the UNTOUCHED, PRE-EXISTING
+    `if not (contracts.get("ensures") or []):`, with `This expression has type
+    'mu -> option.Option.option int, but is expected to have type int`.
+
+Adding a USE of `contracts` moved the dict's inferred value type and took a neighbouring
+line down with it. That is the self-hosting constraint doing precisely what it exists to
+do: **the compiler may not grow a line it cannot verify about itself**, and the cost is
+paid in the design rather than in a marker. The refusal went to `_run_pipeline` under the
+choke-point rule (its twin is `\trusted` and already in the raises-honesty population), and
+the ordering was verified rather than assumed — `_check_lemma` runs first, so `1731`,
+`1733` and `1747` (the three existing lemma witnesses, none of which carries `#@ assigns`
+either) still refuse with THEIR OWN messages.
+
+LESSON (m4), from the same hour: `echo "=== END $(date …) rc=$?"` reports the exit status
+of `date`. A log read `rc=0` two lines under `[-] Verification FAILED`. `$?` is a
+single-slot register and every command overwrites it, decoration included. Capture with
+`rc=$?` on its own line.

@@ -325,7 +325,10 @@ def to_int_nonneg(n: Nat) -> None:
   introduces no axiom that isn't itself checked.
 - **Well-formedness (Module 4 rejects, hard error).** A lemma must be `-> None` and
   `assigns \nothing` (ghost discipline — erased at extraction, computes nothing), must
-  state ≥1 `#@ ensures`, and is not `#@ \diverges`. A plain lemma may **not** call a
+  state ≥1 `#@ ensures`, and is not `#@ \diverges`. The `assigns` rule covers the ABSENT
+  clause as well as a wrong one: a lemma with no `#@ assigns` at all is refused with
+  `PYCSL-SEM-LEMMA-NO-ASSIGNS` (witness `1847`, control `1848`) — until gen #31 the rule
+  was enforced only for a lemma that DECLARED a frame, so omitting it was the way past it. A plain lemma may **not** call a
   `\trusted` function (it would smuggle an *unverified* fact into a checked lemma — Why3
   cannot catch this). **Termination is Why3's job, not a PyCSL check:** `#@ \variant`
   on a recursive lemma is *optional* — Why3 infers a structural variant and rejects

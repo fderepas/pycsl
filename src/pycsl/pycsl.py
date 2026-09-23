@@ -933,6 +933,72 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _pend222 = []
             _ovl222 = False
 
+    # (#49) gen #31 — A `#@ lemma` WITH NO `#@ assigns` CLAUSE AT ALL. annotations.md
+    # §2.1.16 states five hard-error rules for a lemma; four were enforced and the fifth
+    # only half was. `core_ir_semantic._check_lemma` rejects a DECLARED frame that is not
+    # `\nothing`:
+    #     for t in contracts.get("assigns", []) or []:
+    #         if not (… t.get("type") == "Nothing"): raise …
+    # and an EMPTY list satisfies that loop vacuously, so omitting the clause entirely was
+    # the one way past a rule the documentation states as a hard error. Found by writing the
+    # program each hard-error sentence in annotations.md describes — the same audit that
+    # confirmed the other eight.
+    #
+    # NOT A SOUNDNESS HOLE, and the probes matter: a frameless lemma that actually MUTATES
+    # is still caught one layer down. Writing a module global is refused outright ("writes
+    # g through a `global` declaration"); writing a list PARAMETER makes the emitted frame
+    # obligation unprovable and the file FAILS. What was missing is the DIAGNOSTIC — the
+    # user got an unprovable frame goal where the rule has a name.
+    #
+    # WHY HERE AND NOT IN `_check_lemma`, WHICH IS WHERE IT BELONGS. Measured, and the
+    # measurement is the point. `_check_lemma`'s mirror twin is UN-TRUSTED, so its text is
+    # emitted verbatim and must PROVE. Both natural spellings broke the self-proof:
+    #   * `if not (contracts.get("assigns", []) or []):` — an `or`-defaulted `.get` on a
+    #     heterogeneous dict in BOOLEAN context;
+    #   * a counter incremented inside the existing loop — which ALSO broke it, and at the
+    #     PRE-EXISTING line `if not (contracts.get("ensures") or []):`, with
+    #     `This expression has type 'mu -> option.Option.option int, but is expected to
+    #     have type int`. Adding a use of `contracts` moved the dict's inferred value type
+    #     and took an untouched line down with it.
+    # That is the self-hosting constraint doing exactly what it exists to do: the compiler
+    # may not grow a line it cannot verify about itself. `_run_pipeline`'s mirror twin is
+    # `\trusted` and already in the raises-honesty population, so the CHOKE-POINT RULE
+    # (routes #206-#215, #222, #223) applies — no marker, no emission move, no honesty
+    # entry, and the clause is read off the SOURCE TEXT because a `#@` line is a comment.
+    #
+    # CENSUS BEFORE LANDING (lesson d3): 16 `#@ lemma` declarations across the corpus and
+    # `src/`. Thirteen already carry `#@ assigns`; the three that do not are
+    # `1731`/`1733`/`1747`, all `# pycsl-expected: FAIL` witnesses for the OTHER lemma
+    # rules — and `_check_lemma` tests `\diverges`, `ensures` and `-> None` BEFORE any
+    # frame check, so each still refuses with its own message (verified). Byte-inert.
+    try:
+        _lines_lem = open(args.file, encoding="utf-8", errors="replace").read().splitlines()
+    except OSError:
+        _lines_lem = []
+    _lem_blk = []          # the `#@` clause keywords of the current block
+    for _i_lem, _ln_lem in enumerate(_lines_lem):
+        _st_lem = _ln_lem.strip()
+        if _st_lem.startswith("#@ "):
+            _lem_blk.append(_st_lem[3:].strip())
+        elif _st_lem.startswith("def ") or _st_lem.startswith("async def "):
+            if (any(_c == "lemma" for _c in _lem_blk)
+                    and not any(_c.startswith("assigns") for _c in _lem_blk)):
+                _nm_lem = _st_lem.split("def ", 1)[1].split("(")[0].strip()
+                from errors import PyCSLSemanticError as _PyCSLSemErrLem
+                raise _PyCSLSemErrLem(
+                    "`#@ lemma` '%s' (line %d) has no `#@ assigns` clause, and a lemma "
+                    "must state `#@ assigns \\nothing` explicitly. The clause is the ghost "
+                    "discipline written down — a lemma is erased at extraction and computes "
+                    "nothing — and the rule was enforced only for a lemma that DECLARED a "
+                    "frame, so omitting it entirely was the one way past it. FIX: add "
+                    "`#@ assigns \\nothing` to '%s'."
+                    % (_nm_lem, _i_lem + 1, _nm_lem),
+                    filename=args.file, line=_i_lem + 1,
+                    stage="ir-semantic", code="PYCSL-SEM-LEMMA-NO-ASSIGNS")
+            _lem_blk = []
+        elif _st_lem and not _st_lem.startswith("#"):
+            _lem_blk = []
+
     # (#49) gen #31 — `#@ verify_module <name>` MUST NAME A CAPITALIZED IDENTIFIER, and
     # nothing said so. `#@ verify_module leaf` emits `module leafSig` / `module leaf`, and
     # Why3 rejects a lowercase module name outright:

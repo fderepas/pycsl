@@ -6214,3 +6214,37 @@ fixes:
 
 Cost: two commits claimed a coverage figure one higher than the plane could support, and
 the repair (two string literals) took a minute once the log was read from the top.
+
+---
+
+### (m4) `echo "... $(date) rc=$?"` reports the exit status of `date`
+
+A detached prover run was wrapped as
+
+```bash
+timeout 43200 python3 src/pycsl/pycsl.py <file> --import-path src/pycsl
+echo "=== END $(date -u +%H:%M:%S) rc=$?"
+```
+
+and the log said `=== END 13:16:31 rc=0` while the two lines above it said
+`[-] Verification FAILED or INCOMPLETE`. Both statements were true about different
+commands. A double-quoted string is expanded left to right: the `$(date …)` command
+substitution RUNS FIRST, succeeds, and sets `$?` to 0 — so by the time `$?` is expanded it
+no longer describes the prover.
+
+This is lesson (l4) — *a green you read off a pipeline is not a green* — in the same family
+and with the same cure: **capture the status into a variable on its own line, before any
+other command runs.**
+
+```bash
+timeout 43200 python3 … ; rc=$?
+echo "ENDRC=$rc"; date -u +%H:%M:%S
+```
+
+>>> **THE RULE: `$?` IS A SINGLE-SLOT REGISTER AND EVERY COMMAND OVERWRITES IT — INCLUDING
+>>> THE ONES YOU WROTE FOR DECORATION.** A timestamp, a `basename`, a `wc -l` inside the
+>>> same `echo` all clobber it. `rc=$?` on the very next line, then use `$rc`.
+
+Cost here was zero because the FAILED lines were read anyway, but the log would have been
+filed as a green run, and the campaign's standing claim is that its records are
+measurements.
