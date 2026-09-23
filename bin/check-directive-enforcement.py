@@ -758,7 +758,9 @@ def run_pairs(table):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--verbose", action="store_true")
-    ap.add_argument("--list-uncovered", action="store_true")
+    ap.add_argument("--list-uncovered", action="store_true",
+                    help="kept for compatibility; the uncovered set is now "
+                         "printed on every run")
     args = ap.parse_args()
 
     try:
@@ -817,9 +819,15 @@ def main():
 
     covered = len(CASES) + len(ASSUMPTION_CASES)
     uncovered = sorted(pop - set(CASES) - set(ASSUMPTION_CASES))
-    if args.list_uncovered:
-        for d in uncovered:
-            print("    uncovered  %s" % d)
+    # (#49) gen #31 — THE UNCOVERED SET IS PRINTED ON EVERY RUN, not only under a flag.
+    # The module docstring says "the uncovered set is printed by name every run so the debt
+    # has members rather than a number", and it was not: the names were behind
+    # `--list-uncovered`, so the battery — which passes no flags — showed a COUNT. A count
+    # is a thing you stop reading; a list of eight names is a thing someone picks one from.
+    # (`mixin` moved off this list the same day it was written into the docstring as one of
+    # the four with no violating program — because a named debt is one someone picks up.)
+    for d in uncovered:
+        print("    uncovered  %s" % d)
 
     print("[*] directive-enforcement: %d of %d documented directive(s) have an "
           "enforcement pair; %d uncovered." % (covered, len(pop), len(uncovered)))
