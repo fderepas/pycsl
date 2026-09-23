@@ -293,7 +293,7 @@ Five new `value-differential` drivers (v73-v77), the CPython-measured plane, cov
 
 **FINAL STRETCH (2026-09-22 evening → 2026-09-23):**
 
-* Fast planes: **43 of 43 GREEN** at HEAD 95ba418b, after every compiler edit of the
+* Fast planes (mid-stretch): **43 of 43 GREEN** at HEAD 95ba418b, after every compiler edit of the
   evening — three refusal-message repairs, route #215's refusal, the union-array late
   pull — and the three new planes. MIN_PLANES 40 → 43.
 * Mirror re-proof of `src/self-annotate/src/core_ir_semantic.py`: **all contracts formally
@@ -640,10 +640,11 @@ whether `hlib.Sha256.update`'s trust becomes a reviewer clause or an abstract `v
 
 The base self-tcb-reduction loop's metric is `\trusted` stubs CONVERTED to verified
 methods, and this generation converted **none**: the count stands at **459**, exactly where
-it started. What the window did instead was close **twenty-three SEV-1 unsoundnesses**, add **NINE new
+it started. What the window did instead was close **twenty-five SEV-1 unsoundnesses**, add **ELEVEN new
 plane files** (counted, not recalled: `git log --diff-filter=A -- 'bin/check-*.py'` since
-the generation baseline) and take the registered fast battery from **24 to 43** — the
-difference being planes that already existed and were being run by NOTHING. Those are not
+the generation baseline) and take the registered fast battery from **24 to 44**, with the
+`--slow` set at **69 and ALL GREEN** for the first time in the generation — the difference
+being planes that already existed and were being run by NOTHING. Those are not
 a substitute for conversions; they are the other half of the same job.
 
 **AND THE FINAL STRETCH ADDS A THIRD THING THE METRIC DOES NOT SEE.** Six distinct
