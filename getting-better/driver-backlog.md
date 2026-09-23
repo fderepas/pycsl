@@ -98,6 +98,37 @@ Route supply in the SEV-1 sense is thin. The conversion track is NOT thinning by
 #51's second bullet was spent for one line, and its first (`errors.py::PyCSLError.__str__`,
 `cost-scale:string-field-model`) remains the named next one.
 
+**EVENING ADDENDUM (2026-09-23T21:33Z) — TWO MORE ROUTES AND A COMPLETED CAMPAIGN.**
+
+* **ROUTE #213 CLOSED** (both arms). The per-site `getattr` device is now applied to
+  `!_pyobj_state`: route #197's equality is kept exactly where #197 justified it and lost
+  exactly across a write. **The route sat open for a generation behind a price that was an
+  order of magnitude too high** — its record assumed `module6_whyml/expressions.py` is
+  mirrored un-trusted, and `_lower_getattr` has NO MIRROR TWIN AT ALL. Lesson (n4): a
+  mirror cost is a property of the FUNCTION, not the file; the check is one grep and it
+  changed the plan for the NEXT queued item too. Cost measured, not assumed: all 53 mirrors
+  emitted before and after, exactly ONE moved, one re-proof.
+* **`#@ mixin` FULLY ENFORCED**, both documented halves (`compose_from` must name a marked
+  class; a marked class must not be constructed). Witnesses 1857/1861, controls 1858/1862.
+  The AST census that the finding had named as the prerequisite: 20 sources, 19 marked
+  classes, ZERO constructor calls.
+* **THE MIRROR RE-PROOF CAMPAIGN IS COMPLETE — 17 of 17 GREEN**, plus
+  `module6_whyml/functions.py` and a second `Module5_IREmitter.py` out of band: EIGHTEEN
+  whole-file mirror proofs today. `pycsl.py` proved AFTER every refusal of the day landed;
+  `Module5_IREmitter.py` carries the `Callable` chain, whose twin is un-trusted.
+* **Lesson (o4)**, and it is the embarrassing one: lesson (a4) recurred in the same window
+  that wrote it down. A readability helper `def` with no mirror twin moved
+  `check-mirror-coverage` 549 -> 550. In a self-hosting tree, extracting a method is a
+  choice between +1 unmirrored def and +1 `\trusted` marker, and both are ratcheted.
+
+Open findings after the evening: `reveal` (parsed and dropped), `mutex_invariant` (its
+initial check is unprovable in any program), `thread_entry`/`releases` (inert),
+`typeddict-local` (re-priced — the cheap shape is named), `callable-scope`'s unknown-class
+half (needs the Module 6 record table), and the `#@ datatype` non-exhaustive `match`
+(needs a census over guards/or-patterns/`case _`/fall-through). Route #212 and #214 stay
+open with their blocks priced; #214's is local-type inference for constructor-assigned
+locals, 335 corpus files.
+
 **MEASUREMENTS AT THIS POINT.** Suite 3980/3998, the standing EIGHTEEN, ZERO XPASS. All 46
 fast planes green. `--slow` 69 of 71 earlier with both REDs since repaired. Module5 mirror
 re-proved whole-file. Mirror re-proof campaign 14 of 18 GREEN (`expressions.py` in flight,
