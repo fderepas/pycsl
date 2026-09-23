@@ -6,11 +6,26 @@
 
 ## §A.3 SUMMARY — the four things the skill asks for
 
-**ROUTES RESOLVED.** Twenty-eight SEV-1 routes demonstrated (#191–#217): **twenty-five
+**ROUTES RESOLVED.** Twenty-nine SEV-1 routes demonstrated (#191–#218): **twenty-five
 CLOSED** with a refusal or a faithful lowering, each carrying an expected-FAIL witness and
-a PASS control, and **three OPEN** (#212, #213, #214) — demonstrated, priced, and left
+a PASS control, and **four OPEN** (#212, #213, #214, #218) — demonstrated, priced, and left
 open deliberately because every candidate repair was measured and found worse than the
-defect. The open ones have carriers outside the corpus and a plane that runs them.
+defect, or (for #218, found in the window's last two hours) because the obvious refusal
+lands on ANOTHER ROUTE'S WITNESS and verifying that consequence did not fit. All four have
+carriers outside the corpus and a plane that runs them; it reports 4 carriers, all
+reproducing.
+
+**ROUTE #218 CORRECTS A CLAIM THIS CAMPAIGN MADE IN ITS OWN CORPUS.** A dunder declaring
+`#@ assigns self.v` and setting it is emitted as `val c___enter___0 (self: c) : int` with
+NO `writes`, and **Why3 reads a `val` with no `writes` as PURE** — so a caller reading the
+field either side of an explicit `c.__enter__()` PROVES IT UNCHANGED (`\result == 0`) while
+CPython answers -7, and the TRUE twin FAILS. Witness 1800 had recorded the dunder drop as
+"SOUND, NOT UNSOUND: ... the caller can prove LESS, never more". That is true about the
+RESULT and false about the FRAME: a contractless `val` is fresh in what it returns and PURE
+in what it writes, and purity is a POSITIVE claim about the whole heap. The witness's
+docstring now carries the correction. `PYCSL-CONTRADICTORY-ASSIGNS` names this exact hazard
+in its own message and does not fire, because it refuses stubs whose clauses CONFLICT and
+this stub's clauses never reach the emitter — lesson (t3), for the third time in one night.
 
 **ROUTE #216 WAS FOUND BY CHASING AN UNDEMONSTRATED REFUSAL, on the last night.** Two files
 identical except for ONE IDENTIFIER, under `--check-behavioral-subtyping`: `Sub.m` returning
