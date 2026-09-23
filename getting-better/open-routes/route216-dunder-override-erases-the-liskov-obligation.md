@@ -1,4 +1,4 @@
-# Route #216 (OPEN) — a DUNDER override erases the Liskov obligation, and the run says "All contracts formally proven"
+# Route #216 (CLOSED, same night) — a DUNDER override erases the Liskov obligation, and the run says "All contracts formally proven"
 
 **Found:** 2026-09-23, gen #30, while trying to make the undemonstrated refusal
 `module6_whyml/functions.py::PYCSL-SUBTYPING-PAIR` fire.
@@ -122,19 +122,44 @@ second is the reachable one.** That is also why the refusal is one of the sites
 Both are registered in `bin/check-open-route-carriers.py`, so the day either one stops
 reporting SUCCESS the plane says so.
 
-## Repair sketch (NOT landed, deliberately)
+## CLOSED by option 1, the same night
 
-Three candidate shapes, in increasing cost:
+Three candidate shapes were considered, in increasing cost:
 
-1. **REFUSE the combination.** If `--check-behavioral-subtyping` is on and a class
-   declares an override (or a conformance) of a method that will not be emitted, refuse
-   rather than certify. Cheap, fail-closed, and consistent with the choke-point rule — but
-   it must be placed where it cannot retire an earlier refusal (lesson (n3)).
+1. **REFUSE the combination** — chosen. If `--check-behavioral-subtyping` is on and a
+   class overrides (or conforms to) a DUNDER that will not be emitted, refuse rather than
+   certify.
 2. **Record the pair anyway and let `PYCSL-SUBTYPING-PAIR` do its job.** The refusal's
-   message is already exactly right for this case; it simply never sees the pair.
-3. **Emit dunders.** The real fix, and the same one witness 1800 is waiting on. Large:
-   an explicitly-called dunder currently lowers to a contractless `val`, and making it a
-   `let` changes emission broadly — byte-diff-RISKY, so authorize-first.
+   message is already exactly right for this case; it simply never sees the pair. REJECTED
+   for now: it means editing `ir_resolve` and `Module5_IREmitter`, both UN-TRUSTED mirror
+   twins, which owes a verbatim mirror edit and a whole-file re-proof.
+3. **Emit dunders.** The real fix, and the same one witness 1800 is waiting on. Large: an
+   explicitly-called dunder currently lowers to a contractless `val`, and making it a `let`
+   changes emission broadly — byte-diff-RISKY, so authorize-first. Still open as work.
 
-The choice is NOT made here, because pricing it needs the corpus count above and a
-byte-diff, and this window did not do either.
+`PYCSL-SEM-DUNDER-OVERRIDE-UNCHECKED` is raised in `pycsl.py::_run_pipeline`, **whose
+mirror twin is `\trusted`** — the choke-point rule — so the refusal costs no marker, no
+mirror edit and no re-proof. Mirror sync re-measured after landing: 887 verbatim, unmoved.
+
+It cannot retire an earlier refusal (lesson (n3)): it fires only on DUNDER pairs, and a
+dunder pair is precisely what no other check can see.
+
+### The four things that were checked, not assumed
+
+| program | flag | before | after |
+|---|---|---|---|
+| dunder override, contracts conflict (1805) | on | **SUCCESS** | REFUSED |
+| `#@ conforms_to` dunder member (1806) | on | **SUCCESS** | REFUSED |
+| dunder, NO override (1807) | on | PASS | PASS |
+| the same violation spelled `m` (1808) | on | FAIL | FAIL |
+
+Plus two negative controls run by hand: two UNRELATED classes each defining `__len__`
+under the flag still verify (the guard is on the PAIR, not on dunders), and a dunder
+override with the flag OFF still verifies (no default run changes at all).
+
+### Still owed, and named
+
+The refusal makes the tool stop LYING about this pair. It does not make the pair checkable
+— that is option 3, and witness 1800 is the standing reminder. A user who wants
+substitutability checked on `__len__` must today rename the method, which the refusal's
+message says in as many words.

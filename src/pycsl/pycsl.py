@@ -608,6 +608,88 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     filename=args.file, line=getattr(_n215, "lineno", 0) or 0,
                     stage="ir-semantic", code="PYCSL-SEM-GENERIC-SUBSCRIPT-CALL")
 
+    # (#49) ROUTE #216 — A DUNDER OVERRIDE ERASES THE LISKOV OBLIGATION.
+    #
+    # Two files identical except for ONE IDENTIFIER, under
+    # `--check-behavioral-subtyping`: `Sub.m` returning 0 against `Base.m`'s
+    # `#@ ensures \result >= 5` FAILS, and the emission carries the unprovable
+    # `goal sub__m_refines_base`. Rename `m` to `__len__` in both and the run prints
+    # "All contracts formally proven" over a module whose entire body is
+    # `type sub = {  }` — no methods, no override pair, NO GOAL. `#@ conforms_to` has
+    # the same hole through a different recorder (Module5_IREmitter rather than
+    # ir_resolve.apply_inheritance). Dunders are not emitted as functions, so the pair
+    # is never RECORDED, and `PYCSL-SUBTYPING-PAIR` — written for exactly this hazard,
+    # naming route #97 — only fires on a pair that was recorded and cannot be RESOLVED.
+    #
+    # WHY A REFUSAL AND NOT A REPAIR. Emitting dunders is the real fix and is the same
+    # work witness 1800 waits on; it changes lowering broadly and is byte-diff-RISKY.
+    # Recording the pair anyway means editing `ir_resolve` and `Module5_IREmitter`,
+    # both UN-TRUSTED mirror twins, which owes a mirror edit and a re-proof. This site
+    # is `_run_pipeline`, whose mirror twin is `\trusted` — the choke-point rule — so
+    # the refusal costs no marker, no mirror edit and no re-proof.
+    #
+    # BLAST RADIUS MEASURED BEFORE LANDING: ZERO dunder override pairs in 1722 corpus
+    # files, 53 mirror, 94 live and 104 `pycsl_lib` sources. It is also gated on the
+    # flag being ON, so no default run changes at all.
+    #
+    # IT CANNOT RETIRE AN EARLIER REFUSAL (lesson (n3)): it fires only on DUNDER pairs,
+    # and a dunder pair is precisely what no other check can see.
+    if getattr(args, "check_behavioral_subtyping", False):
+        from frontend import pure_ast as _ast216
+        _cls216 = {}
+        for _n216 in _ast216.walk(unified_ast):
+            if isinstance(_n216, _ast216.ClassDef):
+                _cls216[_n216.name] = (
+                    {_m.name for _m in _n216.body
+                     if isinstance(_m, (_ast216.FunctionDef, _ast216.AsyncFunctionDef))
+                     and _m.name.startswith("__") and _m.name.endswith("__")
+                     and _m.name != "__init__"},
+                    [_b.id for _b in _n216.bases if isinstance(_b, _ast216.Name)],
+                    getattr(_n216, "lineno", 0))
+        # `#@ conforms_to P` is a CONTRACT COMMENT, so it is not in the AST at all: read
+        # it off the source the same way the front end does, by pairing each directive
+        # with the next `class` header under it.
+        _conf216 = {}
+        try:
+            _lines216 = open(args.file, encoding="utf-8", errors="replace").read().splitlines()
+        except OSError:
+            _lines216 = []
+        _pending216 = []
+        for _ln216 in _lines216:
+            _st216 = _ln216.strip()
+            if _st216.startswith("#@ conforms_to "):
+                _pending216.append(_st216.split(None, 2)[2].strip())
+            elif _st216.startswith("class ") and _pending216:
+                _nm216 = _st216[6:].split("(")[0].split(":")[0].strip()
+                _conf216.setdefault(_nm216, []).extend(_pending216)
+                _pending216 = []
+            elif _st216 and not _st216.startswith("#"):
+                _pending216 = []
+        for _sub216, (_duns216, _bases216, _line216) in sorted(_cls216.items()):
+            for _base216 in list(_bases216) + _conf216.get(_sub216, []):
+                _other216 = _cls216.get(_base216)
+                if _other216 is None:
+                    continue
+                _shared216 = sorted(_duns216 & _other216[0])
+                if not _shared216:
+                    continue
+                from errors import PyCSLSemanticError as _PyCSLSemErr216
+                raise _PyCSLSemErr216(
+                    f"{args.file} (line {_line216}): class `{_sub216}` overrides "
+                    f"`{_base216}`'s " + ", ".join("`" + _d + "`" for _d in _shared216)
+                    + " and `--check-behavioral-subtyping` was requested, but a DUNDER is "
+                    "not emitted as a function, so no override pair is recorded and NO "
+                    "refinement goal is built. The run would report `All contracts "
+                    "formally proven` with the substitutability obligation silently "
+                    "absent (route #216, the same shape as route #97). Refusing instead "
+                    "of certifying. FIX: give the method a non-dunder name — the "
+                    "identical program spelled `m` instead of `__len__` produces the goal "
+                    "`sub__m_refines_base` and is checked — or drop "
+                    "`--check-behavioral-subtyping`, which then claims nothing about this "
+                    "pair rather than claiming something false.",
+                    filename=args.file, line=_line216,
+                    stage="ir-semantic", code="PYCSL-SEM-DUNDER-OVERRIDE-UNCHECKED")
+
     # (#49) ROUTE #212 — THE MODULE-LEVEL CERTIFICATE. The importing unit believes every
     # contract of an imported module and nothing checks that the module was verified.
     # `--verify-imports` (OFF by default: no existing run changes) discharges the
