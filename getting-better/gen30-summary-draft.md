@@ -248,8 +248,18 @@ Five new `value-differential` drivers (v73-v77), the CPython-measured plane, cov
   (FAILS 5, REFUSED 13, TIMEOUT 2) — and of the 84, ONE has value-returning functions with
   no `#@ ensures` and SEVEN have no value-returning function at all, so the honest headline
   is **76**.
-* **THE CORPUS BYTE-DIFF FOR THE FINAL STRETCH IS ARGUED, NOT SWEPT, AND THAT DISTINCTION
-  IS STATED DELIBERATELY.** Three of the four emitter edits are refusal-MESSAGE text, which
+* **THE CORPUS BYTE-DIFF FOR THE FINAL STRETCH IS NOW SWEPT, AND IT IS ZERO IN ALL THREE
+  DIRECTIONS.** Both sides emitted fresh — baseline `86b6287a` in a worktree (1301 corpus
+  `.mlw`), candidate HEAD (1303) — and `bin/byte-diff-compare.py` reports **0 MOVED, 0
+  GONE (0 unexpected), 0 APPEARED**, with 2 new source files correctly ignored via the
+  `SOURCES.txt` manifest. APPEARED is the direction that matters most and is the one an
+  ad-hoc diff-the-common-files loop cannot see: a REFUSAL THAT BECAME AN EMISSION, which
+  is how route #42 reopened under a green "byte-diff ZERO over 887". The paragraph below
+  was the argument this sweep was owed against, and it is kept verbatim because the
+  argument turned out to be RIGHT — which is not the same as having been CHECKED:
+
+* **(superseded by the sweep above, kept for the record) THE CORPUS BYTE-DIFF FOR THE FINAL
+  STRETCH IS ARGUED, NOT SWEPT, AND THAT DISTINCTION IS STATED DELIBERATELY.** Three of the four emitter edits are refusal-MESSAGE text, which
   appears only in a refusal and never in emitted WhyML. The fourth and fifth are each gated
   on a construct MEASURED ABSENT from the corpus: route #215's refusal fires only on
   `f[T](...)` over a generic function (2 corpus occurrences, both in expected-FAIL files),
@@ -262,6 +272,43 @@ Five new `value-differential` drivers (v73-v77), the CPython-measured plane, cov
   (`requires True` copied into four new witnesses — deleted) and `check-dropped-mutation`
   (CTXBIND, because witness 1784 IS a `with ... as` — named in `CTXBIND_EXEMPT`, exactly as
   1759 was named in `DANGLING_EXEMPT`).
+
+* **THE FIRST FULL `--slow` BATTERY OF THE GENERATION (67 planes) ENDED 8 RED, AND THREE
+  OF THE EIGHT WERE REAL — TWO OF THOSE THREE WERE CAUSED BY ME, THAT EVENING, AND NEITHER
+  WAS VISIBLE IN THE EDIT THAT CAUSED IT.** That sentence is the argument for the battery.
+  * Five REDs were `why3` not being on PATH. Every one was a CORRECT per-plane refusal
+    (rc=2) and every one was spurious as a statement about the tree; all five pass with
+    `. scratchpad/g29/env.sh`. `--slow` now checks `command -v why3` at second zero and
+    REFUSES with the one-line instruction, instead of spending forty minutes producing a
+    summary known in advance to be wrong about five planes. The per-plane guards stay as
+    the backstop.
+  * `check-trusted-frame-honesty` rc=1, "RATCHET BROKEN — 2 > 1": the union-array repair
+    made `_emit_union_arm_vc` write `self._needs_union_array_use` while its mirror
+    `\trusted` stub still declared `#@ assigns \nothing`. A `\trusted` frame is ASSUMED,
+    never checked — so that is not a stale annotation, it is a false assumption every
+    proof downstream rests on. The stub now declares the write; the ratchet was NOT
+    raised (rule (k)).
+  * `check-emitted-vacuity` rc=1, a TRACEBACK on a `.mlw` that `os.walk` had just listed.
+    I had run an emitting plane BY HAND while the battery ran, and it moved the file out
+    from under the plane that reads it in place. The battery's loop is sequential exactly
+    so that cannot happen. Lesson (r3); the plane now REFUSES naming the file, because a
+    gate measuring a moving target has no verdict and a traceback reads as "the gate is
+    broken" when the truth is "the measurement is void". Re-run alone: green, no new
+    erasure.
+  * `check-clause-survival` rc=1, 3 deficits against a ratchet of 2 — see below.
+
+* **CLAUSE-SURVIVAL STOPPED COUNTING AND STARTED EXPLAINING.** The third deficit was the
+  evening's own witness 1800, whose deficit IS the file's subject. Raising 2 to 3 would
+  have been rule (k), so the count stopped being the gate: every deficit file must now
+  NAME the def whose disappearance explains it, and the plane confirms that mechanically
+  (the def exists in source, is ABSENT from the emission by exact `__`-suffix match on
+  emitted idents — so the dunder's contractless call site `val c___enter___0` does not
+  count as the method being emitted — and carries enough clauses to cover the shortfall).
+  `MAX_UNEXPLAINED = 0` is strictly stronger than "at most 3 files, cause unknown". Two
+  self-tests show it can refuse. **And the classification said what the count could not:
+  all three deficits are ONE phenomenon — a method the emitter drops takes its contract
+  with it** (0661/0662 a constructor's nineteen `requires`, 1800 a dunder's single
+  `ensures`). Measured: 912 compared, 3 deficits, 3 EXPLAINED, 0 UNEXPLAINED.
 
 * Suite at `bc0561ec` (#198/#199/#200 + the return-boundary plane): **3823 / 3841**, 746
   XFAIL, **0 XPASS**, and the SAME 18 CONFIRMED FAIL this campaign has carried.
