@@ -1465,7 +1465,7 @@ section annotations).
 |---|---|---|---|
 | 1 | Protected shared variable | `#@ shared <var> protected_by <mutex>` | `<var>` is a shared global; every read/write must be inside a `#@ critical <mutex>` block (Module4 enforces this) |
 | 2 | Unprotected shared variable | `#@ shared <var>` | `<var>` is shared but unprotected; ConcurrencyChecker warns, Module4 is lenient |
-| 3 | Mutex invariant | `#@ mutex_invariant <mutex>: <expr>` | `<expr>` must hold whenever `<mutex>` is free; checked at critical section exit (`assert { mutex_inv }`) |
+| 3 | Mutex invariant | `#@ mutex_invariant <mutex>: <expr>` | `<expr>` must hold whenever `<mutex>` is free; checked at critical section exit (`assert { mutex_inv }`)  The INITIAL-state obligation is emitted as `goal _check_initial_<mutex> : <mutex>_inv <module-level initial values>` when every shared variable the invariant mentions has an int-literal module binding (and the shared ref itself is then `let v = ref <init>` rather than an unconstrained `val v : ref int`). Until gen #31 it was an `assert` inside a program function reading the mutable global, which Why3 quantifies over every reachable state — so it was unprovable for any non-vacuous invariant IN EVERY PROGRAM, which is why all 19 corpus drivers that declared one passed `--no-proof`. Drivers `1863` (discharged, prover on) / `1864` (initial state violates it). |
 | 4 | Lock order | `#@ lock_order <m1>, <m2>, ...` | Total order on mutex acquisition; required when any function holds one mutex while acquiring another |
 
 Module-level `#@ shared` and `#@ mutex_invariant` declarations must be placed

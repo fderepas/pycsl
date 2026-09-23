@@ -7126,3 +7126,60 @@ THE DAY'S FOUR `finding-*` FILES THAT NAMED A CAPABILITY HAVE NOW BEEN SPENT OR 
 the expensive one, the cheap shape is named); `callable-scope` half closed with the
 remaining half needing the Module 6 record table; `reveal`, `mutex_invariant` and
 `thread_entry`/`releases` still open with their mechanisms written down.
+
+================================================================================
+2026-09-23 22:40Z — `#@ mutex_invariant` CAN NOW BE DISCHARGED, IN ANY PROGRAM
+================================================================================
+
+The directive had NO configuration in which it meant anything: unprovable with the prover
+on, unchecked under `--no-proof` — and `--no-proof` is the mode all 19 corpus drivers that
+declare it use. Closed today, and the first repair was NECESSARY BUT NOT SUFFICIENT, which
+is the part worth keeping.
+
+(1) THE SHARED GLOBAL WAS UNCONSTRAINED. `val counter : ref int` — the module's own
+`counter = 0` never reached Module 6, because `collect_module_constants` deliberately
+EXCLUDES `#@ shared` globals (mutable state must not be inlined as a literal in a
+contract). Carried now on the `shared_vars` IR entry, emitted only for an int-literal
+module binding, lowered `let counter = ref 0`.
+
+(2) THAT WAS NOT ENOUGH, AND THE MEASUREMENT IS THE POINT. With the ref concrete the goal
+STAYED Unknown. `let _check_initial_<m> () : unit = assert { <m>_inv !v }` is a PROGRAM
+FUNCTION, and Why3's WP for a function reading a mutable global has no information about
+that global's current value — it quantifies over every reachable state. A concrete
+initialiser tells it nothing. The obligation the directive means to state is "the module's
+INITIAL values satisfy the invariant", which is a question about LITERALS, so it is emitted
+as one:
+
+    let counter = ref 0
+    predicate lock_counter_inv (counter : int) = (counter >= 0)
+    goal _check_initial_lock_counter : lock_counter_inv 0
+
+>>> WHEN A FIX DOES NOT MOVE THE NUMBER, THE SECOND THING IS ALSO WRONG. Making the ref
+>>> concrete was obviously right and obviously insufficient, and only running it showed
+>>> which. This is lesson (o3) — when new evidence does not move a number, suspect the
+>>> number's collector — with the collector being the SHAPE OF THE OBLIGATION.
+
+MEASURED, the pair the directive never had:
+
+    1863   invariant counter >= 0, initial 0    SUCCESS, prover ON
+    1864   invariant counter >= 1, initial 0    FAILED on _check_initial_lock_counter
+
+They are the first corpus drivers to run `#@ mutex_invariant` through the prover at all.
+Before today they were INDISTINGUISHABLE.
+
+FALLBACK KEPT: if any shared var the invariant mentions has no int-literal module binding,
+the old function-with-assert form is emitted unchanged — there is no literal to state the
+goal about, and an unconstrained `val ref` is exactly what that case still has.
+
+BLAST RADIUS: all 35 corpus files declaring `#@ shared` keep their expected verdicts.
+BYTE-DIFF **30 MOVED** (the 0250-0280 concurrent block plus 0417), 0 GONE, 0 APPEARED, and
+the diff is exactly the two intended changes; 2199 python-reference `.mlw` byte-identical.
+NO mirror file declares `#@ shared` — the single grep hit in `core_ir_semantic.py` is a
+docstring — so no mirror emission moves and no re-proof is owed. Both edited functions
+(`Module5.visit_Module`, `preamble._emit_shared_state`) have `\trusted` twins, CHECKED
+FIRST per lesson (n4). IR conformance 38 goldens 0 MISMATCH; fidelity 886 verbatim.
+
+DIRECTIVE PLANE 45 -> 46 of 53. `mutex_invariant` leaves the uncovered list, and its pair
+runs the PROVER on purpose: the concurrent family's shared header carries `--no-proof`,
+which is precisely the mode in which this directive is not checked, so a pair built on it
+would have passed without measuring anything.

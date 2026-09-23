@@ -193,8 +193,43 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         self._mutex_invariants_csl = dict(mutex_invs)
 
         if shared_decls:
+            # (#49) gen #31 — THE MODULE-LEVEL INITIALISER OF A `#@ shared` GLOBAL.
+            # `#@ mutex_invariant` could not be discharged IN ANY PROGRAM: the emitted
+            # `_check_initial_<mutex>` asserts the invariant of `val <v> : ref int`, an
+            # UNCONSTRAINED ref, because the module's own `counter = 0` was dropped. So the
+            # obligation was unprovable for every invariant that is not vacuously true,
+            # independently of the program — which is why all 19 corpus drivers that declare
+            # a `#@ mutex_invariant` pass `--no-proof`, and why NONE of the five concurrent
+            # drivers that DO run the prover declares one. Measured and recorded in
+            # `getting-better/open-routes/finding-mutex-invariant-initial-check-unprovable.md`.
+            #
+            # `collect_module_constants` deliberately EXCLUDES `#@ shared` globals (they are
+            # mutable state and must not be inlined as literals in contracts), so the value
+            # has to be carried here instead. Emitted only when the module-level binding is
+            # an INT LITERAL — anything else stays the abstract `val` it is today.
+            _sv_init = {}
+            for _ch_sv in getattr(node, "body", []):
+                _tgt_sv = None
+                _val_sv = None
+                if (isinstance(_ch_sv, ast.Assign) and len(_ch_sv.targets) == 1
+                        and isinstance(_ch_sv.targets[0], ast.Name)):
+                    _tgt_sv, _val_sv = _ch_sv.targets[0].id, _ch_sv.value
+                elif (isinstance(_ch_sv, ast.AnnAssign)
+                      and isinstance(_ch_sv.target, ast.Name)):
+                    _tgt_sv, _val_sv = _ch_sv.target.id, _ch_sv.value
+                if _tgt_sv is None or _val_sv is None:
+                    continue
+                if isinstance(_val_sv, ast.Constant) and type(_val_sv.value) is int:
+                    _sv_init[_tgt_sv] = _val_sv.value
+                elif (isinstance(_val_sv, ast.UnaryOp)
+                      and isinstance(_val_sv.op, ast.USub)
+                      and isinstance(_val_sv.operand, ast.Constant)
+                      and type(_val_sv.operand.value) is int):
+                    _sv_init[_tgt_sv] = -_val_sv.operand.value
             self.program_ir["shared_vars"] = [
-                {"name": d.variable, "mutex": d.mutex}
+                dict({"name": d.variable, "mutex": d.mutex},
+                     **({"init": _sv_init[d.variable]}
+                        if d.variable in _sv_init else {}))
                 for d in shared_decls
             ]
         if mutex_invs:

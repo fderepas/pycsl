@@ -34,8 +34,10 @@ COVERAGE IS DERIVED, NOT LISTED. The directive population comes from
 only goes up, and the uncovered set is printed by name every run so the debt has members
 rather than a number.
 
-WHY THE UNCOVERED SET IS NOT JUST "NOT DONE YET". Eight directives have no pair, and the
-reason differs by kind. FOUR of them have no pair because **there is no violating program
+WHY THE UNCOVERED SET IS NOT JUST "NOT DONE YET". Seven directives have no pair, and the
+reason differs by kind (it was nine before gen #31 gave `#@ mixin` teeth on BOTH its
+documented halves and made `#@ mutex_invariant` dischargeable at all). THREE of them have
+no pair because **there is no violating program
 to write** — the directive has no enforced consequence, which is itself a result and is
 filed as a finding rather than papered over with a vacuous pair.
 
@@ -53,11 +55,6 @@ its own witness/control pair in the corpus (`1861`/`1862`). See
   * `releases`        — parsed onto `node.csl_releases`, read by nothing (and honestly
                         documented as informational). Both in
                         `finding-thread-entry-and-releases-are-inert.md`.
-  * `mutex_invariant` — bites at the release point, but the emitted
-                        `_check_initial_lock_counter` asserts the invariant of an
-                        unconstrained `val ref`, so the SATISFYING half cannot pass in any
-                        program. All 19 corpus drivers that declare it pass `--no-proof`.
-                        See `finding-mutex-invariant-initial-check-unprovable.md`.
 
   * `reveal`          — a FIFTH, found after the four above and worse than any of them
                         because the documentation contradicts it rather than overstating
@@ -105,7 +102,7 @@ DRIVER = os.path.join(ROOT, "src", "pycsl", "pycsl.py")
 # (#49) gen #31 — the floor. It starts at the number of pairs written in the commit that
 # introduced the plane, and only ever rises. A directive whose pair is DELETED, or a new
 # directive added to annotations.md without one, drops the fraction and turns this red.
-MIN_COVERED = 45
+MIN_COVERED = 46
 
 
 def population():
@@ -218,6 +215,21 @@ _MIX_DEP = (
     "#@ compose_from CoreEmit, MapOps\nclass Facade:\n"
     "    #@ ensures \\result >= %s\n    #@ assigns \\nothing\n"
     "    def run(self, k: int) -> int:\n        return self.handle_get(k)\n")
+
+
+# The `#@ mutex_invariant` pair. Its own header, because the CONCURRENT family's shared
+# `_CONC_HDR` carries `--no-proof` — and `--no-proof` is exactly the mode in which this
+# directive is not checked at all, so a pair built on it would pass without measuring
+# anything. This one runs the PROVER, and the `%s` slot is the invariant's bound.
+_MUTEX_INV_HDR = (
+    "# pycsl-flags: --memory-model concurrent --strict-concurrent-checks\n"
+    "#@ shared counter protected_by lock_counter\n"
+    "#@ mutex_invariant lock_counter: counter >= %s\n"
+    "import threading\nlock_counter = threading.Lock()\ncounter = 0\n_ = 0  # anchor\n\n\n"
+    "#@ thread_entry\n#@ \\diverges\n#@ requires True\n#@ ensures True\n"
+    "def worker() -> int:\n"
+    "    #@ critical lock_counter\n    with lock_counter:\n        counter = 0\n"
+    "    return 0\n")
 
 
 # directive -> (violating source, satisfying source, extra flags)
@@ -493,6 +505,21 @@ CASES = {
         '#@     requires 0 <= buf[k] and buf[k] <= 255\n'
         '#@ ensures \\result >= 0 and \\result <= 1020\n'
         'def sum4(buf: list) -> int:\n    return buf[0] + buf[1] + buf[2] + buf[3]\n', []),
+    "mutex_invariant": (  # `#@ mutex_invariant L: <expr>` — true whenever L is free
+        # UNCOVERED until gen #31, and for a reason worth keeping: the directive could not
+        # be discharged IN ANY PROGRAM. The initial-state obligation was an `assert` inside
+        # a program function reading the mutable global, which Why3 quantifies over every
+        # reachable state, so it was unprovable for any non-vacuous invariant — which is
+        # why all 19 corpus drivers that declared one passed `--no-proof`, the one mode in
+        # which the directive is not checked at all. Now the obligation is a `goal` over
+        # the module's initial LITERALS and the pair exists.
+        #
+        # Note the flags: this pair runs the PROVER. The concurrent family's shared
+        # `_CONC_HDR` carries `--no-proof`, and a pair built on it would pass without
+        # measuring anything about this directive.
+        _MUTEX_INV_HDR % "1",
+        _MUTEX_INV_HDR % "0",
+        ["--memory-model", "concurrent", "--strict-concurrent-checks"]),
     "no_inline": (  # `#@ no_inline` — verify the body ONCE, reuse the CONTRACT at callers
         # VIOLATE: the body does not satisfy its own `ensures`, which must still be checked —
         # the whole soundness argument for `no_inline` is that the callee stays a verified

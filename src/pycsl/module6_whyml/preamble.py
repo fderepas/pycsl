@@ -4455,7 +4455,18 @@ class PreambleEmissionMixin:
             while i < n:
                 sv = shared_vars[i]
                 safe_name = whyml_ident(sv["name"])
-                out.append(f"  val {safe_name} : ref int")
+                # (#49) gen #31 — A KNOWN MODULE-LEVEL INITIALISER MAKES THE REF CONCRETE.
+                # `val <v> : ref int` is an UNCONSTRAINED global, and the
+                # `_check_initial_<mutex>` assertion below asserts the mutex invariant OF
+                # THAT REF — so it was unprovable for every invariant that is not vacuously
+                # true, in every program. `let <v> = ref <init>` is the module's own
+                # `<v> = 0` said in WhyML, so the initial-state obligation becomes a real
+                # question about a real value. Absent `init` (a non-literal binding, or a
+                # global the module never binds) the abstract `val` is kept, byte-identical.
+                if "init" in sv:
+                    out.append(f"  let {safe_name} = ref {sv['init']}")
+                else:
+                    out.append(f"  val {safe_name} : ref int")
                 i += 1
             out.append("")
         if mutex_invariants_ir:
@@ -4496,8 +4507,42 @@ class PreambleEmissionMixin:
                 inv_str2 = self._expr_to_whyml(inv_ir2, set())
                 self._in_spec = False
                 app = self._mutex_inv_application(mutex2, inv_str2)
-                out.append(f"  let _check_initial_{safe_mutex2} () : unit =")
-                out.append(f"    assert {{ {app} }}")
+                # (#49) gen #31 — THE INITIAL-STATE OBLIGATION IS A GOAL ABOUT THE INITIAL
+                # VALUES, NOT AN ASSERTION INSIDE A FUNCTION.
+                #
+                # `let _check_initial_<m> () : unit = assert { <m>_inv !v }` is a PROGRAM
+                # FUNCTION, and Why3's WP for a function reading a mutable global has no
+                # information about that global's current value — it quantifies over every
+                # reachable state. So the assertion was unprovable for any invariant that is
+                # not vacuously true, IN EVERY PROGRAM, whether or not the module's own
+                # `v = 0` reached the emission. Making the ref concrete (`let v = ref 0`)
+                # was necessary and NOT sufficient, measured: the goal stayed Unknown.
+                #
+                # The obligation this is meant to state is "the module's INITIAL values
+                # satisfy the mutex invariant", which is a pure logic question about
+                # literals. Emitted as a `goal` applying the predicate to those literals it
+                # is decidable, and it is the real check: `counter = 0` against
+                # `counter >= 0` proves, against `counter >= 1` does not.
+                #
+                # FALLBACK, unchanged: if ANY shared var the invariant is parameterized by
+                # has no known module-level initialiser, the old function-with-assert form
+                # is kept — there is no literal to state the goal about, and an
+                # unconstrained `val ref` is exactly what that case still has.
+                _p_mi = self._mutex_inv_params(mutex2, inv_str2)
+                _inits_mi = {}
+                for _sv_mi in (self.ir.get("shared_vars") or []):
+                    if "init" in _sv_mi:
+                        _inits_mi[_sv_mi["name"]] = _sv_mi["init"]
+                if _p_mi and all(_v_mi in _inits_mi for _v_mi in _p_mi):
+                    _args_mi = " ".join(
+                        ("(%d)" % _inits_mi[_v_mi]) if _inits_mi[_v_mi] < 0
+                        else str(_inits_mi[_v_mi]) for _v_mi in _p_mi)
+                    out.append(
+                        f"  goal _check_initial_{safe_mutex2} : "
+                        f"{safe_mutex2}_inv {_args_mi}")
+                else:
+                    out.append(f"  let _check_initial_{safe_mutex2} () : unit =")
+                    out.append(f"    assert {{ {app} }}")
                 out.append("")
                 i2 += 1
         # Faithful concurrency: acquiring a lock can block forever
