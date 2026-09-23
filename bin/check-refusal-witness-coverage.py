@@ -142,17 +142,22 @@ CENSUS_TRUNC = 4000       # the writer's message cap. See the TRUNCATION GUARD b
                           # stored message of EXACTLY this length was cut, and a cut
                           # message silently un-witnesses every site whose fragment falls
                           # past the cut.
-MIN_WITNESSED = 184       # 58 at the first joined measurement; 67 after TEN witnesses were
+MIN_WITNESSED = 188       # 58 at the first joined measurement; 67 after TEN witnesses were
                           # written the same day (Final F1/F2, three lemma arms, two
                           # assigns-region arms, `\length` on a dict, `\result` in a
                           # check, the happy `except` typo); 85 after 31 more; then 86
                           # with witness 1762 — and 131 once the CENSUS ITSELF was
                           # repaired. FORTY-FIVE of the "missing" witnesses had been in
                           # the corpus all along. May only grow.
-MAX_UNWITNESSED = 13      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
+MAX_UNWITNESSED = 10      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
                           # the instrument; 67 -> 59 by DEMONSTRATING the eight that no
                           # corpus witness can reach; 59 -> 50 once the nine this
                           # instrument CANNOT MATCH were counted separately (below).
+                          # (#49) 13 -> 10, and 184 -> 188 DEMONSTRATED, by `--append-new`:
+                          # FOURTEEN expected-FAIL witnesses had NO CENSUS ROW — ten
+                          # written the same evening and FOUR (1718-1721) that had been
+                          # uncensused since before it. A witness with no row is a witness
+                          # this gate cannot see.
                           # (#49) 17 -> 13 by READING THE REMAINING SEVENTEEN ONE BY ONE
                           # instead of treating them as seventeen unwritten witnesses:
                           # four raise sites (span, two callable-tag, opaque stmt) fire on
@@ -318,6 +323,31 @@ def census():
     return rows
 
 
+def _census_row(py, f):
+    """One census line for one witness, produced by RUNNING it. Shared by --regenerate
+    and --append-new so the two can never drift into recording different things."""
+    flags = []
+    for line in open(f, errors="replace"):
+        if line.startswith("# pycsl-flags:"):
+            flags = line.split(":", 1)[1].split()
+            break
+    p = subprocess.run([py, os.path.join(ROOT, "src", "pycsl", "pycsl.py")] + flags + [f],
+                       capture_output=True, text=True)
+    out = (p.stdout or "") + (p.stderr or "")
+    if "PIPELINE ERROR" in out:
+        msg = ""
+        lines = out.splitlines()
+        for i, l in enumerate(lines):
+            if "PIPELINE ERROR" in l and i + 1 < len(lines):
+                msg = lines[i + 1].strip()
+                break
+        return "%s\tREFUSAL\t%s\n" % (os.path.basename(f),
+                                       msg.replace("\t", " ")[:CENSUS_TRUNC])
+    if "Verification SUCCESS" in out:
+        return "%s\tXPASS\t\n" % os.path.basename(f)
+    return "%s\tVERIFY-FAIL\t\n" % os.path.basename(f)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--verbose", action="store_true")
@@ -325,7 +355,36 @@ def main():
     ap.add_argument("--regenerate", action="store_true",
                     help="re-run every expected-FAIL witness (about two hours) and rewrite "
                          "bin/refusal-witness-census.tsv")
+    # (#49) THE CENSUS ROTS BECAUSE ITS ONLY REFRESH COSTS TWO HOURS. Ten witnesses landed
+    # in one evening and the plane went RED — correctly, because a witness with no row is
+    # a witness this gate cannot see. Regenerating for ten files is absurd, so hand-editing
+    # the TSV becomes the tempting move, and a hand-written census row is a MEASUREMENT
+    # NOBODY MADE. `--append-new` runs EXACTLY the witnesses that have no row yet, through
+    # the same code path as --regenerate, and appends what the pipeline actually said.
+    ap.add_argument("--append-new", action="store_true",
+                    help="run only the expected-FAIL witnesses with no census row yet and "
+                         "APPEND their real rows (seconds, not hours)")
     args = ap.parse_args()
+
+    if args.append_new:
+        have = {r[0] for r in (census() or [])}
+        files = sorted(subprocess.run(
+            ["grep", "-rl", "^# pycsl-expected: FAIL", os.path.join(ROOT, "test-suite",
+                                                                    "corpus"),
+             "--include=*.py"], capture_output=True, text=True).stdout.split())
+        todo = [f for f in files if os.path.basename(f) not in have]
+        if not todo:
+            print("[*] refusal-witness-coverage: every expected-FAIL witness already has a "
+                  "census row; nothing to append.")
+            return 0
+        py = os.path.join(ROOT, ".venv", "bin", "python3")
+        py = py if os.path.exists(py) else "python3"
+        with open(CENSUS, "a", encoding="utf-8") as fh:
+            for f in todo:
+                fh.write(_census_row(py, f))
+        print("[+] refusal-witness-coverage: appended %d row(s) for witnesses that had "
+              "none: %s" % (len(todo), ", ".join(os.path.basename(f) for f in todo)))
+        return 0
 
     if args.regenerate:
         print("[*] refusal-witness-coverage: regenerating the census — this runs every "
@@ -339,27 +398,7 @@ def main():
         with open(CENSUS, "w", encoding="utf-8") as fh:
             fh.write("# witness\tclass\tmessage — regenerate with --regenerate\n")
             for f in files:
-                flags = []
-                for line in open(f, errors="replace"):
-                    if line.startswith("# pycsl-flags:"):
-                        flags = line.split(":", 1)[1].split()
-                        break
-                p = subprocess.run([py, os.path.join(ROOT, "src", "pycsl", "pycsl.py")]
-                                   + flags + [f], capture_output=True, text=True)
-                out = (p.stdout or "") + (p.stderr or "")
-                if "PIPELINE ERROR" in out:
-                    msg = ""
-                    lines = out.splitlines()
-                    for i, l in enumerate(lines):
-                        if "PIPELINE ERROR" in l and i + 1 < len(lines):
-                            msg = lines[i + 1].strip()
-                            break
-                    fh.write("%s\tREFUSAL\t%s\n" % (os.path.basename(f),
-                                                    msg.replace("\t", " ")[:CENSUS_TRUNC]))
-                elif "Verification SUCCESS" in out:
-                    fh.write("%s\tXPASS\t\n" % os.path.basename(f))
-                else:
-                    fh.write("%s\tVERIFY-FAIL\t\n" % os.path.basename(f))
+                fh.write(_census_row(py, f))
         print("[+] refusal-witness-coverage: census written to %s" % CENSUS)
         return 0
 

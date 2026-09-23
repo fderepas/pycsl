@@ -266,6 +266,11 @@ PLANES=(
     # `validate_ir` that raised unconditionally would pass all eight), and a #44 guard that
     # refuses on a rename, a deletion, or a new check with no carrier.
     check-ir-schema-refusals.py
+    # (#49) The SECOND direct-gate plane for refusals no corpus witness can reach — four
+    # front-end backstops that fire on shapes Module 5 itself builds (span, callable tag,
+    # opaque stmt), plus the for-expand empty body that Module1's block check owns. Each
+    # carrier has a well-formed CONTROL that must be accepted.
+    check-frontend-ir-backstop-refusals.py
     # (#49) gen #30: the ADVICE surface, which `convergence-metric-implement.md` has listed
     # as unmeasured for generations ("62 advice-bearing messages, and #90 came from one ...
     # the advice-audit generator remains manual"). A refusal's advice is a CLAIM THE
@@ -282,7 +287,7 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=43
+MIN_PLANES=44
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
@@ -373,6 +378,11 @@ SLOW_PLANES=(
     # NOTHING. It recompiles the cited Rocq/Lean proofs, so it belongs in the slow set.
     check-proof-reverify.sh
     check-emitted-vacuity.py
+    # (#49) Did the FUNCTION reach the emitted module at all? Needs the CORPUS emission,
+    # like check-clause-survival, so it is dispatched with $CORPUS_EMIT below. Route #216
+    # is what it is for: a dropped method takes every obligation ABOUT it with it, and the
+    # run still reports "All contracts formally proven".
+    check-emitted-function-coverage.py
     check-clause-survival.py
     # (#49) gen #30: NO PURE ABSTRACT OP APPLIED TO A `stable_hash`-FOLDED STRING. The hash
     # is ~31 bits and a birthday search found a collision in 24,726 strings ("ah02" and
@@ -463,7 +473,8 @@ for p in "${PLANES[@]}"; do
     fi
     if [ -n "$SHARED_EMIT" ] && [[ "$EMIT_DIR_PLANES" == *" $p "* ]]; then
         out="$(cd "$PROJECT_ROOT" && python3 "bin/$p" --emit-dir "$SHARED_EMIT" 2>&1)"
-    elif [ "$p" = "check-clause-survival.py" ] || [ "$p" = "check-hashed-literal-purity.py" ]; then
+    elif [ "$p" = "check-clause-survival.py" ] || [ "$p" = "check-hashed-literal-purity.py" ] \
+         || [ "$p" = "check-emitted-function-coverage.py" ]; then
         # (#49) THIS PLANE WANTS A FRESHLY EMITTED CORPUS, not the shared MIRROR emission —
         # handing it the mirror directory would silently compare the wrong population,
         # which is the reason the note above gives for leaving it out. So emit the corpus
