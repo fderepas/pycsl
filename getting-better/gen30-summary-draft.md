@@ -667,7 +667,7 @@ conversion track is where the budget should go, and the two deferred segments
 | axiom-footprint UNRESOLVED | **0** | driven 6 -> 0 earlier in the generation (VERIFIED 155 -> 166) |
 | fast planes | **44** | MIN_PLANES tightened to the exact count each time it moved (40 -> 43 -> 44) |
 | planes with `--slow` | **69** | and the first ALL-GREEN `--slow` run of the generation, with `. scratchpad/g29/env.sh` sourced; `--slow` now REFUSES up front when why3 is off PATH instead of printing five spurious REDs forty minutes later |
-| corpus | see `ls test-suite/corpus/pycsl-reference/*.py` | +39 in the final stretch (1762-1800), of which seven candidates were written, CONFIRMED TO FIRE, and DELETED as redundant |
+| corpus | **1736** in `pycsl-reference`, **3994** total | +53 in the final stretch (1762-1814); 845 expected-FAIL witnesses censused, every one of them with a census row (`--append-new` found fourteen that had none, four from before the evening) |
 | refusal coverage | **191 of 220** demonstrated | a partition: 191 + 6 undemonstrated + 13 not-source-reachable + 10 unmatchable-BY-MEASUREMENT (the widening was prototyped and moves exactly one). Began the evening reported as 85 of 198 |
 | advice-bearing refusals AUDITED | **108 of 108** | 102 FOLLOWABLE; the six broken ones all repaired. A surface `convergence-metric-implement.md` had listed as unmeasured for generations |
 | stdlib identity stubs UNADJUDICATED | **0** (was 24) | and SEVEN of the 24 were false of the function they cite; six repaired |
