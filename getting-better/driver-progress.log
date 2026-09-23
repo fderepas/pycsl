@@ -5936,3 +5936,35 @@ WHAT LANDED, in the order the plan gives:
 ROUTE #219 CLOSED. Six carriers promoted into the corpus as 1827-1832, each with its
 one-identifier-apart control; the entries retired from `check-open-route-carriers` in the
 same commit, as that plane's own message asks.
+
+## 2026-09-23 10:30 UTC — ROUTE #219 LANDED. SIX COMMITS, FOUR ROUTES, IN THE FIRST 2h15m
+
+    dac290a0  route #218 CLOSED (a skipped dunder's self-writes frame the val it mints)
+              + the `.aux` trap closed with `bin/check-artifact-cleanup.sh`
+    fa7d4a72  the helper goes INLINE (lesson a4) + 13 IR goldens refreshed (lesson b4)
+    16e69429  the Module 3 for-block empty-body refusal PROVED unreachable (ceiling 6 -> 5)
+    16bc7fd0  `bytes(n)` lowers faithfully, because the exclusion's own precondition came true
+    786dfec7  ROUTE #219 recorded (six carriers, controls included)
+    586f3cb0  ROUTE #220 CLOSED + #221 RECORDED + witness 1804 repaired in three parts
+    7f6fbe28  ROUTE #219 CLOSED — dunders EMITTED
+
+VERIFICATION AT 7f6fbe28:
+    fast planes              45 / 45 green
+    corpus byte-diff         pycsl-reference 13 MOVED, 0 GONE, 2 APPEARED (1805/1806,
+                             refusals that became emissions, justified in route #216's
+                             record); python-reference 5 MOVED, 0 GONE, 0 APPEARED.
+                             EVERY affected file keeps its declared verdict; 0402 is the
+                             single intended change.
+    mirror emission          18 of 53 moved; the set is IDENTICAL before and after the
+                             route-#220 str-recognizer fix, so the re-proof scope is exact
+    fidelity                 885 verbatim (887 - the two newly-trusted dunders);
+                             mirror-check's 3 drifted mirrors unchanged since ae0a3e8a
+    markers                  461, attached 461, unattached 0 — both new ones CLASSIFIED
+                             `cost-scale:` with the capability that retires them
+    emitted-fn coverage      8 dropped / 1 ZERO-COVERAGE  ->  1 / 0
+    re-proofs                6 of 18 GREEN and running
+
+>>> A MEASUREMENT TRAP WORTH RECORDING: `byte-diff-sweep.sh` writes `SOURCES.txt` BEFORE the
+>>> emission loop, not after. A completion guard keyed on that file reported 13 GONE — all of
+>>> them files the sweep simply had not reached yet. The only honest completion signal is the
+>>> script's own final `emitted N of M` line (or an explicit ALLDONE marker).
