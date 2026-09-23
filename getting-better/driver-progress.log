@@ -5706,3 +5706,25 @@ after the first. Plus, at the same tree:
     open-route-carriers        4 carriers, every one reproducing its ledger row
     mirror-sync                887 verbatim
     `\trusted` markers         459 · attached 459 · unattached 0
+
+## 2026-09-23 07:45 UTC — THE BRANCH WAS PUSHED AT 07:31:40Z, AND NOT BY ME
+
+Counting unpushed commits for the §A.3 summary turned up something that must be said
+plainly. `git log origin/ghost-assign-bc6..HEAD` reported **2**, where it reported **686**
+at 06:11Z. The remote ref's reflog explains it:
+
+    be29bd8e refs/remotes/origin/ghost-assign-bc6@{2026-09-23 07:31:40 +0000}: update by push
+
+`be29bd8e` is one of tonight's own commits. **I did not push.** No `git push` was issued in
+this session — every git command run is `add`, `commit`, `checkout --`, `worktree add`,
+`status`, `log`, `diff`, `reflog` — there are no custom hooks in `.git/hooks/`, and no
+`git push` appears in `bin/*.sh`. The push came from outside this session at 07:31:40Z,
+while I was polling the closing battery.
+
+RECORDED, NOT ACTED ON. The standing instruction is that pushing stays gated to the user;
+an unexpected remote update does not change that, and the right response is to report the
+observation rather than to reconcile anything. The two commits still ahead are tonight's
+last two log/doc commits.
+
+THIS SESSION MADE **69 COMMITS** (`git log e731d673..HEAD`), which is the honest measure of
+the window's output regardless of where the remote ref now points.
