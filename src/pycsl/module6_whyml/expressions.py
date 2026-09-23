@@ -6820,6 +6820,54 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 method_tail_name = func_name.rsplit(".", 1)[-1]
                 if method_tail_name in ("encode", "ljust", "rjust", "zfill"):
                     ret_type = "array int"
+        # (#49) ROUTE #218 — AN EXPLICITLY-CALLED DUNDER THAT WRITES SELF IS MODELLED PURE.
+        # `Module5._should_skip_method` drops EVERY dunder before any IR is built, so the
+        # tables consulted above hold nothing for `c.__enter__` and `field_spec` stays None:
+        # the call mints `val c___enter___0 (self: c) : int` (or, with no class invariant,
+        # a receiver-LESS `val c___enter___0 () : int`) with NO `writes`, and Why3 reads a
+        # `val` with no `writes` as PURE. MEASURED (route carrier + its no-invariant twin):
+        # `before = c.v; c.__enter__(); after = c.v; return before - after` PROVED
+        # `\result == 0` for a body setting `self.v = 7` (CPython -7), and the TRUE twin
+        # FAILED. `PYCSL-CONTRADICTORY-ASSIGNS` describes this exact hazard in its own
+        # message and cannot fire here: its population is stubs whose clauses CONFLICT, and
+        # this stub's clauses never reach the emitter at all.
+        #
+        # The `#@ assigns` clause is NOT the trigger — deleting the dunder's annotations
+        # changes nothing — so the frame is derived from the dropped BODY, recorded at the
+        # skip by `Module5._record_skipped_dunder_writes`. The NON-dunder control (`def
+        # enter`, same body, no annotations) correctly FAILS, which pins the defect to the
+        # skip rather than to the contract.
+        #
+        # THIS IS THE HONEST-MODEL REPAIR, NOT THE FULL ONE: the `val` stays contractless,
+        # so the caller now proves NOTHING about the written fields instead of proving them
+        # UNCHANGED — a FALSE claim becomes an ABSENT one. Emitting dunders as ordinary
+        # methods (what witness 1800 and route #216 wait on) is the larger build.
+        # Over-approximating is the SOUND direction for a frame, exactly as `_pyobj_state`
+        # is on the setattr path; a field the record does not carry as a label is filtered
+        # out (`_writes_filtered_to_labels`, or Why3 reports `unbound ... symbol`) and the
+        # coarse `_pyobj_state` cell stands in for it, the same fallback the `#32 SPIKE`
+        # and route #109 arms already apply.
+        if field_spec is None and "." in func_name:
+            _sdw218 = (self.ir.get("skipped_dunder_writes") or {})
+            if _sdw218:
+                _tail218 = func_name.rsplit(".", 1)[-1]
+                _recv218 = func_name[: -(len(_tail218) + 1)]
+                if (_tail218.startswith("__") and _tail218.endswith("__")
+                        and "." not in _recv218):
+                    if _recv218 == "self":
+                        _cls218 = (self._current_self_type or "")
+                    else:
+                        _cls218 = ((getattr(self, "_current_record_var_classes", {}) or {})
+                                   .get(_recv218)
+                                   or (getattr(self, "_module_global_classes", {}) or {})
+                                   .get(_recv218) or "")
+                    if _cls218:
+                        _lc218 = str(_cls218).lower()
+                        _decl218 = _sdw218.get(f"{_lc218}__{_tail218}") or []
+                        if _decl218:
+                            _w218 = self._writes_filtered_to_labels(_lc218, _decl218)
+                            field_spec = (_recv218, _lc218, [], _w218, [], [],
+                                          bool(_decl218) and not _w218)
         return ret_type, param_types, result_ensures, field_spec
 
     # richer-contracts-bridge C1 (S-c1): certified predicates/functions from the

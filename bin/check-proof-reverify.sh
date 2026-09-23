@@ -32,10 +32,87 @@
 #     gate still goes red through a warm cache (`reverify-cached … non-allowlisted`).
 #   * this RECOMPILES the cited Rocq/Lean proofs and
 #     therefore dirties tracked `.vo` / `.olean` / `.aux` artifacts under `*.proofs/`.
+#     *** AS OF gen #31 THE RUN CLEANS UP AFTER ITSELF — see the epilogue below. ***
 # Run it in a worktree, not in a checkout you are editing.
+#
+# ---------------------------------------------------------------------------------------
+# ARTIFACT SELF-CLEANING (gen #31), and the NEAR-MISS that motivated it.
+# ---------------------------------------------------------------------------------------
+# A `--slow` battery left 13 TRACKED `.aux` files modified under
+# `test-suite/corpus/pycsl-reference/*.proofs/rocq/` plus ~26 UNTRACKED `.tmp*.aux`,
+# because this gate recompiles the cited proofs IN PLACE. Two generations then had to
+# decide, every single run, whether a dirty `.aux` was work or exhaust — and gen #30 came
+# within one command of answering it destructively: an `rm -f .../rocq/.tmp*.aux` typed to
+# clear the exhaust DELETED SEVERAL HUNDRED TRACKED FILES. 990 build artifacts are tracked
+# in this repository (611 `.aux`, 94 each of `.vo`/`.vok`/`.vos`/`.glob`, 3 `.olean`), so
+# a glob aimed at that directory is aimed at all of them.
+#
+# The repair is NOT a glob and NOT an untracking sweep (removing the shipped `.vo` files
+# would change what the proof replay reads). It is a BEFORE/AFTER snapshot of `git status`
+# restricted to the proof trees: whatever THIS RUN dirtied is restored, and whatever was
+# already dirty when the run started is left exactly as it was found. Untracked files the
+# run created are removed BY EXPLICIT NAME, one `rm -f --` per path, never by pattern; a
+# path containing whitespace is skipped rather than guessed at. `git checkout --` is used
+# only on a file this run modified or deleted and that was clean beforehand, so the
+# standing rule "never discard tracked changes you did not make" is enforced by the
+# snapshot rather than by memory.
+#
+# Set `PROOF_REVERIFY_KEEP_ARTIFACTS=1` to keep the exhaust (debugging a recompile).
+# ---------------------------------------------------------------------------------------
 set -u
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
+
+_ART_SCOPE=(
+    "test-suite/corpus/pycsl-reference"
+    "test-suite/corpus/python-reference"
+    "unix-filesystem"
+    ".audit-cache"
+)
+_ART_BEFORE="$(mktemp)"; _ART_AFTER="$(mktemp)"
+# THE SNAPSHOT IS KEYED ON THE PATH, NOT ON THE STATUS LINE, and that distinction is the
+# whole safety property. A first draft matched whole `git status` lines; a file that was
+# already ` M` before the run and that the run then DELETED came back as ` D`, the line no
+# longer matched, and the epilogue "restored" it — silently discarding a pre-existing
+# change, which is precisely the accident this epilogue exists to prevent. Caught by the
+# isolated fixture in `getting-better/` rather than by a real run, because a real run only
+# shows it the day somebody is mid-edit.
+git status --porcelain -- "${_ART_SCOPE[@]}" 2>/dev/null \
+    | sed -e "s/^...//" -e "s/^.* -> //" > "$_ART_BEFORE" || : > "$_ART_BEFORE"
+
+_art_restore() {
+    local rc=$?
+    [ "${PROOF_REVERIFY_KEEP_ARTIFACTS:-0}" = "1" ] && { rm -f "$_ART_BEFORE" "$_ART_AFTER"; return $rc; }
+    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        git status --porcelain -- "${_ART_SCOPE[@]}" > "$_ART_AFTER" 2>/dev/null || : > "$_ART_AFTER"
+        local n_rm=0 n_co=0 n_skip=0 st path line
+        while IFS= read -r line; do
+            st="${line:0:2}"; path="${line:3}"
+            [ -n "$path" ] || continue
+            case "$path" in *[[:space:]]*) continue ;; esac      # never guess at a quoted path
+            grep -qxF -- "$path" "$_ART_BEFORE" && continue      # this PATH was already dirty
+            case "$path" in
+                # An UNTRACKED DIRECTORY (`?? .audit-cache/`) collapses an unknown number of
+                # files into one line, so removing it would be a pattern delete wearing a
+                # path. Report it and leave it; the header already names `git clean -f` for
+                # the one directory this gate can create from nothing.
+                */) n_skip=$((n_skip + 1)); continue ;;
+            esac
+            case "$st" in
+                "??") rm -f -- "$path" && n_rm=$((n_rm + 1)) ;;
+                *[MTD]*) git checkout -- "$path" 2>/dev/null && n_co=$((n_co + 1)) ;;
+            esac
+        done < "$_ART_AFTER"
+        if [ "$n_rm" -gt 0 ] || [ "$n_co" -gt 0 ] || [ "$n_skip" -gt 0 ]; then
+            echo "[*] proof-reverify: cleaned its own build exhaust — removed $n_rm untracked," \
+                 "restored $n_co tracked, left $n_skip new untracked director(y/ies) for" \
+                 "\`git clean\`. Pre-existing changes untouched."
+        fi
+    fi
+    rm -f "$_ART_BEFORE" "$_ART_AFTER"
+    return $rc
+}
+trap _art_restore EXIT
 
 PYTHON="${PROJECT_ROOT}/.venv/bin/python"
 [ -x "$PYTHON" ] || PYTHON="$(command -v python3)"

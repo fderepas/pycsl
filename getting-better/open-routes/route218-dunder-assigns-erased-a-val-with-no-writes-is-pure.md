@@ -1,4 +1,4 @@
-# Route #218 (OPEN) — an explicitly-called DUNDER's `#@ assigns` is erased, and a `val` with no `writes` is PURE
+# Route #218 (CLOSED, gen #31) — an explicitly-called DUNDER's self-write is erased, and a `val` with no `writes` is PURE
 
 **Found:** 2026-09-23, gen #30, in the last two hours of the window, by asking lesson
 (t3)'s question of one more guard and then checking a claim the corpus already made.
@@ -145,3 +145,47 @@ into an ABSENT one.
 
 `getting-better/open-routes/route218-carrier-dunder-assigns-erased.py` — expects SUCCESS
 (the false certificate), registered in `bin/check-open-route-carriers.py`.
+
+
+---
+
+## CLOSED — 2026-09-23, gen #31, by REPAIR 2 (emit the frame), and the route's own title was wrong
+
+**The title said `#@ assigns`. Pass 2 of the blast radius had already shown the clause is
+not the trigger, and the repair proves it: the frame is derived from the DROPPED BODY.**
+`Module5._record_skipped_dunder_writes` runs at the `_should_skip_method` early-return and
+records, per `<class_lower>__<dunder>`, the self-attribute names the skipped body writes
+(plain store, augmented store, annotated store, and element store — the same carve-out
+`ir_resolve.self_field_writes` already carries for mixins). `_resolve_dotted_signature`
+reads that table when nothing else resolved the callee and builds a `field_spec` whose
+writes set is `_writes_filtered_to_labels(cls, recorded)`, so the minted `val` becomes
+
+    val c___enter___0 (self: c) : int
+      writes { self.v }
+
+**MAKE-OR-BREAK SPIKE, run before any emitter edit** (`why3 prove -P alt-ergo` on a hand
+`.mlw` with that exact `val`): `py_use_false'vc` goes from Valid to **Unknown**. The build
+was authorized by that verdict, not by the reading.
+
+**WHAT IT BUYS, STATED HONESTLY: a FALSE claim became an ABSENT one.** The `val` is still
+contractless, so the caller now proves nothing about `v` across the call. Measured on the
+carrier and its twin: `\result == 0` FAILS (was SUCCESS) and `\result == -7` also FAILS.
+Making the TRUE twin prove needs dunders EMITTED as ordinary methods — the larger build
+witness 1800 and route #216 still wait on. This repair does not touch it.
+
+**THE NO-INVARIANT TWIN WAS THE MEASUREMENT THE ROUTE DOC DID NOT HAVE.** The recorded
+carrier gets its `(self: c)` receiver from route #165 (the class declares invariants). The
+same program with the invariant DELETED emitted a receiver-LESS `val c___enter___0 () : int`
+and proved just the same — so a repair that only added `writes` to an existing receiver
+would have closed one spelling and left the other. Both now carry the receiver and the frame.
+
+**THREE CONTROLS, and each one separates the repair from a different over-broad version:**
+* **1816** — a READ-ONLY dunder (`return self.v`) still verifies and its `val` still carries
+  no `writes`. The repair is not "a dunder call clobbers the receiver".
+* **1817** — the NON-dunder spelling (`def enter`, no annotations) FAILED before and FAILS
+  after. That is what pins the defect to `_should_skip_method`, not to the contract, the
+  class invariant, or the receiver spelling.
+* **1815** — the carrier itself, now an expected-FAIL corpus witness.
+
+Its entry in `bin/check-open-route-carriers.py` is retired in the same commit (the plane's
+own message asks for exactly that when a carrier stops proving).

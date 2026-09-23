@@ -58,13 +58,13 @@ DRIVER = os.path.join(ROOT, "src", "pycsl", "pycsl.py")
 
 # carrier path -> (expected verdict TODAY, route, what the verdict means)
 CARRIERS = {
-    # (#49) ROUTE #218 — an explicitly-called DUNDER's `#@ assigns` never becomes a
-    # `writes`, and a `val` with no `writes` is PURE to Why3, so the caller proves the
-    # field UNCHANGED across a call that sets it. The TRUE twin FAILS; CPython answers -7.
-    "getting-better/open-routes/route218-carrier-dunder-assigns-erased.py": (
-        "SUCCESS", "#218",
-        "a dunder declaring `assigns self.v` is emitted as a `val` with no `writes`, so "
-        "`\\result == 0` PROVES while CPython answers -7"),
+    # (#49) ROUTE #218 IS CLOSED (gen #31) — the carrier moved INTO the corpus as witness
+    # 1815 (expected FAIL), with controls 1816 (read-only dunder still verifies) and 1817
+    # (the non-dunder spelling, which always failed). `Module5._record_skipped_dunder_writes`
+    # keeps the dropped dunder's self-writes, and the call site frames the minted `val` with
+    # them, so the FALSE purity claim became an ABSENT one. The carrier file is retained as
+    # the route's historical evidence and is no longer gated here: it now FAILS, and an entry
+    # asserting SUCCESS would make this plane red for the right reason at the wrong time.
     "getting-better/open-routes/route213-carrier-two-reads-across-a-mutation.py": (
         "SUCCESS", "#213",
         "two reads of the same `getattr` are ONE per-site constant across a call that "

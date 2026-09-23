@@ -282,12 +282,23 @@ PLANES=(
     # alias blind spot was fixed): 102 FOLLOWABLE, 2 UNSPELLABLE, 2 UNTRIED,
     # 2 AMBIGUOUS, and all six broken messages REPAIRED. Route #215 came out of it.
     check-refusal-advice-audited.py
+    # (#49) gen #31: the build-exhaust epilogue of `check-proof-reverify.sh`, driven
+    # against a throwaway git repository with eight cases. The gate recompiles cited proofs
+    # IN PLACE and so dirties TRACKED artifacts (990 are tracked here — 611 `.aux`, 94 each
+    # of `.vo`/`.vok`/`.vos`/`.glob`, 3 `.olean`), and gen #30 came within one command of
+    # clearing that exhaust with a glob aimed at the same directory. The epilogue that now
+    # cleans up after the gate is code whose DANGEROUS direction is silent — it can discard
+    # a change nobody asked it to discard — so it is tested rather than read: the plane
+    # EXTRACTS the shipped lines (a restructure that breaks extraction makes it REFUSE) and
+    # asserts the run touches exactly the paths it dirtied. Case 7 already caught a real
+    # defect in the first draft. Runs in about a second; no prover, no emission.
+    check-artifact-cleanup.sh
 )
 # (#49) gen #30: TIGHTENED to the EXACT fast-plane count. It had been carrying slack —
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=44
+MIN_PLANES=45
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
