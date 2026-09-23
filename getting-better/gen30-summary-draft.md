@@ -360,11 +360,15 @@ Five new `value-differential` drivers (v73-v77), the CPython-measured plane, cov
   (CTXBIND, because witness 1784 IS a `with ... as` — named in `CTXBIND_EXEMPT`, exactly as
   1759 was named in `DANGLING_EXEMPT`).
 
-* **AND THE GENERATION ENDS WITH `[+] soundness-planes: OK — all 69 plane(s) green.`** at
-  `760f7601`, with the environment sourced and the new plane lock held for the whole run —
-  the first all-green `--slow` battery of the generation, and it is the same battery that
-  ended 8 RED the first time it was run honestly. The headline metric was re-measured by
-  RUNNING it rather than recalling it: `markers 459 · attached 459 · unattached 0`.
+* **AND THE GENERATION ENDS WITH `[+] soundness-planes: OK — all 69 plane(s) green.`** —
+  twice, the second time at `e6e5e53f`, covering every change made after the first. It is
+  the same battery that ended 8 RED the first time it was run honestly. At that same tree:
+  fast planes 44/44; corpus byte-diff **1306/1306, 0 MOVED, 0 GONE, 0 APPEARED**;
+  clause-survival 4 deficits all EXPLAINED, 0 unexplained; emitted-function-coverage 8
+  dropped functions, **0 non-dunder**; trusted-frame-honesty 0 model-visible of 1 and of
+  94; open-route-carriers 4 of 4 reproducing; mirror-sync 887 verbatim. The headline metric
+  was re-measured by RUNNING it rather than recalling it:
+  `markers 459 · attached 459 · unattached 0`.
 
 * **THE FIRST FULL `--slow` BATTERY OF THE GENERATION (67 planes) ENDED 8 RED, AND THREE
   OF THE EIGHT WERE REAL — TWO OF THOSE THREE WERE CAUSED BY ME, THAT EVENING, AND NEITHER
