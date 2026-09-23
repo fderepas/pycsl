@@ -226,7 +226,7 @@ _MUTEX_INV_HDR = (
     "#@ shared counter protected_by lock_counter\n"
     "#@ mutex_invariant lock_counter: counter >= %s\n"
     "import threading\nlock_counter = threading.Lock()\ncounter = 0\n_ = 0  # anchor\n\n\n"
-    "#@ thread_entry\n#@ \\diverges\n#@ requires True\n#@ ensures True\n"
+    "#@ thread_entry\n#@ \\diverges\n"
     "def worker() -> int:\n"
     "    #@ critical lock_counter\n    with lock_counter:\n        counter = 0\n"
     "    return 0\n")

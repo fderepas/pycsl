@@ -41,8 +41,6 @@ _ = 0  # anchor
 
 #@ thread_entry
 #@ \diverges
-#@ requires True
-#@ ensures True
 def worker() -> int:
     #@ critical lock_counter
     with lock_counter:
