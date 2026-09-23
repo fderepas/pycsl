@@ -6282,3 +6282,31 @@ context from the caller rather than adding a parameter to the callee.
 
 **A price too high is why a route stays open**, and a price is a measurement like any
 other.
+
+---
+
+### (o4) LESSON (a4), AGAIN — a readability helper moved a ratchet, in the same window
+
+Route #213's repair needs one decision ("may the device be state-keyed here?") at two call
+sites, so I wrote it as a small method, `_ga_state_keyable`. Every carrier, control and
+corpus driver behaved correctly; the fidelity planes were green; the suite was green. The
+FAST battery then went red on a plane none of that touches:
+
+    [!] mirror-coverage: RATCHET BROKEN — 550 > 549 unmirrored def(s).
+
+A new live `def` with no mirror twin is not `\trusted`, it is ABSENT — it carries no
+marker, so the headline `\trusted` count cannot see it, which is exactly why that ratchet
+exists. And the obvious repair is worse than the disease: giving it a mirror stub would add
+a `\trusted` MARKER, moving the one number this whole campaign exists to lower, in the
+wrong direction, to buy a helper used twice in one function.
+
+Inlined; 549 restored; every emission byte-identical (spot-checked on the four getattr
+drivers against the sweep taken before the inlining).
+
+This is lesson (a4) — *the helper broke `check-mirror-coverage`, so inline it* — recurring
+in the SAME WINDOW that wrote it down, which is the part worth recording:
+
+>>> **IN A SELF-HOSTING TREE, EXTRACTING A METHOD IS NOT A FREE REFACTOR.** It is a choice
+>>> between +1 unmirrored def and +1 `\trusted` marker, and both are ratcheted. Ask the
+>>> question BEFORE writing the `def`, not after the battery asks it for you: does this
+>>> helper earn a mirror twin? If not, it is a local variable and some comments.

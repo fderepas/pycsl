@@ -12015,30 +12015,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return (_info.get("field_types") or {}).get(field)
         return None
 
-    def _ga_state_keyable(self) -> bool:
-        """(#49) ROUTE #213 — may the per-site `getattr` device be applied to
-        `!_pyobj_state` HERE?
-
-        NO in a PURE context, and that is not a compromise: a Why3 `let function` (and any
-        `requires`/`ensures` term) cannot dereference a mutable ref — emitting one there
-        gives `This function depends on external variables, it cannot be used as pure`,
-        measured on the mirror's `_is_constant_exec`. It is also exactly where the CONSTANT
-        form is SOUND: a pure function has no effects, so no write can occur between two
-        reads inside it, which is precisely the condition route #197 gave for the equality.
-        The state key is needed only where a write CAN happen, and there it is emitted.
-
-        So the rule is the property, not the shape: keyed on state wherever state can move,
-        constant where it provably cannot."""
-        if getattr(self, "_in_spec", False):
-            return False
-        _cef = getattr(self, "_current_emitting_func", None)
-        if not _cef:
-            return True
-        for _f in (self.ir.get("functions") or []):
-            if _f.get("name") == _cef:
-                return not _f.get("pure", False)
-        return True
-
     def _lower_getattr(self, expr: Dict[str, Any], args: List[str],
                        local_refs: Set[str], invariant_ctx: bool,
                        subst: Optional[Dict[str, str]]) -> str:
@@ -12260,6 +12236,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         #   break nineteen sites to state something true of at most seven. RESIDUE, stated:
         #   opacity models "some value" where Python has NO value at all, so a contract
         #   about the AttributeError itself is still not expressible here.
+        # (#49) ROUTE #213 — MAY THE PER-SITE DEVICE BE APPLIED TO `!_pyobj_state` HERE?
+        # NO in a PURE context, and that is not a compromise: a Why3 `let function` (and any
+        # `requires`/`ensures` term) cannot dereference a mutable ref — emitting one there
+        # gives `This function depends on external variables, it cannot be used as pure`,
+        # measured on the mirror's `_is_constant_exec`. It is ALSO exactly where the CONSTANT
+        # form is SOUND: a pure function has no effects, so no write can occur between two
+        # reads inside it, which is precisely the condition route #197 gave for the equality.
+        # The state key is needed only where a write CAN happen, and there it is emitted.
+        # So the rule is the property, not the shape.
+        #
+        # WRITTEN INLINE, not as a helper method, and that is lesson (a4): a new live `def`
+        # with no mirror twin moves `check-mirror-coverage`'s unmirrored-def ratchet (549 ->
+        # 550, measured the moment it was extracted), and giving it a mirror stub would add a
+        # `\trusted` MARKER — the wrong direction for the number this whole campaign exists
+        # to lower. Two uses in one function do not justify either cost.
+        _ga_keyable = not getattr(self, "_in_spec", False)
+        if _ga_keyable:
+            _cef_ga = getattr(self, "_current_emitting_func", None)
+            if _cef_ga:
+                for _f_ga in (self.ir.get("functions") or []):
+                    if _f_ga.get("name") == _cef_ga:
+                        _ga_keyable = not _f_ga.get("pure", False)
+                        break
         if len(args_ir) <= 2:
             # (#49) ROUTE #213 — THE PER-SITE DEVICE IS NOW KEYED ON THE OBJECT STATE.
             # Route #197 made these per-site constants so that TWO READS OF THE SAME
@@ -12288,7 +12287,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # `_pyobj_state` is declared here rather than assumed: it is otherwise emitted
             # only when a `setattr_` op is added, and a module may read without writing.
             _r47 = "pycsl_getattr_missing_%d" % (stable_hash(repr(expr)) & 0xffffffff)
-            if not self._ga_state_keyable():
+            if not _ga_keyable:
                 self._add_abstract_op("val function %s : int" % _r47)
                 return _r47
             self._add_abstract_op("val _pyobj_state : ref int")
@@ -12331,7 +12330,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # blocked on local-type inference for constructor-assigned locals (335 corpus
             # files would move), which is priced in its own record and is not this change.
             _r197 = "pycsl_getattr_unknown_%d" % (stable_hash(repr(expr)) & 0xffffffff)
-            if not self._ga_state_keyable():
+            if not _ga_keyable:
                 self._add_abstract_op("val function %s : int" % _r197)
                 return _r197
             self._add_abstract_op("val _pyobj_state : ref int")
