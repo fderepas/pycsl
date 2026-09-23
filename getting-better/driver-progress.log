@@ -5080,3 +5080,49 @@ cause unknown". Two self-tests prove it can refuse (`--selftest-forget`,
 
 Measured at HEAD: 912 compared, 3 deficits, 3 EXPLAINED, 0 UNEXPLAINED.
 FAST BATTERY at HEAD (ff803e20): **all 43 planes green.**
+
+## 2026-09-23 00:20 UTC — ROUTE #15's RESIDUE, ATTACKED: THREE PROBES, NO ROUTE
+
+The clause-survival classification said 0661/0662 lose NINETEEN `requires` because
+`Inode.__init__` is not emitted. A dropped constructor whose CLASS INVARIANT is still
+emitted is the shape of a real hole — an invariant ASSUMED for every `self` while the
+method that must ESTABLISH it is nowhere in the module — so I attacked it instead of
+assuming the deficit was benign. The standard: a false contract PROVING while CPython
+disagrees.
+
+Three probes, all in the 0661 shape (a LIST field bound from a PARAMETER, which is exactly
+what keeps route #15's checking-only `let <class>__init` from being emitted):
+
+* `class invariant \length(self.fields) == 3` + `self.fields[0] == 99`, ctor binds the
+  param, method returns `self.fields[0]` under `#@ ensures \result == 99`
+  -> **2 goals unproven.**
+* `\length(self.fields) == 3` + `self.fields[0] == 0`, CPython returns 7
+  -> **1 goal unproven.**
+* `self.fields[0] == 0` alone, no length clause -> **timeout + unknown, FAILED.**
+
+TWO INDEPENDENT OBLIGATIONS STOP IT, and reading the emission says which:
+
+    type box = { mutable fields: array int }
+      invariant { ((Array.length fields) = 3) }
+      invariant { ((fields[0]) = 99) }
+      by { fields = (Array.make 3 0) }
+    ...
+      let b = { fields = (Array.make 0 0) } in
+
+1. Why3's own `by` WITNESS obligation: the emitted witness `Array.make 3 0` has
+   `fields[0] = 0`, so an invariant claiming 99 is unsatisfiable AT THE TYPE and the
+   module cannot even be admitted.
+2. The CONSTRUCTION SITE still has to re-establish the type invariant, and the very
+   modelling gap that drops the constructor — the field is bound to the empty-array
+   DEFAULT `Array.make 0 0` rather than to the parameter — makes any invariant about
+   length or contents FAIL there.
+
+>>> THE GAP THAT DROPS THE CONTRACT IS THE SAME GAP THAT BLOCKS THE EXPLOIT. The lost
+>>> `requires` on `Inode.__init__` is a COMPLETENESS deficit, not a soundness one, and this
+>>> is the measurement that says so rather than the argument that assumed it. Route #15's
+>>> residue is priced: it costs proofs you cannot do, not proofs you should not be allowed
+>>> to do.
+
+The same question for witness 1800's dunder is answered by the file itself: the dropped
+dunder's call site is a CONTRACTLESS `val`, fresh at every call, so the caller proves LESS.
+Both dropped-method families are sound; both are incomplete; neither is a route.
