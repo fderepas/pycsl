@@ -5391,3 +5391,29 @@ occurs in **3 corpus functions, 7 mirror functions and 37 live ones**; narrowed 
 NON-EMPTY literal assigned to a name bound elsewhere" it is still **6 mirror and 32 live**.
 A blanket refusal BREAKS THE MIRROR — which is precisely the mistake route #213's revert
 was made of. Declined, with the numbers, and 1804 stands as the tripwire instead.
+
+## 2026-09-23 03:25 UTC — FOUR NEGATIVES, RUN BECAUSE THE NIGHT'S TWO ROUTES CAME FROM THE SAME QUESTION
+
+Lesson (t3) gives a mechanical hunt: *for every guard of the form "for x in COLLECTION: if
+bad(x): refuse", ask what stops an x from reaching COLLECTION at all.* Enumerated: **98
+refusals in the shipping compiler sit inside a `for` loop**, over 76 distinct collections.
+Route #216 came from one of them (`for ov in overrides`). Four more were attacked and all
+four held — recorded because an unrecorded negative gets re-run:
+
+  * **`@property` overrides ARE checked.** `Sub.size` returning 0 against `Base.size`'s
+    `\result >= 5` emits `goal sub__size_refines_base` and FAILS. Route #216 is specific to
+    DUNDERS, not to "decorated methods".
+  * **`@property` contracts are CHECKED, not assumed.** `#@ ensures \result == 5` over a
+    body returning 7 FAILS; the consistent twin emits `let box__size (self: box) : int` and
+    proves. (This is what exposed the stale docstring and the stale backlog entry.)
+  * **The `total` policy's reachability sees dunders.** `parse` reaching a `\trusted`
+    `__len__` is refused — the walk is over the SOURCE AST, where the dunder is still
+    there, not over the emitted functions. That is exactly why route #216 bites where this
+    does not, and it is worth knowing which walk a guard uses.
+  * **A generic call does not erase on REBINDING or through an ALIAS.** `a = ident(1); x =
+    a; a = ident(2); return x - a` FAILS, and so does the `h = ident` aliased form. Route
+    #215's erasure needed the SUBSCRIPT spelling, which is now refused.
+
+>>> A NEGATIVE THAT COST FOUR MINUTES IS WORTH WRITING DOWN, because the alternative is
+>>> that the next driver spends four minutes finding the same nothing — and this campaign
+>>> has a list of 98 loops to walk.
