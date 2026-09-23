@@ -162,7 +162,7 @@ pushing stays gated to the user.
 
 ## Routes (SEV-1, each with the decisive signature: a false contract PROVING while the TRUE twin is REFUSED, and CPython run as ground truth)
 
-**TWENTY-THREE CLOSED (#191–#215 less the three open ones) and THREE OPEN (#212, #213,
+**TWENTY-FIVE CLOSED (#191–#217 less the three open ones) and THREE OPEN (#212, #213,
 #214), every one demonstrated with a false contract PROVING while CPython disagrees** —
 with route #215's ground truth sharper still: CPython cannot RUN the program at all
 (`TypeError: 'function' object is not subscriptable`), so the model was proving a
@@ -196,6 +196,9 @@ was left unexamined; each one's doc says exactly what blocks it.
 | **212** | **OPEN** — the importing unit believes EVERY contract of an imported module: frames, postconditions, class invariants | nothing checks the module was verified; `--verify-imports` built, off by default |
 | **213** | **OPEN** — two reads of the same `getattr` are ONE per-site constant across a call that writes the attribute | the refusal was landed and REVERTED: 212 live / 14 mirror functions use the idiom |
 | **214** | **OPEN** — two reads on DIFFERENT unknown receivers share route #47's default-keyed constant and are EQUAL | the faithful repair breaks corpus 1073; blocked on local-type inference |
+| 215 | `a = ident[int](1); x = a; a = ident[int](2); return x - a` proved `\result == 0` — and `ident[int](...)` is NOT VALID PYTHON: CPython raises `TypeError: 'function' object is not subscriptable` | the unresolved generic call erased to a per-NAME opaque constant that REBINDING does not refresh; refused at the `_run_pipeline` choke point |
+| 216 | `Sub.__len__` refining `Base.__len__` reported **All contracts formally proven** with NO override pair and NO goal, over a module whose whole body is `type sub = {  }` — CPython answers 0 against a promised `>= 5` | the DUNDER drop reaching BOTH obligation recorders (`ir_resolve.apply_inheritance` and `Module5_IREmitter`'s `#@ conforms_to`); refused at the `_run_pipeline` choke point |
+| 217 | `b = bytes([1,2,3]); b[0] = 9; return b[0]` proved `\result == 9` — CPython raises `TypeError: 'bytes' object does not support item assignment` | `_build_function_symbol_table` typed a `bytes(...)`-CONSTRUCTOR local `"Any"`, so `PYCSL-SEM-SUBSCRIPT`'s immutability guard never saw the local it was written for |
 
 ## The second half of the generation (2026-09-22, 14:30-15:30Z) — EIGHT more routes in one stretch
 
