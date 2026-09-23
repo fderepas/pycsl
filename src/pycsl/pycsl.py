@@ -933,6 +933,62 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _pend222 = []
             _ovl222 = False
 
+    # (#49) gen #31 — `#@ verify_module <name>` MUST NAME A CAPITALIZED IDENTIFIER, and
+    # nothing said so. `#@ verify_module leaf` emits `module leafSig` / `module leaf`, and
+    # Why3 rejects a lowercase module name outright:
+    #     syntax error: expected module name must be an capitalized identifier
+    #     (token UIDENT_NQ), found "leafSig"
+    # MEASURED on a two-method class, lowercase vs capitalized, everything else identical.
+    # There is no refusal, no warning and no hint that the DIRECTIVE is the cause: the user
+    # gets a Why3 syntax error naming a symbol (`leafSig`) that appears nowhere in their
+    # source, because the `Sig` suffix is synthesized by the emitter. A wrong-looking error
+    # about a name you did not write is the worst kind of diagnostic — it sends the reader
+    # to the wrong file.
+    #
+    # NOT A SOUNDNESS ISSUE: the run FAILS, loudly, and nothing is proved. This is a
+    # diagnostic repair, and it is fail-closed either way — what changes is WHICH message
+    # the user reads. Found while trying to write this directive's enforcement pair for
+    # `bin/check-directive-enforcement.py`; the pair itself is not written, because the
+    # observable difference `verify_module` makes needs `#@ proof` axioms to co-reside or
+    # not, and those need a Rocq toolchain this switch does not have (0211-0220 fail on
+    # `Why3 Coq library not found`). The directive stays UNCOVERED there and honest here.
+    #
+    # WHY HERE: the choke-point rule (routes #206-#215, #222, #223). `_run_pipeline`'s
+    # mirror twin is `\trusted` and ALREADY in the raises-honesty population, so a refusal
+    # placed here costs no new marker, no emission move and no new honesty entry.
+    #
+    # CENSUS BEFORE LANDING (lesson d3): `#@ verify_module` occurs in ZERO corpus files and
+    # in exactly one library source, `src/pycsl_lib/os/UnixInodeFileSystem.py` (`ReadMod`,
+    # `FindSlotMod`, `FindFreeMod`) — all three already capitalized. Byte-inert.
+    try:
+        _lines_vm = open(args.file, encoding="utf-8", errors="replace").read().splitlines()
+    except OSError:
+        _lines_vm = []
+    for _i_vm, _ln_vm in enumerate(_lines_vm):
+        _st_vm = _ln_vm.strip()
+        if not _st_vm.startswith("#@ "):
+            continue
+        _cl_vm = _st_vm[3:].strip()
+        if not _cl_vm.startswith("verify_module "):
+            continue
+        _nm_vm = _cl_vm[len("verify_module "):].strip()
+        if not _nm_vm or _nm_vm[0].isupper():
+            continue
+        from errors import PyCSLSemanticError as _PyCSLSemErrVM
+        raise _PyCSLSemErrVM(
+            "`#@ verify_module %s` (line %d) names a group that is lowered to a Why3 "
+            "`module`, and Why3 module names must be CAPITALIZED identifiers. Emitted as "
+            "written, this produces `module %sSig` and Why3 stops with `syntax error: "
+            "expected module name must be an capitalized identifier (token UIDENT_NQ), "
+            "found \"%sSig\"` — an error naming a symbol that appears nowhere in your "
+            "source, because the `Sig` suffix is synthesized. Refusing here so the message "
+            "names the directive instead. FIX: capitalize the group name (`#@ "
+            "verify_module %s`); methods sharing a group name co-reside in one module, so "
+            "capitalize every occurrence of it."
+            % (_nm_vm, _i_vm + 1, _nm_vm, _nm_vm, _nm_vm[:1].upper() + _nm_vm[1:]),
+            filename=args.file, line=_i_vm + 1,
+            stage="ir-semantic", code="PYCSL-SEM-VERIFY-MODULE-NAME-NOT-CAPITALIZED")
+
     # (#49) ROUTE #212 — THE MODULE-LEVEL CERTIFICATE. The importing unit believes every
     # contract of an imported module and nothing checks that the module was verified.
     # `--verify-imports` (OFF by default: no existing run changes) discharges the

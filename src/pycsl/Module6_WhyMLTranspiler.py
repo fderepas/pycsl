@@ -1556,10 +1556,48 @@ class Module6_WhyMLTranspiler(
 
         out_modules: List[List[str]] = [shared]
 
-        # ===================== per-group Sig + provider =====================
+        # ===================== ALL <G>Sig, THEN all providers =====================
+        # (#49) gen #31 — THE TWO PASSES USED TO BE ONE, AND THAT MADE THE DIRECTIVE'S
+        # HEADLINE CASE UNEMITTABLE. annotations.md row 29 promises that "a cross-module
+        # `self.<m>(...)` call (a sibling in a DIFFERENT `verify_module` group, or the flat
+        # default module)" is lowered to the callee's PROVEN contract through `<G>Sig`. The
+        # flat-caller half worked; the sibling-in-another-group half did not, and the
+        # reason was one missing `use`. The expression layer correctly rewrites the call to
+        # `LeafSig.c__leaf`, `PyCSL_Program` got `use <G>Sig` for every group — and a GROUP
+        # module got `self._shared_use_lines()` and nothing else, so the qualified name
+        # named a module the enclosing module never imported:
+        #
+        #     module Top
+        #       use Shared                                   (* and nothing else *)
+        #       let c__caller (self: c) : int = (LeafSig.c__leaf self)
+        #                                        ^ unbound function or predicate symbol
+        #
+        # MEASURED on a two-method class: `leaf` in `LeafMod` + `caller` FLAT verifies (and
+        # a claim of `\result >= 7`, the body's value rather than the contract's `>= 0`,
+        # correctly FAILS, so the boundary does convey the contract); the same file with
+        # `caller` moved into its own group died on `unbound … 'LeafSig.c__leaf'`.
+        #
+        # THE ONLY STRUCTURAL CONSTRAINT, AND WHY THE SPLIT IS THE FIX. Why3 requires a
+        # module to be defined EARLIER IN THE FILE than any use of it. The old interleaved
+        # order (Shared, LeafSig, Leaf, TopSig, Top) therefore could not let `Top` use
+        # `LeafSig` for every pair of groups — `A` and `B` would each need the other's Sig
+        # and only one of them can come first. Emitting ALL the Sig modules and THEN all the
+        # providers removes the constraint outright, and it is safe by construction: a
+        # `<G>Sig` is bodyless `val`s over `Shared` and can never depend on a provider, so
+        # the Sig layer is acyclic no matter how the groups call each other. `use` edges now
+        # run provider -> Sig only, and MUTUALLY RECURSIVE GROUPS cost nothing.
+        #
+        # BLAST RADIUS (lesson d3, measured before landing): `#@ verify_module` occurs in
+        # ZERO corpus files and in exactly one library source,
+        # `src/pycsl_lib/os/UnixInodeFileSystem.py` (`ReadMod`, `FindSlotMod`,
+        # `FindFreeMod`). Nothing without the directive reaches this code at all — the
+        # caller returns early when `groups` is empty — so the corpus is byte-inert by
+        # construction, and the whole observable effect is on that one file and on programs
+        # nobody has written yet. That is also why the defect survived: the single real
+        # user's three groups happen not to call each other across the boundary the
+        # directive exists to create.
         for g in sorted(groups):
             gfuncs = group_funcs[g]
-            cited_ir = {**self.ir, "functions": gfuncs}
 
             # ---- <G>Sig : bodyless contract `val`s (the proven interface) ----
             sig: List[str] = [f"module {g}Sig"]
@@ -1575,9 +1613,20 @@ class Module6_WhyMLTranspiler(
             sig.append("end")
             out_modules.append(sig)
 
+        for g in sorted(groups):
+            gfuncs = group_funcs[g]
+            cited_ir = {**self.ir, "functions": gfuncs}
+
             # ---- <G> : shared symbols + group axioms LOCALLY + real let + clone ----
             prov: List[str] = [f"module {g}"]
             prov += self._shared_use_lines()
+            # Every OTHER group's proven interface, so a cross-group `self.<m>(...)` — which
+            # the expression layer emits as `<Other>Sig.<fn>` — resolves. Own Sig excluded:
+            # the trailing `clone {g}Sig` is what binds it, and `use`ing it as well would
+            # shadow the real `let` this module is defining.
+            for other in sorted(groups):
+                if other != g:
+                    prov.append(f"  use {other}Sig")
             self._reset_module_accumulators()
             self._axiom_emitted_decls = set(self._shared_symbol_decls)
             # The group's cited `#@ proof` axioms, emitted LOCALLY (in scope only here).

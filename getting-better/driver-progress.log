@@ -6446,3 +6446,84 @@ AND THE FULL REFERENCE SUITE FINISHED: **3965/3983, the standing EIGHTEEN confir
 failures, ZERO XPASS.** The set matches the accepted baseline member for member
 (0211-0220 Rocq-required, 0701, 0043, 0048, 0079, 0080, 0082, 0095, 0110). Nothing this
 generation landed regressed anything in 3983 tests.
+
+--------------------------------------------------------------------------------
+2026-09-23 13:11Z — `#@ verify_module` WAS BROKEN IN ITS HEADLINE CASE, TWICE
+--------------------------------------------------------------------------------
+
+Both defects were found by TRYING TO WRITE THE DIRECTIVE'S ENFORCEMENT PAIR. Neither is a
+soundness route; both fail loudly. They are recorded because the instrument that found them
+is the one built yesterday for a different purpose, and because the second of them made a
+DOCUMENTED capability unusable in the exact configuration the documentation names.
+
+DEFECT 1 — a LOWERCASE group name is a Why3 syntax error with a misleading symbol.
+`#@ verify_module leaf` emits `module leafSig`, and Why3 stops with
+
+    syntax error: expected module name must be an capitalized identifier
+    (token UIDENT_NQ), found "leafSig"
+
+naming a symbol that appears nowhere in the user's source, because the `Sig` suffix is
+synthesized. Nothing in PyCSL caught it. Refused now at `_run_pipeline` (the choke-point
+rule: its mirror twin is `\trusted` and already in the raises-honesty population, so the
+refusal costs no marker, no emission move and no honesty entry) as
+`PYCSL-SEM-VERIFY-MODULE-NAME-NOT-CAPITALIZED`, with witness `1842` and control `1843`.
+`MIN_WITNESSED` 194 -> 195, appended through `--append-new` so the census row is a
+measurement rather than a hand edit.
+
+DEFECT 2 — A CALL BETWEEN TWO GROUPS COULD NOT EMIT AT ALL. annotations.md row 29 promises
+that "a cross-module `self.<m>(...)` call (a sibling in a DIFFERENT `verify_module` group,
+or the flat default module)" is lowered to the callee's PROVEN contract through `<G>Sig`.
+The flat-caller half worked. The other half — the one the directive exists for — did not:
+
+    module Top
+      use Shared                                  (* and nothing else *)
+      let c__caller (self: c) : int = (LeafSig.c__leaf self)
+                                       ^ unbound function or predicate symbol
+
+`PyCSL_Program` was given `use <G>Sig` for every group; a GROUP module was given
+`self._shared_use_lines()` and nothing else, so the qualified name the expression layer
+correctly emitted named a module the enclosing module never imported.
+
+THE FIX IS A REORDERING, AND THE REASON IT IS A REORDERING IS WORTH KEEPING. Why3 requires
+a module to be defined earlier in the file than its use. The old emission interleaved
+`Sig_g` and `Prov_g` group by group, so for two groups that each call the other, no single
+ordering works — `A` needs `BSig` before it and `B` needs `ASig` before it. Emitting ALL
+the Sig modules first and THEN all the providers makes the question disappear instead of
+answering it: a `<G>Sig` is bodyless `val`s over `Shared` and can never depend on a
+provider, so the Sig layer is acyclic BY CONSTRUCTION and every `use` edge runs
+provider -> Sig. A topological sort would have had to FAIL on mutually-calling groups;
+after the split there is nothing to fail on. Driver `1846` is that case and it verifies.
+
+MEASURED, against the worktree at HEAD for the "before" column:
+
+    1844  leaf in LeafMod, caller in TopMod, claims \result >= 0
+          BEFORE: unbound function or predicate symbol 'LeafModSig.c__leaf'   AFTER: PASS
+    1845  the same file claiming \result >= 7 (the BODY's value)
+          AFTER: FAILS — the boundary conveys the CONTRACT, not the body
+    1846  Amod and Bmod calling EACH OTHER
+          BEFORE: unbound function or predicate symbol 'BmodSig.c__b_leaf'    AFTER: PASS
+
+1845 is not decoration. Without it, 1844 could not tell "the cross-group call conveys the
+callee's proven contract" from "the cross-group call sees the callee's body", and the
+second would make the isolation the directive exists to provide entirely decorative.
+
+BYTE-INERT, MEASURED RATHER THAN ARGUED. `_transpile_modular` is reached only when some
+non-`\trusted`, non-`\abstract` function carries `verify_module`, and no corpus file does —
+but a live-source change owes a sweep regardless: 1331 -> 1335 reference `.mlw` (the four
+new drivers that emit; `1842` is refused and emits nothing) with 0 MOVED / 0 GONE / 0
+unexpected APPEARED, and 2199 python-reference `.mlw` byte-identical.
+
+STILL OPEN AND SEPARATE: `src/pycsl_lib/os/UnixInodeFileSystem.py`, the ONE real user of
+the directive, still fails — with a different symbol, `unbound function or predicate symbol
+'dir_find_free_prefix'`, identically before and after. That is the AXIOM-isolation path (a
+`#@ proof`-cited symbol out of scope inside a group module), not the call path, and it
+wants its own probe. Recorded in
+`getting-better/open-routes/finding-verify-module-cross-group-call-is-unbound.md`.
+
+THE PATTERN WORTH NAMING. Three of today's findings — `mixin`, `reveal`, and both of these
+— came from the same move: take a directive the documentation describes, WRITE THE PROGRAM
+THE DOCUMENTATION DESCRIBES, and run it. The enforcement plane was built to catch
+directives that are read and ignored; what it actually catches is any gap between what a
+directive SAYS and what the compiler DOES, in either direction. That is a broader
+instrument than it was designed to be, and the uncovered list is where it keeps its
+findings.
