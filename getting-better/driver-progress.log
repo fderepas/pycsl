@@ -5417,3 +5417,40 @@ four held — recorded because an unrecorded negative gets re-run:
 >>> A NEGATIVE THAT COST FOUR MINUTES IS WORTH WRITING DOWN, because the alternative is
 >>> that the next driver spends four minutes finding the same nothing — and this campaign
 >>> has a list of 98 loops to walk.
+
+## 2026-09-23 03:15 UTC — A FIFTH LOOP: THE COMPOSITION GUARD IS BLIND TO AN ELEMENT WRITE
+
+`ir_resolve.py`'s composition check refuses a mixin method that writes a self field
+declared neither `#@ shared_state` nor `#@ touches_field` nor initialised in `__init__`.
+Its population is `self_field_writes(body)`, which matches `FieldAssign` / `FieldAugAssign`
+with `object == "self"` — and an ELEMENT write `self.cache[0] = x` is emitted as
+`{"stmt": "ArraySet"}`, so it is INVISIBLE.
+
+MEASURED, two files one character apart (corpus 0551's shape):
+
+    self.cache = x       ->  REFUSED  ("a method writes `self.cache`, a field declared
+                                        neither `#@ shared_state` nor ...")
+    self.cache[0] = x    ->  ACCEPTED, and the module type-checks.
+
+SO I TRIED TO TURN IT INTO A ROUTE, AND IT IS NOT ONE. With the field initialised in the
+FACADE's `__init__` (undeclared for the MIXIN, so the guard's population is the only thing
+that could catch it), a `#@ assigns \nothing` mixin method writing `self.cache[0]` and a
+facade reading the element before and after:
+
+    CPython: run(7) == -7.     PyCSL: [-] Verification FAILED.
+
+The CLONE carries the frame-preservation postcondition `ensures { self.cache = old
+self.cache }` and its body is `self.cache[0] <- x`, which is unprovable. **The frame check
+catches what the composition guard missed.** So the blindness is a DIAGNOSTIC gap, not a
+soundness one: the user gets an unprovable frame goal instead of the sentence that tells
+them to declare the field.
+
+PRICED AND DECLINED FOR TONIGHT: the one-line fix (teach `self_field_writes` about
+`ArraySet` over a `self` field base) lives in `ir_resolve.py`, an UN-TRUSTED mirror twin —
+it owes a verbatim mirror edit and a whole-file re-proof, which is not a thing to start
+four hours from a deadline. Recorded with its measurement so the next window can land it
+in minutes.
+
+>>> THAT IS FIVE LOOPS ATTACKED AND FIVE HELD, AFTER ONE (`for ov in overrides`) YIELDED
+>>> ROUTE #216. A 1-in-6 hit rate on a mechanical question is a good generator, and the
+>>> 98-loop list is now written down for whoever runs it next.
