@@ -203,6 +203,20 @@ reader HEARS, which is the same defect class as a false contract, one level up i
 
 ## Planes added or collected
 
+**THE LAST NIGHT ADDED TWO MORE, both out of reading the undemonstrated-refusal list:**
+
+* `bin/check-frontend-ir-backstop-refusals.py` — five front-end / lowering BACKSTOPS
+  demonstrated EXECUTABLY, each with a well-formed control that must be accepted. Four of
+  them (`PYCSL-SEM-SPAN`, `PYCSL-TY3-CALLABLE-SHAPE` ×2, `PYCSL-IR-OPAQUESTMT`) fire on
+  shapes the FRONT-END itself builds, so no `.py` file can reach them: they were never
+  seventeen unwritten witnesses. Coverage 17 → 13 undemonstrated, ceiling lowered with it.
+* `bin/check-emitted-function-coverage.py` — **did the FUNCTION reach the module at all?**
+  912 corpus files compared, 1 zero-coverage, 5 partial, and EVERY dropped function in the
+  entire corpus is a DUNDER. That partition is the ratchet; a non-dunder drop refuses. It
+  is the plane route #216 needed, and its matcher took THREE repairs (a `let lemma`, a
+  `py_` prefix, and the `with` of a mutually-recursive group) each of which removed a FALSE
+  positive — the third would have opened the plane with a red that was entirely mine.
+
 **THE FINAL STRETCH ADDED THREE, and two of them measure a surface nothing measured before:**
 
 * `bin/check-refusal-advice-audited.py` — **the ADVICE surface.** A refusal's advice is a
