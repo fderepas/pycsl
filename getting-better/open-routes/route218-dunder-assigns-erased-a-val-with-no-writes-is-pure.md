@@ -69,13 +69,35 @@ in what it RETURNS, and pure in what it WRITES — and purity is a POSITIVE clai
 whole heap. The witness's reasoning covered one of the two things a call does. 1800's
 docstring now carries the correction and the pointer here.
 
-## Blast radius (measured, all four populations)
+## Blast radius — and the FIRST TWO MEASUREMENTS OF IT WERE BOTH WRONG
 
-A repair keyed on "an explicit dunder CALL to a dunder that declares `#@ assigns self.<f>`"
-touches **exactly one existing file**: `1334_route120_setattr_hook_dropping_a_store.py`,
-which is `# pycsl-expected: FAIL`. Corpus-wide there are 9 explicit dunder calls and 3
-dunders declaring `assigns self.`; the mirror, the live tree and `pycsl_lib` have 10
-explicit dunder calls between them and ZERO writing dunders.
+This is worth reading as a worked example of (p3): *print the members before you write a
+ceiling.* Three passes were needed.
+
+**Pass 1 (wrong).** "A dunder declaring `#@ assigns self.<f>`" — scanned with an 8-line
+window above each `def`, which swallowed the PREVIOUS method's annotations. It reported
+three files, including `1334_route120_setattr_hook_dropping_a_store.py`, and that made the
+repair look like it would retire route #120's own witness. **False: 1334's `__setattr__`
+carries no annotation at all; the `#@ assigns self.a` the window caught belongs to
+`__init__`.** Re-done with contiguous-block attribution: **ZERO dunders anywhere declare
+`#@ assigns self.`** — corpus, python-reference, mirror, live tree and `pycsl_lib`.
+
+**Pass 2 (right question, wrong key).** So the `#@ assigns` clause is not the trigger at
+all. MEASURED: the identical program with the dunder's annotations DELETED still reports
+`All contracts formally proven`. **The hole needs only a BODY that writes self state** —
+which is why a repair must key on the body, not on a clause.
+
+**Pass 3.** Files with a non-`__init__` dunder whose BODY writes `self.<f>`: **12**, of
+which exactly ONE also calls that dunder explicitly — `python-reference/0076.py`
+(`# pycsl-expected: FAIL`). The other eleven are route witnesses for #38/#39/#150, `0401`,
+`0402` and three library files, none of which call their dunder explicitly.
+
+**And pass 3 nearly went wrong too**, for the reason
+`check-refusal-witness-coverage`'s own header warns about: basenames are NOT unique across
+corpus directories. The hit printed as `0076.py` is `python-reference/0076.py`;
+`pycsl-reference/0076.py` is a different file with no `__setattr__` in it, and it PASSES.
+Reporting a basename where two directories can supply it is how a driver ends up checking
+the wrong file — twice, in this case, before noticing.
 
 ## Two more measurements that narrow it
 
@@ -94,12 +116,17 @@ explicit dunder calls between them and ZERO writing dunders.
 
 ## Why it is OPEN and not closed tonight
 
-The obvious refusal would land on 1334 — **route #120's own witness** — and a refusal that
-retires another route's witness is lesson (n3)'s exact failure: the witness stops
-witnessing what it was written for, and nothing says so. Deciding that needs 1334 re-run
-and its route re-confirmed, and the window did not have the time to verify the
-consequence rather than assume it. Recording the defect with its blast radius is worth
-more than a repair nobody checked.
+A refusal keyed on the BODY (pass 3 above) touches exactly one existing file, and deciding
+whether refusing it is RIGHT means reading what `python-reference/0076.py` is for — it is a
+CPython-reference file about `__getattr__`/`__setattr__`/`__delattr__`, a different
+population with different rules from the pycsl-reference corpus. That is a judgement about
+another suite's intent, made ninety minutes from a deadline, and it is exactly the kind of
+call that should not be made in a hurry: a refusal that quietly retires someone else's
+witness is lesson (n3)'s failure, and two of the three measurements above were wrong on the
+first try.
+
+**Recording the defect with a blast radius that took three passes to get right is worth
+more than a repair nobody checked.**
 
 THREE CANDIDATE REPAIRS, in increasing cost:
 
