@@ -5689,3 +5689,20 @@ A worked example of (p3), recorded because the wrong answers were plausible:
 
 ROUTE #218 STAYS OPEN, deliberately: the remaining judgement is about another suite's
 intent, made ninety minutes from a deadline, and that is not when to make it.
+
+## 2026-09-23 07:38 UTC — CLOSING BATTERY: ALL 69 GREEN AT THE FINAL TREE
+
+    [+] soundness-planes: OK — all 69 plane(s) green.
+
+at `e6e5e53f`, environment sourced, the plane lock held for the whole run — the SECOND
+all-green `--slow` battery of the generation and the one that covers every change made
+after the first. Plus, at the same tree:
+
+    fast planes                44 / 44 green
+    corpus byte-diff           1306 / 1306 — 0 MOVED, 0 GONE, 0 APPEARED
+    clause-survival            914 compared, 4 deficits, 4 EXPLAINED, 0 UNEXPLAINED
+    emitted-function-coverage  914 compared, 8 dropped functions, 0 NON-DUNDER
+    trusted-frame-honesty      trusted 0/1 model-visible, converted 0/94
+    open-route-carriers        4 carriers, every one reproducing its ledger row
+    mirror-sync                887 verbatim
+    `\trusted` markers         459 · attached 459 · unattached 0
