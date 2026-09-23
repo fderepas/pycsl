@@ -117,3 +117,45 @@ statement handler passes it down through an instance field (check ITS mirror twi
 the same way), or the DictLit branch reads it from the symbol table for the local being
 assigned. **That lookup is the open question, and it is the only one**; the rest of the
 repair is the context switch above.
+
+
+---
+
+## PROTOTYPED (2026-09-23, in a scratch copy of the compiler — the tree was frozen for a suite)
+
+The repair is TWO changes, both in `\trusted`-mirrored functions, and both were needed —
+the first alone produced a record literal that the second step then threw away.
+
+**(1) `_handle_assign_stmt` (twin `\trusted`) — supply the construction context.** Around
+the RHS lowering, when the RHS is a `DictLit` and the TARGET's declared type (read from
+`self._current_symbol_table`) names a `_record_types` entry with `is_typeddict`, set
+`self._func_return_type` to that record's `whyml_name` and restore it afterwards. That is
+the only context `_typeddict_record_literal` consults, and the un-trusted function is left
+untouched.
+
+Instrumented, this alone gives `val = '{ x = 1; y = 2 }'` — the record literal.
+
+**(2) `_emit_first_assign` (twin `\trusted`) — do not let the dict path overwrite it.**
+`_first_assign_kind` classifies a `Pt`-annotated local as `"dict"` (its twin is UN-TRUSTED,
+so it is deliberately NOT edited), and the `kind == "dict"` branch replaces `val` with
+`_build_dict_literal_map`'s `map_update_some` fold. Bypass that branch for a TypedDict
+target and emit `let X = ref { … } in`.
+
+`ref`, not a bare value: the READ side (`_typeddict_field_access`) emits `!p.x`, so a
+value binding gives `This expression has type PyCSL_Program.pt @rho` — measured, and the
+one-token difference between the two attempts.
+
+MEASURED in the scratch copy:
+
+| driver | before | after |
+|---|---|---|
+| LOCAL `p: Pt = {…}` then `p["x"]` | FAILED | **SUCCESS** |
+| LOCAL, `p["x"] + p["y"] == 3` | (could not emit) | **SUCCESS** |
+| the false twin, `== 4` | — | **FAILED** |
+| RETURN position (`-> Pt`) | SUCCESS | SUCCESS |
+| PARAMETER position (`p: Pt`) | SUCCESS | SUCCESS |
+
+So the price is settled: **no un-trusted mirror edit, no `expressions.py` re-proof**, two
+trusted-side changes, and a census that already says zero corpus files declare a TypedDict
+local. What remains before landing is the ordinary discipline — byte-diff, the corpus
+TypedDict drivers (`1787`, `1788`, `0891`), and a positive/false-twin pair in the corpus.
