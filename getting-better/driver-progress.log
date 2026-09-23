@@ -5526,3 +5526,31 @@ one fingerprint moved of the 27 hand-synthesized methods across 24 bespoke emitt
 
 FINAL STATE OF THE BATTERY: 68 of 69 green with the sole RED now reviewed and re-baselined;
 a confirming run follows.
+
+## 2026-09-23 04:40 UTC — THE LOCK, BUILT BECAUSE THE RULE FAILED THREE TIMES
+
+`bin/run-soundness-planes.sh` now takes `.soundness-planes.lock` (its PID, removed by the
+trap that already cleans the shared emissions) and exports `PYCSL_PLANES_RUNNING`;
+`bin/lib_plane_lock.py` gives the five emitting planes a one-call guard that REFUSES a
+hand-run while a battery holds it.
+
+FAIL-OPEN FOR THE BATTERY, FAIL-CLOSED FOR THE HAND-RUN — the only safe way to add a lock
+four hours from a deadline. The script only WRITES the lock; a plane refuses only when the
+lock exists AND its pid is alive AND `PYCSL_PLANES_RUNNING` is unset. All four behaviours
+were RUN, not reasoned about:
+
+    hand-run during a live battery          -> REFUSING ... is RUNNING (pid N), rc=2
+    stale lock (dead pid)                   -> ignored, plane runs and reports
+    live lock + PYCSL_PLANES_RUNNING        -> runs (what the battery's children see)
+    battery exit                            -> lock removed
+
+AND THE BUILD ITSELF NEEDED A CORRECTION WORTH RECORDING. The first patch inserted the
+guard at the TOP of each plane, above its imports, because the inserting script looked for
+the last `import` in the first 80 lines — and these planes open with 40-120 line
+docstrings, so it found none and inserted at line 0. Every one of them then died with
+`NameError: name 'sys' is not defined`. Caught immediately by running one. Re-done with an
+AST walk over the real import block instead of a line window.
+
+>>> A LINE-WINDOW HEURISTIC OVER FILES WHOSE HEADERS ARE THE POINT OF THIS REPO WAS ALWAYS
+>>> GOING TO MISS. The planes in `bin/` are written docstring-first on purpose; a tool that
+>>> assumes code starts in the first 80 lines is a tool written for a different repository.
