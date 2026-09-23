@@ -18,6 +18,47 @@
 #    THE HABIT TO CARRY FORWARD: when new evidence does not move a number, suspect the
 #    number's collector before you suspect the evidence.
 #
+# ## OVERNIGHT ADDENDUM (2026-09-23T03:00Z) — READ THIS BEFORE THE ONE BELOW
+#    - **ITEM 2b IS DONE, AND IT COST FORTY MINUTES, NOT A DAY.** The estimate below assumed
+#      an expensive mirror re-proof; the twin of `_build_function_symbol_table` is
+#      `\trusted`, so there is none. Priced in a WORKTREE, which is what made it cheap:
+#      whole-corpus byte-diff, both sides emitted fresh — 1303 baseline, **0 MOVED, 0
+#      APPEARED, exactly 1 GONE** (witness 1725, expected-FAIL either way, now failing by
+#      the REFUSAL instead of by ill-typedness). The handoff's guess that the ITERABLE form
+#      might make reads MORE faithful was CHECKED AND IS WRONG — all five surviving
+#      emissions are byte-identical.
+#    - **ROUTE #217 came out of pricing it.** `b = bytes([1,2,3]); b[0] = 9; return b[0]`
+#      PROVED `\result == 9` while CPython raises `TypeError`. `PYCSL-SEM-SUBSCRIPT` already
+#      carried the perfect message and never saw the local. CLOSED. Witnesses 1809/1810.
+#    - **ROUTE #216 (dunder override erases the Liskov obligation) DEMONSTRATED AND CLOSED.**
+#      Two files one identifier apart under `--check-behavioral-subtyping`: `m` FAILS with
+#      `goal sub__m_refines_base`; `__len__` reports "All contracts formally proven" over a
+#      module whose whole body is `type sub = {  }`. Refused at the `_run_pipeline` choke
+#      point. Witnesses 1805-1808. STILL OWED: the pair is not CHECKABLE — that needs
+#      dunders EMITTED, which is also what witness 1800 waits on, and it is byte-diff-RISKY.
+#    - **TWO PLANES WERE GREEN FOR THE WRONG REASON** (`check-happy-trust-boundaries`): one
+#      carrier was refused by a NEIGHBOURING boundary, one by a SYNTAX ERROR in a policy the
+#      grammar does not have. Each case now pins the message fragment its refusal must
+#      contain. Lesson (s3).
+#    - **REFUSAL COVERAGE ENDS AT 191 of 220** (6 undemonstrated, 13 not-source-reachable,
+#      10 unmatchable-by-measurement). `--append-new` keeps the census from rotting; use it
+#      after every witness you land, it takes seconds.
+#    - **NEXT WINDOW, IN ORDER:**
+#      1. EMIT DUNDERS. It closes witness 1800's gap, makes route #216's obligation
+#         CHECKABLE (the refusal only stops the lie), and removes the only non-dunder-free
+#         entry from `check-emitted-function-coverage`. Byte-diff-RISKY: authorize-first.
+#      2. The `bytes` COUNT-form lowering (`Array.make n 0`, as `bytearray` already has).
+#         Route #217's refusal now holds the line, so the type error is no longer load
+#         bearing — which is the precondition the old note named.
+#      3. Witness 1804's shape: `a: list = []` rebound to a literal in a branch emits an
+#         UNDECLARED `a_len` AND an always-true `Array.length a <> 0` truthiness test. The
+#         type error is the only thing stopping a false proof. A REFUSAL was priced and
+#         DECLINED — 6 mirror and 32 live functions share the shape, and a blanket refusal
+#         breaks the mirror (route #213's mistake). The faithful fix is to declare the
+#         counter AND test `!a_len <> 0`; 1804 is the tripwire until then.
+#      4. The six remaining undemonstrated refusals are diagnosed in
+#         `check-refusal-witness-coverage`'s header; three are owned by earlier checks.
+#
 # ## LATE-EVENING ADDENDUM (2026-09-22T23:00Z) — READ THIS FIRST
 #    - **ROUTE #215 DEMONSTRATED AND CLOSED**, and it came out of the ADVICE AUDIT rather
 #      than a hunt for routes. `f[T](...)` on a generic FUNCTION is NOT VALID PYTHON (PEP
@@ -180,7 +221,9 @@
 #         context (measured: 2 of the corpus's 30 dependencies fail standalone for exactly
 #         that reason, with PASS-expected importers). The IR has NO provenance field on a
 #         function — that is the missing primitive.
-#      2b. *** PRICED AND READY, 2026-09-23T00:00Z — DO THIS FIRST NEXT WINDOW. ***
+#      2b. *** DONE 2026-09-23T02:30Z — see the OVERNIGHT ADDENDUM at the top. Kept
+#         below because the PRICING is what turned out to be wrong, and the way it
+#         was wrong is the lesson: the cost was assumed, not measured. ***
 #         The refusal (`PYCSL-SEM-SUBSCRIPT`, core_ir_semantic ~585) keys on
 #         `symtab.get(<var>) == "bytes"`, and `_build_function_symbol_table`
 #         (Module5_IREmitter ~5596) types EVERY plain `x = <expr>` local as `"Any"` with
