@@ -51,3 +51,6 @@ getting-better/.driver-*
 
 # transient scratch for bin/check-shadowed-selfcalls.py (removed on exit)
 .gate-scratch/
+
+# (#49) the advisory lock bin/run-soundness-planes.sh holds while it runs (bin/lib_plane_lock.py)
+.soundness-planes.lock

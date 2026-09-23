@@ -47,6 +47,14 @@ import os
 import subprocess
 import sys
 
+# (#49) Refuse to emit while the soundness battery holds the lock (bin/lib_plane_lock.py).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from lib_plane_lock import refuse_if_battery_running as _refuse_if_battery_running
+except ImportError:                                   # helper absent: behave as before
+    def _refuse_if_battery_running(_plane):
+        return None
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 MIN_MODELS = 18   # true population 27; a floor on the INPUT, not a ratchet (gen #4)
@@ -170,6 +178,7 @@ def body_fingerprint(cls, meth):
 
 
 def main():
+    _refuse_if_battery_running("bespoke-model-drift")
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--update", action="store_true")

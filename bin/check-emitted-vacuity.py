@@ -38,6 +38,14 @@ import re
 import subprocess
 import sys
 
+# (#49) Refuse to emit while the soundness battery holds the lock (bin/lib_plane_lock.py).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from lib_plane_lock import refuse_if_battery_running as _refuse_if_battery_running
+except ImportError:                                   # helper absent: behave as before
+    def _refuse_if_battery_running(_plane):
+        return None
+
 MIRROR_ROOT = "src/self-annotate/src"
 LIVE_ROOT = "src/pycsl"
 SKIP_PARAMS = {"self"}
@@ -336,6 +344,7 @@ MIN_EMITTED_MIRRORS = 40   # a correct sweep emits 53; an un-emitted tree yields
 
 
 def main():
+    _refuse_if_battery_running("emitted-vacuity")
     if "--emit" in sys.argv:
         files = [os.path.join(r, f) for r, _, fs in os.walk(MIRROR_ROOT)
                  for f in fs if f.endswith(".py")]

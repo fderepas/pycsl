@@ -120,6 +120,14 @@ import shutil
 import sys
 import tempfile
 
+# (#49) Refuse to emit while the soundness battery holds the lock (bin/lib_plane_lock.py).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from lib_plane_lock import refuse_if_battery_running as _refuse_if_battery_running
+except ImportError:                                   # helper absent: behave as before
+    def _refuse_if_battery_running(_plane):
+        return None
+
 
 # ===========================================================================================
 # RE-BASELINED 2026-09-02 (relaunch #31) — THE ANALYSIS GOT SHARPER, THE TREE DID NOT GET
@@ -594,6 +602,7 @@ def _emit_all(out_dir):
 
 
 def main():
+    _refuse_if_battery_running("trusted-frame-honesty")
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--verbose", action="store_true",

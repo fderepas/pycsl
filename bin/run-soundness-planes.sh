@@ -463,6 +463,17 @@ if [ "${1:-}" = "--slow" ] || [ "${PYCSL_SOUNDNESS_PLANES_SLOW:-0}" = "1" ]; the
     echo "[*] soundness-planes: shared mirror emission ready ($NEMIT .mlw) — six plane(s) will use it"
 fi
 
+# (#49) THE LOCK. Five planes EMIT `.mlw` beside the mirror or corpus sources and others
+# READ them in place; this loop is sequential exactly so the two never overlap, and a plane
+# started BY HAND from another shell defeats that ordering. It happened three times in one
+# night. The lock is advisory and FAIL-OPEN FOR THIS SCRIPT: we only WRITE it and export
+# PYCSL_PLANES_RUNNING, so our own children never trip their own guard, and a stale lock
+# from a killed run is ignored because the guard checks the pid is alive.
+PLANE_LOCK="$PROJECT_ROOT/.soundness-planes.lock"
+echo "$$ $(date -u +%FT%TZ)" > "$PLANE_LOCK" 2>/dev/null || true
+export PYCSL_PLANES_RUNNING="$$"
+trap 'rm -f "$PLANE_LOCK" "$SHARED_EMIT" 2>/dev/null; rm -rf "$SHARED_EMIT" "$CORPUS_EMIT" 2>/dev/null' EXIT
+
 ran=0
 failed=()
 echo "[*] soundness-planes: running ${#PLANES[@]} driver-run lower bound(s)"
