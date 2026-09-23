@@ -6273,3 +6273,40 @@ WITHOUT `--cols`; the original (PID 753137, 1h20m in) is untouched and still on
 >>> THE RULE: never grep `ps` output that has been width-limited. Use `-o pid,etime,args`
 >>> with no `--cols` and post-process with awk, or match on `pgrep -f`, which reads the full
 >>> command line by construction.
+
+## 2026-09-23 11:40 UTC — `core_ir_semantic.py` RE-PROVES GREEN after 1h15m
+
+11 of the 18 mirrors whose EMISSION moved under route #219's build are now re-proved GREEN,
+including the big one:
+
+    errors  ir_schema  exec_splice  import_classifier  proof2why3/parser  proof2why3/sertop
+    monomorphize  ConcurrencyChecker  ir_inline  Module1_Ingestor  core_ir_semantic
+
+Remaining: Module2_Parser (in flight), Module3_Weaver, module6_whyml/statements,
+module6_whyml/expressions, pycsl, Module5_IREmitter, pure_ast.
+
+DIRECTIVE COVERAGE 25 of 53. `fresh_globals` joined with the ASSUMPTION shape — what it
+assumes is a CONSTRUCTOR POST-STATE rather than a contract, so the module-global is havoc'd
+at entry WITHOUT it and the assertion about its freshly-constructed value cannot be proved.
+
+## 2026-09-23 11:45 UTC — TWO SELF-INFLICTED PROCESS MISTAKES IN TEN MINUTES, SAME ROOT
+
+Recorded because they are the same defect as lesson (j4) in two more spellings, and because
+both were MINE rather than the compiler's:
+
+  1. `until [ "$(pgrep -c -f check-directive-enforcement)" -le 1 ]` — the WAIT LOOP'S OWN
+     SHELL carries that string in its command line, so the condition could never become
+     true. A `pgrep` guard that matches the guard is a spin.
+  2. `pkill -9 -f 'bin/check-directive-enforcement.py'` in the same command as the run —
+     it killed the SHELL executing that very command line before the plane started, which
+     is why the task exited 1 with no output at all.
+
+>>> THE RULE, and it generalises past `pgrep`: A PATTERN THAT DESCRIBES THE WORK ALSO
+>>> DESCRIBES THE COMMAND THAT STARTED IT. Never match a process by a string your own
+>>> invocation contains; match on the PID you captured, or on a substring unique to the
+>>> child (`python3 bin/...` rather than `bin/...`), and never put a `pkill` and the thing
+>>> it might match in one command line.
+
+These cost minutes, not correctness — the tree was never touched — and they belong in the
+log because the campaign's standing claim is that it measures rather than assumes, and that
+has to include measuring its own scaffolding.

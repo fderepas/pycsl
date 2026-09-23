@@ -55,7 +55,7 @@ DRIVER = os.path.join(ROOT, "src", "pycsl", "pycsl.py")
 # (#49) gen #31 — the floor. It starts at the number of pairs written in the commit that
 # introduced the plane, and only ever rises. A directive whose pair is DELETED, or a new
 # directive added to annotations.md without one, drops the fraction and turns this red.
-MIN_COVERED = 24
+MIN_COVERED = 32
 
 
 def population():
@@ -288,6 +288,92 @@ CASES = {
         'def bump_at(arr: list, k: int) -> int:\n    #@ label PRE\n'
         '    arr[0] = arr[0] + 2\n    return k\n',
         ["--memory-model", "typed"]),
+    "fresh_globals": (
+        # An ASSUMPTION-SHAPED directive that nonetheless fits the VIOLATE/SATISFY frame,
+        # because what it assumes is a CONSTRUCTOR POST-STATE rather than a contract: a
+        # module-global is havoc'd at every entry, so WITHOUT the directive the assertion
+        # about its freshly-constructed value cannot be proved, and WITH it, it can. The
+        # "violation" here is the absence, exactly as for `allow_finalizer`.
+        _ANCHOR + '\n\nclass Counter:\n    #@ assigns self.n\n'
+        '    #@ ensures self.n == 0\n    def __init__(self) -> None:\n'
+        '        self.n: int = 0\n\n\ncounter = Counter()\n\n\n'
+        '#@ requires True\n#@ ensures \\result == 0\n'
+        'def probe() -> int:\n    #@ assert counter.n == 0\n'
+        '    return counter.n\n',
+        _ANCHOR + '\n\nclass Counter:\n    #@ assigns self.n\n'
+        '    #@ ensures self.n == 0\n    def __init__(self) -> None:\n'
+        '        self.n: int = 0\n\n\ncounter = Counter()\n\n\n'
+        '#@ requires True\n#@ ensures \\result == 0\n'
+        '#@ fresh_globals\ndef probe() -> int:\n'
+        '    #@ assert counter.n == 0\n    return counter.n\n', []),
+    "footprint": (  # `#@ footprint H(arg)` — every write must stay inside H's region
+        # NO `except` CLAUSE, and that is a finding of its own kind: the corpus example
+        # (0614) exempts a `formatter` it also DEFINES, and `happy`'s exempt-set check
+        # rejects a name that is not a method in the module — "a typo in the exempt set
+        # would silently widen the property's coverage, so this is rejected". Copying the
+        # header WITHOUT that function refuses BOTH halves, which is what the satisfying
+        # twin is for: it caught a case where the whole pair was measuring the exempt-set
+        # check rather than the footprint containment it is named after.
+        # VIOLATE: the body writes `d.disk[0]`, which is OUTSIDE inode `k`'s region
+        # `[512 + k*64, 512 + (k+1)*64)` for every legal `k`. The meta-pass injects a
+        # CONTAINMENT `#@ check` at each write, and it must not discharge.
+        '# pycsl-flags: --memory-model hoare\n\n#@ happy inode_conf(n):\n#@     protects d.disk[512 + n * 64 : 512 + (n + 1) * 64]\n\n#@ class invariant \\length(self.disk) >= 1024\nclass Disk:\n    def __init__(self) -> None:\n        self.disk: list = [0] * 1024\n\n\nd = Disk()\n\n\n#@ requires 0 <= k and k < 8\n#@ footprint inode_conf(k)\n#@ assigns d.disk\ndef writer(k: int, v: int) -> None:\n'
+        "'    d.disk[0] = v\n'",
+        '# pycsl-flags: --memory-model hoare\n\n#@ happy inode_conf(n):\n#@     protects d.disk[512 + n * 64 : 512 + (n + 1) * 64]\n\n#@ class invariant \\length(self.disk) >= 1024\nclass Disk:\n    def __init__(self) -> None:\n        self.disk: list = [0] * 1024\n\n\nd = Disk()\n\n\n#@ requires 0 <= k and k < 8\n#@ footprint inode_conf(k)\n#@ assigns d.disk\ndef writer(k: int, v: int) -> None:\n'
+        "'    d.disk[512 + k * 64] = v\n'",
+        ["--memory-model", "hoare"]),
+    "uses": (   # `#@ uses L` — cite lemma L so its general fact is in scope
+        # An ASSUMPTION-SHAPED pair like `fresh_globals`: the goal `\forall x: Nat.
+        # to_int(x) >= 0` needs INDUCTION and is not SMT-dischargeable directly. WITHOUT
+        # the citation the lemma is not in scope and the goal fails; WITH it the lemma is
+        # emitted first and the fact discharges. The pair therefore also covers `#@ lemma`
+        # in the only way that means anything — a lemma nobody cites proves nothing for
+        # anybody.
+        _ANCHOR + '\n\n#@ datatype Nat = Z | S(Nat)\n\n\n#@ \\variant n\n#@ assigns \\nothing\ndef to_int(n: Nat) -> int:\n    match n:\n        case Z():\n            return 0\n        case S(m):\n            return 1 + to_int(m)\n\n\n#@ lemma\n#@ ensures to_int(n) >= 0\n#@ \\variant n\n#@ assigns \\nothing\ndef to_int_nonneg(n: Nat) -> None:\n    match n:\n        case Z():\n            pass\n        case S(m):\n            to_int_nonneg(m)\n\n\n#@ ensures \\forall x: Nat; to_int(x) >= 0\n''#@ assigns \\nothing\ndef all_nonneg() -> int:\n    return 0\n',
+        _ANCHOR + '\n\n#@ datatype Nat = Z | S(Nat)\n\n\n#@ \\variant n\n#@ assigns \\nothing\ndef to_int(n: Nat) -> int:\n    match n:\n        case Z():\n            return 0\n        case S(m):\n            return 1 + to_int(m)\n\n\n#@ lemma\n#@ ensures to_int(n) >= 0\n#@ \\variant n\n#@ assigns \\nothing\ndef to_int_nonneg(n: Nat) -> None:\n    match n:\n        case Z():\n            pass\n        case S(m):\n            to_int_nonneg(m)\n\n\n#@ ensures \\forall x: Nat; to_int(x) >= 0\n''#@ uses to_int_nonneg\n#@ assigns \\nothing\n'
+        'def all_nonneg() -> int:\n    return 0\n', []),
+    # THE `act` FAMILY, all four from one corpus shape (0455's guarded-case clamp). Each
+    # pair changes exactly the clause it is named after and leaves the rest alone, so a
+    # failure attributes to the directive under test rather than to the program.
+    "act": (     # an act's `ensures` must hold on its guarded branch
+        _ANCHOR + '\n\n#@ requires x >= 0\n#@ act small:\n#@     given x < 10\n'
+        '#@     ensures \\result == 10\n#@ act big:\n#@     given x >= 10\n'
+        '#@     ensures \\result == 10\n' + 'def clamp10(x: int) -> int:\n    if x < 10:\n        return x\n    return 10\n',
+        _ANCHOR + '\n\n#@ requires x >= 0\n#@ act small:\n#@     given x < 10\n'
+        '#@     ensures \\result == x\n#@ act big:\n#@     given x >= 10\n'
+        '#@     ensures \\result == 10\n' + 'def clamp10(x: int) -> int:\n    if x < 10:\n        return x\n    return 10\n', []),
+    "given": (   # the GUARD selects which branch the act's ensures is checked against
+        # Same `ensures \result == x` in both halves; only the GUARD moves. Under
+        # `given x >= 10` the body returns 10, so the clause is false exactly where the
+        # guard now points.
+        _ANCHOR + '\n\n#@ requires x >= 0\n#@ act small:\n#@     given x >= 10\n'
+        '#@     ensures \\result == x\n' + 'def clamp10(x: int) -> int:\n    if x < 10:\n        return x\n    return 10\n',
+        _ANCHOR + '\n\n#@ requires x >= 0\n#@ act small:\n#@     given x < 10\n'
+        '#@     ensures \\result == x\n' + 'def clamp10(x: int) -> int:\n    if x < 10:\n        return x\n    return 10\n', []),
+    "complete": (  # the guards must COVER the precondition's domain
+        # Both halves use a domain-true `ensures` so ONLY the coverage claim can fail.
+        _ANCHOR + '\n\n#@ requires x >= 0\n#@ act small:\n#@     given x < 10\n'
+        '#@     ensures \\result >= 0\n#@ complete small\n' + 'def clamp10(x: int) -> int:\n    if x < 10:\n        return x\n    return 10\n',
+        _ANCHOR + '\n\n#@ requires x >= 0\n#@ act small:\n#@     given x < 10\n'
+        '#@     ensures \\result >= 0\n#@ act big:\n#@     given x >= 10\n'
+        '#@     ensures \\result >= 0\n#@ complete small, big\n' + 'def clamp10(x: int) -> int:\n    if x < 10:\n        return x\n    return 10\n', []),
+    "disjoint": (  # the guards must not OVERLAP
+        # `given x >= 5` overlaps `given x < 10` on 5..9. Both halves use a domain-true
+        # `ensures` so ONLY the disjointness claim can fail.
+        _ANCHOR + '\n\n#@ requires x >= 0\n#@ act small:\n#@     given x < 10\n'
+        '#@     ensures \\result >= 0\n#@ act big:\n#@     given x >= 5\n'
+        '#@     ensures \\result >= 0\n#@ disjoint small, big\n' + 'def clamp10(x: int) -> int:\n    if x < 10:\n        return x\n    return 10\n',
+        _ANCHOR + '\n\n#@ requires x >= 0\n#@ act small:\n#@     given x < 10\n'
+        '#@     ensures \\result >= 0\n#@ act big:\n#@     given x >= 10\n'
+        '#@     ensures \\result >= 0\n#@ disjoint small, big\n' + 'def clamp10(x: int) -> int:\n    if x < 10:\n        return x\n    return 10\n', []),
+    "datatype": (  # `#@ datatype T = A | B(T)` — an algebraic type with real semantics
+        # VIOLATE: a claim FALSE of the declared constructors (`to_int(S(Z()))` is 1, not 2).
+        # If the datatype were modelled opaquely the claim would be unprovable EITHER way, so
+        # the satisfying twin is what shows the constructors carry meaning.
+        _ANCHOR + '\n\n#@ datatype Nat = Z | S(Nat)\n\n\n#@ \\variant n\n#@ assigns \\nothing\ndef to_int(n: Nat) -> int:\n    match n:\n        case Z():\n            return 0\n        case S(m):\n            return 1 + to_int(m)\n\n\n''#@ ensures \\result == 2\n#@ assigns \\nothing\n'
+        'def one() -> int:\n    return to_int(S(Z()))\n',
+        _ANCHOR + '\n\n#@ datatype Nat = Z | S(Nat)\n\n\n#@ \\variant n\n#@ assigns \\nothing\ndef to_int(n: Nat) -> int:\n    match n:\n        case Z():\n            return 0\n        case S(m):\n            return 1 + to_int(m)\n\n\n''#@ ensures \\result == 1\n#@ assigns \\nothing\n'
+        'def one() -> int:\n    return to_int(S(Z()))\n', []),
     "allow_finalizer": (
         # WITHOUT the acknowledgement a `__del__` is refused (UB-7.5); with it, and with an
         # honest frame, the class verifies. Route #219's build made the BODY real too.
