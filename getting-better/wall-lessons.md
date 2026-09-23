@@ -6248,3 +6248,37 @@ echo "ENDRC=$rc"; date -u +%H:%M:%S
 Cost here was zero because the FAILED lines were read anyway, but the log would have been
 filed as a green run, and the campaign's standing claim is that its records are
 measurements.
+
+---
+
+### (n4) CHECK WHETHER THE FUNCTION YOU ARE ABOUT TO EDIT IS ACTUALLY MIRRORED
+
+Route #213 sat open for a generation with its faithful fix written down and PRICED:
+
+> It changes emission in `module6_whyml/expressions.py`, which is mirrored UN-trusted, so
+> it costs a verbatim mirror edit, that file's whole-file re-proof (21347 goals) and a
+> corpus byte-diff.
+
+Every clause of that sentence is reasonable and the conclusion is wrong. The function the
+fix actually touches, `_lower_getattr`, **has no mirror twin at all** — it is one of the
+549 unmirrored live defs `check-mirror-coverage` already ratchets, and appears in the
+mirror only inside comments. The edit cost NO verbatim sync and NO `expressions.py`
+re-proof. What it did cost was measured instead of assumed — all 53 mirrors emitted before
+and after — and **exactly one moved**, `module6_whyml/functions.mlw`, eight lines, one
+re-proof.
+
+The generalisation is not "check the file", it is:
+
+>>> **A MIRROR COST IS A PROPERTY OF THE FUNCTION, NOT OF THE FILE.** A file can hold
+>>> `\trusted` stubs, un-trusted verbatim twins and functions with no twin at all, side by
+>>> side, and the three prices differ by hours. Before pricing an edit, run
+>>> `grep -n -B6 'def <name>' src/self-annotate/src/<same path>` and read which of the
+>>> three you have.
+
+The same check, run on the NEXT item in the queue, immediately changed its plan:
+`_typeddict_record_literal` IS mirrored un-trusted (expensive) while its only caller
+`_expr_to_whyml` is `\trusted` (free), so the cheap repair supplies the construction
+context from the caller rather than adding a parameter to the callee.
+
+**A price too high is why a route stays open**, and a price is a measurement like any
+other.
