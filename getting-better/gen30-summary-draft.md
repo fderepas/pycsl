@@ -422,7 +422,7 @@ form has a witness" is not evidence about this one; (a3) a module can be meaning
 inside an importing context, so a module-level certificate is not "this file verifies on
 its own".
 
-**THE FINAL STRETCH ADDED TWELVE MORE, AND THEY ARE ABOUT INSTRUMENTS** — (f3) an exclusion
+**THE FINAL STRETCH ADDED THIRTEEN MORE, AND THEY ARE ABOUT INSTRUMENTS** — (f3) an exclusion
 you never tested is a guess, so re-derive the reason when you copy it forward; (g3) a
 docstring that disagrees with the contract beside it is a FREE ORACLE; (h3) a new class
 only earns its place if it comes with a CONTROL that stays out of it; (i3) an absence
@@ -439,7 +439,12 @@ when new evidence does not move a number, suspect the number's COLLECTOR — its
 filter most likely excludes the work this campaign is busy adding; (p3) a class boundary
 drawn from a STATIC READING is a hypothesis, and the discipline is **print the members
 before you write a ceiling**; (q3) a staleness key must cover the part the verdict is
-ABOUT, not merely be stable.
+ABOUT, not merely be stable; (r3) **a gate whose INPUTS can be deleted underneath it must
+REFUSE, not crash** — of the three endings available when a file vanishes mid-read,
+silently skipping it is a green over a shrunken population and a traceback reads as "the
+gate is broken" when the truth is "the measurement is void", so the #44 rule points one
+level lower: a gate must be able to tell "I looked at all of it" from "I looked at what
+was still there".
 
 ## A surface opened this generation: the `pycsl_lib` stdlib layer
 
