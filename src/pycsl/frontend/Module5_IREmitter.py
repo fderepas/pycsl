@@ -5609,6 +5609,35 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         if (isinstance(child.value, ast.Constant)
                                 and isinstance(child.value.value, bytes)):
                             scope[target.id] = "bytes"
+                        # (#49) ROUTE #217 — AND THE GAP WITNESS 1725 NAMED AS "pre-existing
+                        # and separate". A local bound from the `bytes(...)` CONSTRUCTOR was
+                        # typed "Any" by the branch above, and `PYCSL-SEM-SUBSCRIPT`'s
+                        # IMMUTABILITY refusal keys on the symbol table saying "bytes". So
+                        #
+                        #     b = bytes([1, 2, 3]); b[0] = 9; return b[0]
+                        #
+                        # PROVED `\result == 9` while CPython raises
+                        # `TypeError: 'bytes' object does not support item assignment`.
+                        # The count form `b = bytes(2)` is the same hole and is what 1725
+                        # pins; the ITERABLE form had no witness at all.
+                        #
+                        # MEASURED BEFORE LANDING, whole corpus, both sides emitted fresh:
+                        # 1303 baseline .mlw, **0 MOVED, 0 APPEARED, and exactly 1 GONE** —
+                        # `1725_gen30_bytes_count_form_excluded`, which is
+                        # `# pycsl-expected: FAIL` and now fails BY THE REFUSAL instead of
+                        # by the ill-typedness its own docstring says was doing the
+                        # enforcing. `src/pycsl_lib/os/UnixInodeFileSystem` (the only
+                        # `pycsl_lib` site) emits byte-identically; the mirror and the live
+                        # tree contain ZERO such locals.
+                        #
+                        # The handoff's guess that typing the ITERABLE form could make reads
+                        # MORE faithful (`b[0] == 65` provable from `_py_expr_constant`'s
+                        # real byte values) was checked and is WRONG: every one of the five
+                        # surviving corpus emissions is byte-identical.
+                        if (isinstance(child.value, ast.Call)
+                                and isinstance(child.value.func, ast.Name)
+                                and child.value.func.id == "bytes"):
+                            scope[target.id] = "bytes"
                         # local-dict-value-type: a `d = {"a": "x", ...}` literal with all-STRING
                         # values is a `dict[_, str]`, so `d[k]` reads a `string` (default "") not the
                         # int default. Infer the value type from a homogeneous string-valued DictLit
