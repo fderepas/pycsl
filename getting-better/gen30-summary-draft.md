@@ -416,6 +416,27 @@ Five new `value-differential` drivers (v73-v77), the CPython-measured plane, cov
   check, two `happy` name typos, `d.items()` in a contract — taking it to **68/198**, and
   both ratchets moved with the measurement.
 
+* **AND BY THE END OF THE GENERATION IT IS 191 OF 220, WITH THE REMAINDER PARTITIONED
+  RATHER THAN CALLED A DEBT:** 191 DEMONSTRATED, **6** undemonstrated, 13 NOT REACHABLE
+  from a `.py` source (each demonstrated executably by a direct gate, with a well-formed
+  control), 10 UNMATCHABLE by this instrument. Every one of those four numbers is a
+  measurement:
+  * the 13 were found by READING the undemonstrated list one by one instead of treating it
+    as N unwritten witnesses — four fire on shapes Module 5 itself builds, one is an API
+    parameter (`pure_ast.parse(type_comments=True)`) no source file can set;
+  * the 10 stay 10 because the obvious widening (a regex from all literal runs joined by
+    `.*`) was PROTOTYPED over the whole census and would move exactly ONE site — both
+    `Module1_Ingestor` empty-body raises share the 13-character "`: empty body", so no
+    threshold can tell them apart;
+  * and the census stopped rotting: `--append-new` runs only the witnesses with no row,
+    through the same helper as `--regenerate`, because the two-hour refresh is exactly the
+    pressure that makes someone hand-edit a TSV — **and a hand-written census row is a
+    measurement nobody made**. It found FOURTEEN uncensused witnesses, four of them from
+    before this evening.
+  * The most user-visible refusal in the system — `"PyCSL Syntax Error around line"` —
+    turned out to have NEVER BEEN SEEN TO FIRE: zero of 841 censused rows contained it,
+    because every corpus contract is well-formed by construction. Witness 1813.
+
 ### Planes added in the second half (37 -> 39 fast)
 
 * `bin/check-stdlib-identity-stubs.py` — the `return <param>` family: **81 stubs pinned by
