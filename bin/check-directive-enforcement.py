@@ -34,15 +34,18 @@ COVERAGE IS DERIVED, NOT LISTED. The directive population comes from
 only goes up, and the uncovered set is printed by name every run so the debt has members
 rather than a number.
 
-WHY THE UNCOVERED SET IS NOT JUST "NOT DONE YET". Nine directives have no pair, and the
-reason differs by kind. FIVE of them have no pair because **there is no violating program
+WHY THE UNCOVERED SET IS NOT JUST "NOT DONE YET". Eight directives have no pair, and the
+reason differs by kind. FOUR of them have no pair because **there is no violating program
 to write** — the directive has no enforced consequence, which is itself a result and is
-filed as a finding rather than papered over with a vacuous pair:
+filed as a finding rather than papered over with a vacuous pair.
 
-  * `mixin`           — neither documented consequence is enforced; a class named in
-                        `#@ compose_from` need not carry the marker, and a `#@ mixin` class
-                        may be instantiated directly. See
-                        `getting-better/open-routes/finding-mixin-marker-has-no-teeth.md`.
+`mixin` used to head this list and no longer does: gen #31 gave it teeth on its
+compose-from half (`#@ compose_from` naming a class without the marker is refused), so the
+pair exists and is written below. Its OTHER documented half — "not instantiated directly"
+— is still unenforced, and the pair deliberately does not reach for it: a pair that passes
+on the half that works would make the directive look fully covered. See
+`getting-better/open-routes/finding-mixin-marker-has-no-teeth.md`.
+
   * `thread_entry`    — `ConcurrencyChecker` collects the names into `_thread_entries`,
                         which is never read; the IR key has no Module-6 consumer. The
                         UB-7.3 refusal fires identically with and without it.
@@ -101,7 +104,7 @@ DRIVER = os.path.join(ROOT, "src", "pycsl", "pycsl.py")
 # (#49) gen #31 — the floor. It starts at the number of pairs written in the commit that
 # introduced the plane, and only ever rises. A directive whose pair is DELETED, or a new
 # directive added to annotations.md without one, drops the fraction and turns this red.
-MIN_COVERED = 44
+MIN_COVERED = 45
 
 
 def population():
@@ -175,6 +178,14 @@ _MIX_ALGEBRA = (
     "    def run(self, k: int) -> int:\n        return self.handle_get(k)\n")
 _MIX_PROVIDER = (
     "\n#@ mixin\nclass CoreEmit:\n"
+    "    #@ shared_state program_ir: int\n%s"
+    "    #@ ensures \\result >= 0\n    #@ assigns \\nothing\n"
+    "    def emit(self, x: int) -> int:\n        return x if x >= 0 else 0\n\n")
+# The same provider WITHOUT `#@ mixin` — the violating half of the `mixin` pair. Kept as a
+# separate constant rather than a `.replace()` on the marked one so the two differ by a
+# literal line in the source of this file, where a reader can see it.
+_MIX_PROVIDER_UNMARKED = (
+    "\nclass CoreEmit:\n"
     "    #@ shared_state program_ir: int\n%s"
     "    #@ ensures \\result >= 0\n    #@ assigns \\nothing\n"
     "    def emit(self, x: int) -> int:\n        return x if x >= 0 else 0\n\n")
@@ -397,6 +408,23 @@ CASES = {
         _LOCK_ORDER_HDR % "lock_other, lock_counter",
         _LOCK_ORDER_HDR % "lock_counter, lock_other",
         ["--memory-model", "concurrent", "--strict-concurrent-checks", "--no-proof"]),
+    "mixin": (  # `#@ mixin` — this class is COMPOSABLE, and saying so is now required
+        # This directive was UNCOVERED until gen #31 and is the reason the plane grew a
+        # third kind of answer: both of its documented consequences were measured absent,
+        # so there was no violating program to write. The compose-side half is now a
+        # refusal (`PYCSL-SEM-COMPOSE-FROM-NOT-A-MIXIN`), so the pair exists. VIOLATE:
+        # `#@ compose_from` names `CoreEmit`, which does not carry the marker.
+        # SATISFY: the marker restored, everything else byte-identical.
+        #
+        # The OTHER documented half — "not instantiated directly" — is still unenforced,
+        # and the pair deliberately does NOT reach for it: a pair that passes on the half
+        # that works would make the directive look fully covered. See
+        # `getting-better/open-routes/finding-mixin-marker-has-no-teeth.md`.
+        _MIX_ALGEBRA % (_MIX_PROVIDER_UNMARKED % "    #@ provides emit\n",
+                        "depends_method", "CoreEmit, MapOps"),
+        _MIX_ALGEBRA % (_MIX_PROVIDER % "    #@ provides emit\n", "depends_method",
+                        "CoreEmit, MapOps"),
+        ["--memory-model", "hoare"]),
     "provides": (  # `#@ provides <m>` — THIS method is the provider a sibling depends on
         # VIOLATE: delete the marker and `emit` is still there, still verified, still
         # callable — but no longer OFFERED, so `MapOps`'s dependency has no provider and

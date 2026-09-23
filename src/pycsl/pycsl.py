@@ -933,6 +933,80 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _pend222 = []
             _ovl222 = False
 
+    # (#49) gen #31 — `#@ mixin` HAD NO ENFORCED CONSEQUENCE, IN EITHER DIRECTION.
+    # annotations.md §2.7 row 1: "Mixin — `#@ mixin` — `class` — Marks the class as a
+    # composable mixin (not instantiated directly)." Both halves were measured ABSENT:
+    #   * the flagship driver 0549 with `#@ mixin` DELETED from `CoreEmit` — still named in
+    #     `#@ compose_from CoreEmit, MapOps` — composed and verified exactly as before;
+    #   * a `#@ mixin` class instantiated directly verified too, and so did the same file
+    #     with the marker removed, so the two halves were indistinguishable.
+    # `ir_resolve.apply_composition` reads the names off the `#@ compose_from` line and
+    # never consults the marker. Found by `bin/check-directive-enforcement.py` while trying
+    # to write the directive's enforcement pair: there was no violating program to write,
+    # which is that plane's third kind of answer, filed as
+    # `getting-better/open-routes/finding-mixin-marker-has-no-teeth.md`.
+    #
+    # NOT A SOUNDNESS HOLE — the flatten-and-re-verify compensation (S2b, finding w66) does
+    # not depend on the marker, so deleting it removed a LABEL and not a check. What was at
+    # risk is the READING: "this class is a mixin, so it is never instantiated, so I need
+    # not reason about its `__init__` or its class invariant standing alone." That reading
+    # was unsupported, and a directive with no teeth is a directive a reader trusts for a
+    # guarantee that is not there.
+    #
+    # WHY HERE AND NOT IN `apply_composition`, WHICH IS WHERE IT BELONGS — MEASURED, NOT
+    # PREFERRED. The natural home reads `is_mixin` off the class's `type_decl`, and
+    # **`type_decls` IS EMPTY FOR EXACTLY THE CLASSES THAT ARE MIXINS**: a class with no
+    # fields and no `__init__` produces no record decl (its Why3 type is the `int` alias),
+    # and the flagship mixin shape has neither. Instrumented `apply_composition` on the
+    # violating file and it printed `DBG decls: [] mixins: ['CoreEmit', 'MapOps']` — the
+    # pass cannot see the marker it would need. `_run_pipeline` has the SOURCE TEXT, its
+    # mirror twin is `\trusted` and already in the raises-honesty population, and a `#@`
+    # line is a comment, so the choke-point rule (routes #206-#215, #222, #223) applies.
+    #
+    # CENSUS BEFORE LANDING (lesson d3): 17 sources declare `#@ mixin`, and ZERO name an
+    # unmarked class in a `#@ compose_from` list. Corpus-inert.
+    try:
+        _lines_mx = open(args.file, encoding="utf-8", errors="replace").read().splitlines()
+    except OSError:
+        _lines_mx = []
+    _mx_marked = set()        # class names carrying `#@ mixin`
+    _mx_composed = []         # (composer_line, [names]) from each `#@ compose_from`
+    _mx_pend = False          # a `#@ mixin` seen since the block started
+    for _i_mx, _ln_mx in enumerate(_lines_mx):
+        _st_mx = _ln_mx.strip()
+        if _st_mx.startswith("#@ "):
+            _cl_mx = _st_mx[3:].strip()
+            if _cl_mx == "mixin":
+                _mx_pend = True
+            elif _cl_mx.startswith("compose_from "):
+                _mx_composed.append((_i_mx + 1,
+                                     [_n.strip() for _n in
+                                      _cl_mx[len("compose_from "):].split(",")
+                                      if _n.strip()]))
+        elif _st_mx.startswith("class "):
+            if _mx_pend:
+                _mx_marked.add(_st_mx[len("class "):].split("(")[0].split(":")[0].strip())
+            _mx_pend = False
+        elif _st_mx and not _st_mx.startswith("#") and not _st_mx.startswith("@"):
+            _mx_pend = False
+    for _ln_no_mx, _names_mx in _mx_composed:
+        for _nm_mx in _names_mx:
+            if _nm_mx not in _mx_marked:
+                from errors import PyCSLSemanticError as _PyCSLSemErrMx
+                raise _PyCSLSemErrMx(
+                    "`#@ compose_from` (line %d) names '%s', which is not declared "
+                    "`#@ mixin`. A composable mixin must SAY SO: the marker is what tells a "
+                    "reader the class is flattened into a composer rather than used on its "
+                    "own, and composing a class that never claimed to be one silently "
+                    "changes what its `__init__` and its class invariant mean. Until this "
+                    "refusal the marker had no enforced consequence at all — the flagship "
+                    "0549 with it deleted composed and verified unchanged. FIX: put "
+                    "`#@ mixin` on the line before `class %s:`, or drop '%s' from the "
+                    "`#@ compose_from` list."
+                    % (_ln_no_mx, _nm_mx, _nm_mx, _nm_mx),
+                    filename=args.file, line=_ln_no_mx,
+                    stage="ir-semantic", code="PYCSL-SEM-COMPOSE-FROM-NOT-A-MIXIN")
+
     # (#49) gen #31 — A `#@ lemma` WITH NO `#@ assigns` CLAUSE AT ALL. annotations.md
     # §2.1.16 states five hard-error rules for a lemma; four were enforced and the fifth
     # only half was. `core_ir_semantic._check_lemma` rejects a DECLARED frame that is not

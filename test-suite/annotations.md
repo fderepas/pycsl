@@ -577,7 +577,7 @@ composer's record.
 
 | # | Directive | Syntax | Scope | Semantics |
 |---|---|---|---|---|
-| 1 | Mixin | `#@ mixin` | `class` | Marks the class as a composable mixin (not instantiated directly). See §2.7.1. |
+| 1 | Mixin | `#@ mixin` | `class` | Marks the class as a composable mixin. **A name in a `#@ compose_from` list MUST carry it** — `PYCSL-SEM-COMPOSE-FROM-NOT-A-MIXIN` (witness `1857`, control `1858`); until gen #31 the marker had no enforced consequence at all and the flagship `0549` with it deleted composed and verified unchanged. The second half of the old sentence — "not instantiated directly" — is **still not enforced**; see `getting-better/open-routes/finding-mixin-marker-has-no-teeth.md`. See §2.7.1. |
 | 2 | Provides | `#@ provides <m>` | method | Declares the method `<m>` is a provider satisfying a sibling's dependency. |
 | 3 | Shared state | `#@ shared_state <name>: <type>` | method | Declares `<name>` as **deliberately shared** facade state (multiple mixins may read/write it — not a conflict). D1. |
 | 4 | Touches field | `#@ touches_field <name>: <type>` | method | Declares `<name>` as an **owned** field the method may touch (at most one owner; two owners → conflict, Tier 2). D1. |

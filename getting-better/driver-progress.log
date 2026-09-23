@@ -6942,3 +6942,51 @@ is just text, and the plane would have died on `NameError` at the moment its gua
 i.e. only in the failure case it exists to handle. Caught by reading the file back rather
 than by the parse. >>> A GUARD THAT IS ONLY EXECUTED WHEN SOMETHING IS ALREADY WRONG HAS
 TO BE TESTED IN THE WRONG STATE, NOT THE RIGHT ONE.
+
+--------------------------------------------------------------------------------
+2026-09-23 18:08Z — `#@ mixin` GETS TEETH ON ITS COMPOSE-SIDE HALF; PLANE 44 -> 45
+--------------------------------------------------------------------------------
+
+The directive plane's third kind of answer was "NO, AND THERE IS NOTHING TO WRITE". One of
+those four is now answerable: `#@ compose_from` naming a class that does not carry
+`#@ mixin` is refused (`PYCSL-SEM-COMPOSE-FROM-NOT-A-MIXIN`), witness `1857`, control
+`1858`. `mixin` leaves the uncovered list; the plane is 45 of 53, rc=0.
+
+WHERE IT HAD TO GO IS THE INTERESTING PART, AND IT IS A MEASUREMENT. The natural home is
+`ir_resolve.apply_composition`, which already raises this exact family of error with good
+messages. It CANNOT work there: that pass would read `is_mixin` off the class's
+`type_decl`, and **`type_decls` is EMPTY for exactly the classes that are mixins** — a
+class with no fields and no `__init__` produces no record decl (its Why3 type is the `int`
+alias), and the flagship mixin shape has neither. Instrumented on the violating file the
+pass printed
+
+    DBG decls: [] mixins: ['CoreEmit', 'MapOps']
+
+so it cannot see the marker it would need. Two attempts were made and reverted (one keyed
+on `records`, which filters `kind == "record"`; one on all of `type_decls`) before the
+instrumentation was added — and the instrumentation is what turned a guess into a reason.
+The refusal went to `_run_pipeline` under the choke-point rule.
+
+A REPEAT OF MY OWN BUG, TWICE IN ONE DAY: the first `_run_pipeline` version read
+`_lines_lem`, a variable defined in a LATER block, so the scan ran over an empty list and
+the SATISFYING file was refused along with the violating one. The same mistake as the
+`verify_module` refusal this morning (`_lines_vm` before its definition). >>> A SOURCE-TEXT
+SCAN ADDED TO A LONG FUNCTION MUST READ ITS OWN LINES; borrowing a neighbour's variable
+works only until someone inserts the block above it, and in both cases "above" was me.
+
+CENSUS AND INERTNESS. 17 sources declare `#@ mixin`, ZERO name an unmarked class in a
+`#@ compose_from` list. All TEN corpus `#@ compose_from` drivers keep their exact verdicts
+AND their own refusal messages (0550 "dependency has NO provider", 0551 "writes
+`self.cache`", 0552 "provided by more than one mixin", 1259 route #95, 1814 element write;
+0549/0553/0554/1261 SUCCESS; 1260 FAILED). Byte-diff over the corpus: 2 MOVED, and BOTH are
+the PREVIOUS commit's intended change rather than this one — `1853`/`1854` lost a
+`requires { true }` in the claim-vacuity fix, and the diff is exactly those two lines plus
+the `(* linear *)` marker the changed contract shape carries. Both still verify. The mixin
+refusal itself moves nothing.
+
+STILL OPEN, and the pair deliberately does not reach for it: the other documented half of
+§2.7 row 1 — "not instantiated directly" — is unenforced. A pair that passed on the half
+that works would make the directive look fully covered. The capability is named in the
+finding: the marked-name set is already computed in `_run_pipeline`, so a constructor-call
+AST scan fits beside it; what has NOT been measured is whether any legitimate shape
+constructs a mixin, and that census comes first.
