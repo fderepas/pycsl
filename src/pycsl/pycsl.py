@@ -2969,8 +2969,34 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
                     sys.exit(1)
             print(success_msg)
 
+        # (#49) ROUTE #221 — `--fun` PROVES ONE FUNCTION AND CLAIMED THE MODULE.
+        # Under `--fun F` only F's goals are discharged; every callee's contract is ASSUMED
+        # at the call site and its OWN goals are never built. MEASURED: a callee whose body
+        # sets `self.v = 7` and declares NO `#@ assigns` gets the SYNTHESIZED frame
+        # `ensures { self.v = old self.v }` — invented by the emitter from the ABSENCE of a
+        # clause — and `--fun use` then proves `\result == 0` for a caller CPython answers
+        # -7, while the TRUE twin (`== -7`) fails and the SAME FILE WITHOUT `--fun` fails.
+        # It is not about dunders: corpus 1817's plain `enter` carries it.
+        #
+        # THIS IS REPAIR 1 OF THE THREE the route names, and it is the honest one rather
+        # than the complete one: the headline stops claiming the module. It does NOT make
+        # the claim true — discharging the callees' synthesized frames (repair 2), or
+        # refusing to synthesize a frame from silence under `--fun` (repair 3), is a
+        # decision about what `--fun` is FOR, and the route record leaves it to the owner of
+        # the flag. What changes here is that a reader can no longer take
+        # `All contracts formally proven` from a run that proved one function.
+        # Every gate in the battery runs the WHOLE-FILE proof, which is correct policy and
+        # exactly why nothing had ever measured what `--fun` ALONE certifies.
+        _fun221 = ", ".join(sorted(args.fun)) if getattr(args, "fun", None) else ""
+        _ok221 = ("\n[+] Verification SUCCESS! All contracts formally proven."
+                  if not _fun221 else
+                  "\n[+] Verification SUCCESS for %s ONLY (--fun): its own goals are proved, "
+                  "and the contract of every function it calls is ASSUMED, including any "
+                  "frame the emitter SYNTHESIZED from a missing `#@ assigns`. This is NOT a "
+                  "claim about the module — run without `--fun` for that (route #221)."
+                  % _fun221)
         if returncode == 0 and not unknown_goals and not invalid_goals and ("Valid" in output or not output):
-            _gate_vacuity_then_succeed("\n[+] Verification SUCCESS! All contracts formally proven.")
+            _gate_vacuity_then_succeed(_ok221)
         else:
             unproven_count = len(unknown_goals) + len(invalid_goals)
             rocq_proved = 0
@@ -2990,8 +3016,12 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
             remaining = unproven_count - rocq_proved
             if remaining <= 0 and rocq_proved > 0:
                 _gate_vacuity_then_succeed(
-                    f"\n[+] Verification SUCCESS! All contracts formally proven "
-                    f"({smt_proved} SMT + {rocq_proved} Rocq).")
+                    (f"\n[+] Verification SUCCESS! All contracts formally proven "
+                     f"({smt_proved} SMT + {rocq_proved} Rocq).") if not _fun221 else
+                    (f"\n[+] Verification SUCCESS for {_fun221} ONLY (--fun; {smt_proved} "
+                     f"SMT + {rocq_proved} Rocq): its own goals are proved, and the contract "
+                     f"of every function it calls is ASSUMED. NOT a claim about the module "
+                     f"(route #221)."))
             else:
                 if unknown_goals:
                     print(f"\n[-] {len(unknown_goals)} goal(s) remain unproven after all provers:")

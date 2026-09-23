@@ -55,7 +55,7 @@ DRIVER = os.path.join(ROOT, "src", "pycsl", "pycsl.py")
 # (#49) gen #31 — the floor. It starts at the number of pairs written in the commit that
 # introduced the plane, and only ever rises. A directive whose pair is DELETED, or a new
 # directive added to annotations.md without one, drops the fraction and turns this red.
-MIN_COVERED = 21
+MIN_COVERED = 24
 
 
 def population():
@@ -253,6 +253,41 @@ CASES = {
         _CONC_HDR + '    #@ critical lock_counter\n    with lock_counter:\n'
         '        counter = 1\n    return 0\n',
         ["--memory-model", "concurrent", "--strict-concurrent-checks", "--no-proof"]),
+    "no_inline": (  # `#@ no_inline` — verify the body ONCE, reuse the CONTRACT at callers
+        # VIOLATE: the body does not satisfy its own `ensures`, which must still be checked —
+        # the whole soundness argument for `no_inline` is that the callee stays a verified
+        # `let` (a false `ensures` fails AT the callee, nothing moves into the TCB). If this
+        # verified, the directive would be a `\trusted` in disguise.
+        _ANCHOR + '\n\n#@ no_inline\n#@ ensures \\result == 7\n#@ assigns \\nothing\n'
+        'def seven() -> int:\n    return 1\n\n\n'
+        '#@ ensures \\result == 7\ndef caller() -> int:\n    return seven()\n',
+        _ANCHOR + '\n\n#@ no_inline\n#@ ensures \\result == 7\n#@ assigns \\nothing\n'
+        'def seven() -> int:\n    return 7\n\n\n'
+        '#@ ensures \\result == 7\ndef caller() -> int:\n    return seven()\n', []),
+    "interface": (  # `#@ interface ensures ...` — the narrow contract importers see
+        # VIOLATE: an interface clause the DEFINITION does not imply. The narrowing VC
+        # (definition => interface) is emitted in the owning `let` and must fail.
+        _ANCHOR + '\n\n#@ ensures \\result == 7\n#@ interface ensures \\result == 9\n'
+        'def f() -> int:\n    return 7\n',
+        _ANCHOR + '\n\n#@ ensures \\result == 7\n#@ interface ensures \\result >= 1\n'
+        'def f() -> int:\n    return 7\n', []),
+    "label": (   # `#@ label L` + `\at(e, L)` — the value of `e` at the label point
+        # VIOLATE: the postcondition relates the post-write element to its value at the
+        # label with the WRONG offset (+3 where the body adds 2). If `\at` were lowered to
+        # the CURRENT value rather than the value AT the label, `arr[0] == \at(arr[0], PRE)`
+        # would be trivially true and a wrong offset would be the only thing that could
+        # fail — so the satisfying twin uses the RIGHT offset and must prove.
+        '# pycsl-flags: --memory-model typed\n' + _ANCHOR +
+        '#@ requires \\length(arr) >= 1\n'
+        '#@ ensures arr[0] == \\at(arr[0], PRE) + 3\n#@ ensures \\result == k\n'
+        'def bump_at(arr: list, k: int) -> int:\n    #@ label PRE\n'
+        '    arr[0] = arr[0] + 2\n    return k\n',
+        '# pycsl-flags: --memory-model typed\n' + _ANCHOR +
+        '#@ requires \\length(arr) >= 1\n'
+        '#@ ensures arr[0] == \\at(arr[0], PRE) + 2\n#@ ensures \\result == k\n'
+        'def bump_at(arr: list, k: int) -> int:\n    #@ label PRE\n'
+        '    arr[0] = arr[0] + 2\n    return k\n',
+        ["--memory-model", "typed"]),
     "allow_finalizer": (
         # WITHOUT the acknowledgement a `__del__` is refused (UB-7.5); with it, and with an
         # honest frame, the class verifies. Route #219's build made the BODY real too.

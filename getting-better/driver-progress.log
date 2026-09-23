@@ -6222,3 +6222,54 @@ to prevent, arriving from the opposite direction.
 >>> explicit path, and read the staged COUNT against the number of files you actually
 >>> touched before committing. The count is the check; 88 against 13 is visible at a glance
 >>> and nothing else in the workflow would have said a word.
+
+## 2026-09-23 11:30 UTC — ROUTE #221 REPAIR 1: `--fun` STOPS CLAIMING THE MODULE
+
+    [+] Verification SUCCESS for use ONLY (--fun): its own goals are proved, and the
+    contract of every function it calls is ASSUMED, including any frame the emitter
+    SYNTHESIZED from a missing `#@ assigns`. This is NOT a claim about the module — run
+    without `--fun` for that (route #221).
+
+replaces `All contracts formally proven.` whenever `--fun` is passed. The carrier STILL
+reports SUCCESS — the claim it makes is still assumed, and the route stays OPEN — but a
+reader can no longer take a module-wide sentence from a run that proved one function.
+
+>>> HONEST, NOT COMPLETE, AND THE DISTINCTION IS THE POINT. Repairs 2 (discharge the
+>>> callees' synthesized frames under `--fun`) and 3 (do not synthesize a frame from silence
+>>> under `--fun`) are decisions about what the flag is FOR. The reviewer who found the hole
+>>> is not the right person to decide that, and a repair that picks one would be a design
+>>> change wearing a bug fix. The route record keeps all three priced and unchosen.
+
+VERDICTS UNCHANGED: the six corpus files carrying `--fun` in their flags (0054, 0055,
+0164-0167) all still verify; all 8 open-route carriers still reproduce their ledger rows.
+
+## 2026-09-23 11:30 UTC — DIRECTIVE COVERAGE 23 of 53
+
+`no_inline` and `interface` join. `no_inline`'s violating half matters more than most: the
+whole soundness argument for the directive is that the callee stays a VERIFIED `let` (a false
+`ensures` fails AT the callee, nothing moves into the TCB). If its violation had verified,
+`no_inline` would have been a `\trusted` in disguise. It does not.
+
+## 2026-09-23 11:35 UTC — I CONCLUDED A LIVE PROCESS WAS DEAD BECAUSE MY INSTRUMENT
+##                        TRUNCATED THE DATA, AND LAUNCHED TWO DUPLICATES
+
+`ps -e -o etime,args --cols 44 | grep '[p]ycsl.py src/self-annotate'` returned NOTHING while
+the process was running. `--cols` truncates the output BEFORE grep sees it, and
+`src/self-annotate/...` sits past column 44 on a line that starts with the elapsed time and
+`timeout 43200 python3 ...`. The mirror re-proof campaign had been running for an hour and
+looked dead.
+
+I then relaunched it TWICE (once with `setsid nohup`, once as a tracked background task),
+which put THREE concurrent `core_ir_semantic` proofs on a 12-core box that was already
+running the reference suite. Killed the two duplicates by PID after listing the process table
+WITHOUT `--cols`; the original (PID 753137, 1h20m in) is untouched and still on
+`core_ir_semantic`.
+
+>>> THE LESSON IS THE CAMPAIGN'S OWN, TURNED ON MY OWN TOOLING: WHEN NEW EVIDENCE DOES NOT
+>>> MOVE A NUMBER, SUSPECT THE NUMBER'S COLLECTOR (lesson o3). "The process is gone" was new
+>>> evidence that contradicted "it was running a minute ago", and the collector was a
+>>> display-width flag I had added to keep the output short. Lesson (x2)'s sibling: a
+>>> formatting convenience is part of the instrument.
+>>> THE RULE: never grep `ps` output that has been width-limited. Use `-o pid,etime,args`
+>>> with no `--cols` and post-process with awk, or match on `pgrep -f`, which reads the full
+>>> command line by construction.

@@ -48,7 +48,8 @@ your own fix, and it will be right · **(f4)** a gate that can only run ONE flag
 cannot hold a route whose defect lives in another one. · **(g4)** the skip is exactly as
 wide as the claim beside it is wrong · **(h4)** a refusal's PLACEMENT has a cost the corpus
 byte-diff cannot see · **(i4)** `git add -A` is not safe in a tree that holds build
-exhaust — read the staged COUNT.
+exhaust — read the staged COUNT. · **(j4)** never grep output you have
+width-limited — a formatting convenience is part of the instrument.
 
 ### (f3) An exclusion you never tested is a guess — check whether the reason still applies
 
@@ -6109,3 +6110,28 @@ the opposite direction. A repository that deliberately tracks 990 build artifact
 **THE CHECK IS THE COUNT.** Stage by explicit path, and compare the staged file count with
 the number of files you actually edited before committing. 88 against 13 is visible at a
 glance, and nothing else in the workflow says a word.
+
+
+### (j4) Never grep output you have width-limited — a formatting convenience is part of the instrument
+
+    ps -e -o etime,args --cols 44 | grep '[p]ycsl.py src/self-annotate'
+
+returned NOTHING while the process was running. `--cols` truncates each line BEFORE grep sees
+it, and the match sat past column 44 on a line beginning with an elapsed time and
+`timeout 43200 python3 ...`. I concluded the mirror re-proof campaign had died after an hour,
+and relaunched it TWICE — putting three concurrent whole-file proofs of the same large mirror
+on a box that was already running the reference suite.
+
+This is lesson (o3) — *when new evidence does not move a number, suspect the number's
+COLLECTOR* — turned on my own tooling, and it is worth a letter of its own because the
+collector here was not a census script or a population filter. **It was a display-width flag
+I had added to keep the output short.** I chose it, in the same session, for readability, and
+then read its output as fact.
+
+The general form: any flag that shortens output is part of the measurement. `--cols`, `head`,
+`cut`, a `%.40s` format — each one can remove exactly the evidence the grep is looking for,
+and none of them reports that it did.
+
+**THE RULE: for process checks use `pgrep -f` (which matches the full command line by
+construction) or `ps -o pid,etime,args` with NO width limit and post-process with awk.** More
+generally, put the filter BEFORE the formatter, never after.

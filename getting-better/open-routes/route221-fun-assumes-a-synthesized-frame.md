@@ -1,4 +1,4 @@
-# Route #221 (OPEN) — `--fun` assumes a frame NOBODY WROTE and nothing checks
+# Route #221 (PARTIALLY CLOSED — the headline is honest; the claim is still assumed) — `--fun` assumes a frame NOBODY WROTE and nothing checks
 
 **Found:** 2026-09-23, gen #31, by the INDEPENDENT fable reviewer of the emit-dunders
 report — and explicitly recorded by the reviewer as a finding that is NOT about that build.
@@ -90,3 +90,29 @@ if the two ever disagree — because a flags entry that matches nothing is a car
 under the wrong flags and answering a different question. (The first draft keyed the lookup
 on the ABSOLUTE path while the table held relative ones, and the #221 carrier silently ran
 WITHOUT `--fun`, reported FAILED, and looked exactly like a closed route.)
+
+
+---
+
+## REPAIR 1 LANDED — 2026-09-23, gen #31: the headline stops claiming the module
+
+`--fun F` now prints
+
+    [+] Verification SUCCESS for F ONLY (--fun): its own goals are proved, and the contract
+    of every function it calls is ASSUMED, including any frame the emitter SYNTHESIZED from
+    a missing `#@ assigns`. This is NOT a claim about the module — run without `--fun` for
+    that (route #221).
+
+instead of `All contracts formally proven.` (and the equivalent for the SMT+Rocq form). The
+carrier still reports SUCCESS — the claim it makes is still assumed — and a reader can no
+longer take a module-wide sentence from a run that proved one function.
+
+**THIS IS THE HONEST REPAIR, NOT THE COMPLETE ONE, and the distinction is the point.**
+Repairs 2 (discharge the callees' synthesized frames under `--fun`) and 3 (do not synthesize
+a frame from silence under `--fun`) are decisions about what the flag is FOR, and they belong
+to the owner of the flag, not to the reviewer who found the hole. The route stays OPEN with
+its three carriers unchanged, because the false proof is still obtainable; what changed is
+that the tool no longer describes it as a proof of the module.
+
+VERDICTS UNCHANGED: the six corpus files that carry `# pycsl-flags: ... --fun` (0054, 0055,
+0164-0167) all still verify, and the three route carriers still reproduce their ledger rows.
