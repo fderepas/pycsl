@@ -61,6 +61,14 @@ LIVE_IMPORT = os.path.join(ROOT, "src/pycsl")
 # Route #219's repair emits every dunder but `__init__`/`__new__`/`__post_init__`, so the
 # list narrows to exactly those, and the two mirror methods now carry honest `#@ \trusted`
 # markers (459 -> 461) instead of an exemption.
+#
+# (#49) gen #31 UPDATE — ONE OF THE TWO IS ALREADY RETIRED, 461 -> 460. Backlog #51
+# named its capability exactly: `_Tok.__repr__` had no return annotation, so the
+# emitter typed it `int` and the f-string body was a Why3 TYPE ERROR. Annotating the
+# LIVE twin `def __repr__(self) -> str:` (and the mirror to match, verbatim) makes it
+# PROVE, and the marker came off. `errors.py::PyCSLError.__str__` remains, and remains
+# `cost-scale:string-field-model` — it needs a faithful string-typed self-field model,
+# not an annotation.
 EXPECTED_ABSENT = ("__init__", "__new__", "__post_init__")
 
 # CLUSTER-EMITTED functions. Several recognizers emit a whole GROUP of mirror functions as

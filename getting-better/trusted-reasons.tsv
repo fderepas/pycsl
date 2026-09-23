@@ -111,7 +111,6 @@ frontend/Module2_Parser.py	_ContractParser._parse_atom_name	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_atom_bs	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_expr_list	unclassified	-
 frontend/Module2_Parser.py	Module2_Parser.parse_contract	unclassified	-
-frontend/Module2_Parser.py	_Tok.__repr__	cost-scale:return-annotation	the two mirror dunder markers
 frontend/Module3_Weaver.py	PyCSLWeaver._subst_var	unclassified	-
 frontend/Module3_Weaver.py	PyCSLWeaver._desugar_acts	unclassified	-
 frontend/Module3_Weaver.py	PyCSLWeaver._extract_mixin_directives	unclassified	-

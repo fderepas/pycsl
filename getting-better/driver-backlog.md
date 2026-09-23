@@ -139,6 +139,30 @@ RESOLVES them — which is exactly why each carries its retiring capability here
 NEITHER IS A CORRECTNESS BOUNDARY. Both are cost/scale, both name their capability, and the
 second is small enough to be a good first item for a window with spare budget.
 
+> **UPDATE 2026-09-23 12:2xZ — THE SECOND ONE IS DONE. 461 -> 460.** The capability was
+> named correctly and cost one line: `src/pycsl/frontend/Module2_Parser.py` now reads
+> `def __repr__(self) -> str:`, the mirror twin matches it verbatim, the `#@ \trusted`
+> marker came off, and `bin/count-trusted-directives.py` reports **markers 460 · attached
+> 460 · unattached 0**. `check-self-annotate-sync.sh` is green with the un-trusted mirror
+> population up 885 -> 886; `check-trusted-reasons.py` needed the ledger row at
+> `getting-better/trusted-reasons.tsv:114` deleted (it went orphan the moment the marker
+> did) and is green at 460 <-> 460; `check-untrusted-emitted.py` and
+> `check-trust-blast-radius.py` are green unmoved — the trust-free floor did NOT rise,
+> which is the honest outcome the blast-radius comment predicted: the method was
+> trust-DEPENDENT either way and what changed is that the marker no longer claims
+> otherwise.
+>
+> **FIRST CONVERSION SINCE GEN #30**, which had zero. The generalisable part is not the
+> annotation, it is where the item came from: the marker was created by a CORRECTION (a
+> method that had been counted as verified while never being emitted), the correction
+> wrote down the exact retiring capability at the moment of the correction, and the next
+> window read it and spent one line. A marker with a named capability is a queue item; a
+> marker without one is a wall.
+>
+> The FIRST bullet (`errors.py::PyCSLError.__str__`, `cost-scale:string-field-model`)
+> stands unchanged and is genuinely the harder one — it needs string-typed self fields in
+> the record model, not an annotation.
+
 
 ### #49 gen #30 STATE (2026-09-22, the 96h autonomous window) — READ FIRST
 

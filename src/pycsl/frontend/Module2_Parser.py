@@ -1181,7 +1181,7 @@ class _Tok:
         self.string = string
         self.start = start       # offset into source (for REVIEWER_ID re-scan)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"_Tok({self.type}, {self.string!r})"
 
 

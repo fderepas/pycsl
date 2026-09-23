@@ -60,6 +60,11 @@ MIN_TRUST_FREE = 538          # (#49) gen #31: 540 -> 538, and this is the ONE d
                               # `#@ \trusted` markers (459 -> 461). The trust-free set loses
                               # exactly those two.
                               #
+                              # gen #31 UPDATE: `_Tok.__repr__`'s marker is RETIRED
+                              # (461 -> 460) by annotating the live twin `-> str`, and
+                              # this floor did NOT move — the method is trust-DEPENDENT
+                              # either way, which is the point the paragraph below makes.
+                              #
                               # SO THE FLOOR DID NOT REALLY DROP — THE MEASUREMENT GOT
                               # HONEST. Both methods were trust-DEPENDENT-or-worse all along;
                               # what changed is that the marker now says so. Any FURTHER
