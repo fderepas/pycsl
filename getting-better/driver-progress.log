@@ -5968,3 +5968,129 @@ VERIFICATION AT 7f6fbe28:
 >>> emission loop, not after. A completion guard keyed on that file reported 13 GONE — all of
 >>> them files the sweep simply had not reached yet. The only honest completion signal is the
 >>> script's own final `emitted N of M` line (or an explicit ALLDONE marker).
+
+## 2026-09-23 10:45 UTC — ROUTE #222, FROM THE SECOND EARLY RETURN IN THE SAME DISPATCHER
+
+Route #219 came from the FIRST early return of `Module5_IREmitter.visit_FunctionDef` (the
+dunder skip). There are exactly two. The second is the `@overload` stub, and it had the same
+defect in a different clause:
+
+    #@ requires x > 100
+    @overload
+    def f(x: int) -> int: ...
+    #@ ensures \result == x
+    def f(x: int) -> int:  return x
+    #@ ensures \result == 0
+    def use() -> int:      return f(0)      # violates the declared precondition
+    [+] Verification SUCCESS! All contracts formally proven.
+
+`_synthesize_overload_guard` reads `csl_ensures` AND NOTHING ELSE. The emission proves the
+clause is not weakened but ABSENT — `let f (x: int) : int ensures { (result = x) } = x`. Move
+the identical clause to the IMPLEMENTATION and `f(0)` is correctly refused.
+
+SOUND, AND RECORDED AS A ROUTE ANYWAY. A dropped PRECONDITION proves the callee under a
+weaker assumption, so no caller gains anything false. What is wrong is the headline: a
+contract the user WROTE is enforced nowhere while the tool says `All contracts formally
+proven`. Refused rather than carried — deciding which arm's guard a precondition hides under
+is a design question, not something to settle inside a refusal.
+
+>>> TWO THINGS LET IT SURVIVE, and the second is the one worth carrying:
+>>> (1) `@overload` appears in ZERO corpus files. It has an implementation, a documented
+>>>     lowering and no witness of any kind; `check-clause-survival` can only measure files
+>>>     that exist. 1835 is the FIRST corpus file to exercise the construct at all.
+>>> (2) THE DOCUMENTATION DESCRIBED WHAT IS CARRIED AND LEFT THE READER TO SUPPLY THE REST.
+>>>     The concrete-syntax reference's `@overload` section details the `ensures` path
+>>>     carefully and says nothing about the other clauses. A reference that enumerates the
+>>>     handled cases without naming the unhandled ones reads as complete. The paragraph is
+>>>     now there, and it says what is REFUSED as well as what is carried.
+
+METHOD NOTE FOR THE NEXT WINDOW: "enumerate every EARLY RETURN in the dispatcher" (lesson d4,
+banked six hours earlier for repairs) turns out to be a ROUTE GENERATOR as well. Two early
+returns, two routes, same afternoon.
+
+## 2026-09-23 10:55 UTC — ROUTE #222's REFUSAL MOVED TO THE CHOKE POINT, AND A PLANE IS WHY
+
+The first placement was the natural one: `visit_FunctionDef`'s own early return. It passed
+fidelity (885 verbatim), passed the CORPUS byte-diff (0 MOVED over 1328 files), and still
+broke a ratchet: `check-trusted-raises-honesty` 62 -> 64 SILENT. The cause is worth stating
+exactly — adding a `raise` to a LIVE function whose MIRROR twin is `\trusted` and declares no
+`#@ raises` makes that stub silent about an exit path the live code now has, and TWO mirror
+files carry a `\trusted` stub named `visit_FunctionDef`, so ONE new raise counted TWICE.
+The mirror emission moved too (`exception PyCSLSemErr222` + `raises { ... }` in
+`frontend/__init__.mlw`).
+
+Moved to `_run_pipeline`, whose mirror twin is `\trusted` AND ALREADY IN THAT POPULATION:
+raises-honesty back to 62, mirror emission unchanged. That is the choke-point rule routes
+#206-#215 used, and the price is reading the clauses off the SOURCE TEXT rather than the AST
+(a `#@` line is a comment) — exactly as route #216's `conforms_to` scan already does.
+
+>>> THE GENERAL POINT, and it is about instruments rather than about this refusal: A
+>>> BYTE-DIFF OVER THE CORPUS CANNOT SEE A COST THAT LANDS IN THE MIRROR. The corpus sweep
+>>> was green and the change was still not free. The battery is what caught it, which is the
+>>> argument for running the WHOLE battery on a front-end change rather than the sweep alone
+>>> — the same argument lesson (b4) made this morning about the conformance goldens, arriving
+>>> from a third direction in one day.
+
+## 2026-09-23 11:05 UTC — ROUTE #223: THIRD ROUTE OF THE AFTERNOON FROM ONE QUESTION
+
+The generator is now explicit, and it has paid three times in a row:
+
+    WHAT DOES THIS DISPATCHER DECLINE TO VISIT, AND WHAT DID THE COMMENT BESIDE IT PROMISE
+    ABOUT THAT?
+
+    visit_FunctionDef, early return #1 (the dunder skip)      -> ROUTE #219
+    visit_FunctionDef, early return #2 (the @overload stub)   -> ROUTE #222
+    visit_ClassDef,    the Protocol branch                    -> ROUTE #223
+
+#223's signature, with the TRUE twin rejected:
+
+    class P(Protocol):
+        #@ ensures \result == 99
+        def m(self) -> int:
+            return 1                # the real answer, and it is not 99
+    class C(P): ...
+    #@ ensures \result == 99
+    def use() -> int:  c = C();  return c.m()
+    [+] Verification SUCCESS! All contracts formally proven.       (CPython: 1)
+
+The emission carries `val c__m (self: c) : int ensures { (result = 99) }` and `return 1`
+appears NOWHERE in the module. Drop the `(Protocol)` base and the identical class FAILS.
+
+>>> AND THIS ONE IS SHARPER THAN LESSON (t3)'s USUAL FORM. The comment did not merely fail
+>>> to mention the case — it ASSERTED THE OPPOSITE, as the justification for the skip: "The
+>>> protocol class body carries ONLY member declarations ... so skipping the walk is
+>>> correct." That is a CLAIM ABOUT PYTHON, and PEP 544 permits a default implementation.
+>>> A justification written beside a skip is the highest-yield thing in the file to
+>>> falsify, because THE SKIP IS EXACTLY AS WIDE AS THE CLAIM IS WRONG.
+
+Refused (`PYCSL-SEM-PROTOCOL-DEFAULT-IMPL`) rather than modelled: a member would be both a
+specification and a definition, and `#@ conforms_to` refinement is stated against the former.
+At `_run_pipeline` again — `_emit_protocol_interface`'s mirror twin is `\trusted` and has NO
+`raise` today, so a refusal there would have ADDED it to the raises-honesty SILENT
+population, which is the cost route #222 paid an hour earlier and did not pay twice.
+
+Witnesses 1837 (carrier) / 1838 (one token apart, still FAILS) / 1839 (a declaration-only
+protocol still VERIFIES — without it the repair is a ban on the feature). Refusal-witness
+floor 191 -> 193 across #222 and #223: each refusal landed WITH its witness, in one commit.
+
+## 2026-09-23 11:15 UTC — AND A REFUSAL THAT HAD NO EVIDENCE IT COULD FIRE, NOW HAS SOME
+
+`exec_splice.py:62` ("exec(...) splice rejects a nested exec(...)") is one of the five
+refusals `check-refusal-witness-coverage` counts as undemonstrated. Three spellings were RUN:
+`exec("exec('x=1')")` inside a function, the same at module scope, and
+`exec("if True:\n    x = 1")`. All three are refused FIRST by `Module3_Weaver`'s
+name-rebinding check (line 3287) — the weaver runs BEFORE `splice_constant_exec` in
+`_run_pipeline`. The plain `exec("x = 1")` DOES splice and VERIFIES, so the splice itself is
+live; it is the nested spelling that never arrives.
+
+Added as the seventh carrier of `check-frontend-ir-backstop-refusals.py`, called directly
+with a well-formed control, AND DELIBERATELY NOT RECLASSIFIED in the coverage plane.
+
+>>> THE ASYMMETRY IS THE POINT, and it is this morning's own lesson applied against my
+>>> inclination. Gen #31 upgraded the for-block empty-body site from (B) to (A) by PROVING a
+>>> single-construction-site invariant. Here there is no comparable invariant: the weaver's
+>>> check is a large accumulation over several unrelated shapes, and READING it is not the
+>>> same as BOUNDING it. "Three spellings are refused earlier" is exactly the sentence gen
+>>> #30 called weaker than "the front-end constructs the shape itself", and it still is when
+>>> I am the one who would benefit from the count moving. The undemonstrated ceiling stays
+>>> at 5.

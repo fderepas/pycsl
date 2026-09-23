@@ -712,6 +712,183 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     filename=args.file, line=_line216,
                     stage="ir-semantic", code="PYCSL-SEM-DUNDER-OVERRIDE-UNCHECKED")
 
+    # (#49) ROUTE #223 — A `Protocol` MEMBER'S BODY IS DISCARDED AND ITS CONTRACT IS
+    # ASSUMED, SO AN IMPLEMENTATION THAT CONTRADICTS ITS OWN CONTRACT CERTIFIES.
+    # `_emit_protocol_interface` emits each member as an `abstract: True` function — a
+    # bodyless `val` defined BY ITS CONTRACT, the refinement target (P1a) — and
+    # `visit_ClassDef` returns WITHOUT `generic_visit`, so the body is never visited. Its
+    # own comment states the premise: "the protocol class body carries ONLY member
+    # declarations ... so skipping the walk is correct", and the member's body is "`...`/
+    # `pass` by PEP 544 convention". PEP 544 also permits a DEFAULT IMPLEMENTATION, and
+    # when one is written the model keeps the CONTRACT and drops the CODE:
+    #
+    #     class P(Protocol):
+    #         #@ ensures \result == 99
+    #         def m(self) -> int:
+    #             return 1                 # the real answer, and it is not 99
+    #     class C(P):
+    #         def __init__(self) -> None: self.v: int = 0
+    #     #@ ensures \result == 99
+    #     def use() -> int:
+    #         c = C()
+    #         return c.m()
+    #     [+] Verification SUCCESS! All contracts formally proven.
+    #
+    # CPython answers **1**, and the TRUE twin (`\result == 1`) FAILS. The emission is the
+    # whole story — `val c__m (self: c) : int ensures { (result = 99) }`, an abstract val
+    # carrying the protocol's contract, with `return 1` nowhere in the module. Drop the
+    # `(Protocol)` base and the identical class FAILS, which is what makes this a route and
+    # not a missing feature: the checker works, and one token switches it off.
+    #
+    # REFUSED, NOT MODELLED. Emitting the default implementation AND keeping the abstract
+    # refinement target is a real design question (the member is both a specification and a
+    # definition, and `#@ conforms_to` refinement is stated against the former), and the
+    # honest interim answer is to reject the construct the model cannot carry rather than
+    # to trust it. A `...`/`pass` body — the convention the code already documents — is
+    # untouched, and so is every Protocol that declares members without implementing them.
+    #
+    # AT THE CHOKE POINT, for the reason route #222 learned an hour earlier: the natural
+    # site is `_emit_protocol_interface`, whose mirror twin is `\trusted` and contains NO
+    # `raise` today, so a refusal there would ADD it to
+    # `check-trusted-raises-honesty`'s SILENT population and move a ratchet. `_run_pipeline`
+    # is already in that population.
+    #
+    # CENSUS BEFORE LANDING (lesson d3): `class ...(Protocol)` occurs in 6 corpus files,
+    # 0 mirror, 0 live and 0 `pycsl_lib` sources, and NONE declares a member with a
+    # non-trivial body.
+    _proto223 = []
+    for _n223 in _ast.walk(unified_ast):
+        if not isinstance(_n223, _ast.ClassDef):
+            continue
+        _isp223 = False
+        for _b223 in _n223.bases:
+            _bn223 = (_b223.id if isinstance(_b223, _ast.Name)
+                      else (_b223.attr if isinstance(_b223, _ast.Attribute) else ""))
+            if _bn223 == "Protocol":
+                _isp223 = True
+                break
+        if not _isp223:
+            continue
+        for _m223 in _n223.body:
+            if not isinstance(_m223, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+                continue
+            _body223 = [_st223 for _st223 in _m223.body
+                        if not (isinstance(_st223, _ast.Expr)
+                                and isinstance(getattr(_st223, "value", None), _ast.Constant)
+                                and isinstance(_st223.value.value, str))]   # drop docstrings
+            if len(_body223) == 1:
+                _only223 = _body223[0]
+                if isinstance(_only223, _ast.Pass):
+                    continue
+                if (isinstance(_only223, _ast.Expr)
+                        and isinstance(getattr(_only223, "value", None), _ast.Constant)
+                        and _only223.value.value is Ellipsis):
+                    continue
+            if not _body223:
+                continue
+            _proto223.append((_n223.name, _m223.name, getattr(_m223, "lineno", 0)))
+    if _proto223:
+        _c223, _mn223, _l223 = _proto223[0]
+        from errors import PyCSLSemanticError as _PyCSLSemErr223
+        raise _PyCSLSemErr223(
+            "`Protocol` member '%s.%s' (line %d) has a DEFAULT IMPLEMENTATION, and a "
+            "protocol member is emitted as a bodyless `val` DEFINED BY ITS CONTRACT — the "
+            "refinement target every `#@ conforms_to` is checked against. The body would be "
+            "DISCARDED while the contract was ASSUMED, so a member whose code CONTRADICTS "
+            "its own contract would certify: measured, `#@ ensures \\result == 99` over "
+            "`return 1`, inherited by a conforming class, PROVED `\\result == 99` for a "
+            "call CPython answers 1, and the TRUE twin was rejected. Refusing instead of "
+            "trusting. FIX: give the member the `...` or `pass` body PEP 544 uses for a "
+            "protocol declaration and put the implementation in the conforming class, where "
+            "it is CHECKED against this contract — or drop the `Protocol` base, and the "
+            "class is verified as an ordinary class."
+            % (_c223, _mn223, _l223),
+            filename=args.file, line=_l223,
+            stage="ir-semantic", code="PYCSL-SEM-PROTOCOL-DEFAULT-IMPL")
+
+    # (#49) ROUTE #222 — AN `@overload` STUB CONTRIBUTES ONLY ITS `ensures`, AND EVERY
+    # OTHER CLAUSE WENT NOWHERE AND SAID NOTHING.
+    # `Module5_IREmitter._synthesize_overload_guard` reads `csl_ensures` and nothing else;
+    # the stub node is then discarded at `visit_FunctionDef`'s early return. MEASURED:
+    #     #@ requires x > 100
+    #     @overload
+    #     def f(x: int) -> int: ...
+    #     #@ ensures \result == x
+    #     def f(x: int) -> int:  return x
+    #     #@ ensures \result == 0
+    #     def use() -> int:      return f(0)      # violates the declared precondition
+    #     [+] Verification SUCCESS! All contracts formally proven.
+    # and the emission shows the clause is not weakened but ABSENT:
+    #     let f (x: int) : int  ensures { (result = x) }  =  x
+    # Move the identical clause to the IMPLEMENTATION and `f(0)` is correctly refused, so
+    # the precondition machinery was never broken — it was bypassed by WHERE the clause was
+    # written. Found by walking the SECOND early return of `visit_FunctionDef`; the FIRST
+    # was route #219.
+    #
+    # SOUND, AND REFUSED ANYWAY. Dropping a PRECONDITION proves the callee under a WEAKER
+    # assumption, so the body must discharge its own postcondition without it and no caller
+    # gains anything false. What is wrong is the headline: a contract the user WROTE is
+    # enforced nowhere while the run says `All contracts formally proven` — the sentence
+    # routes #216 and #219 turn on. Carrying a precondition into a guarded family is a real
+    # design question (which arm's guard does it hide under?) and a refusal is not where to
+    # answer it.
+    #
+    # WHY HERE AND NOT AT THE SITE. The natural home is `visit_FunctionDef`'s own early
+    # return. Placed there it adds a `raise` to a LIVE function whose mirror twin is
+    # `\trusted` and declares no `#@ raises`, which moves `check-trusted-raises-honesty`
+    # 62 -> 64 (TWO mirror stubs are named `visit_FunctionDef`, so one new raise counts
+    # twice) and would owe a `#@ raises` edit plus the re-proof of every mirror that calls
+    # them. `_run_pipeline`'s own mirror twin is `\trusted` AND ALREADY IN THAT POPULATION,
+    # so the refusal costs no marker, no emission move, no new definition and no new
+    # honesty entry — the CHOKE-POINT RULE, the same reasoning routes #206-#215 used.
+    # The cost is that the clauses must be read off the SOURCE TEXT rather than the AST
+    # (a `#@` line is a comment), exactly as route #216's `conforms_to` scan does below.
+    #
+    # CENSUS BEFORE LANDING (lesson d3): `@overload` occurs in ZERO corpus files, 1 mirror,
+    # 3 live and 1 `pycsl_lib` source, and NONE puts a non-`ensures` clause on a stub.
+    _OVL222 = ("requires", "assigns", "raises", "no_exception", "diverges", "variant",
+               "loop invariant", "loop variant", "class invariant")
+    try:
+        _lines222 = open(args.file, encoding="utf-8", errors="replace").read().splitlines()
+    except OSError:
+        _lines222 = []
+    _pend222 = []          # non-`ensures` clause names seen in the current `#@` block
+    _ovl222 = False        # an `@overload` decorator seen since the block started
+    for _i222, _ln222 in enumerate(_lines222):
+        _st222 = _ln222.strip()
+        if _st222.startswith("#@ "):
+            _cl222 = _st222[3:].strip()
+            for _k222 in _OVL222:
+                if _cl222 == _k222 or _cl222.startswith(_k222 + " "):
+                    _pend222.append(_k222)
+                    break
+        elif _st222.startswith("@") and _st222.lstrip("@").split("(")[0].strip().endswith("overload"):
+            _ovl222 = True
+        elif _st222.startswith("def ") or _st222.startswith("async def "):
+            if _ovl222 and _pend222:
+                _nm222 = _st222.split("def ", 1)[1].split("(")[0].strip()
+                from errors import PyCSLSemanticError as _PyCSLSemErr222
+                raise _PyCSLSemErr222(
+                    "`@overload` stub '%s' (line %d) carries `#@ %s`, and an `@overload` "
+                    "stub only ever contributes its `#@ ensures` clauses — each becomes "
+                    "the guarded postcondition `isinstance(p, T) ==> Q` on the "
+                    "IMPLEMENTATION, and the stub node itself is discarded. Every other "
+                    "clause would be DROPPED WITHOUT A WORD while the run still reported "
+                    "`All contracts formally proven`: measured, `#@ requires x > 100` on a "
+                    "stub left the call `f(0)` accepted, and the emitted `let f` carried no "
+                    "`requires` at all. Refusing instead of discarding. FIX: move the "
+                    "clause to the IMPLEMENTATION `def`, where it is enforced at every "
+                    "call site — the identical `#@ requires` there correctly refuses "
+                    "`f(0)`."
+                    % (_nm222, _i222 + 1, "`, `#@ ".join(sorted(set(_pend222)))),
+                    filename=args.file, line=_i222 + 1,
+                    stage="ir-semantic", code="PYCSL-SEM-OVERLOAD-CLAUSE-DISCARDED")
+            _pend222 = []
+            _ovl222 = False
+        elif _st222 and not _st222.startswith("#"):
+            _pend222 = []
+            _ovl222 = False
+
     # (#49) ROUTE #212 — THE MODULE-LEVEL CERTIFICATE. The importing unit believes every
     # contract of an imported module and nothing checks that the module was verified.
     # `--verify-imports` (OFF by default: no existing run changes) discharges the

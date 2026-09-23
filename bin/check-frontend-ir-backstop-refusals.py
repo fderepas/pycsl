@@ -65,11 +65,13 @@ GUARD_TEXT = [
     ("src/pycsl/frontend/Module3_Weaver.py", " in range(...)`: empty body"),
     ("src/pycsl/frontend/Module1_Ingestor.py", "`: empty body"),
     ("src/pycsl/frontend/pure_ast.py", "type_comments not yet implemented"),
+    ("src/pycsl/frontend/exec_splice.py", "splice rejects a nested exec"),
 ]
 
 
 EXPECTED_CARRIERS = ["span-missing", "callable-tag-no-arrow", "callable-tag-empty-part",
-                     "opaque-stmt", "type-comments-parse", "for-expand-empty-body"]
+                     "opaque-stmt", "type-comments-parse", "for-expand-empty-body",
+                     "exec-splice-nested"]
 
 
 def carriers():
@@ -79,6 +81,7 @@ def carriers():
     from frontend.Module2_Parser import ForExpand, Number
     from frontend.Module3_Weaver import PyCSLWeaver
     from frontend import pure_ast
+    from frontend.exec_splice import splice_constant_exec
 
     class _Dispatch(StatementEmissionMixin):
         """The dispatch is reached with no emitter state: the OpaqueStmt branch is taken
@@ -107,6 +110,26 @@ def carriers():
          lambda: PyCSLWeaver._desugar_for(
              [ForExpand(var="i", lo=Number(0), hi=Number(3), clauses=[])]),
          lambda: PyCSLWeaver._desugar_for([])),
+        # (#49) gen #31 — CATEGORY (B), and DELIBERATELY NOT RECLASSIFIED. The constant-exec
+        # splice refuses a NESTED `exec(...)`, and `check-refusal-witness-coverage` counts it
+        # as having no witness. Running it through the pipeline never reaches it: EVERY
+        # spelling tried (`exec("exec('x=1')")` in a function, the same at module scope, and
+        # `exec("if True:\n    x = 1")`) is refused FIRST by `Module3_Weaver`'s name-rebinding
+        # check at line 3287 — the weaver runs BEFORE `splice_constant_exec` in
+        # `_run_pipeline`. The plain `exec("x = 1")` DOES splice and verifies, so the splice
+        # itself is live; it is the nested spelling that never arrives.
+        # WHY THIS IS (B) AND NOT (A): "three spellings are refused earlier" is not "the
+        # front-end constructs the shape itself". Gen #31 upgraded `for-expand-empty-body`
+        # from (B) to (A) by PROVING a single-construction-site invariant; no comparable
+        # invariant has been established here — the weaver's check is a large accumulation
+        # over several unrelated shapes, and reading it is not the same as bounding it. So
+        # this carrier DEMONSTRATES the refusal can fire and the coverage plane's count is
+        # left alone. That asymmetry is the point of keeping the two categories apart.
+        ("exec-splice-nested", "msg", "splice rejects a nested exec",
+         lambda: splice_constant_exec(pure_ast.parse(
+             'def f():\n    x = 0\n    exec("exec(\'x = 1\')")\n')),
+         lambda: splice_constant_exec(pure_ast.parse(
+             'def f():\n    x = 0\n    exec("x = 1")\n'))),
     ]
 
 
@@ -300,13 +323,18 @@ def main():
 
     print("[*] frontend-ir-backstops: %d backstop refusal(s) DEMONSTRATED executably, "
           "each with a well-formed control that is accepted." % len(rows))
-    print("[+] frontend-ir-backstops: OK — ALL SIX are unreachable from a .py source: four "
+    print("[+] frontend-ir-backstops: OK — SIX of the seven are unreachable from a .py "
+          "source: four "
           "because the front-end builds the shape itself (span, callable tag, opaque "
           "stmt), one because `type_comments` is an API parameter the pipeline never "
           "passes, and the for-expand empty body because ForExpand has EXACTLY ONE "
           "construction site, guarded by `if not clauses: self._err(...)` (invariant "
           "re-derived from the shipping AST above). That is why corpus witness 1772 fires "
-          "[Module1] and not [Module3], and why gen #31 could reclassify the site.")
+          "[Module1] and not [Module3], and why gen #31 could reclassify the site. The "
+          "SEVENTH — the exec-splice nested-exec refusal — is demonstrated here and "
+          "DELIBERATELY NOT reclassified: every spelling tried is refused earlier by "
+          "Module3_Weaver's name-rebinding check, and 'three spellings are refused first' "
+          "is category (B), not the (A)-strength invariant the for-expand site earned.")
     return 0
 
 

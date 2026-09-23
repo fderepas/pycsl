@@ -142,7 +142,11 @@ CENSUS_TRUNC = 4000       # the writer's message cap. See the TRUNCATION GUARD b
                           # stored message of EXACTLY this length was cut, and a cut
                           # message silently un-witnesses every site whose fragment falls
                           # past the cut.
-MIN_WITNESSED = 191       # 58 at the first joined measurement; 67 after TEN witnesses were
+MIN_WITNESSED = 193       # (#49) gen #31: 191 -> 193 with routes #222 and #223, each
+                          # landing its refusal and its witness together. A refusal and its witness arrive
+                          # in ONE commit or the count is a promise; this floor is what
+                          # makes that a rule rather than a habit.
+                          # 58 at the first joined measurement; 67 after TEN witnesses were
                           # written the same day (Final F1/F2, three lemma arms, two
                           # assigns-region arms, `\length` on a dict, `\result` in a
                           # check, the happy `except` typo); 85 after 31 more; then 86

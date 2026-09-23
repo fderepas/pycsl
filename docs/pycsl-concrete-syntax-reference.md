@@ -1447,7 +1447,22 @@ is recognized at the front-end normalization seam
 Each stub synthesizes a **guard** `G_i = isinstance(p_i, T_i)` and, for each
 stub `#@ ensures Q_i`, a **guarded postcondition** `ensures { G_i ==> Q_i }`
 attached to the implementation's `contracts.ensures` (the stub itself is NOT
-emitted — its `...` body is discarded, R1). The `==>` implication is the
+emitted — its `...` body is discarded, R1).
+
+**`ensures` IS THE ONLY CLAUSE A STUB CONTRIBUTES, and any other is REFUSED
+(`PYCSL-SEM-OVERLOAD-CLAUSE-DISCARDED`, route #222).** `_synthesize_overload_guard`
+reads `csl_ensures` and nothing else, so a `#@ requires` / `#@ assigns` /
+`#@ raises` / `#@ no_exception` / `#@ diverges` / `#@ variant` written on a stub
+used to be thrown away WITH the stub node — silently, while the run still
+reported `All contracts formally proven`. MEASURED: `#@ requires x > 100` on a
+stub left a call `f(0)` accepted, and the emitted `let f` carried no `requires`
+at all; the identical clause on the IMPLEMENTATION correctly refuses that call.
+Dropping a precondition is SOUND (the callee is proved under a weaker assumption
+and no caller gains anything false) and it is refused anyway, because a contract
+the user wrote must be enforced somewhere or rejected — never quietly ignored.
+Put the clause on the implementation `def`, where it is enforced at every call
+site. This paragraph exists because its absence was half of route #222's cause:
+the section described what IS carried and left the reader to supply the rest. The `==>` implication is the
 existing CSL IMPL_OP (`Module2_Parser`), lowered to WhyML `->`; the
 `isinstance(p_i, T_i)` is the existing metatype-tag guard (`subtag (typeof p_i)
 <T_i tag>`, a WhyML bool). The implementation's single body proves each
