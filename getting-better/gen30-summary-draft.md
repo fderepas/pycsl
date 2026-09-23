@@ -569,7 +569,11 @@ the FUNCTION, not of the FILE** — twice in one night an edit was priced as exp
 because its FILE is a mirrored un-trusted twin, and both times the FUNCTION's twin was
 `\trusted`, so it owed no mirror copy and no re-proof: forty minutes against a day, and a
 cost estimate written without that one check reads later exactly like a cost that was
-measured.
+measured; (v3) **re-read the SOUNDNESS ARGUMENT your own witness makes, as a claim** —
+witness 1800's "a contractless `val` ... lets the caller prove LESS, never more" was true
+about the RESULT and silent about the FRAME, and the missing half is route #218: for every
+soundness argument about a CALL, say what it claims about the result and what it claims
+about the frame, SEPARATELY.
 
 ## A surface opened this generation: the `pycsl_lib` stdlib layer
 
