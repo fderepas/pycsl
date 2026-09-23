@@ -5214,3 +5214,55 @@ WHAT IS FAITHFUL, MEASURED RATHER THAN ASSUMED:
 So the residue R31 names is real, and its two reachable spellings are both blocked by
 emitter defects rather than by the refusal. Recorded as a LATENT hazard, not a route: the
 route standard is a false contract PROVING, and nothing proves here today.
+
+## 2026-09-23 00:45 UTC — ROUTE #216, FOUND BY CHASING AN UNDEMONSTRATED REFUSAL
+
+Trying to make `PYCSL-SUBTYPING-PAIR` fire produced something better than a witness.
+
+THE DECISIVE SIGNATURE — two files identical except for ONE IDENTIFIER, under
+`--check-behavioral-subtyping --memory-model hoare`:
+
+    class Base:      #@ ensures \result >= 5    def m(self) -> int: return 5
+    class Sub(Base): #@ ensures \result == 0    def m(self) -> int: return 0
+    -> [-] Verification FAILED, emission carries `goal sub__m_refines_base`. Correct.
+
+    the same file with `m` renamed to `__len__`
+    -> [+] Verification SUCCESS! All contracts formally proven.
+
+and the emitted module is, in full: `module PyCSL_Program … type sub = {  } end`. No
+methods, no pair, NO GOAL. CPython: `C().__len__()` is 0.
+
+THE SAME HOLE THROUGH THE OTHER DOOR: `#@ conforms_to` records its pairs in
+`Module5_IREmitter`, not in `ir_resolve.apply_inheritance`, and behaves identically (`m`
+FAILS with `goal c__m_refines_p`; `__len__` SUCCEEDS over `type p = {  }`). Two independent
+obligation recorders, one cause: the dunder DROP.
+
+WHY THE EXISTING GUARD MISSES IT. `PYCSL-SUBTYPING-PAIR` fires when a pair was RECORDED and
+cannot be RESOLVED, and its message names route #97 explicitly. Here the pair is NEVER
+RECORDED, because the dunder never becomes an emitted function a collector can see.
+**The guard covers "recorded but unresolvable" and not "never recorded", and the second is
+the reachable one.**
+
+BLAST RADIUS MEASURED: ZERO existing dunder override pairs in 1722 corpus files, 53 mirror,
+94 live, 104 `pycsl_lib`. The route is LATENT — and that is the argument for writing it
+down rather than against: a hole nothing in the corpus touches is a hole no gate will ever
+report, and `__len__`/`__eq__`/`__lt__` are the first methods a real user overrides.
+
+## 2026-09-23 00:50 UTC — AND THE PLANE THAT WOULD HAVE CAUGHT IT
+
+`bin/check-emitted-function-coverage.py`: for every corpus file with a fresh emission, did
+the source `def`s REACH the module? 912 compared, 1 ZERO-COVERAGE, 5 partial, 7 dropped
+functions — and **every dropped function in the entire corpus is a DUNDER**
+(`__del__`, `__hash__`, `__eq__`, `__new__`, `__enter__`). That clean partition is the
+ratchet: a non-dunder drop refuses.
+
+THE MATCHER TOOK THREE REPAIRS, each one removing a FALSE POSITIVE, and the header records
+all three so a future narrowing puts none of them back:
+  1. `let lemma NAME` — 0558/0581 read as zero-coverage.
+  2. a `py_` PREFIX on a module-level function — 0603 read as zero-coverage.
+  3. `with function NAME`, the second member of a `let rec … with …` mutual group —
+     0534/0966 appeared as NON-DUNDER DROPS, which is exactly the signal the plane refuses
+     on. It would have opened with a false alarm.
+
+>>> THAT IS (p3) A THIRD TIME: PRINT THE MEMBERS BEFORE YOU WRITE THE CEILING. Three
+>>> repairs, and the third would have produced a RED that was entirely mine.
