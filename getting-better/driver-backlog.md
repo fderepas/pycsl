@@ -34,6 +34,78 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #52 gen #31 AFTERNOON STATE (2026-09-23T18:10Z) — READ THIS BEFORE #50
+
+**THE GENERATOR THAT WORKED ALL DAY, in one sentence: TAKE A SENTENCE THE DOCUMENTATION
+STATES AS A RULE AND WRITE THE PROGRAM IT DESCRIBES.** It began as
+`bin/check-directive-enforcement.py` (does each `#@` directive BITE?) and turned out to be
+much broader than its name: it finds any gap between what a document SAYS and what the
+compiler DOES, in either direction. Today it produced, in order:
+
+  * **ROUTE #224 CLOSED** — a declared `#@ conforms_to` was UNCHECKED by default. Found by
+    the plane's first run in the morning, closed in the afternoon with the repair its own
+    record had priced: the refinement goal follows the DIRECTIVE, not
+    `--check-behavioral-subtyping`. Zero corpus verdict changes, byte-inert.
+  * **461 -> 460 markers** — the first `\trusted` conversion since gen #30, and it cost one
+    line: `def __repr__(self) -> str:` on the live `_Tok`, exactly as backlog #51 priced it.
+  * **FIVE REPAIRS of documented-but-unenforced rules**: `#@ verify_module`'s lowercase
+    name (a Why3 syntax error naming a synthesized symbol) AND its cross-group call (which
+    could not emit at all — the promised headline case); a frameless `#@ lemma`; the legacy
+    `class C(Generic[T])` spelling, which bypassed ALL FOUR TY3 loud-fails because a guard
+    made the recogniser's legacy branch DEAD CODE; the `Callable` C5 scope limit, which
+    missed the BARE collection names; and `#@ mixin`'s compose-side half.
+  * **THE DIRECTIVE PLANE 32 -> 45 of 53**, and it now runs in 90 seconds instead of 22
+    minutes (a thread pool; the pairs are independent).
+  * **FIVE FIDELITY PLANES that could pass on an EMPTY POPULATION** now carry floors, all
+    five negative-controlled against a missing mirror root.
+
+**WHAT TO READ FIRST IN THE NEXT WINDOW.** The open findings, each with its capability
+NAMED and its census DONE, in the order I would take them:
+
+  1. `finding-typeddict-local-is-built-as-a-dict-and-read-as-a-record.md` — a TypedDict
+     LOCAL is built as a dict and read as a record. The mechanism is one line of
+     `_typeddict_record_literal` ("the construction context is detected from
+     `_func_return_type`"). Census: ZERO corpus files declare a TypedDict local, so the
+     repair is byte-inert by construction. Wants one positive driver + a false twin.
+  2. `finding-mixin-marker-has-no-teeth.md`, the REMAINING half — a `#@ mixin` class may
+     still be INSTANTIATED directly. Census done by AST: 20 sources declare `#@ mixin`, 19
+     marked classes, ZERO constructor calls of any of them. The marked-name set is already
+     computed in `_run_pipeline` beside the compose-side refusal.
+  3. `finding-mutex-invariant-initial-check-unprovable.md` — the emitted
+     `_check_initial_lock_counter` asserts the invariant of an unconstrained `val ref`, so
+     `#@ mutex_invariant` cannot be discharged in ANY program, which is why all 19 corpus
+     drivers that declare one pass `--no-proof`. Fix: emit the module-level initialiser as
+     the ref's initial value.
+  4. `finding-reveal-is-unimplemented-across-modules.md` — `#@ reveal` is parsed, woven,
+     written into the IR and read by NO consumer; contract opacity is one-way. The
+     import-stub builder already chooses between definition and interface `ensures`; it
+     needs to consult the importing function's `reveal` list.
+  5. `finding-callable-scope-limit-not-enforced.md`, the REMAINING half — an UNKNOWN bare
+     class name in a `Callable` domain is silently `int`. Needs the Module 6
+     record/variant table, so the fix is "have Module 6 refuse an unresolved `callable:`
+     tag" rather than another Module 5 test.
+  6. `finding-hard-error-claims-audited.md` — a `match` over a `#@ datatype` that OMITS a
+     constructor is documented as a hard error and is not one (Why3 fills it with `absurd`,
+     so it is fail-closed but diagnosed badly). The refusal needs a census over guards,
+     or-patterns, `case _` and fall-through returns; THAT census is the work.
+
+**THE LEDGER OBSERVATION THE LAUNCH ASKED FOR.** Every finding today is FAIL-CLOSED.
+Nothing false has been proved since route #224, and three of the findings are sound only
+because WHY3'S TYPECHECKER catches the mismatch — the legacy-`Generic[T]` int-modelling,
+the bare-`Callable` domain, and the TypedDict local. That is not a design; it is the
+backend covering for a missing front-end rule, and it is the honest headline of the day.
+Route supply in the SEV-1 sense is thin. The conversion track is NOT thinning by contrast:
+#51's second bullet was spent for one line, and its first (`errors.py::PyCSLError.__str__`,
+`cost-scale:string-field-model`) remains the named next one.
+
+**MEASUREMENTS AT THIS POINT.** Suite 3980/3998, the standing EIGHTEEN, ZERO XPASS. All 46
+fast planes green. `--slow` 69 of 71 earlier with both REDs since repaired. Module5 mirror
+re-proved whole-file. Mirror re-proof campaign 14 of 18 GREEN (`expressions.py` in flight,
+`pycsl.py` and `pure_ast.py` not yet started; `Module5_IREmitter.py` proved out of band).
+Six byte-diff sweeps, all inert except the two files whose `requires True` was
+deliberately removed.
+
+
 ### #50 gen #31 STATE (2026-09-23, the second 96h autonomous window) — READ FIRST
 
 **THE LIVE ITEM IS THE EMIT-DUNDERS BUILD**, and it is the first item in this campaign to
