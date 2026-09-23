@@ -42,6 +42,37 @@ implementation plan that survived Gate P. The three documents are
 `getting-better/emit-dunders-wall.md` (report), `-response.md` (the fable review, verdict
 PROCEED-WITH-NAMED-CHANGES) and `-impl.md` (the plan). Work the plan; do not re-spike it.
 
+**SEVEN ROUTES IN THE FIRST THREE HOURS, and the shape of where they came from matters
+more than the count — gen #31 found a GENERATOR and an INSTRUMENT, not seven defects:**
+  · **THE GENERATOR:** *what does this dispatcher decline to visit, and what did the comment
+    beside it promise about that?* `visit_FunctionDef`'s first early return gave #219, its
+    second gave #222, `visit_ClassDef`'s Protocol branch gave #223. Route #223 is the
+    sharpest: the comment did not merely omit the case, it ASSERTED THE OPPOSITE as the
+    justification for the skip ("the protocol class body carries ONLY member declarations").
+    A justification written beside a skip is the highest-yield thing in the file to falsify,
+    because THE SKIP IS EXACTLY AS WIDE AS THE CLAIM IS WRONG.
+  · **THE INSTRUMENT:** `bin/check-directive-enforcement.py` — *if I write this directive and
+    then violate it, does anything happen?* It found #224 on its FIRST RUN and a
+    documented-but-uncompilable `bounded_int(8)` on its second, with 36 of 53 directives
+    still uncovered. Every uncovered directive is another chance.
+  · **THE THIRD LESSON, about placement rather than about defects:** a refusal added at the
+    natural site can cost a trust ratchet that the CORPUS byte-diff cannot see. #222's first
+    draft, at `visit_FunctionDef`, moved `check-trusted-raises-honesty` 62 -> 64 while
+    passing fidelity AND 0 MOVED over 1328 files. Both #222 and #223 live at the
+    `_run_pipeline` choke point instead.
+
+**THE ROUTES:**
+  · **#218 CLOSED** — a skipped dunder's self-writes now frame the `val` its call mints.
+  · **#219 CLOSED** — every check, VC and UB detector was switched off by the method's NAME;
+    dunders are now EMITTED (all but `__init__`/`__new__`/`__post_init__`).
+  · **#220 CLOSED** — `x.__str__()` had its OWN recognizer, running BEFORE #218's repair.
+  · **#221 OPEN** — `--fun` assumes a SYNTHESIZED frame nobody wrote and nothing checks.
+  · **#222 CLOSED** — an `@overload` stub's non-`ensures` clauses went nowhere silently.
+  · **#223 CLOSED** — a `Protocol` member's BODY discarded while its CONTRACT was assumed.
+  · **#224 OPEN** — `#@ conforms_to` is UNCHECKED by default, with no warning.
+
+**(the gen #30 text below is kept for its method notes)**
+
 **FOUR ROUTES IN THE FIRST NINETY MINUTES, and the shape of where they came from matters
 more than the count:**
   · **#218 CLOSED** — a skipped dunder's self-writes now frame the `val` its call mints.

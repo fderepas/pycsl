@@ -55,7 +55,7 @@ DRIVER = os.path.join(ROOT, "src", "pycsl", "pycsl.py")
 # (#49) gen #31 — the floor. It starts at the number of pairs written in the commit that
 # introduced the plane, and only ever rises. A directive whose pair is DELETED, or a new
 # directive added to annotations.md without one, drops the fraction and turns this red.
-MIN_COVERED = 17
+MIN_COVERED = 19
 
 
 def population():
@@ -243,6 +243,30 @@ CASES = {
 }
 
 
+# (#49) gen #31 — THE SECOND SHAPE: ASSUMPTION DIRECTIVES, where "violate it" is not a
+# meaningful test because the directive's WHOLE PURPOSE is to make the compiler stop
+# checking something. `#@ \trusted` says "assume this body's contract"; a body contradicting
+# its contract under `\trusted` VERIFYING is the directive WORKING, not a defect, and the
+# pair above would call it broken.
+#
+# So these get an INVERTED pair, which still has two sides and still proves the directive
+# DOES SOMETHING: the program WITHOUT the directive must NOT verify, and the SAME program
+# WITH it must verify. A directive that is silently ignored fails the second half; a
+# directive that is a no-op fails the first. Keeping the two shapes in separate tables
+# rather than flagging rows inside one is deliberate — the question each answers is
+# different, and a reader should not have to check a boolean to know which one a row is.
+ASSUMPTION_CASES = {
+    "\\trusted": (
+        _ANCHOR + '\n\n#@ ensures \\result == 99\ndef f() -> int:\n    return 1\n',
+        _ANCHOR + '\n\n#@ \\trusted\n#@ ensures \\result == 99\n'
+        'def f() -> int:\n    return 1\n', []),
+    "\\abstract": (
+        _ANCHOR + '\n\n#@ ensures \\result == 99\ndef f() -> int:\n    return 1\n',
+        _ANCHOR + '\n\n#@ \\abstract\n#@ ensures \\result == 99\n'
+        'def f() -> int:\n    return 1\n', []),
+}
+
+
 def verdict(src, flags):
     fd, path = tempfile.mkstemp(suffix=".py", prefix="direnf_", dir="/tmp")
     try:
@@ -283,7 +307,13 @@ def main():
               "broken. THIS IS A REFUSAL, NOT A PASS." % len(pop), file=sys.stderr)
         return 2
 
-    unknown = sorted(set(CASES) - pop)
+    unknown = sorted((set(CASES) | set(ASSUMPTION_CASES)) - pop)
+    both = sorted(set(CASES) & set(ASSUMPTION_CASES))
+    if both:
+        print("[!] directive-enforcement: REFUSING — %d directive(s) appear in BOTH tables: "
+              "%s. A directive is either enforced or assumed; being counted twice inflates "
+              "coverage." % (len(both), ", ".join(both)), file=sys.stderr)
+        return 2
     if unknown:
         print("[!] directive-enforcement: REFUSING — %d case(s) name a directive that is NOT "
               "in annotations.md: %s. A case that matches no directive is testing something "
@@ -305,8 +335,22 @@ def main():
         elif args.verbose:
             print("    ok       %-28s violate=%-8s satisfy=SUCCESS" % (name, v_got))
 
-    covered = len(CASES)
-    uncovered = sorted(pop - set(CASES))
+    for name in sorted(ASSUMPTION_CASES):
+        without, with_, flags = ASSUMPTION_CASES[name]
+        w_got, w_out = verdict(without, flags)
+        d_got, d_out = verdict(with_, flags)
+        if w_got == "SUCCESS":
+            bad.append((name, "the program WITHOUT the directive already verifies — the "
+                        "pair proves nothing about the directive", w_out))
+        elif d_got != "SUCCESS":
+            bad.append((name, "the program WITH the directive does not verify (%s) — the "
+                        "assumption directive is not doing what it says" % d_got, d_out))
+        elif args.verbose:
+            print("    ok       %-28s without=%-8s with=SUCCESS  (assumption)"
+                  % (name, w_got))
+
+    covered = len(CASES) + len(ASSUMPTION_CASES)
+    uncovered = sorted(pop - set(CASES) - set(ASSUMPTION_CASES))
     if args.list_uncovered:
         for d in uncovered:
             print("    uncovered  %s" % d)
