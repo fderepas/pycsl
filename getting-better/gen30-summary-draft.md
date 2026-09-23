@@ -6,11 +6,24 @@
 
 ## §A.3 SUMMARY — the four things the skill asks for
 
-**ROUTES RESOLVED.** Twenty-six SEV-1 routes demonstrated (#191–#215): **twenty-three
+**ROUTES RESOLVED.** Twenty-seven SEV-1 routes demonstrated (#191–#216): **twenty-three
 CLOSED** with a refusal or a faithful lowering, each carrying an expected-FAIL witness and
-a PASS control, and **three OPEN** (#212, #213, #214) — demonstrated, priced, and left
+a PASS control, and **four OPEN** (#212, #213, #214, #216) — demonstrated, priced, and left
 open deliberately because every candidate repair was measured and found worse than the
-defect. The open ones have carriers outside the corpus and a plane that runs them.
+defect, or (for #216) because pricing it needs a byte-diff this window did not run. The
+open ones have carriers outside the corpus and a plane that runs them.
+
+**ROUTE #216 WAS FOUND BY CHASING AN UNDEMONSTRATED REFUSAL, on the last night.** Two files
+identical except for ONE IDENTIFIER, under `--check-behavioral-subtyping`: `Sub.m` returning
+0 against `Base.m`'s `\result >= 5` FAILS, with `goal sub__m_refines_base` in the emission.
+Rename `m` to `__len__` and it reports **"All contracts formally proven"** over a module
+whose entire body is `type sub = {  }` — no methods, no override pair, NO GOAL. `#@
+conforms_to` has the same hole through a different recorder. It is route #97's family (the
+substitutability obligation never recorded, so never checked) with a new trigger, and the
+guard written for #97 misses it because **it covers "recorded but unresolvable" and not
+"never recorded"**. Blast radius measured: ZERO existing dunder override pairs anywhere in
+the repository, so it is LATENT — which is the argument for writing it down, not against:
+`__len__`, `__eq__` and `__lt__` are the first methods a real user overrides.
 
 **ROUTE #215 CAME OUT OF THE ADVICE AUDIT, WHICH IS THE POINT OF THE AUDIT.** Following
 monomorphize's GT4 advice ("the recursive call must use a concrete type") produced a file
