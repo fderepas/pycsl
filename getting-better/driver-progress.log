@@ -5329,3 +5329,65 @@ uncensused since before tonight, so "827 censused" was already stale by four.
     220 raise sites · 841 censused · 188 DEMONSTRATED (was 184) · 10 undemonstrated (was 13)
 
 Both ratchets tightened to the measurement. FAST BATTERY at 66d67dcb: **all 44 green.**
+
+## 2026-09-23 03:00 UTC — THE FINAL --slow BATTERY, AND THE ONE RED IT FOUND WAS MINE AGAIN
+
+`[!] soundness-planes: 1 of 69 RED — check-clause-survival.py(rc=1)` at b3d15b87. The
+deficit was route #216's own PASS control 1807, whose `Only.__len__` carries
+`#@ ensures \result >= 5` and is dropped from emission exactly as witness 1800's
+`__enter__` is. Ledgered with its evidence, which the plane re-checks rather than believes.
+
+BUT THE TOTAL RATCHET HAD NOW MOVED THREE TIMES (2 -> 3 -> 4), AND EVERY MOVE WAS CAUSED BY
+ADDING A WITNESS THAT PINS THE GAP THE PLANE MEASURES. A gate whose number must be
+hand-edited every time the campaign does its job trains the driver to edit numbers — which
+is what rule (k) exists to stop. So the constant stopped being a constant: the total is now
+`len(KNOWN_DEFICITS)`, which can only grow by adding a LEDGER ENTRY, and an entry is only
+honoured when the plane confirms its evidence. `MAX_UNEXPLAINED = 0` is untouched.
+
+    914 compared · 4 deficits · 4 EXPLAINED · 0 UNEXPLAINED
+
+`check-emitted-function-coverage` (new, in the battery for the first time): 914 compared,
+1 zero-coverage, 6 partial, 8 dropped functions, **0 non-dunder**.
+
+## AND THE LAST TEN UNDEMONSTRATED REFUSALS, READ ONE BY ONE
+
+Three were writable and are now written:
+
+  * **1811** — the `happy ... reads` policy's DYNAMIC-exec refusal. A CONSTANT
+    `exec("y = 1")` never reaches it: `splice_constant_exec` replaces it with its parsed
+    body BEFORE the weaver runs, so no `exec` Call node survives. Measured — that file
+    VERIFIES. The witness must use `exec(s)`. (n3) again, and in its purest form yet: an
+    earlier PASS retires a later check.
+  * **1812** — the inliner's expression-position refusal.
+  * **1813** — a malformed `#@` CONTRACT. `"PyCSL Syntax Error around line"` is the most
+    user-visible refusal in the system, and **ZERO of the 841 censused rows contained it**,
+    because every corpus contract is well-formed by construction. It had never been seen
+    to fire.
+
+One became a sixth executable carrier: `pure_ast.parse(..., type_comments=True)`, where
+`type_comments` is an API PARAMETER no source file can set.
+
+Three were diagnosed and LEFT, with the reason recorded: the for-expand empty body (owned
+by Module1's block check), the nested-exec rejection (owned by the name-value check), and
+the inline-DEPTH refusal — a finite chain converges in far fewer than 16 passes and a cycle
+is caught by the recursive-method refusal first, so it is guarded on both sides.
+
+    220 raise sites · 844 censused · 191 DEMONSTRATED (was 184 this evening) · 6
+    undemonstrated (was 17) · 13 not source-reachable · 10 unmatchable
+
+AND THE TEN UNMATCHABLE ARE TEN BY MEASUREMENT. The obvious widening — a regex from all
+literal runs joined by `.*` — was prototyped over the whole census and would move exactly
+ONE site. Both `Module1_Ingestor` empty-body raises share the 13-character "`: empty body",
+so no threshold can tell them apart, and two sites have no literal at all. That is in the
+source now so nobody repeats the experiment.
+
+FAST BATTERY at bdad06a8: **all 44 green.**
+
+## PRICED AND DECLINED: A REFUSAL FOR THE LIST-REBIND ILL-TYPEDNESS (1804's shape)
+
+The tempting repair for 1804 is to refuse the shape that emits an undeclared `a_len`.
+MEASURED across all four populations: a local bound from a list literal more than once
+occurs in **3 corpus functions, 7 mirror functions and 37 live ones**; narrowed to "a
+NON-EMPTY literal assigned to a name bound elsewhere" it is still **6 mirror and 32 live**.
+A blanket refusal BREAKS THE MIRROR — which is precisely the mistake route #213's revert
+was made of. Declined, with the numbers, and 1804 stands as the tripwire instead.
