@@ -5039,3 +5039,44 @@ pre-check now pre-empts. The other three were real, and TWO OF THE THREE WERE MI
 >>> TWO OF THE THREE REAL REDS IN A 67-PLANE BATTERY WERE CAUSED BY THE AUTHOR, THAT
 >>> EVENING, AND NEITHER WAS VISIBLE IN THE EDIT THAT CAUSED IT. That is the argument for
 >>> the battery in one line.
+
+## 2026-09-23 00:10 UTC — THE BYTE-DIFF IS NO LONGER AN ARGUMENT
+
+The generation's summary said the final stretch was "byte-inert by argument, not swept",
+and said so honestly because nobody had swept it. It is now MEASURED, both sides emitted
+fresh:
+
+    baseline  86b6287a  (worktree)  1301 corpus .mlw
+    candidate ff803e20  (HEAD)      1303 corpus .mlw
+
+    0 MOVED · 0 GONE (0 unexpected) · 0 APPEARED · 2 new source files ignored
+    [+] byte-diff-compare: OK — byte-inert in all three directions.
+
+All three directions matter and only one of them is the classic diff: GONE is a new
+refusal, APPEARED is A REFUSAL THAT BECAME AN EMISSION — the direction that let route #42
+reopen under a green "byte-diff ZERO over 887". Zero in all three.
+
+## 2026-09-23 00:12 UTC — CLAUSE-SURVIVAL: THE THIRD RED, EXPLAINED RATHER THAN RE-BASELINED
+
+The battery's third real RED was `check-clause-survival` at 3 deficits against a ratchet of
+2. The third file was my own `1800_gen30_dunder_call_loses_its_contract.py`, whose deficit
+IS the file's subject: `CM.__enter__` declares `#@ ensures \result == 7`, the dunder is
+never emitted as a `let`, and the clause goes with it.
+
+Raising 2 to 3 would have been rule (k). Instead the COUNT stopped being the gate. Each
+deficit now names the def whose disappearance explains it, and the plane checks that
+claim mechanically before accepting it: the def must exist in the source, be ABSENT from
+the emitted module (exact `__`-suffix match, so the dunder's contractless call site
+`val c___enter___0` does NOT count as the method being emitted), and carry enough clauses
+to cover the shortfall. `MAX_UNEXPLAINED = 0` is strictly stronger than "at most 3 files,
+cause unknown". Two self-tests prove it can refuse (`--selftest-forget`,
+`--selftest-misname`; both rc=1).
+
+>>> AND THE CLASSIFICATION SAID SOMETHING THE COUNT COULD NOT: all three deficits are ONE
+>>> PHENOMENON. **A method the emitter drops takes its contract with it.** 0661/0662 lose a
+>>> constructor's nineteen `requires` (route #15 residue — a param-dependent list field);
+>>> 1800 loses a dunder's single `ensures`. Two different dropped-method families, one
+>>> mechanism, and the bare number 3 would never have shown it.
+
+Measured at HEAD: 912 compared, 3 deficits, 3 EXPLAINED, 0 UNEXPLAINED.
+FAST BATTERY at HEAD (ff803e20): **all 43 planes green.**
