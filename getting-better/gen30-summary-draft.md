@@ -1,4 +1,4 @@
-# gen #30 — summary DRAFT (to be finalised at the deadline, §A.3)
+# gen #30 — SUMMARY (finalised at the deadline, §A.3; 2026-09-23T07:59Z)
 
 **Branch** `ghost-assign-bc6`. Nothing pushed; pushing stays gated to the user.
 
