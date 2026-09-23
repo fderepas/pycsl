@@ -6900,3 +6900,45 @@ soundness rests on the BACKEND's typechecker rather than on a rule in PyCSL, aft
 legacy-`Generic[T]` and bare-`Callable`-domain ones. That pattern is worth naming on its
 own: when a front-end rule is missing, what usually saves the campaign is Why3, and Why3
 is not part of the specification.
+
+--------------------------------------------------------------------------------
+2026-09-23 17:31Z — FIVE PLANES COULD PASS ON AN EMPTY POPULATION
+--------------------------------------------------------------------------------
+
+The #44 rule — *a gate that cannot tell "nothing is wrong" from "I looked at nothing" is
+not a gate* — is already carried by `byte-diff-sweep.sh` (its 900-source floor),
+`run-soundness-planes.sh` (MIN_PLANES) and `check-directive-enforcement.py` (its
+derived-population refusal). Sweeping every `bin/check-*.py` for the pattern found FIVE
+that do not carry it, and they are not marginal ones — they are the FIDELITY plane family:
+
+    check-mirror-field-parity.py    verdict "0 NEW drift"
+    check-mirror-signature-drift.py verdict "0 drift"           (population NEVER PRINTED)
+    check-mirror-coverage.py        verdict "unmirrored <= ratchet"
+    check-untrusted-emitted.py      verdict "0 re-abstracted, 0 absent"
+    check-trusted-frame-honesty.py  verdict "model-visible <= ratchet" (FOUR upper bounds)
+
+Every one of those verdicts is an UPPER BOUND, and an empty comparison satisfies an upper
+bound perfectly. Move `MIRROR_ROOT`, rename the mirror tree, break a `**/*.py` glob, and
+each prints a green over a measurement nobody made. `check-mirror-signature-drift` was the
+sharpest case: it printed the DRIFT count and nothing else, so its output contained no
+number that could reveal an empty walk.
+
+Each now carries a FLOOR ON THE POPULATION (not on the defect count) and REFUSES with rc=2:
+
+    field-parity      MIN_COMPARED = 300            measured 335 fields
+    signature-drift   MIN_COMPARED = 1200           measured 1265 pairs (now printed)
+    mirror-coverage   MIN_LIVE_DEFS = 1600, MIN_MIRRORED_FILES = 50   measured 1823 / 53
+    untrusted-emitted MIN_UNTRUSTED = 750           measured 861
+    frame-honesty     MIN_NOTHING_DECLARERS = 400   measured 254 + 499 = 753
+
+NEGATIVE-CONTROLLED, ALL FIVE, which is the half that makes this a measurement rather than
+an intention: a copy of each with its mirror root pointed at `/tmp/does-not-exist-xyz`
+exits **rc=2** and says "THIS IS A REFUSAL, NOT A PASS". Before the change every one of
+those five would have exited 0.
+
+One mistake worth recording because it type-checked: the frame-honesty constant first
+landed INSIDE the module docstring — `ast.parse` was happy, because a constant in a string
+is just text, and the plane would have died on `NameError` at the moment its guard fired,
+i.e. only in the failure case it exists to handle. Caught by reading the file back rather
+than by the parse. >>> A GUARD THAT IS ONLY EXECUTED WHEN SOMETHING IS ALREADY WRONG HAS
+TO BE TESTED IN THE WRONG STATE, NOT THE RIGHT ONE.

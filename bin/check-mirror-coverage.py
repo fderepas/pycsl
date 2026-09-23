@@ -80,6 +80,10 @@ def _defs(root):
     return out
 
 
+MIN_LIVE_DEFS = 1600        # (#49) gen #31: measured 1823. A FLOOR on the POPULATION.
+MIN_MIRRORED_FILES = 50     # (#49) gen #31: measured 53 mirrored file(s).
+
+
 def main():
     live, mirror = _defs(LIVE), _defs(MIRROR)
     shared = [r for r in live if r in mirror]
@@ -96,6 +100,20 @@ def main():
         for r in sorted(missing, key=lambda k: -len(missing[k])):
             print("    %-44s %3d unmirrored  e.g. %s"
                   % (r, len(missing[r]), ", ".join(missing[r][:3])))
+
+    # (#49) gen #31 — ZERO-INPUT GUARD. Both ratchets below are UPPER bounds, and an empty
+    # walk satisfies an upper bound perfectly: a broken `LIVE`/`MIRROR` root or a renamed
+    # mirror tree yields 0 live defs, 0 shared files, 0 unmirrored defs, and the plane
+    # prints OK. The two floors below bound the POPULATION instead, so the plane refuses
+    # rather than passing on nothing — the #44 rule, already carried by
+    # `byte-diff-sweep.sh` (900 sources), `run-soundness-planes.sh` (MIN_PLANES) and
+    # `check-directive-enforcement.py` (its derived-population refusal).
+    if total < MIN_LIVE_DEFS or len(shared) < MIN_MIRRORED_FILES:
+        print("[!] mirror-coverage: REFUSING — %d live def(s) across %d mirrored file(s), "
+              "expected at least %d / %d. The walk is broken, so an unmirrored count of 0 "
+              "means nothing. THIS IS A REFUSAL, NOT A PASS."
+              % (total, len(shared), MIN_LIVE_DEFS, MIN_MIRRORED_FILES), file=sys.stderr)
+        return 2
 
     rc = 0
     if n_missing > MAX_UNMIRRORED_DEFS:

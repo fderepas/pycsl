@@ -96,6 +96,9 @@ def class_fields(path):
     return out
 
 
+MIN_COMPARED = 300          # (#49) gen #31: measured 335; a FLOOR, raise it with the mirror.
+
+
 def main() -> int:
     show = "--list" in sys.argv
     compared = 0
@@ -121,6 +124,20 @@ def main() -> int:
                 new.append(rec)
     print(f"[*] mirror-field-parity: {compared} class-level annotated field(s) compared; "
           f"{len(known)} known drift, {len(new)} NEW drift.")
+    # (#49) gen #31 — ZERO-INPUT GUARD. Without it this plane's whole verdict is "0 NEW
+    # drift", which an EMPTY comparison satisfies perfectly: move `MIRROR_ROOT`, break the
+    # `**/*.py` glob, or rename the mirror tree and the plane prints "0 fields compared; 0
+    # known, 0 NEW" and returns 0. A gate that cannot tell "nothing is wrong" from "I
+    # looked at nothing" is not a gate — the #44 rule, already applied to
+    # `byte-diff-sweep.sh` (its 900-source floor), `run-soundness-planes.sh` (MIN_PLANES)
+    # and `check-directive-enforcement.py` (its derived-population refusal), and missing
+    # here. 300 is below the measured 335 and the population only grows with the mirror.
+    if compared < MIN_COMPARED:
+        print(f"[!] mirror-field-parity: REFUSING — only {compared} field(s) compared, "
+              f"expected at least {MIN_COMPARED}. The mirror walk is broken, so "
+              f"\"0 NEW drift\" means nothing. THIS IS A REFUSAL, NOT A PASS.",
+              file=sys.stderr)
+        return 2
     if show:
         for d in known:
             print(f"    known  {d[0]}::{d[1]}.{d[2]}  live={d[3]}  mirror={d[4]}")

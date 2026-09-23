@@ -229,6 +229,13 @@ CONVERTED_TOTAL_RATCHET = 94  # 68 -> 133 at #31 by the SHARPER DETECTOR; 133 ->
                               # (`ConcurrencyChecker._walk_body`, the ONE offender this
                               # plane's own MODEL-VISIBLE predicate could not see -- see
                               # the note on `_visible` below). Every offender
+MIN_NOTHING_DECLARERS = 400   # (#49) gen #31 — a FLOOR on the POPULATION, and the only
+                              # one here: RATCHET, TOTAL_RATCHET, CONVERTED_RATCHET and
+                              # CONVERTED_TOTAL_RATCHET are all UPPER bounds, which an
+                              # EMPTY walk satisfies perfectly. Measured 1 trusted +
+                              # 499 converted = 500 methods declaring `#@ assigns
+                              # \\nothing`. Raise it as the mirror grows.
+
 LIVE_ROOT = "src/pycsl"
 MIRROR_ROOT = "src/self-annotate/src"
 
@@ -726,6 +733,14 @@ def main():
 
     t_stubs, t_off, t_vis = _population(True)
     _report("trusted-frame-honesty", t_stubs, t_off, t_vis)
+    # (#49) gen #31 — ZERO-INPUT GUARD. Every ratchet in this plane is an UPPER bound, and
+    # an empty population satisfies an upper bound perfectly: if the mirror walk breaks or
+    # `MIRROR_ROOT` moves, `_population` returns no stubs, no offenders, no visible ones,
+    # and the plane prints "[+] frame-honesty: OK — measured trusted 0 / 0, converted 0 / 0"
+    # over a measurement nobody made. The floor bounds the POPULATION — the `#@ assigns
+    # \nothing` DECLARERS, which is what the plane reads — not the offenders. The #44 rule,
+    # already carried by `byte-diff-sweep.sh` (900 sources), `run-soundness-planes.sh`
+    # (MIN_PLANES) and `check-directive-enforcement.py` (its derived-population refusal).
     _ratchet("trusted-frame-honesty",
              (("model-visible", len(t_vis), args.ratchet),
               ("total", len(t_off), args.total_ratchet)),
@@ -734,6 +749,12 @@ def main():
 
     c_stubs, c_off, c_vis = _population(False)
     _report("converted-frame-honesty", c_stubs, c_off, c_vis)
+    if len(t_stubs) + len(c_stubs) < MIN_NOTHING_DECLARERS:
+        print("[!] frame-honesty: REFUSING — only %d method(s) declare `#@ assigns "
+              "\\nothing` across both populations, expected at least %d. The mirror walk is "
+              "broken, so \"0 model-visible\" means nothing. THIS IS A REFUSAL, NOT A PASS."
+              % (len(t_stubs) + len(c_stubs), MIN_NOTHING_DECLARERS), file=sys.stderr)
+        return 2
     _ratchet("converted-frame-honesty",
              (("model-visible", len(c_vis), args.converted_ratchet),
               ("total", len(c_off), args.converted_total_ratchet)),

@@ -78,9 +78,21 @@ def _is_trusted(lines, fn) -> bool:
     return False
 
 
+MIN_COMPARED = 1200         # (#49) gen #31: a FLOOR on the POPULATION, not on the drift.
+
+
 def scan():
-    """[(rel, qualname, trusted, mirror_params, live_params)]"""
+    """([(rel, qualname, trusted, mirror_params, live_params)], compared_count)
+
+    (#49) gen #31 — the second return value is the POPULATION, and it exists because this
+    plane's whole verdict is "0 drift", which an EMPTY comparison satisfies perfectly. The
+    summary printed the DRIFT count and nothing else, so a broken `MIRROR`/`LIVE` root, a
+    renamed mirror tree or an `os.walk` that found no `.py` would all report
+    "0 function(s) whose mirror parameter list differs" and exit 0. A gate that cannot tell
+    "nothing is wrong" from "I looked at nothing" is not a gate (the #44 rule).
+    """
     out = []
+    nonlocal_compared = [0]
     for root, _d, fs in os.walk(MIRROR):
         for f in sorted(fs):
             if not f.endswith(".py"):
@@ -117,13 +129,14 @@ def scan():
                         if lf is None:
                             continue          # mirror-only scaffolding; not this check's job
                         mp, lpp = _params(n), _params(lf)
+                        nonlocal_compared[0] += 1
                         if mp == lpp:
                             continue
                         out.append((rel, (cls + "." if cls else "") + n.name,
                                     _is_trusted(lines, n), mp, lpp))
 
             walk(mt.body, None)
-    return out
+    return out, nonlocal_compared[0]
 
 
 def main() -> int:
@@ -132,7 +145,7 @@ def main() -> int:
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
-    drift = scan()
+    drift, compared = scan()
     renames = [d for d in drift if len(d[3]) == len(d[4])]
     missing = [d for d in drift if len(d[3]) < len(d[4])]
     extra = [d for d in drift if len(d[3]) > len(d[4])]
@@ -142,7 +155,13 @@ def main() -> int:
           f"list differs from the live one "
           f"({len(renames)} renamed, {len(missing)} missing a live parameter, "
           f"{len(extra)} with a parameter the live function does not have; "
-          f"{len(conv)} of them CONVERTED rather than `\\trusted`).")
+          f"{len(conv)} of them CONVERTED rather than `\\trusted`), "
+          f"over {compared} mirror/live signature pair(s) compared.")
+    if compared < MIN_COMPARED:
+        print(f"[!] mirror-signature-drift: REFUSING — only {compared} signature pair(s) "
+              f"compared, expected at least {MIN_COMPARED}. The mirror walk is broken, so "
+              f"\"0 drift\" means nothing. THIS IS A REFUSAL, NOT A PASS.", file=sys.stderr)
+        return 2
     for rel, q, tr, mp, lp in drift:
         kind = ("RENAMED" if len(mp) == len(lp)
                 else "MISSING" if len(mp) < len(lp) else "EXTRA")

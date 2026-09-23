@@ -69,6 +69,8 @@ LIVE_IMPORT = os.path.join(ROOT, "src/pycsl")
 # PROVE, and the marker came off. `errors.py::PyCSLError.__str__` remains, and remains
 # `cost-scale:string-field-model` — it needs a faithful string-typed self-field model,
 # not an annotation.
+MIN_UNTRUSTED = 750         # (#49) gen #31: measured 861. A FLOOR on the POPULATION.
+
 EXPECTED_ABSENT = ("__init__", "__new__", "__post_init__")
 
 # CLUSTER-EMITTED functions. Several recognizers emit a whole GROUP of mirror functions as
@@ -229,6 +231,18 @@ def main():
     print(f"[{'!' if bad_val or bad_absent else '+'}] untrusted-emitted: {total} un-trusted "
           f"function(s); {lets} emitted as definitions, {len(bad_val)} re-abstracted to "
           f"`val`, {len(bad_absent)} unexpectedly absent.")
+    # (#49) gen #31 — ZERO-INPUT GUARD. The verdict is "no `val`, no unexpected absence",
+    # and an EMPTY population satisfies both: if the mirror walk or the `.mlw` lookup
+    # breaks, `total` is 0, both lists are empty, and this plane prints `[+]` over a
+    # measurement nobody made. The floor bounds the POPULATION instead — the #44 rule,
+    # already carried by `byte-diff-sweep.sh`, `run-soundness-planes.sh` and
+    # `check-directive-enforcement.py`, and missing here until now.
+    if total < MIN_UNTRUSTED:
+        print(f"[!] untrusted-emitted: REFUSING — only {total} un-trusted function(s) "
+              f"found, expected at least {MIN_UNTRUSTED}. The mirror walk is broken, so "
+              f"\"0 re-abstracted, 0 absent\" means nothing. THIS IS A REFUSAL, NOT A "
+              f"PASS.", file=sys.stderr)
+        return 2
     return 1 if (bad_val or bad_absent) else 0
 
 
