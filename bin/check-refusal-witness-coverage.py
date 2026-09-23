@@ -142,17 +142,27 @@ CENSUS_TRUNC = 4000       # the writer's message cap. See the TRUNCATION GUARD b
                           # stored message of EXACTLY this length was cut, and a cut
                           # message silently un-witnesses every site whose fragment falls
                           # past the cut.
-MIN_WITNESSED = 188       # 58 at the first joined measurement; 67 after TEN witnesses were
+MIN_WITNESSED = 191       # 58 at the first joined measurement; 67 after TEN witnesses were
                           # written the same day (Final F1/F2, three lemma arms, two
                           # assigns-region arms, `\length` on a dict, `\result` in a
                           # check, the happy `except` typo); 85 after 31 more; then 86
                           # with witness 1762 — and 131 once the CENSUS ITSELF was
                           # repaired. FORTY-FIVE of the "missing" witnesses had been in
                           # the corpus all along. May only grow.
-MAX_UNWITNESSED = 10      # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
+MAX_UNWITNESSED = 6       # 140 -> 131 -> 113 by writing witnesses; 113 -> 67 by fixing
                           # the instrument; 67 -> 59 by DEMONSTRATING the eight that no
                           # corpus witness can reach; 59 -> 50 once the nine this
                           # instrument CANNOT MATCH were counted separately (below).
+                          # (#49) 10 -> 6, and 188 -> 191, by reading the last ten one by
+                          # one and writing the three witnesses that were writable: the
+                          # `happy ... reads` policy's DYNAMIC-exec refusal (1811 — a
+                          # CONSTANT exec is spliced away before the weaver sees it, so the
+                          # witness must use `exec(s)`), the inliner's expression-position
+                          # refusal (1812), and a malformed `#@` CONTRACT (1813), whose
+                          # "PyCSL Syntax Error around line" NO witness had ever produced:
+                          # zero of 841 censused rows contained it, because every corpus
+                          # contract is well-formed by construction. The most user-visible
+                          # refusal in the system had never been seen to fire.
                           # (#49) 13 -> 10, and 184 -> 188 DEMONSTRATED, by `--append-new`:
                           # FOURTEEN expected-FAIL witnesses had NO CENSUS ROW — ten
                           # written the same evening and FOUR (1718-1721) that had been
@@ -227,6 +237,24 @@ NOT_SOURCE_REACHABLE = {
     # that must be accepted. They are reclassified, not excused: the debt counter goes down
     # because the work was done, and the ceiling below goes down with it.
     "PYCSL-SEM-SPAN", "PYCSL-TY3-CALLABLE-SHAPE", "PYCSL-IR-OPAQUESTMT",
+}
+
+# (#49) The same class, keyed by MESSAGE FRAGMENT because the raise carries no `code=`.
+# `pure_ast.parse(..., type_comments=True)` refuses, and `type_comments` is an API
+# PARAMETER: the pipeline never passes it, and no `.py` source file can make it do so. It
+# is demonstrated executably by bin/check-frontend-ir-backstop-refusals.py, which calls
+# `pure_ast.parse` with the flag and asserts the real code raises, alongside a control that
+# parses the same source without it.
+# (#49) WHY THE TEN UNMATCHABLE STAY TEN — MEASURED, NOT ASSUMED. A site is matchable when
+# its raise carries a string literal RUN of 25+ characters. The obvious widening is to
+# build a regex from ALL the literal runs joined by `.*` and match that. Prototyped over
+# the whole census: it would move exactly ONE site (`core_ir_semantic:1187`, "duplicate act
+# name '"). The rest genuinely have too little literal text to attribute — both
+# `Module1_Ingestor` empty-body raises share the 13-character "`: empty body", so even a
+# lowered threshold could not tell them apart, and two sites have NO literal at all. The
+# ceiling of 10 is a measurement, not a shrug.
+NOT_SOURCE_REACHABLE_FRAGMENTS = {
+    "pure_ast parser: type_comments not yet implemented",
 }
 
 
@@ -486,7 +514,7 @@ def main():
         hit = bool(frag) and any(frag[:60] in m for m in refusal_msgs)
         if hit:
             witnessed.append((rel, line, exc, code, frag))
-        elif code in NOT_SOURCE_REACHABLE:
+        elif code in NOT_SOURCE_REACHABLE or frag in NOT_SOURCE_REACHABLE_FRAGMENTS:
             elsewhere.append((rel, line, exc, code, frag))
         elif not frag:
             unmatchable.append((rel, line, exc, code, frag))

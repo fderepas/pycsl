@@ -57,11 +57,12 @@ GUARD_TEXT = [
     ("src/pycsl/module6_whyml/statements.py", "PYCSL-IR-OPAQUESTMT"),
     ("src/pycsl/frontend/Module3_Weaver.py", " in range(...)`: empty body"),
     ("src/pycsl/frontend/Module1_Ingestor.py", "`: empty body"),
+    ("src/pycsl/frontend/pure_ast.py", "type_comments not yet implemented"),
 ]
 
 
 EXPECTED_CARRIERS = ["span-missing", "callable-tag-no-arrow", "callable-tag-empty-part",
-                     "opaque-stmt", "for-expand-empty-body"]
+                     "opaque-stmt", "type-comments-parse", "for-expand-empty-body"]
 
 
 def carriers():
@@ -70,6 +71,7 @@ def carriers():
     from module6_whyml.statements import StatementEmissionMixin
     from frontend.Module2_Parser import ForExpand, Number
     from frontend.Module3_Weaver import PyCSLWeaver
+    from frontend import pure_ast
 
     class _Dispatch(StatementEmissionMixin):
         """The dispatch is reached with no emitter state: the OpaqueStmt branch is taken
@@ -89,6 +91,11 @@ def carriers():
          lambda: _Dispatch()._stmts_to_whyml(
              [{"type": "totally_unknown_kind", "zz": 1}], set(), set(), "  "),
          lambda: _Dispatch()._stmts_to_whyml([], set(), set(), "  ")),
+        # `type_comments` is an API PARAMETER of `pure_ast.parse`, not a source construct:
+        # the pipeline never passes it, so no `.py` file can reach this refusal.
+        ("type-comments-parse", "msg", "type_comments not yet implemented",
+         lambda: pure_ast.parse("x = 1\n", type_comments=True),
+         lambda: pure_ast.parse("x = 1\n")),
         ("for-expand-empty-body", "msg", " in range(...)`: empty body",
          lambda: PyCSLWeaver._desugar_for(
              [ForExpand(var="i", lo=Number(0), hi=Number(3), clauses=[])]),
@@ -121,7 +128,19 @@ def main():
         return 2
 
     from errors import PyCSLSemanticError, PyCSLParseError
-    refusals = (PyCSLSemanticError, PyCSLParseError)
+    refusals = [PyCSLSemanticError, PyCSLParseError]
+    # `pure_ast` raises its own `PyCSLSyntaxError` for the type_comments backstop; it is a
+    # PyCSL refusal like the others and must count as one, not as a foreign exception.
+    try:
+        from errors import PyCSLSyntaxError
+        refusals.append(PyCSLSyntaxError)
+    except ImportError:
+        try:
+            from frontend.pure_ast import PyCSLSyntaxError
+            refusals.append(PyCSLSyntaxError)
+        except ImportError:
+            pass
+    refusals = tuple(refusals)
 
     rows = carriers()
     if args.selftest_missing_carrier:
@@ -175,10 +194,11 @@ def main():
 
     print("[*] frontend-ir-backstops: %d backstop refusal(s) DEMONSTRATED executably, "
           "each with a well-formed control that is accepted." % len(rows))
-    print("[+] frontend-ir-backstops: OK — four are unreachable from a .py source because "
-          "the front-end builds the shape itself (span, callable tag, opaque stmt); the "
-          "fifth (for-expand empty body) is owned by Module1's earlier block check, which "
-          "is why corpus witness 1772 fires [Module1] and not [Module3].")
+    print("[+] frontend-ir-backstops: OK — FIVE are unreachable from a .py source: four "
+          "because the front-end builds the shape itself (span, callable tag, opaque "
+          "stmt) and one because `type_comments` is an API parameter the pipeline never "
+          "passes; the sixth (for-expand empty body) is owned by Module1's earlier block "
+          "check, which is why corpus witness 1772 fires [Module1] and not [Module3].")
     return 0
 
 
