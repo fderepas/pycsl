@@ -7123,3 +7123,40 @@ honest price is the one lesson (t5) already gives: convert it on a copied tree a
 which costs ~20 seconds in the cheap files (`Module1_Ingestor` ~14 s, `ConcurrencyChecker`
 ~17 s). The list above is a list of things to TRY, in that order of cheapness — not a list
 of things that will work.
+
+### THE CONVERSION TRACK'S REAL #1 BLOCKER, found by running six candidates (2026-09-24)
+
+Six shortlist entries converted on a copied tree and run (`$SCRATCH/g31/batch_convert.sh`,
+~20 s each in the cheap mirror files):
+
+    frontend/ConcurrencyChecker.py  _walk_stmt          int vs `array int`
+    frontend/ConcurrencyChecker.py  _check_function     `string -> option int` mismatch
+    frontend/Module1_Ingestor.py    _emit_suite         int vs `array int`
+    frontend/Module1_Ingestor.py    _emit_block_footer  REFUSED — self-field `.append`
+    frontend/Module1_Ingestor.py    _match_block_hdr    int vs `(int, int)`  (tuple return)
+    frontend/Module1_Ingestor.py    _normalize_leading  unbound `_match_block_hdr`
+
+**FOUR of the six are the STUB'S OWN ANNOTATION.** A `\trusted` mirror stub was written with
+`int` placeholders where the live signature has a set, a tuple or a record —
+
+    mirror:  def _walk_stmt(self, node: ast.AST, held: int,      func_name: str) -> None
+    live:    def _walk_stmt(self, node: ast.AST, held: Set[str], func_name: str) -> None
+
+— so the first thing a conversion has to do is RE-TYPE the signature. The mirror-sync
+checker permits that (it strips annotations before comparing), and nothing tells you which
+annotation to write; you find out by running into it.
+
+CONFIRMED BY DOING IT: re-typing `held` to `Set[str]` moves the error from `int vs array
+int` to `int vs int -> option int` — the next expression in the same body (`held | {mutex}`,
+a set union). So it is a CHAIN of type repairs, not one, and the chain is per-candidate.
+
+THE HONEST RANKING, replacing every earlier one in this file:
+  1. **the `int`-placeholder annotations on `\trusted` stubs** — 4 of the 6 sampled, and the
+     one that must be fixed before any other blocker is even visible;
+  2. f-strings (186 of 442 bodies), comprehensions (170), dict literals (160) — the
+     population-level walls, which only become the blocker after (1);
+  3. the self-field `.append` (11 of 442) and the `\trusted`-callee-as-symbol problem — real
+     but rare.
+
+This is the third ranking in this file and the first one measured by RUNNING candidates
+rather than by reading or counting them.

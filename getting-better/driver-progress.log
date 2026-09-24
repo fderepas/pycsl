@@ -9539,3 +9539,34 @@ and documented; its REACH is narrower than its own description says.
 Recorded rather than chased: this is the kind of "known trust surface" sentence that gets
 quoted for years, and someone should know that the three obvious exploits do not work
 before budgeting a day for `--strict-hash-eq-consistency`.
+
+--------------------------------------------------------------------------------
+2026-09-24 23:56Z — SIX conversion candidates RUN, and the real #1 blocker is the stub's
+OWN ANNOTATION
+
+    _walk_stmt          int vs `array int`
+    _check_function     `string -> option int` mismatch
+    _emit_suite         int vs `array int`
+    _emit_block_footer  REFUSED — the self-field `.append`
+    _match_block_hdr    int vs `(int, int)`   (tuple return)
+    _normalize_leading  unbound `_match_block_hdr`  (a `\trusted` callee)
+
+FOUR of six are a `\trusted` stub written with `int` PLACEHOLDER annotations where the live
+signature has a set, a tuple or a record:
+
+    mirror:  def _walk_stmt(self, node: ast.AST, held: int,      func_name: str) -> None
+    live:    def _walk_stmt(self, node: ast.AST, held: Set[str], func_name: str) -> None
+
+The mirror-sync checker strips annotations before comparing, so nothing objects — and
+nothing tells you which annotation to write either. CONFIRMED BY DOING IT: re-typing `held`
+to `Set[str]` moved the error to the NEXT expression in the same body (`held | {mutex}`, a
+set union, `int` vs `int -> option int`). It is a CHAIN of type repairs, per candidate.
+
+So the ranking in the backlog is rewritten for the third time and for the first time from
+verdicts rather than from reading or counting: the int-placeholder annotations first, the
+population walls (f-strings 186, comprehensions 170, dict literals 160) second, the
+self-field append (11) and the trusted-callee-as-symbol problem last.
+
+A harness for this now exists — `try_convert.py` extracts a live body and replaces the
+mirror stub; `batch_convert.sh` runs a list of candidates and prints one line each — so the
+next person prices a candidate in twenty seconds instead of an afternoon.
