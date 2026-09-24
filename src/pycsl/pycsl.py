@@ -1420,6 +1420,85 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 filename=args.file,
                 stage="ir-semantic", code="PYCSL-SEM-REVEAL-UNKNOWN-NAME")
 
+    # (#49) gen #31 — THE SAME FAMILY ON A FIELD THAT IS A KEYWORD, NOT A NAME. Found by
+    # re-running the sweep with the phrase corrected: "every directive with a FIELD WHOSE
+    # VALUE COMES FROM A FIXED SET", not "whose grammar admits an identifier". The first
+    # phrase missed both of these, and a search is only as complete as the phrase that
+    # generated it.
+    #
+    #   * `#@ ghost g : no_such_type = 0` VERIFIED, silently becoming the documented `int`
+    #     default. annotations.md §11's "untyped ghost declarations default to `int`" is
+    #     what made the silence look intentional: the DEFAULT is documented; the FALLBACK
+    #     FROM A MISSPELLED KEYWORD to that default is not.
+    #   * `#@ proof rocqq <qualname>` VERIFIED, and the emitted `.mlw` was BYTE-IDENTICAL
+    #     to the one spelled `rocq` — the prover keyword is not dropped, it is NOT READ.
+    #     Bounded: the axiom BODY comes from `_AXIOM_REGISTRY` and an unregistered qualname
+    #     is refused outright, so no unaudited axiom can be smuggled in; what breaks
+    #     silently is `pycsl --audit-proof`'s per-driver citation.
+    #
+    # BOTH AT THE CHOKE POINT, and the reason is lesson (n4) measured rather than assumed:
+    # `Module2_Parser._parse_ghost` is where the ghost keyword is read, and its mirror twin
+    # is UN-TRUSTED — a verbatim body that must itself PROVE, plus a whole-file re-proof of
+    # a large parser. `_run_pipeline`'s twin is `\trusted` and the IR carries both fields
+    # already (`{"stmt": "GhostAssign", …, "ghost_type": …}` and
+    # `func["proof"] = [{"prover": …, "qualname": …}]`).
+    # THE SET IS THE NINE THE EMITTER ACTUALLY DISPATCHES ON, not the twelve a stale
+    # dataclass comment in the parser lists. `_resolve_effective_ghost_type`'s consumers
+    # branch on exactly `string`, `array`, `ghost_dict`, `ghost_list`, `ghost_set`,
+    # `tuple2`/`tuple3`/`tuple4`, with `int` as the default — which is also exactly the
+    # nine rows of annotations.md §11.1. The parser's comment additionally names `list`,
+    # `set` and `dict`; those reach no branch and would be silently `int`, so they are
+    # REFUSED too. CENSUS: 53 `#@ ghost <n> : <t>` sites across both corpora and `src/`,
+    # spelling only `ghost_dict` (11), `ghost_set` (10), `ghost_list` (9), `tuple2` (8),
+    # `array` (7), `string` (5), `tuple3` (2), `tuple4` (1) — every one admissible, and
+    # the bare `list`/`set`/`dict` spellings appear NOWHERE. Byte-inert.
+    _GHOST_TYPES = ("int", "string", "array",
+                    "ghost_list", "ghost_set", "ghost_dict",
+                    "tuple2", "tuple3", "tuple4")
+    _stk_gt = [_f_gt.get("body") for _f_gt in (ir_data.get("functions", []) or [])]
+    while _stk_gt:
+        _n_gt = _stk_gt.pop()
+        if isinstance(_n_gt, list):
+            _stk_gt.extend(_n_gt)
+            continue
+        if not isinstance(_n_gt, dict):
+            continue
+        for _v_gt in _n_gt.values():
+            if isinstance(_v_gt, (list, dict)):
+                _stk_gt.append(_v_gt)
+        if _n_gt.get("stmt") != "GhostAssign":
+            continue
+        _gt = _n_gt.get("ghost_type")
+        if _gt is None or str(_gt) in _GHOST_TYPES:
+            continue
+        from errors import PyCSLSemanticError as _PyCSLSemErrGt
+        raise _PyCSLSemErrGt(
+            "`#@ ghost %s : %s` names no ghost type. The declared type must be one of "
+            "%s; an unrecognised keyword was silently treated as the `int` default, so a "
+            "mistyped `ghost_dict` gave you an int ghost and no message. FIX: use one of "
+            "those keywords, or drop the `: <type>` entirely (an untyped ghost is `int` "
+            "BY DESIGN, which is the documented case this refusal does not touch)."
+            % (_n_gt.get("target", "?"), _gt, ", ".join("`%s`" % _t for _t in _GHOST_TYPES)),
+            filename=args.file,
+            stage="ir-semantic", code="PYCSL-SEM-GHOST-UNKNOWN-TYPE")
+    for _f_pv in (ir_data.get("functions", []) or []):
+        for _p_pv in (_f_pv.get("proof") or []):
+            if not isinstance(_p_pv, dict):
+                continue
+            _pv = _p_pv.get("prover")
+            if _pv in ("rocq", "lean", None):
+                continue
+            from errors import PyCSLSemanticError as _PyCSLSemErrPv
+            raise _PyCSLSemErrPv(
+                "`#@ proof %s %s` names no prover. The prover must be `rocq` or `lean`; "
+                "anything else was NOT READ AT ALL — the emitted WhyML is byte-identical "
+                "either way, so the axiom arrived while `pycsl --audit-proof` looked for "
+                "the citation under a prover that does not exist. FIX: spell it `rocq` or "
+                "`lean`."
+                % (_pv, _p_pv.get("qualname", "?")),
+                filename=args.file,
+                stage="ir-semantic", code="PYCSL-SEM-PROOF-UNKNOWN-PROVER")
+
     for _f204 in ir_data.get("functions", []):
         _if204 = _f204.get("interface") or {}
         if not _if204:

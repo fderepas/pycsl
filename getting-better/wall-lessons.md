@@ -6932,3 +6932,30 @@ strength of "the census is zero and the code is obviously more correct".
 >>> only thing that moves is the diagnostic, what you have is a correct edit sitting on top
 >>> of an unfinished feature; record it where the feature is recorded, and land it with the
 >>> branch that finishes the job.
+
+## (g5) The instrument that calls itself the sharpest could not see the route I had just found
+
+`check-corpus-contract-truth` runs every PASS-expected corpus file under CPython and checks
+its own postcondition against the observed answer. Its own header says a failure there is
+"a route witness hiding inside a green test", and it means it. I have quoted that sentence
+approvingly more than once this campaign.
+
+Route #226's carrier is
+
+    #@ ensures \result >= 5
+    def get(self) -> int: return self.n        # CPython: 0
+
+and the plane's population is **zero-argument FUNCTIONS with a literal `== N`**. A METHOD
+with a COMPARISON is outside it on both axes. So the sharpest instrument in the battery
+could not have found the route I found by hand that morning — and I only noticed because I
+was checking whether a NEW witness would trip it.
+
+Extending it cost an afternoon's care and no new machinery: 390 runnable contracts became
+432, 378 agreeing became 417, and zero disagreed. Then the only test that matters — point
+the extended plane at route #226's own carrier, and watch it fail.
+
+>>> When you find a route BY HAND, ask which existing instrument should have found it, and
+>>> why it did not. The answer is usually a population boundary nobody re-examined after the
+>>> instrument's first version, and widening it is cheaper than the route was. A detector is
+>>> only validated by running it on the thing it was written to detect — a green corpus
+>>> proves reach, not sensitivity.

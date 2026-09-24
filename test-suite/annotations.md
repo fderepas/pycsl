@@ -138,7 +138,14 @@ the bare `\trusted` form;
 ```
 
 Imports a Rocq or Lean theorem as a **Why3 axiom** in the generated WhyML
-preamble. `#@ proof` has real semantic effect: Alt-Ergo/Z3 may use
+preamble. **The prover must be `rocq` or `lean`** — anything else is refused with
+`PYCSL-SEM-PROOF-UNKNOWN-PROVER` (witness `1888`). Until gen #31 the keyword was
+not read at all: `#@ proof rocqq <qualname>` emitted a BYTE-IDENTICAL `.mlw`, so
+the axiom entered the proof while `proof2why3/crosscheck_ir.py` — which selects
+citations with `d.prover == "rocq"` / `"lean"` — could not see the citation at
+all. A typo therefore hid a citation from the 3-way cross-check. (The axiom BODY
+still comes from `_AXIOM_REGISTRY` and an unregistered qualname is refused, so the
+reachable outcome was a hidden citation, never an arbitrary axiom.) `#@ proof` has real semantic effect: Alt-Ergo/Z3 may use
 the imported axiom to discharge obligations that SMT alone cannot handle.
 
 **Cross-validation.** When both a `rocq` and a `lean` directive reference
@@ -1518,6 +1525,12 @@ Use typed declarations to control the WhyML type of a ghost variable:
 ```
 
 Untyped ghost declarations (`#@ ghost <name> = <expr>`) default to `int`.
+**A TYPE KEYWORD THAT IS NOT IN THE TABLE BELOW IS REFUSED** with
+`PYCSL-SEM-GHOST-UNKNOWN-TYPE` (witness `1886`, controls `1887` and `1889`). Until
+gen #31 an unrecognised keyword fell through to that same `int` default in silence,
+so a mistyped `ghost_dict` gave an int ghost and no message; the DEFAULT is
+documented, the fallback from a misspelling was not. The UNTYPED form is unaffected
+— it is `int` by design, and `1889` is the control that says so.
 
 > **Terminology**: For definitions of *ghost code*, *ghost state*, *witness*, *ghost lowering*,
 > and related concepts, see [`docs/glossary/`](../docs/glossary/README.md).

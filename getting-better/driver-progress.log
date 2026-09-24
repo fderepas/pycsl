@@ -8463,3 +8463,126 @@ and `func_ir["thread_entry"]` has no consumer outside two agent prompt strings.
 4024 = 4021 + the three new witnesses, and 4006 = 4003 + 3. The arithmetic was predicted
 before the run and came out exactly, which is the only way a green suite means anything.
 Committing.
+
+--------------------------------------------------------------------------------
+2026-09-24 10:58Z — COMMITTED `9f75cc69` (the import pair + route #226's record and carrier
++ two finding files). Working tree clean apart from the `.aux` build exhaust and the two
+pre-existing `scratchpad/w{7,8}` gitlinks.
+
+KEYWORD INCREMENT PRE-GATE, run on an offline copy while the import gate finished:
+**checked 80 files using `#@ ghost` or `#@ proof`, MOVED 0.** Every one gets the same
+verdict from the live tree and the patched one, so the only programs the refusal moves are
+the two it was written for. Landing it now.
+
+--------------------------------------------------------------------------------
+2026-09-24 11:10Z — the KEYWORD gate, and both debt planes paid in the same increment
+
+    corpus byte-diff   1361 baseline / 1363 candidate .mlw, 0 MOVED / 0 GONE / 0 APPEARED
+                       (+2 = the two PASSing witnesses; the two REFUSED ones emit no .mlw)
+    python-reference   2199 / 2199, 0 MOVED
+    MIRROR             53 / 53, 0 MOVED
+    fast planes        all 46 green
+    suite              running
+
+THE TWO DEBT PLANES, paid rather than deferred:
+  * `check-refusal-witness-coverage --append-new` appended THREE rows in seconds — 1886 and
+    1888 for the two new refusals, and **1873 for an EXISTING site that had no witness until
+    route #226's false twin was written**. 204 demonstrated, 5 undemonstrated against a
+    CEILING of 5, so the ceiling is now exactly met and the next unwitnessed refusal will
+    red this plane. Floor raised 202 -> 204.
+  * `check-refusal-advice-audited --list-unaudited` named the `#@ ghost` refusal, and the
+    audit was already sitting in the corpus: control 1887 IS the program its advice
+    recommends. The row records the SECOND control too — 1889, the untyped `#@ ghost x = 0`
+    that is `int` BY DESIGN — because the pair's whole point is that the refusal is about a
+    keyword that resolves to nothing, not about omitting one. 114 of 119, floor 113 -> 114.
+
+`--append-new` again took seconds where a `--regenerate` would have taken two hours
+(lesson x4), and the 1873 row is the argument for running it on EVERY increment rather than
+only when a refusal is added: a witness written for an unrelated route paid down a debt
+nobody was tracking.
+
+--------------------------------------------------------------------------------
+2026-09-24 ~11:36Z — the `_seq_locals` element-type conjunct: a SIXTH increment, and it is
+CORPUS-BYTE-INERT (measured, not argued)
+
+The finding file recorded this one as "NOT attempted, deliberately: the promotion set is
+load-bearing for emission everywhere, so widening `string` to `int` is a full-corpus
+byte-diff question, not a patch." It is a byte-diff question, and the byte-diff can be run
+on an OFFLINE COPY without touching the tree or waiting for a gate slot:
+
+    two trees (`treebase` = today's src, `treeseq2` = src + the widening), each with its own
+    copy of the 1808-file corpus and its own `bin/`, then `byte-diff-sweep.sh` on each and
+    `byte-diff-compare.py` between them:
+
+    1367 baseline / 1367 candidate .mlw; **0 MOVED, 0 GONE, 0 APPEARED** — byte-inert.
+
+WITNESS PAIR, both halves against today's tree:
+    1898  `Dict[int, List[int]]` field, `.get(k, [])` -> local -> `len(fp)`,
+          `#@ ensures \result >= 0`          FAILED -> **SUCCESS**
+    1899  byte-identical, `#@ ensures \result >= 1` (FALSE: `.get` answers the empty seq)
+                                             FAILED -> **FAILED**
+
+and the widening ALONE does it — measured on a tree carrying only that patch, so the
+self-field placeholder patch is not doing the work and stays unlanded (lesson f5).
+
+The SUBSCRIPT form (`fp = self.m[k]`) is still FAILED even for `string` elements: the local
+is not recognised as a seq SOURCE. A fourth cell in the matrix, recorded not fixed.
+
+Mirror sweep running. Landing order: keywords (gating) -> route #226 -> mutex -> field ->
+seq-local.
+
+--------------------------------------------------------------------------------
+2026-09-24 ~11:55Z — A SEVENTH INCREMENT, and it is the one I should have thought of first:
+**the sharpest instrument in the battery could not have found route #226**
+
+`check-corpus-contract-truth` runs every PASS-expected corpus file under CPython and checks
+its own `#@ ensures \result == N` against the observed answer. Its header calls a failure
+"a route witness hiding inside a green test", and it is right. Its POPULATION is
+zero-argument FUNCTIONS with a literal `== N`.
+
+Route #226's carrier is `def get(self) -> int` with `#@ ensures \result >= 5`. A METHOD,
+and a comparison. **The plane's reach missed both axes**, and neither is expensive:
+
+    BEFORE   390 runnable contracts, 378 agree, 0 disagree, 12 unrunnable
+    AFTER    432 runnable contracts, **417 agree, 0 DISAGREE**, 15 unrunnable
+
+So the corpus is clean on the new axis — 42 method contracts, none false — which is the
+result, and the point is that nothing had been measuring it.
+
+AND THE EXTENSION WAS TESTED ON THE ROUTE ITSELF, not just on the corpus. Pointing the
+extended plane at a directory containing route #226's own carrier:
+
+    [!] DISAGREES WITH CPYTHON: zz_carrier.py::C.get — the contract claims '>= 5',
+        the program returns 0
+
+which is the only test of a detector that means anything: run it on the thing it was
+written to detect.
+
+TWO FALSE POSITIVES IN THE FIRST DRAFT, both instructive and both fixed:
+  * a fixed window of lines above the `def` let the PREVIOUS method's `#@ ensures` answer
+    for this one — `multi_file_lib/r119_plainlib.py`'s `K.n` picked up `K.m`'s `== 1` and
+    read as a disagreement. The scan now walks upward and stops at the first line that is
+    not a `#@`, a decorator or blank.
+  * a method carrying a `#@ requires` is NOT a ground-truth check on a DEFAULT-constructed
+    object: `1293`'s `#@ requires self.n == 4` on a class whose `__init__` sets
+    `self.n = 0` means its postcondition says nothing there. Such methods are skipped.
+
+Both were caught by READING the two disagreements instead of believing them — the same
+discipline that withdrew the `#@ datatype` exhaustiveness rule.
+
+Increment held at `$SCRATCH/g31/fix_contract_truth_methods.py`, `land_ct.sh`, `gate_ct.sh`.
+It touches `bin/` only, so its gate is the fast planes and a stated argument for why no
+byte-diff is owed. Landing order: keywords (gating) -> contract-truth -> route #226 ->
+mutex -> field -> seq-local.
+
+--------------------------------------------------------------------------------
+2026-09-24 12:04Z — THE KEYWORD GATE IS GREEN
+
+    corpus byte-diff   1361 / 1363, 0 MOVED / 0 GONE / 0 APPEARED (+2 = the PASSing pair)
+    python-reference   2199 / 2199, 0 MOVED
+    MIRROR             53 / 53, 0 MOVED
+    fast planes        all 46 green
+    suite              **4010 / 4028 passed** — the standing EIGHTEEN, ZERO XPASS
+
+4028 = 4024 + 4 witnesses and 4010 = 4006 + 4. Predicted before the run, exact after it.
+Committing; the seven queued increments become six.

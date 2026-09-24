@@ -151,3 +151,35 @@ The parameter row is the one that works for both element types, and it is the ro
 an explicit branch (`expressions.py` ~6410, `_dict_value_types[var] == "seq int"`). Every
 FAILED cell is a missing branch beside a present one, not a design limit — except the
 `seq`/`array` wall at the top of this file, which is.
+
+## THE `_seq_locals` CONJUNCT WAS ATTEMPTED AFTER ALL, AND IT IS CORPUS-BYTE-INERT
+
+The paragraph above says "NOT attempted, deliberately … widening is a full byte-diff
+question, not a patch." That was the right caution and the wrong conclusion: a byte-diff
+does not need a gate slot, it needs two trees.
+
+    treebase  = today's `src`            treeseq2 = today's `src` + the widening
+    each with its own copy of the 1808-file corpus and its own `bin/`,
+    `byte-diff-sweep.sh` on each, `byte-diff-compare.py` between them:
+
+    corpus   1367 baseline / 1367 candidate .mlw; **0 MOVED, 0 GONE, 0 APPEARED**
+    MIRROR   53 / 53; **1 MOVED** — `module6_whyml__expressions.mlw`, a TEN-LINE diff:
+
+```
+-  let missing = ref (typeddict_str_overapprox … !present) in
+-  if (Array.length !missing <> 0) then …
++  let missing = ref (snapshot (typeddict_str_overapprox … !present)) in
++  if (Seq.length !missing <> 0) then …
+```
+
+i.e. exactly the intended change — two list locals leave the array model for the seq one —
+in the one mirror file that has such locals. Whether that file still PROVES is the gate, and
+it is running; a mirror emission that moves must be re-proved, not merely eyeballed.
+
+The witness pair (both halves against today's tree): `1898` FAILED -> SUCCESS,
+`1899` (the false twin, `#@ ensures \result >= 1`) FAILED -> FAILED. Measured on a tree
+carrying ONLY this widening, so `fix_selffield_dict_default.py` is not doing the work and
+stays unlanded.
+
+The SUBSCRIPT row of the matrix is unchanged: `fp = self.m[k]` still fails for BOTH element
+types, because the local is not recognised as a seq SOURCE. One cell at a time.

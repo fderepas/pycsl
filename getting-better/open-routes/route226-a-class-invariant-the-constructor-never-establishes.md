@@ -82,7 +82,14 @@ Nothing in `open-routes/` or `getting-better/` records the CONSTRUCTOR obligatio
 closest prose is this session's own backlog note about the inhabitation witness, written
 twenty minutes before the scalar probe turned it into a route.
 
-## Shape of the repair (not built)
+## Shape of the repair — **written when it was not built; it now IS**
+
+Kept as written so the order of discovery is readable. The built version is below
+("THE REPAIR, BUILT AND RUN ON AN OFFLINE COPY OF THE TREE"), and it differs from this
+sketch in two ways that were both found by measuring: the honest fallback for a
+computing constructor is to emit NOTHING and record it, not to refuse; and the gate
+cannot key on `td["field_defaults"]`, which is a witness map.
+
 
 Emit the constructor's obligation, the way `#@ mutex_invariant`'s initial-state check was
 repaired earlier this same generation: that one now emits
@@ -369,3 +376,66 @@ output under those trees is already noisy in this working tree.
   files whose constructors already satisfy their invariants, so they stay PASS. **Predicted
   suite delta: the standing eighteen, plus 1890 as a new expected-FAIL and 1891/1892 as new
   PASSes — no XPASS, no new XFAIL.**
+
+## INCREMENT 2's DESIGN, written down now so it is not re-derived
+
+Carriers 2 and 4 (an `__init__` PARAMETER, and `@dataclass`) have the same honest
+obligation, and it is PREMISE-FREE:
+
+    goal _check_class_inv_<C> : forall <f1> … <fn> : int. (<inv>)
+
+"the invariant must hold for any instance this constructor can produce". For
+`def __init__(self, n: int): self.n = n` under `self.n >= 5` that is `forall n. n >= 5`,
+which is false — correct, because `C(1)` is legal Python. For a `@dataclass` with
+`n: int = 0` it is the same statement, and the default discharges nothing, because `C(3)`
+is legal too.
+
+**AND IT WOULD BREAK A GOOD PROGRAM AS WRITTEN** — the (u4) test, applied before building:
+
+    #@ class invariant self.n >= 5
+    class C:
+        #@ requires n >= 5
+        def __init__(self, n: int) -> None: self.n = n
+
+verifies today (measured, `$SCRATCH/g31/r226/p3.py`, including a `C(7)` call site), and it
+is sound: the constructor's precondition is exactly what makes the invariant establishable.
+A premise-free goal would refuse it.
+
+So increment 2 needs `__init__`'s `#@ requires` as the goal's premises, mapped from
+PARAMETERS to FIELDS through `init_body` (which already carries
+`{'field': 'n', 'value': {'type': 'Var', 'name': 'n'}}`). **The type_decl does NOT carry
+`init_requires` today** — its keys are `init_params`, `init_body`, `init_ensures` — so
+increment 2 begins with a Module-5 IR addition, and that is a different kind of change from
+increment 1, which touched Module 6 only. Sizing it honestly: a new IR key is not byte-inert
+for anything that compares IR, so it needs its own byte-diff and its own conformance-golden
+check, which is why it is not folded into increment 1.
+
+The fallback if that proves expensive: emit the premise-free goal ONLY when `__init__` has
+no `#@ requires` at all — which is knowable at Module 5 without a new key being read
+downstream, and covers the `@dataclass` carrier outright (a synthesized `__init__` has no
+contract).
+
+## HOW TO REPRODUCE THE CENSUS (the script lives in a scratchpad that will not survive)
+
+Walk `test-suite/corpus/pycsl-reference`, `test-suite/corpus/python-reference`, `src/pycsl`,
+`src/self-annotate/src`, `src/pycsl_lib`. For each `.py` containing `#@ class invariant`,
+`ast.parse` it and for each `ClassDef` read UPWARD from `node.lineno - 2` collecting
+`#@ class invariant` lines, skipping lines that start with `#` or `@`, stopping at anything
+else. Then, from the class's `__init__`:
+
+  * a field is `self.<name>` on the left of an `Assign` (single target) or an `AnnAssign`;
+  * it is IN SCOPE iff its annotation (when present) is `int`/`bool` AND its RHS is an int
+    literal, a negated int literal, or a `bool` — `const_int` folds `UnaryOp(USub, …)`,
+    which Python's parser does not (that was route #139);
+  * the CLASS is in scope iff it has an `__init__`, has at least one field, every field is
+    in scope, and every `self.<n>` named in its invariants is one of those fields;
+  * exclude an invariant that calls anything (`\w+\s*\(`) other than `\length`.
+
+Then substitute each field's literal into its invariant text and `eval` it with an empty
+builtins dict; count SATISFIED / VIOLATED / not-evaluable. The 2026-09-24 numbers are 214
+files, 210 classes, 113 in scope, 139 clauses, 137 satisfied, 0 violated, 2 not evaluable.
+
+The EMITTER's gate is narrower than the census's and deliberately so: it additionally
+requires `init_params` empty and the field absent from `init_unknown_fields` /
+`init_unknown_cf_fields`, because `td["field_defaults"]` is a witness map that fabricates 0
+(see the CORRECTION section). All 113 pass it.

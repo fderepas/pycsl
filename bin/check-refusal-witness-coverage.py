@@ -142,7 +142,15 @@ CENSUS_TRUNC = 4000       # the writer's message cap. See the TRUNCATION GUARD b
                           # stored message of EXACTLY this length was cut, and a cut
                           # message silently un-witnesses every site whose fragment falls
                           # past the cut.
-MIN_WITNESSED = 202       # (#49) gen #31: 199 -> 202 with the SILENT-NAME family —
+MIN_WITNESSED = 204       # (#49) gen #31: 202 -> 204 with the KEYWORD pair — `#@ ghost`'s
+                          # type keyword (witness 1886) and `#@ proof`'s prover keyword
+                          # (1888). The same family as the three below, found by
+                          # re-running its sweep with the phrase corrected from "admits
+                          # an IDENTIFIER" to "has a field whose value comes from a FIXED
+                          # SET". A third row was appended in the same run for 1873, an
+                          # EXISTING site that had no witness until route #226's false
+                          # twin was written.
+                          # 199 -> 202 came with the SILENT-NAME family —
                           # the `Callable` unknown-class, `#@ uses` and `#@ reveal`
                           # refusals, each landing with its own expected-FAIL witness
                           # (1877, 1880, 1882) in the SAME commit, which is what this

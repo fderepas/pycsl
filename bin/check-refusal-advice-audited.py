@@ -175,6 +175,9 @@ AUDITED = {
     ('src/pycsl/pycsl.py',
      '_PyCSLSemErrLem("`#@ lemma` \'%s\' (line %d) has no `#@ assigns` clause, and a lemma must state `#@ assigns \\\\nothing` explicitly. The clause '): (FOLLOWABLE,
         "'add `#@ assigns \\\\nothing` to it' — control 1848 is the same lemma with the clause, and it VERIFIES. The witness is 1847."),
+    ('src/pycsl/pycsl.py',
+     "_PyCSLSemErrGt('`#@ ghost %s : %s` names no ghost type. The declared type must be one of %s; an unrecognised keyword was silently treated as"): (FOLLOWABLE,
+        "'the declared type must be one of <the nine>' — control 1887 is 1886 with `ghost_list` for the misspelling, and it VERIFIES. The witness is 1886. NOTE the SECOND control the same pair carries: 1889 is the UNTYPED `#@ ghost x = 0`, which is `int` BY DESIGN (annotations.md §11) and must keep verifying — the refusal is about a keyword that resolves to nothing, not about omitting one."),
     ("src/pycsl/frontend/desugar.py",
      "PyCSLParseError('`for ... else` / `while ... else` is not modelled: the `else` clause runs exactly when the loop finished without `break`, a"): (FOLLOWABLE,
         "'Rewrite it with an explicit flag' — a `found` flag plus a `while` with an "
@@ -898,7 +901,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 113
+MIN_AUDITED = 114
 
 if __name__ == "__main__":
     sys.exit(main())

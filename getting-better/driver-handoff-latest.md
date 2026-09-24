@@ -10935,3 +10935,40 @@ mirror edits; run it after ANY `src/pycsl/` change.
 #    OBSERVATIONS, not reconciled: `scratchpad/w7/base` and `scratchpad/w8/pre` show as
 #    modified (pre-existing accidental gitlinks). The `.aux` files under `*.proofs/rocq/`
 #    are BUILD OUTPUT — do not revert or `rm` them. DO NOT PUSH.
+
+# ======================================================================================
+# ## UPDATE 2026-09-24T11:45Z — one COMMITTED, five PREPARED
+#
+#    `9f75cc69` — the import pair, route #226's record + carrier, and two finding files.
+#    Gate was green end to end: corpus 1354 -> 1361 with 0 MOVED / 0 GONE / 0 APPEARED,
+#    python-reference 2199/2199 0 MOVED, MIRROR 53/53 0 MOVED, all 46 planes, suite
+#    **4006/4024 = the standing EIGHTEEN, ZERO XPASS**.
+#
+#    KEYWORDS is APPLIED and its gate is running (`gate_keywords.log`): corpus 1361 -> 1363
+#    0 MOVED, python-reference 0 MOVED, MIRROR 0 MOVED, all 46 planes green, suite running.
+#    Both debt planes PAID in the same increment — `--append-new` added 3 rows (1886, 1888
+#    and **1873, an EXISTING site that had no witness until route #226's false twin was
+#    written**), floor 202 -> 204 with the ceiling now exactly met at 5; and the `#@ ghost`
+#    advice audited with control 1887, floor 113 -> 114. Commit message `msgkw.txt`.
+#
+#    LANDING ORDER: keywords (gating) -> route #226 -> mutex -> field -> seq-local.
+#    Each gate's byte-diff baseline is chained to the previous one's sweep directory.
+#
+#    5. SEQ-LOCAL  `land_seq.sh` / `gate_seq.sh`  (baseline bd_fld / mir_fld)
+#       `statements.py` ~5900 promotes a single-assign list local to `_seq_locals` — the set
+#       whose `len()` lowers to `Seq.length` — only when its element type is `string`, so
+#       `len(fp)` on a `seq int` mistyped. THIRD instance this generation of one rule
+#       implemented for the element type the first witness happened to have.
+#       MEASURED OFFLINE, with two trees each carrying their own corpus copy:
+#         corpus  1367 / 1367, **0 MOVED**
+#         MIRROR  53 / 53, **1 MOVED** — `module6_whyml__expressions.mlw`, a ten-line diff
+#                 that is exactly the intended change (`Array.length` -> `Seq.length` on two
+#                 locals). Whether that file still PROVES is the gate; it is running.
+#       Witnesses 1898 FAILED -> SUCCESS, 1899 (false twin) FAILED -> FAILED.
+#
+#    THE OFFLINE-TREE DEVICE, generalised: a byte-diff does not need a gate slot, it needs
+#    TWO TREES. `cp -a src`, plus a copy of `test-suite/corpus/pycsl-reference/*.py` (7 MB)
+#    and of `bin/`, plus a symlink to `.venv`, is enough to run `byte-diff-sweep.sh` and
+#    `mirror-emit-sweep.sh` against a patched emitter while a completely different gate runs
+#    in the repo. That is how the seq-local increment went from "not attempted, deliberately"
+#    to "measured, corpus-byte-inert, one mirror file moved and named" in twenty minutes.
