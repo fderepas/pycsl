@@ -9570,3 +9570,25 @@ self-field append (11) and the trusted-callee-as-symbol problem last.
 A harness for this now exists — `try_convert.py` extracts a live body and replaces the
 mirror stub; `batch_convert.sh` runs a list of candidates and prints one line each — so the
 next person prices a candidate in twenty seconds instead of an afternoon.
+
+--------------------------------------------------------------------------------
+2026-09-24 23:58Z — a NEW oracle axis, censused and NOT built
+
+`#@ ensures self.<f> == <expr>` on a method is a POST-STATE claim, and it is runnable:
+construct the object, call the method, read the field. No instrument covers it — the two
+contract-truth planes read `\result`, and the class-invariant plane reads the constructor's
+object.
+
+    post-state claims across both corpora                          32
+    runnable with no new machinery (C()-constructible class,
+      no-argument method, no `\old`)                               **3**
+
+and all three checked by hand under CPython: 0710 `Box.set_seven`, 0970 `Box.set_to`, 0972
+`Box.go` — **AGREE, AGREE, AGREE**.
+
+So the axis is real and the population does not justify a plane today. The other 29 need
+`\old` support, constructor arguments or method arguments — the same three widenings the
+args oracle already has specified in the backlog, which is the argument for doing THOSE
+rather than starting a fourth oracle.
+
+Four minutes, one number, one idea correctly not built. Recorded so it is not re-proposed.
