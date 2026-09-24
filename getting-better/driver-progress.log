@@ -9490,3 +9490,52 @@ That is a better answer than the previous two generations' "the shortlist needs
 re-censusing", and it cost three twenty-second experiments. The lesson the backlog already
 carried — PRICE EACH CANDIDATE BY WHAT ITS BODY NEEDS — turns out to be cheapest to obey by
 just running it.
+
+--------------------------------------------------------------------------------
+2026-09-24 23:45Z — the OFF-BY-DEFAULT STRICTNESS FLAGS, swept with route #224's question
+
+`pycsl.py` has a "strictness / extra checks" group of six flags, all OFF by default. Route
+#224 was exactly this shape — a documented obligation that the default run does not emit —
+so each deserves the same question: **is there a program that VERIFIES by default and FAILS
+with the flag, whose default answer is FALSE of CPython?**
+
+    --verify-imports                YES, and it REPRODUCES ROUTE #212 (gen #30). An
+                                    importing unit believes every contract of an imported
+                                    module: `#@ ensures \result == 99` over `return 1` in a
+                                    library lets the importer PROVE 99. Known, recorded, and
+                                    the flag IS the repair — deliberately off, because
+                                    turning it on re-verifies every dependency on every run.
+    --strict-concurrent-checks      NO. The unprotected-shared-write refusal fires WITHOUT
+                                    it — both spellings REFUSED — so the flag escalates
+                                    something narrower than the core protection check.
+    --strict-hash-eq-consistency    NO, in the shape tried. Its help says "off by default —
+                                    emits as an AXIOM and trusts the user", which is the
+                                    right thing to be suspicious of, so the obvious exploit
+                                    was built: `__eq__` always True, `__hash__` returning a
+                                    field, then a claim that two hashes agree. It FAILED.
+    --check-behavioral-subtyping    route #224, already closed.
+
+Three negatives and one known route. Recorded in `probes.tsv` so the sweep is not re-run —
+and the one positive is the reminder that this question found a SEV-1 once already.
+
+--------------------------------------------------------------------------------
+2026-09-24 23:50Z — the HASH-EQ axiom's own predicted exploit does NOT reproduce
+
+`check-assumed-facts.py` classifies `axiom hash_eq_consistent_<cls>` as a REVIEWED
+ASSUMPTION and says what it costs, in its own header: "Python lets a user write an
+inconsistent pair, and then the axiom is FALSE of the program and the `a == b` branch is
+contradictory in the model, so any postcondition holds on it."
+
+Three shapes, none of them verified:
+  1. `__eq__` always True + `__hash__` returning `self.n`, claiming the hashes agree;
+  2. the same with `if a == b: return 1` under `#@ ensures \result == 0`;
+  3. the same PLUS `#@ requires a.n != b.n`, which should make the axiom's consequent
+     contradict the precondition and render the branch vacuous.
+
+All FAILED. Either `a == b` in a body does not lower to the `<cls>_eq_` symbol the axiom
+quantifies over, or `__eq__`'s `\result == True` does not reach it. The assumption is real
+and documented; its REACH is narrower than its own description says.
+
+Recorded rather than chased: this is the kind of "known trust surface" sentence that gets
+quoted for years, and someone should know that the three obvious exploits do not work
+before budgeting a day for `--strict-hash-eq-consistency`.
