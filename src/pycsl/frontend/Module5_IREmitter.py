@@ -3253,6 +3253,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                 # explicit annotation is present.
                                 rhs = stmt.value
                                 ftype = "int"
+                                _vt_pa = None
                                 if isinstance(rhs, ast.Dict):
                                     ftype = "dict"
                                 elif isinstance(rhs, ast.Set):
@@ -3262,7 +3263,73 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                 elif isinstance(rhs, ast.Call) and isinstance(rhs.func, ast.Name):
                                     if rhs.func.id in ("set", "frozenset", "dict", "list"):
                                         ftype = rhs.func.id
-                                fields.append({"name": target.attr, "type": ftype, "mutable": True})
+                                # (#49) gen #31 — `self.<f> = <ANNOTATED __init__ PARAM>`.
+                                # This branch infers a field's type from the RHS SHAPE and
+                                # nothing else, so the single most common way a Python class
+                                # stores a typed collection —
+                                #     def __init__(self, m: Dict[int, List[X]]) -> None:
+                                #         self.m = m
+                                # — has an `ast.Name` RHS, falls through to `"int"`, and sets
+                                # NO `value_type` at all. MEASURED: `self.m[k]` then reads as
+                                # an int where a list belongs (`This expression has type int,
+                                # but is expected to have type array.Array.array`), which is
+                                # what blocks `Module3_Weaver.visit_FunctionDef` — a SEVEN-line
+                                # body in the cheapest mirror file in the tree to re-prove.
+                                #
+                                # The ANNOTATED sibling branch below already does the right
+                                # thing; the annotation is simply on the PARAMETER instead of
+                                # on the assignment, and it is just as binding. Resolve
+                                # through the SAME three resolvers so the two paths cannot
+                                # disagree.
+                                #
+                                # CENSUS (lesson d3): 111 `self.<f> = <annotated __init__
+                                # param>` sites across both corpora, `src/pycsl`,
+                                # `src/self-annotate/src` and `src/pycsl_lib`; by annotation
+                                # head, int 85 · str 9 · ast.AST 4 · Any 3 · List 3 · bool 2 ·
+                                # Dict 2 · float 1 · T 1 · Path 1. Only FIVE are containers
+                                # (Module3_Weaver's `contracts_map` and `extracted_data`, live
+                                # and mirror, plus proof2why3/parser.py's `toks`) and **ZERO
+                                # are in either corpus** — so this is corpus-byte-inert by
+                                # construction and moves exactly the two mirror emissions the
+                                # repair exists to unblock.
+                                # `float` IS EXCLUDED, and it is the only exclusion. MEASURED:
+                                # with it in, `def __init__(self, *, r: float = 2.5)` gives
+                                # the field the type `real` while the CONSTRUCTION literal
+                                # stays the int `0` —
+                                #     type cy = { mutable r: real }
+                                #     let c = { r = 0 } in        <- ill-typed
+                                # so corpus `1480`/`1483` (routes #148 and #149) stopped
+                                # failing for their own reason and started failing on
+                                # "This expression has type int, but is expected to have type
+                                # real". Fail-closed, and WRONG: a route witness that fails
+                                # because the module is malformed is no longer testing its
+                                # route. Routes #148/#149 mark a non-integral float default
+                                # UNKNOWN precisely because the field is int-typed; giving
+                                # the field a real type walks around that repair without
+                                # replacing it. ONE of the 111 census sites is a float, so
+                                # the exclusion costs a single site and keeps two closed
+                                # routes closed.
+                                elif isinstance(rhs, ast.Name):
+                                    _ann_pa = None
+                                    for _a_pa in (list(child.args.args)
+                                                  + list(child.args.kwonlyargs)):
+                                        if _a_pa.arg == rhs.id and _a_pa.annotation is not None:
+                                            _ann_pa = _a_pa.annotation
+                                            break
+                                    if (isinstance(_ann_pa, ast.Name)
+                                            and _ann_pa.id == "float"):
+                                        _ann_pa = None
+                                    if _ann_pa is not None:
+                                        ftype = self._field_type_from_annotation_inst(
+                                            _ann_pa, node.name)
+                                        _vt_pa = (self._m5_get_dict_value_type(_ann_pa)
+                                                  or self._m5_get_list_elem_type(_ann_pa)
+                                                  or self._m5_get_list_record_elem(_ann_pa))
+                                _fld_pa = {"name": target.attr, "type": ftype,
+                                           "mutable": True}
+                                if _vt_pa is not None:
+                                    _fld_pa["value_type"] = _vt_pa
+                                fields.append(_fld_pa)
                                 field_names_seen.add(target.attr)
                                 # (#49) ROUTE #148 — `int(2.5)` is 2: a NON-INTEGRAL float is
                                 # not a value this int-typed field can hold, so it is not a

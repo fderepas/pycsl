@@ -7075,3 +7075,128 @@ re-proofs, hours of prover time.
 >>> answer "how many emitted modules move", and only the second one tells you what the gate
 >>> costs. Run the sweep — it is two minutes on a copied tree — before writing a blast-radius
 >>> sentence into a backlog that the next person will believe.
+
+## (m5) "Expected-FAIL and still FAILED" is not a pass
+
+The field-param fix moved four corpus modules that a census had said would not move. Two
+were the repair working. The other two were route #148's and #149's witnesses, and they had
+changed from
+
+    FAILED — because `c.r > 2` is true of the real program and the claim `\result == 0` is
+             false, which is the route the witness exists to pin
+
+to
+
+    FAILED — "This expression has type int, but is expected to have type real", because the
+             field became `real` while its CONSTRUCTION literal stayed the int `0`
+
+Both are `# pycsl-expected: FAIL`. **The suite would have called both a pass.** The witnesses
+had stopped testing their routes and started testing whether the emitter emits well-formed
+WhyML, and nothing in the battery distinguishes the two — the reference suite compares a
+verdict, not a reason.
+
+The byte-diff is what noticed, and only because the moved files were READ rather than
+counted.
+
+>>> An expected-FAIL witness pins a route only while it fails FOR ITS OWN REASON. When a
+>>> change moves such a file, diff it and read the failure — a type error where an unproven
+>>> goal used to be is a silently retired test. And treat "the census says zero corpus sites"
+>>> as a hypothesis the sweep tests, never as a property the patch has.
+
+## (n5) Count the shape before designing the device for it
+
+Route #226's third carrier is a constructor that COMPUTES a scalar field (`self.n = three()`).
+I designed the repair for it — make the callee's `#@ ensures` a premise of the goal — worked
+out the Module-5 change it needs, wrote down the conformance-golden and IR-version cost, and
+queued it as the top item for the rest of the window.
+
+Then I counted it. Computed constructor stores in classes carrying a class invariant: **72**.
+Of those, the number whose computation is a call to a function with an `#@ ensures`: **zero**.
+All 72 are container constructions — `bytearray(1024)`, `[0] * N`, list literals. The shape
+the device is for does not occur anywhere in the tree.
+
+The route stays live (any program could write that shape tomorrow), the carrier stays
+registered, and the increment goes to the bottom of the queue instead of the top. The
+sentence that came out of the census is also stronger than the one I had: **increments 1 and
+2 close every shape the tree actually contains.**
+
+>>> A design is cheap and a census is cheaper. Do the census FIRST — not to decide whether
+>>> the bug is real, but to decide what the repair is worth. This one took four minutes and
+>>> moved an item from "next" to "not now", and it produced a better claim than the item
+>>> would have.
+
+## (o5) The token in the skip list could only appear in a clause the oracle never reads
+
+`check-corpus-contract-truth-args` evaluates a function's `#@ requires` and `#@ ensures`
+against CPython. It has a skip list with a stated purpose:
+
+    # CSL tokens this oracle cannot evaluate as Python. A contract carrying one is skipped
+    # whole — an oracle that guesses at `\forall` reports its own bugs as corpus defects.
+
+Every entry is a spec operator that can appear in a `requires` or an `ensures`. Except one:
+**`\nothing` appears only in `#@ assigns \nothing`**, a clause the oracle never looks at. And
+the filter joins the WHOLE annotation block before testing, so that one token excluded every
+function declaring an empty frame — which is most pure functions in the corpus.
+
+    with it    416 functions, 4367 evaluations, 0 disagree
+    without it 518 functions, 5573 evaluations, **44 disagree**
+
+and five of the six distinct disagreements are a real defect that has been sitting in two
+PASS-expected, Rocq-and-Lean-cited drivers: `struct.unpack` returns a TUPLE and the model
+returns the scalar, so `#@ ensures \result == x` is certified for a function that returns
+`(x,)`.
+
+I found it because I was extending the SAME plane on a different axis and read the constant
+on the way past.
+
+>>> Read every exclusion list as a claim, and check each entry against the thing the tool
+>>> actually reads. An exclusion justified by "we cannot evaluate this" is wrong the moment
+>>> the token cannot appear in what is evaluated — and it is invisible, because the excluded
+>>> population is exactly the population that would have complained.
+
+## (p5) A gate step that "prints an error and carries on" is a check that silently did not run
+
+The gates I wrote today re-prove every mirror file whose emission MOVED, discovering the set
+dynamically. The sweep names a file by `path.replace("/", "__")`, and my reverse was
+`sed 's#__#/#g'` — which turns `frontend____init__` into `frontend//init/`:
+
+    [!] Error: File 'src/self-annotate/src/frontend//init/.py' not found.
+
+one line, then the loop moved on to the next file and the gate reported success. Had I not
+already proved that file offline, the increment would have shipped with a mirror module that
+MOVED and was never re-verified — and the gate log would have looked like it had been.
+
+>>> Every derived path is a place a check can evaporate. Make the derivation total (here:
+>>> mangle each candidate and compare, which cannot be fooled by a dunder) and make the
+>>> failure LOUD — `continue` after an error is the same as never having written the step.
+
+## (q5) A running bash script is not a file you may edit
+
+I found a dunder bug in a gate's path reconstruction and fixed it in place — in the script
+bash was executing at that moment. Bash reads a script incrementally from a file OFFSET, so
+the interpreter resumed inside the middle of the comment I had just inserted:
+
+    gate_field.sh: line 59: syntax error near unexpected token `)'
+    gate_field.sh: line 59: `arries on). Recover the source'
+
+and the gate died with its suite unrun. The damage was small because everything already
+done was logged and green, and because the one step the bug had skipped had been proved
+offline anyway — but the failure mode is silent in the worst way: the script does not stop
+at the edit, it stops LATER, at whatever text now sits under the offset it had reached.
+
+>>> Copy, edit the copy, launch the copy. The same applies to any long-running job reading
+>>> a file you are about to change — a gate script, a driver list, a corpus manifest.
+
+## (r5) Four `requires True` in one campaign — the fix is a grep, not a resolution
+
+`check-claim-vacuity` went red for the fourth time this campaign, on `1896`/`1897`, and for
+the fourth time it was `#@ requires True` written out of habit while I was thinking about
+the `ensures`. Removing it changed neither verdict, which is exactly why nothing but a
+count-based ratchet ever notices: a vacuous premise cannot change a proof.
+
+Three previous occurrences, three write-ups, one of them explicitly saying "read every line
+as if writing it fresh". That resolution has now failed three times.
+
+>>> Stop writing resolutions for this one. The countermeasure is mechanical and it belongs
+>>> in the landing script: `grep -n 'requires True' <the new witnesses>` before the gate
+>>> starts. It costs two seconds and it has cost four gate restarts.

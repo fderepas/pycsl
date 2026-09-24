@@ -71,6 +71,26 @@ the user wrote in silence. Routes **#226 (NEW, SEV-1), #214 and #221 are OPEN** 
   read forms work for which element types; every FAILED cell but one is a missing branch
   beside a present one.
 
+## THE FINDING THAT CAME OUT OF AN EXCLUSION LIST
+
+`struct.unpack` returns a TUPLE. Six corpus functions across three PASS-expected drivers
+(0753, 0778, 0779) declare `#@ ensures \result == x` over `return struct.unpack(...)`, and
+all six verify. Deleting the `#@ proof rocq|lean` citations makes 0753 FAIL, so the
+discharge is the audited-external-proof opt-in — a FINDING, not a SEV-1 route, and still a
+defect in a CHECKED surface: the registered axiom is a true theorem about a byte codec
+returning an INT, and nothing in the 3-way cross-check compares the Rocq result TYPE with
+the Python return type.
+
+**Three instruments could have found it and each has a different population boundary.**
+`check-corpus-contract-truth-args` had `\nothing` in a skip list whose stated purpose is
+"tokens this oracle cannot evaluate" — a token that appears ONLY in `#@ assigns \nothing`,
+a clause it never reads — and tested the whole annotation block, excluding every empty-frame
+function (416 -> 519 functions, 4367 -> 5750 evaluations). `check-stdlib-contract-fidelity`
+has `\length` in ITS skip list, and could not call the real function anyway because the
+shim models a format STRING as an int. The zero-argument oracle needs a literal `== N`.
+One defect, sitting in the intersection of three boundaries.
+`finding-struct-unpack-returns-a-tuple.md`, wall-lesson (o5).
+
 ## The two INSTRUMENTS this generation added, both from one question
 
 **"Which existing instrument should have found this route, and why did it not?"** Asked of

@@ -662,3 +662,41 @@ docs/ir.md §10's version bump.
 SCOPE, from census A: 24 of 184 classes have a COMPUTING constructor. The subset whose
 computation is a single call to a contract-carrying function is smaller still and has not
 been counted — count it before building.
+
+### INCREMENT 3's POPULATION IS **ZERO**, and that reframes the whole increment
+
+Before building anything, count the shape. Computed constructor stores in a class carrying a
+`#@ class invariant`, across both corpora, `src/pycsl`, `src/self-annotate/src` and
+`src/pycsl_lib`:
+
+    computed stores                                                   72
+      · the computation is a CALL to a function with an `#@ ensures`   **0**
+      · anything else                                                  72
+
+and the 72 break down as
+
+    Call(bytearray)   33      e.g. `self.disk = bytearray(1024)`
+    BinOp             23      e.g. `self.disk = [0] * 1024`
+    List              16      e.g. `self.disk = [...]`
+
+**every one of them a CONTAINER construction**, not an int computation. So `self.n = three()`
+— the shape the third carrier is written in, and the shape increment 3's
+callee-postcondition device is designed for — **does not occur anywhere in the tree**.
+
+CONSEQUENCES, and they point in opposite directions:
+
+  * Increments 1 and 2 together close every shape the tree ACTUALLY CONTAINS. That is worth
+    saying plainly, and it is stronger than "two of four carriers".
+  * The third carrier is still a live unsoundness for any program that writes it, so the
+    route stays LIVE and its carrier stays registered. But increment 3 would be built for a
+    constructed witness only — its device (substitute the callee's `#@ ensures`) has no user
+    to be right or wrong about, and it is the one increment that moves `*.ir.json`.
+
+So increment 3 is DEMOTED, not scheduled: the cost is the highest of the three and the
+measured demand is nil. What would raise its priority is a corpus program that computes a
+SCALAR field in `__init__` — there is not one today.
+
+The container stores are a separate question and not this route's: a `\length` invariant on
+a list field does not reach a postcondition (measured when this route was found — a method
+returning `len(self.xs)` FAILS), which is why the scalar path was the carrier in the first
+place.

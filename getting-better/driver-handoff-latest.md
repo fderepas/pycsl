@@ -11066,3 +11066,33 @@ mirror edits; run it after ANY `src/pycsl/` change.
 #    changed from the full 53-file self-annotation suite to that same rule.
 #
 #    QUEUE: mutex (gating) -> field -> seq-local -> route #226 increment 2.
+
+# ======================================================================================
+# ## UPDATE 2026-09-24T17:00Z — SIX COMMITTED, and a NEW FINDING from an exclusion list
+#
+#    `9f75cc69` imports · `ce548805` keywords · `3cf98e40` contract-truth 390->432
+#    `80bf4985` **ROUTE #226 increment 1** · `9b93f265` the class-invariant PLANE
+#    `c7d33e52` the mutex-name refusal (directive plane 52 of 53)
+#
+#    IN FLIGHT: the FIELD increment's gate (`gate_field2.log`) — corpus 2 MOVED and both
+#    audited as failing for their OWN reason, mirror 8 MOVED and being re-proved one by one.
+#
+#    PREPARED, each with land/gate/message and every number measured offline:
+#      * `land_seq.sh`   / `gate_seq.sh`   / `msgseq.txt`   — `len()` of a `seq int` local
+#      * `land_r226b.sh` / `gate_r226b.sh` / `msgr226b.txt` — ROUTE #226 increment 2
+#      * `land_args.sh`  / `gate_args.sh`  / `msgargs.txt`  — the args-oracle widening
+#
+#    **NEW FINDING — `struct.unpack` RETURNS A TUPLE.** Two PASS-expected corpus drivers
+#    (0753, 0778) certify `#@ ensures \result == x` for five functions that return `(x,)`.
+#    Deleting their `#@ proof rocq|lean` citations makes 0753 FAIL, so the discharge is the
+#    audited-external-proof opt-in: a FINDING, not a SEV-1 route — and still a defect in a
+#    CHECKED surface, because nothing in the 3-way cross-check compares the Rocq result TYPE
+#    with the Python return type.
+#    `getting-better/open-routes/finding-struct-unpack-returns-a-tuple.md`
+#
+#    HOW IT WAS FOUND, and it is the generation's sharpest lesson: the oracle that exists to
+#    catch it had `\nothing` in its SKIP_TOKENS — a token that can ONLY appear in
+#    `#@ assigns \nothing`, a clause that oracle never reads — and the filter tested the
+#    whole annotation block. One entry in a list whose stated purpose is "tokens this oracle
+#    cannot evaluate" excluded every empty-frame function: 416 -> 519 functions, 4367 ->
+#    5750 evaluations. Wall-lesson (o5).

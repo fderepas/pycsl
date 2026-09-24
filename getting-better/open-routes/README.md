@@ -1379,6 +1379,20 @@ Closing out the "still unprobed" list rather than leaving it to look like an opp
 ##    name check. Two of seven "controls" were the same mechanism in a name check's
 ##    clothes. `finding-a-mutex-name-that-resolves-to-nothing.md`
 ##
+## 2d. **`struct.unpack` RETURNS A TUPLE, AND TWO PROOF-CITED DRIVERS CERTIFY
+##    `\result == x`** — `0753.py` and `0778.py`, five functions, both
+##    `# pycsl-expected: PASS`, both carrying audited `#@ proof rocq` and `#@ proof lean`
+##    citations. CPython answers `(x,)`. Deleting the citations makes 0753 FAIL, so the
+##    discharge is the audited-external-proof opt-in and this is a finding rather than a
+##    SEV-1 route — but it is a defect in a CHECKED surface: the registered axiom is a true
+##    theorem about a byte codec returning an INT, and nothing in the 3-way cross-check
+##    compares the Rocq result TYPE with the Python return type.
+##    **It was hidden by an exclusion list.** `check-corpus-contract-truth-args` had
+##    `\nothing` among "CSL tokens this oracle cannot evaluate" — a token that can only
+##    appear in `#@ assigns \nothing`, a clause it never reads — and tested the whole
+##    annotation block, so every empty-frame function was skipped: 416 -> 519 functions,
+##    4367 -> 5750 evaluations. `finding-struct-unpack-returns-a-tuple.md`, wall-lesson (o5).
+##
 ## 3. **THE `#@ datatype` MATCH-EXHAUSTIVENESS REFUSAL IS WITHDRAWN** — its census came out
 ##    zero and it was written up as ready; then one constructed counter-program refuted it
 ##    (`#@ requires c != Blue()` makes a partial match legitimate and Why3 DISCHARGES the

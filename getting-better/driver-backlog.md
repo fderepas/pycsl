@@ -6946,3 +6946,110 @@ The conversion shortlist was built BEFORE that, and it was built by looking for 
 This does NOT unblock `PyCSLWeaver.visit_FunctionDef`, which needs the `seq`-vs-`array`
 bridge (`finding-a-list-out-of-a-dict-cannot-be-passed-anywhere.md`). It is a different
 vein, and it is newly open.
+
+## THE QUEUE AFTER THE CURRENT FIVE (written 2026-09-24T16:12Z, ~64h left in the window)
+
+Committed this window: `9f75cc69` imports · `ce548805` keywords · `3cf98e40`
+contract-truth 390->432 · `80bf4985` **ROUTE #226 increment 1** · `9b93f265` the
+class-invariant plane · `c7d33e52` the mutex-name refusal (directive plane 52 of 53).
+In flight: FIELD. Prepared: SEQ-LOCAL, ROUTE #226 INCREMENT 2.
+
+WHAT TO DO WITH THE REST OF THE WINDOW, in value order:
+
+ 1. ~~**ROUTE #226 INCREMENT 3**~~ — **DEMOTED, and by its own census.** The last carrier
+    is a COMPUTED constructor store (`self.n = three()`), and the device for it is to make
+    the callee's `#@ ensures` a premise. Counted before building: 72 computed stores exist
+    in classes carrying a class invariant, and the number whose computation is a CALL to a
+    function with an `#@ ensures` is **ZERO** — all 72 are container constructions
+    (`bytearray(...)` 33, `[0] * N` 23, list literals 16). The shape the increment is
+    designed for does not occur anywhere in the tree. It is also the only one of the three
+    that moves `*.ir.json`, so it carries the conformance-golden and IR-version question
+    increments 1 and 2 both avoided. **Increments 1 and 2 close every shape the tree
+    actually contains.** What would raise increment 3's priority is a corpus program that
+    computes a SCALAR field in `__init__`; there is not one.
+
+ 2. **RE-CENSUS THE `\trusted` CONVERSION SHORTLIST** against the field fix. Eight mirror
+    modules now model `str` fields as `string` instead of `int`. The old shortlist was
+    built by looking for containers; the question now is which `\trusted` bodies became
+    expressible.
+
+ 3. **EXTEND `check-corpus-contract-truth-args` TO METHODS** — its line 179 excludes every
+    method (`any(a.arg == "self" for a in ps)`), the same boundary route #226 exposed in
+    the zero-argument sibling. Prototyped: 6 methods, 148 argument-level evaluations, 0
+    disagree. Small, principled, and already measured.
+
+ 4. **KEEP HUNTING.** The productive question this generation has been "which existing
+    instrument should have found this, and why did it not" — it produced two instrument
+    extensions and one new plane in a day. The other one, "take a sentence of
+    annotations.md and run the smallest program it describes both ways", is not exhausted:
+    §10's concurrency notes and §2.1's directive table still have rows nobody has probed.
+
+### WHAT THE ARGS ORACLE STILL EXCLUDES, counted 2026-09-24 after the widening
+
+With the skip list narrowed and methods included it reads 519 functions / 5750 evaluations.
+The remaining exclusions, censused over PASS-expected, proving, `\result ==` functions:
+
+    4+ int parameters (`len(ps) > 3`)   **0**   — the cap costs nothing today
+    at least one `str` parameter         45     — needs a STRING pool
+    some other parameter annotation      97     — lists, dicts, records, `Optional[...]`
+
+So the `len(ps) > 3` cap is free to keep and the next real widening is a STRING POOL: 45
+functions, and strings are where `\length`, slicing and the `str`-vs-`int` field erasure
+all live. The 97 with container parameters need a value model per annotation and are a
+different order of work.
+
+This is the same question that produced the `\nothing` find — "what is this instrument NOT
+looking at, and why" — asked of the instrument immediately after widening it. The answer
+should be re-asked after any widening, because the boundary that matters is always the one
+nobody has re-examined since the first version.
+
+### THE NEXT INSTRUMENT WIDENING, specified by what it would have to catch
+
+`0779.py::roundtrip_s4(d: bytes) -> bytes` is the sixth `struct.unpack` instance and NO
+instrument can see it. Three boundaries have to move at once, and naming them is the
+specification:
+
+  1. **a `str`/`bytes` POOL** — 45 PASS-expected proving functions have at least one `str`
+     parameter (censused 2026-09-24) and are excluded today because the pool is ints;
+  2. **`\length` translated, not skipped** — `\length(x)` is `len(x)`, which
+     `check-class-invariant-establishment` already does. `0779`'s contract is
+     `#@ requires \length(d) == 4`, so even with a bytes pool the token skip drops it;
+  3. **a non-int `\result`** — the oracle requires `-> int`/`-> bool`; `0779` returns
+     `bytes`, and the comparison `\result == d` is a perfectly ordinary Python `==`.
+
+Each is small on its own. Do them together, because any one alone still misses the witness
+that motivated them — which is the test of whether the widening was specified by the defect
+or by convenience.
+
+EXPECTED YIELD, stated before the work so it can be checked after: `0779` becomes visible
+(and joins `KNOWN_DIVERGENT` with the other five), plus whatever the 45 `str`-parameter
+functions say. Everything else this generation widened came back ZERO on the existing
+corpus; predicting the same here would be the safe guess and a boring one.
+
+### THE CONVERSION SHORTLIST, RE-CENSUSED AFTER THE FIELD FIX (2026-09-24)
+
+The field-param increment re-types `self.<f> = <str param>` from `int` to `string` in EIGHT
+mirror modules. Every `\trusted` stub in those modules that reads such a field was
+un-convertible for a reason that has just gone away. Counted:
+
+    103 `\trusted` stubs across the eight, and TEN have a ONE-STATEMENT live body:
+
+      Module6_WhyMLTranspiler   _build_callee_no_exception_summary
+      frontend/ConcurrencyChecker  _walk_stmt
+      frontend/Module1_Ingestor    _emit_block_footer, _emit_suite
+      frontend/Module3_Weaver      _attach_loop_contracts, _collect_field_read_sites,
+                                   _collect_self_call_sites
+      pycsl.py                     _json_goal_records, _record_answer,
+                                   _synthesize_legacy_text
+
+**`frontend/Module1_Ingestor.py` proves in ~14 SECONDS** (measured today), which makes it by
+far the cheapest iteration loop in the tree — `Module3_Weaver` is ~4 min and
+`module6_whyml/expressions.py` did not finish in 66. Start there.
+
+CAUTION FROM THE PRICING THAT CAME BEFORE THIS ONE: a one-statement body is not a
+one-statement MODEL. `_emit_block_footer`'s single statement constructs a `PyCSLContract`
+record and appends it to `self._out`; `_emit_suite`'s is a nested recursion over a list of
+records. The last shortlist was built the same way (fewest lines first) and every entry
+turned out to need the `seq`-vs-`array` bridge. **Price each candidate by what its body
+NEEDS, not by how long it is** — that is the lesson the `visit_FunctionDef` attempt paid
+for, and it is the reason this census lists what to read rather than what to convert.

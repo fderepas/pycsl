@@ -8949,3 +8949,267 @@ longest that has actually FINISHED.
     suite              **4016 / 4034 passed** — the standing EIGHTEEN, ZERO XPASS
 
 4034 = 4031 + 3 witnesses, 4016 = 4013 + 3. Predicted, then exact.
+
+--------------------------------------------------------------------------------
+2026-09-24 15:55Z — COMMITTED `c7d33e52` (the mutex-name refusal, directive plane 52 of 53).
+The FIELD increment is APPLIED: `1896` SUCCESS, `1897` (the false twin) FAILED, and the
+mirror `frontend/Module3_Weaver.py` proves.
+
+ONE BOGUS LINE IN ITS LANDING SCRIPT, recorded rather than quietly fixed: it runs
+`pycsl.py src/pycsl/frontend/Module3_Weaver.py` — the LIVE source, which carries no `#@`
+contracts at all — and reports `NOT-SUCCESS <-- CHECK`. That is the check being wrong, not
+the tree: the live emitter is not a self-annotation target. The MIRROR twin on the next line
+is the real check and it is SUCCESS.
+
+The gate's mirror re-proof step will redo work already done: all EIGHT moved mirror files
+were proved SUCCESS on an offline copy of this exact tree (`diff -rq src $SCRATCH/treefld/src`
+is empty) before the patch was applied here. Kept anyway, so the gate is self-contained.
+
+--------------------------------------------------------------------------------
+2026-09-24 16:05Z — THE FIELD GATE'S CORPUS BYTE-DIFF WENT NON-INERT, and one of the four
+moved files was a CLOSED ROUTE'S WITNESS failing for the wrong reason
+
+The census said ZERO corpus sites and I wrote "corpus-byte-inert by construction" into the
+backlog, the handoff and the commit message. The sweep says **4 MOVED**:
+
+    1315 / 1317  (route #116)   type pick = { mutable name: int }  ->  string
+    1480 / 1483  (routes #148/#149)  type cy = { mutable r: int }  ->  real
+
+The string pair is the repair working: a `str` parameter stored to a field was modelled as
+an int. **The float pair is a defect**, and it is the kind that hides inside a green-looking
+"still FAILED":
+
+    type cy = { mutable r: real }
+    let c = { r = 0 } in            <- the CONSTRUCTION literal stayed an int
+
+    This expression has type int, but is expected to have type real
+
+`1480` is `# pycsl-expected: FAIL`, so the suite would still have called it a pass — while
+the file had stopped testing route #148 and started testing whether the emitter produces
+well-formed WhyML. Routes #148 and #149 mark a non-integral float default UNKNOWN precisely
+BECAUSE the field is int-typed; giving the field a real type walks around that repair
+without replacing it.
+
+FIXED BY EXCLUDING `float`, and it is the only exclusion. ONE of the 111 census sites is a
+float, so it costs a single site and keeps two closed routes closed. After it:
+
+    1480 / 1483   FAILED for their own reason (no type error)
+    1315 / 1317   FAILED on an unproven goal (their own reason too)
+    1896 SUCCESS · 1897 FAILED
+
+>>> THE LESSON IS ABOUT THE GATE, NOT THE PATCH: "expected-FAIL and still FAILED" is not a
+>>> pass. A witness that fails because the module is MALFORMED is no longer testing its
+>>> route, and the suite cannot tell the difference. The byte-diff is what noticed — which
+>>> is the argument for auditing MOVED files by reading their diffs rather than counting.
+
+THE FLOAT EXCLUSION CHANGES NO MIRROR EMISSION — `diff -rq` between the mirror sweeps taken
+before and after it is empty, so the eight moved mirror modules are byte-identical either
+way and the six already proved offline (`errors`, `Module1_Ingestor`, `ConcurrencyChecker`,
+`Module6_WhyMLTranspiler`, `Module3_Weaver`, `ir_resolve`) keep their verdicts. Only
+`frontend/__init__` and `pycsl` were still outstanding when the gate was stopped; they are
+running against the repo tree now.
+    `frontend/__init__.py` with the field fix — **SUCCESS** (~23 min). Seven of the eight
+    moved mirror modules now proved; `pycsl.py` is the last and is running beside the
+    relaunched gate.
+
+--------------------------------------------------------------------------------
+2026-09-24 16:33Z — the FIELD gate, after the float exclusion
+
+    corpus byte-diff   1367 / 1369 — **2 MOVED** (down from 4), 0 GONE, 0 APPEARED
+    and the new audit reads the moved witnesses instead of counting them:
+        moved 1315_route116_…  exp=FAIL  FAILED (own reason)
+        moved 1317_route116_…  exp=FAIL  FAILED (own reason)
+    python-reference   2199 / 2199, 0 MOVED
+
+Both remaining moves are `type … { mutable name: int }` -> `string`, and both witnesses
+still fail on an unproven goal rather than on a type error — which is the distinction the
+reference suite cannot make and the gate now does.
+
+--------------------------------------------------------------------------------
+2026-09-24 16:53Z — **A NEW FINDING, AND THE INSTRUMENT THAT HID IT WAS ITS OWN SKIP LIST**
+
+Extending `check-corpus-contract-truth-args` to METHODS (its line 179 excludes every one)
+was a small, principled item: +6 methods, +130 evaluations, 0 disagree. While doing it I
+read its skip list:
+
+    # CSL tokens this oracle cannot evaluate as Python. A contract carrying one is skipped
+    # whole — an oracle that guesses at `\forall` reports its own bugs as corpus defects.
+    SKIP_TOKENS = (…, "\\result[", "\\nothing", "\\let")
+
+**`\nothing` can only appear in `#@ assigns \nothing`** — a clause this oracle never
+evaluates, because it reads only `requires` and `ensures`. The filter joins the WHOLE
+annotation block, so one token in a list whose stated purpose is "tokens this oracle cannot
+evaluate" excluded every function that declares an empty frame. Measured:
+
+    with `\nothing` in the list   416 functions, 4367 evaluations, **0 disagree**
+    with it removed               518 functions, 5573 evaluations, **44 disagree**
+
+Five of the six distinct disagreements are REAL:
+
+    0753.py::roundtrip_u16, roundtrip_u32      `#@ ensures \result == x`
+    0778.py::roundtrip_i16, roundtrip_i32, roundtrip_i64
+
+    def roundtrip_u16(x: int) -> int:
+        packed = struct.pack('>H', x)
+        return struct.unpack('>H', packed)
+
+    >>> struct.unpack('>H', struct.pack('>H', 7))
+    (7,)                       # a TUPLE — and `(7,) == 7` is False
+
+both files `# pycsl-expected: PASS`, both carrying `#@ proof rocq` and `#@ proof lean`
+citations, both verifying today. **Deleting the `#@ proof` lines makes 0753 FAIL**, so the
+trust surface is the audited-external-proof opt-in and this is a FINDING rather than a
+SEV-1 route. It is still a defect in a CHECKED surface: the registered axiom is a true
+theorem about a byte codec returning an INT, and nothing in the 3-way cross-check compares
+the Rocq result TYPE with the Python return type. The shim's own docstring quotes the RST
+sentence "The result is a tuple even if it contains exactly one item" and then models the
+scalar.
+
+The sixth disagreement is the ORACLE's own bug: `multi_file_lib/r119_rebindlib.py::inc` ends
+with `inc = dec`, so `ns["inc"]` is a different function from the one whose contract was
+read. Route #119's witness library. The oracle must skip a name REBOUND at module level.
+
+Written up as `open-routes/finding-struct-unpack-returns-a-tuple.md`.
+
+--------------------------------------------------------------------------------
+2026-09-24 17:00Z — the ARGS-ORACLE increment is BUILT, GREEN, and it is five fixes not one
+
+    before   416 functions, 4367 argument-level evaluations, 0 disagree
+    after    **519 functions, 5750 evaluations**, 5 KNOWN divergences, plane GREEN
+
+  1. the SKIP LIST is applied to the clauses the oracle READS (`requires`/`ensures`) and not
+     to the whole annotation block — `\nothing` can only be in `#@ assigns \nothing`;
+  2. METHODS are no longer excluded (`any(a.arg == "self")`), the same boundary route #226
+     exposed in the zero-argument sibling;
+  3. a name REBOUND at module level is skipped — `inc = dec` made the oracle call a
+     DIFFERENT function from the one whose contract it read (route #119's witness library);
+  4. a clause may CALL a module function — `\result == abs_val(a) + abs_val(b)` raised
+     NameError under empty builtins and was filed as "CPython has no normal exit at all",
+     false of all five files it hit;
+  5. `#@ raises <Exc> when <cond>` is read — 0383 DECLARES its ZeroDivisionError and the
+     oracle reported it as a broken promise.
+
+Fixes 3-5 each turned a reported "corpus defect" into what it actually was, which is the
+same discipline as reading the two false disagreements when the zero-argument sibling was
+extended. Only fix 1 surfaced anything real, and it surfaced FIVE.
+
+`MAX_RAISED` 3 -> 4 with the one addition NAMED (`1302_route108…::wrapper(-1)`);
+`MIN_EVALS` 3800 -> 5200; the `--selftest-no-exclusions` bite test still bites (91).
+Held at `$SCRATCH/g31/{fix_args_methods.py,land_args.sh,gate_args.sh,msgargs.txt}`.
+
+--------------------------------------------------------------------------------
+2026-09-24 17:04Z — the gate's own path reconstruction had a DUNDER bug, and it failed the
+way a skipped check always does: quietly
+
+    [!] Error: File 'src/self-annotate/src/frontend//init/.py' not found.
+
+The mirror sweep names a file by `path.replace("/", "__")`, so `frontend/__init__.py`
+becomes `frontend____init__.mlw`, and the gate's `sed 's#__#/#g'` turned that back into
+`frontend//init/`. The re-proof step printed one error line and CARRIED ON to the next file
+— so `frontend/__init__.py` would have been recorded as "re-proved" by a gate that never
+proved it.
+
+It is covered anyway: it was proved SUCCESS offline at 16:28 on this exact tree
+(`fld_proof_big2.log`, `diff -rq src $SCRATCH/treefld/src` empty). The coverage is real; the
+GATE's claim to it was not.
+
+FIXED IN ALL THREE GATES that use the dynamic moved-set rule (field, seq, route #226
+increment 2): recover the source by MANGLING every candidate and comparing, which cannot be
+fooled by a dunder, and REFUSE loudly when no source maps back.
+
+>>> A loop that prints an error and continues turns a missing check into a passing one.
+
+    A SIXTH INSTANCE, found by grepping for the SHAPE rather than waiting for an
+    instrument: `0779.py::roundtrip_s4(d: bytes) -> bytes` with `#@ ensures \result == d`
+    over `return struct.unpack('>4s', packed)` — CPython `(b'abcd',)`. PASS-expected, same
+    `#@ proof` discharge, and INVISIBLE to the args oracle because its parameter and return
+    are `bytes`. It is recorded in the finding and deliberately NOT added to
+    `KNOWN_DIVERGENT`, which is asserted exactly: naming a divergence the plane can never
+    report would make the plane demand the impossible. Eleven corpus files use
+    `struct.unpack`; the other five either do not return its result or are expected-FAIL.
+
+--------------------------------------------------------------------------------
+2026-09-24 17:38Z — I EDITED A RUNNING SHELL SCRIPT AND KILLED ITS OWN GATE
+
+Fixing the dunder path bug, I rewrote `gate_field.sh` — **while bash was executing it**.
+Bash reads a script incrementally from a file OFFSET, so rewriting the file under it made
+the interpreter resume in the middle of a comment:
+
+    gate_field.sh: line 59: syntax error near unexpected token `)'
+    gate_field.sh: line 59: `arries on). Recover the source'
+
+The gate died there. What it had already done is intact and green, and it is more than I
+expected: byte-diff (corpus 2 MOVED, both audited as failing for their OWN reason;
+python-reference 0 MOVED), the mirror sweep (8 MOVED), and **SEVEN of the EIGHT mirror
+re-proofs, every one SUCCESS** — `Module6_WhyMLTranspiler`, `errors`, `ConcurrencyChecker`,
+`Module1_Ingestor`, `Module3_Weaver`, `ir_resolve`, `pycsl`. The eighth,
+`frontend/__init__.py`, is the one the dunder bug skipped, and it was proved SUCCESS offline
+at 16:28 on a byte-identical tree.
+
+So the increment's mirror evidence is COMPLETE; what was lost is the planes and the suite,
+resumed in `gate_field_rest.sh`.
+
+>>> A running bash script is not a file you may edit. Copy it, edit the copy, and launch the
+>>> copy — or the interpreter will resume at a byte offset into text that no longer means
+>>> what it did when it was read.
+
+--------------------------------------------------------------------------------
+2026-09-24 17:43Z — `check-claim-vacuity` RED, and it was mine, for the FOURTH TIME THIS
+CAMPAIGN
+
+    [!]   `requires True` FILE COUNT GREW: 1133 > 1131.
+
+Both new witnesses (`1896`, `1897`) carried `#@ requires True`, written out of habit into
+the method contract. Removed; both keep their verdicts (1896 SUCCESS, 1897 FAILED) — which
+is the proof the clause carried NO information, and the reason nothing but a count-based
+ratchet ever objects to it.
+
+FOUR TIMES. The previous three were 1879 (inherited from a probe), and two earlier in the
+campaign. The lesson is written down (wall-lesson (b5) group) and it has not changed my
+hands: `#@ requires True` is what I type while thinking about the `ensures`.
+
+>>> The countermeasure that would actually work is mechanical, not a resolution: GREP THE
+>>> NEW WITNESSES FOR `requires True` BEFORE RUNNING THE GATE. Two seconds, and it has cost
+>>> four gate restarts.
+
+Planes and suite relaunched.
+
+THE MECHANICAL COUNTERMEASURE WORKED IMMEDIATELY. A `grep -n 'requires True' $S/w/*.py`
+step was added to every landing script; running it once found **two more** —
+`1898`/`1899`, the seq-local pair, still queued and not yet landed. Removed before the gate
+rather than after it, and both keep their verdicts (1898 FAILED -> SUCCESS with the patch,
+1899 FAILED both ways). Occurrences five and six, and the first two that cost nothing.
+
+--------------------------------------------------------------------------------
+2026-09-24 18:10Z — both queued EMITTER increments re-verified against the POST-FIELD tree,
+so landing them will not be the first time they meet it
+
+    SEQ-LOCAL      1898 FAILED -> SUCCESS · 1899 (false twin) FAILED -> FAILED
+    ROUTE #226 #2  1890 FAILED · 1891 SUCCESS · 1892 FAILED · 1900 FAILED · 1901 SUCCESS
+
+Both trees rebuilt from today's `src` and re-patched, because the field increment changed
+`Module5_IREmitter` under them. An increment measured against a tree two commits old is a
+measurement of a tree that no longer exists — the same reason the import gate was relaunched
+rather than resumed this morning.
+
+--------------------------------------------------------------------------------
+2026-09-24 18:56Z — THE FIELD GATE IS GREEN (across three log files, and the split is
+recorded rather than tidied)
+
+    corpus byte-diff   1367 / 1369 — 2 MOVED, and both AUDITED as failing for their OWN
+                       reason (`1315`/`1317`, route #116's `str`-field witnesses)
+    python-reference   2199 / 2199, 0 MOVED
+    MIRROR             53 / 53, **8 MOVED** — the model becoming faithful (`str` fields
+                       that were `int`). SEVEN re-proved by the gate, the eighth
+                       (`frontend/__init__.py`, skipped by the dunder path bug) proved
+                       SUCCESS offline on a byte-identical tree. All eight SUCCESS.
+    fast planes        all 47 green (after the `requires True` fix)
+    suite              **4018 / 4036 passed** — the standing EIGHTEEN, ZERO XPASS
+
+4036 = 4034 + 2 witnesses, 4018 = 4016 + 2. Predicted, then exact.
+
+THE GATE RAN IN THREE PIECES and that is the honest record: `gate_field2.log` (byte-diff,
+corpus audit, seven mirror re-proofs) died when I edited the running script;
+`gate_field3.log` resumed at the planes and went red on `check-claim-vacuity`;
+`gate_field4.log` is the clean planes-and-suite run after the two `requires True` lines came
+out. Three logs, one green result, and two lessons — (q5) and (r5).
