@@ -427,7 +427,7 @@ opt-in proves).
 
 | # | Directive | Syntax | Scope | Semantics |
 |---|---|---|---|---|
-| 1 | Class invariant | `#@ class invariant <expr>` | `class` | Must hold at every method boundary |
+| 1 | Class invariant | `#@ class invariant <expr>` | `class` | Assumed at every method boundary, and CHECKED where an instance is CONSTRUCTED. **The constructor's own obligation is emitted as `goal _check_class_inv_<C>` only when it can be stated exactly**: `__init__` takes no arguments beyond `self` and every field is an `int` initialised to a literal at the top level of the body (route #226). For the other shapes — a field taken from an `__init__` parameter, a computed or control-flow store, or a `@dataclass` whose synthesized `__init__` takes every field — NO obligation is emitted, so a file that defines such a class, publishes a reader for it and constructs nothing is not asked whether the invariant is establishable. Witnesses 1890/1891 (checked) and 1892 (the recorded hole). |
 | 2 | Allow finalizer | `#@ allow_finalizer` | `class` | Opts the class out of UB-7.5 (`__del__` rejection). See §2.3.2. |
 
 Placed on leading lines **before** the `class` keyword.

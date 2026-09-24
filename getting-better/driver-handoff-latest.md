@@ -10972,3 +10972,63 @@ mirror edits; run it after ANY `src/pycsl/` change.
 #    `mirror-emit-sweep.sh` against a patched emitter while a completely different gate runs
 #    in the repo. That is how the seq-local increment went from "not attempted, deliberately"
 #    to "measured, corpus-byte-inert, one mirror file moved and named" in twenty minutes.
+
+# ======================================================================================
+# ## A GATE STEP EVERY EMISSION CHANGE OWES, learned the expensive way 2026-09-24T12:26Z
+#
+#    ROUTE #226's repair adds a line to every in-scope class's emitted module. The census
+#    covered both corpora, `src/pycsl`, `src/self-annotate/src` and `src/pycsl_lib`. It did
+#    NOT cover the **38 FROZEN CONFORMANCE GOLDENS** under
+#    `test-suite/corpus/conformance/core/`, and 12 of them gained the same line:
+#
+#        [!] core-only conformance: 26 OK / 12 MISMATCH (38 goldens)
+#
+#    THE REFRESH, and it is audited exactly like a byte-diff:
+#        cp -a test-suite/corpus/conformance/core $SCRATCH/core_goldens_before
+#        PYTHONHASHSEED=0 python3 bin/regen-ir-conformance-goldens.py mlw
+#        <then diff every changed golden against the copy, line by line>
+#        -> goldens changed 12; ONLY-ADDED-A-GOAL 12; OTHER 0; `*.ir.json` touched ZERO
+#
+#    **Zero `*.ir.json` touched means NO IR version bump is owed** (docs/ir.md §10): the IR
+#    contract did not move, the emitted WhyML did. `frontend-only-conformance` reads
+#    38 OK / 0 MISMATCH throughout, which is the independent confirmation of that.
+#
+#    `gate_r226.sh` now runs BOTH conformance runners as an explicit step. Copy that step
+#    into any future gate for an emission change. Wall-lesson (i5).
+
+# ======================================================================================
+# ## UPDATE 2026-09-24T13:14Z — THREE COMMITTED, SIX PREPARED
+#
+#    `9f75cc69` import pair + route #226's record/carrier + two findings
+#    `ce548805` the KEYWORD pair, both debt planes paid (witness floor 202->204, advice
+#               113->114), suite 4010/4028 = the standing EIGHTEEN, ZERO XPASS
+#    `3cf98e40` corpus-contract-truth extended 390 -> 432 contracts (methods + comparisons)
+#
+#    ROUTE #226 INCREMENT 1 IS APPLIED and its gate is running (`gate_r226b.log`):
+#      corpus 1363/1366, **60 MOVED, and the gate AUDITS them: ONLY-ADDED-A-GOAL 60,
+#      OTHER 0**; python-reference 0 MOVED; MIRROR 0 MOVED; the 12 conformance goldens
+#      refreshed and audited the same way (0 `*.ir.json` touched, so no IR bump);
+#      all 46 planes green; suite running. Message `msgr226.txt`.
+#
+#    QUEUE, with every gate baseline chained:
+#      route #226 inc 1 (gating) -> class-invariant PLANE -> mutex -> field -> seq-local
+#      -> route #226 inc 2
+#
+#    NEW SINCE THE LAST UPDATE:
+#    * `bin/check-class-invariant-establishment.py` — a NEW PLANE. Constructs every
+#      PASS-expected corpus class that `C()` builds and evaluates its own
+#      `#@ class invariant` on it. 75 classes / 84 clauses / 0 FALSE, and it reports all
+#      three shapes increment 1 cannot state when pointed at them. MIN_PLANES 46 -> 47.
+#      `land_inv.sh` / `gate_inv.sh` / `msginv.txt`.
+#    * ROUTE #226 INCREMENT 2 — BUILT AND MEASURED OFFLINE, Module 6 only (route #15's
+#      `init_contract_check` already carries the `#@ requires` IR and the parameter types).
+#      Quantifies over the parameter, makes the binding a premise, carries `__init__`'s
+#      `#@ requires` as further premises. 1892 SUCCESS->FAILED, 1900 (`@dataclass`)
+#      SUCCESS->FAILED, 1901 (the (u4) counter-program) SUCCESS->SUCCESS. Leaves ONE
+#      carrier — the COMPUTED store — and names why. `fix_class_inv_goal2.py`,
+#      `doc_class_inv2.py`, `fix_carrier_r226b.py`, `land_r226b.sh`, `gate_r226b.sh`,
+#      `msgr226b.txt`, witnesses `w/1892b.py`, `w/1900.py`, `w/1901.py`,
+#      `w/carrier226c.py`.
+#
+#    A GATE STEP EVERY EMISSION CHANGE OWES (learned at 12:26Z, see above): the 38 FROZEN
+#    conformance goldens. `gate_r226.sh` now runs both conformance runners explicitly.

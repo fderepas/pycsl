@@ -123,10 +123,16 @@ CARRIERS = {
     # free, because a Why3 type invariant holds at every boundary for a value of that type.
     # annotations.md says the invariant "must hold at every method boundary", and the
     # constructor's exit is one.
-    "getting-better/open-routes/route226-carrier-constructor-never-establishes-the-invariant.py": (
+    # (#49) gen #31 — THE LITERAL-CONSTRUCTOR CARRIER IS CLOSED. Increment 1 emits
+    # `goal _check_class_inv_<C>` over `__init__`'s literals for a paramless constructor,
+    # so `route226-carrier-constructor-never-establishes-the-invariant.py` no longer
+    # verifies. It stays on disk as the closed carrier; the route is NOT closed, because
+    # three shapes still carry it, and the live one is registered below.
+    "getting-better/open-routes/route226-carrier-invariant-from-a-constructor-parameter.py": (
         "SUCCESS", "#226",
-        "a `#@ class invariant` the CONSTRUCTOR never establishes is assumed by every "
-        "method, so `\\result >= 5` PROVES while CPython answers 0"),
+        "a `#@ class invariant` over a field taken from an `__init__` PARAMETER has no "
+        "literal for the obligation to be stated about, so `\\result >= 5` still PROVES "
+        "while CPython answers 1"),
 }
 FLAGS = ["--memory-model", "hoare"]
 

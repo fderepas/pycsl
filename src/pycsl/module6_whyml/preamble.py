@@ -9212,6 +9212,86 @@ class PreambleEmissionMixin:
                     # Qualify ambiguous field names in the witness too.
                     _q = lambda fn: self._field_label(type_name, fn)
                     out.append(f"    by {{ {self._build_witness_str([_q(fn) for fn in field_names], {_q(fn): v for fn, v in witness_vals.items()}, {_q(fn): t for fn, t in field_types.items()}, {_q(fn): l for fn, l in array_lengths.items()}, {_q(fn): w for fn, w in array_elem_witnesses.items()})} }}")
+                    # (#49) gen #31, ROUTE #226 — THE CONSTRUCTOR'S OBLIGATION.
+                    #
+                    # A `#@ class invariant` becomes a Why3 TYPE invariant, and Why3 asks
+                    # only that the type be INHABITED. The `by { … }` witness above
+                    # discharges that — and it is SYNTHESIZED FROM THE INVARIANT, so it is
+                    # satisfiable whatever the invariant says. `__init__` is not emitted at
+                    # all, so nothing checked that the REAL constructor establishes the
+                    # invariant, while every method got it as a free assumption. Measured:
+                    # `self.n = 0` under `invariant self.n >= 5` certified
+                    # `ensures \result >= 5`; CPython answers 0.
+                    #
+                    # The obligation is a pure-logic question about the constructor's
+                    # literals, so it is stated the way `#@ mutex_invariant`'s initial-state
+                    # check is (`goal _check_initial_<m>`), NOT by reusing
+                    # `_build_witness_str`: that builder takes its array lengths from
+                    # `_extract_array_lengths(class_invs)`, i.e. from the invariant, and
+                    # widening it later would quietly re-derive the value from the very
+                    # thing under test and re-open this route.
+                    #
+                    # SCOPED to what the goal can say exactly: every field int-typed AND
+                    # literal-initialised, and the invariant naming nothing but those
+                    # fields. Outside that (an array/record/string field, a computed
+                    # `__init__`, an invariant citing a module constant or a predicate) NO
+                    # goal is emitted and the old behaviour is kept unchanged — that debt is
+                    # recorded in the route file, not silently closed.
+                    # `defaults` IS NOT THE CONSTRUCTOR'S DEFAULTS. Module 5 stores
+                    # `field_witness = {f: field_defaults.get(f, 0) for f in fields}` under
+                    # the key `field_defaults`, so a field the constructor never gives a
+                    # literal — `self.n = n` from a parameter, `self.n = three()`, a store
+                    # inside an `if` — reads back as the DEFINITE literal 0. Measured: the
+                    # first cut of this repair emitted `n = 0 -> (n >= 5)` for
+                    # `def __init__(self, n: int): self.n = n`, which is the right verdict
+                    # written for a reason the source does not support.
+                    #
+                    # The three shapes are distinguishable without touching Module 5:
+                    #   · parameter        -> `init_params` non-empty
+                    #   · computed         -> `init_unknown_fields` carries the field
+                    #   · control flow     -> `init_unknown_cf_fields` too
+                    # and a paramless constructor with no unknown field is exactly the case
+                    # where `field_witness` IS `field_defaults`. CENSUS: all 113 in-scope
+                    # corpus classes already satisfy this, so the honesty costs nothing.
+                    _ci_labels = [_q(fn) for fn in field_names]
+                    _ci_unk = (set(td.get("init_unknown_fields") or [])
+                               | set(td.get("init_unknown_cf_fields") or []))
+                    _ci_ok = (bool(field_names)
+                              and not (td.get("init_params") or [])
+                              and all(field_types.get(fn, "int") == "int"
+                                      and fn in defaults
+                                      and fn not in _ci_unk
+                                      for fn in field_names))
+                    if _ci_ok:
+                        _ci_allowed = set(_ci_labels) | {"true", "false", "not"}
+                        _ci_strs = []
+                        self._in_spec = True
+                        self._emit_record_ctx = type_name
+                        _prev_ci = getattr(self, "_current_self_type", None)
+                        self._current_self_type = type_name
+                        for _inv_ci in class_invs:
+                            _ci_strs.append(
+                                self._expr_to_whyml(_inv_ci, set(), invariant_ctx=True))
+                        self._current_self_type = _prev_ci
+                        self._emit_record_ctx = None
+                        self._in_spec = False
+                        for _s_ci in _ci_strs:
+                            for _id_ci in re.findall(r"[A-Za-z_][A-Za-z_0-9']*", _s_ci):
+                                if _id_ci not in _ci_allowed:
+                                    _ci_ok = False
+                        if _ci_ok and _ci_strs:
+                            _ci_prem = " -> ".join(
+                                "%s = %s" % (_q(fn),
+                                             ("(%d)" % defaults[fn]) if defaults[fn] < 0
+                                             else str(defaults[fn]))
+                                for fn in field_names)
+                            _ci_body = " /\\ ".join("(%s)" % _s for _s in _ci_strs)
+                            _ci_gname = whyml_ident(type_name)
+                            out.append("")
+                            out.append(
+                                f"  goal _check_class_inv_{_ci_gname} : "
+                                f"forall {' '.join(_ci_labels)} : int. "
+                                f"{_ci_prem} -> {_ci_body}")
                 out.append("")
                 # UB-7.2 — hash/eq consistency. Module 5 marks classes
                 # whose `__hash__` and `__eq__` are both defined.

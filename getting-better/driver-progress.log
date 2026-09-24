@@ -8594,3 +8594,198 @@ The CONTRACT-TRUTH extension's gate: **all 46 planes green**, and no byte-diff i
 the standing `.aux` build exhaust, so the emitter is not read, imported or run differently
 and corpus emission cannot move. Stated, with the evidence in the gate log, rather than
 assumed. Committing.
+
+--------------------------------------------------------------------------------
+2026-09-24 12:14Z — ROUTE #226's REPAIR IS APPLIED. Every check as predicted, and the one
+"failure" was my sample list, not the repair
+
+    1890 FAILED (the route closed) · 1891 SUCCESS · 1892 SUCCESS (the recorded debt)
+    the route #226 carrier: no longer SUCCESS
+    0006 / 0076 / 0192 / 0244 / 0442  all SUCCESS, with the right goals
+    0284 / 0285 REFUSED before and after
+    open-route-carriers: 5 carriers checked, all reproduce (the closed one is out of the
+      open set, the PARAMETER shape is in it)
+
+**0577 came back NOT-SUCCESS and it is `# pycsl-expected: FAIL`.** It FAILED on the
+pre-repair tree too — I had picked it off the in-scope census without checking its
+expectation. Four PASS-expected in-scope files run instead (0576, 0578, 0603, 0566): all
+SUCCESS. The sample list in `land_r226.sh` is corrected in place with the reason.
+
+AND I CHECKED THAT WRONG, AT REAL RISK. To get 0577's pre-repair verdict I ran
+`git stash --include-untracked`, the verifier, and `git stash pop` — **with an unlanded
+increment in the tree and a pre-existing stash entry underneath.** It came back clean
+(verified: the old stash is untouched, all eight paths of the increment are present, and
+the patch is still in `preamble.py`), and it should not have been done that way. The safe
+form is `git show HEAD:<path> > /tmp/...` and run THAT. Wall-lesson (h5).
+
+--------------------------------------------------------------------------------
+2026-09-24 ~12:20Z — AN EIGHTH INCREMENT, and it is the second half of the same question:
+a NEW PLANE that runs route #226's three UNSTATEABLE shapes
+
+Extending `check-corpus-contract-truth` answered "which instrument should have found route
+#226?" for POSTCONDITIONS. The other half is the INVARIANT itself, and no instrument existed
+for it at all.
+
+`bin/check-class-invariant-establishment.py`: for every PASS-expected corpus class that
+`C()` constructs, build the object and EVALUATE its own `#@ class invariant` on it.
+
+    75 C()-constructible classes across both corpora
+    **84 evaluable clauses, 0 FALSE**, 3 not evaluable
+
+and the sensitivity test, which is the only test of a detector that means anything —
+pointed at one file per open shape, it reports all three:
+
+    zz1 paramless literal (the shape the emitter now closes)   FALSE
+    zz2 @dataclass                                              FALSE
+    zz3 computed (`self.n = three()`)                           FALSE
+
+**That is the executable oracle for exactly the part of route #226 the emitter cannot
+state.** Increment 1 closes one shape by emitting a goal; this catches the other three in
+the corpus, today, without a single new driver.
+
+WHAT IT SKIPS, as a category and not a gap: a class whose `__init__` needs an argument has
+no canonical instance — `C(0)` and `C(9)` are different programs — so its obligation is
+`forall <params>. <inv>` and belongs in the emitter (increment 2). Clauses with quantifiers
+or operators the translator does not handle are COUNTED and reported; a plane that
+mistranslates a clause reports a false route, which is worse than reporting a gap.
+
+MIN_CHECKED = 75 (the #44 population guard) and MIN_PLANES moves 46 -> 47 in the same
+commit — a floor that does not move with the list leaves the guard one short forever.
+
+Held at `$SCRATCH/g31/new_plane_inv.py`, `land_inv.sh`, `gate_inv.sh`, `msginv.txt`.
+QUEUE: route #226 (gating) -> class-invariant plane -> mutex -> field -> seq-local.
+
+--------------------------------------------------------------------------------
+2026-09-24 12:20Z — ROUTE #226's GATE, the byte-diff half: the MOVES ARE AUDITED, not counted
+
+    corpus    1363 baseline / 1366 candidate .mlw — **60 MOVED**, 0 GONE, 0 APPEARED,
+              3 new sources ignored.  `CMPRC=1`, and that is the DESIGNED outcome: this is
+              an emission change, so "byte-inert" would mean the repair did nothing.
+    **MOVED 60; ONLY-ADDED-A-GOAL 60; OTHER 0** — every moved file's diff is added
+              `goal _check_class_inv_<C>` lines and NOTHING else, no removals. The gate
+              script audits each moved pair line by line rather than reporting a count; a
+              60-file byte-diff read as a number is a number, read as a diff it is evidence.
+    python-reference   2199 / 2199, 0 MOVED — those files carry no contracts at all.
+
+60 rather than the census's 113 because the census spans both corpora, `src/pycsl`,
+`src/self-annotate/src` and `src/pycsl_lib`, while this sweep is the pycsl-reference corpus
+alone. The mirror sweep and the suite are the remaining halves.
+
+--------------------------------------------------------------------------------
+2026-09-24 12:26Z — THE GATE CAUGHT WHAT MY CENSUS DID NOT: the 38 FROZEN CONFORMANCE
+GOLDENS
+
+    [!] core-only conformance: 26 OK / 12 MISMATCH (38 goldens)
+    [!] soundness-planes: 1 of 46 RED — core-only-conformance.py(rc=1)
+
+Twelve of the 38 frozen `NNNN.expected.mlw` goldens gained a `goal _check_class_inv_` line,
+exactly as the corpus did — and my pre-gate census had covered both corpora, `src/pycsl`,
+`src/self-annotate/src` and `src/pycsl_lib`, and **not the goldens**. Worse: route #226's own
+record says, about INCREMENT 2, "a new IR key is not byte-inert for anything that compares
+IR, so it needs its own byte-diff and its own CONFORMANCE-GOLDEN CHECK". I wrote that
+sentence and did not apply it to increment 1.
+
+THE FIX IS A DELIBERATE REFRESH, AND IT IS AUDITED THE SAME WAY THE BYTE-DIFF WAS:
+`bin/regen-ir-conformance-goldens.py mlw` under `PYTHONHASHSEED=0`, then a line-by-line
+comparison of every changed golden against a copy taken beforehand:
+
+    goldens changed 12; ONLY-ADDED-A-GOAL 12; OTHER 0
+    `*.ir.json` touched: ZERO
+
+so **no IR version bump is owed** — the IR contract (docs/ir.md §10) is unchanged; what moved
+is the emitted WhyML, which gained a proof obligation. `front-end conformance: 38 OK / 0
+MISMATCH` throughout confirms the IR side never moved. `core-only conformance: 38 OK / 0
+MISMATCH` after the refresh.
+
+Gate relaunched from the top rather than resumed: a suite that started against the
+pre-refresh tree would have measured a tree that no longer exists.
+
+--------------------------------------------------------------------------------
+2026-09-24 ~12:37Z — the sampling extension: BUILT, MEASURED, and deliberately NOT landed
+
+The new class-invariant plane skips a class whose `__init__` takes arguments — no canonical
+instance. Sampling the int parameters over `(0, 1, -1, 2, 5, 10, 100, -100)`, skipping any
+`__init__` carrying a `#@ requires` (its precondition may exclude the samples), covers that
+fourth shape. Across both corpora the population is:
+
+    classes with int-parameter constructors and no `#@ requires` : **ONE**
+
+and it is `1892` — route #226's own second carrier, a corpus file marked PASS on purpose to
+record the debt. FALSE at `args=[0]`, exactly as designed.
+
+NOT LANDED WITH INCREMENT 1, and the reason is the point: a plane whose only finding is a
+deliberately-green debt file would be RED from its first commit, blocking everything; and a
+plane carrying a silent exception for that file is worse than no plane. It lands with
+INCREMENT 2, when 1892 stops verifying and the plane goes green BY THE REPAIR rather than by
+an allow-list. Held at `$SCRATCH/g31/inv_sample.py` and recorded in the route file.
+
+That is the same discipline as the withdrawn `#@ datatype` exhaustiveness rule, one level
+up: it is not enough for an instrument to be correct; it has to be able to be GREEN for the
+right reason.
+
+--------------------------------------------------------------------------------
+2026-09-24 12:45Z — stopped the seq-local MIRROR PROOF, and the reason it ran so long is
+itself a number worth keeping
+
+`module6_whyml/expressions.py` is the mirror file whose emission the seq-local widening
+moves, so "does it still prove?" is that increment's real gate. Run standalone against the
+UNPATCHED tree it did not finish the BASELINE in **66 minutes**, while the route #226 gate's
+suite was running — load 16 on 12 cores.
+
+Killed, deliberately, and recorded rather than quietly dropped:
+  * it is REDUNDANT — `gate_seq.sh` runs `run-self-annotation-suite.sh`, which proves all 53
+    mirror files including this one, so the answer arrives with that increment's own gate;
+  * it was oversubscribing the machine while a SEV-1 increment was in its suite, and the
+    suite was crawling at ~25 files/min because of it.
+
+THE NUMBER TO CARRY FORWARD: budget HOURS, not minutes, for `gate_seq.sh`'s self-annotation
+step, and do not run it concurrently with another gate's suite. The `timeout 43200` on it is
+not decoration.
+
+--------------------------------------------------------------------------------
+2026-09-24 ~13:05Z — ROUTE #226 INCREMENT 2 IS BUILT AND CORRECT ON EVERY SHAPE, offline,
+while increment 1's suite runs
+
+    1890 (paramless literal, the route)      FAILED   forall n. n = 0 -> ((n >= 5))
+    1891 (the control)                       SUCCESS  forall n. n = 7 -> ((n >= 5))
+    1892 (from an `__init__` PARAMETER)      **FAILED**  forall n. n = n -> ((n >= 5))
+    pa   (`@dataclass`, field default 0)     **FAILED**  forall n. n = n -> ((n >= 5))
+    p3   (the (u4) counter-program:
+          `#@ requires n >= 5` on __init__)  **SUCCESS**
+             forall n. n = n -> (n >= 5) -> ((n >= 5))
+    p8/p9 (computed / control-flow store)    SUCCESS, no goal — carrier 3 stays open, and
+             correctly: `init_unknown_fields` says the model does not know the value
+
+So increment 2 closes carriers 2 and 4, keeps 1 closed, and the program that a premise-free
+goal would have refused still verifies. **Module 6 only** — route #15's
+`init_contract_check` already carries the `#@ requires` IR and the parameter types.
+
+TWO WRONG LOWERINGS BEFORE THE RIGHT ONE, both found by running, neither by reading:
+  * `self._expr_to_whyml(req, set())` with no context emitted `val constant n : int` as an
+    abstract operation, which COLLIDES with the record field label of the same name —
+    `Symbol n is already defined in the current scope`, and p3 went red;
+  * passing the parameters as `lr` made them REFS and the clause lowered to `!n >= 5`.
+The right form is the one `_emit_init_contract_checks` already establishes for these very
+clauses: `_current_symbol_table` + `_formal_params` + `_current_params` + `_in_spec`. Reading
+the existing consumer of the same IR key would have saved two rounds.
+
+THE BINDER-UNION TRICK IS LOAD-BEARING AND MEASURED: `self.n = n` gives labels {n} and
+params {n}, and the union binds `n` ONCE — `forall n. n = n -> (n >= 5)`, which is the
+correct (false) statement. A naive concatenation would have emitted `forall n n : int.`
+
+--------------------------------------------------------------------------------
+2026-09-24 13:34Z — ROUTE #226 INCREMENT 1: THE GATE IS GREEN, end to end
+
+    corpus byte-diff   1363 / 1366 — 60 MOVED, and AUDITED: ONLY-ADDED-A-GOAL 60, OTHER 0
+    python-reference   2199 / 2199, 0 MOVED
+    MIRROR             53 / 53, 0 MOVED
+    conformance        core-only 38 OK / 0 MISMATCH after the deliberate golden refresh
+                       (12 changed, 12 only-added-a-goal, ZERO `*.ir.json`);
+                       front-end 38 OK / 0 MISMATCH and 10/10 determinism throughout
+    carrier gate       5 carriers, all reproduce — the literal one is OUT of the open set,
+                       the PARAMETER one is in it
+    fast planes        all 46 green
+    suite              **4013 / 4031 passed** — the standing EIGHTEEN, ZERO XPASS
+
+4031 = 4028 + 3 witnesses, 4013 = 4010 + 3. Predicted before the run, exact after it.
+A SEV-1 soundness route's first repair, committed.

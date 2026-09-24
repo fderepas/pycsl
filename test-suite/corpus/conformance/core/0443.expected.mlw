@@ -8,9 +8,13 @@ module PyCSL_Program
     invariant { (cap >= 0) }
     by { sub_size = 0; cap = 5 }
 
+  goal _check_class_inv_sub : forall sub_size cap : int. sub_size = 0 -> cap = 5 -> ((sub_size >= 0)) /\ ((cap >= 0))
+
   type store = { mutable store_size: int }
     invariant { (store_size >= 0) }
     by { store_size = 0 }
+
+  goal _check_class_inv_store : forall store_size : int. store_size = 0 -> ((store_size >= 0))
 
   val store__count (self: store) : int
     ensures  { (result = self.store_size) }

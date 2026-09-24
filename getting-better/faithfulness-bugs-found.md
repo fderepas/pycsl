@@ -96,3 +96,59 @@ STILL OPEN, and recorded in `open-routes/route225-a-returned-empty-list-has-leng
 `Array.make 1024 0` is spelled the same for the CAPACITY of an append target and for the
 VALUE of an empty list. One literal cannot be both, because a Why3 array's length IS its
 capacity. Separating them is the real repair; `1871` is its guard.
+
+## Bug 5 — a `#@ class invariant` the CONSTRUCTOR never establishes is assumed by every method
+
+```python
+#@ class invariant self.n >= 5
+class C:
+    def __init__(self) -> None:
+        self.n: int = 0
+
+    #@ ensures \result >= 5
+    def get(self) -> int:
+        return self.n
+
+#@ ensures \result >= 5
+def read(c: C) -> int:
+    return c.get()
+```
+
+    [+] Verification SUCCESS! All contracts formally proven.
+
+CPython: `read(C())` is `0`. Ordinary total Python — no `no_exception`, no opt-in, no
+`\trusted` anywhere, and the false fact crosses a MODULE BOUNDARY in a published function's
+postcondition.
+
+MECHANISM. A `#@ class invariant` lowers to a Why3 TYPE invariant, and Why3 asks only that
+such a type be INHABITED. The emitter discharges that by SYNTHESIZING a witness FROM THE
+INVARIANT:
+
+    type c = { mutable n: int }
+      invariant { (n >= 5) }
+      by { n = 10 }
+
+so the witness is satisfiable whatever the invariant says. The obligation that IS raised —
+and this is the correction that makes the route precise — is raised at the CONSTRUCTION
+SITE: a file containing `c = C()` fails. **It is attached to the construction site rather
+than to the CLASS**, so a file that defines the class, publishes a reader for it, and lets
+some other file build it is never asked. That is the ordinary shape of a library module.
+
+REPAIR: emit the constructor's own obligation beside the type, the way `#@ mutex_invariant`'s
+initial-state check does —
+
+    goal _check_class_inv_c : forall n : int. n = 0 -> ((n >= 5))
+
+— for the shape it can state exactly (a paramless `__init__` storing int literals). CENSUS:
+210 classes carry a `#@ class invariant`, 113 are in scope, and **zero of them are violated**
+by their own constructors: the obligation had simply never been asked.
+
+UNLIKE BUG 4 THIS ONE IS NOT CORPUS-BYTE-INERT, and it should not be: 60 corpus modules and
+12 of the 38 frozen conformance goldens gain the goal line. Both were audited line by line —
+ONLY-ADDED-A-GOAL, no removals, zero `*.ir.json` touched, so no IR version bump is owed.
+
+STILL OPEN, in `open-routes/route226-a-class-invariant-the-constructor-never-establishes.md`:
+THREE more carriers the goal cannot state — a field from an `__init__` PARAMETER, a computed
+or control-flow store, and `@dataclass`. All three are RUNNABLE, and
+`bin/check-class-invariant-establishment.py` (new this generation) runs them against the
+corpus on every gate.

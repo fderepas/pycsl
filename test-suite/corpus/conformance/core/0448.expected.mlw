@@ -8,6 +8,8 @@ module PyCSL_Program
     invariant { (count >= 0) }
     by { functionanalyzer__depth = 0; count = 0 }
 
+  goal _check_class_inv_functionanalyzer : forall functionanalyzer__depth count : int. functionanalyzer__depth = 0 -> count = 0 -> ((functionanalyzer__depth >= 0)) /\ ((count >= 0))
+
   type nodevisitor = { mutable nodevisitor__depth: int }
     invariant { (nodevisitor__depth >= 0) }
     by { nodevisitor__depth = 0 }
@@ -16,6 +18,8 @@ module PyCSL_Program
   (* Abstract operations for unsupported Python patterns *)
   val a_visit_1 (self: functionanalyzer) (x0: int) : int
     ensures { (result >= 0) }
+
+  goal _check_class_inv_nodevisitor : forall nodevisitor__depth : int. nodevisitor__depth = 0 -> ((nodevisitor__depth >= 0))
 
   val functionanalyzer__generic_visit (self: functionanalyzer) (node: int) : int
     ensures  { (result >= 0) } (* linear *)

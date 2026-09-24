@@ -7,9 +7,13 @@ module PyCSL_Program
     invariant { (base_v >= 0) }
     by { base_v = 0 }
 
+  goal _check_class_inv_base : forall base_v : int. base_v = 0 -> ((base_v >= 0))
+
   type sub = { mutable sub_v: int }
     invariant { (sub_v >= 0) }
     by { sub_v = 0 }
+
+  goal _check_class_inv_sub : forall sub_v : int. sub_v = 0 -> ((sub_v >= 0))
 
   let base__f (self: base) (x: int) : int
     requires { (x >= 0) }

@@ -71,6 +71,25 @@ the user wrote in silence. Routes **#226 (NEW, SEV-1), #214 and #221 are OPEN** 
   read forms work for which element types; every FAILED cell but one is a missing branch
   beside a present one.
 
+## The two INSTRUMENTS this generation added, both from one question
+
+**"Which existing instrument should have found this route, and why did it not?"** Asked of
+route #226, it had two answers:
+
+* `check-corpus-contract-truth` — the sharpest oracle in the battery, and its POPULATION was
+  zero-argument FUNCTIONS with a literal `\result == N`. Route #226's carrier is a METHOD
+  with a COMPARISON: outside it on both axes. Extended to zero-argument methods of
+  `C()`-constructible classes and to the comparison operators: **390 runnable contracts ->
+  432, 378 agreeing -> 417, 0 DISAGREE**, and it now reports route #226's own carrier when
+  pointed at it.
+* `check-class-invariant-establishment` — **did not exist**. For every PASS-expected corpus
+  class that `C()` constructs, build the object and evaluate its own `#@ class invariant` on
+  it. 75 classes, 84 clauses, 0 FALSE; and it reports all three of the shapes route #226's
+  emitter repair deliberately cannot state (`@dataclass`, computed, control-flow).
+
+Both were validated the only way a detector can be: **run it on the thing it was written to
+detect.** A green corpus proves REACH, not SENSITIVITY.
+
 ## The six questions that found everything above (four during, two added at the end)
 
 1. **Take one sentence of `annotations.md`, build the smallest program it describes, and run

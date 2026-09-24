@@ -7,10 +7,14 @@ module PyCSL_Program
     invariant { (base_start >= 0) }
     by { base_start = 7 }
 
+  goal _check_class_inv_base : forall base_start : int. base_start = 7 -> ((base_start >= 0))
+
   type sub = { mutable sub_start: int; mutable extra: int }
     invariant { (sub_start >= 0) }
     invariant { (extra >= 0) }
     by { sub_start = 7; extra = 0 }
+
+  goal _check_class_inv_sub : forall sub_start extra : int. sub_start = 7 -> extra = 0 -> ((sub_start >= 0)) /\ ((extra >= 0))
 
   let base__get (self: base) : int
     ensures  { (result = self.base_start) }

@@ -17,7 +17,16 @@ at all, so nothing checks that the real constructor establishes it. Every method
 the invariant free, because a Why3 type invariant holds at every boundary for a value of
 that type.
 
-EXPECTED TODAY: SUCCESS. CPython: `C().get()` is 0, and `0 >= 5` is False.
+CLOSED. This carrier verified until the constructor obligation was emitted; it now
+FAILS, which is the outcome the last paragraph below asked for. It is kept because
+a closed carrier is the cheapest regression test a route has: if this file ever
+verifies again, `goal _check_class_inv_c` has stopped being emitted for a paramless
+literal constructor.
+
+THE ROUTE IS NOT CLOSED. Three shapes still carry it and the live one is
+`route226-carrier-invariant-from-a-constructor-parameter.py`, which IS registered.
+
+WAS: SUCCESS. CPython: `C().get()` is 0, and `0 >= 5` is False.
 
 WHEN THIS STOPS PROVING, the route is probably closed and
 `route226-a-class-invariant-the-constructor-never-establishes.md` must be updated in the

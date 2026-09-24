@@ -7,6 +7,8 @@ module PyCSL_Program
     invariant { (v >= 0) }
     by { v = 0 }
 
+  goal _check_class_inv_c : forall v : int. v = 0 -> ((v >= 0))
+
   let c__get (self: c) : int
     ensures  { (result = self.v) }
     ensures  { self.v = old self.v }

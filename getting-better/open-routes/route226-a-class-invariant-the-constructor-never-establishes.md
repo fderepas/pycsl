@@ -439,3 +439,187 @@ The EMITTER's gate is narrower than the census's and deliberately so: it additio
 requires `init_params` empty and the field absent from `init_unknown_fields` /
 `init_unknown_cf_fields`, because `td["field_defaults"]` is a witness map that fabricates 0
 (see the CORRECTION section). All 113 pass it.
+
+## THE EXECUTABLE ORACLE FOR THE SHAPES THE EMITTER CANNOT STATE
+
+Increment 1 emits the obligation only where it can be STATED exactly. The other three
+carriers are all RUNNABLE, and that is a whole instrument rather than a consolation:
+**`bin/check-class-invariant-establishment.py`** constructs every PASS-expected corpus class
+that `C()` builds and evaluates its own `#@ class invariant` on the object.
+
+    75 C()-constructible classes across both corpora, 84 evaluable clauses, 0 FALSE,
+    3 not evaluable
+
+and the sensitivity test, which is the only test of a detector that means anything — one
+file per open shape:
+
+    zz1 paramless literal (the shape increment 1 closes)  FALSE
+    zz2 `@dataclass` with a field default                 FALSE
+    zz3 computed (`self.n = three()`)                     FALSE
+
+### The FOURTH shape needs SAMPLING, and its entire population is witness 1892
+
+A class whose `__init__` takes arguments has no canonical instance, so the plane skips it.
+Sampling the int parameters over `(0, 1, -1, 2, 5, 10, 100, -100)` — skipping any `__init__`
+that carries a `#@ requires`, because its precondition may exclude the samples — covers it.
+Measured across both corpora:
+
+    classes with int-parameter constructors and no `#@ requires` : **1**
+    and it is `1892`, this route's own recorded debt, FALSE at `args=[0]`.
+
+So the sampling extension is BUILT and MEASURED (`$SCRATCH/g31/inv_sample.py`) and is NOT
+landed with increment 1, for a reason worth stating: its only finding is a corpus file
+deliberately marked PASS to record this route's second carrier. A plane that is red on
+purpose blocks every commit, and a plane with a silent exception is worse. **It lands with
+INCREMENT 2**, when 1892 stops verifying and the plane goes green by the repair rather than
+by an allow-list.
+
+### INCREMENT 2's BLAST RADIUS, censused: it is ONE corpus file, and that file is 1892
+
+Classes with a `#@ class invariant` AND a parameterised `__init__`, across both corpora,
+`src/pycsl`, `src/self-annotate/src` and `src/pycsl_lib`:
+
+    parameterised-`__init__` classes with a class invariant   46
+      · `__init__` carries a `#@ requires`                    20
+      · it does not                                           26
+    `@dataclass` classes with a class invariant                0
+
+but almost all 46 take a COLLECTION parameter (`Parser(toks)`, `Cursor(toks)`, `Inode(...)`),
+not an int. Restricting increment 2 to the shape it can state — every field an `int`, every
+one bound directly to an int `__init__` parameter or to a literal — the population that
+would newly receive a goal is:
+
+    classes with int-parameter constructors and no `#@ requires` : **1**
+
+and it is `1892`, this route's own recorded debt. So increment 2 is, on today's corpus, a
+one-file change that turns a green witness red on purpose — which is the cleanest possible
+shape for a soundness increment, and it is also why the SAMPLING half of
+`check-class-invariant-establishment` has to land with it rather than before it.
+
+The 20 with a `#@ requires` are the reason the premises are not optional: `#@ requires n >= 5`
+on `__init__` is exactly what makes such a class establishable, and a premise-free goal would
+refuse a good program (measured, `$SCRATCH/g31/r226/p3.py`).
+
+### INCREMENT 2's GOAL SHAPE, worked out so it does not need re-deriving
+
+The obvious form — substitute the constructor's values into the invariant TEXT — is the
+same fragile substring surgery that cost lesson (b5). The robust form binds everything and
+states the bindings as premises:
+
+    goal _check_class_inv_<C> :
+      forall <sorted(set(field labels) | set(int params))> : int.
+        <label_i> = <value_i> -> …          (one per field: its literal, or its param)
+        <requires_j> -> …                   (`__init__`'s `#@ requires`, lowered as-is)
+        (<inv>)
+
+Nothing is substituted; the invariant is emitted exactly as it already is, in terms of its
+field labels. Three cases fall out of the same expression, which is why this shape and not
+another:
+
+    self.n = 0        labels {n}, params {}      forall n. n = 0 -> (n >= 5)       FALSE ✓
+    self.n = n        labels {n}, params {n}     forall n. n = n -> (n >= 5)       FALSE ✓
+                      (the binder set is a UNION, so the shared name binds once)
+    self.m = n        labels {m}, params {n}     forall m n. m = n -> (m >= 5)     FALSE ✓
+    + `#@ requires n >= 5`                       forall m n. m = n -> n >= 5
+                                                   -> (m >= 5)                     TRUE  ✓
+
+and the last line is the (u4) counter-program, which the premise-free version would have
+refused. Increment 1's emission is the special case with no params, and it is left exactly
+as it is rather than folded in — its goldens are already refreshed, and rewriting a landed
+emission to share code with a new one is how a byte-diff becomes unreadable.
+
+WHAT IS STILL NEEDED IN MODULE 5: `init_requires`, collected exactly like `init_ensures`
+(`construction_synth._collect_init_ensures` reads `child.csl_ensures`; the `csl_requires`
+twin is already attached by the weaver), emitted onto the type_decl ONLY when non-empty —
+so the 20 classes that have one move their IR golden and the rest do not.
+
+### CORRECTION to increment 2's cost: **Module 5 needs NO change — the IR already carries it**
+
+The paragraph above says increment 2 "begins with a Module-5 IR addition" for
+`init_requires`, and that a new IR key is not byte-inert for anything that compares IR. Both
+sentences are true in general and neither applies, because **route #15 already put it
+there**: the type_decl carries
+
+    "init_contract_check": {"requires": [<IR>], "ensures": [<IR>], "param_types": {...}}
+
+emitted whenever a constructor has a NON-TRIVIAL `#@ requires`/`#@ ensures` — 34 such
+constructors tree-wide, 13 in the reference corpus, 21 in `src/pycsl_lib`, zero in the
+mirrors. `param_types` is there too, and it exists for exactly the reason increment 2 needs
+it: `init_params` is a list of NAMES and `__init__` is never emitted as a function, so the
+types cannot be recovered downstream.
+
+So increment 2 is **Module 6 only**: no IR key, no `*.ir.json` movement, no IR version
+question. That is a materially smaller increment than the record said an hour ago, and the
+reason to write the correction rather than edit the original is that "check whether the
+thing you need is already in the IR" is the step that was skipped.
+
+### And increment 2 cannot disturb increment 1's emission — censused, not hoped
+
+Folding the `#@ requires` premises into the same goal would change increment 1's output for
+any PARAMLESS constructor that carries one. Census across both corpora, `src/pycsl`,
+`src/self-annotate/src` and `src/pycsl_lib`:
+
+    paramless `__init__` with a class invariant AND a non-trivial `#@ requires` : **0**
+
+so the 60 corpus modules and 12 frozen goldens that increment 1 moves stay byte-identical
+under increment 2. That is the check that makes a shared-code-path increment safe to write,
+and it is the one that is easiest to skip because the answer is "obviously zero".
+
+### INCREMENT 2, BUILT AND MEASURED OFFLINE (Module 6 only)
+
+    1890 paramless literal                 FAILED   forall n. n = 0 -> ((n >= 5))
+    1891 the control                       SUCCESS  forall n. n = 7 -> ((n >= 5))
+    1892 from an `__init__` PARAMETER      **FAILED**  forall n. n = n -> ((n >= 5))
+    1900 `@dataclass`, field default 0     **FAILED**  forall n. n = n -> ((n >= 5))
+    1901 `#@ requires n >= 5` on __init__  **SUCCESS**
+            forall n. n = n -> (n >= 5) -> ((n >= 5))
+    the computed / control-flow store      SUCCESS, no goal — STILL A CARRIER
+
+So carriers 2 and 4 close, 1 stays closed, the (u4) counter-program survives, and **route
+#226 is left with ONE open carrier**: a constructor that COMPUTES the field's value. That
+one is not a miss — Module 5 marks such a field in `init_unknown_fields`, the model does not
+claim to know its value, and the honest obligation needs the CALLEE'S postcondition
+(`three()` ensures `\result == 3`) rather than a literal. That is increment 3.
+
+THE SAMPLING HALF OF `check-class-invariant-establishment` IS NO LONGER NEEDED and is not
+landed: its entire population was 1892, which increment 2 turns expected-FAIL, and the plane
+skips expected-FAIL files. **The emitter closing a shape retires the runtime oracle for it**
+— which is the right order, and worth noticing, because the oracle was written first.
+
+TWO WRONG LOWERINGS BEFORE THE RIGHT ONE (wall-lesson (j5)): `_expr_to_whyml(req, set())`
+emits `val constant n : int`, colliding with the record field label `n`; passing the
+parameters as `lr` makes them REFS (`!n >= 5`). The right form is the one
+`_emit_init_contract_checks` already uses for these very clauses — `_current_symbol_table` +
+`_formal_params` + `_current_params` + `_in_spec`.
+
+### The one thing increment 2's gate has to look hard at
+
+`param_types` comes from route #15's `init_contract_check`, which Module 5 emits ONLY when a
+constructor clause is non-trivial. A class whose `__init__` has no `#@ requires`/`#@ ensures`
+therefore has NO `param_types` at all, and the scope test `_ci_ptypes.get(p, "") in
+("", "int", "bool")` reads every parameter as int by default — 1892 is exactly that case,
+which is why the default has to be permissive.
+
+The safety net is the FIELD side, not the parameter side: the gate already requires
+`field_types[fn] == "int"` for every field, and it requires every identifier in the lowered
+invariant to be a field label. A `List[...]`-annotated field is typed `list` and excluded; an
+UNANNOTATED field bound to a list parameter is typed `int` by the RHS-shape inference (the
+defect the field-param increment repairs), but then its invariant almost certainly says
+`\length(self.f)`, which lowers to `Array.length f` and fails the identifier check.
+
+"Almost certainly" is not a proof, which is why the landing order puts the FIELD increment
+BEFORE this one — after it, `self.toks = toks` from an annotated parameter carries the
+parameter's real type and the field is excluded properly — and why the gate's byte-diff
+audit must list the moved files by NAME, not just count them.
+
+### And the collection-parameter classes were checked by EMISSION, before the gate
+
+Seven of the 45 classes whose `__init__` takes a collection — `0661` (`Inode(initial: list)`,
+nineteen preconditions), `0900` (`Cursor(toks)`), `0925`, `0933`, `0966`, `1190`, `1685` —
+emitted with `--no-proof --keep-mlw` against increment 2's tree:
+
+    0661 … 1685      **(no goal)**, all seven
+
+so the scope gate excludes them, as the field-type test and the identifier test predict. Two
+minutes of emission, and it turns "almost certainly" into "measured on the seven that worry
+me most". The gate still lists every moved file by name.

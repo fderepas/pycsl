@@ -6959,3 +6959,70 @@ the extended plane at route #226's own carrier, and watch it fail.
 >>> instrument's first version, and widening it is cheaper than the route was. A detector is
 >>> only validated by running it on the thing it was written to detect — a green corpus
 >>> proves reach, not sensitivity.
+
+## (h5) I used `git stash` to peek at HEAD with an unlanded increment in the tree
+
+One sample file in route #226's landing script came back NOT-SUCCESS. The right question —
+"did it pass BEFORE the repair?" — needs HEAD's answer, and I got it with
+
+    git stash --include-untracked && <run the verifier> && git stash pop
+
+with the whole route #226 increment uncommitted in the tree and a pre-existing stash entry
+underneath it. It worked. If the pop had conflicted, or if I had mis-read which stash entry
+was mine, the increment — patch, three witnesses, two carrier files, two doc edits — would
+have been sitting in a stash I had just confused with someone else's.
+
+The answer, incidentally, was that the file is `# pycsl-expected: FAIL` and failed before
+the repair too: **my sample list was wrong, not the repair.** A `grep -m1 pycsl-expected`
+would have answered it with no risk at all.
+
+>>> Never move the working tree to read the past. `git show HEAD:<path> > /tmp/x.py` and run
+>>> THAT — or copy the tree, which this same session had already made the habit for
+>>> everything else. And before asking "did this regress?", ask what the file's EXPECTED
+>>> verdict is: half of "unexpected" results are a sample list that was never filtered.
+
+## (i5) I wrote "it needs its own conformance-golden check" about the NEXT increment and forgot it for THIS one
+
+Route #226's repair adds a `goal _check_class_inv_<C>` line to every in-scope class's emitted
+module. I censused the blast radius carefully — both corpora, `src/pycsl`,
+`src/self-annotate/src`, `src/pycsl_lib`, 113 classes, zero violated — and built a gate step
+that audits every moved `.mlw` line by line. Sixty moved; all sixty only gained a goal.
+
+The gate then went red on `core-only-conformance`: **12 of the 38 FROZEN conformance
+goldens** had gained the same line, and my census had not looked at them once.
+
+The sentence "a new IR key is not byte-inert for anything that compares IR, so it needs its
+own byte-diff and its own conformance-golden check" is in route #226's own record, in my own
+handwriting, about INCREMENT 2. I did not apply it to increment 1, because increment 1
+changes the EMITTED WhyML rather than the IR — and the goldens freeze BOTH.
+
+The refresh itself was cheap and clean (`regen-ir-conformance-goldens.py mlw`, then the same
+line-by-line audit: 12 changed, 12 only-added-a-goal, zero `*.ir.json` touched, so no IR
+version bump is owed). The cost was a wasted gate.
+
+>>> A census of "which FILES does this change?" is not complete until it includes the FROZEN
+>>> artefacts — goldens, expected outputs, recorded baselines. They are not in the corpus and
+>>> not in `src/`, so every source-shaped sweep misses them by construction. And when you
+>>> write down a precaution for a LATER increment, ask immediately whether the CURRENT one
+>>> needs it: the reason it came to mind is usually that it already applies.
+
+## (j5) Two wrong lowerings, and the right one was already in the file consuming the same IR key
+
+Route #226 increment 2 needs `__init__`'s `#@ requires` lowered into a goal. I tried
+
+    self._expr_to_whyml(req, set())          -> emitted `val constant n : int` as an
+                                                abstract op, which COLLIDES with the record
+                                                field label `n`: "Symbol n is already
+                                                defined in the current scope"
+    self._expr_to_whyml(req, set(params))    -> the parameters became REFS: `!n >= 5`
+
+and the correct form was thirty lines up in the same file, in
+`_emit_init_contract_checks`, which lowers THE SAME `init_contract_check["requires"]`
+clauses and sets `_current_symbol_table` + `_formal_params` + `_current_params` + `_in_spec`
+around them, with a comment explaining exactly why. I had read that function ten minutes
+earlier to learn that the IR key existed, and stopped reading at the line that answered my
+first question.
+
+>>> When you discover that the data you need is already in the IR, keep reading the CONSUMER
+>>> that put it there. It has already solved the lowering, the context, and the edge case you
+>>> are about to rediscover — and its comments are the record of which wrong forms were tried.
