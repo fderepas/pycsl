@@ -34,13 +34,12 @@ COVERAGE IS DERIVED, NOT LISTED. The directive population comes from
 only goes up, and the uncovered set is printed by name every run so the debt has members
 rather than a number.
 
-WHY THE UNCOVERED SET IS NOT JUST "NOT DONE YET". Four directives have no pair, and the
-reason differs by kind (it was nine before gen #31 gave `#@ mixin` teeth on BOTH its
-documented halves, made `#@ mutex_invariant` dischargeable at all, and taught `verdict()`
-to write a DIRECTORY so `#@ reveal` could be paired across an import). TWO of them have
-no pair because **there is no violating program
-to write** — the directive has no enforced consequence, which is itself a result and is
-filed as a finding rather than papered over with a vacuous pair.
+WHY THE UNCOVERED SET IS NOT JUST "NOT DONE YET". TWO directives have no pair (it was NINE
+at the start of gen #31), and they now share one reason: **there is no violating program to
+write.** The directive has no enforced consequence — which is itself a result, and is filed
+as a finding rather than papered over with a vacuous pair. Everything else on the list
+turned out to be a to-do wearing a finding's clothes; the history is below, because the
+next reader of this list needs it more than they need the list.
 
 `mixin` used to head this list and no longer does: gen #31 gave it teeth on BOTH of its
 documented halves — `#@ compose_from` naming a class without the marker is refused
@@ -70,18 +69,30 @@ reasons turned out to be wrong rather than hard. `verify_module` was "needs a se
 module": it does not — a lowercase group name is a documented refusal and needs one class.
 `proof` was "needs real Rocq-Lean artifacts": it does not — the axiom body comes from
 Module 6's `_AXIOM_REGISTRY` and the `.proofs/` trees belong to the SEPARATE audit tool.
-Three uncovered directives in a row whose reason for being uncovered was a belief about the
-harness or the pipeline that nobody had checked. Treat every remaining entry below as a
-claim under suspicion, not a settled fact.
+`propagate_frame` made it FOUR in a row, and its excuse was the most convincing of the
+lot because it cited a measurement: "probed and CONFIRMED to propagate, but the frame's
+trigger term must be a `Call` and the callee is emitted as a program `let`, so the minimal
+carrier dies on `unbound function or predicate symbol`". True of the param-referencing
+frame shape; the `\result`-referencing shape has no such trigger, needs no Call, and pairs
+in eleven lines across an import — once the callee is `#@ no_inline`, without which the
+importer inlines the body and never consults the boundary stub at all. A real measurement
+of the WRONG EXPERIMENT reads exactly like a finding and is harder to doubt than a guess.
 
-The remaining TWO are pair-shaped but still out of reach:
-`sibling_concrete` (probed: Why3's own type invariants hold at a `val` boundary, so the
-documented advantage is not observable in a minimal program), and `propagate_frame`
-(probed and CONFIRMED to propagate — with the marker the stub gains
-`ensures { forall i [decode (self.d[i])]. … }`, without it only `writes { self.d }` — but
-the frame's trigger term must be a `Call` (`_frame_trigger_term`), and the callee it names
-is emitted as a program `let`, so the minimal carrier dies on `unbound function or
-predicate symbol`).
+`sibling_concrete` was the last one and the best excuse of all, because its probe was both
+CORRECT and REPRODUCIBLE: Why3 really does re-establish a record's type invariant at a
+`val` boundary, so the class-invariant advantage really is unobservable. The probe had
+simply tested one of the directive's two documented halves and retired the whole row. The
+other half — the QUANTIFIED frame, which the abstract sibling stub drops and the concrete
+call keeps — pairs immediately. See the case's own comment for all three probes.
+
+FIVE uncovered directives in a row whose reason for being uncovered was a belief about the
+harness or the pipeline that nobody had rechecked, and the beliefs got HARDER to doubt as
+the list shortened: an unimplemented feature, then a harness limit, then two mistaken
+readings of the pipeline, then a correct measurement of the wrong half. **The uncovered
+list is where unexamined assumptions accumulate, precisely because every entry carries a
+written excuse that reads like a finding.** The two that remain are the two that were never
+excuses at all — `thread_entry` and `releases` are INERT, which is a result, and it is
+filed as one.
 
 A pair whose satisfying half cannot pass is not a pair. The covered fraction here is a
 floor on ENFORCED directives, not on parsed ones.
@@ -109,7 +120,7 @@ DRIVER = os.path.join(ROOT, "src", "pycsl", "pycsl.py")
 # (#49) gen #31 — the floor. It starts at the number of pairs written in the commit that
 # introduced the plane, and only ever rises. A directive whose pair is DELETED, or a new
 # directive added to annotations.md without one, drops the fraction and turns this red.
-MIN_COVERED = 49
+MIN_COVERED = 51
 
 
 def population():
@@ -264,6 +275,61 @@ _REVEAL_MAIN = (
     'def caller(x: int) -> int:\n'
     '    d = pack16(x)\n'
     '    return d[0] * 256 + d[1]\n')
+
+# `#@ propagate_frame`'s pair (below, in ASSUMPTION_CASES). `take`'s quantified single-cell
+# frame is the whole point of the fixture: it writes `slots[i]` and PROVES every other cell
+# survives. `#@ no_inline` is load-bearing — without it the importer INLINES the body and
+# the boundary `val` is never consulted, which is how this directive first looked inert.
+_PGF_LIB = (
+    '_ = 0  # anchor\n\n\n'
+    '#@ class invariant \\length(self.slots) == 8\n'
+    'class Table:\n'
+    '    def __init__(self) -> None:\n'
+    '        self.slots: list = [0] * 8\n\n'
+    '    #@ no_inline\n'
+    '    #@ requires 0 <= i and i < 8\n'
+    '    #@ ensures \\result == i\n'
+    '    #@ ensures self.slots[\\result] == 1\n'
+    '    #@ ensures \\forall k: int; (0 <= k and k < 8 and k != \\result) ==> '
+    'self.slots[k] == \\old(self.slots[k])\n'
+    '    #@ assigns self.slots\n'
+    '%s'
+    '    def take(self, i: int) -> int:\n'
+    '        self.slots[i] = 1\n'
+    '        return i\n')
+
+_PGF_MAIN = (
+    'from slotlib import Table\n\n'
+    't = Table()\n'
+    '_ = 0  # anchor\n\n\n'
+    '#@ requires t.slots[5] == 0\n'
+    '#@ ensures t.slots[5] == 0\n'
+    '#@ assigns t.slots\n'
+    'def keep() -> None:\n'
+    '    _r = t.take(2)\n')
+
+
+# `#@ sibling_concrete`'s pair (below, in ASSUMPTION_CASES). The `%s` slot takes the marker.
+_SC_SRC = (
+    '_ = 0  # anchor\n\n\n'
+    '#@ class invariant \\length(self.xs) == 8\n'
+    'class C:\n'
+    '    def __init__(self) -> None:\n'
+    '        self.xs: list = [0] * 8\n\n'
+    '%s'
+    '    #@ requires 0 <= i and i < 8\n'
+    '    #@ ensures self.xs[i] == 1\n'
+    '    #@ ensures \\forall k: int; (0 <= k and k < 8 and k != i) ==> '
+    'self.xs[k] == \\old(self.xs[k])\n'
+    '    #@ assigns self.xs\n'
+    '    def poke(self, i: int) -> None:\n'
+    '        self.xs[i] = 1\n\n'
+    '    #@ requires self.xs[5] == 0\n'
+    '    #@ ensures self.xs[5] == 0\n'
+    '    #@ assigns self.xs\n'
+    '    def top(self) -> None:\n'
+    '        self.poke(2)\n')
+
 
 CASES = {
     "requires": (
@@ -780,6 +846,47 @@ ASSUMPTION_CASES = {
         '    def __init__(self) -> None:\n        self.disk: list = bytearray(4096)\n\n'
         '    #@ \\trusted reviewer: demo\n    #@ \\preserves\n    #@ assigns self.disk\n'
         '    def ext_scrub(self, x: int) -> None:\n        self.disk[3000] = x\n', []),
+    # THE PAIR THAT TOOK THREE TRIES, AND THE FIRST TWO ARE THE INTERESTING PART. The
+    # documented advantage of a concrete sibling call is that the caller gets "the callee's
+    # full contract AND its type/class-invariant guarantee", and BOTH of the obvious probes
+    # for that come back vacuous:
+    #   * the class-invariant half — a caller needing `self.n >= 0` after a sibling call
+    #     whose `ensures` does not give it verifies EITHER WAY. Why3 re-establishes a
+    #     record's type invariant at a `val` boundary on its own, so the marker buys
+    #     nothing. (This is the measurement that kept the directive uncovered, and it is
+    #     correct — it just is not the whole directive.)
+    #   * the simple-`ensures` half — `ensures self.n == v` DOES ride onto the abstract stub
+    #     (`val self_poke_1 (self: c) (x0: int) writes { self.n } ensures { self.n = x0 }`),
+    #     so "conveys neither" overstates it for a scalar postcondition.
+    # What the abstract stub actually drops is the QUANTIFIED frame. `poke` writes one cell
+    # and proves every other cell survives; through the stub the caller sees `self.xs`
+    # havoced and cannot show `xs[5]` is still 0 (FAILED), while the concrete call
+    # `c__poke self 2` is the method's real semantics and keeps it (SUCCESS).
+    #
+    # An ASSUMPTION pair because there is nothing to violate: the directive can only be
+    # omitted, and omitting it must cost the caller a proof.
+    "sibling_concrete": (
+        _SC_SRC % "", _SC_SRC % "    #@ sibling_concrete\n", []),
+    # AN ASSUMPTION PAIR BECAUSE THE DIRECTIVE ADDS AN `ensures` TO A BOUNDARY STUB — it
+    # cannot be "violated", only omitted, and omitting it must cost the caller a proof.
+    # `take` writes one slot and PROVES every other cell survives; by default that
+    # quantified frame stays inside the owning unit and the importer sees only
+    # `assigns self.slots`, i.e. the whole field havoced. WITHOUT the marker the caller
+    # cannot show `slots[5]` survived a `take(2)` and FAILS; WITH it the stub carries the
+    # same `forall k. k <> result -> …` the callee already discharged, and the caller
+    # closes. Sound by construction: the propagated clause is the callee's OWN verified
+    # frame, never a broadened one.
+    #
+    # `#@ no_inline` ON THE CALLEE IS LOAD-BEARING, and is the reason this directive spent
+    # so long in the uncovered list with a written excuse ("the frame's trigger term must
+    # be a Call, and the callee is emitted as a program `let`"). Without it the importer
+    # INLINES `take`'s body, the boundary `val` is never consulted, and the two halves emit
+    # BYTE-IDENTICAL WhyML — the directive looks inert when in fact the experiment never
+    # reached it. Measured both ways before this pair was written: inlined, identical
+    # bytes; `no_inline`, exactly one line of difference, and it is the frame.
+    "propagate_frame": (
+        {"slotlib.py": _PGF_LIB % "", _MAIN: _PGF_MAIN},
+        {"slotlib.py": _PGF_LIB % "    #@ propagate_frame\n", _MAIN: _PGF_MAIN}, []),
     # `#@ proof <rocq|lean> <qualname>` imports a proof-assistant theorem as a Why3
     # `axiom`, so it is an ASSUMPTION directive in the exact sense this table exists for:
     # its whole purpose is to hand the solver a fact it cannot derive. WITHOUT the citation

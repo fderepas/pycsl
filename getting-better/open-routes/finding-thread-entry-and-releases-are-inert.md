@@ -54,3 +54,23 @@ Companion files: `finding-mixin-marker-has-no-teeth.md` (same shape, class scope
 be discharged).
 
 Measured 2026-09-23.
+
+## 2026-09-24 — THESE TWO ARE NOW THE ENTIRE UNCOVERED LIST
+
+`bin/check-directive-enforcement.py` went 46 -> 51 of 53 in one session, and every
+directive that left the uncovered list left because its stated reason for being there was
+wrong: `reveal` (a limit of the harness, which then grew a multi-file `verdict()`),
+`verify_module` ("needs a second module" — a lowercase group name is refused with one
+class), `proof` ("needs real Rocq-Lean artifacts" — the axiom body is in Module 6's
+`_AXIOM_REGISTRY`; the `.proofs/` trees belong to the separate audit tool),
+`propagate_frame` (a reproducible trigger-term failure that holds for only ONE of the two
+propagated frame shapes) and `sibling_concrete` (a reproducible Why3 result that holds for
+only ONE of the directive's two documented halves).
+
+`thread_entry` and `releases` are what is left, and they are the two that were never
+excuses: there is no violating program because there is nothing to violate. That makes this
+finding the ONLY remaining reason the directive plane is not at 53 of 53, and it upgrades
+the finding from "two inert markers" to "the plane's entire outstanding debt".
+
+The capabilities named in this file are unchanged; what changed is that nothing else is
+queued behind them.

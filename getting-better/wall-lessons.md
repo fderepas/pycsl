@@ -6371,3 +6371,41 @@ was `0660.mlw`. Two lines of diff, both deletions, both the goal.
 The fix was one word of scope — move the check inside `if emit_as_val and _iface:` so it
 can only ever alter an IMPORTED stub. The cost of not having run the sweep would have been
 a silently weaker corpus with no failing test to find it by.
+
+---
+
+### (r4) A REAL MEASUREMENT OF THE WRONG EXPERIMENT READS EXACTLY LIKE A FINDING
+
+`bin/check-directive-enforcement.py` keeps an UNCOVERED list: documented directives with no
+enforcement pair. Every entry carries a written reason, because the plane's rule is that
+debt must have members and not just a number. In one session FIVE of them turned out to be
+wrong, and the excuses got harder to doubt as the list got shorter:
+
+| directive | the written reason | what was actually true |
+|---|---|---|
+| `mixin` | "no violating program" | two documented halves, both refusable |
+| `reveal` | "needs two files; `verdict()` writes one" | a statement about the HARNESS |
+| `verify_module` | "needs a second module" | a lowercase group name is refused, one class |
+| `proof` | "needs real Rocq-Lean artifacts" | the axiom body is in `_AXIOM_REGISTRY` |
+| `propagate_frame` | a REPRODUCIBLE trigger-term failure | true of one of the two frame shapes |
+| `sibling_concrete` | a REPRODUCIBLE Why3 invariant result | true of one of the two documented halves |
+
+The last two are the instructive ones. Both reasons were real measurements that reproduce
+today. Neither was a measurement of the directive — each had probed ONE half of a
+two-halved feature and retired the whole row on the result. A guess is easy to doubt; a
+number with a reproduction recipe is not, and that is exactly what makes a half-measured
+row the most durable kind of wrong.
+
+>>> **AN UNCOVERED LIST IS WHERE UNEXAMINED ASSUMPTIONS ACCUMULATE, PRECISELY BECAUSE EVERY
+>>> ENTRY CARRIES AN EXCUSE THAT READS LIKE A FINDING.** Before trusting one, check it
+>>> covers EVERY documented half of the directive, and check whether the limit it cites is
+>>> a property of the feature or of the instrument. "The instrument cannot express it" is a
+>>> to-do.
+
+A related trap inside the same work, worth its own line: the first `propagate_frame`
+carrier VERIFIED BOTH WAYS and emitted byte-identical WhyML — the signature of an inert
+directive. The importer was INLINING the callee, so the boundary `val` the directive
+decorates was never consulted and the experiment never reached the code under test.
+`#@ no_inline` on the callee turned "no difference at all" into "exactly one line of
+difference, and it is the frame". **Before concluding a boundary feature is inert, prove
+the boundary was crossed.**

@@ -7328,3 +7328,52 @@ remaining entries as claims under suspicion.
   uncovered now FOUR: `thread_entry`, `releases` (both genuinely INERT — their own finding,
   and the reason they have no pair is a result), `sibling_concrete` and `propagate_frame`
   (both PROBED, both with a written measurement of what stopped them).
+
+--------------------------------------------------------------------------------
+AND TWO MORE — THE UNCOVERED LIST IS WHERE UNEXAMINED ASSUMPTIONS ACCUMULATE
+--------------------------------------------------------------------------------
+
+Having been wrong three times in a row about why a directive was uncovered, I stopped
+reading the remaining excuses as findings and re-ran them as experiments. Both fell.
+
+  * `propagate_frame` — excuse: "probed and CONFIRMED to propagate, but the frame's trigger
+    term must be a `Call` (`_frame_trigger_term`) and the callee it names is emitted as a
+    program `let`, so the minimal carrier dies on `unbound function or predicate symbol`".
+    That is true of the PARAM-REFERENCING frame shape. The directive propagates TWO shapes,
+    and the `\result`-referencing one (`\forall k != \result. self.f[k] == \old(self.f[k])`)
+    has no such trigger. It pairs in eleven lines across an import.
+
+    THE PART THAT COST AN HOUR: my first carrier verified BOTH ways and emitted
+    BYTE-IDENTICAL WhyML, which looks exactly like an inert directive. The importer was
+    INLINING the callee, so the boundary `val` was never consulted and the experiment never
+    reached the code under test. With `#@ no_inline` on the callee the two halves differ by
+    exactly one line — and it is the frame. Without the marker the caller cannot show
+    `slots[5]` survived a `take(2)`: FAILED. With it: SUCCESS.
+
+  * `sibling_concrete` — excuse: "probed: Why3's own type invariants hold at a `val`
+    boundary, so the documented advantage is not observable in a minimal program". The
+    measurement is CORRECT and I reproduced it: a caller needing `self.n >= 0` after a
+    sibling call that does not promise it verifies either way, because Why3 re-establishes a
+    record's type invariant at a `val` boundary by itself. A second probe showed the excuse
+    also understates the stub — a scalar `ensures self.n == v` DOES ride onto the abstract
+    stub, so "conveys neither" is wrong too.
+
+    What the abstract sibling stub actually drops is the QUANTIFIED frame. `poke` writes one
+    cell and proves every other survives; through the stub the caller sees `self.xs` havoced
+    (FAILED), and with the marker the concrete call `c__poke self 2` keeps it (SUCCESS). The
+    original probe had tested ONE of the directive's two documented halves and retired the
+    whole row on it.
+
+THE SHAPE OF THE WHOLE EPISODE. Five directives left the uncovered list in one session, and
+the reason each was uncovered was a belief nobody had rechecked — an unimplemented feature,
+then a harness limit, then two mistaken readings of the pipeline, then a CORRECT
+measurement of the wrong half. The excuses got harder to doubt as the list got shorter,
+because the surviving ones cited measurements. **A real measurement of the wrong experiment
+reads exactly like a finding.** The plane's docstring now says so where the next reader of
+the uncovered list will meet it.
+
+  directive plane 46 -> **51** of 53. `MIN_COVERED = 51`.
+  uncovered now TWO, and neither is an excuse: `thread_entry` and `releases` are INERT —
+  collected into fields nothing reads, with no Module-6 consumer — which is a RESULT, filed
+  as `finding-thread-entry-and-releases-are-inert.md`. There is no violating program to
+  write because there is nothing to violate.
