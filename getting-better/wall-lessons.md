@@ -6777,3 +6777,158 @@ the truth and the index was lying next to it.
 >>> harmless", "everything is closed". **The claims most worth grepping are the flattering
 >>> ones**, and the index of open routes is the single worst place to be casually
 >>> optimistic, because everything downstream treats it as the question already answered.
+
+---
+
+### (b5) `s.replace()` RETURNS A NEW STRING, AND A TWO-STEP PATCH SCRIPT THAT FORGETS IT
+### WRITES THE SECOND FIX OVER THE FIRST
+
+The import-pair patch had two halves — widen `needs_array`'s field clause, and widen
+`needs_seq`'s identical one ten lines below. I wrote the second half by appending to the
+script, after the line that wrote the file:
+
+```python
+    io.open(p, "w").write(s.replace(old, new, 1))     # half 1 written
+    # ... appended later ...
+    s = s.replace(old2, new2, 1)                      # <- operates on the ORIGINAL s
+    io.open(p, "w").write(s)                          # <- clobbers half 1
+```
+
+`s` was never reassigned after the first replacement, so the second write started from the
+UNPATCHED text. The script printed "patched needs_array + needs_seq" and both asserts
+passed. Only **half the fix was in the file**, and the half that landed was the one I had
+tested least.
+
+**The witness caught it in ninety seconds**: `1872` was supposed to go FAILED -> SUCCESS and
+stayed FAILED, while `1879` (the seq half) flipped as predicted. Without a witness per half
+this would have shipped as "the import pair, landed".
+
+>>> Two rules, and the second is the one I will actually remember: **a patch script that
+>>> writes the file more than once is a bug waiting for a second author** — build the whole
+>>> string, assert once, write once. And **one witness per HALF of a change**, because a
+>>> half-applied patch is indistinguishable from a working one at the level of "the script
+>>> printed success".
+
+**`check-claim-vacuity` caught a `#@ requires True` riding in from a probe — for the THIRD
+time this campaign.** Witness `1879` was written by editing a probe file, and the probe's
+`#@ requires True` came with it. The ratchet is a FILE COUNT and it moved by exactly one:
+
+    [!]   `requires True` FILE COUNT GREW: 1132 > 1131.
+
+Removing the line left the witness verifying, so the claim was pure noise — which is what
+makes this failure mode so easy to repeat: **the vacuous clause never changes the verdict,
+so nothing except the ratchet ever objects to it.**
+
+>>> A probe is scaffolding and a corpus witness is a specification. When one becomes the
+>>> other, read every line as if writing it fresh — the vacuous contract is invisible to
+>>> the verifier by construction, and a count-based ratchet is the only thing standing
+>>> between "I copied a file" and "the corpus now asserts True".
+
+## (c5) I wrote the mechanism sentence before probing the adjacent case, and it was wrong
+
+ROUTE #226's record said, in bold, "**`__init__` IS NOT EMITTED AT ALL.** So nothing ever
+checks that the REAL constructor establishes the invariant." The first half is true. The
+second half I inferred from it, and six probes later it is false: the emitter DOES raise the
+type-invariant VC where a record is **constructed**, so
+
+    def use() -> int:
+        c = C()          # -> `let c = { n = 0 } in …`
+        return c.get()
+
+FAILS. I had the carrier, I had the emitted module in front of me, and the module plainly
+contained no construction — so the fact that I never tested one is exactly the shape of the
+error: **I generalised from a witness that could not have shown me the counter-case.**
+
+The route survives, and the correction makes it sharper rather than smaller: the obligation
+is attached to the CONSTRUCTION SITE, not to the CLASS, so a file that defines a class,
+publishes `def read(c: C) -> int` for it, and constructs nothing — the ordinary shape of a
+library module — is never asked. That version is worth more than what I first wrote, because
+it says where to put the repair.
+
+A second probe in the same batch found a carrier my planned repair does NOT close
+(`self.n = n` from a parameter), which would have shipped as "route #226 closed".
+
+>>> When a route record explains a MECHANISM, the probe set has to include the case the
+>>> mechanism predicts is safe. "Nothing checks X" is a claim about every program, and a
+>>> single witness — especially one you wrote to be minimal — cannot support it. Write the
+>>> mechanism sentence LAST, from the table, and let the table have a row that came out the
+>>> other way.
+
+## (d5) The IR key is called `field_defaults` and it is not the field defaults
+
+Building route #226's repair I needed "the literal the constructor gives this field", saw
+`td["field_defaults"]`, and used it. Module 5 writes that key from
+
+    field_witness = {f["name"]: field_defaults.get(f["name"], 0) for f in fields}
+
+— a WITNESS map, in which every field with no known literal reads back as the definite
+literal `0`. The local variable two lines up is the real thing and has the same name.
+
+So my first cut emitted, for `def __init__(self, n: int): self.n = n`,
+
+    goal _check_class_inv_c : forall n : int. n = 0 -> (n >= 5)
+
+which FAILS — the verdict I wanted, reached through a premise the program does not make.
+A reviewer reading the emitted module would have seen a soundness goal asserting that a
+parameter-initialised field starts at zero.
+
+**Nothing on any plane would have caught this.** The witness went red the way I wanted, the
+corpus census showed zero violations, and the byte-diff would have shown a goal appearing
+next to 113 classes. The only thing that found it was running the ADJACENT witness — the one
+written to stay green — and noticing it had gone red for free.
+
+>>> A name is not a specification. Before a value becomes a PREMISE in an emitted proof
+>>> obligation, find the line that WRITES it, not the line that reads it. And when a repair
+>>> has a "this case is out of scope" witness, run it: a scope gate that silently admits the
+>>> case it was written to exclude looks exactly like a scope gate that works.
+
+## (e5) Two of my seven controls were a different check wearing a name check's clothes
+
+The silent-name sweep swept every directive whose grammar admits an identifier and split
+them into SILENT (four, repaired) and REFUSED (the controls, which are what made the four
+look like a defect rather than a policy). `#@ critical` was a control. It should not have
+been.
+
+The file that produced its REFUSED verdict wrote to a protected shared variable inside the
+block, so what refused it was
+
+    unprotected write to shared variable 'balance'
+    (protected_by 'lock_bal', but held mutexes are ['no_such_lock'])
+
+— a statement about PROTECTION. Take the shared access out of the block and the identical
+file verifies. `#@ acquires` was the same. And `#@ releases`, which I never probed at all
+because its two siblings had "passed", is never caught by anything in any program:
+`visit_With` sets `csl_releases` and no downstream stage reads it.
+
+So the sweep's own controls hid three more instances of the thing the sweep was looking for,
+and it found them only because I went back to `#@ releases` for an unrelated reason — it was
+one of the two directives still uncovered by the enforcement plane.
+
+>>> A control is a claim, and it needs its own minimal witness. "Directive D refuses an
+>>> unknown name" must be measured on the SMALLEST program that carries the directive and
+>>> nothing else — otherwise a neighbouring check answers for it, and the answer is right
+>>> for the wrong reason, which is indistinguishable from right until someone deletes a
+>>> line. The corpus-shaped witness is the trap: it has the shared write in it because real
+>>> programs do.
+
+## (f5) "The error message changed" is not a measurement of a repair
+
+Three patches came out of the `Dict[K, List[T]]` thread. Two have witness pairs that go
+FAILED -> SUCCESS with a false twin that stays FAILED. The third —
+`fix_selffield_dict_default.py`, which replaces an int `| None -> 0` placeholder with the
+correctly-typed one — moves its witness from
+
+    This expression has type int, but is expected to have type seq.Seq.seq string
+
+to
+
+    This expression has type seq.Seq.seq string, but is expected to have type int
+
+and that is ALL it does, because the next branch along (`len` on a seq local) is missing
+too. The patch is right. It is not an increment, and I nearly queued it as one on the
+strength of "the census is zero and the code is obviously more correct".
+
+>>> A repair's evidence is a program that changes VERDICT — and a twin that does not. If the
+>>> only thing that moves is the diagnostic, what you have is a correct edit sitting on top
+>>> of an unfinished feature; record it where the feature is recorded, and land it with the
+>>> branch that finishes the job.

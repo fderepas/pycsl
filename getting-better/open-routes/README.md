@@ -1,6 +1,19 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN after gen #31 (2026-09-24): **TWO — #214 and #221.** (This line said
+## CURRENTLY OPEN after gen #31 (2026-09-24): **THREE — #226 (NEW, SEV-1), #214, #221.**
+##
+##   * **#226 — OPEN, SEV-1, found 2026-09-24.** A `#@ class invariant` the CONSTRUCTOR
+##     never establishes is assumed by every method. `#@ class invariant self.n >= 5` with
+##     `__init__` setting `self.n = 0`, and a method returning `self.n` under
+##     `#@ ensures \result >= 5`, VERIFIES; CPython returns 0. The emitted record carries
+##     `invariant { n >= 5 } by { n = 10 }` — the inhabitation witness is SYNTHESIZED FROM
+##     THE INVARIANT — and `__init__` is not emitted at all, so nothing checks that the real
+##     constructor establishes it. annotations.md says the invariant "must hold at every
+##     method boundary"; the constructor's exit is one.
+##     `route226-a-class-invariant-the-constructor-never-establishes.md`.
+##
+## (the previous line, kept because the correction is part of the record:)
+## **TWO — #214 and #221.** (This line said
 ## "NONE" for four hours because I copied the shape of the gen-#30 header instead of
 ## checking; `check-open-route-carriers.py` holds the truth and it RUNS both of their
 ## carriers. Corrected on discovery, and recorded as corrected.)
@@ -1342,6 +1355,29 @@ Closing out the "still unprobed" list rather than leaving it to look like an opp
 ##    cannot be verified at all, and the message names a Why3 symbol rather than anything
 ##    the user wrote.
 ##    `finding-array-import-missing-for-a-list-field-only-program.md`
+##
+## 2b. **A `List[T]` TAKEN OUT OF A `Dict[K, List[T]]` CANNOT BE PASSED TO ANYTHING** — and
+##    this is the measured answer to "why has the `\trusted` count not moved in thirty
+##    generations". The cheapest stub in the mirror is FIVE LINES
+##    (`PyCSLWeaver.visit_FunctionDef`); built on an offline copy of the tree and put
+##    through the real whole-file proof, it needs two patches AND a modelling decision —
+##    a `List[T]` PARAMETER is `array T`, a `Dict[K, List[T]]` VALUE is `seq T`, and
+##    nothing converts between them. A 2x2 locates the nearest half of it in one conjunct:
+##    `statements.py` ~5900 promotes a single-assign list local to `_seq_locals` only when
+##    its element type is `string`, so `len(fp)` on a `seq int` mistypes — the THIRD
+##    instance this generation of a rule implemented for the element type the first witness
+##    happened to have. Fail-closed throughout.
+##    `finding-a-list-out-of-a-dict-cannot-be-passed-anywhere.md`
+##
+## 2c. **A MUTEX NAME THAT RESOLVES TO NOTHING** — `#@ critical` / `#@ acquires` /
+##    `#@ releases` never validate the name. All three verify silently when the `with`
+##    block touches nothing shared, and `#@ releases` is never caught by anything in any
+##    program because nothing downstream reads `csl_releases`. **This one also CORRECTS
+##    this session's own silent-name sweep**, which listed `#@ critical` among the
+##    directives that refuse an unknown name: that verdict came from a file whose block
+##    WROTE a protected shared variable, so the refusal was the protection analysis, not a
+##    name check. Two of seven "controls" were the same mechanism in a name check's
+##    clothes. `finding-a-mutex-name-that-resolves-to-nothing.md`
 ##
 ## 3. **THE `#@ datatype` MATCH-EXHAUSTIVENESS REFUSAL IS WITHDRAWN** — its census came out
 ##    zero and it was written up as ready; then one constructed counter-program refuted it

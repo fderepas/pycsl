@@ -74,3 +74,30 @@ the finding from "two inert markers" to "the plane's entire outstanding debt".
 
 The capabilities named in this file are unchanged; what changed is that nothing else is
 queued behind them.
+
+## ADDENDUM, same generation — `releases` is inert AND its NAME was never checked
+
+"Inert" turned out to be the smaller half of what is wrong with `#@ releases`. Going back to
+it to write the enforcement pair it cannot have, the obvious next question was whether it at
+least validates its argument. It does not — and neither do its two siblings:
+
+    with lock_bal:              (block touches NOTHING shared)
+      #@ critical no_such_lock  -> [+] Verification SUCCESS!
+      #@ acquires no_such_lock  -> [+] Verification SUCCESS!
+      #@ releases no_such_lock  -> [+] Verification SUCCESS!
+
+`no_such_lock` is bound nowhere in the file — a `NameError` in CPython. `releases` is the
+one that could never have been caught, for the reason THIS file already records: nothing
+reads `csl_releases`. The other two are caught only when the block actually touches a
+protected shared variable, and then it is the PROTECTION analysis answering, not a name
+check. That also corrected two of the silent-name sweep's controls — see
+`finding-a-mutex-name-that-resolves-to-nothing.md` and wall-lesson (e5).
+
+So this file's conclusion stands and gains a rider: the plane's outstanding debt is that
+these two directives have nothing to violate, and until this generation the ARGUMENT of one
+of them had nothing to be right about either.
+
+Re-measured `thread_entry` independently while here, and this file's statement holds
+exactly: `0269.py` with the `#@ thread_entry` line deleted still verifies, `_thread_entries`
+is populated and read nowhere, and `func_ir["thread_entry"]` has no consumer anywhere in
+`src/pycsl` outside the two agent prompt strings.

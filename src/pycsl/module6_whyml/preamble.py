@@ -1840,15 +1840,34 @@ class PreambleEmissionMixin:
                 # array emit_ir`) → needs Array. Byte-inert (`_uses_tparam` False
                 # for the whole corpus).
                 or self._uses_tparam()
-                # relaunch #16: a STRING-ELEMENT LIST FIELD (`StructFormat.slots:
-                # List[str]`) lowers to `array string` in the record type decl, which is
-                # emitted whether or not any BODY uses an array op — so the `use
-                # array.Array` must be pulled from the FIELD, not only from the bodies.
-                # Without it the record decl itself is `unbound type symbol 'array'`.
-                # Exactly the condition the field-type branch uses -> corpus byte-inert
-                # (measured 0 of 813; no reference program declares such a field).
+                # relaunch #16: a LIST OR TUPLE FIELD lowers to an `array …` in the
+                # record type decl, which is emitted whether or not any BODY uses an array
+                # op — so the `use array.Array` must be pulled from the FIELD, not only
+                # from the bodies. Without it the record decl itself is `unbound type
+                # symbol 'array'`.
+                #
+                # (#49) gen #31 — THIS USED TO SAY `and _fd.get("value_type") == "string"`,
+                # and that conjunct made the guard one witness wide. Relaunch #16 had a
+                # `StructFormat.slots: List[str]` in hand and fixed THAT, while its own
+                # comment (kept above, unchanged) states the rule correctly: the record decl
+                # is emitted from the FIELD. An INT-element list field lowers to `array int`
+                # in exactly the same decl and died in exactly the same way. MEASURED:
+                #
+                #     #@ class invariant \length(self.xs) == 0
+                #     class C:
+                #         def __init__(self) -> None:
+                #             self.xs: list = []
+                #     -> unbound type symbol 'array'
+                #
+                # and the CONTROL — the identical class with one list PARAMETER added to a
+                # method, which trips `has_list_param` and nothing else — VERIFIES, true
+                # invariant and all. So a whole shape of program (a class holding a list and
+                # doing no other array work) could not be verified at all. Fail-closed, so
+                # never a false green; a completeness wall with a Why3-internal message.
+                #
+                # Same shape as four other repairs found this session: scoped to the witness
+                # rather than to the mechanism the comment already named (wall-lesson (s4)).
                 or any(_fd.get("type") in ("list", "tuple")
-                       and _fd.get("value_type") == "string"
                        for _td in (self.ir.get("type_decls", []) or [])
                        for _fd in (_td.get("fields", []) or []))
             )
@@ -2044,8 +2063,16 @@ class PreambleEmissionMixin:
           or bool(getattr(self, "_module_str_list_constants", None)) \
           or any(self._body_uses_str_literal_for(body) for body in all_bodies) \
           or self._uses_stmt_ir() \
-          or any(_fd.get("type") in ("list", "tuple")
-                 and _fd.get("value_type") == "string"
+          or any((_fd.get("type") in ("list", "tuple")
+                  and _fd.get("value_type") == "string")
+                 # (#49) gen #31 — THE SAME ONE-WITNESS SCOPE AS `needs_array` ABOVE, and
+                 # the same repair. A DICT field whose values are lists resolves to
+                 # `seq int` / `seq string` (the resolver has handled `Dict[K, List[T]]`
+                 # since nested-map.md / #15) and the record decl then names `seq` with no
+                 # `use seq.Seq` in scope: `unbound type symbol 'seq'`. MEASURED on a class
+                 # field annotated `Dict[int, List[int]]`. Any field whose RESOLVED value
+                 # type is a `seq ...` needs the theory, whatever the field's own kind.
+                 or str(_fd.get("value_type") or "").startswith("seq ")
                  for _td in (self.ir.get("type_decls", []) or [])
                  for _fd in (_td.get("fields", []) or []))
         # ^ relaunch #16: a STRING-ELEMENT LIST FIELD is `array string` — or, on a record

@@ -2,7 +2,7 @@
 
 Three SEV-1 routes closed (#213 both arms, #224, **#225**), the directive-enforcement plane
 taken from 32 to 51 of 53, `#@ reveal` implemented, and SIX directives found dropping a name
-the user wrote in silence. Routes **#214 and #221 remain OPEN** — check
+the user wrote in silence. Routes **#226 (NEW, SEV-1), #214 and #221 are OPEN** — check
 `bin/check-open-route-carriers.py`, which RUNS their carriers, before believing any index.
 
 ## If you read one thing
@@ -24,6 +24,20 @@ the user wrote in silence. Routes **#214 and #221 remain OPEN** — check
   (gen #30), and the RETURN carries the false length across a function boundary where a
   caller ASSUMES it. Witnesses `1869`/`1870`/`1871`.
 
+* **#226 — OPEN, SEV-1.** A `#@ class invariant` the CONSTRUCTOR never establishes is
+  assumed by every method: `invariant { n >= 5 } by { n = 10 }` is emitted for an
+  `__init__` that sets `n = 0`, and the `by` witness is SYNTHESIZED FROM THE INVARIANT.
+  Found because an unrelated increment's FALSE TWIN verified. Carrier registered.
+  **Read the route file's CORRECTION section before quoting it**: the emitter DOES raise
+  the invariant VC where a record is CONSTRUCTED, so the obligation is attached to the
+  CONSTRUCTION SITE rather than to the CLASS — a file that defines the class, publishes
+  `def read(c: C) -> int` for it and constructs nothing is never asked, which is the
+  ordinary shape of a library module and the reason this is SEV-1. FOUR carriers, and
+  the prepared increment closes ONE of them (the 113 corpus classes whose `__init__`
+  takes only `self` and stores int literals); a parameter-initialised field, a
+  computed/control-flow store, and `@dataclass` stay open and are recorded, not closed.
+  `route226-a-class-invariant-the-constructor-never-establishes.md`.
+
 ## The findings that are not routes, and why each is worth its file
 
 * `finding-a-name-that-resolves-to-nothing-is-dropped-in-silence.md` — SIX directives.
@@ -38,10 +52,26 @@ the user wrote in silence. Routes **#214 and #221 remain OPEN** — check
 * `finding-hard-error-claims-audited.md` — the `#@ datatype` match-exhaustiveness refusal,
   **WITHDRAWN after its census came out zero**, because one constructed counter-program
   showed the rule would forbid a good program.
-* `finding-thread-entry-and-releases-are-inert.md` — now the directive plane's ENTIRE
-  outstanding debt, and the only reason it is not at 53 of 53.
+* `finding-thread-entry-and-releases-are-inert.md` — the directive plane's ENTIRE
+  outstanding debt, and the only reason it is not at 53 of 53. Re-measured independently
+  late in the generation and it holds exactly; it now carries an ADDENDUM, because going
+  back to `releases` to write the pair it cannot have produced the next file.
+* `finding-a-mutex-name-that-resolves-to-nothing.md` — `#@ critical` / `#@ acquires` /
+  `#@ releases` never validate the mutex NAME, and **this one corrects the sweep above**:
+  `#@ critical` was listed as one of the CONTROLS that refuse an unknown name. It does not.
+  The file that produced that verdict wrote to a protected shared variable inside the
+  block, so the refusal came from the PROTECTION analysis. Two of seven controls were a
+  different check wearing a name check's clothes, and they hid three more instances of
+  exactly what the sweep was hunting. Wall-lesson (e5).
+* `finding-a-list-out-of-a-dict-cannot-be-passed-anywhere.md` — the measured answer to
+  "why has the `\trusted` count not moved in thirty generations". The cheapest stub in the
+  mirror is FIVE lines; built on an offline copy of the tree and put through the real
+  whole-file proof it needs two patches AND a modelling decision (`List[T]` parameter is
+  `array T`, `Dict[K, List[T]]` value is `seq T`, no bridge). Carries the matrix of which
+  read forms work for which element types; every FAILED cell but one is a missing branch
+  beside a present one.
 
-## The four questions that found everything above
+## The six questions that found everything above (four during, two added at the end)
 
 1. **Take one sentence of `annotations.md`, build the smallest program it describes, and run
    it BOTH ways.** Five directives left the uncovered list this way in one morning.
@@ -52,6 +82,17 @@ the user wrote in silence. Routes **#214 and #221 remain OPEN** — check
 4. **Before landing a rule, construct the strongest program it would FORBID and check
    whether that program is good.** This is what withdrew the exhaustiveness refusal and
    widened the `Callable` admissible set to TypeVars.
+5. **Re-run your own CONTROLS on the smallest program that carries the directive and
+   nothing else.** Added late, and it paid immediately: two of question 2's seven controls
+   were answered by a neighbouring check, which hid three more silent names. A control is a
+   claim; the corpus-shaped witness is the trap, because real programs bring the
+   neighbouring check with them.
+6. **Copy the tree and build the repair OFFLINE.** `cp -a src $SCRATCH/tree/src`, patch
+   there, run `python3 $SCRATCH/tree/src/pycsl/pycsl.py`. "No live edits while a battery is
+   in flight" is a rule about the tree, not about the work — and an offline copy is also
+   how a repair gets measured on real corpus files before it is ever applied. Route #226's
+   repair, the mutex refusal and the field-param pair were all built and verified this way,
+   with a gate running the whole time.
 
 ## The lessons, if you read only the lessons
 

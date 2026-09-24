@@ -115,6 +115,18 @@ CARRIERS = {
         "SUCCESS", "#214",
         "two `getattr` reads on different unknown receivers share route #47's "
         "default-keyed constant, so `\\result == 0` PROVES while CPython answers 1"),
+    # (#49) gen #31 — ROUTE #226. `__init__` sets `self.n = 0`, the invariant says
+    # `self.n >= 5`, and a method returning `self.n` proves `\result >= 5`. The emitted
+    # record is `invariant { n >= 5 } by { n = 10 }` — the inhabitation witness is
+    # SYNTHESIZED FROM THE INVARIANT — and `__init__` is not emitted at all, so nothing
+    # checks that the real constructor establishes it; every method then gets the invariant
+    # free, because a Why3 type invariant holds at every boundary for a value of that type.
+    # annotations.md says the invariant "must hold at every method boundary", and the
+    # constructor's exit is one.
+    "getting-better/open-routes/route226-carrier-constructor-never-establishes-the-invariant.py": (
+        "SUCCESS", "#226",
+        "a `#@ class invariant` the CONSTRUCTOR never establishes is assumed by every "
+        "method, so `\\result >= 5` PROVES while CPython answers 0"),
 }
 FLAGS = ["--memory-model", "hoare"]
 

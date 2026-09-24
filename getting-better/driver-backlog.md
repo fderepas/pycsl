@@ -6823,3 +6823,109 @@ after route #225's repair; the STRING one refuses both.
 Worth a line in a future window: either `\length` on a `string` should lower to the Why3
 string length, or it should be REFUSED at the contract level. Answering "neither" is the
 one option that teaches the user nothing.
+
+### NEW OBSERVATION (#49, gen #31) — A CLASS INVARIANT'S INHABITATION WITNESS IS SYNTHESIZED
+### FROM THE INVARIANT, NOT FROM `__init__`
+Found because a FALSE TWIN verified when it should have been refused. The file was a class
+with `self.xs: list = []` and `#@ class invariant \length(self.xs) == 1024`. Emitted:
+
+```
+  type c = { mutable xs: array int }
+    invariant { ((Array.length xs) = 1024) }
+    by { xs = (Array.make 1024 0) }
+```
+
+**The `by { … }` witness follows the INVARIANT.** Why3 requires a type invariant to be
+inhabited, and the emitter satisfies that by constructing a value the invariant accepts —
+so a length invariant is inhabitable whatever it says, and nothing in the emitted module
+checks that the REAL constructor (`self.xs = []`) establishes it.
+
+WHAT IS MEASURED SO FAR, so the next reader does not have to redo it:
+  * the false invariant VERIFIES (the file above);
+  * the obvious escalation does NOT follow — adding
+    `#@ ensures \result == 1024` to a method whose body is `return len(self.xs)` FAILS;
+  * the true invariant (`== 0`) also verifies, with `by { xs = (Array.make 0 0) }`.
+
+So this is an OBSERVATION, not yet a route: the invariant is accepted, but the false fact
+does not reach a postcondition by the one path tried. WHAT TO TRY NEXT: a method that reads
+an ELEMENT (`self.xs[500]`) or passes the field to a callee whose precondition needs the
+length, and a SECOND class whose invariant relates two fields — the inhabitation witness can
+satisfy each conjunct independently in a way no constructor could.
+
+If any of those lands, the repair is to check the invariant against the constructor's
+actual assignments rather than against a synthesized witness — which is also what
+`#@ mutex_invariant`'s initial-state check does (see
+`finding-mutex-invariant-initial-check-unprovable.md`, repaired this generation to emit
+`goal _check_initial_<m>` over the LITERALS).
+
+---
+
+## THE VALUE-MODEL / CONVERSION TRACK — the specific first conversion, now identified
+
+`\trusted` markers stand at **460** and have not moved in this campaign. The supervisor's
+standing note is that if the route supply thins, this track is the alternative. The route
+supply has NOT thinned (routes #225 and #226 both landed this generation), so this is not a
+switch — but the blocker has finally been reduced to one named function, and it is worth
+recording so the next increment does not have to re-derive it.
+
+**THE TARGET: `PyCSLWeaver.visit_FunctionDef` in `frontend/Module3_Weaver.py`.** The mirror
+carries it as a `\trusted` stub returning `None`; the live body is five lines:
+
+    self._init_function_csl_fields(node)
+    if node.lineno in self.contracts_map:
+        self._dispatch_function_contracts(node, self.contracts_map[node.lineno])
+    self._validate_function_contracts(node)
+    self.generic_visit(node)
+
+**WHY IT CANNOT BE CONVERTED TODAY, precisely.** `PyCSLWeaver.__init__` is ALREADY
+converted in the mirror and reads
+
+    def __init__(self, contracts_map: Dict[int, List[CSLNode]]) -> None:
+        self.contracts_map = contracts_map
+
+and `Module5_IREmitter._collect_class_fields` (~3244) infers an unannotated field's type
+from the RHS **shape alone**. An `ast.Name` RHS is not a Dict/Set/List/call, so it falls
+through to `"int"` with no `value_type` — the annotation is on the PARAMETER, and that
+branch never looks at it. So `node.lineno in self.contracts_map` lowers as a membership test
+on an int.
+
+**THE FIX IS WRITTEN AND CENSUSED**, held at `$SCRATCH/g31/fix_field_param_ann.py`: resolve
+`self.<f> = <annotated __init__ param>` through the same three resolvers the AnnAssign
+sibling branch already uses. Census across both corpora, `src/pycsl`,
+`src/self-annotate/src`, `src/pycsl_lib`: 111 such sites (int 85 · str 9 · ast.AST 4 ·
+Any 3 · List 3 · bool 2 · Dict 2 · float 1 · T 1 · Path 1), only **five** container-typed,
+and **ZERO in either corpus** — so it is corpus-byte-inert by construction and moves exactly
+the two mirror emissions it exists to unblock.
+
+ORDER, recorded so a later reader can see it was a choice and not a drift:
+`imports` (in flight) → `keywords` → `route #226` (a live SEV-1, and its statement is
+already hand-verified in WhyML) → `field param annotation` → the `visit_FunctionDef`
+conversion itself. The conversion is LAST because it is the only one of the five whose
+iteration loop is a proof run (~8 minutes for this mirror file, the cheapest in the tree),
+and it should not sit in front of four increments whose gates are already predicted.
+
+### CORRECTION, same sitting: the field-param fix is NOT sufficient, and that is now measured
+
+The section above says the blocker "has finally been reduced to one named function". It had
+not. The conversion was built on an OFFLINE COPY of the tree (`$SCRATCH/g31/treeconv`) —
+field fix applied, `visit_FunctionDef` un-trusted and filled with the live body verbatim —
+and run through the real whole-file proof. It failed twice, for two further reasons:
+
+  2. the SELF-FIELD dict subscript's missing-key placeholder is the int `0` regardless of ν:
+     `| None -> 0` against a `seq int` value. `_dv_missing_default` already answers five ν
+     shapes; the self-field branch re-implemented two of them inline and had no arm for the
+     rest. Patch `$SCRATCH/g31/fix_selffield_dict_default.py` — behaviour-preserving where
+     there was an answer, additive where there was not.
+  3. and then, with that fixed, **`seq` vs `array`**: a `List[T]` parameter lowers to
+     `array T` and a `Dict[K, List[T]]` VALUE lowers to `seq T`, with no operation between
+     them. `total(self.m[k])` is a TYPE ERROR in a twenty-line program. That is a modelling
+     decision, not a bug, and not an increment.
+
+Written up as `open-routes/finding-a-list-out-of-a-dict-cannot-be-passed-anywhere.md`.
+
+**This is the honest answer to "why has the `\trusted` count not moved in thirty
+generations."** It is not that no stub is cheap. The cheapest stub in the tree is FIVE
+LINES, and it needs two patches and a design decision. Both patches are still worth landing
+on their own merits — (1) is censused corpus-byte-inert and (2) is a consolidation — but
+neither should be sold as "the conversion increment", and the conversion should not be
+queued behind them as though it were mechanical.

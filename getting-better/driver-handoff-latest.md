@@ -6,7 +6,7 @@
 #
 # ## IF YOU READ ONE FILE BESIDES THIS ONE: `open-routes/gen31-INDEX.md`
 #    The map of gen #31 — three SEV-1 routes closed (#213 both arms, #224, #225), the
-#    findings that are not routes and why each has a file, the FOUR QUESTIONS that
+#    findings that are not routes and why each has a file, the SIX QUESTIONS that
 #    found all of it, and the load-bearing wall-lessons. Written in the same shape as
 #    `gen30-INDEX.md` so the two read as a series.
 #
@@ -22,7 +22,7 @@
 #    wrong — an unimplemented feature, a harness limit, two misreadings of the pipeline,
 #    and a correct measurement of the wrong half of a two-halved feature.
 #
-# ## UNCOMMITTED RIGHT NOW, AND THE GATE IT IS WAITING ON (read this first)
+# ## LANDED — the silent-name family is COMMITTED (`24d856f6`). Kept as the template:
 #    The SILENT-NAME FAMILY increment is APPLIED TO THE TREE AND NOT COMMITTED. Everything
 #    is verified except the final suite:
 #      * `src/pycsl/pycsl.py` (three refusals) + `src/pycsl/frontend/Module3_Weaver.py`
@@ -33,11 +33,13 @@
 #      * `check-refusal-witness-coverage` paid with `--append-new` (202 demonstrated,
 #        floor raised 199 -> 202) and `check-refusal-advice-audited` paid with five ledger
 #        rows (113 of 118, floor raised 108 -> 113);
-#      * THE ONLY THING OUTSTANDING is the full suite in `$SCRATCH/g31/gate_family.log`.
-#        Wait for the line `SUITERC=`. EXPECTED: 4003/4021, the standing EIGHTEEN, ZERO
-#        XPASS (the previous run was 3995/4013 and this adds 8 files, 4 of them
-#        expected-FAIL). Then `git add` the 21 paths (NEVER `git add -A`) and commit with
-#        `$SCRATCH/g31/msgfam.txt`.
+#      * the suite came in at **4003/4021, the standing EIGHTEEN, ZERO XPASS** — exactly
+#        the arithmetic predicted before it ran. Committed as `24d856f6`.
+#      THE TEMPLATE, because the next three increments follow it exactly: apply -> run the
+#      witnesses -> byte-diff (corpus, python-reference, MIRROR) -> census `--append-new`
+#      if a new refusal was added -> fast planes -> suite -> `git add` the explicit paths
+#      (NEVER `git add -A`) -> commit. PREDICT each gate's number before reading it; two
+#      of this session's four findings came from a prediction that missed.
 #
 # ## STATE AT THIS WRITING
 #    * DO NOT PUSH. `git status -sb` reads `ahead 50` against `origin/ghost-assign-bc6`
@@ -10858,3 +10860,78 @@ mirror edits; run it after ANY `src/pycsl/` change.
 # SELF-TEST HOOK, worth copying into every new plane: `--live <dir>` runs the gate against
 # another checkout, and `git show <old-sha>:<file> > <tmpdir>/` gives you that checkout for
 # one file without moving a worktree. A gate nobody has seen fail is a claim.
+
+# ======================================================================================
+# ## STATE AS OF 2026-09-24T10:36Z — four increments PREPARED AND MEASURED, none landed
+#
+#    HEAD is `24d856f6` (the silent-name family). The IMPORT-PAIR increment is APPLIED TO
+#    THE TREE and its gate is running (`$SCRATCH/g31/gate_imports.log`): byte-diff 0 MOVED /
+#    0 GONE / 0 APPEARED in all three directions, python-reference the same, MIRROR 53/53
+#    0 MOVED, ALL 46 PLANES GREEN, suite started 10:00:19Z and still running. Commit message
+#    ready at `$SCRATCH/g31/msgimp.txt`. Files, explicitly (NEVER `git add -A`):
+#      bin/check-open-route-carriers.py  src/pycsl/module6_whyml/preamble.py
+#      test-suite/corpus/pycsl-reference/187{2,3,9}_*.py
+#      getting-better/open-routes/route226-*.md  route226-carrier-*.py
+#      getting-better/open-routes/finding-a-list-out-of-a-dict-cannot-be-passed-anywhere.md
+#      getting-better/open-routes/finding-a-mutex-name-that-resolves-to-nothing.md
+#      getting-better/open-routes/finding-thread-entry-and-releases-are-inert.md
+#      getting-better/open-routes/{README.md,gen31-INDEX.md,probes.tsv}
+#      getting-better/{driver-backlog.md,driver-handoff-latest.md,driver-progress.log,
+#                      wall-lessons.md}
+#
+#    THE DEVICE THAT MADE THE REST OF THIS WINDOW WORK, and it should have been used from
+#    hour one: **`cp -a src $SCRATCH/g31/tree<X>/src`, patch THERE, run
+#    `python3 $SCRATCH/g31/tree<X>/src/pycsl/pycsl.py …`.** "No live source edits while a
+#    battery is in flight" is a rule about the TREE. An offline copy buys a full
+#    build/verify loop at zero risk, and every number below was taken that way.
+#
+#    LANDING ORDER, and the gate baselines are already chained to match:
+#      imports (gating) -> keywords -> route #226 -> mutex -> field param annotation
+#      (route #226 moved ahead of mutex so the corpus witness numbers stay monotonic
+#       with the landing order: keywords 1886-1889, route #226 1890-1892, mutex
+#       1893-1895. The gate baselines were re-chained to match, and the numbered
+#       sections below still read 2=mutex / 3=route #226.)
+#
+#    1. KEYWORDS  `land_keywords.sh` / `gate_keywords.sh`  (baseline bd_im / mir_im)
+#       `#@ ghost g : no_such_type` and `#@ proof rocqq <q>` both verify silently. Patch
+#       re-applied to TODAY's tree offline and the four witnesses re-measured:
+#       1886 REFUSED, 1887 SUCCESS, 1888 REFUSED, 1889 SUCCESS. A pre-gate over all 80
+#       corpus files using `#@ ghost`/`#@ proof` is running (`kw_pregate.log`).
+#
+#    2. MUTEX  `land_mutex.sh` / `gate_mutex.sh`  (baseline bd_kw / mir_kw)
+#       `#@ critical` / `#@ acquires` / `#@ releases` never validate the mutex NAME. Also
+#       CORRECTS two of this session's silent-name controls: `#@ critical`'s "refusal" was
+#       the protection analysis, not a name check. Witnesses 1893/1894/1895 measured
+#       SUCCESS -> REFUSED / SUCCESS / REFUSED offline; all 32 corpus files using the three
+#       directives run on both trees, 32/32 identical, ZERO moved (`mx_pregate.log`).
+#       Mirror cost ZERO (both twins `\trusted`, checked per (n4)).
+#       Commit message `msgmutex.txt`.
+#
+#    3. ROUTE #226  `land_r226.sh` / `gate_r226.sh`  (baseline bd_mx / mir_mx)
+#       THE SEV-1. Emits `goal _check_class_inv_<C> : forall … -> (<inv>)` over `__init__`'s
+#       literals. Statement hand-run in WhyML BEFORE any emitter change (Unknown for the
+#       false invariant, Valid for the true one, all other goals unchanged). Built offline:
+#       1890 FAILED (route closed) / 1891 SUCCESS / 1892 SUCCESS (the recorded debt), and
+#       0006 / 0076 / 0192 / 0244 / 0442 all SUCCESS with correct goals. Census: 113 of 210
+#       classes in scope, **ZERO violated**. THE ROUTE STAYS LIVE — four carriers, this
+#       closes one; the carrier registration moves to the parameter shape in the same
+#       increment. Commit message `msgr226.txt`.
+#       EXPECT the byte-diff to show ~111 corpus .mlw MOVED. That is the point of it.
+#
+#    4. FIELD PARAM ANNOTATION  `fix_field_param_ann.py` / `gate_field.sh`
+#       Still worth landing on its own merits (censused corpus-byte-inert) but **do NOT
+#       sell it as the conversion increment** — see below.
+#
+#    THE CONVERSION TRACK, answered rather than deferred. `\trusted` stands at 460. The
+#    cheapest stub in the tree (`PyCSLWeaver.visit_FunctionDef`, FIVE live lines) was built
+#    on an offline tree and put through the real whole-file proof. It needs the field fix,
+#    PLUS a second patch (the self-field dict subscript's int `| None -> 0` against a `seq`
+#    value), PLUS a modelling decision: a `List[T]` PARAMETER is `array T` and a
+#    `Dict[K, List[T]]` VALUE is `seq T`, with no bridge. A 2x2 pins the nearest half to one
+#    conjunct — `statements.py` ~5900 promotes a single-assign list local to `_seq_locals`
+#    only when its element type is `string`. See
+#    `open-routes/finding-a-list-out-of-a-dict-cannot-be-passed-anywhere.md`.
+#
+#    OBSERVATIONS, not reconciled: `scratchpad/w7/base` and `scratchpad/w8/pre` show as
+#    modified (pre-existing accidental gitlinks). The `.aux` files under `*.proofs/rocq/`
+#    are BUILD OUTPUT — do not revert or `rm` them. DO NOT PUSH.

@@ -8133,3 +8133,333 @@ keys on the NODE; a `\length`-of-a-string completeness gap recorded; the field v
 finding connected to its row in `driver-frontier-floor.md`; the keyword increment's
 annotations.md edit written and dry-run; and its commit message drafted. No live source was
 edited while the battery was in flight.
+
+================================================================================
+2026-09-24 gen #31 — ROUTE #226: A `#@ class invariant` THE CONSTRUCTOR NEVER
+ESTABLISHES IS ASSUMED BY EVERY METHOD
+================================================================================
+
+    #@ class invariant self.n >= 5
+    class C:
+        def __init__(self) -> None:
+            self.n: int = 0
+
+        #@ ensures \result >= 5
+        #@ assigns \nothing
+        def get(self) -> int:
+            return self.n
+
+    [+] Verification SUCCESS! All contracts formally proven.
+
+CPython returns 0. Ordinary total Python — no `no_exception`, no opt-in, no `\trusted`.
+
+THE MECHANISM, and it is two facts:
+
+    type c = { mutable n: int }
+      invariant { (n >= 5) }
+      by { n = 10 }
+
+`by { n = 10 }` is SYNTHESIZED TO SATISFY THE INVARIANT — Why3 asks only that the type be
+inhabited, and the emitter answers by constructing a value the invariant accepts, so the
+witness follows the invariant whatever it says. And **`__init__` IS NOT EMITTED AT ALL**:
+there is no `c____init__` in the module, so nothing checks that the REAL constructor
+establishes the invariant, while every method gets it free because a Why3 type invariant
+holds at every boundary for a value of that type. annotations.md says the invariant "must
+hold at every method boundary"; the constructor's exit IS one.
+
+HOW IT WAS FOUND, and the path is the lesson again. It fell out of a WITNESS BEHAVING
+WRONGLY: `1873`, the false twin for the unrelated import-pair increment, claimed
+`\length(self.xs) == 1024` for a field initialised to `[]` and was expected to FAIL. It
+VERIFIED. Reading the emission to find out why showed the `by { … }` witness following the
+invariant; ten minutes of probing turned "an odd inhabitation witness" into a certified
+false postcondition on the SCALAR path.
+
+That is the third time this generation the interesting result came from a witness that did
+not do what its name said — and the first two (route #225, the `#@ reveal` goal deletion)
+were also found while doing something else.
+
+MEASURED, so the severity is not guessed:
+  * scalar carrier: SUCCESS (the route).
+  * the same with a TRUE invariant: SUCCESS — invariants ARE assumed by methods, which is
+    precisely what makes a false one dangerous.
+  * list-field carrier: the INVARIANT is accepted, but `len(self.xs)` with
+    `ensures \result == 1024` FAILS, and an in-bounds element read FAILS. The length path
+    stops short because `len(self.xs)` does not lower to `Array.length` of the record field.
+  * PRIOR ART SEARCHED: route #165 is a different mechanism (a receiverless stub at a CALL
+    boundary). Nothing in `open-routes/` records the constructor obligation.
+
+REPAIR SHAPE, recorded not built: emit the obligation the way `#@ mutex_invariant`'s
+initial-state check was repaired EARLIER THIS SAME GENERATION — `goal _check_initial_<m>`
+over the constructor's LITERAL initial values — and REFUSE rather than assume when the
+constructor computes. The gate is a census: every corpus class with a `#@ class invariant`
+currently gets it for free, so emitting the obligation will make some fail, and each
+failure is either a real defect in that driver or a limit of literal substitution.
+
+THE CENSUS THAT SIZES ROUTE #226: 214 files carry a `#@ class invariant`, across 184
+classes. Of those constructors, **160 assign only LITERALS** (constants, negated constants,
+empty collections, `[0] * N`, `list()`/`dict()`/`set()`/`bytes()`/`bytearray()`) and 24
+compute. So the literal-substitution device that repaired `#@ mutex_invariant`'s
+initial-state check earlier this same generation reaches 160 of 184.
+
+**Every one of those 184 classes is getting its invariant for free today.** That is what
+makes this a SEV-1 rather than a curiosity — not a corner of the language, but the headline
+class contract, used in 214 files, whose obligation has never been emitted.
+
+ORDER FOR THE REPAIR, recorded so the hard 24 do not block the easy 160: emit
+`goal _check_class_inv_<C>` by substituting `__init__`'s literals for the 160 and READ EVERY
+NEW FAILURE; leave the 24 computing constructors emitting nothing and merely recorded,
+because refusing there is a second decision with its own blast radius.
+
+THE IMPORT GATE WENT RED ON `check-claim-vacuity`, and it was mine: witness `1879` carried
+a `#@ requires True` inherited from the probe file it was edited from. The ratchet is a FILE
+COUNT and it moved by exactly one — `requires True` FILE COUNT GREW: 1132 > 1131 — which is
+the only reason anyone would ever notice, because **a vacuous clause never changes the
+verdict**. Removing the line left 1879 verifying. Third time this campaign; recorded in
+wall-lessons under the (b5) group.
+
+Everything else in that gate was clean: corpus 1354 -> 1361 with **0 MOVED / 0 GONE /
+0 APPEARED**, python-reference 2199/2199 0 MOVED, MIRROR 53/53 0 MOVED, and 45 of 46 planes
+green. Gate relaunched from the top rather than resumed, because a suite that started
+against the pre-fix tree would have measured a tree that no longer exists.
+
+--------------------------------------------------------------------------------
+2026-09-24 ~10:10Z — while the relaunched import gate runs: ROUTE #226's repair taken
+from "shape, not built" to "statement measured in WhyML, scope counted, witnesses cut"
+
+No source was edited. The rule that no live edit happens while a battery is in flight held,
+and the work that fits under it is exactly this: censuses, hand-run WhyML, witness drafts.
+
+RELAUNCHED IMPORT GATE, as it came in: corpus byte-diff 0 MOVED / 0 GONE / 0 APPEARED in
+all three directions, python-reference the same, MIRROR 53/53 0 MOVED, and **all 46 planes
+green** (the `check-claim-vacuity` red was mine and is fixed). Suite started 10:00:19Z.
+
+CENSUS B — the device's INNER bound. Census A counted constructors that assign only
+literals: 160 of 184. But the obligation has to be STATED, and the statable form is a
+logic goal over ints, so the real scope is narrower. Scanning both corpora, `src/pycsl`,
+`src/self-annotate/src` and `src/pycsl_lib`:
+
+    classes carrying a `#@ class invariant`             210
+    IN SCOPE (all fields int + literal, invariant
+      naming nothing but those fields)                  113
+      · out of scope, non-int / non-literal field        96
+      · out of scope, invariant calls a predicate         1
+
+and then the question the gate is really asking — evaluating each in-scope clause against
+the constructor's OWN literals:
+
+    in-scope invariant clauses                          139
+      · SATISFIED by the constructor's literals         137
+      · VIOLATED                                          0
+      · names a module constant, not evaluable here       2   (0284, 0285)
+
+**ZERO violated.** Every in-scope corpus class already establishes its invariant; the
+obligation has simply never been asked. So this repair is expected to be ADDITIVE on the
+corpus — the opposite of the `#@ mutex_invariant` initial-state repair, where the goal was
+unprovable in every program until the ref was made concrete. Scope for increment 1 is the
+111 that are also free of module-constant references.
+
+THE STATEMENT, RUN BY HAND BEFORE TOUCHING THE EMITTER. Both candidate forms were pasted
+into the carrier's own generated `.mlw` and put through `why3 prove -P alt-ergo`, in the
+false and the true version:
+
+    A: `let _check_class_inv_c () : c = { n = 0 }`               Unknown / Valid
+    B: `goal _check_class_inv_c : forall n:int. n = 0 -> (n>=5)` Unknown / Valid
+
+with `c__get'vc` staying Valid in all four runs. So the route is a MISSING STATEMENT, not a
+prover limitation — that is now measured rather than assumed.
+
+**Form B is the one to build, and the reason is worth keeping.** A is less code because it
+reuses `_build_witness_str` — the same builder that makes the `by { … }` witness — and that
+builder takes its array lengths from `_extract_array_lengths(class_invs)`, i.e. FROM THE
+INVARIANT. Widening A to array fields later would quietly re-derive the value from the very
+thing under test and re-open this route one generation after closing it. B writes the
+constructor's literals out as premises, with no shared builder that can substitute the
+invariant's own data for them.
+
+WITNESSES CUT AND MEASURED ON THE PRE-REPAIR TREE: `1890` (`self.n = 0` under
+`invariant self.n >= 5`, `ensures \result >= 5`) SUCCESS — the route — and `1891` (the same
+with `self.n = 7`) SUCCESS. After the repair 1890 must go FAILED and 1891 must stay SUCCESS;
+a repair that reds them both has refused the contract rather than checked the constructor.
+
+Patch written and held unapplied at `$SCRATCH/g31/fix_class_inv_goal.py`; its anchor was
+checked unique against the live file. The keyword gate's byte-diff baselines were retargeted
+from the family sweep to the import gate's (`bd_im` / `mir_im`), which is the tree the
+keyword increment will actually be measured against.
+
+--------------------------------------------------------------------------------
+2026-09-24 ~10:19Z — still under the battery, still no live edits: the route #226 repair
+BUILT AND RUN on an offline copy of the tree, and the conversion track's floor measured
+
+THE DEVICE THAT MADE BOTH POSSIBLE: `cp -a src $SCRATCH/g31/tree*/src`, apply the patch
+THERE, and run `python3 $SCRATCH/g31/tree*/src/pycsl/pycsl.py …`. The rule "no live source
+edits while a battery is in flight" is about the TREE, not about the work — an offline copy
+buys a full build/verify loop with no risk to the increment being gated. This should have
+been the habit from the first hour of the window.
+
+ROUTE #226's REPAIR, run offline and correct on every case tried:
+
+    1890 (the route, + a public `read(c: C)`)     FAILED   goal n = 0 -> ((n >= 5))
+    1891 (the control, self.n = 7)                SUCCESS  goal n = 7 -> ((n >= 5))
+    1892 (self.n = n from a parameter)            SUCCESS  no goal  (recorded debt)
+    p8   (self.n = three())                       SUCCESS  no goal  (recorded debt)
+    p9   (the store inside an `if`)               SUCCESS  no goal  (recorded debt)
+    0006 / 0076 / 0192 / 0244 / 0442 (corpus)     SUCCESS  goals, incl. two on 0442's
+                                                           Base/Sub with qualified labels
+    0284 / 0285 (invariant names a module const)  REFUSED before and after (expected-FAIL
+                                                           files that never reach emission)
+
+AND THE FIRST CUT PUT A FALSE PREMISE IN A SOUNDNESS GOAL. It gated on
+`fn in td["field_defaults"]`, read as "the constructor gave this field a literal". Module 5
+stores `field_witness = {f: field_defaults.get(f, 0) for f in fields}` under that key, so a
+field with NO literal reads back as the definite 0 — and the goal came out
+`n = 0 -> (n >= 5)` for `def __init__(self, n: int): self.n = n`. The verdict was the one I
+wanted; the premise was a claim the program does not make. **No plane would have caught
+it.** What caught it was running the witness written to STAY GREEN and seeing it go red for
+free. Wall-lesson (d5); the gate now keys on `init_params` / `init_unknown_fields` /
+`init_unknown_cf_fields`, and all 113 in-scope corpus classes pass it.
+
+SIX PROBES CORRECTED THE ROUTE ITSELF (wall-lesson (c5)). "Nothing ever checks the
+constructor" was inferred from `__init__` not being emitted, and it is false: the emitter
+DOES raise the invariant VC where a record is CONSTRUCTED. The obligation is attached to
+the CONSTRUCTION SITE, not to the CLASS — so the carrier is a file that defines the class,
+publishes `def read(c: C) -> int` for it, and constructs nothing. That is the ordinary shape
+of a library module, and `read` VERIFIES while `read(C())` is 0 in CPython. FOUR carriers
+total; increment 1 closes ONE (the 113 the corpus uses) and the other three are recorded,
+not closed — including `@dataclass`, which is correctly out of scope because its synthesized
+`__init__` takes every field as a parameter.
+
+THE CONVERSION TRACK'S FLOOR, measured the same way and the answer to a standing question.
+`PyCSLWeaver.visit_FunctionDef` is the cheapest `\trusted` stub in the tree — five live
+lines. Built offline with the field-param fix applied and put through the REAL whole-file
+proof. It failed twice more:
+
+  * the self-field dict subscript emits `| None -> 0` against a `seq int` value
+    (`_dv_missing_default` answers five ν shapes; the self-field branch re-implemented two
+    of them inline and had no arm for the rest) — patch written;
+  * and then `seq` vs `array`: a `List[T]` PARAMETER is `array T`, a `Dict[K, List[T]]`
+    VALUE is `seq T`, and nothing converts between them. `total(self.m[k])` is a TYPE
+    ERROR in a twenty-line program.
+
+Both reproduce on the LIVE tree with an explicitly annotated field, so neither is an
+artifact of the field fix. **The honest answer to "why has the `\trusted` count not moved in
+thirty generations" is not that no stub is cheap — the cheapest one is five lines and needs
+two patches and a design decision.** Written up as
+`open-routes/finding-a-list-out-of-a-dict-cannot-be-passed-anywhere.md`; the backlog's
+"reduced to one named function" claim is corrected in place rather than deleted.
+
+--------------------------------------------------------------------------------
+2026-09-24 ~10:32Z — the two directives the enforcement plane could not cover turned out
+to be THREE silent names, and the sweep that missed them had FALSE CONTROLS
+
+The directive-enforcement plane stands at 51 of 53; the two uncovered are `releases` and
+`thread_entry`. I went back to `releases` expecting to write a pair for it. What I found:
+
+    with lock_bal:  (block touches NOTHING shared)
+      #@ critical no_such_lock   -> Verification SUCCESS
+      #@ acquires no_such_lock   -> Verification SUCCESS
+      #@ releases no_such_lock   -> Verification SUCCESS
+
+and `no_such_lock` is bound nowhere — a NameError in CPython.
+
+**AND THIS SESSION'S OWN SILENT-NAME SWEEP LISTED `#@ critical` AS A CONTROL** — one of the
+directives that DOES refuse an unknown name, cited as evidence that the four silent ones
+were a defect rather than a policy. It does not refuse. The file that produced that verdict
+WROTE a protected shared variable inside the block, so the refusal came from the protection
+analysis ("held mutexes are ['no_such_lock']") — a statement about protection, not about the
+name. `#@ acquires` was the same. Two of seven controls were a different check wearing a
+name check's clothes; wall-lesson (e5).
+
+`#@ releases` is the one nothing could ever have caught: `visit_With` sets `csl_releases`
+and NO downstream stage reads it.
+
+THE RULE, chosen by counter-program and not by census. A rule keyed on the mutex REGISTRY
+would forbid a good program — a lock protecting an invariant PyCSL does not model is
+legitimately annotated and legitimately absent. So: **the name must be bound somewhere in
+the file**, under which an unresolvable name cannot belong to a program that runs; a file
+with a star import is exempt. CENSUS: 53 sites across 38 files, ZERO refused under the weak
+rule AND zero under the strict one — so the census would have blessed the wrong rule too.
+
+MIRROR COST ZERO, checked per lesson (n4): `PyCSLWeaver.visit_Module` (which collects the
+binding set) and `PyCSLWeaver.visit_With` (which refuses) are BOTH `\trusted` twins.
+
+BUILT AND MEASURED ON AN OFFLINE TREE, nothing landed:
+    1893 (releases bogus)   SUCCESS -> REFUSED
+    1894 (the control)      SUCCESS -> SUCCESS
+    1895 (critical bogus, nothing shared touched)  SUCCESS -> REFUSED
+    all 32 corpus files using the three directives, run on BOTH trees: 32/32 same verdict,
+    zero moved (`$SCRATCH/g31/mx_pregate.log`).
+
+Finding: `open-routes/finding-a-mutex-name-that-resolves-to-nothing.md`. Increment held at
+`$SCRATCH/g31/{fix_mutex_name,doc_mutex_name}.py`, `land_mutex.sh`, `gate_mutex.sh`.
+LANDING ORDER is imports (gating) -> keywords -> route #226 -> mutex -> field, and the
+gate baselines are chained to match. Route #226 sits ahead of the mutex increment only
+so the corpus witness numbers stay monotonic with the landing order (keywords
+1886-1889, route #226 1890-1892, mutex 1893-1895) — renumbering six files to fix a
+cosmetic ordering would have been six chances to mistype a docstring for no gain.
+
+--------------------------------------------------------------------------------
+2026-09-24 ~10:39Z — the FIELD increment now has a GREEN witness, which it did not before
+
+It had been priced as "the conversion lever" and, once the conversion turned out to need two
+more things, there was a real question of whether it was landable at all: a patch whose only
+evidence is "the error message changes" is not an increment. It is, and here is the pair:
+
+    1896  `def __init__(self, m: Dict[str, List[str]]) -> None: self.m = m`
+          then `len(self.m.get(name, []))` under `#@ ensures \result >= 0`
+          LIVE **FAILED** (`This expression has type array.Array.array int @rho, …`)
+          PATCHED **SUCCESS**
+
+    1897  byte-identical but `#@ ensures \result >= 1`, which is FALSE
+          LIVE FAILED   PATCHED **FAILED**
+
+so the repair makes the field's value type REACHABLE and does not make claims about the
+field true. Without the twin, "1896 verifies" would only have said the file type-checks.
+
+The shape is the same one that has now appeared three times this generation: the ANNOTATED
+sibling branch (`self.m: Dict[str, List[str]] = m`) already did the right thing, so the
+defect was invisible to anyone who wrote the annotation in the other place.
+
+Held at `$SCRATCH/g31/land_field.sh`; landing order unchanged (it is last).
+
+--------------------------------------------------------------------------------
+2026-09-24 ~10:44Z — the mutex increment takes the DIRECTIVE PLANE to 52 of 53
+
+`releases` was on the uncovered list as INERT, with the honest note that there is no
+violating program because there is nothing to violate. The name check gives it one — and it
+is the smallest possible diff, a single identifier:
+
+    VIOLATE:  #@ acquires lock_counter
+              #@ releases no_such_lock     -> REFUSED
+    SATISFY:  #@ acquires lock_counter
+              #@ releases lock_counter     -> SUCCESS
+
+run on the patched offline tree, and then the plane itself:
+
+    [*] directive-enforcement: 52 of 53 documented directive(s) have an enforcement pair;
+        1 uncovered.   (uncovered: thread_entry)
+    [+] OK — every covered directive BITES and is not merely banned.
+
+**`releases` is the only entry ever to leave this list without its inertness being
+repaired**, and the plane's prose now says so in place of the old entry, because a pair
+whose halves differ by an IDENTIFIER certifies that the ARGUMENT is checked and nothing
+about the directive having semantics. Writing it any other way would turn the fraction into
+a claim it cannot support — which is the failure mode this plane's own header warns about.
+
+`thread_entry` is now alone on the list, re-measured independently today and unchanged:
+0269 verifies with the directive deleted, `_thread_entries` is populated and read nowhere,
+and `func_ir["thread_entry"]` has no consumer outside two agent prompt strings.
+
+--------------------------------------------------------------------------------
+2026-09-24 10:56Z — THE IMPORT-PAIR GATE IS GREEN, end to end
+
+    corpus byte-diff        1354 baseline / 1361 candidate .mlw
+                            0 MOVED, 0 GONE, 0 APPEARED, 7 new sources ignored
+    python-reference        2199 / 2199, 0 MOVED
+    MIRROR                  53 / 53, 0 MOVED
+    fast planes             all 46 green
+    suite                   **4006 / 4024 passed** — the standing EIGHTEEN
+                            (0211-0220, 0701, and the seven python-reference), ZERO XPASS
+
+4024 = 4021 + the three new witnesses, and 4006 = 4003 + 3. The arithmetic was predicted
+before the run and came out exactly, which is the only way a green suite means anything.
+Committing.
