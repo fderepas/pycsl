@@ -63,3 +63,36 @@ self-field seq-append emission subsystem (write-back to the field) + for the het
 (the R3 MODELING cert is PROVEN axiom-free + banked, ready to co-land). This is the ≥4-collector leverage node +
 the pyval cascade's terminal prerequisite. Related: [[pyval_value_model_built]]; build order in
 `getting-better/pyval-value-model-wall-impl.md`.
+
+## Bug 4 — a function returning `[]` CERTIFIED `\length(\result) == 1024`
+**FIXED 2026-09-24 (gen #31)** — corrected in `_run_pipeline`'s post-emission pass beside
+route #159's; witnesses `1869` (false twin, FAIL) / `1870` (true claim, PASS) / `1871` (the
+append path, PASS and unmoved).
+
+```python
+#@ ensures \length(\result) == 1024
+#@ assigns \nothing
+def mk() -> list:
+    return []
+```
+`[+] Verification SUCCESS! All contracts formally proven.` — Python returns 0, and the TRUE
+clause `== 0` was REFUSED. Ordinary total Python: no `no_exception`, no opt-in, no
+`\trusted` anywhere. `xs = []; return xs` behaved identically on both halves.
+
+MECHANISM: `[]` lowers to `(Array.make 1024 0)` and a Why3 array's length is immutable, so
+the model of the empty list has length 1024. Route #159 found this MECHANISM and repaired it
+for a LOCAL, on the emitted text, for ONE obligation (`in_bounds`) inside ONE syntactic
+scope — and that repair is correct; the local path measures faithful today. The RETURN
+carries the false length ACROSS THE FUNCTION BOUNDARY, where a caller ASSUMES it, and
+`1024 = <the real length>` is contradictory, so every downstream goal becomes vacuously
+provable — the same modular false-green as
+`20260718-0633-stmt-list-append-mutation-wall-response.md`, which `--check-vacuity` also
+missed. **A repaired mechanism is not a repaired route** (wall-lesson (s4)).
+
+Unlike bugs 1 and 2 this one landed immediately: the repair is mirror-neutral (it is in
+`_run_pipeline`, whose mirror twin is `\trusted`) and corpus-byte-inert.
+
+STILL OPEN, and recorded in `open-routes/route225-a-returned-empty-list-has-length-1024.md`:
+`Array.make 1024 0` is spelled the same for the CAPACITY of an append target and for the
+VALUE of an empty list. One literal cannot be both, because a Why3 array's length IS its
+capacity. Separating them is the real repair; `1871` is its guard.

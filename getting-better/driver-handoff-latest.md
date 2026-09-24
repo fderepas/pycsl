@@ -1,3 +1,147 @@
+# ====== START HERE — gen #31 (autonomous 96h run, deadline epoch 1790497192 = 2026-09-27T08:19Z) ======
+#
+# ## HOW TO RUN ANYTHING: `. scratchpad/g29/env.sh` first (why3 is NOT on the default PATH; it also sets
+#    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
+#    Work dir this gen: $SCRATCH/g31. DO NOT PUSH — pushing stays gated to the user.
+#
+# ## GEN #31 IN ONE PARAGRAPH
+#    Two SEV-1 routes closed (#224 `#@ conforms_to` unchecked by default; #213 the per-site
+#    `getattr` device), nine documented-but-unenforced rules repaired, one `\trusted`
+#    conversion (461 -> 460), the directive plane taken from 32 to 51 of 53, `#@ reveal`
+#    implemented, and a THIRD SEV-1 found by reducing an unrelated failure: **a function
+#    returning `[]` certified `\length(\result) == 1024`** while refusing the true `== 0`.
+#    THE HABIT THIS GEN ADDS: an uncovered/deferred list is where unexamined assumptions
+#    accumulate, because every entry carries a written excuse that reads like a finding.
+#    FIVE directives left the uncovered list in one session and every stated reason was
+#    wrong — an unimplemented feature, a harness limit, two misreadings of the pipeline,
+#    and a correct measurement of the wrong half of a two-halved feature.
+#
+# ## STATE AT THIS WRITING
+#    * Commits unpushed: SIX (do not push). Suite 3992/4010 = the standing EIGHTEEN, ZERO
+#      XPASS. All 46 fast planes green. Corpus + python-reference + mirror all byte-inert
+#      at the last measured increment.
+#    * The 12 modified tracked `.aux` files under `*.proofs/rocq/` are BUILD OUTPUT, left
+#      deliberately. Do not blanket-revert or `rm` them. `scratchpad/w7/base` and
+#      `scratchpad/w8/pre` show as modified because they are accidental gitlinks —
+#      pre-existing, not this run's. NEVER `git add -A` (it stages 75 build artifacts).
+#
+# ## THREE CAPABILITIES PRICED AND CENSUSED — TWO READY, ONE WITHDRAWN (patches in $SCRATCH/g31)
+#    1. `needs_array` for an INT-element list field — `preamble.py` ~1849 has the right
+#       rule and one conjunct too many (`value_type == "string"`). A class whose only array
+#       is a list FIELD dies on `unbound type symbol 'array'`. **AND IT IS A PAIR**:
+#       `needs_seq`, ten lines below, carries the identical over-narrow clause, so a field
+#       annotated `Dict[int, List[int]]` (value type `seq int`) dies on `unbound type
+#       symbol 'seq'`. One rule stated correctly in two adjacent disjunctions, implemented
+#       for the one witness relaunch #16 had. Patch: $SCRATCH/g31/fix_needs_array.py
+#       (covers BOTH); witnesses $SCRATCH/g31/w/187{2,3}.py and 1879.py, all pre-verified
+#       against today's tree.
+#    2. `#@ datatype` MATCH EXHAUSTIVENESS — **WITHDRAWN, DO NOT LAND.** The census came
+#       out zero (21 matches in 16 files, none omitting a constructor) and I wrote it up as
+#       "priced at its code only". Then one constructed counter-program refuted it: a
+#       `#@ requires c != Blue()` makes a partial match LEGITIMATE and Why3 DISCHARGES the
+#       `absurd` — the file VERIFIES. The refusal would forbid a good program. The `absurd`
+#       is the obligation, not a failure mode. What is still worth building is a DIAGNOSTIC
+#       on the FAILURE PATH (name the missing constructors when the unreachability VC is
+#       unproven), never a rule. Patch $SCRATCH/g31/fix_dt_exhaustive.py is kept only as a
+#       record of what not to do; wall-lesson (u4) is the generalisation.
+#    3. `Callable[[Unknown], int]` silently `int` — census DONE and ZERO (17 files with
+#       `Callable[`, two naming a non-class, both the already-repaired collection half).
+#       Do it at the `_run_pipeline` choke point, NOT at `_callable_tag_to_whyml`, whose
+#       mirror twin is UN-TRUSTED; the admissible set is the four builtin tags plus
+#       `{td["name"] for td in ir_data["type_decls"]}`, which `_run_pipeline` already holds.
+#       Patch: $SCRATCH/g31/fix_callable_scope.py; witnesses $SCRATCH/g31/w/187{7,8}.py.
+#       ALL SEVEN drafted witnesses were pre-verified against TODAY's tree, so the
+#       before/after table is already measured: 1872 FAILED(unbound array) 1873 FAILED
+#       1874 FAILED 1875 SUCCESS 1876 FAILED 1877 SUCCESS(the route) 1878 SUCCESS.
+#
+# ## A FOURTH CAPABILITY, FOUND LATE AND FULLY PRICED
+#    `#@ uses <name>` naming a lemma that does not exist is SILENTLY IGNORED
+#    (`Verification SUCCESS`, no message). The (u4) counter-program — citing an IMPORTED
+#    lemma — turned out to SHARPEN the rule rather than refute it: the imported lemma is
+#    NOT EMITTED AT ALL (grep the .mlw: no `triv`), so `#@ uses` across a module boundary
+#    is a no-op that reports success. Census: THREE `#@ uses` sites in the whole tree
+#    (0582 x2, 0565 x1), every one citing a lemma in its own file, zero cross-module. So
+#    the refusal ("the cited name must be a `#@ lemma` in the emission") has blast radius
+#    ZERO and would tell the truth in the cross-module case too. The gap it exposes —
+#    EMIT AN IMPORTED CITED LEMMA — is its own capability with no current user.
+#    AND IT IS A FAMILY OF FOUR, swept the same hour: `Callable[[Rekt], int]`,
+#    `#@ uses`, `#@ reveal` (THIS GEN'S OWN NEW FEATURE — wall-lesson (v4)) and
+#    `#@ footprint` in a file with no `#@ happy` declaration are all SILENT;
+#    `#@ conforms_to`, `#@ verify_module` and a happy-gated `#@ footprint` all REFUSE,
+#    which is the control that makes it a defect rather than a policy. Patches drafted:
+#    fix_callable_scope.py, fix_uses.py, fix_reveal_name.py (all $SCRATCH/g31). LAND THEM
+#    AS ONE INCREMENT — the family is the finding and the repairs are three set
+#    memberships at the same choke point. THE FOURTH MEMBER'S CAUSE IS FOUND AND PATCHED
+#    TOO: `Module3_Weaver._expand_happy_properties` validates a `#@ footprint` name — its
+#    own comment calls a typo "a soundness hole" — TWO LINES BELOW `if not happy_props:
+#    return`, so it never runs in a file declaring no `#@ happy`. Hoist it
+#    ($SCRATCH/g31/fix_footprint_empty.py; that method's twin is `\trusted`, no re-proof).
+#    Witnesses 1884/1885. FOUR patches, EIGHT witnesses, all pre-verified against today's
+#    tree — run $SCRATCH/g31/land_family.sh, then the byte-diff + planes + suite.
+#    See `open-routes/finding-a-name-that-resolves-to-nothing-is-dropped-in-silence.md`.
+#
+# ## THE CONVERSION TRACK — where the `\trusted` number actually moves (460 today)
+#    Two shortlists, both measured this gen:
+#    * THE FAMILY: `<x> or []` in a live body blocks **74** `\trusted` stubs (18 in
+#      module6_whyml/expressions.py alone). Its lowering is BUILT and parked; it is blocked
+#      on the empty literal, which is THE BIG ONE below. One literal, 74 stubs.
+#    * THE CHEAPEST SINGLE RE-PROOF: `frontend/Module3_Weaver.py` is 520 mirror lines, a
+#      seventh of the next candidate, and its 14 stubs rank by live-body size starting at
+#      SEVEN lines (`visit_FunctionDef`) and TEN (`visit_While`). The backlog entry "THE
+#      CHEAPEST RE-PROOF IN THE TREE" lists all 14 with what each body needs. `visit_While`
+#      calls. THE GATING QUESTION IS ALREADY ANSWERED: `_init_function_csl_fields`, IN THE
+#      SAME FILE, is already CONVERTED and stores eleven `node.csl_*` fields, and
+#      `pure_ast._fin_pos` stores four more — 35 such sites prove across the mirror. So an
+#      attribute store on an `ast` PARAMETER is modelled. And `generic_visit` is `\trusted`
+#      in both of its definitions, so that call is a free boundary `val`. `visit_
+#      FunctionDef`'s only remaining unknown is the value type of
+#      `contracts_map: Dict[int, List[CSLNode]]`. PROBED, and the answer ties the two
+#      shortlists together: membership and subscript both model fine (`contains_check` /
+#      `subscript_get` are emitted and typed), and the failure is
+#      `This expression has type int, but is expected to have type array.Array.array` —
+#      **the dict's value type ν is `int`**. That is backlog item 1b-B, the SAME root cause
+#      as the `or []` family. PROBED FURTHER, and it SPLITS IN TWO, which makes it
+#      cheaper than "fix the dict value model":
+#        (a) the PARAM form already works — `_m5_get_dict_value_type` returns `seq int`
+#            for `Dict[K, List[T]]`; what fails is an IMPEDANCE, `seq` value vs `array`
+#            parameter, and the `materialize` bridge already exists in the emitter;
+#        (b) the FIELD form degrades to `int` — `self.m = m` in `__init__` loses the
+#            annotation. THIS is what blocks `visit_FunctionDef`, and it is narrow: carry
+#            the `__init__` param's annotation onto the field's `dict_value_types` entry.
+#      Take (b) first. It is the smaller of the two and it is the one on the path.
+#
+# ## THE ORDER I WOULD TAKE IT (and why)
+#    0. ALL SIX PENDING PATCHES WERE DRY-RUN TOGETHER ON COPIES AND APPLY AND PARSE
+#       (fix_el_filter, fix_callable_scope, fix_uses, fix_reveal_name,
+#        fix_footprint_empty, fix_needs_array). Land them as THREE increments, in order:
+#       route #225's IR filter; the silent-name FAMILY (four patches, eight witnesses);
+#       the import PAIR (one patch, three witnesses).
+#    1. `needs_array` widening — hours. Cannot forbid anything (it only ADDS a `use` line),
+#       and the ordering worry is RETIRED by measurement: every program that can exercise
+#       the `([])` resolution order already imports both theories, because a subscript is
+#       itself a `needs_array` disjunct.
+#    2. `Callable` unknown-class refusal — hours. Census zero, counter-programs run,
+#       admissible set widened for TypeVars and imported classes.
+#    3. THE SPLIT (below) — the day's work, and the one that moves the `\trusted` number.
+#    4. Re-apply $SCRATCH/g31/or_empty_list.patch on top of the split and start converting.
+#    Owed before the window closes: a fresh `--slow` (71-plane) battery, and §A.3 at the
+#    deadline.
+#
+# ## THE BIG ONE STILL OPEN
+#    `Array.make 1024 0` is spelled the same for the CAPACITY of an append target and for
+#    the VALUE of an empty list. A Why3 array's length IS its capacity, so one literal
+#    cannot be both. Separating them (`expressions.py:18087` -> length 0;
+#    `statements.py:7376` stays 1024) fixes the empty-list length at the source AND unblocks
+#    the `or []` conversion family — 54 `\trusted` stubs, the largest identified, whose
+#    working lowering is parked at $SCRATCH/g31/or_empty_list.patch and is blocked only
+#    because the empty literal ALLOCATES (pure-function and Why3-region errors).
+#    Corpus 1871 is the guard: it must be the first file to go red if this is done wrong.
+#    RE-CENSUSED 2026-09-24: the family is **74** `\trusted` stubs, not 54 — 18 in
+#    module6_whyml/expressions.py alone. It got larger, not smaller, while it waited.
+#    The three jobs the one literal does, and the sites, are in
+#    `open-routes/route225-a-returned-empty-list-has-length-1024.md` and in the backlog
+#    item "SPLIT THE EMPTY-LIST LITERAL'S THREE JOBS".
+#
 # ====== START HERE — gen #30 (autonomous 96h run, deadline epoch 1790150356 = 2026-09-23T07:59Z) ======
 #
 # ## HOW TO RUN ANYTHING: `. scratchpad/g29/env.sh` first (why3 is NOT on the default PATH; it also sets

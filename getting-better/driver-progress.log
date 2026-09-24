@@ -7377,3 +7377,361 @@ the uncovered list will meet it.
   collected into fields nothing reads, with no Module-6 consumer — which is a RESULT, filed
   as `finding-thread-entry-and-releases-are-inert.md`. There is no violating program to
   write because there is nothing to violate.
+
+================================================================================
+2026-09-24 gen #31 — A FUNCTION RETURNING `[]` CERTIFIED `\length(\result) == 1024`
+================================================================================
+
+    #@ ensures \length(\result) == 1024
+    #@ assigns \nothing
+    def mk() -> list:
+        return []
+
+    [+] Verification SUCCESS! All contracts formally proven.
+
+Python: 0. And the TRUE clause `== 0` was REFUSED. Ordinary total Python — no
+`no_exception`, no opt-in, no `\trusted` anywhere.
+
+HOW IT WAS FOUND, because the path matters more than the bug. I was building the `or []`
+value-position lowering (the 54-stub conversion family) and the first witness failed on a
+Why3 REGION error, not a type error. Reducing that witness meant asking what `[]` actually
+is in the model — and `[]` is `(Array.make 1024 0)`, whose Why3 length is 1024 for good.
+One probe later the false postcondition proved. **The route was not on any list; it fell
+out of reducing an unrelated failure, which is the third time this campaign that the
+interesting finding was a by-product of a careful reduction rather than of a search.**
+
+WHY #159 DID NOT COVER IT. Route #159 found this mechanism for a LOCAL and repaired it on
+the emitted text, for ONE obligation (`in_bounds`) inside ONE syntactic scope. Measured
+today, that path is faithful: `xs = []; return len(xs)` proves `\result == 0` and refuses
+1024. The RETURN carries the false length ACROSS THE FUNCTION BOUNDARY, where a CALLER
+assumes it — and `1024 = <the real length>` is contradictory, so every downstream goal is
+vacuously provable. That modular false-green is already on file in
+`20260718-0633-stmt-list-append-mutation-wall-response.md`, where `--check-vacuity` did not
+flag it either.
+
+THE REPAIR, in #159's idiom and beside it: when a function's FINAL expression is the
+placeholder, or a local bound ONCE to it with no `_len` sidecar, no element store and no
+rebinding, its contract's `(Array.length result)` becomes `(0)`. Strictly stronger — 0 is
+both the true length and the smallest one — so no proof can become easier. A function that
+returns the placeholder on only one branch ends in a `try`/`Return` form, does not match,
+and is left alone.
+
+WHY NOT FIX THE LITERAL. `Array.make 1024 0` is spelled the same for the CAPACITY of an
+append target (real length in an `X_len` sidecar) and for the VALUE of an empty list. A
+Why3 array's length IS its capacity, so one literal cannot do both. Separating them is the
+named capability and stays open; corpus `1871` is its guard and should be the first file to
+go red if a future attempt moves the literal.
+
+MEASURED
+  * `1869` (false twin) FAILED — was SUCCESS. `1870` (true claim, both spellings) SUCCESS —
+    was refused. `1871` (append path) SUCCESS and unmoved on all three claims.
+  * the empty `ArrayLit` node has exactly ONE other producer, `deque()` with no arguments,
+    which really is empty (the seeded form is refused by route #78) — so the node is never
+    an erasure stand-in, which is what makes length 0 correct.
+
+PARKED IN THE SAME HOUR, with its measurements: the `or []` VALUE-POSITION lowering. `A or
+[]` with a list `A` is ill-typed TODAY in every position (`int` branch, `array int` branch),
+which is why 54 `\trusted` stubs carry it and none convert. A working lowering
+(`if <truthy A> then A else []`, with `_to_bool` answering the guard for the boolean
+position — `[]` is falsy, so `bool(A or [])` is `bool(A)`, an identity of the FALSY DEFAULT
+and not of the position, which is why it needs no consuming-position plumbing) was built and
+MEASURED GOOD on the boolean side and on emission; it then hit TWO walls on the value side:
+a PURE function cannot contain `Array.make` ("this function has side effects, it cannot be
+used as pure"), and in a method Why3's region analysis refuses the merge ("this expression
+prohibits further usage of the variable ys"). Both are consequences of the empty literal
+ALLOCATING, i.e. of the same defect this entry repairs from the other end. The patch is kept
+at `$SCRATCH/g31/or_empty_list.patch` and the walls are recorded, because the capability
+above is its precondition.
+
+ADDENDUM, same increment — the guard the first version did not have. Excluding element
+stores, `_len` sidecars and rebindings is not enough to know a local is still empty at the
+return: it can be handed to a CALLEE that appends to it (`ys = []; fill(ys); return ys`).
+Claiming 0 there swaps one false length for another, and the NEW one is worse because 0 is
+the PROVABLE direction. The guard is an OCCURRENCE COUNT — the name must appear exactly
+twice in the emitted body, its binding and the final expression — and the callee-mutated
+shape was measured NOT to verify `\length(\result) == 0` after it.
+
+BOUNDING THE ROUTE (same increment). A false length matters more if the family is wide, so
+every other way to produce an empty collection was run against the same two claims:
+`bytes()`, `bytearray()` and `[0] * 0` all REFUSE `\length(\result) == 1024` and PROVE
+`== 0`; `tuple()` proves neither (a completeness gap, not a carrier); the append path is
+faithful; and a list FIELD initialised to `[]` emits `by { xs = (Array.make 0 0) }` — the
+FAITHFUL length — in the very same emitter. The ARGUMENT direction is fail-closed both ways
+(a callee requiring `\length(xs) == 1024` does not accept `[]`; one requiring `== 0` does).
+So the defect was ONE literal out of step with its own siblings, not a model-wide choice —
+which is also the argument that the named capability (emit the empty-list VALUE at length 0,
+keep 1024 only as an append CAPACITY) is a correction and not a redesign.
+
+FOUND WHILE BOUNDING IT, and filed separately: a class whose ONLY array is a list FIELD
+emits `type c = { mutable xs: array int }` WITHOUT `use array.Array` and dies on `unbound
+type symbol 'array'`. `needs_array`'s last disjunct already states the right rule in its own
+comment ("the record decl is emitted from the FIELD") and carries one conjunct too many —
+`value_type == "string"` — because relaunch #16 had a `List[str]` in hand and repaired that
+witness. A whole shape of program (a class that HOLDS a list and does no other array work)
+cannot be verified at all. Fail-closed, so never a false green.
+`open-routes/finding-array-import-missing-for-a-list-field-only-program.md`.
+
+LEDGER NOTE ON WHERE THE WORK IS GOING (2026-09-24, mid-run). The launch instruction asked
+for a ledger entry BEFORE switching tracks rather than a drift. Here is the balance as it
+stands.
+
+  * THE ROUTE SUPPLY IS NOT THINNING. Today produced a third SEV-1 (a certified
+    `\length(\result) == 1024`), and it was not found by searching for routes — it fell out
+    of reducing a CONVERSION item's unexpected failure. The two tracks are not competing
+    for the same hours; the conversion work is currently the best route-finder I have.
+  * THE DIRECTIVE PLANE IS EXHAUSTED as a route source. It went 32 -> 51 of 53 this gen and
+    the two that remain are inert by measurement, with a filed finding. Everything left
+    there is diagnostics, not soundness.
+  * SO THE NEXT BIG MOVE IS ON THE CONVERSION TRACK, and it is named: separate the
+    empty-list literal's CAPACITY use from its VALUE use. It closes the remainder of the
+    `\length` route at the source AND unblocks the `or []` family — 54 `\trusted` stubs,
+    the largest identified in the backlog, whose lowering is already built and parked.
+    Three cheap, censused, byte-inert diagnostics land first because they are hours, not
+    days: the `needs_array` widening, the `#@ datatype` exhaustiveness refusal, and the
+    `Callable` unknown-class refusal.
+  * `\trusted` MARKERS: 460 (461 at the start of gen #31, one conversion so far —
+    `_Tok.__repr__`). The split above is the thing most likely to move that number next,
+    which is why it is next.
+
+CONTINUITY, found while writing this up and worth more than the repair. This is the THIRD
+position of ONE mechanism, and the other two are already closed:
+
+  * INDEXING inside a local's scope — route #159 (gen #29), post-emission rewrite of
+    `in_bounds ((Array.length X))` to `in_bounds (0)`;
+  * the ARGUMENT at a call boundary — route #196 (gen #30), which substitutes
+    `(Array.make 0 0)` for the exact placeholder at an `array int` param, with witness 1689
+    the argument-shaped twin of today's 1869, and a comment that already states the rule:
+    "the faithful value is the genuinely EMPTY array — `[]` really does have length 0";
+  * the RETURN across a function boundary — today.
+
+Three positions, three separate patches, ONE literal that is wrong at the source. The
+emitter already writes `(Array.make 0 0)` for this literal in two other places (the #196
+argument arm and the class-field initialiser's `by` witness). What stopped #159 and #196
+from fixing the producer is that the same literal is also the CAPACITY of an append target —
+and NEITHER of them says so. That constraint is now written down in the finding, with its
+two sites, so the next attempt starts from the conflict instead of rediscovering it.
+
+AND THE CENSUS CAUGHT A REGRESSION IN THE REPAIR ITSELF, which the byte-diff could not.
+Counting the placeholder's CONTEXTS in the fresh corpus emission (20 of 1354 files, 25
+occurrences, ZERO in python-reference) showed `let d : disk = { disk = (Array.make 1024 0) }`
+and `by { audit = (Array.make 1024 0); audit_len = 0 }` — i.e. **`[0] * 1024` emits the same
+text as `[]`**, and so does an append target's CAPACITY. The text-keyed rewrite therefore
+mis-fired: `def mk() -> list: return [0] * 1024` with the TRUE clause
+`\length(\result) == 1024` stopped proving. Safe direction, real regression, and INVISIBLE
+to a byte-diff that measured 0 MOVED across 1354 + 2199 files — because no corpus file
+returns a 1024-element literal from a function carrying a `\length(\result)` contract. The
+shape is not in the population. Filed as wall-lesson (t4): a green byte-diff means "nothing
+in the corpus moved", not "nothing moved".
+
+REPAIR OF THE REPAIR: an IR-level filter. `_run_pipeline` holds `ir_data`, so the set of
+functions whose FINAL statement returns an empty `ArrayLit` — directly, or through a local
+bound exactly once to one — is computed exactly, and the text is used only to LOCATE those
+functions' blocks (a method `C.mk` is emitted `c__mk`, matched on the tail after `__`). The
+filter can only REDUCE firing, so the byte-inert corpus measurement still stands.
+
+A REFUSAL BUILT, CENSUSED, WRITTEN UP AS READY — AND THEN REFUTED BEFORE IT LANDED.
+`finding-hard-error-claims-audited.md` had left the `#@ datatype` match-exhaustiveness rule
+open with an explicit price: "the check is a set difference, and the cost is the census, not
+the code". I took the census (21 `match` statements over a `#@ datatype` in 16 files, NONE
+omitting a constructor; the legitimately-partial shapes all present as purpose-built
+drivers — 0536 wildcard, 0535/0546 or-pattern, 0531 guard+wildcard), wrote the check, drafted
+three witnesses, and recorded "blast radius ZERO".
+
+Then, applying the discipline to my own work, I constructed the strongest program the rule
+would FORBID:
+
+    #@ requires c != Blue()
+    def to_code(c: Color) -> int:
+        match c:
+            case Red(): return 0
+            case Green(): return 1
+
+    Warning: Non-exhaustive pattern matching, asserting `absurd'
+    Prover result is: Valid (0.01s, 371 steps).
+    [+] Verification SUCCESS! All contracts formally proven.
+
+**The `absurd` is not a failure mode — it is the OBLIGATION, and it is provable when the
+precondition rules the missing constructors out.** The refusal would have made that program
+unwritable. Withdrawn, and the item is closed as WRONG rather than left open as unpriced.
+Filed as wall-lesson (u4): a census measures the blast radius over the EXISTING population;
+a rule applies to every program that COULD be written.
+
+The same test was then run against the other two capabilities queued behind it, and it paid
+there too: the `Callable` unknown-class refusal would have forbidden `Callable[[T], int]`
+over a TypeVar (verifies today), so `typevar_registry` and the PEP 695 `type_params` joined
+its admissible set; an IMPORTED class was checked and is already admissible (import
+resolution puts it in `type_decls` — measured, not assumed). For the `needs_array` widening
+the test takes a different shape, since it can only ADD a `use` line: the program to build
+is a class with BOTH a dict field and a list field that subscripts the dict, because
+`array.Array` and `map.Map` both provide `([])` and the later import wins.
+
+WHAT IS STILL WORTH BUILDING for the datatype item: the missing-constructor set difference
+as ADVICE on the FAILURE PATH. Two different internal messages currently stand in for it —
+`Sub-goal unreachable point of goal <fn>'vc` for the plain shape, and `This expression has
+type int, but is expected to have type ()` when the omitted arm is a GUARDED one — and
+neither names the constructor.
+
+THE TWO CONVERSION SHORTLISTS TURN OUT TO BE ONE GAP (measured while a suite ran).
+Ranking `frontend/Module3_Weaver.py`'s 14 `\trusted` stubs by the size of the live body
+they would carry gives a SEVEN-line candidate (`visit_FunctionDef`) in a 520-line mirror
+file — a seventh the size of the next file in the family, so the whole-file re-proof is
+the cheapest in the tree. Two of its three prerequisites came back free:
+
+  * an attribute store on an `ast` PARAMETER IS modelled — `_init_function_csl_fields`, in
+    the same file, is already CONVERTED and stores eleven `node.csl_*` fields; 35 such
+    sites prove across the mirror;
+  * `generic_visit` is `\trusted` in BOTH of its definitions, so that call is a boundary
+    `val` and costs nothing.
+
+The third was probed with a minimal carrier of the exact shape, and it is the interesting
+one. `contracts_map: Dict[int, List[CSLNode]]` models its membership and its subscript
+fine (`contains_check` / `subscript_get` are emitted and typed). What fails is
+
+    This expression has type int, but is expected to have type array.Array.array
+
+— **the dict's VALUE TYPE ν is `int`**, so `contracts_map[k]` is an int where a list is
+expected. That is backlog item 1b-B, and it is the SAME root cause as the `or []` family,
+which needs `<x> or []` read as evidence that ν is a list.
+
+So the campaign's two largest conversion shortlists — 74 `\trusted` stubs in the `or []`
+family, and the cheapest single re-proof in the tree — are blocked on ONE gap in the dict
+value model. Recorded because it changes what is worth a day: fixing that model opens both
+at once, and neither is worth attacking on its own terms first.
+
+AND THE IMPORT BUG IS A PAIR. Pricing the Module3_Weaver conversion turned up the twin of
+the `needs_array` finding, ten lines below it in the same block. A class field annotated
+`Dict[int, List[int]]` resolves its value type to `seq int` correctly — the resolver has
+handled `Dict[K, List[T]]` since nested-map.md / #15 — and then the emitted record decl
+names `seq` with no `use seq.Seq` in scope:
+
+    unbound type symbol 'seq'
+
+`needs_seq`'s field clause is character-for-character the same shape as `needs_array`'s,
+with the same over-narrow conjunct (`value_type == "string"`), from the same relaunch, under
+the same comment stating the rule correctly ("the record decl is emitted from the FIELD").
+Relaunch #16 had a `List[str]` field in hand and implemented the rule for it, twice, in two
+adjacent disjunctions — and neither reaches an INT-element list field or a list-valued dict
+field. Both halves are now in one patch.
+
+Why nobody hit the seq half: reaching it needs an ANNOTATED dict field whose values are
+lists, and the ordinary spelling (`self.m = m`, typed only on the `__init__` PARAMETER)
+degrades the value type to `int` long before the import matters. That degradation is the
+OTHER gap — and it is the one blocking `visit_FunctionDef`. Two bugs, one probe, and the
+second explains why the first stayed hidden.
+
+A THIRD MEMBER OF ONE FAMILY, found in the same afternoon, and the family is the finding:
+**a NAME the user wrote that resolves to nothing and is dropped in silence.**
+
+  * `Callable[[Rekt], int]` — an unknown class silently becomes `int`, and the only thing
+    that catches a mistake is Why3 rejecting the APPLICATION, i.e. a type error about the
+    argument naming nothing the user wrote;
+  * `#@ verify_module leafmod` — a lowercase group name used to produce a Why3 syntax error
+    naming a synthesized `leafmodSig` the user never wrote (repaired this gen);
+  * `#@ uses no_such_lemma` — dropped entirely, `Verification SUCCESS`, no message.
+
+In every case the compiler holds the admissible set exactly and says nothing. Filed as
+`open-routes/finding-a-name-that-resolves-to-nothing-is-dropped-in-silence.md`, WITH the (u4) test left
+explicitly un-run on it: `#@ uses` may legitimately name a lemma from an IMPORTED unit, and
+that program has to be built and shown to verify before any rule is written. Recording the
+test as OWED rather than doing it badly is the whole point of the lesson.
+
+AND THE FOURTH CAPABILITY LANDED ITS PRICING THE SAME HOUR. `#@ uses` is fully priced and
+its patch drafted ($SCRATCH/g31/fix_uses.py): the cited name must be a `#@ lemma` in the
+emission. The (u4) counter-program SHARPENED it instead of refuting it — citing an imported
+lemma VERIFIES, but the emitted `.mlw` contains no trace of that lemma, so the citation is a
+no-op and refusing it tells the truth. Census: three `#@ uses` sites in the whole tree
+(0582 x2, 0565 x1), all local, zero cross-module. Byte-inert.
+
+That is the pattern of the whole afternoon and it is worth stating once: **every one of
+these was found by running a directive's documented sentence as an experiment and looking
+at what the compiler actually did with a name.** Five directives left the enforcement
+plane's uncovered list the same way in the morning. The instrument is not a census or a
+plane; it is reading one sentence of the documentation and constructing the program it
+describes.
+
+THE SWEEP, AND IT IS NOT UNIFORM. Having written down the method — "take each directive
+whose grammar admits an identifier, write the version with a name that resolves to nothing,
+and run it" — I ran it across the whole surface:
+
+  SILENT   `Callable[[Rekt], int]` · `#@ uses no_such_lemma` · `#@ reveal no_such_function`
+           · `#@ footprint no_such_prop(k)` IN A FILE WITH NO `#@ happy` DECLARATION
+  REFUSED  `#@ conforms_to NoSuchProtocol` · `#@ verify_module leafmod` (repaired this gen)
+           · `#@ footprint no_such_prop(k)` in a file that HAS a happy property
+  FAILED   `\at(x, no_such_label)` (fail-closed, not silent)
+
+Two results a single probe would have missed. First, **the check exists exactly where
+someone wrote it** — `conforms_to` refuses, `footprint` refuses — so this is not a design
+decision anyone took; it is four places where nobody wrote the two lines. Second,
+`footprint`'s refusal is GATED ON THE FILE HAVING A HAPPY PROPERTY: with none, an unknown
+name is silently dropped. Low severity (a file with no region discipline has nothing to
+bypass) but the same hole, and the fix is to check against the possibly-empty set rather
+than only when it is non-empty.
+
+The strongest carrier is `footprint`, and the measured triple is why it is NOT a soundness
+route: no footprint -> FAILED; typo'd footprint -> REFUSED; correct footprint -> SUCCESS.
+
+FINAL TALLY of the silent-name sweep, after adding `#@ compose_from NoSuchMixin` (REFUSED)
+and `#@ critical no_such_lock` (REFUSED): **four silent, five refusing, one failing
+closed.** The refusing five are the controls that turn this from a policy question into a
+defect — the check is routine where someone wrote it — and the four silent ones are four
+places where nobody did. Patches for three of them are drafted with witness/control pairs
+pre-verified against today's tree (1877/1878 Callable, 1880/1881 uses, 1882/1883 reveal);
+the fourth (`#@ footprint` in a file with no `#@ happy`) needs its refusal to consult the
+possibly-EMPTY set rather than only a non-empty one.
+
+THE FOURTH MEMBER'S CAUSE, and it is the most instructive line of code found today.
+`Module3_Weaver._expand_happy_properties` DOES validate `#@ footprint` names, and its own
+comment states the danger exactly — "a typo would silently confine nothing (a soundness
+hole, since the method would appear constrained but get no per-site check)". The guard sits
+TWO LINES BELOW `if not happy_props: return`.
+
+So it never runs in a file that declares no `#@ happy` at all — which is the single case
+where the user is MOST likely to be wrong about what they have: they have written a
+confinement directive into a file with no confinement discipline. The author knew the
+hazard, wrote it down, and put the check on the wrong side of an early return.
+
+Filed as a corollary to wall-lesson (v4): **a guard whose comment states the danger is not
+evidence the guard runs.** When an audit finds a check already present, run the check's own
+negative case before crossing it off.
+
+Patch ($SCRATCH/g31/fix_footprint_empty.py) hoists the validation above the return; the
+message already renders an empty declared-set correctly. `_expand_happy_properties`'s
+mirror twin is `\trusted`, so no re-proof. Witnesses 1884 (FAIL) / 1885 (the same file with
+the directive removed, PASS), both pre-verified.
+
+FAMILY STATUS: four patches, eight witness/control files, every one measured against
+today's tree. Ready to land as ONE increment behind $SCRATCH/g31/land_family.sh.
+
+GATE RESULT for the route #225 increment (the IR-filtered version):
+  * witnesses: 1869 FAILED (expected FAIL), 1870 SUCCESS, 1871 SUCCESS;
+  * the regression the census found is FIXED: `return [0] * 1024` proves
+    `\length(\result) == 1024` again;
+  * the two guards hold: `ys = []; fill(ys); return ys` does NOT verify `== 0`, and
+    `return []` with `== 1024` stays refused;
+  * the indirect true claim still proves (`xs = []; return xs`, `== 0`).
+  * SUITE at the pre-filter tree: **3995/4013 — the standing EIGHTEEN, ZERO XPASS**
+    (total +3 and passes +3 against 3992/4010, exactly the three new witnesses). The
+    filter can only REDUCE firing and the corpus byte-diff was already 0 MOVED, so that
+    suite result stands for the filtered tree; the byte-diff is re-run anyway.
+  * all 46 fast planes green; MIRROR 53/53 byte-inert, so no re-proof owed.
+
+WHAT ACTUALLY FOUND THINGS THIS GENERATION, counted honestly:
+
+    the byte-diff plane   the `#@ reveal` repair deleting 0660's narrowing goal
+    a census              the `[0] * 1024` regression the byte-diff could not see
+    READING A SENTENCE    five directives off the uncovered list; four directives silently
+    AND RUNNING IT        dropping a name; the `#@ datatype` refusal being wrong; route #225
+
+The planes and the censuses each caught exactly one thing, and both of those were defects
+in MY OWN increments of the same day — which is their job and they did it. Everything that
+was a property of the TOOL rather than of today's edit came from taking one sentence of
+`annotations.md`, constructing the smallest program it describes, and running it both ways.
+
+Filed as wall-lesson (w4) with its three specialisations, because "read the docs" is not
+actionable and these are:
+  * where the grammar admits an IDENTIFIER, write the version whose name resolves to
+    nothing (four hits);
+  * where a sentence has TWO CLAUSES, test both — a probe of one half retires the whole row
+    and reads like a finding;
+  * where a rule would FORBID something, construct the strongest program it forbids and
+    check whether that program is good (this one stopped a wrong refusal from landing).

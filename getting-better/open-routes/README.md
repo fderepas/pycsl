@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## CURRENTLY OPEN after gen #31 (2026-09-24): **NONE.**
+##
+## **ROUTE #225 IS CLOSED** — a function returning `[]` CERTIFIED `\length(\result) == 1024` while the TRUE claim `== 0` was REFUSED. `[]` lowers to the placeholder `(Array.make 1024 0)` and a Why3 array's length is immutable, so the model of the empty list is 1024 long; `xs = []; return xs` behaved identically. Ordinary total Python — no `no_exception`, no opt-in, no `\trusted`. THIS IS THE THIRD POSITION OF ONE MECHANISM: route #159 repaired the INDEXING position (gen #29) and route #196 the ARGUMENT position (gen #30, substituting the genuinely empty `(Array.make 0 0)`); the RETURN carries the false length ACROSS a function boundary, where a caller ASSUMES it and `1024 = <the real length>` makes every downstream goal vacuously provable. Repaired in `_run_pipeline`'s post-emission pass beside #159's, with an IR-LEVEL FILTER — the text alone is not enough, because `[0] * 1024` and an append target's CAPACITY wear the same spelling, and the first version broke `return [0] * 1024`'s TRUE length claim (found by a CENSUS, invisible to a 0-MOVED byte-diff — wall-lesson (t4)). Witnesses 1869 (FAIL), 1870 (PASS, both spellings), 1871 (the append path, PASS and unmoved). STILL OPEN as the named capability: the same literal is the empty-list VALUE, a 1024-element literal, and a growable local's CAPACITY — splitting the three is what closes it at the source and unblocks the `or []` conversion family (74 `\trusted` stubs, re-censused this day). See `route225-a-returned-empty-list-has-length-1024.md`.
+##
+
 ## CURRENTLY OPEN after gen #30 (2026-09-21, second entry): **NONE.**
 ##
 ## **ROUTE #197 IS CLOSED** — `getattr(o, "a", 0)` on an object of UNKNOWN static type ANSWERED THE DEFAULT, and the body read it: `peek(o: Any)` PROVED `\result == 1` (emitting `let v = ref 0 in v := 0;` with `o` UNUSED — Why3 says so) while CPython answers 2 for any object with `a = 7`. FOUND BY `bin/check-getattr-erasure.py`'s OWN RATCHET NOTE, which said the UNKNOWN default was "not demonstrated to be exploitable — a contract cannot name a field of an object whose type the model does not carry". THE CONTRACT DOES NOT HAVE TO NAME THE FIELD; the BODY reads it and the contract reads `\result`. Repaired with a PER-SITE opaque (route #47's own device, hashed on the call's IR so two reads of the same expression agree — `(any int)` was tried first and refuted by the emission census, because it is fresh at every evaluation). ABSENT keeps its faithful default. Witnesses 1691 (XFAIL), 1692 (PASS). See `route197-an-unknown-typed-getattr-was-its-default.md`.
@@ -1306,3 +1311,29 @@ Closing out the "still unprobed" list rather than leaving it to look like an opp
     spelling before its failure means anything about the semantics.
 
 **DO NOT RE-PROBE THESE.**
+
+## ALSO OPEN after gen #31 (2026-09-24) — THREE DIAGNOSTIC FINDINGS, NOT ROUTES
+##
+## 1. **A NAME THAT RESOLVES TO NOTHING IS DROPPED IN SILENCE** — four directives:
+##    `Callable[[Rekt], int]` silently becomes `int`; `#@ uses no_such_lemma` verifies;
+##    `#@ reveal no_such_function` verifies (this generation's OWN new feature, eight hours
+##    old when the audit found it); `#@ footprint no_such_prop(k)` verifies in a file with
+##    no `#@ happy` — its guard exists, its comment calls a typo "a soundness hole", and it
+##    sits two lines below an early return. Six other directives DO refuse, which is what
+##    makes this a defect rather than a policy. Four patches + eight witnesses drafted.
+##    `finding-a-name-that-resolves-to-nothing-is-dropped-in-silence.md`
+##
+## 2. **THE RECORD DECL DRIVES THE IMPORTS, AND TWO DISJUNCTIONS SAY SO WHILE IMPLEMENTING
+##    IT FOR ONE WITNESS EACH** — a class whose only array is a list FIELD dies on
+##    `unbound type symbol 'array'`; a dict FIELD whose values are lists dies on `unbound
+##    type symbol 'seq'`. Fail-closed, so never a false green — but a whole shape of program
+##    cannot be verified at all, and the message names a Why3 symbol rather than anything
+##    the user wrote.
+##    `finding-array-import-missing-for-a-list-field-only-program.md`
+##
+## 3. **THE `#@ datatype` MATCH-EXHAUSTIVENESS REFUSAL IS WITHDRAWN** — its census came out
+##    zero and it was written up as ready; then one constructed counter-program refuted it
+##    (`#@ requires c != Blue()` makes a partial match legitimate and Why3 DISCHARGES the
+##    `absurd`). Recorded because the near-miss is the lesson: a census measures the blast
+##    radius over the EXISTING population; a rule applies to every program that COULD be
+##    written. `finding-hard-error-claims-audited.md`, wall-lesson (u4).

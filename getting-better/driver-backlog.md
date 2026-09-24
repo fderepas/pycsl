@@ -6425,3 +6425,275 @@ is much better than the first:
       discharge, and fixes the whole 18-method class rather than one method. The emitter
       already has both halves (`getattr__unparser` / `setattr__unparser ... writes
       { _pyobj_state }`).
+
+### UPDATE (#49, gen #31, 2026-09-24) — the `or []` family MEASURED, and its real blocker named
+The item above prices `<x> or []` as "a WRONG lowering" and 54 `\trusted` stubs. Measured
+end to end today, and the diagnosis needs one correction and one addition.
+
+CORRECTION — it is not a wrong lowering that PROVES; it is one that CANNOT BE EMITTED.
+
+    def go(ys: list) -> int:
+        return size(ys or [])
+    File ".pycsl_*.mlw": This expression has type array.Array.array int @rho,
+                         but is expected to have type int
+
+`_to_bool` coerces a non-int operand to `if <truthy> then 1 else 0`, so the `or` selects
+between an `int` branch and an `array int` branch. Why3 rejects it **in every position,
+value and condition alike** — `if xs or []:` fails identically. So this family is FAIL-
+CLOSED today, not false-green, and that is worth knowing before anyone counts it as a
+soundness route. It is purely a CONVERSION blocker, which is what makes it the right size
+of prize: 54 stubs, no soundness debt attached.
+
+THE LOWERING WAS BUILT AND WORKS ON THE SIDE THAT IS REACHABLE. `A or []` with array-typed
+`A` lowers to `(if <truthy A> then A else [])`, gated on `_to_bool`'s OWN output string
+(`(Array.length {left} <> 0)`) exactly as the existing int case is gated on
+`({left} <> 0)` — no type inference of my own, fail-closed to today's form otherwise. The
+boolean position needs NO consuming-position plumbing, contrary to the GATE note above:
+`[]` is falsy, so `bool(A or [])` is `bool(A)`, an identity of the FALSY DEFAULT rather
+than of the position, and `_to_bool` recovers the guard by scanning the shape this arm
+emits. MEASURED: `if xs or []:` went from a Why3 type error to a faithful, VERIFYING
+`if (Array.length xs <> 0)`.
+
+THE ADDITION — TWO NEW WALLS, and they are the same wall. The VALUE position then fails
+for a different reason each time, and both are the empty literal ALLOCATING:
+
+  * in a PURE function — `this function has side effects, it cannot be used as pure`,
+    because `Array.make` allocates;
+  * in a METHOD — `this expression prohibits further usage of the variable ys or any
+    function that depends on it`, Why3's region analysis refusing an `if` that merges a
+    borrowed array with a freshly allocated one.
+
+So the `or []` conversion family is BLOCKED ON THE EMPTY-LIST LITERAL, which is the same
+defect route `route225-a-returned-empty-list-has-length-1024.md` attacks from the soundness end
+(`[]` is `(Array.make 1024 0)`: 1024 long, and allocating). **The named capability —
+separate the CAPACITY placeholder from the empty-list VALUE — unblocks both at once**, and
+that is the order to do them in. The working patch is parked at
+`$SCRATCH/g31/or_empty_list.patch` (86 lines, expressions.py only) so it can be re-applied
+against a literal that no longer allocates.
+
+CENSUS while the tooling was out: 63 UN-TRUSTED mirror functions contain `or []` / `or {}` /
+`or ()`, and NONE of them carries the bad model — the whole emitted mirror (52 files) has
+ZERO occurrences of the value-position `or` with a collection default; every `then __or_l
+else …` in it selects an int/bool predicate, and the dict-shaped ones go through the total
+`pget_list "k" d`. The 54 stubs are `\trusted` precisely BECAUSE the shape cannot be
+emitted. That is the clean negative result the family was missing.
+
+### NEW LIVE ITEM (#49, gen #31) — SPLIT THE EMPTY-LIST LITERAL'S THREE JOBS
+`(Array.make 1024 0)` is one spelling doing three different jobs, and every patch that has
+touched it so far has had to work around the ambiguity rather than through it:
+
+  * the empty-list **VALUE** (`[]`) — length should be 0;
+  * a REAL 1024-element literal (`[0] * 1024`) — length is correctly 1024;
+  * a growable local's **CAPACITY**, whose real length lives in an `X_len` sidecar.
+
+THE BILL SO FAR, three routes and one regression, all from this one conflation:
+  * route #159 (gen #29) — `in_bounds ((Array.length X))` rewritten to `in_bounds (0)`
+    inside a `let` scope with no sidecar. One obligation, one scope.
+  * route #196 (gen #30) — `(Array.make 0 0)` substituted at an `array int` PARAMETER,
+    gated on the exact literal. One boundary.
+  * route #225 (gen #31) — the RETURN position: `\length(\result) == 1024` CERTIFIED.
+    Repaired the same way, and its FIRST version broke `return [0] * 1024`'s true length
+    claim, because the text cannot tell job 1 from job 2. Needed an IR-level filter.
+  * the `or []` CONVERSION FAMILY (54 `\trusted` stubs, the largest identified) is blocked
+    on job 1 ALLOCATING: a value-position `A or []` fails in a pure function ("this
+    function has side effects, it cannot be used as pure") and in a method (Why3 region
+    analysis: "this expression prohibits further usage of the variable ys"). The lowering
+    itself is built and parked at `$SCRATCH/g31/or_empty_list.patch`.
+
+THE SPLIT, with its sites measured:
+  * `module6_whyml/expressions.py:18087` — `return "(Array.make 1024 0)"`, the ONLY
+    producer of this string, reached for an `ArrayLit` with no `elts`. This is job 1, and
+    the empty `ArrayLit` node has exactly one other producer (`deque()` with no arguments,
+    which really is empty — the seeded form is refused by route #78), so length 0 is
+    correct for the node, not merely for the common case.
+  * `module6_whyml/statements.py:7376` — `let {safe_tgt} = Array.make 1024 0 in`, emitted
+    per `append_targets` name beside `let {safe_tgt}_len = ref …`. This is job 3 and stays.
+  * job 2 never goes through either site (a non-empty literal emits
+    `let _alit = Array.make N (e0) in …`), so it is unaffected by construction.
+  * CONSUMERS keyed on the exact string, which must learn the VALUE spelling:
+    `expressions.py` 7151, 8037, 8054, 8086, 9677, 12835, 12855, 12878, 14576;
+    `statements.py` 2165; `types.py` 280.
+
+CORPUS POPULATION, from the fresh emission: 20 of 1354 files, 25 occurrences, ZERO in
+python-reference. Classified: the route #158/#159 witnesses (`1536`/`1538`/`1541`) are job
+1 and expected to keep their verdicts under a length-0 literal (`xs[0]` on an empty list
+really is out of bounds); `{ disk = (Array.make 1024 0) }` is job 2 and must not move;
+`by { … audit = (Array.make 1024 0); audit_len = 0 }` is job 3 and must not move.
+**Corpus `1871` is the guard and should be the first file to go red if this is done wrong.**
+
+#### RE-CENSUSED (2026-09-24): the `or []` family is **74**, not 54
+Same probe, run today across the whole mirror: `\trusted` stubs whose LIVE body contains a
+`<x> or []` / `or {}` / `or ()`:
+
+    module6_whyml/expressions.py       18      frontend/Module5_IREmitter.py       4
+    pycsl.py                            9      Module6_WhyMLTranspiler.py          3
+    module6_whyml/statements.py         9      frontend/monomorphize.py            3
+    frontend/ir_resolve.py              7      module6_whyml/stmt_control_flow.py  3
+    module6_whyml/functions.py          5      core_ir_semantic.py                 2
+    module6_whyml/preamble.py           5      frontend/Module3_Weaver.py          2
+                                                    (+ the tail)
+
+74 stubs, and `or []` is A blocker on each rather than necessarily the ONLY one — but it is
+the blocker that has a BUILT lowering waiting on one literal. It remains the largest
+identified family in the campaign, and it got larger.
+
+#### CONVERSION SHORTLIST refreshed (2026-09-24) — where to look after the split
+The `int -> emit_ir` family (the census's "cheapest-looking", 14 stubs) is still the right
+second target, and one property of it is worth recording because it changes the ORDER:
+**the cost of a conversion is dominated by the whole-file re-proof, so the file's SIZE is
+the first thing to look at, not the stub's.** Mirror line counts for the named files:
+
+    frontend/Module3_Weaver.py          520      <- `_desugar_acts` lives here
+    frontend/Module5_IREmitter.py      3490
+    module6_whyml/expressions.py      (largest in the tree)
+    module6_whyml/statements.py       (second)
+
+So `Module3_Weaver._desugar_acts` is the cheapest *re-proof* in the family by a wide margin
+even if its own body is not the simplest — `Module3_Weaver.py` is a seventh the size of the
+next candidate. Its signature is `(contracts: List[Any]) -> Tuple[List[Any], List[Any]]` and
+its body reaches `c.name` / `isinstance(c, Act)` on heterogeneous contract objects, i.e. the
+pyval world rather than the `emit_ir` one — so price the BODY before committing to it, but
+price it FIRST.
+
+#### THE CHEAPEST RE-PROOF IN THE TREE, MEASURED: `frontend/Module3_Weaver.py`
+Ranking that file's 14 `\trusted` stubs by the size of the LIVE body they would have to
+carry verbatim (the mirror file is 520 lines, a seventh of the next candidate, so the
+whole-file re-proof is cheap too):
+
+       7 lines  visit_FunctionDef            23 lines  _check_protect_aliasing
+      10 lines  visit_While                  25 lines  _happy_predicate
+      15 lines  _collect_field_read_sites    59 lines  visit_ClassDef
+      15 lines  _collect_self_call_sites    156 lines  _synthesize_selfcomp
+      15 lines  _parse_extracted_contracts  601 lines  _expand_happy_properties
+      15 lines  visit_For                  1716 lines  process
+      16 lines  visit_With
+      21 lines  visit_Module
+
+`visit_FunctionDef` is SEVEN lines:
+
+```python
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self._init_function_csl_fields(node)
+        if node.lineno in self.contracts_map:
+            self._dispatch_function_contracts(node, self.contracts_map[node.lineno])
+        self._validate_function_contracts(node)
+        self.generic_visit(node)
+```
+
+What it needs, so the price is visible before the attempt: `node.lineno` (an attribute read
+off an `ast` node PARAMETER), `self.contracts_map` (a `Dict[int, List[...]]` field) with an
+`in` test and a subscript, and three sibling calls — two of which (`_dispatch_function_
+contracts`, `_validate_function_contracts`) are themselves `\trusted` stubs, so they are
+boundary `val`s and cost nothing extra. The stub's declared frame is `assigns self._source`
+while the real body writes `node.csl_*` through `_init_function_csl_fields` — a write to a
+PARAMETER's attributes — so the frame is the first thing to get right, not the last.
+
+`visit_While` (10 lines) is the same shape with three `node.csl_* = []` stores and no
+sibling `\trusted` calls, which makes it the better probe of whether an attribute store on
+an `ast` parameter is modelled at all.
+
+##### AND THE GATING QUESTION IS ALREADY ANSWERED — attribute stores on a PARAMETER prove
+Scanned the mirror for UN-TRUSTED (i.e. proved) functions that store to a parameter's
+attribute: **35 sites**, and the first two families are exactly the ones these stubs need:
+
+    frontend/pure_ast.py          _fin_pos                   node.lineno / col_offset / …
+    frontend/Module3_Weaver.py    _init_function_csl_fields   node.csl_requires, …csl_ensures,
+                                                              …csl_assigns, …csl_trusted, (11 more)
+
+`_init_function_csl_fields` is IN THE SAME FILE, is already converted, and writes eleven
+`node.csl_*` fields. So "is an attribute store on an `ast` PARAMETER modelled?" is answered
+YES by the file's own proved text — which upgrades `visit_FunctionDef` from "promising" to
+"the pieces are all present":
+
+    self._init_function_csl_fields(node)        <- a CONVERTED sibling, concrete call
+    node.lineno in self.contracts_map           <- int-keyed dict membership
+    self.contracts_map[node.lineno]             <- int-keyed dict subscript
+    self._dispatch_function_contracts(...)      <- \trusted sibling => a boundary val, free
+    self._validate_function_contracts(node)     <- \trusted sibling => free
+    self.generic_visit(node)                    <- price this one; it is the unknown
+
+The remaining unknowns are the `contracts_map` value type and `generic_visit`. That is a
+much shorter list than the family's other members, and the whole-file re-proof is the
+cheapest in the tree. **Take this before the big families.**
+
+###### `generic_visit` IS FREE. Both definitions of it — `pure_ast.NodeVisitor.generic_visit`
+and `pure_ast.NodeTransformer.generic_visit` — are `\trusted` stubs, so the call is a
+boundary `val` and costs the conversion nothing. That leaves ONE unknown on
+`visit_FunctionDef`: the value type of `contracts_map: Dict[int, List[CSLNode]]` for the
+`in` test and the subscript, whose result is handed straight to a `\trusted` sibling and so
+only has to TYPECHECK. Price that, and the seven-line body is reachable.
+
+###### PRICED BY PROBE (2026-09-24): `visit_FunctionDef`'s blocker is the DICT VALUE TYPE
+A minimal carrier of its exact shape — a `Dict[int, List[Any]]` field, an `in` test, a
+subscript, and the result handed to a `\trusted` sibling — was built and run. The results
+localise the cost precisely:
+
+  * `contracts_map` ITSELF MODELS FINE. The emission is
+    `if (contains_check node.lineno self.contracts_map) then … (subscript_get
+    self.contracts_map node.lineno)` — membership and subscript both present and typed.
+  * the first failure was the SIBLING's parameter: `self_dispatch_2` was synthesized taking
+    an `int` where a record was passed (`This expression has type PyCSL_Program.node @rho,
+    but is expected to have type int`) — the known `int` vs record family.
+  * with the record argument removed, the failure moves to the one that matters:
+    **`This expression has type int, but is expected to have type array.Array.array`** —
+    the dict's value type ν is `int`, so `contracts_map[k]` is an int where a `List[...]`
+    is expected.
+
+**So this conversion is blocked on backlog item 1b-B (the dict VALUE-type inference), which
+is the same root cause as the `or []` family** — `<x> or []` needs the `or []` to be read as
+EVIDENCE that ν is a list, and `contracts_map[k]` needs ν to be a list for the same reason.
+Two shortlists, one gap. That is worth knowing before spending a day on either: the payoff
+of fixing the dict value model is 74 stubs PLUS the Module3_Weaver family, not one or the
+other.
+
+###### AND THE PROBE SPLITS IT IN TWO — a FIELD gap and a `seq`/`array` impedance
+Re-run with the dict as a PARAMETER instead of a field, everything else identical:
+
+    def visit(k: int, d: Dict[int, List[int]]) -> None:
+        if k in d: dispatch(d[k])          # dispatch(cs: List[int]), \trusted
+
+    -> This expression has type seq.Seq.seq int, but is expected to have type array…
+
+So the two shapes fail DIFFERENTLY, and only one of them is the value-model gap:
+
+  * **PARAM form works.** `_m5_get_dict_value_type` already handles `Dict[K, List[T]]` and
+    returns `seq int` / `seq string` (nested-map.md / #15). The failure is an IMPEDANCE:
+    a dict's list value is a `seq`, while a `List[τ]` PARAMETER is an `array`. A bridge
+    (`materialize`, which the append path already emits, `ensures Array.length result =
+    Seq.length s`) exists in the emitter.
+  * **FIELD form degrades to `int`.** `self.contracts_map = contracts_map` in `__init__`
+    loses the annotation: the subscript's result is an `int`. THIS is the gap that blocks
+    `Module3_Weaver.visit_FunctionDef`, and it is narrower than "the dict value model" —
+    the resolver already knows the answer for a param and the FIELD path does not consult
+    it.
+
+Priced this way the cheapest useful move is the FIELD path: carry the `__init__` param's
+annotation onto the field's `dict_value_types` entry. The `seq`/`array` impedance is a
+second, separable item with an existing bridge.
+
+### NEW LIVE ITEM (#49, gen #31) — THE "SILENT NAME" FAMILY
+Three directives, found in one afternoon, share one defect: **the user writes a NAME, it
+resolves to nothing, and it is dropped without a word.** In each case the compiler holds
+the admissible set exactly at the point where it gives up on the name.
+
+| directive | what the name becomes | state |
+|---|---|---|
+| `Callable[[Rekt], int]` | silently `int`; only a Why3 type error about the ARGUMENT ever surfaces | priced, patch drafted, census zero, witnesses 1877/1878 |
+| `#@ verify_module leafmod` | used to be a Why3 syntax error naming a synthesized `leafmodSig` | REPAIRED this gen (`PYCSL-SEM-VERIFY-MODULE-NAME-NOT-CAPITALIZED`) |
+| `#@ uses no_such_lemma` | dropped entirely; `Verification SUCCESS` | priced, patch drafted, census three sites all local, witnesses 1880/1881 |
+| `#@ reveal no_such_function` | dropped entirely | FOUND BY RUNNING THE AUDIT ON THIS GENERATION'S OWN NEW FEATURE (wall-lesson v4) |
+| `#@ footprint no_such_prop(k)` | dropped, but ONLY in a file with no `#@ happy` declaration at all | the refusal exists and is gated on the set being non-empty; check against the possibly-empty set |
+
+CONTROLS — the members where the check IS written, which is what makes this a defect rather
+than a policy: `#@ conforms_to NoSuchProtocol` REFUSES, `#@ footprint` REFUSES once a happy
+property exists, `\at(x, no_such_label)` fails closed, and `#@ complete`/`#@ disjoint` are
+documented as flagged by `_validate_acts`.
+
+All three refusals belong at the `_run_pipeline` choke point (its mirror twin is `\trusted`
+— no re-proof, no marker, no emission move) and all three read a set the IR already holds.
+**Worth landing as ONE increment**, because the family is the finding: the repairs are
+three set memberships and the message is the same shape each time.
+
+A FOURTH member is likely and the way to look for it is now written down: take each
+directive whose grammar admits an identifier, write the version with a name that resolves
+to nothing, and run it. That is how all three were found.

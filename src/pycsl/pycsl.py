@@ -2543,6 +2543,142 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             "in_bounds ((Array.length " + _x159 + "))", "in_bounds (0)")
         if _fixed159 != _scope159:
             _mlw = _mlw[:_m159.end()] + _fixed159 + _tail159[len(_scope159):]
+    # (#49) gen #31 — THE SAME LIE, ONE FUNCTION FURTHER OUT: A FUNCTION THAT RETURNS THE
+    # EMPTY-LIST PLACEHOLDER CERTIFIED `\length(\result) == 1024`.
+    #
+    #     #@ ensures \length(\result) == 1024
+    #     def mk() -> list:
+    #         return []
+    #     [+] Verification SUCCESS! All contracts formally proven.
+    #
+    # Python returns a list of length 0. The TRUE clause `== 0` was REFUSED. Both halves
+    # hold for `xs = []; return xs` as well. This is a certified FALSE postcondition on
+    # ordinary total Python — no `no_exception`, no opt-in, no `\trusted` anywhere.
+    #
+    # Same mechanism as #159 directly above (`[]` lowers to `(Array.make 1024 0)`, whose
+    # Why3 length is 1024 for good), and #159's repair does not reach it: that one corrects
+    # ONE obligation (`in_bounds`) inside ONE syntactic scope (a `let` binding). The
+    # RETURN carries the false length ACROSS THE FUNCTION BOUNDARY, where a caller assumes
+    # it — and `1024 = <the real length>` is contradictory, which makes every downstream
+    # goal vacuously provable. That modular false-green is the one recorded in
+    # `getting-better/20260718-0633-stmt-list-append-mutation-wall-response.md`, where
+    # `--check-vacuity` did not flag it either.
+    #
+    # WHY THE FIX IS HERE AND NOT AT THE LITERAL. `Array.make 1024 0` is spelled the same
+    # for TWO different jobs: the CAPACITY of an append target (whose real length is
+    # carried by an `X_len` sidecar, `statements.py`) and the VALUE of an empty list that is
+    # never appended to. A Why3 array's length IS its capacity, so one literal cannot serve
+    # both, and changing it at the producer breaks the first job. Separating the two uses is
+    # the real repair and is recorded as the named capability in
+    # `getting-better/open-routes/finding-empty-list-literal-length-is-1024.md`; this is the
+    # fail-closed correction of the consequence, in #159's own idiom.
+    #
+    # STRICTLY STRONGER, SO NO PROOF CAN BECOME EASIER: 0 is the true length, and it is the
+    # smallest one, so every `Array.length result`-shaped obligation gets harder. Measured:
+    # the false `== 1024` stops proving and the true `== 0` starts.
+    #
+    # FAIL-CLOSED BY CONSTRUCTION. It fires only when the function's FINAL expression is
+    # the placeholder itself, or a local bound ONCE to the placeholder with no `_len`
+    # sidecar, no element store and no rebinding. A function that returns the placeholder on
+    # only one branch ends in a `try`/`Return` form, does not match, and is left alone.
+    # THE IR-LEVEL FILTER, AND THE CENSUS THAT FORCED IT. Keying on the emitted TEXT alone
+    # is WRONG, because `[0] * 1024` emits the SAME `(Array.make 1024 0)` as `[]` does —
+    # measured in the corpus emission, where a `disk` field initialised to 1024 zeroes and
+    # an `audit` field with an `audit_len` sidecar both wear that spelling. Without this
+    # filter, `def mk() -> list: return [0] * 1024` with the TRUE clause
+    # `\length(\result) == 1024` STOPPED PROVING. Not unsound — it makes a true claim
+    # unprovable, the safe direction — but a real completeness regression, and one the
+    # corpus byte-diff could not see, because no corpus file happens to return a
+    # 1024-element literal from a function carrying a `\length(\result)` contract.
+    #
+    # So the IR names the functions and the text only LOCATES them: a function qualifies
+    # only if its final statement returns an EMPTY `ArrayLit`, directly or through a local
+    # bound once to one. `ir_data` is right here; nothing has to be inferred from bytes.
+    # The filter can only REDUCE firing, so the byte-inert corpus measurement taken before
+    # it was added still stands.
+    _el_names = set()
+    for _f_el in (ir_data.get("functions", []) or []):
+        _b_el = _f_el.get("body") or []
+        _last_el = _b_el[-1] if _b_el else None
+        if not isinstance(_last_el, dict) or _last_el.get("stmt") != "Return":
+            continue
+        _rv_el = _last_el.get("value") or {}
+        if not isinstance(_rv_el, dict):
+            continue
+        if _rv_el.get("type") == "ArrayLit" and not (_rv_el.get("elts") or []):
+            _el_names.add(_f_el.get("name"))
+            continue
+        if _rv_el.get("type") != "Var":
+            continue
+        # the indirect spelling: `xs = []` … `return xs`, with `xs` bound exactly once and
+        # to the empty literal. Anything else about `xs` is handled by the body guards
+        # below (no sidecar, no store, exactly two textual occurrences).
+        _vn_el = _rv_el.get("name")
+        _binds_el = [_st_el for _st_el in _b_el
+                     if isinstance(_st_el, dict) and _st_el.get("stmt") == "Assign"
+                     and _st_el.get("target") == _vn_el]
+        if len(_binds_el) == 1:
+            _bv_el = _binds_el[0].get("value") or {}
+            if (isinstance(_bv_el, dict) and _bv_el.get("type") == "ArrayLit"
+                    and not (_bv_el.get("elts") or [])):
+                _el_names.add(_f_el.get("name"))
+    _el_whyml = set()
+    for _n_el in _el_names:
+        if not _n_el:
+            continue
+        _el_whyml.add(str(_n_el))
+        _el_whyml.add(str(_n_el).split(".")[-1])
+    import re as _reEL
+    _PLH_EL = "(Array.make 1024 0)"
+    if _el_whyml and _PLH_EL in _mlw and "(Array.length result)" in _mlw:
+        _cuts_EL = [_m.start() for _m in
+                    _reEL.finditer(r"\n  (?:let|val)\b", _mlw)] + [len(_mlw)]
+        _out_EL = [_mlw[:_cuts_EL[0]]] if _cuts_EL else [_mlw]
+        for _k_EL in range(len(_cuts_EL) - 1):
+            _blk_EL = _mlw[_cuts_EL[_k_EL]:_cuts_EL[_k_EL + 1]]
+            _eq_EL = _reEL.search(r"\n  =\n", _blk_EL)
+            if not _eq_EL or "(Array.length result)" not in _blk_EL[:_eq_EL.start()]:
+                _out_EL.append(_blk_EL)
+                continue
+            # THE NAME GATE. A method `C.mk` is emitted as `c__mk`, a free function as
+            # `mk`; both are matched by comparing the block's WhyML name and its tail after
+            # the last `__` against the IR names collected above. No match -> untouched.
+            _bn_EL = _reEL.match(r"\n  (?:let|val)\s+(?:function\s+|rec\s+)*"
+                                 r"([A-Za-z_][A-Za-z0-9_']*)", _blk_EL)
+            _nm_ok_EL = bool(_bn_EL) and (_bn_EL.group(1) in _el_whyml
+                                          or _bn_EL.group(1).split("__")[-1] in _el_whyml)
+            if not _nm_ok_EL:
+                _out_EL.append(_blk_EL)
+                continue
+            _hdr_EL = _blk_EL[:_eq_EL.end()]
+            _body_EL = _blk_EL[_eq_EL.end():]
+            _lines_EL = [_l.strip() for _l in _body_EL.splitlines()
+                         if _l.strip() and _l.strip() != "end"]
+            _hit_EL = False
+            if _lines_EL and _lines_EL[-1] == _PLH_EL:
+                _hit_EL = True
+            elif _lines_EL and _reEL.fullmatch(r"[A-Za-z_][A-Za-z0-9_']*", _lines_EL[-1]):
+                _nm_EL = _lines_EL[-1]
+                _esc_EL = _reEL.escape(_nm_EL)
+                if (_body_EL.count("let %s = %s in" % (_nm_EL, _PLH_EL)) == 1
+                        and _body_EL.count("let %s = " % _nm_EL) == 1
+                        and not _reEL.search(r"\b" + _esc_EL + r"_len\b", _blk_EL)
+                        and not _reEL.search(r"\b" + _esc_EL + r"\s*(?:\[|<-|:=)", _body_EL)
+                        # THE OCCURRENCE COUNT IS THE REAL GUARD, and the version without it
+                        # was wrong. Excluding stores and sidecars is not enough: a local can
+                        # be handed to a CALLEE that appends to it
+                        # (`xs = []; fill(xs); return xs`), and then the Python length is not
+                        # 0 either — claiming 0 would swap one false length for another, and
+                        # the new one is WORSE because it is the provable direction. So the
+                        # name must occur EXACTLY TWICE in the body: its binding, and the
+                        # final expression. Anything that so much as MENTIONS it elsewhere is
+                        # left alone.
+                        and len(_reEL.findall(r"\b" + _esc_EL + r"\b", _body_EL)) == 2):
+                    _hit_EL = True
+            if _hit_EL:
+                _hdr_EL = _hdr_EL.replace("(Array.length result)", "(0)")
+            _out_EL.append(_hdr_EL + _body_EL)
+        _mlw = "".join(_out_EL)
     return _mlw
 
 

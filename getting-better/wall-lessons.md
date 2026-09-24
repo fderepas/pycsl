@@ -6409,3 +6409,199 @@ decorates was never consulted and the experiment never reached the code under te
 `#@ no_inline` on the callee turned "no difference at all" into "exactly one line of
 difference, and it is the frame". **Before concluding a boundary feature is inert, prove
 the boundary was crossed.**
+
+---
+
+### (s4) REDUCING AN UNRELATED FAILURE IS A BETTER ROUTE-FINDER THAN LOOKING FOR ROUTES
+
+I was building the `or []` value-position lowering — a conversion item, the largest
+identified family, nothing to do with soundness. The first witness failed on a Why3 REGION
+error rather than the type error I expected. Reducing that meant asking what `[]` actually
+IS in the model, and `[]` is `(Array.make 1024 0)`, whose Why3 length is 1024 for good.
+One probe later:
+
+    #@ ensures \length(\result) == 1024
+    def mk() -> list: return []
+    [+] Verification SUCCESS! All contracts formally proven.
+
+A certified false postcondition on ordinary total Python, with the TRUE claim `== 0`
+refused next door. It was on no list, and no search would have proposed it — the mechanism
+was already documented (lesson (ao), route #159) and believed repaired.
+
+>>> **THE INTERESTING FINDING IS USUALLY A BY-PRODUCT OF A CAREFUL REDUCTION, NOT OF A
+>>> SEARCH.** Third time this campaign. When a witness fails for the wrong reason, the
+>>> wrong reason is the lead — reduce until you can state exactly what the model says, and
+>>> then ask whether that is TRUE OF PYTHON. Abandoning the reduction because "the original
+>>> item is blocked" throws the lead away with it.
+
+Corollary worth its own line: **a repaired mechanism is not a repaired route.** #159 fixed
+this mechanism for a LOCAL, for ONE obligation, inside ONE syntactic scope, and the fix is
+correct — the local path measured faithful today. The same mechanism one function further
+out, across a RETURN, was untouched and is far worse, because a caller ASSUMES the false
+length and a contradictory assumption makes every downstream goal vacuously provable. When
+closing a route, write down the SCOPE of the repair as carefully as the repair.
+
+---
+
+### (t4) THE BYTE-DIFF ONLY SEES SHAPES THE CORPUS HAPPENS TO CONTAIN
+
+Lesson (q4), two entries up, says "all green" is not evidence the proof did not shrink, and
+that the byte-diff is the instrument that measures the SET of obligations. Both true. Here
+is its complement, learned in the same increment, an hour later.
+
+The `\length(\result) == 1024` repair keys on the emitted text `(Array.make 1024 0)`. Its
+corpus byte-diff was **0 MOVED, 0 GONE, 0 APPEARED** on 1354 files plus 2199
+python-reference files — as clean as a measurement gets. Then I counted the placeholder's
+CONTEXTS in that same emission, to price a follow-on, and found:
+
+```
+   4  let d : disk = { disk = (Array.make 1024 0) }
+   3  by { balance = (Array.make 5 0); audit = (Array.make 1024 0); audit_len = 0 }
+```
+
+**`[0] * 1024` emits the same text as `[]`.** So `def mk() -> list: return [0] * 1024` with
+the TRUE clause `\length(\result) == 1024` had stopped proving. Safe direction — a true
+claim made unprovable, never a false one made provable — but a real regression, and the
+byte-diff was blind to it for a simple reason: no corpus file returns a 1024-element literal
+from a function carrying a `\length(\result)` contract. The shape is not in the population,
+so the instrument has nothing to say about it.
+
+>>> **A GREEN BYTE-DIFF MEANS "NOTHING IN THE CORPUS MOVED", NOT "NOTHING MOVED".** When a
+>>> repair keys on a SPELLING, enumerate what else wears that spelling — the census is a
+>>> different instrument from the diff, and neither substitutes for the other. Here the
+>>> census took one command and the repair needed an IR-level filter as a result: the IR
+>>> names the functions, the text only locates their blocks.
+
+The general form, which is the part worth carrying: a text-keyed rule is only as precise as
+the spelling is unambiguous, and in this emitter TWO different Python expressions share this
+one. That ambiguity is itself the open route (`route225-a-returned-empty-list-has-length-1024.md`
+— the same literal is the empty-list VALUE, a 1024-element literal, and an append target's
+CAPACITY), so every text-keyed patch on it will need a filter until the spellings are split.
+
+---
+
+### (u4) A CENSUS OF WHAT EXISTS SAYS NOTHING ABOUT WHAT A RULE WOULD FORBID
+
+`finding-hard-error-claims-audited.md` left one item open with an explicit price: *"the
+check is a set difference, and the cost is the census, not the code."* I took the census —
+21 `match` statements over a `#@ datatype` in 16 files, none omitting a constructor, every
+legitimately-partial shape (wildcard, or-pattern, guard) present as a purpose-built driver
+— and wrote "blast radius ZERO, the refusal is now priced at its code only."
+
+Then one probe refuted it:
+
+```python
+#@ requires c != Blue()
+def to_code(c: Color) -> int:
+    match c:
+        case Red(): return 0
+        case Green(): return 1
+```
+    Warning: Non-exhaustive pattern matching, asserting `absurd'
+    Prover result is: Valid (0.01s, 371 steps).
+    [+] Verification SUCCESS!
+
+The `absurd` is not a failure mode — it is the OBLIGATION, and it is provable when the
+precondition rules the missing constructors out. The refusal would have made a good program
+unwritable. The census could not have found that, because the corpus contains no
+precondition-restricted partial match: **nobody has written one yet, which is not the same
+as nobody may.**
+
+>>> **A CENSUS MEASURES THE BLAST RADIUS OVER THE EXISTING POPULATION. A RULE APPLIES TO
+>>> EVERY PROGRAM THAT COULD BE WRITTEN.** Before landing a refusal, do not only count what
+>>> it would hit today — construct the strongest program it would FORBID and check whether
+>>> that program is good. If it verifies, the rule is wrong, however clean the census was.
+
+Same failure shape as lesson (r4) arriving from the other direction: there, a real
+measurement of the wrong experiment; here, a real measurement of the wrong QUESTION.
+
+**(u4) applied backwards, to the refusals this same session already landed.** The test is
+only honest if it is run against one's own work, so: `PYCSL-SEM-VERIFY-MODULE-NAME-NOT-
+CAPITALIZED` forbids a lowercase Why3 module name, which no good program can want (Why3
+rejects it outright). `PYCSL-SEM-COMPOSE-FROM-NOT-A-MIXIN` and `PYCSL-SEM-MIXIN-INSTANTIATED`
+enforce sentences already in annotations.md. `PYCSL-SEM-LEMMA-NO-ASSIGNS` is the
+interesting one: a lemma with no `#@ assigns` CAN be a good program, and the refusal forbids
+it — deliberately, because the documented discipline is that a lemma states its frame.
+CHECKED rather than asserted: annotations.md row 16 says a `#@ lemma` "**Must be `-> None` /
+`assigns \nothing`**", so the refusal enforces a written sentence, which is this campaign's
+whole remit. The distinction that matters is
+**forbidding what the documentation already forbids (fine) versus forbidding what the
+verifier can already PROVE SAFE (not fine)** — and the `#@ datatype` exhaustiveness rule
+was the second kind, which is why it was withdrawn and these were not.
+
+---
+
+### (v4) THE FEATURE YOU ADDED TODAY IS NOT EXEMPT FROM THE AUDIT YOU INVENTED TODAY
+
+Three directives turned out to share one defect — a NAME the user writes, which resolves to
+nothing, dropped without a word: `Callable[[Rekt], int]` silently becomes `int`,
+`#@ verify_module leafmod` used to surface as a Why3 syntax error about a module the user
+never wrote, and `#@ uses no_such_lemma` verifies in silence. I wrote the family up,
+including how to look for the next one: *take each directive whose grammar admits an
+identifier, write the version with a name that resolves to nothing, and run it.*
+
+Then I ran it on `#@ reveal` — a directive I had IMPLEMENTED EIGHT HOURS EARLIER, the
+newest code in the tree:
+
+    #@ reveal no_such_function
+    [+] Verification SUCCESS! All contracts formally proven.
+
+Same hole. My repair collects the module's reveal names into a set and asks whether the
+function being stubbed is in it; a name matching nothing simply never matches, and nothing
+looks. `#@ conforms_to NoSuchProtocol` was probed in the same minute and IS refused, which
+is the control that makes the other four a finding rather than a policy question.
+
+>>> **Run the new audit against your own newest increment first.** The instinct is to point
+>>> a fresh instrument at old code, because that is where bugs are assumed to live. The
+>>> code written today was written without the instrument, so it is the LEAST likely to
+>>> survive it — and the most embarrassing to leave.
+
+**A corollary of (v4), from the fourth member of the same family.** `#@ footprint` with an
+unknown name IS validated — the guard exists, and its comment says why it must:
+
+```python
+        if not happy_props:
+            return
+        ...
+        # a typo would silently confine nothing (a soundness hole, since the method would
+        # appear constrained but get no per-site check).
+```
+
+The guard sits TWO LINES BELOW an early return that skips it whenever the file declares no
+`#@ happy` at all. The author knew the danger, wrote it down, and put the check on the
+wrong side of a `return`.
+
+>>> **A GUARD WHOSE COMMENT STATES THE DANGER IS NOT EVIDENCE THE GUARD RUNS.** Prose about
+>>> a hazard is the easiest thing in a codebase to mistake for a defence against it. When
+>>> an audit finds a check already present, run the check's own negative case before
+>>> crossing it off — this one had the right words attached for as long as it has existed.
+
+---
+
+### (w4) THE INSTRUMENT THAT PAID BEST TODAY WAS READING ONE SENTENCE AND RUNNING IT
+
+Counting what this generation's planes, censuses and batteries found against what came from
+one habit:
+
+| found by | what it found |
+|---|---|
+| the byte-diff plane | the `#@ reveal` repair deleting `0660`'s narrowing goal |
+| a census | the `[0] * 1024` regression the byte-diff could not see |
+| **reading a documented sentence and running it** | five directives off the uncovered list; `#@ reveal`, `#@ uses`, `Callable`, `#@ footprint` silently dropping names; the `#@ datatype` refusal being wrong; route #225 |
+
+The habit, stated so it can be repeated:
+
+>>> **TAKE ONE SENTENCE OF THE DOCUMENTATION, CONSTRUCT THE SMALLEST PROGRAM IT DESCRIBES,
+>>> AND RUN IT — BOTH WAYS.** The sentence says what should happen; the smallest program
+>>> says what does. Run the POSITIVE case too: "the directive is enforced" and "the
+>>> directive is enforced by refusing everything" look identical from the negative side,
+>>> which is why every pair in `check-directive-enforcement.py` has two halves.
+
+Three specialisations that each caught something today:
+  * where the grammar admits an IDENTIFIER, write the version whose name resolves to
+    nothing (four hits — lesson (v4));
+  * where a sentence has TWO CLAUSES, test both; a probe of one half retires the whole row
+    and reads like a finding (lesson (r4));
+  * where a rule would FORBID something, construct the strongest program it forbids and
+    check whether that program is good (lesson (u4) — this one stopped a wrong refusal
+    from landing).
