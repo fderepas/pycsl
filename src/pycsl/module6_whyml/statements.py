@@ -5900,7 +5900,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 # changes a byte (measured — un-gated it re-shaped
                 # `stmt_control_flow`'s `_body_d`).
                 if (_acounts.get(_nm, 0) >= 2
-                        or (_et == "string" and _is_seq_src(_firstv.get(_nm)))
+                        # (#49) gen #31 — `int` joins `string` here. The disjunct read
+                        # `_et == "string"`, so `len(fp)` on a `seq int` local bound from a
+                        # `Dict[K, List[int]]` read mistyped against `Array.length`. THIRD
+                        # instance this generation of one rule implemented for the element
+                        # type the first witness happened to have (the others were
+                        # `needs_array`/`needs_seq`). `_is_seq_src` is unchanged, so only a
+                        # local whose FIRST assignment is already a seq source moves.
+                        or (_et in ("string", "int") and _is_seq_src(_firstv.get(_nm)))
                         or (_et == "emit_ir" and self._uses_pyast_parser()
                             and _is_seq_src(_firstv.get(_nm)))):
                     self._seq_locals.add(_nm)

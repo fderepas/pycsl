@@ -9309,3 +9309,20 @@ in the tree — and if that widening has to be reverted, this is unaffected.
     the BITE TEST       91 disagreements with every exclusion dropped — the oracle bites
     SENSITIVITY         a false METHOD contract is reported, on the probe written for it
     fast planes         all 47 green
+
+--------------------------------------------------------------------------------
+2026-09-24 21:55Z — THE SEQ INCREMENT'S MIRROR PROOF RETURNED **SUCCESS** after 2h57m
+
+    src/self-annotate/src/module6_whyml/expressions.py
+      [+] Verification SUCCESS! All contracts formally proven.
+    0746 (the corpus's working `Dict[str, List[str]]` instance)  SUCCESS
+
+So the one mirror emission the widening moves — two locals leaving the array model for the
+seq one — still proves. With the byte-diff (corpus inert, 1 mirror MOVED as predicted), the
+47 planes and the suite (**4020/4038, the standing EIGHTEEN, ZERO XPASS**) already green,
+the increment is complete.
+
+THE BASELINE COPY IS STILL RUNNING (started 21:03, the same file with the one-line widening
+reverted). Its number is not needed to commit — the candidate proved, which is what the gate
+asked — but it is the difference between "this file takes three hours" and "this CHANGE made
+it take three hours", and it will be recorded when it lands.

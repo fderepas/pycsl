@@ -700,3 +700,14 @@ The container stores are a separate question and not this route's: a `\length` i
 a list field does not reach a postcondition (measured when this route was found — a method
 returning `len(self.xs)` FAILS), which is why the scalar path was the carrier in the first
 place.
+
+### Increment 2's suite arithmetic, predicted before the run
+
+`1892` flips from `# pycsl-expected: PASS` to `FAIL` and STOPS verifying, so it stays a
+"passed" row — the suite scores against the expectation, and the expectation moves with the
+file in the same commit. Two files are added (`1900`, `1901`). So the suite should read
+**total + 2, passed + 2, the standing EIGHTEEN, zero XPASS**.
+
+The class-invariant PLANE's numbers should NOT move: `1892` and `1900` become expected-FAIL
+and are skipped, and `1901`'s constructor needs an argument so it was never
+`C()`-constructible. 75 classes / 84 clauses / 0 FALSE either way.
