@@ -142,7 +142,15 @@ CENSUS_TRUNC = 4000       # the writer's message cap. See the TRUNCATION GUARD b
                           # stored message of EXACTLY this length was cut, and a cut
                           # message silently un-witnesses every site whose fragment falls
                           # past the cut.
-MIN_WITNESSED = 199       # (#49) gen #31: 191 -> 199 with routes #222 and #223, the
+MIN_WITNESSED = 202       # (#49) gen #31: 199 -> 202 with the SILENT-NAME family —
+                          # the `Callable` unknown-class, `#@ uses` and `#@ reveal`
+                          # refusals, each landing with its own expected-FAIL witness
+                          # (1877, 1880, 1882) in the SAME commit, which is what this
+                          # floor exists to force. The fourth member of that family,
+                          # `#@ footprint`, added no site: its raise already existed
+                          # and only its GATE moved (it sat below an early return), so
+                          # witness 1884 demonstrates an EXISTING site instead.
+                          # (#49) gen #31: 191 -> 199 with routes #222 and #223, the
                           # `bounded_int` width refusal, the lowercase
                           # `#@ verify_module` name refusal (witness 1842, control
                           # 1843), the frameless `#@ lemma` refusal (witness 1847,

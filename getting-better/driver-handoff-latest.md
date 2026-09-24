@@ -4,6 +4,12 @@
 #    PYTHONHASHSEED=0). $SCRATCH = /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad.
 #    Work dir this gen: $SCRATCH/g31. DO NOT PUSH — pushing stays gated to the user.
 #
+# ## IF YOU READ ONE FILE BESIDES THIS ONE: `open-routes/gen31-INDEX.md`
+#    The map of gen #31 — three SEV-1 routes closed (#213 both arms, #224, #225), the
+#    findings that are not routes and why each has a file, the FOUR QUESTIONS that
+#    found all of it, and the load-bearing wall-lessons. Written in the same shape as
+#    `gen30-INDEX.md` so the two read as a series.
+#
 # ## GEN #31 IN ONE PARAGRAPH
 #    Two SEV-1 routes closed (#224 `#@ conforms_to` unchecked by default; #213 the per-site
 #    `getattr` device), nine documented-but-unenforced rules repaired, one `\trusted`
@@ -16,8 +22,29 @@
 #    wrong — an unimplemented feature, a harness limit, two misreadings of the pipeline,
 #    and a correct measurement of the wrong half of a two-halved feature.
 #
+# ## UNCOMMITTED RIGHT NOW, AND THE GATE IT IS WAITING ON (read this first)
+#    The SILENT-NAME FAMILY increment is APPLIED TO THE TREE AND NOT COMMITTED. Everything
+#    is verified except the final suite:
+#      * `src/pycsl/pycsl.py` (three refusals) + `src/pycsl/frontend/Module3_Weaver.py`
+#        (the `#@ footprint` hoist); eight corpus witnesses 1877/1878, 1880/1881,
+#        1882/1883, 1884/1885, all run and all correct;
+#      * corpus byte-diff 1354 -> 1358, 0 MOVED / 0 GONE / 0 APPEARED (4 new sources);
+#        python-reference 2199/2199, 0 MOVED; MIRROR 53/53, 0 MOVED;
+#      * `check-refusal-witness-coverage` paid with `--append-new` (202 demonstrated,
+#        floor raised 199 -> 202) and `check-refusal-advice-audited` paid with five ledger
+#        rows (113 of 118, floor raised 108 -> 113);
+#      * THE ONLY THING OUTSTANDING is the full suite in `$SCRATCH/g31/gate_family.log`.
+#        Wait for the line `SUITERC=`. EXPECTED: 4003/4021, the standing EIGHTEEN, ZERO
+#        XPASS (the previous run was 3995/4013 and this adds 8 files, 4 of them
+#        expected-FAIL). Then `git add` the 21 paths (NEVER `git add -A`) and commit with
+#        `$SCRATCH/g31/msgfam.txt`.
+#
 # ## STATE AT THIS WRITING
-#    * Commits unpushed: SIX (do not push). Suite 3992/4010 = the standing EIGHTEEN, ZERO
+#    * DO NOT PUSH. `git status -sb` reads `ahead 50` against `origin/ghost-assign-bc6`
+#      as of 2026-09-24T08:54Z — recorded as an OBSERVATION, not reconciled, per the
+#      launch instruction. FOUR of those 50 are this session's (`ebe87255` reveal,
+#      `22677f8e` directive plane 51/53, `6d934cfc` route #225, and the silent-name
+#      family when its suite lands); the rest predate it. Suite 3992/4010 = the standing EIGHTEEN, ZERO
 #      XPASS. All 46 fast planes green. Corpus + python-reference + mirror all byte-inert
 #      at the last measured increment.
 #    * The 12 modified tracked `.aux` files under `*.proofs/rocq/` are BUILD OUTPUT, left
@@ -78,6 +105,28 @@
 #    ($SCRATCH/g31/fix_footprint_empty.py; that method's twin is `\trusted`, no re-proof).
 #    Witnesses 1884/1885. FOUR patches, EIGHT witnesses, all pre-verified against today's
 #    tree — run $SCRATCH/g31/land_family.sh, then the byte-diff + planes + suite.
+#    AND THE SWEEP WAS NOT EXHAUSTIVE — TWO MORE MEMBERS FOUND AFTER THE REPAIRS, both
+#    still open and both priced: `#@ ghost g : no_such_type = 0` verifies (silently the
+#    documented `int` default; the fallback from a MISSPELLED keyword is what is
+#    undocumented), and `#@ proof rocqq <qualname>` verifies with a BYTE-IDENTICAL
+#    emission — the prover keyword is not read at all. Bounded: the axiom body comes from
+#    `_AXIOM_REGISTRY` and an unregistered qualname is REFUSED — but THAT BOUND WAS
+#    CORRECTED AFTER CHECKING IT (wall-lesson (y4)): `check-proof-crosscheck.sh` walks the
+#    DRIVERS' citations and `crosscheck_ir.py` selects them with
+#    `d.prover == "rocq"` / `"lean"`, so a `rocqq` citation is INVISIBLE TO THE CROSS-CHECK
+#    while its axiom still enters the file's proof. Outcome: "a typo hides a citation from
+#    the audit", not "arbitrary axioms". That makes the `#@ proof` half of
+#    fix_keyword_sets.py the HIGHEST-PRIORITY of the unlanded patches — land it next.
+#    THE PHRASE TO RE-RUN, which is the reusable part and which I got wrong the first time:
+#    **every directive with a FIELD WHOSE VALUE COMES FROM A FIXED SET** — names AND
+#    keywords. My original phrase said "admits an identifier" and missed both of these.
+#    BOTH ARE NOW PATCHED AND CENSUSED, not landed: $SCRATCH/g31/fix_keyword_sets.py, at
+#    the `_run_pipeline` choke point (`_parse_ghost`'s mirror twin is UN-TRUSTED, so the
+#    obvious site costs a whole-file parser re-proof — lesson (n4)). The ghost set is the
+#    NINE the emitter dispatches on, not the twelve a stale parser comment lists; census
+#    is 53 sites, every one admissible, bare `list`/`set`/`dict` used NOWHERE. Run the
+#    (u4) counter-program first: the UNTYPED `#@ ghost x = <expr>` is `int` BY DESIGN and
+#    must keep working.
 #    See `open-routes/finding-a-name-that-resolves-to-nothing-is-dropped-in-silence.md`.
 #
 # ## THE CONVERSION TRACK — where the `\trusted` number actually moves (460 today)
@@ -109,13 +158,86 @@
 #            annotation. THIS is what blocks `visit_FunctionDef`, and it is narrow: carry
 #            the `__init__` param's annotation onto the field's `dict_value_types` entry.
 #      Take (b) first. It is the smaller of the two and it is the one on the path.
+#      SITE FOUND: `Module5_IREmitter` ~3244, the `__init__` walk for fields with no
+#      annotation ON THE ASSIGNMENT. It infers from the RHS SHAPE alone — `ast.Dict` ->
+#      "dict", `ast.List` -> "list", a `dict()`/`list()`/`set()` call -> that name, and
+#      EVERYTHING ELSE -> "int" with no `value_type` at all. `self.m = m` is an `ast.Name`
+#      RHS, so it erases the type. The ANNOTATED sibling branch twenty lines up already
+#      does the right thing via `_field_type_from_annotation_inst` +
+#      `_m5_get_dict_value_type` / `_m5_get_list_elem_type` / `_m5_get_list_record_elem`.
+#      FIX: when the RHS is a bare `ast.Name` that is an `__init__` PARAMETER with an
+#      annotation, resolve type and value_type from THAT annotation through the same three
+#      resolvers.
+#      BLAST RADIUS CENSUSED: 111 `self.<f> = <annotated __init__ param>` sites in the
+#      tree; only FIVE carry a CONTAINER annotation (Module3_Weaver's `contracts_map` and
+#      `extracted_data`, live and mirror, plus proof2why3/parser.py's `toks`), and ZERO
+#      are in either corpus. So it is corpus-byte-inert BY CONSTRUCTION and the only
+#      emissions that can move are the two mirror files the repair exists to unblock.
+#      That turns the byte-diff from a warning into a PREDICTION: corpus halves 0 MOVED,
+#      mirror half moving exactly `frontend__Module3_Weaver.mlw` and
+#      `proof2why3__parser.mlw`.
+#      **THE PATCH IS WRITTEN AND DRY-RUN**: $SCRATCH/g31/fix_field_param_ann.py. It adds
+#      an `elif isinstance(rhs, ast.Name)` arm that looks the name up among `__init__`'s
+#      annotated params and resolves type + value_type through the SAME three resolvers the
+#      annotated branch uses, so the two paths cannot disagree. Apply, byte-diff, adjudicate
+#      the two mirror files, then re-prove them — and then try converting
+#      `Module3_Weaver.visit_FunctionDef` (7 live lines) with the model finally carrying
+#      `contracts_map`'s value type.
+#      CAVEAT, thought through so it is not discovered on the day: the field fix ALONE
+#      probably does not finish that conversion. `contracts_map[k]` then lowers to a `seq`,
+#      and it is passed to `_dispatch_function_contracts`, a `\trusted` stub annotated
+#      `contracts: List[Any]` -> `array int`. That is the `seq`-vs-`array` IMPEDANCE, the
+#      other half. A bridge exists (`materialize`, `ensures Array.length result =
+#      Seq.length s`, already emitted on the append path). Land the field fix on its own
+#      merits — corpus-byte-inert, makes an erased model FAITHFUL, precondition for both
+#      shortlists — but do not sell it as "and then the conversion falls out".
+#
+# ## EVERY SCRIPT THE SCHEDULE NEEDS IS WRITTEN (all in $SCRATCH/g31)
+#    land_imports.sh   -> gate_imports.sh     (import PAIR: needs_array + needs_seq)
+#    land_keywords.sh  -> gate_keywords.sh    (KEYWORD sets: ghost type + proof prover)
+#    fix_field_param_ann.py -> gate_field.sh  (FIELD value-type; the gate PRINTS which
+#                                              mirror files moved, and the prediction is
+#                                              exactly frontend__Module3_Weaver.mlw and
+#                                              proof2why3__parser.mlw)
+#    slow.sh                                  (the owed 71-plane battery)
+#    Each gate chains byte-diff -> mirror byte-diff -> planes -> suite and writes one log;
+#    poll the log for its RC lines. `gate_keywords.sh` also runs the census `--append-new`
+#    that a new refusal owes, because that is the plane with a CEILING.
+#
+# ## THE SCHEDULE FROM HERE (written 2026-09-24T09:00Z, ~71h to the deadline)
+#    1. commit the silent-name family once its suite lands (~09:40);
+#    2. land the import PAIR and gate it — `$SCRATCH/g31/land_imports.sh` then
+#       `$SCRATCH/g31/gate_imports.sh` (~1.2h). Do it BEFORE the slow battery, so the
+#       battery measures the final tree;
+#    2b. the KEYWORD increment — `$SCRATCH/g31/land_keywords.sh` then a gate. Fully
+#       prepared: patch `fix_keyword_sets.py`, witnesses 1886 (ghost bad keyword, FAIL) /
+#       1887 (real keyword, PASS) / 1888 (proof bad prover, FAIL) / 1889 (UNTYPED ghost,
+#       PASS — the (u4) counter-program). Censuses: 53 ghost-typed sites all admissible,
+#       279 `#@ proof` sites all `rocq`/`lean`. The `#@ proof` half is the highest-value
+#       unlanded thing in the tree because a misspelled prover hides a citation from the
+#       3-way cross-check.
+#    3. the owed `--slow` (71-plane) battery — `$SCRATCH/g31/slow.sh`, ~40 min;
+#    4. then the SPLIT and the conversions, which is where the `\trusted` number moves.
 #
 # ## THE ORDER I WOULD TAKE IT (and why)
-#    0. ALL SIX PENDING PATCHES WERE DRY-RUN TOGETHER ON COPIES AND APPLY AND PARSE
-#       (fix_el_filter, fix_callable_scope, fix_uses, fix_reveal_name,
-#        fix_footprint_empty, fix_needs_array). Land them as THREE increments, in order:
-#       route #225's IR filter; the silent-name FAMILY (four patches, eight witnesses);
-#       the import PAIR (one patch, three witnesses).
+#    0. STATUS OF THE SIX DRAFTED PATCHES: route #225's IR filter is COMMITTED
+#       (6d934cfc, byte-inert 1354/1354 and 2199/2199). The silent-name FAMILY (four
+#       patches, eight witnesses) is APPLIED and verified, gate running. Left to land:
+#       the import PAIR — `python3 $SCRATCH/g31/fix_needs_array.py`, then copy
+#       $SCRATCH/g31/w/187{2,3}.py and 1879.py into the corpus and gate.
+#    0b. A COST EVERY NEW REFUSAL OWES, and the two planes behave DIFFERENTLY:
+#       * `check-refusal-witness-coverage.py` has a CEILING (`MAX_UNWITNESSED = 5`) and
+#         joins against a COMMITTED census TSV produced by a ~2h sweep of all 759
+#         expected-FAIL witnesses. Three new raise sites push it to 8 -> RED, correctly.
+#         PAY IT IMMEDIATELY: `$SCRATCH/g31/regen_census.sh` runs `--regenerate` and
+#         re-checks. The plane's own comment: "a refusal and its witness arrive in ONE
+#         commit or the count is a promise".
+#       * `check-refusal-advice-audited.py` has a FLOOR (`MIN_AUDITED = 108`), so new
+#         unaudited advice is VISIBLE DEBT, not a failure. Pay it when convenient — and
+#         note the audits are already done in substance: the CONTROLS ARE the programs the
+#         messages tell you to write (1878 "declare the class", 1881 "define the lemma
+#         here", 1883 "name a function that exists"), and all three VERIFY, so all three
+#         verdicts are FOLLOWABLE.
 #    1. `needs_array` widening — hours. Cannot forbid anything (it only ADDS a `use` line),
 #       and the ordering worry is RETIRED by measurement: every program that can exercise
 #       the `([])` resolution order already imports both theories, because a subscript is
@@ -136,6 +258,16 @@
 #    working lowering is parked at $SCRATCH/g31/or_empty_list.patch and is blocked only
 #    because the empty literal ALLOCATES (pure-function and Why3-region errors).
 #    Corpus 1871 is the guard: it must be the first file to go red if this is done wrong.
+#    AND THE OBVIOUS PLAN DOES NOT WORK — thought through, written up in route225's file.
+#    "Change the producer to `(Array.make 0 0)` and teach the 11 exact-string consumers"
+#    breaks JOB 3: a field initialised from `[]` that is ALSO an append target takes its
+#    CAPACITY from that literal (`by { … audit = (Array.make 1024 0); audit_len = 0 }`),
+#    and every append is out of bounds at length 0. Whether the literal is a VALUE or a
+#    CAPACITY is a property of the TARGET — known at the STATEMENT level, not at the
+#    expression level where the literal is emitted. TRY THIS INSTEAD: keep the producer on
+#    the capacity spelling (safe everywhere) and have the statement-level code substitute
+#    the length-0 spelling when the target is NOT in `append_targets` — that set is already
+#    computed at statements.py ~7344, and it touches none of the 11 consumers.
 #    RE-CENSUSED 2026-09-24: the family is **74** `\trusted` stubs, not 54 — 18 in
 #    module6_whyml/expressions.py alone. It got larger, not smaller, while it waited.
 #    The three jobs the one literal does, and the sites, are in

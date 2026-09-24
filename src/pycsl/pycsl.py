@@ -1265,6 +1265,161 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # earlier position. This is beside route #200's refusal, where the mirror twin is
     # `\trusted` — so it costs no marker, no emission move and no new definition.
     from errors import PyCSLSemanticError as _PyCSLSemErr204
+    # (#49) gen #31 — `Callable[[Rekt], int]` FOR A CLASS THAT DOES NOT EXIST WAS SILENTLY
+    # `int`. `_callable_tag_to_whyml` resolves a bare name against Module 6's
+    # `_record_types`/`_variant_types` and falls back to `int` for anything else, with the
+    # honest note that "Why3 then rejects the application if the arg type disagrees, which
+    # is sound". Sound, yes — and it is the BACKEND covering for a missing front-end rule,
+    # the same accident that keeps the legacy-`Generic[T]` finding from being a route. A
+    # typo in a type the user wrote should not be answered by a type error about something
+    # else, and the COLLECTION half of this same sentence is already a loud refusal
+    # (`PYCSL-TY3-CALLABLE-SCOPE`), which is what made the class half look enforced.
+    #
+    # WHY HERE AND NOT AT THE FALLBACK. `_callable_tag_to_whyml`'s mirror twin is
+    # UN-TRUSTED — a verbatim body that must itself PROVE — so a `raise` added there costs
+    # a whole-file re-proof of `module6_whyml/functions.py` and has to stay inside the
+    # modelled fragment; that is the seam that broke `_check_lemma` twice. The tables it
+    # consults are BUILT from `ir_data["type_decls"]`, which `_run_pipeline` already holds,
+    # so the admissible set is available here at no cost and `_run_pipeline`'s twin is
+    # `\trusted` (the choke-point rule, routes #206-#215, #222, #223).
+    #
+    # CENSUS BEFORE LANDING (lesson d3): 17 files in both corpora, `src/pycsl`,
+    # `src/self-annotate/src`, `src/pycsl_lib` and `tests/` contain a `Callable[`
+    # annotation; exactly TWO name something that is neither a builtin tag nor a class or
+    # `#@ datatype` declared in the same file — `List` and `bytes` — and both are the
+    # already-repaired COLLECTION half. The unknown-CLASS population is EMPTY, so this is
+    # byte-inert by construction.
+    # THE ADMISSIBLE SET IS WIDER THAN "the four tags plus the records", and both of the
+    # additions were found by CONSTRUCTING THE STRONGEST PROGRAM THE RULE WOULD FORBID
+    # rather than by counting what exists (lesson (u4), learned an hour earlier on the
+    # `#@ datatype` exhaustiveness item, which was RETIRED for exactly this reason):
+    #   * an IMPORTED class — `Callable[[Box], int]` with `Box` from another unit VERIFIES,
+    #     and it is admissible here because import resolution puts `Box` into `type_decls`
+    #     before this point (checked: the emission carries `type box = { mutable n: int }`).
+    #   * a TYPEVAR — `Callable[[T], int]` with `T = TypeVar("T")` VERIFIES today, and a
+    #     refusal keyed on `type_decls` alone would have forbidden it. `typevar_registry`
+    #     and the PEP 695 `type_params` are added so it stays writable.
+    _cal_ok = {"int", "bool", "str", "float"}
+    for _td_cal in (ir_data.get("type_decls", []) or []):
+        if _td_cal.get("name"):
+            _cal_ok.add(_td_cal["name"])
+        for _tp_cal in (_td_cal.get("type_params") or []):
+            _cal_ok.add(str(_tp_cal))
+    for _tv_cal in (ir_data.get("typevar_registry") or {}):
+        _cal_ok.add(str(_tv_cal))
+    for _f_tp in (ir_data.get("functions", []) or []):
+        for _tp_cal in (_f_tp.get("type_params") or []):
+            _cal_ok.add(str(_tp_cal))
+    for _f_cal in (ir_data.get("functions", []) or []):
+        _st_cal = _f_cal.get("symbol_table") or {}
+        if not isinstance(_st_cal, dict):
+            continue
+        for _v_cal, _t_cal in sorted(_st_cal.items()):
+            if not (isinstance(_t_cal, str) and _t_cal.startswith("callable:")):
+                continue
+            _body_cal = _t_cal[len("callable:"):]
+            _args_cal, _, _ret_cal = _body_cal.partition("->")
+            for _tag_cal in [_x for _x in _args_cal.split(",") if _x] + [_ret_cal]:
+                if _tag_cal in _cal_ok:
+                    continue
+                from errors import PyCSLSemanticError as _PyCSLSemErrCal
+                raise _PyCSLSemErrCal(
+                    "the `Callable` annotation on '%s' (in '%s') names '%s', which is "
+                    "neither a primitive tag (`int`, `bool`, `str`, `float`) nor a class "
+                    "or `#@ datatype` declared in this module. It was silently lowered to "
+                    "`int`, so `Callable[[%s], ...]` became `int -> ...` and the only thing "
+                    "that caught a mistake was Why3 rejecting the APPLICATION — a type "
+                    "error about the argument, naming nothing you wrote. FIX: declare "
+                    "'%s', or use one of the primitive tags."
+                    % (_v_cal, _f_cal.get("name", "?"), _tag_cal, _tag_cal, _tag_cal),
+                    filename=args.file,
+                    stage="ir-semantic", code="PYCSL-TY3-CALLABLE-SCOPE")
+
+    # (#49) gen #31 — `#@ uses <name>` NAMING A LEMMA THAT IS NOT IN THE EMISSION.
+    #
+    # The directive is ordering-only and "emits no WhyML" (annotations.md row 17), so a
+    # name that resolves to nothing was DROPPED IN SILENCE: `#@ uses no_such_lemma` and
+    # `[+] Verification SUCCESS! All contracts formally proven.` Not unsound — but the
+    # proof that was supposed to rest on the lemma then fails for a reason the user cannot
+    # connect to anything they wrote, and the compiler knew the admissible set exactly.
+    #
+    # THIRD MEMBER OF ONE FAMILY found the same day, and the family is the finding: a NAME
+    # THE USER WROTE THAT RESOLVES TO NOTHING AND IS DROPPED IN SILENCE. The other two are
+    # `Callable[[Rekt], int]` (an unknown class silently becomes `int`) and
+    # `#@ verify_module leafmod` (a lowercase group name, repaired this gen).
+    #
+    # THE (u4) COUNTER-PROGRAM SHARPENED THIS RULE INSTEAD OF REFUTING IT, which is why it
+    # lands while the `#@ datatype` exhaustiveness rule did not. The program to beat was
+    # `#@ uses <lemma>` citing an IMPORTED lemma — and it VERIFIES, but the emitted `.mlw`
+    # contains NO TRACE of the cited lemma: it is not emitted, its fact is not in scope,
+    # and the citation is a no-op that reports success. So refusing it is telling the
+    # truth. The gap that exposes — EMIT AN IMPORTED CITED LEMMA — is recorded as its own
+    # capability in `open-routes/finding-uses-names-an-unknown-lemma-silently.md`.
+    #
+    # CENSUS (lesson d3): THREE `#@ uses` sites in the whole tree — `0582` twice, `0565`
+    # once — every one citing a `#@ lemma` in its own file. Zero cross-module. Byte-inert.
+    _lem_names = set()
+    for _f_us in (ir_data.get("functions", []) or []):
+        if _f_us.get("lemma") and _f_us.get("name"):
+            _lem_names.add(str(_f_us["name"]))
+            _lem_names.add(str(_f_us["name"]).split(".")[-1])
+    for _f_us in (ir_data.get("functions", []) or []):
+        for _u_us in (_f_us.get("uses") or []):
+            if str(_u_us) in _lem_names:
+                continue
+            from errors import PyCSLSemanticError as _PyCSLSemErrUs
+            raise _PyCSLSemErrUs(
+                "`#@ uses %s` on '%s' names no `#@ lemma` in this emission, and the "
+                "citation was silently dropped — the file still reported success while "
+                "the fact it was meant to bring into scope was never there. FIX: check "
+                "the spelling, or define `%s` as a `#@ lemma` in this module. NOTE that "
+                "a lemma in an IMPORTED module does not count: an imported cited lemma is "
+                "not emitted at all today, so citing one is the same no-op."
+                % (_u_us, _f_us.get("name", "?"), _u_us),
+                filename=args.file,
+                stage="ir-semantic", code="PYCSL-SEM-USES-UNKNOWN-LEMMA")
+
+    # (#49) gen #31 — `#@ reveal <name>` NAMING NO FUNCTION. Same family as
+    # `#@ uses` above, and this one is THIS GENERATION'S OWN FEATURE, implemented eight
+    # hours before the audit that found it (wall-lesson (v4): run the new audit against
+    # your own newest increment first). The repair collects the module's reveal names into
+    # a set and asks whether the function being stubbed is in it; a name matching nothing
+    # simply never matches, and nothing looked.
+    #
+    #     #@ reveal no_such_function
+    #     #@ requires x > 0
+    #     #@ ensures \result == x
+    #     def caller(x: int) -> int: return x
+    #     [+] Verification SUCCESS! All contracts formally proven.
+    #
+    # The admissible set is every function the IR carries — local or import-injected —
+    # matched on the plain name and on the tail after the last `__`, because a method
+    # arrives as `<class>__<method>`. `#@ reveal` on a name that is not a function has no
+    # reading under which it does anything.
+    _rv_known = set()
+    for _f_rv in (ir_data.get("functions", []) or []):
+        _n_rv = _f_rv.get("name")
+        if not _n_rv:
+            continue
+        _rv_known.add(str(_n_rv))
+        _rv_known.add(str(_n_rv).split("__")[-1])
+        _rv_known.add(str(_n_rv).split(".")[-1])
+    for _f_rv in (ir_data.get("functions", []) or []):
+        for _r_rv in (_f_rv.get("reveal") or []):
+            if str(_r_rv) in _rv_known:
+                continue
+            from errors import PyCSLSemanticError as _PyCSLSemErrRv
+            raise _PyCSLSemErrRv(
+                "`#@ reveal %s` on '%s' names no function in this emission, and the "
+                "directive was silently dropped — the file still reported success while "
+                "the definition-fact it was meant to bring across the import boundary was "
+                "never cited. FIX: check the spelling, or import the function you meant. "
+                "(A `#@ reveal` inside the unit that OWNS the function is a documented "
+                "no-op, but the NAME still has to resolve.)"
+                % (_r_rv, _f_rv.get("name", "?")),
+                filename=args.file,
+                stage="ir-semantic", code="PYCSL-SEM-REVEAL-UNKNOWN-NAME")
+
     for _f204 in ir_data.get("functions", []):
         _if204 = _f204.get("interface") or {}
         if not _if204:

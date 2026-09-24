@@ -764,12 +764,27 @@ class Module3_Weaver:
         write-sites (meta.md composition theorem, clause 1); the trusted boundary
         (clause 2) is handled separately. Sites are processed in (lineno, col) order
         for determinism; each injected check is tagged with an `origin` for attribution."""
-        if not happy_props:
-            return
         funcs = [n for n in ast.walk(python_ast) if isinstance(n, ast.FunctionDef)]
         # 07-1143 R3 (validation): every `#@ footprint NAME(arg)` must reference a declared
         # PARAMETRIC HAPPY `NAME` — a typo would silently confine nothing (a soundness
         # hole, since the method would appear constrained but get no per-site check).
+        #
+        # (#49) gen #31 — THIS CHECK USED TO SIT BELOW `if not happy_props: return`, so it
+        # never ran in a file that declares NO `#@ happy` at all. Measured:
+        # `#@ footprint no_such_prop(k)` in such a file reports
+        # `[+] Verification SUCCESS! All contracts formally proven.` The comment above
+        # already calls that "a soundness hole"; the guard was simply on the wrong side of
+        # an early return, and the case it missed is the one where the user has written a
+        # confinement directive into a file with no confinement discipline at all —
+        # i.e. precisely the case where they are most likely to be mistaken about what
+        # they have. The message already renders an empty declared-set correctly
+        # (`Declared parametric HAPPYs: []`).
+        #
+        # Found by a sweep of the "a NAME that resolves to nothing" family — see
+        # `getting-better/open-routes/finding-a-name-that-resolves-to-nothing-is-dropped-in-silence.md`.
+        # Hoisted rather than moved to the `_run_pipeline` choke point because the footprint
+        # nodes live on the AST (`fn.csl_footprints`), not in the IR, and because this
+        # method's mirror twin is `\trusted`, so the edit owes no re-proof.
         param_happy_names = {hp.name for hp in happy_props if hp.param is not None}
         for fn in funcs:
             for fpd in getattr(fn, "csl_footprints", []):
@@ -778,6 +793,8 @@ class Module3_Weaver:
                         f"`footprint {fpd.happy_name}` on '{fn.name}' references no "
                         f"parametric HAPPY named '{fpd.happy_name}'. Declared parametric "
                         f"HAPPYs: {sorted(param_happy_names)}.")
+        if not happy_props:
+            return
         for hp in happy_props:
             except_set = set(hp.except_set)
             # H-I2 (noninterference): synthesize a self-composition twin (macsl's approach —

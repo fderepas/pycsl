@@ -322,3 +322,32 @@ set_union of recursive results needed (unlike the functional source `assigned.up
 Reuses set_add + find_named_expr_targets (converted) + pget-postcondition termination. ir_scanner proves
 FAST. Intricate (8-tag dispatch + cross-call + sub-folds + targets-list) — a fresh-context build. This +
 the value-search recognizer are the concrete category-(b) next-harvest with worked-out designs.
+
+---
+
+## 2026-09-24 (gen #31) — A NAMED VEIN ON THIS TABLE GOT A MEASURED SUB-PROBLEM
+
+The row *"heterogeneous `Dict[str,Any]` V1 … needs authorization"* has a piece under it
+that needs NO authorization and is corpus-byte-inert, found by pricing the cheapest
+conversion in the tree rather than by attacking the vein head-on:
+
+**`self.<field> = <annotated __init__ parameter>` erases the annotation.**
+`Module5_IREmitter`'s `__init__` walk (~3244) infers an unannotated field's type from the
+RHS SHAPE alone — `ast.Dict` -> "dict", `ast.List` -> "list", a `dict()`/`list()` call ->
+that name, EVERYTHING ELSE -> "int" with no `value_type`. `self.m = m` is an `ast.Name`
+RHS, so `def __init__(self, m: Dict[int, List[X]])` followed by `self.m = m` — the single
+most common way a Python class stores a typed collection — loses the type entirely. The
+ANNOTATED sibling branch twenty lines away already resolves it correctly through
+`_field_type_from_annotation_inst` + `_m5_get_dict_value_type` / `_m5_get_list_elem_type` /
+`_m5_get_list_record_elem`.
+
+CENSUS: 111 such assignments tree-wide; only FIVE carry a container annotation
+(`Module3_Weaver`'s `contracts_map` and `extracted_data`, live and mirror, plus
+`proof2why3/parser.py`'s `toks`); **ZERO in either corpus**. Patch written and dry-run:
+`$SCRATCH/g31/fix_field_param_ann.py`.
+
+It is a precondition for BOTH of the campaign's largest conversion shortlists — the 74-stub
+`or []` family and `Module3_Weaver.visit_FunctionDef` (7 live lines, the cheapest whole-file
+re-proof in the tree) — and it does not finish either on its own: the `seq`-vs-`array`
+impedance at a `List[τ]` parameter is the other half, and a `materialize` bridge already
+exists on the append path.

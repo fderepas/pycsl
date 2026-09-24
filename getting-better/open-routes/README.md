@@ -1,6 +1,16 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN after gen #31 (2026-09-24): **NONE.**
+## CURRENTLY OPEN after gen #31 (2026-09-24): **TWO — #214 and #221.** (This line said
+## "NONE" for four hours because I copied the shape of the gen-#30 header instead of
+## checking; `check-open-route-carriers.py` holds the truth and it RUNS both of their
+## carriers. Corrected on discovery, and recorded as corrected.)
+##
+##   * **#214 — OPEN.** The other arm of the `getattr` pair: one per-site constant answers
+##     two DIFFERENT receivers. `route213-214-the-getattr-devices.md` §"ROUTE #214 STAYS
+##     OPEN"; carrier `route214-carrier-two-unknown-receivers.py`.
+##   * **#221 — PARTIALLY CLOSED, and its own title says the claim is still assumed.**
+##     `--fun` assumes a frame nobody wrote and nothing checks.
+##     `route221-fun-assumes-a-synthesized-frame.md`; three carriers/controls.
 ##
 ## **ROUTE #225 IS CLOSED** — a function returning `[]` CERTIFIED `\length(\result) == 1024` while the TRUE claim `== 0` was REFUSED. `[]` lowers to the placeholder `(Array.make 1024 0)` and a Why3 array's length is immutable, so the model of the empty list is 1024 long; `xs = []; return xs` behaved identically. Ordinary total Python — no `no_exception`, no opt-in, no `\trusted`. THIS IS THE THIRD POSITION OF ONE MECHANISM: route #159 repaired the INDEXING position (gen #29) and route #196 the ARGUMENT position (gen #30, substituting the genuinely empty `(Array.make 0 0)`); the RETURN carries the false length ACROSS a function boundary, where a caller ASSUMES it and `1024 = <the real length>` makes every downstream goal vacuously provable. Repaired in `_run_pipeline`'s post-emission pass beside #159's, with an IR-LEVEL FILTER — the text alone is not enough, because `[0] * 1024` and an append target's CAPACITY wear the same spelling, and the first version broke `return [0] * 1024`'s TRUE length claim (found by a CENSUS, invisible to a 0-MOVED byte-diff — wall-lesson (t4)). Witnesses 1869 (FAIL), 1870 (PASS, both spellings), 1871 (the append path, PASS and unmoved). STILL OPEN as the named capability: the same literal is the empty-list VALUE, a 1024-element literal, and a growable local's CAPACITY — splitting the three is what closes it at the source and unblocks the `or []` conversion family (74 `\trusted` stubs, re-censused this day). See `route225-a-returned-empty-list-has-length-1024.md`.
 ##
@@ -1314,7 +1324,9 @@ Closing out the "still unprobed" list rather than leaving it to look like an opp
 
 ## ALSO OPEN after gen #31 (2026-09-24) — THREE DIAGNOSTIC FINDINGS, NOT ROUTES
 ##
-## 1. **A NAME THAT RESOLVES TO NOTHING IS DROPPED IN SILENCE** — four directives:
+## 1. **A NAME THAT RESOLVES TO NOTHING IS DROPPED IN SILENCE** — **CLOSED the same day,
+##    all four** (witness/control pairs 1877/1878, 1880/1881, 1882/1883, 1884/1885). Kept
+##    here because the SHAPE is the finding and the next one will look the same. It was:
 ##    `Callable[[Rekt], int]` silently becomes `int`; `#@ uses no_such_lemma` verifies;
 ##    `#@ reveal no_such_function` verifies (this generation's OWN new feature, eight hours
 ##    old when the audit found it); `#@ footprint no_such_prop(k)` verifies in a file with

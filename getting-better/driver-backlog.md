@@ -6671,7 +6671,7 @@ Priced this way the cheapest useful move is the FIELD path: carry the `__init__`
 annotation onto the field's `dict_value_types` entry. The `seq`/`array` impedance is a
 second, separable item with an existing bridge.
 
-### NEW LIVE ITEM (#49, gen #31) — THE "SILENT NAME" FAMILY
+### CLOSED THE SAME DAY (#49, gen #31) — THE "SILENT NAME" FAMILY, all four members
 Three directives, found in one afternoon, share one defect: **the user writes a NAME, it
 resolves to nothing, and it is dropped without a word.** In each case the compiler holds
 the admissible set exactly at the point where it gives up on the name.
@@ -6697,3 +6697,129 @@ three set memberships and the message is the same shape each time.
 A FOURTH member is likely and the way to look for it is now written down: take each
 directive whose grammar admits an identifier, write the version with a name that resolves
 to nothing, and run it. That is how all three were found.
+
+#### THE FAMILY LANDED (2026-09-24) — and the method that found it is the reusable part
+All four refusals are in, with witness/control pairs `1877`/`1878`, `1880`/`1881`,
+`1882`/`1883`, `1884`/`1885`, every one measured against the pre-repair tree first. Three
+are set memberships at the `_run_pipeline` choke point; the fourth is a HOIST — the
+`#@ footprint` validation already existed, with a comment calling a typo "a soundness
+hole", two lines below an early return that skipped it.
+
+WHAT TO REUSE, since this is the item's real yield: **take one sentence of annotations.md,
+construct the smallest program it describes, and run it — both ways.** Its three
+specialisations, each of which paid this session:
+  * where the grammar admits an IDENTIFIER, write the version whose name resolves to
+    nothing (four hits, one of them in a feature eight hours old);
+  * where a sentence has TWO CLAUSES, test both — a probe of one half retires the whole row
+    and reads like a finding (this is how `sibling_concrete` and `propagate_frame` had been
+    sitting in the uncovered list);
+  * where a rule would FORBID something, construct the strongest program it forbids and
+    check whether that program is GOOD (this stopped the `#@ datatype` exhaustiveness
+    refusal from landing wrong).
+
+#### THE FIELD HALF OF THE DICT VALUE MODEL — SITE FOUND (2026-09-24)
+`Module5_IREmitter`, the `__init__` walk for fields with NO annotation on the assignment
+(~line 3244). It infers the field type from the RHS SHAPE ALONE:
+
+```python
+                                rhs = stmt.value
+                                ftype = "int"
+                                if isinstance(rhs, ast.Dict):        ftype = "dict"
+                                elif isinstance(rhs, ast.Set):       ftype = "set"
+                                elif isinstance(rhs, ast.List):      ftype = "list"
+                                elif isinstance(rhs, ast.Call) and …: ftype = rhs.func.id
+                                fields.append({"name": …, "type": ftype, "mutable": True})
+```
+
+So `self.contracts_map = contracts_map` — an `ast.Name` RHS — falls through to `"int"` and
+sets **no `value_type` at all**, which is why `contracts_map[k]` is an int where a
+`List[CSLNode]` belongs. The ANNOTATED sibling branch twenty lines up already does the
+right thing (`_field_type_from_annotation_inst` then `_m5_get_dict_value_type` /
+`_m5_get_list_elem_type` / `_m5_get_list_record_elem`).
+
+THE FIX, stated so it can be priced: when the RHS is a bare `ast.Name` that is a PARAMETER
+of `__init__` carrying an annotation, resolve the field's type and `value_type` from THAT
+annotation, through the same three resolvers the annotated branch uses. It is the single
+most common way a Python class stores a typed collection (`def __init__(self, m: Dict[...])`
+then `self.m = m`), and today it erases the type.
+
+WHY IT IS THE HIGHEST-LEVERAGE ITEM LEFT: it is what blocks `Module3_Weaver.
+visit_FunctionDef` (the cheapest re-proof in the tree — 7 live lines, 520-line mirror
+file), and the same value model is what the 74-stub `or []` family needs to read `or []` as
+evidence that ν is a list. GATE: the byte-diff, because it changes a FIELD TYPE, which is
+the loudest thing in the emitter — expect movement and adjudicate it file by file.
+
+##### AND THE BLAST RADIUS IS FIVE SITES, NONE OF THEM IN EITHER CORPUS
+AST census of `self.<field> = <annotated __init__ parameter>` across both corpora,
+`src/pycsl`, `src/self-annotate/src` and `src/pycsl_lib` — 111 such assignments, by the
+annotation's head:
+
+    int 85 · str 9 · ast.AST 4 · Any 3 · List 3 · bool 2 · Dict 2 · float 1 · T 1 · Path 1
+
+and only **FIVE** carry a CONTAINER annotation, i.e. only five would move:
+
+    src/pycsl/frontend/Module3_Weaver.py              contracts_map    Dict[int, List[CSLNode]]
+    src/pycsl/frontend/Module3_Weaver.py              extracted_data   List[PyCSLContract]
+    src/pycsl/proof2why3/parser.py                    toks             List[Token]
+    src/self-annotate/src/frontend/Module3_Weaver.py  contracts_map    Dict[int, List[CSLNode]]
+    src/self-annotate/src/frontend/Module3_Weaver.py  extracted_data   List[PyCSLContract]
+
+**ZERO in `pycsl-reference`, ZERO in `python-reference`.** So the repair is corpus-byte-
+inert by construction, and the only emissions that can move are the MIRROR files whose
+stubs the repair exists to unblock. That is about as favourable as a blast radius gets for
+a change to field typing, and it turns "gate hard on the byte-diff" from a warning into a
+prediction to check: the corpus halves must be 0 MOVED and the mirror half must move
+exactly `frontend__Module3_Weaver.mlw` and `proof2why3__parser.mlw`.
+
+##### A CAVEAT ON THE PAYOFF, thought through before spending the day on it
+Fixing the FIELD half alone probably does NOT finish `visit_FunctionDef`. After the fix
+`self.contracts_map` carries `seq …` as its value type, so `self.contracts_map[node.lineno]`
+lowers to a `seq`. It is then passed to `_dispatch_function_contracts`, a `\trusted` stub
+whose own annotation is `contracts: List[Any]` — which models as `array int`. That is the
+`seq`-vs-`array` IMPEDANCE, the OTHER half measured earlier on the PARAM form.
+
+So the honest price of that one conversion is BOTH halves, or a bridge at the boundary
+(`materialize` already exists and is emitted on the append path, with
+`ensures Array.length result = Seq.length s`). Recorded now rather than discovered on the
+day: the field fix is still worth landing on its own — it is corpus-byte-inert, it makes the
+model FAITHFUL where it is currently erased, and it is a precondition for both shortlists —
+but it should not be sold as "and then the conversion falls out".
+
+### CHEAP AND OWED (#49, gen #31) — FIVE ADVICE AUDITS THIS GENERATION ALREADY PAID FOR
+`check-refusal-advice-audited.py` reports 108 of 118 advice-bearing refusals audited, 10
+unaudited. **Five of the ten are refusals THIS generation added**, and every one of them
+already has, in the corpus, the program its own advice tells you to write:
+
+    pycsl.py:996   `#@ compose_from` names a non-mixin        -> control 1858
+    pycsl.py:1028  `#@ mixin` class constructed directly      -> control 1862
+    pycsl.py:1095  `#@ lemma` with no `#@ assigns`            -> control 1848
+    pycsl.py:1151  `#@ verify_module` lowercase group name    -> control 1843
+    pycsl.py:1326  `Callable` over an unknown class           -> control 1878
+
+So the audit verdicts are FOLLOWABLE and already DEMONSTRATED; what is missing is the
+ledger rows. Add the five `AUDITED` entries (keyed on file + message prefix, exactly as the
+existing rows are) and raise `MIN_AUDITED` 108 -> 113.
+
+**This is a debt this campaign created**, and the plane exists to make exactly that visible.
+Note also which of the new messages do NOT appear: the `#@ uses` and `#@ reveal` ones say
+"FIX: check the spelling, or …", and "check" is not in the plane's advice-verb list
+(use / rewrite / declare / add / give / call / drop / remove / replace / instead / prefer).
+That is a gap in the INSTRUMENT worth recording — a message can give advice the detector
+cannot see, and then it is unaudited without ever being counted as unaudited.
+
+### SMALL OPEN GAP (#49, gen #31) — `\length` OF A STRING RESULT PROVES NOTHING
+Probed while auditing route #225's siblings:
+
+    #@ ensures \length(\result) == 0
+    def mk() -> str: return ""          ->  FAILED
+    #@ ensures \length(\result) == 1024 ->  FAILED
+
+Neither the true claim nor the false one discharges, so it is a COMPLETENESS gap and not a
+carrier — recorded only because the sibling sweep would otherwise look exhaustive when it
+had one row with no verdict on either side. The array-shaped siblings (`[]`, `b""`,
+`bytes()`, `bytearray()`, `[0] * 0`) all prove their true length and refuse the false one
+after route #225's repair; the STRING one refuses both.
+
+Worth a line in a future window: either `\length` on a `string` should lower to the Why3
+string length, or it should be REFUSED at the contract level. Answering "neither" is the
+one option that teaches the user nothing.

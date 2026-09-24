@@ -175,10 +175,13 @@ identifier:
 | `\at(x, no_such_label)` | FAILED (fail-closed, not silent) |
 | `#@ compose_from NoSuchMixin` | REFUSED |
 | `#@ critical no_such_lock` | REFUSED |
+| `#@ raises NoSuchErrorType` | REFUSED |
+| `#@ shared counter protected_by no_such_lock` | REFUSED |
 | `#@ complete no_such_act, pos` | REFUSED (the documented `_validate_acts` claim CHECKED, not taken on trust) |
 
-FINAL TALLY over the whole directive surface: **four silent, SIX refusing, one failing
-closed.** The refusing six are the controls — the check is routine where someone wrote it,
+TALLY AFTER THE CORRECTED SWEEP (a field whose value comes from a FIXED SET, names AND
+keywords): **SIX silent — four repaired here, `#@ ghost`'s type keyword and `#@ proof`'s
+prover keyword still open — EIGHT refusing, one failing closed.** The refusing six are the controls — the check is routine where someone wrote it,
 and the four silent ones are four places where nobody did. Note that one of the six
 (`#@ complete`) was a DOCUMENTED claim ("unknown names are dropped here and flagged by
 Module4 `_validate_acts`"), and it was run rather than believed — which is the discipline
@@ -246,3 +249,154 @@ of moving to the `_run_pipeline` choke point with its three siblings.
 >>> Worth its own line: **a guard whose comment states the danger is not evidence the guard
 >>> runs.** This one has been three lines from a correct implementation, with the right
 >>> prose attached, for as long as it has existed.
+
+---
+
+## CLOSED (2026-09-24, gen #31) — all four
+
+| directive | before | after |
+|---|---|---|
+| `Callable[[Rekt], int]` for an undeclared `Rekt` | SUCCESS, silently `int -> int` | REFUSED |
+| `#@ uses no_such_lemma` | SUCCESS, dropped | REFUSED |
+| `#@ reveal no_such_function` | SUCCESS, dropped | REFUSED |
+| `#@ footprint no_such_prop(k)` with no `#@ happy` in the file | SUCCESS, dropped | REFUSED |
+
+Witness/control pairs `1877`/`1878`, `1880`/`1881`, `1882`/`1883`, `1884`/`1885`, every one
+run against the PRE-repair tree first so the before-column is measured rather than
+remembered. The corpus users are unmoved: `0565` and `0582` (the tree's only `#@ uses`
+sites) SUCCESS, `0610` FAIL as expected, all eight `#@ interface`/`#@ reveal` drivers
+holding their verdicts.
+
+Three refusals are set memberships at the `_run_pipeline` choke point; the fourth is a
+hoist in `Module3_Weaver._expand_happy_properties`. Both twins are `\trusted`, so the
+increment owes no re-proof.
+
+### STILL OPEN out of this work
+
+**EMIT AN IMPORTED CITED LEMMA.** `#@ uses` naming a lemma from another unit verifies today
+and the emitted `.mlw` contains no trace of that lemma — the directive's documented job
+("forces the lemma to be emitted before this function so its fact is in scope") is not done
+across a module boundary. The new refusal now says so out loud instead of letting it pass,
+which is the honest interim state; making it WORK is the capability. No current user: all
+three `#@ uses` sites in the tree are same-file.
+
+## A FIFTH MEMBER, FOUND AFTER THE OTHER FOUR WERE REPAIRED
+
+`#@ ghost <name> : <type> = <expr>` takes a type KEYWORD from a documented table of nine
+(`int` `string` `array` `ghost_dict` `ghost_list` `ghost_set` `tuple2` `tuple3` `tuple4`).
+An unrecognised keyword is silently the `int` default:
+
+```python
+    #@ ghost g : no_such_type = 0
+```
+    let ghost g = ref 0 in
+    [+] Verification SUCCESS! All contracts formally proven.
+
+So a user who mistypes `ghost_dict` gets an `int` ghost and no word about it — the same
+defect as the other four, on a surface nobody had thought to look at because it is a TYPE
+keyword rather than a NAME. §11 already says "untyped ghost declarations default to `int`",
+and that sentence is what makes the silence look intentional: the default is documented,
+the FALLBACK FROM A MISSPELLED KEYWORD TO THAT DEFAULT is not.
+
+Severity is low and bounded the same way `footprint`'s is: a ghost is erased at extraction,
+and an assertion written against the `ghost_dict` the user thought they had will not
+typecheck against an `int`. It is a diagnostic hole, not a route.
+
+PRICED: the admissible set is a nine-element literal table that already exists in the
+parser — a set membership, same shape as the four above. Not landed in this increment
+because it arrived after the gate started; the (u4) counter-program to build first is a
+`#@ ghost` whose type keyword is legitimately absent (the untyped form
+`#@ ghost x = <expr>`), which must keep working.
+
+>>> And the meta-observation, which is the reason this section exists at all: **the sweep
+>>> that found four members was not exhaustive, and I wrote it up as though it were.** The
+>>> table above says "every directive whose grammar admits an identifier"; `#@ ghost`'s
+>>> second field is a KEYWORD, so it fell outside my own search phrase. A search is only as
+>>> complete as the phrase that generated it.
+
+## A SIXTH, AND IT IS A DIFFERENT SHAPE — THE FIELD IS IGNORED, NOT DROPPED
+
+Re-running the sweep with the corrected phrase (a field whose value comes from a FIXED SET,
+not only a NAME):
+
+```python
+#@ proof rocqq Pycsl.Reference.Gcd.gcd_0     # `rocqq` — not `rocq`, not `lean`
+```
+    [+] Verification SUCCESS! All contracts formally proven.
+
+and the emitted `.mlw` is **byte-identical** to the one with `rocq` spelled correctly:
+
+    axiom pycsl_axiom_Pycsl_Reference_Gcd_gcd_0 : forall a : int. a >= 0 -> gcd a 0 = a
+
+So the prover keyword is not dropped — **it is not read at all.** Any token stands where
+`rocq|lean` is documented, and the axiom arrives regardless.
+
+HOW FAR IT GOES — and the first version of this paragraph was TOO KIND, so here is the
+corrected reading with its evidence. I wrote that the cross-check audits the REGISTRY ENTRY
+rather than the driver's citation, so a misspelled prover could not hide anything. That is
+wrong. `bin/check-proof-crosscheck.sh` "walks every annotated Python file (`#@ proof
+rocq/lean …` citations)", and `proof2why3/crosscheck_ir.py` selects them as
+
+    rocq_qns = sorted({d.qualname for d in directives if d.prover == "rocq"})
+    lean_qns = sorted({d.qualname for d in directives if d.prover == "lean"})
+
+so a citation spelled `rocqq` is **INVISIBLE TO THE CROSS-CHECK** while its axiom is still
+emitted into the file's proof. The honest statement is therefore: a misspelled prover gets
+the axiom into the TCB and removes that citation from the 3-way audit.
+
+What still bounds it, and this part does hold: the axiom BODY comes from
+`_AXIOM_REGISTRY`, an unregistered qualname is REFUSED outright, and adding a registry
+entry is a reviewed source change. So the reachable outcome is "a typo hides a citation
+from the audit", not "arbitrary axioms". It is a bigger deal than the other five members
+and smaller than it first looks — which is precisely why it was worth chasing the claim
+down instead of leaving the comfortable version in the file.
+
+The admissible set here is TWO elements (`rocq`, `lean`), documented in row 12's syntax
+column. Same repair shape as the rest.
+
+## BOTH REMAINING MEMBERS ARE NOW PRICED, CENSUSED AND PATCHED (not landed)
+
+`$SCRATCH/g31/fix_keyword_sets.py`, at the `_run_pipeline` choke point for the reason
+lesson (n4) exists: `Module2_Parser._parse_ghost` is where the ghost keyword is read
+(`gtype = self.expect_name()` — anything goes) and its mirror twin is UN-TRUSTED, so a
+raise there costs a verbatim body port plus a whole-file re-proof of a large parser. The IR
+already carries both fields — `{"stmt": "GhostAssign", …, "ghost_type": …}` and
+`func["proof"] = [{"prover": …, "qualname": …}]`.
+
+THE GHOST SET IS THE NINE THE EMITTER DISPATCHES ON, not the twelve a stale dataclass
+comment in the parser lists. `statements.py`'s consumers branch on exactly `string`,
+`array`, `ghost_dict`, `ghost_list`, `ghost_set`, `tuple2`/`3`/`4`, with `int` as the
+default — the same nine as annotations.md §11.1. The parser's comment additionally names
+bare `list`, `set` and `dict`; those reach NO branch and would be silently `int`, so they
+are refused too.
+
+CENSUS: 53 `#@ ghost <name> : <type>` sites across both corpora and `src/` —
+`ghost_dict` 11, `ghost_set` 10, `ghost_list` 9, `tuple2` 8, `array` 7, `string` 5,
+`tuple3` 2, `tuple4` 1. Every one admissible; the bare `list`/`set`/`dict` spellings appear
+NOWHERE. Byte-inert.
+
+The (u4) counter-program to run before landing: the UNTYPED form `#@ ghost x = <expr>`,
+which is `int` BY DESIGN and must keep working — the refusal is written to skip a `None`
+`ghost_type` for exactly that reason, and the skip needs a witness.
+
+### CENSUS FOR THE `#@ proof` PROVER REFUSAL — 279 sites, all correct
+
+`#@ proof <prover>` across `test-suite/corpus/` and `src/pycsl_lib/`: **147 `rocq`, 132
+`lean`, and nothing else.** Every site in the tree spells the prover correctly, so the
+refusal is byte-inert by construction — the same shape as the four that landed. With the
+bound corrected (a misspelled prover hides the citation from the 3-way cross-check while
+the axiom still enters the proof), this is the highest-priority of the unlanded patches.
+
+### THE KEYWORD PAIR'S BEFORE-STATE IS MEASURED TOO
+
+All four keyword witnesses run against the PRE-repair tree:
+
+    1886 (`#@ ghost g : no_such_type`)      SUCCESS   <- the route
+    1887 (`#@ ghost g : ghost_dict`)        SUCCESS   <- control, must stay
+    1888 (`#@ proof rocqq …`)               SUCCESS   <- the route
+    1889 (`#@ ghost g = 0`, UNTYPED)        SUCCESS   <- the (u4) control, must stay
+
+so after `$SCRATCH/g31/fix_keyword_sets.py` the expected table is REFUSED / SUCCESS /
+REFUSED / SUCCESS. Recording the before-column BEFORE the patch is the only way the
+after-column means anything — a witness verified only after a repair proves the repair
+compiles, not that it repaired something.

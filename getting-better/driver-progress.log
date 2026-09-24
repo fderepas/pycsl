@@ -7735,3 +7735,401 @@ actionable and these are:
     and reads like a finding;
   * where a rule would FORBID something, construct the strongest program it forbids and
     check whether that program is good (this one stopped a wrong refusal from landing).
+
+================================================================================
+2026-09-24 gen #31 — THE SILENT-NAME FAMILY, LANDED: four directives that dropped a
+name the user wrote
+================================================================================
+
+Four refusals, one increment, because the FAMILY is the finding:
+
+| directive | before | after |
+|---|---|---|
+| `Callable[[Rekt], int]` for an undeclared `Rekt` | SUCCESS, silently `int -> int` | REFUSED |
+| `#@ uses no_such_lemma` | SUCCESS, dropped | REFUSED |
+| `#@ reveal no_such_function` | SUCCESS, dropped | REFUSED |
+| `#@ footprint no_such_prop(k)` with no `#@ happy` in the file | SUCCESS, dropped | REFUSED |
+
+and four controls that must not move — a `Callable` over a DECLARED class, a `#@ uses`
+naming a real lemma, a `#@ reveal` naming a real function, the same footprint file with the
+directive removed — all still SUCCESS.
+
+THREE OF THE FOUR ARE SET MEMBERSHIPS AT `_run_pipeline`, whose mirror twin is `\trusted`:
+no marker, no emission move, no re-proof. The admissible sets come from data `ir_data`
+already holds, and each was WIDENED by a constructed counter-program rather than by
+reasoning — `Callable`'s set gained TypeVars and the PEP 695 `type_params` because
+`Callable[[T], int]` verifies today and a set built from `type_decls` alone would have
+forbidden it; an IMPORTED class was checked and is already admissible because import
+resolution puts it in `type_decls`.
+
+THE FOURTH IS THE ONE WORTH REMEMBERING. `#@ footprint`'s validation ALREADY EXISTED in
+`Module3_Weaver._expand_happy_properties`, with a comment stating the danger exactly — "a
+typo would silently confine nothing (a soundness hole, since the method would appear
+constrained but get no per-site check)" — and it sat TWO LINES BELOW
+`if not happy_props: return`. So it never ran in a file declaring no `#@ happy` at all,
+which is the one case where the user is most likely to be wrong about what they have. The
+repair is to hoist it above the return. Wall-lesson corollary: **a guard whose comment
+states the danger is not evidence the guard runs.**
+
+ONE OF THE FOUR IS THIS GENERATION'S OWN FEATURE. `#@ reveal` was implemented eight hours
+before the audit that found this hole in it. Wall-lesson (v4): run the new audit against
+your own newest increment first — the code written today was written WITHOUT the
+instrument, so it is the least likely to survive it.
+
+VERIFIED, all eight witness/control pairs at once:
+
+    1877 REFUSED  1878 SUCCESS      (Callable over an undeclared class / a declared one)
+    1880 REFUSED  1881 SUCCESS      (uses naming nothing / naming the real lemma)
+    1882 REFUSED  1883 SUCCESS      (reveal naming nothing / naming a real function)
+    1884 REFUSED  1885 SUCCESS      (footprint with no happy in the file / no directive)
+
+and the files in the corpus that USE these directives are unmoved: `0565` and `0582` (the
+tree's only `#@ uses` sites) still SUCCESS, `0610` still FAIL as expected, and all eight
+`#@ interface`/`#@ reveal` drivers hold their verdicts (`0660` SUCCESS, `1707` REFUSED,
+`1708` SUCCESS, `1709` FAILED, `1710` SUCCESS, `1847` REFUSED, `1867` FAILED, `1868`
+SUCCESS).
+
+`Module3_Weaver.py` is edited for the first time this generation, and it owes no re-proof:
+`_expand_happy_properties`'s mirror twin is a `\trusted` stub, so the fidelity plane does
+not copy that body verbatim. The other three refusals are in `_run_pipeline`, same reason.
+
+A COST THE FAMILY INCREMENT OWES, spotted before the gate reported it rather than after.
+`bin/check-refusal-witness-coverage.py` joins the compiler's `raise PyCSL*Error` sites
+against a COMMITTED census (`bin/refusal-witness-census.tsv`, produced by running all 759
+`# pycsl-expected: FAIL` corpus witnesses — a two-hour sweep, which is why the RESULT is
+committed rather than re-run). Its ceiling is `MAX_UNWITNESSED = 5`, and three brand-new
+raise sites that the committed census has never seen would push it to 8. **The plane will
+go RED, and correctly**: its own comment says "a refusal and its witness arrive in ONE
+commit or the count is a promise".
+
+So the increment is not done until the census is regenerated. The four new expected-FAIL
+witnesses (1877, 1880, 1882, 1884) are exactly what the sweep needs to demonstrate the new
+refusals fire; `--regenerate` and commit the TSV with them.
+
+GATE, first three legs, all clean:
+  * corpus byte-diff 1354 baseline / 1358 candidate — **0 MOVED, 0 GONE, 0 APPEARED**,
+    4 new sources ignored (exactly the four CONTROLS; the four refused witnesses emit
+    nothing, which is itself the check that the refusals fire);
+  * python-reference 2199/2199, 0 MOVED;
+  * MIRROR 53/53, 0 MOVED — no re-proof owed, as the `\trusted`-twin argument predicted.
+
+AND A SECOND COST, CHECKED AND FOUND NOT TO BE ONE. `check-refusal-advice-audited.py`
+requires every advice-bearing refusal message to carry the verdict of HAVING WRITTEN THE
+PROGRAM THE MESSAGE TELLS YOU TO WRITE. The three new messages all bear advice verbs, so
+they arrive UNAUDITED — but that plane's gate is `MIN_AUDITED` (a floor that may only grow)
+plus a staleness check, so new unaudited entries are VISIBLE DEBT and not a failure. That
+is the right design and it is worth noting the contrast: the witness plane has a CEILING on
+unwitnessed sites and therefore must be paid immediately, the advice plane has a FLOOR on
+audited ones and can be paid later.
+
+The audits themselves are cheap here, because the CONTROLS ARE the programs the messages
+tell you to write: `1878` is "declare the class", `1881` is "define the lemma in this
+module", `1883` is "name a function that exists". All three VERIFY, so all three verdicts
+are FOLLOWABLE and demonstrated — they only need recording.
+
+AND THE PLANE WENT RED EXACTLY WHERE IT WAS PREDICTED TO: **1 of 46 —
+`check-refusal-witness-coverage.py`**, because three brand-new `raise` sites are not in the
+committed census and `MAX_UNWITNESSED = 5` is a ceiling. Every other plane green, including
+`check-refusal-advice-audited` (a floor, so new advice is debt and not failure) and
+`check-directive-enforcement` (51 of 53, unchanged).
+
+Predicting a gate failure before running it is worth as much as fixing it: it means the
+increment's cost was understood rather than discovered. The debt is now paid the way the
+plane demands — regenerate the census so the four new expected-FAIL witnesses demonstrate
+the four new refusals, and commit the TSV in the SAME increment.
+
+THE EXACT NUMBERS, so the regeneration can be checked rather than hoped at:
+
+    231 raise sites · 875 witnesses censused (499 refusals) · 199 DEMONSTRATED · 8 NOT
+    [!] UNWITNESSED CEILING BROKEN: 8 > 5
+
+8 = 5 + 3, and the three are the new sites (`Callable` unknown-class, `#@ uses`,
+`#@ reveal`). The FOURTH member — `#@ footprint` — added no site: its raise already
+existed and only its GATE moved, which is why it does not appear in this count and is a
+useful check on the arithmetic.
+
+After `--regenerate` the four new expected-FAIL witnesses (1877, 1880, 1882, 1884) should
+demonstrate them, returning the ceiling count to 5 and taking DEMONSTRATED from 199 to 202.
+`MIN_WITNESSED` should then be raised 199 -> 202: the plane says the number "may only
+grow", and leaving a floor below the measured value is how a ratchet stops ratcheting.
+
+AND THE TWO-HOUR COST WAS NOT REAL — `--append-new` EXISTS. I had priced the census debt at
+a ~2h `--regenerate` sweep of all 759 expected-FAIL witnesses, and wrote the script for it.
+The plane carries an INCREMENTAL flag whose comment says exactly why:
+
+    # `--append-new` runs EXACTLY the witnesses that have no row yet …
+
+Seven rows appended in seconds — the four new family witnesses plus three from earlier
+increments this generation that had never been censused (`1866`, `1867`, `1869`). Result:
+
+    231 raise sites · 882 censused (503 refusals) · **202 DEMONSTRATED, 5 not**
+    [+] refusal-witness-coverage: OK
+
+exactly the arithmetic predicted (199 -> 202, ceiling back to 5). `MIN_WITNESSED` raised
+199 -> 202, because a floor left below the measured value is how a ratchet stops
+ratcheting.
+
+>>> The lesson is small and cost two hours of planning: **before paying a gate's expensive
+>>> path, read its flags.** I had the right discipline (pay the debt in the same commit),
+>>> the right prediction (which sites, which count), and was about to pay it the slowest
+>>> way the tool offers. The incremental path was documented in the file I had already read
+>>> twice that hour.
+
+TWO MORE MEMBERS, FOUND AFTER THE FIRST FOUR WERE ALREADY REPAIRED, and the way they were
+missed is the useful part.
+
+  * `#@ ghost g : no_such_type = 0` VERIFIES, silently becoming the documented `int`
+    default. It fell outside my own search phrase — "every directive whose grammar admits
+    an IDENTIFIER" — because `#@ ghost`'s second field is a type KEYWORD from a nine-entry
+    table, not a name. §11's sentence "untyped ghost declarations default to `int`" is what
+    makes the silence look intentional: the DEFAULT is documented, the FALLBACK FROM A
+    MISSPELLED KEYWORD to that default is not.
+  * `#@ proof rocqq <qualname>` VERIFIES, and the emitted `.mlw` is BYTE-IDENTICAL to the
+    one with `rocq` spelled correctly. The prover keyword is not dropped — it is NOT READ.
+    Bounded: the axiom BODY comes from `_AXIOM_REGISTRY`, audited on the registry entry by
+    `check-proof-crosscheck.sh`, and an unregistered qualname is refused outright. So a
+    misspelled prover cannot smuggle an unaudited axiom in; it can only make
+    `pycsl --audit-proof`'s per-driver citation check silently look for the wrong artifact.
+
+>>> **A SEARCH IS ONLY AS COMPLETE AS THE PHRASE THAT GENERATED IT.** I wrote the sweep up
+>>> as if it were exhaustive over the directive surface; it was exhaustive over the phrase
+>>> "admits an identifier". The phrase that covers all six is "every directive with a FIELD
+>>> WHOSE VALUE COMES FROM A FIXED SET" — names and keywords alike. Recording the PHRASE
+>>> matters more than recording the members, because the phrase is what the next reader
+>>> re-runs.
+
+Both are priced (a set membership each, against tables that already exist in the parser)
+and neither is in this increment: they arrived after the gate started, and a refusal that
+misses its gate is how a green result becomes a promise.
+
+THE CORRECTED SWEEP, COMPLETED: **six silent, eight refusing, one failing closed.**
+Two more controls added after the phrase was fixed — `#@ raises NoSuchErrorType` REFUSED
+and `#@ shared counter protected_by no_such_lock` REFUSED. Four of the six silent members
+are repaired in this increment; the two that arrived afterwards (`#@ ghost`'s type keyword,
+`#@ proof`'s prover keyword) are priced and recorded, not landed.
+
+The eight-to-six ratio is the whole argument that this is a DEFECT and not a design: the
+check is routine where someone wrote it, and it is absent in six places for no stated
+reason.
+
+REMOTE OBSERVATION, recorded and NOT reconciled per the launch instruction: at
+2026-09-24T08:54Z `git status -sb` reads `## ghost-assign-bc6...origin/ghost-assign-bc6
+[ahead 50]`. Four of those fifty are this session's commits. Nothing was fetched, pushed or
+reset; the number is written down so a later reader can tell whether the remote moved again
+without anyone having acted on it.
+
+A CONSTRAINT WORTH KNOWING BEFORE POLISHING A REFUSAL MESSAGE. All four new messages render
+correctly (checked by running the witnesses and reading the output — including the footprint
+one's empty set, `Declared parametric HAPPYs: []`, exactly as predicted). I then wanted to
+extend the `Callable` message to mention TypeVars, since the admissible set includes them,
+and stopped: **`check-refusal-witness-coverage.py` joins on the LONGEST LITERAL FRAGMENT of
+each message, and `--append-new` only adds rows for witnesses that have NONE.** Editing a
+message after its census row exists makes the row stale and the site unwitnessed again, and
+the only repair is the two-hour `--regenerate`.
+
+So the order is: write the message, run the witness, READ IT, and only then census. A
+message edit after the census is a two-hour mistake, and the plane's own staleness check
+(`AUDITED ENTRY … NO LONGER MATCHES`) is there because someone has made it.
+
+AND I HAD TO CORRECT MYSELF ON THE SIXTH MEMBER, which is the most useful paragraph in this
+entry. I wrote that `#@ proof rocqq <qualname>` was bounded because "the axiom BODY comes
+from `_AXIOM_REGISTRY`, audited on the REGISTRY ENTRY rather than on the driver's
+citation". Then I went and read `bin/check-proof-crosscheck.sh` — which says it "walks
+every annotated Python file (`#@ proof rocq/lean …` citations)" — and
+`proof2why3/crosscheck_ir.py`:
+
+    rocq_qns = sorted({d.qualname for d in directives if d.prover == "rocq"})
+    lean_qns = sorted({d.qualname for d in directives if d.prover == "lean"})
+
+**A citation spelled `rocqq` is invisible to the cross-check while its axiom is still
+emitted into the file's proof.** The honest statement is that a misspelled prover gets the
+axiom into the TCB and removes that citation from the 3-way audit.
+
+What still bounds it — and this part survives — is that the axiom BODY comes from the
+registry, an unregistered qualname is REFUSED outright, and adding a registry entry is a
+reviewed source change. So the reachable outcome is "a typo hides a citation from the
+audit", not "arbitrary axioms".
+
+>>> The lesson is about the writing, not the bug: **the comfortable version of a bound is
+>>> the one you must check.** I had written a plausible sentence about what audits what,
+>>> from memory of a file I had read an hour earlier, and it was wrong in the direction
+>>> that made my own increment look tidier. Two greps settled it.
+
+WHERE THIS SESSION STANDS ON ITS OWN METRIC, stated plainly because the launch instruction
+asked for it and because a day of good diagnostic work is exactly the kind of day that can
+drift away from the mission without anyone noticing.
+
+  * `\trusted` markers: **460**, one conversion this generation (`_Tok.__repr__`, gen #31
+    morning). The number has not moved since.
+  * What HAS moved: three SEV-1 routes closed across the generation (#224, #213, #225),
+    nine documented-but-unenforced rules repaired, the directive plane 32 -> 51 of 53,
+    `#@ reveal` implemented, and six silent-name holes found of which four are repaired.
+  * Why that is not drift: route #225 came OUT OF a conversion attempt (reducing the
+    `or []` family's first failure), and the two largest conversion shortlists were
+    measured down to ONE shared blocker — the dict value model, `Dict[K, List[T]]`
+    degrading to `int` when it reaches a FIELD. That is a conversion-track result even
+    though no marker moved.
+  * THE PIVOT, and it is the next thing after the three prepared increments: the FIELD half
+    of the dict value model. It is narrow (carry the `__init__` parameter's annotation onto
+    the field's `dict_value_types` entry), it unblocks the cheapest re-proof in the tree
+    (`Module3_Weaver.visit_FunctionDef`, 7 live lines, 520-line mirror file), and the same
+    model change is what the 74-stub `or []` family needs.
+
+NOTE FOR THE OWED `--slow` RUN: it adds 25 planes (~40 min), and two of them bear directly
+on this session's work. `check-open-route-carriers.py` RUNS the carrier of every route the
+ledger records as OPEN and asserts the recorded verdict — route #214 is the only one today,
+and route #225 is CLOSED so it needs no carrier (its witnesses are in the corpus instead).
+`check-proof-crosscheck.sh` is the 3-way audit whose driver-citation filter
+(`d.prover == "rocq"`) is what makes the misspelled-prover hole real; it should stay green,
+since every `#@ proof` site in the tree spells the prover correctly.
+
+AND THE CONVERSION-TRACK LEVER IS NOW WRITTEN, not just named. Four increments sit prepared
+behind the one in flight:
+
+  2. the import PAIR (`fix_needs_array.py`, witnesses 1872/1873/1879);
+  2b. the KEYWORD sets (`fix_keyword_sets.py`, witnesses 1886-1889) — whose `#@ proof` half
+      is the highest-value unlanded thing in the tree, because a misspelled prover hides a
+      citation from the 3-way cross-check;
+  4. **the FIELD value-type fix** (`fix_field_param_ann.py`), which is the one that moves
+     the mission's own number.
+
+The fourth was found by pricing a conversion and then following the failure down to the
+line that causes it: `Module5_IREmitter`'s `__init__` walk infers an unannotated field's
+type from the RHS SHAPE alone, so `self.m = m` — an `ast.Name` RHS — falls through to
+`"int"` with no `value_type`, even though `m` is a parameter carrying
+`Dict[int, List[CSLNode]]`. The annotated sibling branch twenty lines away already resolves
+this correctly; the annotation is simply on the PARAMETER instead of on the assignment, and
+it is just as binding.
+
+CENSUS: 111 such assignments in the tree, only FIVE with a container annotation, ZERO in
+either corpus. So it is corpus-byte-inert by construction and moves exactly the two mirror
+emissions the repair exists to unblock — which makes the byte-diff a PREDICTION to check
+rather than a risk to survive.
+
+A PREDICTION TO CHECK AGAINST THE SUITE, written before it lands: the previous run was
+3995/4013 with the standing EIGHTEEN. This increment adds EIGHT corpus files — four
+expected-FAIL (1877, 1880, 1882, 1884) and four expected-PASS (1878, 1881, 1883, 1885) —
+and an expectation-matching expected-FAIL counts as a pass. So the arithmetic should be
+**4003/4021, the same EIGHTEEN, ZERO XPASS**. A different total means a file was not
+picked up; a different failure count means something moved that should not have.
+
+DOC EDITS CHECKED AGAINST THE INSTRUMENT THAT READS THEM. The four annotations.md edits
+(rows 5 `footprint`, 17 `uses`, §2.10 `reveal`, and the ty3 `Callable` block) all extend an
+existing row's last cell, and the directive plane DERIVES its population from that table —
+so the edit could in principle change the denominator. Re-ran the extraction directly:
+
+    directive population: 53
+    covered: 51   uncovered: ['releases', 'thread_entry']
+
+unchanged. Worth doing rather than assuming, because a documentation edit that silently
+changes a ratchet's denominator is exactly the shape of a number that stops meaning what it
+says — and this campaign has already found six of those.
+
+AND THE SELF-PROOF RISK WAS CHECKED, not assumed. Three of the four new refusals fire on
+directives that the COMPILER'S OWN SOURCES could in principle use — a refusal that trips on
+`src/pycsl/` or the mirror would break the self-proof rather than a corpus file. Grepped
+`src/pycsl/`, `src/self-annotate/src/` and `src/pycsl_lib/` for `#@ reveal`, `#@ uses` and
+`#@ footprint`: the ONLY hit is my own comment inside `pycsl.py` quoting the witness. The
+os filesystem model, which is where a `#@ footprint` would most plausibly live, has zero.
+So the refusals cannot reach the self-hosted tree at all.
+
+A DEBT THIS CAMPAIGN CREATED, and a gap in the instrument that measures it.
+`check-refusal-advice-audited.py`: 108 of 118 audited, 10 not — and FIVE of the ten are
+refusals THIS generation added (`#@ compose_from`, `#@ mixin`-instantiated, `#@ lemma`
+frameless, `#@ verify_module` lowercase, `Callable` unknown class). Every one of them
+ALREADY HAS, in the corpus, the program its own advice tells you to write — controls 1858,
+1862, 1848, 1843 and 1878 — so the verdicts are FOLLOWABLE and demonstrated; only the
+ledger rows are missing. Cheap to pay: five `AUDITED` entries and `MIN_AUDITED` 108 -> 113.
+
+THE INSTRUMENT GAP, which is the more interesting half: my `#@ uses` and `#@ reveal`
+messages do NOT appear in the unaudited list at all, because they say "FIX: check the
+spelling, or …" and **"check" is not in the plane's advice-verb list** (use / rewrite /
+declare / add / give / call / drop / remove / replace / instead / prefer). So a message can
+give advice the detector cannot see, and it is then unaudited WITHOUT EVER BEING COUNTED AS
+UNAUDITED — the failure mode a coverage plane exists to prevent, one level up. Recorded
+against the plane rather than silently working around it by rewording my messages (which I
+could not do anyway: the witness census keys on the message text, wall-lesson (x4)).
+
+AND THE DEBT IS PAID IN THE SESSION THAT CREATED IT. Five `AUDITED` rows added, one per
+refusal this campaign landed, each recording the verdict of having WRITTEN THE PROGRAM THE
+MESSAGE TELLS YOU TO WRITE — and in every case that program was already in the corpus as
+the refusal's CONTROL:
+
+    `#@ compose_from` names a non-mixin       -> 1858 declares `#@ mixin`; VERIFIES
+    `#@ mixin` class constructed directly     -> 1862 constructs the unmarked class; VERIFIES
+    `#@ lemma` with no `#@ assigns`           -> 1848 adds the clause; VERIFIES
+    `#@ verify_module` lowercase group name   -> 1843 capitalizes it; VERIFIES
+    `Callable` over an unknown class          -> 1878 declares the class; VERIFIES
+
+    [+] refusal-advice-audited: OK — 113 of 118 audited (floor raised 108 -> 113), 5 not.
+
+>>> That is the dividend of the witness/control discipline, and it is worth naming because
+>>> it looked like overhead at the time: **landing a refusal with a CONTROL as well as a
+>>> witness means the advice audit is already done — the control IS the program the message
+>>> recommends.** Five audits cost five ledger rows instead of five new programs.
+
+PROCESS FAILURE, RECORDED BECAUSE IT COST THE WINDOW HOURS AND IT IS THE SECOND TIME.
+At 2026-09-24T09:20Z I ended the turn with the silent-name family "staged pending the
+suite". A yielded turn does NOT resume itself in this harness — it sits dead until a human
+notices. The same mistake was corrected once already this run (2026-09-23T11:48Z, "three
+background jobs will wake the loop").
+
+The rule, stated so it cannot be re-derived wrongly a third time: **"waiting on a long job"
+is not a stopping point. Poll the job's log in short calls and do other work between
+polls.** The work available while a battery is in flight is bookkeeping, route records and
+censuses — everything that does not edit live source. This session had four such items
+queued and did them; then it stopped anyway, at the one moment when the only remaining step
+was to read a log file.
+
+What made it feel finished was that the INCREMENT was finished: patches applied, eight
+witnesses verified, byte-diff clean on three corpora, both refusal planes green. That is
+exactly the trap — an increment is not landed until it is COMMITTED, and the suite is the
+last gate, not a coda.
+
+AND I WROTE A FALSE LEDGER LINE FOUR HOURS AGO, found while pre-checking the owed `--slow`
+battery. Closing route #225 I added to `open-routes/README.md`:
+
+    ## CURRENTLY OPEN after gen #31 (2026-09-24): **NONE.**
+
+copying the SHAPE of the gen-#30 header above it. It is not none. **Route #214 is OPEN** —
+its own record says so in its title and again in a section called "ROUTE #214 STAYS OPEN" —
+and route #221 is partially closed with its claim still assumed. Both have carriers that
+`bin/check-open-route-carriers.py` RUNS on every `--slow` battery, which is how the
+contradiction would have surfaced eventually: the plane holds the truth and the index was
+lying next to it.
+
+Corrected, and the correction says it was corrected rather than quietly rewriting history.
+
+>>> The shape is the same as the `#@ proof` bound I had to walk back an hour earlier
+>>> (wall-lesson (y4)): **a sentence written from PATTERN rather than from CHECKING, in the
+>>> direction that made my own work look tidier.** "Everything I found is closed" is a
+>>> satisfying line to write at the end of an increment. Both times the fix was one grep.
+>>> The index of open routes is exactly the file where that habit does the most damage.
+
+AN AUDIT OF MY OWN COUNT, and it was wrong in a harmless direction. Route #225's write-up
+said the empty `ArrayLit` node has "exactly one other producer" (`deque()` with no
+arguments). Grepping for the CONSTRUCTION SITES rather than for one literal spelling gives
+THREE: `Module5_IREmitter` ~1266 lowers a bytes CONSTANT to an `ArrayLit` of its bytes, so
+`b""` is the same node; `expressions.py` ~13722 does the same for a string; and ~1606 is the
+ordinary list literal.
+
+Measured after the repair: `return b""` REFUSES `\length(\result) == 1024` and PROVES
+`== 0`. Faithful — and faithful for the right reason, which is the part worth keeping: the
+IR-level filter keys on the NODE (`type == "ArrayLit"` with empty `elts`) rather than on
+Python syntax, so every spelling that produces that node is covered BY CONSTRUCTION. Had
+the filter keyed on "a `[]` in the source", `b""` would have been a second route with the
+first one's repair sitting right next to it.
+
+The conclusion survived; the count did not. A count taken from one grep is a claim about
+that grep.
+
+BOOKKEEPING DONE WHILE THE SUITE RAN (the supervisor's correction, applied): the process
+failure recorded as wall-lesson (a5); the false "CURRENTLY OPEN … NONE" header in
+`open-routes/README.md` found and corrected (routes #214 and #221 ARE open, and
+`check-open-route-carriers.py` runs both of their carriers on every `--slow` battery); the
+empty-`ArrayLit` producer count audited from one grep to three construction sites, with
+`b""` measured faithful AFTER the repair and faithful BY CONSTRUCTION because the filter
+keys on the NODE; a `\length`-of-a-string completeness gap recorded; the field value-type
+finding connected to its row in `driver-frontier-floor.md`; the keyword increment's
+annotations.md edit written and dry-run; and its commit message drafted. No live source was
+edited while the battery was in flight.

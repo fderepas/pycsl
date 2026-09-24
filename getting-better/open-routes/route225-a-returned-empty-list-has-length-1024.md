@@ -264,3 +264,57 @@ Read in the fresh emission, so the next attempt starts with the population class
 So of the three context families, only the FIRST is the empty-list VALUE, and the split has
 to be made at the producer with the append-target set in hand — not on the text, which
 cannot tell the three apart. That is the whole content of the capability.
+
+### THE SPLIT IS NOT A ONE-LINE CHANGE, AND HERE IS THE DESIGN QUESTION
+
+Thinking it through before building it, because the obvious plan does not survive contact
+with the third job.
+
+The obvious plan is "change the producer (`expressions.py:18087`) to `(Array.make 0 0)` and
+teach the 11 exact-string consumers the new spelling". That works for job 1 (the VALUE) and
+job 2 is unaffected (a non-empty literal takes a different path,
+`let _alit = Array.make N (e0) in …`). It BREAKS job 3: a field or local that is initialised
+from `[]` AND is an append target takes its CAPACITY from that same literal — the corpus
+shows `by { … audit = (Array.make 1024 0); audit_len = 0 }`, a sidecar-tracked field whose
+appends index into the 1024 cells. At length 0 every append is out of bounds.
+
+So the producer cannot decide alone: **whether the empty literal is a VALUE or a CAPACITY is
+a property of the TARGET, which is known at the STATEMENT level and not at the expression
+level where the literal is emitted.**
+
+Two shapes that could work, neither yet built:
+
+  * **Invert the default.** Keep the producer emitting the capacity spelling (safe
+    everywhere) and have the statement-level code substitute the length-0 spelling when the
+    target is NOT in `append_targets`. The append-target set is already computed there
+    (`statements.py` ~7344). This makes the risky direction opt-in.
+  * **Give the VALUE its own Why3 spelling** so downstream passes can tell them apart by
+    text — the consumers' exact-string tests then keep working on the capacity form and the
+    value form is unambiguous. The catch is that Why3 must still see an `array int` of
+    length 0, so the spelling has to be a real term, not a marker.
+
+The first is smaller and does not touch the 11 consumers at all. It is what I would try
+first, with `1871` as the guard and the corpus's three context families (route #158/#159
+witnesses; the `disk = [0] * 1024` literals; the `audit` sidecar field) as the read-out.
+
+### THE EMPTY BYTES LITERAL IS THE SAME NODE, AND THE REPAIR ALREADY COVERS IT
+
+Auditing my own claim that the empty `ArrayLit` node has "exactly one other producer", I
+found a third: `b""`. Module 5 lowers a bytes CONSTANT to an `ArrayLit` of its bytes
+(`Module5_IREmitter` ~1266), so an EMPTY bytes literal is an `ArrayLit` with no `elts` —
+the same node as `[]`, reaching the same producer and the same 1024-long placeholder.
+
+Measured after the repair:
+
+    return b""   with `\length(\result) == 1024`  ->  FAILED
+    return b""   with `\length(\result) == 0`     ->  SUCCESS
+
+so it is faithful, and it is faithful for the right reason: the IR-level filter keys on the
+NODE (`type == "ArrayLit"` with empty `elts`), not on the Python syntax, so every spelling
+that produces that node is covered by construction rather than by luck. The `""` empty
+string literal reaches an `ArrayLit` by the same path in `expressions.py` ~13722.
+
+Worth recording because the original write-up said the node had "exactly one other
+producer" (`deque()`), and that was a count of one grep rather than of the three
+construction sites. The conclusion survives — every one of them really IS empty — but the
+count was wrong and the check that it survived was not free.

@@ -155,6 +155,26 @@ def sig(node):
 
 # (file, sig(message)) -> (verdict, what was written and what happened)
 AUDITED = {
+    # (#49) gen #31 — FIVE REFUSALS THIS CAMPAIGN ADDED, audited the only way this plane
+    # accepts: by WRITING THE PROGRAM THE MESSAGE TELLS YOU TO WRITE and running it. Each
+    # one already had that program in the corpus as its CONTROL, which is the point of
+    # landing a refusal with a witness/control pair rather than a witness alone — the
+    # control IS the audit, and it only needed recording.
+    ('src/pycsl/pycsl.py',
+     "_PyCSLSemErrVM('`#@ verify_module %s` (line %d) names a group that is lowered to a Why3 `module`, and Why3 module names must be CAPITALIZED "): (FOLLOWABLE,
+        "'capitalize the group name' — control 1843 is 1842 with `LeafMod` for `leafmod`, and it VERIFIES, cross-group call and all."),
+    ('src/pycsl/pycsl.py',
+     '_PyCSLSemErrMx("`#@ compose_from` (line %d) names \'%s\', which is not declared `#@ mixin`. A composable mixin must SAY SO: the marker is what'): (FOLLOWABLE,
+        "'the marker is what makes it composable' — control 1858 declares `#@ mixin` on the named class and the SAME file VERIFIES. The witness is 1857."),
+    ('src/pycsl/pycsl.py',
+     '_PyCSLSemErrMi("`#@ mixin` class \'%s\' is CONSTRUCTED here (line %d). A mixin is declared composable, not instantiable: its methods are verif'): (FOLLOWABLE,
+        "'construct the class that composes it instead' — control 1862 constructs the UNMARKED class and VERIFIES. The witness is 1861."),
+    ('src/pycsl/pycsl.py',
+     '_PyCSLSemErrCal("the `Callable` annotation on \'%s\' (in \'%s\') names \'%s\', which is neither a primitive tag (`int`, `bool`, `str`, `float`) no'): (FOLLOWABLE,
+        "'declare it, or use one of the primitive tags' — control 1878 declares `Box` and the same `Callable[[Box], int]` VERIFIES, arrow applied. The witness is 1877."),
+    ('src/pycsl/pycsl.py',
+     '_PyCSLSemErrLem("`#@ lemma` \'%s\' (line %d) has no `#@ assigns` clause, and a lemma must state `#@ assigns \\\\nothing` explicitly. The clause '): (FOLLOWABLE,
+        "'add `#@ assigns \\\\nothing` to it' — control 1848 is the same lemma with the clause, and it VERIFIES. The witness is 1847."),
     ("src/pycsl/frontend/desugar.py",
      "PyCSLParseError('`for ... else` / `while ... else` is not modelled: the `else` clause runs exactly when the loop finished without `break`, a"): (FOLLOWABLE,
         "'Rewrite it with an explicit flag' — a `found` flag plus a `while` with an "
@@ -878,7 +898,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 108
+MIN_AUDITED = 113
 
 if __name__ == "__main__":
     sys.exit(main())
