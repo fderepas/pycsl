@@ -8789,3 +8789,10 @@ correct (false) statement. A naive concatenation would have emitted `forall n n 
 
 4031 = 4028 + 3 witnesses, 4013 = 4010 + 3. Predicted before the run, exact after it.
 A SEV-1 soundness route's first repair, committed.
+
+--------------------------------------------------------------------------------
+2026-09-24 13:39Z — COMMITTED `80bf4985` (ROUTE #226 increment 1 — a SEV-1's first repair).
+The CLASS-INVARIANT PLANE's gate: **all 47 plane(s) green** — the count moved with the list,
+which is the point of bumping MIN_PLANES in the same commit. No byte-diff owed: the diff is
+one new file under `bin/`, one registration line, and the standing `.aux` exhaust.
+Sensitivity re-confirmed on the three open shapes at landing time, not only at design time.

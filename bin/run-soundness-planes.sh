@@ -113,6 +113,13 @@ PLANES=(
     # while its own postcondition is false of its own program. First measurement: 195
     # AGREE, 0 DISAGREE, 21 not runnable standalone (reported, never dropped).
     check-corpus-contract-truth.py
+    # (#49) gen #31: the sibling oracle for ROUTE #226. `check-corpus-contract-truth`
+    # asks whether a corpus POSTCONDITION is true of its own program; this asks
+    # whether a corpus CLASS INVARIANT is true of the object its own `__init__`
+    # builds. The emitter now states that obligation for a paramless literal
+    # constructor; the `@dataclass`, computed and control-flow shapes it cannot
+    # state are all RUNNABLE, and this is what runs them.
+    check-class-invariant-establishment.py
     # (#49) gen #30: the sibling that reads the line above's own header as a claim. That
     # plane says "WHAT IT DOES NOT CHECK: contracts with parameters ... writing a driver
     # there is the way to cover one" — but a parameterized `#@ ensures \result ==
@@ -311,7 +318,7 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=46
+MIN_PLANES=47
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
