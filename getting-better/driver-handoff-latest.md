@@ -11096,3 +11096,35 @@ mirror edits; run it after ANY `src/pycsl/` change.
 #    whole annotation block. One entry in a list whose stated purpose is "tokens this oracle
 #    cannot evaluate" excluded every empty-frame function: 416 -> 519 functions, 4367 ->
 #    5750 evaluations. Wall-lesson (o5).
+
+# ======================================================================================
+# ## UPDATE 2026-09-24T21:30Z — SEVEN COMMITTED; the SEQ increment is APPLIED and its ONE
+# ## mirror proof has been running 2h33m
+#
+#    `9f75cc69` imports · `ce548805` keywords · `3cf98e40` contract-truth 390->432
+#    `80bf4985` **ROUTE #226 increment 1** · `9b93f265` the class-invariant PLANE
+#    `c7d33e52` the mutex-name refusal · `eca4b0c8` the field-param fix
+#
+#    SEQ-LOCAL is APPLIED TO THE TREE AND NOT COMMITTED. Everything is green except the one
+#    thing that IS its gate:
+#      * `1898` SUCCESS, `1899` (false twin) FAILED
+#      * corpus byte-diff 2 MOVED, and both are the previous increment's `requires True`
+#        removal catching up with a stale baseline — NOT this change (which two offline
+#        trees measured at 0 MOVED this morning)
+#      * python-reference 0 MOVED; MIRROR 53/53 with exactly the ONE expected MOVED
+#        (`module6_whyml__expressions.mlw`, a ten-line diff read line by line)
+#      * all 47 planes green; suite **4020/4038 = the standing EIGHTEEN, ZERO XPASS**
+#      * `src/self-annotate/src/module6_whyml/expressions.py` — RUNNING since 18:57
+#        (`land_seq.log`), and a BASELINE copy with the one-line widening REVERTED
+#        (`$SCRATCH/g31/treenoseq`) has been proving the same file since 21:03
+#        (`seq_baseline_time.log`), so "it took N hours" can be a fact about the CHANGE.
+#
+#    IF THE CANDIDATE PROOF FAILS OR IS MUCH SLOWER THAN THE BASELINE: do not commit. The
+#    widening's whole justification is that it is corpus-byte-inert and moves ONE mirror
+#    file; a mirror file that stops proving, or becomes materially harder, is the cost that
+#    was supposed to be checked. `git checkout -- src/pycsl/module6_whyml/statements.py`
+#    and `rm test-suite/corpus/pycsl-reference/189{8,9}_*.py` reverts it cleanly.
+#
+#    STILL PREPARED: `land_r226b.sh` (ROUTE #226 increment 2 — closes carriers 2 and 4,
+#    leaves the computed-store one and names why) and `land_args.sh` (the args-oracle
+#    widening, 4367 -> 5750 evaluations, five KNOWN divergences with their finding file).

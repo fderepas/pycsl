@@ -85,9 +85,44 @@ POOL = [0, 1, 2, 3, 5, -1, -2, 7]
 MAX_TUPLES = 40          # per function, deterministic prefix of the product
 CALL_TIMEOUT = 1.0       # seconds; a corpus loop must not hang the battery
 EXEC_TIMEOUT = 2.0
-MIN_EVALS = 3800         # 4340 at the first measurement; the corpus only grows
+MIN_EVALS = 5200         # 5750 with the METHOD population AND the skip list narrowed
+                         # to the clauses actually evaluated (4340 at the first
+                         # measurement, functions only, `\nothing` excluding every
+                         # empty-frame function). Roughly the same relative margin the
+                         # original floor had. Both corpora only grow.
 TRUST_INHERITED_BASELINE = 14    # disagreements a caller INHERITS from a trusted callee
-MAX_RAISED = 3                   # calls that RAISE on an argument the precondition admits.
+
+# (#49) gen #31 — KNOWN DIVERGENCES, each with its reason and its record. Surfaced when the
+# skip list stopped being applied to `#@ assigns` (see `_reqs0` below): `\nothing` had been
+# excluding every function with an empty frame, and these five were inside that population.
+#
+# `struct.unpack` RETURNS A TUPLE — "The result is a tuple even if it contains exactly one
+# item", quoted from the RST in `src/pycsl_lib/strct/__init__.py`'s own docstring — and the
+# model returns the unpacked SCALAR. So `#@ ensures \result == x` is certified for a
+# function whose CPython answer is `(x,)`. Both files are `# pycsl-expected: PASS` and carry
+# `#@ proof rocq` + `#@ proof lean` citations; DELETING the citations makes 0753 FAIL, so
+# the discharge comes from the audited external proof, not from ordinary verification. The
+# registered axiom is a TRUE theorem about a byte codec returning an int — what is wrong is
+# the ATTRIBUTION, and nothing in the 3-way cross-check compares the Rocq result TYPE with
+# the Python return type.
+#
+# `getting-better/open-routes/finding-struct-unpack-returns-a-tuple.md`
+KNOWN_DIVERGENT = {
+    ("0753.py", "roundtrip_u16"): "struct.unpack returns a tuple; discharged by `#@ proof`",
+    ("0753.py", "roundtrip_u32"): "struct.unpack returns a tuple; discharged by `#@ proof`",
+    ("0778.py", "roundtrip_i16"): "struct.unpack returns a tuple; discharged by `#@ proof`",
+    ("0778.py", "roundtrip_i32"): "struct.unpack returns a tuple; discharged by `#@ proof`",
+    ("0778.py", "roundtrip_i64"): "struct.unpack returns a tuple; discharged by `#@ proof`",
+}
+MAX_RAISED = 4                   # calls that RAISE on an argument the precondition admits.
+                                 # (#49) gen #31: 3 -> 4 with the widened population. The one
+                                 # added is `1302_route108…::wrapper(-1)`, whose `else` branch
+                                 # calls a raising callee — route #108 established that the
+                                 # raise really does escape, and an `#@ ensures` constrains the
+                                 # NORMAL exit only, so the contract is not broken. 0383, which
+                                 # the widening also surfaced, is NOT here: it DECLARES
+                                 # `#@ raises ZeroDivisionError when n == 0`, and the oracle now
+                                 # reads that clause instead of reporting the declared exit.
 # THE THREE, EACH NAMED, because "3" on its own would be a shrug:
 #   0159.py::diverges_inc(0)      RecursionError. `#@ \diverges` over `return
 #                                 diverges_inc(x)` — the file EXISTS to be non-terminating,
@@ -174,9 +209,37 @@ def collect(no_exclusions=False):
         verified = reach(only) if only else set(defs)
         if only:
             stats["fun_restricted"] += len(defs) - len(verified)
+        # (#49) gen #31 — THE METHOD POPULATION. `defs` is every FunctionDef in the file,
+        # so a method arrives here with `self` as its first parameter and the old filter
+        # dropped it. A method of a class that `C()` constructs is runnable: build the
+        # object, then call it with the same pool. `_owner_of` is the class whose body
+        # holds the def, or None for a module-level function; a class whose `__init__`
+        # NEEDS an argument has no canonical instance and is skipped, exactly as the
+        # zero-argument sibling skips it.
+        _owner = {}
+        for _c in ast.walk(tree):
+            if not isinstance(_c, ast.ClassDef):
+                continue
+            _ini = next((x for x in _c.body
+                         if isinstance(x, ast.FunctionDef) and x.name == "__init__"), None)
+            if _ini is not None:
+                _need = (len(_ini.args.args) + len(_ini.args.posonlyargs)
+                         - len(_ini.args.defaults))
+                if _need > 1 or _ini.args.kwonlyargs or _ini.args.vararg:
+                    continue
+            for _m in _c.body:
+                if isinstance(_m, ast.FunctionDef):
+                    _owner[_m.name] = _c.name
         for name, node in defs.items():
             ps = node.args.args
-            if not ps or len(ps) > 3 or any(a.arg == "self" for a in ps):
+            _cls = _owner.get(name)
+            if _cls is not None and ps and ps[0].arg == "self":
+                ps = ps[1:]
+                if name.startswith("__"):
+                    continue
+            elif any(a.arg == "self" for a in ps):
+                continue
+            if not ps or len(ps) > 3:
                 continue
             if not all(isinstance(a.annotation, ast.Name)
                        and a.annotation.id in ("int", "bool") for a in ps):
@@ -189,7 +252,25 @@ def collect(no_exclusions=False):
                    (re.match(r"#@\s*ensures\s+\\result\s*==\s*(.+)$", a) for a in ann) if m]
             if not ens:
                 continue
-            if any(t in " ".join(ann) for t in SKIP_TOKENS):
+            # (#49) gen #31 — THE SKIP LIST APPLIES TO THE CLAUSES THIS ORACLE READS, which
+            # are `requires` and `ensures`, NOT to the whole annotation block. `\nothing`
+            # can only ever appear in `#@ assigns \nothing`, so testing the joined block
+            # against it excluded every function with an empty frame — 102 functions and
+            # 1206 evaluations, and five real disagreements among them. The list's own
+            # comment says "tokens this oracle cannot evaluate"; a token that cannot appear
+            # in what is evaluated does not belong to that set. Wall-lesson (o5).
+            _reqs0 = [m.group(1).strip() for m in
+                      (re.match(r"#@\s*requires\s+(.+)$", a) for a in ann) if m]
+            if any(t in " ".join(_reqs0 + ens) for t in SKIP_TOKENS):
+                continue
+            # A name REBOUND at module level (`inc = dec`, route #119's witness library) is
+            # not the function whose contract was just read — `ns[name]` would be the other
+            # one, and the oracle would report the mismatch as a corpus defect. Skip it: a
+            # correctness fix, not an exclusion.
+            if any(isinstance(_st, ast.Assign)
+                   and any(isinstance(_t, ast.Name) and _t.id == name
+                           for _t in _st.targets)
+                   for _st in tree.body):
                 continue
             if any(re.match(r"#@\s*(act|behavior)\b", a) or re.match(r"#@\s+given\b", a)
                    for a in ann):
@@ -205,8 +286,12 @@ def collect(no_exclusions=False):
                     (re.match(r"#@\s*requires\s+(.+)$", a) for a in ann) if m]
             if any("\\" in x for x in reqs + ens):
                 continue
+            _raises_when = [m.group(1).strip() for m in
+                            (re.match(r"#@\s*raises\s+\w+\s+when\s+(.+)$", a)
+                             for a in ann) if m]
             per.setdefault(f, []).append(
-                (name, [a.arg for a in ps], ens, reqs, bool(reach(name) & trusted)))
+                (name, [a.arg for a in ps], ens, reqs, bool(reach(name) & trusted),
+                 _cls, _raises_when))
     return per, stats
 
 
@@ -248,15 +333,32 @@ def main():
             except BaseException as exc:
                 signal.setitimer(signal.ITIMER_REAL, 0)
                 unrunnable += [(os.path.basename(f), n, type(exc).__name__)
-                               for n, _, _, _, _ in items]
+                               for n, _, _, _, _, _, _ in items]
                 continue
             finally:
                 signal.setitimer(signal.ITIMER_REAL, 0)
                 if sys.path and sys.path[0] == d:
                     sys.path.pop(0)
-            for name, params, ens, reqs, inherits in items:
+            for name, params, ens, reqs, inherits, cls, raises_when in items:
                 funcs += 1
-                fn = ns.get(name)
+                _obj = None
+                if cls is None:
+                    fn = ns.get(name)
+                else:
+                    # Build ONE instance per method and bind the method on it. A class that
+                    # cannot be constructed is reported, never silently dropped.
+                    try:
+                        with contextlib.redirect_stdout(io.StringIO()), \
+                             contextlib.redirect_stderr(io.StringIO()):
+                            signal.setitimer(signal.ITIMER_REAL, CALL_TIMEOUT)
+                            _obj = ns[cls]()
+                            signal.setitimer(signal.ITIMER_REAL, 0)
+                        fn = getattr(_obj, name)
+                    except BaseException as exc:
+                        signal.setitimer(signal.ITIMER_REAL, 0)
+                        unrunnable.append((os.path.basename(f), cls + "." + name,
+                                           type(exc).__name__))
+                        continue
                 if not callable(fn):
                     unrunnable.append((os.path.basename(f), name, "not callable"))
                     continue
@@ -266,18 +368,25 @@ def main():
                         break
                     env = dict(zip(params, tup))
                     try:
-                        if not all(eval(_py(r), {"__builtins__": {}}, dict(env))
+                        if not all(eval(_py(r), dict(ns), dict(env, self=_obj))
                                    for r in reqs):
                             continue
                     except Exception:
                         break
+                    # a DECLARED exceptional exit is not a broken promise
+                    try:
+                        if any(eval(_py(w), dict(ns), dict(env, self=_obj))
+                               for w in raises_when):
+                            continue
+                    except Exception:
+                        pass
                     try:
                         signal.setitimer(signal.ITIMER_REAL, CALL_TIMEOUT)
                         with contextlib.redirect_stdout(io.StringIO()), \
                              contextlib.redirect_stderr(io.StringIO()):
                             got = fn(*tup)
                         signal.setitimer(signal.ITIMER_REAL, 0)
-                        claims = [eval(_py(e), {"__builtins__": {}}, dict(env))
+                        claims = [eval(_py(e), dict(ns), dict(env, self=_obj))
                                   for e in ens]
                     except BaseException as exc:
                         signal.setitimer(signal.ITIMER_REAL, 0)
@@ -343,11 +452,29 @@ def main():
         return 2
 
     rc = 0
+    _seen_known = set()
     for b in disagree:
+        _key = (b[0], b[1])
+        if _key in KNOWN_DIVERGENT and not args.selftest_no_exclusions:
+            _seen_known.add(_key)
+            continue
         print("[!]   CONTRACT FALSE OF ITS OWN PROGRAM: %s::%s%r — `ensures \\result == "
               "%s` says %r, CPython answers %r. The file is expected to PASS and its "
               "precondition admits that argument." % b, file=sys.stderr)
         rc = 1
+    if not args.selftest_no_exclusions:
+        _gone = set(KNOWN_DIVERGENT) - _seen_known
+        if _gone:
+            for _k in sorted(_gone):
+                print("[!]   KNOWN DIVERGENCE NO LONGER REPRODUCES: %s::%s (%s). That is "
+                      "GOOD NEWS that has to be RECORDED — remove it from KNOWN_DIVERGENT "
+                      "in the same commit that fixed it."
+                      % (_k[0], _k[1], KNOWN_DIVERGENT[_k]), file=sys.stderr)
+            rc = 1
+        elif _seen_known:
+            print("[*] corpus-contract-truth-args: %d KNOWN divergence(s), each named in "
+                  "KNOWN_DIVERGENT with its reason and its record "
+                  "(`finding-struct-unpack-returns-a-tuple.md`)." % len(_seen_known))
     if args.selftest_no_exclusions:
         if disagree:
             print("[+] SELFTEST: %d disagreement(s) found with the exclusions dropped — "

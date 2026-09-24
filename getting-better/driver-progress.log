@@ -9213,3 +9213,99 @@ corpus audit, seven mirror re-proofs) died when I edited the running script;
 `gate_field3.log` resumed at the planes and went red on `check-claim-vacuity`;
 `gate_field4.log` is the clean planes-and-suite run after the two `requires True` lines came
 out. Three logs, one green result, and two lessons — (q5) and (r5).
+
+--------------------------------------------------------------------------------
+2026-09-24 18:58Z — COMMITTED `eca4b0c8` (the field-param fix). SEVEN commits this window:
+
+    9f75cc69  the import pair + route #226's record and carrier + two findings
+    ce548805  the KEYWORD pair, both debt planes paid
+    3cf98e40  corpus-contract-truth 390 -> 432 contracts (methods + comparisons)
+    80bf4985  **ROUTE #226 increment 1** — a SEV-1's first repair, 60 corpus modules and
+              12 frozen goldens gaining an obligation, every move audited
+    9b93f265  the CLASS-INVARIANT PLANE (47 planes, MIN_PLANES 46 -> 47)
+    c7d33e52  the mutex-name refusal (directive plane 52 of 53)
+    eca4b0c8  `self.m = m` keeps the `__init__` parameter's type (8 mirror modules re-typed)
+
+THE SEQ-LOCAL increment is APPLIED: `1898` SUCCESS, `1899` (false twin) FAILED. Its landing
+script is now proving `module6_whyml/expressions.py`, the ONE mirror file whose emission it
+moves — and the file that did not finish a proof in 66 minutes this morning under load. That
+proof IS this increment's gate; everything else about it is already measured (corpus
+1367/1367 0 MOVED on two offline trees, mirror 53/53 1 MOVED with the diff read line by
+line).
+
+--------------------------------------------------------------------------------
+2026-09-24 19:12Z — the SEQ gate's corpus byte-diff says 2 MOVED where the offline
+measurement said 0, and the two are NOT this increment
+
+    [!] MOVED 1896_gen31_field_from_an_annotated_init_param.mlw
+    [!] MOVED 1897_gen31_field_from_an_annotated_init_param_false_twin.mlw
+    -    requires { true }
+    -    ensures  { (result >= 0) }
+    +    ensures  { (result >= 0) } (* linear *)
+
+That is the `#@ requires True` REMOVAL from the vacuity fix, not the seq widening. The
+`bd_fld` baseline was swept BEFORE those two lines came out, so the first sweep after them
+shows the difference. The seq increment remains corpus-byte-inert, as two offline trees
+measured this morning (1367/1367, 0 MOVED).
+
+Worth keeping because it is the shape of a false alarm that would be easy to wave away or,
+worse, to blame on the increment under test: **a baseline is only a baseline for the tree it
+was taken from.** The fix changed the tree after the sweep; the diff is honest and belongs
+to the previous increment.
+
+--------------------------------------------------------------------------------
+2026-09-24 19:50Z — the seq increment's one mirror proof has been running 52 minutes
+
+`module6_whyml/expressions.py` is the file whose emission the seq widening moves (two locals
+leaving the array model for the seq one), and proving it IS this increment's gate. It is
+the largest mirror file in the tree; this morning it did not finish in 66 minutes while a
+full corpus suite was running, and it is in `run-self-annotation-suite.sh`, so it is known
+to be provable — the question is only how long.
+
+The gate's other halves are already green: corpus byte-diff 2 MOVED and both explained (the
+`requires True` removal catching up with a stale baseline, not this increment),
+python-reference 0 MOVED, mirror 53/53 with exactly the 1 expected MOVED, all 47 planes
+green, suite running.
+
+Recorded because a 52-minute wait with nothing written down is indistinguishable from a
+stall, and because the NUMBER is the useful part: budget an hour for this file, and never
+run it beside another gate's suite.
+
+--------------------------------------------------------------------------------
+2026-09-24 20:17Z — the SEQ gate's suite: **4020 / 4038 passed** — the standing EIGHTEEN,
+ZERO XPASS. 4038 = 4036 + 2 witnesses, 4020 = 4018 + 2. Predicted, then exact.
+
+Everything for this increment is green except the one thing that is still running: the
+mirror proof of `module6_whyml/expressions.py`, ~80 minutes in. That file's emission is the
+ONLY one the widening moves, and its diff was read line by line this morning (two locals
+leaving the array model for the seq one, `Array.length` -> `Seq.length`). The increment is
+NOT committed until that proof returns.
+
+--------------------------------------------------------------------------------
+2026-09-24 21:16Z — the seq increment's mirror proof is at 2h19m, and a BASELINE is now
+running beside it
+
+Everything else about the increment is green (corpus byte-diff explained, mirror 1 MOVED as
+predicted, 47 planes, suite 4020/4038 = the standing EIGHTEEN). The open question is whether
+`module6_whyml/expressions.py` is slow BECAUSE of the widening or slow FULL STOP.
+
+So a second copy of today's tree with the one-line widening REVERTED
+(`$SCRATCH/g31/treenoseq`) is proving the same file, started 21:03:36Z. Two numbers instead
+of one, which is the only way "it took two hours" becomes a fact about the CHANGE rather
+than about the file.
+
+Note what this costs and why it is still right: two >2-hour provers on 12 cores. The
+alternative is committing an increment whose only gate is a proof nobody has a reference
+time for — and if the widening HAS made this file materially harder, that is exactly the
+kind of cost that should stop it.
+
+--------------------------------------------------------------------------------
+2026-09-24 21:51Z — the ARGS-ORACLE increment is GREEN and committed while the seq proof
+runs. It touches `bin/` only, so it is independent of the seq widening sitting uncommitted
+in the tree — and if that widening has to be reverted, this is unaffected.
+
+    the widened plane   519 functions, **5750 argument-level evaluations** (was 416/4367),
+                        5 KNOWN divergences each named with its reason and its record
+    the BITE TEST       91 disagreements with every exclusion dropped — the oracle bites
+    SENSITIVITY         a false METHOD contract is reported, on the probe written for it
+    fast planes         all 47 green
