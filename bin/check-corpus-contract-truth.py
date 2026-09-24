@@ -36,6 +36,7 @@ corpus's job, and writing a driver there is the way to cover one.
 Usage:  bin/check-corpus-contract-truth.py [--verbose]
 """
 import argparse
+import ast
 import contextlib
 import glob
 import io
@@ -46,7 +47,44 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CORPORA = [os.path.join(ROOT, "test-suite", "corpus", "pycsl-reference"),
            os.path.join(ROOT, "test-suite", "corpus", "python-reference")]
-MIN_RUNNABLE = 350   # first measurement 366 across both corpora; they only grow
+MIN_RUNNABLE = 390   # first measurement 366 (functions only); the METHOD population
+                     # added 39 more runnable contracts in its first measurement
+                     # (42 candidates, 39 agree, 0 disagree, 3 unrunnable), so the
+                     # floor moves with the reach. Both corpora only grow.
+
+
+# (#49) gen #31 — THE COMPARISON OPERATORS, not only `==`. Route #226's carrier claims
+# `\result >= 5`; a plane that reads only `==` could not have seen it.
+OPS = {"==": lambda a, b: a == b, "!=": lambda a, b: a != b,
+       ">=": lambda a, b: a >= b, "<=": lambda a, b: a <= b,
+       ">": lambda a, b: a > b, "<": lambda a, b: a < b}
+_ENS = re.compile(r"#@\s*ensures\s+\\result\s*(==|!=|>=|<=|>|<)\s*(-?\d+)\s*$")
+
+
+def _claim_above(lines, lineno):
+    """The `#@ ensures \result <op> <int>` attached to the def at `lineno`, and whether a
+    `#@ requires` is attached too.
+
+    Walks UPWARD and stops at the first line that is not a `#@` directive, a decorator or
+    blank. A fixed window let the PREVIOUS method's block answer for this one — measured:
+    `multi_file_lib/r119_plainlib.py`'s `K.n` picked up `K.m`'s `== 1` and read as a
+    disagreement."""
+    claim, has_req = None, False
+    i = lineno - 2
+    while i >= 0:
+        t = lines[i].strip()
+        if t.startswith("#@"):
+            if re.match(r"#@\s*requires\b", t):
+                has_req = True
+            m = _ENS.match(t)
+            if m and claim is None:
+                claim = (m.group(1), int(m.group(2)))
+            i -= 1
+        elif t.startswith("@") or t == "":
+            i -= 1
+        else:
+            break
+    return claim, has_req
 
 
 def candidates():
@@ -67,8 +105,38 @@ def candidates():
             for j in range(i + 1, min(i + 6, len(lines))):
                 d = re.match(r"def (\w+)\(\s*\)\s*->\s*(int|bool)\s*:", lines[j].strip())
                 if d:
-                    out.append((f, d.group(1), int(m.group(1))))
+                    out.append((f, None, d.group(1), "==", int(m.group(1))))
                     break
+        # (#49) gen #31 — THE METHOD POPULATION. A zero-argument method of a class that
+        # `C()` constructs is just as runnable as a zero-argument function, and it is the
+        # shape route #226 carries. A method with a `#@ requires` is SKIPPED: its
+        # precondition may be false of a default-constructed object, and then its
+        # postcondition says nothing about it.
+        try:
+            tree = ast.parse(src)
+        except Exception:
+            continue
+        for cls in ast.walk(tree):
+            if not isinstance(cls, ast.ClassDef):
+                continue
+            init = next((x for x in cls.body
+                         if isinstance(x, ast.FunctionDef) and x.name == "__init__"), None)
+            if init is not None:
+                nreq = (len(init.args.args) + len(init.args.posonlyargs)
+                        - len(init.args.defaults))
+                if nreq > 1 or init.args.kwonlyargs or init.args.vararg:
+                    continue
+            for meth in cls.body:
+                if not isinstance(meth, ast.FunctionDef):
+                    continue
+                if len(meth.args.args) != 1 or meth.args.kwonlyargs or meth.args.vararg:
+                    continue
+                rt = meth.returns
+                if not (isinstance(rt, ast.Name) and rt.id in ("int", "bool")):
+                    continue
+                claim, has_req = _claim_above(lines, meth.lineno)
+                if claim is not None and not has_req:
+                    out.append((f, cls.name, meth.name, claim[0], claim[1]))
     return out
 
 
@@ -81,7 +149,7 @@ def main():
     agree = 0
     disagree = []
     unrunnable = []
-    for f, fn, claim in rows:
+    for f, cls, fn, op, claim in rows:
         src = open(f, errors="replace").read()
         ns = {"__name__": "corpus_contract_probe"}
         # MULTI-FILE tests import a sibling module out of the corpus directory. Putting
@@ -93,10 +161,17 @@ def main():
             with contextlib.redirect_stdout(io.StringIO()), \
                  contextlib.redirect_stderr(io.StringIO()):
                 exec(compile(src, f, "exec"), ns)
-            if fn not in ns:
-                unrunnable.append((os.path.basename(f), fn, "not defined after exec"))
-                continue
-            got = ns[fn]()
+            if cls is None:
+                if fn not in ns:
+                    unrunnable.append((os.path.basename(f), fn, "not defined after exec"))
+                    continue
+                got = ns[fn]()
+            else:
+                if cls not in ns:
+                    unrunnable.append((os.path.basename(f), cls + "." + fn,
+                                       "class not defined after exec"))
+                    continue
+                got = getattr(ns[cls](), fn)()
         except Exception as e:
             unrunnable.append((os.path.basename(f), fn, type(e).__name__))
             continue
@@ -105,12 +180,16 @@ def main():
                 sys.path.pop(0)
         if isinstance(got, bool):
             got = int(got)
-        if got == claim:
+        if not isinstance(got, int):
+            unrunnable.append((os.path.basename(f), fn, "non-int result"))
+            continue
+        _who = fn if cls is None else (cls + "." + fn)
+        if OPS[op](got, claim):
             agree += 1
             if args.verbose:
-                print("    ok  %s::%s == %d" % (os.path.basename(f), fn, claim))
+                print("    ok  %s::%s %s %d" % (os.path.basename(f), _who, op, claim))
         else:
-            disagree.append((os.path.basename(f), fn, claim, got))
+            disagree.append((os.path.basename(f), _who, "%s %d" % (op, claim), got))
 
     print("[*] corpus-contract-truth: %d runnable literal-result contract(s) — "
           "%d AGREE with CPython, %d DISAGREE, %d could not run standalone."

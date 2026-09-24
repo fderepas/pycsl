@@ -8586,3 +8586,11 @@ mutex -> field -> seq-local.
 
 4028 = 4024 + 4 witnesses and 4010 = 4006 + 4. Predicted before the run, exact after it.
 Committing; the seven queued increments become six.
+
+--------------------------------------------------------------------------------
+2026-09-24 12:11Z — COMMITTED `ce548805` (the keyword pair, both debt planes paid).
+The CONTRACT-TRUTH extension's gate: **all 46 planes green**, and no byte-diff is owed —
+`git diff --stat` shows the change is confined to `bin/check-corpus-contract-truth.py` plus
+the standing `.aux` build exhaust, so the emitter is not read, imported or run differently
+and corpus emission cannot move. Stated, with the evidence in the gate log, rather than
+assumed. Committing.
