@@ -128,11 +128,17 @@ CARRIERS = {
     # so `route226-carrier-constructor-never-establishes-the-invariant.py` no longer
     # verifies. It stays on disk as the closed carrier; the route is NOT closed, because
     # three shapes still carry it, and the live one is registered below.
-    "getting-better/open-routes/route226-carrier-invariant-from-a-constructor-parameter.py": (
+    # (#49) gen #31 — THE PARAMETER CARRIER IS CLOSED TOO. Increment 2 quantifies over the
+    # parameter and makes `__init__`'s binding a premise, carrying its `#@ requires` along,
+    # so both that shape and `@dataclass` now fail. Two of route #226's four carriers were
+    # closed by increment 1, a third and fourth by increment 2; the COMPUTED store is what
+    # is left, and it is left because the honest obligation there needs the CALLEE'S
+    # postcondition rather than a literal.
+    "getting-better/open-routes/route226-carrier-computed-constructor-store.py": (
         "SUCCESS", "#226",
-        "a `#@ class invariant` over a field taken from an `__init__` PARAMETER has no "
-        "literal for the obligation to be stated about, so `\\result >= 5` still PROVES "
-        "while CPython answers 1"),
+        "a `#@ class invariant` over a field the constructor COMPUTES (`self.n = three()`) "
+        "is marked unknown and gets no obligation, so `\\result >= 5` still PROVES while "
+        "CPython answers 3"),
 }
 FLAGS = ["--memory-model", "hoare"]
 

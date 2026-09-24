@@ -18,7 +18,14 @@ emitted and the invariant is still free.
         #@ ensures \\result >= 5
         def get(self) -> int: return self.n
 
-EXPECTED TODAY: SUCCESS. CPython: `C(1).get()` is 1, and `1 >= 5` is False.
+CLOSED by increment 2. This carrier verified until the obligation learned to
+quantify over the PARAMETER instead of substituting a literal; it now FAILS. Kept
+because a closed carrier is the cheapest regression test a route has.
+
+THE ROUTE IS NOT CLOSED. The COMPUTED-store shape still carries it and is the
+registered carrier: `route226-carrier-computed-constructor-store.py`.
+
+WAS: SUCCESS. CPython: `C(1).get()` is 1, and `1 >= 5` is False.
 
 The measured surround, so increment 2 is not designed blind:
   · add `c = C(1)` to the file                          FAILED  (construction site checked)

@@ -9256,12 +9256,65 @@ class PreambleEmissionMixin:
                     _ci_labels = [_q(fn) for fn in field_names]
                     _ci_unk = (set(td.get("init_unknown_fields") or [])
                                | set(td.get("init_unknown_cf_fields") or []))
-                    _ci_ok = (bool(field_names)
-                              and not (td.get("init_params") or [])
-                              and all(field_types.get(fn, "int") == "int"
-                                      and fn in defaults
-                                      and fn not in _ci_unk
-                                      for fn in field_names))
+                    # (#49) gen #31, ROUTE #226 INCREMENT 2 — A PARAMETERISED `__init__`.
+                    # Increment 1 required `init_params` to be empty, because there was no
+                    # literal to state the goal about. There does not have to be: the
+                    # constructor's binding can be a PREMISE instead of a substitution, and
+                    # the parameter quantified. `init_body` carries the bindings
+                    # (`{'field': 'n', 'value': {'type': 'Var', 'name': 'n'}}`) and route
+                    # #15's `init_contract_check` already carries the parameter TYPES and
+                    # the `#@ requires` IR, so Module 5 needs no change.
+                    #
+                    # IN SCOPE: every parameter int-annotated, and every field bound either
+                    # to an int literal or DIRECTLY to one of those parameters. Anything
+                    # computed stays out — `init_unknown_fields` already carries it.
+                    _icc_ci = td.get("init_contract_check") or {}
+                    _ci_ptypes = _icc_ci.get("param_types") or {}
+                    _ci_params = list(td.get("init_params") or [])
+                    _ci_bind = {}
+                    for _b_ci in (td.get("init_body") or []):
+                        if isinstance(_b_ci, dict) and _b_ci.get("field"):
+                            _ci_bind[_b_ci["field"]] = _b_ci.get("value")
+                    _ci_used = []
+
+                    _ci_ok = bool(field_names) and all(
+                        field_types.get(fn, "int") == "int"
+                        and fn not in _ci_unk
+                        for fn in field_names)
+                    if _ci_ok and _ci_params:
+                        # every parameter must be int-annotated, or a field could be bound
+                        # to a collection and the `: int` binder would be a lie
+                        _ci_ok = all(_ci_ptypes.get(_p, "") in ("", "int", "bool")
+                                     for _p in _ci_params)
+                    # What `__init__` gives each field: a literal, or the name of the
+                    # int parameter it is bound to. Written INLINE rather than as a nested
+                    # helper because `bin/check-mirror-coverage.py` counts every live `def`
+                    # with no mirror counterpart, and a closure inside the emitter is one
+                    # (measured: the ratchet went 549 -> 550 when this was a function).
+                    _ci_vals = {}
+                    if _ci_ok:
+                        for fn in field_names:
+                            _v_ci = _ci_bind.get(fn)
+                            _val_ci = None
+                            if isinstance(_v_ci, dict) and _v_ci.get("type") == "Var":
+                                _nm_ci = _v_ci.get("name")
+                                if (_nm_ci in _ci_params
+                                        and _ci_ptypes.get(_nm_ci, "") in ("", "int", "bool")):
+                                    _val_ci = whyml_ident(_nm_ci)
+                                    if _val_ci not in _ci_used:
+                                        _ci_used.append(_val_ci)
+                            elif isinstance(_v_ci, dict) and _v_ci.get("type") in (
+                                    "Num", "Number", "Int", "Constant"):
+                                _n_ci = _v_ci.get("value", _v_ci.get("n"))
+                                if not isinstance(_n_ci, bool) and isinstance(_n_ci, int):
+                                    _val_ci = ("(%d)" % _n_ci) if _n_ci < 0 else str(_n_ci)
+                            elif _v_ci is None and fn in defaults:
+                                _d_ci = defaults[fn]
+                                _val_ci = ("(%d)" % _d_ci) if _d_ci < 0 else str(_d_ci)
+                            if _val_ci is None:
+                                _ci_ok = False
+                                break
+                            _ci_vals[fn] = _val_ci
                     if _ci_ok:
                         _ci_allowed = set(_ci_labels) | {"true", "false", "not"}
                         _ci_strs = []
@@ -9279,18 +9332,64 @@ class PreambleEmissionMixin:
                             for _id_ci in re.findall(r"[A-Za-z_][A-Za-z_0-9']*", _s_ci):
                                 if _id_ci not in _ci_allowed:
                                     _ci_ok = False
+                        # `__init__`'s own `#@ requires`, lowered and appended as premises
+                        # AFTER the field bindings. Route #15 normalises `requires True`
+                        # away, so a trivial clause adds nothing. CENSUS: no PARAMLESS
+                        # constructor in the tree carries a non-trivial one, so increment
+                        # 1's emission is byte-identical.
+                        # THE PARAMETER CONTEXT IS NOT OPTIONAL, and it is the one
+                        # `_emit_init_contract_checks` already establishes for the same
+                        # clauses. Lowering a `#@ requires n >= 5` with no context emits
+                        # `val constant n : int` as an abstract operation, which then
+                        # COLLIDES with the record field label of the same name ("Symbol n
+                        # is already defined in the current scope" — measured). Passing the
+                        # parameters as `lr` instead makes them REFS and the clause lowers
+                        # to `!n >= 5` — also measured, also wrong. The symbol table plus
+                        # `_formal_params`/`_current_params` is the form a real function's
+                        # signature gets, and it is what produces `(n >= 5)`.
+                        _ci_reqs = []
+                        if _ci_ok and (_icc_ci.get("requires") or []):
+                            _prev_st_ci = getattr(self, "_current_symbol_table", None)
+                            _prev_fp_ci = getattr(self, "_formal_params", None)
+                            _prev_cp_ci = getattr(self, "_current_params", None)
+                            self._current_symbol_table = {_p: "int" for _p in _ci_params}
+                            self._formal_params = list(_ci_params)
+                            self._current_params = set(_ci_params)
+                            self._in_spec = True
+                            # NO `finally` HERE: `bin/check-dropped-mutation.py` ratchets on
+                            # the number of `try/finally` blocks in the emitter (TRYFINAL
+                            # 5), because Python runs a `finally` on every exit path and a
+                            # DROPPED one is a fail-open. The only statement between the
+                            # save and the restore is the lowering, and its exception is
+                            # caught right here — so an explicit restore is equivalent and
+                            # does not move a ratchet that exists for a different reason.
+                            try:
+                                for _r_ci in (_icc_ci.get("requires") or []):
+                                    _ci_reqs.append(self._expr_to_whyml(_r_ci, set()))
+                            except Exception:
+                                _ci_ok = False
+                            self._in_spec = False
+                            self._current_symbol_table = _prev_st_ci
+                            self._formal_params = _prev_fp_ci
+                            self._current_params = _prev_cp_ci
+                        for _s_ci in _ci_reqs:
+                            for _id_ci in re.findall(r"[A-Za-z_][A-Za-z_0-9']*", _s_ci):
+                                if _id_ci not in (_ci_allowed | set(_ci_used)):
+                                    _ci_ok = False
                         if _ci_ok and _ci_strs:
                             _ci_prem = " -> ".join(
-                                "%s = %s" % (_q(fn),
-                                             ("(%d)" % defaults[fn]) if defaults[fn] < 0
-                                             else str(defaults[fn]))
-                                for fn in field_names)
+                                ["%s = %s" % (_q(fn), _ci_vals[fn]) for fn in field_names]
+                                + _ci_reqs)
+                            _ci_binders = list(_ci_labels)
+                            for _u_ci in _ci_used:
+                                if _u_ci not in _ci_binders:
+                                    _ci_binders.append(_u_ci)
                             _ci_body = " /\\ ".join("(%s)" % _s for _s in _ci_strs)
                             _ci_gname = whyml_ident(type_name)
                             out.append("")
                             out.append(
                                 f"  goal _check_class_inv_{_ci_gname} : "
-                                f"forall {' '.join(_ci_labels)} : int. "
+                                f"forall {' '.join(_ci_binders)} : int. "
                                 f"{_ci_prem} -> {_ci_body}")
                 out.append("")
                 # UB-7.2 — hash/eq consistency. Module 5 marks classes

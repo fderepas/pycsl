@@ -152,3 +152,44 @@ THREE more carriers the goal cannot state — a field from an `__init__` PARAMET
 or control-flow store, and `@dataclass`. All three are RUNNABLE, and
 `bin/check-class-invariant-establishment.py` (new this generation) runs them against the
 corpus on every gate.
+
+## Bug 6 — `struct.unpack` returns a TUPLE, and six proof-cited corpus functions certify `\result == x`
+
+NOT a lowering bug like 1-5: this one lives in the SHIM CONTRACT and the PROOF ATTRIBUTION,
+one layer above the emitter. Recorded here anyway, because this file is the campaign's index
+of "a contract that is true of the model and false of the program".
+
+```python
+#@ requires 0 <= x and x <= 65535
+#@ ensures \result == x
+#@ proof rocq Pycsl.Struct.Std.round_trip_u16
+def roundtrip_u16(x: int) -> int:
+    packed = struct.pack('>H', x)
+    return struct.unpack('>H', packed)
+```
+
+    [+] Verification SUCCESS!        # CPython: (7,) — a tuple, and `(7,) == 7` is False
+
+SIX functions across THREE `# pycsl-expected: PASS` drivers — 0753 (2), 0778 (3), 0779 (1) —
+all carrying audited `#@ proof rocq` and `#@ proof lean` citations.
+
+MECHANISM. `src/pycsl_lib/strct/__init__.py` models `unpack` as returning the unpacked
+SCALAR and says so in its own docstring while quoting the RST sentence that contradicts it
+("The result is a tuple even if it contains exactly one item"). The registered axiom
+`Pycsl.Struct.Std.round_trip_u16` is a TRUE theorem about a big-endian byte codec returning
+an INT, cross-validated in both provers. What is wrong is the ATTRIBUTION: the Python
+function the theorem is attached to returns a tuple, and nothing in the 3-way cross-check
+compares the Rocq result TYPE with the Python return type.
+
+SEVERITY, measured: deleting the `#@ proof` lines from 0753 makes it FAIL, so the discharge
+is the audited-external-proof OPT-IN — not ordinary verification. A finding, not a SEV-1.
+
+HOW IT WAS FOUND — an EXCLUSION LIST, not an instrument. `check-corpus-contract-truth-args`
+had `\nothing` among "CSL tokens this oracle cannot evaluate"; `\nothing` can only appear in
+`#@ assigns \nothing`, a clause it never reads, and the filter tested the whole annotation
+block. Every empty-frame function was excluded: 416 -> 519 functions, 4367 -> 5750
+evaluations once it was narrowed to the clauses actually evaluated.
+
+STILL OPEN: `open-routes/finding-struct-unpack-returns-a-tuple.md`. The five the oracle can
+reach are in its `KNOWN_DIVERGENT` baseline, asserted exactly; the sixth (0779, `bytes`
+parameters) is outside every instrument's population and is recorded in the finding instead.

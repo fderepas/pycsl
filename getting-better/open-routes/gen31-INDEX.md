@@ -1,9 +1,17 @@
 # gen #31 — what to read first
 
-Three SEV-1 routes closed (#213 both arms, #224, **#225**), the directive-enforcement plane
-taken from 32 to 51 of 53, `#@ reveal` implemented, and SIX directives found dropping a name
-the user wrote in silence. Routes **#226 (NEW, SEV-1), #214 and #221 are OPEN** — check
+Three SEV-1 routes closed (#213 both arms, #224, **#225**), a FOURTH found and its first two
+increments landed (**#226**), the directive-enforcement plane taken from 32 to **52 of 53**,
+`#@ reveal` implemented, and NINE directives found dropping a name the user wrote in silence.
+Routes **#226 (one carrier left of four), #214 and #221 are OPEN** — check
 `bin/check-open-route-carriers.py`, which RUNS their carriers, before believing any index.
+
+THE SECOND HALF OF THE GENERATION WAS ABOUT INSTRUMENTS. Asked of route #226, "which
+existing instrument should have found this, and why did it not" produced two extensions and
+one new plane in a day — and then the same question, asked of an EXCLUSION LIST rather than
+of a population, produced the generation's other finding: `struct.unpack` returns a tuple,
+and six proof-cited corpus functions certify `\result == x`. Three instruments could have
+seen it and each had a different boundary.
 
 ## If you read one thing
 

@@ -9326,3 +9326,90 @@ THE BASELINE COPY IS STILL RUNNING (started 21:03, the same file with the one-li
 reverted). Its number is not needed to commit — the candidate proved, which is what the gate
 asked — but it is the difference between "this file takes three hours" and "this CHANGE made
 it take three hours", and it will be recorded when it lands.
+
+--------------------------------------------------------------------------------
+2026-09-24 21:58Z — COMMITTED `d8f0426c` (the seq-local widening). NINE commits this window.
+ROUTE #226 INCREMENT 2 is APPLIED and every landing check matches the prediction:
+
+    1890 FAILED · 1891 SUCCESS · 1892 **FAILED** (the debt witness flips) ·
+    1900 **FAILED** (`@dataclass`) · 1901 **SUCCESS** (the (u4) counter-program survives)
+    the PARAMETER carrier no longer SUCCEEDS — CLOSED
+    the COMPUTED-store carrier still SUCCEEDS — the one that remains, and named as such
+    class-invariant plane UNCHANGED at 75 classes / 84 clauses / 0 FALSE, exactly as
+      predicted (1892 and 1900 become expected-FAIL and are skipped; 1901's constructor
+      needs an argument so it was never `C()`-constructible)
+    **core-only conformance 38 OK / 0 MISMATCH** — increment 1's twelve refreshed goldens
+      are UNCHANGED, which is what the census of paramless constructors carrying a
+      non-trivial `#@ requires` (ZERO) said would happen
+    vacuity pre-check clean — the mechanical countermeasure, third use
+
+Gate launched.
+
+--------------------------------------------------------------------------------
+2026-09-24 22:04Z — ROUTE #226 INCREMENT 2's byte-diff is the census, exactly
+
+    1371 baseline / 1373 candidate .mlw — **1 MOVED**, 0 GONE, 0 APPEARED
+    MOVED 1; ONLY-ADDED-A-GOAL 1; OTHER 0
+        moved 1892_gen31_class_invariant_from_a_parameter_still_free.mlw
+
+The pre-gate census said the population that would newly receive a goal is **ONE**, and
+named it: this route's own debt witness. One file moved, it is that file, and its diff is a
+single added `goal _check_class_inv_c` line with no removals.
+
+That is the cleanest shape a soundness increment can have — a prediction with a name in it,
+and a byte-diff that returns the same name.
+
+--------------------------------------------------------------------------------
+2026-09-24 22:10Z — increment 2's gate went red on TWO ratchets, and BOTH were about the
+SHAPE of my code rather than about what it emits
+
+    [!] soundness-planes: 2 of 47 RED — check-mirror-coverage.py check-dropped-mutation.py
+    [!] dropped-mutation: TRYFINAL RATCHET BROKEN — 6 > 5.
+    [!] mirror-coverage: RATCHET BROKEN — 550 > 549 unmirrored def(s).
+
+Both are mine and both are the ratchets doing exactly their job:
+
+  * the patch used a nested helper `def _ci_value_of(...)` inside the emitter. A live `def`
+    with no mirror counterpart is not `\trusted`, it is ABSENT — it carries no marker, so
+    the headline count cannot see it. **Inlined.**
+  * the patch used `try/except/finally` to restore the signature context. Python runs a
+    `finally` on every exit path and a dropped one is a fail-open, so the number of them in
+    the emitter is ratcheted at 5. The only statement between the save and the restore is
+    the lowering, whose exception is caught right there, so an explicit restore is
+    equivalent. **`finally` removed.**
+
+Raising either ratchet would have been the easy move and the wrong one: they exist to make
+exactly these two shapes expensive, and the increment did not need either shape.
+
+After the rewrite: TRYFINAL 5/5, unmirrored 549/549, and all five witnesses unchanged
+(1890 FAILED · 1891 SUCCESS · 1892 FAILED · 1900 FAILED · 1901 SUCCESS).
+
+--------------------------------------------------------------------------------
+2026-09-24 22:21Z — increment 2's gate, second run, everything green up to the suite
+
+    corpus byte-diff   1371 / 1373 — 1 MOVED; MOVED 1, ONLY-ADDED-A-GOAL 1, OTHER 0
+    python-reference   2199 / 2199, 0 MOVED
+    conformance        core-only 38 OK / 0 MISMATCH (increment 1's twelve UNCHANGED) and
+                       front-end 38 OK / 0 MISMATCH
+    MIRROR             53 / 53, **0 MOVED** — no mirror class has a parameterised
+                       constructor in scope, so nothing to re-prove
+    fast planes        all 47 green, TRYFINAL back to 5/5 and unmirrored back to 549/549
+    suite              running
+
+--------------------------------------------------------------------------------
+2026-09-24 23:28Z — ROUTE #226 INCREMENT 2's GATE IS GREEN
+
+    corpus byte-diff   1371 / 1373 — 1 MOVED, audited ONLY-ADDED-A-GOAL, and it is the ONE
+                       file the census named (`1892`, this route's own debt witness)
+    python-reference   2199 / 2199, 0 MOVED
+    conformance        core-only 38 OK / 0 MISMATCH — increment 1's twelve goldens UNCHANGED
+                       front-end 38 OK / 0 MISMATCH
+    MIRROR             53 / 53, 0 MOVED
+    fast planes        all 47 green
+    suite              **4022 / 4040 passed** — the standing EIGHTEEN, ZERO XPASS
+
+4040 = 4038 + 2 witnesses, 4022 = 4020 + 2, and `1892` flipping from PASS to FAIL costs
+nothing because its EXPECTATION moved with it in the same commit. Predicted, then exact.
+
+ROUTE #226 NOW HAS **ONE** CARRIER of the four it was found with, and increments 1 and 2
+together close every shape the tree actually contains.

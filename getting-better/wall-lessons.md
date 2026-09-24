@@ -7200,3 +7200,24 @@ as if writing it fresh". That resolution has now failed three times.
 >>> Stop writing resolutions for this one. The countermeasure is mechanical and it belongs
 >>> in the landing script: `grep -n 'requires True' <the new witnesses>` before the gate
 >>> starts. It costs two seconds and it has cost four gate restarts.
+
+## (s5) Two ratchets fired on the SHAPE of my patch, not on what it emits
+
+Route #226 increment 2's gate went red twice, and neither was about the goal it emits:
+
+    [!] dropped-mutation: TRYFINAL RATCHET BROKEN — 6 > 5.
+    [!] mirror-coverage: RATCHET BROKEN — 550 > 549 unmirrored def(s).
+
+I had written a nested helper `def` inside the emitter (a live function with no mirror
+counterpart — ABSENT rather than `\trusted`, so the headline marker count cannot see it) and
+a `try/except/finally` to restore a saved context (Python runs a `finally` on every exit
+path; the emitter's count of them is ratcheted because a dropped one is a fail-open).
+
+The tempting move is to raise both by one with a sentence about why this case is fine. The
+increment did not need EITHER shape: the helper inlines into eight lines, and the only
+statement between the save and the restore is the one whose exception is already caught, so
+an explicit restore is equivalent.
+
+>>> A ratchet that fires on the SHAPE of a patch is asking whether the shape was necessary.
+>>> Answer that question before reaching for the constant — the constant is the record of
+>>> everyone who decided their case was special.
