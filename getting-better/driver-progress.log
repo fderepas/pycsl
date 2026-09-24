@@ -9463,3 +9463,30 @@ strings to the interpreter and then reporting the NameError as a contract defect
 
 All 47 planes green; the bite test bites harder (91 -> 123 disagreements with every
 exclusion dropped). `bin/` only, so no byte-diff is owed.
+
+--------------------------------------------------------------------------------
+2026-09-24 23:40Z — THE CONVERSION TRACK, PRICED BY TRYING RATHER THAN BY READING
+
+`frontend/Module1_Ingestor.py` proves in ~14 SECONDS, so a candidate can be converted on an
+offline copy and RUN for the cost of reading it. Three of its cheapest:
+
+    _emit_block_footer  (1 stmt)  REFUSED — `self._out.append(...)` has no certified
+                                  lowering (this campaign's own Bug 3), refused loudly
+    _normalize_leading  (2 stmts) `unbound function or predicate symbol
+                                  '_match_block_hdr'` — the helper it calls is `\trusted`,
+                                  and a `\trusted` stub is not emitted as a SYMBOL usable
+                                  inside a generator expression
+    _fold_clauses       (3 stmts) not attempted: returns a TUPLE and raises with an
+                                  f-string
+
+**The ten one-statement candidates are not ten chances at the same wall — they are behind
+DIFFERENT walls**, and the cheapest one in the cheapest file is behind a faithfulness bug
+this campaign has already recorded. Written into the backlog with the three things that
+would actually move the track, in order of what they unlock: the self-field `.append`
+write-back, emitting a `\trusted` stub as a usable symbol in expression position, then
+tuple returns.
+
+That is a better answer than the previous two generations' "the shortlist needs
+re-censusing", and it cost three twenty-second experiments. The lesson the backlog already
+carried — PRICE EACH CANDIDATE BY WHAT ITS BODY NEEDS — turns out to be cheapest to obey by
+just running it.

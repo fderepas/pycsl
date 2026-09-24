@@ -7221,3 +7221,26 @@ an explicit restore is equivalent.
 >>> A ratchet that fires on the SHAPE of a patch is asking whether the shape was necessary.
 >>> Answer that question before reaching for the constant — the constant is the record of
 >>> everyone who decided their case was special.
+
+## (t5) Price a conversion by RUNNING it, not by counting its statements
+
+Two generations of backlog entries have ranked `\trusted` conversion candidates by how many
+statements the live body has, and both shortlists died on a wall nobody had checked for the
+specific candidate. This generation's entry repeated the ranking and added a caution — "a
+one-statement body is not a one-statement MODEL" — which is true and still not a measurement.
+
+`frontend/Module1_Ingestor.py` proves in **fourteen seconds**. Converting a candidate on a
+copied tree and running it costs about twenty. Three attempts:
+
+    _emit_block_footer  REFUSED — `self._out.append(...)`, this campaign's own Bug 3
+    _normalize_leading  `unbound function or predicate symbol '_match_block_hdr'` — the
+                        helper it calls is `\trusted`, and a `\trusted` stub is not a
+                        SYMBOL usable inside a generator expression
+    _fold_clauses       returns a tuple, raises with an f-string
+
+Three candidates, three DIFFERENT walls. The ranked list had implied one wall and ten
+chances at it.
+
+>>> When the iteration loop is seconds, stop reasoning about feasibility and measure it.
+>>> And when you write a ranked shortlist, rank it by the ANSWER the tool gives, not by a
+>>> proxy — statement count is a proxy for cost, and it was wrong three times out of three.

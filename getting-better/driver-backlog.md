@@ -7053,3 +7053,36 @@ records. The last shortlist was built the same way (fewest lines first) and ever
 turned out to need the `seq`-vs-`array` bridge. **Price each candidate by what its body
 NEEDS, not by how long it is** — that is the lesson the `visit_FunctionDef` attempt paid
 for, and it is the reason this census lists what to read rather than what to convert.
+
+### THE CONVERSION SHORTLIST, PRICED (2026-09-24, ~20 seconds per attempt)
+
+`frontend/Module1_Ingestor.py` proves in ~14 seconds, so its stubs can be priced by TRYING
+them rather than by reading them. Three of its cheapest, each converted on an offline copy
+and run:
+
+  * **`_emit_block_footer`** (1 live statement) — REFUSED, and the refusal is Bug 3:
+
+        `self._out.append(...)` appends to the collection in the field `_out`, and no
+        certified lowering models it: the append is emitted against a FRESH LOCAL array
+        with no write-back … Rewrite it as an indexed store, or mark the method `\trusted`.
+
+  * **`_normalize_leading`** (2 statements) — `unbound function or predicate symbol
+    '_match_block_hdr'`. The helper it calls is itself `\trusted`, and a `\trusted` stub is
+    not emitted as a symbol usable inside a generator expression. **A conversion's cost
+    includes the conversion of everything it CALLS.**
+
+  * **`_fold_clauses`** (3 statements) — not attempted after reading it: it returns a
+    TUPLE `(clauses, i)` and raises with an f-string, two more walls again.
+
+So the ten one-statement candidates are not ten chances at the same wall; they are behind
+DIFFERENT walls, and the cheapest file's cheapest stub is behind the one this campaign
+already recorded as a faithfulness bug. That is the honest state of the conversion track,
+and it is a better answer than "the shortlist needs re-censusing" — which is what the
+previous two generations' entries said.
+
+WHAT WOULD ACTUALLY MOVE IT, in order of how much they unlock:
+  1. **the self-field `.append` write-back** (Bug 3). It is refused loudly, so it is not a
+     soundness hole — it is the single most common statement in the mirror.
+  2. **emitting a `\trusted` stub as a usable SYMBOL** in expression positions (generator
+     expressions, `any`/`all`), so a conversion does not drag its callees with it.
+  3. tuple returns, then f-strings.
