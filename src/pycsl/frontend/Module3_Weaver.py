@@ -390,6 +390,30 @@ class PyCSLWeaver(ast.NodeVisitor):
 
     def visit_Module(self, node: ast.Module) -> Any:
         """Attach module-level concurrency annotations (shared, mutex_invariant, lock_order)."""
+        # (#49) gen #31 — THE BINDING SET, for the mutex-name check in `visit_With`.
+        # `#@ critical` / `#@ acquires` / `#@ releases` naming something that does not
+        # exist verified silently (`no_such_lock` is a NameError in CPython). The three
+        # were caught only INDIRECTLY, and only when the block actually touched a
+        # protected shared variable — that is the protection analysis, not a name check.
+        # A file with a star import is exempt: its binding set is not knowable from here.
+        self._csl_bound_names = set()
+        self._csl_star_import = False
+        for _n_bn in ast.walk(node):
+            if isinstance(_n_bn, ast.Name) and isinstance(_n_bn.ctx, ast.Store):
+                self._csl_bound_names.add(_n_bn.id)
+            elif isinstance(_n_bn, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                self._csl_bound_names.add(_n_bn.name)
+            elif isinstance(_n_bn, ast.alias):
+                if _n_bn.name == "*":
+                    self._csl_star_import = True
+                else:
+                    self._csl_bound_names.add(
+                        (_n_bn.asname or _n_bn.name).split(".")[0])
+            elif isinstance(_n_bn, ast.arg):
+                self._csl_bound_names.add(_n_bn.arg)
+            elif isinstance(_n_bn, ast.Global):
+                for _g_bn in _n_bn.names:
+                    self._csl_bound_names.add(_g_bn)
         node.csl_shared_decls = []
         node.csl_mutex_invariants = {}
         node.csl_lock_order = None
@@ -424,6 +448,25 @@ class PyCSLWeaver(ast.NodeVisitor):
                     node.csl_acquires = c.mutex
                 elif isinstance(c, Releases):
                     node.csl_releases = c.mutex
+
+        # (#49) gen #31 — A MUTEX NAME THAT RESOLVES TO NOTHING. See `visit_Module` for
+        # the binding set and the (u4) reasoning behind the WEAK rule. `#@ releases` is
+        # the one that is never caught by anything else: `csl_releases` is set here and
+        # read by NO downstream stage, so the name had no second chance.
+        _bn_mx = getattr(self, "_csl_bound_names", None)
+        if _bn_mx is not None and not getattr(self, "_csl_star_import", False):
+            for _d_mx, _m_mx in (("critical", node.csl_critical_mutex),
+                                 ("acquires", node.csl_acquires),
+                                 ("releases", node.csl_releases)):
+                if _m_mx and str(_m_mx) not in _bn_mx:
+                    raise PyCSLSemanticError(
+                        "`#@ %s %s` names a mutex that is bound nowhere in this file, "
+                        "and the directive was silently dropped — the file still "
+                        "reported success while the lock it names does not exist (it "
+                        "is a NameError in CPython). FIX: correct the spelling, or "
+                        "declare `%s` in this module."
+                        % (_d_mx, _m_mx, _m_mx),
+                        stage="Module3", code="PYCSL-SEM-MUTEX-UNKNOWN-NAME")
 
         self.generic_visit(node)
 

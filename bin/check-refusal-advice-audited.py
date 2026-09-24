@@ -175,6 +175,9 @@ AUDITED = {
     ('src/pycsl/pycsl.py',
      '_PyCSLSemErrLem("`#@ lemma` \'%s\' (line %d) has no `#@ assigns` clause, and a lemma must state `#@ assigns \\\\nothing` explicitly. The clause '): (FOLLOWABLE,
         "'add `#@ assigns \\\\nothing` to it' — control 1848 is the same lemma with the clause, and it VERIFIES. The witness is 1847."),
+    ("src/pycsl/frontend/Module3_Weaver.py",
+     "PyCSLSemanticError('`#@ %s %s` names a mutex that is bound nowhere in this file, and the directive was silently dropped — the file still rep"): (FOLLOWABLE,
+        "'correct the spelling, or declare `<m>` in this module' — control 1894 is 1893 with `lock_bal` for the misspelling, and it VERIFIES. The witnesses are 1893 (`#@ releases`, the one NOTHING downstream could have caught) and 1895 (`#@ critical` in a block that touches nothing shared — the file that corrected this session's own silent-name sweep)."),
     ('src/pycsl/pycsl.py',
      "_PyCSLSemErrGt('`#@ ghost %s : %s` names no ghost type. The declared type must be one of %s; an unrecognised keyword was silently treated as"): (FOLLOWABLE,
         "'the declared type must be one of <the nine>' — control 1887 is 1886 with `ghost_list` for the misspelling, and it VERIFIES. The witness is 1886. NOTE the SECOND control the same pair carries: 1889 is the UNTYPED `#@ ghost x = 0`, which is `int` BY DESIGN (annotations.md §11) and must keep verifying — the refusal is about a keyword that resolves to nothing, not about omitting one."),
@@ -901,7 +904,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 114
+MIN_AUDITED = 115
 
 if __name__ == "__main__":
     sys.exit(main())

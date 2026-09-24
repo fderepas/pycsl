@@ -1492,6 +1492,18 @@ statement for leading-line module annotations.
   havoc+assume/assert invariant pairs.
 - `#@ releases <mutex>` is stored on the `with` node but does not currently generate
   extra WhyML. It is informational (documents the release point for manual protocols).
+- **The NAME is checked, in all three.** A `#@ critical` / `#@ acquires` / `#@ releases`
+  whose mutex is bound nowhere in the file is refused with `PYCSL-SEM-MUTEX-UNKNOWN-NAME`
+  (witness `1893`, control `1894`, and `1895` for the `#@ critical` case). Before this,
+  all three verified silently, and `#@ releases` could never have been caught by anything
+  downstream because nothing reads `csl_releases`. The rule is deliberately the WEAKEST
+  one that catches the typo — bound SOMEWHERE in the file, not "in the mutex registry" —
+  because a lock protecting an invariant PyCSL does not model is legitimately annotated
+  and legitimately absent from the registry. A file with a star import is exempt.
+  NOTE what this is NOT: an unknown name in a block that WRITES a protected shared
+  variable was already refused, by the protection analysis ("held mutexes are
+  ['no_such_lock']") — a statement about protection, not about the name. Take the shared
+  access out of the block and the old behaviour was silence.
 
 ### 10.3 Minimal Example
 

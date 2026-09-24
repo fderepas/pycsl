@@ -11032,3 +11032,37 @@ mirror edits; run it after ANY `src/pycsl/` change.
 #
 #    A GATE STEP EVERY EMISSION CHANGE OWES (learned at 12:26Z, see above): the 38 FROZEN
 #    conformance goldens. `gate_r226.sh` now runs both conformance runners explicitly.
+
+# ======================================================================================
+# ## UPDATE 2026-09-24T15:03Z — FIVE COMMITTED; mutex GATING; the FIELD increment costs more
+# ## than its backlog entry says
+#
+#    `9f75cc69` imports + route #226's record/carrier + two findings
+#    `ce548805` the KEYWORD pair (witness floor 202->204, advice 113->114)
+#    `3cf98e40` corpus-contract-truth 390 -> 432 contracts
+#    `80bf4985` **ROUTE #226 increment 1** — the SEV-1's first repair. 60 corpus modules and
+#               12 frozen goldens gain a goal, every move audited ONLY-ADDED-A-GOAL.
+#               Suite 4013/4031 = the standing EIGHTEEN, ZERO XPASS.
+#    `9b93f265` the CLASS-INVARIANT PLANE (47 planes green, MIN_PLANES 46->47)
+#
+#    MUTEX is APPLIED and gating (`gate_mutex2.log`). It cost a lesson: the choke-point rule
+#    covers the MARKER, not the EMISSION. A new `raise` from a `\trusted`-twinned function
+#    moved FOUR mirror emissions and broke `check-trusted-raises-honesty`'s SILENT ratchet
+#    (62 -> 63). Fixed by declaring `#@ raises PyCSLSemanticError when True` on the mirror
+#    stub; all four moved mirror files re-proved SUCCESS. Wall-lesson (k5).
+#
+#    THE FIELD INCREMENT MOVES **EIGHT** MIRROR EMISSIONS, not the two its backlog entry
+#    claims — measured with a sweep on a copied tree. The six extra are `str` fields that
+#    were modelled as `int` (`pycslerror_filename`, `module1_ingestor.source_code`,
+#    `concurrencychecker.filename`, …), so the repair is BETTER than advertised and the gate
+#    is LONGER. Four of the eight already re-proved SUCCESS offline (`errors`,
+#    `Module1_Ingestor`, `ConcurrencyChecker`, `Module6_WhyMLTranspiler` running).
+#    Wall-lesson (l5): a census of SITES is not a census of EMISSIONS.
+#
+#    MEASURED MIRROR PROOF TIMES (budget with these): `frontend/Module3_Weaver` ~4 min,
+#    `frontend/ir_resolve` ~22 min, `frontend/__init__` ~24 min, `pycsl` ~29 min,
+#    `module6_whyml/expressions` **>66 min, unfinished**. Every gate now re-proves the
+#    DYNAMICALLY DISCOVERED moved set rather than a hardcoded list, and `gate_seq.sh` was
+#    changed from the full 53-file self-annotation suite to that same rule.
+#
+#    QUEUE: mutex (gating) -> field -> seq-local -> route #226 increment 2.

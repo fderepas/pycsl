@@ -623,3 +623,42 @@ emitted with `--no-proof --keep-mlw` against increment 2's tree:
 so the scope gate excludes them, as the field-type test and the identifier test predict. Two
 minutes of emission, and it turns "almost certainly" into "measured on the seven that worry
 me most". The gate still lists every moved file by name.
+
+## INCREMENT 3 — the LAST carrier, and why it is a different kind of work
+
+After increment 2 the route has ONE carrier: a constructor that COMPUTES the field's value.
+
+    #@ ensures \result == 3
+    def three() -> int: return 3
+
+    #@ class invariant self.n >= 5
+    class C:
+        def __init__(self) -> None:
+            self.n = three()          # SUCCESS; `read(C())` is 3 in CPython
+
+Module 5 marks `n` in `init_unknown_fields` and `init_body` is EMPTY — the call is dropped —
+so Module 6 has nothing to state an obligation about, and emitting the premise-free
+`forall n. n >= 5` would refuse a class whose computation DOES satisfy its invariant. That
+is the (u4) case again, and it is decisive: the honest obligation needs the CALLEE'S
+POSTCONDITION.
+
+THE SHAPE, if someone builds it:
+
+    goal _check_class_inv_<C> :
+      forall <labels> : int.
+        <callee's `#@ ensures` with `\result` replaced by the field's label> -> …
+        (<inv>)
+
+so `three()`'s `\result == 3` becomes the premise `n = 3`, and `forall n. n = 3 -> n >= 5`
+is FALSE — correct — while a `three()` ensuring `\result >= 5` discharges it.
+
+WHAT IT COSTS, and this is why it is not increment 2's sibling: **Module 5 must record the
+call**. `init_body` carries `{'field': …, 'value': <IR>}` only for literals and names; a
+`Call` value is dropped and the field goes to `init_unknown_fields` instead. Carrying it is a
+new IR key or a widened `init_body`, and EITHER moves `*.ir.json` — which is the
+conformance-golden question increments 1 and 2 both avoided, and the one that raises
+docs/ir.md §10's version bump.
+
+SCOPE, from census A: 24 of 184 classes have a COMPUTING constructor. The subset whose
+computation is a single call to a contract-carrying function is smaller still and has not
+been counted — count it before building.

@@ -8796,3 +8796,156 @@ The CLASS-INVARIANT PLANE's gate: **all 47 plane(s) green** — the count moved 
 which is the point of bumping MIN_PLANES in the same commit. No byte-diff owed: the diff is
 one new file under `bin/`, one registration line, and the standing `.aux` exhaust.
 Sensitivity re-confirmed on the three open shapes at landing time, not only at design time.
+
+--------------------------------------------------------------------------------
+2026-09-24 13:43Z — COMMITTED `9b93f265` (the class-invariant plane, 47 planes green).
+The MUTEX increment is APPLIED and its landing checks all pass:
+
+    1893 REFUSED · 1894 SUCCESS · 1895 REFUSED
+    all 32 corpus files using `#@ critical` / `#@ acquires` / `#@ releases`: verdicts
+      unchanged, exactly as the two-tree pre-gate predicted
+    **directive-enforcement: 52 of 53**, `thread_entry` the only uncovered, and every
+      covered directive BITES
+
+BOTH DEBT PLANES PAID IN THE SAME INCREMENT, again:
+  * `--append-new` added rows for 1893 and 1895 — ONE refusal site, TWO witnesses, because
+    the two directives fail for different reasons and only one of them (`#@ releases`) could
+    ever have been caught by anything downstream. Floor 204 -> 205, ceiling still exactly
+    met at 5.
+  * the advice row records that control 1894 IS the program the message recommends, and
+    names both witnesses including the one that CORRECTED this session's own sweep.
+    Floor 114 -> 115.
+
+--------------------------------------------------------------------------------
+2026-09-24 13:52Z — THE MUTEX GATE WENT RED ON A PLANE I DID NOT PREDICT, and the plane is
+right: **"the mirror twin is `\trusted`, so a refusal there is free" is true of the MARKER
+COUNT and false of the EMISSION**
+
+    [!] soundness-planes: 1 of 47 RED — check-trusted-raises-honesty.py(rc=1)
+    [-] trusted-raises-honesty: SILENT RATCHET BROKEN — 63 > 62.
+
+The choke-point rule — put a refusal where the mirror twin is `\trusted`, so no marker is
+added and no converted body is re-proved — held for `visit_With`. What it does NOT cover is
+that a `\trusted` stub with no `#@ raises` **asserts that its call has ONE exit path**, and
+a new `raise` in the live body makes that assertion false. The ratchet counts exactly those
+stubs and it moved by one.
+
+THE MIRROR BYTE-DIFF SAW IT FIRST, and I read it as drift before the plane named it:
+
+    MIRROR 53/53, 2 MOVED — frontend____init__.mlw and frontend__ir_resolve.mlw
+    +  val pycslweaver__visit_With (self: pycslweaver) (node: int) : unit
+    +    raises { PyCSLSemanticError }
+
+That is the honest declaration APPEARING, not drift. The fix is one line in the mirror stub,
+in the form `ConcurrencyChecker.check` and `import_classifier` already use —
+`#@ raises PyCSLSemanticError when True` — and the plane returns to 62 SILENT with 14 -> 15
+declared.
+
+TWO COSTS OF GETTING THERE, both recorded rather than tidied away:
+  * the gate's suite had already started against the pre-fix tree and was killed, along with
+    its orphaned children (a killed `run-reference-tests.sh` leaves per-file `pycsl.py`
+    processes behind; they have to be killed by PID);
+  * `gate_mutex.sh` did not re-prove the moved mirror files at all. It does now — a mirror
+    emission that MOVES must be re-proved, which is the same rule the seq-local increment
+    already has in its gate and which this one should have had from the start.
+
+--------------------------------------------------------------------------------
+2026-09-24 13:58Z — the mirror emission moved FOUR files, not two, and the extra two are the
+`#@ raises` DECLARATION doing its job
+
+Adding `#@ raises PyCSLSemanticError when True` to the mirror's `visit_With` stub changed the
+emission again, and in the right direction:
+
+    frontend__Module3_Weaver.mlw  + raises { PyCSLSemanticError -> true }
+    pycsl.mlw                     + raises { PyCSLSemanticError -> true }
+    frontend____init__.mlw        + raises { PyCSLSemanticError }        (from the live body)
+    frontend__ir_resolve.mlw      + raises { PyCSLSemanticError }        (ditto)
+
+The first two carry the DECLARED clause (`-> true`, the `when True` guard); the other two
+carry the val's inferred one. Four mirror files must therefore be re-proved, and the gate as
+written re-proves two — the other two are running beside it. The gates for the FIELD and the
+route #226 increment-2 increments were rewritten to discover the moved set DYNAMICALLY
+rather than name it, which is what this should have done from the start.
+
+    `src/self-annotate/src/frontend/Module3_Weaver.py` — the mirror file whose stub gained
+    the `#@ raises` line — **[+] Verification SUCCESS! All contracts formally proven.**
+    (~4 minutes). The declaration is provable, which is the point: a `#@ raises` on a
+    `\trusted` stub is a REVIEWER'S claim, and this one matches the live body.
+    `src/self-annotate/src/frontend/__init__.py` — **SUCCESS** (~24 minutes).
+
+MIRROR PROOF TIMES, measured today and worth budgeting with: `frontend/Module3_Weaver.py`
+~4 min, `frontend/__init__.py` ~24 min, `module6_whyml/expressions.py` **>66 min and did not
+finish** (killed). A "re-prove the moved mirror files" gate step is therefore an HOURS-scale
+commitment when the moved set includes one of the big ones — `timeout 43200` on it is not
+decoration, and it should not run concurrently with another gate's suite.
+    `src/self-annotate/src/pycsl.py` — **SUCCESS** (~29 minutes). All FOUR moved mirror
+    files re-proved: `frontend/Module3_Weaver.py`, `pycsl.py`, `frontend/__init__.py`, and
+    `frontend/ir_resolve.py` (running).
+    `src/self-annotate/src/frontend/ir_resolve.py` — **SUCCESS** (~22 minutes). ALL FOUR
+    moved mirror files re-proved. The `#@ raises` declaration on a `\trusted` stub is a
+    reviewer's claim, and on all four files it holds.
+
+--------------------------------------------------------------------------------
+2026-09-24 14:52Z — the FIELD increment's mirror blast radius is FOUR TIMES what the backlog
+said, and the extra is a REAL FAITHFULNESS REPAIR
+
+The backlog says the field-param fix "moves exactly the two mirror emissions the repair
+exists to unblock". A mirror sweep on an offline copy says **8 MOVED**:
+
+    Module6_WhyMLTranspiler · errors · frontend/ConcurrencyChecker · frontend/Module1_Ingestor
+    frontend/Module3_Weaver · frontend/__init__ · frontend/ir_resolve · pycsl
+
+and the diffs are not incidental — they are the model becoming FAITHFUL:
+
+    - type pycslerror = { mutable pycslerror_filename: int;  … pycslerror_stage: int … }
+    + type pycslerror = { mutable pycslerror_filename: string; … pycslerror_stage: string … }
+    - type module1_ingestor = { mutable source_code: int }
+    + type module1_ingestor = { mutable source_code: string }
+    - concurrencychecker … mutable filename: int …
+    + concurrencychecker … mutable filename: string …
+
+`self.filename = filename` where the parameter is annotated `str` was modelled as an INT.
+Eight mirror files carried that erasure. **A census of SITES is not a census of EMISSIONS**:
+111 assignment sites, only 5 container-typed, ZERO in the corpora — all true, and it still
+moves 8 mirror modules, because the fix applies to `str` as well as to containers and the
+mirrors are full of `self.<f> = <str param>`.
+
+CONSEQUENCE FOR THE GATE: eight mirror re-proofs, and today's measurements say that is an
+HOURS-scale step (`frontend/__init__.py` ~24 min, `pycsl.py` ~29 min, `ir_resolve.py`
+~22 min). The four small ones are running now for early signal, because a string field where
+an int was assumed is exactly the kind of change that can make a converted body stop proving.
+
+--------------------------------------------------------------------------------
+2026-09-24 15:28Z — the FIELD increment's four smallest moved mirrors all PROVE
+
+    errors.py                         SUCCESS  (2 s)
+    frontend/Module1_Ingestor.py      SUCCESS  (14 s)
+    frontend/ConcurrencyChecker.py    SUCCESS  (17 s)
+    Module6_WhyMLTranspiler.py        SUCCESS  (~35 min)
+
+so turning `self.filename = filename` from an int-erased field into a real `string` field
+does not break the converted bodies that read it — measured on the four where a break was
+most likely, before the increment is applied to the tree at all. The other four
+(`Module3_Weaver`, `frontend/__init__`, `ir_resolve`, `pycsl`) are the expensive ones and
+are the field gate's job.
+
+`Module6_WhyMLTranspiler` at ~35 minutes is a new entry in the proof-time table and the
+longest that has actually FINISHED.
+
+--------------------------------------------------------------------------------
+2026-09-24 15:47Z — THE MUTEX GATE IS GREEN
+
+    corpus byte-diff   1366 / 1367, 0 MOVED / 0 GONE / 0 APPEARED (+1 = 1894, the only
+                       PASSing witness of the three)
+    python-reference   2199 / 2199, 0 MOVED
+    MIRROR             53 / 53, **4 MOVED** — expected and audited: the `#@ raises` clause
+                       appearing on `pycslweaver__visit_With`, in the two files that declare
+                       it (`-> true`, the `when True` guard) and the two that infer it.
+                       ALL FOUR RE-PROVED: `frontend/Module3_Weaver` (~4 min), `pycsl`
+                       (~29 min), `frontend/__init__` (~24 min), `frontend/ir_resolve`
+                       (~22 min), every one **Verification SUCCESS**.
+    fast planes        all 47 green, `trusted-raises-honesty` back to 62 SILENT / 15 declared
+    directive plane    **52 of 53**
+    suite              **4016 / 4034 passed** — the standing EIGHTEEN, ZERO XPASS
+
+4034 = 4031 + 3 witnesses, 4016 = 4013 + 3. Predicted, then exact.

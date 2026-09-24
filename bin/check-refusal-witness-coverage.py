@@ -142,7 +142,12 @@ CENSUS_TRUNC = 4000       # the writer's message cap. See the TRUNCATION GUARD b
                           # stored message of EXACTLY this length was cut, and a cut
                           # message silently un-witnesses every site whose fragment falls
                           # past the cut.
-MIN_WITNESSED = 204       # (#49) gen #31: 202 -> 204 with the KEYWORD pair — `#@ ghost`'s
+MIN_WITNESSED = 205       # (#49) gen #31: 204 -> 205 with the MUTEX-NAME refusal
+                          # (witnesses 1893 `#@ releases` and 1895 `#@ critical`; one
+                          # refusal site, two witnesses, because the two directives
+                          # fail for different reasons and only one of them could
+                          # ever have been caught by anything downstream).
+                          # 202 -> 204 came with the KEYWORD pair — `#@ ghost`'s
                           # type keyword (witness 1886) and `#@ proof`'s prover keyword
                           # (1888). The same family as the three below, found by
                           # re-running its sweep with the phrase corrected from "admits

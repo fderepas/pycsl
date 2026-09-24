@@ -264,6 +264,7 @@ class PyCSLWeaver(ast.NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
+    #@ raises PyCSLSemanticError when True
     #@ assigns self._source
     def visit_With(self, node: ast.With) -> Any:
         return None

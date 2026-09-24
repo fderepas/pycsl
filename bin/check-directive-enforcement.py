@@ -52,9 +52,16 @@ its own witness/control pair in the corpus (`1861`/`1862`). See
   * `thread_entry`    — `ConcurrencyChecker` collects the names into `_thread_entries`,
                         which is never read; the IR key has no Module-6 consumer. The
                         UB-7.3 refusal fires identically with and without it.
-  * `releases`        — parsed onto `node.csl_releases`, read by nothing (and honestly
-                        documented as informational). Both in
-                        `finding-thread-entry-and-releases-are-inert.md`.
+`releases` used to sit beside `thread_entry` on this list and no longer does, WITHOUT its
+inertness being repaired — which is worth stating plainly, because it is the only entry that
+left for this reason. Nothing reads `node.csl_releases`; what gained teeth is its ARGUMENT.
+A `#@ releases` naming a lock bound nowhere in the file is now refused
+(`PYCSL-SEM-MUTEX-UNKNOWN-NAME`), so the directive has a violating program at last, and it
+is a one-identifier diff from the satisfying one. The pair below therefore certifies that
+the NAME is checked and says nothing about the directive having semantics — see
+`getting-better/open-routes/finding-a-mutex-name-that-resolves-to-nothing.md`, which also
+corrects this generation's silent-name sweep: `#@ critical`'s apparent refusal of an unknown
+name was the PROTECTION analysis answering, not a name check.
 
 `reveal` used to be listed here too, on TWO successive excuses, and is now COVERED. First
 it was unimplemented (gen #31 implemented it: `#@ reveal <fn>` carries the definition-fact
@@ -120,7 +127,7 @@ DRIVER = os.path.join(ROOT, "src", "pycsl", "pycsl.py")
 # (#49) gen #31 — the floor. It starts at the number of pairs written in the commit that
 # introduced the plane, and only ever rises. A directive whose pair is DELETED, or a new
 # directive added to annotations.md without one, drops the fraction and turns this red.
-MIN_COVERED = 51
+MIN_COVERED = 52
 
 
 def population():
@@ -508,6 +515,17 @@ CASES = {
         '        counter = 1\n    return 0\n',
         _CONC_HDR + '    #@ acquires lock_counter\n    with lock_counter:\n'
         '        counter = 1\n    return 0\n',
+        ["--memory-model", "concurrent", "--strict-concurrent-checks", "--no-proof"]),
+    "releases": (  # `#@ releases L` — the explicit-release spelling; INERT in the WhyML
+        # VIOLATE: the release names a lock bound NOWHERE in the file (a `NameError` in
+        # CPython). Unlike every other pair in this family, the two halves differ by an
+        # IDENTIFIER and not by a semantics — because the directive has no semantics to
+        # differ by. Keeping that distinction visible is the point: this pair certifies
+        # that the ARGUMENT is checked, not that `#@ releases` does anything.
+        _CONC_HDR + '    #@ acquires lock_counter\n    #@ releases no_such_lock\n'
+        '    with lock_counter:\n        counter = 1\n    return 0\n',
+        _CONC_HDR + '    #@ acquires lock_counter\n    #@ releases lock_counter\n'
+        '    with lock_counter:\n        counter = 1\n    return 0\n',
         ["--memory-model", "concurrent", "--strict-concurrent-checks", "--no-proof"]),
     "lock_order": (  # `#@ lock_order m1, m2` — a TOTAL order on nested acquisition
         # Needs its own header (a second protected global, and the order declaration itself),

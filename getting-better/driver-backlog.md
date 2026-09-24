@@ -6929,3 +6929,20 @@ LINES, and it needs two patches and a design decision. Both patches are still wo
 on their own merits — (1) is censused corpus-byte-inert and (2) is a consolidation — but
 neither should be sold as "the conversion increment", and the conversion should not be
 queued behind them as though it were mechanical.
+
+### AFTER THE FIELD INCREMENT LANDS: RE-CENSUS THE CONVERSION SHORTLIST
+
+The field-param fix turns `self.<f> = <str param>` from an int-erased field into a real
+`string` field in EIGHT mirror modules (`errors`, `Module1_Ingestor`, `ConcurrencyChecker`,
+`Module6_WhyMLTranspiler`, `Module3_Weaver`, `frontend/__init__`, `ir_resolve`, `pycsl`).
+Every `\trusted` stub in those modules whose body reads such a field was, until now,
+un-convertible for a reason that has just gone away: its model said `int` where the source
+says `str`.
+
+The conversion shortlist was built BEFORE that, and it was built by looking for containers.
+**Re-run it against string-typed fields once this lands** — the question is which
+`\trusted` bodies are now expressible, not which ones were.
+
+This does NOT unblock `PyCSLWeaver.visit_FunctionDef`, which needs the `seq`-vs-`array`
+bridge (`finding-a-list-out-of-a-dict-cannot-be-passed-anywhere.md`). It is a different
+vein, and it is newly open.

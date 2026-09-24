@@ -7026,3 +7026,52 @@ first question.
 >>> When you discover that the data you need is already in the IR, keep reading the CONSUMER
 >>> that put it there. It has already solved the lowering, the context, and the edge case you
 >>> are about to rediscover — and its comments are the record of which wrong forms were tried.
+
+## (k5) The choke-point rule covers the MARKER, not the EMISSION
+
+Routes #206-#215, #222, #223 and this generation's silent-name family all use the same
+device: put the refusal where the mirror twin is `#@ \trusted`, so no marker is added and no
+converted body has to be re-proved. I have written "mirror cost: none" for it many times.
+
+The mutex-name refusal raises from `PyCSLWeaver.visit_With`, whose twin is `\trusted`. The
+marker count did not move. The gate went red anyway:
+
+    [-] trusted-raises-honesty: SILENT RATCHET BROKEN — 63 > 62. A `\trusted` stub with no
+        `#@ raises` asserts that its call has ONE exit path; nothing will ever contradict
+        it, because a `\trusted` body is never lowered.
+
+and the mirror byte-diff had already shown it, in two files:
+
+    + val pycslweaver__visit_With (self: pycslweaver) (node: int) : unit
+    +   raises { PyCSLSemanticError }
+
+I read that as drift for ten minutes before the plane told me what it was. The stub's
+`raises` set follows the LIVE body whether or not the body is lowered, so a new `raise` moves
+the emission of every mirror file that declares the stub — and those files must be re-proved.
+
+>>> "The twin is `\trusted`" answers ONE question: does a converted body have to be
+>>> re-verified. It does not answer whether the EMISSION moves. A new `raise` moves it; so
+>>> would a new `assigns`. Before calling a mirror cost zero, name which of the three costs
+>>> you mean — marker, emission, proof — and check the emission with a sweep.
+
+## (l5) A census of SITES is not a census of EMISSIONS
+
+The field-param fix was censused carefully: 111 `self.<f> = <annotated __init__ param>` sites
+tree-wide, by annotation head (int 85 · str 9 · ast.AST 4 · …), only FIVE container-typed,
+**zero in either corpus**. From that I wrote, twice, that it "moves exactly the two mirror
+emissions the repair exists to unblock".
+
+A mirror sweep on an offline copy says **eight**. The six I did not predict are the `str`
+ones — `self.filename = filename`, `self.source_code = source_code`,
+`self.stage = stage` — which the census counted (9 of them, under "str") and which I then
+ignored because I was looking for CONTAINERS. Their emissions had been modelling a Python
+`str` field as an `int`, in `errors.py`, `Module1_Ingestor`, `ConcurrencyChecker`,
+`Module6_WhyMLTranspiler`, `pycsl.py` and three more.
+
+The repair is better than I thought and the gate is longer than I budgeted: eight mirror
+re-proofs, hours of prover time.
+
+>>> Counting the SITES a change touches answers "how much source is affected". It does not
+>>> answer "how many emitted modules move", and only the second one tells you what the gate
+>>> costs. Run the sweep — it is two minutes on a copied tree — before writing a blast-radius
+>>> sentence into a backlog that the next person will believe.
