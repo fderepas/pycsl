@@ -7086,3 +7086,40 @@ WHAT WOULD ACTUALLY MOVE IT, in order of how much they unlock:
   2. **emitting a `\trusted` stub as a usable SYMBOL** in expression positions (generator
      expressions, `any`/`all`), so a conversion does not drag its callees with it.
   3. tuple returns, then f-strings.
+
+### CORRECTION: the conversion track's blockers, RANKED BY COUNT (2026-09-24)
+
+The entry above says the self-field `.append` is "the single most common statement in the
+mirror". **It is not**, and the number was never measured — it came from the refusal message
+being the first wall I hit. Censusing all 442 `\trusted` mirror stubs whose live twin
+exists, by what their live body contains:
+
+    f-string              186        try                 56
+    comprehension         170        tuple return        31
+    dict literal          160        with                22
+    regex / str-split      64        lambda              21
+                                     self-field .append  11
+                                     yield                5
+    none of the above      91
+
+So the append wall blocks **11 of 442**, and the three that actually dominate are f-strings,
+comprehensions and dict literals. The ordering in the entry above (append first) is wrong
+and is corrected here rather than edited away, because the mistake is instructive: a REFUSAL
+MESSAGE tells you what stopped YOU, not what stops the population.
+
+AND THE 91 "CLEAN" ONES ARE NOT A SHORTLIST EITHER. Tightening the filter gives 68, and
+spot-reading three of them shows the filter still under-counts:
+
+    `module6_whyml/identifiers.py::stable_hash`  — one statement, and it is
+        `int(hashlib.sha256(s.encode()).hexdigest()[:8], 16) % 2147483647`. An external
+        library call: `\trusted` by necessity, not by neglect.
+    `frontend/ConcurrencyChecker.py::_walk_stmt` — "one statement" is an if/elif chain over
+        AST node types with set literals and set union.
+    `frontend/Module1_Ingestor.py::_emit_suite`  — one statement, a nested recursion over
+        `child_suites`.
+
+**Top-level statement count is a proxy and it has now been wrong four times.** The only
+honest price is the one lesson (t5) already gives: convert it on a copied tree and RUN it,
+which costs ~20 seconds in the cheap files (`Module1_Ingestor` ~14 s, `ConcurrencyChecker`
+~17 s). The list above is a list of things to TRY, in that order of cheapness — not a list
+of things that will work.

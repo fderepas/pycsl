@@ -7244,3 +7244,23 @@ chances at it.
 >>> When the iteration loop is seconds, stop reasoning about feasibility and measure it.
 >>> And when you write a ranked shortlist, rank it by the ANSWER the tool gives, not by a
 >>> proxy — statement count is a proxy for cost, and it was wrong three times out of three.
+
+## (u5) A refusal message tells you what stopped YOU, not what stops the population
+
+Pricing the `\trusted` conversion track, the first candidate I tried was refused with
+
+    `self._out.append(...)` appends to the collection in the field `_out`, and no certified
+    lowering models it …
+
+so I wrote into the backlog that the self-field `.append` is "the single most common
+statement in the mirror" and ranked it first among the things that would unlock the track.
+
+Censused: it blocks **11 of 442** stubs. The three that actually dominate are f-strings
+(186), comprehensions (170) and dict literals (160).
+
+The message was accurate and my generalisation from it was not. One refusal is a sample of
+size one, drawn from wherever I happened to start.
+
+>>> A refusal names the wall in front of you. Ranking repair work needs the DISTRIBUTION of
+>>> walls, and that is a census over the whole population — cheap, mechanical, and the thing
+>>> I skipped because the message sounded like a finding.
