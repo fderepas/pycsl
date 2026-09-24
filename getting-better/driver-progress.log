@@ -9413,3 +9413,53 @@ nothing because its EXPECTATION moved with it in the same commit. Predicted, the
 
 ROUTE #226 NOW HAS **ONE** CARRIER of the four it was found with, and increments 1 and 2
 together close every shape the tree actually contains.
+
+--------------------------------------------------------------------------------
+2026-09-24 23:29Z — TEN COMMITS this window, and the queue is EMPTY
+
+    9f75cc69  the import pair + route #226's record and carrier + two findings
+    ce548805  the KEYWORD pair, both debt planes paid
+    3cf98e40  corpus-contract-truth 390 -> 432 contracts
+    80bf4985  **ROUTE #226 increment 1**
+    9b93f265  the CLASS-INVARIANT PLANE (47 planes)
+    c7d33e52  the mutex-name refusal (directive plane 52 of 53)
+    eca4b0c8  the field-param fix (8 mirror modules re-typed)
+    b70ae430  the ARGS ORACLE widened, 4367 -> 5750 evaluations, five KNOWN divergences
+    d8f0426c  `len()` of a `seq int` local
+    2bde484b  **ROUTE #226 increment 2**
+
+The seq BASELINE timing proof is still running at 2h25m (the candidate took 2h57m), so the
+honest reading so far is "this file is slow", not "the widening made it slow" — and the
+final number goes in when it lands.
+
+NEXT, from the backlog's own order: the ARGS-ORACLE STRING WIDENING (specified by what it
+would have to catch — `0779`, the sixth `struct.unpack` instance, needs a `str`/`bytes`
+pool AND `\length` translated AND a non-int `\result`, and any one alone still misses it),
+then the `\trusted` CONVERSION re-census (103 stubs in the eight re-typed mirror modules,
+ten with a one-statement live body, and `frontend/Module1_Ingestor.py` proves in ~14
+SECONDS — by far the cheapest iteration loop in the tree).
+
+--------------------------------------------------------------------------------
+2026-09-24 23:37Z — the ARGS ORACLE REACHES `str`/`bytes`, and the sixth `struct.unpack`
+instance with it
+
+    416 functions / 4367 evaluations   (before the `\nothing` repair, this morning)
+    519 / 5750                         (after it)
+    **548 / 6011**                     (after the string widening)
+
+THREE boundaries moved AT ONCE and any one alone still missed `0779` — a `str`/`bytes`
+pool, `\length` TRANSLATED instead of skipped, and a non-int `\result`. And a FOURTH gate
+sat underneath them, the kind that survives a skip-list repair: a second, flatter
+`if any("\\" in x for x in reqs + ens)` rejected `\length` just as hard. Stripping the
+translated operator before THAT test is what finally let the witness through.
+
+`0779.py::roundtrip_s4` is now the sixth entry in `KNOWN_DIVERGENT`, and the finding file's
+paragraph explaining why it did NOT belong there is rewritten rather than deleted — it was
+right until the plane could report it.
+
+ONE exclusion added and it is not a convenience: a body calling `exec`/`eval` is skipped.
+`1397_route136…::f(code: str)` is `exec(code); return 0`, so the oracle was feeding pool
+strings to the interpreter and then reporting the NameError as a contract defect.
+
+All 47 planes green; the bite test bites harder (91 -> 123 disagreements with every
+exclusion dropped). `bin/` only, so no byte-diff is owed.

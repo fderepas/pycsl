@@ -142,11 +142,16 @@ def roundtrip_s4(d: bytes) -> bytes:
 report it because its parameter is `bytes` and its return is `bytes` — outside the int/bool
 population, and outside the `\length` skip as well.
 
-So the family is **SIX functions across THREE files** — 0753 (2), 0778 (3), 0779 (1) — and
-`KNOWN_DIVERGENT` names only the five the oracle can actually reach, deliberately: putting
-0779 in a set that is asserted EXACTLY would make the plane demand a report it can never
-produce. The sixth is recorded here instead, which is the honest place for a defect that no
-instrument currently measures.
+So the family is **SIX functions across THREE files** — 0753 (2), 0778 (3), 0779 (1).
+
+**UPDATE, same day: the sixth is now reached.** The paragraph that stood here said 0779
+belonged in this file rather than in `KNOWN_DIVERGENT`, because a set asserted EXACTLY must
+not name a divergence the plane can never report. That was right until the plane could
+report it. Three boundaries moved together — a `str`/`bytes` pool, `\length` TRANSLATED
+instead of skipped, and a non-int `\result` — and any one alone still missed it, which is
+the test of whether a widening was specified by the defect or by convenience. 0779 is now
+the sixth entry in `KNOWN_DIVERGENT`, and the oracle reads 548 functions / 6011
+argument-level evaluations (from 416 / 4367 before the `\nothing` repair).
 
 ELEVEN corpus files use `struct.unpack`; the other five either do not return its result or
 are `# pycsl-expected: FAIL`.

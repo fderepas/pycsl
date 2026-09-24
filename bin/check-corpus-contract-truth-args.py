@@ -78,14 +78,23 @@ CORPORA = [os.path.join(ROOT, "test-suite", "corpus", "pycsl-reference"),
 
 # CSL tokens this oracle cannot evaluate as Python. A contract carrying one is skipped
 # whole — an oracle that guesses at `\forall` reports its own bugs as corpus defects.
-SKIP_TOKENS = ("\\forall", "\\exists", "\\old", "\\at", "\\length", "\\separated",
+SKIP_TOKENS = ("\\forall", "\\exists", "\\old", "\\at", "\\separated",
                "\\valid", "\\sum", "\\is_sorted", "\\permutation", "\\array_eq",
                "==>", "\\result[", "\\nothing", "\\let")
+# (#49) gen #31 — `\length` LEAVES the skip list and is TRANSLATED instead:
+# `\length(x)` is `len(x)`, exactly as `check-class-invariant-establishment`
+# does it. A token belongs in a list called "cannot evaluate" only while it
+# really cannot be evaluated.
 POOL = [0, 1, 2, 3, 5, -1, -2, 7]
+# (#49) gen #31 — the `str`/`bytes` pools. Deterministic and small: four
+# values each, chosen to include the empty one, a single character, and the
+# FOUR-byte value `0779`'s `#@ requires \length(d) == 4` admits.
+STR_POOL = ["", "a", "abcd", "xyz"]
+BYTES_POOL = [b"", b"a", b"abcd", b"xyz"]
 MAX_TUPLES = 40          # per function, deterministic prefix of the product
 CALL_TIMEOUT = 1.0       # seconds; a corpus loop must not hang the battery
 EXEC_TIMEOUT = 2.0
-MIN_EVALS = 5200         # 5750 with the METHOD population AND the skip list narrowed
+MIN_EVALS = 5500         # 5750 with the METHOD population AND the skip list narrowed
                          # to the clauses actually evaluated (4340 at the first
                          # measurement, functions only, `\nothing` excluding every
                          # empty-frame function). Roughly the same relative margin the
@@ -113,6 +122,10 @@ KNOWN_DIVERGENT = {
     ("0778.py", "roundtrip_i16"): "struct.unpack returns a tuple; discharged by `#@ proof`",
     ("0778.py", "roundtrip_i32"): "struct.unpack returns a tuple; discharged by `#@ proof`",
     ("0778.py", "roundtrip_i64"): "struct.unpack returns a tuple; discharged by `#@ proof`",
+    # (#49) gen #31 — reachable only after the `str`/`bytes` pools, the `\length`
+    # translation and the non-int `\result` landed together. `roundtrip_s4(d: bytes)`
+    # is the same defect one type over: CPython answers `(b'abcd',)`.
+    ("0779.py", "roundtrip_s4"): "struct.unpack returns a tuple; discharged by `#@ proof`",
 }
 MAX_RAISED = 4                   # calls that RAISE on an argument the precondition admits.
                                  # (#49) gen #31: 3 -> 4 with the widened population. The one
@@ -156,6 +169,11 @@ def _alarm(_sig, _frm):
 def _calls(node):
     return {n.func.id for n in ast.walk(node)
             if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}
+
+
+# (#49) gen #31 — (function, parameter) -> the pool its ANNOTATION selects. A module
+# global because `collect` builds it and `main` consumes it, exactly like `per`.
+PARAM_POOL = {}
 
 
 def collect(no_exclusions=False):
@@ -241,11 +259,16 @@ def collect(no_exclusions=False):
                 continue
             if not ps or len(ps) > 3:
                 continue
+            # (#49) gen #31 — `str` and `bytes` parameters join `int`/`bool`, and the
+            # RETURN annotation is no longer restricted: `\result == d` is an ordinary
+            # Python `==` whatever `d` is, and a comparison the oracle cannot make simply
+            # raises and is counted.
             if not all(isinstance(a.annotation, ast.Name)
-                       and a.annotation.id in ("int", "bool") for a in ps):
+                       and a.annotation.id in ("int", "bool", "str", "bytes")
+                       for a in ps):
                 continue
             if not (isinstance(node.returns, ast.Name)
-                    and node.returns.id in ("int", "bool")):
+                    and node.returns.id in ("int", "bool", "str", "bytes")):
                 continue
             ann = annotations_of(node)
             ens = [m.group(1).strip() for m in
@@ -276,6 +299,10 @@ def collect(no_exclusions=False):
                    for a in ann):
                 stats["acts"] += 1
                 continue
+            if any(isinstance(_c_ex, ast.Call) and isinstance(_c_ex.func, ast.Name)
+                   and _c_ex.func.id in ("exec", "eval")
+                   for _c_ex in ast.walk(node)):
+                continue
             if name in trusted:
                 stats["trusted"] += 1
                 if not no_exclusions:
@@ -284,11 +311,14 @@ def collect(no_exclusions=False):
                 continue
             reqs = [m.group(1).strip() for m in
                     (re.match(r"#@\s*requires\s+(.+)$", a) for a in ann) if m]
-            if any("\\" in x for x in reqs + ens):
+            if any("\\" in re.sub(r"\\length\(", "len(", x) for x in reqs + ens):
                 continue
             _raises_when = [m.group(1).strip() for m in
                             (re.match(r"#@\s*raises\s+\w+\s+when\s+(.+)$", a)
                              for a in ann) if m]
+            for _a_pp in ps:
+                PARAM_POOL[(name, _a_pp.arg)] = {
+                    "str": STR_POOL, "bytes": BYTES_POOL}.get(_a_pp.annotation.id, POOL)
             per.setdefault(f, []).append(
                 (name, [a.arg for a in ps], ens, reqs, bool(reach(name) & trusted),
                  _cls, _raises_when))
@@ -296,7 +326,8 @@ def collect(no_exclusions=False):
 
 
 def _py(expr):
-    return expr.replace("&&", " and ").replace("||", " or ")
+    return (re.sub(r"\\length\(", "len(", expr)
+            .replace("&&", " and ").replace("||", " or "))
 
 
 def main():
@@ -363,7 +394,8 @@ def main():
                     unrunnable.append((os.path.basename(f), name, "not callable"))
                     continue
                 tested = 0
-                for tup in itertools.product(POOL, repeat=len(params)):
+                _pools = [PARAM_POOL.get((name, _p), POOL) for _p in params]
+                for tup in itertools.product(*_pools):
                     if tested >= MAX_TUPLES:
                         break
                     env = dict(zip(params, tup))
