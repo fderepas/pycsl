@@ -1,7 +1,7 @@
 # FINDING (#49, gen #31) — `#@ reveal` is parsed and dropped; contract opacity is ONE-WAY
 
-**STATUS: CONFIRMED LIVE by grep AND by measurement. NOT a soundness route — it is a
-MISSING FEATURE whose documentation says it is present.** The fifth inert directive found
+**STATUS: CLOSED (2026-09-24, gen #31).** Was: confirmed live by grep and by
+measurement — a MISSING FEATURE whose documentation said it was present. See CLOSURE. The fifth inert directive found
 by `bin/check-directive-enforcement.py`, and the only one whose documented behaviour is
 contradicted rather than merely unenforced.
 
@@ -97,3 +97,62 @@ IMPORTING function's `reveal` list and, for a named callee, emit the definition'
 argument as the narrowing VC: the definition is a proved fact about the same `let`.
 
 Measured 2026-09-23. Files: `$SCRATCH/g31/rev/{packlib,main_v,main_s}.py`.
+
+
+---
+
+## CLOSED (2026-09-24, gen #31)
+
+`#@ reveal <fn>` now carries the DEFINITION-fact across the import. `_emit_function`'s
+interface-narrowing branch consults the importing module's `reveal` lists and, when the
+function being stubbed is named by one, emits the DEFINITION contract instead of the
+interface.
+
+| file | before | after |
+|---|---|---|
+| importer WITHOUT `#@ reveal` (`1867`) | FAILED | FAILED (correct — opacity working) |
+| importer WITH `#@ reveal pack16` (`1868`) | FAILED | **SUCCESS** |
+
+Before the repair those two emitted BYTE-IDENTICAL `.mlw`.
+
+**THE SCOPE IS THE MODULE, AND THAT IS WIDER THAN §2.10's SENTENCE.** The `val` stub for an
+imported function is emitted ONCE per importing module, so "this caller opts in AT THIS
+SITE" cannot be expressed by one stub. If ANY function in the importing module reveals
+`<fn>`, the stub shows the definition. That is strictly MORE information than the
+interface, and sound for exactly the reason the narrowing VC is sound: the definition is a
+fact the owning unit PROVED about the same `let`. The per-site form needs a second `val`
+plus call-site rewriting; it is recorded here as the refinement rather than built, and
+annotations.md now says "module-scoped" instead of implying per-site.
+
+COST, checked before the work per lesson (n4): `_emit_function`'s mirror twin is
+`\trusted`, so no verbatim sync and no re-proof.
+
+CENSUS: six corpus files used `#@ interface` or `#@ reveal`; all six keep their exact
+verdicts (`0660`, `1707`-`1710`, `1847`), and the new pair `1867`/`1868` uses the
+`multi_file_lib/opaque_pack.py` fixture — the corpus's existing cross-module convention.
+
+### THE BYTE-DIFF CAUGHT THE FIRST VERSION SILENTLY DELETING AN OBLIGATION
+
+The repair as first written cleared the interface whenever the function was revealed
+ANYWHERE in the unit — including in the unit that OWNS the definition. §2.10 says reveal is
+a no-op there ("the definition is the visible `let`"), and the consequence of ignoring that
+was not a failure but a SHRINKING PROOF: corpus `0660` declares `#@ interface` and
+`#@ reveal pack16` in one file, and the emitted `.mlw` lost
+
+    goal pack16__narrows_ens_0 :
+      forall a: int, _res: array int. ((0 <= a) && (a <= 65535)) -> …
+
+the goal that proves the interface is a sound WEAKENING of the definition. `0660` went on
+reporting `Verification SUCCESS` the whole time, with one fewer obligation discharged.
+
+Only the byte-diff plane saw it: the sweep reported `1 MOVED, 0 GONE, 0 APPEARED` and the
+one MOVED file was `0660.mlw`. **A repair that keeps every file green while deleting one of
+their goals is the exact shape a per-file verdict cannot see, and the exact shape this
+campaign exists to catch** — the same argument that justifies running the sweep on
+increments that "obviously" only touch new code.
+
+The fix is one word of scope: the reveal consultation now lives INSIDE the
+`if emit_as_val and _iface:` branch, so it can only ever change an IMPORTED stub. The
+owning unit keeps its interface and keeps its narrowing VC. Re-checked: `0660` emits
+`goal pack16__narrows_ens_0` again and all eight `#@ interface`/`#@ reveal` drivers hold
+their expected verdicts.

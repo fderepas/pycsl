@@ -34,9 +34,10 @@ COVERAGE IS DERIVED, NOT LISTED. The directive population comes from
 only goes up, and the uncovered set is printed by name every run so the debt has members
 rather than a number.
 
-WHY THE UNCOVERED SET IS NOT JUST "NOT DONE YET". Seven directives have no pair, and the
+WHY THE UNCOVERED SET IS NOT JUST "NOT DONE YET". Four directives have no pair, and the
 reason differs by kind (it was nine before gen #31 gave `#@ mixin` teeth on BOTH its
-documented halves and made `#@ mutex_invariant` dischargeable at all). THREE of them have
+documented halves, made `#@ mutex_invariant` dischargeable at all, and taught `verdict()`
+to write a DIRECTORY so `#@ reveal` could be paired across an import). TWO of them have
 no pair because **there is no violating program
 to write** — the directive has no enforced consequence, which is itself a result and is
 filed as a finding rather than papered over with a vacuous pair.
@@ -56,20 +57,24 @@ its own witness/control pair in the corpus (`1861`/`1862`). See
                         documented as informational). Both in
                         `finding-thread-entry-and-releases-are-inert.md`.
 
-  * `reveal`          — a FIFTH, found after the four above and worse than any of them
-                        because the documentation contradicts it rather than overstating
-                        it. §2.10 says `#@ reveal` is a no-op within the owning unit but
-                        "across modules it cites the exported definition-fact"; it is
-                        parsed, woven onto `node.csl_reveal`, written into the IR as
-                        `func_ir["reveal"]`, and read by NO Module-6 consumer. Measured
-                        across `--import-path` with two files differing by that one line:
-                        both FAIL and the emitted WhyML is byte-identical. Contract
-                        opacity is one-way — you can hide the rich contract, and there is
-                        no way to opt back in. See
-                        `finding-reveal-is-unimplemented-across-modules.md`.
+`reveal` used to be listed here too, on TWO successive excuses, and is now COVERED. First
+it was unimplemented (gen #31 implemented it: `#@ reveal <fn>` carries the definition-fact
+across the import, module-scoped). Then it was "pair-shaped but out of reach of a
+single-file harness", which was a statement about `verdict()` and not about the directive
+— so `verdict()` grew the ability to write a temp DIRECTORY and the pair went in. The
+lesson generalises and is worth writing down where the next uncovered directive will be
+read: "the instrument cannot express it" is a to-do, not a reason.
 
-The remaining FOUR are pair-shaped but out of reach of a single-file harness:
-`verify_module` and `proof` (need a second module / real Rocq-Lean artifacts),
+`verify_module` and `proof` left the list in the same hour, and both of their stated
+reasons turned out to be wrong rather than hard. `verify_module` was "needs a second
+module": it does not — a lowercase group name is a documented refusal and needs one class.
+`proof` was "needs real Rocq-Lean artifacts": it does not — the axiom body comes from
+Module 6's `_AXIOM_REGISTRY` and the `.proofs/` trees belong to the SEPARATE audit tool.
+Three uncovered directives in a row whose reason for being uncovered was a belief about the
+harness or the pipeline that nobody had checked. Treat every remaining entry below as a
+claim under suspicion, not a settled fact.
+
+The remaining TWO are pair-shaped but still out of reach:
 `sibling_concrete` (probed: Why3's own type invariants hold at a `val` boundary, so the
 documented advantage is not observable in a minimal program), and `propagate_frame`
 (probed and CONFIRMED to propagate — with the marker the stub gains
@@ -89,7 +94,9 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import io
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -102,7 +109,7 @@ DRIVER = os.path.join(ROOT, "src", "pycsl", "pycsl.py")
 # (#49) gen #31 — the floor. It starts at the number of pairs written in the commit that
 # introduced the plane, and only ever rises. A directive whose pair is DELETED, or a new
 # directive added to annotations.md without one, drops the fraction and turns this red.
-MIN_COVERED = 46
+MIN_COVERED = 49
 
 
 def population():
@@ -234,6 +241,30 @@ _MUTEX_INV_HDR = (
 
 # directive -> (violating source, satisfying source, extra flags)
 # Each violating source must NOT verify; each satisfying source must verify.
+# The driver file of a multi-file case (see `verdict()`).
+_MAIN = "main.py"
+
+_REVEAL_LIB = (
+    '_ = 0  # anchor\n\n\n'
+    '#@ requires 0 <= a and a <= 65535\n'
+    '#@ assigns \\nothing\n'
+    '#@ ensures \\length(\\result) == 2\n'
+    '#@ ensures \\result[0] * 256 + \\result[1] == a\n'
+    '#@ interface ensures \\length(\\result) == 2\n'
+    'def pack16(a: int) -> list:\n'
+    '    return bytes([a // 256, a % 256])\n')
+
+_REVEAL_MAIN = (
+    'from lib_op import pack16\n\n'
+    '_ = 0  # anchor\n\n\n'
+    '%s'
+    '#@ requires 0 <= x and x <= 65535\n'
+    '#@ assigns \\nothing\n'
+    '#@ ensures \\result == x\n'
+    'def caller(x: int) -> int:\n'
+    '    d = pack16(x)\n'
+    '    return d[0] * 256 + d[1]\n')
+
 CASES = {
     "requires": (
         _ANCHOR + '\n\n#@ requires x > 100\n#@ ensures \\result == x\n'
@@ -670,6 +701,49 @@ CASES = {
         '""  # pycsl\n#@ class invariant self._n >= 0\n#@ allow_finalizer\nclass W:\n'
         '    def __init__(self) -> None:\n        self._n: int = 0\n\n'
         '    #@ assigns self._n\n    def __del__(self) -> None:\n        self._n = 0\n', []),
+    # `#@ verify_module <name>` is lowered to a Why3 `module <name>` plus a synthesized
+    # `<name>Sig`, and Why3 requires module names to be CAPITALIZED — so a lowercase name
+    # is a directive used WRONG, and the compiler refuses it
+    # (`PYCSL-SEM-VERIFY-MODULE-NAME-NOT-CAPITALIZED`) rather than letting Why3 report a
+    # syntax error naming a module the user never wrote. That is this pair: the halves
+    # differ ONLY in the case of the first letter.
+    #
+    # WHAT THIS PAIR DOES NOT CLAIM. The directive's headline semantics is AXIOM ISOLATION,
+    # and no violate/satisfy pair can test that, because isolation has no "violating
+    # program" — the honest shape for it would be without/with, and WITHOUT the tag the
+    # isolation program still verifies (more axioms in scope, not fewer). Isolation is
+    # therefore pinned in the corpus instead, by `1844` (cross-group call), `1845` (its
+    # negative twin: the boundary conveys the CONTRACT, not the body) and `1846` (mutually
+    # recursive groups). The SATISFY half here is not vacuous even so: it is a real
+    # cross-boundary call, so it exercises the whole modular emission path end to end.
+    "verify_module": (
+        '# pycsl-flags: --memory-model hoare\n' + _ANCHOR + '\n\nclass C:\n'
+        '    def __init__(self) -> None:\n        self.n: int = 0\n\n'
+        '    #@ verify_module leafmod\n    #@ ensures \\result >= 0\n'
+        '    #@ assigns \\nothing\n    def leaf(self) -> int:\n        return 7\n\n'
+        '    #@ ensures \\result >= 0\n    #@ assigns \\nothing\n'
+        '    def caller(self) -> int:\n        return self.leaf()\n',
+        '# pycsl-flags: --memory-model hoare\n' + _ANCHOR + '\n\nclass C:\n'
+        '    def __init__(self) -> None:\n        self.n: int = 0\n\n'
+        '    #@ verify_module LeafMod\n    #@ ensures \\result >= 0\n'
+        '    #@ assigns \\nothing\n    def leaf(self) -> int:\n        return 7\n\n'
+        '    #@ ensures \\result >= 0\n    #@ assigns \\nothing\n'
+        '    def caller(self) -> int:\n        return self.leaf()\n',
+        ["--memory-model", "hoare"]),
+    # THE FIRST MULTI-FILE PAIR, and the reason `verdict()` learned to write a whole
+    # directory. `#@ reveal` has no single-file meaning at all — §2.10 says so outright
+    # ("within the owning unit it is a no-op") — so no one-file program can violate it,
+    # and that is exactly why it sat in the UNCOVERED list even after gen #31 implemented
+    # it. Both halves import the SAME opaque unit, whose `pack16` proves a rich
+    # definition-contract and exports a deliberately narrow `#@ interface`; the halves
+    # differ by the single line `#@ reveal pack16`. WITHOUT it the importer sees only
+    # `\length(\result) == 2`, which cannot discharge its own postcondition. WITH it the
+    # `val` stub carries the definition-fact and the proof goes through. The corpus holds
+    # the same pair as 1867/1868; having it HERE too means a regression in cross-module
+    # opacity turns a soundness plane red rather than moving one corpus verdict.
+    "reveal": (
+        {"lib_op.py": _REVEAL_LIB, _MAIN: _REVEAL_MAIN % ""},
+        {"lib_op.py": _REVEAL_LIB, _MAIN: _REVEAL_MAIN % "#@ reveal pack16\n"}, []),
 }
 
 
@@ -706,6 +780,33 @@ ASSUMPTION_CASES = {
         '    def __init__(self) -> None:\n        self.disk: list = bytearray(4096)\n\n'
         '    #@ \\trusted reviewer: demo\n    #@ \\preserves\n    #@ assigns self.disk\n'
         '    def ext_scrub(self, x: int) -> None:\n        self.disk[3000] = x\n', []),
+    # `#@ proof <rocq|lean> <qualname>` imports a proof-assistant theorem as a Why3
+    # `axiom`, so it is an ASSUMPTION directive in the exact sense this table exists for:
+    # its whole purpose is to hand the solver a fact it cannot derive. WITHOUT the citation
+    # `gcd` is an uninterpreted logic symbol and `use`'s postcondition is unprovable; WITH
+    # it, `axiom pycsl_axiom_Pycsl_Reference_Gcd_gcd_0 : forall a. a >= 0 -> gcd a 0 = a`
+    # is in scope and the goal closes. A `#@ proof` that were silently dropped would fail
+    # the second half; one that were somehow always-on would fail the first.
+    #
+    # THIS PAIR REFUTES THE REASON THIS DIRECTIVE WAS UNCOVERED. The docstring used to say
+    # `proof` needed "real Rocq-Lean artifacts" and so was out of reach. It does not: the
+    # axiom BODY comes from Module 6's `_AXIOM_REGISTRY`, keyed by qualname, and the
+    # `.proofs/{rocq,lean}/` trees are consumed by a DIFFERENT tool (`pycsl --audit-proof`,
+    # and `bin/check-proof-crosscheck.sh`) which checks that the registry entry says what
+    # the cited theorem says. Two separate mechanisms; only the second needs the artifacts.
+    # An unregistered qualname is refused outright, so the citation cannot be a no-op.
+    "proof": (
+        _ANCHOR + '\n\n#@ \\abstract\n#@ requires a >= 0\n#@ requires b >= 0\n'
+        '#@ ensures \\result == gcd(a, b)\n#@ assigns \\nothing\n'
+        'def gcd(a: int, b: int) -> int:\n    return 0\n\n\n'
+        '#@ requires a >= 0\n#@ ensures \\result == a\n#@ assigns \\nothing\n'
+        'def use(a: int) -> int:\n    return gcd(a, 0)\n',
+        _ANCHOR + '#@ proof rocq Pycsl.Reference.Gcd.gcd_0\n'
+        '\n\n#@ \\abstract\n#@ requires a >= 0\n#@ requires b >= 0\n'
+        '#@ ensures \\result == gcd(a, b)\n#@ assigns \\nothing\n'
+        'def gcd(a: int, b: int) -> int:\n    return 0\n\n\n'
+        '#@ requires a >= 0\n#@ ensures \\result == a\n#@ assigns \\nothing\n'
+        'def use(a: int) -> int:\n    return gcd(a, 0)\n', []),
     "\\trusted": (
         _ANCHOR + '\n\n#@ ensures \\result == 99\ndef f() -> int:\n    return 1\n',
         _ANCHOR + '\n\n#@ \\trusted\n#@ ensures \\result == 99\n'
@@ -717,19 +818,58 @@ ASSUMPTION_CASES = {
 }
 
 
+# (#49) gen #31 — A HALF MAY BE MORE THAN ONE FILE. The harness started with one temp
+# `.py` per half, and that single-file shape is what kept `#@ reveal` in the UNCOVERED
+# list after it was implemented: its whole meaning is what CROSSES an import boundary, so
+# the violating and satisfying programs differ by one line in an IMPORTER of a second unit.
+# A directive whose only observable effect is cross-module cannot be paired by a harness
+# that cannot write two files, and "the instrument cannot express it" is a property of the
+# instrument, not evidence about the directive.
+#
+# So a half is EITHER a string (one file, as before — every existing case is untouched) OR
+# a dict {relative path: contents}, written into a fresh temp DIRECTORY, with `main.py` as
+# the program under test and `--import-path <dir>` appended to the flags. Sub-packages
+# come free: a key with a `/` in it creates the directories, so a case can mirror the
+# corpus's own `multi_file_lib/` fixture layout.
+def _verdict_out(p):
+    out = (p.stdout or "") + (p.stderr or "")
+    if "PIPELINE ERROR" in out:
+        return "REFUSED", out
+    if "Verification SUCCESS" in out:
+        return "SUCCESS", out
+    return "FAILED", out
+
+
+def _verdict_multi(files, flags):
+    d = tempfile.mkdtemp(prefix="direnf_m_", dir="/tmp")
+    try:
+        if _MAIN not in files:
+            raise KeyError("multi-file case has no %r entry" % _MAIN)
+        for rel, body in files.items():
+            dest = os.path.join(d, rel)
+            parent = os.path.dirname(dest)
+            if parent and not os.path.isdir(parent):
+                os.makedirs(parent)
+            with io.open(dest, "w", encoding="utf-8") as fh:
+                fh.write(body)
+        p = subprocess.run([PY, DRIVER] + list(flags) + ["--import-path", d,
+                                                        os.path.join(d, _MAIN)],
+                           capture_output=True, text=True, timeout=900)
+        return _verdict_out(p)
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 def verdict(src, flags):
+    if isinstance(src, dict):
+        return _verdict_multi(src, flags)
     fd, path = tempfile.mkstemp(suffix=".py", prefix="direnf_", dir="/tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(src)
         p = subprocess.run([PY, DRIVER] + list(flags) + [path],
                            capture_output=True, text=True, timeout=900)
-        out = (p.stdout or "") + (p.stderr or "")
-        if "PIPELINE ERROR" in out:
-            return "REFUSED", out
-        if "Verification SUCCESS" in out:
-            return "SUCCESS", out
-        return "FAILED", out
+        return _verdict_out(p)
     finally:
         try:
             os.unlink(path)

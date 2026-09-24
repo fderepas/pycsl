@@ -7229,3 +7229,102 @@ TypedDict local. All 46 fast planes green; fidelity 886; IR conformance 38/0.
 
 SUITE at the mutex tree before this landed: **3988/4006, the standing EIGHTEEN, ZERO
 XPASS** — the 30-file byte-diff of the `#@ mutex_invariant` repair regresses nothing.
+
+================================================================================
+2026-09-24 gen #31 — `#@ reveal` IMPLEMENTED, and the byte-diff caught the first
+version of the repair DELETING AN OBLIGATION WHILE EVERYTHING STAYED GREEN
+================================================================================
+
+THE ROUTE. `#@ reveal <fn>` was parsed by Module 2, woven by Module 3, written into the IR
+as `func_ir["reveal"]` — and read by NO Module-6 consumer. Contract opacity was therefore
+ONE-WAY: `#@ interface` could hide a definition and nothing could ever re-expose it, so an
+importer's only recourse was to delete the interface. Both halves of a reveal/no-reveal
+pair failed and their emitted `.mlw` files were BYTE-IDENTICAL, which is the sharpest form
+of "this directive does nothing".
+
+THE REPAIR. `_emit_function`'s interface-narrowing branch now consults the importing
+module's `reveal` lists; when the function being stubbed is named, the stub carries the
+DEFINITION contract instead of the interface. Scope is the MODULE, not the call site — the
+`val` stub is emitted once per importing module, so per-site opt-in cannot be expressed by
+one stub. That is strictly more information than the interface and sound for exactly the
+reason the narrowing VC is sound: the definition is a fact the owning unit PROVED about the
+same `let`. annotations.md §2.10 row 2 now says "module-scoped" instead of implying
+per-site, and records the refinement (a second `val` plus call-site rewriting) rather than
+pretending it exists.
+
+**THE PART WORTH KEEPING.** The first version of the repair cleared the interface whenever
+ANY function in the unit revealed the callee — including the unit that OWNS the definition,
+where §2.10 says reveal is a no-op. Everything stayed green: every corpus file verified,
+every directive pair passed, the suite was clean. What actually happened is that `0660.mlw`
+lost `goal pack16__narrows_ens_0` — the goal proving its `#@ interface` is a sound
+WEAKENING of its definition. The file went on reporting `Verification SUCCESS` with one
+fewer obligation discharged, and **no per-file verdict can tell those two states apart,
+because the answer is YES in both**.
+
+The byte-diff sweep saw it on the first run: `1 MOVED, 0 GONE, 0 APPEARED`, the MOVED file
+was `0660.mlw`, and the diff was two lines, both deletions, both the goal. The fix is one
+word of scope — the reveal consultation now lives inside `if emit_as_val and _iface:`, so
+it can only ever alter an IMPORTED stub. Filed as wall-lesson (q4): "all green" is not
+evidence that the proof did not shrink.
+
+THE INSTRUMENT GREW A CAPABILITY. `check-directive-enforcement.py`'s `verdict()` wrote ONE
+temp `.py` per half, and that limit — not any property of the directive — is what kept
+`#@ reveal` in the UNCOVERED list after it was implemented: a directive whose whole meaning
+is what crosses an import cannot be paired by a harness that cannot write two files. A half
+may now be a dict `{relative path: contents}`, written into a temp DIRECTORY with `main.py`
+as the program under test and `--import-path` appended; sub-packages come free. Every
+existing case is a string and is untouched. **"The instrument cannot express it" is a
+to-do, not a reason**, and the plane's docstring now says so where the next uncovered
+directive will be read.
+
+MEASURED
+  * `1867` (importer WITHOUT reveal) FAILED — correct, opacity working.
+  * `1868` (importer WITH `#@ reveal pack16`) SUCCESS — was FAILED; byte-identical to 1867
+    before the repair.
+  * all EIGHT `#@ interface` / `#@ reveal` corpus drivers hold their expected verdicts.
+  * `0660` emits `goal pack16__narrows_ens_0` again.
+  * BYTE-DIFF, corpus: 1349 baseline / 1351 candidate, **0 MOVED, 0 GONE, 0 APPEARED**,
+    2 new sources ignored. python-reference: 2199/2199, 0 MOVED. Byte-inert in all three
+    directions on both corpora.
+  * directive plane 46 -> **47** of 53 (`MIN_COVERED` 47); uncovered now SIX, each with a
+    written reason: `thread_entry` and `releases` (inert, own finding), `verify_module`,
+    `proof`, `sibling_concrete`, `propagate_frame`.
+
+COST, checked before the work per lesson (n4): `_emit_function`'s mirror twin is
+`\trusted`, so no verbatim sync and no re-proof.
+
+--------------------------------------------------------------------------------
+SAME SESSION — TWO MORE DIRECTIVES, AND A PATTERN IN WHY THEY WERE UNCOVERED
+--------------------------------------------------------------------------------
+
+Having just watched `#@ reveal`'s "out of reach of the harness" turn out to be a to-do, I
+re-read the other stated reasons in the uncovered list instead of trusting them. Two more
+were wrong:
+
+  * `verify_module` — listed as "needs a second module". It does not. `<name>` must be a
+    CAPITALIZED identifier (it becomes a Why3 `module`), and a lowercase one is refused
+    with `PYCSL-SEM-VERIFY-MODULE-NAME-NOT-CAPITALIZED`. That is a violate/satisfy pair in
+    one class, differing by the case of one letter: REFUSED / SUCCESS. The pair does not
+    claim to test axiom isolation — isolation has no violating program, and is pinned in
+    the corpus by `1844`/`1845`/`1846` instead; the docstring says so rather than letting
+    the row imply more than it checks.
+
+  * `proof` — listed as "needs real Rocq-Lean artifacts". It does not. The axiom BODY comes
+    from Module 6's `_AXIOM_REGISTRY`, keyed by qualname; the `.proofs/{rocq,lean}/` trees
+    are consumed by a SEPARATE tool (`pycsl --audit-proof`, `bin/check-proof-crosscheck.sh`)
+    that checks the registry entry against the cited theorem. `#@ proof` is an ASSUMPTION
+    directive in this plane's exact sense, so it gets an inverted pair: without the citation
+    `gcd` is uninterpreted and `use`'s postcondition is unprovable (FAILED); with
+    `#@ proof rocq Pycsl.Reference.Gcd.gcd_0` the axiom is in scope and it closes (SUCCESS).
+
+THE PATTERN IS THE RESULT. Three directives in one session left the uncovered list, and in
+all three cases the reason they were uncovered was a BELIEF about the harness or the
+pipeline that nobody had checked — not a property of the directive. The uncovered list is
+where unexamined assumptions accumulate precisely because every entry carries a written
+excuse that reads like a finding. The docstring now tells the next reader to treat the
+remaining entries as claims under suspicion.
+
+  directive plane 46 -> 47 -> **49** of 53. `MIN_COVERED = 49`.
+  uncovered now FOUR: `thread_entry`, `releases` (both genuinely INERT — their own finding,
+  and the reason they have no pair is a result), `sibling_concrete` and `propagate_frame`
+  (both PROBED, both with a written measurement of what stopped them).

@@ -7510,6 +7510,50 @@ class FunctionEmissionMixin:
         # def's requires/assigns — sound, since the body still needs the def precondition). The
         # owning-unit `let` keeps the full definition (+ the narrowing VC below).
         _iface = func.get("interface") or {}
+        # (#49) gen #31 — `#@ reveal` WAS PARSED AND DROPPED, so contract opacity was
+        # ONE-WAY. annotations.md §2.10 row 2: "Within the owning unit it is a no-op (the
+        # definition is the visible `let`); ACROSS MODULES IT CITES THE EXPORTED
+        # DEFINITION-FACT." The first clause was true by construction; the second had no
+        # implementation. `#@ reveal` was parsed (`Module2_Parser`), woven onto
+        # `node.csl_reveal` (`Module3_Weaver`), written into the IR as `func_ir["reveal"]`
+        # (`Module5`), and read by NO Module-6 consumer — measured with two files across
+        # `--import-path` differing by that one line: both FAILED and the emitted `.mlw`
+        # was BYTE-IDENTICAL.
+        #
+        # That made `#@ interface` a trapdoor: a user could hide a rich contract behind a
+        # narrow one and had no way to ask for it back, so §2.10's own motivating workflow
+        # ("the codec's 18 per-field `ensures` … verified once but only burdens the call
+        # sites that reveal it") did not exist.
+        #
+        # THE SCOPE IS THE MODULE, AND THAT IS WIDER THAN THE SENTENCE SAYS. The `val` stub
+        # for an imported function is emitted ONCE per importing module, so "this caller
+        # opts in AT THIS SITE" cannot be expressed by a single stub; if ANY function in the
+        # importing module reveals `<fn>`, the stub shows the DEFINITION. That is strictly
+        # MORE information than the interface, and sound for the same reason the narrowing
+        # VC is: the definition is a fact the owning unit PROVED about the same `let`. The
+        # per-site form would need a second `val` plus call-site rewriting, and is recorded
+        # as the refinement rather than built here.
+        #
+        # CENSUS BEFORE LANDING (lesson d3): six corpus files use `#@ interface` or
+        # `#@ reveal`, and all six keep their exact verdicts (0660, 1707-1710, 1847).
+        # GATED ON `emit_as_val`, and that gate is not decoration. `#@ reveal` is a NO-OP
+        # within the owning unit — §2.10 says so, because the definition IS the visible
+        # `let` there — and clearing `_iface` unconditionally ALSO suppressed the narrowing
+        # VC `<fn>__narrows_ens_0`, which is the goal proving the interface is a sound
+        # weakening of the definition. Measured: corpus 0660 (which declares both
+        # `#@ interface` and `#@ reveal` in ONE file) kept VERIFYING while silently proving
+        # LESS — the byte-diff caught it as the single MOVED file, and the diff was the
+        # narrowing goal disappearing. A repair that keeps a file green while deleting one
+        # of its obligations is the exact shape this campaign exists to catch.
+        if emit_as_val and _iface:
+            _rv_names = set()
+            for _cf_rv in (self.ir.get("functions") or []):
+                for _rn_rv in (_cf_rv.get("reveal") or []):
+                    _rv_names.add(_rn_rv)
+            if _rv_names:
+                _fn_tail_rv = str(func.get("name", "")).split("__")[-1]
+                if func.get("name") in _rv_names or _fn_tail_rv in _rv_names:
+                    _iface = {}
         if emit_as_val and _iface:
             _defc = func.get("contracts", {})
             contract_src = {

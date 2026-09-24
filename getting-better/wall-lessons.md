@@ -6310,3 +6310,64 @@ in the SAME WINDOW that wrote it down, which is the part worth recording:
 >>> between +1 unmirrored def and +1 `\trusted` marker, and both are ratcheted. Ask the
 >>> question BEFORE writing the `def`, not after the battery asks it for you: does this
 >>> helper earn a mirror twin? If not, it is a local variable and some comments.
+
+---
+
+### (p4) THE BYTE-DIFF SWEEP OWNS THE CORPUS DIRECTORY WHILE IT RUNS
+
+Verifying the eight `#@ interface` / `#@ reveal` drivers one at a time while a
+`bin/byte-diff-sweep.sh` was running in the background produced four impossible results:
+`0660`, `1708`, `1710` and `1868` all FAILED, including one that had verified thirty
+seconds earlier in the same shell.
+
+The sweep emits with `--keep-mlw`, which writes `<corpus>/<name>.mlw`, and it begins each
+file with `rm -f` on that same path before `mv`-ing the result away. A per-file
+verification run in the same directory writes and reads the same names. The two clobber
+each other, and the failure looks exactly like a regression.
+
+Killed the sweep, deleted the stray `.mlw` files, re-ran: **all eight match their expected
+verdicts.** Then re-ran the sweep alone.
+
+>>> **A SWEEP THAT EMITS INTO THE SOURCE TREE IS AN EXCLUSIVE LOCK ON THAT TREE.** Do not
+>>> verify individual drivers while one runs. This is the same rule
+>>> `run-soundness-planes.sh` already enforces for its own emitting planes — it REFUSES to
+>>> run `check-bespoke-model-drift` while the battery holds the lock, with a message that
+>>> says a hand-run from another shell "has already produced one traceback in
+>>> check-emitted-vacuity from a file that vanished mid-walk". The byte-diff sweep has no
+>>> such guard, and I walked into the failure that guard exists to prevent.
+
+Cost: four minutes and a moment of believing a repair had broken four files. The tell was
+that one of them had passed seconds before — **a verdict that changes without the tree
+changing is a measurement error, not a result.**
+
+---
+
+### (q4) A GREEN FILE CAN BE PROVING LESS THAN IT DID YESTERDAY
+
+The `#@ reveal` repair, as first written, cleared a function's `#@ interface` whenever ANY
+function in the unit revealed it — including the unit that OWNS the definition, where
+annotations.md §2.10 says reveal is a no-op. Every corpus file still verified. Every
+directive pair still passed. The suite was green.
+
+What actually happened is that `0660.mlw` lost
+
+    goal pack16__narrows_ens_0 : …
+
+the goal proving its `#@ interface` is a sound WEAKENING of its definition-contract. The
+file kept reporting `Verification SUCCESS` while discharging one fewer obligation. Nothing
+that asks "does this file verify?" can tell those two states apart, because the answer is
+YES in both.
+
+The byte-diff sweep saw it immediately: `1 MOVED, 0 GONE, 0 APPEARED`, and the MOVED file
+was `0660.mlw`. Two lines of diff, both deletions, both the goal.
+
+>>> **"ALL GREEN" IS NOT EVIDENCE THAT THE PROOF DID NOT SHRINK.** A per-file verdict is a
+>>> boolean over a set of obligations that the same change is free to make smaller. The
+>>> only instrument in this tree that measures the SET is the byte-diff, which is why the
+>>> rule is to run it on every increment — including, especially, the ones that
+>>> "obviously" only touch new code. I nearly committed this one on the strength of eight
+>>> green drivers.
+
+The fix was one word of scope — move the check inside `if emit_as_val and _iface:` so it
+can only ever alter an IMPORTED stub. The cost of not having run the sweep would have been
+a silently weaker corpus with no failing test to find it by.
