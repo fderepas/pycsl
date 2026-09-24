@@ -11128,3 +11128,39 @@ mirror edits; run it after ANY `src/pycsl/` change.
 #    STILL PREPARED: `land_r226b.sh` (ROUTE #226 increment 2 — closes carriers 2 and 4,
 #    leaves the computed-store one and names why) and `land_args.sh` (the args-oracle
 #    widening, 4367 -> 5750 evaluations, five KNOWN divergences with their finding file).
+
+# ======================================================================================
+# ## UPDATE 2026-09-25T00:00Z — SIXTEEN COMMITS, queue EMPTY, tree CLEAN
+#
+#    9f75cc69 the import pair + route #226's record/carrier + two findings
+#    ce548805 the KEYWORD pair, both debt planes paid
+#    3cf98e40 corpus-contract-truth 390 -> 432 contracts (methods + comparisons)
+#    80bf4985 **ROUTE #226 increment 1** — the SEV-1's first repair
+#    9b93f265 the CLASS-INVARIANT PLANE (MIN_PLANES 46 -> 47)
+#    c7d33e52 the mutex-name refusal (directive plane 52 of 53)
+#    eca4b0c8 the field-param fix (8 mirror modules re-typed, all re-proved)
+#    b70ae430 the ARGS ORACLE widened 4367 -> 5750 evaluations, five KNOWN divergences
+#    d8f0426c `len()` of a `seq int` local
+#    2bde484b **ROUTE #226 increment 2** — carriers 2 and 4 closed
+#    6368201e the args oracle reaches `str`/`bytes`, 5750 -> 6011, the SIXTH instance
+#    bdffbeb1 / d5412b99 / 4301bcc4 / 5ca097ab / f1eba707  the ledger commits
+#
+#    THE GENERATION'S TWO FINDINGS:
+#      * **ROUTE #226** — a `#@ class invariant` the constructor never establishes. Four
+#        carriers; increments 1 and 2 close three, and the remaining one (a COMPUTED
+#        constructor store) has ZERO instances in the tree. LIVE, one carrier registered.
+#      * **`struct.unpack` returns a TUPLE** — six proof-cited corpus functions certify
+#        `\result == x`. Discharged by the `#@ proof` opt-in, so a finding rather than a
+#        SEV-1, and a defect in a CHECKED surface: nothing compares the Rocq result TYPE
+#        with the Python return type. All six now named in the args oracle's
+#        `KNOWN_DIVERGENT`, asserted exactly.
+#
+#    STATE: working tree clean apart from the `.aux` build exhaust and the two pre-existing
+#    `scratchpad/w{7,8}` gitlinks. `\trusted` markers 460 (unchanged — the conversion track
+#    is DIAGNOSED, not moved; see the backlog's three successive rankings and why only the
+#    last one is measured). DO NOT PUSH.
+#
+#    ONE JOB STILL RUNNING: `seq_baseline_time.log`, the same mirror file the seq increment
+#    moved, proved on a tree with the widening REVERTED. Started 21:03Z, 2h55m and counting;
+#    the candidate took 2h57m. Its only purpose is to turn "this file is slow" into a fact
+#    about the CHANGE. Record the number when it lands; nothing depends on it.
