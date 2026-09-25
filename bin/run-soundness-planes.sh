@@ -439,7 +439,9 @@ SHARED_EMIT=""
 # (#49) A SECOND shared emission: the CORPUS, for `check-clause-survival.py`.
 CORPUS_EMIT=""
 
+RAN_SLOW=0
 if [ "${1:-}" = "--slow" ] || [ "${PYCSL_SOUNDNESS_PLANES_SLOW:-0}" = "1" ]; then
+    RAN_SLOW=1
     PLANES+=("${SLOW_PLANES[@]}")
     # The refusal guard scales with the set, or `--slow` would silently weaken it.
     MIN_PLANES=$((MIN_PLANES + ${#SLOW_PLANES[@]}))
@@ -576,8 +578,22 @@ fi
 
 if [ "${#failed[@]}" -ne 0 ]; then
     echo "[!] soundness-planes: ${#failed[@]} of $ran RED — ${failed[*]}"
+    [ "$RAN_SLOW" = "1" ] || echo "    (fast set only; ${#SLOW_PLANES[@]} slow plane(s) NOT CHECKED — re-run with --slow)"
     exit 1
 fi
 
-echo "[+] soundness-planes: OK — all $ran plane(s) green."
+# (#49) gen #31 — SAY WHAT WAS NOT CHECKED, IN THE SAME SENTENCE AS THE PASS. Eleven
+# gates this session printed "all 48 plane(s) green" while `--slow` held FOUR REDS,
+# two of them conversions those same gates had just banked. The summary was TRUE and
+# it was read as a claim it never made. A pass that does not name its own scope is an
+# invitation to over-read it. See getting-better/wall-lessons.md (q6).
+if [ "$RAN_SLOW" = "1" ]; then
+    echo "[+] soundness-planes: OK — all $ran plane(s) green (fast + slow: EVERY plane)."
+else
+    echo "[+] soundness-planes: OK — all $ran FAST plane(s) green."
+    echo "    NOT CHECKED: ${#SLOW_PLANES[@]} prover/emission plane(s) — among them"
+    echo "    check-emitted-vacuity, check-yield-erasure, check-shadowed-selfcalls and"
+    echo "    check-getattr-erasure, the oracles that decide whether a CONVERSION is"
+    echo "    hollow. THIS IS NOT A VERDICT ON A CONVERSION. Re-run with --slow."
+fi
 exit 0
