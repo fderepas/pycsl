@@ -229,6 +229,62 @@ CONVERTED_TOTAL_RATCHET = 94  # 68 -> 133 at #31 by the SHARPER DETECTOR; 133 ->
                               # (`ConcurrencyChecker._walk_body`, the ONE offender this
                               # plane's own MODEL-VISIBLE predicate could not see -- see
                               # the note on `_visible` below). Every offender
+# (#49) gen #31 — THE SECOND KIND OF DISHONEST FRAME, and this plane's own header names the
+# shape while its analysis cannot reach it: *"a stub that declares `#@ assigns \\nothing`
+# while the LIVE method it stands for really does mutate `self` state states something
+# FALSE"*. The fixpoint below computes `self.<attr>` stores and propagates them along the
+# call graph — so a MODULE-LEVEL function that shells out to `why3 prove` mutates no
+# attribute and is invisible to it.
+#
+# `#@ assigns \nothing` does not mean "writes no modelled state". `test-suite/annotations.md`
+# §926 and `docs/pycsl-static-semantics-reference.md` §2398 both gloss it the same way:
+# **"(pure, side-effect-free)"**. A function that spawns a subprocess or creates a directory
+# is not side-effect-free.
+#
+# RECEIVER-QUALIFIED ON PURPOSE. A first, looser census matched bare method names and
+# produced two false positives immediately — `Module1_Ingestor::process` calls a LOCAL method
+# named `run`, and `str.replace` is pure and everywhere. Only `subprocess.*` / `os.*` /
+# `shutil.*` count here, which is why the measured number is 17 and not 21.
+#
+# NOT LOAD-BEARING TODAY: censused, ZERO un-trusted mirror functions call any of these, so no
+# proof leans on a false frame. It is a TRAP, not a HOLE — and it is one green whole-file
+# proof away from being a hole, which is exactly what a conversion session is hunting for.
+# `getting-better/open-routes/finding-assigns-nothing-over-a-subprocess.md`
+EXTERNAL_EFFECT_CALLS = {
+    ("subprocess", "run"), ("subprocess", "Popen"), ("subprocess", "check_output"),
+    ("subprocess", "call"), ("subprocess", "check_call"),
+    ("os", "system"), ("os", "makedirs"), ("os", "mkdir"), ("os", "remove"),
+    ("os", "unlink"), ("os", "rmdir"), ("os", "rename"), ("os", "replace"),
+    ("shutil", "rmtree"), ("shutil", "copytree"), ("shutil", "move"),
+}
+# Each entry NAMED with what it does, so a new one cannot arrive quietly. The clause is
+# wrong for every one of them; the entry records that it is KNOWN wrong, not that it is fine.
+KNOWN_EXTERNAL_EFFECT_NOTHING = {
+    ("audit_proof_reverify.py", "_coqc_version"): "subprocess.run(coqc --version)",
+    ("audit_proof_reverify.py", "_lean_version"): "subprocess.run(lean --version)",
+    ("audit_proof_reverify.py", "verify_lean_file"): "subprocess.run(lake/lean)",
+    ("audit_proof_reverify.py", "verify_rocq_file"): "subprocess.run(coqc)",
+    ("proof2why3/extract.py", "extract_lean_statements"): "subprocess.run",
+    ("proof2why3/extract.py", "extract_rocq_statements"): "subprocess.run",
+    ("proof2why3/extract_lean_meta.py", "extract_lean_statements_meta"): "subprocess.run",
+    ("proof2why3/sertop.py", "extract_via_sertop"): "subprocess.run(sertop)",
+    ("proof2why3/sertop.py", "run_sertop_batch"): "subprocess.Popen(sertop)",
+    ("proof2why3/sertop.py", "sertop_version"): "subprocess.run(sertop --version)",
+    ("pycsl.py", "_check_rocq_proofs"): "subprocess.run(coqc)",
+    ("pycsl.py", "_generate_rocq_obligations"): "os.makedirs",
+    # NAMED BUT NOT REACHED, and that is the entry worth keeping. `_probe_one` is a NESTED
+    # function (`def _probe_one` inside `_run_vacuity_gate`), carrying a real
+    # `#@ \trusted` + `#@ assigns \nothing` and a live `os.remove`. `_mirror_nothing_stubs`
+    # walks module and class bodies and does NOT descend into a function body, so the
+    # population is 16 here and 17 in this table. DELETING THE ENTRY WOULD HIDE THE GAP:
+    # every nested `\trusted` stub in the mirror is outside this plane's reach, and this
+    # line is the only place that says so. Reopened by making the walk descend.
+    ("pycsl.py", "_probe_one"): "os.remove (NESTED - outside the walk, see note)",
+    ("pycsl.py", "_run_proofs"): "os.remove",
+    ("pycsl.py", "_run_vacuity_gate"): "os.remove",
+    ("pycsl.py", "_run_why3_prove"): "subprocess.run(why3 prove)",
+    ("pycsl.py", "_why3_typecheck"): "subprocess.run(why3 prove --type-only)",
+}
 MIN_NOTHING_DECLARERS = 400   # (#49) gen #31 — a FLOOR on the POPULATION, and the only
                               # one here: RATCHET, TOTAL_RATCHET, CONVERTED_RATCHET and
                               # CONVERTED_TOTAL_RATCHET are all UPPER bounds, which an
@@ -730,6 +786,48 @@ def main():
             elif got < want:
                 print("[+] %s: %s %d < ratchet %d — lower the constant."
                       % (tag, label, got, want))
+
+    # (#49) gen #31 — the EXTERNAL-EFFECT half, run before the `self`-state half because it
+    # is the cheaper question and it has a shorter answer.
+    _ext_bad, _ext_known = [], []
+    for _path, _cls, _name in _mirror_nothing_stubs(MIRROR_ROOT, want_trusted=True):
+        _rel = _path[len(MIRROR_ROOT) + 1:]
+        _live = os.path.join(LIVE_ROOT, _rel)
+        if not os.path.isfile(_live):
+            continue
+        try:
+            _lt = ast.parse(open(_live, errors="replace").read())
+        except SyntaxError:
+            continue
+        for _fn in ast.walk(_lt):
+            if not isinstance(_fn, ast.FunctionDef) or _fn.name != _name:
+                continue
+            for _c in ast.walk(_fn):
+                if (isinstance(_c, ast.Call) and isinstance(_c.func, ast.Attribute)
+                        and isinstance(_c.func.value, ast.Name)
+                        and (_c.func.value.id, _c.func.attr) in EXTERNAL_EFFECT_CALLS):
+                    _what = "%s.%s()" % (_c.func.value.id, _c.func.attr)
+                    if (_rel, _name) in KNOWN_EXTERNAL_EFFECT_NOTHING:
+                        _ext_known.append((_rel, _name, _what))
+                    else:
+                        _ext_bad.append((_rel, _name, _what))
+                    break
+            break
+    print("[*] trusted-frame-honesty: EXTERNAL EFFECTS — %d `\\trusted` stub(s) declare "
+          "`#@ assigns \\nothing` while their LIVE body calls `subprocess.*`/`os.*`/"
+          "`shutil.*`; %d named in KNOWN_EXTERNAL_EFFECT_NOTHING. The clause is glossed "
+          "\"pure, side-effect-free\" in annotations.md §926."
+          % (len(_ext_bad) + len(_ext_known), len(_ext_known)))
+    if args.verbose:
+        for _e in sorted(_ext_known):
+            print("    known-external  %-30s %-32s %s" % _e)
+    for _e in sorted(_ext_bad):
+        print("[!] trusted-frame-honesty: UNNAMED SIDE-EFFECTING `assigns \\nothing` STUB: "
+              "%s::%s calls %s. While the marker is there the clause is ASSUMED and flagged; "
+              "CONVERTING this stub would CERTIFY it over a real side effect. Name it in "
+              "KNOWN_EXTERNAL_EFFECT_NOTHING with what it does, or correct the clause."
+              % _e)
+        rc = 1
 
     t_stubs, t_off, t_vis = _population(True)
     _report("trusted-frame-honesty", t_stubs, t_off, t_vis)
