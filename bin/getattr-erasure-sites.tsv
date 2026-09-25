@@ -14,3 +14,5 @@ test-suite/corpus/pycsl-reference/1073_route47_same_default_equal.py	0	2
 test-suite/corpus/pycsl-reference/1691_route197_an_unknown_typed_getattr_was_its_default.py	0	1
 test-suite/corpus/pycsl-reference/1692_route197_an_absent_field_still_returns_its_default.py	1	0
 test-suite/corpus/pycsl-reference/1727_route213_two_reads_with_no_call_still_agree.py	0	2
+test-suite/corpus/pycsl-reference/1859_route213_two_reads_across_a_mutation.py	0	2
+test-suite/corpus/pycsl-reference/1860_route213_three_argument_form.py	0	2
