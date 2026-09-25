@@ -7854,3 +7854,36 @@ Two rules:
    candidates understood" printed identically. Every one of the 48 planes has that guard;
    the scratch tooling did not, and the scratch tooling is what decides which candidates get
    a three-hour proof.
+
+### (q6) AN ORACLE THAT IS NOT IN THE GATE IS NOT A GATE — and a population measured once is a fact about that hour
+
+`bin/check-yield-erasure.py` exists because relaunch #31 caught a CONVERTED generator whose
+`yield`ed values were dropped on the floor, re-trusted it, and wrote the oracle so that
+"this class of conversion [is] impossible to bank again" — its own words. It lives in
+`EMIT_DIR_PLANES`, which `bin/run-soundness-planes.sh` runs only under `--slow`.
+
+EVERY GATE THIS SESSION RAN `bash bin/run-soundness-planes.sh` WITH NO ARGUMENTS. All
+twenty-eight invocations across gates A through N. Each reported "all 48 plane(s) green",
+and none of the 48 was this one. So when increment G converted `pure_ast.py::iter_fields`
+— the SAME shape, in the SAME file, eleven lines above the comment recording the previous
+revert — the oracle written to stop it was not consulted, and eleven gates banked the
+conversion. The emitted body is
+
+    let iter_fields (node: int) : unit  requires { true }  ensures { true }
+    = … try let _ = (any int) in () with AttributeError -> () …
+
+a `unit` function with a `true` contract whose yielded pair is replaced by `any int`.
+
+TWO SEPARATE FAILURES, and the second is the one worth carrying:
+
+1. The battery has a fast set and a slow set, and the gate script only ever called the
+   fast one. A plane you have to remember to run is a plane you will forget to run.
+2. This session MEASURED the yield population and recorded **0 — "a trap, not a hole"**.
+   That measurement was taken BEFORE the conversion that populated it. A population
+   measurement is not a property of the repository; it is a property of the repository AT
+   AN HOUR, and quoting it later as "the population is zero" converts a measurement into
+   an assumption without anyone deciding to.
+
+THE RULE: a gate runs every oracle, or the oracle's absence is itself recorded in the gate's
+output. And a population of zero is re-measured at the gate that could have changed it —
+which, for a conversion oracle, is every conversion.
