@@ -7441,3 +7441,28 @@ Wait on an ARTEFACT, not on a process name — a line in a log, a sentinel file,
 specific backgrounded PID. `until grep -q SUITERC= gate.log` cannot match itself into a
 deadlock, and it is also what you actually care about. Sibling of (q5): the shell is a
 participant in your measurement, not a neutral observer of it.
+
+### (d6) A metric nobody recomputes cannot change — and cannot be wrong
+
+This is a TCB-reduction driver. Three consecutive generation summaries end with
+
+    `\trusted` markers 460 (unchanged)
+
+and I wrote that line myself, twice, in one session, without counting anything. Counting it:
+485 `#@ \trusted reviewer:` markers, 487 functions whose leading block carries the marker,
+596 occurrences of the token, 454 markers excluding `pycsl.py`. **No rule yields 460.**
+
+The word "unchanged" is what made it invisible. A number that is quoted forward rather than
+recomputed reports *the same value every time by construction*, and "unchanged" then reads as
+a measurement instead of as an artefact of copying. The campaign's own headline became the
+one claim in the record with no instrument behind it, in the file whose entire job is to say
+what moved — while every other claim in that file is backed by a plane.
+
+**The fix is never a better number; it is a RULE and a RATCHET.** The count is now taken by a
+stated rule (a `def` whose immediately-preceding `#@` block contains `\trusted`) inside
+`check-mirror-coverage.py`, as a CEILING, because the direction is down — so retiring a stub
+forces the ceiling down in the same commit and adding one forces a justification.
+
+Generalise it: **for every number in a summary, ask which command recomputes it.** If the
+answer is "the previous summary", that number is prose. The ones most likely to be prose are
+the headline ones, because they are the ones everybody repeats.
