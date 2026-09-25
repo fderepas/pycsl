@@ -266,6 +266,22 @@ by hand at a conversion attempt. `0453`'s docstring is unusually honest about it
 ("the concrete outcome for a specific source string is NOT proven … which PyCSL does not
 model (honest per the plan)") and says nothing about the signature being uninhabitable.
 
+**And it is the ONLY one, which is worth as much as the instance.** Censused —
+every function in both corpora, the self-annotate mirror and the live tree, with an
+`int`/`bool` parameter whose body reads an ATTRIBUTE off it:
+
+    both corpora (4075 files)          1   — this function
+    src/self-annotate/src (1373 fns)   0   of 205 with an int/bool parameter
+    src/pycsl (3231 fns)               0   of 213
+
+So the `int` placeholder does NOT produce uninhabitable signatures across the tree, and the
+sentence "the conversion track's #1 blocker is everywhere" would have been false. The
+mirror's `\trusted` stubs carry `int` placeholders and `pass` bodies, which is CONSISTENT —
+nothing reads a field off an `int` because nothing reads anything. The blocker is that such
+a stub cannot be WIDENED to a real type without a modelling story, not that the tree is full
+of signatures no call can satisfy. One driver crossed that line, and an instrument found
+it.
+
 ## What this family costs, stated exactly
 
 * **Not unsoundness in the prover.** Each contract is true of the model. Nothing here shows
