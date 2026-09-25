@@ -10283,3 +10283,42 @@ THE UNCOMFORTABLE VERSION, which is the useful one: this driver has spent three 
 reporting a metric it was not measuring, in the file whose job is to say what moved. Every
 other claim in that file is backed by a plane. This one was backed by the previous copy of
 itself.
+
+--------------------------------------------------------------------------------
+2026-09-25 02:08Z — CORRECTION to the entry above, and it is the worst one of the session
+
+The 02:03Z entry says the `\trusted` count "was never measured" and that "no rule reproduces
+460". **Both are false.**
+
+    $ bin/count-trusted-directives.py
+    [*] trusted-directives: markers 460 · grep-substring 485 · offset 25 · attached 460
+
+That script is IN THE PLANE BATTERY (`run-soundness-planes.sh` line 54). It runs on every
+gate. It has run on every gate of this session. And the 25-marker offset between the raw
+grep (485) and the truth (460) is the file-header docstring that MENTIONS the marker once per
+file — which is the exact discrepancy I measured, stared at, and read as an absence.
+
+`bin/check-trust-blast-radius.py` names that script in its own header. I read that
+neighbourhood minutes before writing the entry above.
+
+Reverted: the ratchet I landed (`2a9c09e2`) counted FUNCTION-ATTACHED markers, 487, a
+different quantity that disagrees per file in both directions (`pure_ast.py` 65 markers / 95
+attached; `Module3_Weaver.py` 27 / 14). Installing it would have given the campaign's
+headline a SECOND value — the drift this repo's whole instrument discipline exists to
+prevent. And the ceiling was declined ON PURPOSE: the canonical script says "a floor on the
+INPUT, never on the metric", and the history says why — markers went 459 -> 461 when a
+refusal needed a stub, including once TODAY (the mutex-name refusal's mirror declaration).
+
+Independently reproduced, so the number in the handoff is now backed rather than quoted:
+counting lines whose stripped form starts with `#@` and contains `\trusted` gives **460 on
+the nose**.
+
+WHAT WENT WRONG, precisely, because it is not "I forgot to check": I tried four counting
+rules, none matched, and generalised from MY FOUR to ALL POSSIBLE. A census of your own
+attempts is not a census of the repo. The whole session has been about exactly this — (w5)
+write the program, (y5) "other" is not a category, (a6) predict rather than re-fit — and I
+made the same mistake with the lesson open in front of me.
+
+Eight corrections today. This one is in the record at full length on purpose: the previous
+seven were about the SYSTEM, and this one is about the method failing in the hands of the
+person applying it.
