@@ -7373,3 +7373,30 @@ and it is the one that caught this.
 Snapshot and restore every global the population can touch — `sys.path`, `sys.modules`,
 the working directory, environment. If a plane's verdict can depend on the order of its
 inputs, its green is a statement about that order and not about the corpus.
+
+### (a6) Explain by PREDICTION, not by re-reading
+
+Ten probes of PyCSL's set support produced a table with a strange shape: `held.add(m)` on a
+`Set[str]` verifies, `m in held` on the same value does not, `Set[int]` membership is fine,
+`Dict[str, int]` is fine on both paths, and a union works inside a `@mutable_state` class and
+nowhere else. Four separate write-ups of that table were drafted, and three of them were
+WRONG — "sets are untyped", "there is no union", "the read path is missing a branch" — each
+one a plausible story fitted to the same ten rows.
+
+The story that survived came from one line of source:
+
+    _sk = "string" if (_mut_coll and kt.get(arg) == "string") else "int"
+
+and it was not accepted because it fitted the ten rows. It was accepted because it PREDICTED
+an eleventh that had not been run: if mutation is what buys the string key, then a `Set[str]`
+parameter that is both `add`ed to and tested should verify. It does.
+
+Fitting a story to the data you have is free and the data cannot refuse. A prediction can.
+**When a mechanism explains N measurements, spend twenty seconds on measurement N+1 that the
+mechanism forces and the symptoms do not** — that is the difference between a description
+and an explanation, and only the second one is safe to write down for someone else to build
+on.
+
+Corollary: the three wrong drafts were all CORRECTIONS of each other, each caught by (w5)
+"write the program". (w5) stops a false sentence; this one is how you stop needing four
+passes.
