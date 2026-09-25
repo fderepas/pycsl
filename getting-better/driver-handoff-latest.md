@@ -434,3 +434,57 @@ effect. An op that takes its operand and returns an unconstrained value erases n
 4. Then the frontier is capabilities: the string/list/array FIELD value model (~170 witnesses),
    the nested-closure lift (backlog #54), the I4 bridge re-typing (backlog #55), higher-order
    arguments, dynamically-rebound names.
+
+---
+
+# UPDATE 17:36Z — TEN increments gated, 460 -> 449, and the population was never 410
+
+    A · D · E · F · H · I · J · K · L · M   all gated at 4029/4047, the standing EIGHTEEN,
+                                            ZERO XPASS, corpus byte-inert every time
+
+    markers                460 -> **449**
+    verbatim un-trusted    886 -> **897**
+    trusted-or-dependent   833 -> **798**
+
+## ELEVEN markers retired by proof, and how each was found
+
+    proof alone     errors.py::message · sertop.py::__exit__
+    PORTED          sertop::__enter__ · Module2_Parser::_err · identifiers::stable_hash ·
+                    parser::__repr__ · monomorphize::_rewrite_call_sites ·
+                    pure_ast::error · pure_ast::unsupported · pure_ast::iter_fields ·
+                    pure_ast::__instancecheck__ · Module6_WhyMLTranspiler::__init__ ·
+                    expressions::_emit_metatype_tags
+    honest ADDITIONS (+2)   _hdr_name · _returns_literal_none::walk — closures inside
+                    `\trusted` parents that were verified by nothing
+
+## THE POPULATION WAS NEVER 410
+
+Rebuilt from `trusted-reasons.tsv`, the authoritative per-marker ledger: **449 live markers,
+425 ever offered to a screen, 45 NEVER OFFERED** — nested closures and same-name collisions a
+bare-name enumeration cannot represent, concentrated in `Module3_Weaver.py` (13),
+`statements.py` (12), `stmt_control_flow.py` (8). Screened with the qualified-name
+`port_one.py`: three more confirmed PORT+LOWER, two correctly refused by CHECK 0.
+
+## Running now
+
+    $S/prove_batch4.log   statements.py's two `rec` closures (2h26 and counting) then
+                          pure_ast.py's AST.__init__ / AST.__repr__ / Comment.__repr__
+    $S/prove_batch5.log   Module5_IREmitter::_array_init_size, then
+                          Module3_Weaver::_attach_loop_contracts, then pure_ast::_Parser._max_end
+
+Each is one `check14_multi.sh` run: emit-diff (check 1) then a REAL whole-file proof, on its
+own tree (`cm_$$`, trapped on EXIT).
+
+## The tools, and what each learned the hard way
+
+    port_one.py        replaces a mirror body with its live twin. Accepts BARE or QUALIFIED
+                       names (`Class.method`, `Mixin._collect.rec`). ABORTS rather than
+                       guesses — and a CRASH now prints `ABORT:` too, because the first
+                       version crashed before writing and the screen reported ten false passes.
+    check0.py          the static trusted-parent refusal. Understands qualified names, and
+                       has the #44 population guard: it REFUSES when a candidate does not
+                       resolve, because "0 traps" and "0 inputs understood" used to print
+                       identically.
+    recheck_ports.sh   re-runs a screen's passes against the driver's POSITIVE marker, because
+                       a blacklist of failure strings is incomplete in the dangerous direction.
+    check14_multi.sh   emit-diff + whole-file proof, one unique tree per invocation.
