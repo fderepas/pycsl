@@ -213,7 +213,6 @@ frontend/pure_ast.py	AST.__repr__	unclassified	-
 frontend/pure_ast.py	_build_nodes	unclassified	-
 frontend/pure_ast.py	_const_value_getter	unclassified	-
 frontend/pure_ast.py	_const_value_setter	unclassified	-
-frontend/pure_ast.py	_ABC.__instancecheck__	unclassified	-
 frontend/pure_ast.py	Ellipsis.__new__	unclassified	-
 frontend/pure_ast.py	_Tok.__repr__	unclassified	-
 frontend/pure_ast.py	_lex	unclassified	-

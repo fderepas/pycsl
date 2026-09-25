@@ -58,12 +58,20 @@ Constant.n = property(_const_value_getter, _const_value_setter)
 Constant.s = property(_const_value_getter, _const_value_setter)
 class _ABC(type):
     'Metaclass making ``isinstance(Constant(x), Num)`` & friends work.'
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __instancecheck__(cls, inst):
-        pass
+        if not isinstance(inst, Constant):  # noqa: F821
+            return False
+        if cls in _const_types:
+            try:
+                value = inst.value
+            except AttributeError:
+                return False
+            return (isinstance(value, _const_types[cls]) and
+                    not isinstance(value, _const_types_not.get(cls, ())))
+        return type.__instancecheck__(cls, inst)
 
 
 #@ requires True
