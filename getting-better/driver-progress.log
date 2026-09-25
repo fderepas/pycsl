@@ -10550,3 +10550,46 @@ proof of that: it CONVERTS AND PROVES, and check 1 refuses it precisely because 
 
 Housekeeping under wall-lesson (h6): deleted 52 stale byte-diff/mirror sweep trees, keeping
 only `bd_nw`/`mir_nw` (the increment-A baselines) and `bd_mx2`/`mir_mx2`. /tmp 50% -> 43%.
+
+---
+
+## 03:48Z — INCREMENT D LANDED: 460 -> 458, TWO MARKERS, ALL FOUR CHECKS
+
+`errors.py::message` and `proof2why3/sertop.py::__exit__`. Every number was written as a
+prediction before the run and every prediction was exact:
+
+    count-trusted-directives   460 -> 458   (attached 458, unattached 0)
+    check-self-annotate-sync   886 -> 888   verbatim un-trusted mirror functions
+    trusted-raises-honesty     OK           15 declared / 62 silent
+    trusted-frame-honesty      OK           16/16 external effects still named
+    trust-blast-radius         OK           aggregate 833, ceiling 401, floor 538 (at 540)
+    errors.py whole-file       [+] Verification SUCCESS! All contracts formally proven.
+    sertop.py whole-file       [+] Verification SUCCESS! All contracts formally proven.
+
+Commit `af7f32c1`. Corpus byte-inertness (check 4) is the gate, queued behind increment A's.
+
+### The plane change the landing forced, and it is the more interesting half
+
+Retiring `message` did NOT shrink the trusted surface. `message` is `return super().__str__()`
+and `errors.py::__str__` is itself `\trusted` — so the function moved out of the TRUSTED set
+and straight into the trust-DEPENDENT one. `MAX_TRUST_DEPENDENT` broke 400 -> 401 **on a
+conversion that helped**, and both ends moved (dep_lo 335 -> 336), so it is not an artifact
+of the by-name over-approximation: same-file resolution sees it too.
+
+The invariant that means what the campaign means is `len(trusted) + dep_hi`. 434+400 = 833
+before, 432+401 = 833 after. Unmoved since gen #30's first measurement. It is now ratcheted as
+`MAX_TRUSTED_OR_DEPENDENT`, and verified non-vacuous (set to 832, the plane prints NOT OK).
+
+`MIN_TRUST_FREE` is deliberately NOT raised from 538 to the new 540: both ends of that bracket
+move with the over-approximation, only the aggregate is invariant, and locking in 540 would
+just schedule the next silent bump.
+
+## 03:49Z — CHECK 1 REFUSES `ir_schema.py::validate_ir`, and it is `_cache_root` x20
+
+87 diff lines, 20 of them new abstract operations. `ir_keys_0 ()`, `func_keys_0 ()` and
+`contracts_keys_0 ()` are all NULLARY — the emitted model of `ir.keys()` does not take `ir`.
+String literals have become int hashes (`func_get_2 1878939832 ...`). A proof over that
+program says nothing about the validator.
+
+So of the six verbatim candidates that lower: two landed, three are refused by check 1 or by
+`check-yield-erasure.py`, and `pycsl.py::_finalize` is being measured now.
