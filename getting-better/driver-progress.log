@@ -10639,3 +10639,21 @@ pulls in callers that were trust-free, and dep_lo jumped 336 -> 343 on the `walk
 EMISSION PREDICTION for the gate: `core_ir_semantic.py` measured **INERT** (byte-identical) —
 the honest marker changes nothing, because the closure was folded into an opaque `val` either
 way. `Module6_WhyMLTranspiler.py` measuring now.
+
+## 04:08Z — INCREMENT A IS GATED: 4029/4047, THE STANDING EIGHTEEN, ZERO XPASS
+
+The gate launched at 03:05:15Z finished at 04:08:30Z. Every number as predicted:
+
+    corpus byte-diff   2199/2199 .mlw, 0 MOVED, 0 GONE, 0 APPEARED — inert in all three directions
+    mirror byte-diff   53/53, 0 MOVED
+    fidelity           886 verbatim un-trusted
+    planes             all 48 green
+    suite              4029/4047, EIGHTEEN confirmed fails, ZERO XPASS
+
+The eighteen are the standing set and nothing else:
+  pycsl-reference 0211 0212 0213 0214 0215 0216 0217 0218 0219 0220 0701
+  python-reference 0043 0048 0079 0080 0082 0095 0110
+No flaky recoveries — the serial confirmation pass re-ran all eighteen and confirmed each.
+
+Gate for increments D+E+F launched immediately after, at 04:08Z (`$S/gate_d.log`), with
+`--expect-moved errors sertop` MEASURED rather than guessed.
