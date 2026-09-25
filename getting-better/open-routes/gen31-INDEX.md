@@ -13,9 +13,33 @@ of a population, produced the generation's other finding: `struct.unpack` return
 and six proof-cited corpus functions certify `\result == x`. Three instruments could have
 seen it and each had a different boundary.
 
+THE THIRD PART OF THE GENERATION ASKED THE QUESTION UNDERNEATH THE INSTRUMENTS: **does the
+corpus RUN?** Nineteen PASS-expected functions raise on every argument their own precondition
+admits, across five mechanisms; a new plane (`check-corpus-executes.py`) now asks it on every
+gate; and the same question turned on the conversion track produced the campaign's headline —
+**two `\trusted` stubs that convert and prove**, of which the four-check discipline says land
+exactly one.
+
 ## If you read one thing
 
 `getting-better/driver-progress.log`, from the gen #31 entries onward. This file is the map.
+
+## If you read TWO things, the second is this
+
+`finding-two-trusted-stubs-that-convert-and-prove.md`. It is the first time this
+TCB-reduction campaign has taken a `\trusted` marker all the way to "measured, checked, and
+ready to retire" — and the first time it has said, with evidence, that a SECOND candidate
+which also converts and also proves **must not be landed**. The sentence to carry away:
+
+> A green whole-file proof is NECESSARY for retiring a trust marker and nowhere near
+> sufficient. `\trusted` is not a hole in the proof; it is a LABEL on a claim nobody checked,
+> and removing the label re-files the claim from ASSUMED to PROVED — an improvement only if
+> the model can SEE the thing the claim is about.
+
+For `message` it can (an assumed frame becomes a proved one). For `_cache_root` it cannot:
+the body is a `mkdir`, the lowering gives it no frame, and `#@ assigns \nothing` would be
+certified over a directory creation. That failure generalised to a seventeen-stub
+DO-NOT-CONVERT list in `finding-assigns-nothing-over-a-subprocess.md`.
 
 ## The routes
 
