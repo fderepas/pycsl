@@ -34,6 +34,40 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #55 gen #31 — THE I4 SET-ELEMENT FIXPOINT IS REAL WORK, MEASURED (2026-09-25T08:03Z)
+
+Landed and reverted in five minutes. The two-line patch — read the key type from the
+DECLARATION in the PARAMETER extractor, then drop the `_mut_coll` conjunct — **flips the
+carrier, holds both controls, and proves three new corpus witnesses**, and then breaks FOUR
+mirror files in thirty seconds:
+
+    module6_whyml/expr_ghost_spec_ops.py     NOT PROVED   4 s
+    module6_whyml/expr_ghost_collections.py  NOT PROVED   3 s
+    frontend/monomorphize.py                 NOT PROVED   7 s
+    module6_whyml/stmt_control_flow.py       NOT PROVED  12 s
+
+every one of them:
+
+    This expression has type string -> option.Option.option int,
+    but is expected to have type int -> option.Option.option int
+
+**"Both ends read the declaration" is false.** A `val` BRIDGE has no Python declaration to
+read — it is synthesised for a method the emitter did not lower, and its parameter types come
+from whatever the emitter believed when it wrote the bridge. Promoting the DEFINITION side
+moves one end of the call edge and leaves the other.
+
+THE REAL WORK, now visible: every `val` bridge for a collection-carrying method must be
+re-typed in the SAME pass that promotes the definitions. That is a whole-module agreement
+problem — a fixpoint, exactly as the original comment said. The patch is kept in
+`$SCRATCH/g31/land_i4b.py` and the whole measurement is in
+`getting-better/open-routes/finding-the-i4-fixpoint-really-is-a-fixpoint.md`.
+
+THE GATE FOR IT IS WRITTEN AND CHEAP: `$SCRATCH/g31/i4_bill.sh` re-proves the ten moved mirror
+files cheapest-first, and the first four fail in under thirty seconds. Any future attempt
+should run THAT before anything else — before a carrier, before a corpus sweep, before a
+suite. A type error is the cheapest possible refutation and it was thirty seconds away the
+whole time.
+
 ### #54 gen #31 — the nested-closure lift, and the two markers waiting on it
 
 `module6_whyml/functions.py` refuses to lower a function whose nested `def` is lifted to a
