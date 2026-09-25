@@ -7245,3 +7245,45 @@ subscripts) lower as `map int` and agree with everything downstream. The wall is
 which is the shape a freshly converted function tends to have and is why it appears at
 conversion time rather than in the 120 already there. Zero corpus exposure is unchanged and
 still the decisive half.
+
+### THE THREE "POPULATION WALLS", PROBED — and two of them are not walls (2026-09-25)
+
+This file has ranked "f-strings 186 of 442 bodies, comprehensions 170, dict literals 160" as
+the population-level blockers for three entries running, on the strength of COUNTING the
+bodies that contain them. Thirteen two-line programs, twenty seconds each:
+
+    VERIFIES
+      f"a{s}b"                              f-string, str variable
+      f"{n:03d}"                            f-string, format spec
+      f"{s}={n}"                            f-string, two holes
+      [y + 1 for y in xs]                   comprehension over a List param
+      [y for y in xs if y > 0]              ... with a filter
+      [y for y in xs]; [z for z in ys]      nested
+      {"a": 1, "b": 2}  then  d[k]          dict literal, STRING keys
+      ys = [1, 2]; ys.append(n)             list literal then append
+      "x" + s                               string concatenation
+
+    FAILS
+      [y for y in range(n)]                 comprehension over a RANGE      array mismatch
+      [abs(y) for y in xs]                  comprehension with a CALL       array mismatch
+      {y: y for y in xs}                    DICT comprehension              unbound type
+      {y for y in xs}                       SET comprehension               unbound type
+      s = {1, 2, 3}; n in s                 SET LITERAL                     type mismatch
+      ",".join(xs)                          str.join over a list            array int
+
+**F-strings are not a wall at all**, and list comprehensions and dict literals are not walls
+in the shapes that dominate. What is left is narrower and nameable: a comprehension whose
+ITERABLE is a `range` or whose ELEMENT is a call, the dict and set comprehensions, the set
+literal, and `str.join`.
+
+That is the fifth time in this file that a COUNT was mistaken for a BLOCKER — the lesson is
+already written here ("top-level statement count is a proxy and it has now been wrong four
+times") and it was written about a different proxy each time. The probe costs twenty seconds
+and the count costs a generation of ranking.
+
+One caution recorded because it nearly went the other way: the first run of these probes
+reported SIX failures that were the PROBE — a `printf "%s"` that did not expand `\n`, so the
+generated file had a literal backslash-n and Python refused it. The verdict column said
+"PIPELINE ERROR" six times and looked like a finding. Reading the MESSAGE
+(`unexpected character after line continuation character`) took one call and cost nothing;
+tallying the column would have put six false walls into this file.
