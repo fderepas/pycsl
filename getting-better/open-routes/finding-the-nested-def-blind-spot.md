@@ -74,7 +74,10 @@ already does. Three lines in each walk.
 A plane that walks the AST for a population has to walk it the same way every other plane
 walking that population does, or the populations silently disagree — and the disagreement
 always favours the optimistic number, because the narrower walk is the one that finds fewer
-problems. The fidelity plane says 888 functions are verified; the integrity gate checked 836
+problems. MEASURED EXACTLY: the integrity gate's own walk enumerated **863** of the **915**
+un-trusted, un-abstract mirror functions — 52 invisible — while the FIDELITY plane descends
+and therefore counts every one of the 52 among the verbatim un-trusted twins it calls verified.
+The two planes disagreed about the same mirror by 52 functions
 of them. Nobody wrote that down, because nothing printed both numbers.
 
 **Any plane that reports a population size should be cross-checked against every other plane
@@ -117,7 +120,7 @@ accident until it doesn't.
 
 ## What the fixed gate actually found — and the number that went backwards
 
-With the walk descending, the population is **915** un-trusted functions instead of 836. The
+With the walk descending, the population is **915** un-trusted functions instead of 863. The
 first run reported 1 `val` and 41 ABSENT. Both numbers were then adjudicated rather than
 believed:
 
@@ -197,3 +200,23 @@ instruments agree on it from opposite directions.
 And the emitter already knew. `module6_whyml/functions.py`'s nested-lift refusal carries a
 `func.get("trusted_parent")` exemption: the lowering has tracked the concept all along, while
 no plane asked the corresponding question about the MARKER.
+
+## The gap, measured exactly rather than subtracted
+
+The first write-up of this finding said the gate had been checking "836 of 888". **Both
+numbers were wrong**, and in the way that is worth recording: 836 was arrived at by
+SUBTRACTING the census (52) from the FIDELITY plane's count (888) — two different populations,
+neither of them the gate's. The gate counts un-trusted AND un-abstract functions, the fidelity
+plane counts verbatim un-trusted twins, and they do not have the same members.
+
+Running the OLD walk and the NEW walk side by side over the same mirror, which is what should
+have been done in the first place:
+
+    OLD walk (stops at a `def`, no compound-statement descent)   863
+    NEW walk (descends)                                          913   (915 before the two
+                                                                        honest markers)
+    difference                                                    50   (52 before them)
+
+So the correct sentence is: **the integrity gate enumerated 863 of the 915 un-trusted
+functions in the mirror.** A number produced by subtracting one plane's count from another
+plane's census is exactly the kind of number this finding is about.

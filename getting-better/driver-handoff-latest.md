@@ -78,7 +78,7 @@ set to 832 the plane prints NOT OK.
     af7f32c1  D  two `\trusted` markers RETIRED and PROVED (460 -> 458)
     594aa07d  E  the frame plane's external-effect half (16 stubs that shell out)
     e8f33b10     the yield plane descends too (a trap closed while empty, 0 population)
-    f184e94f  F  the integrity gate checked 836 of the 888 it was meant to; the walk now
+    f184e94f  F  the integrity gate checked 863 of the 915 it was meant to; the walk now
                  descends, `FOLDED` is a shape, a STATIC refusal for a closure inside a
                  `\trusted` parent, and TWO HONEST MARKERS take the count back to 460
     3213c4f1     progress log

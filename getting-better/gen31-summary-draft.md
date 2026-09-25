@@ -20,7 +20,7 @@ markers retired by proof and two added by discovering they had never been verifi
 | D | `af7f32c1` | **two `\trusted` markers RETIRED AND PROVED** — `errors.py::message`, `proof2why3/sertop.py::__exit__` |
 | E | `594aa07d` | the frame plane's EXTERNAL-EFFECT half — 16 stubs that shell out under `assigns \nothing`, all named |
 | — | `e8f33b10` | `check-yield-erasure.py` descends into nested defs (a trap closed while its population is 0) |
-| F | `f184e94f` | the integrity gate on the conversion count had been checking **836 of 888** |
+| F | `f184e94f` | the integrity gate on the conversion count had been checking **863 of 915** |
 | — | `74f5db2c` | the two honest markers pay their ledger debts: reasons synced (unclassified 458 -> 456), termination ratchet 53 -> 55 with both members named |
 
 ## The measurements that re-scoped the campaign
@@ -75,7 +75,7 @@ The census makes "several others" a number. And the sharpest instance: `errors.p
 the marker this session proved, is a method on the SAME class whose `__str__` cannot convert
 for exactly this reason. It could be proved only because its body never touches a string field.
 
-### The integrity gate had been checking 836 of 888
+### The integrity gate had been checking 863 of 915
 
 `check-untrusted-emitted.py` exists so that *"the count improves, the TCB does not"* cannot
 happen. Its walk stopped at a `def`. The FIDELITY plane descends. So 52 nested un-trusted
@@ -83,7 +83,7 @@ closures sat inside the population this project calls verified while that gate h
 at one.
 
 Found by check 1 on `pycsl.py::_finalize` returning a byte-identical emission. Fixing it took
-three changes — the walk descends (836 -> 915), a new `FOLDED` shape for closures the emitter's
+three changes — the walk descends (863 -> 915), a new `FOLDED` shape for closures the emitter's
 recognizers consume into an emitted parent's model (41), and a STATIC refusal for a closure
 inside a `\trusted` parent (2, one of which the emission check could not see because
 `core_ir_semantic.py` has five closures called `walk`).

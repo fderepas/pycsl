@@ -40,7 +40,7 @@ lost. Read these three, in this order:
 
 3. `finding-the-nested-def-blind-spot.md` — the integrity gate on the conversion count
    (`check-untrusted-emitted.py`) walked into a `ClassDef` and **stopped at a `def`**, so it
-   was checking 836 of the 888 functions the fidelity plane calls verified. Fixing it found
+   was checking 863 of the 915 functions the fidelity plane calls verified. Fixing it found
    two un-trusted closures inside `\trusted` parents, verified by nothing.
 
 **The session's accounting, and it is the thing to carry away:**

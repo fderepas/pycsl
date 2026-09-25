@@ -7685,8 +7685,10 @@ walk recursed into a `ClassDef` and **stopped at a `FunctionDef`**.
 count as verified — descends into nested defs, and a gen #4 note inside it records fixing that
 exact walk in that exact way.
 
-So the fidelity plane said 888 functions were verified and the integrity gate had checked 836
-of them, for a whole campaign, and nothing printed both numbers. The 52 in between included
+So the FIDELITY plane descended and counted every nested closure among the verbatim un-trusted
+twins it calls verified, while the integrity gate's own walk enumerated **863** of the **915**
+un-trusted, un-abstract mirror functions — **52 invisible** — for a whole campaign, and nothing
+printed both numbers. The 52 in between included
 two closures inside `\trusted` parents, whose bodies are emitted as part of an opaque `val`
 and are verified by nothing at all.
 
@@ -7704,8 +7706,8 @@ Two operational rules:
 
 1. **Any plane that reports a population size must be cross-checked against every other plane
    reporting the same population.** 460 markers / 434 blast-radius keys / 888 verbatim twins /
-   836 emission-checked — four numbers for one mirror, and the gap between the last two was
-   the bug.
+   915 un-trusted by the fixed walk / 863 by the broken one — five numbers for one mirror, and
+   the gap between the last two was the bug.
 2. **Write the walk once.** `check-trusted-reasons.py` already does this right and says so:
    *"THE ATTACHMENT WALK IS NOT A SECOND WALK. Markers are enumerated with
    `bin/trusted_markers.py` — the module `count-trusted-directives.py` itself counts with — so
