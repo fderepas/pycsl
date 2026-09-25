@@ -54,7 +54,26 @@ than a convenience:
   consistent BECAUSE proving is off. Nothing was wrong with those files; what was wrong
   was that no instrument printed the 45%. The share is now printed every run and capped.
 
-THE RATCHETS: any non-inherited DISAGREE fails; the trust-inherited count may not grow;
+THE POST-STATE AXIS (gen #31). Every clause above is about `\result`. A method that
+returns nothing and promises `#@ ensures self._balance == \old(self._balance) + amount`
+was outside this oracle's population on BOTH counts — no `\result` clause to read, and
+`\old` in the skip list. It is checkable here in a way it is checkable nowhere else in the
+battery, because this oracle CONSTRUCTS the pre-state: build the object, SNAPSHOT its
+fields, call the method, evaluate the clause against the snapshot. Thirty-two such claims
+exist in the PASS-expected corpus, twenty-one of them using `\old`; 31 methods and 96
+clause evaluations run, 0 FALSE. A FRESH object is built for every argument tuple —
+`\old` names the state before THIS call, and reusing one instance would make the second
+tuple's pre-state the first tuple's writes.
+
+The widening was aimed at 32 claims it could newly CHECK. What it found was a file it
+could newly RUN: `0554.py::Service.tick` raises `AttributeError` on every call, because
+`#@ compose_from` flattens the provider IN THE VERIFIER and CPython's MRO does not.
+See NEVER_RETURNS below and
+`getting-better/open-routes/finding-a-contract-over-a-function-that-never-returns.md`.
+
+THE RATCHETS: any non-inherited DISAGREE fails; any post-state clause FALSE fails; an
+UNNAMED function with no normal exit on any admitted argument fails; the trust-inherited
+count may not grow;
 the `--no-proof` SHARE may not grow. THE POPULATION GUARD (the #44 rule): rc=2 below
 MIN_EVALS evaluations, so a green can never mean "I ran nothing".
 
@@ -85,6 +104,12 @@ SKIP_TOKENS = ("\\forall", "\\exists", "\\old", "\\at", "\\separated",
 # `\length(x)` is `len(x)`, exactly as `check-class-invariant-establishment`
 # does it. A token belongs in a list called "cannot evaluate" only while it
 # really cannot be evaluated.
+# (#49) gen #31 — `\old` LEAVES the skip list for the POST-STATE axis only, and for a
+# measured reason: this oracle CONSTRUCTS the pre-state, so `\old` is the one token it is
+# in a better position to evaluate than the prover. A census of the `\result ==` population
+# found ZERO functions excluded by `\old` — every instance of it in the corpus is a claim
+# about a FIELD after a method call, which is a different axis and the one below.
+SKIP_TOKENS_POST = tuple(t for t in SKIP_TOKENS if t != "\\old")
 POOL = [0, 1, 2, 3, 5, -1, -2, 7]
 # (#49) gen #31 — the `str`/`bytes` pools. Deterministic and small: four
 # values each, chosen to include the empty one, a single character, and the
@@ -94,7 +119,8 @@ BYTES_POOL = [b"", b"a", b"abcd", b"xyz"]
 MAX_TUPLES = 40          # per function, deterministic prefix of the product
 CALL_TIMEOUT = 1.0       # seconds; a corpus loop must not hang the battery
 EXEC_TIMEOUT = 2.0
-MIN_EVALS = 5500         # 5750 with the METHOD population AND the skip list narrowed
+MIN_EVALS = 5900         # 6114 with the POST-STATE axis. Was 5750 with the METHOD
+                         # population AND the skip list narrowed
                          # to the clauses actually evaluated (4340 at the first
                          # measurement, functions only, `\nothing` excluding every
                          # empty-frame function). Roughly the same relative margin the
@@ -127,7 +153,42 @@ KNOWN_DIVERGENT = {
     # is the same defect one type over: CPython answers `(b'abcd',)`.
     ("0779.py", "roundtrip_s4"): "struct.unpack returns a tuple; discharged by `#@ proof`",
 }
-MAX_RAISED = 4                   # calls that RAISE on an argument the precondition admits.
+# (#49) gen #31 — NO NORMAL EXIT ON ANY ADMITTED ARGUMENT. A contract over a function that
+# always raises is VACUOUSLY true: the `#@ ensures` constrains a normal exit the function
+# does not have, so the prover discharges it and the claim says nothing about any run. This
+# is a strictly sharper defect than "raises on SOME argument" (0420, 1302), and separating
+# the two is the whole reason the tuple loop stopped breaking on the first raise.
+#
+# `check-claim-vacuity.py` is the instrument that should have found these and could not:
+# its population is CLAUSES that are trivially true, and each of these clauses is a
+# perfectly contentful `\result == k`. The vacuity is in the FUNCTION's reachability, one
+# level below where that instrument looks. Wall-lesson (v5).
+NEVER_RETURNS = {
+    ("0159.py", "diverges_inc"):
+        "DECLARED `#@ \\diverges`. Not a defect: a function that is promised not to return "
+        "is the one shape where having no normal exit is the contract.",
+    ("0496.py", "grab"):
+        "`Holder.__new__(cls)` takes no extra argument while `__init__(self, n)` does, so "
+        "CPython's `Holder(k)` raises `TypeError: __new__() takes 1 positional argument but "
+        "2 were given` — for EVERY k. The model builds `{x = k}` from `__init__` and never "
+        "compares `__new__`'s arity with the construction site, so `\\result == k` verifies "
+        "for a function with no run at all. `__new__` IS an analysed surface (UB-7.6 "
+        "rejects a non-trivial one), which is what makes the missing dimension a defect "
+        "rather than a boundary. `finding-a-contract-over-a-function-that-never-returns.md`",
+    ("0554.py", "Service.tick"):
+        "`#@ compose_from Counter` flattens `bump` into `Service` IN THE VERIFIER; CPython "
+        "does not, because `Service` does not inherit `Counter` — `self.bump()` is an "
+        "`AttributeError` on every call. Measured across the corpus: ALL ELEVEN composing "
+        "classes compose a provider they do not inherit, and in ten of the eleven the "
+        "provided name is absent from the instance at runtime. "
+        "`finding-a-contract-over-a-function-that-never-returns.md`",
+}
+MAX_RAISED = 12                  # calls that RAISE on an argument the precondition admits.
+                                 # (#49) gen #31: 4 -> 12 because the loop no longer BREAKS
+                                 # on the first raise — it takes up to three per function,
+                                 # which is what lets `NEVER_RETURNS` above be distinguished
+                                 # from an input-dependent raise. The FUNCTIONS are the same
+                                 # five; only the sampling changed.
                                  # (#49) gen #31: 3 -> 4 with the widened population. The one
                                  # added is `1302_route108…::wrapper(-1)`, whose `else` branch
                                  # calls a raising callee — route #108 established that the
@@ -257,8 +318,13 @@ def collect(no_exclusions=False):
                     continue
             elif any(a.arg == "self" for a in ps):
                 continue
-            if not ps or len(ps) > 3:
+            if len(ps) > 3:
                 continue
+            _post_probe = any(re.match(r"#@\s*ensures\s+self\.\w+\s*==", a)
+                              for a in annotations_of(node))
+            if not ps and not (_cls is not None and _post_probe):
+                continue       # a zero-argument function is the SIBLING oracle's population
+
             # (#49) gen #31 — `str` and `bytes` parameters join `int`/`bool`, and the
             # RETURN annotation is no longer restricted: `\result == d` is an ordinary
             # Python `==` whatever `d` is, and a comparison the oracle cannot make simply
@@ -267,13 +333,28 @@ def collect(no_exclusions=False):
                        and a.annotation.id in ("int", "bool", "str", "bytes")
                        for a in ps):
                 continue
+            # A post-state method typically returns `None`; the return annotation only
+            # has to be readable when a `\result` clause is actually evaluated.
             if not (isinstance(node.returns, ast.Name)
-                    and node.returns.id in ("int", "bool", "str", "bytes")):
+                    and node.returns.id in ("int", "bool", "str", "bytes")) \
+                    and not (_cls is not None and _post_probe):
                 continue
             ann = annotations_of(node)
             ens = [m.group(1).strip() for m in
                    (re.match(r"#@\s*ensures\s+\\result\s*==\s*(.+)$", a) for a in ann) if m]
-            if not ens:
+            # (#49) gen #31 — THE POST-STATE AXIS. Until now every clause this oracle read
+            # was about `\result`, so a method that returns nothing and promises
+            # `self._balance == \old(self._balance) + amount` was outside the population on
+            # BOTH counts — no `\result` clause, and `\old` in the skip list. Thirty-two
+            # such claims exist in the PASS-expected corpus, twenty-one of them using
+            # `\old`. They are checkable here in a way they are not checkable anywhere
+            # else in the battery: construct the object, SNAPSHOT its fields, call the
+            # method, evaluate the clause against the snapshot.
+            post = [m.group(1).strip() for m in
+                    (re.match(r"#@\s*ensures\s+(self\.\w+\s*==.+)$", a) for a in ann) if m]
+            if post and _cls is None:
+                post = []          # `self.f` outside a class is not a post-state claim
+            if not ens and not post:
                 continue
             # (#49) gen #31 — THE SKIP LIST APPLIES TO THE CLAUSES THIS ORACLE READS, which
             # are `requires` and `ensures`, NOT to the whole annotation block. `\nothing`
@@ -284,7 +365,11 @@ def collect(no_exclusions=False):
             # in what is evaluated does not belong to that set. Wall-lesson (o5).
             _reqs0 = [m.group(1).strip() for m in
                       (re.match(r"#@\s*requires\s+(.+)$", a) for a in ann) if m]
-            if any(t in " ".join(_reqs0 + ens) for t in SKIP_TOKENS):
+            if ens and any(t in " ".join(_reqs0 + ens) for t in SKIP_TOKENS):
+                continue
+            if post and any(t in " ".join(_reqs0 + post) for t in SKIP_TOKENS_POST):
+                post = []
+            if not ens and not post:
                 continue
             # A name REBOUND at module level (`inc = dec`, route #119's witness library) is
             # not the function whose contract was just read — `ns[name]` would be the other
@@ -313,6 +398,10 @@ def collect(no_exclusions=False):
                     (re.match(r"#@\s*requires\s+(.+)$", a) for a in ann) if m]
             if any("\\" in re.sub(r"\\length\(", "len(", x) for x in reqs + ens):
                 continue
+            if any("\\" in _post_py(x) for x in post):
+                post = []
+            if not ens and not post:
+                continue
             _raises_when = [m.group(1).strip() for m in
                             (re.match(r"#@\s*raises\s+\w+\s+when\s+(.+)$", a)
                              for a in ann) if m]
@@ -321,13 +410,27 @@ def collect(no_exclusions=False):
                     "str": STR_POOL, "bytes": BYTES_POOL}.get(_a_pp.annotation.id, POOL)
             per.setdefault(f, []).append(
                 (name, [a.arg for a in ps], ens, reqs, bool(reach(name) & trusted),
-                 _cls, _raises_when))
+                 _cls, _raises_when, post))
     return per, stats
 
 
 def _py(expr):
     return (re.sub(r"\\length\(", "len(", expr)
             .replace("&&", " and ").replace("||", " or "))
+
+
+def _post_py(expr):
+    r"""A post-state clause, in Python, against a snapshot taken before the call.
+
+    `\old(self.F)` becomes `_OLD["F"]` — the field as it was, which is exactly what this
+    oracle holds and the reason `\old` is evaluable here. A REMAINING `\old(` can only
+    wrap a parameter, and every parameter in this population is annotated `int`, `bool`,
+    `str` or `bytes` — all IMMUTABLE, and bound in the evaluation namespace to the
+    ARGUMENT, which IS the pre-state value whatever the body rebinds. So it drops to
+    parentheses. Anything else still carries a backslash and is rejected by the caller.
+    """
+    return _py(re.sub(r"\\old\(", "(",
+                      re.sub(r"\\old\(\s*self\.(\w+)\s*\)", r'_OLD["\1"]', expr)))
 
 
 def main():
@@ -348,6 +451,9 @@ def main():
     agree = 0
     disagree, inherited, unrunnable, raised = [], [], [], []
     funcs = 0
+    posts = posts_disagree = 0        # post-state CLAUSE evaluations, reported separately
+    post_funcs = set()
+    never_returns = []                # admitted by its own `requires`, raised on EVERY one
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -363,15 +469,17 @@ def main():
                     signal.setitimer(signal.ITIMER_REAL, 0)
             except BaseException as exc:
                 signal.setitimer(signal.ITIMER_REAL, 0)
-                unrunnable += [(os.path.basename(f), n, type(exc).__name__)
-                               for n, _, _, _, _, _, _ in items]
+                unrunnable += [(os.path.basename(f), it[0], type(exc).__name__)
+                               for it in items]
                 continue
             finally:
                 signal.setitimer(signal.ITIMER_REAL, 0)
                 if sys.path and sys.path[0] == d:
                     sys.path.pop(0)
-            for name, params, ens, reqs, inherits, cls, raises_when in items:
+            for name, params, ens, reqs, inherits, cls, raises_when, post in items:
                 funcs += 1
+                if post:
+                    post_funcs.add((os.path.basename(f), cls, name))
                 _obj = None
                 if cls is None:
                     fn = ns.get(name)
@@ -394,11 +502,30 @@ def main():
                     unrunnable.append((os.path.basename(f), name, "not callable"))
                     continue
                 tested = 0
+                _admitted = _raised_here = 0
                 _pools = [PARAM_POOL.get((name, _p), POOL) for _p in params]
                 for tup in itertools.product(*_pools):
                     if tested >= MAX_TUPLES:
                         break
                     env = dict(zip(params, tup))
+                    # (#49) gen #31 — A FRESH OBJECT PER CALL for the post-state axis.
+                    # `\old` names the state before THIS call; reusing one instance across
+                    # the product would make the second tuple's pre-state the first
+                    # tuple's writes, and `deposit` would look like it disagreed when the
+                    # oracle was the thing that was wrong.
+                    if post:
+                        try:
+                            signal.setitimer(signal.ITIMER_REAL, CALL_TIMEOUT)
+                            with contextlib.redirect_stdout(io.StringIO()), \
+                                 contextlib.redirect_stderr(io.StringIO()):
+                                _obj = ns[cls]()
+                            signal.setitimer(signal.ITIMER_REAL, 0)
+                            fn = getattr(_obj, name)
+                        except BaseException as exc:
+                            signal.setitimer(signal.ITIMER_REAL, 0)
+                            unrunnable.append((os.path.basename(f), cls + "." + name,
+                                               type(exc).__name__))
+                            break
                     try:
                         if not all(eval(_py(r), dict(ns), dict(env, self=_obj))
                                    for r in reqs):
@@ -412,6 +539,8 @@ def main():
                             continue
                     except Exception:
                         pass
+                    _admitted += 1
+                    _old_snap = dict(vars(_obj)) if (post and _obj is not None) else {}
                     try:
                         signal.setitimer(signal.ITIMER_REAL, CALL_TIMEOUT)
                         with contextlib.redirect_stdout(io.StringIO()), \
@@ -420,6 +549,9 @@ def main():
                         signal.setitimer(signal.ITIMER_REAL, 0)
                         claims = [eval(_py(e), dict(ns), dict(env, self=_obj))
                                   for e in ens]
+                        pclaims = [eval(_post_py(e), dict(ns),
+                                        dict(env, self=_obj, _OLD=_old_snap))
+                                   for e in post]
                     except BaseException as exc:
                         signal.setitimer(signal.ITIMER_REAL, 0)
                         # (#49) gen #30 — A CALL THAT **RAISES** IS NOT THE SAME AS A
@@ -439,7 +571,16 @@ def main():
                         # `UnixFs.Struct.i2.round_trip` this file cites is UNGUARDED.
                         raised.append((os.path.basename(f), name, tup,
                                        type(exc).__name__))
-                        break
+                        # (#49) gen #31 — KEEP GOING, up to three. The first version broke
+                        # out here, and a `break` cannot tell "raises on THIS argument"
+                        # from "has no normal exit on ANY argument its own precondition
+                        # admits". The second is a different and sharper defect — a
+                        # contract over a function that never returns is VACUOUSLY true
+                        # and certifies nothing at all — so it gets its own bucket below.
+                        _raised_here += 1
+                        if _raised_here >= 3:
+                            break
+                        continue
                     tested += 1
                     got = int(got) if isinstance(got, bool) else got
                     bad = None
@@ -449,11 +590,24 @@ def main():
                             bad = (os.path.basename(f), name, tup, e_src, claim, got)
                             break
                     if bad is None:
+                        for p_src, pclaim in zip(post, pclaims):
+                            if pclaim is not True:
+                                # the clause IS the comparison: it either held or it did not
+                                bad = (os.path.basename(f), (cls or "") + "." + name, tup,
+                                       p_src, pclaim, "post-state")
+                                posts_disagree += 1
+                                break
+                        else:
+                            posts += len(post)
+                    if bad is None:
                         agree += 1
                     elif inherits:
                         inherited.append(bad)
                     else:
                         disagree.append(bad)
+                if _admitted and not tested:
+                    never_returns.append((os.path.basename(f),
+                                          (cls + "." if cls else "") + name, _admitted))
 
     share = stats["no_proof"] / float(stats["files"]) if stats["files"] else 0.0
     print("[*] corpus-contract-truth-args: %d function(s), %d argument-level "
@@ -461,6 +615,19 @@ def main():
           "callee, %d RAISED on an admitted argument, %d unrunnable."
           % (funcs, agree + len(disagree) + len(inherited), agree, len(disagree),
              len(inherited), len(raised), len(unrunnable)))
+    _nr_bad = [r for r in never_returns if (r[0], r[1]) not in NEVER_RETURNS]
+    print("[*] corpus-contract-truth-args: NO-NORMAL-EXIT — %d function(s) raised on EVERY "
+          "argument their own `requires` admits, %d of them named in NEVER_RETURNS with a "
+          "reason. A contract over such a function is vacuously true."
+          % (len(never_returns), len(never_returns) - len(_nr_bad)))
+    for _f, _n, _a in sorted(never_returns):
+        print("      %-44s %s" % (_f + "::" + _n,
+                                  NEVER_RETURNS.get((_f, _n), "*** UNNAMED ***")[:150]))
+    print("[*] corpus-contract-truth-args: POST-STATE — %d method(s) promising "
+          "`self.f == ...` after the call, %d clause evaluation(s) against a pre-call "
+          "snapshot, %d FALSE. `\\old(self.f)` is read from the snapshot; a fresh object "
+          "is built for every argument tuple."
+          % (len(post_funcs), posts + posts_disagree, posts_disagree))
     print("[*] corpus-contract-truth-args: EXCLUSIONS — %d file(s) carry `--no-proof` "
           "(%.1f%% of %d corpus files: a PASS there means the pipeline did not crash, "
           "NOT that the contracts hold), %d `\\trusted` function(s), %d behaviour-block "
@@ -490,9 +657,15 @@ def main():
         if _key in KNOWN_DIVERGENT and not args.selftest_no_exclusions:
             _seen_known.add(_key)
             continue
-        print("[!]   CONTRACT FALSE OF ITS OWN PROGRAM: %s::%s%r — `ensures \\result == "
-              "%s` says %r, CPython answers %r. The file is expected to PASS and its "
-              "precondition admits that argument." % b, file=sys.stderr)
+        if b[5] == "post-state":
+            print("[!]   POST-STATE CLAIM FALSE OF ITS OWN PROGRAM: %s::%s%r — after the "
+                  "call, `ensures %s` evaluates to %r against a snapshot taken before it. "
+                  "The file is expected to PASS and its precondition admits that argument."
+                  % b[:5], file=sys.stderr)
+        else:
+            print("[!]   CONTRACT FALSE OF ITS OWN PROGRAM: %s::%s%r — `ensures \\result == "
+                  "%s` says %r, CPython answers %r. The file is expected to PASS and its "
+                  "precondition admits that argument." % b, file=sys.stderr)
         rc = 1
     if not args.selftest_no_exclusions:
         _gone = set(KNOWN_DIVERGENT) - _seen_known
@@ -515,6 +688,12 @@ def main():
         print("[!] SELFTEST FAILED: dropping every exclusion found NO disagreement, so "
               "this oracle cannot detect a false contract at all.", file=sys.stderr)
         return 2
+    if _nr_bad:
+        ok = False
+        print("[!]   A FUNCTION WITH NO NORMAL EXIT ON ANY ADMITTED ARGUMENT IS NOT NAMED: "
+              "%s. Its `#@ ensures` is vacuously true — the prover discharges a claim about "
+              "an exit the function does not have. Diagnose it and add it to NEVER_RETURNS "
+              "with its reason, or repair it." % (_nr_bad,), file=sys.stderr)
     if len(raised) > MAX_RAISED:
         print("[!]   RAISED-ON-ADMITTED-ARGUMENT COUNT GREW: %d > %d. Each one is a "
               "contract that promises a value where CPython has no normal exit at all."

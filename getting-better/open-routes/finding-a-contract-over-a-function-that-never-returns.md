@@ -1,0 +1,114 @@
+# A contract over a function that NEVER RETURNS
+
+**Status: FINDING, two instances, both reproduced in CPython and both named in the
+instrument.** Not a route: neither certifies a WRONG value, because neither program has a
+run in which any value is produced. What they certify is NOTHING — and they certify it
+while wearing a contentful postcondition, under `# pycsl-expected: PASS`.
+
+## The shape
+
+    #@ requires k >= 0
+    #@ ensures \result == k
+    def grab(k: int) -> int: ...
+
+An `#@ ensures` constrains the NORMAL exit. If the function has no normal exit on any
+argument its own `#@ requires` admits, the clause is discharged over an empty set of runs.
+The prover is right; the proof is empty. This is vacuity — but it is vacuity one level
+below where `bin/check-claim-vacuity.py` looks, because that instrument's population is
+CLAUSES that are trivially true, and `\result == k` is as contentful as a clause gets.
+
+## Instance 1 — `0496.py::grab`, the `__new__` arity nobody compares
+
+```python
+class Holder:
+    def __new__(cls):                 # takes NO extra argument
+        return super().__new__(cls)
+    def __init__(self, n: int):       # takes one
+        self.x = n
+```
+
+`Holder(k)` is `type.__call__`, which passes the arguments to **both** `__new__` and
+`__init__`. With `__new__` overridden at arity 1, CPython raises for every k:
+
+    TypeError: Holder.__new__() takes 1 positional argument but 2 were given
+
+The model never runs `__new__`: it builds the record from `__init__` and discharges
+`\result == k`. `__new__` is not an unanalysed surface — **UB-7.6 rejects a NON-TRIVIAL
+`__new__`** (caching, singleton, returning another instance), and 0496's own docstring is
+about exactly that check: "A trivial `__new__` … is accepted". So the check exists and one
+of its dimensions — does the signature admit the construction site's arguments — is
+missing. A rule that inspects `__new__` closely enough to classify it as trivial is
+standing in front of its arity.
+
+## Instance 2 — `0554.py::Service.tick`, and `#@ compose_from` has no runtime
+
+```python
+#@ mixin
+class Counter:
+    #@ provides bump
+    def bump(self) -> None: self.count = self.count + 1
+
+#@ compose_from Counter
+class Service:                         # <- does NOT inherit Counter
+    def tick(self) -> None: self.bump()
+```
+
+`annotations.md` §2.7 says the composer "flattens the providers into the composer so
+`self.<m>(…)` resolves end-to-end". It resolves end-to-end IN THE VERIFIER. Python's MRO
+is `[Service, object]`, `bump` is not on the instance, and `Service().tick()` is an
+`AttributeError` — every time, on the only argument tuple there is.
+
+**Censused across the corpus, because one instance is an anecdote:** thirteen files
+mention `compose_from`; eleven declare a composing class; **all eleven compose a provider
+they do not inherit**, and in **ten of the eleven** the provided name is absent from the
+instance at runtime. The exception is `1259_route95_composer_shadows_depended_provider.py`,
+where the composer defines the method itself — which is precisely what that file was
+written to witness. Not one composing class in the corpus is executable Python.
+
+The PASS-expected ones are `0549` (the flagship), `0554`, `1261`, `1858`.
+
+`0554`'s docstring calls itself "a faithful miniature of PyCSL's own
+facade-with-MUTABLE-shared-state shape (the self-hosting target, `src/self-annotate/`)".
+The self-hosting target is a program that runs. The miniature is not.
+
+### Is this a defect or a modelling boundary?
+
+The section HAS a boundary paragraph — "Out of scope (boundaries, documented not faked)" —
+and what it scopes out is DYNAMIC dispatch (`getattr(self, _EXPR_DISPATCH[t])`), Tier-2
+conflict resolution and Tier-3 diamonds. It does not say the composed program need not run.
+Two honest repairs exist and neither is large:
+
+1. **Require the runtime composition.** A `#@ compose_from M` class must have `M` in its
+   MRO (or define every provided name itself, which is the `1259` case). This is a
+   front-end refusal with a corpus-wide blast radius of eleven files — four of them
+   PASS-expected drivers that would need `class Facade(CoreEmit, MapOps)`.
+2. **Say so.** Add the sentence to the boundary paragraph, and the corpus stops claiming
+   that these files model running code.
+
+Option 1 is the one that makes the directive mean what the documentation says. It is
+written down here rather than landed because it is a refusal over a documented directive
+with four PASS drivers in its blast radius, and this generation's own lesson (u4) is that
+a rule applies to every program that could be written, not just to the ones that exist.
+
+## The instrument
+
+`bin/check-corpus-contract-truth-args.py` grew the bucket that finds these. The tuple loop
+used to `break` on the first raise, which cannot tell "raises on THIS argument" (`0420`,
+`1302` — input-dependent, already reported under `MAX_RAISED`) from "has no normal exit at
+all". It now takes up to three raising tuples per function and classifies afterwards:
+a function whose own precondition admitted arguments and which returned on NONE of them is
+a `NEVER_RETURNS` entry, and an UNNAMED one turns the plane red. Three entries today:
+these two, plus `0159.py::diverges_inc`, which DECLARES `#@ \diverges` and is therefore the
+one shape where having no normal exit is the contract rather than a hole in it.
+
+`0554` was invisible to every instrument in the battery until the same commit widened the
+oracle to POST-STATE claims (`#@ ensures self.f == \old(self.f) + 1`), because `tick`
+returns `None` and has no `\result` clause to read. The widening was aimed at 32 claims it
+could newly check; the thing it actually found was a file it could newly RUN.
+
+## Wall-lesson (v5)
+
+**A vacuous proof can wear a contentful clause.** Every vacuity instrument in this repo
+looks at the CLAUSE — is it `True`, is it `x == x`, does it constrain anything. None looked
+at whether the function has a normal exit for the clause to constrain. The second question
+is cheaper to ask than the first and had never been asked.
