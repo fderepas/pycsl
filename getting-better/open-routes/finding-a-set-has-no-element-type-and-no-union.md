@@ -41,16 +41,50 @@ and becomes something sharper:**
 Membership is not untyped — it is typed to `int`, always, which is why `Set[int]` passes it
 and `Set[str]` cannot.
 
-The static-semantics reference is explicit that this should not be so. `τ(set) = dict` with
-the comment *"sets share the dict model"*, and the dict model types its key:
-`τ(Dict[K, V]) = dict (* κ=string ⇒ map string (option ν), native String.(=); else map
-int *)`. Probed, the dict half holds — `k in d` and `d[k]` both VERIFY for
-`Dict[str, int]`. So the rule is stated once, implemented for the dict, implemented for the
-set's WRITE path, and missed on the set's READ path.
+The static-semantics reference says `τ(set) = dict`, *"sets share the dict model"*, and the
+dict model types its key: `τ(Dict[K, V]) = dict (* κ=string ⇒ map string (option ν), native
+String.(=); else map int *)`. Probed, the dict half holds — `k in d` and `d[k]` both VERIFY
+for `Dict[str, int]`.
 
-That is the gen #31 shape for the fourth time: a rule stated correctly in adjacent places
-and implemented in all but one of them (cf. `finding-array-import-missing-for-a-list-field-only-program.md`,
-route #148/#149's field types, and the `Dict[K, List[T]]` matrix).
+**AND THE SET HALF IS NOT AN OVERSIGHT — it is a documented, deliberate, DEFERRED gate, and
+the source says so at the line that makes the decision.** `module6_whyml/functions.py` ~137:
+
+```python
+kt = getattr(self, "_dict_key_types", {}) or {}
+_sk = "string" if (_mut_coll and kt.get(arg) == "string") else "int"
+```
+
+with thirteen lines of comment above it: a by-reference (mutated) `Set[str]` param genuinely
+emits the raw-string map write, so its type must agree; a NON-by-ref set param "must STAY
+`map int`", because it is forwarded to sibling `val` bridges still typed `map int` and a
+`map string` here would mistype the bridge — *"that cross-method κ=string agreement is the
+deferred I4 fixpoint"*.
+
+So `held.add(m)` verifying and `m in held` failing, on the same `Set[str]`, is one gate
+seen from two sides: `.add` MAKES the parameter mutated, and mutation is what buys the
+string key.
+
+**Predicted and confirmed.** If that reading is right, a `Set[str]` parameter that is BOTH
+added to AND tested should type-check, because the `.add` promotes it:
+
+```python
+#@ assigns held
+def f(held: Set[str], m: str) -> bool:
+    held.add(m)
+    return m in held            # VERIFICATION SUCCESS
+```
+
+It does. One line of code explains all ten probes, and the explanation was checked by
+predicting an eleventh rather than by re-reading the first ten.
+
+### What that changes about the repair
+
+Not "add the missing string-key branch" — the branch exists and is gated for a reason. The
+work is the **I4 fixpoint the source names**: propagate κ=string across method boundaries so
+a read-only `Set[str]` param and the sibling `val` bridges it is forwarded to agree. That is
+a module-level inference, the same shape as the `_mutated_collection_params` fixpoint
+already there, and it is the thing standing between the conversion track and every mirror
+function that merely READS a `Set[str]`.
 
 This is the third position of a mechanism this campaign keeps meeting: route #148/#149
 repaired a FIELD whose type came from an `__init__` parameter, and
