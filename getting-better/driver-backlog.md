@@ -7673,3 +7673,23 @@ one-off sweep over the expected-FAIL population with the output kept, to see whe
 timeout bucket is 1 file or 100 — and THAT decides whether it is worth a plane.
 
 Not built. Recorded with its first instance and its first step.
+
+**PROBED, as that entry said to: the `.extend` branch is TRIPLE-GATED and not widenable.**
+The speculation above ("likely WIDENING an existing gate rather than writing a lowering from
+nothing") was wrong — eleventh correction of the session. The condition is
+
+    elif (func.endswith(".extend") and self._value_semantic
+          and func.rsplit(".", 1)[0].replace(".", "_") in self._emit_ir_seq_locals
+          and len(val.get("args") or []) == 1
+          and self._uses_pyast_parser()):
+
+— the target must already be a known `seq emit_ir` local, the call must have exactly one
+actual, AND THE FILE MUST BE THE `pure_ast` PARSER. It was built for ONE shape
+(`body.extend(self.statement())`) in one file, deliberately, "so corpus and every other
+mirror stay byte-identical", and it routes through a polymorphic `snapshot` bridge that
+needs an `array emit_ir` actual.
+
+A general `ys.extend(zs)` on a `List[int]` local shares none of that. **It is a real
+lowering to write**, of the shape `.append`'s arm has — grow the array local, or concatenate
+two seqs — plus a `writes` frame, and it needs its own true/false twin. Budget it as a
+feature, not as a flag.
