@@ -9612,3 +9612,22 @@ A clean negative over the layer everything else rests on. Worth the four minutes
 because it is the assumption nobody states: if `==>` had been lowered as `&&`, every
 implication-shaped contract in the corpus would have been vacuous and no plane would have
 noticed.
+
+--------------------------------------------------------------------------------
+2026-09-25 00:07Z — the sweep finished: `\forall`, `\exists`, `\old` — 24 of 24 correct
+
+    \forall i; 0 <= i and i < 3 ==> arr[i] == 0   after a three-cell zeroing  SUCCESS
+    \forall … == 1                                                            FAILED
+    \exists i; … and arr[i] == 0                                              SUCCESS
+    \exists … == 9                                                            FAILED
+    \result == \old(x) + 1   on `return x + 1`                                SUCCESS
+    \result == \old(x) + 2                                                    FAILED
+
+Twenty-four probes over the whole contract language — booleans, floored arithmetic,
+quantifiers, `\old` — and not one mis-lowering. The layer every route write-up leans on is
+measured now instead of assumed.
+
+ONE NOTE FOR THE NEXT PERSON, which cost two probes: the quantifier separator is a
+SEMICOLON (`\forall i; <guard> ==> <body>`), not the period `annotations.md` uses in prose
+when it describes the WhyML the lemma lowers to. The period spelling is REFUSED — fail-closed,
+and confusing enough to be worth the sentence.
