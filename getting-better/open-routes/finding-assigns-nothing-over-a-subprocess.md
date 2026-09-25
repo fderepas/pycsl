@@ -95,10 +95,22 @@ most immediate use.
 1. **Extend the plane.** Add external-effect calls to
    `check-trusted-frame-honesty`'s notion of "mutates", with a named allowlist for the
    stubs whose clause is then corrected. Cheap, and it makes the 21 visible on every gate.
-2. **Correct the clauses.** `#@ assigns \nothing` on a function that shells out is simply
-   wrong under the documented reading; what it should say is a separate design question
-   (PyCSL has no external-effect frame vocabulary — `docs/formal-filesystem.md` models a
-   filesystem for VERIFIED programs, not for the emitter's own subprocess calls).
+2. **Correct the clauses — and note that DELETING them does not work.** The obvious cheap
+   repair is to drop the false `#@ assigns \nothing` line, and it buys nothing. Measured on
+   `errors.py::message`, which carries NO `#@ assigns` at all: it emits
+
+       val pycslerror__message (self: pycslerror) : string
+
+   with no `writes` clause — and in WhyML a `val` with no `writes` modifies NOTHING. So
+   omitting the clause gives the model the SAME (strongest, and equally false) frame that
+   `\nothing` does. `assigns` is what DRIVES `writes`; its absence is not an absence of
+   claim.
+
+   So the stubs need a way to SAY "this has an effect outside the model", and PyCSL has no
+   vocabulary for it. `docs/formal-filesystem.md` models a filesystem for VERIFIED programs;
+   nothing models the emitter's own `subprocess.run`. That makes this a language question,
+   not an annotation fix — which is worth knowing before anyone spends an afternoon deleting
+   seventeen lines.
 
 Repair 1 is an instrument change with a measured population. Repair 2 is a vocabulary
 question. Recorded with both, attempted with neither.
