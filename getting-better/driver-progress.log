@@ -11015,3 +11015,28 @@ trusted-or-dependent aggregate at **817**, and the verbatim un-trusted populatio
 
 Increment G (the I4 fixpoint) is next; its scripts are written and dry-tested and the working
 tree is clean.
+
+## 07:58Z — INCREMENT G LANDED: the I4 fixpoint, and the carrier's own instructions carried out
+
+Commit `eaf118fd`. On the LIVE tree:
+
+    the carrier                    FAILED/REFUSED -> SUCCESS
+    setelem-control-mutated        SUCCESS -> SUCCESS
+    setelem-control-int            SUCCESS -> SUCCESS
+    three corpus witnesses         1909 / 1910 / 1911, each PROVED individually
+    check-open-route-carriers      8 carriers -> 5, still OK
+    count-trusted-directives       455, UNCHANGED (this is an EMITTER change)
+    check-self-annotate-sync       891, UNCHANGED
+
+A carrier written a generation ago, gated FAILED ever since, with its landing instructions
+inside it, has been carried out to the letter — and the three files it named moved into the
+corpus in the same commit that made them pass.
+
+**AND IT WAS NEVER A FIXPOINT.** Two lines: the PARAMETER key-type extractor calls the FIELD
+extractor (which already covered `Set[str]` and said why — *a set's element IS its key*), and
+the `_mut_coll` conjunct goes away because a declaration-derived key type is something both
+ends of a call edge can see. No propagation pass, nothing to converge. A generation of the
+backlog called this "the deferred I4 fixpoint".
+
+Gate launched 07:59Z with all TEN mirror movers and corpus `0884` declared. The ten must still
+PROVE — that bill is the increment's real cost and it is the next thing to run.
