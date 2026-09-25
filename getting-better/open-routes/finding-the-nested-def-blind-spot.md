@@ -165,3 +165,35 @@ rather than absorbed — along with the asymmetry it exposed: the aggregate is i
 conversion (trusted -> trust-dependent) but NOT under the reverse, because a newly-trusted
 function pulls in callers that were previously trust-free. `walk` is called all over
 `core_ir_semantic.py`, and the same-file lower bound jumped 336 -> 343 on that one marker.
+
+## The check was validated nine minutes after it landed
+
+Increment F added a STATIC refusal — *an un-trusted closure inside a `\trusted` parent is
+verified nowhere* — at 04:02Z. At 04:11Z the conversion screen, re-run on six candidates the
+census had just recovered, reported:
+
+    pycsl.py::_is_false_goal      **LOWERS**
+    pycsl.py::_probe_one          **LOWERS**
+
+Both are nested closures inside `\trusted` parents. Converting either would have retired a
+marker, passed the emission check, passed fidelity, dropped the count — and proved nothing,
+because the parent is emitted as an opaque `val`. Without the check landed nine minutes
+earlier, this session would have had two more "landable" candidates that land nothing.
+
+**CENSUS over all 410 strict candidates: 5 are trusted-parent traps.**
+
+    Module6_WhyMLTranspiler.py   _emit_funcs                 inside _transpile_modular
+    pycsl.py                     _finalize                   inside _dispatch_provers
+    pycsl.py                     _gate_vacuity_then_succeed  inside _run_proofs
+    pycsl.py                     _is_false_goal              inside _probe_one
+    pycsl.py                     _probe_one                  inside _run_vacuity_gate
+
+This is a **CHECK 0**: purely static, needs no emission and no prover, and it disqualifies a
+candidate before the expensive checks run. It should be the first filter any future conversion
+screen applies, ahead of `--no-proof` lowering. `pycsl.py::_finalize` is on the list and is
+also the function whose byte-identical emit-diff started this whole thread — the two
+instruments agree on it from opposite directions.
+
+And the emitter already knew. `module6_whyml/functions.py`'s nested-lift refusal carries a
+`func.get("trusted_parent")` exemption: the lowering has tracked the concept all along, while
+no plane asked the corresponding question about the MARKER.
