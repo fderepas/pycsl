@@ -197,6 +197,37 @@ capability.** Each is a cheap gate that answers a real question and only that qu
 expensive gate behind it is the one that decides — and this session found all three by running
 the expensive one anyway.
 
+## The porting vein, run to the end of what is reachable
+
+Increments H, I, J, K and L each landed ported markers, every one adjudicated by the four
+checks and gated at 4029/4047:
+
+    H  460 -> 455   __enter__, _err, stable_hash, __repr__, _rewrite_call_sites
+    I  455 -> 453   pure_ast::error, pure_ast::unsupported          (3h06 of prover time)
+    J  453 -> 452   Module6_WhyMLTranspiler::__init__               (172-line port)
+    K  452 -> 451   expressions::_emit_metatype_tags                (5h27, the longest proof)
+    L  451 -> 450   pure_ast::iter_fields                           (2h25; I predicted refusal)
+
+**Ten markers retired by proof in one session, and the trusted-or-dependent aggregate fell
+833 -> 799.** The aggregate is the number the marker count cannot show: increment H moved it
+seventeen on five markers, increment I sixteen on two, because a marker on a widely-called
+helper carries its whole dependent cone with it.
+
+### The three results worth carrying out of the porting work
+
+1. **A port's difficulty is not its length.** `Module6_WhyMLTranspiler::__init__` is 172 lines
+   and introduces ZERO abstract operations. `pycsl.py::_parse_args` is 174 lines, also proves,
+   and introduces TEN — the whole of `argparse` going uninterpreted, `ArgumentParser()` a
+   nullary oracle. Two ports of the same size, both green, and only the emit-diff separates
+   them.
+2. **Batch to share a PROOF, never to share a VERDICT.** Five `pure_ast.py` candidates together
+   gave three new ops and `Unknown (why3: Out of …)`. Split, `error` + `unsupported` proved and
+   `iter_fields` proved. When a batch fails, every member is unadjudicated.
+3. **A moved emission is not a checked emission.** Porting `__init__` moved `pycsl.mlw` too —
+   its `module6_whymltranspiler` record type gained TWELVE fields the facade had omitted, so
+   the port made the model faithful. `--expect-moved` caught it undeclared; the file was then
+   re-proved by hand (42 min, green).
+
 ## Still open at the time of writing
 
 * increment G — the I4 fixpoint (a set's element type). Patch prepared and measured: 1 corpus
