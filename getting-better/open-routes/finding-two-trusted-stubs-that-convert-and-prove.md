@@ -199,3 +199,17 @@ conversion must move, and by how much:
 
 Each moved mirror file must then be RE-PROVED, and that is the real cost of this increment —
 not the conversion, which took eleven seconds.
+
+## One marker, FOUR declarations
+
+`message` is defined once in the mirror and inherited by four error classes, so the emission
+carries four copies of it. Counted in the two sweeps:
+
+    BEFORE   4x  `val pycsl*__message (self: …) : string`     (assumed, no frame)
+    AFTER    4x  `let pycsl*__message (self: …) : string`     (proved, four `old` clauses each)
+
+**Retiring one `\trusted` marker moves four declarations from assumed to proved**, which is
+worth knowing when weighing a candidate: the marker count goes down by one and the verified
+surface grows by however many classes inherit the method. It also means the 417-candidate
+conversion population understates the work's value, and the 460 marker count understates the
+trust it represents — a marker on a base-class method is four assumptions wearing one label.
