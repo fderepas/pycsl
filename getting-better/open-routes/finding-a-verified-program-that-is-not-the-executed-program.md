@@ -1,7 +1,15 @@
 # The verified program is not the executed program
 
-**Status: FINDING, a FAMILY with five instances across three independent mechanisms, every
-one of them in a `# pycsl-expected: PASS` corpus driver, every one reproduced in CPython.**
+**Status: FINDING, a FAMILY with EIGHTEEN instances across FIVE independent mechanisms,
+spanning at least seventeen `# pycsl-expected: PASS` corpus drivers, every one reproduced in
+CPython.**
+
+    mechanism                                         functions   files
+    `#@ datatype` constructors                            11        9
+    `#@ compose_from` provider methods                     3        3
+    the verifier supplying a name Python lacks             2        2
+    a `@dataclass` annotation contradicting its default    1        1
+    the `int` placeholder making a signature unsatisfiable 1        1
 
 A PyCSL file is two things at once: a Python program and a specification of that program.
 Every instrument in this repo checks the second against the prover. This finding is about
@@ -51,8 +59,19 @@ the repair and the measurement that the obvious repair was itself REFUSED, in
 
 ### `#@ datatype`: the constructors exist only in the annotation world
 
-`0540.py::use_str`, `1003_parametric_datatype_faithful.py::use_str` (and `use_int` beside
-it, outside the oracle's population only because it takes no argument).
+**ELEVEN functions across NINE files** — the largest single mechanism in the family, and
+eight of them only appeared when the ZERO-ARGUMENT oracle stopped folding "the function
+raised" into "could not run standalone":
+
+    0521.py::build_and_read   NameError: name 'Some' is not defined
+    0527.py::left_is_leaf     NameError: name 'Node'
+    0531.py::guarded          NameError: name 'MSome'
+    0533.py::leaf_is_zero     NameError: name 'Leaf'
+    0535.py::is_red_or_green  NameError: name 'Blue'
+    0536.py::unwrap           NameError: name 'Wrap'
+    0540.py::use_int          NameError: name 'Just'      0540.py::use_str   likewise
+    0546.py::get              NameError: name 'Some'
+    1003.py::use_int          NameError: name 'Just'      1003.py::use_str   likewise
 
 ```python
 #@ datatype Option[T] = Nothing | Just(T)
@@ -77,7 +96,45 @@ carry today: define the constructors in Python (a `dataclass`, a `NamedTuple`) s
 `match` has something to match. Whether PyCSL should REQUIRE that is the same design
 question `compose_from` raises, and it is recorded, not decided.
 
-## Mechanism 2 — an annotation that contradicts the value beside it
+## Mechanism 2 — the verifier supplies a name the program does not have
+
+Two drivers, two different ways, and the second one states the equivalence it breaks.
+
+### `0640.py::f` — a stdlib name resolved at verification time, never imported
+
+```python
+#@ ensures \result == -5
+def f() -> int:
+    return ast.literal_eval("-5")        # NameError: name 'ast' is not defined
+```
+
+The file never imports `ast`. It does not have to: PyCSL evaluates
+`ast.literal_eval` on a compile-time-constant argument AT VERIFICATION TIME, with the host's
+own `ast`, and emits the value `-5`. That is exactly what makes `\result == -5` provable —
+and the docstring says so, calling the host evaluation "the source of truth". The host is
+not the program's truth. CPython has no `ast` in that module's namespace.
+
+### `0642.py::f` — `exec` splicing, and the equivalence claim that is false
+
+```python
+#@ ensures \result == 6
+def f() -> int:
+    exec("x = 5\ny = x + 1")
+    return y                              # NameError: name 'y' is not defined
+```
+
+PyCSL parses the constant string at verification time and splices the statements in place.
+The driver's own docstring: *"the splice emits byte-identical WhyML to the inline form (the
+soundness evidence: verification-equivalent, rev4 §8.5)"*.
+
+**Byte-identical emission to the inline form is evidence that the MODEL matches the inline
+form. It is not evidence that PYTHON does** — and Python does not. `exec` inside a function
+body cannot create a local binding in CPython (function locals are resolved statically);
+measured both ways, including `locals().get("y")`, which is `None`. The inline form returns
+6; the `exec` form raises. The two are verification-equivalent and not program-equivalent,
+which is the whole of this finding in one driver.
+
+## Mechanism 3 — an annotation that contradicts the value beside it
 
 `0746.py::Registry.arity`:
 
@@ -103,7 +160,7 @@ and default value disagree should be refused, exactly as a type checker refuses 
 of routes #148/#149, which repaired the field type where it came from an `__init__`
 parameter.
 
-## Mechanism 3 — the `int` placeholder, measured
+## Mechanism 4 — the `int` placeholder, measured
 
 `0453.py::FunctionAnalyzer.visit_FunctionDef`:
 
