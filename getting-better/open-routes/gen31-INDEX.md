@@ -79,6 +79,37 @@ seen it and each had a different boundary.
   read forms work for which element types; every FAILED cell but one is a missing branch
   beside a present one.
 
+## THE FINDING THAT CAME OUT OF A POPULATION WIDENING
+
+`finding-a-contract-over-a-function-that-never-returns.md`. Two PASS-expected corpus
+functions have **no normal exit on any argument their own `#@ requires` admits**, so their
+`#@ ensures` is discharged over no runs at all. A vacuous proof wearing a contentful
+clause — and every vacuity instrument here looks at the CLAUSE, which is why none of them
+saw it. Wall-lesson (v5).
+
+* `0496.py::grab` — `__new__(cls)` takes no extra argument while `__init__(self, n)` does,
+  so `Holder(k)` is a `TypeError` for every k while `\result == k` verifies. `__new__` is
+  an ANALYSED surface (UB-7.6 rejects a non-trivial one), so the missing arity comparison
+  is a defect, not a boundary.
+* `0554.py::Service.tick` — `#@ compose_from Counter` flattens `bump` into `Service` in the
+  VERIFIER; CPython's MRO does not, so `self.bump()` is an `AttributeError` on every call.
+  **Censused: all ELEVEN composing classes in the corpus compose a provider they do not
+  inherit, and in ten of the eleven the provided name is absent at runtime. Not one
+  composing class in the corpus is executable Python.**
+
+**Then the obvious repair was tried, and PyCSL REFUSED it.** Writing `class Facade(CoreEmit,
+MapOps)` makes the flagship run — `run(3)` is 3, `run(-1)` is 0, both `>= 0` — and route
+#95's shadow check rejected it with "'Facade' defines its own 'emit'" of a class whose
+entire body is `run`: `own_tails` comes from the IR function list, where the base-class
+binding has already materialised `facade__emit`. The directive that exists to make mixin
+composition machine-checkable was refusing the only spelling of it that performs the
+composition. **Repaired** with a SAMENESS test (same line, column, body, contracts — the
+base list is deliberately not consulted), measured against the strongest program it admits:
+witness `1902` (PASS, and it RUNS), controls `1903` (weak provider still FAILS — route #95
+is not reopened) and `1904` (a real override is still REFUSED). `0554`'s stateful case
+remains open: it gets past the front end and dies in the emitted WhyML on `unbound function
+or predicate symbol 'count'`.
+
 ## THE FINDING THAT CAME OUT OF AN EXCLUSION LIST
 
 `struct.unpack` returns a TUPLE. Six corpus functions across three PASS-expected drivers
@@ -110,6 +141,13 @@ route #226, it had two answers:
   `C()`-constructible classes and to the comparison operators: **390 runnable contracts ->
   432, 378 agreeing -> 417, 0 DISAGREE**, and it now reports route #226's own carrier when
   pointed at it.
+* `check-corpus-contract-truth-args` — the POST-STATE axis. Every clause it read was about
+  `\result`, so a method promising `#@ ensures self._balance == \old(self._balance) +
+  amount` was outside the population on both counts. It is checkable there and nowhere else
+  in the battery, because that oracle CONSTRUCTS the pre-state: build the object, snapshot
+  the fields, call, evaluate against the snapshot. **548 functions / 6011 evaluations ->
+  579 / 6114; 31 methods, 96 post-state clause evaluations, 0 FALSE.** And the widening's
+  real yield was a file it could newly RUN, not a claim it could newly check.
 * `check-class-invariant-establishment` — **did not exist**. For every PASS-expected corpus
   class that `C()` constructs, build the object and evaluate its own `#@ class invariant` on
   it. 75 classes, 84 clauses, 0 FALSE; and it reports all three of the shapes route #226's
