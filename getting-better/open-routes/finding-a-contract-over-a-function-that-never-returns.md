@@ -112,3 +112,79 @@ could newly check; the thing it actually found was a file it could newly RUN.
 looks at the CLAUSE — is it `True`, is it `x == x`, does it constrain anything. None looked
 at whether the function has a normal exit for the clause to constrain. The second question
 is cheaper to ask than the first and had never been asked.
+
+---
+
+## ADDENDUM — the proposed repair was MEASURED, and PyCSL REFUSES it
+
+Option 1 above says "require the runtime composition": a `#@ compose_from M` class must
+have `M` in its MRO. Before writing that down as the recommended repair it was tried, on
+offline copies of the two PASS-expected drivers, with a one-token edit each:
+
+    class Facade:                ->  class Facade(CoreEmit, MapOps):
+    class Service:               ->  class Service(Counter):
+
+**Both now RUN, and both produce the values their contracts claim.** `Facade().run(3)` is
+`3`, `Facade().run(-1)` is `0` — both `>= 0`, which is `run`'s postcondition. `Service()`
+starts at `count = 0` and `tick()` leaves it at `1`, which is
+`self.count == \old(self.count) + 1`. The inheritance is not a workaround; it is the
+composition the directive describes, spelled the way Python spells it.
+
+**And PyCSL refuses the first one and fails the second.**
+
+### `0549` inheriting its mixins — REFUSED by route #95's shadow check
+
+    Mixin composition 'Facade': 'Facade' defines its own 'emit', which SHADOWS the
+    provider of 'emit' (from mixin CoreEmit) that mixin MapOps declares a
+    `#@ depends_method` on. […] Rename 'Facade.emit', or drop the dependency declaration.
+
+`Facade` defines `run`. That is the whole class body — `emit` arrives by inheritance from
+`CoreEmit`, **the very mixin the composition names as its provider**. The check
+(`src/pycsl/frontend/ir_resolve.py` ~2803) computes
+
+    own_tails = {f["name"][len(c) + 2:] for f in funcs if f["name"].startswith(c + "__")}
+
+from the IR function list, and the base-class binding machinery (routes #144/#147) has
+already materialised `Facade__emit` there. So an INHERITED method is indistinguishable
+from a DEFINED one at that line, and the diagnostic's first clause — "'Facade' defines its
+own 'emit'" — is simply false of the program in front of it.
+
+The check's own comment is careful and correct about the danger it guards: a composer that
+defines a DIFFERENT, weaker `emit` deletes the S2b re-verification while `MapOps` is
+verified assuming it holds, and it names the measured witness (`provides emit ensures
+\result == 0` under `depends_method emit ensures \result >= 10`). That danger is real. It
+is also **absent by construction** in the inherited case: the shadowing method IS the
+provider, the same function object, the same contract. There is no unverified substitution
+because there is no substitution.
+
+So the state of affairs is:
+
+* write the composition the way the documentation's example writes it — the class runs
+  nothing, and PyCSL verifies it;
+* write the composition the way Python composes — the class runs correctly, and PyCSL
+  refuses it as a shadow.
+
+**The directive that exists to make mixin composition machine-checkable refuses the only
+Python construct that performs it.**
+
+### `0554` inheriting its mixin — a lowering failure, not a refusal
+
+    unbound function or predicate symbol 'count'   (line 15 of the emitted .mlw)
+
+A different mechanism and a different level: this one gets past the front end and dies in
+the generated WhyML, where the stateful mixin's `count` field does not resolve once
+`Counter` is also a real base. Recorded as measured; not diagnosed further here.
+
+### What this does to the repair
+
+Option 1 is **not** a small front-end refusal with an eleven-file blast radius. It is a
+three-part change — teach route #95's `own_tails` to exempt a provider inherited from the
+providing mixin itself, fix the stateful-composition lowering under a real base, and only
+THEN require the MRO edge — and each part has to be measured on its own. That is written
+down rather than landed because it is a design change to a documented directive, and this
+generation's lesson (u4) applies: a rule binds every program that could be written, not
+only the eleven that exist.
+
+What is cheap and unambiguous is the FIRST part alone, independent of any new rule: a
+composer that inherits the providing mixin is not shadowing anything, and telling it that
+it "defines its own" method is a false diagnostic on a correct program.
