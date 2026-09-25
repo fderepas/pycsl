@@ -120,7 +120,10 @@ called a fix:
 ```
 
 The class declaration makes `Just` a RECORD as well as a variant constructor, and the local
-loses its `ref`. The file verifies either way, but it is no longer verifying quite the same
+loses its `ref`. **Tried without `@dataclass` too** — plain classes carrying
+`__match_args__` and an `__init__` — and the emission moves identically, so the record is
+minted from the CLASS, not from the decorator. There is no spelling of the Python
+definitions that leaves the model alone. The file verifies either way, but it is no longer verifying quite the same
 model — which is exactly the thing a corpus repair must not do quietly to nine drivers at
 once.
 
