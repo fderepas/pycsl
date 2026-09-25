@@ -7646,3 +7646,31 @@ emit-diff answers that, cheaply, before any of the expensive checks.
 And the generalisation was worth more than the instance: censusing the shape found **17
 `\trusted` stubs declaring `assigns \nothing` over a `subprocess.run`, an `os.makedirs` or an
 `os.remove`** — all currently honest, all one conversion away from not being.
+
+### (j6) An instrument that recognises a thing by SUBSTRING will recognise a sentence about it
+
+Three times in one session, in three different instruments:
+
+* the `\trusted` count. A raw grep gives 485; the real number is 460. The 25-marker gap is
+  the file-header docstring that MENTIONS the marker, once per file.
+  `count-trusted-directives.py` prints that gap on every run as `offset 25`, and I read it,
+  quoted it, and then built two new tools with the loose rule anyway.
+* the conversion screen's candidate list. 456 by substring, **410** by line prefix; the 46
+  extras are functions that are ALREADY CONVERTED whose comments discuss trust.
+  `Module5_IREmitter::_emit_ghost_assign`'s block says *"`_csl_to_ir` stays \trusted"*.
+* `convert_one.py` itself, which deleted that line of PROSE, reported a successful
+  conversion, and produced a byte-identical emission — the only symptom, and only visible
+  because I happened to diff it.
+
+The repo already had the right rule, written down twice, in the two places that had met the
+problem before: `count-trusted-directives.py`'s `offset`, and
+`check-trusted-frame-honesty`'s scanner comment — *"LINE PREFIX, never substring: a prose
+mention of the marker inside a comment block must not count."*
+
+**A marker is a SYNTACTIC POSITION, not a string.** `#@ \trusted` at the start of a stripped
+line is a marker; `\trusted` anywhere else is a word in a sentence — and a codebase that
+documents itself well is a codebase full of sentences about its own markers, so the looser
+rule gets WORSE as the documentation gets better.
+
+When you write a scanner for a marker this campaign already counts, read the existing
+counter first. It has met the corner case, and its constant is the memo.
