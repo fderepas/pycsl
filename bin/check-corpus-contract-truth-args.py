@@ -119,7 +119,10 @@ BYTES_POOL = [b"", b"a", b"abcd", b"xyz"]
 MAX_TUPLES = 40          # per function, deterministic prefix of the product
 CALL_TIMEOUT = 1.0       # seconds; a corpus loop must not hang the battery
 EXEC_TIMEOUT = 2.0
-MIN_EVALS = 5900         # 6114 with the POST-STATE axis. Was 5750 with the METHOD
+MIN_EVALS = 6800         # 7063 with the PREDICATE axis (`#@ ensures` clauses over
+                         # `\result` that are not equalities — the census found the
+                         # inequality family to be the largest evaluable group this oracle
+                         # was skipping). Was 6114 with the POST-STATE axis, 5750 with the METHOD
                          # population AND the skip list narrowed
                          # to the clauses actually evaluated (4340 at the first
                          # measurement, functions only, `\nothing` excluding every
@@ -164,9 +167,6 @@ KNOWN_DIVERGENT = {
 # perfectly contentful `\result == k`. The vacuity is in the FUNCTION's reachability, one
 # level below where that instrument looks. Wall-lesson (v5).
 NEVER_RETURNS = {
-    ("0159.py", "diverges_inc"):
-        "DECLARED `#@ \\diverges`. Not a defect: a function that is promised not to return "
-        "is the one shape where having no normal exit is the contract.",
     ("0496.py", "grab"):
         "`Holder.__new__(cls)` takes no extra argument while `__init__(self, n)` does, so "
         "CPython's `Holder(k)` raises `TypeError: __new__() takes 1 positional argument but "
@@ -182,13 +182,63 @@ NEVER_RETURNS = {
         "classes compose a provider they do not inherit, and in ten of the eleven the "
         "provided name is absent from the instance at runtime. "
         "`finding-a-contract-over-a-function-that-never-returns.md`",
+    # (#49) gen #31 — FOUND BY THE PREDICATE AXIS, which widened the population from
+    # `#@ ensures \\result == <expr>` to any predicate over `\\result`. Every one of these
+    # carries `#@ ensures \\result >= 0` or a `\\str_length` bound — contentful clauses, all
+    # of them discharged over a function with no run.
+    ("0549.py", "Facade.run"):
+        "THE FLAGSHIP. Same defect as 0554: `#@ compose_from CoreEmit, MapOps` flattens the "
+        "providers in the VERIFIER, `Facade`'s MRO is `[Facade, object]`, and "
+        "`Facade().run(3)` is an `AttributeError`. `1902` is this file made executable and "
+        "it verifies. "
+        "`finding-a-contract-over-a-function-that-never-returns.md`",
+    ("1858_gen31_compose_from_marked_class_verifies.py", "Facade.run"):
+        "The gen #31 `#@ mixin`-marker control, same shape as 0549. Kept as written "
+        "deliberately: it is the CONTROL for a refusal about the MARKER, and rewriting it "
+        "to inherit would change what it controls. "
+        "`finding-a-contract-over-a-function-that-never-returns.md`",
+    ("0540.py", "use_str"):
+        "`#@ datatype Option[T] = Nothing | Just(T)` introduces CONSTRUCTORS with no Python "
+        "definition, and the body uses them in EXECUTABLE position — `o = Just(s)` then a "
+        "`match`. CPython answers `NameError: name 'Just' is not defined` for every s. The "
+        "second directive found this generation whose names have no runtime counterpart; "
+        "`#@ compose_from` was the first. "
+        "`finding-a-verified-program-that-is-not-the-executed-program.md`",
+    ("1003_parametric_datatype_faithful.py", "use_str"):
+        "The parametric twin of 0540, same mechanism: `Just`/`Nothing` exist only in the "
+        "annotation world. `use_int` in the same file raises identically and is outside "
+        "this oracle's population only because it takes no argument. "
+        "`finding-a-verified-program-that-is-not-the-executed-program.md`",
+    ("0746.py", "Registry.arity"):
+        "A `@dataclass` field declared `formal_params: Dict[str, List[str]] = None`. The "
+        "ANNOTATION and the DEFAULT disagree — a type checker rejects it without "
+        "`Optional` — and PyCSL models the field by the annotation, so `arity` proves "
+        "`\\result >= 0` over a map while `Registry().arity(name)` is "
+        "`AttributeError: 'NoneType' object has no attribute 'get'`. The file's own "
+        "`__main__` block assigns `r.formal_params = {}` before calling, which is the "
+        "author working around it by hand. "
+        "`finding-a-verified-program-that-is-not-the-executed-program.md`",
+    ("0453.py", "FunctionAnalyzer.visit_FunctionDef"):
+        "THE INT PLACEHOLDER, measured. `def visit_FunctionDef(self, node: int) -> int` "
+        "over a body that calls `node.name.islower()`. `int` is what PyCSL models an AST "
+        "node as, so the DECLARED SIGNATURE is unsatisfiable: no int has `.name`, and every "
+        "call raises `AttributeError`. This is the conversion track's named #1 blocker "
+        "sitting in a green corpus driver — the annotation is not a description of the "
+        "argument, it is a placeholder for a type the modeller does not have. "
+        "`finding-a-verified-program-that-is-not-the-executed-program.md`",
 }
-MAX_RAISED = 12                  # calls that RAISE on an argument the precondition admits.
-                                 # (#49) gen #31: 4 -> 12 because the loop no longer BREAKS
-                                 # on the first raise — it takes up to three per function,
-                                 # which is what lets `NEVER_RETURNS` above be distinguished
-                                 # from an input-dependent raise. The FUNCTIONS are the same
-                                 # five; only the sampling changed.
+MAX_RAISED = 13                  # FUNCTIONS with at least one call that RAISES on an
+                                 # argument their own precondition admits. (#49) gen #31:
+                                 # the ratchet counts FUNCTIONS, not raise EVENTS. Once the
+                                 # tuple loop stopped breaking on the first raise (so that
+                                 # `NEVER_RETURNS` could be told apart from an
+                                 # input-dependent raise) the event count became a function
+                                 # of the SAMPLING — up to three per function — and a
+                                 # ratchet whose number moves when nothing about the corpus
+                                 # moved is a ratchet that will be raised without thought.
+                                 # Thirteen today: the eight in NEVER_RETURNS, the three
+                                 # declared `#@ \diverges` (0051, 0158, 0159), and the two
+                                 # input-dependent ones, 0420 and 1302.
                                  # (#49) gen #31: 3 -> 4 with the widened population. The one
                                  # added is `1302_route108…::wrapper(-1)`, whose `else` branch
                                  # calls a raising callee — route #108 established that the
@@ -296,8 +346,30 @@ def collect(no_exclusions=False):
         # NEEDS an argument has no canonical instance and is skipped, exactly as the
         # zero-argument sibling skips it.
         _owner = {}
+        _mixin_lines = {_ln for _ln, _cs in
+                        ((i + 1, l.strip()) for i, l in enumerate(lines))
+                        if _cs.startswith("#@") and re.match(r"#@\s*mixin\b", _cs)}
         for _c in ast.walk(tree):
             if not isinstance(_c, ast.ClassDef):
+                continue
+            # (#49) gen #31 — A `#@ mixin` CLASS IS NOT CONSTRUCTIBLE, and the ORACLE has
+            # to honour the same rule the language does. `PYCSL-SEM-MIXIN-INSTANTIATED`
+            # (witness 1861) refuses `M()` because a mixin's methods are verified against
+            # the COMPOSER's record, so a direct construction produces an object whose own
+            # methods were never proved over it. Building one here produced exactly the
+            # object that rule describes: `MapOps().handle_get(k)` calls `self.emit`, which
+            # a bare `MapOps` does not have, and the oracle reported the AttributeError as
+            # a corpus defect. It is an ORACLE defect — the population must exclude what
+            # the language forbids. Found by the predicate axis in the same run that found
+            # three real ones.
+            _cann_i = _c.lineno - 2
+            _is_mixin = False
+            while _cann_i >= 0 and (not lines[_cann_i].strip()
+                                    or lines[_cann_i].strip().startswith("#")):
+                if re.match(r"#@\s*mixin\b", lines[_cann_i].strip()):
+                    _is_mixin = True
+                _cann_i -= 1
+            if _is_mixin:
                 continue
             _ini = next((x for x in _c.body
                          if isinstance(x, ast.FunctionDef) and x.name == "__init__"), None)
@@ -352,9 +424,19 @@ def collect(no_exclusions=False):
             # method, evaluate the clause against the snapshot.
             post = [m.group(1).strip() for m in
                     (re.match(r"#@\s*ensures\s+(self\.\w+\s*==.+)$", a) for a in ann) if m]
+            # (#49) gen #31 — THE PREDICATE AXIS. Every `#@ ensures` mentioning `\result`
+            # that is NOT the `\result == <expr>` shape already harvested above: an
+            # inequality, a conjunction, a bound. Evaluated as a predicate with `\result`
+            # bound to CPython's answer, exactly as the post-state clauses are.
+            preds = [m.group(1).strip() for m in
+                     (re.match(r"#@\s*ensures\s+(.+)$", a) for a in ann) if m]
+            preds = [x for x in preds
+                     if "\\result" in x
+                     and not re.match(r"\\result\s*==", x)
+                     and not re.match(r"self\.\w+\s*==", x)]
             if post and _cls is None:
                 post = []          # `self.f` outside a class is not a post-state claim
-            if not ens and not post:
+            if not ens and not post and not preds:
                 continue
             # (#49) gen #31 — THE SKIP LIST APPLIES TO THE CLAUSES THIS ORACLE READS, which
             # are `requires` and `ensures`, NOT to the whole annotation block. `\nothing`
@@ -369,7 +451,9 @@ def collect(no_exclusions=False):
                 continue
             if post and any(t in " ".join(_reqs0 + post) for t in SKIP_TOKENS_POST):
                 post = []
-            if not ens and not post:
+            if preds and any(t in " ".join(_reqs0 + preds) for t in SKIP_TOKENS):
+                preds = []
+            if not ens and not post and not preds:
                 continue
             # A name REBOUND at module level (`inc = dec`, route #119's witness library) is
             # not the function whose contract was just read — `ns[name]` would be the other
@@ -400,8 +484,15 @@ def collect(no_exclusions=False):
                 continue
             if any("\\" in _post_py(x) for x in post):
                 post = []
-            if not ens and not post:
+            if any("\\" in _pred_py(x) for x in preds):
+                preds = []
+            if not ens and not post and not preds:
                 continue
+            # (#49) gen #31 — `#@ \diverges` is READ, not listed. A function promised not
+            # to return is the one shape where having no normal exit IS the contract, and
+            # the directive says so on the function itself; naming each such function in a
+            # table would be recording what the source already states.
+            _diverges = any(re.match(r"#@\s*\\diverges\b", a) for a in ann)
             _raises_when = [m.group(1).strip() for m in
                             (re.match(r"#@\s*raises\s+\w+\s+when\s+(.+)$", a)
                              for a in ann) if m]
@@ -410,13 +501,31 @@ def collect(no_exclusions=False):
                     "str": STR_POOL, "bytes": BYTES_POOL}.get(_a_pp.annotation.id, POOL)
             per.setdefault(f, []).append(
                 (name, [a.arg for a in ps], ens, reqs, bool(reach(name) & trusted),
-                 _cls, _raises_when, post))
+                 _cls, _raises_when, post, preds, _diverges))
     return per, stats
 
 
 def _py(expr):
     return (re.sub(r"\\length\(", "len(", expr)
             .replace("&&", " and ").replace("||", " or "))
+
+
+def _pred_py(expr):
+    r"""An `#@ ensures` clause that is a PREDICATE over `\result`, in Python.
+
+    The oracle's original population was `#@ ensures \result == <expr>`, which it checks by
+    comparing CPython's answer with the right-hand side. That shape is the sharpest one but
+    it is not the only evaluable one: `\result >= 0` is an ordinary Python comparison once
+    `\result` has a value, and the CENSUS says the inequality family is the single largest
+    group of `#@ ensures` clauses this oracle could evaluate and did not — 102 clauses of
+    `\result >= 0` alone, and a long tail of `>= x`, `> 0`, `>= 1`, `>= 5`.
+
+    `\result` binds to `_RES`; `\str_length` joins `\length` as `len`, for the same reason
+    `\length` left the skip list in gen #31 — a token belongs in a list called "cannot
+    evaluate" only while it really cannot be evaluated.
+    """
+    return _py(re.sub(r"\\result\b", "_RES",
+                      re.sub(r"\\str_length\(", "len(", expr)))
 
 
 def _post_py(expr):
@@ -454,6 +563,8 @@ def main():
     posts = posts_disagree = 0        # post-state CLAUSE evaluations, reported separately
     post_funcs = set()
     never_returns = []                # admitted by its own `requires`, raised on EVERY one
+    preds_n = preds_disagree = 0      # `#@ ensures` PREDICATES over `\result`
+    pred_funcs = set()
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -476,10 +587,13 @@ def main():
                 signal.setitimer(signal.ITIMER_REAL, 0)
                 if sys.path and sys.path[0] == d:
                     sys.path.pop(0)
-            for name, params, ens, reqs, inherits, cls, raises_when, post in items:
+            for (name, params, ens, reqs, inherits, cls, raises_when, post, preds,
+                 diverges) in items:
                 funcs += 1
                 if post:
                     post_funcs.add((os.path.basename(f), cls, name))
+                if preds:
+                    pred_funcs.add((os.path.basename(f), cls, name))
                 _obj = None
                 if cls is None:
                     fn = ns.get(name)
@@ -552,6 +666,9 @@ def main():
                         pclaims = [eval(_post_py(e), dict(ns),
                                         dict(env, self=_obj, _OLD=_old_snap))
                                    for e in post]
+                        rclaims = [eval(_pred_py(e), dict(ns),
+                                        dict(env, self=_obj, _RES=got))
+                                   for e in preds]
                     except BaseException as exc:
                         signal.setitimer(signal.ITIMER_REAL, 0)
                         # (#49) gen #30 — A CALL THAT **RAISES** IS NOT THE SAME AS A
@@ -600,12 +717,21 @@ def main():
                         else:
                             posts += len(post)
                     if bad is None:
+                        for r_src, rclaim in zip(preds, rclaims):
+                            if rclaim is not True:
+                                bad = (os.path.basename(f), (cls + "." if cls else "") + name,
+                                       tup, r_src, got, "predicate")
+                                preds_disagree += 1
+                                break
+                        else:
+                            preds_n += len(preds)
+                    if bad is None:
                         agree += 1
                     elif inherits:
                         inherited.append(bad)
                     else:
                         disagree.append(bad)
-                if _admitted and not tested:
+                if _admitted and not tested and not diverges:
                     never_returns.append((os.path.basename(f),
                                           (cls + "." if cls else "") + name, _admitted))
 
@@ -628,6 +754,10 @@ def main():
           "snapshot, %d FALSE. `\\old(self.f)` is read from the snapshot; a fresh object "
           "is built for every argument tuple."
           % (len(post_funcs), posts + posts_disagree, posts_disagree))
+    print("[*] corpus-contract-truth-args: PREDICATES — %d function(s) whose `#@ ensures` "
+          "is a predicate over `\\result` rather than an equality, %d clause evaluation(s), "
+          "%d FALSE."
+          % (len(pred_funcs), preds_n + preds_disagree, preds_disagree))
     print("[*] corpus-contract-truth-args: EXCLUSIONS — %d file(s) carry `--no-proof` "
           "(%.1f%% of %d corpus files: a PASS there means the pipeline did not crash, "
           "NOT that the contracts hold), %d `\\trusted` function(s), %d behaviour-block "
@@ -657,7 +787,11 @@ def main():
         if _key in KNOWN_DIVERGENT and not args.selftest_no_exclusions:
             _seen_known.add(_key)
             continue
-        if b[5] == "post-state":
+        if b[5] == "predicate":
+            print("[!]   POSTCONDITION FALSE OF ITS OWN PROGRAM: %s::%s%r — `ensures %s` is "
+                  "FALSE with `\\result` = %r. The file is expected to PASS and its "
+                  "precondition admits that argument." % b[:5], file=sys.stderr)
+        elif b[5] == "post-state":
             print("[!]   POST-STATE CLAIM FALSE OF ITS OWN PROGRAM: %s::%s%r — after the "
                   "call, `ensures %s` evaluates to %r against a snapshot taken before it. "
                   "The file is expected to PASS and its precondition admits that argument."
@@ -694,10 +828,13 @@ def main():
               "%s. Its `#@ ensures` is vacuously true — the prover discharges a claim about "
               "an exit the function does not have. Diagnose it and add it to NEVER_RETURNS "
               "with its reason, or repair it." % (_nr_bad,), file=sys.stderr)
-    if len(raised) > MAX_RAISED:
-        print("[!]   RAISED-ON-ADMITTED-ARGUMENT COUNT GREW: %d > %d. Each one is a "
-              "contract that promises a value where CPython has no normal exit at all."
-              % (len(raised), MAX_RAISED), file=sys.stderr)
+    _raised_funcs = {(r[0], r[1]) for r in raised}
+    if len(_raised_funcs) > MAX_RAISED:
+        print("[!]   RAISED-ON-ADMITTED-ARGUMENT FUNCTION COUNT GREW: %d > %d (%d raise "
+              "event(s), sampled up to three per function). Each one is a contract that "
+              "promises a value on an argument where CPython raises: %s"
+              % (len(_raised_funcs), MAX_RAISED, len(raised),
+                 sorted(_raised_funcs)), file=sys.stderr)
         rc = 1
     if len(inherited) > TRUST_INHERITED_BASELINE:
         print("[!]   TRUST BLAST RADIUS GREW: %d caller-level disagreements inherited "
