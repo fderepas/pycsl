@@ -10683,3 +10683,33 @@ anything.
 EMISSION-NAME RULE, for the next session: a mirror file under a package directory emits as
 `<package>__<module>.mlw`. `emit_pair.sh` prints the .py path; the GATE wants the .mlw
 basename. They are not the same string.
+
+## 04:15Z — THE D+E+F GATE WENT 2-OF-48 RED, AND BOTH REDS WERE RIGHT
+
+    corpus byte-diff   1378/1378 and 2199/2199, 0 MOVED, 0 GONE, 0 APPEARED — INERT
+    mirror byte-diff   2 MOVED, 0 unexpected once declared as `errors proof2why3__sertop`
+    fidelity           886 verbatim un-trusted
+    planes             46 of 48 — RED: check-trusted-reasons, check-trusted-termination-honesty
+
+ADDING A `\trusted` MARKER IS NOT FREE IN THIS REPO, and the two planes said exactly how:
+
+* `check-trusted-reasons.py` holds a TSV ledger in lock-step with the markers, BOTH
+  directions. It reported 2 MISSING (the honest markers) and 2 ORPHAN (the proved ones), and
+  printed the four rows to add and delete. Both new rows went in already CLASSIFIED —
+  `cost-scale:nested-closure-lift` — so `unclassified` fell 458 -> 456 at both ends and
+  MAX_UNCLASSIFIED was lowered to match. **That ratchet pays for knowing WHY, not only for
+  removing**, and a classified arrival is worth as much to it as a retirement.
+
+* `check-trusted-termination-honesty.py` went 53 -> 55. Both members are named in the
+  constant, with the sentence that matters: THEIR TERMINATION WAS ALREADY ASSUMED AND
+  UNVERIFIED BEFORE THE MARKERS. This plane's population is "bodies carrying a marker", and
+  until today these two carried none while being verified by nothing either.
+
+THE PATTERN THIS SESSION HAS NOW HIT FOUR TIMES. Making a measurement honest makes a number go
+UP: MIN_TRUST_FREE (540 -> 538, gen #31 earlier), MAX_TRUSTED_OR_DEPENDENT (833 -> 834),
+MAX_SILENT (53 -> 55), and the marker count itself (458 -> 460). Every one of them is recorded
+in the constant with the member named, because a ratchet that moves without a name is just a
+number somebody edited.
+
+Backlog gains **#54 — the nested-closure lift**: it blocks two verbatim conversion candidates
+directly, gates the five trusted-parent traps indirectly, and retires both honest markers.
