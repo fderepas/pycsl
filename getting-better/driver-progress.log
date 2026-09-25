@@ -9908,3 +9908,57 @@ things nobody has looked at, and it held three distinct oracle defects:
 
 A new bucket's FIRST false positive is the cheapest one it will ever produce, and it arrives
 exactly when the population grows. That is an argument for growing the population early.
+
+--------------------------------------------------------------------------------
+2026-09-25 00:51Z — the SAME question asked of the other oracle: eleven more
+
+The parameterized oracle separated "the function RAISED" from "the module would not LOAD"
+in gen #30, and wrote the reason down in its own source: *a call that raises is not the same
+as a module that will not load*. Its ZERO-ARGUMENT sibling kept both in one bucket called
+"could not run standalone" for a generation longer. Fifteen entries sat in it, and nobody
+had looked, because "could not run standalone" reads like an oracle limitation.
+
+Separating them took twenty minutes and is worth ELEVEN corpus functions. For a
+zero-argument function there is no input-dependence to argue about: if it raises, it raises
+on the only call there is.
+
+    0521::build_and_read   NameError: 'Some'      0536::unwrap       NameError: 'Wrap'
+    0527::left_is_leaf     NameError: 'Node'      0540::use_int      NameError: 'Just'
+    0531::guarded          NameError: 'MSome'     0546::get          NameError: 'Some'
+    0533::leaf_is_zero     NameError: 'Leaf'      1003::use_int      NameError: 'Just'
+    0535::is_red_or_green  NameError: 'Blue'
+    0640::f                NameError: 'ast'       0642::f            NameError: 'y'
+
+NINE of the eleven are `#@ datatype`. With the two the parameterized oracle already had,
+that is **ELEVEN functions across NINE files for one directive** whose constructors Python
+defines nowhere and whose bodies use them in EXECUTABLE position.
+
+AND TWO NEW MECHANISMS, both of them the VERIFIER SUPPLYING A NAME THE PROGRAM LACKS:
+
+  0640 — `return ast.literal_eval("-5")` in a file that never imports `ast`. It does not
+  have to: PyCSL evaluates the call at VERIFICATION time with the host's own `ast`, which
+  is exactly what makes `\result == -5` provable, and the docstring calls the host
+  evaluation "the source of truth". The host is not the program's truth.
+
+  0642 — `exec("x = 5\ny = x + 1"); return y`, spliced at verification time. The driver's
+  own docstring: *"byte-identical WhyML to the inline form (the soundness evidence:
+  verification-equivalent)"*. **Byte-identical emission to the inline form is evidence that
+  the MODEL matches the inline form. It is not evidence that PYTHON does** — and Python
+  does not: `exec` inside a function body cannot create a local binding, measured both ways
+  including `locals().get("y")`, which is `None`. The inline form returns 6; this one
+  raises. Verification-equivalent and not program-equivalent, in one driver, with the claim
+  written out above it.
+
+ONE ORACLE DEFECT FIXED IN THE SAME PASS, the SECOND of its kind today: the population was
+CONSTRUCTING `typing.Protocol` classes ("TypeError: Protocols cannot be instantiated") and
+`#@ mixin` classes, then reporting the result as a corpus function with no normal exit. A
+population must exclude what the LANGUAGE forbids — Python's own `typing` here, PyCSL's
+`PYCSL-SEM-MIXIN-INSTANTIATED` there. Both were found by widening, not by review.
+
+THE FAMILY NOW STANDS AT EIGHTEEN FUNCTIONS ACROSS FIVE MECHANISMS:
+
+    `#@ datatype` constructors                              11 functions,  9 files
+    `#@ compose_from` provider methods                       3             3
+    the verifier supplying a name Python lacks               2             2
+    a `@dataclass` annotation contradicting its default      1             1
+    the `int` placeholder making a signature unsatisfiable   1             1
