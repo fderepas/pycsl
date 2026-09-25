@@ -11313,4 +11313,9 @@ mirror edits; run it after ANY `src/pycsl/` change.
 #    measuring instead of asserting. That count is in the record on purpose.
 #
 #    STATE: tree clean apart from the `.aux` build exhaust and the two pre-existing
-#    `scratchpad/w{7,8}` gitlinks. `\trusted` markers 460 (unchanged). DO NOT PUSH.
+#    `scratchpad/w{7,8}` gitlinks. **`\trusted` mirror functions: 487**, and that is the
+#    first time this file has carried a number a rule reproduces. The "460 (unchanged)"
+#    above is quoted forward from earlier handoffs and NO counting rule yields it (485
+#    markers / 487 functions / 596 occurrences / 454 excluding pycsl.py). It is now
+#    COUNTED and RATCHETED by `bin/check-mirror-coverage.py` as a ceiling, because the
+#    direction is down. DO NOT PUSH.

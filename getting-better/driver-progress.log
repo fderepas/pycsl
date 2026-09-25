@@ -10248,3 +10248,38 @@ WHAT THE THREAD PRODUCED ANYWAY, and none of it is lost:
 The cost of finding all that out was an afternoon of two-line programs. The cost of NOT
 finding it out was three generations of a backlog entry that said "int-placeholder
 annotations" and meant this.
+
+--------------------------------------------------------------------------------
+2026-09-25 02:03Z — the number this campaign exists to move was never measured
+
+`getting-better/driver-handoff-latest.md` ends three consecutive generation summaries with
+
+    `\trusted` markers 460 (unchanged)
+
+and I wrote it again myself, twice, today. Counting it, finally:
+
+    `#@ \trusted reviewer:` markers                        485
+    functions whose leading `#@` block carries `\trusted`  487
+    every `\trusted` occurrence anywhere                   596
+    markers excluding pycsl.py                             454
+
+**No rule reproduces 460.** The number has been quoted forward, generation to generation, by
+everyone including me, while being the single headline this driver exists to move. "Unchanged"
+was doing a lot of work: a figure nobody recomputes cannot change, and cannot be wrong.
+
+Fixed the only way that lasts — `bin/check-mirror-coverage.py` now COUNTS it by a stated rule
+(a `def` whose leading `#@` block contains the marker) and RATCHETS it as a CEILING at **487**,
+because the campaign's direction is down. A conversion that retires a stub must lower the
+ceiling in the same commit; a new stub must justify raising it. `--list` names the
+concentrations:
+
+    frontend/pure_ast.py              95        pycsl.py                  31
+    module6_whyml/expressions.py      38        module6_whyml/statements  27
+    frontend/Module5_IREmitter.py     35
+
+Bite-tested at 486 (red) and 487 (green).
+
+THE UNCOMFORTABLE VERSION, which is the useful one: this driver has spent three generations
+reporting a metric it was not measuring, in the file whose job is to say what moved. Every
+other claim in that file is backed by a plane. This one was backed by the previous copy of
+itself.
