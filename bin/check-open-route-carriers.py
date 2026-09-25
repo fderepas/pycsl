@@ -71,6 +71,33 @@ CARRIERS = {
     # carrier under `--fun`, its TRUE twin under `--fun` (which must keep failing, or the
     # flag is merely broken rather than unsound), and the SAME file whole-file (which must
     # keep failing, which is what localises the defect to the flag).
+    # (#49) gen #31 — A CAPABILITY GAP, GATED LIKE A ROUTE. Not a false proof: a read-only
+    # `Set[str]` parameter's membership does not TYPE-CHECK, so nothing is certified and
+    # nothing is unsound. It is here because the campaign's purpose is conversion and this
+    # is what blocks a measured slice of it — and because the day it starts working, the
+    # record has to be updated by whoever made it work rather than discovered later.
+    #
+    # `module6_whyml/functions.py` ~137: `_sk = "string" if (_mut_coll and kt.get(arg) ==
+    # "string") else "int"`. A MUTATED `Set[str]` param is string-keyed and a read-only one
+    # "must STAY `map int`" — the comment names the missing piece, "the deferred I4
+    # fixpoint". The two controls pin it from both sides: the same membership on a MUTATED
+    # param verifies, and `Set[int]` membership verifies.
+    #
+    # `finding-a-set-has-no-element-type-and-no-union.md`
+    "getting-better/open-routes/setelem-carrier-read-only-str-set-membership.py": (
+        "FAILED", "SET-ELEM",
+        "a read-only `Set[str]` parameter's `m in held` is lowered against `map int` and "
+        "Why3 rejects `string where int is expected`. When this VERIFIES the I4 fixpoint "
+        "has landed: move all three files into the corpus as witnesses in the same commit"),
+    "getting-better/open-routes/setelem-control-mutated-str-set-membership.py": (
+        "SUCCESS", "SET-ELEM",
+        "the SAME membership on a param the body also `.add`s to VERIFIES — the mutation is "
+        "what buys the string key. Run as a PREDICTION of the mechanism, not as another "
+        "symptom of it (wall-lesson (a6))"),
+    "getting-better/open-routes/setelem-control-int-set-membership.py": (
+        "SUCCESS", "SET-ELEM",
+        "`Set[int]` membership on a read-only param VERIFIES, so the membership PATH is "
+        "fine and the defect is the ELEMENT TYPE"),
     "getting-better/open-routes/route221-carrier-fun-assumes-a-synthesized-frame.py": (
         "SUCCESS", "#221",
         "`--fun use` proves `\\result == 0` for a callee whose body sets `self.v = 7` and "
