@@ -7478,3 +7478,26 @@ which command recomputes it.** The half I got wrong is the more useful one:
 The failure mode is specific and worth naming: I measured four things, none matched, and I
 generalised from *my four* to *all possible*. A census of your own attempts is not a census
 of the repo.
+
+### (e6) An estimate made while the measurement is still running is a guess in its clothes
+
+Two mirror files moved under a candidate typing change, so two re-proofs were launched. The
+first came back in EIGHT SECONDS with a type error. The second would take forty minutes.
+
+With one failure in hand and one proof still running, I wrote the sizing: *"promoting one
+promotes all of them, which moves most of the mirror … a double-digit-hour proof bill"*, and
+put that number in the backlog, the finding and the progress log.
+
+The second proof came back **SUCCESS**. Two files move, one of them is clean, and the other
+fails at a SINGLE call edge. The item is a three-minute sweep away from being sized properly
+and it is nothing like double-digit hours.
+
+The failure arrived first because failures are fast — a type error is eight seconds and a
+proof is forty minutes — so **the evidence that arrives first is systematically the
+pessimistic half.** That bias is structural, not accidental, and it is strongest exactly when
+you are deciding whether something is worth building.
+
+The rule is not "never estimate". It is: **say which measurements the estimate is missing,
+in the estimate**, and re-open it when they land. One sentence — "the second re-proof is
+still running" — would have made the number provisional instead of wrong, and it costs
+nothing to write while you are already writing the number.
