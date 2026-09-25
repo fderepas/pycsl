@@ -11238,3 +11238,17 @@ Re-run with both names declared: 2 MOVED, 0 unexpected, OK.
 THAT IS THE THIRD TIME THIS FLAG HAS CAUGHT ITS OWN AUTHOR, and the first time the surprise
 was an improvement rather than a naming slip. A gate that only checks the movers you declared
 would have called this inert.
+
+## 11:42Z — AND THE FILE THE PORT MOVED STILL PROVES
+
+`pycsl.mlw` was the undeclared mover: its `module6_whymltranspiler` record type gained twelve
+fields when `__init__` was ported. **A moved emission is not a checked emission** — the gate
+compares BYTES, and the corpus suite does not prove the mirror — so the file was re-proved by
+hand:
+
+    src/self-annotate/src/pycsl.py   42 min   [+] Verification SUCCESS!
+
+Twelve more fields in the record, every contract still discharged. That is the check the I4
+attempt taught: **when a change moves a mirror file, re-prove that file.** There it broke four
+of them in thirty seconds; here it broke none, and knowing which of those two it is costs one
+proof.
