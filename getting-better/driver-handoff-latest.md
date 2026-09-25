@@ -11319,3 +11319,39 @@ mirror edits; run it after ANY `src/pycsl/` change.
 #    docstring that mentions the marker, once per file. I briefly claimed this number had no
 #    instrument, landed a ratchet on a different quantity (487 function-attached markers) and
 #    reverted it — see wall-lesson (d6). DO NOT PUSH.
+
+# ======================================================================================
+# ## HOW TO RECOMPUTE EVERY NUMBER IN THIS FILE  (added 2026-09-25, after wall-lesson (d6))
+#
+#    (d6) says: for every number in a summary, ask which command recomputes it — and the
+#    way that lesson was learned is that I claimed one had none, loudly, while its script
+#    sat in the plane battery. So here is the table, once, for everything this handoff
+#    quotes. If a future entry adds a number, add its command here or do not add the number.
+#
+#      suite pass/total          bin/run-reference-tests.sh          (tail: "Results: N/M")
+#      plane count               bin/run-soundness-planes.sh         ("all N plane(s) green")
+#      `\trusted` markers        bin/count-trusted-directives.py     ("markers 460 · …")
+#                                  NOTE the `offset`: a raw grep gives 485 because each
+#                                  file's header docstring MENTIONS the marker. 460 is the
+#                                  count of real ones and 460 is what this file means.
+#      trust blast radius        bin/check-trust-blast-radius.py     (56%–61% of the mirror)
+#      unmirrored defs           bin/check-mirror-coverage.py        (549 of 1823, 41 files)
+#      mirror fidelity           bin/check-self-annotate-sync.sh     (886 verbatim)
+#      corpus contract truth     bin/check-corpus-contract-truth.py          (430 / 418)
+#      …with arguments           bin/check-corpus-contract-truth-args.py     (764 / 7643)
+#        …and its own boundary   bin/check-corpus-contract-truth-args.py --census
+#      does the corpus RUN       bin/check-corpus-executes.py        (1419/1420, 847/847)
+#      directive enforcement     bin/check-directive-enforcement.py  (52 of 53)
+#      class-invariant truth     bin/check-class-invariant-establishment.py
+#      corpus byte-inertness     bin/byte-diff-sweep.sh + bin/byte-diff-compare.py
+#      mirror byte-inertness     bin/mirror-emit-sweep.sh + bin/byte-diff-compare.py
+#
+#      "NINETEEN functions in the verified-is-not-executed family" = the two NEVER_RETURNS
+#      tables added together: 8 in `check-corpus-contract-truth-args.py` (of which one,
+#      0159, is a declared `#@ \diverges` and not a defect) + 11 in
+#      `check-corpus-contract-truth.py`. Both plane outputs print their own count, and an
+#      UNNAMED entry in either turns its plane red — so the number cannot drift silently.
+#
+#      A mirror proof TIME (`expressions.py` 2h57m, `Module6_WhyMLTranspiler` ~35m) is a
+#      one-off measurement, not a metric. It is quoted to size work, never as a ratchet, and
+#      the way to recompute it is to run the proof.
