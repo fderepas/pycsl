@@ -7718,3 +7718,38 @@ the one whose verdict depended on glob order. **An instrument's failure list is 
 every way the thing under test can fail, and it is always incomplete until something fails a
 new way.** The fix is a separate script (`recheck_lowers.sh`), not an edit to the running
 one — lesson (q5).
+
+### A DO-NOT-CONVERT LIST, and why a green proof is not the gate (2026-09-25)
+
+`finding-two-trusted-stubs-that-convert-and-prove.md` +
+`finding-assigns-nothing-over-a-subprocess.md`.
+
+Two stubs from the screen were taken all the way: converted, and their whole files PROVED.
+
+    errors.py::message                    PROVES in ~11 s   **LANDABLE**
+    audit_proof_reverify.py::_cache_root  PROVES in ~28 s   **DO NOT LAND**
+
+The emit-diff — four minutes, no proving — separates them. `message` turns an ASSUMED field
+frame into a PROVED one and keeps `super().__str__()` exactly as opaque as the `val` already
+had it. `_cache_root`'s body is `root.mkdir(parents=True, exist_ok=True)`, the lowering emits
+`val root_mkdir_0 () : int` with no receiver and no `writes`, and the declared
+`#@ assigns \nothing` — assumed while the marker was there — becomes CERTIFIED.
+
+**So the conversion gate is not "does the file prove". It is:**
+
+    1. does the file PROVE                                  (necessary)
+    2. does the EMIT-DIFF show only assumptions becoming obligations
+                                                            (the one that decides)
+    3. do the three trust planes stay green
+    4. does `count-trusted-directives` go DOWN by exactly the markers removed
+    5. is the corpus byte-inert
+
+**THE DO-NOT-CONVERT LIST** — 17 receiver-confirmed `\trusted` stubs declaring
+`#@ assigns \nothing` whose live body calls `subprocess.run`/`Popen`, `os.makedirs` or
+`os.remove`, plus `_cache_root`/`_cache_store`'s `Path.mkdir` confirmed by hand. All of
+`pycsl.py`'s prover drivers (`_run_why3_prove`, `_why3_typecheck`, `_check_rocq_proofs`,
+`_run_proofs`, `_run_vacuity_gate`, `_probe_one`, `_generate_rocq_obligations`), all of
+`proof2why3`'s extractors, and `audit_proof_reverify`'s version probes and verifiers.
+
+Not load-bearing today (ZERO un-trusted callers), so it is a trap rather than a hole — and
+the whole point of a trap is that it is exactly one green proof away.
