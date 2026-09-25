@@ -10322,3 +10322,34 @@ made the same mistake with the lesson open in front of me.
 Eight corrections today. This one is in the record at full length on purpose: the previous
 seven were about the SYSTEM, and this one is about the method failing in the hands of the
 person applying it.
+
+--------------------------------------------------------------------------------
+2026-09-25 02:19Z — the I4 bill is SMALLER than I sized it: one file, one call edge
+
+The 01:38Z entry sized the I4 fixpoint as "a module-level fixpoint with a double-digit-hour
+proof bill … promoting one promotes all of them, which moves most of the mirror". The second
+re-proof has now finished and the estimate was too pessimistic — tenth correction of the
+session, and the first that makes an item CHEAPER.
+
+    module6_whyml/statements.py       8 s     FAILED  (type error at one call edge)
+    Module6_WhyMLTranspiler.py     40m43s     **SUCCESS**
+
+The sweep said TWO mirror files move and no more. One of them re-proves clean. The other
+fails at a single site — `statements.py` line 1350, `(self__stmts_to_whyml_5 self rest
+local_refs …)`, where the promoted `map string` meets a `val` still declared `map int`.
+
+So the next step is not "propagate κ across the whole mirror" but "promote THAT callee's
+`local_refs`/`declared_refs` and re-sweep". It may cascade; it may not; the sweep will say,
+and a sweep is three minutes. What is no longer true is the sentence that said the bill was
+double-digit hours before anyone had run the second proof.
+
+WHY I GOT IT WRONG, and it is the mirror image of the earlier mistake: at 01:38 I had ONE
+failing proof and I generalised from it, exactly as I generalised from four counting rules at
+02:03 and from one erased-value symptom at 02:00. The failing case was in front of me and the
+passing one was still running, so the estimate was built from the half of the evidence that
+had arrived. **An estimate made while a measurement is still running is a guess wearing the
+measurement's clothes.**
+
+The three artefacts stand ready for the continuation: the carrier triple in
+`check-open-route-carriers.py`, the two witnesses (1909/1910, measured both ways), and the
+one-line patch with its two re-proof verdicts.
