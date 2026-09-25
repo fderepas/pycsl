@@ -7746,3 +7746,32 @@ function pulls in callers that were previously trust-free.
 
 A ratchet that moves without a name is just a number somebody edited, and it is indistinguishable
 from the regression it was built to catch.
+
+### (m6) A scratch path two runs can share is a race, and `pgrep -f` still matches your own shell
+
+Two incidents, ninety seconds apart, both self-inflicted, both already written down.
+
+**THE SHARED TREE.** `check14_multi.sh` used a fixed scratch tree `$S/cm`. A batch script
+launched a second invocation while the first was still running its fifteen-minute proof; the
+second `rm -rf`'d the tree out from under it. The first run did not fail — it kept printing,
+against files that no longer existed. **A result that is wrong without saying so is worse than
+a crash**, and the fix is one line: `T=$S/cm_$$` with a `trap ... EXIT`.
+
+The general form: any tool that hard-codes a scratch path is single-instance by construction,
+and nothing in it says so. The moment it is called from a loop it is a race. Either make the
+path unique per invocation, or make the tool refuse to start when the path exists.
+
+**AND `pgrep -f` MATCHED MY OWN SHELL, AGAIN.** Wall-lesson (c6) already says *"pgrep costs
+you a deadlock, pkill costs you the session"*, and the supervisor's standing instruction is
+"do NOT use `pkill -f` with a pattern that can match the harness shell — kill by PID". So:
+
+    PIDS=$(pgrep -f "prove_batch.sh")        # <- this command's OWN text contains the pattern
+    for p in $PIDS; do kill "$p"; done       # <- so it kills the shell running it
+
+Exit 144. The lesson (c6) was about `pkill`; the same trap is in `pgrep` feeding `kill`,
+because the danger was never the tool — **it is matching on a COMMAND LINE from inside a
+command line that contains the pattern.**
+
+The rule that actually holds: get PIDs from `ps -eo pid,cmd | awk '/pat/ && !/awk/'`, read
+them, and kill the specific numbers in a SEPARATE call whose text does not contain the
+pattern. Two calls, never one.
