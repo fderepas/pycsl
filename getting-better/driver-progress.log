@@ -9592,3 +9592,23 @@ args oracle already has specified in the backlog, which is the argument for doin
 rather than starting a fourth oracle.
 
 Four minutes, one number, one idea correctly not built. Recorded so it is not re-proposed.
+
+--------------------------------------------------------------------------------
+2026-09-25 00:04Z — the CONTRACT LANGUAGE's core operators, swept true-and-false
+
+Every route write-up in this campaign leans on "the operators mean what they say". Eighteen
+probes, each an operator in a TRUE and a FALSE version over the same one-line program:
+
+    or / and / not / ==> / <==>        5 true SUCCESS, 5 false FAILED
+    -7 // 2  proves -4, refuses -3     (Python FLOORS; Why3's Euclidean would differ)
+    7 // -2  proves -4, refuses -3
+    -7 %  2  proves  1, refuses -1     (Python's remainder takes the DIVISOR's sign)
+    7 %  -2  proves -1, refuses  1
+
+**18 of 18 correct**, and the arithmetic four are the WL-01 repair still holding on the one
+place Python and Why3 genuinely disagree.
+
+A clean negative over the layer everything else rests on. Worth the four minutes precisely
+because it is the assumption nobody states: if `==>` had been lowered as `&&`, every
+implication-shaped contract in the corpus would have been vacuous and no plane would have
+noticed.
