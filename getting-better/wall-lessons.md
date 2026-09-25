@@ -7353,3 +7353,23 @@ A census is only as honest as its smallest labelled bucket. If the counts are at
 named reasons and there is a remainder, the remainder is the finding — not the rounding.
 Keep splitting until every bucket names a mechanism, then look at the mechanisms you do not
 recognise.
+
+### (z5) A plane that shares state across its population gives order-dependent verdicts
+
+A new plane execs every corpus file in one interpreter. Three drivers share a deliberately
+circular import fixture, and all three fail it the same way. The plane reported ONE.
+
+The reason is that the first failure left `multi_file_lib.circ_a` in `sys.modules` in a
+half-built state, and the next file "passed" by reusing the cached husk. Three files, one
+defect, two different answers — and which answer you get depends on the order `glob`
+returned them in.
+
+`sys.path` was already being restored per file, carefully, with a comment about not letting
+one test shadow a name for the next. `sys.modules` is the same hazard one level down and had
+not occurred to anyone, including me, until the counts stopped adding up: **1380 loaded plus
+2 failures is not 1384**. Arithmetic on a plane's own report is the cheapest audit there is,
+and it is the one that caught this.
+
+Snapshot and restore every global the population can touch — `sys.path`, `sys.modules`,
+the working directory, environment. If a plane's verdict can depend on the order of its
+inputs, its green is a statement about that order and not about the corpus.
