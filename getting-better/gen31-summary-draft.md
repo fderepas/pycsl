@@ -96,10 +96,39 @@ as LOWERS, and both are trusted-parent traps the new check refuses. Census: 5 of
     460  session start
     458  message + __exit__ PROVED, all four checks
     460  _hdr_name + _returns_literal_none::walk take HONEST markers
-    886 -> 888 -> 886 verbatim un-trusted
+    455  FIVE more retired by PORTING the live body in and proving the result
+    886 -> 888 -> 886 -> 891 verbatim un-trusted
+    834 -> 817 trusted-or-dependent
 
-Two functions left the trusted set by being proved. Two joined it by being found never to have
-been verified. **The count is unchanged and the map is two entries more accurate.**
+Two functions left the trusted set by being proved, two joined it by being found never to have
+been verified, and then five left it by being PORTED. **Five markers, seventeen off the
+trusted-or-dependent aggregate** — retiring a marker on a function nothing trusted-depends on
+removes its whole dependent cone with it, which is the thing the marker count has never been
+able to show. The ratchet that measured it was added six hours earlier for the opposite reason.
+
+### Increment H, in full
+
+    proof2why3/sertop.py::__enter__               1-line port
+    frontend/Module2_Parser.py::_err              2-line port, converts TWO functions
+    module6_whyml/identifiers.py::stable_hash     1-line port
+    proof2why3/parser.py::__repr__                1-line port
+    frontend/monomorphize.py::_rewrite_call_sites 5-line port
+
+`_err` is the one to read: the ported body calls `_contractparser__cur`, which was sitting in
+the emission as an unused `val` and becomes a `let` with it, and `ensures { false }` survives,
+so the emitted `let` now PROVES that `_err` never returns normally where the `val` assumed it.
+
+REFUSED and not landed: two Z3 timeouts (7.4M and 3.19 BILLION steps — a COST boundary, not a
+correctness one) and the five `pure_ast.py` candidates together, on check 1, for three new
+abstract operations.
+
+### The I4 fixpoint also works, and it is not a fixpoint
+
+Dry-run on an offline tree: the carrier flips FAILED -> SUCCESS and BOTH controls hold. The
+thing a generation called "the deferred I4 fixpoint" is one rule stated twice and implemented
+once — `_m5_get_field_key_type` already covered `Set[str]` (*a set's element IS its key*) while
+`_m5_get_dict_key_type` covered only `Dict[str, V]`. Reading the key type from the DECLARATION
+makes both ends of a call edge agree by construction. No propagation pass, nothing to converge.
 
 ## Ratchets that rose, each with its members named
 
