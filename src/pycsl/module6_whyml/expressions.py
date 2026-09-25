@@ -878,6 +878,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _ft = self._field_type_of(ir_expr)
             if _ft in ("list", "tuple"):
                 return f"(Array.length ({whyml_str}) <> 0)"
+            # (#49) gen #31 — THE STRING-FIELD COUNTERPART OF THE TWO RULES AROUND IT.
+            # Python string truthiness is NON-EMPTINESS, so `if self.stage:` is
+            # `String.length self.stage <> 0`, never the int coercion `self.stage <> 0`
+            # (a `string` vs `int` L3-tc rejection — the observed `pycslerror____str__`
+            # failure). The ARRAY-field rule immediately above says exactly this for a
+            # list field, and the string-VAR rule sixty lines up says it for a local; the
+            # FIELD half of the string rule was simply never written.
+            # BYTE-INERT BY CONSTRUCTION: it fires only where `_field_type_of` answers
+            # `str`/`string`, and `preamble.py`'s `elif ftype in ("string", "str")` maps
+            # exactly those fields to a Why3 `string` — UNGATED, so it holds for the corpus
+            # too. A corpus `if self.<strfield>:` therefore ALREADY emits the ill-typed
+            # `<> 0` and cannot be in a passing program. Measured by the gate, not assumed.
+            # Spec context uses the pure `String.length`; body context the program `val`,
+            # the same split the string-VAR rule makes.
+            if _ft in ("str", "string"):
+                if self._in_spec:
+                    return f"(String.length ({whyml_str}) <> 0)"
+                self._add_abstract_op(
+                    "val str_length_op (s: string) : int\n"
+                    "    ensures { result = (String.length s) }")
+                return f"(str_length_op ({whyml_str}) <> 0)"
         # Coerce int → bool
         return f"({whyml_str} <> 0)"
 
@@ -4546,6 +4567,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # `.lower()`/`.strip()` on it (`str(binder_type).lower()`) recognizes as a faithful
             # string-value method rather than falling to the opaque scalar op.
             if _fn == "str":
+                return True
+            # (#49) gen #31 — `<x>.__str__()` RETURNS A PYTHON `str`, always: it is the
+            # protocol, and CPython raises TypeError on any other return. The emitter has
+            # always LOWERED it as one (`val str_dunder_op () : string`, and route #220's
+            # receiver-taking `<cls>_str_dunder_op : string`) — but never CLASSIFIED it, so
+            # `msg = super().__str__()` took the integer `ref 0` pre-declaration and
+            # `msg := (str_dunder_op ())` mistyped. The lowering and the classifier
+            # disagreed about a value they both describe; this is the classifier agreeing.
+            if _fn == "__str__" or (isinstance(_fn, str)
+                                    and _fn.endswith(".__str__")):
                 return True
             # faithful-string-op.md §3.1–3.3: `.replace`/`.lower`/`.upper`/`.strip` on a
             # string receiver is itself string-typed, so a receiving local (`arr_name =

@@ -25,22 +25,22 @@ class PyCSLError(Exception):
         # Machine consumers read it via `.code` / `.as_dict()` / `--diagnostics-json`.
         self.code = code
 
-    #@ \trusted reviewer: pycsl-self-annotate
-    # (#49) gen #31 — TRUSTED THE DAY IT FIRST BECAME EMITTABLE, and the marker is an HONEST
-    # CORRECTION rather than a regression. Dunders used to be dropped before any IR was
-    # built, so this method was counted among the UN-TRUSTED mirror functions (it carried no
-    # marker) while NEVER BEING EMITTED OR PROVED — `check-untrusted-emitted` allow-listed
-    # `__str__` as EXPECTED-ABSENT on the stated grounds that "dunders are modelled
-    # structurally", which was not what the emitter did with them. Two of the 887 "verbatim
-    # un-trusted twins" were in that position; this is one of them.
-    # Now that it is emitted, the body is a Why3 TYPE ERROR rather than a proof failure:
-    # `parts := Seq.snoc !parts self.pycslerror_filename` puts an int-modelled field into a
-    # `seq string` (`This expression has type int, but is expected to have type string`).
-    # Measured by the independent reviewer of the emit-dunders report (oracle O8).
-    # REOPENING CAPABILITY, and it is a VALUE-MODEL one rather than an annotation: the
-    # string-typed self fields (`filename`, `stage`) are carried as ints in the record
-    # model. A faithful string field model retires this marker AND several others; it is
-    # the same capability the `hval`/string track has been circling. Not a boundary.
+    # (#49) gen #31 — THE MARKER CAME OFF, and the reason it carried had gone stale a day
+    # earlier. It said the string-typed self fields were "carried as ints in the record
+    # model" and named a REOPENING CAPABILITY. They are not: `preamble.py`'s TP-3 Gap 6
+    # maps a `str` field to a Why3 `string`, and this session's `self.f = <annotated
+    # __init__ param>` repair gives the un-annotated ones the parameter's type — so the
+    # record has read `mutable pycslerror_filename: string` for some time.
+    # What actually blocked it was three unrelated one-rule gaps, each measured
+    # load-bearing by ablation and each landed with this conversion: a string FIELD had no
+    # TRUTHINESS rule (`if self.stage:`), `<x>.__str__()` lowered to a `string` val but was
+    # not CLASSIFIED as string-valued (`msg = super().__str__()`), and the string-local
+    # fixpoint ran before the pass that makes `" ".join(parts)` string-typed.
+    # The body now lowers faithfully — `str_concat_op`/`str_join_seq`/`str_length_op` over
+    # real `string` fields, no int hash anywhere — and the four frame `ensures` that the
+    # abstract `val` merely ASSUMED are PROVED. Retiring it converts FOUR emitted symbols,
+    # not one: the three subclasses inherit `__str__` and each had its own `val`.
+    # See getting-better/open-routes/finding-the-field-value-model-already-landed.md
     def __str__(self) -> str:
         parts = []
         if self.stage:

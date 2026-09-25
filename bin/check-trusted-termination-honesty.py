@@ -58,8 +58,10 @@ TREES = (("mirror", os.path.join(ROOT, "src", "self-annotate", "src")),
          ("stdlib", os.path.join(ROOT, "src", "pycsl_lib")),
          ("corpus", os.path.join(ROOT, "test-suite", "corpus")))
 MIN_FUNCTIONS = 6500          # 7440 across the three trees at the first measurement
-MAX_SILENT = 57               # (#49) gen #31, 2026-09-25T23:25Z: 55 -> 57, and BOTH members
-                              # of the loop half of the +3 are named (measured 54 -> 57). `monomorphize.py::_rewrite_call_sites`
+MAX_SILENT = 56               # (#49) gen #31, 2026-09-25T23:40Z: 57 -> 56, TIGHTENED by
+                              # increment O's `errors.py::PyCSLError.__str__` conversion.
+                              # PRIOR ENTRY: 23:25Z 55 -> 57, and BOTH members of the loop
+                              # half of the +3 are named (measured 54 -> 57). `monomorphize.py::_rewrite_call_sites`
                               # (a `for func in ir_data.get("functions", [])` loop) and
                               # `pure_ast.py::iter_fields` (a `for field in node._fields`
                               # loop) were RE-TRUSTED in increment O after the `--slow`

@@ -73,7 +73,10 @@ MAX_TRUST_DEPENDENT = 401     # UPPER bound at the first measurement was 400; ma
                               # number silently every time a conversion landed in a trusted
                               # call path. So the invariant that actually means "the trusted
                               # surface did not grow" is ratcheted separately, below.
-MAX_TRUSTED_OR_DEPENDENT = 830   # (#49) gen #31, 2026-09-25T23:20Z — RAISED 798 -> 830,
+MAX_TRUSTED_OR_DEPENDENT = 828   # (#49) gen #31, 2026-09-25T23:40Z — 830 -> 828, TIGHTENED
+                              # by increment O's one conversion (`errors.py::__str__`, which
+                              # converts FOUR emitted symbols because three subclasses
+                              # inherit it). PRIOR ENTRY: 2026-09-25T23:20Z — RAISED 798 -> 830,
                               # and this is the one direction a ratchet may move only in a
                               # commit that NAMES THE MEMBERS (wall-lesson (l6)). SIX
                               # conversions landed by this session were RE-TRUSTED after

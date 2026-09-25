@@ -66,7 +66,6 @@ core_ir_semantic.py	_returns_literal_none.walk	cost-scale:nested-closure-lift	th
 core_ir_semantic.py	_typeddict_check_subscript	unclassified	-
 core_ir_semantic.py	_namedtuple_check_call	unclassified	-
 core_ir_semantic.py	_namedtuple_check_subscript	unclassified	-
-errors.py	PyCSLError.__str__	cost-scale:string-field-model	the two mirror dunder markers
 errors.py	PyCSLError.as_dict	unclassified	-
 exception_model.py	bases_closure	unclassified	-
 frontend/ConcurrencyChecker.py	ConcurrencyChecker.check	unclassified	-

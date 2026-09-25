@@ -6273,6 +6273,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         string_vars |= self._collect_str_array_field_elem_locals(body_stmts)
         self._string_local_vars = string_vars   # so _mark_string_seq_locals sees items-keys
         self._mark_string_seq_locals(body_stmts)
+        # (#49) gen #31 — THE FIXPOINT MUST RUN AFTER EVERY PASS THAT CAN MAKE AN RHS
+        # STRING-TYPED. `_collect_string_valued_locals` ran ~50 lines above, BEFORE
+        # `_mark_string_seq_locals` — so when it asked whether `header = " ".join(parts)`
+        # was string-typed, `parts` was not yet a `seq string` and the answer was no. The
+        # local then took the integer `ref 0` pre-declaration and `header := (str_join_seq
+        # …)` mistyped (the observed `pycslerror____str__` failure). Re-running the SAME
+        # fixpoint here — idempotent, conservative in the same way (a local with ANY
+        # non-string RHS is excluded), and strictly monotone in the symbol table — closes
+        # it. Wall-lesson (k6) one level in: two passes over one population disagreed
+        # because one of them read a table the other had not filled in yet.
+        string_vars |= self._collect_string_valued_locals(body_stmts)
         string_vars |= self._collect_enum_str_elem_locals(body_stmts)
         self._string_local_vars = string_vars   # so _collect_str_call_result_locals sees them
         # no-more-int emitter L2: locals bound from a `string`-returning call.
