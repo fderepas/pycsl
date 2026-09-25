@@ -287,3 +287,33 @@ five defects above sat under `#@ ensures \result >= 0` — the most common claus
 corpus — and the reason no instrument had executed those functions was not a filter anyone
 chose. It was that the question "does this program run" had never been separated from the
 question "is this contract true".
+
+---
+
+## The INPUT-DEPENDENT tail, which is the same defect with a precondition missing
+
+Everything above is unconditional: the function raises on every argument its own contract
+admits. There is a second, milder bucket — raises on SOME admitted argument — and it is
+worth naming because the repair is different and trivial.
+
+    0420.py::roundtrip_two_ints(x0, x1)   struct.error   `struct.pack('>HH', x0, x1)` with
+                                                         no range precondition
+    0605.py::dig(s, i)                    IndexError     `s[i]` with no bound on `i`
+    0199.py::sum_first_two(d)             KeyError       `d[0] + d[1]` with no key
+                                                         precondition
+    1302_route108…::wrapper(n)            ValueError     a DECLARED escape; not a defect
+
+Three of the four are the same omission: **a body that indexes, unpacks or subscripts, and a
+contract with no `#@ requires` bounding the index.** The model supplies totality — a total
+map for the dict, an unguarded round-trip axiom for the pack, an unchecked read for the
+string — and the missing precondition is never felt. Write the `#@ requires` and the model
+and the program agree again.
+
+That is the cheapest correspondence between this family and everyday practice: **a
+precondition you did not need to write is a precondition the model wrote for you**, and the
+model's version is the one that does not hold in Python.
+
+`1302` is in the list only because the oracle counts it, and it belongs in neither bucket:
+it DECLARES `#@ raises ValueError when …`, route #108 established that the raise really does
+escape, and an `#@ ensures` constrains the normal exit only. A declared exceptional exit is
+a contract being kept.
