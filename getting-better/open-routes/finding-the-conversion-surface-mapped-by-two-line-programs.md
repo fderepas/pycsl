@@ -108,6 +108,24 @@ non-injective"*. The probe confirms the documentation rather than finding a defe
 worth recording precisely because the temptation in a session full of findings is to read
 every `unproven` as one.
 
+### The CONTAINERS that lower are also FAITHFUL, twin-checked
+
+    TRUE                                                     FALSE TWIN
+    d[k] = v; return d[k]        == v          SUCCESS       == v + 1     unproven
+    held.add(m); return m in held == True      SUCCESS       == False     unproven
+    ys = [1, 2, 3]; len(ys)      == 3          SUCCESS       == 4         unproven
+    len(f"a{s}b")  == \str_length(s) + 2      **does not lower** — and neither does the
+                                                 false twin, so this is a type error and
+                                                 not a faithfulness answer
+
+Every container operation the map says LOWERS also MEANS what it should: the dict store is
+visible to the read, the set add is visible to the membership, the list literal has its
+length — each proved, each with a false neighbour that is not. That is a stronger statement
+than the map alone and it cost three extra programs.
+
+The one new gap the twins found is small and precise: **an f-string LOWERS as a value but
+`len()` of one does not**, in either direction. Recorded rather than pursued.
+
 A converted function may therefore use `.upper()`/`.replace()` freely — they LOWER — but it
 cannot carry a contract that depends on what they return. That is a different and much
 smaller restriction than "strings are a wall", and it is the kind of sentence the map exists
