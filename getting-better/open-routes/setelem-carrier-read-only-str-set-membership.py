@@ -26,11 +26,29 @@ ITS TWO CONTROLS PIN THE MECHANISM FROM BOTH SIDES:
   `setelem-control-int-set-membership.py`          — `Set[int]` membership VERIFIES, so the
       membership path itself is fine; it is typed to `int`, always.
 
-WHEN THIS FILE STARTS VERIFYING, the I4 fixpoint has landed. Move it and its controls into
-the corpus as witnesses in the SAME commit, lower `check-open-route-carriers.py`, and record
-the mirror re-proof bill (the one-line version of the fix fails at the first call edge:
-`module6_whyml/statements.py` line 1350, where the promoted `local_refs` is passed to a `val`
-still declared `map int (option int)`).
+WHEN THIS FILE STARTS VERIFYING, THE DEFINITION SIDE IS FIXED — AND THAT IS NOT THE ROUTE.
+Corrected 2026-09-25 by doing exactly what this paragraph used to say. The TWO-part patch —
+read the key type from the DECLARATION in the parameter extractor (`_m5_get_field_key_type`
+instead of `_m5_get_dict_key_type`), then drop the `_mut_coll` conjunct — flips this carrier,
+holds BOTH controls, and proves three new corpus witnesses. It also breaks FOUR mirror files
+in thirty seconds, every one of them with
+
+    This expression has type string -> option.Option.option int,
+    but is expected to have type int -> option.Option.option int
+
+a promoted `map string` reaching a sibling `val` BRIDGE still declared `map int`. The old note
+here predicted that shape for the ONE-line version and expected the two-line version to remove
+it "by construction". It does not: **a bridge has no Python declaration to read** — it is
+synthesised for a method the emitter did not lower, and its parameter types come from whatever
+the emitter believed when it wrote the bridge. Promoting the definition side moves one end of
+the call edge and leaves the other.
+
+THE CONDITION THAT MEANS THE FIXPOINT HAS LANDED IS THE BILL: this file verifies AND all TEN
+moved mirror files still prove — `Module6_WhyMLTranspiler`, `frontend/__init__`,
+`frontend/ir_resolve`, `frontend/monomorphize`, `module6_whyml/expr_ghost_collections`,
+`expr_ghost_spec_ops`, `expressions`, `functions`, `statements`, `stmt_control_flow`. Only then
+move this file and its controls into the corpus and lower `check-open-route-carriers.py`.
+See `getting-better/open-routes/finding-the-i4-fixpoint-really-is-a-fixpoint.md`.
 
 `getting-better/open-routes/finding-a-set-has-no-element-type-and-no-union.md`
 """
