@@ -7797,3 +7797,26 @@ started it, and no log it wrote was ever read again.
    detached prover run) so an orphan eventually dies on its own;
 3. when a long run's load numbers stop making sense, list the processes before theorising. Load
    average 14 with three jobs running is a fourth job nobody is watching.
+
+### (o6) `set -e` plus `grep -c` kills the script exactly when the measurement is the expected one
+
+`try_i4.sh` runs three carrier files and prints SUCCESS or FAILED for each. It died silently
+after printing its header, and the reason is one of the oldest traps in shell:
+
+    set -e
+    r=$(... | grep -cE 'Verification SUCCESS')     # grep -c EXITS 1 when the count is ZERO
+
+The first file it measures is a CARRIER — a file whose entire purpose is that it does **not**
+verify. So the expected outcome produced a zero count, `grep` exited 1, `set -e` killed the
+script, and the log said nothing at all. Thirty-five minutes were spent waiting on a process
+that had exited in the first second.
+
+Two generalisations worth more than the fix:
+
+1. **`grep -c` is not a counter, it is a predicate that also prints a count.** Any grep that is
+   ALLOWED to find nothing needs `|| true`, and in a script that measures failures, that is
+   most of them.
+2. **The failure mode was silence, and silence is indistinguishable from work.** The log's last
+   line was a header, the tree was on disk, and nothing said the script was gone. The check
+   that found it was `ps` — the same check that found the orphaned prover in (n6), for the same
+   reason: *when a long run's output stops making sense, list the processes before theorising.*
