@@ -10852,3 +10852,29 @@ script — never editing a screen that is running (wall-lesson q5). The `TYPE` /
 verdicts from the running screens are unaffected: a definite failure string is still a
 definite failure. Only the passes were untrustworthy, which is exactly the wrong half to get
 wrong.
+
+## 05:07Z — FOUR PORT+CONVERT CANDIDATES PROVE; TWO TIME OUT
+
+Each on its own offline tree, whole-file proof, no `--no-proof` shortcut:
+
+    proof2why3/sertop.py::__enter__            PROVED   1-line port
+    frontend/Module2_Parser.py::_err           PROVED   converts TWO functions
+    module6_whyml/identifiers.py::stable_hash  PROVED   1-line port, 27 diff lines
+    proof2why3/parser.py::__repr__             PROVED   1-line port, 13 diff lines
+    proof2why3/sertop.py::_sexp_tokens         TIMEOUT  Z3, 30s, 7,433,789 steps
+    proof2why3/from_sexp.py::_find_construct_idx TIMEOUT Z3, 30s, 3,193,221,587 steps
+
+**A PREDICTION I GOT WRONG, and it is worth recording.** I wrote that
+`proof2why3/parser.py::__repr__` would probably hit the string-field wall, because its live
+body is `f"{self.kind}({self.value!r})"` and `errors.py::__str__` fails on exactly that shape.
+It PROVED. The difference is that `_Tok.kind` and `.value` are not carried through a `seq
+string` construction the way `PyCSLError.filename` and `.stage` are — the wall is narrower
+than its most famous witness suggests, and guessing which side of it a function falls on is
+not a substitute for running it.
+
+TWO TIMEOUTS ARE A COST BOUNDARY, NOT A CORRECTNESS ONE. Both are `Timeout (30.00s)` on a
+solver goal, not a failed obligation. 3.19 BILLION steps on `_find_construct_idx` says the
+goal is not close; `_sexp_tokens` at 7.4 million is a different order of hard. Neither is a
+reason to mark anything `\trusted` — they are a reason to record the number and move on.
+
+So of 13 confirmed port+lower candidates: 4 proved, 2 timed out, 7 still to adjudicate.
