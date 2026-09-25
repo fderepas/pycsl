@@ -135,6 +135,19 @@ double-model a class that a `#@ datatype` already declares. Both are design chan
 documented directive, with nine drivers in the blast radius, and lesson (u4) applies: a rule
 binds every program that could be written, not only the nine that exist.
 
+### The contrast that makes this a defect and not a house style: `#@ conforms_to`
+
+`#@ conforms_to` is the sibling directive — class-level, declared the same way, checked by
+Module 4 the same way. Its drivers RUN. `1839` and `1856` each declare a `typing.Protocol`
+`P` and a conforming class `C`, and under CPython `C().m()` answers 99 in both; only `P()`
+raises, which is correct Python and what a Protocol is for.
+
+So the difference is not "directives are spec-level". `#@ conforms_to` names a construct
+Python HAS, and the declaration lines up with a real runtime relationship.
+`#@ compose_from` and `#@ datatype` name constructs Python does not have and supply no
+definition, so the declaration is all there is. One of these three directives produces
+programs that run.
+
 ## Mechanism 2 — the verifier supplies something the program does not have
 
 Three drivers: two supply a NAME, one supplies a VALUE. The second states the equivalence it
