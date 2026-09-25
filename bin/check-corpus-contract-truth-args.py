@@ -112,6 +112,7 @@ SKIP_TOKENS = ("\\forall", "\\exists", "\\old", "\\at", "\\separated",
 SKIP_TOKENS_POST = tuple(t for t in SKIP_TOKENS if t != "\\old")
 POOL = [0, 1, 2, 3, 5, -1, -2, 7]
 _CTOR = {}               # (class, method) -> (ctor arg names, tags, `__init__` requires)
+SKIPPED = {}             # exclusion reason -> [(file, function)], filled by collect()
 # (#49) gen #31 — the `str`/`bytes` pools. Deterministic and small: four
 # values each, chosen to include the empty one, a single character, and the
 # FOUR-byte value `0779`'s `#@ requires \length(d) == 4` admits.
@@ -433,15 +434,26 @@ def collect(no_exclusions=False):
                     _owner[_m.name] = _c.name
                     _CTOR[(_c.name, _m.name)] = (_cargs, _ctags, _creqs)
         for name, node in defs.items():
+            # (#49) gen #31 — EVERY EXCLUSION NAMES ITS REASON. Wall-lesson (y5): a census
+            # of this oracle's own boundary came back with 206 functions in a bucket
+            # labelled "other", and that bucket held three defects in the instrument. A
+            # remainder in a census is the finding, not the rounding — so the reasons are
+            # recorded here, at the `continue` that causes them, where they cannot drift
+            # from the code the way a separate re-implementation would.
+            def _skip(_why, _f=f, _n=name):
+                SKIPPED.setdefault(_why, []).append((os.path.basename(_f), _n))
             ps = node.args.args
             _cls = _owner.get(name)
             if _cls is not None and ps and ps[0].arg == "self":
                 ps = ps[1:]
                 if name.startswith("__"):
+                    _skip('dunder method')
                     continue
             elif any(a.arg == "self" for a in ps):
+                _skip('a `self` parameter outside a class the oracle can construct')
                 continue
             if len(ps) > 3:
+                _skip('more than 3 parameters')
                 continue
             _post_probe = any(re.match(r"#@\s*ensures\s+self\.\w+\s*==", a)
                               for a in annotations_of(node))
@@ -452,6 +464,7 @@ def collect(no_exclusions=False):
             # most of what the constructor axis actually buys.
             _ctor_probe = bool(_CTOR.get((_cls, name), ([], [], []))[0])
             if not ps and not (_cls is not None and (_post_probe or _ctor_probe)):
+                _skip('zero-argument: the SIBLING oracle `check-corpus-contract-truth` owns it')
                 continue       # a zero-argument function is the SIBLING oracle's population
 
             # (#49) gen #31 — `str` and `bytes` parameters join `int`/`bool`, and the
@@ -460,6 +473,7 @@ def collect(no_exclusions=False):
             # raises and is counted.
             _tags = [_ann_tag(a.annotation) for a in ps]
             if any(t is None for t in _tags):
+                _skip('parameter type with no pool (Any, Expr, Set, Dict, a record, a nested list)')
                 continue
             # (#49) gen #31 — A FUNCTION THAT MUTATES A LIST ARGUMENT IS OUT OF THE
             # POPULATION, and this is an honesty exclusion, not a convenience. For a
@@ -500,11 +514,13 @@ def collect(no_exclusions=False):
                             if isinstance(_base, ast.Name) and _base.id in _listy:
                                 _mutates = True
                 if _mutates:
+                    _skip("mutates a list argument: the pre/post reading of `xs` is not this oracle's to pick")
                     continue
             # A post-state method typically returns `None`; the return annotation only
             # has to be readable when a `\result` clause is actually evaluated.
             if _ann_tag(node.returns) is None \
                     and not (_cls is not None and _post_probe):
+                _skip('return type with no pool and no post-state clause to read')
                 continue
             ann = annotations_of(node)
             # (#49) gen #31 — `#@ ensures \result == 0 or \result == 1` MATCHES the
@@ -540,6 +556,7 @@ def collect(no_exclusions=False):
             if post and _cls is None:
                 post = []          # `self.f` outside a class is not a post-state claim
             if not ens and not post and not preds:
+                _skip('no clause this oracle reads (`\\result ==`, a `\\result` predicate, or `self.f ==`)')
                 continue
             # (#49) gen #31 — THE SKIP LIST APPLIES TO THE CLAUSES THIS ORACLE READS, which
             # are `requires` and `ensures`, NOT to the whole annotation block. `\nothing`
@@ -551,12 +568,14 @@ def collect(no_exclusions=False):
             _reqs0 = [m.group(1).strip() for m in
                       (re.match(r"#@\s*requires\s+(.+)$", a) for a in ann) if m]
             if ens and any(t in " ".join(_reqs0 + ens) for t in SKIP_TOKENS):
+                _skip('a skip token in the clauses read')
                 continue
             if post and any(t in " ".join(_reqs0 + post) for t in SKIP_TOKENS_POST):
                 post = []
             if preds and any(t in " ".join(_reqs0 + preds) for t in SKIP_TOKENS):
                 preds = []
             if not ens and not post and not preds:
+                _skip('a skip token in the clauses read')
                 continue
             # A name REBOUND at module level (`inc = dec`, route #119's witness library) is
             # not the function whose contract was just read — `ns[name]` would be the other
@@ -566,30 +585,37 @@ def collect(no_exclusions=False):
                    and any(isinstance(_t, ast.Name) and _t.id == name
                            for _t in _st.targets)
                    for _st in tree.body):
+                _skip('the name is REBOUND at module level; `ns[name]` is not this function')
                 continue
             if any(re.match(r"#@\s*(act|behavior)\b", a) or re.match(r"#@\s+given\b", a)
                    for a in ann):
                 stats["acts"] += 1
+                _skip('behaviour block (`#@ act` / `given`): the postcondition is GUARDED')
                 continue
             if any(isinstance(_c_ex, ast.Call) and isinstance(_c_ex.func, ast.Name)
                    and _c_ex.func.id in ("exec", "eval")
                    for _c_ex in ast.walk(node)):
+                _skip('the body calls `exec`/`eval`')
                 continue
             if name in trusted:
                 stats["trusted"] += 1
                 if not no_exclusions:
+                    _skip('`\\trusted`: the contract is assumed, not proven')
                     continue
             if name not in verified and not no_exclusions:
+                _skip("outside the file's `# pycsl-flags: --fun` restriction")
                 continue
             reqs = [m.group(1).strip() for m in
                     (re.match(r"#@\s*requires\s+(.+)$", a) for a in ann) if m]
             if any("\\" in re.sub(r"\\length\(", "len(", x) for x in reqs + ens):
+                _skip('a backslash token the translator cannot render as Python')
                 continue
             if any("\\" in _post_py(x) for x in post):
                 post = []
             if any("\\" in _pred_py(x) for x in preds):
                 preds = []
             if not ens and not post and not preds:
+                _skip('a skip token in the clauses read')
                 continue
             # (#49) gen #31 — `#@ \diverges` is READ, not listed. A function promised not
             # to return is the one shape where having no normal exit IS the contract, and
@@ -699,6 +725,12 @@ def _post_py(expr):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--census", action="store_true",
+                    help="print this oracle's OWN BOUNDARY: every function it skipped and "
+                         "the named reason, counted. Wall-lesson (y5) — a census is only "
+                         "as honest as its smallest labelled bucket, so there is no "
+                         "'other': each exclusion is recorded at the `continue` that "
+                         "causes it. Read it before believing a green run means coverage.")
     ap.add_argument("--selftest-no-exclusions", action="store_true",
                     help="drop the `--no-proof`, `\\trusted` and `--fun` exclusions and "
                          "run the oracle over everything; must exit 1, because the corpus "
@@ -711,6 +743,19 @@ def main():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         per, stats = collect(no_exclusions=args.selftest_no_exclusions)
+    if args.census:
+        _tot = sum(len(v) for v in SKIPPED.values())
+        _inpop = sum(len(v) for v in per.values())
+        print("[*] corpus-contract-truth-args CENSUS — %d function(s) IN the population, "
+              "%d skipped, every one with a named reason:" % (_inpop, _tot))
+        for _why, _fns in sorted(SKIPPED.items(), key=lambda kv: -len(kv[1])):
+            print("    %5d  %s" % (len(_fns), _why))
+            print("           e.g. %s" % (", ".join("%s::%s" % x for x in _fns[:3]),))
+        print("[*] There is no 'other' row by construction: every `continue` in collect() "
+              "records its reason. If a row's mechanism is one you do not recognise, that "
+              "row is the next widening — or the next bug.")
+        return 0
+
     agree = 0
     disagree, inherited, unrunnable, raised = [], [], [], []
     funcs = 0
