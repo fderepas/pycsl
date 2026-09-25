@@ -207,3 +207,36 @@ three of the backlog's cheapest candidates and all three are gated on that one l
 This is the rarest shape a typing change can have — all of the upside in the mirror, none of
 the exposure in the corpus — and it is an accident of what the corpus happens to contain,
 which is why it had to be counted rather than guessed.
+
+### CORRECTION to the blast radius — 120 of those 159 are already converted
+
+The 159 read-only `Set[str]` parameters in the mirror were counted without asking which of
+them are in `\trusted` stubs. Split:
+
+    in `\trusted` stubs   39 read-only,  0 mutated    <- the conversion population
+    already converted    120 read-only, 10 mutated    <- these already PROVE, today
+
+**So 120 mirror functions read a `Set[str]` parameter and verify right now**, which is a
+fact the earlier sentence ("the 159 mirror functions the conversion track is blocked on")
+flatly contradicts. `Module5_IREmitter._scan_2d_in_expr` is one of them: it takes two
+`Set[str]` parameters, it is NOT `\trusted`, and it is a verbatim copy of live source.
+
+The reason is the other half of the tagger. `_tag_str_keyed` fires on a membership whose key
+is PROVABLY a string — a literal, a `str`-annotated name. `_scan_2d_in_expr`'s key is
+`root.get("name")`, which the tagger cannot prove, so κ stays `int`, the parameter lowers to
+`map int`, and everything downstream agrees with everything else. **The parameter's declared
+element type never enters into it in either direction**, which is why 120 functions are fine
+and the two-line probe is not.
+
+So the wall is narrower and more precisely placed than the first count suggested:
+
+> a read-only `Set[str]` parameter whose membership key the tagger can PROVE is a string.
+
+That is the shape a converted function tends to have — it is reading a set of names against
+a `str` local — and it is why the wall shows up at conversion time and not in the 120
+functions already there. Thirty-nine `\trusted` stubs carry a read-only `Set[str]`; how many
+of those hit the wall is not knowable without converting them, and saying so is better than
+reusing a number that was never about this.
+
+Fifth correction in this record, and the fifth found by counting something that had been
+asserted. The counts that matter are always one split finer than the one already taken.
