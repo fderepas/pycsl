@@ -183,3 +183,27 @@ a reason to ask how far the sameness goes.
 
 `held.add(m)` verifying is the interesting half: MUTATION of a set parameter is modelled,
 with a `#@ assigns held` frame, while reading its size is not.
+
+## The I4 fixpoint's blast radius, censused — ZERO corpus, 159 mirror functions
+
+The repair the source names ("that cross-method κ=string agreement is the deferred I4
+fixpoint") would normally be a frightening change: a parameter's WhyML type is the most
+load-bearing thing in an emission, and the corpus-inertness plane exists to catch exactly
+that. Censused instead of assumed — every `Set[str]`/`FrozenSet[str]` parameter in the tree,
+split by whether its body mutates it:
+
+    both corpora                0 read-only,   4 mutated
+    src/self-annotate/src     159 read-only,  10 mutated
+    src/pycsl                 231 read-only,  20 mutated
+
+**No read-only `Set[str]` parameter exists in either corpus.** The fixpoint therefore cannot
+move a single corpus emission — the plane that would dominate the risk is inert by
+construction, and the byte-diff would say so rather than being argued about.
+
+What it moves is 159 mirror functions, which is precisely the population the conversion track
+is blocked on: `ConcurrencyChecker._walk_stmt`, `_walk_body` and `_warn_if_unprotected` are
+three of the backlog's cheapest candidates and all three are gated on that one line.
+
+This is the rarest shape a typing change can have — all of the upside in the mirror, none of
+the exposure in the corpus — and it is an accident of what the corpus happens to contain,
+which is why it had to be counted rather than guessed.
