@@ -7,7 +7,7 @@ CPython.**
     mechanism                                         functions   files
     `#@ datatype` constructors                            11        9
     `#@ compose_from` provider methods                     3        3
-    the verifier supplying a name Python lacks             2        2
+    the verifier supplying a name or value Python lacks     3        3
     a `@dataclass` annotation contradicting its default    1        1
     the `int` placeholder making a signature unsatisfiable 1        1
 
@@ -132,9 +132,10 @@ double-model a class that a `#@ datatype` already declares. Both are design chan
 documented directive, with nine drivers in the blast radius, and lesson (u4) applies: a rule
 binds every program that could be written, not only the nine that exist.
 
-## Mechanism 2 — the verifier supplies a name the program does not have
+## Mechanism 2 — the verifier supplies something the program does not have
 
-Two drivers, two different ways, and the second one states the equivalence it breaks.
+Three drivers: two supply a NAME, one supplies a VALUE. The second states the equivalence it
+breaks; the third states the assumption that costs it.
 
 ### `0640.py::f` — a stdlib name resolved at verification time, never imported
 
@@ -169,6 +170,36 @@ body cannot create a local binding in CPython (function locals are resolved stat
 measured both ways, including `locals().get("y")`, which is `None`. The inline form returns
 6; the `exec` form raises. The two are verification-equivalent and not program-equivalent,
 which is the whole of this finding in one driver.
+
+### `0199.py::sum_first_two` — the verifier supplies a VALUE Python does not have
+
+The two above supply a NAME. This one supplies a value, and it is the most load-bearing
+instance in the family because the assumption is not about one driver — it is about every
+dict-reading program PyCSL verifies.
+
+```python
+#@ ensures \result == d[0] + d[1]
+def sum_first_two(d: dict) -> int:
+    return d[0] + d[1]                   # KeyError: 0
+```
+
+There is no `#@ requires`. The driver's own docstring states the model:
+
+> A `dict` parameter is modelled as a total `map int (option int)` (a missing key reads as
+> 0), so indexed reads `d[0]`, `d[1]` carry content and a postcondition over them
+> discharges.
+
+**A Python dict is not total.** `d[0]` on a dict without key `0` raises `KeyError`.
+Measured across the pool: `{}` -> KeyError, `{0: 1}` -> KeyError (key 1 missing),
+`{0: 1, 1: 2}` -> 3. The model asserts a normal exit carrying a VALUE where CPython has no
+normal exit at all — the `0420` shape (`struct.error` on an out-of-range pack) one container
+over, and unlike `0420` this one is reached by an ordinary read of an ordinary dict.
+
+The totality is a deliberate modelling choice and it is documented in the driver. What is
+not documented anywhere is its PRICE: every `#@ ensures` over `d[k]` is a claim about a
+program whose corresponding run may not exist. The honest repair is the one the corpus
+already knows how to write — a `#@ requires` naming the keys, or a `.get(k, 0)` in the body,
+which is what the model actually describes.
 
 ## Mechanism 3 — an annotation that contradicts the value beside it
 

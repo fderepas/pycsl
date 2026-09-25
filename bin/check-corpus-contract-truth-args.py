@@ -129,10 +129,14 @@ BYTES_POOL = [b"", b"a", b"abcd", b"xyz"]
 # same wrong answer: the oracle would report a disagreement it had caused itself.
 LIST_POOL_INT = [[], [0], [1, 2, 3]]
 LIST_POOL_STR = [[], ["a"], ["a", "b", "c"]]
+# (#49) gen #31 — sets and dicts, the same shape of pool and the same mutation rule.
+SET_POOL_INT = [set(), {0}, {1, 2, 3}]
+DICT_POOL_SI = [{}, {"a": 1}, {"a": 1, "b": 2}]
+DICT_POOL_II = [{}, {0: 1}, {0: 1, 1: 2}]
 MAX_TUPLES = 40          # per function, deterministic prefix of the product
 CALL_TIMEOUT = 1.0       # seconds; a corpus loop must not hang the battery
 EXEC_TIMEOUT = 2.0
-MIN_EVALS = 7250         # 7578 once the clause translator was unified and the
+MIN_EVALS = 7300         # 7642 with the set/dict pools; 7578 once the translator was unified and the
                          # disjunction mis-parse repaired; 7392 with the
                          # CONSTRUCTOR-ARGUMENT axis; 7239 with the
                          # LIST-PARAMETER axis; 7063 with the PREDICATE axis (`#@ ensures` clauses over
@@ -243,7 +247,7 @@ NEVER_RETURNS = {
         "argument, it is a placeholder for a type the modeller does not have. "
         "`finding-a-verified-program-that-is-not-the-executed-program.md`",
 }
-MAX_RAISED = 14                  # FUNCTIONS with at least one call that RAISES on an
+MAX_RAISED = 15                  # FUNCTIONS with at least one call that RAISES on an
                                  # argument their own precondition admits. (#49) gen #31:
                                  # the ratchet counts FUNCTIONS, not raise EVENTS. Once the
                                  # tuple loop stopped breaking on the first raise (so that
@@ -252,9 +256,21 @@ MAX_RAISED = 14                  # FUNCTIONS with at least one call that RAISES 
                                  # of the SAMPLING — up to three per function — and a
                                  # ratchet whose number moves when nothing about the corpus
                                  # moved is a ratchet that will be raised without thought.
-                                 # Fourteen today: the eight in NEVER_RETURNS, the three
+                                 # Fifteen today: the eight in NEVER_RETURNS, the three
                                  # declared `#@ \diverges` (0051, 0158, 0159), and the
-                                 # three input-dependent ones — 0420, 1302, and 0605, whose
+                                 # four input-dependent ones — 0420, 1302, 0199 and 0605.
+                                 #
+                                 # 0199: `sum_first_two(d: dict)` under
+                                 # `#@ ensures \result == d[0] + d[1]` and no `#@ requires`.
+                                 # PyCSL models a dict as a TOTAL `map int (option int)` in
+                                 # which a missing key reads as 0 — the driver's own
+                                 # docstring says so — and a PYTHON DICT IS NOT TOTAL:
+                                 # `d[0]` on a dict without key 0 is a KeyError. The model
+                                 # asserts a normal exit with a value where CPython has
+                                 # none, which is the 0420 shape one container over.
+                                 # `finding-a-verified-program-that-is-not-the-executed-program.md`
+                                 #
+                                 # 0605, whose
                                  # `dig(s, i)` reads `s[i]` under
                                  # `#@ ensures \result == 1 or \result == 0` and NO
                                  # `#@ requires` bounding `i`, so `dig("", 0)` is an
@@ -416,7 +432,8 @@ def collect(no_exclusions=False):
                     if len(_ips) > 2:
                         continue        # the product would swamp MAX_TUPLES
                     _ctags = [_ann_tag(a.annotation) for a in _ips]
-                    if any(t is None or t.startswith("list:") for t in _ctags):
+                    if any(t is None or t.startswith(("list:", "set:", "dict:"))
+                           for t in _ctags):
                         continue        # a mutable constructor argument: same hole as above
                     _cargs = [a.arg for a in _ips]
                     _ci = _ini.lineno - 2
@@ -491,10 +508,14 @@ def collect(no_exclusions=False):
             # only one can be right; neither is worth asserting here. ZERO corpus functions
             # in the population mutate a list argument, so this filter costs nothing today
             # and closes the hole before a driver walks into it.
-            _listy = {a.arg for a, t in zip(ps, _tags) if t.startswith("list:")}
+            _listy = {a.arg for a, t in zip(ps, _tags)
+                      if t.startswith(("list:", "set:", "dict:"))}
             if _listy:
                 _MUT = ("append", "insert", "pop", "extend", "clear", "remove",
-                        "sort", "reverse", "__setitem__")
+                        "sort", "reverse", "__setitem__",
+                        "add", "discard", "update", "setdefault", "popitem",
+                        "difference_update", "intersection_update",
+                        "symmetric_difference_update")
                 _mutates = False
                 for _n_mu in ast.walk(node):
                     if (isinstance(_n_mu, ast.Call)
@@ -632,7 +653,9 @@ def collect(no_exclusions=False):
             for _a_pp, _tag in zip(ps, _tags):
                 PARAM_POOL[(name, _a_pp.arg)] = {
                     "str": STR_POOL, "bytes": BYTES_POOL,
-                    "list:int": LIST_POOL_INT, "list:str": LIST_POOL_STR}.get(_tag, POOL)
+                    "list:int": LIST_POOL_INT, "list:str": LIST_POOL_STR,
+                    "set:int": SET_POOL_INT,
+                    "dict:si": DICT_POOL_SI, "dict:ii": DICT_POOL_II}.get(_tag, POOL)
             per.setdefault(f, []).append(
                 (name, [a.arg for a in ps], ens, reqs, bool(reach(name) & trusted),
                  _cls, _raises_when, post, preds, _diverges,
@@ -658,12 +681,33 @@ def _ann_tag(a):
             return a.id
         if a.id in ("list", "List"):
             return "list:int"
+        if a.id in ("set", "Set"):
+            return "set:int"
+        if a.id in ("dict", "Dict"):
+            # (#49) gen #31 — a BARE `dict` gets the INT-KEYED pool, because that is the
+            # model: `0199.py`'s own docstring says a dict parameter is "modelled as a
+            # total `map int (option int)` (a missing key reads as 0)". Handing it
+            # string keys would test a program the model does not describe.
+            return "dict:ii"
         return None
-    if isinstance(a, ast.Subscript) and isinstance(a.value, ast.Name) \
-            and a.value.id in ("list", "List"):
+    if isinstance(a, ast.Subscript) and isinstance(a.value, ast.Name):
+        _c = a.value.id
         _el = a.slice
-        if isinstance(_el, ast.Name) and _el.id in ("int", "bool", "str"):
-            return "list:str" if _el.id == "str" else "list:int"
+        if _c in ("list", "List"):
+            if isinstance(_el, ast.Name) and _el.id in ("int", "bool", "str"):
+                return "list:str" if _el.id == "str" else "list:int"
+        elif _c in ("set", "Set"):
+            if isinstance(_el, ast.Name) and _el.id in ("int", "bool"):
+                return "set:int"
+        elif _c in ("dict", "Dict") and isinstance(_el, ast.Tuple) \
+                and len(_el.elts) == 2 \
+                and all(isinstance(x, ast.Name) for x in _el.elts):
+            _k, _v = _el.elts[0].id, _el.elts[1].id
+            if _v in ("int", "bool"):
+                if _k == "str":
+                    return "dict:si"
+                if _k in ("int", "bool"):
+                    return "dict:ii"
     return None
 
 
@@ -671,7 +715,13 @@ def _materialise(v):
     """A fresh copy of a pool value for THIS call. Scalars are immutable and pass through;
     a list is copied, because a corpus function may mutate its argument and the pool must
     not carry that into the next tuple."""
-    return list(v) if isinstance(v, list) else v
+    if isinstance(v, list):
+        return list(v)
+    if isinstance(v, set):
+        return set(v)
+    if isinstance(v, dict):
+        return dict(v)
+    return v
 
 
 def _py(expr):
