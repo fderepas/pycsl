@@ -34,15 +34,23 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
-### #53 gen #31 — THE CONVERSION POPULATION IS 61, NOT 410 (2026-09-25T03:40Z) — READ THIS FIRST
+### #53 gen #31 — THE CONVERSION POPULATION IS 56, NOT 410 (2026-09-25T03:42Z) — READ THIS FIRST
 
 Measured this hour, and it re-scopes every conversion estimate above. Over the 410 STRICT
-`\trusted` candidates, comparing each mirror body to its live twin:
+`\trusted` candidates, comparing each mirror body to its live twin, KEYED ON THE QUALIFIED
+NAME (the first pass keyed on the bare name and over-counted VERBATIM by five — corrected
+within the hour by the screen's own output, see the finding):
 
-    VERBATIM  61   the live body is (or contains) the mirror body   -> a proof can retire it
-    FACADE   238   `pass` / `return None` and nothing else          -> a proof can NEVER retire it
-    DIFFERS  109   a real body, but not the live one                -> 11 near, 89 a different program
-    missing    2
+    VERBATIM   56   the live body is (or contains) the mirror body   -> a proof can retire it
+    FACADE    235   `pass` / `return None` and nothing else          -> a proof can NEVER retire it
+    DIFFERS   109   a real body, but not the live one                -> 11 near, 89 a different program
+    AMBIGUOUS   8   the name is defined more than once in the file   -> reported, never guessed
+    missing     2
+
+AND `LOWERS` IS NOT `LANDABLE`. In one hour the screen's `--no-proof` verdict was wrong three
+ways: over a FACADE (`pass` lowers perfectly), over a GENERATOR (`pure_ast::iter_child_nodes`,
+already refused by `bin/check-yield-erasure.py`), and over `_cache_root` (lowers AND proves;
+check 1 refuses it). Of 410 candidates exactly ONE has passed all four checks: `errors.py::message`.
 
 A facade cannot land because `check-self-annotate-sync.sh` demands that un-`\trusted` mirror
 methods be VERBATIM copies of live. Deleting the marker moves the facade into that population
