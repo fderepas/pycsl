@@ -10154,3 +10154,49 @@ is now measured rather than predicted. The mirror sweep is running; the mirror i
 Landing this is NOT the one-line deletion — the comment's warning has to be either satisfied
 or measured to be empty, and a bridge mistype would show as a mirror emission that no longer
 type-checks. But the cost of finding out is now a sweep, not an argument.
+
+--------------------------------------------------------------------------------
+2026-09-25 01:35Z — a PREDICTION MISS on my own increment, and the I4 mirror answer
+
+THE MISS. The gate for increments B+C was launched predicting "1 DECLARED mover (1190)". It
+came back with TWO, and the second was **1902**, my own witness from the increment before:
+
+    -     (self_emit_1 k)
+    +     (facade__emit self k)
+
+That is exactly what increment B is FOR — registering the inherited provider in
+`composed_provider_methods` so a `self.<m>(…)` resolves CONCRETELY instead of to an abstract
+`val`. I wrote the change, wrote the witness, diagnosed the stateful case by DIFFING two
+emissions, and still predicted only one mover, because I was thinking about the file the
+repair was aimed at (0554's shape, via 1908) and not about the file the repair also improves.
+
+The repair's own witness was in its blast radius and I did not look. Re-run with both names
+declared, the plane is green:
+
+    1375 baseline / 1376 candidate; 2 MOVED (0 unexpected), 0 GONE, 0 APPEARED,
+    1 new source file ignored
+
+A `--expect-moved` list is a PREDICTION, which is the whole reason the flag also fails on a
+declared name that does NOT move. Mine was short by one, and the plane said so — which is
+the flag working exactly as designed on its first real use, against the person who added it.
+
+THE I4 MIRROR ANSWER, measured offline while the gate ran. Sweeping all 53 mirror files
+through a tree with the `_mut_coll` conjunct deleted:
+
+    53 baseline / 53 candidate; **2 MOVED**, 0 GONE, 0 APPEARED
+
+and both are the same function, `_emit_new_ghost_ref`, in its `let` (statements.py) and its
+abstract `val` (Module6_WhyMLTranspiler):
+
+    -  (local_refs: map int (option int)) (declared_refs: map int (option int))
+    +  (local_refs: map string (option int)) (declared_refs: map string (option int))
+
+**The `val` and the `let` move TOGETHER.** That is the empirical answer to the warning in
+the comment — "a `map string` here would mistype the bridge" — for the mirror as it stands
+today: the bridge and the definition are produced from the same table, so they agree. The
+warning describes a real hazard for a MIXED population; the current one is not mixed.
+
+So the I4 cost is now bounded and small: two mirror files to re-prove, zero corpus movement,
+and one read-only `Set[str]` membership shape that starts working. That is a landable
+increment rather than a research project, and the thing that made it landable was sweeping
+instead of arguing.
