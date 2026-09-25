@@ -10387,3 +10387,38 @@ suite "never finished", and then the shell came back and the log said 4026/4044.
 Which is (e6) for the second time in one session: **an estimate made while the measurement
 is still running is a guess wearing the measurement's clothes** — including when the
 measurement is a job you can no longer poll. The handoff carries the correction in place.
+
+--------------------------------------------------------------------------------
+2026-09-25 03:00Z — the `__new__` ARITY refusal, and a ceiling that goes DOWN
+
+`C(k)` is `type.__call__` and it passes the arguments to BOTH `__new__` and `__init__`. A
+`def __new__(cls)` beside a `def __init__(self, n)` makes every construction a TypeError in
+CPython, and PyCSL built the record from `__init__` alone and proved `\result == k` for a
+function that never returns. Found by the args oracle once it stopped BREAKING out of its
+tuple loop on the first raise; named in `NEVER_RETURNS`; now REFUSED at the choke point, in
+`visit_ClassDef`, beside the UB-7.6 check that already inspects `__new__` closely enough to
+classify it as trivial.
+
+The rule is the one that admits NO CALL AT ALL — `__init__`'s minimum required count above
+`__new__`'s maximum acceptable one. `*args`/`**kwargs` is exempt (control 1906); an
+`__init__` with a DEFAULT still has a working call and is exempt (control 1907). The
+comfortable version, "`__new__` is narrower than `__init__`", would refuse 1907, which is a
+good program — (y4) again.
+
+Censused before landing: **ONE instance** in both corpora, the mirror, the live tree and
+`pycsl_lib` combined, and it is 0496 itself. Repaired to `def __new__(cls, n: int)`:
+VERIFIES, RUNS (`grab(3)` is 3), and **BYTE-INERT** in the emission, because dunders are
+dropped before emission and widening the signature moves nothing.
+
+THREE RATCHETS MOVED WITH THE MEASUREMENT, IN THE SAME COMMIT, and one of them is the
+direction this campaign exists for:
+
+    NEVER_RETURNS   8 -> 7     `0496::grab` LEAVES the table because it was REPAIRED
+    MAX_RAISED     15 -> 14    a ceiling that goes DOWN
+    MIN_WITNESSED 205 -> 206   witness 1905 demonstrates the new refusal
+    MIN_AUDITED   115 -> 116   and this advice was audited in ALL THREE of its spellings:
+                               0496's repair, 1906's `*args`, and deleting `__new__`
+
+A floor left below its measurement cannot see the first regression that uses up the
+headroom — the lesson `check-mirror-coverage`'s 549 taught this campaign — so all four moved
+to the measured truth rather than being left with slack.
