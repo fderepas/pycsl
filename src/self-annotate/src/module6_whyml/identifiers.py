@@ -2,6 +2,13 @@ from __future__ import annotations
 import hashlib
 import unicodedata
 from typing import Dict, Set
+#@ \trusted reviewer: pycsl-self-annotate
+# (#49) gen #31 — RE-TRUSTED. `bin/check-emitted-vacuity.py`:
+#     stable_hash  erased=['s'] of ['s']   -- INPUT-BLIND
+# and it is the ORIGINAL member of the erasure family that plane was written for: a
+# hash-erased body in which the literal becomes `stable_hash("String") = 1153884070`, so
+# a MUTATION TEST passes (the constant moves) while the emitted body never touches `s`.
+# See getting-better/genexp-erasure-wall.md.
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

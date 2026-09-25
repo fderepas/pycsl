@@ -73,7 +73,24 @@ MAX_TRUST_DEPENDENT = 401     # UPPER bound at the first measurement was 400; ma
                               # number silently every time a conversion landed in a trusted
                               # call path. So the invariant that actually means "the trusted
                               # surface did not grow" is ratcheted separately, below.
-MAX_TRUSTED_OR_DEPENDENT = 798
+MAX_TRUSTED_OR_DEPENDENT = 830   # (#49) gen #31, 2026-09-25T23:20Z — RAISED 798 -> 830,
+                              # and this is the one direction a ratchet may move only in a
+                              # commit that NAMES THE MEMBERS (wall-lesson (l6)). SIX
+                              # conversions landed by this session were RE-TRUSTED after
+                              # `run-soundness-planes.sh --slow` — which no gate this
+                              # session ran — found them hollow:
+                              #   pure_ast.py::_Parser.error            input-blind
+                              #   pure_ast.py::_Parser.unsupported      input-blind
+                              #   pure_ast.py::iter_fields              yield-erasing
+                              #   Module2_Parser.py::_ContractParser._err  input-blind
+                              #   monomorphize.py::_rewrite_call_sites  input-blind (BOTH args)
+                              #   module6_whyml/identifiers.py::stable_hash  input-blind
+                              # +32 for six, because `error`/`unsupported`/`_err` are called
+                              # from all over their files — the SAME asymmetry that made
+                              # `a109a51d` worth "sixteen for two", read in reverse. The
+                              # number is honest in both directions or it is not a ratchet.
+                              # See getting-better/driver-backlog.md #59 for the four
+                              # capabilities that would retire these six again.
                               # (#49) gen #31 — THE RATCHET THAT SHOULD HAVE BEEN HERE FROM
                               # THE START: `len(trusted) + dep_hi`, the CEILING on the whole
                               # trusted-or-trust-dependent surface. It is invariant under the

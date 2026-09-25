@@ -88,6 +88,7 @@ frontend/Module1_Ingestor.py	_Harvester._emit_target	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._emit_block_footer	unclassified	-
 frontend/Module2_Parser.py	_lex_contract	unclassified	-
 frontend/Module2_Parser.py	_ContractParser.__init__	unclassified	-
+frontend/Module2_Parser.py	_ContractParser._err	cost-scale:exception-payload-model	THE EXCEPTION PAYLOAD MODEL
 frontend/Module2_Parser.py	_ContractParser._try	unclassified	-
 frontend/Module2_Parser.py	_ContractParser.parse	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_contract	unclassified	-
@@ -203,6 +204,7 @@ frontend/monomorphize.py	_check_gt4_polymorphic_recursion	unclassified	-
 frontend/monomorphize.py	_emit_specializations	unclassified	-
 frontend/monomorphize.py	_specialize_decl	unclassified	-
 frontend/monomorphize.py	_specialize_function	unclassified	-
+frontend/monomorphize.py	_rewrite_call_sites	cost-scale:dict-param-get-receiver	THE RECEIVER-ERASED
 frontend/monomorphize.py	_rewrite_subscript_calls_in_stmt	unclassified	-
 frontend/monomorphize.py	_rewrite_subscript_to_name	unclassified	-
 frontend/monomorphize.py	_rewrite_annotations	unclassified	-
@@ -218,6 +220,8 @@ frontend/pure_ast.py	Comment.__init__	unclassified	-
 frontend/pure_ast.py	comments	unclassified	-
 frontend/pure_ast.py	_Parser.__init__	unclassified	-
 frontend/pure_ast.py	_Parser._slice	unclassified	-
+frontend/pure_ast.py	_Parser.error	cost-scale:exception-payload-model	THE EXCEPTION PAYLOAD MODEL
+frontend/pure_ast.py	_Parser.unsupported	cost-scale:exception-payload-model	THE EXCEPTION PAYLOAD MODEL
 frontend/pure_ast.py	_Parser._fin	unclassified	-
 frontend/pure_ast.py	_Parser.node	unclassified	-
 frontend/pure_ast.py	_Parser._max_end	unclassified	-
@@ -230,6 +234,7 @@ frontend/pure_ast.py	_decode_string	unclassified	-
 frontend/pure_ast.py	_decode_escapes	unclassified	-
 frontend/pure_ast.py	parse	unclassified	-
 frontend/pure_ast.py	literal_eval	unclassified	-
+frontend/pure_ast.py	iter_fields	cost-scale:generator-sequence-model	THE GENERATOR SEQUENCE MODEL
 frontend/pure_ast.py	iter_child_nodes	unclassified	-
 frontend/pure_ast.py	walk	unclassified	-
 frontend/pure_ast.py	copy_location	unclassified	-
@@ -326,6 +331,7 @@ module6_whyml/functions.py	FunctionEmissionMixin._emit_subtyping_goals	unclassif
 module6_whyml/functions.py	FunctionEmissionMixin._render_refinement_goal	unclassified	-
 module6_whyml/functions.py	FunctionEmissionMixin._parse_mixin_sig	unclassified	-
 module6_whyml/functions.py	FunctionEmissionMixin._mixin_dep_pseudo_functions	unclassified	-
+module6_whyml/identifiers.py	stable_hash	cost-scale:faithful-string-hash	THE FAITHFUL STRING-HASH MODEL
 module6_whyml/identifiers.py	whyml_ident	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._scan_preamble_needs	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_preamble_uses	unclassified	-

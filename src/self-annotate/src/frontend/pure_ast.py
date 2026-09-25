@@ -356,6 +356,18 @@ class _Parser:
             self.error(f"expected keyword {val!r}")
         return self.advance()
 
+    #@ \trusted reviewer: pycsl-self-annotate
+    # (#49) gen #31 — RE-TRUSTED, and the marker's own comment below predicted this in the
+    # exact words the plane printed. `a109a51d` retired this marker by porting the live body,
+    # measured seven instruments, and every one was green. The instrument that says no is
+    # `bin/check-emitted-vacuity.py`, which is in the battery's `--slow` set and was run by
+    # NO GATE this session:
+    #     _parser__error  erased=['msg'] of ['msg']   -- INPUT-BLIND
+    # The emitted body never mentions `msg`: the message f-string is the only thing the
+    # parameter feeds, and an f-string lowers to a hash constant. The proof was real and it
+    # established nothing about the argument. `bin/check-shadowed-selfcalls.py` says no a
+    # second time and for a different reason — 19 call sites route through the abstract
+    # `val self_error_1`, so no caller saw the body either.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -384,6 +396,12 @@ class _Parser:
             (self.filename, t.start[0], t.start[1] + 1, t.string),
         )
 
+    #@ \trusted reviewer: pycsl-self-annotate
+    # (#49) gen #31 — RE-TRUSTED. Same two planes, same session, and the comment below had
+    # already written down the verdict: "converting emits `_parser__unsupported
+    # erased=['what'] of ['what']` — input-blind." That is, to the character, what
+    # `bin/check-emitted-vacuity.py` printed after the conversion landed. The prediction was
+    # in the file, the oracle was in the repo, and the gate ran neither.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -4039,6 +4057,18 @@ def parse(source, filename='<unknown>', mode='exec', *, type_comments=False, fea
 def literal_eval(node_or_string):
     pass
 
+#@ \trusted reviewer: pycsl-self-annotate
+# (#49) gen #31 — RE-TRUSTED, for the reason recorded eleven lines below on
+# `iter_child_nodes` and by the oracle that comment names. `6c8dfa35` converted this by
+# porting the live body and argued check 1 correctly about the one new abstract op
+# (`val get__fields (x: int) : int`, which does take its argument). Check 1 has no clause
+# about `yield`, so it admitted a generator whose emitted body is
+#     let iter_fields (node: int) : unit  requires { true }  ensures { true }
+#       = ... try let _ = (any int) in () with AttributeError -> () ...
+# The yielded pair is replaced by `any int` and dropped: a `unit` function with a `true`
+# contract, and the sequence it produces is the whole meaning of a generator.
+# `bin/check-yield-erasure.py` was written by the PREVIOUS generation to make exactly this
+# impossible to bank again. It is in the `--slow` set, and no gate this session ran it.
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

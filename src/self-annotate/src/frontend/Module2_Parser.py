@@ -940,6 +940,12 @@ class _ContractParser:
             self._err(f"expected {val!r}")
         return self.advance().string
 
+    #@ \trusted reviewer: pycsl-self-annotate
+    # (#49) gen #31 — RE-TRUSTED. `bin/check-emitted-vacuity.py`:
+    #     _contractparser___err  erased=['msg'] of ['msg']   -- INPUT-BLIND
+    # and `bin/check-shadowed-selfcalls.py` adds that 7 call sites still route through the
+    # abstract `val self__err_1`. The conversion was proved, sound and invisible: no caller
+    # sees the body and the body sees nothing of its argument.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

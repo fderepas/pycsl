@@ -34,6 +34,58 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #59 gen #31 — SIX RE-TRUSTS, and the four capabilities that would retire them again
+
+2026-09-25T23:20Z. `bin/run-soundness-planes.sh --slow` — never run by any gate this session
+— found FIVE input-blind conversions and one yield erasure, every one landed by this
+session's conversion track. All six are re-trusted in increment O. Each names the ONE
+capability that would let it convert honestly, and they are four distinct capabilities.
+See `getting-better/open-routes/finding-eleven-gates-over-four-red-oracles.md`.
+
+#### #59a THE EXCEPTION PAYLOAD MODEL — three raise-only helpers wait on it
+
+`pure_ast.py::_Parser.error`, `::_Parser.unsupported`, `Module2_Parser.py::_ContractParser._err`.
+All three are `t = self.cur(); raise <Err>(f"…{arg}…")`. The `-> NoReturn` divergence model is
+built and correct (`ensures { false }`, call sites lower to `(let _ = <call> in absurd)`); what
+is missing is that the RAISE CONSUMES ITS PAYLOAD. The message f-string is the only thing the
+parameter feeds, an f-string lowers to a hash constant, so the emitted body never mentions the
+argument: `erased=['msg'] of ['msg']`. Give the exception model a payload the raise reads and
+all three convert. Two of them ALSO need `#@ sibling_concrete` (see #59d).
+
+#### #59b THE GENERATOR SEQUENCE MODEL — `iter_fields` and `iter_child_nodes` wait on it
+
+A `yield <v>` lowers to `let _ = 0 in ()`; the value is evaluated and dropped, and the enclosing
+`def` is emitted as a `unit` function. `frontend/ir_inline.py::_walk_dicts` shows the shape of
+the answer: a recognizer that emits `let rec _walk_dicts (obj: pyval) : list pyval` with a real
+`Cons`. Generalise that from one recognizer to a lowering and both `pure_ast` iterators convert.
+`bin/check-yield-erasure.py` is the gate and it already passes on `_walk_dicts`.
+
+#### #59c THE RECEIVER-ERASED `.get` ON A DICT-TYPED PARAMETER — `_rewrite_call_sites` waits on it
+
+    let _rewrite_call_sites (ir_data: int) (rename_map: int) : unit =
+      let _len_idx_func = (iter_length (ir_data_get_2 1533002502 (any int))) in …
+
+`ir_data.get("functions", [])` lowers to `ir_data_get_2 <hash of the key> (any int)` — an op
+named AFTER the receiver that does not TAKE the receiver. Both parameters are erased. The fix is
+the same shape as every other "and it takes its operands" repair this session landed: the
+synthesized `<recv>_get_N` must take `<recv>`.
+
+#### #59d `#@ sibling_concrete` FOR A `NoReturn` HELPER — 28 call sites wait on it
+
+`check-shadowed-selfcalls.py` went 14 -> 17 on `error` (19 bypassing sites), `_err` (7) and
+`unsupported` (2). `Module2_Parser.py::_err`'s own comment records that the directive "works —
+it needed an emitter fix so the concrete route carries the `-> NoReturn` divergence wrapper, and
+a 32-method `#@ raises ContractSyntaxError` fixpoint". That work is a prerequisite for #59a's
+conversions to be worth anything: without it the callers see `val self__err_1` whatever the body
+proves.
+
+#### #59e THE FAITHFUL STRING-HASH MODEL — `identifiers.py::stable_hash` waits on it
+
+`stable_hash  erased=['s'] of ['s']` — the original member of the erasure family
+`bin/check-emitted-vacuity.py` was written for, and the one a mutation test cannot catch (change
+the literal and the emitted hash constant moves, so the mutation "passes" while the body never
+touches `s`). See `getting-better/genexp-erasure-wall.md`.
+
 ### #55 gen #31 — THE I4 SET-ELEMENT FIXPOINT IS REAL WORK, MEASURED (2026-09-25T08:03Z)
 
 Landed and reverted in five minutes. The two-line patch — read the key type from the

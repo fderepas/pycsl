@@ -297,6 +297,12 @@ def _subst_type_in_ir(node: Any, tvar: str, concrete: str) -> Any:
         return [_subst_type_in_ir(item, tvar, concrete) for item in node]
     return node
 
+#@ \trusted reviewer: pycsl-self-annotate
+# (#49) gen #31 — RE-TRUSTED. `bin/check-emitted-vacuity.py`:
+#     _rewrite_call_sites  erased=['ir_data', 'rename_map'] of ['ir_data', 'rename_map']
+# BOTH parameters erased — the emitted body mentions neither the IR it rewrites nor the
+# renaming it applies. This is the widest of the five erasures the unrun vacuity plane
+# found on this session's conversions.
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

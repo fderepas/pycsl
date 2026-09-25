@@ -58,7 +58,18 @@ TREES = (("mirror", os.path.join(ROOT, "src", "self-annotate", "src")),
          ("stdlib", os.path.join(ROOT, "src", "pycsl_lib")),
          ("corpus", os.path.join(ROOT, "test-suite", "corpus")))
 MIN_FUNCTIONS = 6500          # 7440 across the three trees at the first measurement
-MAX_SILENT = 55               # (#49) gen #31, 2026-09-25: 53 -> 55, DELIBERATELY, with both
+MAX_SILENT = 57               # (#49) gen #31, 2026-09-25T23:25Z: 55 -> 57, and BOTH members
+                              # of the loop half of the +3 are named (measured 54 -> 57). `monomorphize.py::_rewrite_call_sites`
+                              # (a `for func in ir_data.get("functions", [])` loop) and
+                              # `pure_ast.py::iter_fields` (a `for field in node._fields`
+                              # loop) were RE-TRUSTED in increment O after the `--slow`
+                              # battery found them hollow — input-blind and yield-erasing
+                              # respectively. Their loops were always there; re-trusting
+                              # moves them from VERIFIED-terminating to ASSUMED. That is
+                              # the honest direction of this number when a conversion is
+                              # withdrawn, and it is strictly better than a proof of
+                              # termination for a body that computes nothing.
+                              # PRIOR ENTRY: gen #31, 2026-09-25: 53 -> 55, with both
                               # members named, and NOT because a body got worse. Two nested
                               # closures took HONEST `#@ \trusted` markers after
                               # `check-untrusted-emitted.py`'s walk was fixed to descend into
