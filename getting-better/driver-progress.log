@@ -9789,3 +9789,35 @@ TWO ORACLE DEFECTS, both found by the same widening and both fixed in the same c
 WALL-LESSON (x5). An instrument that only runs what it can check will never tell you what
 it cannot run. The gap was not in a population filter anyone chose — it was that "does this
 program run" had never been separated from "is this contract true".
+
+--------------------------------------------------------------------------------
+2026-09-25 00:40Z — the LIST-PARAMETER axis, and a hole closed by exclusion
+
+    692 functions / 7063 evaluations  ->  730 / 7239,  0 FALSE
+    MIN_EVALS 6800 -> 6950
+
+Only 38 of the census's 145 list-parameter functions arrive. The other 107 carry `\forall`,
+`\is_sorted`, `\permutation` or `\at` — which is what a list contract usually SAYS, and
+what the skip list is for. A widening that reaches a quarter of its census is still the
+right widening; a widening that claimed all 145 would be lying about what it evaluates.
+
+THE INTERESTING PART IS THE HOLE THAT CAME WITH IT. Every parameter this oracle had ever
+bound was IMMUTABLE — int, bool, str, bytes — so the name in an `#@ ensures` denotes the
+argument whatever the body does to its own binding. A `List[T]` lowers to a WhyML `array T`:
+mutable, shared, and a bare `xs` in a postcondition could mean the pre-state array or the
+post-state one.
+
+Measured on a probe written to settle it: `xs.append(0); return len(xs)` under
+`#@ ensures \result == \length(xs) + 1` reads **FALSE** if `xs` is read after the call and
+**TRUE** if it is read before. Both readings are defensible. Only one is right. And a
+TRUTH ORACLE that guesses prints a disagreement it caused itself — which is the worst
+output this class of instrument has, because it spends the reader's trust on noise.
+
+So the function is excluded instead: any candidate whose body can mutate a list parameter
+(`append`/`insert`/`pop`/`extend`/`clear`/`remove`/`sort`/`reverse`, a subscript or
+attribute assignment, a `del`) leaves the population. Ten corpus functions, none of them in
+the part that was already reporting, and the question stays open and WRITTEN DOWN rather
+than silently answered by an oracle that has no standing to answer it.
+
+Bite-tested both ways: a false list contract reports its three disagreements, and the
+mutating probe DISAPPEARS from the population rather than being reported.
