@@ -10713,3 +10713,21 @@ number somebody edited.
 
 Backlog gains **#54 — the nested-closure lift**: it blocks two verbatim conversion candidates
 directly, gates the five trusted-parent traps indirectly, and retires both honest markers.
+
+## 04:20Z — ALL 48 PLANES GREEN after the ledger fixes
+
+`$S/planes_fix.log`: `[+] soundness-planes: OK — all 48 plane(s) green.` The two reds were the
+reasons TSV and the termination ratchet, both paid in `74f5db2c`. The D+E+F suite continues.
+
+The three increment-G corpus witnesses are DRAFTED in `$S/witness/` and parse:
+`1909_gen31_read_only_str_set_membership_verifies.py` (the carrier, `# pycsl-expected: PASS`),
+`1910_gen31_ctl_mutated_str_set_membership_still_verifies.py`, and
+`1911_gen31_ctl_int_set_membership_still_verifies.py`. They are NOT copied into the corpus
+yet, because the suite currently running globbed its 4047 entries at start and the tree must
+match the run that gates it.
+
+Each control's docstring now states what its failure would MEAN, which is the property that
+makes it a control rather than a second symptom (wall-lesson a6):
+  1910 — dropping `_mut_coll` WIDENS the string-keyed set; it must not narrow it.
+  1911 — `1909` failed and this did not, on the same lowering, differing only in the element
+         type, so the defect was the ELEMENT TYPE and nothing else.
