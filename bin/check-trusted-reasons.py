@@ -126,7 +126,18 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        `unclassified`; ONE tagged from an unambiguous backlog heading that names the exact
 #        function and its boundary tag: Module5_IREmitter `_py_stmts_to_ir` ->
 #        `cost-scale:stmt-handler-dispatch`, cite "L2 `_py_stmts_to_ir`".
-MAX_UNCLASSIFIED = 458
+#   456  2026-09-25, gen #31. Two `unclassified` rows DELETED because their markers were
+#        retired by PROOF (`errors.py::PyCSLError.message`,
+#        `proof2why3/sertop.py::SertopSession.__exit__`, commit af7f32c1), and two rows ADDED
+#        already CLASSIFIED — `Module6_WhyMLTranspiler._sig_val_from_let._hdr_name` and
+#        `core_ir_semantic._returns_literal_none.walk`, both
+#        `cost-scale:nested-closure-lift`. Those two markers are honest additions for closures
+#        inside `\trusted` parents that were verified by nothing; each is retired by
+#        converting its enclosing function, and that is behind the lift capability.
+#        So the count of markers did not move (460 -> 458 -> 460) and this bucket fell by two
+#        at both ends: a classified arrival is as good as a retirement for THIS ratchet, which
+#        is the right incentive — it pays for knowing why, not only for removing.
+MAX_UNCLASSIFIED = 456
 
 REASON_RE = re.compile(
     r"^(?:(?P<kind>correctness|cost-scale):(?P<val>[a-z0-9][a-z0-9._-]*)|spent-rc0|unclassified)$")

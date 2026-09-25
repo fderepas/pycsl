@@ -34,6 +34,36 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #54 gen #31 — the nested-closure lift, and the two markers waiting on it
+
+`module6_whyml/functions.py` refuses to lower a function whose nested `def` is lifted to a
+sibling when the lift is not faithful:
+
+> A lifted body reads a captured name as ONE global opaque constant shared by every call, and
+> two lifted helpers with the same name collapse to one. Pass the captured values as
+> parameters and give the helper a unique name, or move it to module level.
+
+MEASURED CONSEQUENCES, this window:
+
+* It blocks `core_ir_semantic.py::_returns_literal_none` and `pycsl.py::_dispatch_provers`
+  directly — two of the 62 verbatim conversion candidates.
+* It gates the **5 trusted-parent traps** indirectly: `Module6_WhyMLTranspiler::_emit_funcs`,
+  `pycsl.py::_finalize`, `_gate_vacuity_then_succeed`, `_is_false_goal`, `_probe_one`. Each is
+  an un-trusted-or-convertible closure whose enclosing function is `\trusted`, and the
+  enclosing function cannot be converted while the lift is unfaithful.
+* It is why TWO honest `\trusted` markers were added on 2026-09-25 — 
+  `Module6_WhyMLTranspiler::_sig_val_from_let::_hdr_name` and
+  `core_ir_semantic::_returns_literal_none::walk`. Both are closures inside `\trusted`
+  parents, verified by nothing; both are retired by converting the parent; and the parent is
+  behind this capability. They are the two rows in `trusted-reasons.tsv` tagged
+  `cost-scale:nested-closure-lift`.
+
+THE SHAPE OF THE FIX, as the refusal itself states it: thread captured values as PARAMETERS
+and give each lifted helper a name unique within its file. The emitter already tracks the
+concept — the same refusal carries a `func.get("trusted_parent")` exemption — so the missing
+piece is the capture threading, not the recognition. `getting-better/open-routes/
+finding-the-nested-def-blind-spot.md` has the census and the check-0 filter.
+
 ### #53 gen #31 — THE CONVERSION POPULATION IS 56, NOT 410 (2026-09-25T03:42Z) — READ THIS FIRST
 
 Measured this hour, and it re-scopes every conversion estimate above. Over the 410 STRICT

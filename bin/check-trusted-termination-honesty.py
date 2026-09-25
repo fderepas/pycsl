@@ -58,7 +58,29 @@ TREES = (("mirror", os.path.join(ROOT, "src", "self-annotate", "src")),
          ("stdlib", os.path.join(ROOT, "src", "pycsl_lib")),
          ("corpus", os.path.join(ROOT, "test-suite", "corpus")))
 MIN_FUNCTIONS = 6500          # 7440 across the three trees at the first measurement
-MAX_SILENT = 53               # (#49) gen #31: 52 -> 53, DELIBERATELY and with the member
+MAX_SILENT = 55               # (#49) gen #31, 2026-09-25: 53 -> 55, DELIBERATELY, with both
+                              # members named, and NOT because a body got worse. Two nested
+                              # closures took HONEST `#@ \trusted` markers after
+                              # `check-untrusted-emitted.py`'s walk was fixed to descend into
+                              # `def`s (commit f184e94f): they are un-trusted closures inside
+                              # `\trusted` parents, so their bodies were emitted as part of an
+                              # opaque `val` and verified by NOTHING, while the fidelity plane
+                              # counted them among the verbatim un-trusted twins.
+                              #   Module6_WhyMLTranspiler._sig_val_from_let._hdr_name
+                              #       a `for kw in ("let rec ", "let function ", "let ")` over
+                              #       a literal 3-tuple — it terminates, and nothing checks it.
+                              #   core_ir_semantic._returns_literal_none.walk
+                              #       structurally recursive over a dict/list IR tree.
+                              # THEIR TERMINATION WAS ALREADY ASSUMED AND UNVERIFIED BEFORE
+                              # THE MARKERS. What changed is that this plane can now SEE them:
+                              # the population is "bodies carrying a marker", and until
+                              # 2026-09-25 these two carried none while being verified by
+                              # nothing either. The number going up is the measurement getting
+                              # honest, which is the same reason the line below records.
+                              # Both retire with their markers, by converting the enclosing
+                              # function: driver-backlog.md "the nested-closure lift".
+                              #
+                              # (#49) gen #31: 52 -> 53, DELIBERATELY and with the member
                               # named. Route #219's build stopped dropping dunders, so
                               # `errors.py::PyCSLError.__str__` became emittable, failed as a
                               # Why3 TYPE ERROR (an int-modelled field into a `seq string`)

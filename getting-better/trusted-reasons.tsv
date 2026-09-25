@@ -37,6 +37,7 @@ Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._sig_val_from_let	unclassifie
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._transpile_modular	unclassified	-
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._transpile_modular._emit_funcs	unclassified	-
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._shared_use_lines	unclassified	-
+Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._sig_val_from_let._hdr_name	cost-scale:nested-closure-lift	the nested-closure lift
 audit_proof.py	AuditReport.extend	unclassified	-
 audit_proof.py	_extract_directives	unclassified	-
 audit_proof.py	_parse_rocq_file	unclassified	-
@@ -65,7 +66,7 @@ core_ir_semantic.py	_returns_literal_none	unclassified	-
 core_ir_semantic.py	_typeddict_check_subscript	unclassified	-
 core_ir_semantic.py	_namedtuple_check_call	unclassified	-
 core_ir_semantic.py	_namedtuple_check_subscript	unclassified	-
-errors.py	PyCSLError.message	unclassified	-
+core_ir_semantic.py	_returns_literal_none.walk	cost-scale:nested-closure-lift	the nested-closure lift
 errors.py	PyCSLError.as_dict	unclassified	-
 errors.py	PyCSLError.__str__	cost-scale:string-field-model	the two mirror dunder markers
 exception_model.py	bases_closure	unclassified	-
@@ -448,7 +449,6 @@ proof2why3/sertop.py	_sexp_parse	unclassified	-
 proof2why3/sertop.py	parse_sexp	unclassified	-
 proof2why3/sertop.py	run_sertop_batch	unclassified	-
 proof2why3/sertop.py	SertopSession.__enter__	unclassified	-
-proof2why3/sertop.py	SertopSession.__exit__	unclassified	-
 proof2why3/sertop.py	SertopSession.type_of_batch	unclassified	-
 proof2why3/sertop.py	extract_via_sertop	unclassified	-
 proof_axiom_allowlist.py	parse_lean_axioms_line	unclassified	-
