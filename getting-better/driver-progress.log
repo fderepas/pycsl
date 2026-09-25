@@ -10878,3 +10878,32 @@ goal is not close; `_sexp_tokens` at 7.4 million is a different order of hard. N
 reason to mark anything `\trusted` — they are a reason to record the number and move on.
 
 So of 13 confirmed port+lower candidates: 4 proved, 2 timed out, 7 still to adjudicate.
+
+## 05:15Z — INCREMENTS D, E AND F ARE GATED: 4029/4047, THE STANDING EIGHTEEN, ZERO XPASS
+
+    corpus byte-diff   1378/1378 and 2199/2199 — 0 MOVED, 0 GONE, 0 APPEARED, INERT
+    mirror byte-diff   2 MOVED, 0 UNEXPECTED — `errors.mlw` and `proof2why3__sertop.mlw`,
+                       both declared, and the flag caught my short name for the second time
+    fidelity           886 verbatim un-trusted
+    planes             all 48 green (after `74f5db2c` paid the two ledger debts)
+    suite              4029/4047, EIGHTEEN confirmed, ZERO XPASS, no flaky recoveries
+
+So the session's first four increments are all banked:
+
+    A  the compose_from repairs, corpus repairs, check-corpus-executes.py, --expect-moved,
+       the `__new__` ARITY refusal                                        (gated 04:08Z)
+    D  two `\trusted` markers RETIRED AND PROVED                          (gated 05:15Z)
+    E  the frame plane's external-effect half                             (gated 05:15Z)
+    F  the integrity gate that had been checking 863 of 915               (gated 05:15Z)
+
+And increment H is READY TO LAND, with five candidates PROVED on offline trees:
+
+    proof2why3/sertop.py::__enter__               1-line port
+    frontend/Module2_Parser.py::_err              converts TWO functions
+    module6_whyml/identifiers.py::stable_hash     1-line port
+    proof2why3/parser.py::__repr__                1-line port
+    frontend/monomorphize.py::_rewrite_call_sites
+
+That is 460 -> 455 if all five land together, the largest single move this campaign has made
+in several generations — and not one of them needed a new capability. They needed a body
+copied from the file next door.
