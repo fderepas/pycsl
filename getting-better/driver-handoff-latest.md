@@ -11554,3 +11554,40 @@ mirror edits; run it after ANY `src/pycsl/` change.
 #
 #    HOUSEKEEPING RULE THIS SESSION EARNED: delete each offline tree when its experiment
 #    ends. The measurement belongs in the log, not in a 76 MB copy of `src`.
+
+# ======================================================================================
+# ## UPDATE 2026-09-25T03:22Z — increment A landed; the conversion gate has FIVE steps now
+#
+#    LANDED since the withdrawal block above:
+#      * `1250e04d` — the `__new__` ARITY refusal (increment A). Its gate is RUNNING, clean,
+#        re-launched at 03:05Z: corpus byte-diff **0 MOVED + 2 new source files** (1905 is
+#        expected-FAIL and is REFUSED, so it never emits — which is why 1378 and not 1379),
+#        pyref **2199/2199 0 MOVED** (the disk-full alarm is gone), mirror inert, 886
+#        verbatim, 48 planes. Suite predicted **4029/4047**.
+#      * `924b7133` + tightenings — **17 receiver-confirmed `\trusted` stubs declare
+#        `#@ assigns \nothing` while their live body calls `subprocess.run`/`Popen`,
+#        `os.makedirs` or `os.remove`.** The clause is glossed "pure, side-effect-free" in
+#        `annotations.md` §926. `check-trusted-frame-honesty` cannot see them: its population
+#        is `self.<attr>` stores. ZERO un-trusted callers, so a TRAP not a HOLE — and one
+#        green proof away from being a hole. Doubles as a DO-NOT-CONVERT list.
+#      * `419265a0` — **the conversion screen's candidate list was 46 too long.** A prose
+#        mention of `\trusted` is not a marker: 456 by substring, **410** by line prefix.
+#        `convert_one.py` had DELETED a line of prose and reported success. Fixed to
+#        line-prefix + abort. All seven earlier vetted LOWERS re-checked and REAL.
+#      * `baebb495` — the population reconciled: **460** marker lines (reproducing
+#        `count-trusted-directives.py` exactly), 441 attached to a `def`, **417** with a live
+#        counterpart (the conversion population), 24 mirror-only. The `435` in older entries
+#        came from the loose scan and should not be quoted.
+#
+#    NEW WALL-LESSONS: (g6) a full disk presents as a broken shell, and a broken gate
+#    presents as a finding. (h6) check free space before `cp -a src`, delete the previous
+#    tree. (i6) a green proof is NECESSARY for retiring a trust marker and nowhere near
+#    sufficient. (j6) an instrument that recognises a thing by SUBSTRING will recognise a
+#    sentence about it — three instruments, one session.
+#
+#    IN FLIGHT: increment A's gate (suite); an offline mirror sweep measuring how many of the
+#    53 mirror files the `message` conversion moves (FIFTEEN mention `__message`; a mention is
+#    not a moved declaration, so it is being measured); the 410-candidate screen, PAUSED by
+#    its sentinel so the suite gets the CPU (12 cores, load was 10.3).
+#
+#    THIRTEEN CORRECTIONS to my own written claims today.
