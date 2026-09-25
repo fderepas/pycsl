@@ -538,6 +538,43 @@ class PyCSLWeaver(ast.NodeVisitor):
         # (returning a cached/singleton/other instance, or branching) interposes on
         # allocation in a way the record-construction model cannot soundly represent —
         # `C(...)` would no longer be a fresh `{...}` literal. Reject rather than fake it.
+        # (#49) gen #31 — AND ITS ARITY. `C(k)` is `type.__call__`, which passes the
+        # arguments to BOTH `__new__` and `__init__`. A `__new__` that is trivial but too
+        # NARROW therefore makes every construction a TypeError in CPython, while the model
+        # builds the record from `__init__` alone and proves whatever the class promises —
+        # measured on 0496, where `\result == k` verified for a function that raises
+        # `__new__() takes 1 positional argument but 2 were given` for every k. A contract
+        # over a function with no normal exit is VACUOUSLY true; see
+        # `getting-better/open-routes/finding-a-contract-over-a-function-that-never-returns.md`
+        # and `NEVER_RETURNS` in `bin/check-corpus-contract-truth-args.py`.
+        #
+        # The condition is the one that admits NO call at all (the (u4) discipline: refuse
+        # only what could never be right): `__init__`'s MINIMUM required argument count
+        # exceeds `__new__`'s MAXIMUM acceptable one. A `*args`/`**kwargs` `__new__` accepts
+        # anything and is exempt. Censused before landing — ONE instance in the corpus, the
+        # mirror, the live tree and `pycsl_lib` combined, and it is 0496 itself.
+        _new_fn = next((x for x in node.body if isinstance(x, ast.FunctionDef)
+                        and x.name == "__new__"), None)
+        _ini_fn = next((x for x in node.body if isinstance(x, ast.FunctionDef)
+                        and x.name == "__init__"), None)
+        if (_new_fn is not None and _ini_fn is not None
+                and _new_fn.args.vararg is None and _new_fn.args.kwarg is None):
+            _new_max = len(_new_fn.args.posonlyargs) + len(_new_fn.args.args) - 1
+            _ini_min = (len(_ini_fn.args.posonlyargs) + len(_ini_fn.args.args)
+                        - len(_ini_fn.args.defaults) - 1)
+            if _ini_min > _new_max:
+                raise PyCSLSemanticError(
+                    f"Class '{node.name}' (line {node.lineno}): `__new__` accepts at most "
+                    f"{_new_max} argument(s) after `cls` while `__init__` REQUIRES "
+                    f"{_ini_min}. `{node.name}(...)` passes its arguments to BOTH, so every "
+                    f"construction of this class raises `TypeError: {node.name}.__new__() "
+                    f"takes {_new_max + 1} positional argument(s) but {_ini_min + 1} were "
+                    f"given` in CPython — there is no call that can succeed. A contract on "
+                    f"anything that constructs it would be proved over an exit the program "
+                    f"never reaches. Widen `__new__` to accept the same arguments "
+                    f"(`def __new__(cls, ...)`, or `*args, **kwargs`), or delete it and let "
+                    f"the default allocation run. See config/skills/pycsl-ub-catalog/"
+                    f"SKILL.md §7.6.")
         for stmt in node.body:
             if (isinstance(stmt, ast.FunctionDef) and stmt.name == "__new__"
                     and not self._is_trivial_new(stmt)):

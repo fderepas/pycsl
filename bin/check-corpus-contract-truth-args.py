@@ -187,21 +187,6 @@ KNOWN_DIVERGENT = {
 # perfectly contentful `\result == k`. The vacuity is in the FUNCTION's reachability, one
 # level below where that instrument looks. Wall-lesson (v5).
 NEVER_RETURNS = {
-    ("0496.py", "grab"):
-        "`Holder.__new__(cls)` takes no extra argument while `__init__(self, n)` does, so "
-        "CPython's `Holder(k)` raises `TypeError: __new__() takes 1 positional argument but "
-        "2 were given` — for EVERY k. The model builds `{x = k}` from `__init__` and never "
-        "compares `__new__`'s arity with the construction site, so `\\result == k` verifies "
-        "for a function with no run at all. `__new__` IS an analysed surface (UB-7.6 "
-        "rejects a non-trivial one), which is what makes the missing dimension a defect "
-        "rather than a boundary. `finding-a-contract-over-a-function-that-never-returns.md`",
-    ("0554.py", "Service.tick"):
-        "`#@ compose_from Counter` flattens `bump` into `Service` IN THE VERIFIER; CPython "
-        "does not, because `Service` does not inherit `Counter` — `self.bump()` is an "
-        "`AttributeError` on every call. Measured across the corpus: ALL ELEVEN composing "
-        "classes compose a provider they do not inherit, and in ten of the eleven the "
-        "provided name is absent from the instance at runtime. "
-        "`finding-a-contract-over-a-function-that-never-returns.md`",
     # (#49) gen #31 — FOUND BY THE PREDICATE AXIS, which widened the population from
     # `#@ ensures \\result == <expr>` to any predicate over `\\result`. Every one of these
     # carries `#@ ensures \\result >= 0` or a `\\str_length` bound — contentful clauses, all
@@ -247,7 +232,7 @@ NEVER_RETURNS = {
         "argument, it is a placeholder for a type the modeller does not have. "
         "`finding-a-verified-program-that-is-not-the-executed-program.md`",
 }
-MAX_RAISED = 15                  # FUNCTIONS with at least one call that RAISES on an
+MAX_RAISED = 14                  # FUNCTIONS with at least one call that RAISES on an
                                  # argument their own precondition admits. (#49) gen #31:
                                  # the ratchet counts FUNCTIONS, not raise EVENTS. Once the
                                  # tuple loop stopped breaking on the first raise (so that
@@ -256,7 +241,12 @@ MAX_RAISED = 15                  # FUNCTIONS with at least one call that RAISES 
                                  # of the SAMPLING — up to three per function — and a
                                  # ratchet whose number moves when nothing about the corpus
                                  # moved is a ratchet that will be raised without thought.
-                                 # Fifteen today: the eight in NEVER_RETURNS, the three
+                                 # (#49) gen #31: 15 -> 14 when 0496 was REPAIRED — the
+                                 # `__new__` arity refusal landed and the driver's own
+                                 # `__new__` now accepts the constructor's argument, so
+                                 # `grab(k)` returns k instead of raising TypeError. A
+                                 # ceiling that goes DOWN is the only kind worth having.
+                                 # Fourteen today: the seven in NEVER_RETURNS, the three
                                  # declared `#@ \diverges` (0051, 0158, 0159), and the
                                  # four input-dependent ones — 0420, 1302, 0199 and 0605.
                                  #

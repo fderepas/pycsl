@@ -176,6 +176,18 @@ AUDITED = {
      '_PyCSLSemErrLem("`#@ lemma` \'%s\' (line %d) has no `#@ assigns` clause, and a lemma must state `#@ assigns \\\\nothing` explicitly. The clause '): (FOLLOWABLE,
         "'add `#@ assigns \\\\nothing` to it' — control 1848 is the same lemma with the clause, and it VERIFIES. The witness is 1847."),
     ("src/pycsl/frontend/Module3_Weaver.py",
+     'PyCSLSemanticError(f"Class \'{node.name}\' (line {node.lineno}): `__new__` accepts at most {_new_max} argument(s) after `cls` while `__init__`'): (FOLLOWABLE,
+        "'Widen `__new__` to accept the same arguments (`def __new__(cls, ...)`, or `*args, "
+        "**kwargs`), or delete it and let the default allocation run' — ALL THREE spellings "
+        "were measured, which is unusual for one message and is why the entry is worth its "
+        "length. (1) 0496's own repair, `def __new__(cls, n: int)`: VERIFIES, RUNS "
+        "(`grab(3)` is 3), and is BYTE-INERT in the emission. (2) control 1906, "
+        "`def __new__(cls, *args, **kwargs)`: VERIFIES and RUNS. (3) deleting `__new__` "
+        "outright is the default allocation and is the shape every other corpus class uses. "
+        "The witness is 1905; control 1907 is the `__init__`-has-a-default case the rule "
+        "deliberately does NOT refuse, because the rule forbids only a class NO call can "
+        "construct."),
+    ("src/pycsl/frontend/Module3_Weaver.py",
      "PyCSLSemanticError('`#@ %s %s` names a mutex that is bound nowhere in this file, and the directive was silently dropped — the file still rep"): (FOLLOWABLE,
         "'correct the spelling, or declare `<m>` in this module' — control 1894 is 1893 with `lock_bal` for the misspelling, and it VERIFIES. The witnesses are 1893 (`#@ releases`, the one NOTHING downstream could have caught) and 1895 (`#@ critical` in a block that touches nothing shared — the file that corrected this session's own silent-name sweep)."),
     ('src/pycsl/pycsl.py',
@@ -904,7 +916,11 @@ def main():
     return rc
 
 
-MIN_AUDITED = 115
+MIN_AUDITED = 116   # (#49) gen #31: 115 -> 116 with the `__new__` ARITY refusal, whose
+                    # advice was audited in ALL THREE of its spellings (0496's repair,
+                    # control 1906's `*args`, and deleting `__new__`). The floor moves
+                    # with the measurement in the same commit; headroom is how a ratchet
+                    # misses the first regression that uses it up.
 
 if __name__ == "__main__":
     sys.exit(main())

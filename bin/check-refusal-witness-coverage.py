@@ -142,7 +142,12 @@ CENSUS_TRUNC = 4000       # the writer's message cap. See the TRUNCATION GUARD b
                           # stored message of EXACTLY this length was cut, and a cut
                           # message silently un-witnesses every site whose fragment falls
                           # past the cut.
-MIN_WITNESSED = 205       # (#49) gen #31: 204 -> 205 with the MUTEX-NAME refusal
+MIN_WITNESSED = 206       # (#49) gen #31: 205 -> 206 with the `__new__` ARITY refusal
+                          # (witness 1905). A ratchet with headroom cannot see the first
+                          # regression that uses it up — lesson learned on
+                          # `check-mirror-coverage`'s 549, so this moves with the
+                          # measurement in the same commit. Was 205 with the MUTEX-NAME
+                          # refusal
                           # (witnesses 1893 `#@ releases` and 1895 `#@ critical`; one
                           # refusal site, two witnesses, because the two directives
                           # fail for different reasons and only one of them could
