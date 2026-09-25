@@ -23,6 +23,10 @@ So this script reports THREE classes, and by default any of them is a failure:
     GONE        emitted on the baseline, not now      — a new refusal (often intended)
     APPEARED    NOT emitted on the baseline, now is   — A REFUSAL BECAME AN EMISSION
 
+`--expect-moved NAME [...]` whitelists an INTENDED emission change for a named file — a
+SOURCE repair rather than an emitter change. A declared name that does not move is an
+error too: the repair you think you landed is not in the emission.
+
 `--expect-gone NAME [...]` whitelists an INTENDED new refusal (a route being closed
 legitimately removes emissions — route #42's re-closure removes exactly three). There is
 deliberately NO `--expect-appeared`: if a refusal becomes an emission you must say so in a
@@ -49,6 +53,15 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("baseline")
     ap.add_argument("candidate")
+    ap.add_argument("--expect-moved", nargs="*", default=[],
+                    help="basenames (with or without .mlw) whose emission is INTENDED to "
+                         "change — a SOURCE repair, not an emitter change. (#49) gen #31: "
+                         "a corpus driver that is not a loadable Python program has to be "
+                         "repairable, and repairing its SOURCE moves its .mlw. Naming it "
+                         "here is the same contract `--expect-gone` already makes: the "
+                         "mover must be declared, one name per file, and a declared name "
+                         "that does NOT move is itself an error — the repair you think you "
+                         "landed is not in the emission.")
     ap.add_argument("--expect-gone", nargs="*", default=[],
                     help="basenames (with or without .mlw) whose emission is INTENDED to "
                          "disappear, e.g. a route being closed by a new refusal")
@@ -92,11 +105,15 @@ def main() -> int:
                    if not filecmp.cmp(os.path.join(args.baseline, n),
                                       os.path.join(args.candidate, n), shallow=False))
 
+    expect_moved = {n if n.endswith(".mlw") else n + ".mlw" for n in args.expect_moved}
+    unexpected_moved = [n for n in moved if n not in expect_moved]
+    missing_moved = sorted(expect_moved - set(moved))
     unexpected_gone = [n for n in gone if n not in expect_gone]
     missing_gone = sorted(expect_gone - set(gone))
 
     print(f"[*] byte-diff-compare: {len(base)} baseline / {len(cand)} candidate .mlw; "
-          f"{len(moved)} MOVED, {len(gone)} GONE ({len(unexpected_gone)} unexpected), "
+          f"{len(moved)} MOVED ({len(unexpected_moved)} unexpected), "
+          f"{len(gone)} GONE ({len(unexpected_gone)} unexpected), "
           f"{len(appeared)} APPEARED"
           + (f", {len(benign)} new source file(s) ignored" if benign else "")
           + ("." if base_sources is not None else " [no SOURCES.txt manifest — new corpus "
@@ -109,17 +126,26 @@ def main() -> int:
     for n in unexpected_gone:
         print(f"[!]   GONE {n} — it emitted before and does not now. If that is an intended "
               f"new refusal, pass --expect-gone {n[:-4]}.", file=sys.stderr)
-    for n in moved:
-        print(f"[!]   MOVED {n}", file=sys.stderr)
+    for n in unexpected_moved:
+        print(f"[!]   MOVED {n} — if that is an intended SOURCE repair, pass "
+              f"--expect-moved {n[:-4]}.", file=sys.stderr)
+    for n in missing_moved:
+        print(f"[!]   --expect-moved {n[:-4]} was declared but its emission is UNCHANGED. "
+              f"The repair you think you landed is not in the emission.", file=sys.stderr)
     for n in missing_gone:
         print(f"[!]   --expect-gone {n[:-4]} was declared but it still emits. The refusal "
               f"you think you landed is NOT firing.", file=sys.stderr)
 
-    if appeared or unexpected_gone or moved or missing_gone:
+    if appeared or unexpected_gone or unexpected_moved or missing_gone or missing_moved:
         print("[!] byte-diff-compare: NOT BYTE-INERT.", file=sys.stderr)
         return 1
 
-    print("[+] byte-diff-compare: OK — byte-inert in all three directions.")
+    if moved or gone:
+        print("[+] byte-diff-compare: OK — byte-inert in all three directions apart from "
+              "%d DECLARED mover(s) and %d declared refusal(s), each named on the command "
+              "line." % (len(moved), len(gone)))
+    else:
+        print("[+] byte-diff-compare: OK — byte-inert in all three directions.")
     return 0
 
 
