@@ -7445,3 +7445,41 @@ the MEMBERSHIP path type-errors**, because it is the one consumer that insists o
 the honest-failure repair is a single site, not a class of them — and the class was invented
 by reading one symptom as a family. (Seventh correction of the session, same cause as the
 other six.)
+
+### A CANDIDATE LIST FILTERED BY THE MAP, NOT BY SIZE (2026-09-25)
+
+Every earlier shortlist in this file ranked conversion candidates by TOP-LEVEL STATEMENT
+COUNT, and this file already records that the proxy "has now been wrong four times". With
+the surface map in hand there is a better filter: exclude the functions whose LIVE body uses
+something the map says does not lower.
+
+    still-`\trusted` mirror functions:                                    435
+    ... whose live body uses NONE of: set literal, set/dict comprehension,
+        comprehension over a `range` or with a CALL element, `str.join`,
+        `.setdefault`, a `Set[...]` parameter, a lambda, try/with/raise,
+        or a nested `def`                                                 170
+
+In the files with a MEASURED cheap whole-file proof:
+
+    frontend/Module1_Ingestor.py   (14 s)   5 candidates
+    frontend/ConcurrencyChecker.py (17 s)   1  — `_check_function`
+    frontend/Module2_Parser.py              21 — the largest pool, proof time UNMEASURED
+    frontend/desugar.py                      3
+    proof2why3/parser.py                     3
+    module6_whyml/identifiers.py             1  — `stable_hash`, and it is `\trusted` BY
+                                                  NECESSITY (an external `hashlib` call),
+                                                  which the earlier entry already recorded
+
+CAUTIONS, both of which this file has earned the hard way:
+
+  * the filter is NECESSARY, not sufficient. It sees CONSTRUCTS, not TYPES — `_emit_suite`
+    passes it and still fails on `array int` (a nested list), and `_match_block_hdr` passes
+    it and still fails on a TUPLE return. The real chain is per-candidate and the second
+    link is invisible until the first is closed.
+  * it also misses `import` inside a body (`Module1_Ingestor._assign` does `import bisect`)
+    and counts a `for` loop as one statement. A filter is a SHORTLIST, and the price of
+    checking one entry is twenty seconds in the cheap files.
+
+The list is worth having anyway: it is the first shortlist in this file assembled from
+MEASURED capability rather than from a proxy, and 170 is a very different number from the
+six that were tried.
