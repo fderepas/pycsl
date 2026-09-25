@@ -381,9 +381,23 @@ With BOTH halves — the parameter extractor reading a set's element type, and t
              `0884.py` (expected-FAIL). Its `acc: Set[str]` goes
              `ref (map int (option int))` -> `ref (map string (option int))` and
              `map_update_some` becomes polymorphic. It still does not verify — but its
-             FAILURE MODE CHANGES, from the frame failure the witness is about to a Why3
-             TYPE ERROR. Lesson (m5) applies exactly: "expected-FAIL and still FAILED" is
-             not a pass, and a witness that fails for a new reason has stopped witnessing.
+             FAILURE MODE CHANGES. Measured on both trees:
+
+                 LIVE       Prover result is: Timeout (30.00s, 19789504 steps)
+                 I4         line 42: This expression has type int, but is expected to
+                            have type string
+
+             Lesson (m5) applies exactly: "expected-FAIL and still FAILED" is not a pass,
+             and a witness that fails for a new reason has stopped witnessing.
+
+             AND A SECOND OBSERVATION FELL OUT OF THE COMPARISON, which is why it was worth
+             running both sides rather than only the new one: **0884 fails by TIMEOUT on the
+             live tree**, not by refutation. A negative witness that fails because the
+             prover ran out of time is weaker than one that fails because the goal is false
+             — it would start passing on a faster machine or a longer `--timelimit`, and
+             nothing in the suite distinguishes the two. That is a property of the existing
+             witness, unrelated to this change, and it is recorded here because this is
+             where it was seen.
 
     MIRROR   53 files swept:  **10 MOVED**, including
              module6_whyml/expressions.py          (a measured 2h57m to re-prove)
