@@ -9738,3 +9738,54 @@ an abstract operation and the case split that came with it.
 Nothing depended on the number — the increment was gated and landed on its own planes — but
 "we did not measure the cost" and "we measured it and there is none" are different
 sentences, and only one of them can be written down.
+
+--------------------------------------------------------------------------------
+2026-09-25 00:45Z — the PREDICATE axis, and five more programs that do not run
+
+THE CENSUS CHOSE THE WIDENING. 1767 PASS-expected, proof-on corpus functions carry an
+`#@ ensures`. 1119 are in the oracle's population. The largest single group OUTSIDE it was
+not a hard type or an exotic clause — it was the INEQUALITY:
+
+    102   #@ ensures \result >= 0
+      6   #@ ensures \result >= x
+      6   #@ ensures \str_length(\result) >= 0
+      5   #@ ensures \result >= 1          5   #@ ensures \result >= 5
+      4   #@ ensures \result > 0
+    145   param type: list / List          (the next axis, and a bigger build)
+     67   ctor needs 1-2 args              (the one after that)
+
+The oracle read `#@ ensures \result == <expr>` and nothing else. A predicate over `\result`
+is just as evaluable once `\result` has a value.
+
+    579 functions / 6114 evaluations  ->  692 / 7063
+    PREDICATES: 117 functions, 974 clause evaluations, **0 FALSE**
+    MIN_EVALS 5900 -> 6800
+
+WHAT IT FOUND, in one run, all of it under `#@ ensures \result >= 0`:
+
+  0549::Facade.run     the mixin FLAGSHIP — AttributeError, every call
+  1858::Facade.run     the gen #31 marker control, same shape
+  0540::use_str        `#@ datatype` constructors with no Python definition — NameError
+  1003::use_str        the parametric twin, same mechanism
+  0746::Registry.arity `Dict[str, List[str]] = None` — annotation vs default, AttributeError
+  0453::visit_FunctionDef  `node: int` over `node.name.islower()` — THE INT PLACEHOLDER
+
+Six more instances of one family, across THREE independent mechanisms, and the last of them
+is the conversion track's named #1 blocker caught by an instrument for the first time
+instead of by hand at a conversion attempt. New record:
+`finding-a-verified-program-that-is-not-the-executed-program.md`.
+
+TWO ORACLE DEFECTS, both found by the same widening and both fixed in the same commit:
+
+  * it was CONSTRUCTING `#@ mixin` classes, which the language itself refuses
+    (PYCSL-SEM-MIXIN-INSTANTIATED, landed earlier this generation). `MapOps().handle_get(k)`
+    raised and the oracle reported it as a corpus defect. The population must exclude what
+    the language forbids.
+  * `#@ \diverges` is now READ from the directive rather than listed by name, and
+    MAX_RAISED counts FUNCTIONS rather than raise EVENTS. The event count is a function of
+    the SAMPLING (up to three per function), and a ratchet whose number moves when nothing
+    about the corpus moved is a ratchet that gets raised without thought.
+
+WALL-LESSON (x5). An instrument that only runs what it can check will never tell you what
+it cannot run. The gap was not in a population filter anyone chose — it was that "does this
+program run" had never been separated from "is this contract true".

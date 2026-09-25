@@ -7312,3 +7312,26 @@ the most damage, because everything around it is correct.
 Sibling of (u4) (a census measures the population, a rule binds every program) and of the
 index's question 4 (construct the strongest program a rule would forbid). Same move, aimed
 at a claim of ABSENCE instead of a claim of coverage.
+
+### (x5) An instrument that only runs what it can check will never tell you what it cannot run
+
+Every oracle in this battery executes a corpus function *because* a clause asked it to.
+`check-corpus-contract-truth` runs a function when it finds `#@ ensures \result == <literal>`.
+Its parameterized sibling runs one when it finds `#@ ensures \result == <expr over the
+params>`. Neither ever ran a function whose only postcondition was `#@ ensures \result >= 0`
+— the most common clause in the corpus, 102 instances of it in the PASS-expected population
+alone — because an inequality is not an equality and the oracle read equalities.
+
+Widening to predicates took an afternoon. It found FIVE programs that raise on every input
+they admit, in five `# pycsl-expected: PASS` drivers, including the FLAGSHIP of the mixin
+feature and a driver carrying the conversion track's named #1 blocker. None of them were
+hidden behind a hard question. They were behind no question at all.
+
+The gap was not in any instrument's population filter. It was that **"does this program
+run" had never been separated from "is this contract true"**, so the first question was
+only ever asked as a side effect of the second — and a file whose clauses the oracle could
+not parse was a file nobody ever executed.
+
+When an instrument reports coverage, ask what its population is a population OF. If it is
+"the functions whose contracts I can evaluate", then everything it does not report is
+unmeasured, not clean.
