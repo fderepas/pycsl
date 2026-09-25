@@ -10422,3 +10422,38 @@ direction this campaign exists for:
 A floor left below its measurement cannot see the first regression that uses up the
 headroom — the lesson `check-mirror-coverage`'s 549 taught this campaign — so all four moved
 to the measured truth rather than being left with slack.
+
+--------------------------------------------------------------------------------
+2026-09-25 03:06Z — twenty-five minutes lost to a full /tmp, and a gate that lied
+
+Every Bash call returned exit 1 with NO OUTPUT — `true`, `echo`, `date` — in this session
+and in a freshly spawned subagent. I diagnosed it as my own `pkill -f screen_all.sh` having
+killed the harness's persistent shell, wrote an EARLY-STOP handoff, and switched to
+Read-only tools. The pkill WAS a real mistake (wall-lesson (c6), now with a kill in it), but
+it was not the outage. One probe leaked stderr:
+
+    /bin/bash: line 1: pwd: write error: Disk quota exceeded
+
+`/tmp` is a 7.6 GB tmpfs and it was full. Every offline experiment here does
+`cp -a src $SCRATCH/tree<X>/src` at 76 MB a copy; I had made EIGHT this session, on top of
+five left by earlier windows and a dozen sweep directories. Deleting them took `/tmp` from
+100% to 49% and the shell returned immediately.
+
+**AND THE GATE RUNNING AT THE TIME PRODUCED A FALSE SOUNDNESS ALARM.** Its
+`python-reference` byte-diff reported dozens of `MOVED` files — which, read literally, is an
+emitter change moving a PROVED corpus. It was truncated emissions. The same comparison, same
+emitter, one hour earlier: `2199 / 2199, 0 MOVED`. Its pycsl-reference half, which finished
+before the disk filled, was green and matched the prediction exactly.
+
+TWO RULES, both cheap, both skipped:
+  * when the shell fails with no output, run `df -h /tmp` BEFORE reasoning about causes;
+  * an alarm raised while the machine is unhealthy is not evidence — diff it against the
+    previous run of the same comparison before believing it.
+
+RECOVERY, in order: free the disk; stop the gate BY PID (never `pkill -f` a pattern that
+appears in your own command line); delete ONLY the 253 stray `.mlw` the killed sweep left in
+`python-reference`, selected by `-newermt` so the 92 older ones stay; verify
+`check-artifact-cleanup.sh`; re-launch the gate clean.
+
+Everything the EARLY-STOP handoff listed as pending is committed, increment A is landed, and
+the gate is running again with 3.9 GB free. Wall-lesson (g6).
