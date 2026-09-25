@@ -173,6 +173,30 @@ emitted the PRISTINE file, which lowers, and reported success for ten candidates
 touched. **7 of 7 was not evidence that porting works; it was evidence that nothing was being
 measured.** The fix is general: a crash must look like an abort.
 
+### The I4 fixpoint: landed, measured, reverted in five minutes
+
+The one capability this session tried to build. A carrier written a generation ago, gated
+FAILED ever since, with its landing instructions inside it. The two-line patch **flipped the
+carrier, held both controls, and proved three new corpus witnesses** — and then broke four
+mirror files in thirty seconds, every one of them:
+
+    This expression has type string -> option.Option.option int,
+    but is expected to have type int -> option.Option.option int
+
+a promoted `map string` reaching a sibling `val` BRIDGE still declared `map int`. **"Both ends
+read the declaration" is false**: a bridge has no Python declaration to read. Promoting the
+definition side moves one end of the call edge and leaves the other. The fixpoint was not
+deferred out of laziness; it is load-bearing.
+
+Landed 07:58Z, reverted 08:03Z. The refusal written into the plan BEFORE any edit is what made
+the reversal automatic rather than a decision.
+
+**And it is the third "necessary but not sufficient" of the session.** A `--no-proof` LOWERS is
+not a proof. A green whole-file proof is not a conversion. **A carrier that flips is not a
+capability.** Each is a cheap gate that answers a real question and only that question; the
+expensive gate behind it is the one that decides — and this session found all three by running
+the expensive one anyway.
+
 ## Still open at the time of writing
 
 * increment G — the I4 fixpoint (a set's element type). Patch prepared and measured: 1 corpus
