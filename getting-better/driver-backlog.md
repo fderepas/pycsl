@@ -7296,3 +7296,30 @@ to propagate along CALL EDGES, and `local_refs` is threaded through the mirror's
 statement/expression emitter, so promoting one promotes all and each moved file must be
 re-proved (`expressions.py` alone: **2h57m**). A module-level fixpoint with a double-digit-
 hour proof bill — which is the honest size, and a number instead of a shrug.
+
+### THE WHOLE SURFACE, PROBED — strings, dicts, sets, comprehensions (2026-09-25)
+
+`finding-the-conversion-surface-mapped-by-two-line-programs.md`. Forty-nine two-line
+programs. What a converter can rely on, and what it cannot:
+
+    STRINGS   16 of 16 VERIFY. startswith/endswith/replace/split (with and without a
+              maxsplit)/strip/upper/isdigit, slicing, indexing, len, `+`, `==`, substring
+              `in`, `str()`, `int()`. **Strings are not a conversion blocker.** When a
+              conversion fails, it is not the strings.
+
+    DICTS     d[k]  d.get(k, 0)  k in d  d[k] = v  len(d.keys())  len(d.items())   VERIFY
+              len(d)   for k in d   d.setdefault(k, v)   Dict[str, Dict[str, int]]  FAIL
+              -> `len(d)` FAILS and `len(d.keys())` VERIFIES. A one-token workaround.
+
+    SETS      m in held (int-keyed)   held.add(m)   s | {x} in @mutable_state        VERIFY
+              everything else — see `finding-a-set-has-no-element-type-and-no-union.md`
+
+    LITERALS  f-strings (3 shapes), list comprehension (plain, filtered, nested),
+    AND       dict literal with string keys, list literal + append                  VERIFY
+    COMPS     comprehension over a `range`, comprehension with a CALL element,
+              dict comprehension, set comprehension, set literal, `",".join(xs)`    FAIL
+
+CAVEAT, and it bounds every row above: each probe carries `#@ ensures True`, so a VERIFY
+means the construct LOWERS AND TYPE-CHECKS — not that the lowering is faithful. That is the
+right scope for this file (a conversion is stopped by lowerability) and the wrong scope for
+a soundness claim (which the corpus-truth oracles answer).
