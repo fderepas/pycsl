@@ -9821,3 +9821,44 @@ than silently answered by an oracle that has no standing to answer it.
 
 Bite-tested both ways: a false list contract reports its three disagreements, and the
 mutating probe DISAPPEARS from the population rather than being reported.
+
+--------------------------------------------------------------------------------
+2026-09-25 00:42Z — the CONSTRUCTOR-ARGUMENT axis, and where the args oracle now stands
+
+    730 functions / 7239 evaluations  ->  746 / 7392,  0 FALSE
+    MIN_EVALS 6950 -> 7100
+
+A class whose `__init__` takes arguments had no canonical instance and was dropped whole.
+The constructor arguments are now the LEADING elements of the argument tuple, filtered by
+`__init__`'s own `#@ requires`.
+
+MOST OF WHAT IT BUYS IS THE ZERO-ARGUMENT METHODS. `def get(self) -> int` on a class needing
+`Holder(n)` was in NEITHER oracle's population: the sibling zero-argument oracle builds
+`C()` and this class has none, and this oracle required a method argument. Two population
+filters, each correct on its own, with a gap between them that neither owned.
+
+BITE-TESTED ON THE DISCRIMINATING PAIR — the only test that shows the constructor
+precondition is HONOURED rather than ignored. Two files differing in exactly one line,
+`#@ requires n >= 0` on `__init__`, over the same `#@ ensures \result >= 0` on the same
+`return self.x`. With the clause: AGREE. Without it: FALSE at n = -1 and n = -2.
+
+THE ORACLE ACROSS THIS WINDOW, for the record:
+
+    gen #30 first measurement      412 functions /  4340 evaluations
+    start of this window           416 /  4367
+    `\nothing` out of the skip list, methods, comparisons
+                                   548 /  6011
+    POST-STATE (`self.f == \old(self.f) + …`)
+                                   579 /  6114   + 31 methods, 96 clauses
+    PREDICATE (`\result >= 0` and its family)
+                                   692 /  7063   + 117 functions, 974 clauses
+    LIST parameters                730 /  7239
+    CONSTRUCTOR arguments          746 /  7392
+
+    **746 functions, 7392 argument-level evaluations, and every one of them TRUE of its own
+    program** — with eight named functions that have no normal exit at all, six named
+    KNOWN_DIVERGENT struct-unpack claims, and fourteen disagreements inherited from a
+    `\trusted` callee at the standing ceiling.
+
+Every one of the four axes was chosen by a CENSUS of what the oracle could not read, not by
+what looked interesting; and three of the four found a defect the moment they ran.
