@@ -10731,3 +10731,43 @@ makes it a control rather than a second symptom (wall-lesson a6):
   1910 — dropping `_mut_coll` WIDENS the string-keyed set; it must not narrow it.
   1911 — `1909` failed and this did not, on the same lowering, differing only in the element
          type, so the defect was the ELEMENT TYPE and nothing else.
+
+## 04:27Z — A PORT LANDS WHERE A PROOF COULD NOT: `proof2why3/sertop.py::__enter__`
+
+MEASURED on an offline tree, the first member of the cheap porting tier taken end to end:
+
+    mirror before   def __enter__(self) -> 'SertopSession':  return None     (a FACADE)
+    live            def __enter__(self) -> "SertopSession":  return self
+    port            one line
+    emit diff       11 lines, ALL ADDITIVE, and identical in shape to `__exit__`'s:
+                      - val sertopsession____enter__ (self: sertopsession) : sertopsession
+                      + let sertopsession____enter__ (self: sertopsession) : sertopsession
+                      +   ensures { self.cwd = old self.cwd }        (x4 fields)
+                      + = self
+    proof           [+] Verification SUCCESS! All contracts formally proven.
+
+**This is the proof that the 235 facades are not a dead population.** A facade cannot be
+screened as it stands — `pass` always lowers — so until now nothing could be learned about any
+of them. Porting the live body converts an unmeasurable candidate into a measurable one, and
+this one goes all the way to a proved conversion.
+
+NEW TOOL: `$S/port_one.py`. Replaces a mirror function's BODY with its live twin's, keeping
+the mirror's own `def` line (its annotations are its modelling layer and the fidelity plane
+PERMITS them to differ) and its `#@` contract lines. It ABORTS rather than guesses: the name
+must resolve to exactly one def in each file, and the mirror body must BE a facade — replacing
+a real body is a different and much more dangerous operation. `--convert` also deletes the
+governing marker by LINE PREFIX, never substring (wall-lesson j6).
+
+AND THE CHEAP TIER IS NOT UNIFORMLY LANDABLE, which is the honest half. Four more inspected by
+hand before any screen ran:
+
+    proof2why3/parser.py::__repr__           f"{self.kind}({self.value!r})"  -> a string FIELD,
+                                             so probably the value-model wall
+    frontend/pure_ast.py::write              self._source.extend(text)       -> the in-place
+                                             mutator refusal
+    frontend/pure_ast.py::_const_value_getter  return self.value             -> plausible
+    frontend/Module2_Parser.py::_parse_assigns  Assigns(self._parse_assigns_target())
+
+So a port does not make a candidate land. **It makes a candidate MEASURABLE**, and the walls
+it then meets are the same three walls the 62 verbatim candidates met. That is worth knowing
+before anyone budgets 22,252 lines.
