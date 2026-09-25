@@ -390,7 +390,15 @@ With BOTH halves — the parameter extractor reading a set's element type, and t
              module6_whyml/statements.py
              module6_whyml/functions.py
              module6_whyml/stmt_control_flow.py
-             … and six more
+             Module6_WhyMLTranspiler.py            (re-proved SUCCESS, 40m43s, one-part)
+             frontend/__init__.py                  (a measured ~24 min)
+             frontend/ir_resolve.py                (a measured ~22 min)
+             frontend/monomorphize.py
+             module6_whyml/expr_ghost_collections.py
+             module6_whyml/expr_ghost_spec_ops.py
+
+             — the exact list, so the next sitting can launch all ten and poll rather than
+             discover them one at a time.
 
 So the bill is: ten mirror re-proofs, one of them three hours, plus a corpus witness whose
 meaning has to be restored or re-stated. **The one-part change moved two files; the correct
