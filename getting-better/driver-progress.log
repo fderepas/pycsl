@@ -9631,3 +9631,20 @@ ONE NOTE FOR THE NEXT PERSON, which cost two probes: the quantifier separator is
 SEMICOLON (`\forall i; <guard> ==> <body>`), not the period `annotations.md` uses in prose
 when it describes the WhyML the lemma lowers to. The period spelling is REFUSED — fail-closed,
 and confusing enough to be worth the sentence.
+
+--------------------------------------------------------------------------------
+2026-09-25 00:09Z — the sweep extended to the STATEMENT directives: 32 of 32
+
+    #@ assert x == 5   after `x = 5`     SUCCESS   |  x == 6    FAILED
+    #@ check  x == 5                     SUCCESS   |  x == 6    FAILED
+    #@ loop invariant 0 <= i and i <= 3  SUCCESS   |  i <= 2    FAILED
+    #@ assigns self.a  over a body that writes `self.a`         SUCCESS
+    #@ assigns \nothing over the same body                      FAILED
+
+Eight more probes, eight correct. **Thirty-two in total** across booleans, floored
+arithmetic, quantifiers, `\old`, assert/check, the loop invariant and the frame.
+
+The directive-enforcement plane (52 of 53) says every directive BITES — that a violating
+program is refused. This sweep says something different and previously unmeasured: that each
+construct MEANS what it says, in both directions, on the smallest program that can tell.
+Two claims, two instruments, and only one of them existed this morning.
