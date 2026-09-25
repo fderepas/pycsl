@@ -7400,3 +7400,26 @@ on.
 Corollary: the three wrong drafts were all CORRECTIONS of each other, each caught by (w5)
 "write the program". (w5) stops a false sentence; this one is how you stop needing four
 passes.
+
+### (b6) A sweep compares TEXT; a proof type-checks a PROGRAM
+
+The byte-diff planes are the backbone of this campaign and they are excellent at what they
+do: they tell you WHICH files an emitter change moves, exactly, with no judgement. A mirror
+sweep of a candidate typing change moved two files, and the diff in both was the same
+function's `let` and its abstract `val` changing `map int` to `map string` in lockstep. I
+wrote that the bridge "does not desync", because the two declarations agreed.
+
+They did agree. The CALL SITE between them did not, and no sweep can see that, because the
+call site is text that did not change — `(self__stmts_to_whyml_5 self rest local_refs …)`
+is byte-identical before and after, and is now passing a `map string` to a `map int`
+parameter. Re-proving the moved file said so in **eight seconds**.
+
+A byte-diff answers "what moved". Type agreement, contract agreement, and every other
+property that spans two declarations are answered by RUNNING THE PROVER on the moved file,
+and that is the step that costs minutes-to-hours and is therefore the step that gets
+reasoned around.
+
+**When a sweep is green or small, that is a reason to run the proof, not a substitute for
+it.** The cheapest version is the one used here: re-prove only the files the sweep says
+moved. Eight seconds bought back a paragraph of confident and wrong prose, and sized a
+backlog item that had gone three generations without a number.
