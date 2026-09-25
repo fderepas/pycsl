@@ -116,10 +116,21 @@ POOL = [0, 1, 2, 3, 5, -1, -2, 7]
 # FOUR-byte value `0779`'s `#@ requires \length(d) == 4` admits.
 STR_POOL = ["", "a", "abcd", "xyz"]
 BYTES_POOL = [b"", b"a", b"abcd", b"xyz"]
+# (#49) gen #31 — THE LIST POOLS. The census put `list`/`List[...]` parameters at 145
+# functions, the largest group left outside this oracle after the predicate axis. Three
+# values each: the EMPTY one (where `\length(x) == 0` and every indexing precondition
+# bites), a singleton, and a three-element list long enough for an index-2 read.
+#
+# EVERY CALL GETS A FRESH COPY (`_materialise` below). A corpus function is free to mutate
+# its list argument, and a shared pool object would carry the first tuple's mutation into
+# the second — the same hazard the post-state axis solves by rebuilding the object, and the
+# same wrong answer: the oracle would report a disagreement it had caused itself.
+LIST_POOL_INT = [[], [0], [1, 2, 3]]
+LIST_POOL_STR = [[], ["a"], ["a", "b", "c"]]
 MAX_TUPLES = 40          # per function, deterministic prefix of the product
 CALL_TIMEOUT = 1.0       # seconds; a corpus loop must not hang the battery
 EXEC_TIMEOUT = 2.0
-MIN_EVALS = 6800         # 7063 with the PREDICATE axis (`#@ ensures` clauses over
+MIN_EVALS = 6950         # 7239 with the LIST-PARAMETER axis; 7063 with the PREDICATE axis (`#@ ensures` clauses over
                          # `\result` that are not equalities — the census found the
                          # inequality family to be the largest evaluable group this oracle
                          # was skipping). Was 6114 with the POST-STATE axis, 5750 with the METHOD
@@ -401,14 +412,52 @@ def collect(no_exclusions=False):
             # RETURN annotation is no longer restricted: `\result == d` is an ordinary
             # Python `==` whatever `d` is, and a comparison the oracle cannot make simply
             # raises and is counted.
-            if not all(isinstance(a.annotation, ast.Name)
-                       and a.annotation.id in ("int", "bool", "str", "bytes")
-                       for a in ps):
+            _tags = [_ann_tag(a.annotation) for a in ps]
+            if any(t is None for t in _tags):
                 continue
+            # (#49) gen #31 — A FUNCTION THAT MUTATES A LIST ARGUMENT IS OUT OF THE
+            # POPULATION, and this is an honesty exclusion, not a convenience. For a
+            # SCALAR parameter the question does not arise: `int`, `bool`, `str` and
+            # `bytes` are immutable, so the name in an `#@ ensures` denotes the argument
+            # whatever the body does to its own binding. A `List[T]` is passed as a WhyML
+            # `array T`, which is mutable and shared, and whether a bare `xs` in the
+            # postcondition means the pre- or post-state array is a question about PyCSL's
+            # lowering that this oracle must not GUESS at — guessing gives a disagreement
+            # the oracle itself caused, which is the worst thing a truth oracle can print.
+            #
+            # Measured on a constructed probe: `xs.append(0); return len(xs)` under
+            # `#@ ensures \result == \length(xs) + 1` is reported FALSE if `xs` is read
+            # after the call and TRUE if it is read before. Both readings are defensible;
+            # only one can be right; neither is worth asserting here. ZERO corpus functions
+            # in the population mutate a list argument, so this filter costs nothing today
+            # and closes the hole before a driver walks into it.
+            _listy = {a.arg for a, t in zip(ps, _tags) if t.startswith("list:")}
+            if _listy:
+                _MUT = ("append", "insert", "pop", "extend", "clear", "remove",
+                        "sort", "reverse", "__setitem__")
+                _mutates = False
+                for _n_mu in ast.walk(node):
+                    if (isinstance(_n_mu, ast.Call)
+                            and isinstance(_n_mu.func, ast.Attribute)
+                            and _n_mu.func.attr in _MUT
+                            and isinstance(_n_mu.func.value, ast.Name)
+                            and _n_mu.func.value.id in _listy):
+                        _mutates = True
+                    if isinstance(_n_mu, (ast.Assign, ast.AugAssign, ast.Delete)):
+                        _tg = (_n_mu.targets if isinstance(_n_mu, ast.Assign)
+                               else [_n_mu.target] if isinstance(_n_mu, ast.AugAssign)
+                               else _n_mu.targets)
+                        for _t_mu in _tg:
+                            _base = _t_mu
+                            while isinstance(_base, (ast.Subscript, ast.Attribute)):
+                                _base = _base.value
+                            if isinstance(_base, ast.Name) and _base.id in _listy:
+                                _mutates = True
+                if _mutates:
+                    continue
             # A post-state method typically returns `None`; the return annotation only
             # has to be readable when a `\result` clause is actually evaluated.
-            if not (isinstance(node.returns, ast.Name)
-                    and node.returns.id in ("int", "bool", "str", "bytes")) \
+            if _ann_tag(node.returns) is None \
                     and not (_cls is not None and _post_probe):
                 continue
             ann = annotations_of(node)
@@ -496,13 +545,44 @@ def collect(no_exclusions=False):
             _raises_when = [m.group(1).strip() for m in
                             (re.match(r"#@\s*raises\s+\w+\s+when\s+(.+)$", a)
                              for a in ann) if m]
-            for _a_pp in ps:
+            for _a_pp, _tag in zip(ps, _tags):
                 PARAM_POOL[(name, _a_pp.arg)] = {
-                    "str": STR_POOL, "bytes": BYTES_POOL}.get(_a_pp.annotation.id, POOL)
+                    "str": STR_POOL, "bytes": BYTES_POOL,
+                    "list:int": LIST_POOL_INT, "list:str": LIST_POOL_STR}.get(_tag, POOL)
             per.setdefault(f, []).append(
                 (name, [a.arg for a in ps], ens, reqs, bool(reach(name) & trusted),
                  _cls, _raises_when, post, preds, _diverges))
     return per, stats
+
+
+def _ann_tag(a):
+    r"""The pool tag for a parameter annotation, or None if this oracle has no values for it.
+
+    `int` / `bool` / `str` / `bytes` are the scalar pools. `list`, `List`, `List[int]`,
+    `List[bool]` and `List[str]` are the list ones — `List[str]` gets strings, everything
+    else gets ints, because a list of ints is what `\length`, indexing and summation
+    clauses are written over. A parameterised list of anything else (records, nested lists)
+    returns None and the function stays out of the population.
+    """
+    if isinstance(a, ast.Name):
+        if a.id in ("int", "bool", "str", "bytes"):
+            return a.id
+        if a.id in ("list", "List"):
+            return "list:int"
+        return None
+    if isinstance(a, ast.Subscript) and isinstance(a.value, ast.Name) \
+            and a.value.id in ("list", "List"):
+        _el = a.slice
+        if isinstance(_el, ast.Name) and _el.id in ("int", "bool", "str"):
+            return "list:str" if _el.id == "str" else "list:int"
+    return None
+
+
+def _materialise(v):
+    """A fresh copy of a pool value for THIS call. Scalars are immutable and pass through;
+    a list is copied, because a corpus function may mutate its argument and the pool must
+    not carry that into the next tuple."""
+    return list(v) if isinstance(v, list) else v
 
 
 def _py(expr):
@@ -621,6 +701,7 @@ def main():
                 for tup in itertools.product(*_pools):
                     if tested >= MAX_TUPLES:
                         break
+                    tup = tuple(_materialise(v) for v in tup)
                     env = dict(zip(params, tup))
                     # (#49) gen #31 — A FRESH OBJECT PER CALL for the post-state axis.
                     # `\old` names the state before THIS call; reusing one instance across
