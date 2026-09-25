@@ -7193,3 +7193,43 @@ FEATURES to build rather than a list of candidates to retry.
        write is the one that says whether they fail the same way
     3. f-strings (186 of 442 bodies), comprehensions (170), dict literals (160)
     4. the self-field `.append` (11 of 442)
+
+### THE RANKING, REPLACED AGAIN — and this time by a LINE OF SOURCE (2026-09-25)
+
+The entry above lists "a set's ELEMENT TYPE" and "set UNION" as two features to build. Both
+descriptions were wrong, and the correction is the most useful thing in this file:
+
+**`module6_whyml/functions.py` ~137**
+
+    _sk = "string" if (_mut_coll and kt.get(arg) == "string") else "int"
+
+A `Set[str]` parameter IS string-keyed — when it is a MUTATED (by-reference) parameter. A
+read-only one "must STAY `map int`", and the thirteen lines of comment above that line say
+why (it is forwarded to sibling `val` bridges typed `map int`) and name the missing piece:
+*"that cross-method κ=string agreement is the deferred I4 fixpoint"*.
+
+Everything measured follows from it, including the prediction that CONFIRMED it: a `Set[str]`
+parameter that is both `add`ed to and tested VERIFIES, because the `.add` promotes it.
+
+    held.add(m)          Set[str]   SUCCESS      the mutation buys the string key
+    m in held            Set[str]   FAILED       read-only: still map int
+    held.add(m); m in held          SUCCESS      predicted, then run
+
+Set union is likewise not missing — it is gated on a set-LITERAL right operand inside a
+`@mutable_state` class (`expressions.py` ~6259), and `ConcurrencyChecker` is not
+`@mutable_state`, which is the second gate `_walk_stmt` fails.
+
+**THE #1 ITEM IS NOW A NAMED, EXISTING, DEFERRED PIECE OF WORK WITH A MEASURED BLAST RADIUS:**
+
+    1. **the I4 fixpoint** — propagate κ=string across call edges so a READ-ONLY `Set[str]`
+       param and the sibling `val` bridges it feeds agree. Censused blast radius:
+       **ZERO read-only `Set[str]` params in either corpus**, 159 in the mirror, 231 in the
+       live tree. A typing change that cannot move a corpus emission and unblocks exactly
+       the conversion candidates the backlog has been ranking for three generations.
+    2. set-op lowering outside the `@mutable_state` + set-literal gate
+    3. f-strings (186 of 442 bodies), comprehensions (170), dict literals (160)
+    4. the self-field `.append` (11 of 442)
+
+`finding-a-set-has-no-element-type-and-no-union.md`, and wall-lesson (a6): the three earlier
+descriptions of this were all fitted to the same ten measurements; the one that survived was
+the one that predicted an eleventh.
