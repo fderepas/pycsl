@@ -60,9 +60,36 @@ finding-most-trusted-candidates-are-facades-not-proof-problems.md` has the table
 per-file distribution (six files hold 54 of the 61; the four big frontend modules contribute
 ONE between them) and the second-wave similarity scores.
 
+FINAL NUMBERS (04:11Z, after two self-corrections; the census now imports the fidelity
+plane's own `_normalize`/`_signature`, so VERBATIM means what the gate means):
+
+    VERBATIM   62   FACADE 235   DIFFERS 105   AMBIGUOUS 8
+
+ALL 62 HAVE NOW BEEN SCREENED. The whole proof-only surface, adjudicated:
+
+    2   LANDED — `errors.py::message`, `proof2why3/sertop.py::__exit__` (commit af7f32c1)
+    36  TYPE errors — ONE capability, `finding-the-type-wall-is-one-capability.md`
+    13  REFUSED — in-place mutators, `with`-binds, nested-lift, heterogeneous list, `else:`
+    5   trusted-parent traps (CHECK 0) — lower, prove nothing; 2 of them report LOWERS
+    3   check-1 refusals — `_cache_root`, `validate_ir`, `iter_child_nodes` (a generator)
+    1   `_finalize` — BYTE-IDENTICAL emission; converting it proves nothing
+    2   census artifacts, 1 CONVERTER-FAILED
+
+**Zero landable candidates remain behind a proof alone.** Everything left needs a capability.
+
 WHAT TO WORK, IN ORDER:
-  1. The 58 verbatim candidates the screen had not yet reached (`$S/screen_verbatim.txt`).
-     This is the whole remaining proof-only surface.
+  1. THE STRING/LIST FIELD VALUE MODEL. 36 of the 62 collide on it and the witnesses are
+     enumerated in `finding-the-type-wall-is-one-capability.md`. Both directions appear
+     (`int` where `string` is wanted AND `string` where `int` is wanted), because a Python
+     `str` is a Why3 `string` in parameter/return position and an `int` in record-FIELD
+     position. `errors.py::__str__`'s own marker comment predicted this years of work ago.
+  2. THE NESTED-CLOSURE LIFT. `module6_whyml/functions.py`'s refusal — "a lifted body reads a
+     captured name as ONE global opaque constant shared by every call" — blocks 2 of the 62
+     directly and gates the 5 trusted-parent traps indirectly.
+  3. CHECK 0 SHOULD BE THE SCREEN'S FIRST FILTER, ahead of `--no-proof` lowering: it is
+     static, needs no prover, and it disqualified 2 candidates that lowered cleanly.
+  4. The 105 DIFFERS and 235 FACADEs are a PORTING programme (22,252 lines), not a conversion
+     vein.
   2. The 11 DIFFERS at >= 0.80 similarity — a small mechanical re-port, then the same screen.
      Three of them are at >= 0.95 (live drifted after the port).
   3. The 89 below 0.50 are the `finding-a-verified-program-that-is-not-the-executed-program`
