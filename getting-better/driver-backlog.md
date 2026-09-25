@@ -7609,3 +7609,17 @@ bill" above was written while the second re-proof was still running.
 fails, at ONE call edge (line 1350, the promoted `local_refs` meeting a `val` still typed
 `map int`). The sweep had already said only two files move. The next step is "promote that
 callee's params and re-sweep" — three minutes — not a mirror-wide rewrite.
+
+**A NEW MEASURED PROOF TIME.** `frontend/Module2_Parser.py` — the file with the largest
+candidate pool (21) — proves whole-file in **15m12s** (02:09:28Z -> 02:24:40Z, SUCCESS). The
+known table is now:
+
+    frontend/Module1_Ingestor.py          ~14 s      frontend/Module3_Weaver.py     ~4 min
+    frontend/ConcurrencyChecker.py        ~17 s      frontend/Module2_Parser.py     15m12s
+    frontend/ir_resolve.py               ~22 min     frontend/__init__.py           ~24 min
+    pycsl.py                             ~29 min     Module6_WhyMLTranspiler.py     40m43s
+    module6_whyml/expressions.py          2h57m
+
+A candidate's price is its FILE's proof time, not its own size, and that is what makes
+`Module1_Ingestor` (14 s, five candidates, all five tried in forty seconds) the right place
+to iterate and `expressions.py` the wrong one.
