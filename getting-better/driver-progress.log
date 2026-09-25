@@ -10120,3 +10120,37 @@ THREE NEGATIVES IN AN HOUR, all recorded: the ImportError rows are the harness, 
 total-dict model asserts an exit and not a value, and the stdlib tree loads. A finding family
 is a magnet for over-reading, and the only defence is that each new instance costs a few
 minutes to check and the check is not optional.
+
+--------------------------------------------------------------------------------
+2026-09-25 01:30Z — the I4 probe: ONE LINE, and the read-only `Set[str]` membership verifies
+
+    module6_whyml/functions.py ~137
+    -   _sk = "string" if (_mut_coll and kt.get(arg) == "string") else "int"
+    +   _sk = "string" if (kt.get(arg) == "string") else "int"
+
+On an offline tree, that one deletion makes
+
+    #@ ensures True
+    def has(held: Set[str], m: str) -> bool:  return m in held
+
+**VERIFY**, where the live tree answers `This expression has type string, but is expected to
+have type int`. The `Set[int]` control stays green.
+
+Module 5 was never the problem: `_tag_str_keyed` already tags a parameter κ=string from a
+membership test with a string key (`Module5_IREmitter` ~6034). The whole blocker is the
+`_mut_coll` conjunct in Module 6, and the thirteen lines above it say why it is there — a
+read-only set param is forwarded to sibling `val` bridges typed `map int`, and the agreement
+across that boundary is "the deferred I4 fixpoint".
+
+FIRST BLAST-RADIUS MEASUREMENT, on the population most likely to move: all 18 corpus files
+carrying a set/frozenset annotation, emitted through both trees.
+
+    14 emitted (four are expected-FAIL and refuse), **0 MOVED**
+
+which is what the census predicted (ZERO read-only `Set[str]` params in either corpus) and
+is now measured rather than predicted. The mirror sweep is running; the mirror is where the
+159 read-only params live and where the sibling-bridge risk the comment names would show up.
+
+Landing this is NOT the one-line deletion — the comment's warning has to be either satisfied
+or measured to be empty, and a bridge mistype would show as a mirror emission that no longer
+type-checks. But the cost of finding out is now a sweep, not an argument.
