@@ -5820,7 +5820,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 nu = self._m5_get_dict_value_type(_eff_ann)
                 if nu is not None:
                     dict_value_types[arg.arg] = nu
-                kappa = self._m5_get_dict_key_type(_eff_ann)
+                # (#49) gen #31 — THE SAME RULE, STATED TWICE AND IMPLEMENTED ONCE.
+                # `_m5_get_field_key_type` (record FIELDS) covers `Set[str]` /
+                # `FrozenSet[str]` and says why in its own docstring — "a set's element IS
+                # its key" — while `_m5_get_dict_key_type` (PARAMETERS) covers only
+                # `Dict[str, V]`. So a `Set[str]` PARAMETER never got κ from its
+                # DECLARATION and could only acquire it from the usage tagger
+                # (`_tag_str_keyed`), which fires on a membership with a provably-string
+                # key. That is why `held.add(m)` verified on a `Set[str]` and `m in held`
+                # on the same value did not, and why a callee that merely PASSES the set
+                # onward never got it either.
+                #
+                # Reading κ from the declaration here makes both ends of a call edge agree
+                # BY CONSTRUCTION — no propagation pass, no fixpoint. Witness `1909`,
+                # control `1910`, carrier triple in `check-open-route-carriers.py`.
+                kappa = self._m5_get_field_key_type(_eff_ann)
                 if kappa is not None:
                     dict_key_types[arg.arg] = kappa
 

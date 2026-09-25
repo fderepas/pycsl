@@ -83,21 +83,12 @@ CARRIERS = {
     # fixpoint". The two controls pin it from both sides: the same membership on a MUTATED
     # param verifies, and `Set[int]` membership verifies.
     #
+    # (#49) gen #31 — THE THREE `setelem-*` ROWS ARE GONE, and that is the good ending a
+    # carrier can have. The carrier VERIFIED once the I4 fixpoint landed, so all three
+    # files moved into the corpus as witnesses 1909 / 1910 / 1911 in the same commit,
+    # exactly as the carrier file instructed a generation ago. A route closed by a real
+    # fix leaves the corpus one witness richer and this plane one row lighter.
     # `finding-a-set-has-no-element-type-and-no-union.md`
-    "getting-better/open-routes/setelem-carrier-read-only-str-set-membership.py": (
-        "FAILED", "SET-ELEM",
-        "a read-only `Set[str]` parameter's `m in held` is lowered against `map int` and "
-        "Why3 rejects `string where int is expected`. When this VERIFIES the I4 fixpoint "
-        "has landed: move all three files into the corpus as witnesses in the same commit"),
-    "getting-better/open-routes/setelem-control-mutated-str-set-membership.py": (
-        "SUCCESS", "SET-ELEM",
-        "the SAME membership on a param the body also `.add`s to VERIFIES — the mutation is "
-        "what buys the string key. Run as a PREDICTION of the mechanism, not as another "
-        "symptom of it (wall-lesson (a6))"),
-    "getting-better/open-routes/setelem-control-int-set-membership.py": (
-        "SUCCESS", "SET-ELEM",
-        "`Set[int]` membership on a read-only param VERIFIES, so the membership PATH is "
-        "fine and the defect is the ELEMENT TYPE"),
     "getting-better/open-routes/route221-carrier-fun-assumes-a-synthesized-frame.py": (
         "SUCCESS", "#221",
         "`--fun use` proves `\\result == 0` for a callee whose body sets `self.v = 7` and "

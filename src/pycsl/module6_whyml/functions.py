@@ -135,7 +135,12 @@ class FunctionEmissionMixin:
             # the deferred I4 fixpoint). Byte-identical for every int-keyed / non-by-ref set param
             # (0821/0833 `Set[int]`, 0884's `Any`-erased `acc`, and all method set params).
             kt = getattr(self, "_dict_key_types", {}) or {}
-            _sk = "string" if (_mut_coll and kt.get(arg) == "string") else "int"
+            # (#49) gen #31 — the `_mut_coll` conjunct is GONE. It was there because a
+            # read-only set param's κ could only come from the USAGE tagger, so promoting
+            # it desynced the sibling `val` bridges that had no such usage ("the deferred
+            # I4 fixpoint"). With κ now read from the DECLARATION above, both ends of a
+            # call edge get it from the same place and the desync cannot arise.
+            _sk = "string" if (kt.get(arg) == "string") else "int"
             # `_collect_class_constants(node, field_names)`: a READ-ONLY `Set[str]` method
             # param whose ONLY use is the membership `target in field_names`, where `target`
             # is an `Optional[str]` UNION LOCAL. The emitted key is therefore the carrier
