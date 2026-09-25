@@ -17,7 +17,17 @@ The prover is right; the proof is empty. This is vacuity — but it is vacuity o
 below where `bin/check-claim-vacuity.py` looks, because that instrument's population is
 CLAUSES that are trivially true, and `\result == k` is as contentful as a clause gets.
 
-## Instance 1 — `0496.py::grab`, the `__new__` arity nobody compares
+## Instance 1 — `0496.py::grab`, the `__new__` arity nobody compares  **[CLOSED]**
+
+**CLOSED (gen #31).** The arity comparison now happens, in `Module3_Weaver.visit_ClassDef`
+beside the UB-7.6 check, and refuses only what NO call can construct — `__init__`'s minimum
+required count above `__new__`'s maximum acceptable one. Witness `1905`; controls `1906`
+(`*args`/`**kwargs` is exempt) and `1907` (an `__init__` with a DEFAULT still has a working
+call and is exempt). 0496 itself is repaired to `def __new__(cls, n: int)`: it VERIFIES, it
+RUNS (`grab(3)` is 3), and its emission is BYTE-INERT. `NEVER_RETURNS` went 8 -> 7 and
+`MAX_RAISED` 15 -> 14 — the entry left the table because the program was fixed.
+
+The account below is kept as written, because it is the evidence the repair was built from.
 
 ```python
 class Holder:
