@@ -11075,3 +11075,25 @@ reverted, because the refusal written into the plan governs:
 > If a moved mirror file stops proving, the increment does NOT land by marking that file
 > `\trusted`. That would be trading a real proof for a marker in order to buy a capability —
 > the exact inverse of this campaign. Record the regression and stop.
+
+## 08:36Z — `frontend/pure_ast.py::error` and `::unsupported` PORT, CONVERT AND PROVE
+
+Three hours and six minutes of prover time for two markers, on the file the five-candidate
+batch had failed. Separating them was the whole difference:
+
+    five together (error, iter_fields, unsupported, __instancecheck__, visit_If)
+        105 diff lines, THREE new abstract ops (`get__fields`, `isinstance_op`,
+        `_const_types_not_get_2`), proof `Unknown (why3: Out of …)`
+    error + unsupported alone
+        28 diff lines, **ZERO new abstract ops**, two `val` -> `let`,
+        [+] Verification SUCCESS! All contracts formally proven.
+
+`iter_fields` and `__instancecheck__` own the new `val`s — `node._fields` and `isinstance`.
+They are the value model again, and they were dragging two clean candidates down with them.
+
+**BATCH TO SHARE A PROOF, NEVER TO SHARE A VERDICT.** A three-hour proof is worth batching
+for; a verdict is not, because when the batch fails every member is unadjudicated and the emit
+diff is the only thing that says which member owns which `val`.
+
+Running total of port+convert candidates taken all the way: **seven proved** (five landed in
+increment H, plus these two), two Z3 timeouts, and one batch refused on check 1.
