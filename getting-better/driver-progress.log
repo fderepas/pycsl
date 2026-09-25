@@ -11320,3 +11320,8 @@ So the second and third members of the batch that failed together — `iter_fiel
 `__instancecheck__` — both prove ALONE, and both are admitted. The batch's `Unknown (why3:
 Out of …)` was a resource limit, not a verdict about any member. **Three for three on
 "separate before concluding".**
+
+## 14:59Z — INCREMENT L IS GATED: 4029/4047. NINE increments; markers 450.
+
+    corpus 0 MOVED · mirror 1 MOVED 0 unexpected · fidelity 896 · planes 48/48 ·
+    suite 4029/4047, the standing EIGHTEEN, ZERO XPASS
