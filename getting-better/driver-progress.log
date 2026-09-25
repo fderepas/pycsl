@@ -11525,3 +11525,25 @@ pristine sources.
 NEXT: land it as increment O, then re-screen the 103 markers whose recorded verdict was a
 `string`/`int` type error (`rescreen_facade.txt` 76 + `rescreen_differs.txt` 27) to measure
 what the closure actually retires.
+
+## 23:44Z — INCREMENT O LAUNCHED, and the session's own conversion track was audited
+The morning's headline result is a CORRECTION, not a conversion.
+`bin/run-soundness-planes.sh --slow` adds 25 prover/emission planes. NO GATE THIS SESSION
+RAN IT — twenty-eight invocations of the battery, all with no arguments, all printing
+"all 48 plane(s) green". Run once at 21:48Z on the increment-N tree: **5 of 73 RED**.
+  check-yield-erasure          `pure_ast.py::iter_fields` — a `unit` body, `true` contract,
+                               the yielded pair replaced by `any int`. THIS SESSION (G).
+  check-emitted-vacuity        FIVE new erasures, ALL THIS SESSION: `error`, `unsupported`,
+                               `_err`, `_rewrite_call_sites` (BOTH args), `stable_hash`.
+  check-shadowed-selfcalls     17 > 14; the three added are `error` (19 bypassing sites),
+                               `_err` (7), `unsupported` (2). THIS SESSION.
+  check-getattr-erasure        corpus 1859/1860 unregistered — PRE-EXISTING.
+  check-stdlib-modules-verify  83 of 104 — PRE-EXISTING standing measurement.
+TWO of the six had the verdict already written in the file: `unsupported`'s comment said
+"converting emits `_parser__unsupported erased=['what'] of ['what']` — input-blind", and
+`_err`'s said it "was converted, then REVERTED by two planes in succession". Both commits
+deleted the marker and LEFT THE COMMENT SAYING "STAYS trusted".
+LANDED: d21a61fb six re-trusts (446 -> 452, aggregate 798 -> 830, every ratchet naming its
+members); 900ff447 the string closure + `errors.py::__str__` (452 -> 451, four emitted
+symbols, aggregate 830 -> 828); 5857acff the fast battery now NAMES ITS OWN SCOPE.
+Gate O launched 23:44:05Z and it runs `--slow`.
