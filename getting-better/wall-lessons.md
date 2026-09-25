@@ -7501,3 +7501,25 @@ The rule is not "never estimate". It is: **say which measurements the estimate i
 in the estimate**, and re-open it when they land. One sentence — "the second re-proof is
 still running" — would have made the number provisional instead of wrong, and it costs
 nothing to write while you are already writing the number.
+
+### (f6) Separate the cheap failure modes from the expensive one, and run the cheap ones first
+
+Trying a conversion candidate meant running the mirror file's WHOLE-FILE PROOF: 14 s in the
+cheapest file, 15 minutes in the next one up, **2h57m** in the biggest. Three generations of
+backlog produced SIX tried candidates, and the price is the whole reason.
+
+Then: what actually kills a conversion? Of everything measured today, not one candidate died
+at the prover. They died at a TYPE ERROR or at a REFUSAL — and both are reached by
+`--no-proof`, which emits and type-checks and stops.
+
+    two candidates, full proof      ~16 s          eight candidates, full proof   ~2 HOURS
+    the same two, `--no-proof`       3.8 s         the same eight, `--no-proof`    ~20 s
+
+A screen PASS is weaker than a real attempt — it says the function LOWERS, not that it
+proves. A screen FAIL is exactly as strong. So the screen is free information in the
+direction that matters, and the expensive run is reserved for the handful that survive it.
+
+**Before paying for the strongest check, ask which failure modes the cheap check already
+catches.** If the answer is "all the ones I have actually seen", the expensive check is
+answering a question nobody has yet needed to ask. The 456 still-`\trusted` functions went
+from unscreenable to a ten-minute sweep on that one observation.
