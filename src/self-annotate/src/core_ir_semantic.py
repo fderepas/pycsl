@@ -891,6 +891,16 @@ def _check_lemma(func, trusted_funcs) -> None:
 def _returns_literal_none(body) -> bool:
     found = [False]
 
+    # (#49) gen #31 — AN HONEST MARKER, NOT A REGRESSION, and this one was invisible TWICE
+    # over. `_returns_literal_none` is itself `#@ \trusted`, so this closure is folded into
+    # an opaque `val` and verified nowhere — while the fidelity plane counted it among the
+    # verbatim un-trusted twins. `check-untrusted-emitted.py` could not see it because its
+    # walk stopped at a `def`; and once the walk was fixed it STILL could not see it,
+    # because that plane matches on the BARE name and this file has FIVE closures called
+    # `walk`, the other four of which are emitted. Only the STATIC question — is the
+    # enclosing function `\trusted`? — separates them. RETIRED BY: converting
+    # `_returns_literal_none`.
+    #@ \trusted reviewer: pycsl-self-annotate
     def walk(node):
         if found[0]:
             return

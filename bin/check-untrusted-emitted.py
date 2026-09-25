@@ -118,20 +118,42 @@ def annotation_flags(lines, node):
 
 
 def candidates(path):
+    """Every un-trusted, un-abstract mirror function, as `(class-tuple, name,
+    enclosing-def-or-None, enclosing-def-is-trusted)`.
+
+    (#49) gen #31 — DESCENDS INTO NESTED DEFS, AND THROUGH COMPOUND STATEMENTS. This walk
+    used to recurse into a ClassDef and stop at a FunctionDef, so a closure was invisible to
+    this gate. That is not a cosmetic gap: this plane IS the integrity gate on the conversion
+    count — the thing that stops a marker being removed from a body the emitter silently
+    re-abstracts to an opaque `val`. The FIDELITY plane descends (see the gen #4 note in
+    `check-self-annotate-mirror-sync.py::_walk`, which fixed exactly this walk in exactly
+    this way), so every nested un-trusted closure was already counted among the verbatim
+    un-trusted twins — the population this project calls verified — while this gate never
+    asked whether it was emitted. CENSUSED at the time of the fix: **52** such functions.
+
+    FOUND BY: `pycsl.py::_finalize` is a nested `\trusted` stub whose marker can be removed
+    with a BYTE-IDENTICAL emission — it stays `val _finalize (merged_records: int) (rc: int)
+    : (int, int, int)` either way. Converting it would drop the marker count by one and prove
+    nothing at all, and no plane would have said so.
+    """
     src = open(path).read()
     lines = src.split("\n")
     out = []
 
-    def walk(node, cls):
+    def walk(node, cls, encl, encl_trusted):
         for c in ast.iter_child_nodes(node):
             if isinstance(c, ast.ClassDef):
-                walk(c, cls + (c.name,))
+                walk(c, cls + (c.name,), encl, encl_trusted)
             elif isinstance(c, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 trusted, abstract = annotation_flags(lines, c)
                 if not trusted and not abstract:
-                    out.append((cls, c.name))
+                    out.append((cls, c.name, encl, encl_trusted))
+                walk(c, cls, c.name, trusted or encl_trusted)
+            else:
+                # compound statements (`try:` / `if:` / `with:` / `for:`) hold closures too
+                walk(c, cls, encl, encl_trusted)
 
-    walk(ast.parse(src), ())
+    walk(ast.parse(src), (), None, False)
     return out
 
 
@@ -161,6 +183,17 @@ WHYML_KEYWORDS = {"rec", "function", "constant", "predicate", "ghost", "lemma", 
 
 
 def classify(name, text):
+    # (#49) gen #31 — KNOWN LIMITATION, RECORDED RATHER THAN SILENTLY LIVED WITH. This
+    # matches on the BARE Python name plus a mangling prefix, so it cannot tell two
+    # same-named functions in one file apart. `core_ir_semantic.py` defines FIVE nested
+    # closures called `walk`, one of them inside a `\trusted` parent; if any one of the
+    # five is emitted, all five classify LET. The emitter mangles a lifted closure with its
+    # OWNER (`irscanner___has_return`), not with its enclosing function, so there is no
+    # name that would separate them — closing this needs the emitter to carry the enclosing
+    # scope into the lifted name, which is a lowering change, not a plane change.
+    # The population is small and named: `core_ir_semantic.py::walk` x5,
+    # `frontend/ir_resolve.py::_walk` x3, `module6_whyml/functions.py::classify` x6,
+    # `saw` x4, `rename` x4, `refs_param` x4, `module6_whyml/types.py::_scan` x2.
     b = re.escape(name)
     pre = r"[\w']*__" if name in WHYML_KEYWORDS else r"(?:[\w']*__)?"
     # `with <name>` is a mutual-recursion member of a `let rec … with …` group — a real
@@ -195,7 +228,7 @@ def main():
     prefixes = sys.argv[1:]
     files = sorted(os.path.join(d, f)
                    for d, _, fs in os.walk(MIRROR) for f in fs if f.endswith(".py"))
-    bad_val, bad_absent, total, lets = [], [], 0, 0
+    bad_val, bad_absent, bad_parent, total, lets, folded = [], [], [], 0, 0, 0
     for path in files:
         rel = os.path.relpath(path, MIRROR)
         if prefixes and not any(rel.startswith(p) for p in prefixes):
@@ -204,10 +237,26 @@ def main():
         if not cands:
             continue
         text = emit(path)
-        for cls, name in cands:
+        for cls, name, encl, encl_trusted in cands:
             total += 1
             status = classify(name, text)
             qn = ".".join(cls + (name,))
+            if encl_trusted:
+                # (#49) gen #31 — THE STATIC HALF, and it needs no emission at all. An
+                # un-trusted closure inside a `\trusted` enclosing function can never be
+                # verified: the parent is emitted as an opaque `val`, so no body anywhere
+                # carries the closure's claim — yet the FIDELITY plane descends and counts
+                # the closure among the verbatim un-trusted twins.
+                # WHY STATIC RATHER THAN BY EMISSION: `classify` matches the BARE name, and
+                # `core_ir_semantic.py` has FIVE closures called `walk` of which exactly one
+                # sits inside a `\trusted` parent. Four of them ARE emitted, so the
+                # emission-based verdict for all five is LET and the real one hides behind
+                # its siblings. The static question has no such blind spot.
+                # MEASURED: 2 — `Module6_WhyMLTranspiler::_sig_val_from_let::_hdr_name`
+                # (which the emission check ALSO caught, as a `val`) and
+                # `core_ir_semantic::_returns_literal_none::walk` (which it did not).
+                bad_parent.append((rel, "%s (inside `\\trusted` %s)" % (qn, encl)))
+                continue
             if status == "LET":
                 lets += 1
             elif status == "VAL":
@@ -219,18 +268,44 @@ def main():
                 else:
                     bad_absent.append((rel, qn + f"  [cluster prefix "
                                                  f"'{CLUSTER_EMITTED[name]}' MISSING]"))
+            elif encl is not None and classify(encl, text) == "LET":
+                # (#49) gen #31 — FOLDED. A nested closure is ABSENT from the emission
+                # because the emitter's RECOGNIZERS consume it into the enclosing
+                # function's model rather than lowering it to its own definition.
+                # MEASURED on `module6_whyml/functions.py::
+                # _build_method_param_result_ensures_map`: the Python body's `classify`,
+                # `refs_param` and `rename` closures do not appear, and the parent IS
+                # emitted as a `let` whose body is the recognizer's fold, with lifted
+                # helpers named after the PARENT (`__lmem`, `__gtype`, `__gnm`, `__gvar`,
+                # `__f`). Whether that fold is FAITHFUL is `check-bespoke-model-drift.py`'s
+                # question, not this plane's; this plane asks only whether something was
+                # emitted that can carry the claim, and for a folded closure the parent's
+                # definition is that something.
+                # THE CONDITION IS THE WHOLE POINT: the parent must itself be a DEFINITION.
+                # A closure inside a `\trusted` parent is folded into a `val` — i.e. into
+                # nothing — and still falls through to the refusal below.
+                folded += 1
             elif name not in EXPECTED_ABSENT and name not in EXPECTED_ABSENT_NAMES:
-                bad_absent.append((rel, qn))
+                bad_absent.append((rel, qn + ("" if encl is None
+                                              else "  [nested inside %s, which is %s]"
+                                              % (encl, classify(encl, text)))))
 
+    for rel, qn in bad_parent:
+        print(f"[!] UN-TRUSTED INSIDE A TRUSTED PARENT: {rel}::{qn} — the enclosing function "
+              f"is emitted as an opaque `val`, so this closure's body is verified NOWHERE, "
+              f"while the fidelity plane counts it among the verbatim un-trusted twins. "
+              f"Mark it `#@ \\trusted` (honest) or convert the parent.")
     for rel, qn in bad_val:
         print(f"[!] SILENTLY RE-ABSTRACTED: {rel}::{qn} — un-trusted but emitted as `val`. "
               f"Its marker is gone and nothing is verified in its place.")
     for rel, qn in bad_absent:
         print(f"[!] NOT EMITTED: {rel}::{qn} — un-trusted but absent from the emission "
               f"(and not a constructor/dunder).")
-    print(f"[{'!' if bad_val or bad_absent else '+'}] untrusted-emitted: {total} un-trusted "
-          f"function(s); {lets} emitted as definitions, {len(bad_val)} re-abstracted to "
-          f"`val`, {len(bad_absent)} unexpectedly absent.")
+    print(f"[{'!' if bad_val or bad_absent or bad_parent else '+'}] untrusted-emitted: {total} un-trusted "
+          f"function(s); {lets} emitted as definitions, {folded} nested closure(s) FOLDED "
+          f"into an emitted enclosing definition, {len(bad_val)} re-abstracted to "
+          f"`val`, {len(bad_absent)} unexpectedly absent, {len(bad_parent)} "
+          f"un-trusted inside a `\\trusted` parent.")
     # (#49) gen #31 — ZERO-INPUT GUARD. The verdict is "no `val`, no unexpected absence",
     # and an EMPTY population satisfies both: if the mirror walk or the `.mlw` lookup
     # breaks, `total` is 0, both lists are empty, and this plane prints `[+]` over a
@@ -243,7 +318,7 @@ def main():
               f"\"0 re-abstracted, 0 absent\" means nothing. THIS IS A REFUSAL, NOT A "
               f"PASS.", file=sys.stderr)
         return 2
-    return 1 if (bad_val or bad_absent) else 0
+    return 1 if (bad_val or bad_absent or bad_parent) else 0
 
 
 # BASELINE, whole mirror, 2026-08-27: 716 un-trusted · 699 definitions (694 direct + the

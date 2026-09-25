@@ -73,7 +73,7 @@ MAX_TRUST_DEPENDENT = 401     # UPPER bound at the first measurement was 400; ma
                               # number silently every time a conversion landed in a trusted
                               # call path. So the invariant that actually means "the trusted
                               # surface did not grow" is ratcheted separately, below.
-MAX_TRUSTED_OR_DEPENDENT = 833
+MAX_TRUSTED_OR_DEPENDENT = 834
                               # (#49) gen #31 — THE RATCHET THAT SHOULD HAVE BEEN HERE FROM
                               # THE START: `len(trusted) + dep_hi`, the CEILING on the whole
                               # trusted-or-trust-dependent surface. It is invariant under the
@@ -81,7 +81,32 @@ MAX_TRUSTED_OR_DEPENDENT = 833
                               # 432+401 = 833 after — and it moves DOWN only when a conversion
                               # genuinely removes something from the surface, which is the
                               # thing the campaign is actually trying to do. Measured at 833
-                              # since gen #30's first measurement; it has never moved.
+                              # since gen #30's first measurement, through every conversion.
+                              #
+                              # 833 -> 834 IN THE SAME SESSION IT WAS ADDED, and the move is
+                              # an HONEST CORRECTION with a named cause — which is the only
+                              # way this constant is allowed to grow. Two nested un-trusted
+                              # closures were found sitting inside `\trusted` parents:
+                              # `Module6_WhyMLTranspiler::_sig_val_from_let::_hdr_name` and
+                              # `core_ir_semantic::_returns_literal_none::walk`. Their
+                              # enclosing functions are emitted as opaque `val`s, so their
+                              # bodies were verified NOWHERE, while the fidelity plane counted
+                              # them among the verbatim un-trusted twins. They now carry
+                              # honest `#@ \trusted` markers, and this measurement follows:
+                              # trusted 432 -> 434, dep_hi 401 -> 400, aggregate 833 -> 834.
+                              #
+                              # AND THE ASYMMETRY THIS EXPOSES, which the paragraph above got
+                              # half right. The aggregate IS invariant under a CONVERSION
+                              # (trusted -> untrusted-but-trust-dependent: one leaves the
+                              # trusted set and rejoins the surface). It is NOT invariant
+                              # under the reverse, because a newly-trusted function can pull
+                              # in callers that were previously trust-FREE — `walk` is called
+                              # all over `core_ir_semantic.py`, and dep_lo jumped 336 -> 343
+                              # on this one marker. So: this ratchet still catches a marker
+                              # added in a hot call path, which is what it is for; it just
+                              # cannot ALSO promise to be invariant in both directions.
+                              # Each future increase must name its two functions the way this
+                              # one does, or it is a regression.
 
 MIN_TRUST_FREE = 538          # (#49) gen #31: 540 -> 538, and this is the ONE direction this
                               # constant is allowed to move, so the reason is recorded rather

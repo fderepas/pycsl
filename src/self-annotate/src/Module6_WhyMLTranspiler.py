@@ -789,6 +789,16 @@ class Module6_WhyMLTranspiler(
         (skipping the preceding helper lets). A SINGLE-body group has exactly one top-level
         `let` and its public entry IS the first `let`, so the block is left untouched →
         byte-identical for every existing (single-body) group."""
+        # (#49) gen #31 — AN HONEST MARKER, NOT A REGRESSION. This closure sits inside
+        # `_sig_val_from_let`, which is itself `#@ \trusted`, so the enclosing function
+        # is emitted as an opaque `val` and there is no body anywhere that could carry
+        # this closure's claim. Until now it was UN-trusted, which meant the fidelity
+        # plane counted it among the verbatim un-trusted twins — the population this
+        # project calls verified — while `check-untrusted-emitted.py` could not see it
+        # at all (its walk stopped at a `def`). With the walk fixed, the plane reports
+        # it as SILENTLY RE-ABSTRACTED. The marker says what was already true.
+        # RETIRED BY: converting `_sig_val_from_let`.
+        #@ \trusted reviewer: pycsl-self-annotate
         def _hdr_name(stripped: str) -> Optional[str]:
             for kw in ("let rec ", "let function ", "let "):
                 if stripped.startswith(kw):

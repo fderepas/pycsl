@@ -114,3 +114,54 @@ Recording the zero matters as much as recording the 52. `check-yield-erasure.py`
 the defect that let 52 functions past `check-untrusted-emitted.py`, and it is clean today only
 because nobody has written a nested generator in the mirror yet. It will stay clean by
 accident until it doesn't.
+
+## What the fixed gate actually found — and the number that went backwards
+
+With the walk descending, the population is **915** un-trusted functions instead of 836. The
+first run reported 1 `val` and 41 ABSENT. Both numbers were then adjudicated rather than
+believed:
+
+**The 41 ABSENT are not 41 unverified functions.** Spot-checked by emitting the files by hand:
+`module6_whyml/ir_scanner.py`'s three closures ARE emitted (as `irscanner___has_return` etc. —
+the plane's mangling-aware regex matches them). And `module6_whyml/functions.py::
+_build_method_param_result_ensures_map`'s closures `classify` / `refs_param` / `rename` do not
+appear, because the emitter's RECOGNIZERS consume them into the parent's model — the parent is
+emitted as a `let` whose body is a fold, with lifted helpers named after the PARENT
+(`__lmem`, `__gtype`, `__gnm`, `__gvar`, `__f`). Whether that fold is faithful is
+`check-bespoke-model-drift.py`'s question. So the gate gained a shape rule:
+
+> **FOLDED** — a nested closure absent from the emission whose ENCLOSING DEF is itself
+> emitted as a definition. The parent's body is the thing that carries the claim.
+
+With the rule: 915 un-trusted, 859 definitions, **41 folded**, **1 `val`**, **0 unexpectedly
+absent**.
+
+**The 1 `val` is real**, and a second like it was hiding. `Module6_WhyMLTranspiler::
+_sig_val_from_let::_hdr_name` is un-trusted inside a `\trusted` parent: the parent is an
+opaque `val`, so nothing anywhere carries the closure's claim. Asking the question STATICALLY
+— *is the enclosing function `\trusted`?* — needs no emission and has no blind spot, and it
+finds a second: `core_ir_semantic::_returns_literal_none::walk`. The emission-based check
+misses that one because `classify` matches on the BARE name and `core_ir_semantic.py` has
+**five** closures called `walk`, the other four of which are emitted. It hid behind its
+siblings.
+
+## Both were given honest `\trusted` markers, and the count went 458 back to 460
+
+    460  at the start of the session
+    458  after `errors.py::message` and `proof2why3/sertop.py::__exit__` were PROVED
+    460  after `_hdr_name` and `_returns_literal_none::walk` took honest markers
+
+Fidelity: 886 -> 888 -> **886**. The session's headline number is exactly where it started.
+
+That is the right outcome and it should be said plainly: **two functions were removed from the
+trusted set by proving them, and two were added to it by discovering they had never been
+verified at all.** The count is unchanged; the map is two entries more accurate. A campaign
+that reports only the count would record this session as zero progress, and a campaign that
+refused the two honest markers to protect the count would be reporting 458 over a number that
+was never true.
+
+The blast-radius aggregate moved with it, 833 -> **834**, and that is recorded in the constant
+rather than absorbed — along with the asymmetry it exposed: the aggregate is invariant under a
+conversion (trusted -> trust-dependent) but NOT under the reverse, because a newly-trusted
+function pulls in callers that were previously trust-free. `walk` is called all over
+`core_ir_semantic.py`, and the same-file lower bound jumped 336 -> 343 on that one marker.
