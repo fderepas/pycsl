@@ -11410,3 +11410,100 @@ mirror edits; run it after ANY `src/pycsl/` change.
 #
 #    STATE: tree clean apart from the `.aux` exhaust and the two `scratchpad/w{7,8}`
 #    gitlinks. `\trusted` markers 460, by `bin/count-trusted-directives.py`. DO NOT PUSH.
+
+# ======================================================================================
+# ## UPDATE 2026-09-25T02:45Z — **EARLY STOP: THE SHELL DIED. READ THIS FIRST.**
+#
+#    WHAT HAPPENED. Every Bash command in this session now returns exit 1 with no output —
+#    `true`, `echo`, `date`, everything — and **a freshly spawned subagent hits the identical
+#    failure**, sandbox on or off. So it is not this session's shell alone.
+#
+#    THE CAUSE, as far as it can be established: I ran `pkill -f screen_all.sh` to stop a
+#    background sweep. `pkill -f` matches against the FULL command line, and the harness runs
+#    every Bash call through one persistent shell whose command line contains the text of the
+#    command being run — including, at that moment, the string `screen_all.sh`. The call
+#    returned exit 144 (128+16, SIGTERM) and nothing has worked since. Wall-lesson (c6) was
+#    written EARLIER THE SAME HOUR about a `pgrep` waiter matching its own command line; the
+#    kill is the same mistake with teeth, and it is now (c6)'s second paragraph.
+#
+#    **NEVER `pkill -f` A PATTERN THAT APPEARS IN YOUR OWN COMMAND LINE.** Kill by PID
+#    (`pgrep -f <pat> | grep -v $$`), or write a sentinel file the job polls, or let it finish.
+#
+#    TREE STATE — READ CAREFULLY, IT IS NOT CLEAN:
+#      * HEAD is `05b5434a docs(#49): a bug in the screen — its failure list was one line
+#        short`. Every commit made before the shell died is in; nothing is half-applied.
+#      * **TWO FILES ARE WRITTEN AND UNCOMMITTED** (created with the Write tool, which still
+#        works). They are new and untracked, so nothing is modified in place:
+#            getting-better/open-routes/finding-two-trusted-stubs-that-convert-and-prove.md
+#            getting-better/open-routes/finding-the-conversion-screen-first-106.md
+#        Both are finished prose with measured numbers. `git add` + commit them as they are.
+#      * The usual `.aux` build exhaust and the two `scratchpad/w{7,8}` gitlinks are as they
+#        have been all session — deliberate, do not revert.
+#
+#    **CORRECTION — THE GATE FINISHED AFTER ALL, AND IT IS GREEN.** The paragraph first
+#    written here said the suite "never finished"; that was read off the log while the run
+#    was still going, which is wall-lesson (e6) for the second time in one session. The
+#    nohup'd jobs were DETACHED and survived the shell's death:
+#
+#        Results: 4026/4044 passed          <- the predicted number, exactly
+#        SUITERC=1   END 02:56:35Z
+#        Failed/skipped (confirmed): 11 pycsl-reference + 7 python-reference
+#                                    = THE STANDING EIGHTEEN, ZERO XPASS
+#
+#    So `d998c44b` (the stateful `compose_from` half) and `910d9422` (the corpus RUNS: four
+#    repairs + `check-corpus-executes.py`) are **FULLY GATED AND LANDED**. Every stage is in
+#    `$SCRATCH/g31/gate_mixin2.log`: `SWEEPRC=0`, `PYREFRC=0`, `MIRCMP=0` (mirror inert),
+#    `SYNCRC=0` (886 verbatim), `PLANESRC=0` (**all 48 planes green**), suite 4026/4044.
+#
+#    The one red line in that log is EXPECTED and already resolved by hand: `CMPRC=1`, one
+#    unexpected `MOVED 1902_gen31_composer_that_inherits_its_mixins_verifies.mlw`. That move
+#    is exactly what commit `d998c44b` is FOR — `facade__handle_get`'s call went from the
+#    abstract `(self_emit_1 k)` to the concrete `(facade__emit self k)` — and re-running the
+#    compare by hand with BOTH movers declared was GREEN:
+#
+#        python3 bin/byte-diff-compare.py $SCRATCH/g31/bd_mx $SCRATCH/g31/bd_mx2 \
+#            --expect-moved 1190_route76_accessor_positive_control \
+#                           1902_gen31_composer_that_inherits_its_mixins_verifies
+#        -> 2 MOVED (0 unexpected), 0 GONE, 0 APPEARED, 1 new source file ignored.  rc=0
+#
+#    NOTHING needs re-running for those two commits. The ONLY loose end in that gate is
+#    cosmetic: `gate_mixin2.sh`'s `byte-diff-compare` line names one `--expect-moved` and
+#    needs two — add `1902_gen31_composer_that_inherits_its_mixins_verifies` beside
+#    `1190_route76_accessor_positive_control` so the NEXT gate that uses it starts green.
+#
+#    THE FIRST THING THE NEXT SESSION SHOULD DO, in order:
+#      1. `git add` the two record files above (plus this file and `wall-lessons.md`, both
+#         appended with the Write/Edit tools after the shell died) and commit them.
+#      2. Add the missing `--expect-moved` name to `$SCRATCH/g31/gate_mixin2.sh` — or just
+#         copy `gate_new.sh`, which is already correct for the next increment.
+#      3. Then land increment A, which is fully prepared and fully measured:
+#         `$SCRATCH/g31/land_a.sh` (the `__new__` ARITY refusal + 0496's repair + witnesses
+#         1905/1906/1907 + the NEVER_RETURNS / MAX_RAISED shrink) and gate it with
+#         `$SCRATCH/g31/gate_new.sh`. Predicted suite 4029/4047. Every anchor was re-verified
+#         against a FRESH tree copy at 02:15Z and every witness re-measured there.
+#
+#    **TWO `\trusted` STUBS ARE READY TO RETIRE, MEASURED END TO END** — the first movement
+#    of this campaign's headline that has been demonstrated rather than planned:
+#
+#        errors.py::message                    converted -> the file PROVES  (~11 s)
+#        audit_proof_reverify.py::_cache_root  converted -> the file PROVES  (~28 s)
+#
+#    They are NOT landed and the new record file says exactly what must be checked first
+#    (emit-diff both ways, the three trust planes, `count-trusted-directives`, corpus
+#    byte-inertness) — because `errors.py::message` is `\trusted` precisely because
+#    `super().__str__()` is opaque, and a marker removed without checking what the model then
+#    ASSERTS would buy a smaller TCB with a larger lie.
+#    `finding-two-trusted-stubs-that-convert-and-prove.md`.
+#
+#    SCRATCHPAD ARTEFACTS THAT MATTER (session-local — copy anything worth keeping):
+#        convert_one.py        converts one stub on a copied tree
+#        tcb_try.sh            convert + REAL whole-file proof
+#        screen_all.sh         screen every still-`\trusted` function  (ran 106 of 456)
+#        recheck_lowers.sh     re-check a LOWERS list with the wider filter
+#        land_a.sh / gate_new.sh / land_i4b.py / land_new*.py
+#        screen_all.log        the 106 results, summarised in the new record file
+#        tcb_errors.log tcb_audit.log   the two SUCCESSFUL conversion proofs
+#
+#    STATE: HEAD `05b5434a`; two new untracked record files to commit; `\trusted` markers
+#    460 by `bin/count-trusted-directives.py`; the deadline is unchanged at
+#    2026-09-27T08:19Z. DO NOT PUSH.

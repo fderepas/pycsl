@@ -7442,6 +7442,24 @@ specific backgrounded PID. `until grep -q SUITERC= gate.log` cannot match itself
 deadlock, and it is also what you actually care about. Sibling of (q5): the shell is a
 participant in your measurement, not a neutral observer of it.
 
+**AND THE SAME MISTAKE WITH A KILL IN IT ENDED THIS SESSION.** Forty minutes after writing
+the paragraph above, I ran
+
+    pkill -f screen_all.sh
+
+to stop that same background sweep. `pkill -f` matches the FULL command line; the harness
+runs every Bash call through ONE PERSISTENT SHELL whose command line contains the text of
+the command being run — which at that instant contained `screen_all.sh`. The call returned
+**exit 144** (128+16, SIGTERM: the shell killed itself on my behalf) and **no shell command
+has worked since**, in this session or in a freshly spawned subagent. A running gate, a
+456-candidate sweep and two prepared increments all stopped there.
+
+`pgrep` costs you a deadlock. `pkill` costs you the session.
+
+**Never `pkill -f` a pattern that appears in your own command line.** Kill by PID
+(`pgrep -f <pat> | grep -v $$ | xargs -r kill`), have the job poll a sentinel file, or let
+it finish — a background sweep you no longer want is cheaper to ignore than to kill.
+
 ### (d6) Ask which command recomputes a number — then RUN THE SEARCH before saying none does
 
 This is a TCB-reduction driver. Three generation summaries end with
