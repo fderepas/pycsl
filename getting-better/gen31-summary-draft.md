@@ -111,6 +111,39 @@ been verified. **The count is unchanged and the map is two entries more accurate
 Wall-lesson (l6) is the rule that came out of it: a ratchet may rise only in a commit that names
 the members that moved it and the capability that retires them.
 
+### The 235 facades are not a dead population — a PORT lands where a proof cannot
+
+A facade cannot be screened as it stands: `pass` always lowers, so nothing could be learned
+about any of the 235. Porting the live body makes a candidate MEASURABLE.
+
+`proof2why3/sertop.py::__enter__` was taken end to end as the proof of concept: a ONE-LINE
+port (`return None` -> `return self`), an 11-line all-additive emit diff identical in shape to
+`__exit__`'s — `val` becomes `let`, four frame `ensures` move from assumed to proved, no new
+`val` — and `[+] Verification SUCCESS!`.
+
+Tiered by the size of the live body a port would move: **22 facades at <= 5 lines, 50 at
+<= 10**, 73 at <= 25, 50 at <= 60, 62 above. The instinct from "22,252 lines" is to call the
+programme infeasible; the tiering says there is a head of ~50 portable in an afternoon.
+
+But a port does not make a candidate LAND. Screening the 50 cheap ones after porting them
+returns the same three walls the 62 verbatim candidates met — overwhelmingly the value model
+(`int` / `string` / `array` / `seq`), then the in-place mutator refusal. That is the fourth
+independent measurement this session pointing at one capability.
+
+### The instrument failed four times, and each failure is in the record
+
+    the census keyed on BARE names                  61 -> 56   caught by the screen's own output
+    the census compared RAW SOURCE TEXT             56 -> 62   caught by a 0.991 "stale copy"
+    "836 of 888" was SUBTRACTED, not measured      -> 863 of 915
+    `port_one.py` crashed BEFORE writing            10 false `PORTS+LOWERS`
+
+The last one is the sharpest. `ast.walk` yields context nodes (`Load`) with no position, the
+`x.lineno` fallback raised, the crash happened before the file was written, and the screen
+classified on the first word of the message — a traceback does not start with `ABORT`. So it
+emitted the PRISTINE file, which lowers, and reported success for ten candidates it had never
+touched. **7 of 7 was not evidence that porting works; it was evidence that nothing was being
+measured.** The fix is general: a crash must look like an abort.
+
 ## Still open at the time of writing
 
 * increment G — the I4 fixpoint (a set's element type). Patch prepared and measured: 1 corpus
