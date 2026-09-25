@@ -9648,3 +9648,74 @@ The directive-enforcement plane (52 of 53) says every directive BITES — that a
 program is refused. This sweep says something different and previously unmeasured: that each
 construct MEANS what it says, in both directions, on the smallest program that can tell.
 Two claims, two instruments, and only one of them existed this morning.
+
+--------------------------------------------------------------------------------
+2026-09-25 00:15Z — the args oracle's POST-STATE axis, and a contract over a function
+                    that never returns
+
+THE BACKLOG SAID `\old`. The census said otherwise, and that is why the census is the first
+step and not the second. Of the `\result ==` population this oracle already reads, the
+number of functions excluded ONLY by `\old` is **ZERO**. Every `\old` in the corpus is in a
+claim about a FIELD after a method call:
+
+    #@ ensures self._balance == \old(self._balance) + amount
+
+Thirty-two such claims, twenty-one of them using `\old`, thirty-one on classes `C()` can
+construct. They were outside the population on BOTH counts — no `\result` clause to read,
+and `\old` in a skip list whose name is "tokens this oracle cannot evaluate".
+
+It CAN evaluate `\old`, and better than the prover can, because it is the one instrument in
+the battery that CONSTRUCTS the pre-state. Build the object, snapshot its fields, call the
+method, evaluate the clause against the snapshot. A FRESH object per argument tuple —
+`\old` names the state before THIS call, and reusing one instance would make the second
+tuple's pre-state the first tuple's writes, so `deposit` would look like it disagreed when
+the oracle was the thing that was wrong.
+
+    548 functions / 6011 evaluations  ->  579 / 6114
+    POST-STATE: 31 methods, 96 clause evaluations, **0 FALSE**
+    MIN_EVALS 5500 -> 5900
+
+WHAT IT ACTUALLY FOUND. The widening was aimed at 32 claims it could newly CHECK. What it
+found was a file it could newly RUN.
+
+    0554.py::Service.tick()  ->  AttributeError: 'Service' object has no attribute 'bump'
+
+`#@ compose_from Counter` flattens `bump` into `Service` IN THE VERIFIER. CPython does not:
+`Service`'s MRO is `[Service, object]`. The driver is `# pycsl-expected: PASS` and proves
+`self.count == \old(self.count) + 1` for a method with no run.
+
+One instance is an anecdote, so it was censused. Thirteen corpus files mention
+`compose_from`; eleven declare a composing class; **all eleven compose a provider they do
+not inherit**, and in **ten of eleven** the provided name is absent from the instance at
+runtime. The exception defines the method itself — and that file is
+`1259_route95_composer_shadows_depended_provider.py`, i.e. the exception is the witness
+written to exercise exactly that. **Not one composing class in the corpus is executable
+Python**, and `0554`'s docstring calls itself "a faithful miniature of PyCSL's own
+facade-with-MUTABLE-shared-state shape (the self-hosting target)". The self-hosting target
+runs.
+
+Beside it, named for the first time: `0496.py::grab`. `Holder.__new__(cls)` takes no extra
+argument while `__init__(self, n)` does, so `Holder(k)` raises TypeError for every k, while
+`\result == k` verifies. `__new__` is NOT an unanalysed surface — UB-7.6 rejects a
+non-trivial one, and 0496's own docstring is about that check — so a rule that inspects
+`__new__` closely enough to call it trivial is standing in front of its arity.
+
+THE NEW BUCKET, and why the old loop could not have it. The tuple loop used to `break` on
+the first raise. A `break` cannot distinguish "raises on THIS argument" (0420's
+`struct.error`, 1302's declared escape — input-dependent, already under MAX_RAISED) from
+"has no normal exit at ALL". It now takes up to three raising tuples and classifies
+afterwards: admitted > 0 and returned on none → NEVER_RETURNS, each entry named with its
+reason in the source, an UNNAMED one red. Three entries, the third being `0159.py`'s
+declared `#@ \diverges` — the one shape where having no normal exit IS the contract.
+
+BOTH AXES BITE-TESTED, on constructed probes rather than on the corpus: a false post-state
+claim reports six disagreements, its TRUE TWIN agrees, and an unnamed never-returns
+function turns the plane red. `--selftest-no-exclusions` still exits 1.
+
+WALL-LESSON (v5). **A vacuous proof can wear a contentful clause.** Every vacuity
+instrument in this repo looks at the CLAUSE — is it `True`, is it `x == x`, does it
+constrain anything — and `\result == k` is as contentful as a clause gets. None of them
+looked at whether the function has a normal exit for the clause to constrain. The second
+question is cheaper to ask than the first and had never been asked.
+
+`finding-a-contract-over-a-function-that-never-returns.md`.

@@ -7264,3 +7264,28 @@ size one, drawn from wherever I happened to start.
 >>> A refusal names the wall in front of you. Ranking repair work needs the DISTRIBUTION of
 >>> walls, and that is a census over the whole population — cheap, mechanical, and the thing
 >>> I skipped because the message sounded like a finding.
+
+### (v5) A vacuous proof can wear a contentful clause
+
+`bin/check-claim-vacuity.py` exists because a clause can be trivially true — `#@ requires
+True`, `x == x`, a postcondition that constrains nothing. It fired four times this
+generation and it is a good instrument. Its population is CLAUSES.
+
+    #@ requires k >= 0
+    #@ ensures \result == k
+    def grab(k: int) -> int: ...
+
+`\result == k` is as contentful as a clause gets, and this proof is empty, because `grab`
+raises `TypeError` for every `k` — an `#@ ensures` constrains a NORMAL exit the function
+does not have, so it is discharged over no runs at all. The vacuity is one level below
+where every vacuity instrument here was looking: not in the clause, in the function's
+REACHABILITY.
+
+Two instances were sitting in a green corpus (`0496.py::grab`, `0554.py::Service.tick`),
+and the question that surfaces them — *does this function return on ANY argument its own
+precondition admits?* — is cheaper to ask than the one that was being asked. It had never
+been asked because the oracle that could ask it BROKE out of its argument loop on the first
+raise, and a `break` cannot tell "raises here" from "raises everywhere".
+
+**Ask reachability before you ask truth.** A contract whose function never returns is not
+a wrong answer; it is no answer, wearing the costume of one.
