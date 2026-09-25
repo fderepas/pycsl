@@ -10928,3 +10928,37 @@ that do not share a mechanism.
 THE RULE THAT FALLS OUT: batch candidates to share a PROOF (one file, one fifteen-minute run),
 but never to share a VERDICT. When a batch fails, each member is unadjudicated, and the emit
 diff is the only thing that says which member owns which `val`.
+
+## 06:02Z — THE I4 FIXPOINT WORKS: the carrier flips, both controls hold
+
+Dry run on an OFFLINE tree (`$S/try_i4.sh`), nothing touched in the live tree:
+
+                                                        BEFORE            AFTER
+    setelem-carrier-read-only-str-set-membership     FAILED/REFUSED  ->  SUCCESS
+    setelem-control-mutated-str-set-membership          SUCCESS      ->  SUCCESS
+    setelem-control-int-set-membership                  SUCCESS      ->  SUCCESS
+
+That is exactly the shape a previous window wrote into the carrier file a generation ago:
+
+> WHEN THIS FILE STARTS VERIFYING, the I4 fixpoint has landed. Move it and its controls into
+> the corpus as witnesses in the SAME commit, lower `check-open-route-carriers.py`, and record
+> the mirror re-proof bill.
+
+**AND BOTH CONTROLS HELD, WHICH IS THE HALF THAT MATTERS.** `setelem-control-mutated` says the
+`_mut_coll` branch was not lost — dropping that conjunct WIDENS the string-keyed set and must
+not narrow it. `setelem-control-int` says the membership PATH was never the defect, so a "fix"
+that repaired the path instead would have shown up there as a change. Neither moved.
+
+THE PATCH IS TWO LINES OF INTENT:
+  1. the PARAMETER κ extractor calls `_m5_get_field_key_type` instead of
+     `_m5_get_dict_key_type`, so a `Set[str]` PARAMETER gets κ from its DECLARATION — the FIELD
+     extractor already covered `Set[str]` and says why: *a set's element IS its key*;
+  2. `_sk = "string" if (kt.get(arg) == "string") else "int"` — the `_mut_coll` conjunct is
+     gone, because with κ read from the declaration both ends of a call edge get it from the
+     same place and the desync that conjunct guarded against cannot arise.
+
+**No propagation pass. No fixpoint to converge.** The thing called "the deferred I4 fixpoint"
+for a generation turns out to be one rule that was stated twice and implemented once.
+
+Increment H (five PROVED port+converts) lands first, because it is ready and its gate is
+cheap; G follows with its ten-mirror-file re-proof bill.
