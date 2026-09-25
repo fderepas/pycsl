@@ -11469,3 +11469,34 @@ So of the three never-offered candidates that lowered: one refused by clause 4
 
 **CHECK 1 HAS NOW REFUSED SEVEN CONVERSIONS THAT PROVE.** Every one of them green, every one
 of them a marker the count would have happily surrendered.
+
+## 20:25Z — `_Parser._max_end` REFUSED: the emitter NAMES the erasure
+
+    ported frontend/pure_ast.py::_Parser._max_end (14 body line(s), marker deleted)
+    === diff lines: 59 ===
+    >   val _Parser__max_end_2 (x0: int) (x1: int) : int
+    >   val hasattr_check (x: int) (a: int) : bool
+    >   val function pycsl_erased_cur : int
+    >   val function pycsl_getattr_unknown_1438405989 : int
+    >   val function pycsl_getattr_unknown_2038603286 : int
+    >   val function pycsl_getattr_unknown_2069497318 : int
+    [+] Verification SUCCESS! All contracts formally proven.
+
+**Four NULLARY constants, and the emitter's own naming says what they are**: `pycsl_erased_`
+and `pycsl_getattr_unknown_`. An attribute read whose target the model cannot resolve becomes
+a CONSTANT — the same value on every call, independent of the object being read. That is the
+textbook form of erasing an input dependence, and it is check 1's first clause.
+
+REFUSED. It proves, and the proof is over a program in which `cur.end_lineno` does not depend
+on `cur`.
+
+## 20:25Z — the three `pure_ast.py` dunders ADMITTED
+
+    ported AST.__init__ (11 lines) · AST.__repr__ (1 line) · Comment.__repr__ (2 lines)
+    === diff lines: 22 ===
+    >   val get___module__ (x) · get___qualname__ (x) · getattr_comment (x) (f) · py_type_1 (x0)
+    [+] Verification SUCCESS! All contracts formally proven.
+
+Four new ops, every one taking its operand, and `AST.__init__` MOVES A CLAIM the way
+`Module6_WhyMLTranspiler::__init__` did: a constructor's assignments are what the record model
+is built from, so porting it puts the real fields in the model. Clause 4 satisfied.
