@@ -322,6 +322,24 @@ detect.** A green corpus proves REACH, not SENSITIVITY.
    repair, the mutex refusal and the field-param pair were all built and verified this way,
    with a gate running the whole time.
 
+## THE TWO OPERATIONAL FAILURES THIS GENERATION PAID FOR, because they will recur
+
+* **A full `/tmp` presents as a broken shell — and a broken gate presents as a FINDING.**
+  Twenty-five minutes of every Bash call returning exit 1 with no output, mis-diagnosed
+  twice, was a 7.6 GB tmpfs filled by this campaign's own best habit: `cp -a src` at 76 MB a
+  copy, eight in one session plus five from earlier windows. The gate running at the time
+  reported dozens of `MOVED` files in a PROVED corpus — the signature of the most serious
+  thing this campaign looks for — and it was truncated writes. `df -h /tmp` would have found
+  it in ten seconds. Wall-lessons (g6), (h6), and (c6)'s second paragraph: never `pkill -f` a
+  pattern that can match the harness's own shell.
+
+* **A marker is a syntactic position, not a string.** Three instruments in one session
+  matched `\trusted` by SUBSTRING and so matched sentences ABOUT the marker: the raw count
+  (485 vs 460 — `count-trusted-directives.py` prints the 25-line gap on every run), the
+  conversion screen's candidate list (456 vs **410**), and `convert_one.py`, which DELETED a
+  line of prose and reported a successful conversion. The repo had the right rule written
+  down twice. Wall-lesson (j6).
+
 ## The lessons, if you read only the lessons
 
 `wall-lessons.md` (q4) through (a5). The load-bearing ones: a green byte-diff means nothing
