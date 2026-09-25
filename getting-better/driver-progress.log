@@ -10200,3 +10200,51 @@ So the I4 cost is now bounded and small: two mirror files to re-prove, zero corp
 and one read-only `Set[str]` membership shape that starts working. That is a landable
 increment rather than a research project, and the thing that made it landable was sweeping
 instead of arguing.
+
+--------------------------------------------------------------------------------
+2026-09-25 01:38Z — the I4 one-liner FAILS at the first call edge, and that SIZES the item
+
+CORRECTION, and it is the sixth in this thread. Two hours ago the mirror emission sweep said
+the I4 probe moves exactly two files and that `_emit_new_ghost_ref`'s `let` and its abstract
+`val` "move TOGETHER … so they agree". That was read as "the bridge the comment warns about
+does not desync". **It was a statement about two DECLARATIONS, and a call site is a third
+thing.**
+
+Re-proving the moved file says so in eight seconds:
+
+    module6_whyml/statements.py
+    line 1350: This expression has type string -> option.Option.option int,
+               but is expected to have type int -> option.Option.option int
+
+    rest_code := (self__stmts_to_whyml_5 self rest local_refs declared_refs indent in_loop)
+                                                  ^^^^^^^^^^ now `map string`
+    val statementemissionmixin___stmts_to_whyml … (local_refs: map int (option int)) …
+
+The promoted parameter is PASSED ONWARD, and the callee is still int-keyed. Which is exactly
+what the comment in `functions.py` says — "it is forwarded to sibling `val` bridges … a
+`map string` here would mistype the bridge" — and I had just written that the warning was
+measured and empty. The measurement was real; the conclusion drawn from it was not.
+
+**THE ITEM IS NOW SIZED.** κ=string has to propagate along CALL EDGES, and `local_refs` is
+threaded through the mirror's whole statement/expression emitter: `_e`, `_expr_to_whyml`,
+`_expr_to_whyml_string_ctx`, `_emit_body_code`, `_emit_array_local_reassign`,
+`_stmts_to_whyml` … all declared `local_refs: map int (option int)` today. Promoting one
+promotes all of them, which moves most of the mirror and needs each moved file RE-PROVED —
+`module6_whyml/expressions.py` alone is a measured **2h57m**.
+
+So this is not a one-line fix with two re-proofs. It is a module-level fixpoint with a
+double-digit-hour proof bill, and that is the honest size to carry in the backlog instead of
+"the deferred I4 fixpoint" with no number beside it.
+
+WHAT THE THREAD PRODUCED ANYWAY, and none of it is lost:
+  * the mechanism, located at one line and confirmed by a PREDICTION (wall-lesson (a6));
+  * the exposure: ZERO read-only `Set[str]` params in either corpus, 14 set-using corpus
+    files byte-inert, 39 `\trusted` mirror stubs in the population, 120 mirror functions
+    already converted and proving;
+  * the whole modelled surface of a Python set, ten probes;
+  * two witnesses (`1909`, `1910`) written, measured PASS on the patched tree and `1909`
+    measured FAILING on the live one — ready for whoever builds the fixpoint.
+
+The cost of finding all that out was an afternoon of two-line programs. The cost of NOT
+finding it out was three generations of a backlog entry that said "int-placeholder
+annotations" and meant this.
