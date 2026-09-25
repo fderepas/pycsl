@@ -141,6 +141,37 @@ is not reopened) and `1904` (a real override is still REFUSED). `0554`'s statefu
 remains open: it gets past the front end and dies in the emitted WhyML on `unbound function
 or predicate symbol 'count'`.
 
+## TWO `\trusted` STUBS CONVERT AND PROVE — AND ONLY ONE OF THEM MAY LAND
+
+`finding-two-trusted-stubs-that-convert-and-prove.md`. The campaign's headline number moving,
+demonstrated rather than planned:
+
+    errors.py::message                    converted -> the file PROVES  (~11 s)
+    audit_proof_reverify.py::_cache_root  converted -> the file PROVES  (~28 s)
+
+**And the four-check discipline separated them on the FIRST check, in four minutes.** The
+emit-diff says:
+
+* `message` — the abstract `val` becomes a `let` carrying four `self.f = old self.f` clauses
+  that the proof DISCHARGES, and `super().__str__()` becomes `val str_dunder_op () : string`
+  with no defining axiom: the SAME opacity the `val` already had. An ASSUMED frame becomes a
+  PROVED one. **Landable.**
+* `_cache_root` — the body is `root.mkdir(parents=True, exist_ok=True)`, and the lowering
+  emits `val root_mkdir_0 () : int`, nullary, no `writes`. So the model sees no effect and
+  **CERTIFIES the declared `#@ assigns \nothing` over a directory creation.** Not landable.
+
+**A green whole-file proof is NECESSARY for retiring a marker and nowhere near sufficient** —
+the single most important sentence for whoever works the remaining 454 candidates.
+
+That failure generalised: `finding-assigns-nothing-over-a-subprocess.md` censuses **17
+receiver-confirmed `\trusted` stubs** that declare `#@ assigns \nothing` while their live
+body calls `subprocess.run`/`Popen`, `os.makedirs` or `os.remove` — a clause both
+`annotations.md` and the static-semantics reference gloss as *"pure, side-effect-free"*.
+`check-trusted-frame-honesty.py` was built for exactly this shape and says so in its header;
+its POPULATION is `self.<attr>` stores, so a module-level function that shells out to
+`why3 prove` mutates no attribute and the plane is silent. The list doubles as a
+DO-NOT-CONVERT list.
+
 ## THE CONVERSION SURFACE, MAPPED BY FORTY-NINE TWO-LINE PROGRAMS
 
 `finding-the-conversion-surface-mapped-by-two-line-programs.md`. The backlog had ranked the
