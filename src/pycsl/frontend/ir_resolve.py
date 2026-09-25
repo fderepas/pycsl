@@ -2880,6 +2880,42 @@ def apply_composition(ir_data: Dict[str, Any]) -> None:
                 tail = f["name"][len(m) + 2:]
                 new_name = f"{c}__{tail}"
                 if tail in own_tails or new_name in existing:
+                    # (#49) gen #31 — ... UNLESS what the composer "already has" IS this
+                    # provider, bound under the composer's name by inheritance from the
+                    # providing mixin. Then it is precisely the concrete implementation the
+                    # clone would have been, and skipping it silently costs the CONCRETE
+                    # resolution: a composer-OWN method's `self.<tail>(...)` falls to the
+                    # abstract-`val` lowering, which drops `self` and every self-field
+                    # `ensures`.
+                    #
+                    # MEASURED by DIFFING the two emissions of `0554`. As the corpus has it
+                    # (`class Service:`) `tick` emits `let _ = (service__bump self) in ()`.
+                    # Made executable (`class Service(Counter):`) it emitted, instead,
+                    # `val self_bump_0 (self: service) : unit  writes { self.count }` — and
+                    # `count` is not a WhyML symbol, the record field is `service_count`, so
+                    # Why3 answered `unbound function or predicate symbol 'count'`.
+                    #
+                    # The PURE composition (`0549`, witness `1902`) survived without this
+                    # only by accident of WHICH METHOD the call sits in: `Facade.run` calls
+                    # `self.handle_get`, and `handle_get` is itself bound from a base, so
+                    # the inheritance binder had already rewritten its `self.emit(...)`.
+                    # `Service.tick` is the composer's own method and nothing rewrites it.
+                    #
+                    # Same SAMENESS test as the shadow exemption above — line, column, body,
+                    # contracts — and for the same reason: the base list is not the property
+                    # that matters, being the provider is. Witness `1908` (PASS, and it RUNS:
+                    # `tick()` takes `count` from 0 to 1). All thirteen mixin drivers keep
+                    # their verdicts, and the adversarial `1903` still FAILS.
+                    _ex = next((g for g in funcs if g.get("name") == new_name), None)
+                    if (_ex is not None
+                            and _ex.get("line") == f.get("line")
+                            and _ex.get("col") == f.get("col")
+                            and _ex.get("body") == f.get("body")
+                            and _ex.get("contracts") == f.get("contracts")
+                            and new_name not in
+                            (ir_data.get("composed_provider_methods") or [])):
+                        ir_data.setdefault(
+                            "composed_provider_methods", []).append(new_name)
                     continue   # composer overrides it, or already cloned
                 clone = copy.deepcopy(f)
                 clone["name"] = new_name
