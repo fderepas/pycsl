@@ -111,6 +111,7 @@ SKIP_TOKENS = ("\\forall", "\\exists", "\\old", "\\at", "\\separated",
 # about a FIELD after a method call, which is a different axis and the one below.
 SKIP_TOKENS_POST = tuple(t for t in SKIP_TOKENS if t != "\\old")
 POOL = [0, 1, 2, 3, 5, -1, -2, 7]
+_CTOR = {}               # (class, method) -> (ctor arg names, tags, `__init__` requires)
 # (#49) gen #31 — the `str`/`bytes` pools. Deterministic and small: four
 # values each, chosen to include the empty one, a single character, and the
 # FOUR-byte value `0779`'s `#@ requires \length(d) == 4` admits.
@@ -130,7 +131,8 @@ LIST_POOL_STR = [[], ["a"], ["a", "b", "c"]]
 MAX_TUPLES = 40          # per function, deterministic prefix of the product
 CALL_TIMEOUT = 1.0       # seconds; a corpus loop must not hang the battery
 EXEC_TIMEOUT = 2.0
-MIN_EVALS = 6950         # 7239 with the LIST-PARAMETER axis; 7063 with the PREDICATE axis (`#@ ensures` clauses over
+MIN_EVALS = 7100         # 7392 with the CONSTRUCTOR-ARGUMENT axis; 7239 with the
+                         # LIST-PARAMETER axis; 7063 with the PREDICATE axis (`#@ ensures` clauses over
                          # `\result` that are not equalities — the census found the
                          # inequality family to be the largest evaluable group this oracle
                          # was skipping). Was 6114 with the POST-STATE axis, 5750 with the METHOD
@@ -357,6 +359,7 @@ def collect(no_exclusions=False):
         # NEEDS an argument has no canonical instance and is skipped, exactly as the
         # zero-argument sibling skips it.
         _owner = {}
+        _CTOR.clear()          # per FILE: class names repeat across the corpus
         _mixin_lines = {_ln for _ln, _cs in
                         ((i + 1, l.strip()) for i, l in enumerate(lines))
                         if _cs.startswith("#@") and re.match(r"#@\s*mixin\b", _cs)}
@@ -382,16 +385,43 @@ def collect(no_exclusions=False):
                 _cann_i -= 1
             if _is_mixin:
                 continue
+            # (#49) gen #31 — THE CONSTRUCTOR-ARGUMENT AXIS. A class whose `__init__` takes
+            # arguments used to have no canonical instance and was dropped whole; the
+            # census counted 67 methods behind that one filter, the last large group after
+            # the predicate and list axes. They are constructible the same way everything
+            # else here is: from the pools, filtered by `__init__`'s OWN `#@ requires`.
+            # The constructor arguments become the LEADING elements of the argument tuple,
+            # so `MAX_TUPLES` still bounds the product and the whole thing stays
+            # deterministic.
             _ini = next((x for x in _c.body
                          if isinstance(x, ast.FunctionDef) and x.name == "__init__"), None)
+            _cargs, _ctags, _creqs = [], [], []
             if _ini is not None:
-                _need = (len(_ini.args.args) + len(_ini.args.posonlyargs)
-                         - len(_ini.args.defaults))
-                if _need > 1 or _ini.args.kwonlyargs or _ini.args.vararg:
+                _ips = (_ini.args.posonlyargs + _ini.args.args)[1:]
+                _need = len(_ips) - len(_ini.args.defaults)
+                if _ini.args.kwonlyargs or _ini.args.vararg or _ini.args.kwarg:
                     continue
+                if _need > 0:
+                    if len(_ips) > 2:
+                        continue        # the product would swamp MAX_TUPLES
+                    _ctags = [_ann_tag(a.annotation) for a in _ips]
+                    if any(t is None or t.startswith("list:") for t in _ctags):
+                        continue        # a mutable constructor argument: same hole as above
+                    _cargs = [a.arg for a in _ips]
+                    _ci = _ini.lineno - 2
+                    while _ci >= 0 and (not lines[_ci].strip()
+                                        or lines[_ci].strip().startswith("#")):
+                        _mq = re.match(r"#@\s*requires\s+(.+)$", lines[_ci].strip())
+                        if _mq:
+                            _creqs.append(_mq.group(1).strip())
+                        _ci -= 1
+                    if any(t in " ".join(_creqs) for t in SKIP_TOKENS) \
+                            or any("\\" in _py(x) for x in _creqs):
+                        continue
             for _m in _c.body:
                 if isinstance(_m, ast.FunctionDef):
                     _owner[_m.name] = _c.name
+                    _CTOR[(_c.name, _m.name)] = (_cargs, _ctags, _creqs)
         for name, node in defs.items():
             ps = node.args.args
             _cls = _owner.get(name)
@@ -405,7 +435,13 @@ def collect(no_exclusions=False):
                 continue
             _post_probe = any(re.match(r"#@\s*ensures\s+self\.\w+\s*==", a)
                               for a in annotations_of(node))
-            if not ps and not (_cls is not None and _post_probe):
+            # (#49) gen #31 — a zero-argument METHOD of a class whose `__init__` TAKES
+            # arguments is not the sibling oracle's population either: that oracle's
+            # instances are `C()`, and this class has none. The tuple is non-empty from the
+            # constructor side, so the method is runnable here and nowhere else — which is
+            # most of what the constructor axis actually buys.
+            _ctor_probe = bool(_CTOR.get((_cls, name), ([], [], []))[0])
+            if not ps and not (_cls is not None and (_post_probe or _ctor_probe)):
                 continue       # a zero-argument function is the SIBLING oracle's population
 
             # (#49) gen #31 — `str` and `bytes` parameters join `int`/`bool`, and the
@@ -545,14 +581,23 @@ def collect(no_exclusions=False):
             _raises_when = [m.group(1).strip() for m in
                             (re.match(r"#@\s*raises\s+\w+\s+when\s+(.+)$", a)
                              for a in ann) if m]
+            _cargs, _ctags, _creqs = _CTOR.get((_cls, name), ([], [], []))
+            for _c_nm, _c_tg in zip(_cargs, _ctags):
+                PARAM_POOL[(name, "\x00ctor\x00" + _c_nm)] = {
+                    "str": STR_POOL, "bytes": BYTES_POOL}.get(_c_tg, POOL)
             for _a_pp, _tag in zip(ps, _tags):
                 PARAM_POOL[(name, _a_pp.arg)] = {
                     "str": STR_POOL, "bytes": BYTES_POOL,
                     "list:int": LIST_POOL_INT, "list:str": LIST_POOL_STR}.get(_tag, POOL)
             per.setdefault(f, []).append(
                 (name, [a.arg for a in ps], ens, reqs, bool(reach(name) & trusted),
-                 _cls, _raises_when, post, preds, _diverges))
+                 _cls, _raises_when, post, preds, _diverges,
+                 (_cargs, _creqs)))
     return per, stats
+
+
+class _CtorLater(Exception):
+    """Internal: the instance is built per argument tuple, not once per function."""
 
 
 def _ann_tag(a):
@@ -668,7 +713,8 @@ def main():
                 if sys.path and sys.path[0] == d:
                     sys.path.pop(0)
             for (name, params, ens, reqs, inherits, cls, raises_when, post, preds,
-                 diverges) in items:
+                 diverges, ctor) in items:
+                ctor_names, ctor_reqs = ctor
                 funcs += 1
                 if post:
                     post_funcs.add((os.path.basename(f), cls, name))
@@ -680,35 +726,68 @@ def main():
                 else:
                     # Build ONE instance per method and bind the method on it. A class that
                     # cannot be constructed is reported, never silently dropped.
+                    if ctor_names:
+                        fn = None            # built per tuple, from the pools, below
                     try:
+                        if ctor_names:
+                            raise _CtorLater()
                         with contextlib.redirect_stdout(io.StringIO()), \
                              contextlib.redirect_stderr(io.StringIO()):
                             signal.setitimer(signal.ITIMER_REAL, CALL_TIMEOUT)
                             _obj = ns[cls]()
                             signal.setitimer(signal.ITIMER_REAL, 0)
                         fn = getattr(_obj, name)
+                    except _CtorLater:
+                        pass
                     except BaseException as exc:
                         signal.setitimer(signal.ITIMER_REAL, 0)
                         unrunnable.append((os.path.basename(f), cls + "." + name,
                                            type(exc).__name__))
                         continue
-                if not callable(fn):
+                if not ctor_names and not callable(fn):
                     unrunnable.append((os.path.basename(f), name, "not callable"))
                     continue
                 tested = 0
                 _admitted = _raised_here = 0
-                _pools = [PARAM_POOL.get((name, _p), POOL) for _p in params]
+                _pools = ([PARAM_POOL.get((name, "\x00ctor\x00" + _p), POOL)
+                           for _p in ctor_names]
+                          + [PARAM_POOL.get((name, _p), POOL) for _p in params])
                 for tup in itertools.product(*_pools):
                     if tested >= MAX_TUPLES:
                         break
                     tup = tuple(_materialise(v) for v in tup)
+                    ctup, tup = tup[:len(ctor_names)], tup[len(ctor_names):]
+                    if ctor_names:
+                        # `__init__`'s OWN precondition filters the constructor arguments,
+                        # exactly as the method's filters the method's. A constructor whose
+                        # `#@ requires` refuses an argument was never promised anything
+                        # about the object it would have built.
+                        try:
+                            _cenv = dict(zip(ctor_names, ctup))
+                            if not all(eval(_py(r), dict(ns), dict(_cenv))
+                                       for r in ctor_reqs):
+                                continue
+                        except Exception:
+                            break
+                        try:
+                            signal.setitimer(signal.ITIMER_REAL, CALL_TIMEOUT)
+                            with contextlib.redirect_stdout(io.StringIO()), \
+                                 contextlib.redirect_stderr(io.StringIO()):
+                                _obj = ns[cls](*ctup)
+                            signal.setitimer(signal.ITIMER_REAL, 0)
+                            fn = getattr(_obj, name)
+                        except BaseException as exc:
+                            signal.setitimer(signal.ITIMER_REAL, 0)
+                            unrunnable.append((os.path.basename(f), cls + "." + name,
+                                               type(exc).__name__))
+                            break
                     env = dict(zip(params, tup))
                     # (#49) gen #31 — A FRESH OBJECT PER CALL for the post-state axis.
                     # `\old` names the state before THIS call; reusing one instance across
                     # the product would make the second tuple's pre-state the first
                     # tuple's writes, and `deposit` would look like it disagreed when the
                     # oracle was the thing that was wrong.
-                    if post:
+                    if post and not ctor_names:
                         try:
                             signal.setitimer(signal.ITIMER_REAL, CALL_TIMEOUT)
                             with contextlib.redirect_stdout(io.StringIO()), \
