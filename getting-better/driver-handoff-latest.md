@@ -220,3 +220,52 @@ them knowing the aggregate will not fall.
    456 -> 452 and should be lowered).
 5. Gate with `--expect-moved frontend__Module2_Parser frontend__pure_ast` on the mirror.
    Corpus predicted 0 MOVED; suite unchanged.
+
+---
+
+# UPDATE 05:45Z — D, E and F are GATED; increment H has FIVE PROVED candidates
+
+**D+E+F gate, 05:15Z:** corpus inert in all three directions, mirror moving exactly the two
+declared files, fidelity 886, all 48 planes green, suite **4029/4047**, the standing EIGHTEEN,
+ZERO XPASS, no flaky recoveries.
+
+## Increment H — ready to land, adjudicated one at a time
+
+PROVED on an offline tree (port the live body, delete the marker, emit diff with ZERO new
+abstract ops, then a REAL whole-file proof):
+
+    proof2why3/sertop.py::__enter__               1-line port
+    frontend/Module2_Parser.py::_err              converts TWO functions
+    module6_whyml/identifiers.py::stable_hash     1-line port, 27 diff lines
+    proof2why3/parser.py::__repr__                1-line port, 13 diff lines
+    frontend/monomorphize.py::_rewrite_call_sites
+
+REFUSED, and each for a named reason:
+
+    proof2why3/sertop.py::_sexp_tokens            Z3 TIMEOUT 30s, 7,433,789 steps
+    proof2why3/from_sexp.py::_find_construct_idx  Z3 TIMEOUT 30s, 3,193,221,587 steps
+    frontend/pure_ast.py  (5 together)            CHECK 1: three new abstract ops —
+                                                  `get__fields`, `isinstance_op`,
+                                                  `_const_types_not_get_2`; proof `Unknown
+                                                  (why3: Out of …)`
+
+STILL RUNNING: `pure_ast.py::error` + `unsupported` ALONE (check 1 already clean — 28 diff
+lines, ZERO new ops, two `val`->`let`), and `module6_whyml/expressions.py::_emit_metatype_tags`
+(that file's proof is ~3h).
+
+## To land increment H
+
+    bash $S/land_ports.sh proof2why3/sertop.py:__enter__ \
+        frontend/Module2_Parser.py:_err module6_whyml/identifiers.py:stable_hash \
+        proof2why3/parser.py:__repr__ frontend/monomorphize.py:_rewrite_call_sites
+
+PREDICTIONS: count 460 -> **455**; fidelity 886 -> **891** (five ported bodies become verbatim);
+`check-untrusted-emitted` must report each as LET, never `val`; `trusted-reasons.tsv` loses
+five `unclassified` rows so MAX_UNCLASSIFIED falls 456 -> **451** and should be lowered.
+Gate with `--expect-moved proof2why3__sertop frontend__Module2_Parser module6_whyml__identifiers
+proof2why3__parser frontend__monomorphize`; corpus predicted 0 MOVED; suite unchanged.
+
+## Then increment G
+
+`$S/try_i4.sh` is dry-running the I4 patch on an OFFLINE tree right now — the carrier must
+flip FAILED -> SUCCESS and both controls must stay SUCCESS.
