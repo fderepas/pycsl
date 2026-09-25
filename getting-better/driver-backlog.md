@@ -7623,3 +7623,29 @@ known table is now:
 A candidate's price is its FILE's proof time, not its own size, and that is what makes
 `Module1_Ingestor` (14 s, five candidates, all five tried in forty seconds) the right place
 to iterate and `expressions.py` the wrong one.
+
+### A CONVERSION SCREEN THAT COSTS SECONDS, NOT PROOF TIME (2026-09-25)
+
+Trying a candidate meant converting it on a copied tree and running the file's WHOLE-FILE
+PROOF — 14 s in `Module1_Ingestor`, but 15m12s in `Module2_Parser` and 2h57m in
+`expressions.py`. That price is why this file has six tried candidates after three
+generations.
+
+**Most conversions do not fail at the prover. They fail at the TYPE CHECK or at a REFUSAL**,
+and both are reached by `--no-proof` (emit + typecheck, no why3 proving). Measured:
+
+    two Module1_Ingestor candidates, full proof     ~16 s
+    the same two, `--no-proof`                       **3.8 s**
+    eight Module2_Parser candidates, `--no-proof`    ~20 s   (a full proof would be 2 HOURS)
+
+A PASS on the screen is NOT a conversion — it says the function LOWERS, and the proof still
+has to run. But a FAIL on the screen is final, and the screen turns "which of these 456 can
+even be tried" from a week into ten minutes.
+
+`$SCRATCH/g31/screen_convert.sh` (a named list) and `screen_all.sh` (every still-`\trusted`
+function, one tree copy per FILE with the mirror file restored between candidates).
+
+The eight Module2_Parser candidates screened: **all eight TYPE errors** — `int` where a
+record, a string, an `emit_ir` or an `array` was expected. Which is the int-placeholder chain
+this file named as the #1 blocker, now confirmed at the cost of twenty seconds instead of two
+hours.
