@@ -147,6 +147,15 @@ def collect_generators():
                     v, z = _own_yields(n)
                     if v or z:
                         out.append((rel, (cls + "." if cls else "") + n.name, n.name, v, z))
+                    # (#49) gen #31 — AND DESCEND INTO THE DEF. The gen #4 note below fixed
+                    # the compound-statement half of this walk and left the nested-def half:
+                    # a generator defined INSIDE another function was still invisible.
+                    # MEASURED at the time of the fix: **0** nested un-trusted generators in
+                    # the mirror. This is a TRAP, not a hole — the walk was wrong and nothing
+                    # was in it yet. It is the same three missing lines that let 52 nested
+                    # un-trusted functions past `check-untrusted-emitted.py`, which is not a
+                    # trap: see `getting-better/open-routes/finding-the-nested-def-blind-spot.md`.
+                    walk(n.body, cls)
                 else:
                     # DESCEND THROUGH COMPOUND STATEMENTS (gen #4): a generator nested inside
                     # a `try:` / `if:` / `with:` body was invisible to this plane entirely.
