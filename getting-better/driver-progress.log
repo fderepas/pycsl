@@ -10072,3 +10072,32 @@ THREE SWEEPS TODAY, each one line of concept apart from the last: does the contr
 (the oracles), does the file LOAD, does the file's own SELF-CHECK pass. The second found a
 driver that is not a Python program; the third found two assertions that had never run. The
 first had been running for two generations.
+
+--------------------------------------------------------------------------------
+2026-09-25 01:10Z — the circular-import fixture, repaired by ONE LINE, byte-inert
+
+Three of the load sweep's seven failures were `0065`, `0186`, `0187`, all of them importing
+`multi_file_lib.circ_a`, which imports `circ_b`, which imports back:
+
+    circ_b.py:  from multi_file_lib.circ_a import func_a   # establishes the cycle
+
+That is the circular import CPython REFUSES — `cannot import name 'func_a' from partially
+initialized module` — because the from-form asks the half-built module for a name it has not
+bound yet. Three `# pycsl-expected: PASS` drivers that cannot be imported at all.
+
+Python supports circular imports; it supports them in the MODULE form:
+
+    circ_b.py:  import multi_file_lib.circ_a               # establishes the same cycle
+
+Measured: all three drivers now LOAD and print their own PASS, PyCSL still verifies, and all
+three emissions are **BYTE-IDENTICAL**. One line, no model change, and the fixture becomes
+the circular import a real program would write rather than the one that cannot run.
+
+THE PATTERN ACROSS ALL OF TODAY'S REPAIRS IS THE SAME SHAPE. Every one is small, every one
+was MEASURED for emission movement before being written down, and every one existed because
+the corpus was read as a specification and never as a program:
+
+    circ_b.py   one line, byte-inert          three drivers now import
+    0312.py     one name, byte-inert          a self-check that had never run
+    0452.py     one `list(...)`, byte-inert   a self-check that had never passed
+    1190        three lines, MOVES (declared)  a driver that raised NameError at import
