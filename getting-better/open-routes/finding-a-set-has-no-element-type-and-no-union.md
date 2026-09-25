@@ -1,4 +1,4 @@
-# A `Set[T]` has no element type, and no union
+# A `Set[T]`'s element type survives `add` and not `in` — and there is no union
 
 **Status: FINDING, two independent walls, each located by a two-line program.** Not a
 soundness route: both fail CLOSED, with a Why3 type error, and neither certifies anything.
@@ -28,9 +28,29 @@ def has(held: Set[str], m: str) -> bool:
     File "…mlw", line 13: This expression has type string, but is expected to have type int
 
 The same program with `Set[int]` and `m: int` **VERIFIES**. So membership works; what does
-not work is the ELEMENT TYPE. A `Set[str]` lowers to the same `map int (option int)` a
-`Set[int]` does, and the `str` member is then a type error at the use site — the set's own
-declaration never carried the element type at all.
+not work is the ELEMENT TYPE.
+
+**And then the write path was probed, which is where this stops being "sets are untyped"
+and becomes something sharper:**
+
+    held.add(m)     Set[str], m: str      SUCCESS
+    m in held       Set[str], m: str      FAILED    string where an int is expected
+
+**One type, two paths, and only one of them carries the element type.** `add` on a
+`Set[str]` lowers correctly; membership on the same value lowers against `map int`.
+Membership is not untyped — it is typed to `int`, always, which is why `Set[int]` passes it
+and `Set[str]` cannot.
+
+The static-semantics reference is explicit that this should not be so. `τ(set) = dict` with
+the comment *"sets share the dict model"*, and the dict model types its key:
+`τ(Dict[K, V]) = dict (* κ=string ⇒ map string (option ν), native String.(=); else map
+int *)`. Probed, the dict half holds — `k in d` and `d[k]` both VERIFY for
+`Dict[str, int]`. So the rule is stated once, implemented for the dict, implemented for the
+set's WRITE path, and missed on the set's READ path.
+
+That is the gen #31 shape for the fourth time: a rule stated correctly in adjacent places
+and implemented in all but one of them (cf. `finding-array-import-missing-for-a-list-field-only-program.md`,
+route #148/#149's field types, and the `Dict[K, List[T]]` matrix).
 
 This is the third position of a mechanism this campaign keeps meeting: route #148/#149
 repaired a FIELD whose type came from an `__init__` parameter, and
@@ -85,6 +105,9 @@ answer is smaller than "union is missing":
     held.intersection(other)        FAILED    "
     len(held)           Set[int]    FAILED    "
     m in held           Set[str]    FAILED    string where an int is expected
+    held.add(m)         Set[str]    SUCCESS   — the WRITE path types the element
+    k in d              Dict[str,int] SUCCESS — and the dict does it on BOTH paths
+    d[k]                Dict[str,int] SUCCESS
 
 **Membership and `add`. That is the entire modelled surface of a Python set.** Every binary
 operator, every named equivalent of one, and `len` all fail the same way — the set's map
