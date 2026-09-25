@@ -116,7 +116,6 @@ class SertopSession:
     def __enter__(self) -> 'SertopSession':
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

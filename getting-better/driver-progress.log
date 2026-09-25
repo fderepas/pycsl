@@ -10519,3 +10519,34 @@ One more fact worth carrying: `message` is inherited by four error classes, so t
 holds four copies. **Retiring one marker moves FOUR declarations from assumed to proved** —
 which means the 417-candidate population understates the value of the work and the 460 marker
 count understates the trust it represents.
+
+---
+
+## 03:32Z — INCREMENT E APPLIED (the external-effect half of the frame plane)
+
+While increment A's suite runs (started 03:11:21Z, planes already green at 03:08, byte-diff
+inert in all three directions, fidelity 886), I landed the change that was prepared but never
+applied: `bin/check-trusted-frame-honesty.py` now asks a SECOND question.
+
+The plane's fixpoint computes `self.<attr>` stores and propagates them along the call graph.
+A MODULE-LEVEL function that shells out to `why3 prove` mutates no attribute, so the fixpoint
+never saw it. But `#@ assigns \nothing` is glossed **"(pure, side-effect-free)"** in
+`test-suite/annotations.md` §926 and `docs/pycsl-static-semantics-reference.md` §2398 — and a
+function that spawns a subprocess or creates a directory is not side-effect-free.
+
+The new half matches RECEIVER-QUALIFIED `subprocess.*` / `os.*` / `shutil.*` calls in the LIVE
+twin of every `\trusted` `assigns \nothing` stub, and names each of the 17 in
+`KNOWN_EXTERNAL_EFFECT_NOTHING` **with what it does**, so a new one cannot arrive quietly.
+
+The receiver qualification is the whole discipline here. A first, looser census matched bare
+method names and produced two false positives immediately — `Module1_Ingestor::process` calls
+a LOCAL method named `run`, and `str.replace` is pure and everywhere. 21 loose, 17 confirmed.
+
+NOT LOAD-BEARING TODAY: zero un-trusted mirror functions call any of the 17, so no proof leans
+on a false frame. It is a TRAP, not a HOLE — one green whole-file proof away from being a
+hole, which is exactly what this conversion campaign is hunting for. `_cache_root` is the
+proof of that: it CONVERTS AND PROVES, and check 1 refuses it precisely because its
+`os.mkdir` becomes a nullary `val` with no `writes`.
+
+Housekeeping under wall-lesson (h6): deleted 52 stale byte-diff/mirror sweep trees, keeping
+only `bd_nw`/`mir_nw` (the increment-A baselines) and `bd_mx2`/`mir_mx2`. /tmp 50% -> 43%.

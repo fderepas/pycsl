@@ -53,7 +53,6 @@ class PyCSLError(Exception):
         msg = super().__str__()
         return f"{header}: {msg}" if header else msg
 
-    #@ \trusted reviewer: pycsl-self-annotate
     # super().__str__() is opaque (Exception base); returns string but PyCSL cannot see that
     def message(self) -> str:
         """The bare human message (no stage/file/line header, no code)."""
