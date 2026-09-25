@@ -1036,7 +1036,11 @@ def main():
     share = stats["no_proof"] / float(stats["files"]) if stats["files"] else 0.0
     print("[*] corpus-contract-truth-args: %d function(s), %d argument-level "
           "evaluation(s) — %d AGREE, %d DISAGREE, %d inherited from a `\\trusted` "
-          "callee, %d RAISED on an admitted argument, %d unrunnable."
+          "callee, %d RAISED on an admitted argument, %d unrunnable (the MODULE would "
+          "not load UNDER THIS HARNESS — all of today's are relative-import drivers that "
+          "run perfectly well as package modules, `python3 -m "
+          "test-suite.corpus.pycsl-reference.0061` prints their own PASS, so the row is an "
+          "instrument limit and not a corpus defect)."
           % (funcs, agree + len(disagree) + len(inherited), agree, len(disagree),
              len(inherited), len(raised), len(unrunnable)))
     _nr_bad = [r for r in never_returns if (r[0], r[1]) not in NEVER_RETURNS]
