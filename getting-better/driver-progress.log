@@ -10806,3 +10806,24 @@ own `#@ requires/ensures/assigns` lines, and has lost its marker.
 THE PATTERN, for the fourth time this session: **a uniformly good result is a reason to check
 the instrument.** 7 of 7 was not evidence that porting works; it was evidence that nothing was
 being measured.
+
+## 04:48Z — `frontend/Module2_Parser.py::_err` PORTS, CONVERTS AND PROVES
+
+The second port-and-prove of the session, and the first in a real frontend module:
+
+    check 1     34 diff lines, **ZERO new abstract operations**
+    conversions TWO functions, not one — the ported body calls `_contractparser__cur`, which
+                was sitting in the emission as an unused `val` and becomes a `let` with it:
+                  + let _contractparser__cur (self: _contractparser) : _tok
+                  +   ensures { (result = (self.toks[self.i])) }  = self.toks[self.i]
+                  + let _contractparser___err (self: _contractparser) (msg: string) : unit
+                  +   ensures { false }  raises { ContractSyntaxError }  writes { }
+    proof       Module2_Parser.py whole file: [+] Verification SUCCESS!
+
+`ensures { false }` survives the conversion, which is the interesting part: `_err` ALWAYS
+raises, the emitted `let` proves that it never returns normally, and the `raises` clause is
+now discharged by a body instead of assumed by a `val`.
+
+`_try` is being checked alongside it in the same file and the same tree, because
+`Module2_Parser.py` costs fifteen minutes to prove and two candidates in one file should cost
+one proof, not two. `$S/check14_multi.sh`.
