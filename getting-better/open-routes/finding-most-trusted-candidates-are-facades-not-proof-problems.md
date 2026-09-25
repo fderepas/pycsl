@@ -1,4 +1,24 @@
-# The conversion population is 56, not 410 — 235 of the candidates are facades
+# Most `\trusted` candidates are facades, not proof problems — 235 of 410
+
+> **THE NUMBER WAS WRONG TWICE AND IS RECORDED THREE TIMES, because how it was wrong is the
+> useful part.** 61, then 56, then **62**. Each revision came from an instrument disagreeing
+> with the census, within the hour, and each one is a different lesson:
+>
+> * **61 -> 56.** The census keyed function bodies on the BARE name, so a file with two
+>   definitions of `visit` let a FACADE match the OTHER `visit`'s live body. Caught by the
+>   screen reporting LOWERS for `pure_ast.py::visit`, whose body is `pass`. Re-keyed on the
+>   QUALIFIED name; five candidates moved out and eight became AMBIGUOUS rather than guessed.
+> * **56 -> 62.** The census compared RAW SOURCE TEXT. `pycsl.py::_dispatch_provers` scored
+>   0.991 "stale copy" when its ONLY difference from live is four `#@` annotation lines on a
+>   NESTED closure — which the fidelity plane explicitly PERMITS, along with docstrings and
+>   quote style. Six candidates were being called DIFFERS for carrying exactly the annotations
+>   the mirror exists to carry.
+>
+> **The fix is the lesson this generation keeps relearning: ask the plane that decides.** The
+> final census imports `check-self-annotate-mirror-sync.py`'s own `_normalize` and
+> `_signature` and uses its qualified-name walk, so "VERBATIM" now means precisely what the
+> gate that would block the conversion means by it, and cannot drift from it again.
+> Both headline stubs survive all three versions, which is the check that mattered each time.
 
 > **CORRECTED 03:42Z, one hour after it was written, by the census's own first hit.**
 > The first version said 61 and 238. It keyed function bodies on the BARE name, so a
