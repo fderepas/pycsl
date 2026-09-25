@@ -9962,3 +9962,27 @@ THE FAMILY NOW STANDS AT EIGHTEEN FUNCTIONS ACROSS FIVE MECHANISMS:
     the verifier supplying a name Python lacks               2             2
     a `@dataclass` annotation contradicting its default      1             1
     the `int` placeholder making a signature unsatisfiable   1             1
+
+--------------------------------------------------------------------------------
+2026-09-25 01:02Z — two NEGATIVE results, recorded because they were checked
+
+With eighteen instances of "the verified program is not the executed program" in hand, the
+temptation is to read every unrunnable row as another one. Two were checked and are not.
+
+**The eight `ImportError` rows are the HARNESS, not the corpus.** `0061`, `0065`, `0178`,
+`0179`, `0186`, `0187`, `circ_a`, `circ_b` all carry `from .multi_file_lib… import …`, and
+the oracles `exec` a corpus file standalone, where a relative import has no parent package.
+Run with one — `python3 -m test-suite.corpus.pycsl-reference.0061` — the file prints its
+own `PASS`. The programs run. The instrument cannot load them, which is a different
+sentence, and the census row now says which.
+
+**The total-dict model asserts a NORMAL EXIT, not a VALUE.** `0199`'s docstring says "a
+missing key reads as 0", which invites the stronger reading. Three probes say otherwise:
+`#@ ensures \result == 0` over `return d[7]` does NOT prove, and neither claim proves over
+`d.get(7, 99)`. No false value is produced anywhere. What discharges is a TAUTOLOGY —
+`\result` against the same model term the body returns — and it discharges because the model
+gives the read a value AT ALL. The family claim survives in its narrower and true form.
+
+A finding family grows by the same carelessness that makes it interesting. Both of these
+took under five minutes to settle, and one of them would have been a false sentence in a
+record that everything around it is right about.
