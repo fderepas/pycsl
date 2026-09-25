@@ -79,6 +79,37 @@ seen it and each had a different boundary.
   read forms work for which element types; every FAILED cell but one is a missing branch
   beside a present one.
 
+## THE QUESTION NOBODY HAD ASKED: DOES THE CORPUS RUN?
+
+Every oracle in this battery executes a corpus function BECAUSE A CLAUSE ASKED IT TO, so a
+file whose clauses none of them can read is a file nobody has ever run. Asked directly, the
+question took an afternoon and produced the generation's largest finding —
+`finding-a-verified-program-that-is-not-the-executed-program.md`, **NINETEEN functions across
+FIVE mechanisms**, every one in a `# pycsl-expected: PASS` driver — plus a new plane and four
+corpus repairs.
+
+    `#@ datatype` constructors, declared and never defined       11 functions,  9 files
+    `#@ compose_from` provider methods                            3             3
+    the verifier supplying a name or value Python lacks           3             3
+        0640 `ast.literal_eval` with no `import ast`
+        0642 `exec` splicing — *"verification-equivalent"*, and it is not
+        0199 a dict modelled TOTAL, where Python raises KeyError
+    a `@dataclass` annotation contradicting its default           1             1
+    the `int` placeholder making a signature unsatisfiable        1             1
+
+`bin/check-corpus-executes.py` is the plane: does the file LOAD, and does its own
+`if __name__ == "__main__"` self-check pass. It found a driver that is not a Python program
+at all (`1190`, `@mutable_state` used and never defined, NameError at import), a circular
+fixture CPython refuses, and **two author-written self-checks that had never executed in any
+run** (`0312` names a function the file does not define; `0452` compares a `bytearray` with a
+`list`). A self-check nobody runs is a comment.
+
+**Two bugs in that plane, both caught before it landed, and the second by arithmetic on its
+own report**: a bare-dict namespace broke `dataclasses`' annotation resolution (17 false
+alarms), and an unrestored `sys.modules` made three drivers sharing one fixture report two
+different verdicts depending on glob order — 1380 loaded plus 2 failures is not 1384.
+Wall-lessons (w5), (y5), (z5).
+
 ## THE FINDING THAT CAME OUT OF A POPULATION WIDENING
 
 `finding-a-contract-over-a-function-that-never-returns.md`. Two PASS-expected corpus
