@@ -234,7 +234,6 @@ frontend/pure_ast.py	_decode_string	unclassified	-
 frontend/pure_ast.py	_decode_escapes	unclassified	-
 frontend/pure_ast.py	parse	unclassified	-
 frontend/pure_ast.py	literal_eval	unclassified	-
-frontend/pure_ast.py	iter_fields	unclassified	-
 frontend/pure_ast.py	iter_child_nodes	unclassified	-
 frontend/pure_ast.py	walk	unclassified	-
 frontend/pure_ast.py	copy_location	unclassified	-

@@ -4023,12 +4023,15 @@ def parse(source, filename='<unknown>', mode='exec', *, type_comments=False, fea
 def literal_eval(node_or_string):
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def iter_fields(node) -> int:
-    pass
+    for field in node._fields:
+        try:
+            yield field, getattr(node, field)
+        except AttributeError:
+            pass
 
 # YIELD-ERASURE REVERT (#31). This was CONVERTED in relaunch #30. Its emitted body was
 # `let iter_child_nodes (node: int) : unit` in which BOTH `yield field` and `yield item`

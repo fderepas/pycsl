@@ -73,7 +73,7 @@ MAX_TRUST_DEPENDENT = 401     # UPPER bound at the first measurement was 400; ma
                               # number silently every time a conversion landed in a trusted
                               # call path. So the invariant that actually means "the trusted
                               # surface did not grow" is ratcheted separately, below.
-MAX_TRUSTED_OR_DEPENDENT = 800
+MAX_TRUSTED_OR_DEPENDENT = 799
                               # (#49) gen #31 — THE RATCHET THAT SHOULD HAVE BEEN HERE FROM
                               # THE START: `len(trusted) + dep_hi`, the CEILING on the whole
                               # trusted-or-trust-dependent surface. It is invariant under the
