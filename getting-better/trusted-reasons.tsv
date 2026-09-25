@@ -24,7 +24,6 @@
 # A correctness:/cost-scale: tag is a CLAIM, and this repo's boundary claims have been refuted
 # repeatedly. Tag only with a cite to the paragraph that measured it; when in doubt, unclassified.
 file	qualname	reason	cite
-Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler.__init__	unclassified	-
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._build_callee_no_exception_summary	unclassified	-
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._wrap_call_with_callee_raises_assert	unclassified	-
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._render_callee_condition	unclassified	-

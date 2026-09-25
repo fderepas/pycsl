@@ -148,7 +148,13 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        proved after three hours six minutes of prover time on that file. The five-candidate
 #        batch on the same file had failed; separating the two that only RAISE from the three
 #        that touch `node._fields` / `isinstance` was the whole difference.
-MAX_UNCLASSIFIED = 449
+#   448  2026-09-25, gen #31, increment J. `Module6_WhyMLTranspiler.py::__init__` — a
+#        **172-line** port from the DIFFERS population (the mirror held a real body that was
+#        not the live one, so this OVERWROTE a program rather than filling a facade), 58 diff
+#        lines, ZERO new abstract operations, green whole-file proof in 38 minutes. Its
+#        near-twin `pycsl.py::_parse_args` is 174 lines, also proves, and is REFUSED by check
+#        1 for TEN new abstract operations — the whole of `argparse` going uninterpreted.
+MAX_UNCLASSIFIED = 448
 
 REASON_RE = re.compile(
     r"^(?:(?P<kind>correctness|cost-scale):(?P<val>[a-z0-9][a-z0-9._-]*)|spent-rc0|unclassified)$")

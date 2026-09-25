@@ -25,7 +25,6 @@ class Module6_WhyMLTranspiler(
 ):
     """Reads the JSON IR and transpiles it into valid WhyML (.mlw) syntax."""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._abstract_ops, self._all_record_fields, self._ambiguous_fields, self._array2d_params, self._array_locals, self._auto_trusted_array_returns, self._auto_trusted_map_returns, self._auto_trusted_set_op, self._auto_trusted_tuple_returns, self._bounded_int, self._class_constants, self._class_str_set_constants, self._constructors, self._current_array1d_params, self._current_params, self._current_self_type, self._current_symbol_table, self._current_tuple_arity, self._dict_locals, self._emit_record_ctx, self._emitted_logic_funcs, self._emitting_val_contract, self._for_idx_init, self._frame_trigger_active, self._func_mutated_collection_params, self._func_return_type, self._func_stmt_seq_mut_params, self._has_early_ret, self._havoc_counter, self._imported_inductive_sigs, self._in_spec, self._lambda_locals, self._late_content_ops, self._module_const_compound_dicts, self._module_const_dicts, self._module_const_pair_dicts, self._module_constants, self._module_func_names, self._module_func_no_exception, self._module_func_no_exception_all, self._module_func_param_names, self._module_func_raises, self._module_global_classes, self._module_method_field_old_ensures, self._module_method_field_param_frame_ensures, self._module_method_field_param_post_ensures, self._module_method_field_param_result_ensures, self._module_method_field_result_ensures, self._module_method_formal_params, self._module_method_param_defaults, self._module_method_param_result_ensures, self._module_method_param_types, self._module_method_param_whyml_types, self._module_method_result_ensures, self._module_method_return_annotations, self._module_method_return_types, self._module_method_vararg_elem, self._module_method_vararg_str, self._module_method_writes, self._module_str_list_constants, self._quant_record_binders, self._quant_scalar_binders, self._record_locals, self._record_types, self._shared_var_names, self._token_kind_constants, self._value_semantic, self._variant_types, self.check_behavioral_subtyping, self.ir, self.memory_model, self.strict_hash_eq_consistency, self.strict_no_exception_propagation
@@ -54,15 +53,60 @@ class Module6_WhyMLTranspiler(
         # is on the hook to keep the methods consistent).
         self.strict_hash_eq_consistency = bool(strict_hash_eq_consistency)
         self._abstract_ops: Dict[str, str] = {}  # Abstract val declarations: name → full decl string
+        # cleared-array item 1 (call comprehensions): the set of module functions
+        # already emitted as a pure `let [rec] function` (a logic symbol usable in a
+        # contract term). Populated in `_emit_function` as each function is emitted
+        # (callee-before-caller SCC order), so a comprehension `[g(x) for x in a]`
+        # processed during the CALLER's body can check `g` is spec-callable.
+        self._emitted_logic_funcs: Set[str] = set()
+        # cleared-array item 1: content-comp `val`s whose `ensures` references a USER
+        # `let function` (a call comprehension). Such a `val` must be declared AFTER
+        # its referenced function, so it is deferred here as (op_name, decl,
+        # using_func) and spliced in just before the using function's `let` line by
+        # `_insert_late_content_ops`, instead of into the early abstract-op block.
+        self._late_content_ops: List[Any] = []
         self._record_types: Dict[str, Any] = {}  # class_name_lower → {fields: [...], defaults: {...}}
         # sum-types: variant type name → {whyml_name, constructors}; constructor name →
         # {type, whyml_type, arity, payload}. Drive param typing, construction, and match.
         self._variant_types: Dict[str, Any] = {}
         self._constructors: Dict[str, Any] = {}
         self._class_constants: Dict[str, Dict[str, int]] = {}  # class_name_lower → {CONST: int literal}
+        # 7b (self-tcb-reduction L4b): class_name → {CONST: [str-member, ...]} for class-body
+        # string-SET constants (`_GENERIC_BASE_NAMES = {"Generic"}`); feeds the faithful
+        # `<x> in self.<CONST>` -> `str_eq_op` disjunction membership.
+        self._class_str_set_constants: Dict[str, Dict[str, List[str]]] = {}
         # module-constants-plan: module-level int constants (`K_IHDR = 0`) →
         # resolved to their literal in `_handle_var_expr` (body and contract).
         self._module_constants: Dict[str, int] = self.ir.get("module_constants", {})
+        # W8 (ii): `<alias>.<CONST>` -> concrete int, for the CPython `tokenize`/`token`
+        # kind codes, read from the real module at emission (see Module5). Empty for
+        # every program that does not import them.
+        self._token_kind_constants: Dict[str, int] = self.ir.get(
+            "token_kind_constants", {})
+        # W8 (ii, companion): `<alias>.<attr>` -> its actual list-of-str contents, for
+        # the CPython `keyword` tables. Empty for every program that does not import it.
+        self._module_str_list_constants: Dict[str, List[str]] = self.ir.get(
+            "module_str_list_constants", {})
+        # module-const-dict-get: module-level constant str->str dict literals
+        # (`OP_MAP = {"==":"=", ...}`) → recognized at `NAME.get(k, default)` in
+        # `_lower_dict_get_call` as a chained string if-then-else. Empty for every
+        # existing corpus program (byte-identical emission).
+        self._module_const_dicts: Dict[str, Dict[str, str]] = self.ir.get("module_const_dicts", {})
+        # module-const-PAIR-dicts: module-level `str -> (str, int)` const dict literals
+        # (`_BINOP = {"|": ("BitOr", 4), ...}`), as `{NAME: [(key, s, i), ...]}` in source
+        # order. Recognized at a `<key> in NAME` membership guard and at a
+        # `a, b = NAME[<key>]` tuple-unpack read. Empty for every corpus program
+        # (byte-identical emission).
+        self._module_const_pair_dicts: Dict[str, list] = self.ir.get(
+            "module_const_pair_dicts", {})
+        # compound-key const-map lowering: `{NAME: {"key_whyml":…, "elem_whyml":…}}`
+        # for a module-const dict with a tuple key + list value (`TRIGGERS`). Each
+        # becomes an opaque `val constant NAME : map <key> (option (list <elem>))`
+        # (emitted after the type decls) and a `NAME.get(k, [])` read lowers to the
+        # faithful defaulting `Map.get` in `_lower_dict_get_call`. Empty for every
+        # corpus program (byte-identical emission).
+        self._module_const_compound_dicts: Dict[str, Dict[str, str]] = self.ir.get(
+            "module_const_compound_dicts", {})
         # gap-9: signatures of imported `#@ inductive` predicates whose RULE was
         # NOT crossed (kept opaque to avoid an E-matching blow-up). Lets the
         # `_emit_contract_logic_symbol` fallback declare the opaque predicate
@@ -113,12 +157,23 @@ class Module6_WhyMLTranspiler(
         self._module_func_names: Set[str] = set()
         self._module_method_return_types: Dict[str, str] = {}
         self._module_method_param_types: Dict[str, List[str]] = {}
+        # wrong-lowering-to-fix.md §WL-05b: func-name -> caller-visible mutable
+        # `ref (map …)` dict/set param names (fixpoint). Empty default → byte-identical.
+        self._func_mutated_collection_params: Dict[str, Set[str]] = {}
+        # stmt-list-append-mutation wall (C-bucket): func-name -> caller-visible mutable
+        # `ref (seq stmt_ir)` list param names (fixpoint). Empty default → byte-identical.
+        self._func_stmt_seq_mut_params: Dict[str, Set[str]] = {}
         # 10-1732-gap (Gaps 2/3): callee return-annotation + by-name param WhyML types.
         self._module_method_return_annotations: Dict[str, str] = {}
         self._module_method_param_whyml_types: Dict[str, Dict[str, str]] = {}
         # 1111-spec R7: per-function formal-param order + positional defaults.
         self._module_method_formal_params: Dict[str, List[str]] = {}
         self._module_method_param_defaults: Dict[str, Dict[str, Any]] = {}
+        # W8 (ii): callee-name -> its `*vals: str` vararg param name.
+        self._module_method_vararg_str: Dict[str, str] = {}
+        # ladder 1a: callee-name -> WhyML element type of its vararg sequence
+        # ("string" | "int"). Absent entry means "string" (the W8 (ii) default).
+        self._module_method_vararg_elem: Dict[str, str] = {}
         self._module_method_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._module_method_param_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._module_method_field_result_ensures: Dict[str, List[Dict[str, Any]]] = {}

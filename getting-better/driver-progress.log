@@ -11173,3 +11173,14 @@ produced, and it is the reason the emit-diff is check ONE rather than check four
 `Module6_WhyMLTranspiler::__init__` is 172 lines of field initialisation, entirely inside the
 value model. `_parse_args` is 174 lines of calls into a library the model has never seen.
 **A port's difficulty is not its length; it is which operations the body uses.**
+
+## 10:46Z — INCREMENT I IS GATED: 4029/4047, THE STANDING EIGHTEEN, ZERO XPASS
+
+    corpus byte-diff   0 MOVED in all three directions
+    mirror byte-diff   1 MOVED, 0 unexpected (`frontend__pure_ast`)
+    fidelity           893
+    planes             all 48 green
+    suite              4029/4047, EIGHTEEN, ZERO XPASS
+
+Six increments banked: A, D, E, F, H, I. Markers **453**, verbatim un-trusted **893**,
+trusted-or-dependent **801**.
