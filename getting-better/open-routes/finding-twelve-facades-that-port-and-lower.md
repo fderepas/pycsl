@@ -1,4 +1,21 @@
-# Twelve of the fifty cheap facades PORT AND LOWER — the first path past 460
+# Eight of the fifty cheap facades PORT AND LOWER — the first path past 460
+
+> **CORRECTED 04:51Z, from twelve to eight.** The screen classified failure by a BLACKLIST of
+> error strings — 'PIPELINE ERROR', 'syntax error', 'but is expected', 'unbound ' — and Why3
+> has more ways to fail than that. Four of the twelve were false:
+>
+>     _try, interleave, items_view   "This expression has type int, it cannot be applied"
+>     parse_contract                 "this expression raises unlisted exception PyCSLParseError"
+>
+> The first three take a CALLABLE parameter, which the model carries as `int`. **That is a
+> fourth distinct wall** — higher-order arguments — with a population of three here.
+>
+> This is the same bug as the first screen's missing 'syntax error', in the same session, in a
+> script written after that lesson. A blacklist of failure strings is incomplete in the
+> dangerous direction by construction. The driver prints a POSITIVE marker —
+> `[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]...)` — and
+> that is the only thing worth matching. All twelve were re-run against it
+> (`$S/recheck_ports.sh`, a separate script: never edit a screen that is running).
 
 Generation #31, 2026-09-25T04:35Z.
 
@@ -11,19 +28,22 @@ ABORTS rather than guessing), their `\trusted` marker deleted, and the file emit
 
 | verdict | count |
 |---|---|
-| **PORTS + LOWERS** | **12** |
+| **PORTS + LOWERS** (confirmed against the POSITIVE marker) | **8** |
+| reported PORTS+LOWERS by the blacklist, refuted by the positive marker | 4 |
 | TYPE error | 32 |
 | REFUSED | 5 |
 | SYNTAX | 1 |
 
-## The twelve
+## The eight
 
-    frontend/Module2_Parser.py     _err                  frontend/pure_ast.py   error
-    frontend/Module2_Parser.py     _try                  frontend/pure_ast.py   interleave
-    frontend/Module2_Parser.py     parse_contract        frontend/pure_ast.py   items_view
-    frontend/monomorphize.py       _rewrite_call_sites   frontend/pure_ast.py   iter_fields
-    module6_whyml/identifiers.py   stable_hash           frontend/pure_ast.py   unsupported
-    proof2why3/parser.py           __repr__              proof2why3/sertop.py   __enter__
+    frontend/Module2_Parser.py     _err          PROVED (whole file, 04:48Z)
+    proof2why3/sertop.py           __enter__     PROVED (whole file, 04:27Z)
+    frontend/monomorphize.py       _rewrite_call_sites
+    frontend/pure_ast.py           error
+    frontend/pure_ast.py           iter_fields
+    frontend/pure_ast.py           unsupported
+    module6_whyml/identifiers.py   stable_hash
+    proof2why3/parser.py           __repr__
 
 `__enter__` has already been taken all the way: check 1 clean (11 additive diff lines, no new
 `val`), and `[+] Verification SUCCESS!`. It is the existence proof for the other eleven.
