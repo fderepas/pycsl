@@ -11184,3 +11184,29 @@ value model. `_parse_args` is 174 lines of calls into a library the model has ne
 
 Six increments banked: A, D, E, F, H, I. Markers **453**, verbatim un-trusted **893**,
 trusted-or-dependent **801**.
+
+## 10:40Z — `module6_whyml/expressions.py::_emit_metatype_tags` PROVES, after 5h27
+
+The longest single proof of the session, on the file that holds 36 facades and 45% of the
+porting programme's lines. An 8-line port, 61 diff lines, and TWO new abstract operations:
+
+    val iter_get (x: int) (i: int) : int
+    val iter_length (x: int) : int
+
+**CHECK 1 ADMITS THESE, AND THE DISTINCTION IS WORTH STATING PRECISELY.** Every check-1
+refusal so far has been an op that does NOT take the thing it operates on:
+
+    val root_mkdir_0 () : int          an `os.mkdir` that does not take the directory
+    val stub_dir_is_dir_0 () : int     an `os.path.isdir` that does not take the path
+    val ir_keys_0 () : int             an `ir.keys()` that does not take `ir`
+    val argparse_ArgumentParser_0 ()   a parser that does not take its arguments
+
+`iter_get` and `iter_length` DO take their collection. They are honest opacity over an
+unmodelled container — the elements are unconstrained, and nothing is claimed about them —
+which is exactly the opacity the `val _emit_metatype_tags (self) : unit` it replaces already
+had, over the whole body rather than over one loop.
+
+So the criterion is not "no new `val`s". It is: **a new `val` may not erase an EFFECT or an
+INPUT DEPENDENCE.** A nullary op erases the dependence; an op with no `writes` standing for a
+mutation erases the effect. An op that takes its operand and returns an unconstrained value
+erases neither — it declines to model, which is what a `val` is for.
