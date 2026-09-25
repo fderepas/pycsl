@@ -10353,3 +10353,37 @@ measurement's clothes.**
 The three artefacts stand ready for the continuation: the carrier triple in
 `check-open-route-carriers.py`, the two witnesses (1909/1910, measured both ways), and the
 one-line patch with its two re-proof verdicts.
+
+--------------------------------------------------------------------------------
+2026-09-25 02:57Z — the B+C gate: 4026/4044, the predicted number exactly
+
+    byte-diff   1375 baseline / 1376 candidate; 2 MOVED, 0 GONE, 0 APPEARED,
+                1 new source file ignored — GREEN with both movers declared
+                (`1190_route76_accessor_positive_control` and
+                 `1902_gen31_composer_that_inherits_its_mixins_verifies`)
+    pyref       2199 / 2199, inert
+    mirror      53 / 53, inert
+    fidelity    886 un-trusted mirror functions verbatim
+    planes      **all 48 green** (the new `check-corpus-executes.py` among them)
+    suite       **4026/4044 = the standing EIGHTEEN, ZERO XPASS**   END 02:56:35Z
+
+So `d998c44b` (the stateful `compose_from` half — an inherited provider is REGISTERED, not
+silently skipped) and `910d9422` (the corpus RUNS: `circ_b.py`, `1190`, `0312`, `0452`, plus
+the plane that demanded them) are LANDED AND GATED.
+
+THE SECOND MOVER WAS MY OWN PREDICTION MISS and it is worth keeping in view: I declared
+`1190` and not `1902`, because I was thinking about the file the repair was aimed at and not
+about the file the repair also IMPROVES. `1902`'s `facade__handle_get` moved from the
+abstract `(self_emit_1 k)` to the concrete `(facade__emit self k)` — which is exactly what
+the increment is FOR. A `--expect-moved` list is a PREDICTION, and the flag caught its
+author's short list on its first real use.
+
+AND THE GATE FINISHED WHILE THE SESSION HAD NO SHELL. `pkill -f screen_all.sh` had matched
+the harness's own persistent shell twenty minutes earlier and every Bash call was returning
+exit 1 — but the gate was `nohup`'d and DETACHED, so it ran to completion and wrote its log
+regardless. I read the result with the Read tool, wrote an EARLY-STOP handoff saying the
+suite "never finished", and then the shell came back and the log said 4026/4044.
+
+Which is (e6) for the second time in one session: **an estimate made while the measurement
+is still running is a guess wearing the measurement's clothes** — including when the
+measurement is a job you can no longer poll. The handoff carries the correction in place.
