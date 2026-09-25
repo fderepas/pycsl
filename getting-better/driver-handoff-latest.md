@@ -373,3 +373,64 @@ counting against a 2h57 baseline).
 PREDICTIONS: count 455 -> **453**; fidelity 891 -> **893**; `check-untrusted-emitted` must
 report both LET; `trusted-reasons.tsv` loses two `unclassified` rows so MAX_UNCLASSIFIED falls
 451 -> **449**. Gate with `--expect-moved frontend__pure_ast`; corpus predicted 0 MOVED.
+
+---
+
+# UPDATE 12:23Z — SEVEN increments gated, an eighth gating; 460 -> 451
+
+    A  gated 04:08Z   D  gated 05:15Z   E  gated 05:15Z   F  gated 05:15Z
+    H  gated 07:56Z   I  gated 10:46Z   J  gated 12:17Z   K  gating from 12:23Z
+
+    markers                460 -> 451
+    verbatim un-trusted    886 -> 895
+    trusted-or-dependent   833 -> 800
+    suite                  4029/4047 at every gate, the standing EIGHTEEN, ZERO XPASS
+
+## The ten markers retired, and how
+
+    PROOF ALONE (the mirror body was already verbatim):
+      errors.py::message                          4 frame `ensures` assumed -> proved, x4 classes
+      proof2why3/sertop.py::__exit__              `val` -> `let ... = ()`, no new `val` at all
+    PORTED, then proved (the mirror body was a FACADE or a DIFFERENT program):
+      proof2why3/sertop.py::__enter__             1-line port
+      frontend/Module2_Parser.py::_err            converts TWO functions; `ensures { false }` survives
+      module6_whyml/identifiers.py::stable_hash   1-line port
+      proof2why3/parser.py::__repr__              1-line port
+      frontend/monomorphize.py::_rewrite_call_sites
+      frontend/pure_ast.py::error                 3h06 of prover time for this pair
+      frontend/pure_ast.py::unsupported
+      Module6_WhyMLTranspiler.py::__init__        172-line port; made the record model faithful
+      module6_whyml/expressions.py::_emit_metatype_tags   5h27, the longest proof of the session
+
+And TWO added honestly (`_hdr_name`, `_returns_literal_none::walk`), because they are closures
+inside `\trusted` parents that were verified by nothing.
+
+## CHECK 1, stated precisely (this is the session's most portable result)
+
+**A new abstract `val` may not erase an EFFECT or an INPUT DEPENDENCE.**
+
+    REFUSED  val root_mkdir_0 () : int              an `os.mkdir` without the directory
+    REFUSED  val stub_dir_is_dir_0 () : int         an `os.path.isdir` without the path
+    REFUSED  val ir_keys_0 () : int                 an `ir.keys()` without `ir`
+    REFUSED  val argparse_ArgumentParser_0 () : int a parser without its arguments (10 ops)
+    ADMITTED val iter_get (x) (i) : int             takes its collection; declines to model it
+    ADMITTED val iter_length (x) : int              the same
+
+A nullary op erases the dependence. An op with no `writes` standing for a mutation erases the
+effect. An op that takes its operand and returns an unconstrained value erases neither.
+
+## What is still running
+
+    $S/prove_batch3.log   `pure_ast.py::iter_fields`, then `__instancecheck__`, then `visit_If`,
+                          one at a time (~3h each; each is EXPECTED to be refused by check 1,
+                          and "expected" is not "measured")
+    $S/gate_k.log         the increment-K gate
+
+## The next things, in order
+
+1. Gate K. `--expect-moved module6_whyml__expressions`; corpus predicted 0 MOVED.
+2. Adjudicate whatever batch3 returns.
+3. The three remaining confirmed DIFFERS/facade candidates not yet proved.
+4. Then the frontier is capabilities: the string/list/array FIELD value model (~170 witnesses),
+   the nested-closure lift (backlog #54), the I4 bridge re-typing (backlog #55), higher-order
+   arguments, dynamically-rebound names.
