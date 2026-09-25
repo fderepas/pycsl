@@ -134,3 +134,42 @@ current frontier, and it is the first time it has been measured rather than esti
 Everything else is one of four named walls, in order of population: the string/list/array
 **field value model** (124 + 36 = 160 witnesses), the **in-place mutator** refusal, the
 **nested-closure lift**, and **higher-order arguments** (5).
+
+## And the 105 DIFFERS, screened the same way — three more
+
+`DIFFERS` is the population where the mirror holds a REAL body that is not the live one. Those
+cannot be ported by the facade rule (`port_one.py` ABORTS on a non-facade body, because
+replacing a real body is a different and much more dangerous operation), so the tool gained an
+explicit `--replace` and all 105 were screened:
+
+| verdict, the 105 DIFFERS | count |
+|---|---|
+| **PORT + LOWER, confirmed against the positive marker** | **3** |
+| TYPE error | 46 |
+| REFUSED | ~40 (heterogeneous list literals, rebound names, `setdefault`, `pop`, reachable `except`, nested lifts) |
+| CHECK-0 trusted-parent trap | 1 |
+| `cannot be applied` (higher-order) | 1 |
+| SYNTAX | 1 |
+
+The three:
+
+    Module6_WhyMLTranspiler.py     __init__
+    frontend/import_classifier.py  _stub_set
+    pycsl.py                       _parse_args
+
+`pycsl.py::_gate_vacuity_then_succeed` also lowered and was refused by **CHECK 0** — it is a
+closure inside `\trusted` `_run_proofs`, so converting it would retire a marker over a body
+that is folded into an opaque `val`. That check was written six hours earlier and has now
+refused three candidates across two populations.
+
+## The whole conversion surface, finally measured
+
+    62   VERBATIM   6 lower, **2 proved and landed**
+    235  FACADE     13 port and lower, **7 proved** (5 landed, 2 more ready), 2 Z3 timeouts
+    105  DIFFERS    3 port and lower, unadjudicated
+    8    AMBIGUOUS
+
+**Ten markers of 460 have been retired by proof this session, and at most another dozen are
+reachable without a new capability.** Everything else is one of five named walls: the
+string/list/array FIELD value model (~170 witnesses), the in-place mutator refusal, the
+nested-closure lift, higher-order arguments, and dynamically-rebound names.
