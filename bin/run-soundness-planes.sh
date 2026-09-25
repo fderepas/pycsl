@@ -120,6 +120,14 @@ PLANES=(
     # constructor; the `@dataclass`, computed and control-flow shapes it cannot
     # state are all RUNNABLE, and this is what runs them.
     check-class-invariant-establishment.py
+    # (#49) gen #31: the question UNDERNEATH every oracle above. Each of them executes a
+    # corpus function BECAUSE A CLAUSE ASKED IT TO, so a file whose clauses none of them
+    # can read is a file nobody has ever run. Asked directly — does this file LOAD, and
+    # does its own `if __name__ == "__main__"` self-check pass — it found a PASS driver
+    # that raises `NameError` at import (1190: `@mutable_state` used, defined nowhere) and
+    # two author-written self-checks that had never executed in any run (0312 names a
+    # function the file does not define; 0452 compares a `bytearray` with a `list`).
+    check-corpus-executes.py
     # (#49) gen #30: the sibling that reads the line above's own header as a claim. That
     # plane says "WHAT IT DOES NOT CHECK: contracts with parameters ... writing a driver
     # there is the way to cover one" — but a parameterized `#@ ensures \result ==
@@ -318,7 +326,7 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=47
+MIN_PLANES=48
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #

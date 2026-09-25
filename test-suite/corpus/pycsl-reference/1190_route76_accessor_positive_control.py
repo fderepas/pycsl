@@ -15,6 +15,15 @@ CALL does not, which is why a constructor operand is excluded (see 1192).
 from typing import List
 
 
+# (#49) gen #31 — `@mutable_state` was USED below and DEFINED NOWHERE, so this
+# `# pycsl-expected: PASS` driver raised `NameError` at import: not one function
+# that fails, the whole module. Its siblings 0748, 0750 and 0751 all carry exactly
+# these three lines. Found by a sweep that asks only "does this file LOAD", which
+# is a question no instrument here had ever asked on its own.
+def mutable_state(cls):
+    return cls
+
+
 class Tok:
     #@ requires True
     #@ ensures True

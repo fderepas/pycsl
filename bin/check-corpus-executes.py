@@ -161,12 +161,31 @@ def _run_as_package_module(f):
     """`python3 -m <dotted path>` from the repo root, which is how Python runs a module
     whose imports are relative. Both the load and the `__main__` self-check happen in that
     one invocation, because `-m` sets `__name__` to `"__main__"` by definition."""
-    rel = os.path.relpath(f, ROOT)[:-3].replace(os.sep, ".")
+    # WHICH package root. A corpus-top-level file with a RELATIVE import is a member of the
+    # repo-rooted package path (`test-suite.corpus.pycsl-reference.0061`). A file inside a
+    # package DIRECTORY imports its siblings by the bare package name (`multi_file_lib.x`),
+    # which resolves only from the corpus directory — so that is its root, and `-m` runs
+    # from there. Getting this wrong invents `ModuleNotFoundError: No module named
+    # 'multi_file_lib'` for six files that import each other perfectly well.
+    _corp = next((c for c in CORPORA if f.startswith(c + os.sep)), None)
+    if _corp is not None and os.path.dirname(f) != _corp:
+        base, rel = _corp, os.path.relpath(f, _corp)[:-3].replace(os.sep, ".")
+    else:
+        base, rel = ROOT, os.path.relpath(f, ROOT)[:-3].replace(os.sep, ".")
+    # AND WHICH INVOCATION. A top-level SCRIPT with a relative import is run with `-m`,
+    # which is how Python runs a script that needs a package context. A file inside a
+    # package is IMPORTED — `python3 -c "import multi_file_lib.circ_a"` — because `-m` runs
+    # it as `__main__`, a SECOND module object distinct from `multi_file_lib.circ_a`, and a
+    # cycle then initialises the real one a second time and fails where a plain import
+    # succeeds. Measured both ways on the same file, in both directions.
+    if base is ROOT:
+        cmd = [sys.executable, "-m", rel]
+    else:
+        cmd = [sys.executable, "-c", "import %s" % rel]
     try:
-        p = subprocess.run([sys.executable, "-m", rel], cwd=ROOT,
-                           capture_output=True, timeout=TIMEOUT * 4)
+        p = subprocess.run(cmd, cwd=base, capture_output=True, timeout=TIMEOUT * 4)
     except subprocess.TimeoutExpired:
-        return ("TimeoutError", "`python3 -m %s` timed out" % rel)
+        return ("TimeoutError", "`%s` timed out" % " ".join(cmd[1:]))
     if p.returncode == 0:
         return None
     tail = (p.stderr.decode("utf-8", "replace").strip().split("\n") or [""])[-1]
@@ -192,7 +211,14 @@ def main():
                 skipped += 1
                 continue
             base = os.path.basename(f)
-            if RELATIVE_IMPORT.search(src):
+            # A file that lives INSIDE a package directory is a module, not a script, and
+            # must be loaded as one. `exec`ing `multi_file_lib/circ_a.py` as a file starts a
+            # SECOND, nested initialisation of the same module through its own cycle and
+            # fails where `import multi_file_lib.circ_a` succeeds — the probe's loading
+            # strategy inventing a failure the program does not have, which is the same
+            # class of mistake as the bare-dict namespace and the unrestored `sys.modules`.
+            _in_pkg = os.path.dirname(f) not in CORPORA
+            if _in_pkg or RELATIVE_IMPORT.search(src):
                 err = _run_as_package_module(f)
                 if err is None:
                     loaded += 1
