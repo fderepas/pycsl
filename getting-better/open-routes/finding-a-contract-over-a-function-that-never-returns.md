@@ -229,11 +229,33 @@ Two things, in order:
    the call sits in.
 
 2. **The abstract-`val` fallback emits the RAW PYTHON FIELD NAME in its frame.**
-   `writes { self.count }` where the record field is `service_count`. That is a latent
-   emission defect on a path no corpus file reached; making the composition executable
-   reached it. It is left recorded rather than repaired, because the repair above removes
-   the only program that walks that path — and a latent bug with no witness is exactly the
-   thing this campaign writes down instead of quietly fixing.
+   `writes { self.count }` where the record field is `service_count`.
+
+   **CORRECTION, measured after that sentence was first written as "a path no corpus file
+   reached".** It is reachable TODAY, with no inheritance and none of this generation's
+   changes: take `0554` exactly as the corpus has it and give `Service` its own `bump`.
+   `own_tails` then holds `bump`, the clone is skipped, `self.bump()` in `tick` falls to
+   the abstract `val`, and the LIVE tree answers
+
+       unbound function or predicate symbol 'count'
+
+   So the defect is not an artefact of making the composition executable — making it
+   executable is simply the second way to walk a path that was already open. The rule that
+   caught this is the one this campaign keeps re-learning: **before writing "no program
+   reaches this", write the program.**
+
+   `src/pycsl/module6_whyml/expressions.py` ~7396 builds the clause as
+
+       _wparts = [f"self.{f}" for f in writes_fields]
+
+   from the RAW `#@ assigns` target, while `_writes_filtered_to_labels` immediately above
+   it maps each target through `self._field_label(cls, f)` — but only to TEST membership,
+   never to emit. One line maps and discards; the next line emits unmapped. The failure is
+   fail-closed (Why3 refuses the symbol, the file FAILS), so it costs a DIAGNOSIS rather
+   than soundness — the same shape as the undeclared-element-write finding in gen #30.
+   Recorded here with its measurement; the repair is a separate increment with its own
+   byte-diff, because `_field_label` is a rename that every caller-side frame in the corpus
+   would flow through.
 
 **The repair** is the same sameness test, applied at the flatten loop instead of the
 shadow check: when the method the composer "already has" IS this provider — same line,
