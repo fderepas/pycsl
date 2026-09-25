@@ -7442,27 +7442,39 @@ specific backgrounded PID. `until grep -q SUITERC= gate.log` cannot match itself
 deadlock, and it is also what you actually care about. Sibling of (q5): the shell is a
 participant in your measurement, not a neutral observer of it.
 
-### (d6) A metric nobody recomputes cannot change — and cannot be wrong
+### (d6) Ask which command recomputes a number — then RUN THE SEARCH before saying none does
 
-This is a TCB-reduction driver. Three consecutive generation summaries end with
+This is a TCB-reduction driver. Three generation summaries end with
 
     `\trusted` markers 460 (unchanged)
 
-and I wrote that line myself, twice, in one session, without counting anything. Counting it:
-485 `#@ \trusted reviewer:` markers, 487 functions whose leading block carries the marker,
-596 occurrences of the token, 454 markers excluding `pycsl.py`. **No rule yields 460.**
+and I wrote that line myself, twice, without counting anything. So I counted: 485 raw grep
+hits, 487 functions with an attached marker, 596 occurrences of the token. **None of them
+460.** I concluded the campaign's headline had no instrument behind it, wrote a wall-lesson
+saying so, and landed a ratchet that measured a different quantity (487) under the same name.
 
-The word "unchanged" is what made it invisible. A number that is quoted forward rather than
-recomputed reports *the same value every time by construction*, and "unchanged" then reads as
-a measurement instead of as an artefact of copying. The campaign's own headline became the
-one claim in the record with no instrument behind it, in the file whose entire job is to say
-what moved — while every other claim in that file is backed by a plane.
+Every part of that was wrong, and one command would have shown it:
 
-**The fix is never a better number; it is a RULE and a RATCHET.** The count is now taken by a
-stated rule (a `def` whose immediately-preceding `#@` block contains `\trusted`) inside
-`check-mirror-coverage.py`, as a CEILING, because the direction is down — so retiring a stub
-forces the ceiling down in the same commit and adding one forces a justification.
+    $ bin/count-trusted-directives.py
+    [*] trusted-directives: markers 460 · grep-substring 485 · offset 25 · attached 460
 
-Generalise it: **for every number in a summary, ask which command recomputes it.** If the
-answer is "the previous summary", that number is prose. The ones most likely to be prose are
-the headline ones, because they are the ones everybody repeats.
+**The script exists, it is IN THE PLANE BATTERY, and it runs on every gate.** The 25-marker
+offset between the grep and the truth is the file-header docstring that MENTIONS the marker,
+once per file — the exact discrepancy I had just measured and read as an absence.
+`check-trust-blast-radius.py` names that script in its own header, two lines from text I had
+read minutes earlier.
+
+The half of the lesson that survives is worth keeping: **for every number in a summary, ask
+which command recomputes it.** The half I got wrong is the more useful one:
+
+> "I cannot reproduce it" is a statement about your search, not about the repo. Before
+> writing that a metric is unmeasured, `grep` the instrument directory for its name. The
+> cost is one command; the cost of skipping it was a false wall-lesson, a duplicate metric
+> with a second value, and a ratchet on a quantity the repo had DELIBERATELY declined to
+> cap — `count-trusted-directives.py` says "a floor on the INPUT, never on the metric", and
+> the history shows why: markers legitimately went 459 -> 461 when a refusal needed a stub,
+> including once in this very session.
+
+The failure mode is specific and worth naming: I measured four things, none matched, and I
+generalised from *my four* to *all possible*. A census of your own attempts is not a census
+of the repo.
