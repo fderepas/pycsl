@@ -11000,3 +11000,18 @@ Corpus predicted 0 MOVED; suite unchanged at 4029/4047.
     455  five ports PROVED
     886 -> 888 -> 886 -> 891 verbatim un-trusted
     834 -> 817 trusted-or-dependent
+
+## 07:56Z — INCREMENT H IS GATED: 4029/4047, THE STANDING EIGHTEEN, ZERO XPASS
+
+    corpus byte-diff   1378/1378 and 2199/2199 — 0 MOVED, 0 GONE, 0 APPEARED, INERT
+    mirror byte-diff   5 MOVED, **0 UNEXPECTED** — every emission name declared correctly on
+                       the first try, which is what `--expect-moved` teaching me twice was for
+    fidelity           891 verbatim un-trusted
+    planes             all 48 green
+    suite              4029/4047, EIGHTEEN confirmed, ZERO XPASS
+
+Five increments banked this session: A, D, E, F, H. The marker count stands at **455**, the
+trusted-or-dependent aggregate at **817**, and the verbatim un-trusted population at **891**.
+
+Increment G (the I4 fixpoint) is next; its scripts are written and dry-tested and the working
+tree is clean.
