@@ -10457,3 +10457,23 @@ appears in your own command line); delete ONLY the 253 stray `.mlw` the killed s
 
 Everything the EARLY-STOP handoff listed as pending is committed, increment A is landed, and
 the gate is running again with 3.9 GB free. Wall-lesson (g6).
+
+--------------------------------------------------------------------------------
+2026-09-25 03:09Z — the clean re-run CONFIRMS the false alarm was the disk
+
+The increment-A gate, re-launched with 3.9 GB free, on the same tree and the same emitter
+that had produced dozens of `MOVED pyref__NNNN.mlw` twenty minutes earlier:
+
+    corpus   1376 baseline / 1378 candidate;  0 MOVED, 0 GONE, 0 APPEARED,
+             2 new source file(s) ignored          <- exactly the prediction
+    pyref    2199 / 2199;  **0 MOVED**             <- the alarm is gone
+    mirror   53 / 53, inert
+    fidelity 886 un-trusted mirror functions verbatim
+
+The two new source files are witnesses `1906` and `1907`; `1905` is expected-FAIL and is
+REFUSED, so it never emits — which is why the count is 1378 and not 1379, and why predicting
+the number is worth doing.
+
+A false alarm is only disproved by re-running the same comparison on a healthy machine. That
+took three minutes and it is the last word on the incident: the instrument was honest, its
+inputs were corrupt, and the corpus never moved.
