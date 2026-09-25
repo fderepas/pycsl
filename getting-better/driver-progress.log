@@ -11291,3 +11291,11 @@ Separated, `error` and `unsupported` proved, and so does `iter_fields`.
 THE PREDICTION WAS WRONG AND THE PROOF WAS RIGHT, which is the only reason the ~3h was spent.
 A criterion you can apply by reading the source is a hypothesis; a criterion you apply to an
 emit-diff is a measurement.
+
+## 13:36Z — INCREMENT K IS GATED: 4029/4047. EIGHT increments banked; markers 451.
+
+    corpus 0 MOVED · mirror 1 MOVED 0 unexpected · fidelity 895 · planes 48/48 ·
+    suite 4029/4047, the standing EIGHTEEN, ZERO XPASS
+
+A · D · E · F · H · I · J · K.  460 -> **451** markers, 886 -> **895** verbatim un-trusted,
+833 -> **800** trusted-or-dependent.
