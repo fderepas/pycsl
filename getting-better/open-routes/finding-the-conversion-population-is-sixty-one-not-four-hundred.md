@@ -139,3 +139,48 @@ And the fourth hit, `frontend/pure_ast.py::visit`, is what corrected the census 
 reported LOWERS with a body of `pass`, which a VERBATIM candidate cannot have. The bare-name
 keying bug above was found by its own instrument's output disagreeing with it, within an hour,
 on the first file where the two could disagree.
+
+## The whole 56-candidate frontier, screened (03:47Z)
+
+The re-targeted screen finished. Over the 56 VERBATIM candidates (plus two census artifacts
+it had already been given), in `--no-proof` mode:
+
+| verdict | count | what it is |
+|---|---|---|
+| **LOWERS** | 8 | and only 2 survive the four checks — see below |
+| TYPE error | 36 | the value model: 17 `int`, 8 `array.Array.array`, 9 `string`/`string -> option` |
+| REFUSED | 11 | 5 in-place mutators, 4 `with`-binds, 1 heterogeneous list literal, 1 `else:` block |
+| CONVERTER-FAILED | 1 | `Module2_Parser.__init__` (a census artifact) |
+
+The eight LOWERS, adjudicated:
+
+    errors.py::message                    CHECK 1 PASSES     -> LANDING
+    proof2why3/sertop.py::__exit__        CHECK 1 PASSES     -> LANDING
+    audit_proof_reverify.py::_cache_root  CHECK 1 FAILS      -> refused (nullary `val`, no `writes`)
+    frontend/pure_ast.py::iter_child_nodes a GENERATOR       -> refused by check-yield-erasure.py
+    frontend/pure_ast.py::visit           census artifact    -> a facade
+    module6_whyml/statements.py::rec      census artifact    -> a facade
+    ir_schema.py::validate_ir             UNADJUDICATED      -> next, via check1.sh
+    pycsl.py::_finalize                   UNADJUDICATED      -> next; it is one of the 5 NESTED stubs
+
+**So the measured frontier is: of 410 strict markers, 56 can be retired by proof alone; of
+those 56, six lower; of those six, two land today.** Everything else needs a capability — and
+the 36 TYPE errors name which one, in one voice: the container/field value model.
+
+## And the porting programme, sized
+
+The 235 facades, by file, with the number of LIVE lines a faithful port would have to move:
+
+    frontend/pure_ast.py            48 facades    849 live lines
+    module6_whyml/expressions.py    36 facades   9976
+    frontend/Module2_Parser.py      24 facades    728
+    frontend/Module5_IREmitter.py   18 facades   2230
+    frontend/Module3_Weaver.py      13 facades   2776
+    proof2why3/canonical.py         11 facades    324
+    frontend/monomorphize.py         9 facades    266
+    ... 26 more files ...
+    TOTAL                          235 facades  22252 live lines
+
+**22,252 lines.** That is the size of the work the marker count has been quietly deferring,
+and `module6_whyml/expressions.py` alone is 45% of it — the file whose mirror proof already
+takes **2h57m** at its current, mostly-stubbed size.
