@@ -7287,3 +7287,12 @@ generated file had a literal backslash-n and Python refused it. The verdict colu
 "PIPELINE ERROR" six times and looked like a finding. Reading the MESSAGE
 (`unexpected character after line continuation character`) took one call and cost nothing;
 tallying the column would have put six false walls into this file.
+
+**SIZED, same day.** The one-line deletion was tried on an offline tree: the read-only
+`Set[str]` membership verifies, the corpus is byte-inert (14 of 14 set-using files), and then
+`module6_whyml/statements.py` FAILS TO TYPE-CHECK at the first call edge — the promoted
+`local_refs` is passed onward to a `val` still declared `map int (option int)`. κ=string has
+to propagate along CALL EDGES, and `local_refs` is threaded through the mirror's whole
+statement/expression emitter, so promoting one promotes all and each moved file must be
+re-proved (`expressions.py` alone: **2h57m**). A module-level fixpoint with a double-digit-
+hour proof bill — which is the honest size, and a number instead of a shrug.

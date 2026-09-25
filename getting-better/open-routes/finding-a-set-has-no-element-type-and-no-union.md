@@ -240,3 +240,47 @@ reusing a number that was never about this.
 
 Fifth correction in this record, and the fifth found by counting something that had been
 asserted. The counts that matter are always one split finer than the one already taken.
+
+## THE ONE-LINE FIX WAS TRIED, AND IT FAILS AT THE FIRST CALL EDGE
+
+Deleting the `_mut_coll` conjunct on an offline tree makes the read-only `Set[str]`
+membership verify, keeps the `Set[int]` control green, and leaves all 14 emittable set-using
+corpus files byte-identical. The mirror sweep then moved exactly two files, and both moved
+the SAME function's `let` and its abstract `val` together — which was written up here as
+"the bridge the comment warns about does not desync".
+
+**That was a statement about two DECLARATIONS. A call site is a third thing.** Re-proving
+the moved file takes eight seconds to disagree:
+
+    module6_whyml/statements.py, line 1350:
+      This expression has type string -> option.Option.option int,
+      but is expected to have type int -> option.Option.option int
+
+      rest_code := (self__stmts_to_whyml_5 self rest local_refs declared_refs indent in_loop)
+                                                     ^^^^^^^^^^ promoted to `map string`
+      val statementemissionmixin___stmts_to_whyml … (local_refs: map int (option int)) …
+
+The promoted parameter is PASSED ONWARD and the callee is still int-keyed — precisely the
+sentence in `functions.py` ("it is forwarded to sibling `val` bridges … a `map string` here
+would mistype the bridge") that this record had just declared measured and empty. The
+measurement was real; the inference from it was not, and the difference is that a sweep
+compares TEXT while a proof type-checks a PROGRAM.
+
+### What that makes the item
+
+κ=string must propagate along CALL EDGES. `local_refs` is threaded through the mirror's
+entire statement/expression emitter — `_e`, `_expr_to_whyml`, `_expr_to_whyml_string_ctx`,
+`_emit_body_code`, `_emit_array_local_reassign`, `_stmts_to_whyml` — every one of them
+declared `local_refs: map int (option int)` today. Promoting one promotes all of them, which
+moves most of the mirror and requires each moved file to be RE-PROVED;
+`module6_whyml/expressions.py` alone is a measured **2h57m**.
+
+So the repair is a module-level fixpoint with a double-digit-hour proof bill, not a one-line
+deletion with two re-proofs. That is the size to carry, and it is a number rather than a
+shrug.
+
+**Ready for whoever builds it:** the mechanism (one line, confirmed by a prediction), the
+exposure (ZERO read-only `Set[str]` params in either corpus; 39 in `\trusted` mirror stubs;
+120 mirror functions already converted and proving), the ten-probe surface map, and two
+witnesses — `1909` and `1910` — measured PASS on the patched tree with `1909` measured
+FAILING on the live one.
