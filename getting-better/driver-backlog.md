@@ -7160,3 +7160,36 @@ THE HONEST RANKING, replacing every earlier one in this file:
 
 This is the third ranking in this file and the first one measured by RUNNING candidates
 rather than by reading or counting them.
+
+### THE CHAIN, MEASURED BY PROBE INSTEAD OF BY CONVERSION (2026-09-25)
+
+The entry above records `_walk_stmt`'s chain as one moving error: re-type `held` to
+`Set[str]` and `int vs array int` becomes `int vs int -> option int`. Four two-line programs
+turn that into two independent facts, and the distinction changes what has to be built:
+
+    Set[str]  `m in held`     FAILED   string vs int   — a set has NO ELEMENT TYPE; the
+                                                         declaration lowers to the same
+                                                         `map int (option int)` whatever
+                                                         the annotation says
+    Set[int]  `m in held`     SUCCESS                  — membership IS modelled
+    Set[str]  `held | {m}`    FAILED   map vs int      — UNION is not modelled
+    Set[int]  `held | {m}`    FAILED   map vs int      — and it is not the element type
+
+`_walk_stmt` needs BOTH, in that order, and **wall 2 is invisible until wall 1 is closed** —
+which is precisely why the earlier note reads as one confusing error rather than two clear
+ones. `finding-a-set-has-no-element-type-and-no-union.md`.
+
+THE METHOD IS THE POINT AND IT GENERALISES: when a conversion attempt produces a type error,
+do not re-attempt the conversion — write the two-line program that isolates the operator.
+Twenty seconds, and it tells you which half of a compound error is which. Four probes here
+replaced an unbounded number of conversion attempts, and the ranking below is now a list of
+FEATURES to build rather than a list of candidates to retry.
+
+    1. a set's ELEMENT TYPE (`Set[str]` must not lower to a set of ints) — the same shape
+       as routes #148/#149, which repaired a FIELD whose type came from an `__init__`
+       parameter, and the same shape as the `Dict[K, List[T]]` matrix in
+       `finding-a-list-out-of-a-dict-cannot-be-passed-anywhere.md`
+    2. set UNION (`|`), and by symmetry `&`, `-`, `^` — unmeasured, and the next probe to
+       write is the one that says whether they fail the same way
+    3. f-strings (186 of 442 bodies), comprehensions (170), dict literals (160)
+    4. the self-field `.append` (11 of 442)
