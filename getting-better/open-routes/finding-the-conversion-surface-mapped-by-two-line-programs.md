@@ -13,7 +13,7 @@ it has now been wrong four times"*, and *"a refusal message tells you what stopp
 what stops the population"*.
 
 A two-line program costs twenty seconds and answers the question the count is a proxy for.
-Thirty-nine of them, in one afternoon, moved four backlog entries from counts to facts and
+Forty-nine of them, in one afternoon, moved four backlog entries from counts to facts and
 one of them from "a wall" to "not a wall at all".
 
 ## Strings — SIXTEEN probes, SIXTEEN verify
@@ -55,6 +55,26 @@ Counted at f-strings 186 of 442 bodies, comprehensions 170, dict literals 160. P
 that dominate. What remains is narrow and nameable, and the list above is the one to build
 against.
 
+## Dicts — ten probes, six verify, and one asymmetry worth knowing
+
+    VERIFIES                                   FAILS
+      d[k]                                       len(d)                 array mismatch
+      d.get(k, 0)                                for k in d             array mismatch
+      k in d                                     d.setdefault(k, 0)     explicit REFUSAL
+      d[k] = v      (mutation, `assigns d`)      Dict[str, Dict[str,int]]  int mismatch
+      len(d.keys())
+      len(d.items())
+
+**`len(d)` fails and `len(d.keys())` verifies.** That is the kind of fact a probe map exists
+to produce: a one-token workaround for a construct that otherwise stops a conversion, found
+by running two programs that differ by six characters.
+
+`d.setdefault` is the only REFUSAL in the whole map rather than a type error, and its message
+is exemplary — *"MUTATES its receiver in place, and no certified lowering models it: the call
+becomes an abstract operation that takes NEITHER the receiver NOR a `writes` clause"*. A
+refusal that explains itself is worth more than a lowering that does not, and this one is the
+reason `d[k] = v` is safe: the mutation that IS modelled carries its frame.
+
 ## Sets — ten probes, and one line of source explains all of them
 
 Recorded in full in `finding-a-set-has-no-element-type-and-no-union.md`. In short:
@@ -80,9 +100,20 @@ parameter is int-keyed while a mutated one is string-keyed, which is one gate
    "PIPELINE ERROR" six times and looked like a finding; the message said
    `unexpected character after line continuation character`.
 
-## What this does not tell you
+## What this does not tell you — and it is a sharp boundary
 
-A probe says an operator lowers. It does not say a REAL function converts: a real body has a
-chain of operators, and the second link is invisible until the first is closed (the set
-record documents exactly that). The map narrows the search; it does not replace the
+**Every probe carries `#@ ensures True`, so a SUCCESS means the construct LOWERS AND
+TYPE-CHECKS. It does not mean the lowering is FAITHFUL.** `len(d.keys())` verifying says
+Why3 accepted the emission; whether the value it produces is the dict's size is a different
+question, and the one the corpus-truth oracles exist to answer. The two questions are worth
+keeping apart: a conversion is stopped by the first and a soundness route lives in the
+second.
+
+That scoping is also why the map is cheap. A faithfulness probe needs a contentful
+postcondition and a reason to believe it; a lowerability probe needs `ensures True` and
+twenty seconds, and lowerability is exactly what a conversion attempt runs into.
+
+And a probe says an operator lowers — not that a REAL function converts. A real body is a
+CHAIN of operators, and the second link is invisible until the first is closed; the set
+record documents exactly that, twice. The map narrows the search. It does not replace the
 conversion.
