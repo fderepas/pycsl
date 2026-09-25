@@ -371,3 +371,34 @@ conjunct dropped:
 No fixpoint, no propagation pass: both ends of a call edge read the same DECLARATION, so
 they agree by construction. The remaining question is what the mirror does, and that is a
 three-minute sweep rather than an argument.
+
+## THE COMPLETE BILL, both halves measured
+
+With BOTH halves — the parameter extractor reading a set's element type, and the
+`_mut_coll` conjunct dropped — every exposure was swept:
+
+    CORPUS   81 set/dict-annotated files emitted through both trees:  **1 MOVED**
+             `0884.py` (expected-FAIL). Its `acc: Set[str]` goes
+             `ref (map int (option int))` -> `ref (map string (option int))` and
+             `map_update_some` becomes polymorphic. It still does not verify — but its
+             FAILURE MODE CHANGES, from the frame failure the witness is about to a Why3
+             TYPE ERROR. Lesson (m5) applies exactly: "expected-FAIL and still FAILED" is
+             not a pass, and a witness that fails for a new reason has stopped witnessing.
+
+    MIRROR   53 files swept:  **10 MOVED**, including
+             module6_whyml/expressions.py          (a measured 2h57m to re-prove)
+             module6_whyml/statements.py
+             module6_whyml/functions.py
+             module6_whyml/stmt_control_flow.py
+             … and six more
+
+So the bill is: ten mirror re-proofs, one of them three hours, plus a corpus witness whose
+meaning has to be restored or re-stated. **The one-part change moved two files; the correct
+two-part change moves ten.** Both numbers are in this record on purpose — the item's size
+has now been estimated once and measured twice, and the measurements disagree with each
+other in both directions.
+
+NOT LANDED. What IS landed is everything needed to land it in one sitting: the mechanism
+(one line in `Module5_IREmitter`, one in `functions.py`), the carrier triple gated in
+`check-open-route-carriers.py`, the witnesses `1909`/`1910` measured both ways, the exact
+mover lists above, and `$SCRATCH/g31/land_i4b.py` — the patch itself, written and probed.
