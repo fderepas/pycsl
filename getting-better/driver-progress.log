@@ -11325,3 +11325,40 @@ Out of …)` was a resource limit, not a verdict about any member. **Three for t
 
     corpus 0 MOVED · mirror 1 MOVED 0 unexpected · fidelity 896 · planes 48/48 ·
     suite 4029/4047, the standing EIGHTEEN, ZERO XPASS
+
+## 15:04Z — `pure_ast.py::visit_If` REFUSED, and the port vein is exhausted
+
+    ported frontend/pure_ast.py::visit_If (14 body line(s), marker deleted)
+    === diff lines: 25 ===
+    >   val constant py_if : int
+    >   val py_isinstance_If_int_op (x: int) : bool
+        Prover result is: Unknown (why3: Out of
+    [-] Verification FAILED or INCOMPLETE.
+
+Refused on the PROOF, not on check 1 — a resource exhaustion, the same shape as the
+five-candidate batch. (`val constant py_if : int` is a type object, a constant with nothing to
+depend on, so check 1 would have admitted it. The prover would not.)
+
+### THE PORT VEIN, FULLY ADJUDICATED
+
+    LANDED (10 markers, all gated)
+      __enter__ · _err · stable_hash · __repr__ · _rewrite_call_sites
+      pure_ast::error · pure_ast::unsupported · Module6_WhyMLTranspiler::__init__
+      expressions::_emit_metatype_tags · pure_ast::iter_fields · pure_ast::__instancecheck__
+    REFUSED BY CHECK 1 (proves, and the emit-diff says no)
+      audit_proof_reverify::_cache_root        val root_mkdir_0 () — nullary, no `writes`
+      ir_schema::validate_ir                   20 ops, `ir_keys_0 ()` nullary
+      import_classifier::_stub_set             val stub_dir_is_dir_0 () — nullary
+      pycsl.py::_parse_args                    10 ops, `argparse_ArgumentParser_0 ()` nullary
+    REFUSED BY CHECK 0 (static, needs no emission)
+      pycsl.py::_gate_vacuity_then_succeed     a closure inside `\trusted` `_run_proofs`
+    REFUSED BY A PLANE THAT ALREADY EXISTED
+      pure_ast::iter_child_nodes               a generator; check-yield-erasure.py
+    REFUSED BY THE PROVER (cost, not correctness)
+      sertop::_sexp_tokens                     Z3 timeout, 7,433,789 steps
+      from_sexp::_find_construct_idx           Z3 timeout, 3,193,221,587 steps
+      pure_ast::visit_If                       Unknown (why3: Out of …)
+
+**Eleven markers retired by proof this session — ten of them by PORTING a body the mirror did
+not have.** Every remaining candidate in the 410 is behind one of the five named walls, and
+the two that are not (`_sexp_tokens`, `_find_construct_idx`) are behind the prover's clock.
