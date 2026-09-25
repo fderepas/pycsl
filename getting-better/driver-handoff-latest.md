@@ -1,4 +1,4 @@
-# Driver handoff — gen #31, 2026-09-25T03:46Z
+# Driver handoff — gen #31, 2026-09-25T04:04Z
 
 Deadline **2026-09-27T08:19Z** (epoch 1790497192, written, never recomputed). Do not push.
 
@@ -69,3 +69,51 @@ set to 832 the plane prints NOT OK.
   are BUILD OUTPUT, left deliberately. Do not revert or remove them.
 * `--no-proof` LOWERS is a NECESSARY CONDITION AND NOTHING MORE. In one hour it was wrong
   three ways: over a facade, over a generator, and over `_cache_root`.
+
+
+---
+
+# UPDATE 04:04Z — increments D, E and F are all COMMITTED; only the gate is outstanding
+
+    af7f32c1  D  two `\trusted` markers RETIRED and PROVED (460 -> 458)
+    594aa07d  E  the frame plane's external-effect half (16 stubs that shell out)
+    e8f33b10     the yield plane descends too (a trap closed while empty, 0 population)
+    f184e94f  F  the integrity gate checked 836 of the 888 it was meant to; the walk now
+                 descends, `FOLDED` is a shape, a STATIC refusal for a closure inside a
+                 `\trusted` parent, and TWO HONEST MARKERS take the count back to 460
+    3213c4f1     progress log
+
+## The session's accounting, stated so it cannot be misread
+
+    460  session start
+    458  `errors.py::message` and `proof2why3/sertop.py::__exit__` PROVED (all four checks)
+    460  `_hdr_name` and `_returns_literal_none::walk` take honest markers — they are
+         un-trusted closures inside `\trusted` parents, verified by nothing
+    886 -> 888 -> 886 verbatim un-trusted
+
+Two functions left the trusted set by being proved. Two joined it by being found never to have
+been verified. **The count is unchanged and the map is two entries more accurate.**
+
+## The gate, when increment A's suite finishes
+
+    nohup bash $S/gate_d.sh > $S/gate_d.log 2>&1 &
+
+Baselines `bd_nw` / `mir_nw` (the increment-A gate's own output). `--expect-moved errors
+sertop` on the mirror compare — and that list is MEASURED, not guessed: `$S/emit_pair.sh`
+emitted both newly-marked files from the working tree and from `f184e94f^` and both are
+**INERT, byte-identical**. A closure folded into an opaque `val` emits the same with or
+without its marker.
+
+PREDICTIONS: corpus **0 MOVED**; mirror moves exactly `errors.mlw` and `sertop.mlw`; all 48
+planes green; suite **4029/4047**, the standing EIGHTEEN, ZERO XPASS.
+
+## Still open
+
+* `ir_schema.py::validate_ir` — check 1 REFUSES (20 new abstract ops, `ir_keys_0 ()` nullary).
+* `pycsl.py::_finalize` — check 1 returns a BYTE-IDENTICAL emission; converting it would prove
+  nothing. Do not convert it.
+* the 36 TYPE errors from the verbatim screen — being sized by kind right now
+  (`$S/type_detail.log`); they are the container/field value model in one voice.
+* the 11 DIFFERS at >= 0.80 similarity — a mechanical re-port, then the same screen.
+* `check-mirror-signature-drift.py` still stops at a `def`; covered elsewhere by the fidelity
+  plane, which compares signatures and descends.
