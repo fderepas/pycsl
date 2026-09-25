@@ -269,3 +269,52 @@ proof2why3__parser frontend__monomorphize`; corpus predicted 0 MOVED; suite unch
 
 `$S/try_i4.sh` is dry-running the I4 patch on an OFFLINE tree right now — the carrier must
 flip FAILED -> SUCCESS and both controls must stay SUCCESS.
+
+---
+
+# UPDATE 07:00Z — increment H is landed and gating; increment G is scripted and dry-tested
+
+## H (commit `5559aedd`) — 460 -> 455, five markers retired by PORTING
+
+Checks all green before the commit: count 460 -> **455**, fidelity 886 -> **891**, raises 61
+silent (was 62), frame OK, termination 55, blast-radius **834 -> 817**, and
+`check-untrusted-emitted` **0 `val`, 0 absent, 0 inside a trusted parent** over 918 functions.
+`trusted-reasons.tsv` synced to 455 rows, MAX_UNCLASSIFIED 456 -> **451**.
+
+Gate (`$S/gate_h.log`, started 06:14Z): corpus **0 MOVED** in all three directions, mirror
+**5 MOVED, 0 unexpected** (the five emission names declared correctly first time), fidelity
+891, **all 48 planes green**; suite started 06:29Z.
+
+## G — scripted, dry-tested, waiting only on H's suite
+
+    $S/land_i4_live.sh     applies the two-part patch, `git mv`s the three carriers into the
+                           corpus as 1909/1910/1911, drops their rows from the carrier plane,
+                           proves the three witnesses, and re-checks the count and fidelity
+                           (which must NOT move — this is an EMITTER change, not a mirror one)
+    $S/drop_setelem_rows.py  the carrier-plane edit. DRY-TESTED ON A COPY: the value closes on
+                           the same line as its last string, and a first pattern expecting
+                           `    ),` removed ZERO rows — the assertion caught it on the copy
+                           rather than on the live plane. 12 carrier rows -> 9.
+    $S/witness/            the three corpus witnesses, each control's docstring stating what
+                           its FAILURE would mean
+
+The dry run on an offline tree already showed the carrier flipping FAILED -> SUCCESS with both
+controls holding.
+
+**THE BILL, and it is the reason G is a multi-hour increment:** ten mirror files move and each
+must still PROVE — `Module6_WhyMLTranspiler` (~41m), `frontend____init__` (~24m),
+`frontend__ir_resolve` (~22m), `frontend__monomorphize`, `module6_whyml__expr_ghost_collections`,
+`module6_whyml__expr_ghost_spec_ops`, `module6_whyml__expressions` (~2h57m),
+`module6_whyml__functions`, `module6_whyml__statements`, `module6_whyml__stmt_control_flow`.
+Corpus: 1 mover (`0884`, from a TARGETED 81-file comparison — declare it and let the gate name
+any others). Suite predicted **4032/4050**.
+
+**THE REFUSAL:** if a moved mirror file stops proving, G does NOT land by marking that file
+`\trusted`. Record the regression and stop.
+
+## Still running
+
+    $S/cm_pureast2.log   `pure_ast.py::error` + `unsupported` — check 1 already clean (28 diff
+                         lines, ZERO new ops); whole-file proof running 1h30+
+    $S/cm_expr.log       `expressions.py::_emit_metatype_tags` — proof running 1h50+ (that
+                         file's mirror proof is ~3h)
