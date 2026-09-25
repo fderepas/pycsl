@@ -11252,3 +11252,16 @@ Twelve more fields in the record, every contract still discharged. That is the c
 attempt taught: **when a change moves a mirror file, re-prove that file.** There it broke four
 of them in thirty seconds; here it broke none, and knowing which of those two it is costs one
 proof.
+
+## 12:17Z — INCREMENT J IS GATED: 4029/4047, THE STANDING EIGHTEEN, ZERO XPASS
+
+    corpus byte-diff   0 MOVED in all three directions
+    mirror byte-diff   2 MOVED, 0 unexpected once `pycsl` was declared alongside
+                       `Module6_WhyMLTranspiler` — and `pycsl.py`'s mirror was RE-PROVED by
+                       hand (42 min, SUCCESS) because a moved emission is not a checked one
+    fidelity           894
+    planes             all 48 green
+    suite              4029/4047, EIGHTEEN, ZERO XPASS
+
+Seven increments banked: A, D, E, F, H, I, J. Markers **452**, verbatim un-trusted **894**,
+trusted-or-dependent **800**.
