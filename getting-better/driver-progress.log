@@ -10771,3 +10771,38 @@ hand before any screen ran:
 So a port does not make a candidate land. **It makes a candidate MEASURABLE**, and the walls
 it then meets are the same three walls the 62 verbatim candidates met. That is worth knowing
 before anyone budgets 22,252 lines.
+
+## 04:31Z — THE PORT SCREEN REPORTED TEN FALSE `PORTS+LOWERS`, AND I CAUGHT IT BY VERIFYING THE TOOL, NOT THE RESULT
+
+The first port screen returned **7 of 7, then 10 of 10, `**PORTS+LOWERS**`** — a result so
+uniformly good it was the reason to check it. `port_one.py` was crashing:
+
+    last = max(getattr(x, "end_lineno", x.lineno) for x in ast.walk(body[-1])) - 1
+    AttributeError: 'Load' object has no attribute 'lineno'
+
+`ast.walk` yields CONTEXT nodes (`Load`, `Store`, ...) that carry no position at all, so the
+`x.lineno` FALLBACK raised. And the crash happened BEFORE the file was written, so:
+
+  * the tree was left UNPORTED, with its `\trusted` marker intact;
+  * the screen classified on the first word of the message, and a Python traceback does not
+    start with `ABORT`;
+  * so the screen emitted the PRISTINE file, which of course lowers,
+  * and printed `**PORTS+LOWERS**` for ten candidates it had never ported.
+
+TWO FIXES, because one of them is the general one:
+  1. filter for a position before taking the max.
+  2. **A CRASH MUST LOOK LIKE AN ABORT.** `port_one.py` now wraps `main()` and prints
+     `ABORT: <type>: <msg>` on any unhandled exception. A tool whose failure mode is a
+     traceback, consumed by a caller that classifies on a prefix, is a tool that reports
+     success when it does nothing.
+
+Stopped with the SENTINEL (`touch $S/STOP_SCREEN`), never `pkill -f` (wall-lesson c6). The
+false log is kept as `$S/screen_port_FALSE.log` rather than deleted.
+
+VERIFIED AFTER THE FIX, by reading the ported file rather than the screen's verdict:
+`frontend/ConcurrencyChecker.py::summary` now carries the live 7-line body verbatim, keeps its
+own `#@ requires/ensures/assigns` lines, and has lost its marker.
+
+THE PATTERN, for the fourth time this session: **a uniformly good result is a reason to check
+the instrument.** 7 of 7 was not evidence that porting works; it was evidence that nothing was
+being measured.
