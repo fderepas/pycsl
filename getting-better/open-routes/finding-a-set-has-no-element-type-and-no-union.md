@@ -326,3 +326,48 @@ of the emitter.
 
 Whether it cascades is a three-minute sweep away and is unmeasured. What is no longer true
 is the double-digit-hour figure.
+
+## THE ACTUAL MECHANISM: two extractors, the same rule, implemented in one
+
+Chasing the call edge led to the real cause, and it is not a fixpoint at all.
+
+`Module5_IREmitter` has TWO κ extractors, thirty lines apart:
+
+```python
+def _m5_get_dict_key_type(annotation):          # used for PARAMETERS
+    if ... annotation.value.id in ("Dict", "dict") ... :
+        if k.id == "str": return "string"
+    return None                                  # <- a Set[str] gets None
+
+def _m5_get_field_key_type(annotation):          # used for record FIELDS
+    """…`Set[str]`/`FrozenSet[str]` → the element `str` (a set's element IS its key)…"""
+    if head in ("Dict", "dict"):   return _m5_get_dict_key_type(annotation)
+    if head in ("Set", "set", "FrozenSet", "frozenset"):
+        if elt.id == "str": return "string"       # <- the set case, right here
+```
+
+**A set's element is its key — stated in the FIELD extractor's own docstring, and absent
+from the PARAMETER one.** So a `Set[str]` parameter never gets κ from its DECLARATION; it
+can only acquire it from Module 5's USAGE tagger, which fires on a membership with a
+provably-string key. That is why `held.add(m)` works (the tagger fires, and `.add` also makes
+the parameter by-reference), why `m in held` fails in a function that only reads, and why the
+callee down the call edge never gets it either — `_stmts_to_whyml` passes `local_refs`
+through and never tests it, so nothing tags it.
+
+**This is the gen #31 shape for the fifth time**: one rule, stated correctly in two adjacent
+places, implemented in one of them. (`finding-array-import-missing-for-a-list-field-only-program.md`
+— the record decl from the FIELD; routes #148/#149 — the field type from an `__init__`
+parameter; the `Dict[K, List[T]]` matrix; the set's read path versus its write path; and now
+the parameter extractor versus the field extractor.)
+
+### Probed: reading κ from the declaration makes the carrier VERIFY
+
+With `_m5_get_field_key_type` used at the parameter site as well, and the `_mut_coll`
+conjunct dropped:
+
+    setelem-carrier-read-only-str-set-membership.py   **Verification SUCCESS**
+    setelem-control-int-set-membership.py             Verification SUCCESS
+
+No fixpoint, no propagation pass: both ends of a call edge read the same DECLARATION, so
+they agree by construction. The remaining question is what the mirror does, and that is a
+three-minute sweep rather than an argument.
