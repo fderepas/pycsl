@@ -11405,3 +11405,34 @@ this session has been editing all day.
 
 A · D · E · F · H · I · J · K · L · M.
 **460 -> 449 markers · 886 -> 897 verbatim un-trusted · 833 -> 798 trusted-or-dependent.**
+
+## 16:28Z — 45 LIVE MARKERS HAD NEVER BEEN OFFERED TO ANY SCREEN; THREE MORE PORT AND LOWER
+
+Rebuilding the candidate list from the AUTHORITATIVE source — `trusted-reasons.tsv`, one row
+per live marker, held in lock-step by `check-trusted-reasons.py` — against everything the
+screens were ever handed:
+
+    live markers in the TSV                449
+    names the screens were given           425
+    **NEVER OFFERED TO ANY SCREEN           45**
+
+    frontend/Module3_Weaver.py            13    module6_whyml/statements.py           12
+    module6_whyml/stmt_control_flow.py     8    frontend/pure_ast.py                   2
+    ... and one each in nine more files
+
+They are the nested closures and same-name collisions the original bare-name enumeration could
+not represent. Screened with the qualified-name `port_one.py`:
+
+    **3 CONFIRMED PORT+LOWER**
+        frontend/Module3_Weaver.py      PyCSLWeaver._attach_loop_contracts
+        frontend/Module5_IREmitter.py   PyCSLToJSONEmitter._array_init_size
+        frontend/pure_ast.py            _Parser._max_end
+    2 refused by CHECK 0 — and they are the two HONEST markers this session added
+      (`_hdr_name`, `_returns_literal_none.walk`), which is the check working exactly as
+      designed on the population it was built for
+    40 TYPE / REFUSED — the same five walls
+
+**THE CONVERSION POPULATION WAS NEVER 410. It is 449 + whatever the marker count misses**,
+and a tenth of it had never been looked at because the list was keyed on bare names. That is
+the third time today that asking the AUTHORITATIVE instrument — rather than the convenient
+one — has changed a number by more than 10%.
