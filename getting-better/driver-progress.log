@@ -10101,3 +10101,22 @@ the corpus was read as a specification and never as a program:
     0312.py     one name, byte-inert          a self-check that had never run
     0452.py     one `list(...)`, byte-inert   a self-check that had never passed
     1190        three lines, MOVES (declared)  a driver that raised NameError at import
+
+--------------------------------------------------------------------------------
+2026-09-25 01:17Z — a third negative: the 1706 stdlib drivers DO load
+
+`python-reference/stdlib/**` holds 1706 PASS-expected drivers, every one of them
+`# pycsl-flags: --no-proof` — the 45% finding at full scale, and the reason the new
+corpus-executes plane skips them. Swept anyway, because "skipped" is not "checked":
+
+    1388 load,  318 ModuleNotFoundError
+
+and all 318 are `No module named 'Module1_Ingestor'` and friends — PyCSL's OWN modules,
+which these drivers import and which the real suite supplies with `--import-path src/pycsl`.
+Given that path they load: `PYTHONPATH=src/pycsl python3 …/visit_for_call_proves.py` exits 0.
+The harness again, not the corpus.
+
+THREE NEGATIVES IN AN HOUR, all recorded: the ImportError rows are the harness, the
+total-dict model asserts an exit and not a value, and the stdlib tree loads. A finding family
+is a magnet for over-reading, and the only defence is that each new instance costs a few
+minutes to check and the check is not optional.
