@@ -7423,3 +7423,21 @@ reasoned around.
 it.** The cheapest version is the one used here: re-prove only the files the sweep says
 moved. Eight seconds bought back a paragraph of confident and wrong prose, and sized a
 backlog item that had gone three generations without a number.
+
+### (c6) A `pgrep` waiter that names its own target matches itself
+
+    until ! pgrep -f 'faith/g' >/dev/null; do sleep 15; done; nohup run_next.sh &
+
+never fires. The waiter's own shell command line CONTAINS the string `faith/g`, so `pgrep -f`
+matches it, and the loop waits for a process that is the loop. Three "still running"
+processes turned out to be the waiter, the launcher that had already finished, and a shell
+wrapper — none of them a prover.
+
+The symptom is indistinguishable from the job genuinely taking a long time, which is what
+makes it expensive: the correct response to "still running" is to wait, and waiting is
+exactly what never ends.
+
+Wait on an ARTEFACT, not on a process name — a line in a log, a sentinel file, the exit of a
+specific backgrounded PID. `until grep -q SUITERC= gate.log` cannot match itself into a
+deadlock, and it is also what you actually care about. Sibling of (q5): the shell is a
+participant in your measurement, not a neutral observer of it.
