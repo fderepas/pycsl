@@ -84,6 +84,35 @@ set-to-set union, a union outside `@mutable_state` — is not. A read-only `Set[
 parameter is int-keyed while a mutated one is string-keyed, which is one gate
 (`functions.py` ~137) seen from two sides.
 
+## Past lowerability: SIX faithfulness probes, each with a FALSE TWIN
+
+The map's boundary says a VERIFY means "lowers and type-checks". The obvious next question —
+does the lowering MEAN anything — is answered the same cheap way, with the twin discipline
+the directive sweep already uses: a true claim must SUCCEED and its false neighbour must FAIL.
+
+    TRUE                                                    FALSE TWIN
+    len(s) == \str_length(s)                 SUCCESS        ... + 1          unproven
+    len(s + t) == \str_length(s) + \str_length(t)  SUCCESS   ... + 1          unproven
+    len(s[0:0]) == 0                         SUCCESS        == 1             unproven
+    ("" + s) == s                            SUCCESS
+    len(s.upper()) == \str_length(s)         **unproven**
+    s.replace("a", "a") == s                 **unproven**
+
+So `len`, concatenation length, the empty slice and the empty-string identity are FAITHFUL —
+they prove, and their false neighbours do not, which is what makes "prove" evidence rather
+than a shrug.
+
+**`.upper()` and `.replace()` are OPAQUE, and that is documented.** The static-semantics
+reference says so at §697 — *"like `s.upper()` — an opaque `str_upper_op`, genuinely
+non-injective"*. The probe confirms the documentation rather than finding a defect, which is
+worth recording precisely because the temptation in a session full of findings is to read
+every `unproven` as one.
+
+A converted function may therefore use `.upper()`/`.replace()` freely — they LOWER — but it
+cannot carry a contract that depends on what they return. That is a different and much
+smaller restriction than "strings are a wall", and it is the kind of sentence the map exists
+to produce.
+
 ## The method, stated so it can be reused
 
 1. **When a conversion attempt produces a type error, do not re-attempt the conversion.**
