@@ -10827,3 +10827,28 @@ now discharged by a body instead of assumed by a `val`.
 `_try` is being checked alongside it in the same file and the same tree, because
 `Module2_Parser.py` costs fifteen minutes to prove and two candidates in one file should cost
 one proof, not two. `$S/check14_multi.sh`.
+
+## 04:49Z — THE PORT SCREEN'S FAILURE FILTER IS A BLACKLIST, AND WHY3 HAS MORE WAYS TO FAIL
+
+`Module2_Parser.py::_try` was reported `**PORTS+LOWERS**`. Ported alongside `_err` in one tree
+it produced:
+
+    This expression has type int, it cannot be applied
+
+`_try` takes a CALLABLE parameter (`fn`), which the model carries as `int`. The screen
+classified failure by grepping for 'PIPELINE ERROR', 'syntax error', 'but is expected' and
+'unbound ' — and "cannot be applied" matches none of them, so the run was scored a pass.
+
+THIS IS THE SAME BUG AS THE FIRST SCREEN'S MISSING 'syntax error', in the same session, in a
+script written after that lesson. A blacklist of failure strings is incomplete in the
+dangerous direction by construction.
+
+THE DRIVER PRINTS A POSITIVE MARKER, and it is the only thing worth matching:
+
+    [+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).
+
+`$S/recheck_ports.sh` re-runs all twelve `PORTS+LOWERS` candidates against THAT, in a separate
+script — never editing a screen that is running (wall-lesson q5). The `TYPE` / `REFUSED`
+verdicts from the running screens are unaffected: a definite failure string is still a
+definite failure. Only the passes were untrustworthy, which is exactly the wrong half to get
+wrong.
