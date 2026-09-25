@@ -7786,3 +7786,23 @@ conversions that were taken to a proof stand.
 **The general shape, for the third time today: an instrument that recognises a thing by
 SUBSTRING will eventually recognise a sentence about the thing.** The repo already had the
 right rule written down, twice, in two different files, and I had quoted one of them.
+
+**THE CONVERSION POPULATION, RECONCILED AGAINST THE CANONICAL COUNT.** Three numbers get
+quoted around this campaign — 460, 435, 410 — and they are different quantities. Measured
+with the line-prefix rule:
+
+    460   marker LINES                       <- `count-trusted-directives.py`'s number,
+                                                reproduced exactly by an independent scan
+    441   markers ATTACHED to a `def`        <- 19 sit on something else (a class, or a
+                                                marker separated from its definition)
+    417   ... whose NAME exists in the live counterpart file
+                                             <- **THE CONVERSION POPULATION**
+     24   ... with no live counterpart       <- mirror-only helpers (`_e`,
+                                                `_add_abstract_op`, `_coerce_to_int`, …):
+                                                there is no live body to port, so a
+                                                conversion would have to WRITE one
+
+`435` appears in earlier entries of this file and came from the LOOSE (substring) scan
+restricted differently again; it should not be quoted. The number to use for "how many stubs
+could be converted" is **417**, and the number to use for "how much trust is declared" is
+**460**, and they answer different questions.
