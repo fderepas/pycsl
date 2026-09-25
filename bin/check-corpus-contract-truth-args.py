@@ -131,7 +131,9 @@ LIST_POOL_STR = [[], ["a"], ["a", "b", "c"]]
 MAX_TUPLES = 40          # per function, deterministic prefix of the product
 CALL_TIMEOUT = 1.0       # seconds; a corpus loop must not hang the battery
 EXEC_TIMEOUT = 2.0
-MIN_EVALS = 7100         # 7392 with the CONSTRUCTOR-ARGUMENT axis; 7239 with the
+MIN_EVALS = 7250         # 7578 once the clause translator was unified and the
+                         # disjunction mis-parse repaired; 7392 with the
+                         # CONSTRUCTOR-ARGUMENT axis; 7239 with the
                          # LIST-PARAMETER axis; 7063 with the PREDICATE axis (`#@ ensures` clauses over
                          # `\result` that are not equalities — the census found the
                          # inequality family to be the largest evaluable group this oracle
@@ -240,7 +242,7 @@ NEVER_RETURNS = {
         "argument, it is a placeholder for a type the modeller does not have. "
         "`finding-a-verified-program-that-is-not-the-executed-program.md`",
 }
-MAX_RAISED = 13                  # FUNCTIONS with at least one call that RAISES on an
+MAX_RAISED = 14                  # FUNCTIONS with at least one call that RAISES on an
                                  # argument their own precondition admits. (#49) gen #31:
                                  # the ratchet counts FUNCTIONS, not raise EVENTS. Once the
                                  # tuple loop stopped breaking on the first raise (so that
@@ -249,9 +251,17 @@ MAX_RAISED = 13                  # FUNCTIONS with at least one call that RAISES 
                                  # of the SAMPLING — up to three per function — and a
                                  # ratchet whose number moves when nothing about the corpus
                                  # moved is a ratchet that will be raised without thought.
-                                 # Thirteen today: the eight in NEVER_RETURNS, the three
-                                 # declared `#@ \diverges` (0051, 0158, 0159), and the two
-                                 # input-dependent ones, 0420 and 1302.
+                                 # Fourteen today: the eight in NEVER_RETURNS, the three
+                                 # declared `#@ \diverges` (0051, 0158, 0159), and the
+                                 # three input-dependent ones — 0420, 1302, and 0605, whose
+                                 # `dig(s, i)` reads `s[i]` under
+                                 # `#@ ensures \result == 1 or \result == 0` and NO
+                                 # `#@ requires` bounding `i`, so `dig("", 0)` is an
+                                 # IndexError on an argument the contract admits. It
+                                 # arrived with the disjunction repair: the clause matched
+                                 # the equality regex, captured `1 or \result == 0` as a
+                                 # right-hand side, and the function had been outside the
+                                 # population entirely.
                                  # (#49) gen #31: 3 -> 4 with the widened population. The one
                                  # added is `1302_route108…::wrapper(-1)`, whose `else` branch
                                  # calls a raising callee — route #108 established that the
@@ -497,8 +507,15 @@ def collect(no_exclusions=False):
                     and not (_cls is not None and _post_probe):
                 continue
             ann = annotations_of(node)
+            # (#49) gen #31 — `#@ ensures \result == 0 or \result == 1` MATCHES the
+            # equality regex and captures `0 or \result == 1` as a right-hand side. That
+            # is not a right-hand side, it is the rest of a DISJUNCTION, and the captured
+            # text then failed the backslash guard and took the whole function out of the
+            # population — 37 of them. A clause whose captured RHS still mentions `\result`
+            # is a predicate; it goes to the predicate axis, where it evaluates correctly.
             ens = [m.group(1).strip() for m in
                    (re.match(r"#@\s*ensures\s+\\result\s*==\s*(.+)$", a) for a in ann) if m]
+            ens = [x for x in ens if "\\result" not in x]
             # (#49) gen #31 — THE POST-STATE AXIS. Until now every clause this oracle read
             # was about `\result`, so a method that returns nothing and promises
             # `self._balance == \old(self._balance) + amount` was outside the population on
@@ -517,7 +534,8 @@ def collect(no_exclusions=False):
                      (re.match(r"#@\s*ensures\s+(.+)$", a) for a in ann) if m]
             preds = [x for x in preds
                      if "\\result" in x
-                     and not re.match(r"\\result\s*==", x)
+                     and not (re.match(r"\\result\s*==", x)
+                              and "\\result" not in x[x.index("==") + 2:])
                      and not re.match(r"self\.\w+\s*==", x)]
             if post and _cls is None:
                 post = []          # `self.f` outside a class is not a post-state claim
@@ -631,8 +649,20 @@ def _materialise(v):
 
 
 def _py(expr):
-    return (re.sub(r"\\length\(", "len(", expr)
-            .replace("&&", " and ").replace("||", " or "))
+    r"""The CSL-to-Python translation every clause here goes through.
+
+    (#49) gen #31 — `\str_length` and `\str_sub` join `\length`. They were translated on
+    the `\result`-predicate path and NOT on the `#@ requires` path, so a function whose
+    postcondition the oracle could read was dropped because its PRECONDITION mentioned the
+    same token — 22 functions, every one of them a string driver (0482-0492). A clause
+    language needs ONE translator, not one per axis; two translators is how a token ends up
+    evaluable in one position and untranslatable in the position next to it.
+    """
+    out = re.sub(r"\\length\(", "len(", expr)
+    out = re.sub(r"\\str_length\(", "len(", out)
+    out = re.sub(r"\\str_sub\(([^,()]+),\s*([^,]+?),\s*(.+?)\)\s*$", r"(\1)[(\2):(\3)]", out)
+    out = re.sub(r"\\str_sub\(([^,()]+),\s*([^,]+?),\s*([^,()]+)\)", r"(\1)[(\2):(\3)]", out)
+    return out.replace("&&", " and ").replace("||", " or ")
 
 
 def _pred_py(expr):
@@ -649,8 +679,7 @@ def _pred_py(expr):
     `\length` left the skip list in gen #31 — a token belongs in a list called "cannot
     evaluate" only while it really cannot be evaluated.
     """
-    return _py(re.sub(r"\\result\b", "_RES",
-                      re.sub(r"\\str_length\(", "len(", expr)))
+    return _py(re.sub(r"\\result\b", "_RES", expr))
 
 
 def _post_py(expr):
@@ -846,17 +875,25 @@ def main():
                         # range guards whose comment says they are "faithful to CPython's
                         # out-of-range struct.error", while the legacy
                         # `UnixFs.Struct.i2.round_trip` this file cites is UNGUARDED.
-                        raised.append((os.path.basename(f), name, tup,
-                                       type(exc).__name__))
+                        if _raised_here < 3:
+                            raised.append((os.path.basename(f), name, tup,
+                                           type(exc).__name__))
                         # (#49) gen #31 — KEEP GOING, up to three. The first version broke
                         # out here, and a `break` cannot tell "raises on THIS argument"
                         # from "has no normal exit on ANY argument its own precondition
                         # admits". The second is a different and sharper defect — a
                         # contract over a function that never returns is VACUOUSLY true
                         # and certifies nothing at all — so it gets its own bucket below.
+                        # ... and it keeps going to the END of the sampled product, not
+                        # to the third raise. (#49) gen #31, measured: `0605.py::dig(s, i)`
+                        # reads `s[i]`, the pool's first eight tuples all carry `s = ""`,
+                        # and a loop that stopped at the third raise never reached
+                        # `("a", 0)` — where `dig` returns 0 perfectly well. It was
+                        # reported as having NO NORMAL EXIT, which is exactly the false
+                        # alarm this bucket exists to avoid. Only the first three raises
+                        # are RECORDED (the report stays readable); the loop is bounded by
+                        # MAX_TUPLES as it always was.
                         _raised_here += 1
-                        if _raised_here >= 3:
-                            break
                         continue
                     tested += 1
                     got = int(got) if isinstance(got, bool) else got
