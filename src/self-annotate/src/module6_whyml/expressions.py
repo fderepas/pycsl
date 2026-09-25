@@ -807,12 +807,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return None
 
     _METATYPE_TAGS: Dict[str, str] = {'int': 'tag_int', 'bool': 'tag_int', 'str': 'tag_str', 'float': 'tag_float', 'list': 'tag_list', 'List': 'tag_list', 'dict': 'tag_dict', 'Dict': 'tag_dict', 'set': 'tag_dict', 'frozenset': 'tag_dict', 'object': 'tag_object'}
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._abstract_ops, self._obj_state_written
     def _emit_metatype_tags(self) -> None:
-        pass
+        for nm, v in (("tag_int", 0), ("tag_str", 1), ("tag_float", 2), ("tag_list", 3),
+                      ("tag_dict", 4), ("tag_record", 5), ("tag_variant", 6),
+                      ("tag_object", 99)):
+            self._add_abstract_op(f"function {nm} : int = {v}")
+        # `99` is `tag_object` inlined: the abstract-op block is emitted alphabetically,
+        # so `subtag` must not reference `tag_object` by name (it would sort before it).
+        # The `tag_*` functions are used only in goals (after all decls), so they are fine.
+        self._add_abstract_op("predicate subtag (a b: int) = a = b \\/ b = 99")
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

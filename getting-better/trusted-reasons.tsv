@@ -309,7 +309,6 @@ module6_whyml/expressions.py	ExpressionEmissionMixin._static_width	unclassified	
 module6_whyml/expressions.py	ExpressionEmissionMixin._handle_call_expr	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._content_string_method	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._call_named_builtins	unclassified	-
-module6_whyml/expressions.py	ExpressionEmissionMixin._emit_metatype_tags	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._tag_of_value	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._handle_isinstance	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._call_record_constructor	unclassified	-
