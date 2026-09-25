@@ -7483,3 +7483,36 @@ CAUTIONS, both of which this file has earned the hard way:
 The list is worth having anyway: it is the first shortlist in this file assembled from
 MEASURED capability rather than from a proxy, and 170 is a very different number from the
 six that were tried.
+
+### FIVE CANDIDATES CONVERTED AND RUN — 40 SECONDS, FIVE FAILURES, FIVE REASONS (2026-09-25)
+
+The shortlist above is a shortlist, and lesson (t5) says the only honest price is to convert
+on a copied tree and RUN it. `$SCRATCH/g31/convert_one.py` + `try_convert_batch.sh` do one
+candidate per fresh tree copy; all five `Module1_Ingestor` entries took **forty seconds
+together** (that file's whole-file proof is 14 s):
+
+    _emit_suite          `array.Array.array` mismatch   — a nested list, as recorded in gen #31
+    _emit_block_footer   REFUSED  `self._out.append(...)` — the known self-field append
+    _emit_target         REFUSED  `contracts.extend(...)` — **a LOCAL list `.extend`**
+    _match_block_hdr     type mismatch                   — the TUPLE return, as recorded
+    _assign              REFUSED  `self._module_header.append(...)`
+
+**`contracts.extend(...)` is the new one**, and it is on a LOCAL, not a self field — a
+construct neither this file nor the probe map had. It is also why `_emit_target` passed the
+construct filter: the filter looked for set literals, comprehensions and `join`, and
+`.extend` was not on the list because nothing had failed on it yet.
+
+That is the filter working as designed — a SHORTLIST, narrowed by twenty seconds of running
+rather than by more reading — and it is the third time in this file that the next blocker was
+invisible until the previous one was cleared.
+
+Censused across the 435 still-`\trusted` functions, by receiver:
+
+     154  LOCAL .append          39  LOCAL .pop        37  LOCAL .extend    15  LOCAL .update
+      11  SELF-FIELD .append      6  LOCAL .insert      6  SELF-FIELD .pop   5  SELF-FIELD .update
+       4  LOCAL .sort             4  SELF-FIELD .clear  3  LOCAL .remove     2  SELF-FIELD .extend
+
+`LOCAL .append` at 154 is the largest construct in the whole conversion population — larger
+than `str.join` — and a probe says `ys = [1, 2]; ys.append(n)` VERIFIES, so it is NOT a
+blocker. Which is exactly why the row has to be probed and not counted: the biggest number
+on the page belongs to the one construct that works.
