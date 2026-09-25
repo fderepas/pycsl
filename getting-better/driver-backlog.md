@@ -56,7 +56,7 @@ A facade cannot land because `check-self-annotate-sync.sh` demands that un-`\tru
 methods be VERBATIM copies of live. Deleting the marker moves the facade into that population
 where `pass` must equal a 200-line parser — it fails the FIRST plane, before a prover starts.
 A facade needs a PORT, not a proof. `getting-better/open-routes/
-finding-the-conversion-population-is-sixty-one-not-four-hundred.md` has the table, the
+finding-most-trusted-candidates-are-facades-not-proof-problems.md` has the table, the
 per-file distribution (six files hold 54 of the 61; the four big frontend modules contribute
 ONE between them) and the second-wave similarity scores.
 
