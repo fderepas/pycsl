@@ -204,3 +204,49 @@ The 235 facades, by file, with the number of LIVE lines a faithful port would ha
 **22,252 lines.** That is the size of the work the marker count has been quietly deferring,
 and `module6_whyml/expressions.py` alone is 45% of it — the file whose mirror proof already
 takes **2h57m** at its current, mostly-stubbed size.
+
+## The porting programme has a cheap head — 22 facades with a live body of five lines or less
+
+"22,252 lines" is the total, and a total is the least useful way to describe a programme. By
+the LINE COUNT of the live body each port would have to move:
+
+    live body <= 5 lines    22 facades
+    live body <= 10         28
+    live body <= 25         73
+    live body <= 60         50
+    live body >  60         62
+
+**Fifty of the 235 need ten lines or fewer.** The whole cheap tier, named:
+
+     2  frontend/Module2_Parser.py       _parse_assigns
+     2  frontend/pure_ast.py             _const_value_getter
+     2  frontend/pure_ast.py             _const_value_setter
+     2  frontend/pure_ast.py             write
+     2  proof2why3/parser.py             __repr__
+     2  proof2why3/sertop.py             __enter__
+     3  frontend/Module2_Parser.py       _err
+     3  frontend/pure_ast.py             node
+     3  frontend/pure_ast.py             set_precedence
+     3  frontend/pure_ast.py             unparse
+     3  module6_whyml/expressions.py     _e
+     4  audit_proof.py                   extend
+     4  frontend/ConcurrencyChecker.py   _check_function
+     4  frontend/Module1_Ingestor.py     _emit_block_footer
+     4  frontend/pure_ast.py             _decode_fstring_middle
+     4  frontend/pure_ast.py             delimit_if
+     4  proof2why3/extract_lean_meta.py  lean_meta_available
+     4  proof2why3/sertop.py             parse_sexp
+     5  frontend/Module2_Parser.py       _parse_expr_list
+     5  frontend/Module2_Parser.py       parse
+     5  frontend/pure_ast.py             next
+     5  frontend/pure_ast.py             visit_MatchStar
+
+Note the sixth entry. `proof2why3/sertop.py::__enter__` is the SIBLING of the `__exit__` this
+session proved — live body `return self`, mirror body `return None`, a one-line port. It is
+the natural next candidate, and it is the shape the whole tier shares: a facade a previous
+window wrote in thirty seconds, standing where a two-line body belongs.
+
+**This changes how the programme should be attacked.** The instinct from "22,252 lines" is to
+call it infeasible and work the value model instead. The tiering says there is a head of ~50
+functions that can be ported in an afternoon, each one then subject to the same four checks —
+and each port that lands converts a marker that a proof alone could never have touched.
