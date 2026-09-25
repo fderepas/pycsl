@@ -20,6 +20,41 @@ gate; and the same question turned on the conversion track produced the campaign
 **two `\trusted` stubs that convert and prove**, of which the four-check discipline says land
 exactly one.
 
+## THE FOURTH PART (2026-09-25) — THE COUNT WAS MEASURING SOMETHING ELSE
+
+The conversion track was landed and then TURNED ON ITS OWN INSTRUMENTS, and the instruments
+lost. Read these three, in this order:
+
+1. `finding-most-trusted-candidates-are-facades-not-proof-problems.md` — of 410 strict
+   `\trusted` candidates, **56** can be retired by a proof. **235 are facades** (`pass`,
+   `return None`) whose mirror body is not the live body, so removing the marker fails the
+   FIDELITY plane before a prover ever starts. They need a PORT — **22,252 lines** of it,
+   45% in `module6_whyml/expressions.py` alone. The file also carries the correction the
+   census made to itself within the hour, off its own instrument's output.
+
+2. `finding-check-one-refuses-three-of-six.md` — six of the 56 lower; **two land**. Every
+   refusal is the same shape: an operation the value model cannot carry becomes an abstract
+   `val` that does not take the thing it operates on — a directory, a dict's keys, a
+   generator's yields. `ir_schema.py::validate_ir` adds **20** such ops, three of them
+   NULLARY, so the emitted validator does not take its input.
+
+3. `finding-the-nested-def-blind-spot.md` — the integrity gate on the conversion count
+   (`check-untrusted-emitted.py`) walked into a `ClassDef` and **stopped at a `def`**, so it
+   was checking 836 of the 888 functions the fidelity plane calls verified. Fixing it found
+   two un-trusted closures inside `\trusted` parents, verified by nothing.
+
+**The session's accounting, and it is the thing to carry away:**
+
+    460  start
+    458  `errors.py::message` and `proof2why3/sertop.py::__exit__` PROVED, all four checks
+    460  `_hdr_name` and `_returns_literal_none::walk` take HONEST markers
+
+Two functions left the trusted set by being proved. Two joined it by being found never to
+have been verified. The count is unchanged and the map is two entries more accurate. **A
+campaign that reports only the count would record this as zero progress, and one that refused
+the two honest markers to protect the count would be reporting 458 over a number that was
+never true.**
+
 ## If you read one thing
 
 `getting-better/driver-progress.log`, from the gen #31 entries onward. This file is the map.
