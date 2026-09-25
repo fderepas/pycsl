@@ -7608,3 +7608,41 @@ The discipline is two lines, at the top of every offline experiment:
 and one habit at the end: when a tree has given you its number, delete it in the same call
 that records the number. A tree you might want again is 76 MB of hope; the log line is the
 result.
+
+### (i6) A green proof is NECESSARY for retiring a trust marker, and nowhere near sufficient
+
+Two `\trusted` mirror stubs converted cleanly and their whole files PROVED — 11 s and 28 s.
+Every plane in the battery would have stayed green if both had landed. One of them must not
+land, and the check that says so took four minutes and no proving at all: **emit the file
+with and without the conversion, and DIFF.**
+
+    errors.py::message
+      BEFORE  val pycslerror__message (self: pycslerror) : string
+      AFTER   let pycslerror__message (self: pycslerror) : string
+                ensures { self.pycslerror_code = old self.pycslerror_code }   (x4)
+              = (str_dunder_op ())            (* val, no defining axiom *)
+
+    An ASSUMED field frame becomes a PROVED one; `super().__str__()` keeps exactly the
+    opacity the `val` already had. The model gets STRICTLY STRONGER. Land it.
+
+    audit_proof_reverify.py::_cache_root      body: root.mkdir(parents=True, exist_ok=True)
+      AFTER   val root_mkdir_0 () : int       (* nullary, NO `writes` *)
+              let _cache_root ... ensures { true } = ...; (root_mkdir_0 ()); !root
+
+    The declared `#@ assigns \nothing` — ASSUMED while the marker was there, and flagged as
+    assumed — becomes CERTIFIED over a directory creation. Do not land it.
+
+The asymmetry is the whole lesson. **`\trusted` is not a hole in the proof; it is a LABEL on
+a claim nobody checked.** Removing the label does not check the claim — it re-files it from
+"assumed" to "proved" — and whether that is an improvement depends entirely on whether the
+model can SEE the thing the claim is about. When it cannot (a `mkdir` lowered to a nullary
+op with no frame), the conversion converts an honest assumption into a certified falsehood,
+and every plane applauds.
+
+So the question to ask of every candidate is not "does it prove" but **"what does the model
+now ASSERT that it previously merely assumed, and can it see enough to back it?"** The
+emit-diff answers that, cheaply, before any of the expensive checks.
+
+And the generalisation was worth more than the instance: censusing the shape found **17
+`\trusted` stubs declaring `assigns \nothing` over a `subprocess.run`, an `os.makedirs` or an
+`os.remove`** — all currently honest, all one conversion away from not being.
