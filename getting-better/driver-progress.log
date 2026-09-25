@@ -10032,3 +10032,43 @@ is itself an error.** Bite-tested all three ways.
 AND THE REASSURING HALF, which is why the measurement was worth making: 1377 of 1384 load.
 The family is in FUNCTION BODIES and in names directives introduce — not in the corpus's
 ability to be Python.
+
+--------------------------------------------------------------------------------
+2026-09-25 01:07Z — THE DRIVERS' OWN SELF-CHECKS: 839 of 847, and the eight
+
+The load sweep asked "does this file load". The obvious next question costs one line of
+diff: a corpus driver often ends with
+
+    if __name__ == "__main__":
+        assert f(3) == 4
+        print("PASS")
+
+— an assertion the AUTHOR wrote about the program, in Python, which nothing in this repo
+has ever executed. So execute them: exec every PASS-expected, proof-on corpus file with
+`__name__` set to `"__main__"`.
+
+    839 ok,  8 FAILED  (1486 skipped — no `__main__` block)
+
+Six are the import six from the load sweep. The other two are corpus bugs that have been
+sitting in green drivers since they were written, because **a self-check nobody runs is a
+comment**:
+
+  * **`0312.py`** — `assert test_ghost_list_mem(0) == 0`. The file defines
+    `test_ghost_list_nth` and nothing else. `NameError`. The self-check has never executed,
+    in any run, ever.
+
+  * **`0452.py`** — `assert echo_bytes(b"PyCSL\n") == list(b"PyCSL\n")`. **AssertionError.**
+    `echo_bytes` returns a `bytearray`, and `bytearray == list` is False in Python however
+    equal the elements are — measured: elementwise True, types `bytearray` vs `list`. So
+    the CONTRACT (`\array_eq(\result, payload)`) is fine and the ASSERTION was comparing
+    types. It is the `struct.unpack` finding's shape in the other direction: there the model
+    returned a scalar where Python returns a tuple; here the driver's author wrote a Python
+    comparison that its own model-shaped intuition made look right.
+
+Both repairs measured and **BYTE-INERT** in the emission, and both self-checks now print
+their own PASS.
+
+THREE SWEEPS TODAY, each one line of concept apart from the last: does the contract hold
+(the oracles), does the file LOAD, does the file's own SELF-CHECK pass. The second found a
+driver that is not a Python program; the third found two assertions that had never run. The
+first had been running for two generations.
