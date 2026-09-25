@@ -11436,3 +11436,36 @@ not represent. Screened with the qualified-name `port_one.py`:
 and a tenth of it had never been looked at because the list was keyed on bare names. That is
 the third time today that asking the AUTHORITATIVE instrument — rather than the convenient
 one — has changed a number by more than 10%.
+
+## 17:57Z — TWO MORE BYTE-IDENTICAL EMISSIONS, AND CLAUSE 4 IS THE RULE THAT CATCHES THEM
+
+`module6_whyml/statements.py`'s two `rec` closures — from the 45 markers that had never been
+offered to a screen — port, convert, and produce
+
+    === diff lines: 0 ===
+    [+] Verification SUCCESS! All contracts formally proven.
+
+**A byte-identical emission.** Exactly `pycsl.py::_finalize`'s shape, found again in a
+population nothing had looked at. Both closures are FOLDED into their enclosing function's
+recognizer model, so the marker on them assumes nothing and retiring it proves nothing: the
+count would fall by two and the emitted program would not change by one byte.
+
+That is the LIMITING CASE of check 1's fourth clause — *a conversion must MOVE a claim* — and
+a zero-line diff moves nothing by construction. **REFUSED.**
+
+## 17:57Z — `Module3_Weaver::_attach_loop_contracts` REFUSED by the prover
+
+    === diff lines: 46 ===
+    >   val constant _class_ghostArraySetDecl · _class_ghostAssignDecl ·
+    >                _class_loopInvariant · _class_loopVariant       (four class objects)
+    >   val py_isinstance_GhostArraySetDecl_int_op (x) · _GhostAssignDecl_ ·
+    >                _LoopInvariant_ · _LoopVariant_int_op (x)
+        Prover result is: Unknown (why3: Unknown
+    [-] Verification FAILED or INCOMPLETE.
+
+So of the three never-offered candidates that lowered: one refused by clause 4
+(`_array_init_size`, 22 oracles and no claim to move), one refused by the prover, and
+`pure_ast::_Parser._max_end` still running.
+
+**CHECK 1 HAS NOW REFUSED SEVEN CONVERSIONS THAT PROVE.** Every one of them green, every one
+of them a marker the count would have happily surrendered.
