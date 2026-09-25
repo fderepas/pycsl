@@ -318,3 +318,58 @@ any others). Suite predicted **4032/4050**.
                          lines, ZERO new ops); whole-file proof running 1h30+
     $S/cm_expr.log       `expressions.py::_emit_metatype_tags` — proof running 1h50+ (that
                          file's mirror proof is ~3h)
+
+---
+
+# UPDATE 08:58Z — G landed and REVERTED; the port vein continues
+
+## What is banked
+
+    A  gated 04:08Z    D  gated 05:15Z    E  gated 05:15Z    F  gated 05:15Z    H  gated 07:56Z
+
+    markers                455
+    verbatim un-trusted    891
+    trusted-or-dependent   817
+    suite                  4029/4047, the standing EIGHTEEN, ZERO XPASS
+
+## G — landed 07:58Z, reverted 08:03Z
+
+The I4 set-element patch flips its carrier, holds both controls, proves three new corpus
+witnesses — and breaks FOUR mirror files in thirty seconds with a `map string` reaching a
+`val` BRIDGE still declared `map int`. `src/`, `bin/` and `test-suite/` are byte-identical to
+the gated increment-H state (`git diff --name-only f6b8d882 HEAD -- src/ test-suite/ bin/` is
+empty), so **no re-gate is needed for the revert**.
+`finding-the-i4-fixpoint-really-is-a-fixpoint.md`, backlog #55.
+
+## The port vein, adjudicated so far
+
+PROVED and LANDED (increment H): `sertop::__enter__`, `Module2_Parser::_err`,
+`identifiers::stable_hash`, `parser::__repr__`, `monomorphize::_rewrite_call_sites`.
+
+PROVED, NOT YET LANDED — this is increment I:
+
+    frontend/pure_ast.py::error        28 diff lines, ZERO new abstract ops, proof SUCCESS
+    frontend/pure_ast.py::unsupported  (same run; 3h06 of prover time on that file)
+
+REFUSED, each for a named reason:
+
+    sertop::_sexp_tokens              Z3 timeout,  7,433,789 steps
+    from_sexp::_find_construct_idx    Z3 timeout,  3,193,221,587 steps
+    pure_ast (5 together)             check 1: three new abstract ops
+    import_classifier::_stub_set      **PROVES, and check 1 REFUSES it** — two new abstract
+                                      ops, `val stub_dir_is_dir_0 () : int` NULLARY. Same
+                                      mechanism as `_cache_root`: an `os.path.isdir` becomes
+                                      an oracle that does not take the path.
+    pycsl.py::_gate_vacuity_then_succeed   CHECK 0 — a closure inside `\trusted` `_run_proofs`
+
+STILL RUNNING: `Module6_WhyMLTranspiler::__init__` and `pycsl.py::_parse_args`
+(`$S/prove_batch2.log`), and `expressions.py::_emit_metatype_tags` (`$S/cm_expr.log`, 3h45 and
+counting against a 2h57 baseline).
+
+## To land increment I
+
+    bash $S/land_ports.sh frontend/pure_ast.py:error frontend/pure_ast.py:unsupported
+
+PREDICTIONS: count 455 -> **453**; fidelity 891 -> **893**; `check-untrusted-emitted` must
+report both LET; `trusted-reasons.tsv` loses two `unclassified` rows so MAX_UNCLASSIFIED falls
+451 -> **449**. Gate with `--expect-moved frontend__pure_ast`; corpus predicted 0 MOVED.
