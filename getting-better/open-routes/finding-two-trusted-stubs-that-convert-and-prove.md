@@ -77,3 +77,53 @@ it could not run the checks above or the gate. Everything needed is recorded her
 And two that the wider filter caught as **SYNTAX ERROR**, which the first screen had called
 LOWERS: `Module2_Parser::_parse_atom_name` and `::_parse_contract`, both emitting
 `raise (Return {  })` — an empty record literal Why3 cannot parse.
+
+---
+
+## CHECK 1 of 4 — the emit-diff. **PASSES, and it is the check that decides the honesty.**
+
+The question the record posed: does removing the marker make the model ASSERT something it
+cannot back? Emitted both ways from two copied trees and diffed.
+
+BEFORE (the `\trusted` stub):
+
+    val pycslerror__message (self: pycslerror) : string
+
+An abstract `val`: the result type is DECLARED and the field frame is ASSUMED. Nothing about
+the body is checked, which is exactly what `\trusted` means.
+
+AFTER (converted):
+
+    val str_dunder_op () : string          (* no defining axiom *)
+
+    let pycslerror__message (self: pycslerror) : string
+      ensures { self.pycslerror_code     = old self.pycslerror_code }
+      ensures { self.pycslerror_filename = old self.pycslerror_filename }
+      ensures { self.pycslerror_line     = old self.pycslerror_line }
+      ensures { self.pycslerror_stage    = old self.pycslerror_stage }
+    =
+      (str_dunder_op ())
+
+**Two things change and both go the right way.**
+
+1. The four field-preservation clauses move from ASSUMED to PROVED. The `val` form carried
+   no frame at all; the `let` form carries one and the file's proof discharges it. The
+   caller's guarantee about `message()` is strictly stronger after the conversion than
+   before.
+
+2. `super().__str__()` — the reason the marker was there, per the stub's own comment
+   ("opaque (Exception base); returns string but PyCSL cannot see that") — becomes
+   `str_dunder_op ()`, a `val` with NO defining axiom. That is route #41's
+   sound-by-opacity device, and it is the SAME opacity the `val` form already had: the
+   result is a `string` because the signature says `-> str`, and nothing is known about its
+   value in either version.
+
+   It is a plain `val`, not a `val function`, so two calls are NOT provably equal — the
+   per-name-vs-shared-constant hazard route #41 documents does not arise here.
+
+**So the trade is: an assumed frame becomes a proved frame, and the opacity is unchanged.**
+That is a real TCB reduction and not a relabelled assumption — which is precisely what this
+check existed to decide, and it could not have been decided by reading the source.
+
+Six mirror classes share the method, and all six move the same way (`pycslerror`,
+`pycslirerror`, `pycslparseerror`, …).
