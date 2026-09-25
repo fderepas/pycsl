@@ -191,3 +191,33 @@ And a probe says an operator lowers — not that a REAL function converts. A rea
 CHAIN of operators, and the second link is invisible until the first is closed; the set
 record documents exactly that, twice. The map narrows the search. It does not replace the
 conversion.
+
+## The same idea applied to whole functions: a conversion SCREEN
+
+The probes above map CONSTRUCTS. The same economy applies to the functions themselves.
+
+Trying a conversion candidate meant running the mirror file's WHOLE-FILE PROOF — 14 s in the
+cheapest file, 15m12s in `Module2_Parser`, **2h57m** in `expressions.py`. Three generations
+of backlog produced six tried candidates, and that price is the entire reason.
+
+But not one candidate measured today died at the PROVER. They died at a TYPE ERROR or at a
+REFUSAL, and both are reached by `--no-proof` — emit, type-check, stop:
+
+    two Module1_Ingestor candidates, full proof     ~16 s
+    the same two, `--no-proof`                       **3.8 s**
+    eight Module2_Parser candidates, `--no-proof`    ~20 s   (their full proofs: TWO HOURS)
+
+A screen PASS is weaker than an attempt (the function LOWERS; the proof still has to run). A
+screen FAIL is exactly as strong. So the screen is free information in the direction that
+matters, and the expensive run is reserved for what survives.
+
+`$SCRATCH/g31/screen_convert.sh` takes a named list; `screen_all.sh` walks every
+still-`\trusted` function with one tree copy per FILE and the mirror file restored between
+candidates. Early output, which is the point:
+
+    Module6_WhyMLTranspiler.py  __init__                            **LOWERS**
+    Module6_WhyMLTranspiler.py  _emit_funcs                         **LOWERS**
+    Module6_WhyMLTranspiler.py  _build_callee_no_exception_summary  TYPE   int expected
+    Module6_WhyMLTranspiler.py  _maybe_emit_no_exception_assert     REFUSED  `active.update(...)`
+
+Wall-lesson (f6).
