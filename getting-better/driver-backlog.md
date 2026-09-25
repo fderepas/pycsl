@@ -7753,3 +7753,36 @@ had it. `_cache_root`'s body is `root.mkdir(parents=True, exist_ok=True)`, the l
 
 Not load-bearing today (ZERO un-trusted callers), so it is a trap rather than a hole — and
 the whole point of a trap is that it is exactly one green proof away.
+
+### THE SCREEN'S CANDIDATE LIST WAS 46 TOO LONG — a prose mention is not a marker
+
+Thirteenth correction of the session, and it is the `offset 25` lesson biting the hand that
+quoted it two hours earlier.
+
+`convert_one.py` and the screen's list-builder both found a stub's marker by scanning upward
+for a line CONTAINING `\trusted`. `count-trusted-directives.py` reports
+`markers 460 · grep-substring 485 · offset 25` precisely because that is wrong — a PROSE
+MENTION of the marker inside a comment block is not a marker — and
+`check-trusted-frame-honesty`'s own scanner says so in a comment: *"LINE PREFIX, never
+substring."*
+
+Measured over the mirror:
+
+    loose (substring)      456 candidates
+    strict (line prefix)   **410**
+    false                   46
+
+`frontend/Module5_IREmitter.py::_emit_ghost_assign` is the one that gave it away. Its comment
+block reads *"`_csl_to_ir` stays \trusted"*, the function is ALREADY CONVERTED, and the
+converter cheerfully "dropped 1 \trusted line(s)" — deleting a line of prose — and then
+reported a successful conversion whose emission was **byte-identical**, which is the only
+reason anyone noticed. All five of the second screen run's LOWERS were in that false set.
+
+FIXED: the converter now matches `#@`-prefixed lines only and ABORTS when there is no real
+marker, so it can no longer silently damage a comment. The seven vetted LOWERS from the
+first run were checked against the strict list and all seven are REAL, so the two
+conversions that were taken to a proof stand.
+
+**The general shape, for the third time today: an instrument that recognises a thing by
+SUBSTRING will eventually recognise a sentence about the thing.** The repo already had the
+right rule written down, twice, in two different files, and I had quoted one of them.
