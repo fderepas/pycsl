@@ -2822,6 +2822,45 @@ def apply_composition(ir_data: Dict[str, Any]) -> None:
         for pm in sorted(set(providers) & dep_methods):
             if pm not in own_tails:
                 continue
+            # (#49) gen #31 — AN INHERITED PROVIDER IS NOT A SHADOW. `own_tails` is built
+            # from the IR function list, where the base-class binding (routes #144/#147)
+            # has ALREADY materialised `facade__emit` for `class Facade(CoreEmit, MapOps)`.
+            # So a method the composer INHERITS FROM THE PROVIDING MIXIN was
+            # indistinguishable from one it DEFINES, and the diagnostic below told a class
+            # whose entire body is `run` that it "defines its own 'emit'".
+            #
+            # That mattered because writing the bases is the ONLY way the composition
+            # actually happens in Python. Measured in gen #31: all eleven composing classes
+            # in the corpus compose a provider they do not inherit, and in ten of the
+            # eleven the provided name is ABSENT from the instance at runtime —
+            # `Facade().run(3)` and `Service().tick()` are both `AttributeError`. The
+            # directive that exists to make mixin composition machine-checkable was
+            # refusing the only spelling of it that runs.
+            #
+            # THE EXEMPTION IS A SAMENESS TEST, NOT A BASE-CLASS TEST. The base list is
+            # deliberately not consulted: "inherits the mixin" is not the property that
+            # makes shadowing safe — "IS the provider" is. Same line, same column, same
+            # body, same contracts means nothing was substituted, so there is nothing left
+            # unverified, and the inherited function is a real function of the composer
+            # that Module 6 verifies against the composer's record exactly as the clone
+            # would have been.
+            #
+            # MEASURED BOTH WAYS before landing, on the strongest program the rule ADMITS
+            # (the (u4) discipline): with `CoreEmit provides emit ensures \result == 0`
+            # under `MapOps depends_method emit ensures \result >= 10`, the INHERITING
+            # composer still FAILS — the same verdict the plain spelling already gets —
+            # so the exemption does not reopen route #95 through inheritance. Witness
+            # `1902` (PASS, and it RUNS: `run(3)` is 3, `run(-1)` is 0), controls `1903`
+            # (weak provider, still FAILS) and `1904` (composer defines a DIFFERENT `emit`,
+            # still REFUSED). All ten pre-existing mixin drivers unchanged.
+            _own = next((f for f in funcs if f.get("name") == c + "__" + pm), None)
+            if _own is not None and any(
+                    _pf.get("line") == _own.get("line")
+                    and _pf.get("col") == _own.get("col")
+                    and _pf.get("body") == _own.get("body")
+                    and _pf.get("contracts") == _own.get("contracts")
+                    for _M, _pf in providers[pm]):
+                continue
             owners = ", ".join(M for M, _ in providers[pm])
             dep_owners = ", ".join(sorted({M for M, d in deps if d["method"] == pm}))
             raise PyCSLSemanticError(
