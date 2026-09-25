@@ -141,6 +141,28 @@ is not reopened) and `1904` (a real override is still REFUSED). `0554`'s statefu
 remains open: it gets past the front end and dies in the emitted WhyML on `unbound function
 or predicate symbol 'count'`.
 
+## THE CONVERSION SURFACE, MAPPED BY FORTY-NINE TWO-LINE PROGRAMS
+
+`finding-the-conversion-surface-mapped-by-two-line-programs.md`. The backlog had ranked the
+conversion blockers three times by COUNTING bodies. Forty-nine probes, twenty seconds each,
+replaced the ranking with facts:
+
+* **strings: 16 of 16 VERIFY** — split (with and without a maxsplit), startswith, replace,
+  slicing, indexing, len, `+`, `==`, substring `in`, `str()`, `int()`. When a conversion
+  fails, it is not the strings. A negative result, and the most useful kind.
+* **f-strings are not a wall** (186 bodies, three shapes, all verify), and neither are list
+  comprehensions or dict literals in the shapes that dominate. What fails is narrow: a
+  comprehension over a `range` or with a CALL element, dict/set comprehensions, the set
+  literal, `",".join(xs)`.
+* **dicts**: `d[k]`, `.get`, `in`, `d[k] = v`, `len(d.keys())` verify; `len(d)`,
+  `for k in d`, `.setdefault` and a nested `Dict[str, Dict]` do not. `len(d)` fails and
+  `len(d.keys())` works — then censused at ONE corpus instance, in an expected-FAIL witness,
+  so it is recorded as NOT worth building.
+
+Every probe carries `#@ ensures True`: a VERIFY means the construct LOWERS, not that the
+lowering is FAITHFUL. That is the right scope for a conversion blocker and the wrong scope
+for a soundness claim, and keeping the two apart is what makes the map cost an afternoon.
+
 ## THE CONVERSION TRACK, MOVED BY TEN TWO-LINE PROGRAMS
 
 `finding-a-set-has-no-element-type-and-no-union.md`. The backlog has ranked conversion
