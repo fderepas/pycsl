@@ -9986,3 +9986,49 @@ gives the read a value AT ALL. The family claim survives in its narrower and tru
 A finding family grows by the same carelessness that makes it interesting. Both of these
 took under five minutes to settle, and one of them would have been a false sentence in a
 record that everything around it is right about.
+
+--------------------------------------------------------------------------------
+2026-09-25 01:05Z — DOES THE CORPUS LOAD? 1377 of 1384, and the seven are worth naming
+
+The family's question, asked at full scope and without any contract in the way: `exec` every
+PASS-expected, proof-on corpus file's MODULE BODY under CPython. No functions called. Purely
+"is this a Python program that loads".
+
+    1377 loaded,  7 FAILED  (949 skipped for `--no-proof`)
+
+THE FIRST RUN SAID 24, AND SEVENTEEN OF THOSE WERE THE PROBE. `'NoneType' object has no
+attribute '__dict__'`, seventeen times, all of them files combining
+`from __future__ import annotations` with `@dataclass` — because `dataclasses` resolves
+string annotations through `sys.modules[cls.__module__].__dict__`, and the probe had exec'd
+into a namespace that was not a registered module. Checked against `python3 <file>`: every
+one of the seventeen LOADS. Registering a real `types.ModuleType` made the probe measure the
+program instead of itself. (w5) a third time in one day, and the cost of checking was two
+minutes.
+
+THE SEVEN, classified by what a package context does to them:
+
+    0061, 0178, 0179   relative import; LOAD as package modules (`python3 -m …`)
+    0065, 0186, 0187   `multi_file_lib.circ_a` <-> `circ_b`: a genuine CIRCULAR IMPORT that
+                       CPython refuses — "cannot import name 'func_a' from partially
+                       initialized module" — standalone AND as a package module
+    1190_route76_accessor_positive_control.py
+                       **`@mutable_state` used and never defined.** `NameError` at import.
+                       Its siblings 0748, 0750 and 0751 all carry the three-line
+                       `def mutable_state(cls): return cls`. This one forgot, and nothing
+                       in the battery reads a corpus file as a program.
+
+1190 is a `# pycsl-expected: PASS` driver that is **not a Python program at all** — not one
+function that raises, the whole module. Repair measured: inserting the definition its
+siblings carry makes it LOAD and it still VERIFIES; the emission gains exactly
+`let mutable_state (cls: int) : int = cls`, which is what those siblings already emit.
+
+That repair needed an instrument first. The corpus-inertness plane had two escape hatches —
+`--expect-gone` for an intended refusal and the SOURCES.txt manifest for a new file — and
+none for a file whose EMISSION CHANGES, so repairing an existing driver's SOURCE was
+unlandable without turning the plane off. `--expect-moved NAME` now makes the same contract
+`--expect-gone` makes, including the half that matters: **a declared name that does not move
+is itself an error.** Bite-tested all three ways.
+
+AND THE REASSURING HALF, which is why the measurement was worth making: 1377 of 1384 load.
+The family is in FUNCTION BODIES and in names directives introduce — not in the corpus's
+ability to be Python.
