@@ -7602,3 +7602,10 @@ and …` — immediately after. It did not fire for `ys = [1]; ys.extend([2, 3])
 is likely to be WIDENING an existing gate rather than writing a lowering from nothing, which
 is the same shape the set/list element-typing item turned out to have. Probe the gate before
 budgeting the build.
+
+**I4 RE-SIZED (same day, after the second proof finished).** The "double-digit-hour proof
+bill" above was written while the second re-proof was still running.
+`Module6_WhyMLTranspiler.py` came back **SUCCESS in 40m43s**; only `module6_whyml/statements.py`
+fails, at ONE call edge (line 1350, the promoted `local_refs` meeting a `val` still typed
+`map int`). The sweep had already said only two files move. The next step is "promote that
+callee's params and re-sweep" — three minutes — not a mirror-wide rewrite.

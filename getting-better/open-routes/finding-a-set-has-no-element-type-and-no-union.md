@@ -306,3 +306,23 @@ works on a read-only one (so the mechanism is the ELEMENT TYPE, not the membersh
 Between them the carrier is localised to a single line of source without reading any.
 
 Bite-tested: asserting the carrier SUCCESS makes the plane exit 1.
+
+### The bill, re-measured after BOTH proofs finished — smaller than the first estimate
+
+    module6_whyml/statements.py       8 s   FAILED   (one call edge)
+    Module6_WhyMLTranspiler.py     40m43s   **SUCCESS**
+
+The sweep said two mirror files move and no more; one of them re-proves clean. The section
+above was written with the failing proof in hand and the passing one still running, and it
+said "promoting one promotes all of them, which moves most of the mirror". That was an
+estimate built from the half of the evidence that had arrived.
+
+**The actual next step is one call edge**: `statements.py` line 1350 passes the promoted
+`local_refs` to `_stmts_to_whyml`, whose own parameter is still `map int` because nothing in
+ITS body tests a string key, so Module 5's usage tagger never fires for it. The propagation
+rule is therefore exactly the one the source comment names — a parameter that RECEIVES a
+κ=string argument is κ=string — and it is a module-level pass over call edges, not a rewrite
+of the emitter.
+
+Whether it cascades is a three-minute sweep away and is unmeasured. What is no longer true
+is the double-digit-hour figure.
