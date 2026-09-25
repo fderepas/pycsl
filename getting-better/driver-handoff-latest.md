@@ -11591,3 +11591,40 @@ mirror edits; run it after ANY `src/pycsl/` change.
 #    its sentinel so the suite gets the CPU (12 cores, load was 10.3).
 #
 #    THIRTEEN CORRECTIONS to my own written claims today.
+
+# ======================================================================================
+# ## UPDATE 2026-09-25T03:25Z — INCREMENT D IS MEASURED AND READY. The exact sequence.
+#
+#    `errors.py::message` has passed every check that can be run without touching the live
+#    tree, and every number is predicted:
+#
+#      CHECK 1  emit-diff        PASSES. `val … : string` (assumed, no frame) becomes
+#                                `let … : string` with four `self.f = old self.f` clauses the
+#                                proof DISCHARGES; `super().__str__()` becomes
+#                                `val str_dunder_op () : string`, no defining axiom — the
+#                                SAME opacity the val already had, and a plain `val` so two
+#                                calls are not provably equal.
+#      BLAST    mirror sweep     **1 file MOVED** (`errors.mlw`), measured — NOT the fifteen
+#                                that merely MENTION `__message`.
+#      PROOF    errors.py        SUCCESS, ~11 s (measured twice).
+#      SCALE    one marker       moves FOUR `val`s to four proved `let`s (four inheriting
+#                                error classes).
+#
+#    THE SEQUENCE, in order, once increment A's gate reports:
+#      1. Confirm A's suite = **4029/4047**, standing EIGHTEEN, ZERO XPASS.
+#      2. `bash $SCRATCH/g31/land_message.sh` — converts on the LIVE tree and runs checks 2
+#         and 3 plus fidelity plus the file's proof. PREDICTIONS:
+#             count-trusted-directives   460 -> **459**
+#             check-trust-blast-radius   434 -> **433**
+#             check-self-annotate-sync   886 -> **887** verbatim
+#             errors.py whole-file proof SUCCESS
+#      3. Commit, then `nohup $SCRATCH/g31/gate_msg.sh` — already written, and its mirror
+#         compare already carries `--expect-moved errors`. Corpus predicted **0 MOVED**,
+#         suite unchanged at 4029/4047.
+#      4. Resume the screen: `$SCRATCH/g31/screen_rest.sh $SCRATCH/g31/screen_strict_rest.txt`
+#         (404 remaining of the 410 STRICT candidates). It is sentinel-stoppable with
+#         `touch $SCRATCH/g31/STOP_SCREEN` — NEVER `pkill`.
+#
+#    DO NOT LAND `audit_proof_reverify.py::_cache_root`. It converts and proves, and check 1
+#    says its `#@ assigns \nothing` would be CERTIFIED over a `root.mkdir(...)`. It is entry
+#    one of the seventeen-stub DO-NOT-CONVERT list.
