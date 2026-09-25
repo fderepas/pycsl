@@ -7541,3 +7541,41 @@ direction that matters, and the expensive run is reserved for the handful that s
 catches.** If the answer is "all the ones I have actually seen", the expensive check is
 answering a question nobody has yet needed to ask. The 456 still-`\trusted` functions went
 from unscreenable to a ten-minute sweep on that one observation.
+
+### (g6) A full disk presents as a broken shell, and a broken gate presents as a finding
+
+For twenty-five minutes every Bash call returned **exit 1 with no output** — `true`, `echo`,
+`date` — in this session and in a freshly spawned subagent. I diagnosed it as the harness's
+persistent shell having been killed by my own `pkill` (see (c6)), wrote an EARLY-STOP
+handoff, and moved to Read-only tools.
+
+The actual cause appeared on the twentieth probe, because one invocation happened to leak
+its stderr:
+
+    /bin/bash: line 1: pwd: write error: Disk quota exceeded
+
+`/tmp` is a 7.6 GB tmpfs. My own working style had filled it: every offline experiment does
+`cp -a src $SCRATCH/tree<X>/src`, and I had made **eight** of them that session, on top of
+five left by earlier windows and a dozen byte-diff sweep directories. 2.6 GB in this
+window's scratchpad, 1.5 GB in old trees. The shell could not write its own temp files, so
+it failed before running anything — and a shell that cannot report why looks exactly like a
+shell that has been killed.
+
+**AND THE GATE THAT WAS RUNNING PRODUCED A FALSE FINDING.** Its `python-reference` byte-diff
+came back with dozens of `MOVED` files. Read literally that is a soundness alarm — an
+emitter change moving a proved corpus. It was the disk: the emissions were TRUNCATED. The
+gate before it, on the same corpus with the same emitter, had reported `2199 / 2199, 0
+MOVED`.
+
+Two rules out of one afternoon:
+
+1. **When the shell fails with no output, check `df` before you check your reasoning.**
+   Exit 1 with an empty stream is what a full disk looks like from the inside. The one
+   command that would have found it in ten seconds is `df -h /tmp`.
+2. **A gate that reports something alarming while the machine is unhealthy is not
+   evidence.** Diff the alarm against the previous run of the SAME comparison: dozens of
+   movers where the last run had zero is a machine fault, not a discovery. Fix the machine,
+   re-run, and only then believe the output.
+
+And the housekeeping that prevents it: `cp -a src` is 76 MB a time. Delete each offline
+tree when its experiment ends — the measurement is in the log, not in the tree.
