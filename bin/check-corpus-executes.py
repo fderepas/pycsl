@@ -57,7 +57,23 @@ MIN_SELFCHECKED = 835      # measured 844 — ALL of them — once 0312 (a self-
 # A file whose MODULE BODY does not load under this harness. Each one NAMED, with what a
 # package context does to it — because "the instrument cannot load it" and "the program
 # cannot load" are different sentences and only the second is a defect.
-KNOWN_LOAD_FAILURES = {}
+KNOWN_LOAD_FAILURES = {
+    # A CYCLE HAS AN ENTRY POINT, and this module is not it. `circ_a` imports `circ_b` with
+    # a `from` import; `circ_b` imports `circ_a` with a MODULE import (the repairable half —
+    # see the comment in `circ_b.py`). Entering at `circ_a` works and every driver in the
+    # fixture enters there; entering at `circ_b` asks the half-built `circ_b` for `func_b`
+    # and CPython refuses. That is not a corpus defect, it is what a circular import IS in
+    # Python, and a fixture for circular imports should show it.
+    #
+    # The two-sided form WAS measured: making `circ_a` import the module too
+    # (`import multi_file_lib.circ_b`, `return multi_file_lib.circ_b.func_b(x) + 1`) makes
+    # BOTH entry points import, all three drivers print PASS, and 0186 still verifies. It
+    # was not taken because it rewrites `func_a`'s BODY — the fixture would then be testing
+    # a dotted call through a module object rather than the cross-module name resolution it
+    # was written for — and it moves three emissions to buy a property no driver uses.
+    "circ_b.py": "a cycle has an entry point and this is not it; every driver enters at "
+                 "circ_a, which imports cleanly. Two-sided form measured and declined.",
+}
 
 # A file with a LEADING-DOT import is not runnable by `exec`ing it standalone — a relative
 # import needs a parent package, and that is a property of the INVOCATION, not of the
@@ -76,9 +92,14 @@ def _alarm(_sig, _frm):
 
 
 def _files():
+    # (#49) gen #31 — RECURSIVE. The first version globbed only the top level, which left
+    # the `multi_file_lib/` helper modules and the whole `python-reference/stdlib/` tree
+    # out. The stdlib tree turns out to be entirely `--no-proof` (1706 files, the 45%
+    # finding at scale) and is skipped for that reason instead of by accident, which is a
+    # different and better sentence.
     out = []
     for c in CORPORA:
-        out += sorted(glob.glob(os.path.join(c, "*.py")))
+        out += glob.glob(os.path.join(c, "**", "*.py"), recursive=True)
     return sorted(set(out))
 
 
@@ -101,7 +122,13 @@ def _run(f, src, as_main):
     ns = mod.__dict__
     ns["__name__"] = "__main__" if as_main else name
     ns["__file__"] = f
-    sys.path.insert(0, d)
+    # The file's own directory AND its corpus root: a helper inside `multi_file_lib/`
+    # imports itself as `multi_file_lib.x`, which only resolves from the corpus directory
+    # above it. Without the second entry seven library modules reported as load failures
+    # that load perfectly well from the place their own imports name.
+    _roots = [d] + [c for c in CORPORA if f.startswith(c + os.sep) and c != d]
+    for _r in _roots:
+        sys.path.insert(0, _r)
     # (#49) gen #31 — SNAPSHOT `sys.modules`. A corpus file that imports `multi_file_lib.*`
     # leaves those modules cached, and a CIRCULAR fixture leaves one cached in a
     # PARTIALLY-INITIALISED state. Without this the plane's verdict depends on FILE ORDER:
@@ -121,8 +148,9 @@ def _run(f, src, as_main):
         return (type(e).__name__, str(e)[:90])
     finally:
         signal.setitimer(signal.ITIMER_REAL, 0)
-        if sys.path and sys.path[0] == d:
-            sys.path.pop(0)
+        for _r in _roots:
+            if sys.path and sys.path[0] == _r:
+                sys.path.pop(0)
         sys.modules.pop(name, None)
         for _k in [k for k in sys.modules if k not in _mods0]:
             del sys.modules[_k]
