@@ -34,6 +34,39 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #53 gen #31 — THE CONVERSION POPULATION IS 61, NOT 410 (2026-09-25T03:40Z) — READ THIS FIRST
+
+Measured this hour, and it re-scopes every conversion estimate above. Over the 410 STRICT
+`\trusted` candidates, comparing each mirror body to its live twin:
+
+    VERBATIM  61   the live body is (or contains) the mirror body   -> a proof can retire it
+    FACADE   238   `pass` / `return None` and nothing else          -> a proof can NEVER retire it
+    DIFFERS  109   a real body, but not the live one                -> 11 near, 89 a different program
+    missing    2
+
+A facade cannot land because `check-self-annotate-sync.sh` demands that un-`\trusted` mirror
+methods be VERBATIM copies of live. Deleting the marker moves the facade into that population
+where `pass` must equal a 200-line parser — it fails the FIRST plane, before a prover starts.
+A facade needs a PORT, not a proof. `getting-better/open-routes/
+finding-the-conversion-population-is-sixty-one-not-four-hundred.md` has the table, the
+per-file distribution (six files hold 54 of the 61; the four big frontend modules contribute
+ONE between them) and the second-wave similarity scores.
+
+WHAT TO WORK, IN ORDER:
+  1. The 58 verbatim candidates the screen had not yet reached (`$S/screen_verbatim.txt`).
+     This is the whole remaining proof-only surface.
+  2. The 11 DIFFERS at >= 0.80 similarity — a small mechanical re-port, then the same screen.
+     Three of them are at >= 0.95 (live drifted after the port).
+  3. The 89 below 0.50 are the `finding-a-verified-program-that-is-not-the-executed-program`
+     population. Not a conversion vein; a porting programme.
+
+ALSO LANDED THIS HOUR (commit 594aa07d): the frame plane's EXTERNAL-EFFECT half. 16 `\trusted`
+stubs declare `#@ assigns \nothing` while their live twin shells out; all 16 named. And the
+census that came out of it — **5 nested `\trusted` stubs are outside the plane's walk
+entirely** (`_emit_funcs`, `statements.py::rec` x2, `_probe_one`, `_finalize`), every one of
+them declaring `assigns \nothing`. Reopened by making `_mirror_nothing_stubs` descend into
+function bodies. That is a small, bounded, named item and it is worth doing.
+
 ### #52 gen #31 AFTERNOON STATE (2026-09-23T18:10Z) — READ THIS BEFORE #50
 
 **THE GENERATOR THAT WORKED ALL DAY, in one sentence: TAKE A SENTENCE THE DOCUMENTATION
