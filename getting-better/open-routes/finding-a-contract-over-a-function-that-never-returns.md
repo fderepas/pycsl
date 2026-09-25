@@ -188,3 +188,58 @@ only the eleven that exist.
 What is cheap and unambiguous is the FIRST part alone, independent of any new rule: a
 composer that inherits the providing mixin is not shadowing anything, and telling it that
 it "defines its own" method is a false diagnostic on a correct program.
+
+---
+
+## ADDENDUM 2 — the stateful half, diagnosed by DIFFING two emissions
+
+The first exemption made the PURE composition (`0549`'s shape) both run and verify. The
+STATEFUL one (`0554`'s) still died in the emitted WhyML:
+
+    unbound function or predicate symbol 'count'
+
+Emitting both spellings of the same file with `--no-proof --no-typecheck --keep-mlw` and
+diffing them isolates it to one line. `class Service:` emits
+
+    let service__tick (self: service) : unit
+      ensures { self.service_count = old self.service_count + 1 }
+    = let _ = (service__bump self) in ()
+
+and `class Service(Counter):` emits, instead,
+
+    val self_bump_0 (self: service) : unit
+      writes { self.count }                      (* <- line 15, characters 18-23 *)
+      ensures { self.service_count = old self.service_count + 1 }
+    ...
+    = let _ = begin assert { ... }; (self_bump_0 self) end in ()
+
+Two things, in order:
+
+1. **The concrete invocation was lost.** `_apply_composition`'s flatten loop skips a
+   provider whose tail the composer already has (`if tail in own_tails … continue`), and
+   the skip ALSO drops it from `composed_provider_methods` — the set Module 6 consults
+   (`module6_whyml/expressions.py` ~6956) to resolve a composer-own `self.<m>(…)` to the
+   CONCRETE `<composer>__<m>`. Without it the call falls to the abstract-`val` lowering,
+   "which drops `self` and self-field ensures" in that code's own words.
+
+   Why the pure case survived: `Facade.run` calls `self.handle_get`, and `handle_get` is
+   itself a method BOUND FROM A BASE, so the inheritance binder had already rewritten its
+   `self.emit(…)` to `facade__emit`. `Service.tick` is the composer's OWN method, written
+   in `Service`, and nothing rewrites it. The pure case worked by accident of which method
+   the call sits in.
+
+2. **The abstract-`val` fallback emits the RAW PYTHON FIELD NAME in its frame.**
+   `writes { self.count }` where the record field is `service_count`. That is a latent
+   emission defect on a path no corpus file reached; making the composition executable
+   reached it. It is left recorded rather than repaired, because the repair above removes
+   the only program that walks that path — and a latent bug with no witness is exactly the
+   thing this campaign writes down instead of quietly fixing.
+
+**The repair** is the same sameness test, applied at the flatten loop instead of the
+shadow check: when the method the composer "already has" IS this provider — same line,
+column, body, contracts — register it in `composed_provider_methods` rather than skipping
+it silently. It is the concrete implementation the clone would have been.
+
+Measured: `0554` made executable now verifies, `0554` as written still verifies, `0549`
+both ways verifies, and all thirteen mixin drivers in the corpus keep their verdicts. The
+adversarial `1903` still FAILS.
