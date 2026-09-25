@@ -141,6 +141,37 @@ is not reopened) and `1904` (a real override is still REFUSED). `0554`'s statefu
 remains open: it gets past the front end and dies in the emitted WhyML on `unbound function
 or predicate symbol 'count'`.
 
+## THE CONVERSION TRACK, MOVED BY TEN TWO-LINE PROGRAMS
+
+`finding-a-set-has-no-element-type-and-no-union.md`. The backlog has ranked conversion
+candidates three times in three generations, each ranking by reading or counting them. This
+one was produced by PROBING the operators instead, and it replaced the ranking with a single
+line of source.
+
+    m in held            Set[int]   SUCCESS      held.add(m)        Set[str]   SUCCESS
+    m in held            Set[str]   FAILED       held.add(m); m in held        SUCCESS
+    s | {x} in @mutable_state       SUCCESS      s | {x} standalone            FAILED
+    a | b  anywhere                 FAILED       len/& /-/^/.union/.intersection  FAILED
+
+**`module6_whyml/functions.py` ~137** explains every row:
+
+    _sk = "string" if (_mut_coll and kt.get(arg) == "string") else "int"
+
+A MUTATED `Set[str]` param is string-keyed; a read-only one "must STAY `map int`" because it
+feeds sibling `val` bridges typed `map int` — and the comment names what is missing: *"that
+cross-method κ=string agreement is the deferred I4 fixpoint"*. The mechanism was accepted
+only after it PREDICTED an eleventh probe (`add` then test → verifies, because the `add`
+promotes the param), which is wall-lesson (a6).
+
+Deleting the `_mut_coll` conjunct on an offline tree makes the read-only membership verify,
+with the `Set[int]` control green and **0 of the 14 emittable set-using corpus files moved**.
+Censused exposure: **ZERO read-only `Set[str]` params in either corpus**; 39 in `\trusted`
+mirror stubs; 120 mirror functions already converted and PROVING today (their keys are
+`.get()` results the tagger cannot prove are strings, so κ stays int and everything agrees).
+
+FIVE CORRECTIONS in that one record, every one caught by measuring instead of asserting —
+which is the method the generation is actually about.
+
 ## THE FINDING THAT CAME OUT OF AN EXCLUSION LIST
 
 `struct.unpack` returns a TUPLE. Six corpus functions across three PASS-expected drivers
