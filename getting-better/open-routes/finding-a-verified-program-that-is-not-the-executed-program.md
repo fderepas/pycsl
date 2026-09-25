@@ -91,10 +91,46 @@ drivers are `# pycsl-expected: PASS` and both certify a `\str_length` relation o
 function with no run.
 
 This is the same species as `compose_from` and a different directive, which is what makes
-it a family rather than a bug. The honest repair for the corpus is one both files could
-carry today: define the constructors in Python (a `dataclass`, a `NamedTuple`) so the
-`match` has something to match. Whether PyCSL should REQUIRE that is the same design
-question `compose_from` raises, and it is recorded, not decided.
+it a family rather than a bug.
+
+### The obvious repair was TRIED, and it is not free
+
+Add the Python definitions the `match` needs:
+
+```python
+@dataclass
+class Nothing: pass
+
+@dataclass
+class Just:
+    _0: Any
+```
+
+**`0540` then RUNS — `use_int()` is 7, `use_str("ab")` is `"ab"` — and it still
+VERIFIES.** `match` finds the constructors through the dataclass `__match_args__`, and the
+proof goes through unchanged in its conclusions.
+
+But the EMISSION MOVES, and it moves in a way that has to be understood before this is
+called a fix:
+
+```
++   type just = { mutable _0: int }
+-     let o = ref (Just 7) in            +     let o = (Just 7) in
+-     match !o with                      +     match o with
+```
+
+The class declaration makes `Just` a RECORD as well as a variant constructor, and the local
+loses its `ref`. The file verifies either way, but it is no longer verifying quite the same
+model — which is exactly the thing a corpus repair must not do quietly to nine drivers at
+once.
+
+So the measurement is recorded and the repair is NOT landed. What it establishes is that
+the gap is closable at all, and where the real decision lies: either `#@ datatype` emits the
+Python-level constructors itself (so the declaration is the definition, and the model is
+unaffected), or the directive REQUIRES the definitions and Module 5 learns not to
+double-model a class that a `#@ datatype` already declares. Both are design changes to a
+documented directive, with nine drivers in the blast radius, and lesson (u4) applies: a rule
+binds every program that could be written, not only the nine that exist.
 
 ## Mechanism 2 — the verifier supplies a name the program does not have
 
