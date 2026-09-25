@@ -11507,3 +11507,50 @@ mirror edits; run it after ANY `src/pycsl/` change.
 #    STATE: HEAD `05b5434a`; two new untracked record files to commit; `\trusted` markers
 #    460 by `bin/count-trusted-directives.py`; the deadline is unchanged at
 #    2026-09-27T08:19Z. DO NOT PUSH.
+
+# ======================================================================================
+# ## UPDATE 2026-09-25T03:06Z — **THE EARLY-STOP ABOVE IS WITHDRAWN.** Shell restored.
+#
+#    The block above diagnosed a twenty-five-minute shell outage as my own `pkill -f
+#    screen_all.sh` killing the harness's persistent shell. That was HALF the story and the
+#    less important half. The real cause surfaced on a probe that happened to leak stderr:
+#
+#        /bin/bash: line 1: pwd: write error: Disk quota exceeded
+#
+#    `/tmp` is a 7.6 GB tmpfs and it was FULL. Every offline experiment in this campaign does
+#    `cp -a src $SCRATCH/tree<X>/src` — 76 MB each — and I had made eight this session on top
+#    of five left by earlier windows, plus a dozen byte-diff sweep directories: 2.6 GB in this
+#    window's scratchpad and 1.5 GB in old trees. A shell that cannot write its own temp files
+#    fails before it runs anything, and looks exactly like a shell that has been killed.
+#
+#    CLEANED: old window trees (`wt-*`, `tree*` from previous windows) and this window's
+#    finished experiment trees deleted. `/tmp` went 100% -> **49% (3.9 G free)** and the shell
+#    came back. Wall-lesson (g6).
+#
+#    **AND THE GATE RUNNING AT THE TIME PRODUCED A FALSE ALARM**, which is the part worth
+#    carrying forward. `gate_new.log` (kept as `gate_new_DISKFULL.log`) reported dozens of
+#    `MOVED pyref__NNNN.mlw` — read literally, an emitter change moving a PROVED corpus, i.e.
+#    a soundness alarm. It was truncated emissions from the full disk. The same comparison on
+#    the same emitter had reported `2199 / 2199, 0 MOVED` an hour earlier. Its
+#    pycsl-reference half, which completed BEFORE the disk filled, was green and matched the
+#    prediction exactly (`1376 baseline / 1378 candidate, 0 MOVED, 2 new source files`).
+#
+#    STATE NOW — everything below supersedes the EARLY-STOP block:
+#      * HEAD `0a763873`. Tree clean apart from the `.aux` exhaust and the `scratchpad/w{7,8}`
+#        gitlinks. All four files the EARLY-STOP listed as uncommitted are committed.
+#      * **`d998c44b` + `910d9422` are LANDED AND GATED** — suite 4026/4044, the standing
+#        EIGHTEEN, ZERO XPASS; 48 planes; mirror, pyref and corpus inert.
+#      * **Increment A is LANDED** (`1250e04d`): the `__new__` ARITY refusal, 0496 repaired
+#        (VERIFIES, RUNS, byte-inert), witnesses 1905/1906/1907, and FOUR ratchets moved with
+#        their measurement — NEVER_RETURNS 8 -> 7, MAX_RAISED 15 -> 14, MIN_WITNESSED
+#        205 -> 206, MIN_AUDITED 115 -> 116.
+#      * Its gate was RE-LAUNCHED clean at 03:05:15Z with 3.9 G free. Predicted: corpus
+#        byte-diff 0 MOVED + 2 new source files, mirror inert, 48 planes, suite **4029/4047 =
+#        the standing EIGHTEEN, ZERO XPASS**.
+#      * 253 stray `.mlw` files the killed sweep left in `test-suite/corpus/python-reference/`
+#        were deleted — ONLY those, selected by `-newermt`, leaving the 92 older ones (54
+#        conformance spikes from 2026-09-05, 38 from an earlier window) untouched.
+#        `check-artifact-cleanup.sh` green.
+#
+#    HOUSEKEEPING RULE THIS SESSION EARNED: delete each offline tree when its experiment
+#    ends. The measurement belongs in the log, not in a 76 MB copy of `src`.
