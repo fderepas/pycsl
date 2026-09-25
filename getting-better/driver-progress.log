@@ -11362,3 +11362,38 @@ depend on, so check 1 would have admitted it. The prover would not.)
 **Eleven markers retired by proof this session — ten of them by PORTING a body the mirror did
 not have.** Every remaining candidate in the 410 is behind one of the five named walls, and
 the two that are not (`_sexp_tokens`, `_find_construct_idx`) are behind the prover's clock.
+
+## 15:09Z — THE "AMBIGUOUS EIGHT" WERE FIFTEEN, AND FIVE OF THEM PORT AND LOWER
+
+The census reported 8 candidates as AMBIGUOUS — a bare name resolving to more than one
+definition in its file — and reported them rather than guessing, which was right. What it did
+NOT do was resolve them, and the screen skipped all eight.
+
+**The authoritative resolution was already in the repo.** `getting-better/trusted-reasons.tsv`
+carries one row per live marker with its FULL qualified name, held in lock-step by
+`check-trusted-reasons.py`. Reading it turns the eight bare names into FIFTEEN definitions:
+
+    frontend/pure_ast.py   AST.__init__ · _Tok.__init__ · Comment.__init__ · _Parser.__init__
+                           · _Unparser.__init__        (five `__init__`s in one file)
+    frontend/pure_ast.py   AST.__repr__ · _Tok.__repr__ · Comment.__repr__
+    frontend/pure_ast.py   NodeVisitor.visit · NodeVisitor.generic_visit ·
+                           NodeTransformer.generic_visit · NodeVisitor.visit_Constant
+    frontend/Module2_Parser.py    _ContractParser.__init__
+    frontend/Module5_IREmitter.py PyCSLToJSONEmitter.__init__
+    module6_whyml/statements.py   ..._collect_field_decode_str_locals.rec
+                                  ..._collect_string_elem_read_locals.rec
+
+`port_one.py` now accepts a qualified name (`Class.method`, `Mixin._collect.rec`) as well as a
+bare one. Screened, and rechecked against the positive marker:
+
+    **5 CONFIRMED PORT+LOWER**   AST.__init__ · AST.__repr__ · Comment.__repr__ ·
+                                 both `statements.py` `rec` closures
+    2 NOT-OK                     NodeVisitor.visit (`ref int @rho, cannot be applied`),
+                                 _Unparser.__init__
+    6 TYPE / REFUSED             the usual walls
+    check 0                      0 trusted-parent traps among them
+
+**A tool that can only say "ambiguous" about fifteen candidates is a tool that leaves fifteen
+candidates unscreened.** Reporting the ambiguity instead of guessing was correct; leaving it
+there for six hours was not. The fix was two lines and the authoritative answer was in a file
+this session has been editing all day.
