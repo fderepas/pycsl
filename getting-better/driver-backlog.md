@@ -7363,3 +7363,25 @@ is the first thing to build, and it is the first time this file has been able to
 
 Method: `finding-the-conversion-surface-mapped-by-two-line-programs.md`. Every row above is
 one two-line program plus one `ast.walk`.
+
+**AND `str.join` IS NOT ABOUT `join`.** `str_join_seq` and `str_join_arr` already exist in
+`module6_whyml/statements.py`; the lowering is there. Three more probes say what actually
+fails:
+
+    xs[0]                    on a `List[str]` PARAMETER      unproven
+    len(x)  in `for x in xs` on a `List[str]` PARAMETER      "expected to have type int"
+    ",".join(s.split("."))                                   "expected to have type string"
+
+**The ELEMENT of a `List[str]` parameter is an `int`.** That is the same mechanism as the
+`Set[str]` element type — a container parameter's element/key type is erased unless a
+usage-based tag fires — and it means the 83 `str.join` functions, the `Set[str]` readers and
+the `List[str]` iterators are ONE feature, not three:
+
+> **CONTAINER ELEMENT TYPING FOR PARAMETERS.** Read the declared element type of a
+> `List[T]` / `Set[T]` / `Dict[K, V]` parameter and carry it into the lowering, instead of
+> defaulting to `int` and waiting for a usage tag.
+
+That is the item, and it now has both a mechanism (one line for sets, `param_list_elem_types`
+for lists) and a size (the I4 half alone: κ must propagate along call edges, most of the
+mirror moves, `expressions.py` is 2h57m to re-prove). It is a large build. It is also the
+ONLY item on this list that unblocks more than one row.
