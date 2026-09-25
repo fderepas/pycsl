@@ -66,3 +66,56 @@ program that was verified is not the program that runs.
 That is not an argument against conversion. It is the reason the screen's `--no-proof`
 LOWERS verdict is a necessary condition and nothing more, and the reason the emit-diff is
 check 1 rather than check 4.
+
+## The fourth clause of check 1, found at the boundary: the conversion must MOVE a claim
+
+`frontend/Module5_IREmitter.py::PyCSLToJSONEmitter._array_init_size` PROVES. Its emit-diff is
+76 lines and introduces **twenty-two** new abstract operations — and every single one takes
+its operand, so the three clauses stated so far all admit it:
+
+    val get_BinOp (x) · get_List (x) · get_Mult (x) · get_args (x) · get_elts (x) ·
+    get_func (x) · get_id (x) · get_left (x) · get_op (x) · get_right (x) ·
+    iter_get (x) (i) · iter_length (x) · subscript_get (x) (i) ·
+    py_isinstance_BinOp_int_op (x) · _Call_ · _Constant_ · _List_ · _Mult_ · _Name_ ·
+    _bytes_int_op (x) · pyCSLToJSONEmitter__const_int_value_1 (x0)
+
+**Every operation in the body is an oracle.** The function walks an AST to compute a size; the
+model sees an unconstrained int produced by unconstrained accessors from an unconstrained
+input.
+
+And its contract is
+
+    #@ requires True    #@ ensures True    #@ assigns \nothing
+    @staticmethod
+    def _array_init_size(rhs: ast.expr) -> int:
+
+A `@staticmethod`. There is no `self`, so `assigns \nothing` has no field frame to prove.
+`ensures True` claims nothing. **So the conversion moves NO clause from assumed to proved.**
+
+That is the campaign's own sentence, applied:
+
+> `\trusted` is not a hole in the proof; it is a LABEL on a claim nobody checked, and removing
+> the label re-files the claim from ASSUMED to PROVED — **an improvement only if the model can
+> SEE the thing the claim is about.**
+
+Here the model can see nothing the claim is about, and there is no claim. So:
+
+### CHECK 1, CLAUSE 4 — a conversion must MOVE A CLAUSE from ASSUMED to PROVED
+
+Not "must prove". Not "must introduce no `val`s". **Must move something.** Concretely, the
+emit-diff must show at least one of:
+
+* a `requires` / `ensures` / `raises` / frame clause that the `val` ASSUMED and the `let`
+  DISCHARGES — `errors.py::message` moves four frame `ensures`, times four inheriting classes;
+  `Module2_Parser::_err` moves `ensures { false }`, which becomes a proof that it never returns
+  normally;
+* or a body whose operations are MODELLED, so the `let` says something the `val` could not —
+  `Module6_WhyMLTranspiler::__init__` moves 172 lines of field initialisation into the record
+  model and adds twelve fields the model did not know existed.
+
+`_array_init_size` does neither. It is a `val` rewritten as a `let` over the same opacity, and
+retiring its marker would move the count without moving the model — which is the exact defect
+`bin/check-untrusted-emitted.py` was built to catch, in the one form that plane cannot see
+(the function IS emitted as a `let`; it just doesn't say anything).
+
+**REFUSED.** Not landed.
