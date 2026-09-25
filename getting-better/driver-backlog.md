@@ -7233,3 +7233,15 @@ Set union is likewise not missing — it is gated on a set-LITERAL right operand
 `finding-a-set-has-no-element-type-and-no-union.md`, and wall-lesson (a6): the three earlier
 descriptions of this were all fitted to the same ten measurements; the one that survived was
 the one that predicted an eleventh.
+
+**CORRECTION to the item above, same day.** "159 mirror functions" counted every read-only
+`Set[str]` parameter in the mirror without asking which are in `\trusted` stubs. Split:
+**39 in stubs (the conversion population), 120 already converted and PROVING today.** The
+tagger only fires on a PROVABLY-string key, so the 120 (whose keys are `.get()` results and
+subscripts) lower as `map int` and agree with everything downstream. The wall is therefore:
+
+> a read-only `Set[str]` parameter whose membership key the tagger CAN prove is a string
+
+which is the shape a freshly converted function tends to have and is why it appears at
+conversion time rather than in the 120 already there. Zero corpus exposure is unchanged and
+still the decisive half.
