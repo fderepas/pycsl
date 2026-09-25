@@ -178,3 +178,24 @@ Two functions that both "convert and prove", and the check that took four minute
 one and not the other. A green whole-file proof is a NECESSARY condition for retiring a
 `\trusted` marker and nowhere near a sufficient one — which is the single most important
 thing this record has to say to whoever works the remaining 454 candidates.
+
+## The landing, written as PREDICTIONS before it is run
+
+A landing that is not predicted is a landing that cannot be wrong. The numbers this
+conversion must move, and by how much:
+
+    bin/count-trusted-directives.py        markers  460 -> **459**
+    bin/check-trust-blast-radius.py        "carry \trusted"  434 -> **433**
+                                           (its own count; a different rule, see the
+                                            460/441/417 reconciliation in the backlog)
+    bin/check-self-annotate-sync.sh        verbatim un-trusted  886 -> **887**
+    the file's own whole-file proof        SUCCESS, ~11 s (already measured)
+    corpus byte-diff                       **0 MOVED** — a mirror-only change touches no
+                                           corpus emission
+    mirror byte-diff                       `errors.mlw` MOVED, DECLARED; how many OTHER
+                                           mirror files move is being measured, because
+                                           FIFTEEN of the 53 mention `__message` and a
+                                           grep is not a measurement
+
+Each moved mirror file must then be RE-PROVED, and that is the real cost of this increment —
+not the conversion, which took eleven seconds.
