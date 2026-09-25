@@ -163,6 +163,34 @@ Every probe carries `#@ ensures True`: a VERIFY means the construct LOWERS, not 
 lowering is FAITHFUL. That is the right scope for a conversion blocker and the wrong scope
 for a soundness claim, and keeping the two apart is what makes the map cost an afternoon.
 
+## THE CONVERSION TRACK'S TOP ITEM, MEASURED THREE TIMES AND SMALLER EACH TIME
+
+The backlog ranked conversion blockers three times by COUNTING. Probing instead:
+
+1. **104 of the 435 still-`\trusted` functions sit behind ONE refusal** — the in-place
+   mutators. `.append` VERIFIES (and is the single largest construct in the population, 154
+   functions, which is why counting misleads); `extend`/`pop`/`insert`/`sort`/`remove`/
+   `reverse`/dict `.update` are all refused by one message that states its own repair:
+   *"the call becomes an abstract operation that takes NEITHER the receiver NOR a `writes`
+   clause"*. It is a SOUNDNESS FENCE with a measured witness (`0982`: `xs.reverse(); return
+   xs[0]` PROVED `== 0` where Python answers 7) and `.append`'s faithful lowering is the
+   template, at `statements.py` ~3017.
+
+2. **The `Set[str]` / `str.join` / `List[str]` cluster is ONE cause**, and it is not a
+   fixpoint. `Module5_IREmitter` has TWO κ extractors thirty lines apart: the FIELD one
+   handles `Set[str]` and says why in its docstring — *"a set's element IS its key"* — and
+   the PARAMETER one handles only `Dict[str, V]`. The gen #31 shape for the FIFTH time: one
+   rule, two adjacent places, implemented in one. Reading κ from the DECLARATION at the
+   parameter site makes the carrier VERIFY with the `Set[int]` control still green, and
+   needs no propagation pass — both ends of a call edge read the same declaration.
+
+3. Sized, re-sized and re-sized again: "double-digit-hour proof bill" (written while the
+   second re-proof was still running) became "two mirror files, one of them clean, one call
+   edge" became "the call edge was a symptom of the extractor". Wall-lesson (e6).
+
+The gap is GATED so it cannot be rediscovered: `setelem-carrier-read-only-str-set-membership.py`
+plus two controls in `check-open-route-carriers.py` (5 carriers -> 8).
+
 ## THE CONVERSION TRACK, MOVED BY TEN TWO-LINE PROGRAMS
 
 `finding-a-set-has-no-element-type-and-no-union.md`. The backlog has ranked conversion
