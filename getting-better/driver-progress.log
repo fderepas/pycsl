@@ -11299,3 +11299,24 @@ emit-diff is a measurement.
 
 A · D · E · F · H · I · J · K.  460 -> **451** markers, 886 -> **895** verbatim un-trusted,
 833 -> **800** trusted-or-dependent.
+
+## 14:54Z — `pure_ast.py::__instancecheck__` PROVES; three new ops, all of which take their operands
+
+    ported frontend/pure_ast.py::__instancecheck__ (10 body line(s), marker deleted)
+    === diff lines: 31 ===
+    >   val _const_types_not_get_2 (x0: int) (x1: int) : int
+    >   val isinstance_op (x: int) (t: int) : bool
+    >   val type___instancecheck___2 (x0: int) (x1: int) : int
+    [+] Verification SUCCESS! All contracts formally proven.       (2h19)
+
+Three is the most new operations any ADMITTED conversion has introduced, and it is worth being
+explicit about why the criterion still admits them: **every one takes its operands.**
+`isinstance_op (x) (t)` returns an unconstrained `bool` for a type test the model cannot
+decide — so every branch on it is arbitrary, and nothing is claimed about which way it goes.
+That is opacity, not erasure. A `val isinstance_op_0 () : bool` would be erasure, because it
+would make the answer independent of the value being tested.
+
+So the second and third members of the batch that failed together — `iter_fields` and
+`__instancecheck__` — both prove ALONE, and both are admitted. The batch's `Unknown (why3:
+Out of …)` was a resource limit, not a verdict about any member. **Three for three on
+"separate before concluding".**
