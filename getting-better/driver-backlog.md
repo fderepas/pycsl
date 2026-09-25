@@ -7649,3 +7649,27 @@ The eight Module2_Parser candidates screened: **all eight TYPE errors** — `int
 record, a string, an `emit_ir` or an `array` was expected. Which is the int-placeholder chain
 this file named as the #1 blocker, now confirmed at the cost of twenty seconds instead of two
 hours.
+
+### AN INSTRUMENT IDEA THAT FELL OUT OF A COMPARISON: negative-witness STRENGTH
+
+`0884` is `# pycsl-expected: FAIL` and it fails with
+
+    Prover result is: Timeout (30.00s, 19789504 steps)
+
+not with a refutation. **A negative witness that fails because the prover ran out of time is
+not the same evidence as one that fails because its goal is false.** The first would start
+PASSING on a faster machine, with a longer `--timelimit`, or after an unrelated emission
+change that happens to make the goal easier — and the suite cannot tell the two apart,
+because both print FAILED.
+
+The corpus has ~700 expected-FAIL drivers. How many of them fail by TIMEOUT is unmeasured,
+and it is exactly the kind of number this campaign exists to take: a plane that classifies
+each negative witness's failure MODE (refused / unproven / timeout) and ratchets the timeout
+bucket downward.
+
+Cost: the suite already runs every one of them; the classification needs the per-file prover
+output, which `run-reference-tests.sh` currently discards. So the honest first step is a
+one-off sweep over the expected-FAIL population with the output kept, to see whether the
+timeout bucket is 1 file or 100 — and THAT decides whether it is worth a plane.
+
+Not built. Recorded with its first instance and its first step.
