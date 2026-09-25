@@ -127,3 +127,54 @@ check existed to decide, and it could not have been decided by reading the sourc
 
 Six mirror classes share the method, and all six move the same way (`pycslerror`,
 `pycslirerror`, `pycslparseerror`, …).
+
+## CHECK 1 for the SECOND stub — **IT FAILS, and the failure is the point of the check**
+
+`audit_proof_reverify.py::_cache_root` also converts and its file also PROVES. The emit-diff
+says it must not be landed anyway.
+
+    THE STUB                              THE LIVE BODY
+    #@ requires True                      root = project_root / ".audit-cache"
+    #@ ensures True                       root.mkdir(parents=True, exist_ok=True)
+    #@ assigns \nothing                   return root
+
+    BEFORE   val _cache_root (project_root: string) : string
+    AFTER    val function path_join_op (a b: string) : string
+             val root_mkdir_0 () : int          <- nullary, NO `writes`
+             let _cache_root (project_root: string) : string
+               requires { true }
+               ensures  { true }
+             =
+               let root = ref (path_join_op project_root ".audit-cache") in
+               let _ = (root_mkdir_0 ()) in ();
+               !root
+
+`path_join_op` is fine and is worth noting as the good half: it is a `val function` — PURE,
+so two joins of the same arguments are equal, which is true of `os.path.join`.
+
+**`root_mkdir_0 ()` is the problem.** The body CREATES A DIRECTORY. The lowering gives that
+call no receiver and no `writes` clause, so in the model it has no effect — and the function
+therefore SATISFIES its declared `#@ assigns \nothing`. Before the conversion that clause was
+ASSUMED and the `\trusted` marker was the honest flag saying nobody had checked it. After,
+the same clause is CERTIFIED for a body whose whole purpose is a side effect.
+
+That is this session's `0982` finding one level out — *"the call becomes an abstract
+operation that takes NEITHER the receiver NOR a `writes` clause"* — at the filesystem instead
+of at a list.
+
+Whether `#@ assigns` is even IN SCOPE for external effects is a policy question this record
+cannot settle, and that is precisely why the stub should not lose its marker on a green
+proof: **the proof is green because the effect is invisible to the model, which is the
+definition of the thing `\trusted` was flagging.**
+
+### So the two candidates separate, and only one of them is landable
+
+    errors.py::message                   CHECK 1 PASSES — assumed frame -> PROVED frame,
+                                         same opacity, `super().__str__()` is pure
+    audit_proof_reverify.py::_cache_root CHECK 1 FAILS  — `assigns \nothing` becomes
+                                         CERTIFIED over a `mkdir`
+
+Two functions that both "convert and prove", and the check that took four minutes says land
+one and not the other. A green whole-file proof is a NECESSARY condition for retiring a
+`\trusted` marker and nowhere near a sufficient one — which is the single most important
+thing this record has to say to whoever works the remaining 454 candidates.
