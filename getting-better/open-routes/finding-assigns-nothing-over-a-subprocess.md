@@ -102,3 +102,21 @@ most immediate use.
 
 Repair 1 is an instrument change with a measured population. Repair 2 is a vocabulary
 question. Recorded with both, attempted with neither.
+
+## Bounded: NOT load-bearing today — zero converted callers
+
+The obvious next question, and the one that decides whether this is a live unsoundness or a
+trap waiting: **does anything already RELY on one of these false `assigns \nothing`
+clauses?** Censused — every UN-trusted (i.e. verified) mirror function, checked for a call
+to any of the nineteen:
+
+    UNTRUSTED mirror functions calling one of them:  **0**
+
+So no proof in the mirror currently leans on a frame that is false of the program. The
+clauses are assumed, flagged by their markers, and unconsumed.
+
+That makes this a TRAP rather than a HOLE, and it is worth saying plainly because the two
+deserve different urgency. A hole gets fixed now; a trap gets a sign on it, which is what the
+DO-NOT-CONVERT list above is. The sign matters because the trap is exactly one green
+whole-file proof away from being a hole — and a green whole-file proof is precisely what a
+conversion session is looking for.
