@@ -1,490 +1,105 @@
-# Driver handoff — gen #31, 2026-09-25T04:04Z
+# Driver handoff — gen #31, 2026-09-25T23:50Z
 
 Deadline **2026-09-27T08:19Z** (epoch 1790497192, written, never recomputed). Do not push.
+~32 h left at the time of writing.
+
+`$S` = `/tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/g31`
+
+## READ THIS FIRST — the session's own conversion track failed an audit
+
+`bin/run-soundness-planes.sh` has a FAST set (48) and a SLOW set (25, `--slow`). **Every gate
+script this session ran the fast set only** — twenty-eight invocations, gates A through N, each
+printing "all 48 plane(s) green". Run once with `--slow` at 21:48Z on the increment-N tree:
+**5 of 73 RED**, and two of the five were conversions those same gates had banked.
+
+SIX conversions landed this session were hollow and are now RE-TRUSTED (`d21a61fb`):
+
+    pure_ast.py::_Parser.error                erased=['msg'] of ['msg']
+    pure_ast.py::_Parser.unsupported          erased=['what'] of ['what']
+    Module2_Parser.py::_ContractParser._err   erased=['msg'] of ['msg']
+    monomorphize.py::_rewrite_call_sites      erased=BOTH args
+    module6_whyml/identifiers.py::stable_hash erased=['s'] of ['s']
+    pure_ast.py::iter_fields                  `let ... : unit`, the yielded pair dropped
+
+Two of them had the verdict written in the file already and the converting commits left the
+comment saying "STAYS trusted". See
+`getting-better/open-routes/finding-eleven-gates-over-four-red-oracles.md` and wall-lesson (q6).
+
+**RULE FROM HERE ON: a gate runs `--slow`, or it is not a verdict on a conversion.**
+`bin/run-soundness-planes.sh` now says so in its own summary line (`5857acff`).
 
 ## What is running right now
 
 | job | started | log | expect |
 |---|---|---|---|
-| increment-A gate, SUITE stage | 03:11:21Z | `$S/gate_new.log` | `SUITERC=` ~04:17Z; predicted **4029/4047**, standing EIGHTEEN, ZERO XPASS |
-| the verbatim conversion screen | 03:37:36Z | `$S/screen_verbatim.log` | 58 candidates, ~54 done |
-| increment-D checks (two stubs) | 03:43:51Z | `$S/land_two.log` | ends with `DONE`; count already 460 -> **458** |
-
-`$S` = `/tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/g31`
-
-## Committed since the last handoff
-
-    594aa07d  the frame plane's EXTERNAL-EFFECT half — 16 stubs that shell out under
-              `assigns \nothing`, all named; plus the 5 NESTED stubs the walk cannot reach
-    e7e45f7f  the facade census — the conversion population is not 410
-    3422e737  the second wave — 11 stale copies, 89 a different program
-    b3c637a2  backlog #53
-    9e343d15  CORRECTION — 56, not 61; the census keyed on bare names
-    eaddcd79  backlog #53 carries the correction
-
-## Increment D, UNCOMMITTED IN THE WORKING TREE
-
-Two `\trusted` markers retired, both having PASSED CHECK 1 (the emit-diff):
-
-    errors.py::message              val -> let; 4 assumed frame `ensures` become PROVED; the
-                                    only new `val` is `str_dunder_op ()`, exactly the opacity
-                                    the old `val` already had.
-    proof2why3/sertop.py::__exit__  val -> let with body `()`; 4 assumed frame `ensures`
-                                    become PROVED; NO new `val` at all; the LIVE body really
-                                    is `pass`. 11 diff lines, every one additive.
-
-NOT `audit_proof_reverify.py::_cache_root` — it lowers AND proves, and check 1 refuses it:
-its `os.mkdir` becomes `val root_mkdir_0 () : int`, nullary, with no `writes`.
-
-Also uncommitted: `bin/check-trust-blast-radius.py` gains **MAX_TRUSTED_OR_DEPENDENT = 833**.
-Retiring `message` did NOT shrink the trusted surface — `message` is
-`return super().__str__()` and `errors.py::__str__` is itself `\trusted`, so the function
-moved from "trusted" straight into "trust-dependent" and the old ceiling broke 400 -> 401 on
-a conversion that helped. Both ends moved (dep_lo 335 -> 336), so it is not an artifact of
-the by-name over-approximation. The aggregate `trusted + dep_hi` is invariant at 833 across
-the change and is now the ratchet that means what the campaign means. Verified non-vacuous:
-set to 832 the plane prints NOT OK.
-
-## The sequence from here
-
-1. Wait for `SUITERC=` in `$S/gate_new.log`. Predicted 4029/4047. Record it in
-   `getting-better/driver-progress.log`.
-2. Wait for `DONE` in `$S/land_two.log`. Required: frame-honesty OK, blast-radius OK at the
-   new aggregate, fidelity **886 -> 888**, and BOTH files print `Verification SUCCESS`.
-3. Commit increment D (the two conversions + the blast-radius ratchet) as ONE increment.
-4. `nohup bash $S/gate_d.sh > $S/gate_d.log 2>&1 &` — baselines `bd_nw`/`mir_nw`, and
-   `--expect-moved errors sertop` on the mirror compare. Corpus predicted **0 MOVED**;
-   suite unchanged at 4029/4047.
-5. Then work the remaining verbatim LOWERS hits through check 1:
-   `ir_schema.py::validate_ir` and `pycsl.py::_finalize` (the latter is one of the 5 NESTED
-   stubs). `$S/check1.sh <rel> <fn>` does the emit-diff and cleans its own tree first.
-
-## Standing refusals
-
-* `pkill -f` — kill by PID; the screen stops with `touch $S/STOP_SCREEN`.
-* before any `cp -a src`: check free space, delete the previous tree. `check1.sh` refuses
-  below 400M. The failure mode a full /tmp produced was a FALSE SOUNDNESS ALARM.
-* never `git add -A`; never glob a directory this session did not create.
-* the modified tracked `.aux` files under `test-suite/corpus/pycsl-reference/*.proofs/rocq/`
-  are BUILD OUTPUT, left deliberately. Do not revert or remove them.
-* `--no-proof` LOWERS is a NECESSARY CONDITION AND NOTHING MORE. In one hour it was wrong
-  three ways: over a facade, over a generator, and over `_cache_root`.
-
-
----
-
-# UPDATE 04:04Z — increments D, E and F are all COMMITTED; only the gate is outstanding
-
-    af7f32c1  D  two `\trusted` markers RETIRED and PROVED (460 -> 458)
-    594aa07d  E  the frame plane's external-effect half (16 stubs that shell out)
-    e8f33b10     the yield plane descends too (a trap closed while empty, 0 population)
-    f184e94f  F  the integrity gate checked 863 of the 915 it was meant to; the walk now
-                 descends, `FOLDED` is a shape, a STATIC refusal for a closure inside a
-                 `\trusted` parent, and TWO HONEST MARKERS take the count back to 460
-    3213c4f1     progress log
-
-## The session's accounting, stated so it cannot be misread
-
-    460  session start
-    458  `errors.py::message` and `proof2why3/sertop.py::__exit__` PROVED (all four checks)
-    460  `_hdr_name` and `_returns_literal_none::walk` take honest markers — they are
-         un-trusted closures inside `\trusted` parents, verified by nothing
-    886 -> 888 -> 886 verbatim un-trusted
-
-Two functions left the trusted set by being proved. Two joined it by being found never to have
-been verified. **The count is unchanged and the map is two entries more accurate.**
-
-## The gate, when increment A's suite finishes
-
-    nohup bash $S/gate_d.sh > $S/gate_d.log 2>&1 &
-
-Baselines `bd_nw` / `mir_nw` (the increment-A gate's own output). `--expect-moved errors
-sertop` on the mirror compare — and that list is MEASURED, not guessed: `$S/emit_pair.sh`
-emitted both newly-marked files from the working tree and from `f184e94f^` and both are
-**INERT, byte-identical**. A closure folded into an opaque `val` emits the same with or
-without its marker.
-
-PREDICTIONS: corpus **0 MOVED**; mirror moves exactly `errors.mlw` and `sertop.mlw`; all 48
-planes green; suite **4029/4047**, the standing EIGHTEEN, ZERO XPASS.
-
-## Still open
-
-* `ir_schema.py::validate_ir` — check 1 REFUSES (20 new abstract ops, `ir_keys_0 ()` nullary).
-* `pycsl.py::_finalize` — check 1 returns a BYTE-IDENTICAL emission; converting it would prove
-  nothing. Do not convert it.
-* the 36 TYPE errors from the verbatim screen — being sized by kind right now
-  (`$S/type_detail.log`); they are the container/field value model in one voice.
-* the 11 DIFFERS at >= 0.80 similarity — a mechanical re-port, then the same screen.
-* `check-mirror-signature-drift.py` still stops at a `def`; covered elsewhere by the fidelity
-  plane, which compares signatures and descends.
-
----
-
-# UPDATE 04:20Z — increment G is fully specified and pre-checked; it is the next thing to do
-
-The D+E+F gate's plane battery went 2-of-48 red and both reds were right (a new `\trusted`
-marker owes a row in `trusted-reasons.tsv` and a line in the termination ledger). Fixed in
-`74f5db2c`; battery re-running; the D+E+F suite is running in `$S/gate_d.log`.
-
-## Increment G — the I4 fixpoint (a set's element type)
-
-**Why it is next.** All 62 verbatim `\trusted` candidates are screened and ZERO remain
-landable behind a proof alone. The frontier is capabilities, and this one is already measured,
-already carried by three files in `check-open-route-carriers.py`, and its landing instructions
-were written by a previous window inside the carrier file itself:
-
-> WHEN THIS FILE STARTS VERIFYING, the I4 fixpoint has landed. Move it and its controls into
-> the corpus as witnesses in the SAME commit, lower `check-open-route-carriers.py`, and record
-> the mirror re-proof bill.
-
-**The patch** (`$S/land_i4b.py`, two parts, both hunks verified to apply exactly once):
-1. `frontend/Module5_IREmitter.py` — the PARAMETER κ extractor calls `_m5_get_field_key_type`
-   instead of `_m5_get_dict_key_type`, so a `Set[str]` PARAMETER gets κ from its DECLARATION.
-   The FIELD extractor already covers `Set[str]` and says why — *a set's element IS its key*.
-2. `module6_whyml/functions.py` ~137 — drop the `_mut_coll` conjunct. It existed because a
-   read-only set param's κ could only come from the USAGE tagger, so promoting it desynced the
-   sibling `val` bridges. With κ read from the declaration, both ends of a call edge get it
-   from the same place. **That is the fixpoint — by construction, not by a propagation pass.**
-
-**The order.** (1) D+E+F gate green. (2) `bash $S/land_i4.sh` — applies the patch and runs the
-three carriers directly. The carrier must flip FAILED -> SUCCESS and BOTH controls must STAY
-SUCCESS; **if a control moves, STOP** — the mechanism is not what the carrier says it is
-(wall-lesson a6). (3) Move all three into the corpus as 1909/1910/1911 with
-`# pycsl-expected: PASS`, delete their three entries from `check-open-route-carriers.py` and
-lower its count. (4) Gate against `bd_d`/`mir_d` with `--expect-moved 0884` on the corpus and
-the ten mirror movers named from `$S/mir_i4b.log`. (5) **THE BILL: re-prove all ten moved
-mirror files**, each detached with `timeout 43200`.
-
-**The measured bill.** Corpus 1 mover (`0884`, from a TARGETED 81-file comparison — declare it
-and let the gate name any others). Mirror 10 movers:
-
-    Module6_WhyMLTranspiler (~41m)   frontend____init__ (~24m)   frontend__ir_resolve (~22m)
-    frontend__monomorphize           module6_whyml__expr_ghost_collections
-    module6_whyml__expr_ghost_spec_ops   module6_whyml__expressions (~2h57m — the dominant term)
-    module6_whyml__functions         module6_whyml__statements    module6_whyml__stmt_control_flow
-
-Estimate 6-8 hours of prover time. Suite predicted **4032/4050** (4029 + three new witnesses).
-
-**THE REFUSAL THAT GOVERNS IT.** If a moved mirror file stops proving, the increment does NOT
-land by marking that file `\trusted`. That would be trading a real proof for a marker in order
-to buy a capability — the exact inverse of this campaign. Record the regression and stop.
-
----
-
-# UPDATE 04:37Z — increment H: the PORTING vein, and it does not need a capability
-
-`proof2why3/sertop.py::__enter__` was taken end to end on an offline tree: a ONE-LINE port
-(`return None` -> `return self`), an 11-line all-additive emit diff identical in shape to
-`__exit__`'s, and `[+] Verification SUCCESS!`. Then all 50 facades with a live body of ten
-lines or fewer were ported and screened: **12 PORT AND LOWER**, 32 TYPE errors, 5 refusals,
-1 syntax. `getting-better/open-routes/finding-twelve-facades-that-port-and-lower.md`.
-
-## Land these four FIRST — they call no trusted sibling
-
-    frontend/Module2_Parser.py   _err          (check 1 done: 34 diff lines, ZERO new `val`,
-                                                and it converts TWO functions — the ported body
-                                                calls `_contractparser__cur`, which was sitting
-                                                unemitted as a `val` and becomes a `let` too)
-    frontend/Module2_Parser.py   _try
-    frontend/pure_ast.py         error
-    frontend/pure_ast.py         unsupported
-
-The other eight would be relabelled trust-DEPENDENT rather than shrinking the surface, because
-each calls a `\trusted` sibling — `parse_contract` calls `parse`, `_rewrite_call_sites` calls
-`_rewrite_subscript_calls_in_stmt`, `interleave` calls `next`. That is exactly what
-`errors.py::message` did, and it is why `MAX_TRUSTED_OR_DEPENDENT` exists. Land them, but land
-them knowing the aggregate will not fall.
-
-## The tools
-
-    $S/port_one.py        replaces a mirror function's BODY with its live twin's, keeping the
-                          mirror's own `def` line and `#@` lines. `--convert` also deletes the
-                          marker by LINE PREFIX. ABORTS rather than guessing — and a CRASH now
-                          prints `ABORT:` too, because the first version crashed before writing
-                          and the screen reported ten false `**PORTS+LOWERS**`.
-    $S/check14_port.sh    emit BEFORE -> port+convert -> emit AFTER -> diff -> NEW-`val` list
-                          -> REAL whole-file proof. One offline tree, cleaned first.
-    $S/screen_port.sh     the batch screen, sentinel-stoppable.
-    $S/port_cheap.txt     the 50 (live body <= 10 lines)
-    $S/port_rest.txt      the 185 (live body > 10) — screening now
-
-## The order for increment H
-
-1. `check14_port.sh` each of the four clean candidates; require ZERO new abstract ops and a
-   green whole-file proof.
-2. Land them on the live tree with `port_one.py . <rel> <fn> --convert`.
-3. Checks 2 and 3: `count-trusted-directives` 460 -> 456, `check-self-annotate-sync` 886 -> 890,
-   the three trust planes, **and `check-untrusted-emitted.py`** — a ported function must come
-   back `LET`, not `val`, and that plane is now the one that can tell.
-4. `trusted-reasons.tsv` loses four rows (they are `unclassified`, so MAX_UNCLASSIFIED falls
-   456 -> 452 and should be lowered).
-5. Gate with `--expect-moved frontend__Module2_Parser frontend__pure_ast` on the mirror.
-   Corpus predicted 0 MOVED; suite unchanged.
-
----
-
-# UPDATE 05:45Z — D, E and F are GATED; increment H has FIVE PROVED candidates
-
-**D+E+F gate, 05:15Z:** corpus inert in all three directions, mirror moving exactly the two
-declared files, fidelity 886, all 48 planes green, suite **4029/4047**, the standing EIGHTEEN,
-ZERO XPASS, no flaky recoveries.
-
-## Increment H — ready to land, adjudicated one at a time
-
-PROVED on an offline tree (port the live body, delete the marker, emit diff with ZERO new
-abstract ops, then a REAL whole-file proof):
-
-    proof2why3/sertop.py::__enter__               1-line port
-    frontend/Module2_Parser.py::_err              converts TWO functions
-    module6_whyml/identifiers.py::stable_hash     1-line port, 27 diff lines
-    proof2why3/parser.py::__repr__                1-line port, 13 diff lines
-    frontend/monomorphize.py::_rewrite_call_sites
-
-REFUSED, and each for a named reason:
-
-    proof2why3/sertop.py::_sexp_tokens            Z3 TIMEOUT 30s, 7,433,789 steps
-    proof2why3/from_sexp.py::_find_construct_idx  Z3 TIMEOUT 30s, 3,193,221,587 steps
-    frontend/pure_ast.py  (5 together)            CHECK 1: three new abstract ops —
-                                                  `get__fields`, `isinstance_op`,
-                                                  `_const_types_not_get_2`; proof `Unknown
-                                                  (why3: Out of …)`
-
-STILL RUNNING: `pure_ast.py::error` + `unsupported` ALONE (check 1 already clean — 28 diff
-lines, ZERO new ops, two `val`->`let`), and `module6_whyml/expressions.py::_emit_metatype_tags`
-(that file's proof is ~3h).
-
-## To land increment H
-
-    bash $S/land_ports.sh proof2why3/sertop.py:__enter__ \
-        frontend/Module2_Parser.py:_err module6_whyml/identifiers.py:stable_hash \
-        proof2why3/parser.py:__repr__ frontend/monomorphize.py:_rewrite_call_sites
-
-PREDICTIONS: count 460 -> **455**; fidelity 886 -> **891** (five ported bodies become verbatim);
-`check-untrusted-emitted` must report each as LET, never `val`; `trusted-reasons.tsv` loses
-five `unclassified` rows so MAX_UNCLASSIFIED falls 456 -> **451** and should be lowered.
-Gate with `--expect-moved proof2why3__sertop frontend__Module2_Parser module6_whyml__identifiers
-proof2why3__parser frontend__monomorphize`; corpus predicted 0 MOVED; suite unchanged.
-
-## Then increment G
-
-`$S/try_i4.sh` is dry-running the I4 patch on an OFFLINE tree right now — the carrier must
-flip FAILED -> SUCCESS and both controls must stay SUCCESS.
-
----
-
-# UPDATE 07:00Z — increment H is landed and gating; increment G is scripted and dry-tested
-
-## H (commit `5559aedd`) — 460 -> 455, five markers retired by PORTING
-
-Checks all green before the commit: count 460 -> **455**, fidelity 886 -> **891**, raises 61
-silent (was 62), frame OK, termination 55, blast-radius **834 -> 817**, and
-`check-untrusted-emitted` **0 `val`, 0 absent, 0 inside a trusted parent** over 918 functions.
-`trusted-reasons.tsv` synced to 455 rows, MAX_UNCLASSIFIED 456 -> **451**.
-
-Gate (`$S/gate_h.log`, started 06:14Z): corpus **0 MOVED** in all three directions, mirror
-**5 MOVED, 0 unexpected** (the five emission names declared correctly first time), fidelity
-891, **all 48 planes green**; suite started 06:29Z.
-
-## G — scripted, dry-tested, waiting only on H's suite
-
-    $S/land_i4_live.sh     applies the two-part patch, `git mv`s the three carriers into the
-                           corpus as 1909/1910/1911, drops their rows from the carrier plane,
-                           proves the three witnesses, and re-checks the count and fidelity
-                           (which must NOT move — this is an EMITTER change, not a mirror one)
-    $S/drop_setelem_rows.py  the carrier-plane edit. DRY-TESTED ON A COPY: the value closes on
-                           the same line as its last string, and a first pattern expecting
-                           `    ),` removed ZERO rows — the assertion caught it on the copy
-                           rather than on the live plane. 12 carrier rows -> 9.
-    $S/witness/            the three corpus witnesses, each control's docstring stating what
-                           its FAILURE would mean
-
-The dry run on an offline tree already showed the carrier flipping FAILED -> SUCCESS with both
-controls holding.
-
-**THE BILL, and it is the reason G is a multi-hour increment:** ten mirror files move and each
-must still PROVE — `Module6_WhyMLTranspiler` (~41m), `frontend____init__` (~24m),
-`frontend__ir_resolve` (~22m), `frontend__monomorphize`, `module6_whyml__expr_ghost_collections`,
-`module6_whyml__expr_ghost_spec_ops`, `module6_whyml__expressions` (~2h57m),
-`module6_whyml__functions`, `module6_whyml__statements`, `module6_whyml__stmt_control_flow`.
-Corpus: 1 mover (`0884`, from a TARGETED 81-file comparison — declare it and let the gate name
-any others). Suite predicted **4032/4050**.
-
-**THE REFUSAL:** if a moved mirror file stops proving, G does NOT land by marking that file
-`\trusted`. Record the regression and stop.
-
-## Still running
-
-    $S/cm_pureast2.log   `pure_ast.py::error` + `unsupported` — check 1 already clean (28 diff
-                         lines, ZERO new ops); whole-file proof running 1h30+
-    $S/cm_expr.log       `expressions.py::_emit_metatype_tags` — proof running 1h50+ (that
-                         file's mirror proof is ~3h)
-
----
-
-# UPDATE 08:58Z — G landed and REVERTED; the port vein continues
-
-## What is banked
-
-    A  gated 04:08Z    D  gated 05:15Z    E  gated 05:15Z    F  gated 05:15Z    H  gated 07:56Z
-
-    markers                455
-    verbatim un-trusted    891
-    trusted-or-dependent   817
-    suite                  4029/4047, the standing EIGHTEEN, ZERO XPASS
-
-## G — landed 07:58Z, reverted 08:03Z
-
-The I4 set-element patch flips its carrier, holds both controls, proves three new corpus
-witnesses — and breaks FOUR mirror files in thirty seconds with a `map string` reaching a
-`val` BRIDGE still declared `map int`. `src/`, `bin/` and `test-suite/` are byte-identical to
-the gated increment-H state (`git diff --name-only f6b8d882 HEAD -- src/ test-suite/ bin/` is
-empty), so **no re-gate is needed for the revert**.
-`finding-the-i4-fixpoint-really-is-a-fixpoint.md`, backlog #55.
-
-## The port vein, adjudicated so far
-
-PROVED and LANDED (increment H): `sertop::__enter__`, `Module2_Parser::_err`,
-`identifiers::stable_hash`, `parser::__repr__`, `monomorphize::_rewrite_call_sites`.
-
-PROVED, NOT YET LANDED — this is increment I:
-
-    frontend/pure_ast.py::error        28 diff lines, ZERO new abstract ops, proof SUCCESS
-    frontend/pure_ast.py::unsupported  (same run; 3h06 of prover time on that file)
-
-REFUSED, each for a named reason:
-
-    sertop::_sexp_tokens              Z3 timeout,  7,433,789 steps
-    from_sexp::_find_construct_idx    Z3 timeout,  3,193,221,587 steps
-    pure_ast (5 together)             check 1: three new abstract ops
-    import_classifier::_stub_set      **PROVES, and check 1 REFUSES it** — two new abstract
-                                      ops, `val stub_dir_is_dir_0 () : int` NULLARY. Same
-                                      mechanism as `_cache_root`: an `os.path.isdir` becomes
-                                      an oracle that does not take the path.
-    pycsl.py::_gate_vacuity_then_succeed   CHECK 0 — a closure inside `\trusted` `_run_proofs`
-
-STILL RUNNING: `Module6_WhyMLTranspiler::__init__` and `pycsl.py::_parse_args`
-(`$S/prove_batch2.log`), and `expressions.py::_emit_metatype_tags` (`$S/cm_expr.log`, 3h45 and
-counting against a 2h57 baseline).
-
-## To land increment I
-
-    bash $S/land_ports.sh frontend/pure_ast.py:error frontend/pure_ast.py:unsupported
-
-PREDICTIONS: count 455 -> **453**; fidelity 891 -> **893**; `check-untrusted-emitted` must
-report both LET; `trusted-reasons.tsv` loses two `unclassified` rows so MAX_UNCLASSIFIED falls
-451 -> **449**. Gate with `--expect-moved frontend__pure_ast`; corpus predicted 0 MOVED.
-
----
-
-# UPDATE 12:23Z — SEVEN increments gated, an eighth gating; 460 -> 451
-
-    A  gated 04:08Z   D  gated 05:15Z   E  gated 05:15Z   F  gated 05:15Z
-    H  gated 07:56Z   I  gated 10:46Z   J  gated 12:17Z   K  gating from 12:23Z
-
-    markers                460 -> 451
-    verbatim un-trusted    886 -> 895
-    trusted-or-dependent   833 -> 800
-    suite                  4029/4047 at every gate, the standing EIGHTEEN, ZERO XPASS
-
-## The ten markers retired, and how
-
-    PROOF ALONE (the mirror body was already verbatim):
-      errors.py::message                          4 frame `ensures` assumed -> proved, x4 classes
-      proof2why3/sertop.py::__exit__              `val` -> `let ... = ()`, no new `val` at all
-    PORTED, then proved (the mirror body was a FACADE or a DIFFERENT program):
-      proof2why3/sertop.py::__enter__             1-line port
-      frontend/Module2_Parser.py::_err            converts TWO functions; `ensures { false }` survives
-      module6_whyml/identifiers.py::stable_hash   1-line port
-      proof2why3/parser.py::__repr__              1-line port
-      frontend/monomorphize.py::_rewrite_call_sites
-      frontend/pure_ast.py::error                 3h06 of prover time for this pair
-      frontend/pure_ast.py::unsupported
-      Module6_WhyMLTranspiler.py::__init__        172-line port; made the record model faithful
-      module6_whyml/expressions.py::_emit_metatype_tags   5h27, the longest proof of the session
-
-And TWO added honestly (`_hdr_name`, `_returns_literal_none::walk`), because they are closures
-inside `\trusted` parents that were verified by nothing.
-
-## CHECK 1, stated precisely (this is the session's most portable result)
-
-**A new abstract `val` may not erase an EFFECT or an INPUT DEPENDENCE.**
-
-    REFUSED  val root_mkdir_0 () : int              an `os.mkdir` without the directory
-    REFUSED  val stub_dir_is_dir_0 () : int         an `os.path.isdir` without the path
-    REFUSED  val ir_keys_0 () : int                 an `ir.keys()` without `ir`
-    REFUSED  val argparse_ArgumentParser_0 () : int a parser without its arguments (10 ops)
-    ADMITTED val iter_get (x) (i) : int             takes its collection; declines to model it
-    ADMITTED val iter_length (x) : int              the same
-
-A nullary op erases the dependence. An op with no `writes` standing for a mutation erases the
-effect. An op that takes its operand and returns an unconstrained value erases neither.
-
-## What is still running
-
-    $S/prove_batch3.log   `pure_ast.py::iter_fields`, then `__instancecheck__`, then `visit_If`,
-                          one at a time (~3h each; each is EXPECTED to be refused by check 1,
-                          and "expected" is not "measured")
-    $S/gate_k.log         the increment-K gate
-
-## The next things, in order
-
-1. Gate K. `--expect-moved module6_whyml__expressions`; corpus predicted 0 MOVED.
-2. Adjudicate whatever batch3 returns.
-3. The three remaining confirmed DIFFERS/facade candidates not yet proved.
-4. Then the frontier is capabilities: the string/list/array FIELD value model (~170 witnesses),
-   the nested-closure lift (backlog #54), the I4 bridge re-typing (backlog #55), higher-order
-   arguments, dynamically-rebound names.
-
----
-
-# UPDATE 17:36Z — TEN increments gated, 460 -> 449, and the population was never 410
-
-    A · D · E · F · H · I · J · K · L · M   all gated at 4029/4047, the standing EIGHTEEN,
-                                            ZERO XPASS, corpus byte-inert every time
-
-    markers                460 -> **449**
-    verbatim un-trusted    886 -> **897**
-    trusted-or-dependent   833 -> **798**
-
-## ELEVEN markers retired by proof, and how each was found
-
-    proof alone     errors.py::message · sertop.py::__exit__
-    PORTED          sertop::__enter__ · Module2_Parser::_err · identifiers::stable_hash ·
-                    parser::__repr__ · monomorphize::_rewrite_call_sites ·
-                    pure_ast::error · pure_ast::unsupported · pure_ast::iter_fields ·
-                    pure_ast::__instancecheck__ · Module6_WhyMLTranspiler::__init__ ·
-                    expressions::_emit_metatype_tags
-    honest ADDITIONS (+2)   _hdr_name · _returns_literal_none::walk — closures inside
-                    `\trusted` parents that were verified by nothing
-
-## THE POPULATION WAS NEVER 410
-
-Rebuilt from `trusted-reasons.tsv`, the authoritative per-marker ledger: **449 live markers,
-425 ever offered to a screen, 45 NEVER OFFERED** — nested closures and same-name collisions a
-bare-name enumeration cannot represent, concentrated in `Module3_Weaver.py` (13),
-`statements.py` (12), `stmt_control_flow.py` (8). Screened with the qualified-name
-`port_one.py`: three more confirmed PORT+LOWER, two correctly refused by CHECK 0.
-
-## Running now
-
-    $S/prove_batch4.log   statements.py's two `rec` closures (2h26 and counting) then
-                          pure_ast.py's AST.__init__ / AST.__repr__ / Comment.__repr__
-    $S/prove_batch5.log   Module5_IREmitter::_array_init_size, then
-                          Module3_Weaver::_attach_loop_contracts, then pure_ast::_Parser._max_end
-
-Each is one `check14_multi.sh` run: emit-diff (check 1) then a REAL whole-file proof, on its
-own tree (`cm_$$`, trapped on EXIT).
-
-## The tools, and what each learned the hard way
-
-    port_one.py        replaces a mirror body with its live twin. Accepts BARE or QUALIFIED
-                       names (`Class.method`, `Mixin._collect.rec`). ABORTS rather than
-                       guesses — and a CRASH now prints `ABORT:` too, because the first
-                       version crashed before writing and the screen reported ten false passes.
-    check0.py          the static trusted-parent refusal. Understands qualified names, and
-                       has the #44 population guard: it REFUSES when a candidate does not
-                       resolve, because "0 traps" and "0 inputs understood" used to print
-                       identically.
-    recheck_ports.sh   re-runs a screen's passes against the driver's POSITIVE marker, because
-                       a blacklist of failure strings is incomplete in the dangerous direction.
-    check14_multi.sh   emit-diff + whole-file proof, one unique tree per invocation.
+| increment-O gate (`$S/gate_o.sh`, **runs `--slow`**) | 23:44:05Z | `$S/gate_o.log` | byte-diff vs `bd_n`; mirror vs `mir_n` with FIVE declared movers; fidelity **895**; planes 73/73; suite **4029/4047**, the standing EIGHTEEN, ZERO XPASS |
+
+## Committed since the last handoff (in order)
+
+    60a32f79  449 -> 446 — three `pure_ast.py` dunders and a constructor
+    3139c714  the whole conversion frontier, measured — 230 type errors, four walls
+    85bfa846  increment N GATED — 4029/4047
+    bf75103b  the FIELD value model already landed — the wall is its CLOSURE
+    ff7aed38  FOUND — eleven gates over four red oracles
+    d21a61fb  REVERT — six hollow conversions re-trusted, 446 -> 452
+    900ff447  452 -> 451 — the string closure + `errors.py::__str__` (FOUR symbols)
+    5857acff  the fast battery names its own scope
+    4ff23661  progress log
+    f4b495f0  route #213's two witnesses registered (a RED that predates this session)
+
+## Standing numbers after increment O (pending the gate)
+
+    markers                    451
+    verbatim un-trusted        895
+    trusted-or-dependent       828   (ratchet 828, raised 798 -> 830 naming six members,
+                                      then tightened to 828 by the one conversion)
+    silent-termination          56   (ratchet 56)
+    untrusted-emitted          922 un-trusted, 0 `val`, 0 absent, 0 inside a trusted parent
+    reasons TSV                451 rows, unclassified 442 (ratchet 442)
+    emitted-vacuity            0 new erasures (9 known, gated)
+    yield-erasure              0 value-erasing, 2 suspension (ratchet 2)
+    shadowed-selfcalls         14 (ratchet 14), 119 bypassing sites
+
+## The one RED still standing, and it is NOT this session's
+
+`check-stdlib-modules-verify.py` — 104 modules, 83 verify (FAILS 6, REFUSED 13, TIMEOUT 2).
+The battery truncates its stderr, so WHICH of its two failure modes fired
+(`NEWLY NOT VERIFYING <module>` vs `NO-ENSURES COUNT GREW`) is NOT YET KNOWN. It is a ~25-minute
+prover plane; run it alone after gate O:
+
+    . scratchpad/g29/env.sh && python3 bin/check-stdlib-modules-verify.py 2>&1 | tail -30
+
+**It has NOT been ruled out that the string-closure patch (`900ff447`) caused it** — the 21:48Z
+battery ran with that patch already in the working tree. Gate O's own `--slow` run answers this;
+if it is still RED there, bisect against `85bfa846` before doing anything else.
+
+## Next, in order
+
+1. Confirm gate O. If the corpus byte-diff MOVED, the string closure is not inert and must be
+   re-examined before anything else — its inertness argument is that a corpus
+   `if self.<strfield>:` already emits the ill-typed `<> 0` and so cannot be in a passing
+   program, which is an argument, and the sweep is the measurement.
+2. Resolve `check-stdlib-modules-verify` (above).
+3. Re-screen the 103 markers whose recorded verdict was a `string`/`int` type error, to measure
+   what the string CLOSURE actually retires: `$S/rescreen_facade.txt` (76, facade ports) and
+   `$S/rescreen_differs.txt` (27, `--replace` ports). Run `$S/screen_port.sh <list>` then
+   `$S/recheck_ports.sh` — NEVER trust the screen's own blacklist filter (wall-lesson: it
+   scored "cannot be applied" as a pass).
+4. **Every candidate that survives the screen must ALSO pass `--slow` before it is banked.**
+   The four oracles that matter are `check-emitted-vacuity`, `check-yield-erasure`,
+   `check-shadowed-selfcalls` and `check-untrusted-emitted`. Check 1 (the emit-diff, four
+   clauses) does NOT subsume them: it admitted all six of the hollow conversions above.
+5. Backlog #59 names the four capabilities that would retire those six honestly — the exception
+   PAYLOAD model, the generator SEQUENCE model, the receiver-erased `.get` on a dict-typed
+   parameter, and `#@ sibling_concrete` for a `NoReturn` helper.
+
+## Discipline reminders that cost this session time
+
+* one short step per Bash call; `timeout 43200` on every detached prover run
+* never `git add -A`; never glob a directory you did not create
+* kill by PID, never `pkill -f` / `pgrep -f` with a pattern that matches your own shell (c6, m6)
+* check free space before `cp -a src` and delete the previous copy (a full /tmp produced a FALSE
+  SOUNDNESS ALARM)
+* the tracked modified `.aux`/`.olean` files under `test-suite/corpus/**/rocq|lean` are BUILD
+  OUTPUT, deliberately left — do not revert or `rm` them
+* `. scratchpad/g29/env.sh` sets `$S`; use a different variable name in your own scripts
