@@ -7516,3 +7516,44 @@ Censused across the 435 still-`\trusted` functions, by receiver:
 than `str.join` — and a probe says `ys = [1, 2]; ys.append(n)` VERIFIES, so it is NOT a
 blocker. Which is exactly why the row has to be probed and not counted: the biggest number
 on the page belongs to the one construct that works.
+
+### THE TOP ITEM, MEASURED AGAIN — ONE REFUSAL BLOCKS 104 OF 435 (2026-09-25)
+
+Ten probes over the in-place mutators, on LOCALS:
+
+    ys = [1, 2]; ys.append(n)          VERIFIES        ys = []; ys.append(n)   VERIFIES
+    ys.extend([2, 3])                  REFUSED         ys.extend(zs)           REFUSED
+    ys.pop()                           REFUSED         ys.insert(0, n)         REFUSED
+    ys.sort()                          REFUSED         ys.remove(1)            REFUSED
+    ys.reverse()                       REFUSED         d.update({3: 4})        REFUSED
+
+**One modelled mutator (`append`) and one rule refusing all the rest**, with one message:
+
+    `ys.extend(...)` MUTATES its receiver in place, and no certified lowering models it:
+    the call becomes an abstract operation that takes NEITHER the receiver NOR a `writes`
+    clause, so the mutation would [be invisible to the caller]
+
+Intersected with the 435 still-`\trusted` functions, by receiver:
+
+    LOCAL .pop      39     LOCAL .extend   37     LOCAL .update   15
+    LOCAL .insert    6     LOCAL .sort      4     LOCAL .remove    3
+                                                  = **104 functions**, one refusal
+
+That is **larger than `str.join` (83)**, and unlike `str.join` — which turned out to be the
+`List[str]` element type wearing a method's name — this one is a single, self-describing
+rule whose repair shape the message itself states: give the abstract operation the RECEIVER
+and a `writes` clause, which is exactly what `d[k] = v` and `s.add(x)` already do (both
+VERIFY, both carry frames).
+
+`LOCAL .append` at 154 is the largest count in the population and is NOT a blocker — the
+biggest number on the page belongs to the construct that works, which is the whole argument
+for probing rather than counting.
+
+THE RANKING, replacing the one four entries above:
+
+    1. **in-place mutators other than `append`** — 104 functions, ONE refusal, and the
+       message names the repair (receiver + `writes`, as the modelled ones have)
+    2. container ELEMENT typing for parameters — `List[str]`/`Set[str]`/`Dict` value types,
+       the I4 fixpoint; large, with a measured double-digit-hour proof bill
+    3. `str.join` (83) — a CONSEQUENCE of (2), not an item of its own
+    4. set/dict comprehensions (95 together), the set literal (21, an ERASURE by design)
