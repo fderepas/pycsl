@@ -11097,3 +11097,24 @@ diff is the only thing that says which member owns which `val`.
 
 Running total of port+convert candidates taken all the way: **seven proved** (five landed in
 increment H, plus these two), two Z3 timeouts, and one batch refused on check 1.
+
+## 09:16Z — INCREMENT I LANDED: 455 -> 453, and the aggregate 817 -> 801
+
+Commit `a109a51d`. `frontend/pure_ast.py::_Unparser.error` and `::_Unparser.unsupported`,
+ported and proved. Every number predicted in advance and exact: count 455 -> 453, fidelity
+891 -> 893, raises 59 silent (was 61), frame OK, termination 55, integrity gate 920 un-trusted
+with **0 `val`, 0 absent, 0 inside a trusted parent**, reasons TSV 453 rows with unclassified
+451 -> 449.
+
+**SIXTEEN OFF THE AGGREGATE FOR TWO MARKERS.** `error` and `unsupported` are called from all
+over `pure_ast.py`, so their dependent cones were large and disjoint. Increment H gave
+seventeen for five; this gives sixteen for two. **A marker on a widely-called helper is worth
+several on a leaf, and the marker count cannot see the difference** — the aggregate ratchet,
+added this morning to catch a marker ARRIVING in a hot call path, has now measured that
+asymmetry twice in the other direction.
+
+    session arc      460 -> 458 -> 460 -> 455 -> 453
+    verbatim         886 -> 888 -> 886 -> 891 -> 893
+    aggregate        833 -> 834 -> 817 -> 801
+
+Gate launched 09:16Z with `--expect-moved frontend__pure_ast`.
