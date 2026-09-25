@@ -7674,3 +7674,73 @@ rule gets WORSE as the documentation gets better.
 
 When you write a scanner for a marker this campaign already counts, read the existing
 counter first. It has met the corner case, and its constant is the memo.
+
+### (k6) Two planes that walk the same population must walk it the same way, or the optimistic one wins
+
+`bin/check-untrusted-emitted.py` is the integrity gate on this campaign's headline number. Its
+own docstring states the hazard it exists for — *"the count improves, the TCB does not"*. Its
+walk recursed into a `ClassDef` and **stopped at a `FunctionDef`**.
+
+`bin/check-self-annotate-mirror-sync.py` — the FIDELITY plane, which decides which functions
+count as verified — descends into nested defs, and a gen #4 note inside it records fixing that
+exact walk in that exact way.
+
+So the fidelity plane said 888 functions were verified and the integrity gate had checked 836
+of them, for a whole campaign, and nothing printed both numbers. The 52 in between included
+two closures inside `\trusted` parents, whose bodies are emitted as part of an opaque `val`
+and are verified by nothing at all.
+
+The same three missing lines were then found in two more planes the same hour:
+`check-trusted-frame-honesty.py` (5 nested `assigns \nothing` stubs invisible) and
+`check-yield-erasure.py` (**0** today — a trap, not a hole, and clean only because nobody has
+written a nested generator in the mirror yet).
+
+**The disagreement always favours the optimistic number.** The narrower walk is by
+construction the one that finds fewer problems, so a plane that under-walks never fails; it
+just quietly certifies a smaller population than the one being claimed. A plane that
+over-walks fails loudly on its first run and gets fixed the same day.
+
+Two operational rules:
+
+1. **Any plane that reports a population size must be cross-checked against every other plane
+   reporting the same population.** 460 markers / 434 blast-radius keys / 888 verbatim twins /
+   836 emission-checked — four numbers for one mirror, and the gap between the last two was
+   the bug.
+2. **Write the walk once.** `check-trusted-reasons.py` already does this right and says so:
+   *"THE ATTACHMENT WALK IS NOT A SECOND WALK. Markers are enumerated with
+   `bin/trusted_markers.py` — the module `count-trusted-directives.py` itself counts with — so
+   this plane and the authoritative count cannot disagree about the population."* Every plane
+   that reimplements the walk is a plane that can drift from it.
+
+The census this session ran into the same wall from the other side: it scored
+`pycsl.py::_dispatch_provers` as a 0.991 "stale copy" when the only difference from live was
+four `#@` lines on a nested closure — which the fidelity plane explicitly PERMITS. The fix was
+the same: import that plane's own `_normalize` and `_signature` instead of writing a third
+comparison. **Ask the plane that decides.**
+
+### (l6) Making a measurement honest makes the number go UP, and the constant must say whose fault it is
+
+Four ratchets moved the "wrong" way in one session, and not one of them was a regression:
+
+    MIN_TRUST_FREE              540 -> 538   two never-emitted dunders took honest markers
+    MAX_TRUSTED_OR_DEPENDENT    833 -> 834   two nested closures took honest markers
+    MAX_SILENT                   53 -> 55    the same two, whose termination was ALREADY
+                                             assumed and unverified before the markers existed
+    the marker count itself     458 -> 460   the same two again
+
+In every case the underlying state got BETTER or stayed identical, and the number got worse
+because the instrument started seeing something that was always there. A campaign that reports
+only the count records this as zero progress; a campaign that refuses the honest markers to
+protect the count reports 458 over a number that was never true.
+
+So the rule is not "never let a ratchet rise". It is:
+
+**A ratchet may rise only in a commit that NAMES the members that moved it and the capability
+that retires them.** `MAX_SILENT`'s comment names both functions, what their loops are (a
+literal 3-tuple; a structural recursion over an IR tree), and the backlog heading that retires
+them. `MAX_TRUSTED_OR_DEPENDENT`'s names the two and records the asymmetry it exposed — the
+aggregate is invariant under a CONVERSION but not under the reverse, because a newly-trusted
+function pulls in callers that were previously trust-free.
+
+A ratchet that moves without a name is just a number somebody edited, and it is indistinguishable
+from the regression it was built to catch.
