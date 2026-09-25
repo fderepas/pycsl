@@ -81,3 +81,36 @@ of them. Nobody wrote that down, because nothing printed both numbers.
 that reports the same population.** That is how `count-trusted-directives` (460) was
 reconciled against the blast-radius walk (434) and the frame walk, and it is how this was
 found — one function that two planes disagreed about.
+
+## The audit that should have existed, run over all 48 planes
+
+Classifying every `bin/check-*.py` by how it walks the mirror:
+
+* **`ast.walk` (sees every nested def automatically)** — 36 planes, including
+  `check-trust-blast-radius.py`, `check-trusted-raises-honesty.py`,
+  `check-trusted-termination-honesty.py`, `check-emitted-function-coverage.py`. These were
+  never at risk; `ast.walk` is flat and total.
+* **custom walk that DESCENDS** — `check-self-annotate-mirror-sync.py` (the fidelity plane,
+  fixed in gen #4) and now `check-untrusted-emitted.py`.
+* **custom walk that STOPS AT A `def`** — `check-yield-erasure.py`,
+  `check-mirror-signature-drift.py`, and the `_mirror_nothing_stubs` half of
+  `check-trusted-frame-honesty.py`.
+
+Populations in the three that still stop, measured:
+
+    check-trusted-frame-honesty._mirror_nothing_stubs    5 nested `\trusted` `assigns \nothing`
+                                                           stubs invisible. NAMED in
+                                                           KNOWN_EXTERNAL_EFFECT_NOTHING rather
+                                                           than deleted, so the gap is visible.
+    check-yield-erasure.py                               **0** nested un-trusted generators
+                                                           today. A TRAP, not a hole — the walk
+                                                           is wrong and nothing is in it yet.
+    check-mirror-signature-drift.py                      nested defs never signature-compared,
+                                                           but the FIDELITY plane compares the
+                                                           full signature and descends, so this
+                                                           one is covered elsewhere.
+
+Recording the zero matters as much as recording the 52. `check-yield-erasure.py` has exactly
+the defect that let 52 functions past `check-untrusted-emitted.py`, and it is clean today only
+because nobody has written a nested generator in the mirror yet. It will stay clean by
+accident until it doesn't.
