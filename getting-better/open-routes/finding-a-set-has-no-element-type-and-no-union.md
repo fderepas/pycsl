@@ -284,3 +284,25 @@ exposure (ZERO read-only `Set[str]` params in either corpus; 39 in `\trusted` mi
 120 mirror functions already converted and proving), the ten-probe surface map, and two
 witnesses — `1909` and `1910` — measured PASS on the patched tree with `1909` measured
 FAILING on the live one.
+
+## GATED, so it cannot be rediscovered
+
+A measured gap that lives only in prose gets found again by the next reader from scratch.
+This one is now three files in `bin/check-open-route-carriers.py` (5 carriers -> 8):
+
+    setelem-carrier-read-only-str-set-membership.py   asserted FAILED
+    setelem-control-mutated-str-set-membership.py     asserted SUCCESS
+    setelem-control-int-set-membership.py             asserted SUCCESS
+
+The carrier is NOT a false proof — it does not type-check, so nothing is certified and
+nothing is unsound. It is gated like a route anyway, because the day it starts VERIFYING is
+the day this record has to change, and the person who makes it verify is the one who should
+change it. The plane says so in its own message: *"When this VERIFIES the I4 fixpoint has
+landed: move all three files into the corpus as witnesses in the same commit"*.
+
+The controls are the diagnosis, not decoration: one says the same membership works on a
+MUTATED parameter (so the mechanism is `_mut_coll`), the other says `Set[int]` membership
+works on a read-only one (so the mechanism is the ELEMENT TYPE, not the membership path).
+Between them the carrier is localised to a single line of source without reading any.
+
+Bite-tested: asserting the carrier SUCCESS makes the plane exit 1.
