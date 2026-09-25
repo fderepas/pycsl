@@ -34,9 +34,33 @@ not a ceiling:
                               _run_proofs remove      _run_vacuity_gate remove
                               _run_why3_prove run     _why3_typecheck   run
 
-Every entry needs the same per-item confirmation a conversion candidate does (is that `run`
-really `subprocess.run`?), which is why the list is a CANDIDATE list. `_cache_root` is
-confirmed by hand: `root.mkdir(parents=True, exist_ok=True)`.
+**TIGHTENED, because the first list was a candidate list and I said so in the same breath
+as printing it.** Re-censused requiring a CONFIRMED RECEIVER (`subprocess.`/`os.`), which
+removes the guessing:
+
+    11x  subprocess.run    audit_proof_reverify.py  _coqc_version, _lean_version,
+                                                    verify_lean_file, verify_rocq_file
+                           proof2why3/extract.py    extract_lean_statements,
+                                                    extract_rocq_statements
+                           proof2why3/extract_lean_meta.py  extract_lean_statements_meta
+                           proof2why3/sertop.py     extract_via_sertop, sertop_version
+                           pycsl.py                 _check_rocq_proofs, _run_why3_prove,
+                                                    _why3_typecheck
+     1x  subprocess.Popen  proof2why3/sertop.py     run_sertop_batch
+     1x  os.makedirs       pycsl.py                 _generate_rocq_obligations
+     3x  os.remove         pycsl.py                 _probe_one, _run_proofs,
+                                                    _run_vacuity_gate
+    ----
+    17 CONFIRMED BY RECEIVER, plus `audit_proof_reverify.py::_cache_root`
+       (`root.mkdir(parents=True, exist_ok=True)` — a Path variable, so the strict filter
+       cannot see it) and `_cache_store` beside it, confirmed by hand.
+
+**And the two FALSE POSITIVES the loose filter produced, named because they are the reason
+the tightening happened:** `frontend/Module1_Ingestor.py::process` calls
+`_Harvester(coms).run(tree)` — a local method named `run`, nothing to do with
+`subprocess` — and `Module6_WhyMLTranspiler::_sig_val_from_let` / `pycsl.py::_run_pipeline`
+matched `replace()`, which is `str.replace` and pure. One hand check on the first entry I
+looked at found one of them.
 
 ## Why the existing plane does not see them
 
