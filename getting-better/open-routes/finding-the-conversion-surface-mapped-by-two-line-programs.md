@@ -75,6 +75,33 @@ becomes an abstract operation that takes NEITHER the receiver NOR a `writes` cla
 refusal that explains itself is worth more than a lowering that does not, and this one is the
 reason `d[k] = v` is safe: the mutation that IS modelled carries its frame.
 
+## In-place mutators — ONE is modelled and ONE RULE refuses the rest
+
+    ys = [1, 2]; ys.append(n)     VERIFIES      ys = []; ys.append(n)   VERIFIES
+    ys.extend([2, 3])             REFUSED       ys.extend(zs)           REFUSED
+    ys.pop()                      REFUSED       ys.insert(0, n)         REFUSED
+    ys.sort()                     REFUSED       ys.remove(1)            REFUSED
+    ys.reverse()                  REFUSED       d.update({3: 4})        REFUSED
+
+One message covers all eight refusals and it states its own repair:
+
+> `ys.extend(...)` MUTATES its receiver in place, and no certified lowering models it: the
+> call becomes an abstract operation that takes NEITHER the receiver NOR a `writes` clause,
+> so the mutation would be invisible to the caller.
+
+Which is precisely what the MODELLED mutations already do — `d[k] = v` and `s.add(x)` both
+verify and both carry frames. So this is not a missing capability so much as a missing
+INSTANCE of one the emitter already has.
+
+**Intersected with the 435 still-`\trusted` mirror functions: 104 of them are blocked by
+that one rule** (`pop` 39, `extend` 37, `update` 15, `insert` 6, `sort` 4, `remove` 3) —
+more than `str.join`'s 83, and by a single self-describing refusal rather than a typing
+chain.
+
+And the counter-example that justifies the whole method: **`LOCAL .append` appears in 154 of
+the 435, the largest count of any construct in the population, and it is NOT a blocker.**
+The biggest number on the page belongs to the one thing that works.
+
 ## Sets — ten probes, and one line of source explains all of them
 
 Recorded in full in `finding-a-set-has-no-element-type-and-no-union.md`. In short:
