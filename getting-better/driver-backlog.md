@@ -7693,3 +7693,28 @@ A general `ys.extend(zs)` on a `List[int]` local shares none of that. **It is a 
 lowering to write**, of the shape `.append`'s arm has — grow the array local, or concatenate
 two seqs — plus a `writes` frame, and it needs its own true/false twin. Budget it as a
 feature, not as a flag.
+
+**A BUG IN THE SCREEN, found by the first real attempt (twelfth correction).** The screen
+classified a run by grepping for `PIPELINE ERROR`, `but is expected` and `unbound ` — and
+**not for `syntax error`**, so an emission Why3 could not even PARSE was reported as
+`**LOWERS**`. Two `Module2_Parser` candidates carried that badge until a real proof attempt
+took ONE SECOND to answer:
+
+    File "…mlw", line 1158, characters 27-28: syntax error
+        raise (Return {  })                       <- an EMPTY record literal
+
+Re-checked with a wider filter, the LOWERS list splits:
+
+    Module6_WhyMLTranspiler.py  __init__, _emit_funcs             LOWERS
+    audit_proof_reverify.py     _cache_root                       LOWERS
+    errors.py                   message                           LOWERS
+    frontend/Module2_Parser.py  _parse_quantifier, _try,
+                                parse_contract                    LOWERS
+    frontend/Module2_Parser.py  _parse_atom_name, _parse_contract  **SYNTAX ERROR**
+
+The instrument that exists to save proof time reported a pass because its failure list was
+one line short — the same shape as the plane that reported seventeen false load failures and
+the one whose verdict depended on glob order. **An instrument's failure list is a claim about
+every way the thing under test can fail, and it is always incomplete until something fails a
+new way.** The fix is a separate script (`recheck_lowers.sh`), not an edit to the running
+one — lesson (q5).
