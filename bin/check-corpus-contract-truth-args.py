@@ -262,12 +262,18 @@ MAX_RAISED = 15                  # FUNCTIONS with at least one call that RAISES 
                                  #
                                  # 0199: `sum_first_two(d: dict)` under
                                  # `#@ ensures \result == d[0] + d[1]` and no `#@ requires`.
-                                 # PyCSL models a dict as a TOTAL `map int (option int)` in
-                                 # which a missing key reads as 0 — the driver's own
-                                 # docstring says so — and a PYTHON DICT IS NOT TOTAL:
-                                 # `d[0]` on a dict without key 0 is a KeyError. The model
-                                 # asserts a normal exit with a value where CPython has
-                                 # none, which is the 0420 shape one container over.
+                                 # PyCSL models a dict as a TOTAL `map int (option int)`,
+                                 # and a PYTHON DICT IS NOT TOTAL: `d[0]` on a dict without
+                                 # key 0 is a KeyError. PROBED, because the driver's
+                                 # docstring ("a missing key reads as 0") invites a stronger
+                                 # reading than is true: `#@ ensures \result == 0` over
+                                 # `return d[7]` does NOT prove, and neither does either
+                                 # claim over `d.get(7, 99)`. No false VALUE is produced.
+                                 # What 0199 discharges is a tautology in the model —
+                                 # `\result` against the same term the body returns — and it
+                                 # discharges because the model gives the read A VALUE AT
+                                 # ALL. That is the 0420 shape one container over: a normal
+                                 # exit asserted where CPython has none.
                                  # `finding-a-verified-program-that-is-not-the-executed-program.md`
                                  #
                                  # 0605, whose

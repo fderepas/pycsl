@@ -191,9 +191,25 @@ There is no `#@ requires`. The driver's own docstring states the model:
 
 **A Python dict is not total.** `d[0]` on a dict without key `0` raises `KeyError`.
 Measured across the pool: `{}` -> KeyError, `{0: 1}` -> KeyError (key 1 missing),
-`{0: 1, 1: 2}` -> 3. The model asserts a normal exit carrying a VALUE where CPython has no
-normal exit at all — the `0420` shape (`struct.error` on an out-of-range pack) one container
-over, and unlike `0420` this one is reached by an ordinary read of an ordinary dict.
+`{0: 1, 1: 2}` -> 3.
+
+**What exactly the model claims was then probed, because the docstring's "reads as 0" invites
+a stronger reading than is true.** Three programs, each the smallest that can tell:
+
+    #@ ensures \result == 0    def missing_read(d: dict): return d[7]        UNPROVEN
+    #@ ensures \result == 99   def f(d: dict): return d.get(7, 99)           UNPROVEN
+    #@ ensures \result == 0    def g(d: dict): return d.get(7, 99)           UNPROVEN
+
+So the model does **not** assert that a missing key reads as any particular value, and
+`.get(k, default)` is opaque in both directions — no false value is produced anywhere. What
+`0199` discharges is a TAUTOLOGY in the model: `\result == d[0] + d[1]` over a body that
+returns exactly that expression, where both sides are the same model term. It discharges
+because the model gives the read **a value at all**.
+
+That is the family, stated precisely: the model asserts a NORMAL EXIT where CPython has
+none. It is the `0420` shape (`struct.error` on an out-of-range pack) one container over,
+and unlike `0420` it is reached by an ordinary read of an ordinary dict. It is NOT a wrong
+value, and the probes above are what makes that a measurement rather than a hope.
 
 The totality is a deliberate modelling choice and it is documented in the driver. What is
 not documented anywhere is its PRICE: every `#@ ensures` over `d[k]` is a claim about a
