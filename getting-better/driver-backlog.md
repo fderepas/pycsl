@@ -7586,3 +7586,19 @@ per-method build moves only the files naming that method.
 
 Order by the population: `.pop` 39, `.extend` 37, `.update` 15, `.insert` 6, `.sort` 4,
 `.remove` 3.
+
+**WHERE THE TEMPLATE LIVES, for whoever builds it.** `module6_whyml/statements.py` ~3017:
+
+    # this arm grows an ARRAY LOCAL
+    code = f"{indent}{safe_arr}[!{len_ref}] <- {arg};\n{indent}{len_ref} := !{len_ref} + 1"
+
+is `.append`'s faithful local lowering, and the `Seq.snoc` arm just above it is the faithful
+`self.<field>` one. The refusal for a `self.` receiver sits between them with a MEASURED
+witness in its message (corpus 0981: a `\length` class invariant re-established over an
+append that the model never performed).
+
+And `.extend` already has a branch — `elif func.endswith(".extend") and self._value_semantic
+and …` — immediately after. It did not fire for `ys = [1]; ys.extend([2, 3])`, so the work
+is likely to be WIDENING an existing gate rather than writing a lowering from nothing, which
+is the same shape the set/list element-typing item turned out to have. Probe the gate before
+budgeting the build.
