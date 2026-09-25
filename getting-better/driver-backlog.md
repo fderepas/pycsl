@@ -7329,3 +7329,37 @@ like a cheap win. Counted: `len(<dict/set parameter>)` appears **once** in both 
 `1137_route60_param_dict_store.py`, which is `# pycsl-expected: FAIL` and uses it as part of
 a NEGATIVE witness — and **zero times** in the mirror and the live tree. Nothing is blocked
 on it. Recorded so the next reader does not spend the afternoon the asymmetry invites.
+
+### THE FEATURE RANKING THE CONVERSION TRACK ACTUALLY NEEDS (2026-09-25)
+
+Not a count of what the mirror CONTAINS — a count of what a still-`\trusted` function's LIVE
+body uses AND the probe map says does not lower. 435 still-`\trusted` mirror functions,
+matched to their live bodies, intersected with the measured failure list:
+
+      83  `",".join(xs)`                    <- THE BIGGEST SINGLE LOWERING GAP
+      52  a SET comprehension
+      48  a comprehension whose ELEMENT is a call  (`[abs(y) for y in xs]`)
+      43  a DICT comprehension
+      34  `d.setdefault(k, v)`              (an explicit, well-worded REFUSAL, not a bug)
+      21  a set literal
+       3  a comprehension over a `range`
+       1  `for` over a DICT/SET parameter
+
+AND THE ROWS THAT TURNED OUT NOT TO BE BLOCKERS, each removed by a probe rather than by
+argument:
+
+     115  `for` over a local name           — for-over-a-list LOWERS; only dict/set fails
+      65  `for k in d.keys()` / `for k, v in d.items()`   — BOTH VERIFY
+      36  `for` over a LIST parameter       — VERIFIES
+       -  f-strings (186 bodies)            — three shapes, all VERIFY
+       -  list comprehensions (170)         — plain, filtered and nested all VERIFY
+       -  dict literals (160)               — string keys VERIFY
+       -  every string operation (16 of 16) — VERIFY
+
+**`str.join` is the top of the list by a factor of 1.6 over the next entry**, and it is a
+single operator with a single failure mode (`but is expected to have type array int`). That
+is the first thing to build, and it is the first time this file has been able to say
+"build X" with a number attached that is about BLOCKING rather than about OCCURRENCE.
+
+Method: `finding-the-conversion-surface-mapped-by-two-line-programs.md`. Every row above is
+one two-line program plus one `ast.walk`.
