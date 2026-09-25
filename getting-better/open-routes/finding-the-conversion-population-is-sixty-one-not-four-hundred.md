@@ -1,4 +1,15 @@
-# The conversion population is 61, not 410 — 238 of the candidates are facades
+# The conversion population is 56, not 410 — 235 of the candidates are facades
+
+> **CORRECTED 03:42Z, one hour after it was written, by the census's own first hit.**
+> The first version said 61 and 238. It keyed function bodies on the BARE name, so a
+> file with two definitions of `visit` let a FACADE body match the OTHER `visit`'s live
+> body and be counted VERBATIM. The screen caught it: `frontend/pure_ast.py::visit`
+> reported **LOWERS**, and its mirror body is `pass`. Re-keyed on the QUALIFIED name
+> (`Class.method`), five candidates move out — `Module2_Parser.__init__`,
+> `Module5_IREmitter.__init__`, `pure_ast.visit`, `pure_ast.visit_Constant`,
+> `statements.rec` — and eight more are reported **AMBIGUOUS** rather than guessed at.
+> The corrected table is below; every number in the prose has been moved with it.
+> Both headline stubs survive the correction, which is the check that mattered.
 
 **Generation #31, 03:36Z. Measured, not estimated.** A static census over the 410 STRICT
 `\trusted` conversion candidates, cross-referencing each mirror body against its live twin:
@@ -104,3 +115,27 @@ So the honest bracket for "retirable by proof, with at most a small mechanical r
 **61 to 72 of 410** — and 89 of the 410 are a different program in the mirror than in the live
 tree, which is the population `finding-a-verified-program-that-is-not-the-executed-program.md`
 is about. That finding named the shape; this table sizes it.
+
+## A fourth validation, and it is the one that corrected the census
+
+The re-targeted screen's third LOWERS hit was `frontend/pure_ast.py::iter_child_nodes` — a
+GENERATOR, already re-`\trusted` in gen #30 with a note in the file saying why, and already
+guarded by `bin/check-yield-erasure.py` in the plane battery. The conversion erases the yields:
+the body proves `assigns \nothing` while establishing nothing about what the generator
+produces, which is its entire meaning.
+
+So the screen's LOWERS verdict has now been wrong in three distinct ways in one hour:
+
+1. over a FACADE — `pass` lowers perfectly (three Module2_Parser hits);
+2. over a GENERATOR — the yields are erased and a plane already refuses it;
+3. over `_cache_root` — it lowers AND proves, and check 1 refuses it because the `os.mkdir`
+   becomes a nullary `val` with no `writes`.
+
+**`--no-proof` LOWERS is a necessary condition and nothing more.** The four checks are the
+condition. Of the 410 strict candidates the screen has now been run over, exactly ONE has
+passed all four: `errors.py::message`.
+
+And the fourth hit, `frontend/pure_ast.py::visit`, is what corrected the census itself — it
+reported LOWERS with a body of `pass`, which a VERBATIM candidate cannot have. The bare-name
+keying bug above was found by its own instrument's output disagreeing with it, within an hour,
+on the first file where the two could disagree.
