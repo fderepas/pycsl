@@ -11397,3 +11397,11 @@ bare one. Screened, and rechecked against the positive marker:
 candidates unscreened.** Reporting the ambiguity instead of guessing was correct; leaving it
 there for six hours was not. The fix was two lines and the authoritative answer was in a file
 this session has been editing all day.
+
+## 16:09Z — INCREMENT M IS GATED: 4029/4047. TEN increments; markers 449.
+
+    corpus 0 MOVED · mirror 1 MOVED 0 unexpected · fidelity 897 · planes 48/48 ·
+    suite 4029/4047, the standing EIGHTEEN, ZERO XPASS
+
+A · D · E · F · H · I · J · K · L · M.
+**460 -> 449 markers · 886 -> 897 verbatim un-trusted · 833 -> 798 trusted-or-dependent.**
