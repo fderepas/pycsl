@@ -69,9 +69,33 @@ one is ever visible.** The cheapest way to see the second is a two-line program,
 conversion attempt: `def f(held: Set[int], m: int)` with one operator in the body costs
 twenty seconds and tells you which half of the error is which.
 
-## The four probes, for the record
+## THE WHOLE SURFACE, PROBED — a set supports exactly two operations
 
-    Set[str]  m in held      FAILED   string vs int        — no element type
-    Set[int]  m in held      SUCCESS                       — membership is modelled
-    Set[str]  held | {m}     FAILED   map vs int           — no union
-    Set[int]  held | {m}     FAILED   map vs int           — no union, and not the type
+The four probes above answer `_walk_stmt`'s question. Ten answer the general one, and the
+answer is smaller than "union is missing":
+
+    m in held           Set[int]    SUCCESS
+    held.add(m)         Set[int]    SUCCESS
+    -------------------------------------------------------------------
+    held | other        Set[int]    FAILED    map where an int is expected
+    held & other        Set[int]    FAILED    "
+    held - other        Set[int]    FAILED    "
+    held ^ other        Set[int]    FAILED    "
+    held.union(other)   Set[int]    FAILED    "
+    held.intersection(other)        FAILED    "
+    len(held)           Set[int]    FAILED    "
+    m in held           Set[str]    FAILED    string where an int is expected
+
+**Membership and `add`. That is the entire modelled surface of a Python set.** Every binary
+operator, every named equivalent of one, and `len` all fail the same way — the set's map
+falls through to the scalar path — and the element type is `int` no matter what the
+annotation says.
+
+Stated that way the conversion consequence is not "one operator is missing" but "a set is a
+bag you can put things in and ask about, and nothing else", which is a different size of
+build and a different sentence to put in a backlog. The four probes were written to settle
+one function's chain; the ten were written because four probes that all fail the same way is
+a reason to ask how far the sameness goes.
+
+`held.add(m)` verifying is the interesting half: MUTATION of a set parameter is modelled,
+with a `#@ assigns held` frame, while reading its size is not.
