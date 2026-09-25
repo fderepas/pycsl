@@ -9862,3 +9862,49 @@ THE ORACLE ACROSS THIS WINDOW, for the record:
 
 Every one of the four axes was chosen by a CENSUS of what the oracle could not read, not by
 what looked interesting; and three of the four found a defect the moment they ran.
+
+--------------------------------------------------------------------------------
+2026-09-25 00:46Z — censusing the instrument's OWN boundary, and the three bugs in it
+
+After four widenings the honest question is not "what did we gain" but "what is still
+outside, and is every exclusion a REASON or a leftover". So: enumerate every
+`#@ ensures`-carrying PASS-expected function the population does not hold, and attribute
+each one to the filter that dropped it.
+
+    758  IN POPULATION
+    456  zero-arg function            (the SIBLING oracle's population)
+    206  **other**
+    120  param type                   (Any, Expr, Set, Dict, records, List[List[int]])
+     35  return type                  (mostly `-> None`)
+    ...
+
+**The 206 in "other" was the whole finding.** A census bucket called "other" is a bucket of
+things nobody has looked at, and it held three distinct oracle defects:
+
+  * TWO TRANSLATORS. `\str_length` and `\str_sub` were translated on the `\result`-predicate
+    path and not on the `#@ requires` path. A function whose POSTCONDITION the oracle could
+    read was dropped because its PRECONDITION mentioned the same token — 22 string drivers,
+    0482 through 0492. A clause language needs ONE translator. Two translators is how a
+    token becomes evaluable in one position and untranslatable in the position beside it.
+
+  * THE DISJUNCTION MIS-PARSE. `#@ ensures \result == 0 or \result == 1` matches the
+    equality regex and captures `0 or \result == 1` as a "right-hand side". It is not a
+    right-hand side; it is the rest of a disjunction. The captured text then failed the
+    backslash guard and removed the whole function. THIRTY-SEVEN of them, including
+    `\result == 1 or \result != 1` — a clause whose whole point is to be trivially true and
+    which nothing was checking.
+
+  * A FALSE ALARM IN THE NEWEST BUCKET, which appeared the moment the two repairs let a new
+    function in. `0605.py::dig(s, i)` reads `s[i]`; the pool's first eight tuples all carry
+    `s = ""`; and the loop that stopped RECORDING at the third raise had also stopped
+    LOOKING, so it never reached `("a", 0)` where `dig` returns 0. It was reported as having
+    NO NORMAL EXIT — precisely the false alarm that bucket exists to avoid. Fixed by running
+    to the end of the sampled product and recording only the first three.
+
+    The smaller true thing about 0605 survives and is now stated: no `#@ requires` bounds
+    `i`, so `dig("", 0)` is an IndexError on an argument its own contract admits.
+
+    746 functions / 7392 evaluations  ->  761 / 7578,  0 FALSE
+
+A new bucket's FIRST false positive is the cheapest one it will ever produce, and it arrives
+exactly when the population grows. That is an argument for growing the population early.

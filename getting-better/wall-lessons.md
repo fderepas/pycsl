@@ -7335,3 +7335,21 @@ not parse was a file nobody ever executed.
 When an instrument reports coverage, ask what its population is a population OF. If it is
 "the functions whose contracts I can evaluate", then everything it does not report is
 unmeasured, not clean.
+
+### (y5) "Other" is not a census category
+
+Four widenings into an oracle, the honest question stopped being "what did we gain" and
+became "what is still outside, and is every exclusion a REASON or a leftover". The census
+came back with 758 in the population, 456 belonging to a sibling instrument, 120 with a
+parameter type there are no values for — and **206 in a bucket labelled "other"**.
+
+"Other" meant: passes every filter I thought to check, and is not in the population anyway.
+It held three distinct bugs in the instrument — two translators where there should have
+been one, an equality regex swallowing a disjunction, and a false alarm in the newest
+bucket. Fifty-nine functions came back in, and the third bug was one the instrument would
+otherwise have printed at someone as a corpus defect.
+
+A census is only as honest as its smallest labelled bucket. If the counts are attributed to
+named reasons and there is a remainder, the remainder is the finding — not the rounding.
+Keep splitting until every bucket names a mechanism, then look at the mechanisms you do not
+recognise.
