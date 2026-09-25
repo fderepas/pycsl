@@ -47,6 +47,49 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CORPORA = [os.path.join(ROOT, "test-suite", "corpus", "pycsl-reference"),
            os.path.join(ROOT, "test-suite", "corpus", "python-reference")]
+# (#49) gen #31 — NO NORMAL EXIT, and for a ZERO-ARGUMENT function there is no
+# input-dependence to argue about: if it raises, it raises always, so every entry here is a
+# contract discharged over no runs at all. This bucket used to be folded into "could not
+# run standalone" together with modules that would not even LOAD — the same conflation the
+# parameterized sibling removed in gen #30, kept here for a generation longer, and worth
+# EIGHTEEN corpus functions the moment it was separated.
+#
+# Each one is named with its reason. An UNNAMED one fails the plane.
+# `getting-better/open-routes/finding-a-verified-program-that-is-not-the-executed-program.md`
+_DT = ("`#@ datatype` declares the constructors and Python defines them NOWHERE, while the "
+       "body uses them in EXECUTABLE position (an assignment and a `match`). NameError on "
+       "every call. The directive's names have no runtime counterpart — the same species as "
+       "`#@ compose_from`, one directive over.")
+NEVER_RETURNS = {
+    ("0521.py", "build_and_read"): _DT,
+    ("0527.py", "left_is_leaf"): _DT,
+    ("0531.py", "guarded"): _DT,
+    ("0533.py", "leaf_is_zero"): _DT,
+    ("0535.py", "is_red_or_green"): _DT,
+    ("0536.py", "unwrap"): _DT,
+    ("0540.py", "use_int"): _DT,
+    ("0546.py", "get"): _DT,
+    ("1003_parametric_datatype_faithful.py", "use_int"): _DT,
+    # NOT HERE, and the reason is worth a line: `0968_requires_method_frame.py::Counter`
+    # raised `AttributeError: no attribute 'bump'` on the first split of this bucket, and
+    # it is NOT a defect — `Counter` is a `#@ mixin`, verified in ISOLATION against an
+    # abstract `val`, and the COMPOSER is what supplies `bump`. A mixin was never meant to
+    # run standalone, so the oracle stopped constructing one. The finding is what the
+    # COMPOSER does, and that is the `#@ compose_from` family recorded in the parameterized
+    # sibling's own NEVER_RETURNS.
+    ("0640.py", "f"):
+        "`return ast.literal_eval(\"-5\")` in a file that never imports `ast`. PyCSL "
+        "evaluates the call at VERIFICATION time with the host's own `ast` — which is what "
+        "makes `\\result == -5` provable — and CPython answers `NameError: name 'ast' is "
+        "not defined`. The verifier supplies a name the program does not have.",
+    ("0642.py", "f"):
+        "`exec(\"x = 5\\ny = x + 1\"); return y`. PyCSL splices the parsed statements in "
+        "place, and the driver's own docstring calls the result "
+        "'verification-equivalent … exactly as if written inline'. IT IS NOT: `exec` inside "
+        "a function body CANNOT create a local binding in CPython, so `y` is unbound and "
+        "the call is a NameError. Byte-identical emission to the inline form is evidence "
+        "that the MODEL matches the inline form; it is not evidence that PYTHON does.",
+}
 MIN_RUNNABLE = 390   # first measurement 366 (functions only); the METHOD population
                      # added 39 more runnable contracts in its first measurement
                      # (42 candidates, 39 agree, 0 disagree, 3 unrunnable), so the
@@ -119,6 +162,26 @@ def candidates():
         for cls in ast.walk(tree):
             if not isinstance(cls, ast.ClassDef):
                 continue
+            # (#49) gen #31 — A `Protocol` CANNOT BE INSTANTIATED, and neither can a
+            # `#@ mixin`. Building one produced `TypeError: Protocols cannot be
+            # instantiated` and the plane reported it as a corpus function with no normal
+            # exit — an ORACLE defect wearing a finding's clothes. A population must
+            # exclude what the LANGUAGE (here Python's own `typing`, there PyCSL's
+            # `PYCSL-SEM-MIXIN-INSTANTIATED`) forbids. Found by splitting the raise bucket,
+            # in the same run that found eighteen real ones.
+            _bases = {ast.unparse(b).split("[")[0].rsplit(".", 1)[-1] for b in cls.bases}
+            if "Protocol" in _bases:
+                continue
+            _ci = cls.lineno - 2
+            _mix = False
+            while _ci >= 0 and (not lines[_ci].strip()
+                                or lines[_ci].strip().startswith("#")):
+                if lines[_ci].strip().startswith("#@") and \
+                        lines[_ci].strip()[2:].strip().startswith("mixin"):
+                    _mix = True
+                _ci -= 1
+            if _mix:
+                continue
             init = next((x for x in cls.body
                          if isinstance(x, ast.FunctionDef) and x.name == "__init__"), None)
             if init is not None:
@@ -149,6 +212,7 @@ def main():
     agree = 0
     disagree = []
     unrunnable = []
+    raised = []                 # the FUNCTION raised: no normal exit, on no argument at all
     for f, cls, fn, op, claim in rows:
         src = open(f, errors="replace").read()
         ns = {"__name__": "corpus_contract_probe"}
@@ -165,13 +229,23 @@ def main():
                 if fn not in ns:
                     unrunnable.append((os.path.basename(f), fn, "not defined after exec"))
                     continue
-                got = ns[fn]()
+                try:
+                    got = ns[fn]()
+                except BaseException as _e_fn:
+                    raised.append((os.path.basename(f), fn, type(_e_fn).__name__,
+                                   str(_e_fn)[:60]))
+                    continue
             else:
                 if cls not in ns:
                     unrunnable.append((os.path.basename(f), cls + "." + fn,
                                        "class not defined after exec"))
                     continue
-                got = getattr(ns[cls](), fn)()
+                try:
+                    got = getattr(ns[cls](), fn)()
+                except BaseException as _e_fn:
+                    raised.append((os.path.basename(f), cls + "." + fn,
+                                   type(_e_fn).__name__, str(_e_fn)[:60]))
+                    continue
         except Exception as e:
             unrunnable.append((os.path.basename(f), fn, type(e).__name__))
             continue
@@ -197,6 +271,21 @@ def main():
     if args.verbose:
         for b in unrunnable:
             print("    unrunnable  %s::%s (%s)" % b)
+
+    _nr_bad = [r for r in raised if (r[0], r[1]) not in NEVER_RETURNS]
+    print("[*] corpus-contract-truth: NO-NORMAL-EXIT — %d zero-argument function(s) RAISE "
+          "on the only call there is, so their `#@ ensures` is discharged over no runs at "
+          "all; %d named with a reason. (Distinct from %d module(s) that would not load.)"
+          % (len(raised), len(raised) - len(_nr_bad), len(unrunnable)))
+    for _r in sorted(raised):
+        print("      %-46s %s: %s" % (_r[0] + "::" + _r[1], _r[2], _r[3]))
+    if _nr_bad:
+        print("[!]   A ZERO-ARGUMENT FUNCTION WITH NO NORMAL EXIT IS NOT NAMED: %s. Its "
+              "`#@ ensures` is vacuously true — the prover discharges a claim about an exit "
+              "the function does not have. Diagnose it and add it to NEVER_RETURNS with its "
+              "reason, or repair it." % ([(r[0], r[1], r[2]) for r in _nr_bad],),
+              file=sys.stderr)
+        return 1
 
     if agree + len(disagree) < MIN_RUNNABLE:
         print("[!] corpus-contract-truth: REFUSING — only %d contract(s) actually ran, "
