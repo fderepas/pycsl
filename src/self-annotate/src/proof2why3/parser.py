@@ -24,12 +24,11 @@ def normalize_surface(s: str) -> str:
 class Token:
     kind: str
     value: str
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __repr__(self) -> str:
-        return ""
+        return f"{self.kind}({self.value!r})"
 
 
 _OP_TOKENS = ['->', '>=', '<=', '<>', '==', '!=', '\\/', '/\\\\', '=', '>', '<', '+', '-', '*']

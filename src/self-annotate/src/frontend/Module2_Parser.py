@@ -940,7 +940,6 @@ class _ContractParser:
             self._err(f"expected {val!r}")
         return self.advance().string
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -969,7 +968,8 @@ class _ContractParser:
     # `msg`). The `#@ sibling_concrete` + noreturn + raises machinery is already built and
     # landed, so only the payload is missing.
     def _err(self, msg: str) -> NoReturn:
-        pass
+        t = self.cur()
+        raise _ContractSyntaxError(f"{msg} (got {t.type} {t.string!r})")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

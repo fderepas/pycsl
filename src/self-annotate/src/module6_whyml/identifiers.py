@@ -2,12 +2,11 @@ from __future__ import annotations
 import hashlib
 import unicodedata
 from typing import Dict, Set
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def stable_hash(s: str) -> int:
-    return 0
+    return int(hashlib.sha256(s.encode("utf-8")).hexdigest()[:8], 16) % 2147483647
 
 OP_MAP: Dict[str, str] = {'==': '=', '!=': '<>', '==>': '->', '<==>': '<->', 'and': '&&', 'or': '||', 'not': 'not', 'div': 'div', '//': 'div', '/': 'div', '%': 'mod'}
 WHYML_RESERVED: int = {'at', 'any', 'diverges', 'val', 'let', 'in', 'if', 'then', 'else', 'while', 'do', 'done', 'for', 'to', 'begin', 'end', 'match', 'with', 'try', 'raise', 'exception', 'type', 'use', 'module', 'theory', 'import', 'export', 'clone', 'goal', 'lemma', 'axiom', 'predicate', 'function', 'constant', 'mutable', 'ghost', 'invariant', 'variant', 'requires', 'ensures', 'returns', 'raises', 'reads', 'writes', 'assert', 'assume', 'check', 'absurd', 'true', 'false', 'not', 'old', 'ref', 'abstract', 'private', 'model', 'range', 'float', 'by', 'so', 'pure', 'alias', 'label', 'epsilon', 'exists', 'forall', 'rec', 'and', 'or', 'mod', 'div', 'result', 'partial', 'fun', 'as', 'scope', 'coinductive', 'inductive'}

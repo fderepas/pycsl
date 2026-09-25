@@ -73,7 +73,7 @@ MAX_TRUST_DEPENDENT = 401     # UPPER bound at the first measurement was 400; ma
                               # number silently every time a conversion landed in a trusted
                               # call path. So the invariant that actually means "the trusted
                               # surface did not grow" is ratcheted separately, below.
-MAX_TRUSTED_OR_DEPENDENT = 834
+MAX_TRUSTED_OR_DEPENDENT = 817
                               # (#49) gen #31 — THE RATCHET THAT SHOULD HAVE BEEN HERE FROM
                               # THE START: `len(trusted) + dep_hi`, the CEILING on the whole
                               # trusted-or-trust-dependent surface. It is invariant under the
@@ -107,6 +107,21 @@ MAX_TRUSTED_OR_DEPENDENT = 834
                               # cannot ALSO promise to be invariant in both directions.
                               # Each future increase must name its two functions the way this
                               # one does, or it is a regression.
+                              #
+                              # 834 -> 817, gen #31 increment H, AND THIS ONE IS THE DIRECTION
+                              # THE CAMPAIGN IS FOR. Five markers retired by PORTING the live
+                              # body into the mirror and proving the result — `__enter__`,
+                              # `_err`, `stable_hash`, `__repr__`, `_rewrite_call_sites` — and
+                              # the aggregate falls by SEVENTEEN, not five. Retiring a marker
+                              # on a function nothing trusted-depends on removes its whole
+                              # dependent cone as well, which is the effect the marker count
+                              # has never been able to show. dep_hi 401 -> 388 and the
+                              # trust-free floor measures 556 against a constant of 538.
+                              # MAX_TRUST_DEPENDENT and MIN_TRUST_FREE are deliberately NOT
+                              # tightened with it: both ends of that bracket move with the
+                              # by-name over-approximation, only the aggregate is invariant
+                              # under relabelling, and tightening them would just schedule the
+                              # next silent bump.
 
 MIN_TRUST_FREE = 538          # (#49) gen #31: 540 -> 538, and this is the ONE direction this
                               # constant is allowed to move, so the reason is recorded rather

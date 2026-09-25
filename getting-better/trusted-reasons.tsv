@@ -34,10 +34,10 @@ Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._compute_shared_module_maps	u
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._emit_prefunctions_infra	unclassified	-
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._reset_module_accumulators	unclassified	-
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._sig_val_from_let	unclassified	-
+Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._sig_val_from_let._hdr_name	cost-scale:nested-closure-lift	the nested-closure lift
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._transpile_modular	unclassified	-
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._transpile_modular._emit_funcs	unclassified	-
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._shared_use_lines	unclassified	-
-Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._sig_val_from_let._hdr_name	cost-scale:nested-closure-lift	the nested-closure lift
 audit_proof.py	AuditReport.extend	unclassified	-
 audit_proof.py	_extract_directives	unclassified	-
 audit_proof.py	_parse_rocq_file	unclassified	-
@@ -63,12 +63,12 @@ audit_proof_reverify.py	verify_lean_file	unclassified	-
 audit_proof_reverify.py	_to_cache_payload	unclassified	-
 core_ir_semantic.py	run_ir_semantic_checks	unclassified	-
 core_ir_semantic.py	_returns_literal_none	unclassified	-
+core_ir_semantic.py	_returns_literal_none.walk	cost-scale:nested-closure-lift	the nested-closure lift
 core_ir_semantic.py	_typeddict_check_subscript	unclassified	-
 core_ir_semantic.py	_namedtuple_check_call	unclassified	-
 core_ir_semantic.py	_namedtuple_check_subscript	unclassified	-
-core_ir_semantic.py	_returns_literal_none.walk	cost-scale:nested-closure-lift	the nested-closure lift
-errors.py	PyCSLError.as_dict	unclassified	-
 errors.py	PyCSLError.__str__	cost-scale:string-field-model	the two mirror dunder markers
+errors.py	PyCSLError.as_dict	unclassified	-
 exception_model.py	bases_closure	unclassified	-
 frontend/ConcurrencyChecker.py	ConcurrencyChecker.check	unclassified	-
 frontend/ConcurrencyChecker.py	ConcurrencyChecker._check_function	unclassified	-
@@ -89,7 +89,6 @@ frontend/Module1_Ingestor.py	_Harvester._emit_target	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._emit_block_footer	unclassified	-
 frontend/Module2_Parser.py	_lex_contract	unclassified	-
 frontend/Module2_Parser.py	_ContractParser.__init__	unclassified	-
-frontend/Module2_Parser.py	_ContractParser._err	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._try	unclassified	-
 frontend/Module2_Parser.py	_ContractParser.parse	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_contract	unclassified	-
@@ -205,7 +204,6 @@ frontend/monomorphize.py	_check_gt4_polymorphic_recursion	unclassified	-
 frontend/monomorphize.py	_emit_specializations	unclassified	-
 frontend/monomorphize.py	_specialize_decl	unclassified	-
 frontend/monomorphize.py	_specialize_function	unclassified	-
-frontend/monomorphize.py	_rewrite_call_sites	unclassified	-
 frontend/monomorphize.py	_rewrite_subscript_calls_in_stmt	unclassified	-
 frontend/monomorphize.py	_rewrite_subscript_to_name	unclassified	-
 frontend/monomorphize.py	_rewrite_annotations	unclassified	-
@@ -337,7 +335,6 @@ module6_whyml/functions.py	FunctionEmissionMixin._emit_subtyping_goals	unclassif
 module6_whyml/functions.py	FunctionEmissionMixin._render_refinement_goal	unclassified	-
 module6_whyml/functions.py	FunctionEmissionMixin._parse_mixin_sig	unclassified	-
 module6_whyml/functions.py	FunctionEmissionMixin._mixin_dep_pseudo_functions	unclassified	-
-module6_whyml/identifiers.py	stable_hash	unclassified	-
 module6_whyml/identifiers.py	whyml_ident	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._scan_preamble_needs	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_preamble_uses	unclassified	-
@@ -440,7 +437,6 @@ proof2why3/normalize.py	_expand_anon_binders	unclassified	-
 proof2why3/normalize.py	_alpha_rename	unclassified	-
 proof2why3/normalize.py	normalize_whyml_axiom	unclassified	-
 proof2why3/parser.py	normalize_surface	unclassified	-
-proof2why3/parser.py	Token.__repr__	unclassified	-
 proof2why3/parser.py	lex	unclassified	-
 proof2why3/parser.py	parse_type_expr	unclassified	-
 proof2why3/sertop.py	sertop_version	unclassified	-
@@ -448,7 +444,6 @@ proof2why3/sertop.py	_sexp_tokens	unclassified	-
 proof2why3/sertop.py	_sexp_parse	unclassified	-
 proof2why3/sertop.py	parse_sexp	unclassified	-
 proof2why3/sertop.py	run_sertop_batch	unclassified	-
-proof2why3/sertop.py	SertopSession.__enter__	unclassified	-
 proof2why3/sertop.py	SertopSession.type_of_batch	unclassified	-
 proof2why3/sertop.py	extract_via_sertop	unclassified	-
 proof_axiom_allowlist.py	parse_lean_axioms_line	unclassified	-

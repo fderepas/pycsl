@@ -137,7 +137,13 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        So the count of markers did not move (460 -> 458 -> 460) and this bucket fell by two
 #        at both ends: a classified arrival is as good as a retirement for THIS ratchet, which
 #        is the right incentive — it pays for knowing why, not only for removing.
-MAX_UNCLASSIFIED = 456
+#   451  2026-09-25, gen #31, increment H. FIVE `unclassified` rows deleted because their
+#        markers were retired by PORTING the live body into the mirror and then PROVING the
+#        result: `sertop::__enter__`, `Module2_Parser::_ContractParser._err`,
+#        `identifiers::stable_hash`, `parser::Token.__repr__`,
+#        `monomorphize::_rewrite_call_sites`. None of them needed a capability — they needed a
+#        body copied from the file next door. 460 -> 455 markers, 886 -> 891 verbatim twins.
+MAX_UNCLASSIFIED = 451
 
 REASON_RE = re.compile(
     r"^(?:(?P<kind>correctness|cost-scale):(?P<val>[a-z0-9][a-z0-9._-]*)|spent-rc0|unclassified)$")

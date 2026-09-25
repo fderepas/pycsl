@@ -109,12 +109,11 @@ class SertopSession:
     cwd: Optional[Path] = None
     proc: Optional[subprocess.Popen] = None
     seq: int = 0
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __enter__(self) -> 'SertopSession':
-        return None
+        return self
 
     #@ requires True
     #@ ensures True

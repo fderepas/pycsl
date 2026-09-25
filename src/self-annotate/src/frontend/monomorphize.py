@@ -297,12 +297,15 @@ def _subst_type_in_ir(node: Any, tvar: str, concrete: str) -> Any:
         return [_subst_type_in_ir(item, tvar, concrete) for item in node]
     return node
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _rewrite_call_sites(ir_data: int, rename_map: int) -> None:
-    pass
+    for func in ir_data.get("functions", []):
+        func["body"] = [
+            _rewrite_subscript_calls_in_stmt(s, rename_map)
+            for s in func.get("body", [])
+        ]
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
