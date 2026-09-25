@@ -11248,3 +11248,69 @@ mirror edits; run it after ANY `src/pycsl/` change.
 #
 #    STATE: tree clean apart from the `.aux` build exhaust and the two pre-existing
 #    `scratchpad/w{7,8}` gitlinks. `\trusted` markers 460 (unchanged). DO NOT PUSH.
+
+# ======================================================================================
+# ## UPDATE 2026-09-25T01:48Z — THE CORPUS RUNS, AND THE CONVERSION SURFACE IS MAPPED
+#
+#    LANDED AND GATED since the last update (suite 4025/4043 = the standing EIGHTEEN, ZERO
+#    XPASS, the predicted number exactly; 47 planes green, byte-diff/mirror/pyref inert):
+#      * `fc7e33b2` — an INHERITED provider is not a shadow. Witness 1902 (PASS, and it
+#        RUNS), controls 1903/1904, all ten pre-existing mixin drivers unchanged.
+#
+#    LANDED, GATE RUNNING as this is written (predicted suite 4026/4044):
+#      * `d998c44b` — the STATEFUL half: an inherited provider is REGISTERED in
+#        `composed_provider_methods`, so a composer-own `self.<m>()` resolves CONCRETELY.
+#        Witness 1908 (PASS, and it RUNS: count 0 -> 1). Diagnosed by DIFFING two emissions.
+#      * `910d9422` — **the corpus RUNS**: four repairs and a new plane (MIN_PLANES 48).
+#          circ_b.py one line, byte-inert -> 0065/0186/0187 now import and print PASS
+#          1190 `@mutable_state` defined -> the module no longer raises NameError at import
+#          0312, 0452 -> two author-written self-checks that had NEVER executed, now pass
+#          `bin/check-corpus-executes.py`: 1419 of 1420 load, 847 of 847 self-check
+#      * `39eabecf` — `--expect-moved` for `byte-diff-compare.py`, so a corpus SOURCE repair
+#        can be GATED instead of blocked. Bite-tested all three ways.
+#
+#    STILL PREPARED, NOT LANDED: `$SCRATCH/g31/land_new.py` + `land_new_rest.py` + the
+#    witnesses in `$SCRATCH/g31/w2/` — the `__new__` ARITY refusal, 0496's repair (measured
+#    BYTE-INERT), and the NEVER_RETURNS/MAX_RAISED shrink that follows it. Gate script
+#    `$SCRATCH/g31/gate_new.sh` is written and syntax-checked; predicted suite 4029/4047.
+#
+#    THE GENERATION'S LARGEST FINDING, now at NINETEEN functions across FIVE mechanisms:
+#    `finding-a-verified-program-that-is-not-the-executed-program.md`. `#@ datatype`
+#    constructors (11 functions, 9 files), `#@ compose_from` providers (3), the verifier
+#    supplying a name or value Python lacks (0640 `ast` unimported, 0642 `exec` splicing —
+#    whose own docstring claims "verification-equivalent" and is not — and 0199's TOTAL dict
+#    model), a `@dataclass` annotation contradicting its default, and the `int` placeholder.
+#
+#    THE TWO ORACLES, both widened until they found things:
+#      args oracle   416 functions / 4367 evaluations  ->  **764 / 7643**
+#                    four axes (post-state, predicate, list params, constructor args), a
+#                    `--census` mode that prints its OWN boundary with NO "other" row, and
+#                    three bugs in itself found by censusing that boundary
+#      zero-arg      the "could not run standalone" bucket SPLIT into module-failure vs
+#                    RAISED — eleven more instances, nine of them `#@ datatype`
+#
+#    THE CONVERSION SURFACE, forty-nine two-line programs
+#    (`finding-the-conversion-surface-mapped-by-two-line-programs.md`):
+#      * strings 16 of 16 VERIFY — when a conversion fails, it is not the strings
+#      * f-strings are NOT a wall; nor are list comprehensions or dict literals
+#      * `len(d)` fails, `len(d.keys())` works — then censused at ONE corpus instance, in an
+#        expected-FAIL witness, and recorded as NOT worth building
+#      * sets: membership and `add` and a literal-union inside `@mutable_state`, nothing else
+#      * the I4 gate located at ONE LINE (`functions.py` ~137), confirmed by a PREDICTION,
+#        and then SIZED: the one-line fix fails at the first call edge
+#        (`statements.py` line 1350), κ=string must propagate along call edges, and that
+#        moves most of the mirror — `expressions.py` alone is a measured 2h57m.
+#        Witnesses 1909/1910 are written and measured both ways, ready for whoever builds it.
+#
+#    NEW WALL-LESSONS: (v5) a vacuous proof can wear a contentful clause. (w5) before
+#    writing "no program reaches this", WRITE THE PROGRAM. (x5) an instrument that only runs
+#    what it can check will never tell you what it cannot run. (y5) "other" is not a census
+#    category. (z5) a plane that shares state across its population gives order-dependent
+#    verdicts. (a6) explain by PREDICTION, not by re-reading. (b6) a sweep compares TEXT; a
+#    proof type-checks a PROGRAM.
+#
+#    SIX CORRECTIONS were made to my own written claims in this window, every one caught by
+#    measuring instead of asserting. That count is in the record on purpose.
+#
+#    STATE: tree clean apart from the `.aux` build exhaust and the two pre-existing
+#    `scratchpad/w{7,8}` gitlinks. `\trusted` markers 460 (unchanged). DO NOT PUSH.
