@@ -7430,3 +7430,18 @@ Modelling the literal for real — a `map_update_some` chain over an empty map, 
 exactly what the `@mutable_state` union path already builds — is the thing that would unblock
 them, and it touches the truthiness refusal, the local typing and `_dict_locals`. Recorded
 with its shape; not attempted.
+
+**NARROWED, by five more probes.** "An erased value meeting a non-int consumer type-errors"
+was a generalisation from one observation. Probed:
+
+    s = {1, 2, 3}; n in s        TYPE ERROR      <- the only one
+    s = {1, 2, 3}; len(s)        VERIFIES
+    t = (1, 2);    t[0]          VERIFIES
+    t = (1, 2);    len(t)        VERIFIES
+    g = (y for y in [1, 2]); for y in g   VERIFIES
+
+Tuples and generators handle their consumers; `len` of an erased set handles itself. **Only
+the MEMBERSHIP path type-errors**, because it is the one consumer that insists on a map. So
+the honest-failure repair is a single site, not a class of them — and the class was invented
+by reading one symptom as a family. (Seventh correction of the session, same cause as the
+other six.)
