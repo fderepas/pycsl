@@ -7579,3 +7579,32 @@ Two rules out of one afternoon:
 
 And the housekeeping that prevents it: `cp -a src` is 76 MB a time. Delete each offline
 tree when its experiment ends — the measurement is in the log, not in the tree.
+
+### (h6) Before any `cp -a src` experiment: check free space, delete the previous tree
+
+The offline-tree device is the best working habit this campaign has — `cp -a src
+$SCRATCH/tree<X>/src`, patch the COPY, run the copy's `pycsl.py`, and the live tree is never
+dirty while a battery is in flight. It is also 76 MB a time, and it has no owner: nothing
+deletes a tree when its experiment ends, because the experiment ends when you read a number
+out of a log and move on.
+
+Eight trees in one session, on top of five left by earlier windows and a dozen sweep
+directories, filled a 7.6 GB tmpfs. What that produced was not a clean "out of space" error.
+It produced **twenty-five minutes of shell commands returning exit 1 with no output** — which
+I mis-diagnosed twice and wrote an EARLY-STOP handoff about — and, far worse, **a gate
+reporting dozens of MOVED files in a proved corpus**, which is the exact signature of the
+most serious thing this campaign looks for. Truncated writes look like an emitter change.
+
+**A FALSE SOUNDNESS ALARM IS THE MOST EXPENSIVE NOISE THIS CAMPAIGN CAN GENERATE.** Every
+instinct the driver has been trained into — trust the plane, diff before you argue, the
+byte-diff does not lie — points the wrong way when the machine underneath is sick. The
+instrument was honest; its inputs were corrupt.
+
+The discipline is two lines, at the top of every offline experiment:
+
+    df -h /tmp                      # know the headroom BEFORE, not after
+    rm -rf $SCRATCH/tree<prev>      # the measurement is in the log, not in the tree
+
+and one habit at the end: when a tree has given you its number, delete it in the same call
+that records the number. A tree you might want again is 76 MB of hope; the log line is the
+result.
