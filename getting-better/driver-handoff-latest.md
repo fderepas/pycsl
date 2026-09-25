@@ -168,3 +168,55 @@ Estimate 6-8 hours of prover time. Suite predicted **4032/4050** (4029 + three n
 **THE REFUSAL THAT GOVERNS IT.** If a moved mirror file stops proving, the increment does NOT
 land by marking that file `\trusted`. That would be trading a real proof for a marker in order
 to buy a capability — the exact inverse of this campaign. Record the regression and stop.
+
+---
+
+# UPDATE 04:37Z — increment H: the PORTING vein, and it does not need a capability
+
+`proof2why3/sertop.py::__enter__` was taken end to end on an offline tree: a ONE-LINE port
+(`return None` -> `return self`), an 11-line all-additive emit diff identical in shape to
+`__exit__`'s, and `[+] Verification SUCCESS!`. Then all 50 facades with a live body of ten
+lines or fewer were ported and screened: **12 PORT AND LOWER**, 32 TYPE errors, 5 refusals,
+1 syntax. `getting-better/open-routes/finding-twelve-facades-that-port-and-lower.md`.
+
+## Land these four FIRST — they call no trusted sibling
+
+    frontend/Module2_Parser.py   _err          (check 1 done: 34 diff lines, ZERO new `val`,
+                                                and it converts TWO functions — the ported body
+                                                calls `_contractparser__cur`, which was sitting
+                                                unemitted as a `val` and becomes a `let` too)
+    frontend/Module2_Parser.py   _try
+    frontend/pure_ast.py         error
+    frontend/pure_ast.py         unsupported
+
+The other eight would be relabelled trust-DEPENDENT rather than shrinking the surface, because
+each calls a `\trusted` sibling — `parse_contract` calls `parse`, `_rewrite_call_sites` calls
+`_rewrite_subscript_calls_in_stmt`, `interleave` calls `next`. That is exactly what
+`errors.py::message` did, and it is why `MAX_TRUSTED_OR_DEPENDENT` exists. Land them, but land
+them knowing the aggregate will not fall.
+
+## The tools
+
+    $S/port_one.py        replaces a mirror function's BODY with its live twin's, keeping the
+                          mirror's own `def` line and `#@` lines. `--convert` also deletes the
+                          marker by LINE PREFIX. ABORTS rather than guessing — and a CRASH now
+                          prints `ABORT:` too, because the first version crashed before writing
+                          and the screen reported ten false `**PORTS+LOWERS**`.
+    $S/check14_port.sh    emit BEFORE -> port+convert -> emit AFTER -> diff -> NEW-`val` list
+                          -> REAL whole-file proof. One offline tree, cleaned first.
+    $S/screen_port.sh     the batch screen, sentinel-stoppable.
+    $S/port_cheap.txt     the 50 (live body <= 10 lines)
+    $S/port_rest.txt      the 185 (live body > 10) — screening now
+
+## The order for increment H
+
+1. `check14_port.sh` each of the four clean candidates; require ZERO new abstract ops and a
+   green whole-file proof.
+2. Land them on the live tree with `port_one.py . <rel> <fn> --convert`.
+3. Checks 2 and 3: `count-trusted-directives` 460 -> 456, `check-self-annotate-sync` 886 -> 890,
+   the three trust planes, **and `check-untrusted-emitted.py`** — a ported function must come
+   back `LET`, not `val`, and that plane is now the one that can tell.
+4. `trusted-reasons.tsv` loses four rows (they are `unclassified`, so MAX_UNCLASSIFIED falls
+   456 -> 452 and should be lowered).
+5. Gate with `--expect-moved frontend__Module2_Parser frontend__pure_ast` on the mirror.
+   Corpus predicted 0 MOVED; suite unchanged.
