@@ -10907,3 +10907,24 @@ And increment H is READY TO LAND, with five candidates PROVED on offline trees:
 That is 460 -> 455 if all five land together, the largest single move this campaign has made
 in several generations — and not one of them needed a new capability. They needed a body
 copied from the file next door.
+
+## 05:29Z — THE FIVE pure_ast PORTS FAIL CHECK 1 TOGETHER, AND THE EMIT DIFF SAYS WHY
+
+Porting `error`, `iter_fields`, `unsupported`, `__instancecheck__` and `visit_If` into
+`frontend/pure_ast.py` at once: 105 diff lines and **THREE NEW ABSTRACT OPERATIONS**
+
+    val _const_types_not_get_2 (x0: int) (x1: int) : int
+    val get__fields (x: int) : int
+    val isinstance_op (x: int) (t: int) : bool
+
+so check 1 refuses the batch regardless of the proof — and the proof came back
+`Unknown (why3: Out of …)`, a resource exhaustion rather than a failed obligation.
+
+`get__fields` is `node._fields` and `isinstance_op` is `isinstance`, which belong to
+`iter_fields` and `__instancecheck__`. `error` and `unsupported` only raise, so they are being
+re-run ALONE — the batch told me nothing about them, which is the cost of batching candidates
+that do not share a mechanism.
+
+THE RULE THAT FALLS OUT: batch candidates to share a PROOF (one file, one fifteen-minute run),
+but never to share a VERDICT. When a batch fails, each member is unadjudicated, and the emit
+diff is the only thing that says which member owns which `val`.
