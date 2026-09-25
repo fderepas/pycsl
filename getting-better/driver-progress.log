@@ -10962,3 +10962,41 @@ for a generation turns out to be one rule that was stated twice and implemented 
 
 Increment H (five PROVED port+converts) lands first, because it is ready and its gate is
 cheap; G follows with its ten-mirror-file re-proof bill.
+
+## 06:13Z — INCREMENT H LANDED: 460 -> 455, FIVE MARKERS RETIRED BY PORTING
+
+Commit `5559aedd`. Every number predicted in advance and exact:
+
+    count-trusted-directives    460 -> 455
+    check-self-annotate-sync    886 -> 891  verbatim un-trusted
+    trusted-raises-honesty      OK, 15 declared / 61 silent (was 62)
+    trusted-frame-honesty       OK
+    trusted-termination-honesty OK, 55 (ratchet 55)
+    check-untrusted-emitted     918 un-trusted, 863 definitions, 41 folded, **0 `val`**, 0
+                                absent, 0 inside a trusted parent
+    trusted-reasons             455 markers <-> 455 rows, unclassified 456 -> 451
+
+**AND THE NUMBER THE MARKER COUNT CANNOT SHOW.** The trusted-or-dependent aggregate falls
+**834 -> 817 — seventeen for five.** Retiring a marker on a function nothing trusted-depends
+on removes its whole dependent cone with it. That is the first time this campaign has had an
+instrument able to say so; the ratchet was added six hours ago for the opposite reason (to
+catch a marker ARRIVING in a hot call path) and its first real use is to measure a win.
+
+`MAX_TRUST_DEPENDENT` (401, measures 388) and `MIN_TRUST_FREE` (538, measures 556) are
+deliberately NOT tightened alongside it. Both ends of that bracket move with the by-name
+over-approximation; only the aggregate is invariant under relabelling; tightening them would
+schedule the next silent bump.
+
+Gate launched 06:14Z against `bd_d`/`mir_d` with the five mirror movers declared by their
+EMISSION names (`proof2why3__sertop`, `frontend__Module2_Parser`, `module6_whyml__identifiers`,
+`proof2why3__parser`, `frontend__monomorphize`) — the lesson `--expect-moved` taught twice.
+Corpus predicted 0 MOVED; suite unchanged at 4029/4047.
+
+### The session's arc so far
+
+    460  start
+    458  message + __exit__ PROVED
+    460  two honest markers for closures verified by nothing
+    455  five ports PROVED
+    886 -> 888 -> 886 -> 891 verbatim un-trusted
+    834 -> 817 trusted-or-dependent
