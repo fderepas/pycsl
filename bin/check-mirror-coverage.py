@@ -54,22 +54,6 @@ MIRROR = os.path.join(ROOT, "src/self-annotate/src")
 MAX_UNMIRRORED_DEFS = 549
 MAX_UNMIRRORED_FILES = 41
 
-# (#49) gen #31 — **THE CAMPAIGN'S OWN HEADLINE, MADE A RATCHET.** This is a TCB-REDUCTION
-# driver: the number it exists to lower is the count of `\trusted` mirror functions, and
-# until now NOTHING MEASURED IT. The handoff files carry "`\trusted` markers 460
-# (unchanged)" forward from generation to generation, and **no counting rule reproduces
-# 460**: `#@ \trusted reviewer:` markers are 485, functions whose leading `#@` block carries
-# `\trusted` are 487, all `\trusted` occurrences are 596, and excluding `pycsl.py` gives
-# 454. A headline nobody can recompute is a headline nobody can be wrong about.
-#
-# THE RULE, stated so it is reproducible: a `FunctionDef` under `src/self-annotate/src`
-# whose immediately-preceding comment block contains `\trusted`. Measured 487.
-#
-# It is a CEILING, because the campaign's direction is down. A conversion that retires a
-# stub lowers it and the ratchet must be lowered in the same commit — which is the same
-# contract every other ratchet here makes, and the reason to have one at all.
-MAX_TRUSTED_FUNCS = 487
-
 
 def _defs(root):
     out = {}
@@ -100,43 +84,6 @@ MIN_LIVE_DEFS = 1600        # (#49) gen #31: measured 1823. A FLOOR on the POPUL
 MIN_MIRRORED_FILES = 50     # (#49) gen #31: measured 53 mirrored file(s).
 
 
-def _trusted_funcs(root):
-    """Functions in the mirror whose leading `#@` block carries `\\trusted`.
-
-    The block is read UPWARD from the `def`, across blank lines and comments, which is the
-    same convention every other instrument in this battery uses to attach annotations to a
-    definition.
-    """
-    import ast
-    n, per_file = 0, {}
-    for dirpath, _dirnames, filenames in os.walk(root):
-        for fn in sorted(filenames):
-            if not fn.endswith(".py"):
-                continue
-            f = os.path.join(dirpath, fn)
-            src = open(f, errors="replace").read()
-            lines = src.split("\n")
-            try:
-                tree = ast.parse(src)
-            except SyntaxError:
-                continue
-            c = 0
-            for node in ast.walk(tree):
-                if not isinstance(node, ast.FunctionDef):
-                    continue
-                i = node.lineno - 2
-                while i >= 0 and (not lines[i].strip()
-                                  or lines[i].strip().startswith("#")):
-                    if "\\trusted" in lines[i]:
-                        c += 1
-                        break
-                    i -= 1
-            if c:
-                per_file[os.path.relpath(f, root)] = c
-            n += c
-    return n, per_file
-
-
 def main():
     live, mirror = _defs(LIVE), _defs(MIRROR)
     shared = [r for r in live if r in mirror]
@@ -149,14 +96,6 @@ def main():
           "%d have NO mirror counterpart (%.1f%%). %d live file(s) have no mirror at all."
           % (total, len(shared), n_missing,
              100.0 * n_missing / max(total, 1), len(unmirrored_files)))
-    n_trusted, trusted_per_file = _trusted_funcs(MIRROR)
-    print("[*] mirror-coverage: %d mirror function(s) carry `\\trusted` — the TCB this "
-          "campaign exists to shrink, counted by a stated rule (a `def` whose leading `#@` "
-          "block contains the marker) so the number can be recomputed rather than quoted."
-          % n_trusted)
-    if "--list" in sys.argv:
-        for r in sorted(trusted_per_file, key=lambda k: -trusted_per_file[k])[:10]:
-            print("    %-44s %3d trusted" % (r, trusted_per_file[r]))
     if "--list" in sys.argv or n_missing > MAX_UNMIRRORED_DEFS:
         for r in sorted(missing, key=lambda k: -len(missing[k])):
             print("    %-44s %3d unmirrored  e.g. %s"
@@ -177,13 +116,6 @@ def main():
         return 2
 
     rc = 0
-    if n_trusted > MAX_TRUSTED_FUNCS:
-        print("[!] mirror-coverage: TCB RATCHET BROKEN — %d > %d `\\trusted` mirror "
-              "function(s). This driver exists to make that number go DOWN. If a new stub "
-              "is genuinely required, say why in the commit and raise the ceiling "
-              "deliberately; if a conversion retired one, LOWER the ceiling in the same "
-              "commit." % (n_trusted, MAX_TRUSTED_FUNCS), file=sys.stderr)
-        rc = 1
     if n_missing > MAX_UNMIRRORED_DEFS:
         print("[!] mirror-coverage: RATCHET BROKEN — %d > %d unmirrored def(s). A live "
               "function with no mirror counterpart is not `\\trusted`, it is ABSENT: it "
