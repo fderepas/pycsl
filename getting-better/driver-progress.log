@@ -9719,3 +9719,22 @@ looked at whether the function has a normal exit for the clause to constrain. Th
 question is cheaper to ask than the first and had never been asked.
 
 `finding-a-contract-over-a-function-that-never-returns.md`.
+
+--------------------------------------------------------------------------------
+2026-09-25 00:32Z — the seq increment's BASELINE proof number, and it is the other way round
+
+The seq-local promotion widening (`d8f0426c`, `len()` of a `seq int` local) was landed with
+its candidate mirror proof measured at **2h57m** on `module6_whyml/expressions.py`, the
+slowest file in the mirror. The BASELINE — the same file, the same machine, the widening
+REVERTED on an offline copy — was left running and has now finished:
+
+    START 21:03:36Z   END 00:27:14Z   =  3h 23m 38s   SUCCESS
+
+**The widened emitter is 27 minutes FASTER than the one it replaced**, not slower. The
+expectation going in was the opposite: a promotion that turns a `len()` on a `seq int` into
+a real sequence length adds structure the prover has to carry. What it actually removes is
+an abstract operation and the case split that came with it.
+
+Nothing depended on the number — the increment was gated and landed on its own planes — but
+"we did not measure the cost" and "we measured it and there is none" are different
+sentences, and only one of them can be written down.
