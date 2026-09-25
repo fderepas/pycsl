@@ -15,19 +15,27 @@ class AST:
     'Base class of every node, mirroring ``_ast.AST``.'
     _fields = ()
     _attributes = ()
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, *args, **kwargs):
-        pass
+        cls = type(self)
+        if len(args) > len(cls._fields):
+            raise TypeError(
+                f"{cls.__name__} constructor takes at most "
+                f"{len(cls._fields)} positional argument"
+                f"{'' if len(cls._fields) == 1 else 's'}"
+            )
+        for name, value in zip(cls._fields, args):
+            setattr(self, name, value)
+        for name, value in kwargs.items():
+            setattr(self, name, value)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __repr__(self):
-        pass
+        return f"<{type(self).__module__}.{type(self).__qualname__} object>"
 
 
 _NODE_SPEC = {'mod': ('AST', (), ()), 'stmt': ('AST', (), ('lineno', 'col_offset', 'end_lineno', 'end_col_offset')), 'expr': ('AST', (), ('lineno', 'col_offset', 'end_lineno', 'end_col_offset')), 'expr_context': ('AST', (), ()), 'boolop': ('AST', (), ()), 'operator': ('AST', (), ()), 'unaryop': ('AST', (), ()), 'cmpop': ('AST', (), ()), 'slice': ('AST', (), ()), 'excepthandler': ('AST', (), ('lineno', 'col_offset', 'end_lineno', 'end_col_offset')), 'pattern': ('AST', (), ('lineno', 'col_offset', 'end_lineno', 'end_col_offset')), 'type_ignore': ('AST', (), ()), 'type_param': ('AST', (), ('lineno', 'col_offset', 'end_lineno', 'end_col_offset')), 'comprehension': ('AST', ('target', 'iter', 'ifs', 'is_async'), ()), 'arguments': ('AST', ('posonlyargs', 'args', 'vararg', 'kwonlyargs', 'kw_defaults', 'kwarg', 'defaults'), ()), 'arg': ('AST', ('arg', 'annotation', 'type_comment'), ('lineno', 'col_offset', 'end_lineno', 'end_col_offset')), 'keyword': ('AST', ('arg', 'value'), ('lineno', 'col_offset', 'end_lineno', 'end_col_offset')), 'alias': ('AST', ('name', 'asname'), ('lineno', 'col_offset', 'end_lineno', 'end_col_offset')), 'withitem': ('AST', ('context_expr', 'optional_vars'), ()), 'match_case': ('AST', ('pattern', 'guard', 'body'), ()), 'Module': ('mod', ('body', 'type_ignores'), ()), 'Interactive': ('mod', ('body',), ()), 'Expression': ('mod', ('body',), ()), 'FunctionType': ('mod', ('argtypes', 'returns'), ()), 'Suite': ('mod', (), ()), 'FunctionDef': ('stmt', ('name', 'args', 'body', 'decorator_list', 'returns', 'type_comment', 'type_params'), None), 'AsyncFunctionDef': ('stmt', ('name', 'args', 'body', 'decorator_list', 'returns', 'type_comment', 'type_params'), None), 'ClassDef': ('stmt', ('name', 'bases', 'keywords', 'body', 'decorator_list', 'type_params'), None), 'Return': ('stmt', ('value',), None), 'Delete': ('stmt', ('targets',), None), 'Assign': ('stmt', ('targets', 'value', 'type_comment'), None), 'AugAssign': ('stmt', ('target', 'op', 'value'), None), 'AnnAssign': ('stmt', ('target', 'annotation', 'value', 'simple'), None), 'For': ('stmt', ('target', 'iter', 'body', 'orelse', 'type_comment'), None), 'AsyncFor': ('stmt', ('target', 'iter', 'body', 'orelse', 'type_comment'), None), 'While': ('stmt', ('test', 'body', 'orelse'), None), 'If': ('stmt', ('test', 'body', 'orelse'), None), 'With': ('stmt', ('items', 'body', 'type_comment'), None), 'AsyncWith': ('stmt', ('items', 'body', 'type_comment'), None), 'Match': ('stmt', ('subject', 'cases'), None), 'Raise': ('stmt', ('exc', 'cause'), None), 'Try': ('stmt', ('body', 'handlers', 'orelse', 'finalbody'), None), 'TryStar': ('stmt', ('body', 'handlers', 'orelse', 'finalbody'), None), 'Assert': ('stmt', ('test', 'msg'), None), 'Import': ('stmt', ('names',), None), 'ImportFrom': ('stmt', ('module', 'names', 'level'), None), 'Global': ('stmt', ('names',), None), 'Nonlocal': ('stmt', ('names',), None), 'Expr': ('stmt', ('value',), None), 'Pass': ('stmt', (), None), 'Break': ('stmt', (), None), 'Continue': ('stmt', (), None), 'TypeAlias': ('stmt', ('name', 'type_params', 'value'), None), 'BoolOp': ('expr', ('op', 'values'), None), 'NamedExpr': ('expr', ('target', 'value'), None), 'BinOp': ('expr', ('left', 'op', 'right'), None), 'UnaryOp': ('expr', ('op', 'operand'), None), 'Lambda': ('expr', ('args', 'body'), None), 'IfExp': ('expr', ('test', 'body', 'orelse'), None), 'Dict': ('expr', ('keys', 'values'), None), 'Set': ('expr', ('elts',), None), 'ListComp': ('expr', ('elt', 'generators'), None), 'SetComp': ('expr', ('elt', 'generators'), None), 'DictComp': ('expr', ('key', 'value', 'generators'), None), 'GeneratorExp': ('expr', ('elt', 'generators'), None), 'Await': ('expr', ('value',), None), 'Yield': ('expr', ('value',), None), 'YieldFrom': ('expr', ('value',), None), 'Compare': ('expr', ('left', 'ops', 'comparators'), None), 'Call': ('expr', ('func', 'args', 'keywords'), None), 'FormattedValue': ('expr', ('value', 'conversion', 'format_spec'), None), 'JoinedStr': ('expr', ('values',), None), 'Constant': ('expr', ('value', 'kind'), None), 'Attribute': ('expr', ('value', 'attr', 'ctx'), None), 'Subscript': ('expr', ('value', 'slice', 'ctx'), None), 'Starred': ('expr', ('value', 'ctx'), None), 'Name': ('expr', ('id', 'ctx'), None), 'List': ('expr', ('elts', 'ctx'), None), 'Tuple': ('expr', ('elts', 'ctx'), None), 'Slice': ('expr', ('lower', 'upper', 'step'), None), 'Index': ('slice', (), ()), 'ExtSlice': ('slice', (), ()), 'Load': ('expr_context', (), ()), 'Store': ('expr_context', (), ()), 'Del': ('expr_context', (), ()), 'AugLoad': ('expr_context', (), ()), 'AugStore': ('expr_context', (), ()), 'Param': ('expr_context', (), ()), 'And': ('boolop', (), ()), 'Or': ('boolop', (), ()), 'Add': ('operator', (), ()), 'Sub': ('operator', (), ()), 'Mult': ('operator', (), ()), 'MatMult': ('operator', (), ()), 'Div': ('operator', (), ()), 'Mod': ('operator', (), ()), 'Pow': ('operator', (), ()), 'LShift': ('operator', (), ()), 'RShift': ('operator', (), ()), 'BitOr': ('operator', (), ()), 'BitXor': ('operator', (), ()), 'BitAnd': ('operator', (), ()), 'FloorDiv': ('operator', (), ()), 'Invert': ('unaryop', (), ()), 'Not': ('unaryop', (), ()), 'UAdd': ('unaryop', (), ()), 'USub': ('unaryop', (), ()), 'Eq': ('cmpop', (), ()), 'NotEq': ('cmpop', (), ()), 'Lt': ('cmpop', (), ()), 'LtE': ('cmpop', (), ()), 'Gt': ('cmpop', (), ()), 'GtE': ('cmpop', (), ()), 'Is': ('cmpop', (), ()), 'IsNot': ('cmpop', (), ()), 'In': ('cmpop', (), ()), 'NotIn': ('cmpop', (), ()), 'ExceptHandler': ('excepthandler', ('type', 'name', 'body'), None), 'MatchValue': ('pattern', ('value',), None), 'MatchSingleton': ('pattern', ('value',), None), 'MatchSequence': ('pattern', ('patterns',), None), 'MatchMapping': ('pattern', ('keys', 'patterns', 'rest'), None), 'MatchClass': ('pattern', ('cls', 'patterns', 'kwd_attrs', 'kwd_patterns'), None), 'MatchStar': ('pattern', ('name',), None), 'MatchAs': ('pattern', ('pattern', 'name'), None), 'MatchOr': ('pattern', ('patterns',), None), 'TypeIgnore': ('type_ignore', ('lineno', 'tag'), ()), 'TypeVar': ('type_param', ('name', 'bound'), None), 'ParamSpec': ('type_param', ('name',), None), 'TypeVarTuple': ('type_param', ('name',), None)}
@@ -172,12 +180,12 @@ class Comment:
     def __init__(self, lineno, col_offset, text, own_line, indent):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __repr__(self):
-        pass
+        return (f"Comment(line={self.lineno}, own_line={self.own_line}, "
+                f"indent={self.indent}, text={self.text!r})")
 
 
 #@ \trusted reviewer: pycsl-self-annotate

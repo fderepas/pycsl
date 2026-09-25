@@ -208,8 +208,6 @@ frontend/monomorphize.py	_rewrite_subscript_to_name	unclassified	-
 frontend/monomorphize.py	_rewrite_annotations	unclassified	-
 frontend/monomorphize.py	_rewrite_annotation_str	unclassified	-
 frontend/monomorphize.py	_record_classification	unclassified	-
-frontend/pure_ast.py	AST.__init__	unclassified	-
-frontend/pure_ast.py	AST.__repr__	unclassified	-
 frontend/pure_ast.py	_build_nodes	unclassified	-
 frontend/pure_ast.py	_const_value_getter	unclassified	-
 frontend/pure_ast.py	_const_value_setter	unclassified	-
@@ -217,7 +215,6 @@ frontend/pure_ast.py	Ellipsis.__new__	unclassified	-
 frontend/pure_ast.py	_Tok.__repr__	unclassified	-
 frontend/pure_ast.py	_lex	unclassified	-
 frontend/pure_ast.py	Comment.__init__	unclassified	-
-frontend/pure_ast.py	Comment.__repr__	unclassified	-
 frontend/pure_ast.py	comments	unclassified	-
 frontend/pure_ast.py	_Parser.__init__	unclassified	-
 frontend/pure_ast.py	_Parser._slice	unclassified	-
