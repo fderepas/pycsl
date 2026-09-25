@@ -11347,10 +11347,14 @@ mirror edits; run it after ANY `src/pycsl/` change.
 #      mirror byte-inertness     bin/mirror-emit-sweep.sh + bin/byte-diff-compare.py
 #
 #      "NINETEEN functions in the verified-is-not-executed family" = the two NEVER_RETURNS
-#      tables added together: 8 in `check-corpus-contract-truth-args.py` (of which one,
-#      0159, is a declared `#@ \diverges` and not a defect) + 11 in
-#      `check-corpus-contract-truth.py`. Both plane outputs print their own count, and an
-#      UNNAMED entry in either turns its plane red — so the number cannot drift silently.
+#      tables added together: 8 in `check-corpus-contract-truth-args.py` + 11 in
+#      `check-corpus-contract-truth.py`, ALL NINETEEN real defects. (The declared
+#      `#@ \diverges` functions are NOT in the table — 0051, 0158 and 0159 are read from the
+#      DIRECTIVE, because a function promised not to return is the one shape where having no
+#      normal exit IS the contract. Checked by counting the tables rather than by memory:
+#      my first draft of this very line said 0159 was in it, and it is not.) Both plane
+#      outputs print their own count, and an UNNAMED entry in either turns its plane red, so
+#      the number cannot drift silently. It becomes 18 when 0496's repair lands.
 #
 #      A mirror proof TIME (`expressions.py` 2h57m, `Module6_WhyMLTranspiler` ~35m) is a
 #      one-off measurement, not a metric. It is quoted to size work, never as a ratchet, and
