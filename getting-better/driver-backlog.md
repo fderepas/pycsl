@@ -7557,3 +7557,32 @@ THE RANKING, replacing the one four entries above:
        the I4 fixpoint; large, with a measured double-digit-hour proof bill
     3. `str.join` (83) — a CONSEQUENCE of (2), not an item of its own
     4. set/dict comprehensions (95 together), the set literal (21, an ERASURE by design)
+
+**AND THE REFUSAL IS A SOUNDNESS FENCE WITH A WITNESS — which makes it buildable, not
+untouchable.** `0982_local_list_mutator_refused.py` is `# pycsl-expected: FAIL` and its
+docstring records what the refusal replaced:
+
+    xs: List[int] = [0, 7]; xs.reverse();          return xs[0]   # Python 7
+    xs: List[int] = [0, 7]; xs.sort(reverse=True); return xs[0]   # Python 7
+    xs: List[int] = [0, 7]; xs.insert(0, 9);       return xs[0]   # Python 9
+
+each PROVING `#@ ensures \result == 0` before the fence went in, because the call reached the
+generic abstract-op fallback as `val xs_reverse_0 () : int` — nullary, no receiver, no
+`writes` — so the array was untouched and the following read was constant-folded.
+
+So the refusal is FAIL-CLOSED, not final, and the same docstring names the template:
+
+> `.append` is NOT in this class: it has a faithful array-local lowering
+> (`arr[!arr_len] <- v; arr_len := !arr_len + 1`) and is untouched.
+
+**The item is therefore: give each remaining mutator a faithful lowering of the shape
+`.append` already has, one at a time, each with a true/false twin** — and `0982` becomes a
+CONTROL (the shapes it names must then PROVE their TRUE contract and FAIL their false one)
+rather than a witness, in the same commit.
+
+Corpus blast radius, censused: 7 expected-FAIL files carry a local in-place mutator (0982 and
+0983 among them, both of which exist to assert this refusal) and 7 expected-PASS ones. A
+per-method build moves only the files naming that method.
+
+Order by the population: `.pop` 39, `.extend` 37, `.update` 15, `.insert` 6, `.sort` 4,
+`.remove` 3.
