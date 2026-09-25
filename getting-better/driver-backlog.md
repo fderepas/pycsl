@@ -7323,3 +7323,9 @@ CAVEAT, and it bounds every row above: each probe carries `#@ ensures True`, so 
 means the construct LOWERS AND TYPE-CHECKS — not that the lowering is faithful. That is the
 right scope for this file (a conversion is stopped by lowerability) and the wrong scope for
 a soundness claim (which the corpus-truth oracles answer).
+
+**`len(d)` IS NOT WORTH BUILDING, censused.** The `len(d)` / `len(d.keys())` asymmetry looks
+like a cheap win. Counted: `len(<dict/set parameter>)` appears **once** in both corpora —
+`1137_route60_param_dict_store.py`, which is `# pycsl-expected: FAIL` and uses it as part of
+a NEGATIVE witness — and **zero times** in the mirror and the live tree. Nothing is blocked
+on it. Recorded so the next reader does not spend the afternoon the asymmetry invites.
