@@ -10593,3 +10593,49 @@ program says nothing about the validator.
 
 So of the six verbatim candidates that lower: two landed, three are refused by check 1 or by
 `check-yield-erasure.py`, and `pycsl.py::_finalize` is being measured now.
+
+## 04:02Z — INCREMENT F: THE INTEGRITY GATE CHECKED 836 OF THE 888 IT WAS MEANT TO
+
+Commit `f184e94f`. Found by check 1 on `pycsl.py::_finalize`, whose emission is BYTE-IDENTICAL
+with and without its marker — `val _finalize (merged_records: int) (rc: int) : (int, int, int)`
+either way. Converting it would have dropped the count by one and proved nothing.
+
+`bin/check-untrusted-emitted.py`'s walk stopped at a `def`. Three changes:
+
+    1. the walk descends                     population 836 -> 915
+    2. a new shape, FOLDED                   41 closures consumed by the emitter's
+                                             recognizers into an EMITTED parent's model
+    3. a STATIC refusal, no emission needed  un-trusted closure inside a `\trusted` parent
+
+Final plane: `[+] 913 un-trusted; 858 definitions, 41 folded, 0 val, 0 absent, 0 inside a
+trusted parent.`
+
+THE 41 WERE ADJUDICATED, NOT BELIEVED. `ir_scanner.py`'s closures ARE emitted (the
+mangling-aware regex matches `irscanner___has_return`); `functions.py::
+_build_method_param_result_ensures_map`'s `classify`/`refs_param`/`rename` are folded into the
+parent's recognizer model, whose lifted helpers are named after the PARENT (`__lmem`,
+`__gtype`, `__gnm`, `__gvar`, `__f`). Faithfulness of that fold is
+`check-bespoke-model-drift.py`'s question, not this plane's.
+
+TWO HONEST MARKERS. `Module6_WhyMLTranspiler::_sig_val_from_let::_hdr_name` and
+`core_ir_semantic::_returns_literal_none::walk` are un-trusted closures inside `\trusted`
+parents — opaque `val`s — so their bodies were verified nowhere while the fidelity plane
+counted them among the verbatim un-trusted twins. The second was invisible TWICE: the walk
+missed it, and once the walk was fixed the bare-name `classify` still missed it, because
+`core_ir_semantic.py` has five closures called `walk` and four of them are emitted.
+
+    460  session start
+    458  message + __exit__ PROVED
+    460  the two honest markers
+    886 -> 888 -> 886 verbatim un-trusted
+
+Two left the trusted set by being proved; two joined it by being found never verified. The
+count is unchanged and the map is two entries more accurate.
+
+Blast-radius aggregate 833 -> 834, recorded in the constant with both names, plus the
+asymmetry: invariant under a CONVERSION, not under the reverse — a newly-trusted function
+pulls in callers that were trust-free, and dep_lo jumped 336 -> 343 on the `walk` marker.
+
+EMISSION PREDICTION for the gate: `core_ir_semantic.py` measured **INERT** (byte-identical) —
+the honest marker changes nothing, because the closure was folded into an opaque `val` either
+way. `Module6_WhyMLTranspiler.py` measuring now.
