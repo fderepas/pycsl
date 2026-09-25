@@ -11040,3 +11040,38 @@ backlog called this "the deferred I4 fixpoint".
 
 Gate launched 07:59Z with all TEN mirror movers and corpus `0884` declared. The ten must still
 PROVE — that bill is the increment's real cost and it is the next thing to run.
+
+## 08:00Z — THE BILL FIRES ON ITS FIRST FILE: the I4 fixpoint BREAKS the mirror
+
+`module6_whyml/expr_ghost_spec_ops.py`, the cheapest of the ten movers, run four seconds after
+the bill started:
+
+    File ".../expr_ghost_spec_ops.mlw", line 333, characters 43-45:
+    This expression has type string -> option.Option.option int,
+    but is expected to have type int -> option.Option.option int
+    [-] Verification FAILED or INCOMPLETE.
+
+**That is exactly the desync the `_mut_coll` conjunct was guarding against** — a promoted
+`map string` value reaching a sibling `val` bridge still declared `map int`. The carrier file
+predicted this shape a generation ago, about the ONE-LINE version of the fix:
+
+> the one-line version of the fix fails at the first call edge: `module6_whyml/statements.py`
+> line 1350, where the promoted `local_refs` is passed to a `val` still declared
+> `map int (option int)`
+
+The TWO-part version was supposed to remove the desync by construction, because both ends of a
+call edge would read the key type from the DECLARATION. **The measurement says otherwise**, and
+it says so on the first file, in four seconds, on a plane that exists for exactly this.
+
+THE THREE CARRIERS ALL PASSED. The corpus may well be inert. And the mirror does not compile.
+A carrier that flips is NECESSARY and nowhere near sufficient — the same sentence this session
+has now written about `--no-proof` LOWERS, about a green whole-file proof, and now about a
+carrier.
+
+The bill is being allowed to run to the end so the damage is ENUMERATED rather than estimated:
+how many of the ten break, and whether they all break the same way. Then increment G is
+reverted, because the refusal written into the plan governs:
+
+> If a moved mirror file stops proving, the increment does NOT land by marking that file
+> `\trusted`. That would be trading a real proof for a marker in order to buy a capability —
+> the exact inverse of this campaign. Record the regression and stop.
