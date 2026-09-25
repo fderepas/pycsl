@@ -7385,3 +7385,24 @@ That is the item, and it now has both a mechanism (one line for sets, `param_lis
 for lists) and a size (the I4 half alone: κ must propagate along call edges, most of the
 mirror moves, `expressions.py` is 2h57m to re-prove). It is a large build. It is also the
 ONLY item on this list that unblocks more than one row.
+
+**AND THE ITEM IS ALREADY HALF-BUILT, which is the part that makes it tractable.** Module 5
+CAPTURES the declared element types today — `param_list_elem_types`, `param_list_nested_elem`,
+`dict_key_types`, `dict_value_types`, all written into the IR function record
+(`Module5_IREmitter` ~5788, ~5825). Module 6 CONSUMES them only under narrow gates, and each
+gate is written down beside its code:
+
+    list elem   `functions.py` ~9420, and Module 5's own comment: "WITHOUT changing `scope`
+                (byte-safe; **only the @mutable_state param-type builder consults this map**)"
+    set key     `functions.py` ~137:  `_mut_coll and kt.get(arg) == "string"`
+    dict key    `functions.py` ~114:  applied generally — which is why `Dict[str, int]`
+                works on BOTH paths and the set does not
+
+So the declared element type is not missing from the pipeline; it is carried to the emitter
+and then discarded outside a gate. **The build is to widen the gates, and the cost is not in
+the widening — it is in the RE-PROOF of everything the widening moves**, which the I4 probe
+measured: the first call edge fails, κ must propagate, and `expressions.py` alone is 2h57m.
+
+That is also why the dict is the existence proof: `Dict[K, V]` already threads κ and ν
+generally, and `k in d` / `d[k]` / `d[k] = v` all verify with string keys. Whatever the dict
+does is what the list and the set need.
