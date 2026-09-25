@@ -7820,3 +7820,37 @@ Two generalisations worth more than the fix:
    line was a header, the tree was on disk, and nothing said the script was gone. The check
    that found it was `ps` — the same check that found the orphaned prover in (n6), for the same
    reason: *when a long run's output stops making sense, list the processes before theorising.*
+
+### (p6) A name-matching tool must say which NAMING it understands, or it answers "no problems" to a question it never asked
+
+Three tools in this session matched a function by its BARE name, and each one was handed a
+QUALIFIED name at some point and failed differently:
+
+    the facade census      matched `visit` against ANY `visit` in the file, so a FACADE body
+                           matched the OTHER `visit`'s live body and was scored VERBATIM.
+                           LOUD: the screen contradicted it within the hour.
+    port_one.py            ABORTED with "resolves to 5 definitions". CORRECT, and it left
+                           FIFTEEN candidates unscreened for six hours because nothing
+                           resolved them. The authoritative resolution — one row per live
+                           marker with its full qualified name — was in
+                           `getting-better/trusted-reasons.tsv` the whole time.
+    check0.py              matched `c.name == fn` against `Class.method.inner`, which nothing
+                           equals, and reported **"0 trusted-parent traps"** for a list whose
+                           first two entries are closures inside `\trusted` parents BY
+                           CONSTRUCTION — they are the two honest markers this session added.
+                           SILENT. It answered a question it had not asked.
+
+The three failure modes rank exactly opposite to how they feel. **Aborting is the best
+outcome** (nothing is claimed), a contradiction is the second (something else catches it), and
+a confident zero is the worst — and a confident zero is what a bare-name matcher produces when
+it is handed a dotted name, because a dotted name simply never equals an identifier.
+
+Two rules:
+
+1. **A resolver takes a NAMING, not a name.** If both bare and qualified forms can reach it,
+   handle both explicitly (`"." in fn` is the whole test) and say so in the docstring.
+2. **A tool that finds nothing should be able to prove it looked.** `check0.py` had no
+   population guard — the #44 rule this repo applies to every plane — so "0 traps" and "0
+   candidates understood" printed identically. Every one of the 48 planes has that guard;
+   the scratch tooling did not, and the scratch tooling is what decides which candidates get
+   a three-hour proof.
