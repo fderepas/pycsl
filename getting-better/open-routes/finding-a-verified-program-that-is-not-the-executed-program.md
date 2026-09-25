@@ -349,3 +349,20 @@ model's version is the one that does not hold in Python.
 it DECLARES `#@ raises ValueError when …`, route #108 established that the raise really does
 escape, and an `#@ ensures` constrains the normal exit only. A declared exceptional exit is
 a contract being kept.
+
+## Bounded: the other nine `#@ datatype` / `#@ inductive` drivers are NOT shown to fail
+
+Twenty-two `#@ datatype` and five `#@ inductive` declarations sit in PASS-expected corpus
+files, and eleven of those files LOAD a directive-introduced TYPE name (`Color`, `Box`,
+`Tree`, `Nat`, `Json`, `Pair2`) in executable code. Two of the eleven are already in the
+family. The other nine were run:
+
+    0520 0528 0534 0541 0542 0545 0555 0559 0565
+      -> all NINE load; eight have no zero-argument function to call, and `0565::all_nonneg`
+         runs and returns.
+
+So the eleven-function count for `#@ datatype` stands as measured and does not grow here.
+The nine are not cleared either — their functions take arguments, so nothing has exercised
+the paths that use the constructors, and the args oracle's population does not reach them.
+**"Not shown to fail" is the honest verdict and it is different from "fine"**, which is why
+the nine are named: whoever widens the oracle next should look at them first.
