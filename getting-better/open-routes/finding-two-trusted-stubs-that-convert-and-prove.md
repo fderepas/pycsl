@@ -213,3 +213,25 @@ worth knowing when weighing a candidate: the marker count goes down by one and t
 surface grows by however many classes inherit the method. It also means the 417-candidate
 conversion population understates the work's value, and the 460 marker count understates the
 trust it represents — a marker on a base-class method is four assumptions wearing one label.
+
+## MEASURED: the mirror blast radius is **ONE file**
+
+Fifteen of the 53 mirror emissions mention `__message`, which looked like fifteen files to
+re-prove. Swept both ways instead of reasoning about it:
+
+    53 baseline / 53 candidate .mlw;  **1 MOVED**, 0 GONE, 0 APPEARED
+    MOVED errors.mlw
+
+The other fourteen reference the error CLASSES, not the method's declaration, so they do not
+move. A `grep` counts mentions; a sweep counts declarations, and the difference here is a
+factor of fifteen in the estimated cost of the increment.
+
+**So increment D is cheap and completely bounded:**
+
+    mirror   1 file moves (`errors.mlw`), DECLARED with `--expect-moved errors`
+    re-proof 1 file (`errors.py`), already measured at ~11 s, SUCCESS
+    corpus   predicted 0 MOVED — a mirror-only change touches no corpus emission
+    markers  460 -> 459, and FOUR `val`s become four proved `let`s
+
+That is the whole bill. It is the first `\trusted` marker this campaign will have retired
+with every check run and every number predicted in advance.
