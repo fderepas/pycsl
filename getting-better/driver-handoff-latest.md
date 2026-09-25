@@ -11359,3 +11359,54 @@ mirror edits; run it after ANY `src/pycsl/` change.
 #      A mirror proof TIME (`expressions.py` 2h57m, `Module6_WhyMLTranspiler` ~35m) is a
 #      one-off measurement, not a metric. It is quoted to size work, never as a ratchet, and
 #      the way to recompute it is to run the proof.
+
+# ======================================================================================
+# ## UPDATE 2026-09-25T02:31Z — THE CONVERSION TRACK, MEASURED END TO END
+#
+#    GATE RUNNING for `d998c44b` (the stateful compose_from half) + `910d9422` (the corpus
+#    RUNS: four repairs + the new plane). Predicted suite 4026/4044.
+#
+#    LANDED SINCE, all gated by the NEXT gate:
+#      * `f0018f94` — the set-element gap is a GATED CARRIER TRIPLE (5 carriers -> 8), not a
+#        paragraph: a read-only `Set[str]` membership that FAILS, plus the two controls that
+#        localise it (the same membership on a MUTATED param VERIFIES; `Set[int]` VERIFIES).
+#      * `d43963eb` — REVERTED my own TCB ratchet. Its premise was false: `\trusted` IS
+#        measured, by `bin/count-trusted-directives.py`, which is IN the plane battery and
+#        prints `markers 460 · grep-substring 485 · offset 25` on every gate. Wall-lesson
+#        (d6) rewritten around that failure.
+#      * `226ed9eb` — the handoff now carries a table of WHICH COMMAND RECOMPUTES every
+#        number it quotes. If a future entry adds a number, add its command or drop it.
+#
+#    THE CONVERSION TRACK, which is what this driver is FOR, moved further today than in the
+#    three generations before it — all of it by measurement, none of it by ranking:
+#
+#      * **104 of 435 still-`\trusted` functions sit behind ONE refusal** — the in-place
+#        mutators. `.append` VERIFIES and is the single largest construct in the population
+#        (154), which is why counting misleads; `extend`/`pop`/`insert`/`sort`/`remove`/
+#        `reverse`/dict `.update` are all refused by one message that states its own repair.
+#        It is a SOUNDNESS FENCE with a measured witness (0982) and `.append`'s faithful
+#        lowering (`statements.py` ~3017) is the template.
+#      * **The `Set[str]` / `str.join` / `List[str]` cluster is ONE cause**: `Module5_IREmitter`
+#        has TWO κ extractors thirty lines apart, the FIELD one handling `Set[str]` ("a set's
+#        element IS its key", its own docstring) and the PARAMETER one handling only
+#        `Dict[str, V]`. The gen #31 shape for the FIFTH time. The two-line fix makes the
+#        carrier VERIFY; the bill is **1 corpus mover (0884, whose failure mode changes) and
+#        10 mirror movers** including `expressions.py` at 2h57m. NOT LANDED, fully measured,
+#        patch written (`$SCRATCH/g31/land_i4b.py`) and mover lists recorded.
+#      * **A CONVERSION SCREEN**: `--no-proof` (emit + typecheck) catches every failure mode
+#        seen today, at 3.8 s for two candidates against 16 s with proving — and ~20 s for
+#        eight `Module2_Parser` candidates whose full proofs would be TWO HOURS. All eight
+#        fail with TYPE errors: the int-placeholder chain, confirmed cheaply. A full screen
+#        of all 456 still-`\trusted` functions is running.
+#      * **Nine mirror proof times measured**, 14 s to 2h57m, including the new
+#        `Module2_Parser` 15m12s. A candidate's price is its FILE's proof time.
+#
+#    NEW WALL-LESSONS since the last block: (c6) a `pgrep` waiter that names its own target
+#    matches itself. (d6) ask which command recomputes a number, then RUN THE SEARCH before
+#    saying none does. (e6) an estimate made while the measurement is still running is a
+#    guess in its clothes. (f6) separate the cheap failure modes from the expensive one.
+#
+#    TEN CORRECTIONS to my own written claims today. The count is in the record on purpose.
+#
+#    STATE: tree clean apart from the `.aux` exhaust and the two `scratchpad/w{7,8}`
+#    gitlinks. `\trusted` markers 460, by `bin/count-trusted-directives.py`. DO NOT PUSH.
