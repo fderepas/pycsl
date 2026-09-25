@@ -73,3 +73,34 @@ The campaign's headline metric is 460 `\trusted` marker lines, of which 417 have
 counterpart. **The count of markers that a proof alone can retire is 61.** The other 356 need
 a port first, and a port is a different and much larger kind of work — it is the thing the
 mirror's authors deferred, one stub at a time, for a reason each time.
+
+## The second wave: 11 of the 109 DIFFERS are stale copies, not facades
+
+`DIFFERS` is not one population. Scored by `difflib` similarity of the mirror body to the live
+body:
+
+| similarity | count | what it is |
+|---|---|---|
+| >= 0.95 | 3 | a stale copy — live drifted after the port, or the port dropped a line |
+| >= 0.80 | 8 | a real port with a deliberate simplification |
+| >= 0.50 | 9 | half a port |
+| < 0.50 | **89** | a different program |
+
+The eleven at >= 0.80, in order:
+
+    0.991  pycsl.py                    _dispatch_provers
+    0.981  pycsl.py                    _probe_one                    (and it is NESTED)
+    0.980  pycsl.py                    _run_vacuity_gate
+    0.937  pycsl.py                    _record_answer
+    0.906  Module6_WhyMLTranspiler.py  _emit_prefunctions_infra
+    0.891  pycsl.py                    _parse_args
+    0.868  Module6_WhyMLTranspiler.py  _wrap_call_with_callee_raises_assert
+    0.854  audit_proof_reverify.py     verify_lean_file
+    0.828  pycsl.py                    _run_proofs
+    0.824  pycsl.py                    _resolve_runtime_config
+    0.805  Module6_WhyMLTranspiler.py  __init__
+
+So the honest bracket for "retirable by proof, with at most a small mechanical re-port" is
+**61 to 72 of 410** — and 89 of the 410 are a different program in the mirror than in the live
+tree, which is the population `finding-a-verified-program-that-is-not-the-executed-program.md`
+is about. That finding named the shape; this table sizes it.
