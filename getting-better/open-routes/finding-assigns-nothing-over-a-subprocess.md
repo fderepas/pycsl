@@ -1,6 +1,6 @@
-# `#@ assigns \nothing` over a subprocess — 21 `\trusted` stubs
+# `#@ assigns \nothing` over a subprocess — 17 confirmed `\trusted` stubs
 
-**Status: FINDING, 21 instances, measured. A gap in an existing plane's POPULATION, not in
+**Status: FINDING, 17 receiver-confirmed instances (plus two more confirmed by hand), measured. A gap in an existing plane's POPULATION, not in
 its reasoning.**
 
 ## What the clause means
@@ -14,8 +14,9 @@ Not "writes no modelled state" — **side-effect-free**.
 
 ## What 21 stubs declare
 
-Censused: mirror functions carrying BOTH `#@ \trusted` and `#@ assigns \nothing`, whose LIVE
-body performs an UNAMBIGUOUS external effect (`subprocess.run`/`Popen`, `os.makedirs`,
+First census (LOOSE — kept because the tightening below is the instructive part): mirror
+functions carrying BOTH `#@ \trusted` and `#@ assigns \nothing`, whose LIVE body performs
+what looked like an external effect (`subprocess.run`/`Popen`, `os.makedirs`,
 `Path.mkdir`, `os.remove`). Ambiguous names were excluded on purpose — `str.replace` is pure
 and dominates `Path.replace`, and a `.write` may be a local buffer's — so this is a floor,
 not a ceiling:
