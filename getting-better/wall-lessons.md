@@ -7775,3 +7775,25 @@ command line that contains the pattern.**
 The rule that actually holds: get PIDs from `ps -eo pid,cmd | awk '/pat/ && !/awk/'`, read
 them, and kill the specific numbers in a SEPARATE call whose text does not contain the
 pattern. Two calls, never one.
+
+### (n6) Killing a wrapper script leaves its prover running, on a tree that no longer exists
+
+Continuing (m6). After killing the bash script `check14_multi.sh`, its `python3 pycsl.py`
+CHILD kept running — for **an hour**, against a scratch tree that had already been `rm -rf`'d,
+competing for the same cores as the jobs that replaced it. It was found only by listing
+processes for an unrelated reason:
+
+    2087993  1  59:44  .../src/frontend/pure_ast.py --import-path ...
+    2087995  2087993  59:44  ...
+
+Note the PPID of 1: it had been re-parented to init, so nothing connected it to the script that
+started it, and no log it wrote was ever read again.
+
+**A prover is the expensive child, and it does not die with its wrapper.** Three habits:
+
+1. after killing a wrapper, LIST the processes again and kill the children by PID —
+   `ps -eo pid,ppid,etime,cmd | awk '/pycsl\.py/ && !/awk/'`;
+2. prefer `timeout` inside the wrapper (this repo already requires `timeout 43200` on every
+   detached prover run) so an orphan eventually dies on its own;
+3. when a long run's load numbers stop making sense, list the processes before theorising. Load
+   average 14 with three jobs running is a fourth job nobody is watching.
