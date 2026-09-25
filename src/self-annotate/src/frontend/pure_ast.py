@@ -340,7 +340,6 @@ class _Parser:
             self.error(f"expected keyword {val!r}")
         return self.advance()
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -363,9 +362,12 @@ class _Parser:
     # REOPENING CAPABILITY: a modelled message payload on the raise (the same decision
     # `_fin` needs for its location stamps), so `msg` reaches the emitted body.
     def error(self, msg: str) -> "NoReturn":
-        pass
+        t = self.cur()
+        raise PyCSLSyntaxError(
+            f"{msg} (got {_tokenize.tok_name[t.type]} {t.string!r})",
+            (self.filename, t.start[0], t.start[1] + 1, t.string),
+        )
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -374,7 +376,11 @@ class _Parser:
     # the vacuity plane, not the count, that says so: converting emits
     # `_parser__unsupported erased=['what'] of ['what']` — input-blind.
     def unsupported(self, what: str) -> "NoReturn":
-        pass
+        t = self.cur()
+        raise PyCSLSyntaxError(
+            f"pure_ast parser: {what} not yet implemented",
+            (self.filename, t.start[0], t.start[1] + 1, t.string),
+        )
 
     # CERTIFIED-BOUNDARY [ERASURE-LEDGER], relaunch #10 — MEASURED, all three pieces
     # BUILT AND WORKING, then deliberately reverted. Porting the live body converts

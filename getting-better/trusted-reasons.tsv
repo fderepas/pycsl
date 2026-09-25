@@ -223,8 +223,6 @@ frontend/pure_ast.py	Comment.__repr__	unclassified	-
 frontend/pure_ast.py	comments	unclassified	-
 frontend/pure_ast.py	_Parser.__init__	unclassified	-
 frontend/pure_ast.py	_Parser._slice	unclassified	-
-frontend/pure_ast.py	_Parser.error	unclassified	-
-frontend/pure_ast.py	_Parser.unsupported	unclassified	-
 frontend/pure_ast.py	_Parser._fin	unclassified	-
 frontend/pure_ast.py	_Parser.node	unclassified	-
 frontend/pure_ast.py	_Parser._max_end	unclassified	-

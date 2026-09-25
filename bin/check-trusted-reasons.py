@@ -143,7 +143,12 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        `identifiers::stable_hash`, `parser::Token.__repr__`,
 #        `monomorphize::_rewrite_call_sites`. None of them needed a capability — they needed a
 #        body copied from the file next door. 460 -> 455 markers, 886 -> 891 verbatim twins.
-MAX_UNCLASSIFIED = 451
+#   449  2026-09-25, gen #31, increment I. TWO more `unclassified` rows deleted:
+#        `frontend/pure_ast.py::_Unparser.error` and `::_Unparser.unsupported`, ported and
+#        proved after three hours six minutes of prover time on that file. The five-candidate
+#        batch on the same file had failed; separating the two that only RAISE from the three
+#        that touch `node._fields` / `isinstance` was the whole difference.
+MAX_UNCLASSIFIED = 449
 
 REASON_RE = re.compile(
     r"^(?:(?P<kind>correctness|cost-scale):(?P<val>[a-z0-9][a-z0-9._-]*)|spent-rc0|unclassified)$")
