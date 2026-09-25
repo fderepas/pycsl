@@ -7289,3 +7289,26 @@ raise, and a `break` cannot tell "raises here" from "raises everywhere".
 
 **Ask reachability before you ask truth.** A contract whose function never returns is not
 a wrong answer; it is no answer, wearing the costume of one.
+
+### (w5) Before writing "no program reaches this", write the program
+
+Landing a repair, I wrote of the defect it stepped around: *"a latent emission defect on a
+path no corpus file reached; making the composition executable reached it."* Both halves
+felt safe. No corpus file walked that path, and the new spelling was what exposed it — so
+the defect looked like something my own change had summoned, and therefore like something
+my own change could retire.
+
+Writing the program took ninety seconds. Take `0554` exactly as the corpus has it, give the
+composer its own `bump`, and the LIVE tree — no inheritance, none of the generation's
+changes — answers `unbound function or predicate symbol 'count'`. The path was open the
+whole time. Making the composition executable is merely the SECOND way to walk it.
+
+The sentence "no program reaches this" is a census claim about every program that could be
+written, and the cheapest possible check on it is to spend a minute writing one. If it is
+true, the minute confirms a boundary. If it is false, the minute stops a false sentence
+from entering the record attached to a real repair — which is where a false sentence does
+the most damage, because everything around it is correct.
+
+Sibling of (u4) (a census measures the population, a rule binds every program) and of the
+index's question 4 (construct the strongest program a rule would forbid). Same move, aimed
+at a claim of ABSENCE instead of a claim of coverage.
