@@ -93,3 +93,44 @@ candidates that need no capability at all — only a body copied from the file n
 That is the first path past 460 that does not run through the value model, and it is entirely
 mechanical. The 185 facades with live bodies longer than ten lines have not been screened; on
 this hit rate (12 of 50) they are worth screening before anyone budgets the 22,252 lines.
+
+## The whole 235 screened — THIRTEEN port and lower
+
+The remaining 185 facades (live body longer than ten lines) were ported and screened the same
+way, and their passes re-checked against the POSITIVE marker:
+
+| verdict, all 235 facades | count |
+|---|---|
+| **PORT + LOWER, confirmed** | **13** |
+| TYPE error (the value model) | 124 |
+| REFUSED (mutators, nested lifts, reassignment, dynamic names, ...) | ~40 |
+| higher-order / callable argument (`cannot be applied`) | 5 |
+| unlisted exception | 2 |
+| SYNTAX | 3 |
+
+The five the longer tier adds:
+
+    frontend/pure_ast.py            __instancecheck__
+    frontend/pure_ast.py            visit_If
+    module6_whyml/expressions.py    _emit_metatype_tags
+    proof2why3/from_sexp.py         _find_construct_idx
+    proof2why3/sertop.py            _sexp_tokens
+
+`module6_whyml/expressions.py::_emit_metatype_tags` is the one to notice: that file holds 36
+facades and 45% of the porting programme's lines, and it has exactly one candidate that ports
+and lowers today.
+
+## The final accounting of the 410 strict candidates
+
+    62   VERBATIM      of which 6 lower, 2 land, and the rest need the value model
+    235  FACADE        of which 13 port and lower
+    105  DIFFERS       not screened; 11 are near-verbatim and would re-port mechanically
+    8    AMBIGUOUS
+
+So the reachable surface, TODAY, with no new capability at all, is **2 proved + 13 to
+adjudicate = at most 15 markers**, against 460. That is the honest size of the campaign's
+current frontier, and it is the first time it has been measured rather than estimated.
+
+Everything else is one of four named walls, in order of population: the string/list/array
+**field value model** (124 + 36 = 160 witnesses), the **in-place mutator** refusal, the
+**nested-closure lift**, and **higher-order arguments** (5).
