@@ -58,7 +58,30 @@ repaired a FIELD whose type came from an `__init__` parameter, and
 forms work for which element types. Here the container is a set and the answer is that there
 is no element type to get wrong.
 
-## Wall 2 — set UNION is not modelled, for any element type
+## Wall 2 — set UNION is modelled for ONE SHAPE, in ONE PLACE
+
+**CORRECTION, and it is the third this session; each one came from probing a sentence
+instead of writing it.** The first draft of this section said "set union is not modelled".
+Reading `module6_whyml/expressions.py` ~6259 says otherwise — there is a union lowering, and
+its own comment names its gate: *"item34.md CF4: `<set> | {x}` (set union with a set
+literal, e.g. the for-loop's `local_refs | {target}`) … @mutable_state"*. Probed:
+
+    local_refs | {target}   inside a `@mutable_state` class, Set[int]    SUCCESS
+    local_refs | {target}   inside a `@mutable_state` class, Set[str]    SUCCESS
+    local_refs | {target}   in a STANDALONE function                     FAILED
+    a | b                   set | set, anywhere                          FAILED
+
+So the union exists, it is element-typed, and it is gated on TWO things at once: the right
+operand must be a set LITERAL, and the enclosing class must be `@mutable_state`. Both gates
+are deliberate and documented in the code; what nobody had written down is that together
+they exclude the shape the conversion track actually needs.
+
+**`ConcurrencyChecker` is not a `@mutable_state` class** — checked, in both the live tree and
+the mirror — so `held | {mutex}` inside `_walk_stmt` is outside the gate on the second
+count even though it matches the first exactly. The backlog's "`int vs int -> option int`"
+is a union lowering DECLINING to fire, not a union lowering that does not exist.
+
+## The shape of wall 2, stated exactly
 
 ```python
 #@ ensures True
@@ -72,9 +95,9 @@ def widen(held: Set[int], m: int) -> None:
     type int
 
 `Set[int]` MEMBERSHIP verifies in the program above, so this is not the element type: the
-`|` operator produces the map itself where an `int` is expected, i.e. the union has no
-lowering and the expression falls through to the scalar path. Both `Set[str]` and `Set[int]`
-fail identically.
+`|` falls through to the scalar path and produces the map itself where an `int` is expected.
+Both `Set[str]` and `Set[int]` fail identically, which is the signature of a gate that did
+not open rather than of a type that is wrong.
 
 ## What it costs, exactly
 
@@ -97,22 +120,26 @@ answer is smaller than "union is missing":
     m in held           Set[int]    SUCCESS
     held.add(m)         Set[int]    SUCCESS
     -------------------------------------------------------------------
-    held | other        Set[int]    FAILED    map where an int is expected
-    held & other        Set[int]    FAILED    "
+    held.add(m)         Set[str]    SUCCESS   — the WRITE path types the element
+    s | {x}   in a @mutable_state class, Set[int] and Set[str]   SUCCESS
+    -------------------------------------------------------------------
+    m in held           Set[str]    FAILED    string where an int is expected
+    m in held           Set[str]    FAILED    inside @mutable_state too — not the gate
+    s | {x}   in a STANDALONE function        FAILED    the @mutable_state gate
+    a | b     set | set, anywhere             FAILED    the set-literal gate
+    held & other        Set[int]    FAILED    map where an int is expected
     held - other        Set[int]    FAILED    "
     held ^ other        Set[int]    FAILED    "
     held.union(other)   Set[int]    FAILED    "
     held.intersection(other)        FAILED    "
     len(held)           Set[int]    FAILED    "
-    m in held           Set[str]    FAILED    string where an int is expected
-    held.add(m)         Set[str]    SUCCESS   — the WRITE path types the element
-    k in d              Dict[str,int] SUCCESS — and the dict does it on BOTH paths
+    k in d              Dict[str,int] SUCCESS — and the dict types BOTH paths
     d[k]                Dict[str,int] SUCCESS
 
-**Membership and `add`. That is the entire modelled surface of a Python set.** Every binary
-operator, every named equivalent of one, and `len` all fail the same way — the set's map
-falls through to the scalar path — and the element type is `int` no matter what the
-annotation says.
+**Membership, `add`, and a union with a literal inside a `@mutable_state` class. That is the
+entire modelled surface of a Python set.** Every other binary operator, every named
+equivalent of one, and `len` fail the same way — the set's map falls through to the scalar
+path.
 
 Stated that way the conversion consequence is not "one operator is missing" but "a set is a
 bag you can put things in and ask about, and nothing else", which is a different size of
