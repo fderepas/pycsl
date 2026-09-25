@@ -7406,3 +7406,27 @@ measured: the first call edge fails, κ must propagate, and `expressions.py` alo
 That is also why the dict is the existence proof: `Dict[K, V]` already threads κ and ν
 generally, and `k in d` / `d[k]` / `d[k] = v` all verify with string keys. Whatever the dict
 does is what the list and the set need.
+
+**THE SET LITERAL IS AN ERASURE, NOT AN OVERSIGHT — do not build it casually.** `s = {1, 2, 3}`
+emits
+
+    let s = ref 0 in
+    val function pycsl_erased_s : int          (* no defining axiom *)
+    ... Map.get (pycsl_erased_s) (n) ...       <- `int` where a map is expected
+
+That is **route #41's device**: a per-name opaque constant with no defining axiom, so every
+consumer of an unmodelled value is undecidable rather than decidably wrong. The emitter even
+REFUSES to test such a name's truthiness, with a message explaining that the literal `0` is
+not the object. The erasure is sound and deliberate.
+
+What is not deliberate is the SHAPE of the failure: the erased value is an `int`, and when
+the consumer is a MAP the emission is ILL-TYPED rather than undecidable — a Why3 type error
+instead of an honest `unproven`. The minimal repair is in the spirit of #41 (a per-name
+opaque of the RIGHT TYPE, `val function pycsl_erased_map_s : map int (option int)`), and it
+buys an honest failure, not a conversion: the membership is still undecidable, so none of
+the 21 functions verifies.
+
+Modelling the literal for real — a `map_update_some` chain over an empty map, which is
+exactly what the `@mutable_state` union path already builds — is the thing that would unblock
+them, and it touches the truthiness refusal, the local typing and `_dict_locals`. Recorded
+with its shape; not attempted.
