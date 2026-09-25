@@ -7806,3 +7806,17 @@ with the line-prefix rule:
 restricted differently again; it should not be quoted. The number to use for "how many stubs
 could be converted" is **417**, and the number to use for "how much trust is declared" is
 **460**, and they answer different questions.
+
+**AND THE FOURTH NUMBER, 434, IS NOW EXPLAINED TOO.** `check-trust-blast-radius.py` prints
+"434 carry `\trusted`" and uses the SAME line-prefix rule — the difference is that it keys on
+`(file, name)` in a SET, so two methods with the SAME NAME in different classes of one file
+count ONCE. That is 7 collapsed pairs against my 441 attached markers.
+
+    460  marker LINES                     count-trusted-directives.py
+    441  markers attached to a `def`      (this file's scan)
+    434  distinct (file, name) keys       check-trust-blast-radius.py
+    417  ... with a live counterpart      THE CONVERSION POPULATION
+
+Four instruments, four rules, four numbers, and every one of them now has a sentence saying
+which question it answers. That is the (d6) discipline applied to the metric that started
+it: the problem was never that 460 was wrong, it was that nobody could say what it counted.
