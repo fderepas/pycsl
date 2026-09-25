@@ -11164,3 +11164,87 @@ mirror edits; run it after ANY `src/pycsl/` change.
 #    moved, proved on a tree with the widening REVERTED. Started 21:03Z, 2h55m and counting;
 #    the candidate took 2h57m. Its only purpose is to turn "this file is slow" into a fact
 #    about the CHANGE. Record the number when it lands; nothing depends on it.
+
+# ======================================================================================
+# ## UPDATE 2026-09-25T00:48Z — A FINDING FAMILY, AND THE ORACLE THAT FOUND IT
+#
+#    THE FINDING, and it is the generation's largest: **the verified program is not the
+#    executed program**. SEVEN PASS-expected corpus functions, across THREE independent
+#    mechanisms, raise on EVERY argument their own precondition admits — so their
+#    `#@ ensures` is discharged over no runs at all. A vacuous proof wearing a contentful
+#    clause. `finding-a-verified-program-that-is-not-the-executed-program.md` and
+#    `finding-a-contract-over-a-function-that-never-returns.md`.
+#
+#      mechanism 1 — a DIRECTIVE whose names have no runtime counterpart
+#        `#@ compose_from`  0549::Facade.run (THE FLAGSHIP), 0554::Service.tick,
+#                           1858::Facade.run. Censused: ALL ELEVEN composing classes in the
+#                           corpus compose a provider they do not inherit; in TEN of the
+#                           eleven the provided name is absent at runtime. Not one composing
+#                           class in the corpus is executable Python.
+#        `#@ datatype`      0540::use_str, 1003::use_str. `Just`/`Nothing` are declared by
+#                           the directive, defined nowhere in Python, and USED IN
+#                           EXECUTABLE POSITION. NameError, always.
+#      mechanism 2 — an ANNOTATION that contradicts the value beside it
+#        0746::Registry.arity — `formal_params: Dict[str, List[str]] = None`. PyCSL models
+#        the annotation; CPython holds None. The driver's own `__main__` assigns `{}` first.
+#      mechanism 3 — THE INT PLACEHOLDER, measured for the first time by an instrument
+#        0453::visit_FunctionDef — `node: int` over a body calling `node.name.islower()`.
+#        The declared signature is UNSATISFIABLE. This is the conversion track's named #1
+#        blocker, caught by a plane instead of by hand at a conversion attempt.
+#
+#    THE REPAIR THAT WAS MEASURED AND REFUSED. Writing the composition the way Python
+#    composes it — `class Facade(CoreEmit, MapOps)` — makes the flagship RUN (`run(3)` is 3,
+#    `run(-1)` is 0) and route #95's shadow check REFUSED it, saying "'Facade' defines its
+#    own 'emit'" of a class whose entire body is `run`. `own_tails` is built from the IR
+#    function list, where the base-class binding has already materialised `facade__emit`.
+#    **The directive that exists to make mixin composition machine-checkable was refusing
+#    the only spelling of it that performs the composition.**
+#
+#    LANDED (gate RUNNING as this is written, suite predicted 4025/4043):
+#      * the shadow exemption — a SAMENESS test (line, column, body, contracts; the base
+#        list deliberately NOT consulted), witness `1902` PASS + RUNS, controls `1903`
+#        (weak provider still FAILS — route #95 not reopened) and `1904` (a real override
+#        still REFUSED). All ten pre-existing mixin drivers keep their verdicts.
+#
+#    PREPARED, NOT LANDED (both measured end-to-end on offline trees):
+#      * `$SCRATCH/g31/land_mixin2.py` — the flatten-loop registration that completes the
+#        repair for the STATEFUL composition. Diagnosed by DIFFING two emissions of 0554.
+#        Witness `$SCRATCH/g31/w3/1908_*.py` (verifies AND runs: count 0 -> 1). All
+#        thirteen mixin drivers keep their verdicts; `1903` still FAILS.
+#      * `$SCRATCH/g31/land_new.py` — the `__new__` ARITY refusal in Module3_Weaver's
+#        `visit_ClassDef`, beside UB-7.6. Refuses only what NO call can construct
+#        (`__init__`'s minimum required above `__new__`'s maximum acceptable). Blast radius
+#        censused at ONE file in the whole tree, and it is 0496 itself; the repair
+#        (`def __new__(cls, n: int)`) verifies, RUNS, and is BYTE-INERT in the emission.
+#        Witnesses `$SCRATCH/g31/w2/190{5,6,7}_*.py` all measured. After landing: remove
+#        ("0496.py", "grab") from NEVER_RETURNS, run `check-refusal-witness-coverage.py
+#        --append-new`, and audit the advice (all three repairs the message names were
+#        measured).
+#
+#    THE ARGS ORACLE, four axes in one window, each chosen by a CENSUS of what it could not
+#    read — and three of the four found a defect the moment they ran:
+#        416 functions / 4367 evaluations   (start of window)
+#        548 /  6011   `\nothing` out of the skip list, methods, comparisons
+#        579 /  6114   POST-STATE   (`self.f == \old(self.f) + …`)
+#        692 /  7063   PREDICATE    (`\result >= 0` and its family — 102 clauses)
+#        730 /  7239   LIST parameters
+#        746 /  7392   CONSTRUCTOR arguments
+#        761 /  7578   one translator, the disjunction repair, the false-alarm repair
+#    Plus `--census`: the oracle now prints its OWN BOUNDARY, 769 in / 1300 skipped, every
+#    one with a named reason and **no "other" row by construction**. The two next widenings
+#    are named by their own counts: 164 parameter types with no pool, 48 list-mutating
+#    functions whose pre/post reading is an open question about PyCSL's lowering.
+#
+#    MEASURED AND RECORDED: the seq increment's BASELINE proof, 3h23m38s against the
+#    candidate's 2h57m — **the widened emitter is 27 minutes FASTER** than the one it
+#    replaced, which is the opposite of what was expected.
+#
+#    NEW WALL-LESSONS: (v5) a vacuous proof can wear a contentful clause — ask reachability
+#    before truth. (w5) before writing "no program reaches this", WRITE THE PROGRAM (the
+#    raw-name `writes { self.count }` frame turned out to be reachable today, with no
+#    inheritance and none of this generation's changes). (x5) an instrument that only runs
+#    what it can check will never tell you what it cannot run. (y5) "other" is not a census
+#    category — a 206-function "other" bucket held three bugs in the instrument.
+#
+#    STATE: tree clean apart from the `.aux` build exhaust and the two pre-existing
+#    `scratchpad/w{7,8}` gitlinks. `\trusted` markers 460 (unchanged). DO NOT PUSH.
