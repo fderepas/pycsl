@@ -11500,3 +11500,28 @@ on `cur`.
 Four new ops, every one taking its operand, and `AST.__init__` MOVES A CLAIM the way
 `Module6_WhyMLTranspiler::__init__` did: a constructor's assignments are what the record model
 is built from, so porting it puts the real fields in the model. Clause 4 satisfied.
+
+## 21:32Z — INCREMENT N IS GATED: 4029/4047. ELEVEN increments; markers 446.
+Gate `gate_n.sh`, launched 20:30:26Z, finished 21:32:42Z.
+  corpus byte-diff   1378/1378 pycsl-reference, 0 MOVED; 2199/2199 python-reference, 0 MOVED
+  mirror byte-diff   53/53, 1 MOVED (`frontend__pure_ast`, declared), 0 unexpected
+  fidelity           900 verbatim un-trusted mirror functions
+  planes             48/48 green
+  suite              4029/4047, the standing EIGHTEEN, ZERO XPASS
+Increment N retired three `pure_ast.py` dunders and a constructor (`AST.__init__`,
+`AST.__repr__`, `Comment.__repr__`), 449 -> 446.
+
+## 21:20Z — THE FIELD VALUE MODEL WAS NOT THE WALL (measured, not argued)
+`finding-the-field-value-model-already-landed.md` (commit bf75103b). The frontier note's
+largest wall — "~174 witnesses, a faithful string/list field carrier" — is already built:
+`errors.py` emits `mutable pycslerror_filename: string` today, from TP-3 Gap 6 plus this
+session's `eca4b0c8`. The marker comment that named the capability was STALE by a day.
+What actually blocks the witness is three unrelated one-rule gaps (string FIELD truthiness;
+`<x>.__str__()` lowered as `string` but not CLASSIFIED as one; the string-local fixpoint
+running fifty lines before the pass that makes `" ".join(parts)` string-typed). Ablated
+four ways: every one of the three is load-bearing. With all three, `PyCSLError.__str__`
+converts AND PROVES, with a faithful body. 53/53 mirror emissions byte-identical from
+pristine sources.
+NEXT: land it as increment O, then re-screen the 103 markers whose recorded verdict was a
+`string`/`int` type error (`rescreen_facade.txt` 76 + `rescreen_differs.txt` 27) to measure
+what the closure actually retires.
