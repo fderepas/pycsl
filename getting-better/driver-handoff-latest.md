@@ -117,3 +117,54 @@ planes green; suite **4029/4047**, the standing EIGHTEEN, ZERO XPASS.
 * the 11 DIFFERS at >= 0.80 similarity — a mechanical re-port, then the same screen.
 * `check-mirror-signature-drift.py` still stops at a `def`; covered elsewhere by the fidelity
   plane, which compares signatures and descends.
+
+---
+
+# UPDATE 04:20Z — increment G is fully specified and pre-checked; it is the next thing to do
+
+The D+E+F gate's plane battery went 2-of-48 red and both reds were right (a new `\trusted`
+marker owes a row in `trusted-reasons.tsv` and a line in the termination ledger). Fixed in
+`74f5db2c`; battery re-running; the D+E+F suite is running in `$S/gate_d.log`.
+
+## Increment G — the I4 fixpoint (a set's element type)
+
+**Why it is next.** All 62 verbatim `\trusted` candidates are screened and ZERO remain
+landable behind a proof alone. The frontier is capabilities, and this one is already measured,
+already carried by three files in `check-open-route-carriers.py`, and its landing instructions
+were written by a previous window inside the carrier file itself:
+
+> WHEN THIS FILE STARTS VERIFYING, the I4 fixpoint has landed. Move it and its controls into
+> the corpus as witnesses in the SAME commit, lower `check-open-route-carriers.py`, and record
+> the mirror re-proof bill.
+
+**The patch** (`$S/land_i4b.py`, two parts, both hunks verified to apply exactly once):
+1. `frontend/Module5_IREmitter.py` — the PARAMETER κ extractor calls `_m5_get_field_key_type`
+   instead of `_m5_get_dict_key_type`, so a `Set[str]` PARAMETER gets κ from its DECLARATION.
+   The FIELD extractor already covers `Set[str]` and says why — *a set's element IS its key*.
+2. `module6_whyml/functions.py` ~137 — drop the `_mut_coll` conjunct. It existed because a
+   read-only set param's κ could only come from the USAGE tagger, so promoting it desynced the
+   sibling `val` bridges. With κ read from the declaration, both ends of a call edge get it
+   from the same place. **That is the fixpoint — by construction, not by a propagation pass.**
+
+**The order.** (1) D+E+F gate green. (2) `bash $S/land_i4.sh` — applies the patch and runs the
+three carriers directly. The carrier must flip FAILED -> SUCCESS and BOTH controls must STAY
+SUCCESS; **if a control moves, STOP** — the mechanism is not what the carrier says it is
+(wall-lesson a6). (3) Move all three into the corpus as 1909/1910/1911 with
+`# pycsl-expected: PASS`, delete their three entries from `check-open-route-carriers.py` and
+lower its count. (4) Gate against `bd_d`/`mir_d` with `--expect-moved 0884` on the corpus and
+the ten mirror movers named from `$S/mir_i4b.log`. (5) **THE BILL: re-prove all ten moved
+mirror files**, each detached with `timeout 43200`.
+
+**The measured bill.** Corpus 1 mover (`0884`, from a TARGETED 81-file comparison — declare it
+and let the gate name any others). Mirror 10 movers:
+
+    Module6_WhyMLTranspiler (~41m)   frontend____init__ (~24m)   frontend__ir_resolve (~22m)
+    frontend__monomorphize           module6_whyml__expr_ghost_collections
+    module6_whyml__expr_ghost_spec_ops   module6_whyml__expressions (~2h57m — the dominant term)
+    module6_whyml__functions         module6_whyml__statements    module6_whyml__stmt_control_flow
+
+Estimate 6-8 hours of prover time. Suite predicted **4032/4050** (4029 + three new witnesses).
+
+**THE REFUSAL THAT GOVERNS IT.** If a moved mirror file stops proving, the increment does NOT
+land by marking that file `\trusted`. That would be trading a real proof for a marker in order
+to buy a capability — the exact inverse of this campaign. Record the regression and stop.
