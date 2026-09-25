@@ -11265,3 +11265,29 @@ proof.
 
 Seven increments banked: A, D, E, F, H, I, J. Markers **452**, verbatim un-trusted **894**,
 trusted-or-dependent **800**.
+
+## 12:35Z — `pure_ast.py::iter_fields` PROVES, and check 1 ADMITS IT — against my prediction
+
+I wrote, in the script that queued it, that `iter_fields` and `__instancecheck__` "are the ones
+that OWN those ops (`node._fields`, `isinstance`), so each is expected to be refused by check 1
+— but 'expected' is not 'measured', and each costs one ~3h proof to say so definitively."
+
+Two hours twenty-five minutes later:
+
+    ported frontend/pure_ast.py::iter_fields (5 body line(s), marker deleted)
+    === diff lines: 24 ===
+    >   val get__fields (x: int) : int
+    [+] Verification SUCCESS! All contracts formally proven.
+
+ONE new abstract op, and **it takes its argument**. `get__fields (x)` is `node._fields` — an
+attribute read on an unmodelled AST node type, returning an unconstrained value. It erases no
+effect and no input dependence; it declines to model the node's field list, which is what a
+`val` is for. **By the criterion stated an hour ago, it is ADMITTED.**
+
+So the five-candidate batch that failed did NOT fail because `iter_fields` was unsound. It
+failed because five ports at once produced three new ops and a resource-exhausted prover.
+Separated, `error` and `unsupported` proved, and so does `iter_fields`.
+
+THE PREDICTION WAS WRONG AND THE PROOF WAS RIGHT, which is the only reason the ~3h was spent.
+A criterion you can apply by reading the source is a hypothesis; a criterion you apply to an
+emit-diff is a measurement.
