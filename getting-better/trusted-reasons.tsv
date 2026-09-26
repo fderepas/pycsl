@@ -39,35 +39,35 @@ Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._transpile_modular._emit_func
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._shared_use_lines	unclassified	-
 audit_proof.py	AuditReport.extend	unclassified	-
 audit_proof.py	_extract_directives	unclassified	-
-audit_proof.py	_parse_rocq_file	unclassified	-
-audit_proof.py	_parse_lean_file	unclassified	-
+audit_proof.py	_parse_rocq_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
+audit_proof.py	_parse_lean_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 audit_proof.py	_index_proofs_dir	unclassified	-
-audit_proof.py	_audit_one_prover	unclassified	-
-audit_proof.py	_index_proofs_dir_by_file	unclassified	-
+audit_proof.py	_audit_one_prover	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
+audit_proof.py	_index_proofs_dir_by_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 audit_proof.py	audit_rocq	unclassified	-
 audit_proof.py	audit_lean	unclassified	-
 audit_proof.py	audit_both	unclassified	-
 audit_proof.py	print_report	unclassified	-
 audit_proof_reverify.py	ReverifyReport.summary	unclassified	-
 audit_proof_reverify.py	_cache_root	unclassified	-
-audit_proof_reverify.py	_sha256_file	unclassified	-
+audit_proof_reverify.py	_sha256_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 audit_proof_reverify.py	_cache_key	unclassified	-
 audit_proof_reverify.py	_cache_load	unclassified	-
 audit_proof_reverify.py	_cache_store	unclassified	-
 audit_proof_reverify.py	_coqc_version	unclassified	-
 audit_proof_reverify.py	_lean_version	unclassified	-
-audit_proof_reverify.py	verify_rocq_file	unclassified	-
+audit_proof_reverify.py	verify_rocq_file	cost-scale:context-manager-model	A `with ... as` BINDING
 audit_proof_reverify.py	_split_rocq_print_assumptions	unclassified	-
-audit_proof_reverify.py	verify_lean_file	unclassified	-
+audit_proof_reverify.py	verify_lean_file	cost-scale:context-manager-model	A `with ... as` BINDING
 audit_proof_reverify.py	_to_cache_payload	unclassified	-
 core_ir_semantic.py	run_ir_semantic_checks	unclassified	-
-core_ir_semantic.py	_returns_literal_none	unclassified	-
+core_ir_semantic.py	_returns_literal_none	cost-scale:nested-closure-lift	the nested-closure lift
 core_ir_semantic.py	_returns_literal_none.walk	cost-scale:nested-closure-lift	the nested-closure lift
 core_ir_semantic.py	_typeddict_check_subscript	unclassified	-
 core_ir_semantic.py	_namedtuple_check_call	unclassified	-
 core_ir_semantic.py	_namedtuple_check_subscript	unclassified	-
 errors.py	PyCSLError.as_dict	unclassified	-
-exception_model.py	bases_closure	unclassified	-
+exception_model.py	bases_closure	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 frontend/ConcurrencyChecker.py	ConcurrencyChecker.check	unclassified	-
 frontend/ConcurrencyChecker.py	ConcurrencyChecker._check_function	unclassified	-
 frontend/ConcurrencyChecker.py	ConcurrencyChecker._walk_stmt	unclassified	-
@@ -123,10 +123,10 @@ frontend/Module3_Weaver.py	PyCSLWeaver._attach_loop_contracts	unclassified	-
 frontend/Module3_Weaver.py	PyCSLWeaver.visit_While	unclassified	-
 frontend/Module3_Weaver.py	PyCSLWeaver.visit_For	unclassified	-
 frontend/Module3_Weaver.py	Module3_Weaver._parse_extracted_contracts	unclassified	-
-frontend/Module3_Weaver.py	Module3_Weaver._consolidate_module_concurrency	unclassified	-
+frontend/Module3_Weaver.py	Module3_Weaver._consolidate_module_concurrency	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 frontend/Module3_Weaver.py	Module3_Weaver._attach_labels_and_ghost_assigns	unclassified	-
-frontend/Module3_Weaver.py	Module3_Weaver._extract_happy_properties	unclassified	-
-frontend/Module3_Weaver.py	Module3_Weaver._field_write_site	unclassified	-
+frontend/Module3_Weaver.py	Module3_Weaver._extract_happy_properties	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
+frontend/Module3_Weaver.py	Module3_Weaver._field_write_site	cost-scale:array-local-reassign	AN ARRAY LOCAL REASSIGNED FROM A NON-LITERAL
 frontend/Module3_Weaver.py	Module3_Weaver._happy_predicate	unclassified	-
 frontend/Module3_Weaver.py	Module3_Weaver._expand_happy_properties	unclassified	-
 frontend/Module3_Weaver.py	Module3_Weaver._region_bound_str	unclassified	-
@@ -169,30 +169,30 @@ frontend/Module5_IREmitter.py	PyCSLToJSONEmitter.visit_FunctionDef	unclassified	
 frontend/Module5_IREmitter.py	Module5_IREmitter.generate_json	unclassified	-
 frontend/desugar.py	_ChainDesugarer.visit_Compare	unclassified	-
 frontend/desugar.py	_try_reaches_assert	unclassified	-
-frontend/desugar.py	normalize_stores	unclassified	-
+frontend/desugar.py	normalize_stores	cost-scale:name-rebinding-model	A NAME REBOUND AFTER ITS DEFINITION
 frontend/exec_splice.py	_ExecSplicer.visit_Expr	unclassified	-
 frontend/import_classifier.py	_stub_set	unclassified	-
 frontend/import_classifier.py	check_imports	unclassified	-
-frontend/ir_inline.py	_recursive_methods	unclassified	-
+frontend/ir_inline.py	_recursive_methods	cost-scale:nested-closure-lift	the nested-closure lift
 frontend/ir_inline.py	_Inliner._expand	unclassified	-
 frontend/ir_inline.py	_Inliner._hoist_calls_in_expr	unclassified	-
 frontend/ir_inline.py	_Inliner.inline_stmts	unclassified	-
-frontend/ir_inline.py	_inline_calls	unclassified	-
-frontend/ir_inline.py	apply_inline_globals	unclassified	-
+frontend/ir_inline.py	_inline_calls	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
+frontend/ir_inline.py	apply_inline_globals	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 frontend/ir_resolve.py	_resolve_module_path	unclassified	-
-frontend/ir_resolve.py	_get_module_exports	unclassified	-
+frontend/ir_resolve.py	_get_module_exports	cost-scale:context-manager-model	A `with ... as` BINDING
 frontend/ir_resolve.py	_process_dependency	unclassified	-
 frontend/ir_resolve.py	_strip_dir_scan_proofs	unclassified	-
 frontend/ir_resolve.py	_find_record_type_from_dep_imports	unclassified	-
-frontend/ir_resolve.py	_inject_functions	unclassified	-
-frontend/ir_resolve.py	_resolve_direct_imports	unclassified	-
+frontend/ir_resolve.py	_inject_functions	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
+frontend/ir_resolve.py	_resolve_direct_imports	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 frontend/ir_resolve.py	_resolve_wildcard_imports	unclassified	-
 frontend/ir_resolve.py	_resolve_module_imports	unclassified	-
-frontend/ir_resolve.py	_resolve_imported_classes	unclassified	-
-frontend/ir_resolve.py	_resolve_imported_base_classes	unclassified	-
-frontend/ir_resolve.py	apply_inheritance	unclassified	-
-frontend/ir_resolve.py	apply_composition	unclassified	-
-frontend/ir_resolve.py	resolve_imports	unclassified	-
+frontend/ir_resolve.py	_resolve_imported_classes	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
+frontend/ir_resolve.py	_resolve_imported_base_classes	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
+frontend/ir_resolve.py	apply_inheritance	cost-scale:nested-closure-lift	the nested-closure lift
+frontend/ir_resolve.py	apply_composition	cost-scale:nested-closure-lift	the nested-closure lift
+frontend/ir_resolve.py	resolve_imports	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 frontend/ir_resolve.py	resolve	unclassified	-
 frontend/module_collect.py	collect_module_constants	unclassified	-
 frontend/module_collect.py	collect_module_globals	unclassified	-
@@ -201,20 +201,20 @@ frontend/monomorphize.py	_collect_generic_decls	unclassified	-
 frontend/monomorphize.py	_collect_instantiations	unclassified	-
 frontend/monomorphize.py	_check_gt4_polymorphic_recursion	unclassified	-
 frontend/monomorphize.py	_emit_specializations	unclassified	-
-frontend/monomorphize.py	_specialize_decl	unclassified	-
-frontend/monomorphize.py	_specialize_function	unclassified	-
+frontend/monomorphize.py	_specialize_decl	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
+frontend/monomorphize.py	_specialize_function	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 frontend/monomorphize.py	_rewrite_call_sites	cost-scale:dict-param-get-receiver	THE RECEIVER-ERASED
 frontend/monomorphize.py	_rewrite_subscript_calls_in_stmt	unclassified	-
 frontend/monomorphize.py	_rewrite_subscript_to_name	unclassified	-
 frontend/monomorphize.py	_rewrite_annotations	unclassified	-
 frontend/monomorphize.py	_rewrite_annotation_str	unclassified	-
-frontend/monomorphize.py	_record_classification	unclassified	-
-frontend/pure_ast.py	_build_nodes	unclassified	-
+frontend/monomorphize.py	_record_classification	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
+frontend/pure_ast.py	_build_nodes	cost-scale:name-rebinding-model	A NAME REBOUND AFTER ITS DEFINITION
 frontend/pure_ast.py	_const_value_getter	unclassified	-
 frontend/pure_ast.py	_const_value_setter	unclassified	-
 frontend/pure_ast.py	Ellipsis.__new__	unclassified	-
 frontend/pure_ast.py	_Tok.__repr__	unclassified	-
-frontend/pure_ast.py	_lex	unclassified	-
+frontend/pure_ast.py	_lex	cost-scale:nested-closure-lift	the nested-closure lift
 frontend/pure_ast.py	Comment.__init__	unclassified	-
 frontend/pure_ast.py	comments	unclassified	-
 frontend/pure_ast.py	_Parser.__init__	unclassified	-
@@ -226,7 +226,7 @@ frontend/pure_ast.py	_Parser.node	unclassified	-
 frontend/pure_ast.py	_Parser._max_end	unclassified	-
 frontend/pure_ast.py	_Parser._fin_block	unclassified	-
 frontend/pure_ast.py	_decode_fstring_middle	unclassified	-
-frontend/pure_ast.py	_merge_str_constants	unclassified	-
+frontend/pure_ast.py	_merge_str_constants	cost-scale:name-rebinding-model	A NAME REBOUND AFTER ITS DEFINITION
 frontend/pure_ast.py	_set_ctx	unclassified	-
 frontend/pure_ast.py	_parse_number	unclassified	-
 frontend/pure_ast.py	_decode_string	unclassified	-
@@ -236,15 +236,15 @@ frontend/pure_ast.py	literal_eval	unclassified	-
 frontend/pure_ast.py	iter_fields	cost-scale:generator-sequence-model	THE GENERATOR SEQUENCE MODEL
 frontend/pure_ast.py	iter_child_nodes	unclassified	-
 frontend/pure_ast.py	walk	unclassified	-
-frontend/pure_ast.py	copy_location	unclassified	-
+frontend/pure_ast.py	copy_location	cost-scale:name-rebinding-model	A NAME REBOUND AFTER ITS DEFINITION
 frontend/pure_ast.py	fix_missing_locations	unclassified	-
 frontend/pure_ast.py	increment_lineno	unclassified	-
-frontend/pure_ast.py	dump	unclassified	-
-frontend/pure_ast.py	get_source_segment	unclassified	-
+frontend/pure_ast.py	dump	cost-scale:nested-closure-lift	the nested-closure lift
+frontend/pure_ast.py	get_source_segment	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 frontend/pure_ast.py	NodeVisitor.visit	unclassified	-
 frontend/pure_ast.py	NodeVisitor.generic_visit	unclassified	-
 frontend/pure_ast.py	NodeVisitor.visit_Constant	unclassified	-
-frontend/pure_ast.py	NodeTransformer.generic_visit	unclassified	-
+frontend/pure_ast.py	NodeTransformer.generic_visit	cost-scale:name-rebinding-model	A NAME REBOUND AFTER ITS DEFINITION
 frontend/pure_ast.py	_Precedence.next	unclassified	-
 frontend/pure_ast.py	_Unparser.__init__	unclassified	-
 frontend/pure_ast.py	_Unparser.interleave	unclassified	-
@@ -268,8 +268,8 @@ frontend/pure_ast.py	_Unparser.visit_MatchStar	unclassified	-
 frontend/pure_ast.py	_Unparser.visit_MatchMapping	unclassified	-
 frontend/pure_ast.py	_Unparser.visit_MatchClass	unclassified	-
 frontend/pure_ast.py	unparse	unclassified	-
-frontend/pure_ast.py	_self_test	unclassified	-
-frontend/pure_ast.py	main	unclassified	-
+frontend/pure_ast.py	_self_test	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
+frontend/pure_ast.py	main	cost-scale:context-manager-model	A `with ... as` BINDING
 ir_schema.py	validate_ir	unclassified	-
 module6_whyml/abstract_ops.py	AbstractOpsMixin._add_abstract_op	unclassified	-
 module6_whyml/abstract_ops.py	AbstractOpsMixin._find_abstract_val_insert_idx	unclassified	-
@@ -350,7 +350,7 @@ module6_whyml/preamble.py	PreambleEmissionMixin._fresh_globals_facts	unclassifie
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_module_globals	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_type_decls	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_opaque_class_aliases	unclassified	-
-module6_whyml/scc.py	compute_sccs	unclassified	-
+module6_whyml/scc.py	compute_sccs	cost-scale:nested-closure-lift	the nested-closure lift
 module6_whyml/scc.py	sort_functions_by_scc	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._add_abstract_op	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._resolve_dotted_signature	unclassified	-
@@ -390,7 +390,7 @@ module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_for_stmt	unclass
 module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._callee_raised_in	unclassified	-
 module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._match_pattern_cond	unclassified	-
 module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._render_match_pattern	unclassified	-
-module6_whyml/struct_format.py	parse_format	unclassified	-
+module6_whyml/struct_format.py	parse_format	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 module6_whyml/struct_format.py	calcsize	unclassified	-
 module6_whyml/types.py	TypeInferenceMixin._track_collection_metadata	unclassified	-
 module6_whyml/types.py	TypeInferenceMixin._collect_array_var_assigns	unclassified	-
@@ -398,16 +398,16 @@ proof2why3/canonical.py	substitute	unclassified	-
 proof2why3/canonical.py	_expand_nat_to_int	unclassified	-
 proof2why3/canonical.py	_alpha_rename	unclassified	-
 proof2why3/canonical.py	_dedup_arrow_chain	unclassified	-
-proof2why3/canonical.py	_ac_normalize	unclassified	-
+proof2why3/canonical.py	_ac_normalize	cost-scale:nested-closure-lift	the nested-closure lift
 proof2why3/canonical.py	_sort_arrow_hypotheses	unclassified	-
-proof2why3/canonical.py	_flatten_foralls	unclassified	-
+proof2why3/canonical.py	_flatten_foralls	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 proof2why3/canonical.py	_camel_to_snake	unclassified	-
 proof2why3/canonical.py	_normalize_names	unclassified	-
 proof2why3/canonical.py	_normalize_type_string	unclassified	-
 proof2why3/canonical.py	_iff_app_to_binop	unclassified	-
 proof2why3/crosscheck.py	CrossCheckResult.diagnostic	unclassified	-
 proof2why3/crosscheck.py	_load_axiom_registry	unclassified	-
-proof2why3/crosscheck.py	crosscheck_file	unclassified	-
+proof2why3/crosscheck.py	crosscheck_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 proof2why3/crosscheck.py	main	unclassified	-
 proof2why3/crosscheck_ir.py	IRCrossCheckResult.pairwise	unclassified	-
 proof2why3/crosscheck_ir.py	IRCrossCheckResult.diagnostic	unclassified	-
@@ -417,10 +417,10 @@ proof2why3/crosscheck_ir.py	crosscheck_file_ir	unclassified	-
 proof2why3/crosscheck_ir.py	main	unclassified	-
 proof2why3/extract.py	extract_rocq_statements	unclassified	-
 proof2why3/extract.py	_split_rocq_check_output	unclassified	-
-proof2why3/extract.py	extract_lean_statements	unclassified	-
+proof2why3/extract.py	extract_lean_statements	cost-scale:nested-closure-lift	the nested-closure lift
 proof2why3/extract_lean_meta.py	lean_meta_available	unclassified	-
-proof2why3/extract_lean_meta.py	extract_lean_statements_meta	unclassified	-
-proof2why3/from_lean_json.py	_linearize_app	unclassified	-
+proof2why3/extract_lean_meta.py	extract_lean_statements_meta	cost-scale:heterogeneous-list-model	A HETEROGENEOUS LIST LITERAL
+proof2why3/from_lean_json.py	_linearize_app	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 proof2why3/from_lean_json.py	_is_ofnat_lit	unclassified	-
 proof2why3/from_lean_json.py	project_to_ir	unclassified	-
 proof2why3/from_sexp.py	_construct_indices	unclassified	-
@@ -437,7 +437,7 @@ proof2why3/parser.py	lex	unclassified	-
 proof2why3/parser.py	parse_type_expr	unclassified	-
 proof2why3/sertop.py	sertop_version	unclassified	-
 proof2why3/sertop.py	_sexp_tokens	unclassified	-
-proof2why3/sertop.py	_sexp_parse	unclassified	-
+proof2why3/sertop.py	_sexp_parse	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 proof2why3/sertop.py	parse_sexp	unclassified	-
 proof2why3/sertop.py	run_sertop_batch	unclassified	-
 proof2why3/sertop.py	SertopSession.type_of_batch	unclassified	-
@@ -446,16 +446,16 @@ proof_axiom_allowlist.py	parse_lean_axioms_line	unclassified	-
 proof_axiom_allowlist.py	parse_rocq_assumptions_block	unclassified	-
 pycsl.py	_make_temp_mlw_path	unclassified	-
 pycsl.py	_generate_rocq_obligations	unclassified	-
-pycsl.py	_sha256_file	unclassified	-
+pycsl.py	_sha256_file	cost-scale:context-manager-model	A `with ... as` BINDING
 pycsl.py	_find_coqc	unclassified	-
-pycsl.py	_check_rocq_proofs	unclassified	-
+pycsl.py	_check_rocq_proofs	cost-scale:heterogeneous-list-model	A HETEROGENEOUS LIST LITERAL
 pycsl.py	_parse_args	unclassified	-
 pycsl.py	_build_soundness_report	unclassified	-
 pycsl.py	_print_soundness_report	unclassified	-
-pycsl.py	_run_pipeline	unclassified	-
+pycsl.py	_run_pipeline	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 pycsl.py	_why3_typecheck	unclassified	-
 pycsl.py	_parse_goal_blocks	unclassified	-
-pycsl.py	_parse_why3_json	unclassified	-
+pycsl.py	_parse_why3_json	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 pycsl.py	_json_goal_records	unclassified	-
 pycsl.py	_record_answer	unclassified	-
 pycsl.py	_record_key	unclassified	-
@@ -464,14 +464,14 @@ pycsl.py	_synthesize_block	unclassified	-
 pycsl.py	_synthesize_legacy_text	unclassified	-
 pycsl.py	_residual_selectors_from_records	unclassified	-
 pycsl.py	_function_body_eqs	unclassified	-
-pycsl.py	_run_vacuity_gate	unclassified	-
+pycsl.py	_run_vacuity_gate	cost-scale:context-manager-model	A `with ... as` BINDING
 pycsl.py	_run_vacuity_gate._probe_one	unclassified	-
 pycsl.py	_run_vacuity_gate._probe_one._is_false_goal	unclassified	-
-pycsl.py	_run_why3_prove	unclassified	-
-pycsl.py	_dispatch_provers	unclassified	-
+pycsl.py	_run_why3_prove	cost-scale:heterogeneous-list-model	A HETEROGENEOUS LIST LITERAL
+pycsl.py	_dispatch_provers	cost-scale:nested-closure-lift	the nested-closure lift
 pycsl.py	_dispatch_provers._finalize	unclassified	-
 pycsl.py	_run_proofs	unclassified	-
 pycsl.py	_run_proofs._gate_vacuity_then_succeed	unclassified	-
 pycsl.py	_run_audit_mode	unclassified	-
 pycsl.py	_resolve_runtime_config	unclassified	-
-pycsl.py	main	unclassified	-
+pycsl.py	main	cost-scale:context-manager-model	A `with ... as` BINDING

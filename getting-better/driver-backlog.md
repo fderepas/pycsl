@@ -34,6 +34,72 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #61 gen #31 — THE FIVE EMITTER GUARDS THAT HOLD 53 MARKERS, each named by the emitter itself
+
+2026-09-26T12:25Z. `bin/check-trusted-reasons.py`'s `unclassified` ratchet had 442 rows, and
+classifying one is a CLAIM that needs a measurement. These 53 have one: the emitter REFUSED the
+conversion with a diagnostic that names the missing capability, and the refusal text is the
+measurement. (The 116 markers whose screen verdict is a Why3 TYPE error are deliberately NOT
+classified here — `finding-the-string-closure-retired-one-of-a-hundred-and-three.md` measured
+that a distribution of error messages is NOT a distribution of causes, and grouping them under
+one capability would be exactly the laundering rule (k) forbids.)
+
+Counts are markers whose ONLY recorded screen verdict is that refusal, matched to the ledger on
+an exact (file, qualname) pair.
+
+#### #61a THE IN-PLACE COLLECTION MUTATOR — 27 markers
+
+    `self.program_ir.setdefault(...)` MUTATES its receiver in place, and no certified
+    lowering models it: the call becomes an abstract operation that takes NEITHER the
+    receiver NOR a `writes` clause, so the mutation would be SILENTLY ABSENT …
+
+`expressions.py`'s `_SELF_FIELD_MUTATORS` guard, plus route #162's argument-mutator denylist
+and the `append`-to-a-list-parameter refusal. What retires it: a certified list/dict/set
+MUTATOR lowering whose abstract op takes the receiver AND carries a `writes` clause. For an
+`array int` field that means carrying the LENGTH in the field model — the same capability the
+`\length`-of-a-self-field work needs. This is the largest single named wall in the ledger.
+
+#### #61b A NAME REBOUND AFTER ITS DEFINITION — 5 markers
+
+    a function, method or class NAME is rebound after its definition
+
+A model that assumes a name denotes one callable cannot see a rebinding, and the guard is
+fail-closed. What retires it: a name-binding model, or a NARROWER refusal that admits the cases
+where the rebinding provably cannot reach the call site.
+
+#### #61c A `with ... as` BINDING — 7 markers
+
+    function 'verify_rocq_file' binds tf with a `with ... as` statement
+
+Route #20's refusal (`3d11ac16` — "`with ... as v` was exploitable, and it was hiding inside a
+ratchet reported green for windows"). What retires it: a context-manager model, which is the
+same missing piece `check-yield-erasure.py` records for the SUSPENSION class
+(`_Unparser.block`/`delimit`) — one capability, two populations.
+
+#### #61d A HETEROGENEOUS LIST LITERAL — 3 markers
+
+    heterogeneous list literal (contains a str element and an int element)
+
+The `array`/`seq` element type is monomorphic, so a mixed literal has no element type. What
+retires it: the `pyval` union as a list element — machinery that EXISTS
+(`preamble._emit_pydict_theory`, `generic_fold`'s `PStr`/`PInt` arms) but is not reached from a
+plain list literal.
+
+#### #61e AN ARRAY LOCAL REASSIGNED FROM A NON-LITERAL — 1 marker
+
+    reassigning an array LOCAL from a non-literal right-hand side
+
+The local's length is pinned at its literal initialiser; a non-literal RHS has no length the
+model can carry. Same root as #61a — the length is not part of the value.
+
+#### AND THE TEN NESTED-CLOSURE ONES GO TO #54, which already exists
+
+    nested function 'walk' is lifted to a sibling of its enclosing function, and the lift is
+    not faithful
+
+10 markers cite the existing `#54 the nested-closure lift` heading, joining the 2 already
+there — so #54's real population is TWELVE, not two, and that is the second-largest named wall.
+
 ### #60 gen #31 — THE SPEC LANGUAGE CANNOT STATE THE MOST VALUABLE POSTCONDITIONS
 
 2026-09-26T03:35Z. `bin/price-the-conversions.py` measured that only 146 of 922 converted

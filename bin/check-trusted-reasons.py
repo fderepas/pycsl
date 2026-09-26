@@ -154,7 +154,28 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        lines, ZERO new abstract operations, green whole-file proof in 38 minutes. Its
 #        near-twin `pycsl.py::_parse_args` is 174 lines, also proves, and is REFUSED by check
 #        1 for TEN new abstract operations — the whole of `argparse` going uninterpreted.
-MAX_UNCLASSIFIED = 442
+MAX_UNCLASSIFIED = 389   # (#49) gen #31, 2026-09-26T12:25Z — 442 -> 389. FIFTY-THREE rows
+                         # classified in one commit, and every one of them carries a
+                         # MEASUREMENT rather than a judgement: the emitter REFUSED the
+                         # conversion with a diagnostic that NAMES the missing capability,
+                         # and the refusal text is the reason. Matched to the ledger on an
+                         # exact (file, qualname) pair, and only where the marker's ONLY
+                         # recorded screen verdict is that refusal.
+                         #   27  in-place-mutator          (backlog #61a)
+                         #   12  nested-closure-lift       (#54 — its real population is
+                         #                                  TWELVE, not the two it carried)
+                         #    7  context-manager-model     (#61c, route #20's refusal)
+                         #    5  name-rebinding-model      (#61b)
+                         #    3  heterogeneous-list-model  (#61d)
+                         #    1  array-local-reassign      (#61e)
+                         # THE 116 MARKERS WHOSE VERDICT IS A WHY3 TYPE ERROR ARE
+                         # DELIBERATELY LEFT UNCLASSIFIED. `finding-the-string-closure-
+                         # retired-one-of-a-hundred-and-three.md` measured that a
+                         # distribution of error messages is NOT a distribution of causes
+                         # — three string rules cleared ONE of 103 — so grouping them
+                         # under one capability would be exactly the laundering rule (k)
+                         # forbids. They stay at `unclassified` until something measures
+                         # their cause one at a time.
 
 REASON_RE = re.compile(
     r"^(?:(?P<kind>correctness|cost-scale):(?P<val>[a-z0-9][a-z0-9._-]*)|spent-rc0|unclassified)$")
