@@ -120,6 +120,48 @@ because `irx.py`'s accessors are `let function`. Any module-level PURE helper ca
 carry a compositional postcondition right now, with no capability at all. That is where the
 next batch of postconditions is cheapest, and it needs no build.
 
+#### #60d NO MODULE-LEVEL CONSTANT IS IN SCOPE IN A CONTRACT — the scope is exactly the parameters
+
+    #@ ensures (op in OP_MAP) ==> (\result == OP_MAP[op])
+    def op_translate(op: str) -> str:  return OP_MAP.get(op, op)
+
+    [!] PIPELINE ERROR:
+    Undefined variable 'OP_MAP' referenced in contract for function 'op_translate'.
+    Available variables in scope: ['op']
+
+and the same for a SET constant, so it is not about dicts:
+
+    Undefined variable 'ROCQ_KERNEL_AXIOM_ALLOWLIST' referenced in contract for function
+    'is_rocq_assumption_allowed'. Available variables in scope: ['name']
+
+LOCATED: `core_ir_semantic._cs_clause` refuses any free variable not in `symtab` and not in
+`mc`, where `mc` is `ir.get("module_constants")` — a map Module5 populates with SCALAR module
+constants only. So the front end already HAS the channel; a collection constant simply never
+enters it.
+
+WHAT IT BLOCKS: every postcondition that must relate a result to a module LOOKUP TABLE —
+`module6_whyml/identifiers.py::op_translate` (`OP_MAP`), `proof_axiom_allowlist.py`'s two
+kernel-axiom predicates, `exception_model.py::triggers_for` (`TRIGGERS`) and
+`::all_phase1_exceptions` (`KNOWN_EXCEPTIONS`). These are small functions and two of them are
+as close to the TCB as this repository gets.
+
+THE SPIKE, AND ITS EXIT — WHICH IS HALF-FIRED ALREADY, so read this before starting. Admitting
+the NAME is one line in `_cs_clause`; the question is whether the reference has a FAITHFUL
+lowering in spec position.
+  * A DICT constant is emitted as an OPAQUE `val constant <NAME> : int` (measured in the
+    `validate_ir` emit-diff: `val constant _REQUIRED_CONTRACTS : int`). `OP_MAP[op]` with a
+    non-literal `op` therefore has no faithful reading, and `expressions._module_const_dicts`
+    exists only to CONSTANT-FOLD a literal key in body position. **EXIT FIRES for dicts** —
+    admitting the name would buy an ill-typed or opaque clause.
+  * A SET constant with LITERAL members is different and is the part worth building: a
+    spec-position `x in <SET>` has an exact, PURE, axiom-free lowering — the disjunction
+    `x = "a" \/ x = "b" \/ …` over the literal members. Byte-inert by construction (the shape
+    is a hard refusal today).
+  * CENSUS FIRST (lesson (p)): count the converted `ensures True` functions whose
+    postcondition needs ONLY that shape. `is_rocq_assumption_allowed` is NOT one of them — its
+    body is `name.strip() in ALLOWLIST`, so it is ALSO blocked by #60c. If the population after
+    that intersection is small, the honest answer is to record it and not build.
+
 #### #60c ONLY `.keys()` / `.values()` / `.items()` ARE RECOGNISED IN A CONTRACT
 
     unsupported method '.strip()' in a contract; only .keys()/.values()/.items() are
