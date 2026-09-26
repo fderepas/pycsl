@@ -11702,3 +11702,29 @@ STANDING NUMBERS: markers 451 · verbatim un-trusted 895 · functional postcondi
 (26%) · trusted-or-dependent 828 · silent-termination 56 · mirror-coverage 549/41 ·
 emitted-vacuity 0 new · yield-erasure 0 value-erasing · shadowed-selfcalls 14 ·
 cross-module-contract-parity 0 stubs assuming more than is proved · planes 74/74.
+
+## 13:10Z–14:20Z — THE CONVERSION FRONTIER RE-ADJUDICATED UNDER THE AMENDED CRITERION
+Nineteen live markers had lowered in some screen. Eleven were already adjudicated (the six
+re-trusted hollow ones, `_cache_root`, `_max_end`, `validate_ir`, `iter_child_nodes` and the
+closure/termination entries). The other EIGHT were run through
+`bin/screen-conversion-candidate.sh`:
+  REFUSED (vacuity)   `Module3_Weaver::_attach_loop_contracts`, `sertop::_sexp_tokens`
+  PORT-ABORT          `import_classifier::_stub_set`, `pycsl::_parse_args` (not facades; the
+                      DIFFERS population, which needs `--replace`)
+  LICENCE (4)         `Module5_IREmitter::_array_init_size`, `pure_ast::NodeVisitor.visit`,
+                      `pure_ast::_Unparser.__init__`, `from_sexp::_find_construct_idx`
+AND THEN MY OWN SCREEN TURNED OUT TO BE WRONG ABOUT TWO OF THE FOUR. It ran the oracles over the
+emitted `.mlw` WITHOUT CHECKING THAT THE EMISSION TYPE-CHECKS — and Why3 writes the `.mlw` even
+when it rejects it, so all four oracles read an ill-typed file happily:
+  `pure_ast::NodeVisitor.visit`    L3-tc `ref int @rho, it cannot be applied`
+  `pure_ast::_Unparser.__init__`   L3-tc `this write effect does not happen in the expression`
+Both are hard refusals, and the screen had called them a licence to spend prover time — which
+would have bought two 2.5-hour `pure_ast.py` proofs. `39354aa1` puts L3-tc in front of the
+oracles and distinguishes an emitter REFUSAL from a type error.
+HONEST RESULT after the fix: TWO licences, and the prover then refused one of them —
+`from_sexp::_find_construct_idx` leaves 3 unproven `variant decrease` goals on
+`size_pos`/`size_list_nonneg`. `Module5_IREmitter::_array_init_size` is the one still standing;
+its emit-diff is 64 lines and TWELVE new abstract ops, every one of which TAKES ITS ARGUMENT
+(`get_BinOp (x: int) : int`, `get_left`, `get_op`, `iter_get`, `iter_length`, …) — honest opacity
+on an unmodelled `ast` node, no nullary op, no erased effect, and the four oracles green. Its
+whole-file proof was launched at 14:17:59Z.
