@@ -11924,14 +11924,36 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # (inner hval/seq/map) arm. Use the ν-typed empty instead — the exact fix
             # the self-field-dict twin above applies. Byte-inert: only nu in
             # {hval, seq …, map …, array …} with an empty-collection literal default.
+            _dfir = (expr.get("args") or [None, None])[1]
+            _empty_lit = (isinstance(_dfir, dict) and _dfir.get("type") in (
+                    "DictLit", "SetLit", "ListLit", "ArrayLit", "List")
+                    and not _dfir.get("keys") and not _dfir.get("elts")
+                    and not _dfir.get("values"))
             if isinstance(nu, str) and (nu == "hval"
                     or nu.startswith(("seq ", "map ", "array "))):
-                _dfir = (expr.get("args") or [None, None])[1]
-                if (isinstance(_dfir, dict) and _dfir.get("type") in (
-                        "DictLit", "SetLit", "ListLit", "ArrayLit", "List")
-                        and not _dfir.get("keys") and not _dfir.get("elts")
-                        and not _dfir.get("values")):
+                if _empty_lit:
                     default = self._dv_missing_default(nu)
+            elif _empty_lit and (nu is None or nu == "int"):
+                # (#49) gen #31 — THE `.get(k, {})` TWIN OF THE `or {}` FALSY-DEFAULT ARM.
+                # The branch above repairs the arm clash when the codomain nu is a FAITHFUL
+                # nested shape. When nu is INT-ERASED or UNKNOWN the same clash is left
+                # standing: the `Some v_ -> v_` arm is an `int` and the explicit `{}`/`[]`
+                # default lowers to `(const (None: option int))` / `(Array.make 1024 0)`,
+                # so Why3 REJECTS the emission outright — fail-closed, never false-green.
+                # MEASURED: `core_ir_semantic.py::_namedtuple_check_subscript` and
+                # `::_typeddict_check_subscript` both fail here, on
+                #     recv = sub.get("value", {})
+                # with `NU=None KAPPA='string' DFIR={'type':'DictLit','keys':[],'values':[]}`
+                # printed at this exact site (the site was located by MARKING all six
+                # `Some v_ -> v_ | None ->` producers and reading which token reached the
+                # `.mlw` — not by reading the code and guessing).
+                # `0` IS THE ERASED SPELLING OF AN EMPTY COLLECTION, by the same argument as
+                # the `or {}` arm: the literal is FALSY and the int-erased model spells falsy
+                # as `= 0`, so the truthiness observation is EXACT and every other
+                # observation goes through a receiver-blind abstract op that constrains the
+                # value not at all. FAIL-CLOSED: only an EMPTY collection literal, and only
+                # when nu carries no faithful shape to honour.
+                default = "0"
         else:
             default = self._dv_absent_opaque(nu)   # ROUTE #57
         # LEVER F2 (see the self-field-dict twin above): thread the raw `option ν` into
