@@ -11686,3 +11686,19 @@ module that could not state them.
   It joins the CONVERSION TIER, so it runs unconditionally: 53 -> 74 planes under `--slow`.
   The suite result carries over from gate R unchanged: `src/` and `test-suite/` are
   byte-identical, and a new plane file plus a tier registration cannot affect either.
+
+## 12:13Z — INCREMENTS R AND S ARE GATED: **74 of 74 planes green**, 4029/4047
+The authoritative `--slow` run (10:52:19Z -> 12:13:01Z, on the tree with increment S's new
+plane registered):
+    [*] soundness-planes: --slow, adding 21 prover/emission plane(s)
+    [*] soundness-planes: running 74 driver-run lower bound(s)
+    [+] soundness-planes: OK — all 74 plane(s) green (fast + slow: EVERY plane).
+Together with gate R's own stages (corpus 1378+2199 INERT, mirror 2 declared movers, fidelity
+895, suite 4029/4047 with the standing EIGHTEEN and ZERO XPASS) and the two whole-file proofs
+(Module5_IREmitter with 72 postconditions, pycsl.py with the clause-drop), increments R and S
+are fully gated. The suite carries to S unchanged: `src/` and `test-suite/` are byte-identical
+and S touches only `bin/`.
+STANDING NUMBERS: markers 451 · verbatim un-trusted 895 · functional postconditions 237 of 922
+(26%) · trusted-or-dependent 828 · silent-termination 56 · mirror-coverage 549/41 ·
+emitted-vacuity 0 new · yield-erasure 0 value-erasing · shadowed-selfcalls 14 ·
+cross-module-contract-parity 0 stubs assuming more than is proved · planes 74/74.
