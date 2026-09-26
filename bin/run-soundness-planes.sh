@@ -445,11 +445,16 @@ CONVERSION_PLANES=(
     check-yield-erasure.py
     check-shadowed-selfcalls.py
     check-emitted-vacuity.py
+    # (#49) gen #31 — the fifth: may an IMPORTING module ASSUME a clause its DEFINER does not
+    # PROVE? Written the day 72 new postconditions reached an importing module that could not
+    # state them; the repair drops such a clause, and this makes "the safe direction" a
+    # checked fact rather than an intention. HARD ZERO, negative-tested.
+    check-cross-module-contract-parity.py
 )
 
 # Planes that take the shared mirror emission. Anything not listed runs bare, exactly as
 # before.
-EMIT_DIR_PLANES=" check-computed-rhs-erasure.py check-yield-erasure.py check-shadowed-selfcalls.py check-trusted-frame-honesty.py check-avatar-frame-parity.py count-trusted-directives.py check-mirror-type-only.py "
+EMIT_DIR_PLANES=" check-computed-rhs-erasure.py check-yield-erasure.py check-shadowed-selfcalls.py check-trusted-frame-honesty.py check-avatar-frame-parity.py count-trusted-directives.py check-mirror-type-only.py check-cross-module-contract-parity.py "
 # (yield-erasure and shadowed-selfcalls are in CONVERSION_PLANES above: always run, still shared.)
 SHARED_EMIT=""
 # (#49) A SECOND shared emission: the CORPUS, for `check-clause-survival.py`.

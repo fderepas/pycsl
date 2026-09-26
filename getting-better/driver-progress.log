@@ -11651,3 +11651,38 @@ only because the sentence had nowhere to go, not because the model was missing.
   `check-mirror-coverage.py` caught the first version of the guard: a NEW LIVE HELPER is a
   new UNMIRRORED function (549 -> 550, ratchet broken). Rewritten as a def-free explicit
   stack walk inside the already-`\trusted` `_emit_contracts`; 549 again.
+
+## 10:51Z — INCREMENT R: suite 4029/4047, corpus INERT, mirror 2 declared movers
+  corpus byte-diff   1378/1378 + 2199/2199, 0 MOVED — the #60a emitter patch is byte-inert
+                     for both corpora, exactly as its construction argues
+  mirror byte-diff   53/53, 2 MOVED (frontend__Module5_IREmitter, pycsl), 0 unexpected
+  fidelity           895 · mirror-coverage 549/41 at the ratchet
+  proofs             Module5_IREmitter.py PROVED with 72 new postconditions;
+                     pycsl.py PROVED with the clause-drop (both re-verified at the landed HEAD)
+  suite              4029/4047, the standing EIGHTEEN, ZERO XPASS
+  planes             **NOT RECORDED FROM THIS GATE.** Every plane in the visible tail printed
+                     `ok` and there were no REDs, but the battery died in its SUMMARY block
+                     (`PLANESRC=2`, "line 597: collects: command not found") because I EDITED
+                     `bin/run-soundness-planes.sh` AT 08:38Z WHILE IT WAS RUNNING — wall-lesson
+                     (r6), a second time, ten hours after writing it. The gate's `tail -40` also
+                     truncated the first ~36 plane lines, so "no REDs" is not a claim I can
+                     make. Re-run cleanly at 10:52Z; that run is the authoritative result.
+
+## 10:52Z — INCREMENT S LANDED (bin only): `bin/check-cross-module-contract-parity.py`
+A NEW L-PLANE asking a question nothing asked: **may an IMPORTING module ASSUME a clause its
+DEFINER does not PROVE?** A mirror function is emitted twice — as a `let` DEFINITION where its
+`ensures` are PROVED, and as a bodyless `val` STUB in every importer where they are ASSUMED —
+and nothing compared the two. Written the same hour #60a's 72 clauses reached an importing
+module that could not state them.
+  MEASURED: 248 symbols appear as both a stub and a definition; 67 carry EXACTLY what is
+  proved; 447 carry FEWER (sound, merely incomplete — a MEASUREMENT, not a ratchet, because it
+  RISES when a definition is strengthened); **ZERO carry more. HARD ZERO.**
+  NEGATIVE-TESTED, and the first attempt FAILED TO FIRE, which located the plane's scope:
+  injecting `ensures { 99 = 100 }` on `val self__py_expr_to_ir_1` was NOT caught (an AVATAR has
+  no `let` counterpart, so it is outside the population — that is
+  `check-shadowed-selfcalls`'s half); injecting it on `val _contractparser___mk_in` WAS caught,
+  naming the symbol, the assuming file and the defining file. The scope limit is now in the
+  plane's own docstring.
+  It joins the CONVERSION TIER, so it runs unconditionally: 53 -> 74 planes under `--slow`.
+  The suite result carries over from gate R unchanged: `src/` and `test-suite/` are
+  byte-identical, and a new plane file plus a tier registration cannot affect either.
