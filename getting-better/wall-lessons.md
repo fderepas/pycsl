@@ -7960,3 +7960,26 @@ ANY tracked top-level package is part of the program.** `json/` is the only one 
 (checked: it is the only root directory with an `__init__.py`), and a second one would
 reintroduce this silently. The honest fix upstream is for the resolver to stop searching CWD,
 or for the repo to stop keeping a package at the root; until then, copy it.
+
+### (r6, second occurrence, ten hours later) I edited a running script AGAIN — and the lesson needed a mechanism, not a paragraph
+
+Wall-lesson (r6) was written at 01:11Z after editing `gate_o.sh` mid-run cost an hour-long
+suite stage. At **08:38Z the same day** I edited `bin/run-soundness-planes.sh` while gate R's
+`--slow` battery — launched at 08:33:13Z — was still reading it, to register a new plane.
+
+Noticed within four minutes and restored with `git checkout --` (the running shell's byte
+offsets are only valid against the ORIGINAL content, so putting the original bytes back is the
+repair, not "finishing the edit quickly"). The patch was saved first.
+
+WHY THE PARAGRAPH WAS NOT ENOUGH. (r6) says "change a copy, never the file a `nohup`ed shell
+is still reading", and I read it as a rule about GATE SCRIPTS — the thing that had just bitten
+me. `bin/run-soundness-planes.sh` is not a gate script; it is a repo tool the gate INVOKES,
+and it is exactly as much "a file a running shell is reading". The rule's SCOPE was the part I
+got wrong, which is the same failure shape as (p6) (a matcher that answers a question it was
+never asked) and (s6) (a scratch tree that is not the tree).
+
+THE MECHANISM, stated so the next generation does not need the paragraph: **while any gate is
+running, the only writable paths are `getting-better/**` and a scratch directory.** `bin/` and
+`src/` are INPUTS to a running gate — `src/` because the byte-diff sweep and the suite read it,
+`bin/` because the battery is a shell script being read line by line. If an edit cannot wait
+for the gate, it goes in a patch file and is applied afterwards.
