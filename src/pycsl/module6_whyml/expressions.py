@@ -14156,6 +14156,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         value = expr["value"]
+        # (#49) gen #31, backlog #60a — `\result["<key>"]` IN A POSTCONDITION, on a function
+        # whose return type is the faithful `emit_ir` sum. The BODY position has read
+        # reflection keys through `_EMIT_IR_PROJ` for many generations (`kind_of`,
+        # `name_of`, `op_of`, …); SPEC position fell all the way through to the opaque
+        # `val subscript_get (x: int) (i: int) : int`, which is a PROGRAM val and therefore
+        # `unbound function or predicate symbol 'subscript_get'` in a logical term. So the
+        # postcondition could not be WRITTEN — not because the model was missing, but
+        # because the sentence had nowhere to go.
+        # THIS IS THE SINGLE MOST VALUABLE POSTCONDITION FAMILY IN THE MIRROR: the ~28
+        # `_csl_*` / `_py_expr_*` IR CONSTRUCTORS in `frontend/Module5_IREmitter.py` each
+        # return a dict literal whose `"type"` key IS the node's tag, and
+        # `\result["type"] == "None"` pins exactly the fact every Module-6 walker's
+        # dispatch depends on. Until now all 28 carried `#@ ensures True`.
+        # BYTE-INERT BY CONSTRUCTION: it fires only in spec position, only on `\result`,
+        # only when the enclosing function returns `emit_ir`, and only for a literal key in
+        # the projection table — and a contract of that shape is an L3-tc ERROR today, so
+        # no passing program in either corpus or any mirror can contain one.
+        if (getattr(self, "_in_spec", False) and isinstance(value, dict)
+                and value.get("type") == "Result"
+                and getattr(self, "_func_return_type", None) == "emit_ir"):
+            _r60 = expr.get("index", {})
+            if (isinstance(_r60, dict) and _r60.get("type") == "String"
+                    and _r60.get("value") in _EMIT_IR_PROJ):
+                return f"({_EMIT_IR_PROJ[_r60['value']]} result)"
         # opaque-nested-map-reader: `<alias>[k]["<lit>"]` where <alias> aliases an
         # opaque instance map (`getattr(self, "_field", {})`) → the boundary reader
         # `<base>_<lit> k : string` (the nested `record_types[tag]["whyml_name"]`

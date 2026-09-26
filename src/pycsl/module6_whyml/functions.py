@@ -7,6 +7,11 @@ from errors import PyCSLIRError
 from module6_whyml.identifiers import whyml_ident, safe_exc_name, whyml_string_literal
 from module6_whyml.ir_scanner import IRScanner
 from module6_whyml.scc import emits_as_logic_symbol
+# (#49) gen #31, #60a: the ONE emit_ir reflection projection table, defined in
+# `expressions.py` and referenced here so the `\result["<key>"]` clause guard keys on
+# exactly the same set the spec-position lowering fires on. A second copy of the key
+# list would be a second thing to keep in step.
+from module6_whyml.expressions import _EMIT_IR_PROJ
 
 
 class FunctionEmissionMixin:
@@ -2581,6 +2586,42 @@ class FunctionEmissionMixin:
         for req in requires_exprs:
             lines.append(f"    requires {{ {self._expr_to_whyml(req, spec_refs)} }}")
         for ens in ensures_exprs:
+            # (#49) gen #31, backlog #60a — A CLAUSE THE IMPORTING CONTEXT CANNOT STATE IS
+            # DROPPED, not mis-lowered. `\result["<key>"]` on an `emit_ir`-returning
+            # constructor lowers to the faithful projection (`kind_of result`) IN THE MODULE
+            # THAT DEFINES IT, where the return type IS `emit_ir`. An IMPORTING module types
+            # the same function's stub `map int (option int)` — the opaque dict model — and
+            # there the clause has no faithful reading at all: it emitted
+            # `subscript_get result 1342639453`, an UNBOUND PROGRAM SYMBOL in a logical
+            # term, and `pycsl.mlw` failed to type-check with 72 of them.
+            # Dropping it is SOUND IN THE ONLY DIRECTION THAT MATTERS: a `val` with fewer
+            # `ensures` ASSUMES LESS, so every caller obligation is unchanged or harder.
+            # The DEFINING module still proves the clause; the importer simply does not get
+            # to use it. That the same function has two modelled return types in two files
+            # is a real inconsistency, and it is recorded rather than papered over — see
+            # backlog #60a.
+            # Structural, and DELIBERATELY WITHOUT A HELPER: `bin/check-mirror-coverage.py`
+            # ratchets the number of LIVE functions with no mirror counterpart, and a new
+            # `def` here — nested or not — is a new unmirrored function. An explicit stack
+            # walk costs four lines and moves no ratchet.
+            if (getattr(self, "_emitting_val_contract", False)
+                    and getattr(self, "_func_return_type", None) != "emit_ir"):
+                _s60 = [ens.to_dict() if hasattr(ens, "to_dict") else ens]
+                _drop60 = False
+                while _s60 and not _drop60:
+                    _n60 = _s60.pop()
+                    if isinstance(_n60, dict):
+                        _v60, _i60 = _n60.get("value"), _n60.get("index")
+                        if (_n60.get("type") == "Subscript"
+                                and isinstance(_v60, dict) and _v60.get("type") == "Result"
+                                and isinstance(_i60, dict) and _i60.get("type") == "String"
+                                and _i60.get("value") in _EMIT_IR_PROJ):
+                            _drop60 = True
+                        _s60.extend(_n60.values())
+                    elif isinstance(_n60, list):
+                        _s60.extend(_n60)
+                if _drop60:
+                    continue
             # Tag linear ensures with a comment so the runner can classify VCs.
             # Linear VCs are candidates for omega proofs in Lean 4 (Task 7).
             lin_tag = " (* linear *)" if self._is_linear_vc([ens], requires_exprs) else ""

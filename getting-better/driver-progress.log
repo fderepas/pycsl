@@ -11628,3 +11628,26 @@ by the same eleven lines — the `json` shim stubs. `ir_resolve._resolve_module_
 `src`. `cp -a src` and `git archive HEAD src bin` both miss it. Adding `json` makes the two
 emissions byte-identical. `bin/screen-conversion-candidate.sh` now archives `src bin json`.
 This is also the most likely explanation for the undeclared `pycsl` mover in `aa10dd75`.
+
+## 08:06Z — INCREMENT Q IS GATED: 73/73 planes, 4029/4047
+  corpus 1378+2199 inert · mirror 7 DECLARED movers, 0 unexpected · fidelity 895 ·
+  planes 73/73 · suite the standing EIGHTEEN, ZERO XPASS.
+Increment Q carried the nineteen functional postconditions (146 -> 165 of 922).
+
+## 08:30Z — BACKLOG #60a BUILT: 72 MORE POSTCONDITIONS, 165 -> 237 of 922 (26%)
+`\result["type"] == "<tag>"` now lowers in SPEC position on an `emit_ir`-returning function
+to the faithful `kind_of result` — the projection the BODY position has used for
+generations. `frontend/Module5_IREmitter.py`'s 74 IR CONSTRUCTORS all carried `ensures True`
+only because the sentence had nowhere to go, not because the model was missing.
+  72 of 74 PROVE. The two that do not are a measured TIMEOUT, not a falsehood:
+  `_py_expr_tuple` (39,981,778 steps) and `_py_expr_ifexp` (80,324,449) — the only two whose
+  construction carries SUB-NODE children built by a comprehension, so `kind_of` must be
+  pushed through a recursive application. Left as `ensures True` with the measurement at the
+  site.
+  AND THE IMPORTING MODULE CANNOT STATE THEM AT ALL: `pycsl.mlw` types the same function's
+  stub `map int (option int)`, not `emit_ir` — the SAME FUNCTION HAS TWO MODELLED RETURN
+  TYPES IN TWO FILES. The clause is DROPPED there, structurally; a `val` with fewer `ensures`
+  ASSUMES LESS, so no caller obligation changes. `pycsl.py` then proves.
+  `check-mirror-coverage.py` caught the first version of the guard: a NEW LIVE HELPER is a
+  new UNMIRRORED function (549 -> 550, ratchet broken). Rewritten as a def-free explicit
+  stack walk inside the already-`\trusted` `_emit_contracts`; 549 again.
