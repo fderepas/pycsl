@@ -276,6 +276,46 @@ START (standing), not as an interrupt. Rules:
   mechanism for STAYING ALIVE until then. Both are required — neither substitutes for the other.
 - **Interruptibility.** A user message mid-run is honored immediately (answer it, then resume or stop per
   their instruction). Each increment being committed means an interrupt is always at a clean boundary.
+- **CARVE-OUT (lesson (a4), gen #31) — DO NOT EXTRACT A HELPER METHOD IN A MIRRORED FILE.**
+  Ordinary refactoring instinct says put ~30 new lines in a private method. In
+  `src/pycsl/**` that costs two planes at once and both are structural: (1)
+  `check-mirror-coverage.py`'s ratchet moves (a live def with NO mirror counterpart is not
+  `\trusted`, it is ABSENT — it carries no marker, so the headline count cannot see it);
+  and (2) every mirror that IMPORTS the module gains an unused abstract
+  `val <cls>___<method> ...` in its emission, which by lesson (r) owes a whole-file
+  re-proof of exactly those mirrors. Measured on route #218: ratchet 549 -> 550 and two
+  mirror emissions moved, both of which vanished when the block was written INLINE at the
+  site that runs it — and the inline is safe precisely when the enclosing method's mirror
+  twin is `\trusted`, so check that first. Write the block where it runs; extract only
+  when the extraction is itself the point.
+- **CARVE-OUT (lesson (b4), gen #31) — A ZERO BYTE-DIFF DOES NOT CLEAR A FRONT-END CHANGE.**
+  The byte-diff compares EMISSIONS; `frontend-only-conformance.py` / `core-only-conformance.py`
+  compare the INTERMEDIATE IR against frozen goldens. A Module 1-5 change can be
+  emission-inert today and still alter the IR — route #218 added one optional top-level key,
+  swept 0 MOVED across 1310 + 2199 files, and turned 13 goldens red. Run the FAST BATTERY,
+  not just the sweep, before calling a front-end increment inert; and when goldens must be
+  refreshed, PROVE the per-golden delta is only the intended key
+  (`only-new=[...] missing=[] changed=[]`) before rewriting any of them.
+- **CARVE-OUT (lesson (u6), gen #31) — DIFF THE BATTERY AGAINST THE GATES THE DOCUMENTS
+  DECLARE, AND PERTURB A MEMBER OUTSIDE EVERY "ALL N ARE GREEN" POPULATION.**
+  Two independent ways a gate battery lies, both measured by adding ONE line to a gate script:
+  (1) `bin/self-annotate-mirror-check.sh` is declared as half of the fidelity plane by
+  `self-tcb-reduction.md`, `triage-ranked-tcb.md`, `README.md` and four impl docs, exits 1 on
+  drift, and is in NEITHER `bin/run-soundness-planes.sh` NOR `bin/run-reference-tests.sh`. It
+  had been red for an unknown number of generations while every gate reported fidelity green.
+  The existing discipline — diff `ls bin/` against the plane array — could not find it, because
+  the gate is declared in PROSE. **So the list to diff the battery against is the set of gates
+  the DOCUMENTS claim, not the set of files that look like planes.** Do this once per window,
+  early: it is a `grep` over the skill + `triage-ranked-tcb.md` + `README.md`, and it found a
+  standing red in minutes. (2) `check-self-annotate-sync.sh` prints "all 896 un-trusted mirror
+  functions are verbatim copies of the live source" while pairing mirror defs with live defs IN
+  THE SAME FILE ONLY — so the 17 `#@ sibling_concrete` CROSS-FILE relocations are not in the
+  896, and perturbing one left the plane green at exit 0. Three had already drifted.
+  **Before quoting any plane's count, ask what its POPULATION is and perturb a member OUTSIDE
+  it. Every plane whose message begins "all" owes that test**, and the test costs one scratch
+  tree and one edit. This is the sixth instrument failure of one shape in a single generation,
+  and the first whose wrong scope produced a false ALARM rather than a false all-clear — which
+  is why the rule is about SCOPE, not about polarity.
 - **Escalate-not-thrash, time-aware.** A per-wall attempt budget still applies; additionally, do not START
   a full cycle whose fable-review + spike cannot plausibly finish before the deadline — defer it (record
   the wall-signal for the next run) and spend the tail on cheaper items.
@@ -382,12 +422,30 @@ consumes tokens continuously for the whole window, which is what "for 13 hours" 
   bool}` where `cheap_win` is the base loop's own measure-before-build verdict (port → whole-body
   `--fun` → classify → revert). Escalate to the report→review→impl→execute cycle ONLY if
   `attempts_spent ≥ the per-stub budget` AND `cheap_win == false` AND the stub is not already in
-  `wall-lessons.md` as CERTIFIED-BOUNDARY **AND the cheap queue is empty** (Phase 1 has drained — the base
+  `wall-lessons.md` as CERTIFIED-BOUNDARY **AND the stub is STILL `\trusted` AT HEAD** (the
+  FRESHNESS PRECONDITION below) **AND the cheap queue is empty** (Phase 1 has drained — the base
   loop reported `no_cheap_remaining`; see §P). Draining cheap wins ALWAYS precedes breaking a wall.
   Otherwise the base loop handles it inline. The driver
   gates on the RETURNED wall-signal, not by reading the sub-loop's work — this is the cost control
   (the cycle is expensive: report + fable + impl + multi-agent execute) AND the barrier (the driver
   decides from soft outputs only).
+  - **FRESHNESS PRECONDITION — re-verify the TARGET STILL EXISTS before escalating (2026-08-26).**
+    A backlog / `wall-lessons.md` entry names a wall's target stub, and that entry can be STALE: a
+    LATER window may have converted the target by a DIFFERENT route and never retired the record.
+    So before any escalation, run the one-command oracle on the target's own mirror file:
+    ```bash
+    grep -cF '#@ \trusted' src/self-annotate/src/<path>.py    # 0 => the target is ALREADY CONVERTED
+    ```
+    If the named stub is not among them, the item is **REFUTED AS STALE** — payoff 0, and NOT a
+    CERTIFIED-BOUNDARY — so strike it from the ladder, record which commit actually converted it,
+    and advance to the next lever in the SAME turn. Never open a report/review/impl cycle on a stub
+    that is no longer trusted. *Observed 2026-08-26:* the `find_assigned_vars` structural-
+    robustification item sat at the TOP of the ladder, and had been escalated into the authority
+    amendment as a pre-authorized RISKY build, for a target (`_collect_mutations`) that commit
+    `c6557971` had already converted via the heterogeneous value-model root — `ir_scanner.py`'s
+    mirror had **0** trusted markers. The chain `#18 -> #21 -> #22 -> "the ONLY remaining path
+    is ..."` had propagated a reopening for a wall that no longer existed. The rule generalizes to
+    every number a backlog entry carries: **re-measure, never inherit.**
 - **Gate R (reviewer independence — WITH ARTIFACT TEETH).** `XXX-response.md` is accepted only if
   BOTH hold: (a) it was authored by an actor whose context contained `XXX.md` + `L` and provably
   NOT the sub-loop's rationale (enforced by spawning fable with only the report + repo/oracle
@@ -491,6 +549,20 @@ git worktree add --detach <wt> HEAD; ( cd <wt> && bin/byte-diff-sweep.sh /tmp/be
 bin/byte-diff-sweep.sh /tmp/after && diff -rq /tmp/before /tmp/after                     # inertness (or sanctioned reset)
 for f in $(find src/self-annotate/src -name '*.py'); do grep -cF '\trusted' "$f"; done | paste -sd+ | bc  # count (grep -F: avoid ugrep \t quirk)
 ```
+**CARVE-OUT (lesson (r), 2026-08-26) — EMISSION-DIFF BEFORE PROOF SWEEP.** When an increment changes
+the EMITTER, do NOT scope the re-proof set as "every file matching the gate". Emit every mirror in a
+worktree-at-HEAD and in the patched tree, and `diff` them. Only the files that actually change need a
+whole-file proof, and the diff itself is evidence that nothing unintended was emitted (a blind all-green
+sweep proves the weaker thing). Measured payoff: 8 of 52 mirrors changed, and the two slowest mirrors —
+one exceeding 9 minutes — dropped out of the set entirely.
+
+**CARVE-OUT (lesson (s), 2026-08-26) — A SPIKE PROVES THE TARGET, THE EMITTER GIVES THE DISTANCE.** Never
+name a capability gap from a hand-written spike alone: the spike models the construct the way YOU chose,
+which may be harder than what the emitter actually produces. Before writing any gap into a plan or a
+backlog item, emit that construct through `pycsl.py --no-proof --keep-mlw` and read the generated WhyML.
+Measured payoff on one wall: a 7-item gap list collapsed to 4, and the discarded items included a
+"required lexicographic loop variant" that the emitter's exception-based `break` lowering makes moot.
+
 The **spike** oracle (Gate S) is a hand-written `.mlw` proven with `why3 prove -P alt-ergo` (fall back
 to `-P z3`), asserting the impl plan's make-or-break target is reachable/provable/ledger-clean — run,
 not argued (`getting-better/composition-wall/*.mlw` are the templates).
