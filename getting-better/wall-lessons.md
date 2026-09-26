@@ -8013,3 +8013,65 @@ SCOPE, not a wrong step: a plane that is not in the gate, a matcher that takes t
 a tree that is not the tree, a reset that is not the reset. Every one of them produced a
 confident number. **The question that catches all four is "what exactly did I measure?", asked
 about the instrument rather than about the result.**
+
+### (u6) A DECLARED GATE THAT NO BATTERY RUNS IS NOT A GATE, AND ITS POPULATION IS NOT THE THING ITS MESSAGE NAMES
+
+(q6) said "an oracle that is not in the gate is not a gate" about a plane that WAS in the
+battery under a flag nobody passed. This is the harder version of the same defect, twice over,
+found by adding ONE line to a gate script.
+
+**FIRST: the gate that is in no list at all.** `bin/self-annotate-mirror-check.sh` is named as
+half of the fidelity plane by `self-tcb-reduction.md`, by `triage-ranked-tcb.md` ("fidelity
+(`check-self-annotate-sync.sh` ∧ `self-annotate-mirror-check.sh`)"), by `README.md` and by four
+impl docs. It exits 1 on drift. It appears in NEITHER `bin/run-soundness-planes.sh`'s 74 planes
+NOR `bin/run-reference-tests.sh`. The plane list's own maintenance note — the one written for
+lesson (e), "found by diffing `ls bin/` against this array" — mentions only the OTHER
+fidelity script, and concludes "a duplicate, not a gap". This one was never named, so nobody
+went looking. Added to gate U it went RED on the first run, and RED IDENTICALLY at the previous
+gate's tree: it had been red for an unknown number of generations while every gate reported
+fidelity green.
+
+So the diff-`ls bin/`-against-the-array discipline is necessary and NOT sufficient: it finds
+`check-*` scripts, and the thing it missed is a gate that is declared in PROSE, in four
+documents, including the base loop's own plan. **The list to diff the battery against is the
+set of gates the DOCUMENTS claim, not the set of files that look like planes.**
+
+**SECOND, and worse: the plane that IS in the battery reports a count over a population that
+excludes the failure.** `check-self-annotate-sync.sh` prints
+
+    OK: all 896 un-trusted self-annotate mirror functions … are verbatim copies of the live source
+
+and it pairs each mirror def with the live def OF THE SAME QUALIFIED NAME IN THE SAME FILE. A
+mirror def whose live twin lives in a SIBLING file is therefore not one of the 896 — it is not
+compared at all. That population is not empty: `#@ sibling_concrete` (32 uses, 7 files) exists
+precisely to put a CONCRETE copy of a sibling mixin's method into a mirror file so its own
+`self._m(...)` sites lower to a real body instead of a receiver-less abstract `val`. Those
+copies are UN-TRUSTED, so their contracts are PROVED, and the file's other verified functions
+call them to discharge THEIR obligations.
+
+MEASURED, by perturbation rather than by reading: changing the body of the `sibling_concrete`
+duplicate of `_field_label` in `self-annotate/src/module6_whyml/statements.py` left the plane
+printing the same "all 896 … verbatim" and exiting 0. And THREE of the seventeen had ALREADY
+drifted — each one the mirror copy being BEHIND the live body:
+
+    _array_coerce_arg   live returns '(any (array int))' twice; the mirror '(Array.make 1 0)'
+    _field_type_of      live gained a `_record_field_elem_locals` fallback; the mirror has none
+    _rhs_yields_map     live gained the `getattr(self, "<field>", …)` arm; the mirror has none
+
+`(any (array int))` is a FRESH UNCONSTRAINED array WITH AN EFFECT and `(Array.make 1 0)` is a
+pure one-element array. A proof discharged against the second says nothing about a compiler
+that emits the first.
+
+**THE RULE, and it is a two-part rule because the two halves fail independently.**
+1. Diff the battery against the set of gates the DOCUMENTS declare, not against `ls bin/`. A
+   gate named in prose and run by nothing is worth exactly its exit code, which nobody reads.
+2. Before quoting a plane's count, ask WHAT ITS POPULATION IS, then PERTURB A MEMBER THAT IS
+   OUTSIDE IT. "All N are verbatim" is a claim about N, and the interesting elements are the
+   ones the denominator never saw. Every plane whose message begins "all" owes this test.
+
+This is the sixth instrument failure of generation #31 sharing one shape — a confident number
+whose SCOPE is wrong ((p6) bare names, (q6) the fast set, (s6) a tree missing `json/`, (t6) a
+per-file reset, the screen that read an ill-typed `.mlw`) — and the first where the wrong scope
+produced a false ALARM rather than a false all-clear. Both cost the same: a number nobody can act
+on. The repair is the same too, and it is the standing rule: **negative-test the instrument on an
+input whose answer you know before you spend its verdict.**
