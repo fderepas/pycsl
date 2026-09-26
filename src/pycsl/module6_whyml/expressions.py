@@ -4806,6 +4806,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # target's `code += f"…"` routes to `str_concat_op`. Gated on @mutable_state →
         # byte-identical for every other f-string.
         if t == "FString":
+            # (#49) gen #31 — THE CLASSIFIER NOW AGREES WITH THE LOWERING IT ALREADY HAS.
+            # `_handle_fstring_expr` has TWO string paths: an UNGATED one, taken whenever
+            # EVERY part is itself a string expression (`if all(self._is_string_expr(p) for p
+            # in parts)` -> the `str_concat_op` chain), and the GATED one below for a MIXED
+            # f-string. This predicate only ever implemented the GATED one, so an ALL-STRING
+            # f-string outside those gates LOWERED to a `string` and was CLASSIFIED as an int
+            # by every consumer of it — the two halves of one decision, disagreeing.
+            # MEASURED minimally in the CORPUS language, not inferred:
+            #     warnings.warn(f"Function '{s}': bad", stacklevel=2)     L3-tc RED
+            #       `val warnings_warn_1 (x0: int)` applied to
+            #       `(str_concat_op (str_concat_op "Function '" s) "': bad")`
+            #     warnings.warn(s + "x")            L3-tc OK   (wrapped in `str_hash_op`)
+            #     warnings.warn("plain literal")    L3-tc OK
+            #     warnings.warn("one " "two")       L3-tc OK   (implicit literal concat)
+            #     warnings.warn(s)                  L3-tc OK
+            #     warnings.warn("x".join([s]))      L3-tc OK
+            # The f-string was the ONLY string shape of the six that failed, and it failed
+            # because this predicate said int while the emission said string.
+            # FAIL-CLOSED: the condition is the LOWERING'S OWN, evaluated on the same parts
+            # by the same predicate, so the two cannot disagree again by construction. A
+            # MIXED f-string (any non-string part) is untouched and still falls to the gates.
+            _fparts = ir.get("parts") or []
+            if _fparts and all(self._is_string_expr(_fp) for _fp in _fparts):
+                return True
             return (bool(ir.get("parts"))
                     and (getattr(self, "_current_self_type", None)
                          in getattr(self, "_mutable_state_classes", set())
