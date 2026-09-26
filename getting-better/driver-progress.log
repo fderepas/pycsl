@@ -11728,3 +11728,35 @@ its emit-diff is 64 lines and TWELVE new abstract ops, every one of which TAKES 
 (`get_BinOp (x: int) : int`, `get_left`, `get_op`, `iter_get`, `iter_length`, …) — honest opacity
 on an unmodelled `ast` node, no nullary op, no erased effect, and the four oracles green. Its
 whole-file proof was launched at 14:17:59Z.
+
+## 17:39Z — INCREMENT T IS GATED: 74 of 74 planes, 4029/4047 — the 450 tree stands
+The battery launched 15:18:57Z, interrupted in its SUITE stage at 17:28Z by the session stop,
+finished on its own (the detached shell survived) at 17:39:18Z. Every stage:
+  corpus byte-diff   1378/1378 pycsl-reference + 2199/2199 python-reference, 0 MOVED —
+                     `_array_init_size`'s conversion is byte-inert for both corpora
+  mirror byte-diff   53/53, 1 MOVED (frontend__Module5_IREmitter), 0 unexpected. `MIRCMP=1`
+                     ONLY because the script DECLARED `pycsl` as a second mover and the
+                     compare fail-louds on an OVER-declaration ("its emission is UNCHANGED").
+                     That is the instrument being right: #60a's clause-drop was in the PREVIOUS
+                     increment's emission, not this one's.
+  fidelity           896 verbatim un-trusted (895 -> 896)
+  planes --slow      **74 of 74 GREEN** — fast + slow, EVERY plane, including all four
+                     conversion oracles and the new cross-module-contract-parity plane
+  suite              4029/4047, the standing EIGHTEEN confirmed serially, ZERO XPASS
+                     (3134 PASS · 895 XFAIL · 18 FAIL)
+
+STANDING NUMBERS (after increment T, the authoritative 450 tree)
+    markers                       450   (grep-substring 477, offset 27, attached 450)
+    verbatim un-trusted           896
+    converted mirror functions    923
+    functional postconditions     237 of 923 (26%)
+    trusted-or-dependent          828   (at the ratchet ceiling)
+    silent-termination            56
+    mirror-coverage               549 live / 41
+    reasons TSV                   450 rows, unclassified 286 (ratchet tightened)
+    emitted-vacuity               0 new erasures
+    yield-erasure                 0 value-erasing, 2 suspension
+    shadowed-selfcalls            14
+    cross-module-contract-parity  0 stubs assuming more than is proved
+    planes                        74/74 under --slow
+    suite                         4029/4047, standing EIGHTEEN, zero XPASS
