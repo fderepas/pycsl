@@ -157,10 +157,17 @@ lowering in spec position.
     spec-position `x in <SET>` has an exact, PURE, axiom-free lowering — the disjunction
     `x = "a" \/ x = "b" \/ …` over the literal members. Byte-inert by construction (the shape
     is a hard refusal today).
-  * CENSUS FIRST (lesson (p)): count the converted `ensures True` functions whose
-    postcondition needs ONLY that shape. `is_rocq_assumption_allowed` is NOT one of them — its
-    body is `name.strip() in ALLOWLIST`, so it is ALSO blocked by #60c. If the population after
-    that intersection is small, the honest answer is to record it and not build.
+  * **CENSUSED 2026-09-26T12:20Z, AND THE ANSWER IS ZERO — DO NOT BUILD EITHER HALF.** Twelve
+    mirror files DO hold module-level set/frozenset constants with literal string members
+    (`audit_proof._ROCQ_DECL_KEYWORDS`, `proof2why3/parser._KNOWN_FN_HEADS`,
+    `module6_whyml/statements._BOOL_BINOPS`, `pure_ast._SOFT`, …), and **not one CONVERTED
+    `ensures True` function has a body of the form `return <param> in <that constant>`** — the
+    only shape the pure disjunction lowering would serve. `is_rocq_assumption_allowed` looked
+    like the witness and is not: its body is `name.strip() in ALLOWLIST`, so it is ALSO blocked
+    by #60c, and fixing #60d alone leaves it exactly where it was.
+    So #60d is RECORDED, not queued. The entry is kept because the LOCATION is the valuable
+    part — `_cs_clause` + `ir["module_constants"]` — for whoever needs a module constant in a
+    contract for a different reason.
 
 #### #60c ONLY `.keys()` / `.values()` / `.items()` ARE RECOGNISED IN A CONTRACT
 
