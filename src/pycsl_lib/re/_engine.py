@@ -48,6 +48,18 @@ class ReMatch:
 
     __slots__ = ('_string', '_start', '_end', '_groups')
 
+    # (#49) gen #31 — THE CONSTRUCTOR MUST DISCHARGE THE CLASS INVARIANT, and it did not.
+    # `bin/check-stdlib-modules-verify.py` reported `re/__init__.py` NEWLY NOT VERIFYING on
+    #     goal _check_class_inv_rematch : forall ... _start = start -> _end = py_end ->
+    #                                     ((_start >= 0)) /\ ((_end >= _start))
+    # which is FALSE with no precondition on `start`/`end` — `ReMatch(s, -1, -5, g)`
+    # refutes it. The two `#@ class invariant` lines above the class are real obligations
+    # (they were SILENTLY DISCARDED before #34 moved them to the class anchor, which is
+    # why nothing had ever asked the constructor to establish them). Alt-Ergo answers
+    # `Unknown (why3: Out of memory)` rather than `Invalid`, so the verdict read as a
+    # resource problem for as long as nobody looked at the goal.
+    #@ requires start >= 0
+    #@ requires end >= start
     def __init__(self, string, start, end, groups):
         self._string = string
         self._start = start
