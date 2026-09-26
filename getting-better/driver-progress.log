@@ -11579,3 +11579,33 @@ real obligations and the constructor does not discharge them. Alt-Ergo answers "
 NEXT: add `#@ requires start >= 0` / `#@ requires end >= start` to `ReMatch.__init__` in
 `src/pycsl_lib/re/_engine.py`, re-emit, and measure the corpus byte-diff (pycsl_lib is not
 the corpus, but corpus programs import it).
+
+## 04:31Z — ALL 73 PLANES GREEN, for the first time this session
+Gate P's `--slow` battery: `[+] soundness-planes: OK — all 73 plane(s) green (fast + slow:
+EVERY plane).` The five REDs the 21:48Z run found are all closed:
+  yield-erasure · emitted-vacuity · shadowed-selfcalls   the six hollow conversions, re-trusted
+  getattr-erasure                                        route #213's two witnesses registered
+  stdlib-modules-verify                                  `ReMatch.__init__` discharges its
+                                                         class invariant (84 VERIFY / 20 known)
+Corpus byte-diff 1378+2199 all inert; mirror 53/53 inert; fidelity 895. Suite began 04:30:34Z.
+STRUCTURAL: `bin/run-soundness-planes.sh` now runs the four CONVERSION oracles
+unconditionally (52 fast planes, ~6.5 min, was 48 / ~2.5), and `bin/screen-conversion-
+candidate.sh` runs them on a CANDIDATE in ~5 minutes before any prover time is spent.
+
+## 04:31Z — CONTRACT STRENGTHENING, prepared offline while the gate ran
+`bin/price-the-conversions.py` (new) measured that only 146 of 922 converted mirror
+functions carry a functional postcondition; 495 prove purity only, 207 a frame only.
+NINETEEN new postconditions written and PROVED in a scratch tree, ready to land:
+  module6_whyml/irx.py                  10   the whole typed IR-accessor layer, against the
+                                             FAITHFUL `map string (option string)` model
+  proof2why3/ir.py                       3   Var.pp, BoolLit.pp (total over the int-modelled
+                                             bool), Unsupported.pp
+  module6_whyml/expr_ghost_collections   3   the three empty-collection emitters
+  audit_proof.py                         1   AuditReport.exit_code
+  proof2why3/crosscheck.py               1   _module_namespace_of
+  module6_whyml/expr_ghost_spec_ops.py   1   _handle_ghost_copy_expr
+THREE CLASSES REFUSED BY THE CONTRACT LANGUAGE, drafted as backlog #60 — and they are the
+classes worth the most: `\result["type"] == "Var"` is `unbound symbol 'subscript_get'` (28
+IR constructors in Module5_IREmitter), `self.lhs.pp()` is a parse error (the recursive
+pretty-printers), and `.strip()` is refused in a contract (the two kernel-axiom allowlist
+predicates). All three are SPEC-LANGUAGE gaps, not proof gaps.
