@@ -11877,3 +11877,21 @@ ONLY 2 OF THE 16 `string -> int` ROWS WERE THE F-STRING. And the f-string repair
 markers INTO `string -> int` (`_build_witness_str`, `_build_soundness_report`), so a class count
 is not a cause count — the same correction the 116-row census already had to make twice.
 Artefacts: `getting-better/seam-{before,after}-three-repairs.tsv`.
+
+## 20:08Z — (u6) FIRED AGAIN THE SAME HOUR: `bin/run-self-annotation-suite.sh` IS ALSO IN NO BATTERY
+Applying (u6)'s own rule — diff the battery against the gates the DOCUMENTS declare — to the next
+script the documents name. `bin/run-self-annotation-suite.sh` runs `pycsl` over **38** designated
+modules (37 of them the MIRROR: `statements.py`, `expressions.py`, `preamble.py`, `pure_ast.py`,
+`Module5_IREmitter.py`, `core_ir_semantic.py`, …) and exits 1 on any failure. It is called a GATE
+by `list-adt-foundation-build.md` ("**GATE:** after F2 … must be GREEN"), by `item34.md`, by
+`m1-size-rename-project.md` and by `targeted-refactor.md`. It is in NEITHER
+`bin/run-soundness-planes.sh` NOR `bin/run-reference-tests.sh`.
+
+Unlike `self-annotate-mirror-check.sh` there is a plausible REASON — the suite includes
+`pure_ast.py` (a measured 2.5-hour proof) and `expressions.py` (the largest mirror), so the whole
+run is plausibly 6-12 hours and cannot sit in a per-increment gate. But **nothing records that
+decision anywhere**, four impl docs call it a gate, and the consequence is that the authoritative
+"does the mirror still prove" oracle has no scheduled runner at all. That is the same defect as
+(u6), one cost bracket up: not a forgotten script, an unscheduled one.
+THIS WINDOW IS THE RIGHT PLACE TO RUN IT. Queued as the window's long job once the increment-U
+reference suite finishes and the `statements.py` re-port has a verdict.
