@@ -6279,6 +6279,69 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"(if {left_b} {op} {right_b} then 1 else 0)"
             _l_val = left if left_b == f"({left} <> 0)" else f"(if {left_b} then 1 else 0)"
             _r_val = right if right_b == f"({right} <> 0)" else f"(if {right_b} then 1 else 0)"
+            # (#49) gen #31 — THE FALSY-DEFAULT `or {}` ARM, whose two arms DISAGREE ON THE
+            # VALUE MODEL and which therefore DID NOT TYPE-CHECK AT ALL.
+            #
+            # `x or {}` is the single most common idiom in the conversion frontier's
+            # int-erasure seam: MEASURED, 6 of the 13 `\trusted` markers whose conversion
+            # fails with `has type 'mu -> option.Option.option int, but is expected to have
+            # type int` fail on exactly this expression (`run_ir_semantic_checks`,
+            # `_find_record_type_from_dep_imports`, `_rewrite_annotations`,
+            # `AutoTrustMixin._build_witness_str`, `pycsl.py::_record_key`,
+            # `pycsl.py::_synthesize_block`). The emission was
+            #
+            #     (let __or_l = <x, an int> in
+            #      if __or_l <> 0 then __or_l else (const (None: option int)))
+            #
+            # — the TRUTHY arm in the int-erased model, the FALLBACK arm in the faithful
+            # `map int (option int)` one. Why3 rejects it in EVERY position, so the family
+            # is FAIL-CLOSED today, never false-green: there is no soundness debt here to
+            # pay off, only a conversion blocker.
+            #
+            # WHY `0` IS THE FAITHFUL ERASED SPELLING OF AN EMPTY MAP, and not a shortcut.
+            # An empty dict / empty set is FALSY, and the int-erased model spells falsy as
+            # `= 0`. So under this lowering:
+            #   * `x` truthy  -> `__or_l`, the erased `x`. Unchanged, exact.
+            #   * `x` falsy   -> `0`, and `bool(x or {})` is `bool({})` is False, which is
+            #                   exactly `0 <> 0`. The truthiness observation is EXACT.
+            #   * every other observation on the result goes through a receiver-blind
+            #     abstract op (`e_get_2 <hashed key> <default>` — MEASURED on the spike),
+            #     so the model constrains the value not at all and cannot conclude anything
+            #     about it that Python denies.
+            # This is the identity the `or []` work already recorded for lists — `[]` is
+            # falsy, so `bool(A or [])` is `bool(A)`, an identity of the FALSY DEFAULT
+            # rather than of the position — and the DICT case is the half that does NOT
+            # depend on the empty-list literal's allocation defect, because
+            # `(const (None: option int))` is a PURE total function, not an `Array.make`.
+            # That is why this lands while `or []` stays parked.
+            #
+            # FAIL-CLOSED ON FOUR AXES, so nothing else can reach it:
+            #   * `_l_val == left` — `_to_bool` returns `({left} <> 0)` when and ONLY when
+            #     it coerced an INT expression (the comment above states that contract), so
+            #     this is the test that the TRUTHY arm is itself int-erased. A faithful
+            #     left arm (`array int`, `Array.length … <> 0`) does NOT match and keeps
+            #     today's form, so the parked faithful `or []` lowering is untouched.
+            #   * `_r_val == right` — the fallback was int-coerced too, i.e. this IS the
+            #     mis-typed shape and not one some other recognizer already repaired.
+            #   * the emitted right is EXACTLY the empty-map constant. An exact equality
+            #     against a string the EMITTER produces, in the same style as the
+            #     `left_b == f"({left} <> 0)"` test above — never a substring test over
+            #     user-chosen spelling (route #107).
+            #   * the right IR NODE is an empty `DictLit` / `SetLit` / `set()` / `dict()`.
+            #     Checked at the IR level so the text equality only confirms the model.
+            # The empty-LIST literals (`ArrayLit`/`List`/`Tuple`) are deliberately NOT here:
+            # they allocate, and that is a separate, already-measured item.
+            _r_ir = expr.get("right")
+            _r_empty_map = (
+                isinstance(_r_ir, dict)
+                and ((_r_ir.get("type") == "DictLit" and not _r_ir.get("keys"))
+                     or (_r_ir.get("type") in ("SetLit", "Set") and not _r_ir.get("elts"))
+                     or (_r_ir.get("type") == "Call"
+                         and _r_ir.get("func") in ("set", "frozenset", "dict")
+                         and not _r_ir.get("args"))))
+            if (op == "||" and _l_val == left and _r_val == right
+                    and right == "(const (None: option int))" and _r_empty_map):
+                _r_val = "0"
             if op == "||":
                 return (f"(let __or_l = {_l_val} in "
                         f"if __or_l <> 0 then __or_l else {_r_val})")
