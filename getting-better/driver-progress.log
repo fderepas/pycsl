@@ -11760,3 +11760,35 @@ STANDING NUMBERS (after increment T, the authoritative 450 tree)
     cross-module-contract-parity  0 stubs assuming more than is proved
     planes                        74/74 under --slow
     suite                         4029/4047, standing EIGHTEEN, zero XPASS
+
+## 18:20Z — A DECLARED FIDELITY GATE THAT NO BATTERY RUNS, AND IT IS RED (the 6th of the shape)
+`bin/self-annotate-mirror-check.sh` is named as half of the fidelity plane by
+`self-tcb-reduction.md`, `triage-ranked-tcb.md` ("fidelity (check-self-annotate-sync.sh ∧
+self-annotate-mirror-check.sh)"), `README.md` and four impl docs. It exits 1 on drift. It is
+NOT in `bin/run-soundness-planes.sh`'s 74 planes, NOT in `bin/run-reference-tests.sh`, and the
+plane list's own note says only that `check-self-annotate-sync.sh` is a duplicate — it does not
+mention this script at all. Gate T ran the sync half and not this one. Added to gate U, it went
+RED at once, and it is RED at the PRE-CHANGE tree `401e65dd` identically, so it is not this
+increment's.
+
+WHAT THE RED IS — measured, all 51 mirror-only defs classified (`mirror_only.py`, mirror def
+with no same-file live counterpart; columns = trusted-in-mirror / bare name exists ANYWHERE live):
+
+    True  / True    24   cross-mixin MRO boundary stubs, `\trusted`. By design.
+    False / True    17   cross-mixin VERBATIM DUPLICATES, un-trusted. `_field_type_of`,
+                         `_materialize_str_bridge`, `_deref`, `ValIRBoolView`, `BoolWrapIRView`,
+                         `_field_label`, `_rhs_yields_map`, … Each one EXISTS live, in a SIBLING
+                         file: `_field_type_of` is live in `module6_whyml/types.py` and mirrored
+                         CORRECTLY in `self-annotate/.../types.py`; the drift is the ADDITIONAL
+                         copy in `statements.py`, which the mirror needs because it has no MRO.
+    False / False   10   the `mutable_state` DECORATOR, once per mirror file. Mirror-only by
+                         construction (it is the modelling annotation itself).
+
+So the verdict is a FALSE POSITIVE of SCOPE, and it is the sixth instrument failure of this
+generation with the same shape — except inverted: this instrument is honestly fail-loud, and its
+scope is PER-FILE while the mirror's modelling is CROSS-FILE. `check-self-annotate-sync.sh`
+resolves the same 17 by name wherever they live and reports them VERBATIM (896 of 896), so
+fidelity itself is intact.
+THE REAL GAP IS THAT NOTHING RUNS IT. Next: teach it to resolve a mirror-only def against the
+whole live tree, keep a ratchet on the residue (the 10 `mutable_state` decorators), and REGISTER
+it in the plane battery — an uncollected fail-loud gate is worth exactly nothing.
