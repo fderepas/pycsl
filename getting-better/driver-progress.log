@@ -11844,3 +11844,36 @@ live tree and hard-zeroes divergence, negative-tested by perturbation before it 
 (2) register it in the conversion tier so no gate can skip it; (3) adjudicate the three — re-port
 the live body verbatim and re-prove `statements.py`, or, if the live body does not prove,
 re-`\trusted` them and take the marker cost, exactly as `d21a61fb` did for the six hollow ones.
+
+## 18:55Z — THE SEAM RE-MEASURED WITH ALL 115 MARKERS, SAME INSTRUMENT BOTH SIDES: 11 MOVED, 0 LOWER
+Three repairs were in hand: the LANDED `or {}` falsy-default arm (`cd197545`), the `.get(k, {})`
+twin, and the f-string classifier (`_is_string_expr` disagreeing with `_handle_fstring_expr`'s own
+UNGATED string path). All 115 type-error markers were probed TWICE with ONE instrument
+(`batch_probe5.sh`, facade port with a `--replace` fallback, full-width error capture) — the
+BEFORE run reverting the landed `or {}` arm so both sides differ only in the three repairs. This
+is wall-lesson (t6) applied deliberately: an instrument-matched pair, not two instruments.
+
+    before   115 TYPE      after   115 TYPE      MOVED 11 of 115      LOWERS 0
+
+    _cache_load                      string -> int            -> int -> _union__cache_load_0
+    _cache_store                     string -> int            -> int -> option int -> int
+    _namedtuple_check_subscript      'mu -> option int -> int -> int -> option int -> string ...
+    _typeddict_check_subscript       'mu -> option int -> int -> int -> option int -> string ...
+    run_ir_semantic_checks           'mu -> option int -> int -> array int -> int
+    _find_record_type_from_dep_imp.  'mu -> option int -> int -> int -> array int
+    _rewrite_annotations             'mu -> option int -> int -> int -> option int -> int
+    AutoTrustMixin._build_witness_s. 'mu -> option int -> int -> string -> int
+    pycsl.py::_build_soundness_repo. array int -> int         -> string -> int
+    pycsl.py::_record_key            'mu -> option int -> int -> array int -> int
+    pycsl.py::_synthesize_block      'mu -> option int -> int -> array int -> int
+
+THE NUMBER THAT MATTERS IS THE ZERO. Every one of the eleven has a SECOND blocker behind the
+first, so three repairs that each fix a real, reproducible, minimally-witnessed defect convert
+NOTHING. The seam is not a queue of independent blockers; it is a CHAIN per marker. Corollary for
+the campaign: clearing one error CLASS across the population is the wrong unit of work — the right
+unit is ONE MARKER's WHOLE CHAIN, iterated until it lowers, which also measures the chain depth
+nobody has measured yet.
+ONLY 2 OF THE 16 `string -> int` ROWS WERE THE F-STRING. And the f-string repair also MOVED TWO
+markers INTO `string -> int` (`_build_witness_str`, `_build_soundness_report`), so a class count
+is not a cause count — the same correction the 116-row census already had to make twice.
+Artefacts: `getting-better/seam-{before,after}-three-repairs.tsv`.
