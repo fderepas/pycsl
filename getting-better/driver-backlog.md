@@ -88,13 +88,37 @@ WHAT IT BLOCKS, and it is much more than the printers:
   * NESTING is a second, separate limit: even if `self._e(x)` parsed, the probe shows the
     error moves to the INNER `(`, so a nested call needs its own production.
 
-WHAT IT WOULD TAKE, scoped: a `self.<m>(args)` production in `_parse_atom_name`, a CSL node
-for it, and a lowering. The LOWERING MAY LARGELY EXIST — `functions._emit_contracts` and
-route #167 already speak of `self.<m>(...)` calls in contracts and the `requires` assertions
-they carry — so the spike is: add the production, emit the node, and see how far the existing
-machinery carries it. REFUTATION EXIT: if the lowered call is not a `let function` (pure), it
-cannot appear in a logical term at all and the production is useless without a purity
-analysis; stop and record that.
+**THE REFUTATION EXIT ALREADY FIRED — DO NOT BUILD THE PRODUCTION.** The spike was going to be
+"add a `self.<m>(args)` production in `_parse_atom_name`, a CSL node, and a lowering; the
+lowering may largely exist, since `functions._emit_contracts` and route #167 already speak of
+`self.<m>(...)` calls in contracts", with the exit "if the lowered call is not a `let function`
+(pure) it cannot appear in a logical term at all". **The exit is discharged BY INSPECTION of
+the emitted mirror, at a cost of one grep** (2026-09-26T10:30Z):
+
+    let ghostcollectionopsmixin___handle_list_length_expr …     NOT `let function`
+    let ghostcollectionopsmixin___deref …                       NOT `let function`
+    let binop__pp …                                             NOT `let function`
+    let app__pp …                                               NOT `let function`
+
+Every function whose postcondition would NEED the production is emitted as a plain `let` — a
+PROGRAM function — and a program function cannot be applied in a logical term. The production
+would produce clauses that fail L3-tc with `unbound function or predicate symbol`, the same
+wall #60a hit one level down.
+
+So the capability is NOT a parser change. It is **`scc.emits_as_logic_symbol` extending to the
+emitter's own mixin methods**, i.e. a purity analysis, which is a much larger and quite
+different build. The population it would serve, measured: **1323 of the 3091 emitted mirror
+definitions are already `let function` (pure) and 1768 are not**, and every `ensures True`
+handler is in the second group.
+
+AND THE CHEAP HALF IS ALREADY AVAILABLE — which is the useful half of this entry. **A BARE-NAME
+call to a function that IS emitted `let function` parses AND proves today:**
+
+    #@ ensures \result == ir_get_str(node, "op", "")      PARSES · L3-tc ✓ · PROVED
+
+because `irx.py`'s accessors are `let function`. Any module-level PURE helper can therefore
+carry a compositional postcondition right now, with no capability at all. That is where the
+next batch of postconditions is cheapest, and it needs no build.
 
 #### #60c ONLY `.keys()` / `.values()` / `.items()` ARE RECOGNISED IN A CONTRACT
 
