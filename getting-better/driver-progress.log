@@ -11547,3 +11547,35 @@ LANDED: d21a61fb six re-trusts (446 -> 452, aggregate 798 -> 830, every ratchet 
 members); 900ff447 the string closure + `errors.py::__str__` (452 -> 451, four emitted
 symbols, aggregate 830 -> 828); 5857acff the fast battery now NAMES ITS OWN SCOPE.
 Gate O launched 23:44:05Z and it runs `--slow`.
+
+## 02:10Z — INCREMENT O IS GATED: 4029/4047, and it is the FIRST gate this session that ran `--slow`
+  corpus byte-diff   1378/1378 pycsl-reference, 0 MOVED; 2199/2199 python-reference, 0 MOVED
+                     (the string closure's inertness argument HELD: a corpus
+                     `if self.<strfield>:` already emitted the ill-typed `<> 0`)
+  mirror byte-diff   53/53, 5 MOVED, 0 unexpected — errors, pure_ast, Module2_Parser,
+                     monomorphize, identifiers
+  fidelity           895 verbatim un-trusted
+  planes --slow      **72 of 73 GREEN.** The four REDs this session caused or inherited are
+                     closed: emitted-vacuity 0 new, yield-erasure 0 value-erasing,
+                     shadowed-selfcalls 14 (at the ratchet), getattr-erasure registered.
+  suite              4029/4047, the standing EIGHTEEN, ZERO XPASS
+TWO INSTRUMENT FAILURES IN THE GATE ITSELF, both fail-loud, both recorded as (r6):
+  * `--expect-moved` takes nargs="*", so the five REPEATED flags kept only the LAST —
+    "5 MOVED (4 unexpected)". Re-run with one flag and five names: 0 unexpected.
+  * I EDITED `gate_o.sh` WHILE IT WAS RUNNING to fix that. Bash reads a script incrementally;
+    at 01:11 the shell resumed at a meaningless offset and died with "unexpected EOF". THE
+    SUITE STAGE NEVER RAN. Re-launched standalone at 01:11:54Z; it is the 4029 above.
+
+## 02:15Z — THE ONE REMAINING RED IS REAL, AND IT IS NOT THIS SESSION'S
+`check-stdlib-modules-verify`: `re/__init__.py` NEWLY NOT VERIFYING (FAILS 5 -> 6).
+NOT caused by the string closure — it fails IDENTICALLY on the pre-patch tree `85bfa846`,
+and on an IDLE box, so it is not load flakiness either. The goal is
+    goal _check_class_inv_rematch : forall _string _start _end _groups string start py_end
+      groups : int. _string = string -> ... -> ((_start >= 0)) /\ ((_end >= _start))
+which is FALSE: `ReMatch.__init__(self, string, start, end, groups)` carries NO `#@ requires`,
+so nothing stops `ReMatch(s, -1, -5, g)`. The two `#@ class invariant` lines on the class are
+real obligations and the constructor does not discharge them. Alt-Ergo answers "Unknown
+(why3: Out of memory)" rather than "Invalid", which is why it reads as a resource problem.
+NEXT: add `#@ requires start >= 0` / `#@ requires end >= start` to `ReMatch.__init__` in
+`src/pycsl_lib/re/_engine.py`, re-emit, and measure the corpus byte-diff (pycsl_lib is not
+the corpus, but corpus programs import it).
