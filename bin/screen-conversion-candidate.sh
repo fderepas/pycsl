@@ -61,7 +61,17 @@ if [ "$FREE" -lt 400000 ]; then
     echo "    filesystem. A truncated copy produced a FALSE SOUNDNESS ALARM once."
     exit 2
 fi
-(cd "$ROOT" && git archive HEAD src bin) | tar -x -C "$T" || { echo "[!] git archive failed"; exit 2; }
+# `json` IS LOAD-BEARING AND IT IS NOT UNDER `src`. `ir_resolve._resolve_module_path`
+# searches the main file's directory, **os.getcwd()**, `<tree>/src`, `src/pycsl/Lib` and
+# the `--import-path` roots — and this repository has a TRACKED `json/` package AT THE
+# ROOT, which is what `import json` in the mirror resolves to via CWD. A scratch tree
+# built from `src` alone therefore emits `[*] Import 'json.loads': external module, no
+# local source found — skipping` and produces `pycsl.mlw` and `audit_proof_reverify.mlw`
+# SHORT BY the json stubs (11 lines, two `exception` declarations and four `val`s).
+# MEASURED: adding `json` makes the scratch emission byte-identical to the repo's.
+# Without it, an oracle screens a DIFFERENT PROGRAM from the one that will be gated.
+# See getting-better/wall-lessons.md (s6).
+(cd "$ROOT" && git archive HEAD src bin json) | tar -x -C "$T" || { echo "[!] git archive failed"; exit 2; }
 PORTER="$SCRIPT_DIR/port-one-mirror-body.py"
 if [ ! -f "$PORTER" ]; then
     echo "[!] screen-conversion-candidate: $PORTER is missing — it is the porter this script drives."

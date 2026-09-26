@@ -7915,3 +7915,48 @@ AND THE MISTAKE THAT PROVOKED IT IS WORTH ITS OWN LINE: `--expect-moved` takes `
 so REPEATING THE FLAG silently keeps only the LAST occurrence. Five declared movers became
 one. That one failed LOUD too (`5 MOVED (4 unexpected)`), which is the design working — a
 whitelist that silently widened would have been the dangerous direction.
+
+### (s6) A scratch tree built from `src` emits a DIFFERENT PROGRAM, because the emitter resolves imports through CWD
+
+Every screen this generation ran on a copy of the tree — `cp -a src`, or `git archive HEAD src bin`
+once the screen was promoted to `bin/screen-conversion-candidate.sh`. Measured, with the
+SOURCES BYTE-IDENTICAL:
+
+    $ bin/mirror-emit-sweep.sh <from the repo>      vs      <from a src-only copy>
+    2 MOVED — pycsl.mlw, audit_proof_reverify.mlw
+
+and the difference is always the same eleven lines:
+
+    - exception JSONDecodeError
+    - exception TypeError
+    - val dumps (obj: int) : int
+    - val detect_encoding (b: int) : int
+    - val loads (s: int) : int   raises { JSONDecodeError, TypeError }
+    - val load (fp: int) : int
+
+The copy prints `[*] Import 'json.loads': external module, no local source found — skipping`
+where the repo prints `[*] Imported from 'json': ['load','loads','JSONDecoder','dumps']
+(trusted stubs, module-qualified)`.
+
+THE CAUSE. `ir_resolve._resolve_module_path` searches, in order: the main file's directory,
+**`os.getcwd()`**, `<tree>/src`, `src/pycsl/Lib`, then the `--import-path` roots. This
+repository has a **TRACKED `json/` PACKAGE AT THE REPOSITORY ROOT** — not under `src` — and
+that is what `import json` in the mirror resolves to, via CWD. `git archive HEAD src bin`
+does not carry it; neither does `cp -a src`. Adding `json` makes the two emissions
+byte-identical, measured.
+
+THREE THINGS THIS COSTS, and the first two are silent:
+
+1. **An oracle screens a different program from the one that will be gated.** The four
+   conversion oracles read the emitted `.mlw`; two files come out short by six declarations.
+2. **A byte-diff baseline taken in one tree and compared against the other reports false
+   movers.** That is very likely the "third undeclared mover, and this one is an improvement"
+   (`aa10dd75`) — `pycsl` — re-read two generations later.
+3. A candidate whose body touches `json.loads` would be screened with no stub for it at all.
+
+THE RULE: a scratch tree for EMISSION is `git archive HEAD src bin json`, and the general
+form of the rule is worse than the instance — **the emitter's import search includes CWD, so
+ANY tracked top-level package is part of the program.** `json/` is the only one today
+(checked: it is the only root directory with an `__init__.py`), and a second one would
+reintroduce this silently. The honest fix upstream is for the resolver to stop searching CWD,
+or for the repo to stop keeping a package at the root; until then, copy it.
