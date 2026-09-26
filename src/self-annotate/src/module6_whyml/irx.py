@@ -27,6 +27,10 @@ from __future__ import annotations
 from typing import Dict
 
 
+#@ requires True
+#@ ensures (key in node) ==> (\result == 1)
+#@ ensures not (key in node) ==> (\result == 0)
+#@ assigns \nothing
 def ir_has_key(node: Dict[str, str], key: str) -> bool:
     """True iff `node` binds `key` — the membership guard every read leans on."""
     if key in node:
@@ -34,6 +38,10 @@ def ir_has_key(node: Dict[str, str], key: str) -> bool:
     return False
 
 
+#@ requires True
+#@ ensures ("type" in node) ==> (\result == node["type"])
+#@ ensures not ("type" in node) ==> (\result == "")
+#@ assigns \nothing
 def ir_kind(node: Dict[str, str]) -> str:
     """The node's constructor tag (wire key ``"type"``), or ``""`` if untagged.
     Total: the guard makes the read exception-free."""
@@ -42,6 +50,10 @@ def ir_kind(node: Dict[str, str]) -> str:
     return ""
 
 
+#@ requires True
+#@ ensures ("type" in node) ==> (\result == node["type"])
+#@ ensures not ("type" in node) ==> (\result == default)
+#@ assigns \nothing
 def ir_kind_or(node: Dict[str, str], default: str) -> str:
     """The node's tag, or `default` when untagged (dispatch with an explicit
     fallback branch)."""
@@ -50,6 +62,10 @@ def ir_kind_or(node: Dict[str, str], default: str) -> str:
     return default
 
 
+#@ requires True
+#@ ensures (key in node) ==> (\result == node[key])
+#@ ensures not (key in node) ==> (\result == default)
+#@ assigns \nothing
 def ir_get_str(node: Dict[str, str], key: str, default: str) -> str:
     """Read a string-valued key, falling back to `default` when absent.
     Total: no `KeyError` is reachable (the read is guarded)."""
@@ -58,33 +74,57 @@ def ir_get_str(node: Dict[str, str], key: str, default: str) -> str:
     return default
 
 
+#@ requires True
+#@ ensures ("op" in node) ==> (\result == node["op"])
+#@ ensures not ("op" in node) ==> (\result == "")
+#@ assigns \nothing
 def ir_op(node: Dict[str, str]) -> str:
     """The operator string of a `BinOp`/`UnaryOp`/`AugAssign` node (wire key
     ``"op"``), or ``""`` when absent — the E4 `is_PStr (get n K_op)` read."""
     return ir_get_str(node, "op", "")
 
 
+#@ requires True
+#@ ensures ("target" in node) ==> (\result == node["target"])
+#@ ensures not ("target" in node) ==> (\result == "")
+#@ assigns \nothing
 def ir_target(node: Dict[str, str]) -> str:
     """The assignment target name (wire key ``"target"``), or ``""``."""
     return ir_get_str(node, "target", "")
 
 
+#@ requires True
+#@ ensures ("name" in node) ==> (\result == node["name"])
+#@ ensures not ("name" in node) ==> (\result == "")
+#@ assigns \nothing
 def ir_name(node: Dict[str, str]) -> str:
     """The variable/function name (wire key ``"name"``), or ``""``."""
     return ir_get_str(node, "name", "")
 
 
+#@ requires True
+#@ ensures ("func" in node) ==> (\result == node["func"])
+#@ ensures not ("func" in node) ==> (\result == "")
+#@ assigns \nothing
 def ir_func(node: Dict[str, str]) -> str:
     """The callee name of a `Call` node (wire key ``"func"``), or ``""``."""
     return ir_get_str(node, "func", "")
 
 
+#@ requires True
+#@ ensures ("value" in node) ==> (\result == node["value"])
+#@ ensures not ("value" in node) ==> (\result == "")
+#@ assigns \nothing
 def ir_value_str(node: Dict[str, str]) -> str:
     """The string payload under wire key ``"value"`` (literal/return payload
     read), or ``""`` when absent."""
     return ir_get_str(node, "value", "")
 
 
+#@ requires True
+#@ ensures (key in node) ==> (\result == node[key])
+#@ ensures not (key in node) ==> (\result == "")
+#@ assigns \nothing
 def ir_get_str_present(node: Dict[str, str], key: str) -> str:
     """Read a key the caller has already established is present (the `requires
     wf_ir`/`requires key in node` shape): returns the bound value, ``""`` only on

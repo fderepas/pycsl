@@ -79,7 +79,7 @@ def crosscheck_file(py_file: Path) -> List[CrossCheckResult]:
     return []
 
 #@ requires True
-#@ ensures True
+#@ ensures \result == ""
 #@ assigns \nothing
 def _module_namespace_of(rocq_file: Path) -> str:
     """Best-effort guess: a .v file at `0342.proofs/rocq/gcd.v` is

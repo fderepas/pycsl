@@ -38,7 +38,8 @@ class AuditReport:
     skips: List[str] = field(default_factory=list)
 
     #@ requires True
-    #@ ensures True
+    #@ ensures (\length(self.failures) > 0) ==> (\result == 1)
+    #@ ensures (\length(self.failures) == 0) ==> (\result == 0)
     #@ assigns \nothing
     def exit_code(self) -> int:
         return 1 if self.failures else 0

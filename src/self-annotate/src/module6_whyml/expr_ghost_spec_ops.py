@@ -99,7 +99,7 @@ class GhostSpecOpsMixin:
         return f"(String.substring {s} {lo} ({hi} - {lo}))"
 
     #@ requires True
-    #@ ensures True
+    #@ ensures \result == "(Array.copy " + node.arr + ")"
     #@ assigns \nothing
     def _handle_ghost_copy_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
         return f"(Array.copy {node.arr})"

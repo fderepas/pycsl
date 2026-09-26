@@ -14,7 +14,7 @@ class Var:
     'A free or bound variable reference.'
     name: str
     #@ requires True
-    #@ ensures True
+    #@ ensures \result == self.name
     #@ assigns \nothing
     def pp(self) -> str:
         return self.name
@@ -34,7 +34,11 @@ class IntLit:
 class BoolLit:
     value: bool
     #@ requires True
-    #@ ensures True
+    # TOTAL over the int-modelled bool: the field is a Why3 `int`, so `== True`/`== False`
+    # (1 and 0) would leave `value = 2` unspecified while the body returns "true".
+    # `!= False` is the body's own test (`<> 0`), so the two clauses partition it.
+    #@ ensures (self.value != False) ==> (\result == "true")
+    #@ ensures (self.value == False) ==> (\result == "false")
     #@ assigns \nothing
     def pp(self) -> str:
         return "true" if self.value else "false"
@@ -112,7 +116,7 @@ class Unsupported:
     reason: str
     raw: str
     #@ requires True
-    #@ ensures True
+    #@ ensures \result == "<UNSUPPORTED: " + self.reason + ">"
     #@ assigns \nothing
     def pp(self) -> str:
         return f"<UNSUPPORTED: {self.reason}>"

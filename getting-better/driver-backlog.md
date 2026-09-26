@@ -34,6 +34,58 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #60 gen #31 — THE SPEC LANGUAGE CANNOT STATE THE MOST VALUABLE POSTCONDITIONS
+
+2026-09-26T03:35Z. `bin/price-the-conversions.py` measured that only 146 of 922 converted
+mirror functions carry a functional postcondition. Nineteen more were added and proved in one
+sitting (`module6_whyml/irx.py` ×10, `proof2why3/ir.py` ×3,
+`module6_whyml/expr_ghost_collections.py` ×3, `audit_proof.py`, `proof2why3/crosscheck.py`,
+`module6_whyml/expr_ghost_spec_ops.py`). THREE MORE CLASSES WERE REFUSED BY THE CONTRACT
+LANGUAGE ITSELF, and they are the classes that would be worth the most.
+
+#### #60a A DICT SUBSCRIPT ON `\result` IS UNBOUND IN A POSTCONDITION
+
+    #@ ensures \result["type"] == "None"
+    def _csl_none(self, node: CSLNone) -> Dict[str, Any]:
+        return {"type": "None"}
+
+    unbound function or predicate symbol 'subscript_get'
+
+`subscript_get` is a PROGRAM `val`; a postcondition is a logical term and cannot apply it.
+**This blocks the single most valuable postcondition family in the mirror**: the 28 `_csl_*`
+/ `_py_expr_*` IR CONSTRUCTORS in `frontend/Module5_IREmitter.py`, each of which returns a
+dict literal whose `"type"` key IS the IR node's tag. `\result["type"] == "Var"` would pin
+the constructor — the exact fact every Module-6 walker's dispatch depends on — and it cannot
+be written. A pure `function subscript_get_logic` (or routing a spec-position subscript to
+`Map.get`, which the `irx.py` accessors already prove against) would unlock all 28.
+
+#### #60b A METHOD CALL ON A FIELD IS A PARSE ERROR IN A CONTRACT
+
+    #@ ensures \result == "(" + self.lhs.pp() + " " + self.op + " " + self.rhs.pp() + ")"
+    [parse]: PyCSL Syntax Error … unexpected trailing input (got OP '.')
+
+A contract may call `self.<m>()` but not `self.<field>.<m>()`. This blocks the recursive
+pretty-printers (`proof2why3/ir.py::BinOp.pp`, `UnaryOp.pp`, `App.pp`, the `Forall`/`Exists`
+pair) — the functions whose postcondition is a compositional statement about a recursive
+structure, which is the only kind worth having for a printer.
+
+#### #60c ONLY `.keys()` / `.values()` / `.items()` ARE RECOGNISED IN A CONTRACT
+
+    unsupported method '.strip()' in a contract; only .keys()/.values()/.items() are
+    recognised (07-1311)
+
+This one is a REFUSAL WITH A NAMED REASON and it is honest, but it blocks
+`proof_axiom_allowlist.py::is_rocq_assumption_allowed` / `is_lean_axiom_allowed`, whose whole
+body is `name.strip() in <ALLOWLIST>` — the two predicates that decide whether a Rocq/Lean
+kernel axiom is permitted, which is as close to the TCB as this repository gets. A
+spec-position `.strip()` needs only the same `String` lemma the body's `str_strip_op`
+already has.
+
+**ALL THREE ARE SPEC-LANGUAGE GAPS, NOT PROOF GAPS.** In each case the BODY already lowers
+faithfully and the prover would discharge the goal; the sentence cannot be written down. That
+is a different and much cheaper kind of wall than the value-model walls in #59, and #60a
+alone is worth 28 postconditions on the emitter's own IR constructors.
+
 ### #59 gen #31 — SIX RE-TRUSTS, and the four capabilities that would retire them again
 
 2026-09-25T23:20Z. `bin/run-soundness-planes.sh --slow` — never run by any gate this session

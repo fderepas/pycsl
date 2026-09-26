@@ -41,7 +41,7 @@ class GhostCollectionOpsMixin:
         return f"!{expr.lstrip('!')}" if expr.startswith("!") else expr
 
     #@ requires True
-    #@ ensures True
+    #@ ensures \result == "(const (None: option int))"
     #@ assigns \nothing
     def _handle_map_empty_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
         # option-type design: absent keys map to None
@@ -97,7 +97,7 @@ class GhostCollectionOpsMixin:
         return f"(Map.set {d_r} {k} None)"
 
     #@ requires True
-    #@ ensures True
+    #@ ensures \result == "(const false)"
     #@ assigns \nothing
     def _handle_set_empty_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
         # Why3: map.Const exports 'const', not 'Map.const'
@@ -204,7 +204,7 @@ class GhostCollectionOpsMixin:
         return f"(forall {v}: int. Map.get {l_r} {v} = Map.get {r_r} {v})"
 
     #@ requires True
-    #@ ensures True
+    #@ ensures \result == "Nil"
     #@ assigns \nothing
     def _handle_nil_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
         return "Nil"
