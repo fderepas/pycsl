@@ -25,8 +25,9 @@
 #   --replace        the mirror body is a REAL body, not a `pass` facade, and replacing it
 #                    with the live twin is the point (the DIFFERS population)
 #
-# WHAT IT DOES. Copies `src` + `bin` at HEAD into a scratch tree, ports the live body over
-# the mirror one, deletes the governing `#@ \trusted` line, emits, and runs:
+# WHAT IT DOES. Copies `src` + `bin` + `json` at HEAD into a scratch tree, ports the live body
+# over the mirror one, deletes the governing `#@ \trusted` line, checks that the file EMITS AND
+# TYPE-CHECKS (L3-tc — without this the oracles happily read an ill-typed `.mlw`), and runs:
 #
 #     check-untrusted-emitted.py    emitted as a DEFINITION, not re-abstracted to a `val`
 #     check-yield-erasure.py        a generator's yielded VALUES survive
@@ -82,8 +83,32 @@ case "$msg" in
     ABORT*) echo "[!] $msg"; exit 2;;
 esac
 echo "[*] $msg"
-rc=0
 cd "$T" || exit 2
+# (#49) gen #31 — L3-tc FIRST, AND IT IS NOT OPTIONAL. The four oracles read the emitted `.mlw`,
+# and a `.mlw` that does NOT TYPE-CHECK is still written — so all four can report `ok` on an
+# emission Why3 rejects. MEASURED on the first batch this tool green-lit:
+#   pure_ast.py::NodeVisitor.visit      four oracles green · L3-tc `ref int @rho, it cannot be applied`
+#   pure_ast.py::_Unparser.__init__     four oracles green · L3-tc `this write effect does not
+#                                       happen in the expression`
+# Both are hard refusals and both were called a "licence to spend prover time". A screen that
+# cannot tell a well-typed emission from an ill-typed one is worse than no screen, because its
+# green is spent as permission.
+tc=$(timeout 3000 python3 src/pycsl/pycsl.py "src/self-annotate/src/$REL" \
+        --import-path "$T/src/pycsl" --no-proof 2>&1)
+if ! printf '%s' "$tc" | grep -q 'Verification SUCCESS'; then
+    if printf '%s' "$tc" | grep -q 'PIPELINE ERROR'; then
+        printf '    %s %-32s %s\n' "RED " "REFUSED (emitter guard)" \
+            "$(printf '%s' "$tc" | grep -A3 'PIPELINE ERROR' | tail -2 | tr '\n' ' ' | cut -c1-110)"
+    else
+        printf '    %s %-32s %s\n' "RED " "L3-tc" \
+            "$(printf '%s' "$tc" | grep -A2 -E '^File "' | grep -vE '^File "|^--' | head -2 | tr '\n' ' ' | cut -c1-110)"
+    fi
+    echo "[!] screen-conversion-candidate: $REL::$FN — REFUSED before the oracles: the converted"
+    echo "    file does not EMIT AND TYPE-CHECK. Do not spend prover time on it."
+    exit 1
+fi
+printf '    %s %-32s %s\n' "ok  " "L3-tc" "emitted and type-checks"
+rc=0
 for plane in check-untrusted-emitted.py check-yield-erasure.py check-shadowed-selfcalls.py; do
     out=$(timeout 3000 python3 "bin/$plane" 2>&1); prc=$?
     [ "$prc" -eq 0 ] && verdict="ok  " || { verdict="RED "; rc=1; }
