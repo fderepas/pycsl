@@ -11895,3 +11895,31 @@ decision anywhere**, four impl docs call it a gate, and the consequence is that 
 (u6), one cost bracket up: not a forgotten script, an unscheduled one.
 THIS WINDOW IS THE RIGHT PLACE TO RUN IT. Queued as the window's long job once the increment-U
 reference suite finishes and the `statements.py` re-port has a verdict.
+
+## 20:21Z — INCREMENT U IS GATED: 74 of 74 planes, 4029/4047, both corpora INERT
+`cd197545` (the `or {}` falsy-default arm). Gate U ran 18:04:26Z -> 20:20:57Z and, for the first
+time in this generation, ran BOTH fidelity scripts:
+  fidelity sync      896 verbatim un-trusted
+  fidelity mirror    `self-annotate-mirror-check.sh` — **RED, 3 mirrors drifted**, and RED
+                     IDENTICALLY at the pre-change tree `401e65dd`. That red is what became
+                     backlog #63, lesson (u6), and the new plane; it is not this increment's.
+  planes --slow      **74 of 74 GREEN** (fast + slow: EVERY plane)
+  suite              4029/4047 — 3134 PASS / 895 XFAIL / 18 FAIL, byte-for-byte the same tally
+                     as gate T, exactly as the 0-MOVED byte-diff predicted. ZERO XPASS.
+  corpus byte-diff   1378/1378 + 2199/2199, 0 MOVED (measured before the commit)
+  mirror byte-diff   53/53, 0 MOVED
+LANDED SINCE, all `bin/`-only and therefore gate-U-neutral: `df0f2e8c` the new
+`check-sibling-concrete-fidelity.py` plane (registered, MIN_PLANES 48 -> 49) + the
+`self-annotate-mirror-check.sh` scope repair, which takes that script GREEN 53/53 for the first
+time in an unknown number of generations.
+
+STANDING NUMBERS (increment U, gated)
+    markers                       450
+    verbatim un-trusted           896
+    converted mirror functions    923
+    functional postconditions     237 of 923 (26%)
+    trusted-or-dependent          828 (ceiling) · silent-termination 56 · mirror-coverage 549/41
+    reasons TSV                   450 rows, unclassified 286
+    sibling-concrete fidelity     22 SAME / 3 DIVERGING (baselined) / 0 unresolved / 2 class views
+    planes                        74/74 --slow · 49 fast (was 48)
+    suite                         4029/4047, standing EIGHTEEN, zero XPASS
