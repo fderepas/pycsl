@@ -11792,3 +11792,55 @@ fidelity itself is intact.
 THE REAL GAP IS THAT NOTHING RUNS IT. Next: teach it to resolve a mirror-only def against the
 whole live tree, keep a ratchet on the residue (the 10 `mutable_state` decorators), and REGISTER
 it in the plane battery — an uncollected fail-loud gate is worth exactly nothing.
+
+## 18:40Z — A DEMONSTRATED FIDELITY BREAK: THREE VERIFIED MIRROR BODIES ARE NOT THE LIVE CODE
+The `self-annotate-mirror-check.sh` red above is a false positive of SCOPE for 24 of the 51
+mirror-only defs and for 10 more (the `mutable_state` decorator). For the remaining 17 it is
+pointing at something real, and the something real is worse than drift bookkeeping.
+
+THE DEVICE. `#@ sibling_concrete` (32 uses across 7 mirror files) makes a mirror file carry a
+CONCRETE copy of a method that lives in a SIBLING mixin, so that this file's `self._m(...)` call
+sites lower to the real body instead of a receiver-less abstract `val` whose result is
+unconstrained (the shadowed-selfcall repair, lesson (ay)). The copy is UN-TRUSTED, i.e. its
+contract is PROVED.
+
+THE HOLE, PROVEN BY PERTURBATION, not argued. In a scratch tree I changed the body of the
+`sibling_concrete` duplicate of `_field_label` in `self-annotate/src/module6_whyml/statements.py`
+(`f"{whyml_ident(record_lower)}_{base}"` -> `..._ZZZPERTURBED_{base}"`) and ran the fidelity plane:
+
+    OK: all 896 un-trusted self-annotate mirror functions … are verbatim copies of the live
+    source; 37 class-level constants are subsets of live            SYNCRC=0
+
+`check-self-annotate-sync.sh` pairs mirror defs with live defs IN THE SAME FILE, so a mirror def
+whose live twin lives in a sibling file is not in its population at all — it is not one of the
+896, and perturbing it is invisible. The other fidelity script sees it, cannot tell a legitimate
+duplicate from a divergent one, and is not run by any battery.
+
+AND THREE OF THEM HAVE ALREADY DRIFTED. Comparing all 17 against the live definition of the same
+bare name, using the sync plane's OWN `_normalize` (docstring dropped, annotations dropped,
+`ast.unparse`d), 12 are byte-equal, 2 are TypedDict class views (compared separately), and THREE
+DIVERGE:
+
+    _array_coerce_arg      mirror statements.py  vs live expressions.py
+                           live returns  '(any (array int))'   (twice)
+                           mirror returns '(Array.make 1 0)'   <- A DIFFERENT EMISSION
+    _field_type_of         mirror statements.py  vs live types.py
+                           the `receiver_name == "self"` branch differs
+    _rhs_yields_map        mirror statements.py  vs live types.py
+                           the `t == "Call"` branch: live handles `getattr(self, f, {})` with
+                           2..3 args; the mirror handles `fn.startswith("self.")`
+
+`_array_coerce_arg` is the sharpest: `(any (array int))` is a FRESH UNCONSTRAINED array with an
+effect, `(Array.make 1 0)` is a pure one-element array. A proof discharged against the second
+says nothing about a compiler that emits the first — and `statements.py`'s OTHER verified
+functions call this body to discharge THEIR obligations.
+
+WHY IT IS NOT A HEADLINE-COUNT LIE: these three are NOT among the 896 (sync never saw them), so
+"896 verbatim un-trusted" remains true of its own population. The exposure is one level down —
+a COUNTED function's proof may rest on a `sibling_concrete` body that is not the live one.
+
+NEXT, in order: (1) a NEW L-PLANE that resolves an un-trusted mirror-only def against the WHOLE
+live tree and hard-zeroes divergence, negative-tested by perturbation before it is trusted;
+(2) register it in the conversion tier so no gate can skip it; (3) adjudicate the three — re-port
+the live body verbatim and re-prove `statements.py`, or, if the live body does not prove,
+re-`\trusted` them and take the marker cost, exactly as `d21a61fb` did for the six hollow ones.
