@@ -101,6 +101,27 @@ def signatures(path, skip_trusted=False):
     return out
 
 
+# (#49) gen #31 — EVERY NAME DEFINED ANYWHERE UNDER src/pycsl, so a RELOCATED def can be
+# told apart from a STALE one. This script's question is "is the mirror stale?", and a def the
+# mirror carries in a DIFFERENT FILE from the live one is not stale — it is the
+# `#@ sibling_concrete` device: a mirror file has no MRO, so it must carry a CONCRETE copy of
+# a sibling mixin's method for its own `self._m(...)` sites to lower to a real body instead of
+# a receiver-less abstract `val` (lesson (ay)). The script ALREADY skips `\trusted` stubs for
+# exactly this reason ("intentionally divergent / RELOCATED"); un-trusted relocations were the
+# half it had not been told about, and they made this script print a permanent red that no
+# battery ran — which is how three of them DRIFTED unnoticed (see the commit that added
+# bin/check-sibling-concrete-fidelity.py). Their bodies are that plane's question; staleness
+# stays this one's. A name that exists NOWHERE live is still drift, and still fails here.
+LIVE_NAMES = set()
+for _sp in SOURCE_ROOT.rglob("*.py"):
+    try:
+        _st = ast.parse(_sp.read_text())
+    except (SyntaxError, OSError):
+        continue
+    for _n in ast.walk(_st):
+        if isinstance(_n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            LIVE_NAMES.add(_n.name)
+
 fail = 0
 mirrors = sorted(MIRROR_ROOT.rglob("*.py"))
 for m in mirrors:
@@ -117,6 +138,10 @@ for m in mirrors:
     m_sigs = signatures(m, skip_trusted=True)
     s_sigs = signatures(src)
     only_in_mirror = m_sigs - s_sigs
+    # RELOCATED, not stale: the BARE name is defined somewhere under src/pycsl. Dropped here
+    # and checked verbatim by bin/check-sibling-concrete-fidelity.py.
+    only_in_mirror = {(k, n, c) for (k, n, c) in only_in_mirror
+                      if n.rsplit(".", 1)[-1] not in LIVE_NAMES}
     if only_in_mirror:
         print(f"[!] DRIFT in {rel}:")
         for kind, name, n in sorted(only_in_mirror)[:8]:
@@ -126,7 +151,9 @@ for m in mirrors:
         fail += 1
 
 if fail == 0:
-    print(f"[+] mirror-check: all {len(mirrors)} mirrors are in sync with src/pycsl/")
+    print(f"[+] mirror-check: all {len(mirrors)} mirrors are in sync with src/pycsl/ "
+          f"(a def the mirror RELOCATES into a sibling file is not staleness; its body is "
+          f"checked by bin/check-sibling-concrete-fidelity.py)")
     sys.exit(0)
 else:
     print(f"[!] mirror-check: {fail} mirror(s) drifted.")

@@ -53,6 +53,14 @@ PLANES=(
     check-self-annotate-mirror-sync.py
     count-trusted-directives.py
     check-mirror-coverage.py
+    # (#49) gen #31 — THE POPULATION THE FIDELITY PLANE SKIPS. `check-self-annotate-sync.sh`
+    # pairs each mirror def with the live def of the same qualname IN THE SAME FILE, so the 17
+    # `#@ sibling_concrete` CROSS-FILE relocations (a mirror file has no MRO, so it carries a
+    # CONCRETE copy of a sibling mixin's method — lesson (ay)) are not in its "all 896 verbatim"
+    # population at all. MEASURED: perturbing one left that plane green at exit 0, and THREE of
+    # the 17 had already drifted, each the mirror copy being BEHIND the live body. Negative-tested
+    # twice (a built-in `--self-test` mutation, and the end-to-end perturbation). Lesson (u6).
+    check-sibling-concrete-fidelity.py
     check-mirror-field-parity.py
     check-mirror-loop-annotations.py
     check-mirror-signature-drift.py
@@ -326,7 +334,8 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-MIN_PLANES=48
+# (#49) gen #31: 48 -> 49 with `check-sibling-concrete-fidelity.py`.
+MIN_PLANES=49
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
