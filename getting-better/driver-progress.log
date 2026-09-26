@@ -11609,3 +11609,22 @@ classes worth the most: `\result["type"] == "Var"` is `unbound symbol 'subscript
 IR constructors in Module5_IREmitter), `self.lhs.pp()` is a parse error (the recursive
 pretty-printers), and `.strip()` is refused in a contract (the two kernel-axiom allowlist
 predicates). All three are SPEC-LANGUAGE gaps, not proof gaps.
+
+## 05:27Z — INCREMENT P IS GATED, and it is the first FULLY green gate of the session
+  corpus byte-diff   1378/1378 + 2199/2199, 0 MOVED
+  mirror byte-diff   53/53, 0 MOVED
+  fidelity           895
+  planes --slow      **73 of 73 GREEN**
+  suite              4029/4047, the standing EIGHTEEN, ZERO XPASS
+Increment P carried the `ReMatch.__init__` class-invariant fix, the CONVERSION TIER leaving
+the `--slow` set, `bin/screen-conversion-candidate.sh`, `bin/port-one-mirror-body.py`,
+`bin/price-the-conversions.py` and route #213's registration.
+
+## 05:05Z — WALL-LESSON (s6): EVERY SCRATCH SCREEN THIS SESSION RAN A DIFFERENT PROGRAM
+Measured with byte-identical sources: the mirror emission from the repo and from a
+`git archive HEAD src bin` copy disagree on `pycsl.mlw` and `audit_proof_reverify.mlw`, always
+by the same eleven lines — the `json` shim stubs. `ir_resolve._resolve_module_path` searches
+**os.getcwd()**, and this repository keeps a TRACKED `json/` PACKAGE AT THE ROOT, outside
+`src`. `cp -a src` and `git archive HEAD src bin` both miss it. Adding `json` makes the two
+emissions byte-identical. `bin/screen-conversion-candidate.sh` now archives `src bin json`.
+This is also the most likely explanation for the undeclared `pycsl` mover in `aa10dd75`.
