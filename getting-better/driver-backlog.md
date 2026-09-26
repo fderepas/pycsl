@@ -34,6 +34,79 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #63 gen #31 — THE `sibling_concrete` FIDELITY HOLE: THREE STALE VERIFIED MIRROR BODIES (top of ladder)
+
+2026-09-26T18:40Z. **This is above #62 because it is a SOUNDNESS item, not a count item.**
+
+`#@ sibling_concrete` (32 uses, 7 mirror files) makes a mirror file carry a CONCRETE copy of a
+method defined in a SIBLING mixin, so that this file's `self._m(...)` sites lower to a real body
+instead of a receiver-less abstract `val` with an unconstrained result (lesson (ay)). The copy is
+UN-TRUSTED — its contract is PROVED — and the file's OTHER verified functions call it to discharge
+THEIR obligations.
+
+NEITHER FIDELITY PLANE CHECKS THEM. `check-self-annotate-sync.sh` pairs mirror defs with live defs
+IN THE SAME FILE, so a cross-file relocation is not in its population — not one of the "896
+verbatim", and PERTURBING ONE LEAVES IT GREEN AT EXIT 0 (measured on `_field_label`).
+`self-annotate-mirror-check.sh` sees them as undifferentiated DRIFT, and no battery runs it (that
+is lesson (u6)).
+
+THREE HAVE ALREADY DRIFTED, each the mirror copy being BEHIND the live body:
+
+    _array_coerce_arg   mirror module6_whyml/statements.py <- live module6_whyml/expressions.py
+                        live returns '(any (array int))' TWICE; the mirror '(Array.make 1 0)'.
+                        A FRESH UNCONSTRAINED array WITH AN EFFECT versus a pure one-element
+                        array — the sharpest of the three.
+    _field_type_of      mirror module6_whyml/statements.py <- live module6_whyml/types.py
+                        live gained an `_record_field_elem_locals` fallback branch (4 lines);
+                        the mirror copy has none.
+    _rhs_yields_map     mirror module6_whyml/statements.py <- live module6_whyml/types.py
+                        live gained the `getattr(self, "<dict/set field>", {})` arm (4 lines);
+                        the mirror copy has none.
+
+THE WORK, and its honest cost:
+  1. `bin/check-sibling-concrete-fidelity.py` — a new L-plane that resolves an un-trusted
+     mirror-only def against the WHOLE live tree using the SYNC PLANE'S OWN `_normalize`, hard-
+     zeroes UNRESOLVED (allowlisting only the `mutable_state` decorator, 10 of them), subsets the
+     TypedDict class views, and ratchets the DIVERGING set at these three. Written, run
+     (22 SAME / 3 DIVERGING / 0 unresolved / 2 class views / 24 `\trusted` stubs), and
+     NEGATIVE-TESTED TWICE — a built-in `--self-test` mutation, and the end-to-end perturbation
+     of `_field_label` that `check-self-annotate-sync.sh` accepted.
+  2. A scope repair to `self-annotate-mirror-check.sh` so a RELOCATED def is not reported as
+     STALENESS (its body is plane 1's question), leaving a genuinely stale def still red.
+     Written and negative-tested (a stray `_zzz_stale_helper_that_is_not_live` still fails).
+  3. RE-PORT the three live bodies verbatim into the mirror copies, then re-prove
+     `self-annotate/src/module6_whyml/statements.py` — 1870 mirror lines, a 204 KB `.mlw`, the
+     second-largest mirror proof in the tree. **COST/SCALE, therefore not a floor.** If a
+     re-ported body does NOT prove, the adjudication is to mark that copy `#@ \trusted` and take
+     the marker cost, exactly as `d21a61fb` did for the six hollow conversions — an honest +1 is
+     worth more than a verified body that is not the live code.
+
+### #64 gen #31 — THE SEAM IS A CHAIN PER MARKER, NOT A QUEUE OF CLASSES (corrects #62's unit of work)
+
+2026-09-26T18:55Z. #62 ranked the int-erasure seam by ERROR CLASS and said "every hour spent on it
+retires markers in the same currency". Measured: it does not, and the reason is structural.
+
+Three repairs were built, each fixing a real defect with a minimal corpus-language witness:
+  * the `or {}` FALSY-DEFAULT arm (LANDED `cd197545`) — the truthy arm int-erased, the `{}`
+    fallback faithful; 6 of the 13 `map`-reaching-`int` markers fail exactly there;
+  * the `.get(k, {})` twin — the same clash at a `.get` default, `nu` measured as `None`;
+  * the f-string classifier — `_is_string_expr` implemented only the GATED string path while
+    `_handle_fstring_expr` has an UNGATED one, so an all-string f-string LOWERED to `string` and
+    was CLASSIFIED int. The f-string was the ONLY one of six string shapes that failed.
+
+All 115 type-error markers were then probed TWICE with ONE instrument (the BEFORE run reverting
+the landed arm): **11 MOVED, 0 LOWER.** Every one of the eleven has a second blocker behind the
+first. A chain probe on the shallowest candidate (`AutoTrustMixin._build_witness_str`, 318 mirror
+lines) found link 2 = a `string` loop-target (`for fn in field_names`, `List[str]`) reaching an
+`int`-typed synthesized abstract op, and link 2's fix needs the PARAM's declared element type — a
+FOURTH registry (`_array_elem_types`/`_seq_value_types` do not carry params), so depth >= 3 with
+three distinct capabilities for ONE marker.
+
+**SO THE UNIT OF WORK IS ONE MARKER'S WHOLE CHAIN, iterated until it lowers.** Clearing an error
+class across the population cannot retire a marker, and a class count is not a cause count (only
+2 of the 16 `string -> int` rows were the f-string, and the f-string repair moved TWO OTHER markers
+INTO that class). Artefacts: `getting-better/seam-{before,after}-three-repairs.tsv`.
+
 ### #62 gen #31 — THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL: 103 of 116 markers, measured
 
 2026-09-26T12:45Z. Every live marker whose conversion lowers to a Why3 TYPE ERROR was
