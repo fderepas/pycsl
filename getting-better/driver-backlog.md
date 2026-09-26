@@ -59,15 +59,42 @@ the constructor — the exact fact every Module-6 walker's dispatch depends on �
 be written. A pure `function subscript_get_logic` (or routing a spec-position subscript to
 `Map.get`, which the `irx.py` accessors already prove against) would unlock all 28.
 
-#### #60b A METHOD CALL ON A FIELD IS A PARSE ERROR IN A CONTRACT
+#### #60b THE CONTRACT GRAMMAR HAS NO METHOD CALL AT ALL — only a BARE-NAME call
 
-    #@ ensures \result == "(" + self.lhs.pp() + " " + self.op + " " + self.rhs.pp() + ")"
-    [parse]: PyCSL Syntax Error … unexpected trailing input (got OP '.')
+This was first written as "a contract may call `self.<m>()` but not `self.<field>.<m>()`".
+**MEASURED 2026-09-26T08:45Z, and the first version was too generous.** Three probes, one
+production each:
 
-A contract may call `self.<m>()` but not `self.<field>.<m>()`. This blocks the recursive
-pretty-printers (`proof2why3/ir.py::BinOp.pp`, `UnaryOp.pp`, `App.pp`, the `Forall`/`Exists`
-pair) — the functions whose postcondition is a compositional statement about a recursive
-structure, which is the only kind worth having for a printer.
+    #@ ensures \result == ir_get_str(node, "op", "")                       PARSES, PROVES
+    #@ ensures \result == self._e(node.list, lr)                           unexpected
+                                                                           trailing input ('(')
+    #@ ensures \result == "(" + self.lhs.pp() + " " + self.op + ")"        same, on the '.'
+
+So the rule is: **a call whose callee is a BARE NAME parses; a call whose callee is an
+ATTRIBUTE does not, whether the receiver is `self` or a field.** The grammar is explicit
+about it — `Module2_Parser._parse_atom_name` has productions for `self.<field>`,
+`self.<field>[i]`, `self.<field>[i].<sub>`, `<name>.<field>`, `<name>.<field>[i]`,
+`<name>.keys()/.values()/.items()` (with a NAMED refusal for any other `.m()`), and
+`<name>(args)` — and no `self.<m>(args)` anywhere.
+
+WHAT IT BLOCKS, and it is much more than the printers:
+  * every EMITTER MIXIN HANDLER's postcondition. `_handle_list_length_expr`'s whole body is
+    `l = self._e(node.list, lr); l_r = self._deref(l); return f"(length {l_r})"`, and the
+    postcondition that states it needs `self._deref(self._e(...))`. That shape is the
+    majority of `module6_whyml/expressions.py`, `statements.py`, `expr_ghost_collections.py`
+    and `expr_ghost_spec_ops.py` — hundreds of `#@ ensures True` functions.
+  * the recursive pretty-printers (`proof2why3/ir.py::BinOp.pp`, `UnaryOp.pp`, `App.pp`,
+    `Forall`/`Exists`), whose only worthwhile postcondition is compositional.
+  * NESTING is a second, separate limit: even if `self._e(x)` parsed, the probe shows the
+    error moves to the INNER `(`, so a nested call needs its own production.
+
+WHAT IT WOULD TAKE, scoped: a `self.<m>(args)` production in `_parse_atom_name`, a CSL node
+for it, and a lowering. The LOWERING MAY LARGELY EXIST — `functions._emit_contracts` and
+route #167 already speak of `self.<m>(...)` calls in contracts and the `requires` assertions
+they carry — so the spike is: add the production, emit the node, and see how far the existing
+machinery carries it. REFUTATION EXIT: if the lowered call is not a `let function` (pure), it
+cannot appear in a logical term at all and the production is useless without a purity
+analysis; stop and record that.
 
 #### #60c ONLY `.keys()` / `.values()` / `.items()` ARE RECOGNISED IN A CONTRACT
 
