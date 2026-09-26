@@ -7983,3 +7983,33 @@ running, the only writable paths are `getting-better/**` and a scratch directory
 `src/` are INPUTS to a running gate — `src/` because the byte-diff sweep and the suite read it,
 `bin/` because the battery is a shell script being read line by line. If an edit cannot wait
 for the gate, it goes in a patch file and is applied afterwards.
+
+### (t6) A per-FILE reset is not a per-CANDIDATE reset — a screen that accumulates state measures the accumulation
+
+The screen that measures "what does converting THIS marker do" copies a pristine source over the
+mirror before each candidate. Mine copied the pristine version of **the file it was about to
+edit** — and left the PREVIOUS candidate's file converted. So the moment the candidate list
+crossed a file boundary, every later candidate was measured against a mirror in which earlier
+files were still converted.
+
+IT IS NOT A SMALL EFFECT, because the mirror files IMPORT each other. `pycsl.py` imports
+`Module5_IREmitter` and `Module6_WhyMLTranspiler`, so with either of those left converted its
+emission changes shape. Measured, and this is the detection that worked: **the porter ABORTED on
+one candidate — it made no change at all — and the emission still reported an error**, `list.List.
+list PyCSL_Program.pyval, but is expected to have type int`. An error with no edit is the signal;
+without that accident the contaminated rows all looked plausible, and thirteen of them had been
+written into a ledger.
+
+    116 candidates · 13 rows changed when the WHOLE mirror was restored per candidate
+                   ·  1 of those changed its CLASSIFICATION, so a named ratchet had to RISE
+
+THE RULE: a screen's unit of reset is its unit of measurement. If the measurement is
+"one candidate", the reset is "the whole population", not "the file this candidate lives in".
+`git archive HEAD <subtree> | tar -x` over the mirror costs about a second and removes the whole
+class of error; a `cp pristine.py` does not.
+
+AND THE SHAPE THIS SHARES WITH (q6), (p6) AND (s6) — all four in one generation — is a WRONG
+SCOPE, not a wrong step: a plane that is not in the gate, a matcher that takes the wrong naming,
+a tree that is not the tree, a reset that is not the reset. Every one of them produced a
+confident number. **The question that catches all four is "what exactly did I measure?", asked
+about the instrument rather than about the result.**

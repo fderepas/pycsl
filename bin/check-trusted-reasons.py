@@ -154,7 +154,38 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        lines, ZERO new abstract operations, green whole-file proof in 38 minutes. Its
 #        near-twin `pycsl.py::_parse_args` is 174 lines, also proves, and is REFUSED by check
 #        1 for TEN new abstract operations — the whole of `argparse` going uninterpreted.
-MAX_UNCLASSIFIED = 389   # (#49) gen #31, 2026-09-26T12:25Z — 442 -> 389. FIFTY-THREE rows
+MAX_UNCLASSIFIED = 287   # (#49) gen #31, 2026-09-26T13:05Z — 286 -> 287, RAISED BY ONE, and
+                         # the member is NAMED: `pycsl.py::_run_audit_mode`. It was
+                         # classified `cost-scale:int-erasure-seam` twenty minutes earlier
+                         # on a CONTAMINATED measurement — the measuring script restored a
+                         # pristine copy of the FILE it was about to edit and left the
+                         # PREVIOUS file converted, so `pycsl.py` (which imports
+                         # Module5_IREmitter and Module6_WhyMLTranspiler) was measured
+                         # against a mirror in which earlier candidates were still in
+                         # place. Re-measured on a per-candidate pristine tree its error is
+                         # `array int -> array string`, with NEITHER side `int`, so it is
+                         # NOT the seam and it goes back to `unclassified`. THIRTEEN of the
+                         # 116 rows changed under the repair; this is the one whose
+                         # CLASSIFICATION changed. Wall-lesson (t6).
+                         # PRIOR ENTRY: 2026-09-26T12:45Z — 389 -> 286. ONE HUNDRED AND
+                         # TWO more rows (the entry said THREE; see above), and the
+                         # measurement that justifies them is the
+                         # one that CORRECTED my own note below.
+                         # Every marker whose conversion lowers to a Why3 TYPE ERROR was
+                         # re-measured individually at FULL message width (a Why3 type
+                         # error is TWO lines — `has type X,` then `but is expected to have
+                         # type Y` — and the first pass captured ONE, which is the same
+                         # truncation mistake, one level down). At full width, **103 of the
+                         # 116 have exactly ONE side `int`**: they fail at the SEAM between
+                         # the faithful value model and the int-erased one, crossed in both
+                         # directions in roughly equal numbers. That is one cause, it has
+                         # a name, and it is backlog #62 — the largest wall in this ledger
+                         # by a factor of four. The per-marker table is
+                         # `getting-better/trusted-type-error-causes.tsv`, so the
+                         # classification is falsifiable one row at a time.
+                         # The 13 that are NOT the seam stay `unclassified`: 6 `unbound
+                         # symbol` and 7 where BOTH sides are faithful.
+                         # PRIOR ENTRY: 2026-09-26T12:25Z — 442 -> 389. FIFTY-THREE rows
                          # classified in one commit, and every one of them carries a
                          # MEASUREMENT rather than a judgement: the emitter REFUSED the
                          # conversion with a diagnostic that NAMES the missing capability,
@@ -168,8 +199,13 @@ MAX_UNCLASSIFIED = 389   # (#49) gen #31, 2026-09-26T12:25Z — 442 -> 389. FIFT
                          #    5  name-rebinding-model      (#61b)
                          #    3  heterogeneous-list-model  (#61d)
                          #    1  array-local-reassign      (#61e)
-                         # THE 116 MARKERS WHOSE VERDICT IS A WHY3 TYPE ERROR ARE
-                         # DELIBERATELY LEFT UNCLASSIFIED. `finding-the-string-closure-
+                         # SUPERSEDED TWENTY MINUTES LATER, AND LEFT HERE BECAUSE THE
+                         # CORRECTION IS THE USEFUL ENTRY: "THE 116 MARKERS WHOSE VERDICT
+                         # IS A WHY3 TYPE ERROR ARE DELIBERATELY LEFT UNCLASSIFIED."
+                         # That was right about GROUPING BY EXPECTED TYPE and wrong about
+                         # the markers: measured at full width they group by a STRUCTURAL
+                         # property of the error instead, and 103 of them share it.
+                         # `finding-the-string-closure-
                          # retired-one-of-a-hundred-and-three.md` measured that a
                          # distribution of error messages is NOT a distribution of causes
                          # — three string rules cleared ONE of 103 — so grouping them

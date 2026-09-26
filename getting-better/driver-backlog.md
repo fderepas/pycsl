@@ -34,6 +34,67 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #62 gen #31 — THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL: 103 of 116 markers, measured
+
+2026-09-26T12:45Z. Every live marker whose conversion lowers to a Why3 TYPE ERROR was
+re-measured individually at FULL message width (`getting-better/trusted-type-error-causes.tsv`,
+one row each). The grouping that matters is not the expected type; it is **whether exactly ONE
+side of the mismatch is `int`**:
+
+    23  int                                  -> string
+    16  string                               -> int
+    10  int                                  -> array.Array.array int @rho
+     8  'mu -> option.Option.option int      -> int
+     6  array.Array.array string @rho        -> int
+     4  int                                  -> option.Option.option int      <- the I4 signature
+     4  int                                  -> PyCSL_Program.pyval
+     3  PyCSL_Program.term                   -> int
+     2  int -> ref 'mu @rho · 2 int -> array 'xi · 2 int -> (int,int) · 2 array int -> int
+     1  each: string -> option int · seq 'mu -> int · ref int -> int · list term -> int
+    ---
+   102  of 116 (88%). The other 14 are 5 `unbound symbol '<name>'` (`toks` ×2, `self` ×2, `body`,
+        `ctx`), 8 one-offs where BOTH sides are faithful (`array int` vs `array string`,
+        `ref emit_ir` vs …, `var` vs …, `(int, array int)` vs …) and ONE that now LOWERS.
+
+> **THE TABLE ABOVE IS THE THIRD MEASUREMENT.** The first (the screen) cut each Why3 message at
+> 48 characters and could only group by the expected type. The second captured ONE line of a
+> TWO-line message. The third restored a pristine copy of the FILE it was about to edit and left
+> the PREVIOUS file converted, so every candidate after the first file boundary was measured
+> against a contaminated mirror — THIRTEEN of the 116 rows changed when the whole mirror was
+> restored per candidate, and ONE of them (`pycsl.py::_run_audit_mode`) changed its
+> CLASSIFICATION, which is why `MAX_UNCLASSIFIED` went 286 -> 287 with that member named.
+> The conclusion survived all three instruments; the membership did not. See wall-lessons (t6).
+
+**THE MIRROR IS EMITTED WITH TWO COEXISTING VALUE MODELS** — the FAITHFUL one (`string`,
+`array τ`, `pyval`, `term`, `emit_ir`, `map k (option v)`) and the INT-ERASED one, in which every
+value is an `int` and a string literal is a `stable_hash` constant. A conversion fails whenever
+the function it retires sits ON THE SEAM: it produces a faithful value for a consumer that still
+takes `int`, or an `int` for a consumer that has been promoted. Both directions appear, in
+roughly equal numbers, which is exactly what a seam looks like and is NOT what a missing
+coercion looks like.
+
+THIS IS THE SAME DEFECT AS THREE THINGS ALREADY IN THIS BACKLOG, now measured with one number:
+
+  * **#55, the I4 bridge re-typing** — "a promoted `map string` reaching a sibling `val` BRIDGE
+    still declared `map int`". Four of the 103 are literally that signature.
+  * **#60a's tail** — the SAME FUNCTION has two modelled return types in two files (`emit_ir`
+    where defined, `map int (option int)` where imported), which is why 72 proved postconditions
+    had to be DROPPED at the import boundary.
+  * the long series of "…and it takes its operands" repairs, every one of which moved one site
+    from the erased model to the faithful one.
+
+WHAT RETIRES IT, and the honest shape of the work: **not one patch.** The capability is "extend
+the faithful model to the consumer sites that still take `int`", and it is INCREMENTAL PER SITE —
+the table says which site, for each of the 103. What the number buys is a priority: this is the
+largest wall in the ledger by a factor of four (the next is #61a's in-place mutator at 27), and
+every hour spent on it retires markers in the same currency.
+
+WHERE TO START, from the table: the 13 `list.List.list pyval -> int` rows share one consumer
+shape and are all in `pycsl.py`/`core_ir_semantic.py`; the 20+15 string/int pairs are the
+str-vs-hash seam and the string CLOSURE (`900ff447`) already showed that clearing one rule there
+moves ONE marker, so do not expect leverage from the string end — the leverage is in the
+COLLECTION rows, where one consumer serves many callers.
+
 ### #61 gen #31 — THE FIVE EMITTER GUARDS THAT HOLD 53 MARKERS, each named by the emitter itself
 
 2026-09-26T12:25Z. `bin/check-trusted-reasons.py`'s `unclassified` ratchet had 442 rows, and

@@ -1,137 +1,149 @@
-# trusted-type-error-causes.tsv — the MEASURED first Why3 error for every `\trusted` marker
-# whose conversion lowers to a TYPE ERROR, one row per marker.
+# trusted-type-error-causes.tsv — the MEASURED first Why3 error, at FULL WIDTH, on a PRISTINE
+# tree, for every `\trusted` marker whose conversion lowers to a TYPE ERROR. One row per marker.
 #
-# WHY THIS FILE EXISTS (#49, gen #31, 2026-09-26T12:34Z). 116 live markers had a recorded screen
-# verdict of "TYPE", and the screen TRUNCATED the message at 48 characters — enough to bucket it
-# by the type the emitter expected, not enough to say what the cause was. That truncated bucketing
-# is what produced the claim that "~174 witnesses" were one capability, which
-# `finding-the-string-closure-retired-one-of-a-hundred-and-three.md` then refuted by measurement:
-# three string rules cleared ONE of 103.
+# THIS FILE TOOK THREE MEASUREMENTS TO GET RIGHT, and the two failures are both truncations of a
+# different kind. They are recorded here because the numbers below are only as good as the
+# instrument, and the instrument was wrong twice in one hour.
 #
-# So each marker here was re-measured individually: ported (or `--replace`d) into a fresh
-# `git archive HEAD src bin json` tree, the marker deleted, the file emitted, and the FIRST Why3
-# error recorded IN FULL. 115 of 116 produce a type error; ONE now LOWERS.
+#   1. THE SCREEN that produced the original "230 type errors" table cut each Why3 message at 48
+#      characters, so it could only group by the type the emitter EXPECTED. A 174-witness wall was
+#      sized from that grouping and the capability built against it cleared ONE of 103.
+#   2. THE FIRST RE-MEASUREMENT captured ONE line per message. A Why3 type error is TWO lines —
+#      `has type X,` then `but is expected to have type Y` — so half of every row was the half
+#      that distinguishes a cause from a symptom.
+#   3. THE SECOND RE-MEASUREMENT restored a pristine copy of the FILE it was about to edit and
+#      left the PREVIOUS file converted. Once the candidate list crossed a file boundary, every
+#      later candidate was measured against a mirror in which earlier files were still converted.
+#      MEASURED: with NO port at all (the porter ABORTED), the contaminated tree still printed
+#      `list.List.list PyCSL_Program.pyval, but is expected to have type int` for `pycsl.py`,
+#      which imports Module5_IREmitter and Module6_WhyMLTranspiler. THIRTEEN of 116 rows changed
+#      when the whole mirror was restored per candidate. See wall-lessons.md (t6).
 #
-# THESE ROWS ARE NOT CLASSIFICATIONS. `getting-better/trusted-reasons.tsv` deliberately leaves all
-# of them `unclassified`, because the causes measured below do NOT collapse into a small set of
-# capabilities and grouping them would be the laundering rule (k) forbids. This file is the raw
-# measurement a next generation can work one row at a time.
+# THE ROWS BELOW ARE THE THIRD MEASUREMENT: per candidate, `git archive HEAD src/self-annotate/src`
+# extracted fresh over the mirror, the marker ported (or `--replace`d) and deleted, the file
+# emitted, the first Why3 error flattened to 220 characters. 115 of 116 produce a type error;
+# ONE now LOWERS (`pure_ast.py::NodeVisitor.generic_visit`, which the four conversion oracles then
+# refuse — `shadowed-selfcalls` 14 -> 15).
 #
-# SCHEMA: file<TAB>qualname<TAB>verdict<TAB>first Why3 error (truncated at 150 chars)
+# 102 of the 116 have exactly ONE side `int`: they fail at the SEAM between the faithful value
+# model and the int-erased one. Those 102 are classified `cost-scale:int-erasure-seam` in
+# `trusted-reasons.tsv` (backlog #62). The other 14 stay `unclassified` and are listed in #62.
+#
+# SCHEMA: file<TAB>qualname<TAB>verdict<TAB>first Why3 error (flattened, <=220 chars)
 file	qualname	verdict	first_error
-audit_proof.py	_extract_directives	TYPE	This expression has type int, but is expected to have type array.Array.array
-audit_proof.py	_index_proofs_dir	TYPE	This expression has type PyCSL_Program.StrSet.set,
-audit_proof.py	audit_both	TYPE	This expression has type array.Array.array int @rho,
-audit_proof.py	audit_lean	TYPE	This expression has type int, but is expected to have type string
-audit_proof.py	audit_rocq	TYPE	This expression has type int, but is expected to have type string
-audit_proof.py	print_report	TYPE	This expression has type array.Array.array string @rho,
-audit_proof_reverify.py	_cache_key	TYPE	This expression has type array.Array.array string @rho,
-audit_proof_reverify.py	_cache_load	TYPE	This expression has type string, but is expected to have type int
-audit_proof_reverify.py	_cache_store	TYPE	This expression has type string, but is expected to have type int
-audit_proof_reverify.py	_coqc_version	TYPE	This expression has type array.Array.array string @rho,
-audit_proof_reverify.py	_lean_version	TYPE	This expression has type array.Array.array string @rho,
-audit_proof_reverify.py	_split_rocq_print_assumptions	TYPE	This expression has type array.Array.array string @rho,
-audit_proof_reverify.py	_to_cache_payload	TYPE	This expression has type string, but is expected to have type int
-core_ir_semantic.py	_namedtuple_check_call	TYPE	This expression has type int -> option.Option.option int,
-core_ir_semantic.py	_namedtuple_check_subscript	TYPE	This expression has type 'mu -> option.Option.option int,
-core_ir_semantic.py	_typeddict_check_subscript	TYPE	This expression has type 'mu -> option.Option.option int,
-core_ir_semantic.py	run_ir_semantic_checks	TYPE	This expression has type 'mu -> option.Option.option int,
-frontend/Module1_Ingestor.py	_match_block_hdr	TYPE	This expression has type int, but is expected to have type (int, int)
-frontend/Module2_Parser.py	_ContractParser.__init__	TYPE	This term has type int, but is expected to have type array.Array.array 'xi
-frontend/Module2_Parser.py	_lex_contract	TYPE	unbound function or predicate symbol 'toks'
-frontend/Module3_Weaver.py	Module3_Weaver._attach_labels_and_ghost_assigns	TYPE	This expression has type int, but is expected to have type array.Array.array
-frontend/Module3_Weaver.py	Module3_Weaver._region_bound_str	TYPE	This expression has type int, but is expected to have type string
-frontend/Module3_Weaver.py	Module3_Weaver._subscript_read_site	TYPE	This expression has type PyCSL_Program.emit_ir,
-frontend/Module3_Weaver.py	Module3_Weaver._subst_csl_param	TYPE	This expression has type int, but is expected to have type string
-frontend/Module3_Weaver.py	PyCSLWeaver._desugar_acts	TYPE	This expression has type int, but is expected to have type PyCSL_Program.
-frontend/Module3_Weaver.py	PyCSLWeaver._dispatch_function_contracts	TYPE	This expression has type int, but is expected to have type array.Array.array
-frontend/Module3_Weaver.py	PyCSLWeaver._subst_var	TYPE	This expression has type int, but is expected to have type real
-frontend/Module3_Weaver.py	PyCSLWeaver._validate_function_contracts	TYPE	This expression has type array.Array.array int @rho,
-frontend/Module5_IREmitter.py	PyCSLToJSONEmitter.__init__	TYPE	This expression has type int, but is expected to have type string
-frontend/desugar.py	_try_reaches_assert	TYPE	This expression has type int -> option.Option.option int,
-frontend/import_classifier.py	check_imports	TYPE	This expression has type int, but is expected to have type string
-frontend/ir_resolve.py	_find_record_type_from_dep_imports	TYPE	This expression has type 'mu -> option.Option.option int,
-frontend/ir_resolve.py	_resolve_module_imports	TYPE	This expression has type int, but is expected to have type array.Array.array
-frontend/ir_resolve.py	_resolve_module_path	TYPE	This expression has type int, but is expected to have type string
-frontend/ir_resolve.py	_resolve_wildcard_imports	TYPE	This expression has type int, but is expected to have type string
-frontend/ir_resolve.py	_strip_dir_scan_proofs	TYPE	This expression has type int, but is expected to have type ref 'mu @rho
-frontend/module_collect.py	collect_module_constants	TYPE	This expression has type int, but is expected to have type array.Array.array
-frontend/module_collect.py	collect_module_globals	TYPE	This expression has type int, but is expected to have type array.Array.array
-frontend/monomorphize.py	_check_gt4_polymorphic_recursion	TYPE	This expression has type int, but is expected to have type string
-frontend/monomorphize.py	_collect_generic_decls	TYPE	This expression has type string, but is expected to have type int
-frontend/monomorphize.py	_rewrite_annotation_str	TYPE	This expression has type (int, int), but is expected to have type int
-frontend/monomorphize.py	_rewrite_annotations	TYPE	This expression has type 'mu -> option.Option.option int,
-frontend/monomorphize.py	_rewrite_subscript_calls_in_stmt	TYPE	This expression has type int -> option.Option.option int,
-frontend/monomorphize.py	_rewrite_subscript_to_name	TYPE	This expression has type int, but is expected to have type PyCSL_Program.
-frontend/monomorphize.py	apply_monomorphization	TYPE	This expression has type int, but is expected to have type PyCSL_Program.
-frontend/pure_ast.py	Comment.__init__	TYPE	This expression has type ref PyCSL_Program.emit_ir @rho,
+audit_proof.py	_extract_directives	TYPE	This expression has type int, but is expected to have type array.Array.array 'mu @rho 
+audit_proof.py	_index_proofs_dir	TYPE	This expression has type PyCSL_Program.StrSet.set, but is expected to have type int 
+audit_proof.py	audit_both	TYPE	This expression has type array.Array.array int @rho, but is expected to have type array.Array.array string @rho1 
+audit_proof.py	audit_lean	TYPE	This expression has type int, but is expected to have type string 
+audit_proof.py	audit_rocq	TYPE	This expression has type int, but is expected to have type string 
+audit_proof.py	print_report	TYPE	This expression has type array.Array.array string @rho, but is expected to have type int 
+audit_proof_reverify.py	_cache_key	TYPE	This expression has type array.Array.array string @rho, but is expected to have type array.Array.array int @rho1 
+audit_proof_reverify.py	_cache_load	TYPE	This expression has type string, but is expected to have type int 
+audit_proof_reverify.py	_cache_store	TYPE	This expression has type string, but is expected to have type int 
+audit_proof_reverify.py	_coqc_version	TYPE	This expression has type array.Array.array string @rho, but is expected to have type int 
+audit_proof_reverify.py	_lean_version	TYPE	This expression has type array.Array.array string @rho, but is expected to have type int 
+audit_proof_reverify.py	_split_rocq_print_assumptions	TYPE	This expression has type array.Array.array string @rho, but is expected to have type int 
+audit_proof_reverify.py	_to_cache_payload	TYPE	This expression has type string, but is expected to have type int 
+core_ir_semantic.py	_namedtuple_check_call	TYPE	This expression has type int -> option.Option.option int, but is expected to have type int 
+core_ir_semantic.py	_namedtuple_check_subscript	TYPE	This expression has type 'mu -> option.Option.option int, but is expected to have type int 
+core_ir_semantic.py	_typeddict_check_subscript	TYPE	This expression has type 'mu -> option.Option.option int, but is expected to have type int 
+core_ir_semantic.py	run_ir_semantic_checks	TYPE	This expression has type 'mu -> option.Option.option int, but is expected to have type int 
+frontend/Module1_Ingestor.py	_match_block_hdr	TYPE	This expression has type int, but is expected to have type (int, int) 
+frontend/Module2_Parser.py	_ContractParser.__init__	TYPE	This term has type int, but is expected to have type array.Array.array 'xi 
+frontend/Module2_Parser.py	_lex_contract	TYPE	unbound function or predicate symbol 'toks' 
+frontend/Module3_Weaver.py	Module3_Weaver._attach_labels_and_ghost_assigns	TYPE	This expression has type int, but is expected to have type array.Array.array int @rho 
+frontend/Module3_Weaver.py	Module3_Weaver._region_bound_str	TYPE	This expression has type int, but is expected to have type string 
+frontend/Module3_Weaver.py	Module3_Weaver._subscript_read_site	TYPE	This expression has type PyCSL_Program.emit_ir, but is expected to have type int 
+frontend/Module3_Weaver.py	Module3_Weaver._subst_csl_param	TYPE	This expression has type int, but is expected to have type string 
+frontend/Module3_Weaver.py	PyCSLWeaver._desugar_acts	TYPE	This expression has type int, but is expected to have type PyCSL_Program. emit_ir 
+frontend/Module3_Weaver.py	PyCSLWeaver._dispatch_function_contracts	TYPE	This expression has type int, but is expected to have type array.Array.array int @rho 
+frontend/Module3_Weaver.py	PyCSLWeaver._subst_var	TYPE	This expression has type int, but is expected to have type real 
+frontend/Module3_Weaver.py	PyCSLWeaver._validate_function_contracts	TYPE	This expression has type array.Array.array int @rho, but is expected to have type int 
+frontend/Module5_IREmitter.py	PyCSLToJSONEmitter.__init__	TYPE	This expression has type int, but is expected to have type string 
+frontend/desugar.py	_try_reaches_assert	TYPE	This expression has type int -> option.Option.option int, but is expected to have type int 
+frontend/import_classifier.py	check_imports	TYPE	This expression has type int, but is expected to have type string 
+frontend/ir_resolve.py	_find_record_type_from_dep_imports	TYPE	This expression has type 'mu -> option.Option.option int, but is expected to have type int 
+frontend/ir_resolve.py	_resolve_module_imports	TYPE	This expression has type int, but is expected to have type array.Array.array int @rho 
+frontend/ir_resolve.py	_resolve_module_path	TYPE	This expression has type int, but is expected to have type string 
+frontend/ir_resolve.py	_resolve_wildcard_imports	TYPE	This expression has type int, but is expected to have type string 
+frontend/ir_resolve.py	_strip_dir_scan_proofs	TYPE	This expression has type int, but is expected to have type ref 'mu @rho 
+frontend/module_collect.py	collect_module_constants	TYPE	This expression has type int, but is expected to have type array.Array.array int @rho 
+frontend/module_collect.py	collect_module_globals	TYPE	This expression has type int, but is expected to have type array.Array.array int @rho 
+frontend/monomorphize.py	_check_gt4_polymorphic_recursion	TYPE	This expression has type int, but is expected to have type string 
+frontend/monomorphize.py	_collect_generic_decls	TYPE	This expression has type string, but is expected to have type int 
+frontend/monomorphize.py	_rewrite_annotation_str	TYPE	This expression has type (int, int), but is expected to have type int 
+frontend/monomorphize.py	_rewrite_annotations	TYPE	This expression has type 'mu -> option.Option.option int, but is expected to have type int 
+frontend/monomorphize.py	_rewrite_subscript_calls_in_stmt	TYPE	This expression has type int -> option.Option.option int, but is expected to have type int 
+frontend/monomorphize.py	_rewrite_subscript_to_name	TYPE	This expression has type int, but is expected to have type PyCSL_Program. pyval 
+frontend/monomorphize.py	apply_monomorphization	TYPE	This expression has type int, but is expected to have type PyCSL_Program. pyval 
+frontend/pure_ast.py	Comment.__init__	TYPE	This expression has type ref PyCSL_Program.emit_ir @rho, but is expected to have type PyCSL_Program.comment @rho1 
 frontend/pure_ast.py	NodeVisitor.generic_visit	LOWERS	-
-frontend/pure_ast.py	_Parser.__init__	TYPE	This term has type int, but is expected to have type array.Array.array 'xi
-frontend/pure_ast.py	_Tok.__repr__	TYPE	This expression has type PyCSL_Program.pytuple_int_int,
-frontend/pure_ast.py	_Unparser.buffered	TYPE	This expression has type int, but is expected to have type ref 'mu @rho
-frontend/pure_ast.py	_const_value_getter	TYPE	unbound function or predicate symbol 'self'
-frontend/pure_ast.py	_const_value_setter	TYPE	unbound function or predicate symbol 'self'
-frontend/pure_ast.py	_decode_escapes	TYPE	This expression has type int, but is expected to have type string
-frontend/pure_ast.py	_decode_fstring_middle	TYPE	This expression has type string, but is expected to have type int
-frontend/pure_ast.py	_decode_string	TYPE	unbound function or predicate symbol 'body'
-frontend/pure_ast.py	_parse_number	TYPE	This expression has type int, but is expected to have type PyCSL_Program.
-frontend/pure_ast.py	_set_ctx	TYPE	unbound program function or variable symbol 'ctx'
-frontend/pure_ast.py	comments	TYPE	This expression has type int, but is expected to have type array.Array.array
-frontend/pure_ast.py	fix_missing_locations	TYPE	This expression has type (), but is expected to have type int
-frontend/pure_ast.py	increment_lineno	TYPE	This expression has type ref int @rho, but is expected to have type int
-frontend/pure_ast.py	literal_eval	TYPE	This expression has type string, but is expected to have type int
-module6_whyml/auto_trust.py	AutoTrustMixin._build_witness_str	TYPE	This expression has type 'mu -> option.Option.option int,
-module6_whyml/functions.py	FunctionEmissionMixin._parse_mixin_sig	TYPE	This expression has type string, but is expected to have type int
-module6_whyml/identifiers.py	whyml_ident	TYPE	This expression has type string, but is expected to have type int
-module6_whyml/scc.py	sort_functions_by_scc	TYPE	This expression has type int, but is expected to have type PyCSL_Program.
-module6_whyml/struct_format.py	calcsize	TYPE	This expression has type int, but is expected to have type string
-proof2why3/canonical.py	_alpha_rename	TYPE	This expression has type int, but is expected to have type array.Array.array
-proof2why3/canonical.py	_camel_to_snake	TYPE	This expression has type string, but is expected to have type int
-proof2why3/canonical.py	_dedup_arrow_chain	TYPE	This expression has type PyCSL_Program.term, but is expected to have type int
-proof2why3/canonical.py	_expand_nat_to_int	TYPE	This expression has type PyCSL_Program.term, but is expected to have type int
-proof2why3/canonical.py	_iff_app_to_binop	TYPE	This expression has type list.List.list PyCSL_Program.term,
-proof2why3/canonical.py	_normalize_names	TYPE	This expression has type PyCSL_Program.var @rho,
-proof2why3/canonical.py	_normalize_type_string	TYPE	This expression has type int, but is expected to have type string
-proof2why3/canonical.py	_sort_arrow_hypotheses	TYPE	This expression has type PyCSL_Program.term, but is expected to have type int
-proof2why3/canonical.py	substitute	TYPE	This expression has type int, but is expected to have type string
-proof2why3/crosscheck.py	_load_axiom_registry	TYPE	This expression has type string, but is expected to have type int
-proof2why3/crosscheck.py	main	TYPE	This expression has type int, but is expected to have type array.Array.array
-proof2why3/crosscheck_ir.py	IRCrossCheckResult.pairwise	TYPE	This expression has type bool, but is expected to have type int
-proof2why3/crosscheck_ir.py	_load_axiom_registry	TYPE	This expression has type string, but is expected to have type int
-proof2why3/crosscheck_ir.py	_preprocess_whyml	TYPE	This expression has type string, but is expected to have type int
-proof2why3/crosscheck_ir.py	main	TYPE	This expression has type int, but is expected to have type array.Array.array
-proof2why3/extract.py	_split_rocq_check_output	TYPE	This expression has type string, but is expected to have type int
-proof2why3/extract_lean_meta.py	lean_meta_available	TYPE	This expression has type string, but is expected to have type int
-proof2why3/from_lean_json.py	_is_ofnat_lit	TYPE	This expression has type int -> option.Option.option int,
-proof2why3/from_lean_json.py	project_to_ir	TYPE	This expression has type int, but is expected to have type string
-proof2why3/from_sexp.py	_construct_indices	TYPE	This expression has type int, but is expected to have type (int, int)
-proof2why3/from_sexp.py	_project_app	TYPE	This expression has type int, but is expected to have type PyCSL_Program.
-proof2why3/from_sexp.py	project_constr	TYPE	This expression has type PyCSL_Program.unsupported @rho,
-proof2why3/normalize.py	_alpha_rename	TYPE	This expression has type string, but is expected to have type int
-proof2why3/normalize.py	_expand_anon_binders	TYPE	This expression has type int -> string, but is expected to have type int
-proof2why3/normalize.py	_nat_to_int_with_sidecond	TYPE	This expression has type int, but is expected to have type string
-proof2why3/normalize.py	normalize_prover_output	TYPE	This expression has type int, but is expected to have type string
-proof2why3/normalize.py	normalize_whyml_axiom	TYPE	This expression has type int, but is expected to have type string
-proof2why3/parser.py	lex	TYPE	unbound function or predicate symbol 'toks'
-proof2why3/parser.py	normalize_surface	TYPE	This expression has type int, but is expected to have type string
-proof2why3/parser.py	parse_type_expr	TYPE	This expression has type int, but is expected to have type string
-proof2why3/sertop.py	extract_via_sertop	TYPE	This expression has type int, but is expected to have type string
-proof2why3/sertop.py	parse_sexp	TYPE	This expression has type int, but is expected to have type array.Array.array
-proof2why3/sertop.py	sertop_version	TYPE	This expression has type array.Array.array string @rho,
-proof_axiom_allowlist.py	parse_lean_axioms_line	TYPE	This expression has type array.Array.array string @rho,
-proof_axiom_allowlist.py	parse_rocq_assumptions_block	TYPE	This expression has type (int, array.Array.array int @rho),
-pycsl.py	_build_soundness_report	TYPE	This expression has type array.Array.array int @rho,
-pycsl.py	_find_coqc	TYPE	This expression has type list.List.list PyCSL_Program.pyval,
-pycsl.py	_function_body_eqs	TYPE	This expression has type list.List.list PyCSL_Program.pyval,
-pycsl.py	_json_goal_records	TYPE	This expression has type list.List.list PyCSL_Program.pyval,
-pycsl.py	_make_temp_mlw_path	TYPE	This expression has type list.List.list PyCSL_Program.pyval,
-pycsl.py	_merge_records_best_of_n	TYPE	This expression has type list.List.list PyCSL_Program.pyval,
-pycsl.py	_parse_goal_blocks	TYPE	This expression has type seq.Seq.seq 'mu, but is expected to have type int
-pycsl.py	_print_soundness_report	TYPE	This expression has type list.List.list PyCSL_Program.pyval,
-pycsl.py	_record_answer	TYPE	This expression has type list.List.list PyCSL_Program.pyval,
-pycsl.py	_record_key	TYPE	This expression has type list.List.list PyCSL_Program.pyval,
-pycsl.py	_residual_selectors_from_records	TYPE	This expression has type list.List.list PyCSL_Program.pyval,
-pycsl.py	_run_audit_mode	TYPE	This expression has type list.List.list PyCSL_Program.pyval,
-pycsl.py	_synthesize_block	TYPE	This expression has type list.List.list PyCSL_Program.pyval,
-pycsl.py	_synthesize_legacy_text	TYPE	This expression has type list.List.list PyCSL_Program.pyval,
-pycsl.py	_why3_typecheck	TYPE	This expression has type list.List.list PyCSL_Program.pyval,
+frontend/pure_ast.py	_Parser.__init__	TYPE	This term has type int, but is expected to have type array.Array.array 'xi 
+frontend/pure_ast.py	_Tok.__repr__	TYPE	This expression has type PyCSL_Program.pytuple_int_int, but is expected to have type int 
+frontend/pure_ast.py	_Unparser.buffered	TYPE	This expression has type int, but is expected to have type ref 'mu @rho 
+frontend/pure_ast.py	_const_value_getter	TYPE	unbound function or predicate symbol 'self' 
+frontend/pure_ast.py	_const_value_setter	TYPE	unbound function or predicate symbol 'self' 
+frontend/pure_ast.py	_decode_escapes	TYPE	This expression has type int, but is expected to have type string 
+frontend/pure_ast.py	_decode_fstring_middle	TYPE	This expression has type string, but is expected to have type int 
+frontend/pure_ast.py	_decode_string	TYPE	unbound function or predicate symbol 'body' 
+frontend/pure_ast.py	_parse_number	TYPE	This expression has type int, but is expected to have type PyCSL_Program. pyconst_val 
+frontend/pure_ast.py	_set_ctx	TYPE	unbound program function or variable symbol 'ctx' 
+frontend/pure_ast.py	comments	TYPE	This expression has type int, but is expected to have type array.Array.array int @rho 
+frontend/pure_ast.py	fix_missing_locations	TYPE	This expression has type (), but is expected to have type int 
+frontend/pure_ast.py	increment_lineno	TYPE	This expression has type ref int @rho, but is expected to have type int 
+frontend/pure_ast.py	literal_eval	TYPE	This expression has type string, but is expected to have type int 
+module6_whyml/auto_trust.py	AutoTrustMixin._build_witness_str	TYPE	This expression has type 'mu -> option.Option.option int, but is expected to have type int 
+module6_whyml/functions.py	FunctionEmissionMixin._parse_mixin_sig	TYPE	This expression has type string, but is expected to have type int 
+module6_whyml/identifiers.py	whyml_ident	TYPE	This expression has type string, but is expected to have type int 
+module6_whyml/scc.py	sort_functions_by_scc	TYPE	This expression has type int, but is expected to have type PyCSL_Program. pyval 
+module6_whyml/struct_format.py	calcsize	TYPE	This expression has type int, but is expected to have type string 
+proof2why3/canonical.py	_alpha_rename	TYPE	This expression has type int, but is expected to have type array.Array.array int @rho 
+proof2why3/canonical.py	_camel_to_snake	TYPE	This expression has type string, but is expected to have type int 
+proof2why3/canonical.py	_dedup_arrow_chain	TYPE	This expression has type PyCSL_Program.term, but is expected to have type int 
+proof2why3/canonical.py	_expand_nat_to_int	TYPE	This expression has type PyCSL_Program.term, but is expected to have type int 
+proof2why3/canonical.py	_iff_app_to_binop	TYPE	This expression has type list.List.list PyCSL_Program.term, but is expected to have type int 
+proof2why3/canonical.py	_normalize_names	TYPE	This expression has type PyCSL_Program.var @rho, but is expected to have type PyCSL_Program.term 
+proof2why3/canonical.py	_normalize_type_string	TYPE	This expression has type int, but is expected to have type string 
+proof2why3/canonical.py	_sort_arrow_hypotheses	TYPE	This expression has type PyCSL_Program.term, but is expected to have type int 
+proof2why3/canonical.py	substitute	TYPE	This expression has type int, but is expected to have type string 
+proof2why3/crosscheck.py	_load_axiom_registry	TYPE	This expression has type string, but is expected to have type int 
+proof2why3/crosscheck.py	main	TYPE	This expression has type int, but is expected to have type array.Array.array int @rho 
+proof2why3/crosscheck_ir.py	IRCrossCheckResult.pairwise	TYPE	This expression has type bool, but is expected to have type int 
+proof2why3/crosscheck_ir.py	_load_axiom_registry	TYPE	This expression has type string, but is expected to have type int 
+proof2why3/crosscheck_ir.py	_preprocess_whyml	TYPE	This expression has type string, but is expected to have type int 
+proof2why3/crosscheck_ir.py	main	TYPE	This expression has type int, but is expected to have type array.Array.array int @rho 
+proof2why3/extract.py	_split_rocq_check_output	TYPE	This expression has type string, but is expected to have type int 
+proof2why3/extract_lean_meta.py	lean_meta_available	TYPE	This expression has type string, but is expected to have type int 
+proof2why3/from_lean_json.py	_is_ofnat_lit	TYPE	This expression has type int -> option.Option.option int, but is expected to have type int 
+proof2why3/from_lean_json.py	project_to_ir	TYPE	This expression has type int, but is expected to have type string 
+proof2why3/from_sexp.py	_construct_indices	TYPE	This expression has type int, but is expected to have type (int, int) 
+proof2why3/from_sexp.py	_project_app	TYPE	This expression has type int, but is expected to have type PyCSL_Program. pyval 
+proof2why3/from_sexp.py	project_constr	TYPE	This expression has type PyCSL_Program.unsupported @rho, but is expected to have type int 
+proof2why3/normalize.py	_alpha_rename	TYPE	This expression has type string, but is expected to have type int 
+proof2why3/normalize.py	_expand_anon_binders	TYPE	This expression has type int -> string, but is expected to have type int 
+proof2why3/normalize.py	_nat_to_int_with_sidecond	TYPE	This expression has type int, but is expected to have type string 
+proof2why3/normalize.py	normalize_prover_output	TYPE	This expression has type int, but is expected to have type string 
+proof2why3/normalize.py	normalize_whyml_axiom	TYPE	This expression has type int, but is expected to have type string 
+proof2why3/parser.py	lex	TYPE	unbound function or predicate symbol 'toks' 
+proof2why3/parser.py	normalize_surface	TYPE	This expression has type int, but is expected to have type string 
+proof2why3/parser.py	parse_type_expr	TYPE	This expression has type int, but is expected to have type string 
+proof2why3/sertop.py	extract_via_sertop	TYPE	This expression has type int, but is expected to have type string 
+proof2why3/sertop.py	parse_sexp	TYPE	This expression has type int, but is expected to have type array.Array.array string @rho 
+proof2why3/sertop.py	sertop_version	TYPE	This expression has type array.Array.array string @rho, but is expected to have type int 
+proof_axiom_allowlist.py	parse_lean_axioms_line	TYPE	This expression has type array.Array.array string @rho, but is expected to have type array.Array.array int @rho1 
+proof_axiom_allowlist.py	parse_rocq_assumptions_block	TYPE	This expression has type (int, array.Array.array int @rho), but is expected to have type (int, int) 
+pycsl.py	_build_soundness_report	TYPE	This expression has type array.Array.array int @rho, but is expected to have type int 
+pycsl.py	_find_coqc	TYPE	This expression has type int, but is expected to have type PyCSL_Program. _union__find_coqc_1 
+pycsl.py	_function_body_eqs	TYPE	This expression has type int, but is expected to have type string 
+pycsl.py	_json_goal_records	TYPE	This expression has type int, but is expected to have type array.Array.array int @rho 
+pycsl.py	_make_temp_mlw_path	TYPE	This expression has type int, but is expected to have type string 
+pycsl.py	_merge_records_best_of_n	TYPE	This expression has type int, but is expected to have type string -> option. Option.option int 
+pycsl.py	_parse_goal_blocks	TYPE	This expression has type seq.Seq.seq 'mu, but is expected to have type int 
+pycsl.py	_print_soundness_report	TYPE	This expression has type string -> option.Option.option int, but is expected to have type int 
+pycsl.py	_record_answer	TYPE	This expression has type string, but is expected to have type int 
+pycsl.py	_record_key	TYPE	This expression has type 'mu -> option.Option.option int, but is expected to have type int 
+pycsl.py	_residual_selectors_from_records	TYPE	This expression has type int, but is expected to have type string -> option. Option.option PyCSL_Program.hval 
+pycsl.py	_run_audit_mode	TYPE	This expression has type array.Array.array int @rho, but is expected to have type array.Array.array string @rho1 
+pycsl.py	_synthesize_block	TYPE	This expression has type 'mu -> option.Option.option int, but is expected to have type int 
+pycsl.py	_synthesize_legacy_text	TYPE	This expression has type int, but is expected to have type string 
+pycsl.py	_why3_typecheck	TYPE	This expression has type array.Array.array string @rho, but is expected to have type int 
