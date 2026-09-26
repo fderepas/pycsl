@@ -2674,12 +2674,26 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _collect_class_fields(self, node: ast.ClassDef) -> Tuple[List[int], int]:
         return ([], {})
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _array_init_size(rhs: ast.expr) -> int:
+        if (isinstance(rhs, ast.Call) and isinstance(rhs.func, ast.Name)
+                and rhs.func.id in ("bytearray", "bytes") and len(rhs.args) == 1):
+            return PyCSLToJSONEmitter._const_int_value(rhs.args[0])
+        # [v] * N  or  N * [v]
+        if isinstance(rhs, ast.BinOp) and isinstance(rhs.op, ast.Mult):
+            for a, b in ((rhs.left, rhs.right), (rhs.right, rhs.left)):
+                if isinstance(a, ast.List):
+                    n = PyCSLToJSONEmitter._const_int_value(b)
+                    if n is not None:
+                        return max(len(a.elts), 1) * n if a.elts else n
+        # [e1, e2, ...]  /  b"..."
+        if isinstance(rhs, ast.List):
+            return len(rhs.elts)
+        if isinstance(rhs, ast.Constant) and isinstance(rhs.value, bytes):
+            return len(rhs.value)
         return None
 
     # pyconst-dispatch value-model increment (self-tcb-reduction M5, B-bucket): the const-int

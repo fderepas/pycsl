@@ -154,7 +154,6 @@ frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._synthesize_namedtuple_function
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._emit_protocol_interface	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._populate_protocol_conformance	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._collect_class_fields	unclassified	-
-frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._array_init_size	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter.visit_ClassDef	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._collect_union_arms	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._normalize_union_annotation	unclassified	-

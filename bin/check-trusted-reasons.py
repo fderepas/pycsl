@@ -154,7 +154,10 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        lines, ZERO new abstract operations, green whole-file proof in 38 minutes. Its
 #        near-twin `pycsl.py::_parse_args` is 174 lines, also proves, and is REFUSED by check
 #        1 for TEN new abstract operations — the whole of `argparse` going uninterpreted.
-MAX_UNCLASSIFIED = 287   # (#49) gen #31, 2026-09-26T13:05Z — 286 -> 287, RAISED BY ONE, and
+MAX_UNCLASSIFIED = 286   # (#49) gen #31, 2026-09-26T15:10Z — 287 -> 286, TIGHTENED by
+                         # increment T: `Module5_IREmitter.py::_array_init_size` was RETIRED
+                         # (it proved), so its `unclassified` row is gone.
+                         # PRIOR ENTRY: 2026-09-26T13:05Z — 286 -> 287, RAISED BY ONE, and
                          # the member is NAMED: `pycsl.py::_run_audit_mode`. It was
                          # classified `cost-scale:int-erasure-seam` twenty minutes earlier
                          # on a CONTAMINATED measurement — the measuring script restored a
