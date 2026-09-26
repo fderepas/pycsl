@@ -4,13 +4,29 @@
 > carries the commit that measured it. Where a number was wrong and corrected, both are here —
 > the correction is usually the more useful entry.
 
-## The one-sentence version
+## The one-sentence version (rewritten 2026-09-26T10:00Z, and the first version was wrong
+## about which number matters)
 
-The generation's second half turned the TCB-reduction campaign's instruments on the campaign
-itself, and the instruments lost: the conversion population is a fifth of what the marker count
-implied, the integrity gate on the count had been checking 92% of the population it was meant
-to, and the headline number ended the session exactly where it started — 460 — with two
-markers retired by proof and two added by discovering they had never been verified.
+The generation turned the TCB-reduction campaign's instruments on the campaign itself, and the
+instruments lost twice. First on SCOPE: the conversion population is a fifth of what the marker
+count implied, and the integrity gate on the count had been checking 92% of the population it
+was meant to. Then, on the second day, on SUBSTANCE: **`bin/run-soundness-planes.sh --slow` had
+never been run by any gate — twenty-eight invocations, all printing "all 48 plane(s) green" —
+and one run of it found SIX conversions this session had banked that were hollow**, five
+input-blind and one yield-erasing, two of them with the verdict already written in their own
+source comment. All six were re-trusted.
+
+What the generation is actually worth is not the marker count, which ended HIGHER than it
+started (460 -> 451, after 446 and then +6 for the reverts). It is:
+
+  * the four CONVERSION ORACLES are no longer behind a flag, so that failure cannot repeat;
+  * `bin/price-the-conversions.py` measured, for the first time, what a conversion ESTABLISHES
+    — and then 91 new PROVED functional postconditions took it from 146 of 922 to 237 (26%);
+  * three spec-LANGUAGE walls were located precisely (backlog #60), one of them removed;
+  * `bin/screen-conversion-candidate.sh` makes the amended criterion executable in 5 minutes
+    instead of 3 hours of prover time, and refused its first candidate;
+  * `bin/check-cross-module-contract-parity.py` asks a question nothing asked: may an
+    IMPORTING module ASSUME a clause its DEFINER does not PROVE? (Hard zero; negative-tested.)
 
 ## What landed
 
@@ -236,3 +252,80 @@ helper carries its whole dependent cone with it.
 * the string/list FIELD value model — 36 named, reproducible witnesses.
 * the nested-closure lift — backlog #54; retires both honest markers and gates 5 traps.
 * the 22,252-line porting programme.
+
+## DAY TWO (2026-09-26) — the audit, and what replaced the marker count
+
+### The five REDs, and two of them were this session's own conversions
+
+`--slow` adds 25 planes. Every gate script ran the battery with no arguments. Run once at
+21:48Z on the increment-N tree: **5 of 73 RED.**
+
+| plane | verdict | whose |
+|---|---|---|
+| `check-emitted-vacuity` | FIVE new erasures: `error`, `unsupported`, `_err`, `_rewrite_call_sites` (BOTH args), `stable_hash` | THIS SESSION |
+| `check-yield-erasure` | `pure_ast.py::iter_fields` — a `unit` body, `true` contract, the yielded pair replaced by `any int` | THIS SESSION |
+| `check-shadowed-selfcalls` | 17 > 14 — `error` (19 bypassing sites), `_err` (7), `unsupported` (2) | THIS SESSION |
+| `check-getattr-erasure` | corpus 1859/1860 unregistered | pre-existing |
+| `check-stdlib-modules-verify` | `re/__init__.py` newly not verifying | pre-existing |
+
+`unsupported`'s own surviving comment said, before the marker was removed: *"converting emits
+`_parser__unsupported erased=['what'] of ['what']` — input-blind."* `_err`'s said it *"was
+converted, then REVERTED by two planes in succession."* Both commits deleted the marker and
+left the comment saying "STAYS trusted". **The prediction was in the file, the oracle was in
+the repo, and the gate ran neither.**
+
+The `re/__init__.py` red was worth its own finding: the goal `_check_class_inv_rematch` is
+FALSE (nothing constrains `start`), Alt-Ergo answers `Unknown (why3: Out of memory)` rather
+than `Invalid`, and the hole existed because #34 fixed a `#@`-binding bug that turned two
+silently-discarded class invariants into real obligations. **An instrument that starts working
+produces a red that looks like a regression.**
+
+### What a conversion is worth, priced for the first time
+
+    146   16%   a FUNCTIONAL postcondition        ->  237   26%  after this session's work
+    495   54%   PURITY only (`assigns \nothing`)  ->  460
+    207   22%   a NON-TRIVIAL FRAME only          ->  161
+     74    8%   neither (50 of them nested closures, no `#@` block by design) -> 64
+
+Five out of six conversions proved no functional postcondition. That is not nothing — purity,
+type safety, termination and the SYNTHESIZED per-field frame preservation are all real, and
+`errors.py::message` carries no `#@` line at all yet emits four `ensures { self.f = old
+self.f }` its abstract `val` merely assumed. It is also not what "verified" is usually read to
+mean, and the difference is the whole value of the number.
+
+### 91 postconditions, and the three walls that stopped the rest
+
+    19   irx.py (10, the whole typed IR-accessor layer, against the FAITHFUL
+         `map string (option string)`), proof2why3/ir.py (3), expr_ghost_collections (3),
+         audit_proof, crosscheck, expr_ghost_spec_ops
+    72   frontend/Module5_IREmitter.py's IR CONSTRUCTORS — `\result["type"] == "<tag>"` now
+         lowers to `kind_of result`, the projection the BODY position has used for
+         generations. 72 of 74; the two that fail are a measured TIMEOUT (39,981,778 and
+         80,324,449 steps), not a falsehood, and are left as `ensures True` with the numbers
+         at the site.
+
+and the walls, all three SPEC-LANGUAGE rather than proof (backlog #60):
+
+  * a dict subscript on `\result` was `unbound symbol 'subscript_get'` — REMOVED this session;
+  * the contract grammar has NO METHOD CALL AT ALL, only a bare-name call (three probes), which
+    blocks every emitter mixin handler's postcondition — hundreds of functions;
+  * `.strip()` is refused in a contract, which blocks the two kernel-axiom allowlist predicates.
+
+**AND THE IMPORTING MODULE CANNOT STATE THE 72 AT ALL.** `pycsl.mlw` types the same function's
+stub `map int (option int)`, not `emit_ir`: the same function has TWO MODELLED RETURN TYPES IN
+TWO FILES. The clause is dropped there — a `val` with fewer `ensures` assumes less — and
+`bin/check-cross-module-contract-parity.py` was written the same hour to make that safe
+direction a CHECKED fact. Measured: 248 symbols appear as both a stub and a definition, 67
+carry exactly what is proved, 447 carry fewer, and ZERO carry more.
+
+### Three instrument failures in my own tooling, all fail-loud, all recorded
+
+  (q6)  an oracle that is not in the gate is not a gate — and a population measured once is a
+        fact about that hour (the yield population was measured at 0 BEFORE the conversion that
+        populated it)
+  (r6)  editing a running shell script skipped an hour-long gate stage — AND IT HAPPENED AGAIN
+        TEN HOURS LATER on a different file, so the lesson is now a mechanism: while a gate
+        runs, only `getting-better/**` and scratch are writable
+  (s6)  a scratch tree built from `src` emits a DIFFERENT PROGRAM — the emitter's import search
+        includes CWD and this repo keeps a TRACKED `json/` package at the ROOT, so every screen
+        this session ran was six declarations short of the program the gate measures
