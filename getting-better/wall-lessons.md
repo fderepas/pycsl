@@ -7887,3 +7887,31 @@ TWO SEPARATE FAILURES, and the second is the one worth carrying:
 THE RULE: a gate runs every oracle, or the oracle's absence is itself recorded in the gate's
 output. And a population of zero is re-measured at the gate that could have changed it —
 which, for a conversion oracle, is every conversion.
+
+### (r6) Editing a shell script WHILE IT IS RUNNING corrupts the run, silently until it does not
+
+Gate O's script was mid-run — the `--slow` battery, 84 minutes of it — when I rewrote three
+lines of `gate_o.sh` to fix a `--expect-moved` mistake I had just found. Bash does not load a
+script; it READS IT INCREMENTALLY, keeping a byte offset into the file. Rewriting the file
+under a running shell leaves the offset pointing into different text. The battery finished and
+printed its result, and then:
+
+    gate_o.sh: line 30: unexpected EOF while looking for matching `"'
+
+The SUITE STAGE NEVER RAN. Eighty-four minutes of prover time survived; the stage that takes
+another hour was simply skipped, and the failure appeared as a syntax error in a script that
+had been syntactically valid for the whole run.
+
+It is fail-loud, which is the only reason this is cheap. The loud failure is also easy to read
+as "the script was broken all along" rather than "the script was edited at 23:48 and the
+interpreter noticed at 01:11" — the gap between the edit and the symptom was an hour and
+twenty-three minutes.
+
+THE RULE: a running script is an INPUT to a running process. Change a copy
+(`cp gate_o.sh gate_p.sh`), never the file a `nohup`ed shell is still reading. The same holds
+for anything a long job reads on a schedule rather than up front.
+
+AND THE MISTAKE THAT PROVOKED IT IS WORTH ITS OWN LINE: `--expect-moved` takes `nargs="*"`,
+so REPEATING THE FLAG silently keeps only the LAST occurrence. Five declared movers became
+one. That one failed LOUD too (`5 MOVED (4 unexpected)`), which is the design working — a
+whitelist that silently widened would have been the dangerous direction.
