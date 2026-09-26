@@ -388,9 +388,6 @@ SLOW_PLANES=(
     check-open-route-carriers.py
     check-getattr-erasure.py
     check-computed-rhs-erasure.py
-    check-yield-erasure.py
-    check-shadowed-selfcalls.py
-    check-untrusted-emitted.py
     check-trusted-frame-honesty.py
     check-swallowed-exceptions.py
     check-bespoke-model-drift.py
@@ -416,7 +413,6 @@ SLOW_PLANES=(
     # `--audit-proof --reverify-proofs` footprint check existed, worked, and was run by
     # NOTHING. It recompiles the cited Rocq/Lean proofs, so it belongs in the slow set.
     check-proof-reverify.sh
-    check-emitted-vacuity.py
     # (#49) Did the FUNCTION reach the emitted module at all? Needs the CORPUS emission,
     # like check-clause-survival, so it is dispatched with $CORPUS_EMIT below. Route #216
     # is what it is for: a dropped method takes every obligation ABOUT it with it, and the
@@ -432,12 +428,35 @@ SLOW_PLANES=(
     # exploitable. Shares the corpus emission with check-clause-survival.
     check-hashed-literal-purity.py
 )
+# (#49) gen #31 — THE CONVERSION TIER, AND WHY IT IS NOT OPTIONAL ANY MORE.
+# These four decide whether a CONVERSION (a retired `\trusted` marker) is worth anything:
+# does the emitted body use its inputs, do a generator's yielded values survive, can the
+# CALLERS see the body, and is it emitted as a definition at all. All four lived in the
+# `--slow` set, which is one flag, and generation #31 ran the battery TWENTY-EIGHT TIMES
+# WITHOUT IT — gates A through N, each printing "all 48 plane(s) green". Measured on the
+# increment-N tree with `--slow`: FIVE of 73 RED, and SIX conversions that session had
+# banked were hollow (five input-blind, one yield-erasing). Two of the six had the verdict
+# written in their own source comment before the marker was removed.
+# They cost ~4 minutes because they SHARE the mirror emission below, against a fast set
+# that takes ~2.5. That is not a reason to make them opt-in; nothing was.
+# See getting-better/open-routes/finding-eleven-gates-over-four-red-oracles.md, (q6).
+CONVERSION_PLANES=(
+    check-untrusted-emitted.py
+    check-yield-erasure.py
+    check-shadowed-selfcalls.py
+    check-emitted-vacuity.py
+)
+
 # Planes that take the shared mirror emission. Anything not listed runs bare, exactly as
 # before.
 EMIT_DIR_PLANES=" check-computed-rhs-erasure.py check-yield-erasure.py check-shadowed-selfcalls.py check-trusted-frame-honesty.py check-avatar-frame-parity.py count-trusted-directives.py check-mirror-type-only.py "
+# (yield-erasure and shadowed-selfcalls are in CONVERSION_PLANES above: always run, still shared.)
 SHARED_EMIT=""
 # (#49) A SECOND shared emission: the CORPUS, for `check-clause-survival.py`.
 CORPUS_EMIT=""
+
+PLANES+=("${CONVERSION_PLANES[@]}")
+MIN_PLANES=$((MIN_PLANES + ${#CONVERSION_PLANES[@]}))
 
 RAN_SLOW=0
 if [ "${1:-}" = "--slow" ] || [ "${PYCSL_SOUNDNESS_PLANES_SLOW:-0}" = "1" ]; then
@@ -446,63 +465,70 @@ if [ "${1:-}" = "--slow" ] || [ "${PYCSL_SOUNDNESS_PLANES_SLOW:-0}" = "1" ]; the
     # The refusal guard scales with the set, or `--slow` would silently weaken it.
     MIN_PLANES=$((MIN_PLANES + ${#SLOW_PLANES[@]}))
     echo "[*] soundness-planes: --slow, adding ${#SLOW_PLANES[@]} prover/emission plane(s) (~20 min)"
-    # (#49) THE WHY3 PRE-CHECK. Five of the slow planes SHELL OUT TO why3, and why3 is not
-    # on the default PATH in this environment — it needs `. scratchpad/g29/env.sh`. Each of
-    # those planes guards itself correctly and REFUSES (rc=2) when why3 is missing, which is
-    # the right behaviour per-plane. But the battery then prints five REDs at the END of a
-    # ~40-minute run, and a driver reading that summary has to re-derive, five times, that
-    # the tree is fine and the SHELL was wrong. MEASURED twice this generation: three REDs
-    # the first time, five the second, all spurious, all the same cause.
-    # So: say it ONCE, UP FRONT, with the instruction — and REFUSE rather than spend forty
-    # minutes producing a summary that is known in advance to be wrong about five planes.
-    # The per-plane guards stay as the backstop; this only moves the discovery to second
-    # zero. rc=2 because this is a refusal (the battery did not run), never a pass.
-    if ! command -v why3 >/dev/null 2>&1; then
-        echo "[!] soundness-planes: REFUSING --slow — \`why3\` is not on PATH, and five slow"
-        echo "    planes shell out to it (stdlib-modules-verify, open-route-carriers,"
-        echo "    value-differential, check-proof-crosscheck.sh, check-proof-reverify.sh)."
-        echo "    They would each refuse at the END of a ~40-minute run. Source the"
-        echo "    environment first and re-run:"
-        echo ""
-        echo "        . scratchpad/g29/env.sh && bin/run-soundness-planes.sh --slow"
-        echo ""
-        echo "    THIS IS A REFUSAL, NOT A PASS. (Set PYCSL_PLANES_NO_WHY3=1 to run the"
-        echo "    slow set anyway and accept those five refusals as REDs.)"
-        [ "${PYCSL_PLANES_NO_WHY3:-0}" = "1" ] || exit 2
-        echo "[*] soundness-planes: PYCSL_PLANES_NO_WHY3=1 — continuing without why3."
-    fi
-    SHARED_EMIT="$(mktemp -d "${TMPDIR:-/tmp}/pycsl-planes-emit.XXXXXX")"
-    trap 'rm -rf "$SHARED_EMIT" "$CORPUS_EMIT"' EXIT
-    # THE FILE NAMING IS LOAD-BEARING AND IT IS NOT OBVIOUS. Every consumer maps a `.mlw`
-    # back to its source with `os.path.relpath(src, MIRROR)[:-3].replace(os.sep, "_")` —
-    # ONE underscore. `scratchpad/w49/emit-mirrors.sh` writes TWO (`${rel//\//__}`), and
-    # feeding that directory to these planes is not a loud failure: measured, it makes
-    # check-yield-erasure report 0 generators where a bare run reports 3 (A FALSE GREEN)
-    # and check-trusted-frame-honesty report "RATCHET BROKEN — 48 > 0" (A FALSE RED).
-    # That is precisely the hazard check-avatar-frame-parity.py's own header warns about,
-    # three --emit-dir arguments pointing at directories and "agreeing". So the emission is
-    # inlined here with the right convention rather than delegated to a helper whose
-    # convention can drift out from under it.
-    _py="$PROJECT_ROOT/.venv/bin/python3"; [ -x "$_py" ] || _py=python3
-    while IFS= read -r _src; do
-        _rel="${_src#"$PROJECT_ROOT/src/self-annotate/src/"}"
-        _name="${_rel%.py}"; _name="${_name//\//_}"
-        rm -f "${_src%.py}.mlw"
-        (cd "$PROJECT_ROOT" && PYTHONHASHSEED=0 "$_py" src/pycsl/pycsl.py "$_src" \
-            --import-path "$PROJECT_ROOT/src/pycsl" --no-proof --keep-mlw) >/dev/null 2>&1
-        [ -f "${_src%.py}.mlw" ] && mv "${_src%.py}.mlw" "$SHARED_EMIT/$_name.mlw"
-    done < <(find "$PROJECT_ROOT/src/self-annotate/src" -name '*.py' | sort)
-    NEMIT=$(ls "$SHARED_EMIT"/*.mlw 2>/dev/null | wc -l)
-    # A SHARED EMISSION THAT SILENTLY CAME UP SHORT WOULD WEAKEN SIX PLANES AT ONCE, so it
-    # gets the same #44 treatment as everything else: refuse rather than run them on it.
-    if [ "$NEMIT" -lt 40 ]; then
-        echo "[!] soundness-planes: REFUSING — the shared mirror emission produced only"
-        echo "    $NEMIT .mlw file(s), expected at least 40. Six --slow planes would have"
-        echo "    been fed a truncated population. THIS IS A REFUSAL, NOT A PASS."
-        exit 2
-    fi
-    echo "[*] soundness-planes: shared mirror emission ready ($NEMIT .mlw) — six plane(s) will use it"
 fi
+
+# (#49) gen #31 — THE WHY3 PRE-CHECK AND THE SHARED MIRROR EMISSION NOW RUN ALWAYS, not
+# only under `--slow`, because the CONVERSION TIER above is no longer optional and it
+# needs that emission. A fast run therefore costs ~4 minutes more and answers a question
+# it could not answer before: is the conversion this commit just landed WORTH ANYTHING.
+# ORIGINAL NOTE: Five of the slow planes SHELL OUT TO why3, and why3 is not
+# on the default PATH in this environment — it needs `. scratchpad/g29/env.sh`. Each of
+# those planes guards itself correctly and REFUSES (rc=2) when why3 is missing, which is
+# the right behaviour per-plane. But the battery then prints five REDs at the END of a
+# ~40-minute run, and a driver reading that summary has to re-derive, five times, that
+# the tree is fine and the SHELL was wrong. MEASURED twice this generation: three REDs
+# the first time, five the second, all spurious, all the same cause.
+# So: say it ONCE, UP FRONT, with the instruction — and REFUSE rather than spend forty
+# minutes producing a summary that is known in advance to be wrong about five planes.
+# The per-plane guards stay as the backstop; this only moves the discovery to second
+# zero. rc=2 because this is a refusal (the battery did not run), never a pass.
+if ! command -v why3 >/dev/null 2>&1; then
+    echo "[!] soundness-planes: REFUSING — \`why3\` is not on PATH. The shared mirror"
+    echo "    emission TYPE-CHECKS with why3, and the CONVERSION TIER (untrusted-emitted,"
+    echo "    yield-erasure, shadowed-selfcalls, emitted-vacuity) reads that emission;"
+    echo "    under --slow, five more planes shell out to why3 directly."
+    echo "    They would each refuse at the END of a ~40-minute run. Source the"
+    echo "    environment first and re-run:"
+    echo ""
+    echo "        . scratchpad/g29/env.sh && bin/run-soundness-planes.sh [--slow]"
+    echo ""
+    echo "    THIS IS A REFUSAL, NOT A PASS. (Set PYCSL_PLANES_NO_WHY3=1 to run"
+    echo "    anyway and accept those refusals as REDs.)"
+    [ "${PYCSL_PLANES_NO_WHY3:-0}" = "1" ] || exit 2
+    echo "[*] soundness-planes: PYCSL_PLANES_NO_WHY3=1 — continuing without why3."
+fi
+SHARED_EMIT="$(mktemp -d "${TMPDIR:-/tmp}/pycsl-planes-emit.XXXXXX")"
+trap 'rm -rf "$SHARED_EMIT" "$CORPUS_EMIT"' EXIT
+# THE FILE NAMING IS LOAD-BEARING AND IT IS NOT OBVIOUS. Every consumer maps a `.mlw`
+# back to its source with `os.path.relpath(src, MIRROR)[:-3].replace(os.sep, "_")` —
+# ONE underscore. `scratchpad/w49/emit-mirrors.sh` writes TWO (`${rel//\//__}`), and
+# feeding that directory to these planes is not a loud failure: measured, it makes
+# check-yield-erasure report 0 generators where a bare run reports 3 (A FALSE GREEN)
+# and check-trusted-frame-honesty report "RATCHET BROKEN — 48 > 0" (A FALSE RED).
+# That is precisely the hazard check-avatar-frame-parity.py's own header warns about,
+# three --emit-dir arguments pointing at directories and "agreeing". So the emission is
+# inlined here with the right convention rather than delegated to a helper whose
+# convention can drift out from under it.
+_py="$PROJECT_ROOT/.venv/bin/python3"; [ -x "$_py" ] || _py=python3
+while IFS= read -r _src; do
+    _rel="${_src#"$PROJECT_ROOT/src/self-annotate/src/"}"
+    _name="${_rel%.py}"; _name="${_name//\//_}"
+    rm -f "${_src%.py}.mlw"
+    (cd "$PROJECT_ROOT" && PYTHONHASHSEED=0 "$_py" src/pycsl/pycsl.py "$_src" \
+        --import-path "$PROJECT_ROOT/src/pycsl" --no-proof --keep-mlw) >/dev/null 2>&1
+    [ -f "${_src%.py}.mlw" ] && mv "${_src%.py}.mlw" "$SHARED_EMIT/$_name.mlw"
+done < <(find "$PROJECT_ROOT/src/self-annotate/src" -name '*.py' | sort)
+NEMIT=$(ls "$SHARED_EMIT"/*.mlw 2>/dev/null | wc -l)
+# A SHARED EMISSION THAT SILENTLY CAME UP SHORT WOULD WEAKEN SIX PLANES AT ONCE, so it
+# gets the same #44 treatment as everything else: refuse rather than run them on it.
+if [ "$NEMIT" -lt 40 ]; then
+    echo "[!] soundness-planes: REFUSING — the shared mirror emission produced only"
+    echo "    $NEMIT .mlw file(s), expected at least 40. The CONVERSION TIER and up to"
+    echo "    six --slow planes would have been fed a truncated population."
+    echo "    THIS IS A REFUSAL, NOT A PASS."
+    exit 2
+fi
+echo "[*] soundness-planes: shared mirror emission ready ($NEMIT .mlw) — the conversion tier and the --slow emit-dir plane(s) will use it"
 
 # (#49) THE LOCK. Five planes EMIT `.mlw` beside the mirror or corpus sources and others
 # READ them in place; this loop is sequential exactly so the two never overlap, and a plane
@@ -590,10 +616,9 @@ fi
 if [ "$RAN_SLOW" = "1" ]; then
     echo "[+] soundness-planes: OK — all $ran plane(s) green (fast + slow: EVERY plane)."
 else
-    echo "[+] soundness-planes: OK — all $ran FAST plane(s) green."
+    echo "[+] soundness-planes: OK — all $ran plane(s) green (fast + the CONVERSION TIER)."
     echo "    NOT CHECKED: ${#SLOW_PLANES[@]} prover/emission plane(s) — among them"
-    echo "    check-emitted-vacuity, check-yield-erasure, check-shadowed-selfcalls and"
-    echo "    check-getattr-erasure, the oracles that decide whether a CONVERSION is"
-    echo "    hollow. THIS IS NOT A VERDICT ON A CONVERSION. Re-run with --slow."
+    echo "    check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival"
+    echo "    and check-stdlib-modules-verify. Re-run with --slow before a GATE."
 fi
 exit 0
