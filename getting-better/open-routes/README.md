@@ -1,6 +1,18 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN after gen #31 (2026-09-24): **THREE — #226 (NEW, SEV-1), #214, #221.**
+## CURRENTLY OPEN after gen #32 (2026-09-27): **FOUR — #227 (NEW, SEV-1), #226, #214, #221.**
+##
+##   * **#227 — OPEN, SEV-1, found 2026-09-27, `route227-the-opaque-kept-the-type.md`.**
+##     `v = None; return v - v + 3` PROVES `\result == 3` under `#@ no_exception \all`;
+##     CPython raises `TypeError`. ORDER 2 — the carrier is the campaign's OWN repair:
+##     routes #44/#184/#191 replaced a definite `0` with the opaque `pycsl_none : int`,
+##     which killed every VALUE-dependent falsehood and left every consequence INVARIANT
+##     under the value, because the opaque kept the TYPE `int`. Route #44's own witness
+##     1060 is this shape with `x + 5` — value-DEPENDENT — one algebraic identity short.
+##     Repair scoped in the file: use `_erased_truthy_locals` to REFUSE arithmetic and
+##     strict order, which is what route #50's facts are already used for.
+##
+## (previous header, gen #31:) CURRENTLY OPEN after gen #31 (2026-09-24): **THREE — #226 (NEW, SEV-1), #214, #221.**
 ##
 ##   * **#226 — OPEN, SEV-1, found 2026-09-24.** A `#@ class invariant` the CONSTRUCTOR
 ##     never establishes is assumed by every method. `#@ class invariant self.n >= 5` with
