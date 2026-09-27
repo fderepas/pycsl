@@ -12057,3 +12057,42 @@ Note `bin/check-refusal-witness-coverage.py` behaved the OPPOSITE way and correc
 at 6 > 5 the moment the new refusal had no witness, `--append-new` censused the three new FAIL
 witnesses, and the demonstrated floor is TIGHTENED 206 -> 207 in this increment. One of the two
 advice/witness planes noticed a new refusal; the other could not.
+
+## 20:05Z GATE 227 IS GREEN ON EVERY LEG — and every prediction was exact
+Ran 17:19:21Z -> 20:00:54Z (2h41m), detached, ONE battery.
+  corpus byte-diff   1378 baseline / 1379 candidate · **0 MOVED (0 unexpected) · 1 GONE (declared)
+                     · 0 APPEARED · 2 new source ignored**. The arithmetic closes exactly:
+                     1378 + 2 (1912, 1913 emit) - 1 (1060 now REFUSES) = 1379.
+  pyref byte-diff    **2199 / 2199, 0 MOVED, 0 GONE, 0 APPEARED** — see the lesson below; this
+                     leg was nearly LOST.
+  planes --slow      **77 of 77 GREEN — fast AND slow, EVERY plane.** (74 at gate U; +1 fast
+                     `self-annotate-mirror-check.sh`, +1 slow `bridge-restatement-check.py`.)
+  suite              **4034/4052**, the standing EIGHTEEN, byte-identical list to gate U's.
+                     PREDICTED 4034/4052 before the gate was launched. Exact.
+PREDICTION SCORECARD: corpus byte-diff exact (I said 0 MOVED / 1 GONE / "2 APPEARED", which the
+comparator expresses as 0 APPEARED + 2 new-source-ignored — same two files, its vocabulary);
+mirror/pyref exact; fidelity exact; suite exact to the unit. The ONE prediction I got wrong was
+"two planes will go RED" — `check-refusal-witness-coverage` did (6 > 5, and I fixed it with
+`--append-new` + a floor tightened 206 -> 207), but `check-refusal-advice-audited` did NOT, and the
+reason it did not is itself the finding that became backlog #66.
+
+>>> LESSON (c4) — `byte-diff-compare.py` DOES NOT RECURSE, SO A SWEPT SUBDIRECTORY IS NOT A
+>>> COMPARED SUBDIRECTORY. `byte-diff-sweep.sh` emits the corpus into `<out>` and the
+>>> python-reference corpus into `<out>/pyref`. The comparator's file set is
+>>> `os.listdir(d)` filtered to `.mlw` — FLAT. My gate script invoked it ONCE on the two root
+>>> dirs, so 2199 python-reference emissions were produced, paid for, and never compared, while
+>>> the gate printed a confident green. I caught it only by noticing gate U's line reads
+>>> "1378/1378 + 2199/2199" — TWO comparisons — and mine read one. **A sweep's output directory
+>>> count is not its comparison count. Assert BOTH numbers, and invoke the comparator once per
+>>> emitted tree.** Re-run separately here: 2199/2199, 0 MOVED, so the verdict stands — but it
+>>> stood on luck for twenty minutes.
+
+>>> LESSON (d4) — A GATE SCRIPT THAT PIPES A LEG THROUGH `tail -40` HAS THROWN AWAY THE VERDICT
+>>> IT WILL LATER BE ASKED FOR. `run-reference-tests.sh` reports an XPASS with a `[XPASS]` line
+>>> and folds it into `failed`, and its confirmed-FAIL re-run REBUILDS the list WITHOUT the
+>>> `(XPASS)` tag — so the tail I kept cannot prove ZERO XPASS. What carries it instead is
+>>> STRONGER and was already in hand: a **0 MOVED** byte-diff means every pre-existing file's
+>>> emission is byte-identical, so no pre-existing file can flip its verdict on account of this
+>>> change; the only files that could XPASS are the five NEW ones, and 1909-1911 were each
+>>> measured individually at verify_success=0. Keep the argument, and FIX THE SCRIPT: tee every
+>>> leg in full and capture each leg's rc.
