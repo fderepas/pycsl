@@ -34,6 +34,68 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #66 gen #32 — THE ADVICE-AUDIT PLANE IS KEYED ON A HAND-PICKED VERB LIST (11 sites invisible)
+
+2026-09-27T17:25Z. **Second-order: the carrier is a campaign instrument.**
+`bin/check-refusal-advice-audited.py` exists because "a refusal's advice is a CLAIM THE COMPILER
+MAKES ABOUT ITSELF, in the one place a user is guaranteed to read, and it is the only claim in the
+system with no gate behind it." Route #90 came out of exactly one such message.
+
+Its detector is one regex:
+
+    ADVICE = re.compile(r"\b(use|rewrite|declare|add|give|call|drop|remove|replace|instead|prefer)\b")
+
+I wrote a NEW advice-bearing refusal for route #227 — "**Bind** the name to a definite value
+before the operation" — and the plane never saw it, then reported OK at 121 advice-bearing / 116
+audited with all five unaudited sites PRE-EXISTING. It is green and blind to a refusal added ten
+minutes earlier. **This is generator #9 pointed at an instrument: a check keyed on a hand-picked
+VOCABULARY enumerates the words its author happened to picture.**
+
+MEASURED EXACTLY, by AST over every `raise PyCSL*Error(...)` in `src/pycsl/` (concatenating the
+literal parts of the message, so f-strings are covered) — `getting-better/advice-gap-sites-gen32.txt`:
+**ELEVEN sites advise with a verb the regex misses, and not one has ever been followed-and-run:**
+
+    ConcurrencyChecker.py:101        "Run without --strict-concurrent-checks ... or protect ..."
+    frontend/Module1_Ingestor.py:161 "Move it to its own line above that statement"
+    frontend/Module3_Weaver.py:1910  "Move it directly above the `def`/`class` it describes"
+    frontend/Module3_Weaver.py:1381  "List it in `except` if it is a legitimate reader"
+    frontend/Module5_IREmitter.py:1805 "Rebuild the element (`a[i] = Record(...)`) or mutate ..."
+    frontend/import_classifier.py:141 "Either annotate the importing function(s) with `#@ \trusted`"
+    frontend/ir_resolve.py:3186      "Rename one of the two bindings"
+    module6_whyml/expressions.py:5014 "Bind the name to a definite value ..."   (route #227's own)
+    module6_whyml/functions.py:1219  "Write the loop explicitly"
+    module6_whyml/functions.py:1162  "Write the loop explicitly"
+    module6_whyml/statements.py:479  "Assign to a FRESH name, or build the new contents with ..."
+
+THE WORK: widen the detector to the imperatives actually used, then AUDIT each newly-surfaced site
+the only way that means anything — WRITE THE PROGRAM THE MESSAGE TELLS YOU TO WRITE AND RUN IT, and
+record FOLLOWABLE / UNSPELLABLE / UNTRIED / AMBIGUOUS. The audited FLOOR ratchets and the unaudited
+CEILING does not, so the widening may land before the audits finish. Expect UNTRIED and AMBIGUOUS
+verdicts: two of the eleven advise `#@ \trusted` and `except` edits, which is the shape route #90
+was — advice naming a marker the emitter merely READS rather than a condition it CHECKS.
+COST/SCALE, not a floor.
+
+### #65 gen #32 — ROUTE #227's SECOND CARRIER: THE `None` THAT FLOWS THROUGH A CONTAINER
+
+2026-09-27T17:18Z. Route #227's fence closes the SYNTACTIC carrier (a definitely-`None` local, the
+literal `None`). One arm of the five probed SURVIVES it, and a carrier surviving a repair is a
+SECOND ROUTE, not a failed repair (hard-won rule #4):
+
+    d = {}            # Dict[int, Optional[int]]
+    d[k] = None
+    v = d[k]
+    return v - v + 3           PROVES \result == 3 under `#@ no_exception \all`; CPython TypeError
+
+`v` is bound from a SUBSCRIPT, so `_erased_truthy_locals` never holds it: the None-ness there is a
+VALUE fact travelling through a container, and no syntactic record can carry it. Two reopening
+capabilities, in increasing cost:
+  (i)  refuse arithmetic/order on a local read from a container whose DECLARED codomain is
+       `Optional[...]` — syntactic, cheap, and needs its own census before it lands (the population
+       of `Dict[_, Optional[_]]` / `List[Optional[_]]` reads followed by arithmetic is unmeasured);
+  (ii) route #56's general repair — a distinguishable `None` in the value model.
+Note (i) is a DECLARATION-keyed fence, so it is strictly weaker than (ii): a heterogeneous dict
+with no annotation (the shape `src/pycsl/errors.py::as_dict` actually has) is outside it.
+
 ### #63 gen #31 — THE `sibling_concrete` FIDELITY HOLE: THREE STALE VERIFIED MIRROR BODIES (top of ladder)
 
 2026-09-26T18:40Z. **This is above #62 because it is a SOUNDNESS item, not a count item.**
