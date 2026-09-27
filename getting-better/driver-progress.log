@@ -12212,3 +12212,56 @@ PREDICTIONS FOR THE #63 BATTERY, written before launching it:
                      DIVERGING and assigns-writes TRAP 2989 / HOLE 0.
   suite              **4034/4052**, the standing EIGHTEEN, ZERO XPASS — unchanged, because the
                      corpus emission cannot move.
+
+## 23:50Z #63's BYTE-DIFF LEGS ARE IN, BOTH TREES, EXACTLY AS PREDICTED
+    corpus root   1379 / 1379 — **0 MOVED · 0 GONE · 0 APPEARED**
+    pyref subtree 2199 / 2199 — **0 MOVED · 0 GONE · 0 APPEARED**
+Two sweeps, TWO comparisons, four numbers — lesson (c4) applied on the first battery after banking
+it. The by-construction argument (#63 touches only `src/self-annotate/` and `bin/`, neither of which
+is read when emitting a corpus file) is now also a MEASUREMENT, which is the only form that counts.
+LEG 2 (planes --slow) started 23:48:17Z; LEG 3 keeps its FULL suite log and greps `[XPASS]` — lesson
+(d4) applied in the same battery that banked it.
+
+## 23:55Z BACKLOG #66's AUDITS: TEN OF ELEVEN SITES DONE, AND EVERY ONE IS **FOLLOWABLE**
+The eleven advice-bearing refusals the plane's verb regex cannot see are now AUDITED the only way
+that means anything — by WRITING THE PROGRAM THE MESSAGE TELLS YOU TO WRITE and RUNNING IT.
+**And the audits were nearly free, because every one of the eleven already has a corpus witness.**
+`bin/refusal-witness-census.tsv` maps each `# pycsl-expected: FAIL` witness to the refusal it
+produced, so the TRIGGER program came out of the census and only the REPAIR had to be written.
+>>> LESSON (g4): THE WITNESS CENSUS IS AN AUDIT ACCELERATOR, NOT ONLY A COVERAGE LEDGER. A refusal
+>>> that is WITNESSED already has an executable trigger sitting in the corpus; auditing its advice
+>>> is then "apply the message to a file that already fails" instead of "reverse-engineer a program
+>>> that reaches this raise". The two planes were built for different questions and compose.
+    expressions.py:5014   "Bind the name to a definite value ..."        FOLLOWABLE (witness 1912 IS the audit)
+    statements.py:479     "Assign to a FRESH name, or ..."              FOLLOWABLE
+    Module3_Weaver:1910   "Move it directly above the `def`/`class` ..." FOLLOWABLE
+    Module1_Ingestor:161  "Move it to its own line above that statement" FOLLOWABLE
+    functions.py:1162     "Write the loop explicitly"                   FOLLOWABLE
+    functions.py:1219     "Write the loop explicitly" (same string)     FOLLOWABLE
+    Module5_IREmitter:1805 "Rebuild the element (`a[i] = Record(...)`)"  FOLLOWABLE
+    Module3_Weaver:1381   "List it in `except` if it is a legitimate reader" FOLLOWABLE
+    import_classifier:141 "Either annotate ... `#@ \trusted` ... or pass `--allow-unverified-imports`"
+                                                                        FOLLOWABLE — **BOTH ARMS RUN**
+    ConcurrencyChecker:101 "Run without --strict-concurrent-checks ... or protect ... `protected_by`"
+                                                                        FOLLOWABLE — **BOTH ARMS RUN**
+    ir_resolve.py:3186    "Rename one of the two bindings"              **DEFERRED, and deliberately**
+TWO THINGS WORTH KEEPING FROM THE AUDIT ITSELF:
+ 1. **`import_classifier:141` IS ROUTE #90's SHAPE AND IS STILL HONEST.** Its advice names a MARKER
+    (`#@ \trusted`) rather than a condition the emitter checks — the exact discriminator route #90
+    was paid for — and it is nonetheless FOLLOWABLE, because the message says what the marker BUYS:
+    "to acknowledge that the boundary is excluded from verification". Naming a marker is dangerous
+    when the message implies the emitter VERIFIED something; it is fine when the message says the
+    marker is an ACKNOWLEDGEMENT. That distinction is finer than "advice naming a marker is the
+    hazard" and it should be carried forward.
+ 2. **0415, the witness the census offered for the CONCURRENCY site, DOES NOT FAIL BY THAT REFUSAL.**
+    Its race appears as a `[unprotected_shared]` diagnostic and then the file dies on a DIFFERENT
+    refusal — the unjustified `#@ \diverges`. The census matched on the message being PRESENT in the
+    output, not on it being the CAUSE. So I built my own trigger, confirmed the race IS the pipeline
+    error, and audited from there. **LESSON (h4): A WITNESS THAT MENTIONS A REFUSAL IS NOT A WITNESS
+    THAT THE REFUSAL FIRED.** `check-refusal-witness-coverage` joins textually and says so in its own
+    docstring ("READ THOSE TWO NUMBERS AS BOUNDS, NOT AS FACTS"); this is that caveat biting, and it
+    means the DEMONSTRATED count is an upper bound on refusals actually shown to fire.
+ 3. `ir_resolve:3186` is DEFERRED because following its advice requires the test file to sit INSIDE
+    `test-suite/corpus/pycsl-reference/` for `multi_file_lib` to resolve — and the battery's corpus
+    sweep is running. Writing a file into the corpus mid-sweep would corrupt the byte-diff I just
+    reported. It is one `sed` and one run once LEG 1 is done; not a finding, a scheduling fact.
