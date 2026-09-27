@@ -34,6 +34,40 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #67 gen #32 — A `#@ sibling_concrete` RELOCATION MUST BRING THE FIELD DECLARATIONS ITS BODY READS
+
+2026-09-27T20:55Z. Found while doing #63; recorded because the INVARIANT is unchecked even though
+this instance is now fixed.
+
+`#@ sibling_concrete` copies a method BODY from the mixin that owns it into a destination mirror
+file, so that file's `self._m(...)` sites lower to a real body instead of a receiver-less abstract
+`val`. **It does not copy the class-level FIELD DECLARATIONS that body reads.** Measured: the
+re-ported `_field_type_of` reads `_record_field_elem_locals`; the mirror's `types.py` — the body's
+ORIGINAL home — declares it `Dict[str, str]`; `statements.py`, the destination, did not. The
+untyped `getattr` therefore defaulted to an opaque INT map and the destination file failed L3-tc
+(`int` where `string` was expected) while the original home was modelling the same field correctly.
+
+NEITHER EXISTING PLANE CAN SEE IT, and that is the point:
+  * `check-mirror-field-parity` compares mirror-vs-LIVE, and the LIVE class never annotated this
+    field at all (it is assigned as an instance attribute), so there is no live side to disagree with;
+  * `check-sibling-concrete-fidelity` compares BODIES, which is a different question and was GREEN
+    on the SAME defect right up until the re-port made the body USE the missing field.
+
+So the hole is visible only when a relocated body happens to read a field the destination lacks —
+i.e. **the check fires on the next re-port, not on the drift**, which is the worst possible schedule.
+
+THE CHECK, and it is pure static analysis (no prover, no emission): for each of the 25 un-trusted
+`sibling_concrete` mirror-only defs, collect every `self.<field>` the body READS, and require the
+DESTINATION file's class to declare each one **with the same annotation the SOURCE mirror file's
+class gives it**. A missing declaration is a latent int-erasure; a DIFFERING annotation is worse,
+because the same body is then modelled two ways in two files and one of them is wrong.
+Ratchet at whatever the first measurement gives, ceiling-only. COST/SCALE (an afternoon), not a floor.
+
+RELATED BUT DISTINCT from `bin/check-assigns-writes-survival.py` (landed this generation): that
+plane asks whether a field named in `#@ assigns` reaches the emitted `writes`; this one asks whether
+a field a relocated body READS is declared at all. The first is about the FRAME, the second about
+the VALUE MODEL, and #63 tripped over both in the same ten minutes.
+
 ### #66 gen #32 — THE ADVICE-AUDIT PLANE IS KEYED ON A HAND-PICKED VERB LIST (11 sites invisible)
 
 2026-09-27T17:25Z. **Second-order: the carrier is a campaign instrument.**
