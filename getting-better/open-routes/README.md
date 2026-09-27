@@ -1,6 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
-## CURRENTLY OPEN after gen #32 (2026-09-27): **FOUR — #227 (NEW, SEV-1), #226, #214, #221.**
+## CURRENTLY OPEN after gen #32 (2026-09-27): **THREE — #226, #214, #221.**
+##   #227 was found AND CLOSED AND FULLY GATED in the same generation (77/77 planes `--slow`,
+##   4034/4052, both corpora inert). Its surviving CONTAINER arm is backlog #65, not an open route.
+##
+## (as first written, before the gate:) CURRENTLY OPEN after gen #32: **FOUR — #227 (NEW, SEV-1), #226, #214, #221.**
 ##
 ##   * **#227 — OPEN, SEV-1, found 2026-09-27, `route227-the-opaque-kept-the-type.md`.**
 ##     `v = None; return v - v + 3` PROVES `\result == 3` under `#@ no_exception \all`;

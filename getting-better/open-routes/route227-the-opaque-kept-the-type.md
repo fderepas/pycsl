@@ -1,6 +1,19 @@
 # OPEN ROUTE #227 — THE `pycsl_none` REPAIR MADE THE VALUE UNKNOWN AND LEFT THE TYPE TRUE
 
-**Status: OPEN, reproduced at HEAD `1b2f676e`, repair scoped below. Severity 1.**
+**Status: CLOSED by gen #32 at `535a1bb7`, FULLY GATED. Severity 1.**
+Gate 227 ran 2026-09-27 17:19:21Z -> 20:00:54Z as one battery: corpus byte-diff
+**1378/1379, 0 MOVED, 1 declared GONE** (1060, which now fails by the REFUSAL instead of by an
+undecided postcondition — route #217's disposal), python-reference byte-diff **2199/2199, 0
+MOVED**, soundness planes **77 of 77 GREEN with `--slow`**, reference suite **4034/4052** with
+the standing eighteen and zero XPASS. Every prediction was written before the gate ran and every
+one was exact. Witnesses 1909-1913 are in the corpus; `check-refusal-witness-coverage`'s
+demonstrated floor tightened 206 -> 207.
+**ONE ARM SURVIVES AND IS TRACKED SEPARATELY AS BACKLOG #65** — the `None` that reaches the
+operator through a CONTAINER read (`d[k] = None; v = d[k]; v - v`), where the None-ness is a
+VALUE fact no syntactic record can carry. A carrier surviving a repair is a second route, not a
+failed repair.
+
+(original status: OPEN, reproduced at HEAD `1b2f676e`, repair scoped below.)
 Generator: `oracle-audit` — the self-annotation suite, scheduled for the first time in gen #32.
 **Order 2: the carrier IS the campaign's own repair** (routes #44 / #184 / #191).
 

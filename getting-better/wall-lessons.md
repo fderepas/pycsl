@@ -8075,3 +8075,64 @@ per-file reset, the screen that read an ill-typed `.mlw`) — and the first wher
 produced a false ALARM rather than a false all-clear. Both cost the same: a number nobody can act
 on. The repair is the same too, and it is the standing rule: **negative-test the instrument on an
 input whose answer you know before you spend its verdict.**
+
+## (b4b) gen #32 — WHEN A REPAIR ANSWERS A WRONG VALUE WITH AN OPAQUE, IT HAS MOVED THE FALSEHOOD FROM THE VALUE TO THE TYPE
+
+Route #227. Routes #44/#184/#191 each closed a "`None` reads back as the integer 0" carrier by
+replacing the definite `0` with `val function pycsl_none : int`, an opaque with NO defining axiom.
+Every one of those closures is real — `v == 0` stopped proving, and that is what they were for. But
+the opaque still INHABITS `int`, so every law of integer arithmetic still applies to it, and every
+consequence INVARIANT under the value still decided:
+
+    v = None; return v - v + 3      PROVED \result == 3   under `#@ no_exception \all`
+    v = None; if v < v: ...         PROVED \result == 0    "
+    v = None; return v * 0 + 3      PROVED \result == 3    "
+
+CPython raises `TypeError` for all three. And `#@ no_exception \all` — a claim about the TYPE
+alone — was certified in every row.
+
+>>> THE GENERATOR: re-probe every opaque-valued repair with an expression whose result does NOT
+>>> depend on the value — `x - x`, `x * 0`, `x < x`, `x // x`, `x == x` — and with the
+>>> `no_exception` claim. `v == 0` is the probe the repair was built to defeat; `v - v` is the one
+>>> nobody wrote.
+
+The corpus proves it was a near miss rather than an oversight: route #44's OWN negative witness
+1060 is this exact shape with `x + 5` — value-DEPENDENT, so the opaque genuinely closed it — and
+1060's docstring says "an equality-only fix would have been the same mistake one operator later."
+The fix was arithmetic-AWARE and still stopped one ALGEBRAIC IDENTITY short. Being alert to the
+next operator is not the same as being alert to the next *identity*.
+
+COROLLARY, and it is where the repair came from: a fact the emitter already records may be used to
+DECIDE in one place and be available to REFUSE in another. Route #46's file states the split in its
+own words — "route #50's facts are used to REFUSE; route #44's are used to DECIDE" — and #227's
+whole repair was to make `_erased_truthy_locals` also refuse. **Before scoping a new analysis, ask
+which existing record already holds the fact and what it is currently allowed to do with it.**
+
+## (c4) gen #32 — A SWEEP'S OUTPUT DIRECTORY COUNT IS NOT ITS COMPARISON COUNT
+
+`bin/byte-diff-sweep.sh` emits the pycsl corpus into `<out>` and the python-reference corpus into
+`<out>/pyref`. `bin/byte-diff-compare.py` builds its file set from `os.listdir(d)` filtered to
+`.mlw` — **FLAT, no recursion.** A gate that invokes the comparator ONCE on the two root
+directories therefore emits 2199 python-reference files, pays for them, and never compares them,
+while printing a confident three-direction green.
+
+Gen #32's route-#227 gate did exactly that. It was caught only by reading gate U's summary line —
+"1378/1378 **+ 2199/2199**", TWO comparisons — against this gate's, which had one. Re-run
+separately the verdict stood (2199/2199, 0 MOVED), so nothing was lost; but it stood on luck.
+
+**RULE: invoke the comparator once per EMITTED TREE, and assert both file counts.** This is the
+"assert a population size before believing it" rule applied to a gate's own sub-population, and it
+is the reason the skill's §5 recipe now shows both invocations.
+
+## (d4) gen #32 — A GATE LEG PIPED THROUGH `tail -N` HAS DISCARDED THE VERDICT IT WILL LATER BE ASKED FOR
+
+`bin/run-reference-tests.sh` reports an XPASS with a `[XPASS]` line and folds it into `failed` —
+and its confirmed-FAIL RE-RUN rebuilds the failure list WITHOUT the `(XPASS)` tag. So a gate script
+that keeps only `tail -40` of that leg cannot afterwards establish ZERO XPASS, which is one of the
+campaign's standing acceptance conditions.
+
+What carried it instead was already in hand and is STRONGER: **a 0-MOVED byte-diff means every
+pre-existing file's emission is byte-identical, so no pre-existing file can flip its verdict on
+account of the change** — leaving only the NEW files, each of which had been measured individually.
+Keep that argument; and tee every leg in full and capture each leg's `rc`, because the next gate
+may not have a 0-MOVED sweep to fall back on.
