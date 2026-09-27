@@ -12190,3 +12190,25 @@ is firing**, so the standing RED the handoff carried is retired — it was alrea
 Metric re-measured, STABLE across 3 samples seconds apart: markers 450 · grep-substring 477 ·
 offset 27 · attached 450 · unattached 0 — unchanged, which is the correct shape for a window that
 pays the soundness ladder.
+
+## 23:38Z #63's PROOF IS IN: `statements.py` WHOLE-FILE **18896 Valid, 0 non-Valid, rc=0**
+Ran 20:20:29Z -> 23:38:21Z (3h18m), the second-largest mirror in the tree. PREDICTION was "the proof
+SUCCEEDS at 0 non-Valid, the only live risk being `_rhs_yields_map`'s `variant { size val_ir }`" —
+EXACT. So all three re-ported bodies are un-trusted, PROVED, and now actually the live code. The
+soundness defect #63 names is closed: three verified mirror bodies that were NOT the live code are.
+SAS meanwhile cleared `module6_whyml/expressions.py`, the LARGEST mirror — 21 of 40, 20 PASS / 1 FAIL.
+
+PREDICTIONS FOR THE #63 BATTERY, written before launching it:
+  corpus byte-diff   **0 MOVED · 0 GONE · 0 APPEARED**, on BOTH trees this time (lesson (c4)):
+                     #63 touches only `src/self-annotate/` and `bin/`, and NEITHER is read when
+                     emitting a corpus file, so inertness is by construction — which is exactly the
+                     kind of argument that should still be MEASURED. Baseline is this generation's
+                     own `bd_after` (post-#227-fence, pre-#63), which is the correct pre-image.
+  mirror byte-diff   2 MOVED, ALREADY MEASURED and fully accounted for line by line: the aggregate
+                     record's field REORDERED, the `statementemissionmixin` record GAINED it, and
+                     one `writes` clause GAINED it. Nothing incidental — the M1 condition (a).
+  planes --slow      **78 of 78 GREEN** (77 at gate 227, +1 for the new
+                     `check-assigns-writes-survival`), including sibling-concrete 25 SAME / 0
+                     DIVERGING and assigns-writes TRAP 2989 / HOLE 0.
+  suite              **4034/4052**, the standing EIGHTEEN, ZERO XPASS — unchanged, because the
+                     corpus emission cannot move.
