@@ -143,6 +143,45 @@ THE WORK, and its honest cost:
      the marker cost, exactly as `d21a61fb` did for the six hollow conversions — an honest +1 is
      worth more than a verified body that is not the live code.
 
+### #63 UPDATE (gen #32, 2026-09-27T17:30Z) — THE THREE RE-PORTS, DIFFED EXACTLY
+
+Step 3 is the only unfinished part of #63 (steps 1 and 2 landed as `df0f2e8c` / the scope repair,
+and `check-sibling-concrete-fidelity.py` is GREEN at 22 SAME / 3 DIVERGING baselined / 0 unresolved).
+The three DIVERGING copies all live in the SAME mirror file,
+`src/self-annotate/src/module6_whyml/statements.py`, so ONE re-proof of that file gates all three —
+which is the whole reason to do them together (prefer one battery over N sibling repairs).
+
+Diffed live-vs-mirror body, so the re-port is mechanical rather than a re-derivation:
+
+  `_array_coerce_arg`   live `module6_whyml/expressions.py`, 81 lines vs the mirror's 47.
+      TWO CODE CHANGES, both the same one-token edit: `return "(Array.make 1 0)"` becomes
+      `return "(any (array int))"`, at the `stripped == "0"` arm and at the function TAIL.
+      The rest of the delta is the docstring + the routes #193/#201 comment blocks.
+      **Lowest risk of the three, and the live code says why:** `any` was chosen over an abstract
+      `val` precisely so this stays a pure `@staticmethod` and the mirror stays a verbatim
+      one-line edit — declaring a `val` would make it EFFECTFUL and break the mirror's proved
+      `assigns \nothing` (measured: three planes went red when that was tried).
+
+  `_field_type_of`      live `module6_whyml/types.py`, 79 lines vs the mirror's 35.
+      FOUR missing branches, not one: the `value`/`object` receiver-shape acceptance, the
+      module-level-global-instance lookup, the LOCAL-record-var arm
+      (`_current_record_var_classes`), the record-PARAM arm (`_record_param_classes`), and the
+      `_record_field_elem_locals` fallback. **Highest risk:** each arm reads a self-field map that
+      must be MODELLED in the mirror's class for the body to prove.
+
+  `_rhs_yields_map`     live `module6_whyml/types.py`, 64 lines vs the mirror's 39.
+      ONE missing arm — the `getattr(self, "<dict/set field>", {})` recognizer — which calls
+      `self._self_field_py_type(...)`. Note the live body carries a comment that is itself a
+      standing finding: the guard is spelled as an explicit conjunction rather than the chain
+      `2 <= len(_ga) <= 3` because Module5's `_py_expr_compare` keeps only `ops[0]`, so a chained
+      comparison in a CONVERTED method would be modelled as its first conjunct alone — an
+      over-approximation of a PROVED guard. **No chain may be written in mirrored code** until
+      that lowering is fixed; honour it when re-porting.
+
+ADJUDICATION, unchanged from #63: if a re-ported body does not prove, mark THAT copy `#@ \trusted`
+and take the +1 marker, exactly as `d21a61fb` did for the six hollow conversions. An honest +1
+beats a verified body that is not the live code — which is what all three are today.
+
 ### #64 gen #31 — THE SEAM IS A CHAIN PER MARKER, NOT A QUEUE OF CLASSES (corrects #62's unit of work)
 
 2026-09-26T18:55Z. #62 ranked the int-erasure seam by ERROR CLASS and said "every hour spent on it
