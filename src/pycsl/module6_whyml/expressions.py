@@ -4953,6 +4953,79 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # to_dict() is faithful for its purposes.
         expr = node.to_dict()
         raw_op = expr["op"]
+        # (#49) ROUTE #227 — THE `pycsl_none` REPAIR MADE THE VALUE UNKNOWN AND LEFT THE
+        #   TYPE TRUE, so every consequence INVARIANT under the value still decided.
+        #   Routes #44/#184/#191 replaced a definite integer `0` for a `None` read with the
+        #   opaque `val function pycsl_none : int` "with NO defining axiom". That closed
+        #   `v == 0` — and `pycsl_none` still inhabits `int`, so the laws of integer
+        #   arithmetic still apply to it and the falsehood simply moved from the VALUE to
+        #   the TYPE. MEASURED at `1b2f676e`, each under `#@ no_exception \all`, each a
+        #   `TypeError` in CPython:
+        #       v = None; return v - v + 3        PROVED \result == 3
+        #       v = None; if v < v: ...           PROVED \result == 0
+        #       v = None; return v * 0 + 3        PROVED \result == 3
+        #   Route #44's own negative witness 1060 is this shape with `x + 5` — value-
+        #   DEPENDENT, so the opaque genuinely closed it — and its docstring says "an
+        #   equality-only fix would have been the same mistake one operator later". It was
+        #   arithmetic-aware and still stopped one ALGEBRAIC IDENTITY short.
+        #
+        #   THE FACT IS ALREADY IN HAND; IT WAS ONLY EVER USED TO DECIDE. Route #46's file
+        #   states the split: "route #50's facts are used to REFUSE; route #44's are used to
+        #   DECIDE". `_erased_truthy_locals` is consulted to answer truthiness `false` and
+        #   to answer the value opaquely, and by nothing to refuse. Arithmetic on a `None`
+        #   is the one place where refusing is unambiguously right: EVERY such program is a
+        #   `TypeError`, so no capability is lost.
+        #
+        #   THE FENCE IS EXACTLY AS WIDE AS THE RECORD IS CERTAIN, which is why it is safe.
+        #   `"None#empty"` is held only for a name with NO nested rebinding — `functions.py`
+        #   pre-seeds `"AMBIG"` as soon as a name has assignments of two kinds with at least
+        #   one at nested depth — and AMBIG is precisely where the legitimate guarded idioms
+        #   live. Both real-code hits of the 4531-file census are AMBIG and unreachable from
+        #   here: `last_end = None` before a loop that rebinds it, read under
+        #   `if last_end is None or start >= last_end`; and this file's own
+        #   `_call_named_builtins`, `v = None  # defer bool` read under `isinstance(v, int)`.
+        #   Controls: `v = None; v = 0; return v - v + 3` still VERIFIES (a rebinding clears
+        #   the record) and the conditional-rebind + `is not None` shape still VERIFIES.
+        #
+        #   `==`/`!=` are LEFT DECIDED: `None == None` really is `True`, and the opaque being
+        #   SHARED rather than per-name is what makes that faithful (corpus control 1063).
+        #   Written INLINE, not as a helper method: wall-lesson (a4) — this file is MIRRORED,
+        #   `_handle_binop`'s twin is `#@ \trusted`, and a new private def would move the
+        #   `check-mirror-coverage` ratchet and add an unused abstract `val` to every
+        #   importer's emission.
+        if (raw_op in ("+", "-", "*", "/", "div", "//", "%", "**",
+                       "<<", ">>", "&", "|", "^", "<", "<=", ">", ">=")
+                and not self._in_spec):
+            _r227_rec = getattr(self, "_erased_truthy_locals", {})
+            _r227_hit = None
+            for _r227_side in (expr.get("left"), expr.get("right")):
+                if not isinstance(_r227_side, dict):
+                    continue
+                if _r227_side.get("type") == "None":
+                    _r227_hit = "the literal `None`"
+                    break
+                if (_r227_side.get("type") == "Var"
+                        and _r227_rec.get(_r227_side.get("name")) == "None#empty"):
+                    _r227_hit = "`%s`, which is `None` on this path" % (
+                        _r227_side.get("name"),)
+                    break
+            if _r227_hit is not None:
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    "the operator `%s` is applied to %s, and that is not modelled: `None` "
+                    "is not a number, so EVERY such operation raises `TypeError` in Python "
+                    "and the function has no value at all. The model gives a `None` read an "
+                    "opaque INTEGER, which keeps the operation well-typed, so every "
+                    "consequence that does not depend on the value still decides — "
+                    "measured, `v = None; return v - v + 3` PROVED `\\result == 3` under "
+                    "`#@ no_exception \\all` where Python raises `TypeError`. Bind the name "
+                    "to a definite value before the operation (a rebinding clears the "
+                    "`None` record), or bind `None` on only some path — a conditionally "
+                    "rebound name is treated as ambiguous and is not refused here."
+                    % (raw_op, _r227_hit),
+                    stage="whyml",
+                    code="PYCSL-WHYML-ARITHMETIC-ON-NONE",
+                )
         # (#48) A CHAINED COMPARISON INSIDE A `#@` CLAUSE MEANT NOTHING, AND ONLY THE WHY3
         #   TYPE CHECKER WAS STOPPING IT. `0 <= i <= 3` in a `requires`, an `ensures` or a
         #   `loop invariant` was lowered LEFT-ASSOCIATIVELY to `((0 <= !i) <= 3)` — a bool

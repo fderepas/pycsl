@@ -11984,3 +11984,76 @@ consequence that is INVARIANT under the value, because the opaque kept the TYPE 
 >>> `v == 0` is the probe the repair was built to defeat; `v - v` is the one nobody wrote.
 Route #46's own variant table recorded "v3 ARITHMETIC on the joined None -> FAILS CLOSED", so the
 arithmetic question was ASKED and answered on the JOIN carrier; the straight-line local was never asked.
+
+## 17:16Z ROUTE #227'S FENCE IS BUILT — and it closed FOUR arms of five
+`_handle_binop`, INLINE (wall-lesson (a4): this file is MIRRORED and the twin is `\trusted`, so a
+helper def would move the mirror-coverage ratchet and add an unused `val` to every importer).
+REFUSES arithmetic (`+ - * / // % ** << >> & | ^`) and STRICT ORDER (`< <= > >=`) on a definitely-
+`None` operand: a `Var` whose `_erased_truthy_locals` entry is `"None#empty"`, or a literal `None`.
+`==`/`!=` left DECIDED — `None == None` really is True and the SHARED opaque is what makes that
+faithful (control 1063). New code `PYCSL-WHYML-ARITHMETIC-ON-NONE`.
+    w4  `v - v + 3`        PROVED -> REFUSED
+    w3b `v < v`            PROVED -> REFUSED
+    w5  `v * 0 + 3`        PROVED -> REFUSED
+    lit `None + 5`         PROVED -> REFUSED   (the empty-population arm, negative-tested)
+    w7  `v = None; v = 0`  VERIFIES, still — the rebinding control
+    w8  AMBIG + `is not None`  VERIFIES, still — the guarded-idiom control
+    ctl, pA                VERIFY, still
+**pC STILL PROVES, AND THAT IS THE SECOND CARRIER, NOT A FAILED REPAIR** (hard-won rule #4).
+`d[k] = None; v = d[k]; return v - v + 3` proves `== 3` because `v` is bound from a SUBSCRIPT, so
+the record never holds it: the None-ness there is a VALUE fact flowing through a container, not a
+syntactic one, and no record can carry it. Its reopening capabilities, both named: (i) refuse when
+the local is read from a container whose DECLARED codomain is `Optional[...]` (syntactic, cheap,
+needs its own census), or (ii) route #56's general repair, a distinguishable `None` in the value
+model. Recorded as #227's residue; the fence's own claim is scoped to the syntactic carrier.
+WITNESSES 1909-1913: three expected-FAIL (arith local / strict order / literal), two expected-PASS
+controls (rebinding clears; AMBIG is not refused). All five measured at the declared verdict.
+
+PREDICTIONS FOR THE GATE, written before running a single leg:
+  corpus byte-diff   0 MOVED · 1 GONE (`1060_route44_none_arith.py` now REFUSES, so it emits no
+                     .mlw — the same disposal route #217 gave 1725) · 2 APPEARED (1912, 1913; the
+                     three FAIL witnesses refuse and emit nothing)
+  mirror byte-diff   53/53, 0 MOVED — the census's only mirror-tree hit is AMBIG and unreachable
+  fidelity           sync 896 unchanged, mirror-check 53/53 green: `_handle_binop`'s twin is
+                     `\trusted`, so the edited body carries no verbatim-copy obligation
+  planes fast        53 of 55 green, and I predict exactly TWO RED, both by construction:
+                     `check-refusal-advice-audited` (a new advice-bearing raise, unaudited) and
+                     `check-refusal-witness-coverage` (a new site with no censused witness,
+                     MAX_UNWITNESSED=5). Both are registries I must then fill.
+  suite              4034/4052 — 3136 PASS / 898 XFAIL / 18 FAIL, ZERO XPASS (1060 stays XFAIL and
+                     merely changes HOW it fails)
+
+## 17:19Z GATE 227 LAUNCHED, detached — byte-diff (baseline worktree at c85bdb05) -> planes
+## --slow -> reference suite. Predictions are in the 17:16Z block and are DECLARED TO THE
+## COMPARATOR ITSELF (`--expect-gone 1060_route44_none_arith`, `--new-source` the five new
+## witnesses), so the sweep either agrees with the prediction or fails.
+
+## 17:22Z A SECOND-ORDER INSTRUMENT GAP, found by trying to obey a plane
+`bin/check-refusal-advice-audited.py` exists because "a refusal's advice is a CLAIM THE COMPILER
+MAKES ABOUT ITSELF, in the one place a user is guaranteed to read, and it is the only claim in the
+system with no gate behind it." I wrote a new advice-bearing refusal and went to add its audit row.
+**The plane never saw it.** Its detector is one hand-written verb list:
+    ADVICE = re.compile(r"\b(use|rewrite|declare|add|give|call|drop|remove|replace|instead|prefer)\b")
+My message advises "**Bind** the name to a definite value before the operation". `bind` is not in
+the list, so the site carries unaudited advice and the plane reports full coverage — 121
+advice-bearing, 116 audited, and the five unaudited are all PRE-EXISTING. It is green and it is
+blind to the refusal I added ten minutes earlier.
+MEASURED, over every `raise PyCSL*Error` message in `src/pycsl/` that the regex does NOT match,
+looking for sentence-initial imperatives: at least SEVEN more sites give advice the plane cannot
+see — "**Write** the loop explicitly", "**Move** it directly above the `def`/`class` it describes",
+"**Rebuild** the element (`a[i] = Record(...)`) or mutate a local record and store it back",
+"**List** it in `except` if it is a legitimate reader", "**Rename** one of the two bindings",
+"**Run** without --strict-concurrent-checks ... or protect the access with", "**Either** annotate
+the importing function(s) with `#@ \trusted`". Every one is exactly the kind of advice route #90
+came out of, and each has never been followed-and-run.
+>>> THIS IS GENERATOR #9 APPLIED TO AN INSTRUMENT: A CHECK KEYED ON A HAND-PICKED VOCABULARY
+>>> ENUMERATES THE WORDS ITS AUTHOR HAPPENED TO PICTURE. The plane's own docstring names the
+>>> verb list as its definition of advice, so the gap is not hidden — it is just never counted,
+>>> and the count is what the plane reports. Queued as the NEXT increment: widen the detector to
+>>> the imperatives actually used, then audit every newly-surfaced site by WRITING THE PROGRAM
+>>> THE MESSAGE TELLS YOU TO WRITE and running it. The audited FLOOR ratchets, the unaudited
+>>> ceiling does not, so the widening can land before the audits finish.
+Note `bin/check-refusal-witness-coverage.py` behaved the OPPOSITE way and correctly: it went RED
+at 6 > 5 the moment the new refusal had no witness, `--append-new` censused the three new FAIL
+witnesses, and the demonstrated floor is TIGHTENED 206 -> 207 in this increment. One of the two
+advice/witness planes noticed a new refusal; the other could not.
