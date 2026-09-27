@@ -8185,3 +8185,51 @@ The same day, the same instrument's own `--self-test` made the ORIGINAL version 
 the other direction: it hand-picked a field to inject, picked one ALREADY in the record under
 another spelling, and reported the HOLE arm inert when it was live. **A self-test must inject a row
 the measurement itself produced, not a field a human chose.**
+
+## (g4) gen #32 — THE WITNESS CENSUS IS AN AUDIT ACCELERATOR, NOT ONLY A COVERAGE LEDGER
+
+`bin/check-refusal-witness-coverage.py` exists to answer "which refusals has anyone PROVED can
+fire", and it carries `bin/refusal-witness-census.tsv`: every `# pycsl-expected: FAIL` corpus
+witness, joined to the refusal message it produced.
+
+`bin/check-refusal-advice-audited.py` exists to answer a different question — "has anyone WRITTEN
+THE PROGRAM THE MESSAGE TELLS YOU TO WRITE and run it" — and its expensive step is reverse-
+engineering a program that reaches the raise at all.
+
+**Those two compose, and nobody had used them together.** Auditing the eleven advice-bearing
+refusals that gen #32 found invisible to the advice regex took under an hour, because the census
+handed over an executable TRIGGER for every one of the eleven. The work collapses from "construct a
+program that reaches this raise, then repair it" to "apply the message to a file that already
+fails". Ten of eleven came back FOLLOWABLE, two of them with BOTH arms of an or-list run separately.
+
+>>> **BEFORE AUDITING ANY REFUSAL, LOOK IT UP IN THE WITNESS CENSUS.** A witnessed refusal is a
+>>> refusal whose trigger is already written and committed.
+
+A finer point worth keeping, from the one site that is route #90's shape. `import_classifier.py`'s
+message advises `#@ \trusted` — advice naming a MARKER the emitter merely READS, which is exactly
+the discriminator route #90 was paid for — and it is nonetheless FOLLOWABLE and honest, because it
+says what the marker BUYS: "to acknowledge that the boundary is excluded from verification."
+**Naming a marker is the hazard when the message implies the emitter VERIFIED something; it is fine
+when the message says the marker is an ACKNOWLEDGEMENT.** The original rule was too coarse.
+
+## (h4) gen #32 — A WITNESS THAT *MENTIONS* A REFUSAL IS NOT A WITNESS THAT THE REFUSAL *FIRED*
+
+The census join is TEXTUAL: a site is marked DEMONSTRATED when the longest literal fragment of its
+message appears in some censused witness's output. `check-refusal-witness-coverage.py`'s own
+docstring says so — "READ THOSE TWO NUMBERS AS BOUNDS, NOT AS FACTS" — and gen #32 watched it bite.
+
+Corpus witness `0415` was offered as the witness for the CONCURRENCY race refusal. It does report
+the race — as an `[unprotected_shared]` diagnostic line — and then the file dies on a COMPLETELY
+DIFFERENT refusal: an unjustified `#@ \diverges` on a straight-line body. The race message was
+PRESENT in the output and was not the CAUSE of the failure.
+
+>>> So the DEMONSTRATED count is an **upper bound** on refusals shown to fire, and the discriminator
+>>> is whether the message is the `[!] PIPELINE ERROR`, not whether it appears anywhere in stdout.
+Anyone auditing from the census must re-run the witness and confirm the message is the CAUSE, which
+costs one run — and when it is not, building a purpose-made trigger is the honest substitute (that
+is what was done here: the trigger was rewritten until the race WAS the pipeline error, and only
+then was the advice applied).
+
+This is the same shape as lesson (u6)'s second half — a plane whose message begins "all" over a
+population narrower than the reader assumes — one level further in: a plane whose JOIN is looser
+than the claim its count is read as making.
