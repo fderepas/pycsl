@@ -61,6 +61,14 @@ PLANES=(
     # the 17 had already drifted, each the mirror copy being BEHIND the live body. Negative-tested
     # twice (a built-in `--self-test` mutation, and the end-to-end perturbation). Lesson (u6).
     check-sibling-concrete-fidelity.py
+    # (#49) gen #31 — THE OTHER HALF OF THE FIDELITY PLANE, COLLECTED AT LAST. Declared a gate
+    # by `self-tcb-reduction.md`, `triage-ranked-tcb.md`, `README.md` and four impl docs, exits 1
+    # on drift, and was in NO battery — so it had been RED across an unknown number of generations
+    # while every gate printed fidelity green (lesson (u6)). Its scope is now repaired (a def the
+    # mirror RELOCATES into a sibling file is not staleness; that body is the plane above's
+    # question) and it is GREEN at 53/53 in 6 seconds. It asks what nothing else asks: has a def
+    # been RENAMED, lost a parameter, or appeared in the mirror with no live counterpart at all.
+    self-annotate-mirror-check.sh
     check-mirror-field-parity.py
     check-mirror-loop-annotations.py
     check-mirror-signature-drift.py
@@ -334,8 +342,10 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
-# (#49) gen #31: 48 -> 49 with `check-sibling-concrete-fidelity.py`.
-MIN_PLANES=49
+# (#49) gen #31: 48 -> 49 with `check-sibling-concrete-fidelity.py`, 49 -> 50 with
+# `self-annotate-mirror-check.sh` (declared a gate in five documents, collected by no
+# battery until now — lesson (u6)).
+MIN_PLANES=50
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
@@ -422,6 +432,13 @@ SLOW_PLANES=(
     # `--audit-proof --reverify-proofs` footprint check existed, worked, and was run by
     # NOTHING. It recompiles the cited Rocq/Lean proofs, so it belongs in the slow set.
     check-proof-reverify.sh
+    # (#49) gen #31 — THE BRIDGE RESTATEMENT CHECK, found by the (u6) sweep: 83 gate-shaped
+    # scripts in `bin/`, NINE in neither battery, and this was the only one of the nine that is a
+    # soundness gate, is GREEN, and finishes in bounded time (119s — too slow for the ~2.5-minute
+    # fast set, which is exactly what the slow set is for). It re-states each cited proof-assistant
+    # theorem and re-proves the restatement, so a `#@ proof` citation cannot drift from the
+    # theorem it names. PASS at registration: pin_fail=0, goal_fail=0.
+    bridge-restatement-check.py
     # (#49) Did the FUNCTION reach the emitted module at all? Needs the CORPUS emission,
     # like check-clause-survival, so it is dispatched with $CORPUS_EMIT below. Route #216
     # is what it is for: a dropped method takes every obligation ABOUT it with it, and the

@@ -11951,3 +11951,36 @@ PREDICTIONS for the FIRST ITEM (the un-gated `run-soundness-planes.sh` patch), w
   - `self-annotate-mirror-check.sh` GREEN 53/53 (gen #31 repaired its scope and measured it green).
   - `bridge-restatement-check.py` GREEN, pin_fail=0 goal_fail=0, ~119 s.
   - fast set all GREEN, ~3-5 min (slower than 2.5 min: the suite is competing for cores).
+
+## 17:10Z FIRST ITEM RESOLVED — the in-flight `run-soundness-planes.sh` patch is GOOD, and COMMITTED
+Re-measured in this tree rather than inherited (it had passed NO battery here):
+    FAST array entries                50   ·  MIN_PLANES 50   — consistent, no off-by-one
+    self-annotate-mirror-check.sh     GREEN, "all 53 mirrors in sync", 3.5 s     (PREDICTED: green 53/53)
+    bridge-restatement-check.py       GREEN, pin_fail=0 goal_fail=0, 1m54s       (PREDICTED: green, ~119 s)
+    full fast set                     **55 of 55 GREEN**, rc=0, ZERO red         (PREDICTED: all green)
+Three of four predictions exact. The FOURTH — the time budget — I predicted 3-5 min and it took
+**8m27s** (user 17m11s, so it parallelises). That is NOT the new plane's fault: the plane itself costs
+3.5 s of the 507. It is the self-annotation suite competing for cores, which is the honest price of
+running the window's long job concurrently, and it is worth saying out loud rather than rounding away.
+The registration does not move the fast set's budget; the concurrency does.
+
+## 17:12Z ROUTE #227 — THE `pycsl_none` REPAIR MADE THE VALUE UNKNOWN AND LEFT THE TYPE TRUE
+Found in the first 25 minutes, and found by the SUITE: `src/pycsl/errors.py`'s heterogeneous
+`as_dict()` sent me to read the dict value model, the value model sent me to `Optional`, and the
+minimal witness needs neither.
+    v = None ; return v - v + 3          PROVES \result == 3 under `#@ no_exception \all`
+    CPython                              TypeError: unsupported operand type(s) for -
+Emitted verbatim: `v := pycsl_none; ((pycsl_none - pycsl_none) + 3)`.
+SIX probes logged to `probes.tsv` BEFORE interpretation (positive control first, and it FIRED):
+FOUR LIVE (straight-line local, strict order `v < v`, `v * 0`, the dict-value read) and TWO
+FAIL-CLOSED (the explicit-`None` MEMBERSHIP shape is faithful; the Optional PARAMETER is type-fenced).
+ORDER 2 — the carrier IS the campaign's own repair. Routes #44/#184/#191 replaced a definite `0` with
+the opaque `val function pycsl_none : int`. That killed every VALUE-dependent falsehood and left every
+consequence that is INVARIANT under the value, because the opaque kept the TYPE `int`.
+>>> NEW GENERATOR, and it is the sharpest thing this generation has: WHEN A REPAIR ANSWERS A WRONG
+>>> VALUE WITH AN OPAQUE, IT HAS MOVED THE FALSEHOOD FROM THE VALUE TO THE TYPE. Re-probe the repaired
+>>> carrier with an expression whose result does NOT depend on the value — `x - x`, `x * 0`, `x < x`,
+>>> `x == x`, `x // x` — and with the `no_exception` claim, which is a statement about the TYPE alone.
+>>> `v == 0` is the probe the repair was built to defeat; `v - v` is the one nobody wrote.
+Route #46's own variant table recorded "v3 ARITHMETIC on the joined None -> FAILS CLOSED", so the
+arithmetic question was ASKED and answered on the JOIN carrier; the straight-line local was never asked.
