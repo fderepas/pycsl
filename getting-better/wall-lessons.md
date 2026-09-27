@@ -8136,3 +8136,52 @@ pre-existing file's emission is byte-identical, so no pre-existing file can flip
 account of the change** — leaving only the NEW files, each of which had been measured individually.
 Keep that argument; and tee every leg in full and capture each leg's `rc`, because the next gate
 may not have a 0-MOVED sweep to fall back on.
+
+## (e4) gen #32 — WHEN A RE-PORTED BODY INT-ERASES, ASK WHETHER THE MIRROR SIMPLY NEVER DECLARED THE FIELD
+
+Backlog #63. Re-porting the three stale `#@ sibling_concrete` bodies produced
+`statements.mlw:1589: This expression has type int, but is expected to have type string` inside
+`_field_type_of`, at `Map.get (self._record_types) (!ecls)`. `ecls` holds a class NAME.
+
+#63's written adjudication was "if a re-ported body does not prove, mark that copy `#@ \trusted`
+and take the +1 marker." The real cause was one line: `_record_field_elem_locals` was the only
+field of the four the new arm reads that the DESTINATION mirror file never DECLARED, so the untyped
+`getattr` default made it an opaque INT map. Its two siblings `_module_global_classes` and
+`_record_param_classes` are declared `Dict[str, str]` in the same class, with a comment spelling out
+this exact reason. Declaring the third took the file to L3-tc ✓. **Count unchanged; no marker.**
+
+>>> A `#@ sibling_concrete` RELOCATION COPIES A BODY AND NOT THE FIELD DECLARATIONS THAT BODY READS.
+The field was declared all along in the mirror's `types.py` — the relocated body's ORIGINAL home —
+so the model was right about it in one file and int-erasing in the other. **Neither existing plane
+can see this**: `check-mirror-field-parity` compares mirror-vs-LIVE and the live class never
+annotated the field at all, and `check-sibling-concrete-fidelity` compares BODIES.
+
+The trap is that a missing DECLARATION and the int-erasure SEAM (backlog #62/#64, "the number-one
+wall", 103 of 116 markers) produce the *identical* error message, and they differ in cost by a
+single line versus a campaign. `check-mirror-field-parity`'s own docstring already warns about the
+adjacent case — "a `\trusted` stub whose blocker is 'this field int-erases' is filed against the
+emitter's type inference, when the real cause may be that the MIRROR simply never picked up a
+retype the live source already has". **Before filing an int-erasure against the inference, grep the
+field's own name across the mirror tree and see whether some other file already declares it.**
+
+## (f4) gen #32 — A CONTROL YOU CHECKED BY GREPPING A REPORT IS A CLAIM ABOUT THE REPORT'S PAGINATION
+
+The campaign's standing rule is "A PROBE WHOSE OWN POSITIVE CONTROL REFUSES HAS MEASURED NOTHING."
+Its mirror image is just as expensive and cost gen #32 twenty minutes.
+
+A new instrument measured 222 functions dropping `#@ assigns` fields from their emitted `writes`.
+To validate it I grepped its output for the ONE drop I had already measured by hand — and found
+nothing. I concluded "POSITIVE CONTROL DID NOT FIRE, the 222 is worthless", and went hunting for a
+parser bug that did not exist. The control HAD fired; the script printed only `drops[:25]` and I had
+grepped the TRUNCATED PRINT. The row was there all along, and it was emphatic: `assigns=93
+writes=29 nmissing=64`.
+
+>>> **ASSERT A CONTROL AGAINST THE DATA STRUCTURE, NEVER AGAINST THE RENDERED REPORT.** A `head`, a
+>>> `tail`, a `[:25]` slice and a truncated column are all the same failure as lesson (d4)'s
+>>> `tail -40`: the instrument knew, and the view did not say. A working instrument thrown away for
+>>> a phantom control failure costs exactly what a rubber-stamped one does.
+
+The same day, the same instrument's own `--self-test` made the ORIGINAL version of this mistake in
+the other direction: it hand-picked a field to inject, picked one ALREADY in the record under
+another spelling, and reported the HOLE arm inert when it was live. **A self-test must inject a row
+the measurement itself produced, not a field a human chose.**
