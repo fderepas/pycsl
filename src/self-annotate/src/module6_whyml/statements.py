@@ -95,6 +95,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # fails to type against the `string`-typed `cls`).
     _module_global_classes: Dict[str, str] = None
     _record_param_classes: Dict[str, str] = None
+    # (#49) gen #32, backlog #63: the RE-PORTED `_field_type_of` gained a
+    # `_record_field_elem_locals` fallback arm (a record-ELEMENT local resolves its field
+    # types like a record PARAM receiver). It was the one field of the four that arm reads
+    # that the mirror never DECLARED, so `.get(receiver_name)` took the untyped-getattr
+    # default of an opaque INT map and `!ecls` landed in `Map.get self._record_types` —
+    # `statements.mlw:1589: This expression has type int, but is expected to have type
+    # string`. Declared `Dict[str, str]` for exactly the reason the two siblings above say:
+    # so `.get(...)` yields a STRING class name. NOTE the map stores the record CLASS name,
+    # not its whyml name (unlike `_record_param_classes`), which is why the ported body
+    # translates it through `_record_types[ecls]["whyml_name"]`.
+    _record_field_elem_locals: Dict[str, str] = None
     # self-tcb-reduction (_first_assign_kind / _rhs_yields_* conversion): the
     # module-level method return-type map, read by the ported RHS-type queries
     # (matching the TypeInferenceMixin twin in types.py). Typed `Dict[str, str]`
@@ -279,9 +290,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         when abstract vals (`any_1`, `all_1`, `sorted_1`, `list_new`)
         expect an array but the actual arg is an int — typically because
         the IR dropped an unsupported iterable shape (generator
-        expression, comprehension, variadic *args) to a scalar. A
-        length-1 placeholder array works because the abstract vals have
-        no axioms about their input contents.
+        expression, comprehension, variadic *args) to a scalar.
+
+        (#49) THE DEFENCE THAT USED TO STAND HERE — "a length-1 placeholder array
+        works because the abstract vals have no axioms about their input contents"
+        — IS FALSE TWICE OVER, and each half was measured. It is about CONTENTS and
+        says nothing about LENGTH (route #193: `sorted_1` carries
+        `ensures { Array.length result = Array.length a }`), and it assumes the only
+        consumers are abstract vals, when a USER-DECLARED `List[int]` parameter
+        reaches the same coercion (route #201: `callee("ab")` against
+        `def callee(p: List[int])` emitted `(callee (Array.make 1 0))` and PROVED
+        `len(p) == 1` while CPython answers 2). Both the `"0"` case and the TAIL now
+        answer Why3's `any`, which stands for EVERY array of ints, so neither length
+        nor contents is decidable.
 
         Recognises explicit array-shaped expressions and leaves them
         alone: `Array.make ...`, `Array.get ...`, `sorted_1 ...`, bare
@@ -289,7 +310,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         ensure their type). For everything else, returns the placeholder."""
         stripped = whyml_str.strip()
         if stripped == "0":
-            return "(Array.make 1 0)"
+            # (#49) ROUTE #193 — A PLACEHOLDER FOR AN UNKNOWN ARRAY MUST NOT HAVE A KNOWN
+            # LENGTH. This returned `(Array.make 1 0)`, a DEFINITE length-1 array, and the
+            # defence written above ("the abstract vals have no axioms about their input
+            # contents") is about CONTENTS and says nothing about LENGTH — `sorted_1`
+            # carries `ensures { Array.length result = Array.length a }`, so
+            # `len(sorted(x for x in [3, 1, 2]))` PROVED `== 1` while CPython answers 3,
+            # and `array_to_seq`'s `Seq.length result = Array.length a` is the same law one
+            # step further on. The honest placeholder is Why3's `any`, which stands for
+            # EVERY array of ints, so nothing about it — length or contents — is decidable.
+            # `any` and not an abstract `val`: declaring one would make this function
+            # register an abstract op, i.e. EFFECTFUL, and its mirror is a CONVERTED method
+            # whose proven contract is `assigns \nothing` (measured: battery C went RED on
+            # check-self-annotate-mirror-sync, check-mirror-signature-drift and
+            # check-trusted-frame-honesty). `any` needs no declaration, so the function
+            # stays a pure @staticmethod and the mirror stays a verbatim one-line edit.
+            return "(any (array int))"
         # Already array-shaped — leave alone.
         if (stripped.startswith("(Array.make")
                 or stripped.startswith("(Array.get")
@@ -316,9 +352,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             head_ok = head.lstrip("!").replace("_", "").replace(".", "").isalnum()
             if head and head_ok and not head.lstrip("!")[:1].isdigit():
                 return whyml_str
-        # Anything else (BinOp result, parenthesised int expression) —
-        # coerce to placeholder since we can't recover the array.
-        return "(Array.make 1 0)"
+        # (#49) ROUTE #201 — this returned `(Array.make 1 0)`, an array whose length
+        # the model KNOWS to be 1. Route #193 repaired the `stripped == "0"` case
+        # above for exactly this reason and left this tail alone; a STRING LITERAL
+        # reaches it (not `"0"`, not array-shaped, not alphanumeric once the quotes
+        # are counted), and so does an int BinOp. MEASURED: a callee declaring
+        # `p: List[int]` and carrying `ensures len(p) == 1 ==> \result == 1` — TRUE of
+        # its own body — called as `callee("ab")` PROVED `\result == 1` while CPython
+        # answers 2 (`len("ab")` is 2), with the TRUE twin REFUSED. `any` and not an
+        # abstract `val` for the same reason as the arm above: declaring one would make
+        # this function EFFECTFUL and its mirror is a CONVERTED method with
+        # `assigns \nothing`, so `any` keeps it a pure @staticmethod.
+        return "(any (array int))"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
@@ -500,6 +545,31 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return self._field_type_of(val_ir) in ("set", "dict", "frozenset")
         if t == "Call":
             fn = val_ir.get("func", "")
+            # (#33) `getattr(self, "<dict/set field>", {})` IS `self.<field>` — #32's
+            # `_lower_getattr` relaxation makes it LOWER as the real field, so the LOCAL it
+            # binds must be pre-declared as a MAP and not as `ref 0`. Without this the
+            # defensive read of a collection field takes a `map` on its first `:=` against
+            # an int slot. Same fail-closed gate as the lowering: literal attribute name,
+            # `self` receiver, DECLARED collection type.
+            # REFLECTION-SAFE SPELLING (lesson (cf)): this method is CONVERTED, so the body
+            # is copied verbatim into the mirror and must type-check THERE. `val_ir["args"]`
+            # (a Subscript) is not routed through `_EMIT_IR_PROJ`; `.get("args") or []` is,
+            # and reflects to `args_of : array emit_ir` — the spelling already proved in
+            # `expressions._iter_elem_class` and `ir_scanner`.
+            _ga = val_ir.get("args") or []
+            # SPELLED AS AN EXPLICIT CONJUNCTION, NOT AS THE CHAIN `2 <= len(_ga) <= 3`:
+            # Module5 `_py_expr_compare` keeps only `ops[0]`/`comparators[0]`, so a chained
+            # comparison in Python-expression position DROPS ITS TAIL and this guard would
+            # be modelled as `2 <= len(_ga)` alone — an over-approximation of the guard in a
+            # CONVERTED, PROVED method. Recorded as its own finding; until the lowering is
+            # fixed, no chain may be written in mirrored code.
+            if fn == "getattr" and 2 <= len(_ga) and len(_ga) <= 3:
+                if (isinstance(_ga[0], dict) and _ga[0].get("type") == "Var"
+                        and _ga[0].get("name") == "self"
+                        and isinstance(_ga[1], dict) and _ga[1].get("type") == "String"
+                        and self._self_field_py_type(_ga[1].get("value"))
+                        in ("dict", "set", "frozenset")):
+                    return True
             # `self.<method>(...)` — apply class-prefix mangling.
             if fn.startswith("self."):
                 tail = fn[len("self."):]
@@ -568,9 +638,21 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ ensures True
     #@ assigns \nothing
     def _field_type_of(self, attr_ir: "ExprIR") -> Optional[str]:
+        """Resolve `self.<field>` or `global.<field>` to its declared IR type tag,
+        or None if the target is not a known record-field access. Accepts both
+        shapes: `Attribute(value=Var(name), attr=F)` and `FieldGet(object=name,
+        field=F)` (Module5 uses both for different contexts).
+
+        Lookup goes through `_record_types`, keyed by class name; the
+        whyml_name matches `_current_self_type` (lowercased) for `self`, or the
+        module-global class for global instances."""
         receiver_name = None
         field_name = None
         if attr_ir.get("type") == "Attribute":
+            # 0442.md B1: Module5 emits an Attribute receiver under either `value`
+            # (spec context) or `object` (body context, e.g. `d.disk[i]` on a global
+            # record). Accept both, else a global array-field read falls through to the
+            # abstract `subscript_get (x:int)` and mismatches the `array int` field.
             receiver = attr_ir.get("value") or attr_ir.get("object") or {}
             if isinstance(receiver, dict) and receiver.get("type") == "Var":
                 receiver_name = receiver.get("name")
@@ -580,21 +662,53 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             field_name = attr_ir.get("field")
         if receiver_name is None or field_name is None:
             return None
+        # Determine the class name for the receiver
         cls = None
         if receiver_name == "self":
             cls = self._current_self_type
         else:
+            # Check module-level global instances
             gcls = getattr(self, "_module_global_classes", {}).get(receiver_name)
             if gcls is not None and gcls in self._record_types:
                 cls = self._record_types[gcls].get("whyml_name")
             else:
+                # LOCAL record var: a driver `b = Bank()` then `b.balance[i]`. The
+                # receiver's class comes from `_current_record_var_classes` (the same
+                # map that lets `<recordvar>.method(...)` propagate a callee contract).
+                # Without this, a record-local array-field subscript falls through to
+                # the abstract `subscript_get (x:int)` and mismatches `array int` —
+                # blocking a consequence driver from reading a record's field back.
                 rvcls = getattr(self, "_current_record_var_classes", {}).get(receiver_name)
                 if rvcls is not None and rvcls in self._record_types:
                     cls = self._record_types[rvcls].get("whyml_name")
                 else:
+                    # wrong-lowering.md §WL-03: a record-typed PARAMETER receiver
+                    # (`b: Box` then `b.p[1]`) — `_record_param_classes` already maps
+                    # the param to its record's whyml_name (set by `_param_type_str`).
+                    # Without this a record-param field read falls through to the
+                    # opaque `subscript_get`, blocking the faithful `Tuple[...]` field
+                    # slot read. The value already IS the whyml_name.
                     pcls = getattr(self, "_record_param_classes", {}).get(receiver_name)
                     if pcls is not None:
                         cls = pcls
+                    else:
+                        # W8/W1 residual: a RECORD-ELEMENT LOCAL — one bound from an
+                        # element of an `array <record>` self-field, or from a sibling
+                        # call with a record return (`t = self.cur()`, the opening line of
+                        # every parser predicate) — resolves its field types exactly like
+                        # a record PARAM receiver. `_record_field_elem_locals` already maps
+                        # it (that map is what makes `t.<field>` project natively);
+                        # without it here, `t.start[0]` — an integer subscript into a
+                        # `Tuple[int,int]` FIELD — could not find the synthesized
+                        # `pytuple_int_int` namedtuple record and fell through to the
+                        # opaque `subscript_get (x: int)`, which mistypes against it.
+                        # NOTE the map stores the record CLASS name, not its whyml name
+                        # (unlike `_record_param_classes`) — translate. Empty for every
+                        # file without an `array <record>` self-field -> byte-inert.
+                        ecls = getattr(self, "_record_field_elem_locals", {}).get(
+                            receiver_name)
+                        if ecls is not None and ecls in self._record_types:
+                            cls = self._record_types[ecls].get("whyml_name")
         if not cls:
             return None
         for info in self._record_types.values():

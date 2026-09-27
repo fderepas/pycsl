@@ -75,11 +75,11 @@ _spec.loader.exec_module(_sync)              # guarded by `if __name__ == "__mai
 #                       `getattr(self, f, {})` with 2..3 args, the mirror `fn.startswith("self.")`.
 # MAY ONLY SHRINK. Repairing one means re-porting the live body verbatim and re-proving the
 # mirror file, or re-`\trusted`ing the copy and taking the marker cost.
-DIVERGING_BASELINE = {
-    ("module6_whyml/statements.py", "StatementEmissionMixin._array_coerce_arg"),
-    ("module6_whyml/statements.py", "StatementEmissionMixin._field_type_of"),
-    ("module6_whyml/statements.py", "StatementEmissionMixin._rhs_yields_map"),
-}
+# (#49) gen #32 — TIGHTENED TO EMPTY. All three were RE-PORTED verbatim from their live twins
+# and `statements.py` re-proved, so the baseline that recorded them is retired. It may only ever
+# shrink: a NEW divergence is an un-trusted mirror body that is not the live code, which is the
+# whole defect this plane exists for (backlog #63).
+DIVERGING_BASELINE = set()  # (#49) gen #32: was three; see the note above.
 
 # `mutable_state` is the mirror's OWN modelling decorator: every mirror file that uses
 # `@mutable_state` also defines it, and there is deliberately no live counterpart. Any OTHER

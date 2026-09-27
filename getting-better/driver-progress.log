@@ -12096,3 +12096,48 @@ reason it did not is itself the finding that became backlog #66.
 >>> change; the only files that could XPASS are the five NEW ones, and 1909-1911 were each
 >>> measured individually at verify_success=0. Keep the argument, and FIX THE SCRIPT: tee every
 >>> leg in full and capture each leg's rc.
+
+## 20:15Z BACKLOG #63 — THE THREE STALE `sibling_concrete` BODIES ARE RE-PORTED, AND IT COST ONE
+## DECLARATION RATHER THAN THE PREDICTED `\trusted` MARKER
+#63 is a SOUNDNESS item: three UN-TRUSTED mirror bodies — bodies whose contracts are PROVED and
+which the file's other verified functions CALL to discharge THEIR obligations — were not the live
+code. `_array_coerce_arg` still returned the pure `(Array.make 1 0)` where live answers
+`(any (array int))` (routes #193/#201: a placeholder for an unknown array must not have a KNOWN
+LENGTH); `_field_type_of` was missing FIVE branches; `_rhs_yields_map` was missing the
+`getattr(self, "<dict/set field>", {})` arm. Neither fidelity plane could see them — the sync plane
+pairs defs IN THE SAME FILE, and the cross-file relocation is not in its 896.
+
+WHAT THE RE-PORT ACTUALLY NEEDED, which is NOT what #63 predicted. #63's adjudication was "if a
+re-ported body does not prove, mark that copy `#@ \trusted` and take the +1 marker". The first
+`--type-only` after the re-port said:
+    statements.mlw:1589:88-95: This expression has type int, but is expected to have type string
+inside the re-ported `_field_type_of`, at `Map.get (self._record_types) (!ecls)`. `ecls` comes from
+`getattr(self, "_record_field_elem_locals", {}).get(receiver_name)` and holds a CLASS NAME — a
+string — but **that was the one field of the four the new arm reads that the mirror had never
+DECLARED**, so the untyped getattr took its default of an opaque INT map. Its two siblings
+`_module_global_classes` and `_record_param_classes` are declared `Dict[str, str]` in the mirror
+with a comment spelling out this exact reason. Adding the third declaration takes the file to
+**L3-tc ✓** — no marker, no `\trusted`, count unchanged at 450.
+>>> LESSON (e4): WHEN A RE-PORTED BODY INT-ERASES, ASK WHETHER THE MIRROR SIMPLY NEVER DECLARED
+>>> THE FIELD, BEFORE FILING IT AGAINST THE TYPE INFERENCE. `check-mirror-field-parity`'s own
+>>> docstring already says this — "a `\trusted` stub whose blocker is 'this field int-erases' is
+>>> filed against the emitter's type inference, when the real cause may be that the MIRROR simply
+>>> never picked up a retype the live source already has" — and here it was true of a field the
+>>> live source never annotated at all, so field PARITY could not have found it either. The
+>>> declaration is the mirror's MODELLING LAYER; the seam (backlog #62/#64) is the emitter's
+>>> inference. They look identical in the error message and they cost one line versus a campaign.
+    check-sibling-concrete-fidelity  25 SAME / **0 DIVERGING** / 0 unresolved (was 22 / 3)
+    DIVERGING_BASELINE               TIGHTENED to the empty set — it may only ever shrink
+    --type-only                      L3-tc ✓
+IN FLIGHT: the whole-file PROOF of `statements.py` (launched 20:20:29Z, the second-largest mirror),
+and the 53-mirror emission byte-diff baseline-vs-patched. PREDICTIONS: the proof SUCCEEDS at 0
+non-Valid (all three contracts are `requires True` / `ensures True` / `assigns \nothing`, all three
+bodies are READ-ONLY, and the only live risk is `_rhs_yields_map`'s `variant { size val_ir }`);
+the mirror diff shows **exactly 1 MOVED — `statements.mlw` — with 0 GONE and 0 APPEARED**, the
+route-#227 fence being mirror-inert because the census's only mirror-tree hit is AMBIG.
+>>> AND A GAP IN MY OWN GATE, the same shape as lesson (c4): GATE 227 NEVER RAN THE MIRROR
+>>> BYTE-DIFF AT ALL. Gate U's line reads "corpus byte-diff … + mirror byte-diff 53/53 0 MOVED" —
+>>> TWO sweeps and TWO comparisons, four numbers. Mine had one sweep and one comparison. The
+>>> corpus and the mirror are DIFFERENT POPULATIONS of the same plane, and a battery that asserts
+>>> one of them has asserted half a plane. Both are now being measured; `bin/mirror-emit-sweep.sh`
+>>> exists for exactly this and I did not know it until I went looking.
