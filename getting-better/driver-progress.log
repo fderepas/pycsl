@@ -11923,3 +11923,31 @@ STANDING NUMBERS (increment U, gated)
     sibling-concrete fidelity     22 SAME / 3 DIVERGING (baselined) / 0 unresolved / 2 class views
     planes                        74/74 --slow · 49 fast (was 48)
     suite                         4029/4047, standing EIGHTEEN, zero XPASS
+
+## gen #32 (window #8) — 16:45Z START. 95.98h on the clock, box idle, HEAD 1b2f676e.
+Metric at start: markers 450 · grep-substring 477 · offset 27 · attached 450 · unattached 0.
+
+16:49Z LAUNCHED THE WINDOW'S LONG JOB — `bin/run-self-annotation-suite.sh`, the authoritative
+"does the mirror still prove" oracle that FOUR impl docs declare a gate and NO battery runs. It is
+run in a FROZEN git worktree at HEAD (`/home/fabrice/git/pycsl-g32wt`, .venv symlinked) precisely so
+that my own edits in the main tree cannot perturb its verdict — the suite reads 40 files over
+plausibly 6-12 h, and a mid-run source edit would make its tally uninterpretable.
+PREDICTION before reading a single line: 36-40 of 40 PASS, with the risk concentrated in
+`pure_ast.py` (a measured 2.5-hour proof), `expressions.py`, `statements.py`, `preamble.py`.
+
+16:50Z THAT PREDICTION WAS WRONG AT THE FIRST FILE. `src/pycsl/errors.py` — suite member #1,
+classified "Bucket A — tractable now", a LIVE file not a mirror — does not even TYPE-CHECK:
+    errors.mlw:70:127-147: This expression has type string, but is expected to have type int
+`PycslError.as_dict()` (added by `819eb6db`, a non-driver diagnostics feature) returns the
+HETEROGENEOUS dict `{code: str, stage: str, filename: str, line: int, message: str}`. The emitter
+infers ONE value type for the map — `map int (option int)` — and the three string-typed fields are
+type-rejected against it. It is FAIL-CLOSED (L3-tc refuses; nothing unsound is proved), and it has
+been RED since that feature landed, unobserved, because the oracle that would have caught it has no
+scheduled runner. That is exactly lesson (u6) one cost bracket up: not a forgotten script, an
+UNSCHEDULED one, and the first thing it says when finally scheduled is that a gate four documents
+call authoritative has been failing at its FIRST entry.
+PREDICTIONS for the FIRST ITEM (the un-gated `run-soundness-planes.sh` patch), written before running:
+  - FAST array holds 50 entries, MIN_PLANES=50 — consistent, no off-by-one. (VERIFIED: 50/50.)
+  - `self-annotate-mirror-check.sh` GREEN 53/53 (gen #31 repaired its scope and measured it green).
+  - `bridge-restatement-check.py` GREEN, pin_fail=0 goal_fail=0, ~119 s.
+  - fast set all GREEN, ~3-5 min (slower than 2.5 min: the suite is competing for cores).
