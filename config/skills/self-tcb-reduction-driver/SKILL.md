@@ -316,6 +316,26 @@ START (standing), not as an interrupt. Rules:
   tree and one edit. This is the sixth instrument failure of one shape in a single generation,
   and the first whose wrong scope produced a false ALARM rather than a false all-clear — which
   is why the rule is about SCOPE, not about polarity.
+- **CARVE-OUT (lesson (c4), gen #32) — INVOKE THE BYTE-DIFF COMPARATOR ONCE PER EMITTED TREE,
+  AND ASSERT BOTH FILE COUNTS.** `bin/byte-diff-sweep.sh` emits the pycsl corpus into `<out>` and
+  the python-reference corpus into `<out>/pyref`. `bin/byte-diff-compare.py` builds its file set
+  from `os.listdir(d)` filtered to `.mlw` — **FLAT, it does not recurse.** A gate that calls it
+  once on the two root directories emits 2199 python-reference files, pays for them, and never
+  compares them, while printing a confident three-direction green. Measured on gen #32's route-#227
+  gate; caught only by diffing this gate's summary line against gate U's, which reads
+  "1378/1378 **+ 2199/2199**" — TWO comparisons. (`diff -rq`, the recipe in §5, DOES recurse; the
+  comparator is the one that does not, and it is the one that classifies MOVED / GONE / APPEARED
+  and honours `--expect-gone`/`--new-source`, so it is the one you actually want — twice.) A
+  sweep's output-directory count is not its comparison count.
+- **CARVE-OUT (lesson (d4), gen #32) — TEE EVERY GATE LEG IN FULL AND CAPTURE ITS `rc`; NEVER
+  `tail -N` A LEG YOU WILL LATER BE ASKED TO QUOTE.** `bin/run-reference-tests.sh` reports an XPASS
+  with a `[XPASS]` line and folds it into `failed`, and its confirmed-FAIL RE-RUN rebuilds the
+  failure list WITHOUT the `(XPASS)` tag — so a `tail -40` of that leg cannot establish ZERO XPASS,
+  which is a standing acceptance condition. When it happens, the argument that rescues you is the
+  **0-MOVED byte-diff**: every pre-existing file's emission being byte-identical means no
+  pre-existing file can flip its verdict on account of the change, leaving only the NEW files, each
+  of which should have been measured individually already. Keep that argument — and fix the script,
+  because the next gate may not have a 0-MOVED sweep to fall back on.
 - **Escalate-not-thrash, time-aware.** A per-wall attempt budget still applies; additionally, do not START
   a full cycle whose fable-review + spike cannot plausibly finish before the deadline — defer it (record
   the wall-signal for the next run) and spend the tail on cheaper items.
