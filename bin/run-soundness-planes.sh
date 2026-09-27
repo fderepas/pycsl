@@ -439,6 +439,16 @@ SLOW_PLANES=(
     # theorem and re-proves the restatement, so a `#@ proof` citation cannot drift from the
     # theorem it names. PASS at registration: pin_fail=0, goal_fail=0.
     bridge-restatement-check.py
+    # (#49) gen #32 — THE FRAME CLAUSE THAT READS AS A GUARANTEE AND EMITS NOTHING. Found by
+    # reading backwards from ONE line of emitted WhyML: declaring the field backlog #63's
+    # re-port needed made a `writes` clause GAIN it. `statements.py::_emit_body_code` declares
+    # `#@ assigns` over 93 self-fields and emitted 29 — Module 6 builds `writes` from the
+    # emitting class's RECORD, so a field the class never declared is dropped without a word.
+    # TRAP 2989 / HOLE 0: every dropped field is ALSO absent from the record, hence
+    # unmentionable, hence fail-closed — a measurement, not a theorem, which is why HOLE 0 is
+    # now ENFORCED. A HOLE is route #96's shape in a new mechanism. Takes the shared emission;
+    # its empty HOLE arm is negative-tested by its own `--self-test`.
+    check-assigns-writes-survival.py
     # (#49) Did the FUNCTION reach the emitted module at all? Needs the CORPUS emission,
     # like check-clause-survival, so it is dispatched with $CORPUS_EMIT below. Route #216
     # is what it is for: a dropped method takes every obligation ABOUT it with it, and the
@@ -480,7 +490,7 @@ CONVERSION_PLANES=(
 
 # Planes that take the shared mirror emission. Anything not listed runs bare, exactly as
 # before.
-EMIT_DIR_PLANES=" check-computed-rhs-erasure.py check-yield-erasure.py check-shadowed-selfcalls.py check-trusted-frame-honesty.py check-avatar-frame-parity.py count-trusted-directives.py check-mirror-type-only.py check-cross-module-contract-parity.py "
+EMIT_DIR_PLANES=" check-assigns-writes-survival.py check-computed-rhs-erasure.py check-yield-erasure.py check-shadowed-selfcalls.py check-trusted-frame-honesty.py check-avatar-frame-parity.py count-trusted-directives.py check-mirror-type-only.py check-cross-module-contract-parity.py "
 # (yield-erasure and shadowed-selfcalls are in CONVERSION_PLANES above: always run, still shared.)
 SHARED_EMIT=""
 # (#49) A SECOND shared emission: the CORPUS, for `check-clause-survival.py`.

@@ -12141,3 +12141,52 @@ route-#227 fence being mirror-inert because the census's only mirror-tree hit is
 >>> corpus and the mirror are DIFFERENT POPULATIONS of the same plane, and a battery that asserts
 >>> one of them has asserted half a plane. Both are now being measured; `bin/mirror-emit-sweep.sh`
 >>> exists for exactly this and I did not know it until I went looking.
+
+## 20:50Z A NEW PLANE, FOUND BY READING ONE LINE OF THE #63 BYTE-DIFF I DID NOT PREDICT
+The #63 mirror byte-diff came back **2 MOVED where I predicted 1**. The unpredicted file was
+`Module6_WhyMLTranspiler.mlw`, and the whole 12-line diff reads:
+  1. the AGGREGATE record's `__record_field_elem_locals` field REORDERED (it was already there, and
+     already typed `map string (option string)`, because the mirror's `types.py` declares it);
+  2. the `statementemissionmixin` record GAINED it (the intended change);
+  3. **one `writes` clause GAINED it** — `statementemissionmixin___emit_body_code`.
+Item 3 is the one nobody asked for, and it says the frame was previously WRONG. Reading backwards:
+    `_emit_body_code`'s `#@ assigns` names NINETY-THREE self-fields. Its emitted `writes` carried
+    TWENTY-NINE. SIXTY-FOUR were silently dropped — including `self._record_field_elem_locals`,
+    which the clause names in position 68.
+Module 6 builds `writes` from the emitting class's RECORD, so a field the class never DECLARED
+cannot appear and is dropped without a word.
+>>> A `#@ assigns` CLAUSE NAMING A FIELD ITS CLASS DOES NOT DECLARE READS AS A FRAME GUARANTEE AND
+>>> EMITS NOTHING.
+THE DISCRIMINATOR, and it is the whole finding: a dropped field that is ALSO absent from the record
+is UNMENTIONABLE, so no caller can prove anything about it — FAIL-CLOSED. A dropped field that IS in
+the record lets a caller PROVE IT UNCHANGED across a call declared to write it, which is route #96's
+shape in a new mechanism. Measured over 455 emitted functions carrying a `writes`:
+    **TRAP 2989 · HOLE 0.**
+The drop and the unmentionability have the SAME cause and are exactly coextensive. That is a
+MEASUREMENT, not a theorem — nothing in the emitter promises it — so HOLE 0 is now ENFORCED as
+`bin/check-assigns-writes-survival.py`, registered in the SLOW set on the shared mirror emission
+(SLOW 22 -> 23). TRAP is a ratchet that may only SHRINK; backlog #63 already took it 2991 -> 2989 by
+declaring ONE field.
+>>> AND I NEARLY DISCARDED THE INSTRUMENT ON A FALSE CONTROL FAILURE. I grepped its report for the
+>>> drop I already knew about, found nothing, and wrote "POSITIVE CONTROL DID NOT FIRE — the number
+>>> is worthless". It HAD fired: the script printed only `drops[:25]` and I had grepped the
+>>> TRUNCATED PRINT. **LESSON (f4): A CONTROL YOU CHECKED BY GREPPING A REPORT IS A CLAIM ABOUT THE
+>>> REPORT'S PAGINATION, NOT ABOUT THE INSTRUMENT.** Assert the control against the DATA
+>>> STRUCTURE — the campaign's own rule "a probe whose positive control refuses has measured
+>>> nothing" has a mirror image that is just as expensive: a probe whose control you believe
+>>> refused, when it did not, gets a working instrument thrown away.
+>>> AND ITS HOLE ARM HAS AN EMPTY POPULATION, SO IT IS NEGATIVE-TESTED IN-TREE (`--self-test`):
+>>> injecting one measured-TRAP field into its class's record fires HOLE on 21 rows and names the
+>>> function. A guard whose population is empty has checked nothing and looks exactly like a guard
+>>> that passed. The first spelling of that self-test picked a field ALREADY in the record under
+>>> another spelling and reported the arm inert — so the self-test now reuses a MEASURED trap row
+>>> instead of a hand-picked field.
+ALSO RESOLVED, the second of the two items the last window queued and never ran:
+`check-stdlib-modules-verify.py` run ALONE is **GREEN** — 104 modules, **84 VERIFY** (gen #31's
+handoff recorded 83), non-verifying set is the KNOWN one (FAILS 5, REFUSED 13, TIMEOUT 2), and its
+honest headline is 76 modules with a postcondition to discharge. **Neither of its two failure modes
+is firing**, so the standing RED the handoff carried is retired — it was already green inside gate
+227's `--slow` run, and running it alone is what shows WHICH numbers.
+Metric re-measured, STABLE across 3 samples seconds apart: markers 450 · grep-substring 477 ·
+offset 27 · attached 450 · unattached 0 — unchanged, which is the correct shape for a window that
+pays the soundness ladder.
