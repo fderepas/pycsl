@@ -133,8 +133,52 @@ SRC = os.path.join(ROOT, "src", "pycsl")
 MIN_SITES = 150
 MIN_ADVICE = 70
 
+# (#49) gen #32 — THE VERB LIST WAS A HAND-PICKED VOCABULARY, AND IT MISSED ELEVEN SITES.
+# This plane exists because refusal advice is "the only claim in the system with no gate behind
+# it", and it detected advice by the eleven verbs its author happened to picture. A NEW
+# advice-bearing refusal written the same day ("**Bind** the name to a definite value before the
+# operation") was INVISIBLE to it, and the plane went on reporting full coverage. Measured by AST
+# over every `raise PyCSL*Error(...)` message in `src/pycsl/` whose text the old regex did not
+# match, looking for sentence-initial imperatives: ELEVEN sites give advice it could not see —
+# Run / Move (x2) / List / Rebuild / Either / Rename / Bind / Write (x2) / Assign. Every one is
+# the kind of advice route #90 came out of, and none had ever been followed-and-run.
+# This is generator #9 pointed at an instrument: a check keyed on a hand-picked VOCABULARY
+# enumerates the words its author happened to picture. Widened to the imperatives actually used.
 ADVICE = re.compile(r"\b(use|rewrite|declare|add|give|call|drop|remove|replace|instead"
                     r"|prefer)\b", re.I)
+
+# (#49) gen #32 — THE VERB LIST ABOVE IS A HAND-PICKED VOCABULARY, AND IT MISSED ELEVEN SITES.
+# This plane exists because refusal advice is "the only claim in the system with no gate behind
+# it". It detected advice by the eleven verbs its author happened to picture — so a NEW
+# advice-bearing refusal written the same day ("**Bind** the name to a definite value before the
+# operation", route #227) was INVISIBLE to it, and the plane went on reporting full coverage.
+# Generator #9 pointed at an instrument: a check keyed on a VOCABULARY enumerates the words its
+# author happened to picture.
+#
+# MEASURED by AST over every `raise PyCSL*Error(...)` message in `src/pycsl/` that the regex above
+# does NOT match, looking for SENTENCE-INITIAL imperatives: exactly ELEVEN sites, with the verbs
+# Run / Move (x2) / List / Rebuild / Either / Rename / Bind / Write (x2) / Assign.
+#
+# THE POSITION IS LOAD-BEARING, and a first attempt proved it: adding these verbs as bare
+# substrings took the advice-bearing count 121 -> 173, i.e. it claimed FIFTY-TWO more sites than
+# the AST census found, because "a list of", "the return value", "must set" and "cannot pass" all
+# match a bare `list|return|set|pass`. An over-broad detector manufactures audit debt and dilutes
+# the very count this plane reports. So the new verbs are recognized ONLY at the start of a
+# sentence — which is where an imperative actually lives — and the ORIGINAL substring rule is left
+# exactly as it was, so the audited FLOOR of 116 keeps its meaning.
+ADVICE_IMPERATIVE = re.compile(
+    r"(?:^|[.;!?]\s+|—\s+)(Bind|Write|Move|Rebuild|List|Rename|Run|Either|Assign|Annotate"
+    r"|Protect|Split|Wrap|Hoist|Guard|Narrow|Restrict|Reorder|Extract)\b")
+
+
+def has_advice(text):
+    """Does this refusal message TELL THE READER WHAT TO DO?
+
+    Two rules, deliberately different in shape: the historical verb list matches anywhere (it is
+    made of verbs that rarely appear except as advice), and the gen-#32 additions match only
+    sentence-initially (they are common words that are advice only in the imperative).
+    """
+    return bool(ADVICE.search(text) or ADVICE_IMPERATIVE.search(text))
 
 FOLLOWABLE = "FOLLOWABLE"
 UNSPELLABLE = "UNSPELLABLE"
@@ -551,6 +595,49 @@ AUDITED = {
     ("src/pycsl/pycsl.py",
      "_PyCSLSemErr38('a `with` statement in a file that defines a context-manager class (%s) uses a context expression this build cannot positivel"): (FOLLOWABLE,
         'The repair is a bare `with <lock>:`, which IS modelled as a critical section; it VERIFIES under `--memory-model concurrent`. Same repair as the `with ... as` refusal, whose OTHER arm this audit had to withdraw.'),
+
+    # (#49) gen #32 — THE TWELVE SITES THE WIDENED DETECTOR SURFACED, each audited by
+    # WRITING THE PROGRAM THE MESSAGE TELLS YOU TO WRITE and RUNNING IT. Eleven
+    # FOLLOWABLE (two of them with BOTH arms of an or-list run separately), one
+    # AMBIGUOUS. The triggers came almost free: every one of the twelve already had a
+    # corpus witness in `bin/refusal-witness-census.tsv`, so only the REPAIR had to be
+    # written (wall-lesson (g4)).
+    ('src/pycsl/frontend/ConcurrencyChecker.py',
+     "PyCSLSemanticError(f'{self.filename}{loc}: UB-7.3 — concurrent race detected: {w.message}. Run without --strict-concurrent-checks to downgra"): (FOLLOWABLE,
+        "'Run without --strict-concurrent-checks to downgrade to a warning, or protect the access with `#@ shared <var> protected_by <mutex>`' - BOTH ARMS RUN, both VERIFY: dropping the flag verifies, and adding `protected_by m` under the flag verifies. NOTE the corpus witness the census offers for this site (0415) does NOT fail by this refusal - its race is a DIAGNOSTIC line and the file dies on an unjustified `#@ \\diverges` - so the trigger was rebuilt until the race WAS the pipeline error (wall-lesson (h4))."),
+    ('src/pycsl/frontend/Module1_Ingestor.py',
+     "PyCSLParseError('line ' + str(_c.lineno) + ': this `#@` directive sits INSIDE the continuation lines of the statement that begins on line ' "): (FOLLOWABLE,
+        "'Move it to its own line above that statement' - the directive hoisted above the whole `return (` continuation VERIFIES. Trigger: witness 0979."),
+    ('src/pycsl/frontend/Module3_Weaver.py',
+     'PyCSLSemanticError(f"line {_first}: this `#@` contract block has nothing after it to attach to (it runs to end-of-file), so it would be SILE'): (FOLLOWABLE,
+        "'Move it directly above the `def`/`class` it describes, or delete it' - the EOF-stranded `#@ assert` moved inside the body, above the statement it describes, VERIFIES. Trigger: witness 0978. (For a STATEMENT directive the literal reading 'above the def/class' is the wrong target and 'above the statement' is meant; it still lands, because the anchor error is about having NOTHING after it.)"),
+    ('src/pycsl/frontend/Module3_Weaver.py',
+     'PyCSLSemanticError(f"`happy {hp.name}`: trusted/abstract function \'{fn.name}\' is not exempt and has no checkable body, so it could read the '): (FOLLOWABLE,
+        "'List it in `except` if it is a legitimate reader' - adding `opaque_reader` to the HAPPY property's `except` list VERIFIES. Trigger: witness 0718."),
+    ('src/pycsl/frontend/Module5_IREmitter.py',
+     "PyCSLSemanticError(f'in-place field mutation `<{type(target.value).__name__} base>.{target.attr} = ...` is out of scope: a record reached th"): (FOLLOWABLE,
+        "'Rebuild the element (`a[i] = Record(...)`) or mutate a local record and store it back' - `a[0] = Point(5, a[0].y)` in place of `a[0].x = 5` VERIFIES, postcondition `a[0].x == 5` included. Trigger: witness 0861."),
+    ('src/pycsl/frontend/import_classifier.py',
+     'PyCSLSemanticError(f"{filename} (line {line}): import \'{mod}\' is on the C-extension deny-list. Either annotate the importing function(s) wit'): (FOLLOWABLE,
+        "'Either annotate the importing function(s) with `#@ \\trusted` ... or pass `--allow-unverified-imports`' - BOTH ARMS RUN, both VERIFY. Trigger: witness 0396. THIS IS ROUTE #90's SHAPE - advice naming a MARKER the emitter merely READS - and it is honest anyway, because the message says what the marker BUYS: 'to acknowledge that the boundary is excluded from verification'. Naming a marker is the hazard when the message implies the emitter VERIFIED something; it is fine when the message says the marker is an ACKNOWLEDGEMENT. That distinction is finer than the rule #90 left behind."),
+    ('src/pycsl/frontend/ir_resolve.py',
+     'PyCSLSemanticError(f"Imported contract of \'{_fn.get(\'name\')}\' (from \'{os.path.basename(_dep)}\') reads the module-level name \'{_nm}\', which d'): (AMBIGUOUS,
+        "'Rename one of the two bindings' - the rename DOES clear the refusal, and the contract then lowers against the DEFINING module's binding, which is the whole soundness point. But NO such program verifies: the imported contract's free module-level constant lowers to an opaque `val constant lIM : int`, so `not (lIM < 0)` is undecidable and `#@ no_exception ValueError` cannot be discharged even when the defining module's `LIM = 5` makes it TRUE. CONTROLLED - a file that never clashes at all emits the IDENTICAL lowering and fails identically, so the opacity is INHERENT to cross-module contract lowering and the advice is NOT at fault. Under-specified rather than wrong: the reader is not told the claim will stay unprovable. Recorded as backlog #68."),
+    ('src/pycsl/module6_whyml/expressions.py',
+     "PyCSLSemanticError('the operator `%s` is applied to %s, and that is not modelled: `None` is not a number, so EVERY such operation raises `Ty"): (FOLLOWABLE,
+        "'Bind the name to a definite value before the operation (a rebinding clears the `None` record), or bind `None` on only some path' - corpus witness 1912 IS this audit: `v = None; v = 0; return v - v + 3` VERIFIES where 1909 without the rebinding is refused. The second clause is witness 1913 (a conditionally rebound name is AMBIG and not refused) and also VERIFIES. Both conditions are ones the emitter CHECKS, which is why this advice was written this way (route #227)."),
+    ('src/pycsl/module6_whyml/expressions.py',
+     "_R52Err('an IDENTITY test (`is` / `is not`) over a VALUE-typed operand (here: `%s`) is not modelled: PyCSL narrows `is` to `==`, which is fa"): (FOLLOWABLE,
+        "'Write `==` if you mean equality' - `b == c` in place of `b is c` VERIFIES, and the postcondition `\\result == 7` becomes TRUE of the program at the same time. Trigger: witness 1092."),
+    ('src/pycsl/module6_whyml/functions.py',
+     "PyCSLIRError('a comprehension contains ' + _why177 + ', and this function claims (or, through an exception handler, relies on) freedom from "): (FOLLOWABLE,
+        "'Write the loop explicitly' - the comprehension replaced by an explicit `for` + `.append` VERIFIES under `#@ no_exception KeyError`. Triggers: witnesses 1620-1623."),
+    ('src/pycsl/module6_whyml/functions.py',
+     "PyCSLIRError('an assignment expression `(' + str(_x180.get('target')) + ' := ...)` inside a comprehension rebinds `' + str(_x180.get('target"): (FOLLOWABLE,
+        "'Write the loop explicitly' - same advice string as functions.py:1219 and the same audit: the explicit `for` + `.append` VERIFIES. Triggers: witnesses 1620-1623."),
+    ('src/pycsl/module6_whyml/statements.py',
+     'PyCSLIRError("reassigning an array LOCAL from a non-literal right-hand side is not modelled: the local is represented as a fixed `Array.make'): (FOLLOWABLE,
+        "'Assign to a FRESH name, or build the new contents with a literal or an explicit element-wise loop' - the fresh-name arm VERIFIES (`ys = g(); return ys[0]` with the postcondition adjusted to the true value). Trigger: witness 0986."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -566,6 +653,19 @@ AUDITED = {
 # refuses a truncated census: a stale verdict about prose is indistinguishable from a
 # fresh one from the outside.
 AUDITED_HASH = {
+    # (#49) gen #32 — the twelve widened-detector audits.
+    "PyCSLSemanticError(f'{self.filename}{loc}: UB-7.3 — concurrent race detected: {w.message}. Run without --strict-concurrent-checks to downgra": 'd713c7b1ab76',
+    "PyCSLParseError('line ' + str(_c.lineno) + ': this `#@` directive sits INSIDE the continuation lines of the statement that begins on line ' ": '47d2820085ab',
+    'PyCSLSemanticError(f"line {_first}: this `#@` contract block has nothing after it to attach to (it runs to end-of-file), so it would be SILE': '86680b3cf851',
+    'PyCSLSemanticError(f"`happy {hp.name}`: trusted/abstract function \'{fn.name}\' is not exempt and has no checkable body, so it could read the ': '15153ca11ddb',
+    "PyCSLSemanticError(f'in-place field mutation `<{type(target.value).__name__} base>.{target.attr} = ...` is out of scope: a record reached th": 'bacdf77368e7',
+    'PyCSLSemanticError(f"{filename} (line {line}): import \'{mod}\' is on the C-extension deny-list. Either annotate the importing function(s) wit': '5bc2e951d41c',
+    'PyCSLSemanticError(f"Imported contract of \'{_fn.get(\'name\')}\' (from \'{os.path.basename(_dep)}\') reads the module-level name \'{_nm}\', which d': '5fe9497a5393',
+    "PyCSLSemanticError('the operator `%s` is applied to %s, and that is not modelled: `None` is not a number, so EVERY such operation raises `Ty": '2649ffac8c72',
+    "_R52Err('an IDENTITY test (`is` / `is not`) over a VALUE-typed operand (here: `%s`) is not modelled: PyCSL narrows `is` to `==`, which is fa": '1e37ec08d707',
+    "PyCSLIRError('a comprehension contains ' + _why177 + ', and this function claims (or, through an exception handler, relies on) freedom from ": '6b51b19a3c36',
+    "PyCSLIRError('an assignment expression `(' + str(_x180.get('target')) + ' := ...)` inside a comprehension rebinds `' + str(_x180.get('target": 'dbbfc4d6f0f5',
+    'PyCSLIRError("reassigning an array LOCAL from a non-literal right-hand side is not modelled: the local is represented as a fixed `Array.make': '780577afd263',
     ("src/pycsl/core_ir_semantic.py",
      'PyCSLSemanticError(f"""`#@ \\\\diverges` on function \'{func.get(\'name\', \'<anonymous>\')}\' is not justified: its body has no potentially-divergi'): '0da05801a201',
     ("src/pycsl/core_ir_semantic.py",
@@ -833,7 +933,7 @@ def sites():
                     continue
                 raises += 1
                 msg = " ".join(literal_parts(n.exc))
-                if ADVICE.search(msg):
+                if has_advice(msg):
                     _src = " ".join(ast.unparse(n.exc).split())
                     advice.append((os.path.relpath(f, ROOT), n.lineno, msg[:90],
                                    sig(n.exc),
@@ -916,7 +1016,12 @@ def main():
     return rc
 
 
-MIN_AUDITED = 116   # (#49) gen #31: 115 -> 116 with the `__new__` ARITY refusal, whose
+MIN_AUDITED = 128   # (#49) gen #32: 116 -> 128. The detector was widened to the SENTENCE-INITIAL
+                    # imperatives it had never recognised (Bind/Write/Move/Rebuild/List/Rename/
+                    # Run/Either/Assign), which surfaced TWELVE advice-bearing refusals it had
+                    # been blind to — including one written the same day — and all twelve were
+                    # then audited by following their advice. Eleven FOLLOWABLE, one AMBIGUOUS.
+                    # (#49) gen #31: 115 -> 116 with the `__new__` ARITY refusal, whose
                     # advice was audited in ALL THREE of its spellings (0496's repair,
                     # control 1906's `*args`, and deleting `__new__`). The floor moves
                     # with the measurement in the same commit; headroom is how a ratchet

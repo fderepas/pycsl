@@ -12292,3 +12292,33 @@ STANDING NUMBERS after #63
     assigns-writes survival       TRAP 2989 / HOLE 0  (NEW plane, ratchet)
     refusal witness coverage      207 demonstrated (floor TIGHTENED 206 -> 207) / 5 undemonstrated
     stdlib-modules-verify         104 modules, 84 VERIFY — the standing RED is RETIRED
+
+## 03:10Z BACKLOG #66 IS LANDED: THE ADVICE DETECTOR IS WIDENED AND ALL TWELVE NEW SITES ARE AUDITED
+    advice-bearing   121 -> **133**       audited 116 -> **128**       floor TIGHTENED 116 -> **128**
+    verdicts         FOLLOWABLE 110 -> **121** · AMBIGUOUS 2 -> **3** · UNSPELLABLE 2 · UNTRIED 2
+    unaudited        5, and they are EXACTLY the five that were unaudited before — no new debt
+THE POSITION OF THE VERB TURNED OUT TO BE LOAD-BEARING, and a first attempt proved it. Adding the
+new verbs as BARE SUBSTRINGS took the advice-bearing count 121 -> **173** — fifty-two more sites
+than the AST census had found — because "a list of", "the return value", "must set" and "cannot
+pass" all match a bare `list|return|set|pass`. An over-broad detector MANUFACTURES audit debt and
+dilutes the very count the plane reports, which is the same failure as an over-narrow one wearing
+the opposite sign. So the historical substring rule is left EXACTLY as it was (the floor keeps its
+meaning) and the new verbs are recognised ONLY sentence-initially, where an imperative lives:
+121 -> 133, twelve sites, which is the AST census's eleven plus ONE the census missed
+(`expressions.py:17918`). **The plane's own detector is the authority over my census, not the
+reverse** — and I recorded my census's number as "eleven" in two places before knowing that.
+The detector is NEGATIVE-TESTED: sentence-initial and em-dash-led imperatives are caught, and
+"the function must return an int and the list is empty" is NOT.
+ELEVEN FOLLOWABLE, ONE AMBIGUOUS, and two of the eleven had BOTH ARMS of an or-list run separately
+(`import_classifier:141`'s `\trusted`-vs-flag, `ConcurrencyChecker:101`'s flag-vs-`protected_by`).
+>>> THE AMBIGUOUS ONE IS THE VALUABLE RESULT, AND IT BECAME BACKLOG #68. `ir_resolve.py:3186`
+>>> advises "Rename one of the two bindings" (route #143's refusal of an imported contract whose
+>>> free name the importer rebinds). The rename DOES clear the refusal and DOES make the contract
+>>> lower against the defining module's binding — and no such program can verify, because the free
+>>> name lowers to an opaque `val constant lIM : int`, leaving `not (lIM < 0)` undecidable even when
+>>> the definer's `LIM = 5` makes the claim TRUE. CONTROLLED against a file with NO clash at all:
+>>> IDENTICAL lowering, identical failure. So the advice is not at fault and route #143 is not at
+>>> fault; it is a standing COMPLETENESS gap in cross-module contract lowering, fail-closed.
+>>> **LESSON (i4): FOLLOWING A REFUSAL'S ADVICE TO THE END IS A COMPLETENESS PROBE FOR FREE.** The
+>>> advice audit was built to catch messages that LIE; it also finds the places where the compiler
+>>> tells the truth and then cannot deliver, and those are backlog items nobody was hunting for.

@@ -34,6 +34,43 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #68 gen #32 — AN IMPORTED CONTRACT'S FREE MODULE CONSTANT LOWERS TO AN OPAQUE `val constant`
+
+2026-09-28T03:10Z. Found by AUDITING the advice of `ir_resolve.py:3186`, which is the nicest thing
+about the advice-audit method: following a message's instruction to the end is a completeness probe
+for free.
+
+Route #143 closed a SOUNDNESS hole — `f`'s `#@ raises ValueError when LIM < 0` naming ITS module's
+`LIM = -1` was being folded against the IMPORTER's `LIM = 5`, so `#@ no_exception ValueError` PROVED
+while CPython raises. The repair is a REFUSAL, and its advice is "Rename one of the two bindings."
+
+Following that advice does exactly what it says: the refusal clears and the contract lowers against
+the DEFINING module's binding. **But no such program can be verified**, because the free name lowers
+to an opaque constant:
+
+    val constant lIM : int
+    val f (k: int) : int
+      raises { ValueError -> (lIM < 0) }
+    let function caller (k: int) : int
+    = begin assert { not ((lIM < 0)) }; try (f k) with ValueError -> absurd end end
+
+`not (lIM < 0)` is undecidable, so `#@ no_exception ValueError` cannot be discharged **even when the
+defining module's `LIM = 5` makes it TRUE**. CONTROLLED: a file that never clashes at all emits the
+IDENTICAL lowering and fails identically, so this is not the rename's fault and not route #143's —
+it is a standing completeness gap in cross-module contract lowering.
+
+DIRECTION IS FAIL-CLOSED (the model says "may raise" where the program cannot), so this is a
+COMPLETENESS item, not a soundness one, and it is the reason `ir_resolve.py:3186`'s advice is
+recorded AMBIGUOUS rather than FOLLOWABLE: the reader is not told the claim will stay unprovable.
+
+THE WORK: fold a free module-level name in an imported contract against the DEFINING module's
+binding — the value route #143 refuses to take from the importer is available from the definer, and
+taking it from the definer is exactly what makes the contract mean what it says. Scope it with the
+route-#143 witnesses (1464-1467) plus a POSITIVE control where the folded condition is FALSE and the
+`no_exception` claim must then PROVE. Beware the obvious trap: folding a MUTABLE module global would
+be unsound, so the fold must be gated on the name being a module CONSTANT (assigned once, never
+rebound), which is a property the emitter already computes for other purposes. COST/SCALE.
+
 ### #67 gen #32 — A `#@ sibling_concrete` RELOCATION MUST BRING THE FIELD DECLARATIONS ITS BODY READS
 
 2026-09-27T20:55Z. Found while doing #63; recorded because the INVARIANT is unchecked even though
