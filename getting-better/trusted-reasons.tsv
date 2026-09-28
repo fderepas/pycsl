@@ -49,7 +49,7 @@ audit_proof.py	audit_lean	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS TH
 audit_proof.py	audit_both	unclassified	-
 audit_proof.py	print_report	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 audit_proof_reverify.py	ReverifyReport.summary	unclassified	-
-audit_proof_reverify.py	_cache_root	unclassified	-
+audit_proof_reverify.py	_cache_root	cost-scale:external-effect-model	A DO-NOT-CONVERT LIST
 audit_proof_reverify.py	_sha256_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 audit_proof_reverify.py	_cache_key	unclassified	-
 audit_proof_reverify.py	_cache_load	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL

@@ -285,6 +285,38 @@ NEXT CANDIDATE, to be pre-flighted the same way: the MEDIUM list's smallest, `_a
 `abstract_ops.py` is ALREADY a mirrored file that PASSES the self-annotation suite, so its callee
 closure is far more likely to be present in the mirror tree than `expressions.py`'s was.
 
+### #70 STEP 1 — **MY OWN REFUTATION WAS WRONG ABOUT THE MECHANISM.** Corrected 2026-09-28T17:35Z.
+
+Two hours after recording "step 1 is REFUTED at its prerequisite — `whyml_string_literal` is a
+module-level free function and the mirror does not have it", I measured what the emitter actually does
+with an unresolved free call, and the refutation does not hold.
+
+**PyCSL AUTO-SYNTHESIZES AN ABSTRACT `val` FOR AN UNRESOLVED FREE-FUNCTION CALL.** The evidence is
+already in the tree and predates me: `expr_from_dict` is **not defined anywhere in the mirror source**
+and appears in the emission of three mirrors as
+
+    val expr_from_dict (d: map string (option int)) : emit_ir
+
+So relocating `_expr_to_whyml_string_ctx` would EMIT and TYPE-CHECK. `whyml_string_literal` would
+become an opaque `val`, exactly as `expr_from_dict` already is.
+
+**THE HONEST VERDICT IS THEREFORE NOT "BLOCKED" BUT "(l4) PARTIAL", AND IT IS A GOOD TRADE:**
+the body has four arms, and `StrConcat` (recursive descent), `Var` (reads `self._ghost_string_vars`)
+and the structural dispatch all gain REAL facts; only the `String` arm's value goes opaque. Three arms
+of four is a materially better trade than the forwarders `_e`/`_deref`, which gain nothing. The
+residual costs are (a) that one opaque callee — the (l4) trust migration, to be named in the
+increment's write-up, and (b) the mirror `.py` carrying an undefined name, which is cosmetic because a
+mirror is never executed and which `expr_from_dict` shows is already tolerated in three files.
+**Step 1 is LANDABLE. The prerequisite port of `whyml_string_literal` is an OPTIONAL improvement, not
+a gate** — and it remains the better long-term answer, because it would make the fourth arm real too.
+
+>>> **THE RULE THIS BREAKS IS MY OWN, ONE INCREMENT OLD.** "Re-measure, never inherit" applies to a
+>>> boundary *I* recorded two hours earlier as much as to one inherited from gen #14. I wrote
+>>> "blocked" from a plausible mechanism story I had not run — which is precisely the failure the
+>>> campaign's own rule names ("a candidate's mechanism story is a hypothesis separate from its
+>>> existence", generator #7). A recorded false boundary is the most expensive kind of note in this
+>>> project, because the next generation pays for it by not trying.
+
 ### #72 gen #32 — TRIAGE THE WHOLE MARKER POPULATION BY CALLEE CLOSURE, NOT BY SIZE (151 survivors)
 
 2026-09-28T16:45Z. Lesson (o4) refuted TWO candidates in twenty minutes — `_expr_to_whyml_string_ctx`

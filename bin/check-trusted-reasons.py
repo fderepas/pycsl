@@ -154,7 +154,17 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        lines, ZERO new abstract operations, green whole-file proof in 38 minutes. Its
 #        near-twin `pycsl.py::_parse_args` is 174 lines, also proves, and is REFUSED by check
 #        1 for TEN new abstract operations — the whole of `argparse` going uninterpreted.
-MAX_UNCLASSIFIED = 285   # (#49) gen #32, 2026-09-28 — 286 -> 285, TIGHTENED by CONVERTING
+MAX_UNCLASSIFIED = 284   # (#49) gen #32, 2026-09-28 — 285 -> 284 by CLASSIFYING (not converting)
+                         # `audit_proof_reverify.py::_cache_root` as
+                         # `cost-scale:external-effect-model`. Its live body calls
+                         # `root.mkdir(...)`; the lowering emits a nullary `val` with no
+                         # `writes`, so converting it would turn the declared
+                         # `assigns \nothing` from ASSUMED into CERTIFIED over a real
+                         # directory creation. Measured by gen #31 and recorded in the
+                         # backlog's DO-NOT-CONVERT list; found again mechanically by gen
+                         # #32's external-effect census, which is the first row this
+                         # ratchet has moved without a conversion.
+                         # (#49) gen #32, 2026-09-28 — 286 -> 285, TIGHTENED by CONVERTING
                          # `errors.py::PyCSLError.as_dict`: its `\trusted` comment said
                          # "PyCSL cannot model dict construction here yet" and the certified
                          # `hval` model now can, so the body proves instead of being assumed.
