@@ -12708,3 +12708,4 @@ THREE ROWS ARE A DIFFERENT CLASS OF DEFECT and should not be filed under the sea
 ARTEFACT: every per-file screen output is committed under
 `getting-better/open-routes/screen-gen32/` (32 files), so the next generation inherits the
 measurement instead of re-running two hours of it.
+2026-09-28T19:58Z gen#33 START — contract+handoff+backlog read from disk. Metric 449 · 477 · offset 28. Tree clean (2 pre-existing gitlinks + 1 untracked log). Detached SAS pid 1599711 ALIVE (core_ir_semantic), collect from rc file only. Phase 1 = drained by gen #32's 33-file screen (zero convertible). Going STRAIGHT to Phase 2 item 1 = backlog #64 int-erasure seam. PLAN: spike the "declared PARAM element type" registry that #64 named as link 2's missing FOURTH registry, then re-probe the seam population with one instrument and measure MOVED/LOWER.
