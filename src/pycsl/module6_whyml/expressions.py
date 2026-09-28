@@ -5,6 +5,29 @@ import dataclasses
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from module6_whyml.identifiers import op_translate, whyml_ident, stable_hash, whyml_string_literal
+
+# (#49) ROUTE #228 — THE ONE PLACE THE STRING FOLD CAN CONCLUDE A FALSEHOOD.
+# `stable_hash` folds a string PyCSL cannot model to `int(sha256(s)[:8],16) % 2147483647`
+# and used to justify itself with "distinct strings -> distinct ints **w.h.p.**" — a
+# PROBABILISTIC premise in a DEDUCTIVE TCB. 32 bits, so a collision costs ~2^16 trials:
+# UNDER A SECOND. The collapse only concludes a falsehood where the receiving Why3 symbol
+# is PURE, and `struct.{pack,unpack}` is the only one: `val function
+# struct_{pack,unpack}_<slot_id> (fmt: int)`, pure on purpose so the round-trip axiom can
+# name it, while `slot_id` encodes "only the slot types (not prefix, not pad)" — so
+# unbounded pad/prefix variants of a format share ONE symbol and differ ONLY in this fold.
+#     struct.pack('<bb6x', 1, 2)                  CPython:  8 bytes
+#     struct.pack('<xxxxxxxxhxLxxxxxxxx', 1, 2)   CPython: 23 bytes
+#     both emitted  (struct_pack_i2 1322019588 1 2)     <-- ONE TERM
+# so `len(a) == len(b)` proved Valid in 156 steps and `\result == 1` was PROVEN while
+# CPython returns 0. Injectivity of the fold over the formats ONE emission folds is
+# DECIDABLE, so it is CHECKED here rather than argued — and NOT answered with a wider
+# hash, which would lower the probability and keep the premise probabilistic (route #227's
+# lesson in a new costume). See `getting-better/open-routes/route228-*`.
+# It lives HERE and not in `stable_hash` because of lesson (c5): the mirror is emitted with
+# `--import-path src/pycsl`, so a `raise` in that shared leaf is inherited by every mirror
+# that CALLS it and broke `check-mirror-type-only` outright. `_handle_struct_call`'s mirror
+# twin is `\trusted` and no mirror file but its own mentions it.
+_STRUCT_FMT_FOLDS: dict = {}
 from errors import PyCSLIRError
 
 # (#43) route #13: the collection methods that MUTATE their receiver in place. A call to
@@ -8511,6 +8534,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if fmt_ir.get("type") != "String":
             return None   # Dynamic format string
         fmt = fmt_ir.get("value", "")
+        # (#49) ROUTE #228 — two DISTINCT formats that fold to the SAME `fmt: int` would be
+        # the SAME TERM under the pure `struct_*` symbol. Keyed on the WhyML literal form,
+        # which is what `_coerce_str_arg` actually folds.
+        if args and isinstance(args[0], str) and args[0].startswith('"') and args[0].endswith('"'):
+            _f228 = stable_hash(args[0])
+            _p228 = _STRUCT_FMT_FOLDS.setdefault(_f228, args[0])
+            if _p228 != args[0]:
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"struct format fold collision (route #228): the formats {_p228} and "
+                    f"{args[0]} are DISTINCT but both fold to the internal constant "
+                    f"{_f228}. `struct.pack`/`struct.unpack` lower to a PURE Why3 symbol "
+                    f"whose only record of the format is that constant, so the two calls "
+                    f"would be the SAME TERM and the proof could establish a false claim "
+                    f"about them — measured: two formats whose packed lengths are 8 and 23 "
+                    f"bytes proved to have EQUAL length. Refused rather than emitted. How "
+                    f"to fix: respell one format equivalently — '6x' for 'xxxxxx', or a "
+                    f"different spelling of the same byte-order prefix — which changes the "
+                    f"constant without changing what the format means, and this same check "
+                    f"re-verifies the result.")
         # cleared-pack item 4 (UB-7.4b): NATIVE size/alignment ('@' prefix) is
         # platform-dependent — a standard-size size law or round-trip would be
         # UNSOUND (native alignment inserts padding). REJECT it with a clear

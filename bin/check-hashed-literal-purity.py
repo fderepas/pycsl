@@ -100,6 +100,19 @@ BASELINE = {
     ("struct_unpack_i18", 123717740): "a `struct` FORMAT STRING folded by `_coerce_str_arg`.",
     ("struct_unpack_i1a1", 550919730): "a `struct` FORMAT STRING folded by `_coerce_str_arg`.",
     ("struct_unpack_i2", 1552598195): "a `struct` FORMAT STRING folded by `_coerce_str_arg`.",
+    # (#49) gen #33 — ROUTE #228's OWN WITNESS PAIR. This plane FIRED on the generation that
+    # discharged its deferral, which is the behaviour it was built for, so the rows are argued
+    # in rather than silenced. Corpus 1915 is the ACCEPT-side control of route #228: two struct
+    # formats whose folds DIFFER (`'<bb6x'` -> 1322019588, `'<hL'` -> 1127449053), which is
+    # exactly the case that must still be emitted. Its colliding twin, corpus 1914, is REFUSED
+    # at emission by the route #228 guard in `expressions.py::_handle_struct_call`, so it
+    # produces no `.mlw` and can never appear here — and that refusal is what now makes a pure
+    # op on a folded literal safe, closing the second premise these rows were tolerated for the
+    # absence of. Negative-tested by `bin/check-stable-hash-fold-injectivity.py`.
+    ("struct_pack_i2", 1322019588): "route #228: corpus 1915's `'<bb6x'`, whose colliding twin is refused at emission.",
+    ("struct_pack_i2", 1127449053): "route #228: corpus 1915's `'<hL'`, the non-colliding accept-side control.",
+    ("struct_unpack_i2", 1322019588): "route #228: corpus 1915's `'<bb6x'`, whose colliding twin is refused at emission.",
+    ("struct_unpack_i2", 1127449053): "route #228: corpus 1915's `'<hL'`, the non-colliding accept-side control.",
 }
 
 

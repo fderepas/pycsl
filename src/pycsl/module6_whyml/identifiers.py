@@ -42,28 +42,43 @@ from typing import Dict, List, Set
 # that emission. So record it and REFUSE — fail-closed, a measurement and not an
 # argument.
 #
-# SCOPE. `pycsl.py` runs one emission per process (`bin/byte-diff-sweep.sh` and
-# `bin/run-reference-tests.sh` both invoke it per file), so a CLI run's witness never spans
-# two programs. That is NOT true of every caller, and saying "per-emission by construction"
-# would be exactly the kind of argued premise this guard replaces: `bin/core-only-
-# conformance.py` and `bin/regen-ir-conformance-goldens.py` construct
-# `Module6_WhyMLTranspiler(...)` IN-PROCESS in a loop, so their witnesses DO accumulate
-# across files. MEASURED rather than argued: `core-only-conformance.py` runs 38 goldens in
-# one process and accumulates **ZERO** folds (they contain no foldable string), and it is
-# green with this guard. So the largest accumulation anywhere measured is the 91 below, from
-# a single mirror emission.
+# WHERE THE CHECK LIVES, AND WHY IT IS NOT HERE — LESSON (c5), PAID FOR BY A RED PLANE.
+# The refusal was FIRST written into this function, on the stated reasoning that "the
+# mirror's `stable_hash` is `\trusted`, so a live-only change costs no fidelity". **That
+# reasoning is wrong, and `check-mirror-type-only` caught it.** The mirror is emitted with
+# `--import-path src/pycsl`, so when `src/self-annotate/.../statements.py` calls
+# `stable_hash`, the import resolves to THIS file — the LIVE one — and never reads the
+# mirror's `\trusted` copy at all. Adding a `raise` here therefore made emitted mirror
+# `statements.mlw` fail its type-check outright:
 #
-# POPULATION, MEASURED, because a guard whose population is empty has checked nothing
-# and looks exactly like a guard that passed: the LARGEST emission in this tree folds
-# **91** distinct strings (`src/self-annotate/src/frontend/pure_ast.py`; the mirror
-# `expressions.py` folds 4, `statements.py` 7, a struct corpus file 1). At 91 strings
-# the collision probability is ~2e-6, so this guard is byte-inert on everything that
-# exists today and its population IS empty. It is therefore NEGATIVE-TESTED against the
-# pair above by `bin/check-stable-hash-fold-injectivity.py`, which asserts PyCSL REFUSES
-# the colliding program and still ACCEPTS the non-colliding control.
-_FOLD_WITNESS: Dict[int, str] = {}
-
-
+#     statements.mlw:2280   hash_field := (stable_hash !field);
+#     this expression raises unlisted exception PyCSLSemanticError
+#
+# Measured at both ends rather than assumed: the pre-change tree emits that mirror with
+# L3-tc OK, the changed tree does not, and THREE mirror files call `stable_hash`
+# (`expressions.py`, `identifiers.py`, `statements.py`).
+#
+# >>> "LIVE-SIDE ONLY" IS NOT "MIRROR-INERT". `\trusted` on the mirror's own copy shields
+# >>> nothing; `--import-path src/pycsl` makes the LIVE definition the one every mirror
+# >>> caller is type-checked against. Before calling a live-only edit free, ask WHICH
+# >>> MIRRORS CALL IT — and if the edit adds a `raise`, every one of them owes the exception.
+#
+# So this function stays PURE, and the refusal lives at the one destination that can
+# actually conclude a falsehood: `expressions.py::_handle_struct_call`, whose mirror twin
+# IS `\trusted` and which no mirror file but its own even mentions. The narrowing is
+# justified by the table above, not by convenience — every non-pure destination was
+# MEASURED vacuous — and the general net already exists and works:
+# `bin/check-hashed-literal-purity.py` is exactly "a pure `val function` applied to a
+# constant in the hash range", and it fired on this very generation.
+#
+# POPULATION, for the record, because a guard whose population is empty has checked nothing
+# and looks exactly like a guard that passed: the LARGEST emission in this tree folds **91**
+# distinct strings (`src/self-annotate/src/frontend/pure_ast.py`; the mirror `expressions.py`
+# folds 4, `statements.py` 7, a struct corpus file 1), so the collision probability in real
+# code is ~2e-6 and the struct guard is byte-inert on everything that exists. It is
+# NEGATIVE-TESTED against the pair above by `bin/check-stable-hash-fold-injectivity.py`,
+# which asserts PyCSL REFUSES the colliding program and still ACCEPTS the non-colliding
+# control.
 def stable_hash(s: str) -> int:
     """Deterministic, process-independent, and CHECKED-INJECTIVE fold of a string to a
     non-negative int in [0, 2147483647). Replaces Python's built-in `hash()` for the
@@ -75,23 +90,7 @@ def stable_hash(s: str) -> int:
     The distinguishing property (distinct strings -> distinct ints) is NO LONGER
     claimed "w.h.p." and is no longer assumed: it is VERIFIED for the strings this
     emission actually folds, and a collision REFUSES the file. See route #228 above."""
-    h = int(hashlib.sha256(s.encode("utf-8")).hexdigest()[:8], 16) % 2147483647
-    _seen = _FOLD_WITNESS.setdefault(h, s)
-    if _seen != s:
-        from errors import PyCSLSemanticError
-        raise PyCSLSemanticError(
-            f"internal string-fold collision (route #228): {s!r} and {_seen!r} are "
-            f"DISTINCT strings that both fold to the constant {h}. PyCSL encodes a "
-            f"string it cannot model faithfully as this constant, and a pure Why3 "
-            f"symbol applied to it (struct.pack/struct.unpack's `fmt`) would then be "
-            f"THE SAME TERM for both — so the proof could establish a false claim "
-            f"about them. Refused rather than emitted. How to fix: if either string "
-            f"is a struct format, respell it equivalently ('6x' for 'xxxxxx', or a "
-            f"different byte-order prefix spelling) — that changes the constant "
-            f"without changing the format's meaning, and this same check re-verifies "
-            f"the result. Otherwise please report it: a collision here is a defect in "
-            f"PyCSL's encoding, not in your program.")
-    return h
+    return int(hashlib.sha256(s.encode("utf-8")).hexdigest()[:8], 16) % 2147483647
 
 
 # Maps Python/IR operators to WhyML operators
