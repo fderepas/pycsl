@@ -113,7 +113,25 @@ by exactly the number of importers, and nothing in the triage currently says so.
    ratchet stalls**, because it turns prose somebody already paid for into a gate-enforceable
    classification at no prover cost.
 
-1. **Backlog #72 — THE CONVERSION QUEUE, and the only item here with a measured shortlist.**
+1. **BUILD THE INT-ERASURE SEAM (backlog #64), AND KNOW THAT NOTHING ELSE ON THE COUNT TRACK IS
+   AVAILABLE UNTIL YOU DO.** Gen #32 screened **31 of the 53 mirror files — roughly 215 candidates —**
+   with `bin/probe-conversion-candidates.py` (ports the live body un-trusted, emits, classifies,
+   ALWAYS restores; ~10 s each, no proof time, foreground). Result:
+   **L3TC-FAIL ~198 · ERASURE 7 · NO-LIVE-SOURCE 11 · CLEAN 1** — and the single CLEAN,
+   `Module2_Parser::_err`, is one backlog #73 had already harvested as gen #31's RE-TRUSTED
+   input-blind conversion. **ZERO actionable conversions across 31 files.**
+   Roughly **55 of the 60 distinct blocker rows are one wall wearing many faces**: `int` against
+   `array int` / `array string` / `string` / `emit_ir` / `seq int` / `option int`. Backlog #62 named
+   that seam "the number-one wall, 103 of 116 markers" from one direction; this screen is the
+   independent confirmation from the other — I did not go looking for it, I screened everything, and
+   the seam is what came back, in files #62 never measured. **#64 is right that the unit of work is
+   one marker's whole CHAIN.**
+   Two rows deserve a separate look, being a different class of defect from a type mismatch: the
+   emitter produced **syntactically INVALID WhyML** for a ported body (`_parse_contract`,
+   `_parse_atom_name`), and two more report "a name's runtime value is not the one the model reads".
+
+2. **Backlog #72 — NOT A WORK QUEUE. Its value is the EXCLUSION, and gen #32 proved that the hard
+   way.**
    Gen #32 refuted two size-picked conversion candidates in twenty minutes (lesson (o4): *a
    relocation's cost is its CALLEE CLOSURE, not its line count*) and then built the instrument that
    generalises it: `getting-better/open-routes/preflight-marker-callee-closure-gen32.py` walks every
@@ -125,6 +143,10 @@ by exactly the number of importers, and nothing in the triage currently says so.
    gen #32 and #31 measured as unlandable). Do the cross-reference FIRST — it tightens
    `MAX_UNCLASSIFIED` for free — then screen the residue port -> `--fun` -> classify -> REVERT **in
    the FOREGROUND**, then convert **per destination FILE** so one re-proof covers a batch.
+   **THE SCREEN SAYS THE SHORTLIST'S HIT RATE IS ZERO.** My call-shaped preflight said 17 CLEAR for
+   `Module2_Parser.py`; the screen says 0 convertible. The CLEAR bucket is exactly where the TYPE
+   seam lives, invisible to a call-shaped filter as documented — so **use the preflight only to
+   EXCLUDE cheaply (210 BLOCKED by a known method wall, 49 NET-ZERO) and use the SCREEN to rank.**
    **THE INSTRUMENT CONVERGED FOUR TIMES AND THE SHORTLIST IS 103, NOT 151** — each tightening removed
    candidates that would have wasted a build: 151 -> 153 (re-derived) -> 143 (a missing FREE callee
    that is not int-shaped is NET-ZERO, lesson (r4)) -> **103** (a `self.<m>()` the DESTINATION FILE
@@ -136,24 +158,24 @@ by exactly the number of importers, and nothing in the triage currently says so.
    BATCH BY FILE on this generation's measured re-proof costs: `Module2_Parser.py` 19 markers / 6m59s,
    `Module3_Weaver.py` 11 / 3m11s, `Module1_Ingestor.py` 8 / 13s, `pure_ast.py` 30 / **2.5h**,
    `expressions.py` 14 / 2h21m, `statements.py` 9 / 2h19m.
-2. **Backlog #69 item 2 — make a RETURN annotation carry the `hval` codomain**, so the
+3. **Backlog #69 item 2 — make a RETURN annotation carry the `hval` codomain**, so the
    declared-local workaround above stops being load-bearing. The arm is byte-inert today (before this
    generation, no `.py` file in the tree used `Dict[str, PyVal]` at all), so there is little to
    regress. And re-scan for OTHER `\trusted` markers whose stated reason is "cannot model dict
    construction" or similar — `as_dict`'s comment was stale, and a comment that names a capability
    the campaign has since built is a conversion waiting to be noticed. **That is the cheapest lead
    on this list: grep the 449 markers' reasons for capabilities that now exist.**
-3. **Backlog #65** — route #227's container carrier. Two named reopening capabilities, cheapest
+4. **Backlog #65** — route #227's container carrier. Two named reopening capabilities, cheapest
    first: refuse on a local read from a container whose DECLARED codomain is `Optional[...]`
    (needs its own census), or route #56's general repair (a distinguishable `None` in the value model).
-4. **Backlog #68** — an imported contract's free module constant lowers to an opaque `val constant`,
+5. **Backlog #68** — an imported contract's free module constant lowers to an opaque `val constant`,
    so route #143's advice is followable-but-unprovable. Fold against the DEFINING module's binding,
    gated on the name being a module CONSTANT (folding a mutable global would be unsound).
-5. **Close #67's five MISSING declarations** — each is a latent int-erasure of #63's exact shape.
+6. **Close #67's five MISSING declarations** — each is a latent int-erasure of #63's exact shape.
    COST/SCALE: each declaration changes the emitted WhyML and owes a whole-file re-proof of
    `Module6_WhyMLTranspiler.py`, `functions.py`, `statements.py`.
-6. **Backlog #64** — the int-erasure seam, one marker's WHOLE CHAIN at a time. Still the #1 wall.
-7. The five refusal sites still unaudited in `check-refusal-advice-audited` (4 in `pycsl.py`, 1 in
+7. **Backlog #64 (now item 1 above; the original note follows)** — the int-erasure seam, one marker's WHOLE CHAIN at a time. Still the #1 wall.
+8. The five refusal sites still unaudited in `check-refusal-advice-audited` (4 in `pycsl.py`, 1 in
    `Module5_IREmitter.py:5205`) — pre-existing debt, and now the only debt in that plane.
 
 ## NEW PLANES AND RATCHETS THIS GENERATION — do not loosen any of them
