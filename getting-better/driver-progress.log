@@ -12673,3 +12673,38 @@ STILL TO SCREEN (6 of 53 files carry most of the remaining markers): `pure_ast.p
 big one), `expressions.py`, `statements.py`, `Module5_IREmitter.py`, `ir_resolve.py`, `proof2why3/*`,
 and the three in flight (`Module6_WhyMLTranspiler`, `pycsl`, `core_ir_semantic`). I expect the same
 distribution and will record it either way — a prediction that costs nothing to check.
+
+## 19:20Z THE SCREEN IS COMPLETE ENOUGH TO SETTLE IT: **33 FILES, 324 CANDIDATES, ONE CLEAN — AND
+## THAT ONE WAS ALREADY TRIED AND REVERTED**
+Foreground, one file per call, tree verified restored after every batch, markers 449 throughout.
+    **L3TC-FAIL        292**   the ported body does not type-check
+    **NO-LIVE-SOURCE    24**   mirror-only, no live twin to port (the #70 cross-mixin population)
+    **ERASURE            7**   emitted as a definition, but a facade/erasure marker fired
+    **CLEAN              1**   `Module2_Parser::_ContractParser._err` — and backlog #73 had already
+                               harvested its comment: "gen #31 — RE-TRUSTED, erased=['msg'], INPUT-BLIND"
+324 of the 449 markers, and **zero conversions available.** Unscreened: `pure_ast.py` (178 markers,
+the big one) and a handful of small files — worth finishing, but the distribution is not in doubt.
+THE BLOCKER TABLE, all files, `@rho` regions stripped:
+    68  int              vs  <something else>          <- the seam, in its plainest form
+    14  array int        vs  ...          12  string vs ...        12  array string vs ...
+     8  int -> option int vs ...           4  emit_ir vs ...        3  string -> option int vs ...
+     4  "a function, method or class NAME is rebound after its definition"
+     3  heterogeneous list literal (str mixed with other element types)
+     2  (int, int) vs ...      1  `syntax error`      1  aliasing a mutated dict is out of scope
+**~120 of the ~135 distinct rows are ONE WALL WEARING MANY FACES: `int` against a real type.**
+>>> SO THE COUNT LADDER HAS EXACTLY ONE RUNG, AND IT IS BACKLOG #64. Not "#72's 103 candidates, one
+>>> screen away". Not "#70's 24 cross-mixin stubs". **ZERO markers are convertible today**, and the
+>>> reason is a single capability nobody has built: the int-erasure seam. #62 named it from one
+>>> direction ("103 of 116 markers"); this screen is the independent confirmation from the other — I
+>>> screened EVERYTHING rather than going looking, in files #62 never measured, and the seam is what
+>>> came back. #64's correction stands too: **the unit of work is one marker's whole CHAIN.**
+THREE ROWS ARE A DIFFERENT CLASS OF DEFECT and should not be filed under the seam:
+    `syntax error` — the emitter produced syntactically INVALID WhyML for a ported body
+      (`_parse_contract`, and `_parse_atom_name` reported the same earlier). An emitter that can
+      emit unparseable output for a legal input is not a modelling gap; it is a bug.
+    "a function, method or class NAME is rebound after its definition" (4) — a REFUSAL, not a type
+      error, and one whose population nobody has counted.
+    "a name's runtime value is not the one the model reads" (2 — an attribute, and a dynamic `eval`).
+ARTEFACT: every per-file screen output is committed under
+`getting-better/open-routes/screen-gen32/` (32 files), so the next generation inherits the
+measurement instead of re-running two hours of it.
