@@ -8558,3 +8558,32 @@ net-zero. That is checkable from the live signature — no judgement required.
 I read that sentence twice while writing two wrong verdicts, and understood it only when Why3 said it
 back to me. **A `\trusted` shim's comment is the cheapest available account of why it is trusted, and
 it is written by someone who already tried.** Read it as a MEASUREMENT, not as background.
+
+## (s4) gen #32 — FOUR TIMES IN ONE DAY I CONCLUDED "ABSENT" FROM A FILTERED GREP
+
+A tally, because the shape is now unmistakable:
+
+    the mirror has no `whyml_string_literal`      TRUE  (but the consequence was wrong — (r4))
+    the mirror has no `_walk_body`                **FALSE** — it is at line 65
+    43 relocation free-names unresolved           ~0 after excluding local binders — (q4)
+    10 survivor bodies perform an external effect  1 after excluding `str.replace` — (q4)
+
+The `_walk_body` one is the worst, because it went into an instrument's own comment as the
+justification for a check, and stayed there through a commit. The check itself is right and moved
+forty markers; the example was invented by my own grep window:
+
+    grep -n '#@ \trusted' -A 5 <file> | grep -E 'def |trusted|return'
+
+That shows defs within FIVE LINES of a marker. `_walk_body` is marked, and its `def` sits outside the
+window. **I read a filtered view and reported it as the file.**
+
+>>> **TO ESTABLISH THAT A NAME IS ABSENT, GREP FOR THE NAME — `grep -n 'def _walk_body' <file>` —
+>>> ACROSS THE WHOLE FILE. NEVER conclude absence from a view that was filtered for something else.**
+>>> A presence claim can survive a narrow search; an ABSENCE claim cannot, because the search's own
+>>> scope is the thing in question. This is lesson (u6)'s rule ("ask what the POPULATION is") applied
+>>> to an ad-hoc grep rather than to a plane — and an ad-hoc grep has no docstring telling you its
+>>> population, so the discipline has to come from the reader.
+
+The cheap habit that would have caught all four: **when a census or a grep says "missing", spot-check
+ONE row by searching for that name alone.** It costs one command and it has now been the difference
+four times in a single generation.

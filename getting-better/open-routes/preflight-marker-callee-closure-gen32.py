@@ -187,10 +187,14 @@ def main():
                 # (o4) COMPLETED, gen #32: the walk must cover SELF-METHOD callees too, not only free
                 # functions. A `self.<m>()` whose `<m>` the DESTINATION mirror file does not define
                 # auto-synthesizes a RECEIVER-LESS abstract `val self__<m>_<n>` with an unconstrained
-                # result — the same (l4)/(n4) migration, arrived at from the callee side. Measured on
-                # `ConcurrencyChecker._check_function`, whose 4-line live body calls
-                # `self._walk_body(...)` while the mirror only has `_walk_stmt`: the first spelling of
-                # this instrument called that CLEAR, and it is not.
+                # result — the same (l4)/(n4) migration, arrived at from the callee side. Adding this
+                # check moved FORTY markers out of CLEAR; the commonest missing self-methods are
+                # `self.generic_visit` (8), `self._expr_to_whyml` (4),
+                # `self._emitting_compute_return_type` (4) and `self._emitting_build_param_list` (4).
+                # (An earlier revision of this comment cited `ConcurrencyChecker._check_function` as
+                # the motivating case. That was WRONG — the mirror DOES define `_walk_body`, at line
+                # 65; I had concluded its absence from a `grep` window that only showed defs within
+                # five lines of a marker. The check is right, the example was not. Lesson (s4).)
                 own = mirror_methods.get(rel, set())
                 for x in ast.walk(node):
                     if (isinstance(x, ast.Call) and isinstance(x.func, ast.Attribute)
