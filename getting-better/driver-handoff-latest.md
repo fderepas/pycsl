@@ -5,12 +5,14 @@ Do NOT push. Everything below is committed.
 
 ## THE METRIC — quote BOTH numbers
 
-    markers 450 · grep-substring 477 · offset 27 · attached 450 · unattached 0
+    markers 449 · grep-substring 477 · offset 28 · attached 449 · unattached 0
 
-**Unchanged across the whole generation, and that is the CORRECT shape.** This window paid the
-soundness ladder: a refusal, a re-port, two new planes and a widened detector all cost the trust
-surface nothing. Do not chase the metric and never re-baseline anything to move it. The offset is
-**27**, not the historical 25.
+It sat at **450** for most of the generation, and that was the CORRECT shape while the window paid
+the soundness ladder — a refusal, a re-port, three new planes and a widened detector all cost the
+trust surface nothing. It came DOWN to 449 at the end by an honest conversion (`as_dict`, below). Do
+not chase the metric and never re-baseline anything to move it. The offset is now **28** (not the
+historical 25, nor the 27 this window started at): the new comment explaining the conversion quotes
+the marker, and `bin/count-trusted-directives.py` prints the gap on every run.
 
 ## WHAT GEN #32 RESOLVED
 
@@ -22,6 +24,7 @@ surface nothing. Do not chase the metric and never re-baseline anything to move 
 | **backlog #66** (the advice detector's verb list) | **LANDED** `5eaec302`, all twelve new sites audited |
 | **backlog #67** | **PLANE BUILT** `44227973`, ratchet set, negative-tested |
 | `check-stdlib-modules-verify` standing RED (gen #31's handoff) | **RETIRED** — 104 modules, **84** VERIFY (was 83), neither failure mode firing |
+| **backlog #69 item 1** — the suite's ONLY failure | **FIXED**, and the same repair CONVERTED a marker: **450 -> 449** `0dcce16b` |
 | `bin/run-self-annotation-suite.sh` — the unscheduled oracle | **RUNNING**, see below |
 
 **Gate verdicts, all with predictions written BEFORE the run and all exact:**
@@ -58,16 +61,41 @@ operand), which is what route #50's facts were already used for. Witnesses 1909-
 **ONE ARM SURVIVES — backlog #65**, the `None` that reaches the operator through a CONTAINER read
 (`d[k] = None; v = d[k]; v - v`), where the None-ness is a VALUE fact no syntactic record can carry.
 
+## THE CONVERSION, because it is the template for the next ones
+
+`errors.py::PyCSLError.as_dict` carried `#@ \trusted` with the comment *"builds a dict (PyCSL cannot
+model dict construction here yet)"*. **The comment was what had gone out of date.** The certified
+axiom-free `hval` model (`HStr | HInt | HArr hval_list | HMap hpairs | HNode`, co-landed with the
+Rocq/Lean `Phase2f_PyVal` cert) models exactly this dict. Annotating it `Dict[str, PyVal]` retires the
+marker AND fixes the self-annotation suite's only failure, because the LIVE twin was that failure.
+
+Emitted body — native string keys, each value tagged by its TRUE kind, real record fields, a `let`
+with a body, `assigns \nothing` discharged by four `old` equalities. Not a facade:
+
+    let pycslerror__as_dict (self: pycslerror) : map string (option hval) =
+      map_update_some (… (const (None: option hval)) "code" (HStr self.pycslerror_code))
+        "stage" (HStr …) "filename" (HStr …) "line" (HInt self.pycslerror_line)
+        "message" (HStr (self_message_0 ()))
+
+**MEASURED CAPABILITY BOUNDARY (backlog #69 item 2, still open):** `Dict[str, PyVal]` selects the
+`hval` codomain from a **declared LOCAL or PARAM and NOT from a RETURN annotation**. That is why the
+literal is bound to `_d` before being returned, and the workaround is load-bearing until item 2 lands.
+
+**AND THE BILL, which is lesson (k4):** I predicted 2 mirror emissions would move and **15** did —
+every importer of `errors.py` gains the ~62-line `hval` THEORY in its preamble. All fifteen were
+re-proved: **15 of 15, rc=0, zero non-Valid**, 6h09m, including `expressions.py` (2h21m) and
+`statements.py` (2h19m). *A stub in a LEAF module is cheaper than an identical stub in a SEED module
+by exactly the number of importers, and nothing in the triage currently says so.*
+
 ## LADDER FOR GEN #33, in order
 
-1. **Backlog #69 item 1 — fix `src/pycsl/errors.py` and turn the self-annotation suite's ONLY
-   failure green.** Fully scoped and the capability is MEASURED: `as_dict()` returns a heterogeneous
-   dict the emitter types `map int (option int)`; the certified axiom-free `hval` model already
-   exists and is selected by `Dict[str, PyVal]` — **from a declared LOCAL or PARAM, not from a
-   RETURN annotation** (both shapes measured; the declared-local form VERIFIES). Needs a `PyVal =
-   Any` alias in a file EVERY mirror imports, so measure the blast radius: mirror emissions +
-   `check-mirror-signature-drift`. The MIRROR's `as_dict` is `\trusted` with the comment "PyCSL
-   cannot model dict construction here yet", which is now out of date.
+1. **Backlog #69 item 2 — make a RETURN annotation carry the `hval` codomain**, so the
+   declared-local workaround above stops being load-bearing. The arm is byte-inert today (before this
+   generation, no `.py` file in the tree used `Dict[str, PyVal]` at all), so there is little to
+   regress. And re-scan for OTHER `\trusted` markers whose stated reason is "cannot model dict
+   construction" or similar — `as_dict`'s comment was stale, and a comment that names a capability
+   the campaign has since built is a conversion waiting to be noticed. **That is the cheapest lead
+   on this list: grep the 449 markers' reasons for capabilities that now exist.**
 2. **Backlog #65** — route #227's container carrier. Two named reopening capabilities, cheapest
    first: refuse on a local read from a container whose DECLARED codomain is `Optional[...]`
    (needs its own census), or route #56's general repair (a distinguishable `None` in the value model).
@@ -88,6 +116,8 @@ operand), which is what route #50's facts were already used for. Witnesses 1909-
     check-refusal-witness-coverage              demonstrated floor 206 -> 207
     check-refusal-advice-audited                audited floor 116 -> 128, advice-bearing 121 -> 133
     check-sibling-concrete-fidelity             DIVERGING_BASELINE tightened to the EMPTY SET
+    check-trusted-reasons                       MAX_UNCLASSIFIED 286 -> 285
+    run-soundness-planes.sh                     MIN_PLANES 49 -> 50 -> 51; total 74 -> 79 with --slow
 
 `check-assigns-writes-survival` came from reading the ONE line of a byte-diff I had predicted
 wrongly: `_emit_body_code` declares `#@ assigns` over **93** self-fields and emitted **29**. Module 6
@@ -119,6 +149,10 @@ now enforced; a HOLE is route #96's shape in a new mechanism.
   (j4)  a parity plane's population is the SYNTAX it scans for, not the concept it is named after.
         `check-mirror-field-parity` walks `ClassDef` bodies, and live keeps most fields in
         `__init__` as AnnAssign-on-Attribute, so they are outside its 335 entirely.
+  (k4)  **a value model is not a private choice of the file that adopts it — it propagates through
+        the import graph as a PREAMBLE.** The emitter's "0 method stub(s)" line is about the METHODS
+        crossing the boundary and says nothing about the THEORY crossing it. Count the importers
+        before adopting a value model; that count is the re-proof bill.
 
 Also sharpened: **advice naming a MARKER is the hazard when the message implies the emitter VERIFIED
 something, and fine when it says the marker is an ACKNOWLEDGEMENT** (`import_classifier.py:141` is
