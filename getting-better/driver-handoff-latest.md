@@ -162,17 +162,30 @@ of" and "the return value" match a bare `list|return`.
 
 ## THE LONG JOB — READ THIS BEFORE RELAUNCHING ANYTHING
 
-`bin/run-self-annotation-suite.sh` is RUNNING in a FROZEN git worktree
-`/home/fabrice/git/pycsl-g32wt` at HEAD `1b2f676e` (`.venv` symlinked), logging to
-`<scratchpad>/g32/sas.log`. It is run in a worktree precisely so my own edits could not perturb its
-verdict. **At last check: 22 of 40 done — 21 PASS, 1 FAIL** (`src/pycsl/errors.py`, the heterogeneous
-`as_dict`, which is ladder item 1). It had cleared `module6_whyml/expressions.py` AND
-`module6_whyml/statements.py`, the two largest mirrors. Remaining: `stmt_control_flow`, `preamble`,
-`core_ir_semantic` and thirteen `frontend/*` including `pure_ast.py` (a measured 2.5-hour proof).
-If it is still alive, LET IT FINISH and record the verdict — it is the authoritative "does the mirror
-still prove" oracle, four impl docs call it a gate, and until this window NO battery had ever run it.
-Two worktrees exist and should be removed when done: `pycsl-g32wt` (the suite) and `pycsl-g32bd`
-(the byte-diff baseline at `c85bdb05`).
+`bin/run-self-annotation-suite.sh` is the authoritative "does the mirror still prove" oracle. Four
+impl docs call it a gate and NO battery had ever run it before this window.
+
+**RUN 1 DID NOT FINISH, AND THAT IS THE HEADLINE.** It ended `rc=124` — `timeout`'s exit code — at my
+own twelve-hour budget, to the second, having done **25 of 40 files: 24 PASS / 1 FAIL**. It cleared
+the heaviest mirrors (`module6_whyml/expressions.py`, `module6_whyml/statements.py`,
+`stmt_control_flow.py`, `preamble.py`, `core_ir_semantic.py`). Its ONE failure was
+`src/pycsl/errors.py`, which this generation FIXED and re-measured alone (`Verification SUCCESS`).
+**So the oracle's honest cost is 18-24 h, not the 6-12 h the previous window estimated** —
+`frontend/pure_ast.py` (a measured 2.5-hour proof) and twelve other `frontend/*` files were unstarted.
+See wall-lesson (m4): I reported "still running" for four hours after it had died, from a `ps` habit,
+while my own wrapper had written the rc to disk for exactly this purpose.
+
+**RUN 2 IS IN FLIGHT** — `<scratchpad>/g32/sas2.log`, rc written to `sas2.log.rc`, started
+2026-09-28T09:44:10Z in the frozen worktree `/home/fabrice/git/pycsl-g32wt2` at **current HEAD** (not
+at `1b2f676e`: the tree moved, and a verdict about the old one answers a question nobody is asking),
+with `timeout 108000` (30 h). Member #1 should now PASS.
+**READ `sas2.log.rc` BEFORE QUOTING ITS STATE.** If it is 124 again, the budget is still too small,
+not the suite broken. If it is 0, this is the first complete run of that oracle in the project's
+history and the verdict belongs in the handoff, the backlog and a commit message.
+
+Worktrees this generation created: `pycsl-g32wt2` (run 2, LEAVE IT ALONE while alive) and
+`pycsl-g32bd` (the byte-diff baseline at `c85bdb05`). `pycsl-g32wt` (run 1) is already removed.
+Both remaining ones should be removed when their jobs are done.
 
 ## HAZARDS PAID FOR IN THIS GENERATION
 
