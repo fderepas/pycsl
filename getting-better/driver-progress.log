@@ -12639,3 +12639,37 @@ COST: ~10 s per candidate, no proof time. The WHOLE 449-marker population is ~75
 screening, which is the affordable path to a definitive conversion queue — and it must run in the
 FOREGROUND, one file per call, because a port->emit->REVERT census that outlives its turn is the
 ownerless-writer failure. Tree verified clean after the run; markers still 449.
+
+## 18:40Z THE WHOLE-POPULATION SCREEN, 27 FILES IN: **ZERO ACTIONABLE CANDIDATES**, and this reframes
+## the count ladder
+`bin/probe-conversion-candidates.py`, foreground, one file per call, tree verified restored after each.
+Twenty-seven mirror files, roughly **177 candidates**:
+    L3TC-FAIL        159      (the ported body does not type-check)
+    ERASURE            6      (emitted as a definition, but a facade/erasure marker fired)
+    NO-LIVE-SOURCE    11      (mirror-only, no live twin to port — the #70 cross-mixin population)
+    **CLEAN             1**   — `Module2_Parser::_ContractParser._err`, which backlog #73 had already
+                              harvested as "gen #31 — RE-TRUSTED, erased=['msg'] — INPUT-BLIND".
+                              **Tried, reverted, and recorded before I started.**
+So: **ZERO conversions available across 27 of 53 mirror files.** Not "expensive"; not "needs a
+session". Zero, measured, at about ten seconds a candidate.
+THE BLOCKER DISTRIBUTION IS THE FINDING, and it is one wall wearing many faces:
+    int  vs  array int / array string / string / emit_ir / seq int / option int   **~55 of the 60
+                                                                                  distinct rows**
+    array string vs array int (10) · int -> option int vs int (4) · heterogeneous list literal (2)
+    `syntax error` — the emitter produced INVALID WhyML for a ported body (2, incl. `_parse_contract`)
+    "a name's runtime value is not the one the model reads" (2 — an attribute, and a dynamic `eval`)
+>>> **THE CONVERSION FRONTIER IS NOT "151 CANDIDATES ONE SCREEN AWAY". IT IS ~ZERO UNTIL THE
+>>> INT-ERASURE SEAM IS BUILT.** Backlog #62 called that seam "the number-one wall, 103 of 116
+>>> markers" and #64 corrected the unit of work to "one marker's whole CHAIN". This screen is the
+>>> independent confirmation from the other end: I did not go looking for the seam, I screened
+>>> everything, and the seam is what came back — in files #62 never measured, in five distinct type
+>>> pairings, and with no cheap residue hiding behind it.
+WHAT THAT MEANS FOR THE LADDER, stated plainly so gen #33 does not re-walk it: **#72's shortlist is
+not a work queue and I should stop treating it as one.** Its value was always the exclusion (210
+BLOCKED by a known method wall, 49 NET-ZERO) — the CLEAR bucket is where the SEAM lives, invisible to
+a call-shaped filter exactly as documented. The honest top of the count ladder is **#64: build the
+seam, one marker's whole chain at a time.** Everything else on the count track is downstream of it.
+STILL TO SCREEN (6 of 53 files carry most of the remaining markers): `pure_ast.py` (178 markers, the
+big one), `expressions.py`, `statements.py`, `Module5_IREmitter.py`, `ir_resolve.py`, `proof2why3/*`,
+and the three in flight (`Module6_WhyMLTranspiler`, `pycsl`, `core_ir_semantic`). I expect the same
+distribution and will record it either way — a prediction that costs nothing to check.
