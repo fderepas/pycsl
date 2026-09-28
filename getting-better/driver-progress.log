@@ -12584,3 +12584,27 @@ BATCH RANKING, since the re-proof unit is the FILE and this generation measured 
     module6_whyml/expressions.py     14 · 2h21m      module6_whyml/statements.py   9 · 2h19m
     frontend/Module1_Ingestor.py      8 · 13s        frontend/ConcurrencyChecker.py 4 · 13s (REFUTED above)
 NEXT: `Module2_Parser.py` — nineteen candidates behind one seven-minute re-proof.
+
+## 18:35Z #72 STEP 1, THE REAL YIELD: THE STUBS' COMMENTS WERE AN UNHARVESTED CORPUS
+I picked `Module2_Parser::_parse_assigns` to convert — TWO lines, CLEAR on the preflight, seven-minute
+file — and its own comment read "Stays `\trusted` (builds an assigns target list — family-B list
+boundary)". My instrument and I had both walked past a recorded verdict, which is wall-lesson (r4)
+biting for the second time in one afternoon.
+So I harvested them instead of converting: over 449 markers, **22 carry a stay-trusted / RE-TRUSTED /
+CERTIFIED-BOUNDARY verdict in their own adjacent comment** (11 in `pure_ast.py` alone). 13 were already
+classified; 9 were unclassified; **5 classified honestly, 4 deliberately left alone.**
+    MAX_UNCLASSIFIED  **284 -> 279**, every row cited to backlog #73
+    and `pure_ast.py::_set_ctx` is the **FIRST `correctness:` ROW THIS TSV HAS EVER HELD** — its
+    comment says converting would make the model assert the false "ctx is still Load", so the trusted
+    `val` is the FAITHFUL choice. All 164 previously classified rows were `cost-scale:`; the schema has
+    carried a `correctness:` bucket since it was written and nothing had earned it until now.
+THE FOUR I LEFT UNCLASSIFIED ARE THE POINT AS MUCH AS THE FIVE I TOOK: three `Module5_IREmitter`
+markers say only "signature-only retype, body unchanged", which is **"nobody has tried"** and not a
+wall — tagging it would launder an absence of evidence into a recorded boundary, which is exactly the
+failure the whole campaign exists to undo. And `_Unparser.write`'s comment is a CHAIN of two refuted
+reasons ("THAT REASON IS ALSO WRONG -- REFUTED BY MEASUREMENT"); a marker two dead reasons deep does
+not get a third from me without a measurement.
+>>> **THE STUBS' COMMENTS ARE AN UNHARVESTED CORPUS OF MEASURED VERDICTS.** 22 found by one regex, and
+>>> the sweep is now committed as `getting-better/open-routes/harvest-stub-comment-verdicts-gen32.py`.
+>>> RE-RUN IT WHENEVER THE RATCHET STALLS: it converts prose somebody already paid for into a
+>>> classification the gate can enforce, at no prover cost.

@@ -154,7 +154,19 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        lines, ZERO new abstract operations, green whole-file proof in 38 minutes. Its
 #        near-twin `pycsl.py::_parse_args` is 174 lines, also proves, and is REFUSED by check
 #        1 for TEN new abstract operations — the whole of `argparse` going uninterpreted.
-MAX_UNCLASSIFIED = 284   # (#49) gen #32, 2026-09-28 — 285 -> 284 by CLASSIFYING (not converting)
+MAX_UNCLASSIFIED = 279   # (#49) gen #32, 2026-09-28 — 284 -> 279 by HARVESTING the verdicts the
+                         # stubs' OWN COMMENTS already record (backlog #73). 22 of the 449
+                         # markers carry a stay-trusted / RE-TRUSTED / CERTIFIED-BOUNDARY
+                         # verdict in their adjacent comment; 13 were already classified, 9
+                         # were unclassified, and FIVE of those could be classified honestly.
+                         # `pure_ast.py::_set_ctx` is the FIRST `correctness:` row this TSV has
+                         # ever held — converting it would make the model assert the false
+                         # "ctx is still Load", so the trusted `val` is the FAITHFUL choice.
+                         # Four were deliberately LEFT unclassified: three say only
+                         # "signature-only retype, body unchanged", which is "nobody has
+                         # tried" rather than a wall, and `_Unparser.write`'s comment is a
+                         # chain of two REFUTED reasons.
+                         # (#49) gen #32, 2026-09-28 — 285 -> 284 by CLASSIFYING (not converting)
                          # `audit_proof_reverify.py::_cache_root` as
                          # `cost-scale:external-effect-model`. Its live body calls
                          # `root.mkdir(...)`; the lowering emits a nullary `val` with no

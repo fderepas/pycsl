@@ -94,7 +94,7 @@ frontend/Module2_Parser.py	_ContractParser._parse_trusted	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._grab_reviewer_id	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_no_exception	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_assumes	unclassified	-
-frontend/Module2_Parser.py	_ContractParser._parse_assigns	unclassified	-
+frontend/Module2_Parser.py	_ContractParser._parse_assigns	cost-scale:family-b-list-boundary	THE VERDICTS THE STUBS' OWN COMMENTS ALREADY RECORD (22 harvested, 5 classified)
 frontend/Module2_Parser.py	_ContractParser._parse_assigns_target	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_act_block	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_happy	unclassified	-
@@ -103,7 +103,7 @@ frontend/Module2_Parser.py	_ContractParser._parse_datatype	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_variant_def	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_inductive	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_inductive_rules	unclassified	-
-frontend/Module2_Parser.py	_ContractParser._parse_quantifier	unclassified	-
+frontend/Module2_Parser.py	_ContractParser._parse_quantifier	cost-scale:family-b-list-boundary	THE VERDICTS THE STUBS' OWN COMMENTS ALREADY RECORD (22 harvested, 5 classified)
 frontend/Module2_Parser.py	_ContractParser._parse_atom_primary	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_atom_name	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_atom_bs	unclassified	-
@@ -219,20 +219,20 @@ frontend/pure_ast.py	_Parser.__init__	cost-scale:int-erasure-seam	THE INT-ERASUR
 frontend/pure_ast.py	_Parser._slice	unclassified	-
 frontend/pure_ast.py	_Parser.error	cost-scale:exception-payload-model	THE EXCEPTION PAYLOAD MODEL
 frontend/pure_ast.py	_Parser.unsupported	cost-scale:exception-payload-model	THE EXCEPTION PAYLOAD MODEL
-frontend/pure_ast.py	_Parser._fin	unclassified	-
+frontend/pure_ast.py	_Parser._fin	cost-scale:erasure-ledger	THE VERDICTS THE STUBS' OWN COMMENTS ALREADY RECORD (22 harvested, 5 classified)
 frontend/pure_ast.py	_Parser.node	unclassified	-
 frontend/pure_ast.py	_Parser._max_end	unclassified	-
 frontend/pure_ast.py	_Parser._fin_block	unclassified	-
 frontend/pure_ast.py	_decode_fstring_middle	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/pure_ast.py	_merge_str_constants	cost-scale:name-rebinding-model	A NAME REBOUND AFTER ITS DEFINITION
-frontend/pure_ast.py	_set_ctx	unclassified	-
+frontend/pure_ast.py	_set_ctx	correctness:ast-rewrite-not-reproducible	THE VERDICTS THE STUBS' OWN COMMENTS ALREADY RECORD (22 harvested, 5 classified)
 frontend/pure_ast.py	_parse_number	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/pure_ast.py	_decode_string	unclassified	-
 frontend/pure_ast.py	_decode_escapes	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/pure_ast.py	parse	unclassified	-
 frontend/pure_ast.py	literal_eval	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/pure_ast.py	iter_fields	cost-scale:generator-sequence-model	THE GENERATOR SEQUENCE MODEL
-frontend/pure_ast.py	iter_child_nodes	unclassified	-
+frontend/pure_ast.py	iter_child_nodes	cost-scale:generator-sequence-model	THE VERDICTS THE STUBS' OWN COMMENTS ALREADY RECORD (22 harvested, 5 classified)
 frontend/pure_ast.py	walk	unclassified	-
 frontend/pure_ast.py	copy_location	cost-scale:name-rebinding-model	A NAME REBOUND AFTER ITS DEFINITION
 frontend/pure_ast.py	fix_missing_locations	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL

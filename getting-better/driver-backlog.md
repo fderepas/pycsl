@@ -354,6 +354,55 @@ a gate** — and it remains the better long-term answer, because it would make t
 >>> existence", generator #7). A recorded false boundary is the most expensive kind of note in this
 >>> project, because the next generation pays for it by not trying.
 
+### #73 gen #32 — THE VERDICTS THE STUBS' OWN COMMENTS ALREADY RECORD (22 harvested, 5 classified)
+
+2026-09-28T18:30Z. Wall-lesson (r4) ends with "**a `\trusted` shim's comment is the cheapest
+available account of why it is trusted, and it is written by someone who already tried.**" I then
+picked `Module2_Parser::_parse_assigns` — TWO lines, CLEAR on the #72 preflight, in a file that
+re-proves in seven minutes — and its own comment reads:
+
+    Stays `\trusted` (builds an assigns target list — family-B list boundary); the annotation
+    only makes the interface precise.
+
+So the instrument and I had both walked past a recorded verdict. Harvesting them is mechanical:
+`getting-better/open-routes/` has the script, and over all 449 markers **22 carry a stay-trusted,
+RE-TRUSTED, CERTIFIED-BOUNDARY or boundary verdict in their own adjacent comment** — 11 of them in
+`pure_ast.py` alone. Thirteen were already classified in the TSV; NINE were `unclassified`, and of
+those FIVE can be classified honestly:
+
+  `Module2_Parser::_ContractParser._parse_assigns`   -> cost-scale:family-b-list-boundary
+      "Stays `\trusted` (builds an assigns target list — family-B list boundary)"
+  `Module2_Parser::_ContractParser._parse_quantifier` -> cost-scale:family-b-list-boundary
+      "Stays `\trusted` (builds Forall/Exists/ForallItems nodes ...)" — the same list boundary,
+      with the monotonicity argument for the cursor already written out.
+  `pure_ast.py::_Parser._fin`                        -> cost-scale:erasure-ledger
+      "CERTIFIED-BOUNDARY [ERASURE-LEDGER], relaunch #10 — MEASURED, all three pieces BUILT AND
+      WORKING, then deliberately reverted." A measured boundary, built and reverted, not a guess.
+  `pure_ast.py::iter_child_nodes`                    -> cost-scale:generator-sequence-model
+      RE-TRUSTED for vacuity, and the exact shape of its sibling `iter_fields`, which already
+      carries that tag — the generator/yield sequence model.
+  `pure_ast.py::_set_ctx`                            -> **correctness:ast-rewrite-not-reproducible**
+      "the emitted `val` becomes an UNINTERPRETED `emit_ir -> string -> emit_ir`, which is the
+      honest abstraction for a rewrite the model cannot reproduce ... In particular the model no
+      longer asserts the false 'ctx is still Load'." **Converting this would make the model assert
+      something FALSE, so the trusted `val` is the FAITHFUL choice** — which makes this the FIRST
+      `correctness:` row in the TSV. Every one of the 164 previously classified rows was
+      `cost-scale:`; the schema has carried a `correctness:` bucket since it was written and nothing
+      had ever earned it.
+
+FOUR ARE DELIBERATELY LEFT `unclassified`, and the reasons matter more than the count:
+  * `Module5_IREmitter::_csl_in`, `::_py_expr_call`, `::_py_expr_fstring` — their comments say
+    "Stays \trusted (body unchanged) — signature-only retype". That is **"nobody has tried"**, not a
+    boundary, and tagging it would launder an absence of evidence into a recorded wall.
+  * `pure_ast.py::_Unparser.write` — its comment is a CHAIN of refuted reasons ("THAT REASON IS ALSO
+    WRONG -- REFUTED BY MEASUREMENT (relaunch #20) ... THAT CAPABILITY ALREADY EXISTS"). A marker
+    whose own history is two dead reasons deep must not get a third from me without a measurement.
+
+`MAX_UNCLASSIFIED` **284 -> 279**, all five cited to this heading. And the generalisable point:
+**the stubs' comments are an UNHARVESTED CORPUS of measured verdicts.** 22 found by one regex; the
+same sweep should be re-run whenever the ratchet stalls, because it converts prose somebody already
+paid for into a classification the gate can enforce.
+
 ### #72 gen #32 — TRIAGE THE WHOLE MARKER POPULATION BY CALLEE CLOSURE, NOT BY SIZE (151 survivors)
 
 2026-09-28T16:45Z. Lesson (o4) refuted TWO candidates in twenty minutes — `_expr_to_whyml_string_ctx`
