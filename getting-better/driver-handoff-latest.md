@@ -103,6 +103,16 @@ by exactly the number of importers, and nothing in the triage currently says so.
 
 ## LADDER FOR GEN #33, in order
 
+0. **READ THE MARKER'S OWN COMMENT BEFORE CONVERTING IT.** The cheapest rule on this page, and gen
+   #32 broke it twice in one afternoon. `Module2_Parser::_parse_assigns` is TWO lines, CLEAR on the
+   #72 preflight, in a file that re-proves in seven minutes — and its comment reads *"Stays
+   `\trusted` (builds an assigns target list — family-B list boundary)"*. Backlog **#73** harvested
+   these: **22 of 449 markers carry a recorded stay-trusted / RE-TRUSTED / CERTIFIED-BOUNDARY verdict
+   in their own adjacent comment**, eleven in `pure_ast.py` alone. The sweep is committed
+   (`getting-better/open-routes/harvest-stub-comment-verdicts-gen32.py`); **re-run it whenever the
+   ratchet stalls**, because it turns prose somebody already paid for into a gate-enforceable
+   classification at no prover cost.
+
 1. **Backlog #72 — THE CONVERSION QUEUE, and the only item here with a measured shortlist.**
    Gen #32 refuted two size-picked conversion candidates in twenty minutes (lesson (o4): *a
    relocation's cost is its CALLEE CLOSURE, not its line count*) and then built the instrument that
@@ -115,6 +125,17 @@ by exactly the number of importers, and nothing in the triage currently says so.
    gen #32 and #31 measured as unlandable). Do the cross-reference FIRST — it tightens
    `MAX_UNCLASSIFIED` for free — then screen the residue port -> `--fun` -> classify -> REVERT **in
    the FOREGROUND**, then convert **per destination FILE** so one re-proof covers a batch.
+   **THE INSTRUMENT CONVERGED FOUR TIMES AND THE SHORTLIST IS 103, NOT 151** — each tightening removed
+   candidates that would have wasted a build: 151 -> 153 (re-derived) -> 143 (a missing FREE callee
+   that is not int-shaped is NET-ZERO, lesson (r4)) -> **103** (a `self.<m>()` the DESTINATION FILE
+   lacks auto-synthesizes a RECEIVER-LESS `val`; that one check moved FORTY markers out of CLEAR).
+   Standing: **449 = BLOCKED 210 / NET-ZERO 49 / CLEAR 190**, of which 103 unclassified.
+   **STILL BLIND — do not over-read a CLEAR:** `%` string formatting, KEYWORD arguments, host-`ast`
+   node types, and above all the int-erasure SEAM, which is type-shaped and invisible to a call-shaped
+   filter; always join against `trusted-reasons.tsv`, which classifies it for 102 markers already.
+   BATCH BY FILE on this generation's measured re-proof costs: `Module2_Parser.py` 19 markers / 6m59s,
+   `Module3_Weaver.py` 11 / 3m11s, `Module1_Ingestor.py` 8 / 13s, `pure_ast.py` 30 / **2.5h**,
+   `expressions.py` 14 / 2h21m, `statements.py` 9 / 2h19m.
 2. **Backlog #69 item 2 — make a RETURN annotation carry the `hval` codomain**, so the
    declared-local workaround above stops being load-bearing. The arm is byte-inert today (before this
    generation, no `.py` file in the tree used `Dict[str, PyVal]` at all), so there is little to
@@ -142,7 +163,12 @@ by exactly the number of importers, and nothing in the triage currently says so.
     check-refusal-witness-coverage              demonstrated floor 206 -> 207
     check-refusal-advice-audited                audited floor 116 -> 128, advice-bearing 121 -> 133
     check-sibling-concrete-fidelity             DIVERGING_BASELINE tightened to the EMPTY SET
-    check-trusted-reasons                       MAX_UNCLASSIFIED 286 -> 285
+    check-trusted-reasons                       MAX_UNCLASSIFIED 286 -> 285 -> 284 -> **279**,
+                                                and the TSV's FIRST `correctness:` row ever
+                                                (`pure_ast.py::_set_ctx`: converting it would
+                                                 make the model assert the false "ctx is
+                                                 still Load", so the trusted `val` is the
+                                                 FAITHFUL choice)
     run-soundness-planes.sh                     MIN_PLANES 49 -> 50 -> 51; total 74 -> 79 with --slow
 
 `check-assigns-writes-survival` came from reading the ONE line of a byte-diff I had predicted
