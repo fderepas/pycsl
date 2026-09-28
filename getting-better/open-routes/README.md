@@ -1,5 +1,16 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## CURRENTLY OPEN after gen #33 (2026-09-28): **THREE — #226, #214, #221.**
+##   #228 was found AND CLOSED AND GATED in gen #33. Its carrier is the campaign's own
+##   gate: `bin/check-hashed-literal-purity.py` had ALREADY found the `stable_hash`
+##   collision (gen #30, the same pair, 185314078), had already named the pure-`val
+##   function` discriminator, had already baselined the 22 struct rows — and ended that
+##   baseline "searching for one is recorded as the follow-up rather than done here". The
+##   deferral sat inside a GREEN gate for three generations; doing it took seconds and
+##   PROVED a false postcondition (`struct.pack('<bb6x',1,2)` 8 bytes vs
+##   `struct.pack('<xxxxxxxxhxLxxxxxxxx',1,2)` 23 bytes, one emitted term). Repaired by
+##   making the "w.h.p." premise a per-emission CHECK, not a wider hash. Lessons (a5)/(b5).
+##
 ## CURRENTLY OPEN after gen #32 (2026-09-27): **THREE — #226, #214, #221.**
 ##   #227 was found AND CLOSED AND FULLY GATED in the same generation (77/77 planes `--slow`,
 ##   4034/4052, both corpora inert). Its surviving CONTAINER arm is backlog #65, not an open route.
