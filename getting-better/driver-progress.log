@@ -12559,3 +12559,28 @@ this kind of census gets. `_cache_store` turned out already classified (int-eras
 NEXT, in the same turn: BUILD step 1 (`_expr_to_whyml_string_ctx` into `expr_ghost_spec_ops.py`), whose
 pre-flight is already done — declare `_ghost_string_vars: Set[str]`, import `whyml_ident`, accept the
 opaque `whyml_string_literal`, and give the self-recursion a variant. Spike = `--type-only`.
+
+## 18:15Z #72's INSTRUMENT, CONVERGED — and the shortlist SHRANK four times, every time honestly
+    151  first cut (method-call filter only, TSV-joined)
+    153  re-derived (the 151 was a qualname-matching artefact)
+    143  after (r4): a missing FREE callee that is not int-shaped is NET-ZERO, not cheap
+    103  after (o4) COMPLETED: a `self.<m>()` the DESTINATION FILE does not define auto-synthesizes a
+         RECEIVER-LESS `val` — the same (l4)/(n4) migration from the callee side. **40 markers moved
+         out of CLEAR on that one check.**
+    449 markers = BLOCKED 210 · NET-ZERO 49 · CLEAR 190 · (of CLEAR, 103 still unclassified)
+The self-method gap was found by READING a candidate rather than trusting the verdict:
+`ConcurrencyChecker._check_function` is FOUR lines, its file re-proves in THIRTEEN SECONDS, and the
+instrument called it CLEAR — but its live body calls `self._walk_body(...)` and the mirror has only
+`_walk_stmt`. The cheapest-looking candidate on the board was wrong for a reason the instrument could
+not see, which is (o4) turned on the instrument that implements (o4).
+STILL BLIND, recorded so the next CLEAR verdict is not over-read: `%` string formatting, KEYWORD
+arguments in calls, and host-`ast` node types (`ConcurrencyChecker` walks `ast.FunctionDef`; its mirror
+is an INTERFACE-ONLY stub file whose docstring says so). A CLEAR verdict is necessary, not sufficient,
+and the int-erasure seam remains type-shaped and invisible to all of this.
+BATCH RANKING, since the re-proof unit is the FILE and this generation measured every cost:
+    frontend/Module2_Parser.py       19 shortlist markers · re-proof **6m59s**   <- BEST ROI
+    frontend/Module3_Weaver.py       11 · 3m11s
+    frontend/pure_ast.py             30 · **2.5 HOURS** (and the self-annotation suite's bottleneck)
+    module6_whyml/expressions.py     14 · 2h21m      module6_whyml/statements.py   9 · 2h19m
+    frontend/Module1_Ingestor.py      8 · 13s        frontend/ConcurrencyChecker.py 4 · 13s (REFUTED above)
+NEXT: `Module2_Parser.py` — nineteen candidates behind one seven-minute re-proof.
