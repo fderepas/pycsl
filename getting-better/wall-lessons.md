@@ -8305,3 +8305,36 @@ The companion plane written the same evening, `bin/check-sibling-concrete-field-
 complementary question (does the DESTINATION of a relocation declare the fields its body reads, and
 do two mirror files agree about a field) and deliberately compares MIRROR-to-MIRROR, precisely
 because the live side often has nothing to compare against.
+
+## (k4) gen #32 — A VALUE MODEL IS NOT A PRIVATE CHOICE OF THE FILE THAT ADOPTS IT: IT PROPAGATES THROUGH THE IMPORT GRAPH AS A PREAMBLE
+
+`errors.py::PyCSLError.as_dict` was converted by annotating its dict `Dict[str, PyVal]`, which selects
+the certified heterogeneous `hval` model. Before the sweep I predicted **2** mirror emissions would
+move — `errors` itself, and `pycsl`, the only file that CALLS `as_dict` — and I reasoned from the
+emitter's own log line:
+
+    [*] Imported class from 'errors': PyCSLSemanticError (record + 0 method stub(s) + 3 helper(s))
+
+**Zero method stubs, so nothing of `as_dict` crosses the boundary.** The sweep measured **15 MOVED**.
+
+Reading the diff of a file that does not call `as_dict` gives the cause immediately: it gains the
+entire ~62-line `hval` THEORY — the mutual-recursive ADT, `pairs_get`, `hstr_of`, `hint_of`,
+`hval_truthy` — because the module it imports now uses that model. Twelve files gain the theory
+verbatim, `errors` gains theory + body (116 lines), `pycsl` 18, and the three that already carried the
+theory move by 4 lines each.
+
+>>> **THE "0 METHOD STUBS" LINE IS ABOUT THE METHODS CROSSING THE IMPORT BOUNDARY AND SAYS NOTHING
+>>> ABOUT THE THEORY CROSSING IT.** A value model adopted in a widely-imported module is a change to
+>>> every importer's PREAMBLE, and by lesson (r) each mover owes a whole-file re-proof. **Count the
+>>> importers BEFORE adopting a value model — that count is the re-proof bill.** `errors.py` is the
+>>> self-annotation seed; fourteen mirrors import it.
+
+The good news is the shape of the diff: ADDITIVE, a certified axiom-free theory block, with no
+existing function altered — the M1 condition (a) satisfied by inspection rather than by hope. The bill
+is condition (b), and the interesting risk is not soundness but SCALE: 62 more symbols in an
+already-large file can push a proof past its timeout, which is precisely what the re-proof measures.
+Order such a battery SMALLEST FIRST so a systemic problem shows up in minutes instead of hours.
+
+Corollary for the ranking of future conversions: a stub in a LEAF module is cheaper than an
+identical stub in a seed module, by exactly the number of importers. That belongs in the triage, and
+nothing in it currently says so.
