@@ -34,6 +34,17 @@ the marker, and `bin/count-trusted-directives.py` prints the gap on every run.
 * gate 63 — corpus **1379/1379 0 MOVED**; pyref **2199/2199 0 MOVED**; mirror **53/53, 2 MOVED both
   accounted for line by line**; `statements.py` whole-file **18896 Valid, 0 non-Valid**; planes
   **78/78 `--slow`**; suite **4034/4052 — 3136 PASS / 898 XFAIL / 18 FAIL, ZERO XPASS MEASURED**.
+* gate ERR (the `as_dict` conversion) — corpus **1379/1379 0 MOVED**; pyref **2199/2199 0 MOVED**;
+  suite **4034/4052, `grep -c XPASS` = 0**; the 15 owed hval-propagation re-proofs **15 of 15, rc=0,
+  zero non-Valid**; planes **78 of 79 — ONE RED, and it was MINE.**
+  `check-shadowed-selfcalls` went 14 -> 15: *"a conversion landed whose body no caller can see"*.
+  Converting `as_dict` gave `self.message()` its first live intra-class call site and the default
+  lowering of such a call is a receiver-less abstract `val self_message_0` with an unconstrained
+  result. **Fixed at the CAUSE** with `#@ sibling_concrete` on `message()` (the sanctioned opt-in for
+  a cheap leaf) -> **14/119, the exact pre-conversion figures, ratchet never touched**, the abstract
+  `val` gone from the emission, and the call now `(HStr (pycslerror__message self))` — so the
+  conversion ended up STRICTLY STRONGER than when first banked. 4 mirrors moved and re-proved.
+  **A FULL `--slow` battery at the post-fix tree is still OWED — see the ladder's item 0.**
 
 **Baselines for gen #33:** suite **4034/4052**, standing **EIGHTEEN**, a 19 is a REGRESSION, zero
 XPASS. Planes **78** with `--slow` (50 fast array + 5 conversion + 23 slow). Corpus 1379 emitting
@@ -89,6 +100,11 @@ by exactly the number of importers, and nothing in the triage currently says so.
 
 ## LADDER FOR GEN #33, in order
 
+0. **OWED FIRST: one full `--slow` battery at HEAD.** Everything in this generation is gated EXCEPT
+   the `#@ sibling_concrete` fix on `message()` (`47f43471`) and the doc/backlog commits after it. The
+   pieces are individually measured — shadowed-selfcalls 14/119, the 4 moved mirrors re-proved, the
+   emission diff read line by line — but *a gate runs `--slow` or it is not a verdict on a
+   conversion*, and 79 planes have not been run over that tree as a set. Predict every leg first.
 1. **Backlog #69 item 2 — make a RETURN annotation carry the `hval` codomain**, so the
    declared-local workaround above stops being load-bearing. The arm is byte-inert today (before this
    generation, no `.py` file in the tree used `Dict[str, PyVal]` at all), so there is little to
@@ -149,6 +165,16 @@ now enforced; a HOLE is route #96's shape in a new mechanism.
   (j4)  a parity plane's population is the SYNTAX it scans for, not the concept it is named after.
         `check-mirror-field-parity` walks `ClassDef` bodies, and live keeps most fields in
         `__init__` as AnnAssign-on-Attribute, so they are outside its 335 entirely.
+  (n4)  **a conversion's own CALL SITE can be shadowed** — converting a method creates call sites
+        that did not exist while it was `\trusted`, so it can shadow a DIFFERENT already-converted
+        method by giving it its first caller. Ask what the body CALLS before converting. I wrote
+        (l4) one increment earlier and walked into its mirror image anyway; the plane is what
+        stopped me.
+  (m4)  **a detached job's `rc` is the only thing that says whether it FINISHED.** The suite's
+        `rc=124` was my own timeout and I reported "still running" for four hours.
+  (l4)  a conversion that FORWARDS to an undeclared callee moves trust from a counted marker to an
+        UNCOUNTED abstract `val` — the count falls and the trust does not, and the vacuity planes
+        pass it because nothing is erased.
   (k4)  **a value model is not a private choice of the file that adopts it — it propagates through
         the import graph as a PREAMBLE.** The emitter's "0 method stub(s)" line is about the METHODS
         crossing the boundary and says nothing about the THEORY crossing it. Count the importers
