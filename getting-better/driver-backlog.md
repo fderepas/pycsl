@@ -268,6 +268,61 @@ TWO HAZARDS, both already paid for elsewhere:
 
 PAYOFF IF FULLY PAID: **449 -> 425**. Even the leaves-only subset is worth ~10. COST/SCALE, and a
 funded window is the budget that pays it.
+**CORRECTION, SAME SITTING, AND IT CHANGES THE ORDERING — READ THIS BEFORE TOUCHING THE ITEM.**
+I went to do step 1 (the three cheapest stubs) and read the live bodies first. `_e` is:
+
+    def _e(self, ir: Dict, lr: Set[str]) -> str:
+        """Shorthand for _expr_to_whyml within ghost handlers."""
+        return self._expr_to_whyml(ir, lr)
+
+A PURE FORWARDER. And `_expr_to_whyml` is NOT declared in `expr_ghost_spec_ops.py` or
+`expr_ghost_collections.py`, so a call to it there AUTO-SYNTHESIZES an abstract `val`. Relocating
+`_e` concretely therefore produces
+
+    let _e x y = <auto-synthesized abstract val> x y
+
+which is a real fact (the two are provably equal, where before they were two independent
+unconstrained `val`s) and buys the CALLER nothing about the value.
+
+>>> **SO CONVERTING A FORWARDER MOVES TRUST FROM A *COUNTED* `\trusted` MARKER TO AN *UNCOUNTED*
+>>> AUTO-SYNTHESIZED ABSTRACT `val`. THE COUNT FALLS AND THE TRUST DOES NOT.** That is
+>>> metric-gaming even when nobody intends it, and it is a different failure from gen #31's six
+>>> hollow conversions: nothing is ERASED (both arguments are forwarded), so
+>>> `check-emitted-vacuity` would pass it. The vacuity planes cannot see this one.
+
+`_deref` (5 lines) is the same shape. So the two SMALLEST entries on the leaf list are exactly the
+two that should NOT be taken for the count, and "cheapest" and "most valuable" point in opposite
+directions here.
+
+REVISED ORDER:
+  1. **`_expr_to_whyml_string_ctx` (24 lines)** — the cheapest stub that carries REAL STRUCTURE: it
+     dispatches `StrConcat` / `String` / `Var`, recurses on itself, reads `self._ghost_string_vars`,
+     and only FALLS BACK to `_expr_to_whyml`. Converting it gives callers actual facts. It is in
+     `expr_ghost_spec_ops.py` (123 lines), so the re-proof is still trivial. **This is the true
+     step 1: one marker, one small re-proof, real proof strength.**
+  2. Then the MEDIUM names by ascending size, batched PER DESTINATION FILE so each file is re-proved
+     once (`_add_abstract_op` 68, `_coerce_to_int` 94, `_resolve_dotted_signature` 178,
+     `_track_collection_metadata` 185, `_is_emit_ir_expr` 208, `_stmts_to_whyml` 249,
+     `_handle_return_stmt` 292).
+  3. The FORWARDERS (`_e` x3, `_deref`) — ONLY as a side effect of relocating their target
+     `_expr_to_whyml`, never on their own. If `_expr_to_whyml` is a CERTIFIED-BOUNDARY (step 4),
+     then the forwarders stay `\trusted` and that is the honest outcome, not a missed -4.
+  4. The DISPATCHERS last (`_to_bool` 403, `_is_string_expr` 567, `_expr_to_whyml` 1217), expecting
+     refusal per lessons (av)-(ax).
+
+**SO THE HONEST PAYOFF IS NOT 24.** It is ~14 markers (the leaf-with-structure and MEDIUM names,
+counting a name once per destination) plus whatever the dispatchers give, MINUS the four forwarders
+which must not be counted at all unless their target lands. Revised estimate: **449 -> ~435 with the
+dispatchers refused**, and the -24 figure above is the gross number, kept only so the gap between
+gross and honest is visible.
+
+AND AN INSTRUMENT GAP THIS EXPOSES, worth its own item: **nothing counts the auto-synthesized
+abstract `val`s.** `count-trusted-directives` counts `#@ \trusted` MARKERS; `check-untrusted-emitted`
+checks that un-trusted functions ARE emitted as definitions. Neither reports how many UNCOUNTED
+abstract `val`s the emission contains, so trust can migrate out of the metric without any plane
+moving. A census of auto-synthesized `val`s per mirror emission — with a ratchet — would close the
+one route by which this campaign's headline number can drift away from the thing it measures.
+
 
 ### #63 gen #31 — THE `sibling_concrete` FIDELITY HOLE — **RESOLVED AND GATED by gen #32**
 **Status: CLOSED 2026-09-28 at gate 63** (2h50m): `statements.py` whole-file **18896 Valid,
