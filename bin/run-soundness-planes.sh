@@ -83,6 +83,17 @@ PLANES=(
     # analysis, ~1s. MISSING 5 (ratchet, may only shrink) / MISMATCH 2, allowlisted BY NAME
     # with the reason rather than tolerated by a count.
     check-sibling-concrete-field-decls.py
+    # (#49) gen #33, ROUTE #228 — the string-fold injectivity guard's NEGATIVE TEST.
+    # `stable_hash` used to justify itself with "distinct strings -> distinct ints
+    # **w.h.p.**", a PROBABILISTIC premise in a deductive TCB; a collision costs ~2^16
+    # trials (under a second) and PROVED a false postcondition through the PURE
+    # `val function struct_pack_i2`. The guard now records every fold of one emission
+    # and refuses a collision. Its population on real code is EMPTY (the largest
+    # emission folds 91 strings), so it looks exactly like a guard that passed — hence
+    # this plane hands it the known colliding pair and asserts a REFUSAL, and hands it
+    # the non-colliding control and asserts an ACCEPT. Both legs, or a guard that
+    # refuses everything would pass. 0.8s.
+    check-stable-hash-fold-injectivity.py
     check-mirror-field-parity.py
     check-mirror-loop-annotations.py
     check-mirror-signature-drift.py
@@ -356,11 +367,12 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
+# (#49) gen #33: 51 -> 52 with `check-stable-hash-fold-injectivity.py` (route #228).
 # (#49) gen #32: 50 -> 51 with `check-sibling-concrete-field-decls.py` (backlog #67).
 # (#49) gen #31: 48 -> 49 with `check-sibling-concrete-fidelity.py`, 49 -> 50 with
 # `self-annotate-mirror-check.sh` (declared a gate in five documents, collected by no
 # battery until now — lesson (u6)).
-MIN_PLANES=51
+MIN_PLANES=52
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #

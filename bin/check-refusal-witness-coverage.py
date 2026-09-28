@@ -142,7 +142,9 @@ CENSUS_TRUNC = 4000       # the writer's message cap. See the TRUNCATION GUARD b
                           # stored message of EXACTLY this length was cut, and a cut
                           # message silently un-witnesses every site whose fragment falls
                           # past the cut.
-MIN_WITNESSED = 207       # (#49) gen #32: 206 -> 207 with route #227's ARITHMETIC-ON-NONE refusal
+MIN_WITNESSED = 208       # (#49) gen #33: 207 -> 208 with route #228's STRING-FOLD-COLLISION
+                          # refusal (witness 1914; its accept-side control is 1915).
+                          # (#49) gen #32: 206 -> 207 with route #227's ARITHMETIC-ON-NONE refusal
                           # (#49) gen #31: 205 -> 206 with the `__new__` ARITY refusal
                           # (witness 1905). A ratchet with headroom cannot see the first
                           # regression that uses it up — lesson learned on

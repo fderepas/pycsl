@@ -1,4 +1,49 @@
-# ROUTE #228 — A PROBABILISTIC HASH IN A DEDUCTIVE TCB (Sev-1, LIVE, gen #33, 2026-09-28)
+# ROUTE #228 — A DEFERRED SEARCH INSIDE A GREEN GATE (Sev-1, LIVE, gen #33, 2026-09-28)
+
+## READ THIS FIRST: THE COLLISION IS **GEN #30's** FINDING, NOT MINE
+
+I found this by brute-forcing a `stable_hash` collision and then discovered, hours later and by
+accident, that `bin/check-hashed-literal-purity.py` — a plane that has been GREEN in every battery
+since gen #30 — opens with:
+
+>>> "`stable_hash` is `int(sha256(s)[:8], 16) % 2147483647` — about 31 bits — and its docstring
+>>> claims it preserves 'the distinguishing property (distinct strings -> distinct ints w.h.p.)'. A
+>>> birthday search over 4- and 5-character alphanumerics found a collision after **24,726 strings**:
+>>>
+>>>     stable_hash('"ah02"') == stable_hash('"atc3"') == 185314078
+
+**That is the exact pair I re-derived** (I found it after 78174 candidates; gen #30 found it after
+24726). Gen #30 also established the discriminator I spent an hour re-establishing — "TODAY THAT IS
+NOT A ROUTE, and the reason is ONE KEYWORD: the op is emitted as `val` (effectful), not `val
+function` (pure)" — and identified the exposed destination correctly: its BASELINE is **22 (op,
+constant) pairs, ALL of them `struct` pack/unpack ops applied to a folded FORMAT STRING.**
+
+**SO WHAT IS ACTUALLY NEW HERE IS ONE SENTENCE OF THAT BASELINE'S OWN COMMENT:**
+
+>>> "They are baselined rather than failed because the hazard needs MORE than a pure op on a folded
+>>> literal: it needs TWO COLLIDING literals that reach the SAME specialised op. … `">h"` and
+>>> `"<h"` are the shape to look for, and **searching for one is recorded as the follow-up rather
+>>> than done here.**"
+
+Gen #30 named the missing step exactly, wrote it into a baseline comment, and the gate went green.
+**It stayed green for three generations while the follow-up sat undone inside it.** I did the search.
+It takes seconds, and the pair it returns proves a false postcondition end to end.
+
+>>> **THE GENERATOR, and it is the transferable part of this route: A BASELINE THAT RECORDS ITS OWN
+>>> FOLLOW-UP IS AN OPEN ROUTE WITH A GREEN GATE IN FRONT OF IT.** An allowlisted row is read once,
+>>> when it is written. After that the gate prints OK and nobody re-reads WHY the rows are tolerated
+>>> — so a deferral parked in a baseline is strictly less visible than one parked in the backlog.
+>>> Grep every gate's baseline/allowlist prose for "follow-up", "not done here", "left for", "rather
+>>> than done", "the shape to look for", "TODO", "recorded as" — and DO the thing it defers.
+
+Gen #30's guessed shape was also narrower than the truth: it expected two formats of the same width
+and signedness differing in ENDIANNESS (`">h"` vs `"<h"`). The real family is much larger, because
+`slot_id` ignores PAD as well as prefix — arbitrary pad runs in arbitrary positions keep the symbol
+while changing the bytes — and my pair is a pad-family pair on the OPAQUE `i2` symbol, not an
+endianness pair on a faithful one. *A deferred search's recorded "shape to look for" is a hypothesis
+about the search, and looking only for that shape can miss the instance.*
+
+## THE WITNESS (gen #33's contribution: the search executed, and the repair)
 
     import struct
     #@ ensures \result == 1
@@ -33,7 +78,12 @@ DETERMINISTICALLY. Measured, hashing the RAW string: `'f9r'` and `'6xb'` both gi
 found after 46067 three-character candidates. Hashing the QUOTED WhyML form (which is what the
 emitter actually folds): `'ah02'` and `'atc3'` both give `185314078`, after 78174.
 
-## WHY IT IS EXPLOITABLE HERE AND NOWHERE ELSE I TESTED — THE DISCRIMINATOR IS DETERMINISM
+## WHY IT IS EXPLOITABLE HERE AND NOWHERE ELSE — THE DISCRIMINATOR IS DETERMINISM
+
+**The discriminator is gen #30's**, quoted above: pure `val function` concludes, bare `val` does
+not. I re-measured it independently before reading that plane, and the table below is that
+re-measurement — it AGREES with gen #30 and extends it to the destinations gen #30 did not list
+(dict keys, list literals, set literals, `getattr_<cls>_poly`).
 
 A folded string becomes an `int` argument. That is only a FALSEHOOD if the model can then CONCLUDE
 something from two folds being equal, which needs the receiving symbol to be a **pure** `val
@@ -117,3 +167,23 @@ corpus program's emission, so it is a COST/SCALE item, not a soundness one, once
     getting-better/open-routes/route228-collide-stable-hash.py      # finds the pairs from scratch
     getting-better/open-routes/route228-witness.py                  # the witness (PROVES, CPython 0)
     getting-better/open-routes/route228-control.py                  # the control (does NOT prove)
+
+
+## WHAT THE REPAIR DOES TO GEN #30's 22 BASELINED ROWS
+
+It retires their hazard without touching them. The rows record a pure op applied to a folded literal,
+which is only half of the hazard; the other half is TWO COLLIDING literals reaching the same op, and
+`stable_hash` now REFUSES exactly that. So the 22 rows stay baselined and their reason changes from a
+DEFERRAL ("searching for one is recorded as the follow-up") to a CHECK
+(`bin/check-stable-hash-fold-injectivity.py`). That edit to the baseline comment is part of this
+increment: **a deferral discharged must stop reading like a deferral, or the next generation re-reads
+it as live work.**
+
+## GATE
+
+* new plane `bin/check-stable-hash-fold-injectivity.py`, FAST set, MIN_PLANES 51 -> 52, 0.8s, three
+  legs (leg 0 refuses to be vacuous if the pair ever stops colliding; leg 1 the refusal; leg 2 the
+  accept-side control). Negative-tested by disabling the guard: RED on exactly leg 1.
+* corpus witnesses **1914** (expected FAIL, the refusal) and **1915** (expected PASS, the
+  non-colliding control that stops a refuse-everything guard from passing).
+* `check-refusal-witness-coverage` 207 -> **208** demonstrated, unwitnessed back to 5.

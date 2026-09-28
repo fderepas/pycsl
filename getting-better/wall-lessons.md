@@ -8587,3 +8587,64 @@ window. **I read a filtered view and reported it as the file.**
 The cheap habit that would have caught all four: **when a census or a grep says "missing", spot-check
 ONE row by searching for that name alone.** It costs one command and it has now been the difference
 four times in a single generation.
+
+## (a5) gen #33 — A BASELINE THAT RECORDS ITS OWN FOLLOW-UP IS AN OPEN ROUTE WITH A GREEN GATE IN FRONT OF IT
+
+**Carrier: a campaign gate.** `bin/check-hashed-literal-purity.py` (gen #30) baselines 22 `(op,
+constant)` rows — every one a pure `struct` op applied to a `stable_hash`-folded format string — and
+its baseline comment ends:
+
+>>> "…`'>h'` and `'<h'` are the shape to look for, and **searching for one is recorded as the
+>>> follow-up rather than done here.**"
+
+Gen #30 had already found the collision (the pair `'ah02'`/`'atc3'` → 185314078, after 24726
+strings), had already established the discriminator (`val` concludes nothing, `val function`
+concludes), and had already identified `struct` as the one pure destination. It named the single
+missing step precisely and parked it in an allowlist. **The gate then printed OK in every battery for
+three generations.** Gen #33 did the search; it takes SECONDS and yields a false postcondition proved
+end to end (route #228).
+
+>>> **AN ALLOWLIST ROW IS READ ONCE — WHEN IT IS WRITTEN. After that the gate says OK, and nobody
+>>> re-reads WHY the rows are tolerated. So a deferral parked in a BASELINE is strictly LESS visible
+>>> than the same deferral parked in the backlog, and it is disguised as a passing check.**
+
+THE SWEEP, and it is cheap: grep every gate's baseline / allowlist / `BASELINE = {` prose for
+`follow-up`, `not done here`, `rather than done`, `left for`, `the shape to look for`, `recorded as`,
+`TODO`, `unprobed`, `not yet`. Each hit is a route with a date on it.
+
+TWO CARVE-OUTS, both paid for in this route:
+
+* **A DEFERRED SEARCH'S RECORDED "SHAPE TO LOOK FOR" IS A HYPOTHESIS ABOUT THE SEARCH, NOT A
+  SPECIFICATION OF IT.** Gen #30 expected two formats of the same width and signedness differing in
+  ENDIANNESS. The real family is far larger, because `slot_id` ignores PAD as well as prefix, so
+  arbitrary pad runs in arbitrary positions share one symbol while changing the bytes CPython writes.
+  Searching only the recorded shape would have found nothing and "confirmed" the baseline. **Search
+  the property the gate names, not the example the comment pictures.**
+* **A DISCHARGED DEFERRAL MUST STOP READING LIKE A DEFERRAL, IN THE PLACE IT WAS WRITTEN.** Editing
+  the baseline comment is part of the increment, not bookkeeping: otherwise the next generation
+  re-reads a done thing as live work, which is exactly how this route cost gen #33 an hour of
+  re-deriving gen #30's collision and gen #30's discriminator from scratch.
+
+## (b5) gen #33 — WHEN A JUSTIFICATION CONTAINS A PROBABILITY, IT IS A CHECK SOMEBODY DIDN'T WRITE
+
+`stable_hash`'s docstring justified itself with "preserving the distinguishing property (distinct
+strings → distinct ints **w.h.p.**)". A probabilistic premise cannot be load-bearing in a DEDUCTIVE
+verifier's TCB — and the give-away is that the premise was DECIDABLE all along: injectivity on the
+strings ONE EMISSION actually folds is a dict and a comparison. The largest emission in this tree
+folds **91** distinct strings, so the property held with probability ~1−2e-6 and never once had to be
+true; it simply was.
+
+>>> **GREP THE TCB FOR "w.h.p.", "with high probability", "unlikely", "in practice", "should not
+>>> happen", "virtually never", "collision-resistant" — and ask what the check would cost. If the
+>>> premise is decidable over the actual population, an argument was accepted where a measurement was
+>>> available.**
+
+AND THE FIX IS NOT MORE BITS. Widening the hash lowers the probability and keeps the premise
+probabilistic, which is route #227's lesson wearing a new costume: *an opaque answer to a wrong value
+moves the falsehood rather than removing it.* Make the premise a measurement, fail-closed.
+
+COROLLARY, measured: check the **MODULUS**, not just the hash. Three sites fold a name with
+`stable_hash(...) % 100000` (`expressions.py:7880/9936/10021`) — four orders of magnitude more
+collidable per pair than the 2^31 fold this route repaired. Each mints a WhyML SYMBOL NAME, so a
+collision CONFLATES two distinct specs' ops rather than two values. The names are prefixed by the
+function, so the per-key population is small — but that is an argument again, and an unmeasured one.

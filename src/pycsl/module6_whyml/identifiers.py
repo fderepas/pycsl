@@ -5,15 +5,86 @@ import unicodedata
 from typing import Dict, List, Set
 
 
+# (#49) ROUTE #228 — THE "w.h.p." PREMISE IS NOW A CHECKED ONE INSTEAD OF AN ARGUMENT.
+#
+# `stable_hash` used to justify itself with "preserving the distinguishing property
+# (distinct strings -> distinct ints **w.h.p.**)". That is a PROBABILISTIC premise,
+# load-bearing in a DEDUCTIVE verifier's trusted computing base, and it was the whole
+# of the justification. It is sha256 truncated to **32 bits**, so a birthday collision
+# costs ~2^16 trials — UNDER ONE SECOND of compute — and the `% (2^31-1)` fold makes
+# `h` and `h + 0x7FFFFFFF` collide DETERMINISTICALLY. Measured: `'f9r'` and `'6xb'`,
+# two THREE-character strings, both fold to 122473869 (found after 46067 candidates).
+#
+# THE COLLAPSE ONLY *CONCLUDES* A FALSEHOOD WHERE THE RECEIVING Why3 SYMBOL IS PURE.
+# Every bare `val` destination is non-deterministic, so two equal arguments relate
+# nothing — measured VACUOUS: the witness AND its non-colliding control both failed to
+# prove, which is what "measured nothing" looks like. Dict keys, list literals and set
+# literals are faithful native strings and never fold. The one PURE destination is
+#
+#     val function struct_{pack,unpack}_<slot_id> (fmt: int) ...
+#
+# deliberately pure — "both program-callable and a logical symbol the round-trip axiom
+# can name" — and `slot_id` encodes "only the slot types (not prefix, not pad)", so
+# unbounded pad/prefix variants of one format share ONE symbol and differ ONLY in this
+# folded int:
+#
+#     struct.pack('<bb6x', 1, 2)                  CPython:  8 bytes
+#     struct.pack('<xxxxxxxxhxLxxxxxxxx', 1, 2)   CPython: 23 bytes
+#     both emit  (struct_pack_i2 1322019588 1 2)     <-- ONE TERM
+#
+# so `len(a) == len(b)` proved Valid in 156 steps and `\result == 1` was PROVEN while
+# CPython returns 0. See `getting-better/open-routes/route228-*`.
+#
+# THE FIX IS NOT A WIDER HASH. More bits lowers the probability and keeps the premise
+# probabilistic — route #227's lesson in a new costume: an opaque answer to a wrong
+# value moves the falsehood rather than removing it. The premise is INJECTIVITY OF THE
+# FOLD ON THE STRINGS ONE EMISSION ACTUALLY FOLDS, and that is a DECIDABLE property of
+# that emission. So record it and REFUSE — fail-closed, a measurement and not an
+# argument.
+#
+# SCOPE is per-EMISSION by construction: `pycsl.py` runs one emission per process
+# (`bin/byte-diff-sweep.sh` and `bin/run-reference-tests.sh` both invoke it per file),
+# so this module-level witness never spans two programs.
+#
+# POPULATION, MEASURED, because a guard whose population is empty has checked nothing
+# and looks exactly like a guard that passed: the LARGEST emission in this tree folds
+# **91** distinct strings (`src/self-annotate/src/frontend/pure_ast.py`; the mirror
+# `expressions.py` folds 4, `statements.py` 7, a struct corpus file 1). At 91 strings
+# the collision probability is ~2e-6, so this guard is byte-inert on everything that
+# exists today and its population IS empty. It is therefore NEGATIVE-TESTED against the
+# pair above by `bin/check-stable-hash-fold-injectivity.py`, which asserts PyCSL REFUSES
+# the colliding program and still ACCEPTS the non-colliding control.
+_FOLD_WITNESS: Dict[int, str] = {}
+
+
 def stable_hash(s: str) -> int:
-    """Deterministic, process-independent hash of a string to a non-negative int
-    in [0, 2147483647). Replaces Python's built-in `hash()` for the legacy
-    opaque-string→int fallback: `hash()` randomizes `str` hashing per process
+    """Deterministic, process-independent, and CHECKED-INJECTIVE fold of a string to a
+    non-negative int in [0, 2147483647). Replaces Python's built-in `hash()` for the
+    legacy opaque-string→int fallback: `hash()` randomizes `str` hashing per process
     (PYTHONHASHSEED), which made WhyML emission non-reproducible (different
-    `decode`/`str_hash` constants run-to-run). This gives the same value on every
-    run and machine — required for the byte-diff reproducibility gate — while
-    preserving the distinguishing property (distinct strings → distinct ints w.h.p.)."""
-    return int(hashlib.sha256(s.encode("utf-8")).hexdigest()[:8], 16) % 2147483647
+    `decode`/`str_hash` constants run-to-run). This gives the same value on every run
+    and machine — required for the byte-diff reproducibility gate.
+
+    The distinguishing property (distinct strings -> distinct ints) is NO LONGER
+    claimed "w.h.p." and is no longer assumed: it is VERIFIED for the strings this
+    emission actually folds, and a collision REFUSES the file. See route #228 above."""
+    h = int(hashlib.sha256(s.encode("utf-8")).hexdigest()[:8], 16) % 2147483647
+    _seen = _FOLD_WITNESS.setdefault(h, s)
+    if _seen != s:
+        from errors import PyCSLSemanticError
+        raise PyCSLSemanticError(
+            f"internal string-fold collision (route #228): {s!r} and {_seen!r} are "
+            f"DISTINCT strings that both fold to the constant {h}. PyCSL encodes a "
+            f"string it cannot model faithfully as this constant, and a pure Why3 "
+            f"symbol applied to it (struct.pack/struct.unpack's `fmt`) would then be "
+            f"THE SAME TERM for both — so the proof could establish a false claim "
+            f"about them. Refused rather than emitted. How to fix: if either string "
+            f"is a struct format, respell it equivalently ('6x' for 'xxxxxx', or a "
+            f"different byte-order prefix spelling) — that changes the constant "
+            f"without changing the format's meaning, and this same check re-verifies "
+            f"the result. Otherwise please report it: a collision here is a defect in "
+            f"PyCSL's encoding, not in your program.")
+    return h
 
 
 # Maps Python/IR operators to WhyML operators

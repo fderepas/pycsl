@@ -48,8 +48,32 @@ BASELINE = {
     # on a folded literal: it needs TWO COLLIDING literals that reach the SAME specialised
     # op. The ops are per-type (`_fi16`, `_fu32`, `_fs4`, …), so a collision has to be
     # between two formats of the SAME width and signedness that CPython nonetheless reads
-    # differently — `">h"` and `"<h"` are the shape to look for, and searching for one is
-    # recorded as the follow-up rather than done here.
+    # differently — `">h"` and `"<h"` are the shape to look for.
+    #
+    # >>> (#49) gen #33 — **THAT SEARCH IS DONE. IT SUCCEEDED, AND IT IS NOW ROUTE #228.**
+    # This comment used to end "searching for one is recorded as the follow-up rather than
+    # done here", and that sentence sat inside a GREEN gate for three generations. A
+    # deferral parked in a baseline is strictly LESS visible than one parked in the
+    # backlog, because an allowlist row is read once — when it is written — and after
+    # that the gate prints OK. Do not re-read the rows below as live work: read this.
+    #
+    # THE PAIR (found in seconds; the shape guessed above was too NARROW, because
+    # `slot_id` ignores PAD as well as prefix, so arbitrary pad runs in arbitrary
+    # positions keep the symbol while changing the bytes CPython writes):
+    #     struct.pack('<bb6x', 1, 2)                  CPython:  8 bytes
+    #     struct.pack('<xxxxxxxxhxLxxxxxxxx', 1, 2)   CPython: 23 bytes
+    #     both emit  (struct_pack_i2 1322019588 1 2)     <-- ONE TERM
+    # so `len(a) == len(b)` proved `Valid (0.00s, 156 steps)` and the postcondition
+    # `\result == 1` was PROVEN while CPython returns 0. The non-colliding control did
+    # NOT prove, so it was the collision and nothing else.
+    #
+    # THE ROWS BELOW ARE NOW HALF A HAZARD WHOSE OTHER HALF IS CHECKED, NOT DEFERRED.
+    # `identifiers.py::stable_hash` records every fold of one emission and REFUSES a
+    # collision, so two colliding literals can no longer reach the same op at all —
+    # which is the premise these rows were tolerated for the absence of. Negative-tested
+    # by `bin/check-stable-hash-fold-injectivity.py` (FAST set) and witnessed by corpus
+    # 1914 (refusal) + 1915 (the accept-side control). Keep the rows: they still record
+    # the pure-op-on-a-folded-literal SHAPE, which is what this plane measures.
     # The round-trip axiom makes the stakes concrete:
     #   axiom ... : forall fmt x0. -32768 <= x0 < 32768 ->
     #                 struct_unpack_fi16 fmt (struct_pack_fi16 fmt x0) = x0

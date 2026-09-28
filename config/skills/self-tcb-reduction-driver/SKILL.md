@@ -336,6 +336,32 @@ START (standing), not as an interrupt. Rules:
   pre-existing file can flip its verdict on account of the change, leaving only the NEW files, each
   of which should have been measured individually already. Keep that argument — and fix the script,
   because the next gate may not have a 0-MOVED sweep to fall back on.
+- **CARVE-OUT (lesson (a5), gen #33) — GREP EVERY GATE'S BASELINE FOR A DEFERRED ACTION, ONCE PER
+  WINDOW, EARLY.** A gate's allowlist/BASELINE prose is read exactly once — when it is written —
+  and from then on the gate prints OK. So a deferral parked in a baseline is strictly LESS visible
+  than the same deferral parked in `driver-backlog.md`, and it is disguised as a passing check.
+  MEASURED: `bin/check-hashed-literal-purity.py` (gen #30) baselines 22 rows and its comment ends
+  "searching for one is recorded as the follow-up rather than done here". It had named the collision,
+  the discriminator and the exposed destination correctly, and left ONE seconds-long search undone.
+  It stayed green for THREE generations; doing the search produced route #228, a proved false
+  postcondition. The sweep is a grep over `bin/` for `follow-up`, `not done here`, `rather than
+  done`, `left for`, `the shape to look for`, `recorded as`, `TODO`, `unprobed`, `not yet`. Two
+  riders: (i) **search the PROPERTY the gate names, not the EXAMPLE its comment pictures** — gen
+  #30's recorded shape (two formats differing in endianness) was narrower than the real family (pad
+  runs, because `slot_id` ignores pad), and searching only the recorded shape would have found
+  nothing and "confirmed" the baseline; (ii) **a discharged deferral must stop reading like a
+  deferral IN THE PLACE IT WAS WRITTEN**, or the next generation re-derives it from scratch — which
+  is exactly what gen #33 did for an hour before noticing the plane.
+- **CARVE-OUT (lesson (b5), gen #33) — A PROBABILITY IN A JUSTIFICATION IS A CHECK NOBODY WROTE.**
+  `stable_hash` justified itself with "distinct strings -> distinct ints **w.h.p.**". A probabilistic
+  premise cannot be load-bearing in a DEDUCTIVE verifier's TCB, and the tell is that the premise was
+  DECIDABLE all along — injectivity over the strings ONE EMISSION folds is a dict and a comparison
+  (measured population: 91 at the largest). Grep the TCB for `w.h.p.`, `with high probability`,
+  `unlikely`, `in practice`, `should not happen`, `virtually never`, `collision-resistant`, and ask
+  what the check would cost. **And never answer it with more bits:** widening lowers the probability
+  and keeps the premise probabilistic, which is route #227's lesson in a new costume. Also check the
+  **MODULUS** — a `% 100000` applied after the hash is four orders of magnitude more collidable per
+  pair than the hash itself.
 - **Escalate-not-thrash, time-aware.** A per-wall attempt budget still applies; additionally, do not START
   a full cycle whose fable-review + spike cannot plausibly finish before the deadline — defer it (record
   the wall-signal for the next run) and spend the tail on cheaper items.
