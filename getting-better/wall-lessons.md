@@ -8272,3 +8272,36 @@ Two smaller rules from the same sitting:
 * **The plane's own detector is the authority over your census, not the reverse.** My AST census said
   ELEVEN invisible sites and I wrote that number into two documents; the widened plane found TWELVE.
   A census built to motivate a gate must be re-derived FROM the gate once the gate exists.
+
+## (j4) gen #32 — A PARITY PLANE'S POPULATION IS THE SYNTAX IT SCANS FOR, NOT THE CONCEPT IT IS NAMED AFTER
+
+`bin/check-mirror-field-parity.py` is the gate for "does a mirror field's annotation match the live
+source's". It reports **"335 class-level annotated field(s) compared; 7 known drift, 0 NEW drift"**
+and it is GREEN.
+
+It walks `ast.ClassDef` bodies for `AnnAssign` with a `Name` target. The live tree keeps most of
+these fields somewhere else entirely — `self.X: T = ...` inside `__init__`, which is an `AnnAssign`
+on an **Attribute**, inside a **FunctionDef**. Those fields have no class-level annotation on the
+live side, so they are outside the 335 **and the plane never names them at all**.
+
+Measured consequence: the mirror's `stmt_control_flow.py` declares
+`_record_types: Dict[str, Dict[str, str]]` where the live source (`Module6_WhyMLTranspiler.__init__`)
+says `Dict[str, Any]` — a mirror claiming a **stronger** type than the program guarantees, which is
+the direction that assumes structure rather than losing it. `_record_types` appears ZERO times in the
+parity plane's report. (This instance is deliberate, documented at the declaration, and sound — only
+`whyml_name`, a string, is projected — but nothing was CHECKING that.)
+
+>>> **"CLASS-LEVEL ANNOTATED FIELD" AND "FIELD OF THE CLASS" DIFFER BY EVERY FIELD ASSIGNED IN
+>>> `__init__`, AND THAT IS WHERE THE LIVE TREE KEEPS MOST OF THEM.** A plane's honest
+>>> population sentence is not a substitute for asking whether that population is the one the
+>>> ratchet is read as covering.
+
+This is the (u6) family for the eighth time in this campaign — a confident number whose SCOPE is
+narrower than its name — and the remedy has not changed: **before quoting any plane's count, ask what
+its population IS, and perturb a member OUTSIDE it.** The perturbation here is one line: annotate a
+live `__init__` field differently from its mirror and watch parity stay green.
+
+The companion plane written the same evening, `bin/check-sibling-concrete-field-decls.py`, covers the
+complementary question (does the DESTINATION of a relocation declare the fields its body reads, and
+do two mirror files agree about a field) and deliberately compares MIRROR-to-MIRROR, precisely
+because the live side often has nothing to compare against.
