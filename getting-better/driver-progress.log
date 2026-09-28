@@ -12322,3 +12322,38 @@ ELEVEN FOLLOWABLE, ONE AMBIGUOUS, and two of the eleven had BOTH ARMS of an or-l
 >>> **LESSON (i4): FOLLOWING A REFUSAL'S ADVICE TO THE END IS A COMPLETENESS PROBE FOR FREE.** The
 >>> advice audit was built to catch messages that LIE; it also finds the places where the compiler
 >>> tells the truth and then cannot deliver, and those are backlog items nobody was hunting for.
+
+## 03:25Z BACKLOG #67 IS BUILT: `bin/check-sibling-concrete-field-decls.py`, and the invariant is NOT EMPTY
+    54 field reads across the `#@ sibling_concrete` relocations
+    47 resolve to a declaration in their OWN file
+     5 **MISSING** — a relocated body reads a field its destination file does not declare
+     2 **MISMATCH** — the same field annotated two ways in two mirror files
+MISSING, each a latent int-erasure of exactly #63's shape, waiting for the next re-port:
+    Module6_WhyMLTranspiler::transpile / ::_compute_shared_module_maps  `_module_method_return_types`  (elsewhere `Dict[str, str]`)
+    functions.py::_refine_tuple_return_type                            `_current_self_type` (`str`), `_current_symbol_table` (`Dict[str, str]`)
+    statements.py::_field_label                                        `_ambiguous_fields`  (elsewhere `Set[str]`)
+MISMATCH — and this is the one worth having CHECKED rather than counted. `stmt_control_flow.py`
+declares `_record_types: Dict[str, Dict[str, str]]` where live and every other mirror say
+`Dict[str, Any]` — a mirror claiming a STRONGER type than the live source, which would be assuming
+structure the program does not guarantee. It is **DELIBERATE, DOCUMENTED AT THE DECLARATION, AND
+SOUND**: the narrowing exists so the emitter models the field as a nested string map instead of an
+int-erased `ref 0`, and the file projects ONLY `whyml_name`, which is a string — verified against
+every read in the file. So it is ALLOWLISTED BY NAME (with the reason) rather than tolerated by a
+count, and the next narrowing, which may not be justified, FAILS.
+NEGATIVE-TESTED end to end: deleting the one declaration #63 added takes MISSING 5 -> 6, breaks the
+ratchet, and the plane names the exact field and the exact annotation to give it.
+>>> AND THE GAP THAT LET THIS DRIFT EXIST IS ITSELF A FINDING. `check-mirror-field-parity` is the
+>>> plane for "does a mirror field's annotation match live", and it walks `ClassDef` bodies for
+>>> `AnnAssign` with a `Name` target. Live declares most of these fields as
+>>> `self.X: T = ...` INSIDE `__init__` — an `AnnAssign` on an ATTRIBUTE, inside a `FunctionDef` —
+>>> so they are **outside its 335-field population entirely**, and `_record_types` never appears in
+>>> its report at all. Its "335 compared, 0 NEW drift" is honest about what it compared and is read
+>>> as the stronger claim that mirror fields agree with live. **LESSON (j4): A PARITY PLANE'S
+>>> POPULATION IS THE SYNTAX IT SCANS FOR, NOT THE CONCEPT IT IS NAMED AFTER** — "class-level
+>>> annotated field" and "field of the class" differ by every field assigned in `__init__`, and that
+>>> is where the live tree keeps most of them. This is the (u6) shape for the eighth time, and the
+>>> fix is the same: ask what the population IS before quoting the count.
+CLOSING the 5 MISSING is COST/SCALE and deliberately NOT done here: each declaration CHANGES the
+emitted WhyML (that is precisely what #63's did) and so owes a whole-file re-proof of
+`Module6_WhyMLTranspiler.py`, `functions.py` and `statements.py` — three of the largest mirrors. The
+ratchet holds them at 5 and may only shrink; the model gets STRICTLY better as each is declared.
