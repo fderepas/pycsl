@@ -103,24 +103,36 @@ by exactly the number of importers, and nothing in the triage currently says so.
 
 ## LADDER FOR GEN #33, in order
 
-1. **Backlog #69 item 2 — make a RETURN annotation carry the `hval` codomain**, so the
+1. **Backlog #72 — THE CONVERSION QUEUE, and the only item here with a measured shortlist.**
+   Gen #32 refuted two size-picked conversion candidates in twenty minutes (lesson (o4): *a
+   relocation's cost is its CALLEE CLOSURE, not its line count*) and then built the instrument that
+   generalises it: `getting-better/open-routes/preflight-marker-callee-closure-gen32.py` walks every
+   marker's live body against the constructs this campaign has MEASURED as blocked. All 449 markers,
+   in seconds: **210 BLOCKED / 239 CLEAR**, and joined against `trusted-reasons.tsv` the shortlist is
+   **151 CLEAR-and-unclassified**. Read 151 as an UPPER BOUND — the filter is CALL-shaped while the
+   biggest wall (int-erasure, 102 markers) is TYPE-shaped and only the TSV join catches it, and
+   "unclassified" hides already-refuted candidates (the two smallest survivors are exactly the ones
+   gen #32 and #31 measured as unlandable). Do the cross-reference FIRST — it tightens
+   `MAX_UNCLASSIFIED` for free — then screen the residue port -> `--fun` -> classify -> REVERT **in
+   the FOREGROUND**, then convert **per destination FILE** so one re-proof covers a batch.
+2. **Backlog #69 item 2 — make a RETURN annotation carry the `hval` codomain**, so the
    declared-local workaround above stops being load-bearing. The arm is byte-inert today (before this
    generation, no `.py` file in the tree used `Dict[str, PyVal]` at all), so there is little to
    regress. And re-scan for OTHER `\trusted` markers whose stated reason is "cannot model dict
    construction" or similar — `as_dict`'s comment was stale, and a comment that names a capability
    the campaign has since built is a conversion waiting to be noticed. **That is the cheapest lead
    on this list: grep the 449 markers' reasons for capabilities that now exist.**
-2. **Backlog #65** — route #227's container carrier. Two named reopening capabilities, cheapest
+3. **Backlog #65** — route #227's container carrier. Two named reopening capabilities, cheapest
    first: refuse on a local read from a container whose DECLARED codomain is `Optional[...]`
    (needs its own census), or route #56's general repair (a distinguishable `None` in the value model).
-3. **Backlog #68** — an imported contract's free module constant lowers to an opaque `val constant`,
+4. **Backlog #68** — an imported contract's free module constant lowers to an opaque `val constant`,
    so route #143's advice is followable-but-unprovable. Fold against the DEFINING module's binding,
    gated on the name being a module CONSTANT (folding a mutable global would be unsound).
-4. **Close #67's five MISSING declarations** — each is a latent int-erasure of #63's exact shape.
+5. **Close #67's five MISSING declarations** — each is a latent int-erasure of #63's exact shape.
    COST/SCALE: each declaration changes the emitted WhyML and owes a whole-file re-proof of
    `Module6_WhyMLTranspiler.py`, `functions.py`, `statements.py`.
-5. **Backlog #64** — the int-erasure seam, one marker's WHOLE CHAIN at a time. Still the #1 wall.
-6. The five refusal sites still unaudited in `check-refusal-advice-audited` (4 in `pycsl.py`, 1 in
+6. **Backlog #64** — the int-erasure seam, one marker's WHOLE CHAIN at a time. Still the #1 wall.
+7. The five refusal sites still unaudited in `check-refusal-advice-audited` (4 in `pycsl.py`, 1 in
    `Module5_IREmitter.py:5205`) — pre-existing debt, and now the only debt in that plane.
 
 ## NEW PLANES AND RATCHETS THIS GENERATION — do not loosen any of them
@@ -163,6 +175,9 @@ now enforced; a HOLE is route #96's shape in a new mechanism.
   (j4)  a parity plane's population is the SYNTAX it scans for, not the concept it is named after.
         `check-mirror-field-parity` walks `ClassDef` bodies, and live keeps most fields in
         `__init__` as AnnAssign-on-Attribute, so they are outside its 335 entirely.
+  (o4)  **a relocation's cost is its CALLEE CLOSURE, not its line count** — a 24-line body was
+        refuted by three words in one arm calling a function the destination tree does not
+        have. Walk the calls; prefer a stub whose live home is itself already mirrored.
   (n4)  **a conversion's own CALL SITE can be shadowed** — converting a method creates call sites
         that did not exist while it was `\trusted`, so it can shadow a DIFFERENT already-converted
         method by giving it its first caller. Ask what the body CALLS before converting. I wrote
