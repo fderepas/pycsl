@@ -8452,3 +8452,33 @@ and this is about the caller's lowering, and the family resemblance is only obvi
 **Writing a lesson down is not the same as having internalised it. The plane is what actually
 stopped me**, which is the whole argument for running the battery rather than reasoning about whether
 it is needed.
+
+## (o4) gen #32 — A RELOCATION'S COST IS ITS CALLEE CLOSURE, NOT ITS LINE COUNT
+
+Backlog #70 ranked 24 convertible cross-mixin stubs by the size of their live implementation, and
+picked `_expr_to_whyml_string_ctx` (24 lines) as the cheapest one carrying REAL structure — it
+dispatches `StrConcat` / `String` / `Var`, recurses, and reads a self-field, so converting it would
+give callers actual facts rather than a forwarder's tautology.
+
+The blocker is three words in one arm:
+
+    return whyml_string_literal(ir.get("value", ""))
+
+`whyml_string_literal` is a module-level free function and **the mirror tree does not have it** — its
+`identifiers.py` defines five other helpers and not this one. Porting it means modelling a loop over
+characters with `ord()` and UTF-8 `\xHH` escaping, which is the int-erasure seam's neighbourhood, not
+an afternoon. A 24-line body, refuted by its callee.
+
+>>> **PRICE A RELOCATION BY WALKING ITS CALLS AND ASKING, OF EACH, "DOES THE DESTINATION TREE HAVE
+>>> THIS?"** — the self-methods (do they exist there, are they concrete or shadowed?), the free
+>>> functions (are they defined and imported?), and the self-fields (are they declared? — backlog
+>>> #67). That walk takes minutes. Line count is a proxy, and here it pointed at the wrong candidate.
+
+The corollary that saves the next attempt: **prefer a stub whose live implementation lives in a file
+that is ITSELF already mirrored and proving.** `_add_abstract_op` lives in `abstract_ops.py`, which
+the self-annotation suite passes, so its callee closure is far more likely to be present in the
+mirror tree than `expressions.py`'s was. Proximity in the mirror is a better cost proxy than size.
+
+And the meta-point, which is why the spike gate exists at all: **this refutation cost about fifteen
+minutes of reading and no emitter work whatsoever.** Building first and discovering the missing
+callee at the Why3 type error would have cost the port, the re-proof, and the revert.

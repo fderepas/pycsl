@@ -242,6 +242,49 @@ annotations lazy. The LIVE tree cannot: `src/pycsl/errors.py` runs, so it needed
 module-level binding in the live tree** — which is the whole reason the `as_dict` repair had a blast
 radius (that binding is in a file fourteen mirrors import) and the reason lesson (k4) exists.
 
+### #70 STEP 1 IS **REFUTED AT ITS PREREQUISITE** (spike, 2026-09-28T16:30Z) — and the refutation is
+### cheaper than the build, which is the whole point of spiking first
+
+The revised step 1 was `_expr_to_whyml_string_ctx` into `expr_ghost_spec_ops.py` — the cheapest stub
+carrying REAL structure. The pre-flight said it needs a field declaration, two imports and a
+termination variant. Checking the second of those refutes it before a line of emitter work:
+
+    the body's `String` arm is:   return whyml_string_literal(ir.get("value", ""))
+
+`whyml_string_literal` is a **module-level free function**, and **the mirror does not have it
+anywhere.** `src/self-annotate/src/module6_whyml/identifiers.py` defines `stable_hash`,
+`whyml_ident`, `safe_mutex_name`, `safe_exc_name`, `op_translate` — and not this one. (The mirror's
+`expressions.py` has a METHOD `_whyml_string_literal`, which is a different name the live body does
+not call.)
+
+AND PORTING IT IS NOT CHEAP. The live function loops over the characters of the string, looks each up
+in an escape table, tests `32 <= ord(ch) <= 126`, and otherwise encodes the codepoint's UTF-8 bytes as
+`\xHH` pairs. A faithful port needs string ITERATION, `ord`, and a byte-encoding model — the
+int-erasure seam's neighbourhood (backlog #62/#64), not an afternoon.
+
+**VERDICT: step 1 is blocked by a PREREQUISITE PORT, not by the relocation.** Two reopening
+capabilities, recorded so the next attempt starts here:
+  (a) port `whyml_string_literal` into the mirror's `identifiers.py` — a character loop with `ord`
+      and UTF-8 escaping, and the thing to price BEFORE trying (it is a self-contained pure function,
+      so it is a legitimate standalone conversion target in its own right);
+  (b) model it as an OPAQUE `val whyml_string_literal (s: string) : string` — which is what the
+      emitter would synthesize anyway if the name simply stayed unresolved. That is lesson (l4)
+      exactly: the marker would retire while the trust moved to an uncounted abstract op. **Do not
+      take (b) for the count.** It is defensible ONLY if the relocated body's OTHER three arms
+      (`StrConcat`, `Var`, and the structural dispatch) are judged to carry the value on their own,
+      and that judgement belongs in the increment's write-up, not in a ratchet.
+
+>>> **LESSON (o4): A RELOCATION'S COST IS ITS CALLEE CLOSURE, NOT ITS LINE COUNT.** #70 ranked its
+>>> candidates by live body size — 24 lines looked like the cheapest structural stub on the board —
+>>> and the blocker turned out to be a THREE-WORD call in one arm to a function the destination tree
+>>> does not have. **Price a relocation by walking its calls and asking, of each, "does the
+>>> DESTINATION have this?"** That walk is minutes; the size ranking is a proxy that was wrong here.
+
+NEXT CANDIDATE, to be pre-flighted the same way: the MEDIUM list's smallest, `_add_abstract_op`
+(68 lines, live in `abstract_ops.py`, destination `stmt_control_flow.py`) — and note that
+`abstract_ops.py` is ALREADY a mirrored file that PASSES the self-annotation suite, so its callee
+closure is far more likely to be present in the mirror tree than `expressions.py`'s was.
+
 ### #71 gen #32 — THE ABSTRACT-`val` SURFACE IS UNMEASURED, AND ITS SIZE IS 3408
 
 2026-09-28T09:55Z. Fell out of #70's correction: converting a FORWARDER moves trust from a COUNTED
