@@ -8375,3 +8375,39 @@ ratchets that number. Most of it is legitimate (certified theory primitives like
 crossing an import becomes a `val` even when its defining file proves it). The point is not that 3408
 is bad; it is that **the surface trust can migrate into is unmeasured, so the headline number can
 fall while the artifact assumes exactly as much.**
+
+## (m4) gen #32 — A DETACHED JOB'S `rc` IS THE ONLY THING THAT SAYS WHETHER IT *FINISHED*
+
+`bin/run-self-annotation-suite.sh` — the authoritative "does the mirror still prove" oracle, declared
+a gate by four impl docs and run by NO battery until this window — was launched detached under
+`setsid` with `timeout 43200`. Its log ends:
+
+    [PASS] src/self-annotate/src/core_ir_semantic.py
+    SAS END 2026-09-28T04:49:25Z rc=124
+
+**124 is `timeout`'s exit code.** The run hit MY twelve-hour budget, to the second, at 25 of 40 files.
+For four hours afterwards I reported "25/40, still running" from a `ps` habit, while the process had
+been dead since 04:49 — and my own wrapper had WRITTEN the rc to `sas.log.rc` precisely so this could
+be checked.
+
+>>> **A PROGRESS-LINE COUNT SAYS HOW FAR A JOB GOT AND NOTHING ABOUT WHY IT STOPPED.** `rc=124` and
+>>> `rc=0` are indistinguishable from a log tail that ends in `[PASS]`, which is the tail a
+>>> long-running job most often has. **Read the rc before quoting a detached job's state — every
+>>> time, and especially when the news looks good**, because a truncated run that got most of the way
+>>> reads exactly like a successful one.
+
+This is the companion of lesson (d4). There I destroyed a verdict by piping a leg through `tail -40`;
+here I had the verdict sitting on disk in a file written for the purpose and did not look at it. Both
+are the same failure — trusting the VIEW of a job over its RECORD — and the second is worse, because
+the instrument was already correct.
+
+Two concrete consequences banked with it:
+
+* **The oracle's honest cost is 18-24 h, not the 6-12 h the previous window estimated.** Twelve hours
+  buys 25 of 40, with `frontend/pure_ast.py` (a measured 2.5-hour proof) and twelve other
+  `frontend/*` files unstarted. Budget a full day, or it will be truncated again and the truncation
+  will look like a pass.
+* **A watcher that tests for process-absence must also read the rc.** The watch loop used here —
+  `until grep -q DONE || ! pgrep -f job; do sleep; done` — fires correctly on both outcomes and then
+  prints the marker's presence, which is right. The failure was downstream of the watcher, in reading
+  a `ps` snapshot instead of the file.
