@@ -12489,3 +12489,20 @@ ratchet was never touched.**
 removed, the functions reordered so the concrete callee precedes its caller), and `ir_schema`,
 `core_ir_semantic`, `pycsl` (6/6/18-line diffs, pure REORDERING of the `val pycslerror__message`
 declaration). All four were in the earlier fifteen, so their costs are known: <1s, <1min, 1h17m, 36m.
+
+## 13:38Z THE FOUR RE-PROOFS OWED BY THE `sibling_concrete` FIX ARE ALL GREEN
+    errors <1s · ir_schema <1s · pycsl 31m08s · core_ir_semantic 1h17m — all rc=0, nonvalid=0.
+SAS2 meanwhile: **`[PASS] src/pycsl/errors.py`** — suite MEMBER #1, which was that oracle's ONLY
+failure, now passes — and 20 of 40 done with **ZERO failures**, markedly faster than run 1 because it
+is no longer competing with my own gates for cores.
+
+PREDICTIONS FOR GATE SC (the owed `--slow` battery over the `#@ sibling_concrete` tree):
+  corpus byte-diff   **0 MOVED · 0 GONE · 0 APPEARED** on BOTH trees. `#@ sibling_concrete` was added
+                     to `src/self-annotate/` ONLY, and the mirror cannot reach the corpus emission.
+                     Baseline `bd_after4` (post-errors.py, pre-sibling_concrete) is the exact pre-image.
+  mirror byte-diff   **0 MOVED against `mir_after5`** — re-emitted fresh, because everything committed
+                     since that sweep is documentation, and asserting that is cheaper than assuming it.
+                     (The 4 MOVED vs `mir_after3` are the fix itself, already diffed line by line.)
+  planes --slow      **79 of 79 GREEN**, and specifically `check-shadowed-selfcalls` at **14 (ratchet
+                     14) / 119 bypassing** — the number whose 15 opened this whole sub-increment.
+  suite              **4034/4052 — 3136 PASS / 898 XFAIL / 18 FAIL, `grep -c XPASS` = 0**.
