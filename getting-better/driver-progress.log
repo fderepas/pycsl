@@ -12265,3 +12265,30 @@ TWO THINGS WORTH KEEPING FROM THE AUDIT ITSELF:
     `test-suite/corpus/pycsl-reference/` for `multi_file_lib` to resolve — and the battery's corpus
     sweep is running. Writing a file into the corpus mid-sweep would corrupt the byte-diff I just
     reported. It is one `sed` and one run once LEG 1 is done; not a finding, a scheduling fact.
+
+## 02:33Z GATE 63 IS GREEN ON EVERY LEG — BACKLOG #63 IS CLOSED AND GATED
+Ran 23:42:55Z -> 02:33:21Z (2h50m).
+    corpus byte-diff   1379 / 1379 — 0 MOVED · 0 GONE · 0 APPEARED
+    pyref  byte-diff   2199 / 2199 — 0 MOVED · 0 GONE · 0 APPEARED
+    mirror byte-diff   53 / 53 — 2 MOVED, both accounted for LINE BY LINE (the aggregate record's
+                       field reordered; the mixin record gained it; one `writes` clause gained it)
+    statements.py      whole-file **18896 Valid, 0 non-Valid**, rc=0
+    planes --slow      **78 of 78 GREEN** — fast AND slow, including the NEW
+                       `check-assigns-writes-survival` at TRAP 2989 / HOLE 0 and
+                       sibling-concrete at 25 SAME / 0 DIVERGING
+    suite              **4034/4052 — 3136 PASS / 898 XFAIL / 18 FAIL, ZERO XPASS**
+PREDICTION SCORECARD: EVERY leg exact, including the suite breakdown to the unit (I predicted
+4034/4052 and the standing eighteen before the battery ran). And **ZERO XPASS is MEASURED here, not
+argued** — `grep -c XPASS` over the FULL suite log returns 0, which is precisely what lesson (d4) was
+banked to make possible one battery earlier. `suite rc=1` is the standing baseline's own exit code
+(18 confirmed failures), not a regression.
+
+STANDING NUMBERS after #63
+    markers                       450   (unchanged — a re-port and a refusal cost the trust surface nothing)
+    grep-substring / offset       477 / 27
+    planes                        **78/78 --slow** (was 74 at gate U, 77 at gate 227)
+    suite                         4034/4052, standing EIGHTEEN, zero XPASS
+    sibling-concrete fidelity     25 SAME / **0 DIVERGING** / 0 unresolved  (was 22 / 3)
+    assigns-writes survival       TRAP 2989 / HOLE 0  (NEW plane, ratchet)
+    refusal witness coverage      207 demonstrated (floor TIGHTENED 206 -> 207) / 5 undemonstrated
+    stdlib-modules-verify         104 modules, 84 VERIFY — the standing RED is RETIRED

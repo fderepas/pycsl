@@ -130,6 +130,17 @@ capabilities, in increasing cost:
 Note (i) is a DECLARATION-keyed fence, so it is strictly weaker than (ii): a heterogeneous dict
 with no annotation (the shape `src/pycsl/errors.py::as_dict` actually has) is outside it.
 
+### #63 gen #31 — THE `sibling_concrete` FIDELITY HOLE — **RESOLVED AND GATED by gen #32**
+**Status: CLOSED 2026-09-28 at gate 63** (2h50m): `statements.py` whole-file **18896 Valid,
+0 non-Valid**; sibling-concrete **25 SAME / 0 DIVERGING** with `DIVERGING_BASELINE` tightened
+to the EMPTY SET; planes **78/78 `--slow`**; suite **4034/4052**, zero XPASS; corpus AND pyref
+byte-diffs 0 MOVED. Step 3's predicted `\trusted` adjudication was NOT needed — the re-port
+cost ONE field declaration (`_record_field_elem_locals`, which the mirror's `types.py` had
+declared all along), so the marker count is unchanged at 450. See wall-lesson (e4), and the
+two items the re-port spun off: backlog #67 (a relocation must bring its field declarations)
+and the new plane `bin/check-assigns-writes-survival.py`.
+
+(original entry, for the record:)
 ### #63 gen #31 — THE `sibling_concrete` FIDELITY HOLE: THREE STALE VERIFIED MIRROR BODIES (top of ladder)
 
 2026-09-26T18:40Z. **This is above #62 because it is a SOUNDNESS item, not a count item.**
