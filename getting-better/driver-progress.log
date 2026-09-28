@@ -12431,3 +12431,28 @@ PREDICTIONS FOR THE FINAL GATE of this increment, written before launching:
                      reporting **449** and trusted-reasons 449 rows / unclassified 285.
   suite              **4034/4052**, the standing EIGHTEEN, ZERO XPASS — unchanged, because the corpus
                      emission cannot move. FULL log kept and `[XPASS]` grepped (lesson (d4)).
+
+## 09:45Z THE SELF-ANNOTATION SUITE DID NOT FINISH, AND I ALMOST REPORTED THAT IT HAD
+`SAS END 2026-09-28T04:49:25Z rc=**124**`. 124 is `timeout`'s exit code: the run hit the
+`timeout 43200` **I** put on it, twelve hours to the second (16:49:24Z -> 04:49:25Z), at **25 of 40
+files**. It was not a failure and not a hang — it was my own budget, and for four hours afterwards I
+was reporting "25/40, still running" from a stale `ps` reflex while the process had been dead since
+04:49.
+>>> LESSON (m4): A DETACHED JOB'S `rc` IS THE ONLY THING THAT SAYS WHETHER IT FINISHED. Progress-line
+>>> counting says how far it got and NOTHING about why it stopped, and `rc=124` and `rc=0` look
+>>> identical from a log tail that ends in `[PASS]`. My own wrapper WROTE the rc to `sas.log.rc`
+>>> precisely so this could be checked, and I did not read it for four hours. **Read the rc file
+>>> before quoting a detached job's state — every time, and especially when the news is good.**
+>>> The companion of lesson (d4): there I threw a verdict away by truncating a log; here I had the
+>>> verdict on disk and did not look.
+WHAT IT MEASURED BEFORE THE AXE, and this is real and worth keeping — 25 files, **24 PASS / 1 FAIL**:
+it cleared `module6_whyml/expressions.py`, `module6_whyml/statements.py`, `stmt_control_flow.py`,
+`preamble.py` and `core_ir_semantic.py`, i.e. the heaviest mirrors in the tree. Its ONE failure is
+`src/pycsl/errors.py`, which this generation FIXED (and re-measured alone: `Verification SUCCESS`).
+SO THE HONEST COST OF THIS ORACLE IS NOT "6-12 hours" as the previous window estimated. TWELVE HOURS
+BUYS 25 OF 40, with `frontend/pure_ast.py` (a measured 2.5-hour proof) and twelve other `frontend/*`
+files still unstarted. **Plausibly 18-24 h, and nobody has ever seen it finish.**
+RELAUNCHED at CURRENT HEAD in a fresh frozen worktree with `timeout 108000` (30 h). At current HEAD
+rather than at `1b2f676e` deliberately: the tree has moved (the hval propagation touched 15 mirrors,
+all individually re-proved 15/15), so a verdict about the OLD tree would answer a question nobody is
+asking, and member #1 should now PASS.
