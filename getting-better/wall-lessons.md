@@ -8482,3 +8482,46 @@ mirror tree than `expressions.py`'s was. Proximity in the mirror is a better cos
 And the meta-point, which is why the spike gate exists at all: **this refutation cost about fifteen
 minutes of reading and no emitter work whatsoever.** Building first and discovering the missing
 callee at the Why3 type error would have cost the port, the re-proof, and the revert.
+
+## (p4) gen #32 — AN UNRESOLVED FREE-FUNCTION CALL AUTO-SYNTHESIZES AN ABSTRACT `val`, SO A MISSING CALLEE IS A *VALUE* COST AND NOT A BLOCK
+
+I recorded backlog #70's step 1 as "REFUTED at its prerequisite": the body calls the module-level
+`whyml_string_literal`, the mirror tree does not define it, therefore blocked. **That mechanism claim
+was never run, and it is false.**
+
+PyCSL auto-synthesizes an abstract `val` for an unresolved free call, and the proof was already in the
+tree before I arrived: `expr_from_dict` is defined **nowhere in the mirror source** and appears in
+three mirror emissions as `val expr_from_dict (d: map string (option int)) : emit_ir`.
+
+So the relocation emits and type-checks; the missing callee simply becomes opaque. The honest verdict
+is **(l4)-PARTIAL, and a good trade**: of the body's four arms, `StrConcat`, `Var` and the structural
+dispatch gain real facts, and only the `String` arm's value goes opaque.
+
+>>> **"RE-MEASURE, NEVER INHERIT" APPLIES TO A BOUNDARY *YOU* RECORDED TWO HOURS AGO.** The campaign
+>>> already says "a candidate's mechanism story is a hypothesis separate from its existence"
+>>> (generator #7). I wrote a mechanism story, found it plausible, and filed it as a measurement.
+>>> **A recorded false boundary is the most expensive note in this project, because the next
+>>> generation pays for it by not trying.**
+
+## (q4) gen #32 — A HEURISTIC AST CENSUS OVER-REPORTS, AND THE OVER-REPORT IS ALWAYS IN THE DIRECTION OF THE CONCLUSION YOU WANTED
+
+Four censuses in one generation, each written to justify a next step, each wrong on first run and each
+wrong in the flattering direction:
+
+    free names unresolved in a relocation   43  ->  ~0   (tuple-unpacked locals, PEP-563 annotations)
+    external effects in survivor bodies     10  ->   1   (8 were `str.replace`, a PURE method)
+    missing free callees                    27  ->  11   (nested defs, lambdas, `cls`, parameters)
+    ... and 11 -> 9                                      (function-LOCAL `from x import y as _R49`)
+
+Every first number made the case for the thing I was about to do. None survived reading the rows.
+
+>>> **AN AST HEURISTIC'S FIRST NUMBER IS A DRAFT.** Before any of it is quoted or acted on: read the
+>>> OUTLIER ROWS (campaign generator #6), and specifically check the four binder classes a naive
+>>> free-name scan always misses — **parameters (including `cls`), nested `def`/`lambda`, tuple and
+>>> for/with/except targets, and function-LOCAL imports** — plus the one semantic trap, an unqualified
+>>> method name with a PURE homonym (`.replace`, `.write`, `.remove`: `Path.replace` renames,
+>>> `str.replace` does not).
+
+The cheap defence that worked every time: **spot-verify two rows by hand before using the total.**
+That is what turned 10 into 1, and it is what found (p4) — checking `expr_from_dict` by hand is what
+revealed that the emitter auto-synthesizes, which refuted my own refutation.

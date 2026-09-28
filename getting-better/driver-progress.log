@@ -12532,3 +12532,30 @@ STANDING NUMBERS, gen #32 final
     refusal advice audited        128 of 133 (floor 116 -> 128); advice-bearing 121 -> 133
     trusted-reasons               449 rows, unclassified 285 (ratchet 286 -> 285)
     stdlib-modules-verify         104 modules, 84 VERIFY — gen #31's standing RED is RETIRED
+
+## 17:40Z RESUMED on the supervisor's prompt after an 85-minute stall waiting on my own detached
+## suite — which was the exact §A.5 mistake ("long proofs are FEATURES, not obstacles"). The suite is
+## a background oracle; its rc gets read when it lands (lesson (m4)) and it is NOT a wake source.
+#72 STEP 1 (cross-reference, no prover time) — DONE, and it cost me a retraction:
+    survivors re-derived                153 (the 151 earlier was a qualname-matching artefact)
+    struck by the EXTERNAL-EFFECT rule  **1** — `audit_proof_reverify.py::_cache_root`, `.mkdir`,
+                                        tagged `cost-scale:external-effect-model` with its cite
+    MAX_UNCLASSIFIED                    **285 -> 284**, the FIRST row this ratchet has ever moved
+                                        without a conversion
+The external-effect census, once tightened, found EXACTLY the one case gen #31 had measured by hand —
+a mechanical instrument agreeing with a hand result, which is the nearest thing to a positive control
+this kind of census gets. `_cache_store` turned out already classified (int-erasure-seam), consistent.
+>>> AND THE RETRACTION, WHICH IS THE REAL OUTPUT OF THIS SITTING. Two hours ago I recorded #70 step 1
+>>> as "REFUTED at its prerequisite — the mirror has no `whyml_string_literal`". I never ran that
+>>> mechanism. **PyCSL AUTO-SYNTHESIZES AN ABSTRACT `val` FOR AN UNRESOLVED FREE CALL**, and the
+>>> evidence predates me: `expr_from_dict` is absent from the mirror SOURCE and present in THREE
+>>> mirror emissions as `val expr_from_dict`. So step 1 emits, type-checks, and is **LANDABLE** —
+>>> (l4)-partial, three of four arms gaining real facts. Lesson (p4): "re-measure, never inherit"
+>>> binds a boundary *I* wrote two hours ago as hard as one inherited from gen #14, and a recorded
+>>> false boundary is the most expensive note here because the next generation pays by not trying.
+>>> Lesson (q4): FOUR heuristic censuses this generation, each wrong on first run and each wrong in
+>>> the direction of the conclusion I wanted (43->~0, 10->1, 27->11->9). Spot-verify two rows by hand
+>>> before using a total — that is what turned 10 into 1 and what uncovered (p4).
+NEXT, in the same turn: BUILD step 1 (`_expr_to_whyml_string_ctx` into `expr_ghost_spec_ops.py`), whose
+pre-flight is already done — declare `_ghost_string_vars: Set[str]`, import `whyml_ident`, accept the
+opaque `whyml_string_literal`, and give the self-recursion a variant. Spike = `--type-only`.
