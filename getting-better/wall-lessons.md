@@ -8233,3 +8233,42 @@ then was the advice applied).
 This is the same shape as lesson (u6)'s second half — a plane whose message begins "all" over a
 population narrower than the reader assumes — one level further in: a plane whose JOIN is looser
 than the claim its count is read as making.
+
+## (i4) gen #32 — FOLLOWING A REFUSAL'S ADVICE TO THE END IS A COMPLETENESS PROBE FOR FREE
+
+`bin/check-refusal-advice-audited.py` was built to catch messages that LIE — advice that cannot be
+spelled, does not work, or is under-specified. Running it over the twelve sites gen #32 surfaced
+turned up something it was not built for.
+
+`ir_resolve.py:3186` refuses an imported contract whose free module-level name the IMPORTER rebinds
+(route #143's soundness closure: `f`'s `#@ raises ValueError when LIM < 0` was being folded against
+the importer's `LIM = 5` instead of the definer's `LIM = -1`, and `#@ no_exception ValueError`
+PROVED while CPython raises). Its advice reads "Rename one of the two bindings."
+
+Follow it. The refusal clears, and the contract now lowers against the DEFINING module's binding —
+exactly as promised. And the file still does not verify, because the free name lowers to
+
+    val constant lIM : int
+
+so `not (lIM < 0)` is undecidable and the `no_exception` claim cannot be discharged **even when the
+definer's value makes it TRUE**. Controlled against a file that never clashes at all: IDENTICAL
+lowering, identical failure. So neither the advice nor route #143 is at fault — it is a standing
+COMPLETENESS gap in cross-module contract lowering, fail-closed, and it is now backlog #68.
+
+>>> **AN ADVICE AUDIT WALKS A PATH THE COMPILER RECOMMENDS AND NOBODY TRAVELS.** That is exactly
+>>> where completeness gaps hide: the refusal is tested (it has witnesses), and the state AFTER the
+>>> repair is tested by nothing, because no corpus file lives there. Audit the advice and you get
+>>> the refusal's far side measured as a side effect.
+
+Two smaller rules from the same sitting:
+
+* **The ADVICE DETECTOR's position rule.** Widening the plane's verb list by adding the new verbs as
+  bare substrings took the advice-bearing population 121 -> 173 — fifty-two more sites than the AST
+  census found — because "a list of", "the return value", "must set" and "cannot pass" match a bare
+  `list|return|set|pass`. **An over-broad detector manufactures audit debt and dilutes the count the
+  plane reports; it is the same failure as an over-narrow one wearing the opposite sign.** Match the
+  common verbs SENTENCE-INITIALLY, where an imperative actually lives, and leave the historical rule
+  untouched so its floor keeps its meaning.
+* **The plane's own detector is the authority over your census, not the reverse.** My AST census said
+  ELEVEN invisible sites and I wrote that number into two documents; the widened plane found TWELVE.
+  A census built to motivate a gate must be re-derived FROM the gate once the gate exists.
