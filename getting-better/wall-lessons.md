@@ -8648,3 +8648,41 @@ COROLLARY, measured: check the **MODULUS**, not just the hash. Three sites fold 
 collidable per pair than the 2^31 fold this route repaired. Each mints a WhyML SYMBOL NAME, so a
 collision CONFLATES two distinct specs' ops rather than two values. The names are prefixed by the
 function, so the per-key population is small — but that is an argument again, and an unmeasured one.
+
+## (c5) gen #33 — "LIVE-SIDE ONLY" IS NOT "MIRROR-INERT": THE MIRROR IS TYPE-CHECKED AGAINST THE **LIVE** CALLEE
+
+**Carrier: my own repair, and my own written justification for it.** Route #228's guard was first
+placed inside `module6_whyml/identifiers.py::stable_hash`, on this reasoning — stated in the commit
+message *and* in the code comment, twice, confidently:
+
+>>> "LIVE-SIDE ONLY: the mirror's `stable_hash` is `\trusted` so no fidelity/re-proof cost."
+
+`check-mirror-type-only` refuted it:
+
+    statements.mlw:2280   hash_field := (stable_hash !field);
+    this expression raises unlisted exception PyCSLSemanticError
+
+**The mirror is emitted with `--import-path src/pycsl`.** So when
+`src/self-annotate/src/module6_whyml/statements.py` calls `stable_hash`, the import resolves to the
+**LIVE** `identifiers.py` — the mirror's own `\trusted` copy is never read for that call at all.
+Adding a `raise` to a shared leaf helper is therefore inherited by **every mirror that calls it**, and
+it arrives not through the fidelity plane (which compares BODIES) but through the **exception set**,
+which is part of the caller's proof obligation.
+
+>>> **`\trusted` ON THE MIRROR'S OWN COPY SHIELDS NOTHING AGAINST AN IMPORT. Before calling a
+>>> live-only edit free, ask WHICH MIRRORS CALL IT — and if the edit adds a `raise`, every one of them
+>>> owes the exception.** `grep -rln '<helper>' src/self-annotate/src/` is the whole check, and it
+>>> costs a second. Measured here: 3 mirror files call `stable_hash`.
+
+TWO RIDERS, both paid for:
+
+* **VERIFY BOTH ENDS.** I did not assume the plane had been green — I emitted the same mirror in a
+  worktree at the pre-change commit (L3-tc ✓) and at HEAD (fails). A plane that is RED now is only
+  *yours* if it was GREEN then, and the worktree makes that a measurement rather than an inference.
+* **THE FIX FOR A MIS-PLACED GUARD IS USUALLY TO NARROW ITS HOME, NOT TO WEAKEN IT.** The refusal
+  moved to `expressions.py::_handle_struct_call` — the one destination route #228 measured as able to
+  conclude a falsehood — whose mirror twin IS `\trusted` and which no mirror file but its own
+  mentions. The generality that was lost is *already* provided by an existing plane
+  (`check-hashed-literal-purity`, "a pure `val function` applied to a hash-range constant"), so the
+  narrowing costs nothing real. **Check what already covers the residue before widening a guard back
+  out.**

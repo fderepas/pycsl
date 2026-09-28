@@ -362,6 +362,19 @@ START (standing), not as an interrupt. Rules:
   and keeps the premise probabilistic, which is route #227's lesson in a new costume. Also check the
   **MODULUS** — a `% 100000` applied after the hash is four orders of magnitude more collidable per
   pair than the hash itself.
+- **CARVE-OUT (lesson (c5), gen #33) — "LIVE-SIDE ONLY" IS NOT "MIRROR-INERT"; THE MIRROR IS
+  TYPE-CHECKED AGAINST THE **LIVE** CALLEE.** The mirror is emitted with
+  `--import-path src/pycsl`, so a mirror's call to a helper resolves to the LIVE definition and
+  NEVER reads the mirror's own `\trusted` copy. Adding a `raise` to a shared leaf is therefore
+  inherited by every mirror that CALLS it — arriving through the EXCEPTION SET, not through the
+  fidelity plane, which compares bodies. Measured: route #228's guard in
+  `identifiers.py::stable_hash` made emitted `statements.mlw` fail `--type-only` outright
+  ("this expression raises unlisted exception PyCSLSemanticError"), and 3 mirror files call that
+  helper. **`grep -rln '<helper>' src/self-annotate/src/` before calling any live-only edit free.**
+  Two riders: (i) **verify BOTH ends** — a plane that is RED now is only YOURS if it was GREEN
+  then, and a worktree at the pre-change commit makes that a measurement; (ii) **the fix for a
+  mis-placed guard is to NARROW ITS HOME, not to weaken it** — and check what ALREADY covers the
+  residue (here an existing plane did) before widening it back out.
 - **Escalate-not-thrash, time-aware.** A per-wall attempt budget still applies; additionally, do not START
   a full cycle whose fable-review + spike cannot plausibly finish before the deadline — defer it (record
   the wall-signal for the next run) and spend the tail on cheaper items.
