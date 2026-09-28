@@ -203,6 +203,48 @@ capabilities, in increasing cost:
 Note (i) is a DECLARATION-keyed fence, so it is strictly weaker than (ii): a heterogeneous dict
 with no annotation (the shape `src/pycsl/errors.py::as_dict` actually has) is outside it.
 
+### #71 gen #32 — THE ABSTRACT-`val` SURFACE IS UNMEASURED, AND ITS SIZE IS 3408
+
+2026-09-28T09:55Z. Fell out of #70's correction: converting a FORWARDER moves trust from a COUNTED
+`#@ \trusted` marker to an UNCOUNTED auto-synthesized abstract `val`. That raised the obvious
+question — how big is the surface trust can migrate INTO? Measured over the 53 current mirror
+emissions:
+
+    abstract `val` declarations   **3408**
+    distinct names                **1629**
+    counted `\trusted` markers       449
+
+**DO NOT READ 3408 AS "3408 UNITS OF HIDDEN TRUST" — the composition is unclassified and that is
+exactly the work.** The population visibly mixes at least four different things:
+
+  * **CERTIFIED THEORY PRIMITIVES**, deliberate and often carrying a cited proof — `pystr_eq` (27
+    files), `hpairs_key_eq` (21), `str_concat_op` (21), `set_add` (23), the `hval_*` readers (21
+    each). These are reviewed abstractions, not drift.
+  * **ROUTE-SPECIFIC OPAQUES**, deliberate and documented — `pycsl_none` (18 files) is route #44's
+    repair, and the whole point of it is to have no defining axiom.
+  * **IMPORT-BOUNDARY STUBS** — a method crossing an import becomes a `val` in the importer even when
+    its defining file PROVES it. `pycslerror__as_dict` appears as an abstract `val` in **14** files
+    AFTER gen #32 converted it, which is the ordinary modular-verification story and is correct.
+  * **AUTO-SYNTHESIZED SIBLING STUBS** — the category #70 is about, created because a called name is
+    not declared in the file being verified. This is the one where trust can arrive silently.
+
+WHAT IS ACTUALLY MISSING: no plane reports this number and none ratchets it.
+`bin/count-trusted-directives.py` counts `#@ \trusted` MARKERS; `bin/check-untrusted-emitted.py`
+checks that un-trusted functions ARE emitted as definitions (922 un-trusted, 0 `val`, 0 absent). So
+both look at the DECLARED side. Nothing looks at how much of each emission is abstract, which means
+the campaign's headline number can fall while the verified artifact assumes exactly as much.
+
+THE WORK, and it is a census before it is a gate:
+  1. Classify the 1629 distinct names into the four buckets above — mechanically where possible (a
+     name declared in `_add_abstract_op` call sites vs one synthesized for an undeclared callee) and
+     by hand for the residue.
+  2. Report per-emission counts, and ratchet ONLY the auto-synthesized-sibling bucket. Ratcheting the
+     total would be wrong: adopting a certified value model RAISES it on purpose (gen #32's hval
+     propagation added ~5 `val`s x 12 files and every one is certified).
+  3. Then #70's forwarder conversions can be judged honestly, because the migration would be visible.
+**Until (1) exists, judge a conversion by whether its body DESCENDS REAL STRUCTURE, not by the count.**
+COST/SCALE.
+
 ### #70 gen #32 — THE 24 CROSS-MIXIN `\trusted` STUBS: TWENTY-FOUR MARKERS FOR **FIVE** RE-PROOFS
 ### (the largest measured cluster on the board, and the capability to convert them ALREADY EXISTS)
 

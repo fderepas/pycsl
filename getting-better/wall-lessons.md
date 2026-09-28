@@ -8338,3 +8338,40 @@ Order such a battery SMALLEST FIRST so a systemic problem shows up in minutes in
 Corollary for the ranking of future conversions: a stub in a LEAF module is cheaper than an
 identical stub in a seed module, by exactly the number of importers. That belongs in the triage, and
 nothing in it currently says so.
+
+## (l4) gen #32 — A CONVERSION THAT FORWARDS TO AN UNDECLARED CALLEE MOVES TRUST FROM A COUNTED MARKER TO AN UNCOUNTED ABSTRACT `val`
+
+Backlog #70 named 24 `\trusted` cross-mixin stubs — type shims with false bodies (`return False`,
+`return ""`) — each with a real live implementation and each convertible by `#@ sibling_concrete`.
+24 markers for FIVE file re-proofs looked like the best trade on the board.
+
+Reading the live bodies before touching it changed the ordering. The two SMALLEST are pure
+forwarders:
+
+    def _e(self, ir: Dict, lr: Set[str]) -> str:
+        return self._expr_to_whyml(ir, lr)
+
+and `_expr_to_whyml` is NOT declared in the destination files, so a call to it there AUTO-SYNTHESIZES
+an abstract `val`. Converting `_e` yields `let _e x y = <abstract val> x y`: the marker retires, the
+caller learns nothing new about the value, and the assumption simply moves to a symbol nothing counts.
+
+>>> **THE COUNT FALLS AND THE TRUST DOES NOT.** This is metric-gaming without anyone intending it,
+>>> and it is a DIFFERENT failure from gen #31's six hollow conversions. There, arguments were
+>>> ERASED, so `check-emitted-vacuity` could see it. Here nothing is erased — both arguments are
+>>> forwarded faithfully — so **the vacuity planes pass it**. No instrument in the repo would object.
+
+Two rules:
+
+* **Judge a conversion by whether its body DESCENDS REAL STRUCTURE, not by the count it moves.**
+  `_expr_to_whyml_string_ctx` (24 lines: dispatches `StrConcat`/`String`/`Var`, recurses, reads
+  `self._ghost_string_vars`) is worth converting. `_e` (3 lines, forwards) is not, on its own.
+* **Convert a forwarder ONLY as a side effect of relocating its target.** If the target is a
+  CERTIFIED-BOUNDARY, the forwarder stays `\trusted` and that is the honest outcome, not a missed -1.
+
+And the measurement that makes the hazard concrete (backlog #71): the 53 mirror emissions declare
+**3408 abstract `val`s, 1629 distinct**, against 449 counted markers — and NO plane reports or
+ratchets that number. Most of it is legitimate (certified theory primitives like `pystr_eq` and the
+`hval_*` readers, route #44's deliberate `pycsl_none`, and ordinary import-boundary stubs — a method
+crossing an import becomes a `val` even when its defining file proves it). The point is not that 3408
+is bad; it is that **the surface trust can migrate into is unmeasured, so the headline number can
+fall while the artifact assumes exactly as much.**
