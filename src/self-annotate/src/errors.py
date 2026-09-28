@@ -70,6 +70,17 @@ class PyCSLError(Exception):
         return f"{header}: {msg}" if header else msg
 
     # super().__str__() is opaque (Exception base); returns string but PyCSL cannot see that
+    # (#49) gen #32 — `#@ sibling_concrete` BECAUSE `as_dict` NOW CALLS THIS. Converting `as_dict`
+    # made `self.message()` a live intra-class call site, and the DEFAULT lowering for such a call
+    # is a receiver-less abstract `val self_message_0` whose result is unconstrained — so
+    # `check-shadowed-selfcalls` went 14 -> 15 with "a conversion landed whose body no caller can
+    # see". That is the honest complaint: `as_dict` would have been proved while the one entry of
+    # its map that comes from a method call stayed invisible. The marker is the sanctioned opt-in
+    # (Module2 `SiblingConcrete`: "an intra-class `self.<m>()` call to THIS method is lowered to a
+    # CONCRETE call, so the caller gets the real method's full contract"), and this is exactly the
+    # documented use — a cheap leaf whose guarantee the caller absorbs as an atom. The ratchet is
+    # NOT raised; the cause is fixed.
+    #@ sibling_concrete
     def message(self) -> str:
         """The bare human message (no stage/file/line header, no code)."""
         return super().__str__()

@@ -12456,3 +12456,36 @@ RELAUNCHED at CURRENT HEAD in a fresh frozen worktree with `timeout 108000` (30 
 rather than at `1b2f676e` deliberately: the tree has moved (the hval propagation touched 15 mirrors,
 all individually re-proved 15/15), so a verdict about the OLD tree would answer a question nobody is
 asking, and member #1 should now PASS.
+
+## 12:13Z GATE ERR: ONE PLANE RED OF SEVENTY-NINE, AND IT CAUGHT MY OWN CONVERSION
+    corpus byte-diff   1379 / 1379 — 0 MOVED · 0 GONE · 0 APPEARED       AS PREDICTED
+    pyref  byte-diff   2199 / 2199 — 0 MOVED · 0 GONE · 0 APPEARED       AS PREDICTED
+    suite              **4034/4052 — 3136 PASS / 898 XFAIL / 18 FAIL, `grep -c XPASS` = 0**  AS PREDICTED
+    planes --slow      **78 of 79.** I predicted 79/79. **RED: `check-shadowed-selfcalls.py`**
+                       "15 > allowed 14 — a conversion landed whose body no caller can see."
+THE RED IS MINE AND THE PLANE IS RIGHT. The 15th entry is
+`errors.mlw::self_message_0 shadows pycslirerror__message`, 4 bypassing uses / 0 concrete. Converting
+`as_dict` gave `self.message()` its FIRST live intra-class call site, and the DEFAULT lowering of such
+a call is a receiver-less abstract `val self_message_0 () : string` whose result is unconstrained. So
+`as_dict` would have been banked as PROVED while the one entry of its map that comes from a method
+call stayed invisible — the map's `"message"` slot reading an opaque nullary op.
+>>> I WROTE LESSON (l4) ABOUT EXACTLY THIS HAZARD ONE INCREMENT EARLIER AND THEN WALKED INTO ITS
+>>> SIBLING SHAPE. (l4) is "a conversion that forwards to an UNDECLARED CALLEE moves trust to an
+>>> uncounted abstract val"; this is "a conversion whose own CALL SITE is shadowed reaches an
+>>> unconstrained val for the same reason". Same mechanism, other end of the call. **Writing a lesson
+>>> down is not the same as having internalised it, and the only thing that actually stopped me was a
+>>> plane.** That is the argument for the gate battery in one line.
+THE FIX IS THE CAUSE, NOT THE BASELINE. `#@ sibling_concrete` on the mirror's `message()` — the
+sanctioned opt-in, whose own Module2 docstring says "an intra-class `self.<m>()` call to THIS method
+is lowered to a CONCRETE call (so the caller gets the real method's full contract)" and prescribes it
+for "cheap-to-maintain leaf writers", which a two-line `return super().__str__()` is exactly.
+    shadowed-selfcalls   **14 of 14 (ratchet 14), 119 bypassing** — the EXACT pre-conversion figures
+    mirror errors.py     still `[+] Verification SUCCESS`
+    the emitted call     `"message" (HStr (**pycslerror__message self**))`, was `(self_message_0 ())`
+So the conversion is now STRICTLY STRONGER than when I first banked it: the abstract
+`val self_message_0` is GONE from the emission and the caller sees `message`'s real contract. **The
+ratchet was never touched.**
+4 MIRRORS MOVED and all four are re-proving now (lesson (r)): `errors` (90-line diff — the val
+removed, the functions reordered so the concrete callee precedes its caller), and `ir_schema`,
+`core_ir_semantic`, `pycsl` (6/6/18-line diffs, pure REORDERING of the `val pycslerror__message`
+declaration). All four were in the earlier fifteen, so their costs are known: <1s, <1min, 1h17m, 36m.
