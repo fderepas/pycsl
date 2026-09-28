@@ -12399,3 +12399,35 @@ re-proofs, now launched. PREDICTION: all 15 prove, the only real risk being a TI
 `expressions.py` / `statements.py` from 62 more symbols in an already-large file; and those three are
 exactly the ones whose diff is 4 lines, so the risk is lower than the file sizes suggest. Ordered
 SMALLEST FIRST so a systemic problem shows in minutes instead of hours.
+
+## 09:33Z THE FIFTEEN OWED RE-PROOFS ARE ALL GREEN — 15 of 15, ZERO non-Valid
+Ran 03:24:11Z -> 09:32:59Z (6h09m), smallest-first, concurrency TWO. Every single one rc=0,
+`Verification SUCCESS`, `nonvalid=0`:
+    exec_splice 2m21s · import_classifier 2m22s · Module1_Ingestor 13s · ConcurrencyChecker 13s
+    ir_schema <1s · ir_inline 3m05s · Module3_Weaver 3m11s · monomorphize 5m32s
+    pycsl 36m22s · core_ir_semantic 1h17m · Module2_Parser 6m59s
+    expressions **2h21m** · Module5_IREmitter 1h07m · statements **2h19m**
+    (errors.py itself was proved before the batch.)
+PREDICTION EXACT, including its named risk: "all 15 prove, the only real risk being a TIMEOUT on
+`expressions.py`/`statements.py` from 62 more symbols in an already-large file; and those three are
+exactly the ones whose diff is 4 lines, so the risk is lower than the file sizes suggest." It did not
+fire, and the two 2h20m proofs are the measurement that says so rather than the guess that hoped it.
+So the M1 discipline is satisfied in BOTH conditions for the hval propagation: (a) the diff is exactly
+the intended certified axiom-free theory block, inspected, nothing incidental; (b) every one of the
+fifteen affected programs still proves.
+SAS meanwhile is at 25 of 40 — 24 PASS / 1 FAIL — having cleared `stmt_control_flow`, `preamble` and
+`core_ir_semantic`. Its one FAIL is `src/pycsl/errors.py`, which THIS increment fixes; the suite is
+reading a FROZEN worktree at `1b2f676e`, so its verdict is the honest pre-repair measurement and
+`errors.py` must be re-measured alone afterwards (it has been: `[+] Verification SUCCESS`).
+
+PREDICTIONS FOR THE FINAL GATE of this increment, written before launching:
+  corpus byte-diff   **0 MOVED · 0 GONE · 0 APPEARED** on BOTH trees. `src/pycsl/errors.py` is
+                     compiler source and no corpus program imports it; the mirror change cannot reach
+                     the corpus at all. Baseline is this generation's `bd_after2` (post-#63,
+                     pre-errors), which is the correct pre-image. TWO comparisons (lesson (c4)).
+  mirror byte-diff   15 MOVED, ALREADY MEASURED and diffed file by file; all fifteen re-proved above.
+  planes --slow      **79 of 79 GREEN** (78 at gate 63, +1 for backlog #67's newly-registered
+                     `check-sibling-concrete-field-decls`), with count-trusted-directives now
+                     reporting **449** and trusted-reasons 449 rows / unclassified 285.
+  suite              **4034/4052**, the standing EIGHTEEN, ZERO XPASS — unchanged, because the corpus
+                     emission cannot move. FULL log kept and `[XPASS]` grepped (lesson (d4)).
