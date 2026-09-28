@@ -154,7 +154,11 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        lines, ZERO new abstract operations, green whole-file proof in 38 minutes. Its
 #        near-twin `pycsl.py::_parse_args` is 174 lines, also proves, and is REFUSED by check
 #        1 for TEN new abstract operations — the whole of `argparse` going uninterpreted.
-MAX_UNCLASSIFIED = 286   # (#49) gen #31, 2026-09-26T15:10Z — 287 -> 286, TIGHTENED by
+MAX_UNCLASSIFIED = 285   # (#49) gen #32, 2026-09-28 — 286 -> 285, TIGHTENED by CONVERTING
+                         # `errors.py::PyCSLError.as_dict`: its `\trusted` comment said
+                         # "PyCSL cannot model dict construction here yet" and the certified
+                         # `hval` model now can, so the body proves instead of being assumed.
+                         # (#49) gen #31, 2026-09-26T15:10Z — 287 -> 286, TIGHTENED by
                          # increment T: `Module5_IREmitter.py::_array_init_size` was RETIRED
                          # (it proved), so its `unclassified` row is gone.
                          # PRIOR ENTRY: 2026-09-26T13:05Z — 286 -> 287, RAISED BY ONE, and

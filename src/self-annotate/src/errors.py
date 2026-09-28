@@ -6,6 +6,22 @@ strings (modeled as the Why3 `string.String` value type). The class invariant
 ``self.line >= 0`` is enforced by `__init__` — the only mutator —
 under the precondition that the caller passes a non-negative value.
 """
+from typing import Any, Dict
+
+# (#49) gen #32 — `PyVal` SELECTS THE CERTIFIED HETEROGENEOUS VALUE MODEL. `as_dict`
+# returns `{code: str, stage: str, filename: str, line: int, message: str}` — a
+# HETEROGENEOUS dict — and the emitter infers ONE value type per map, so with no
+# annotation it chose `map int (option int)` and Why3 rejected the three string fields.
+# This file is member #1 of `bin/run-self-annotation-suite.sh` and had been the suite's
+# only failure since the diagnostics feature landed, unobserved because that oracle had
+# no scheduled runner until window #8.
+# `Dict[str, PyVal]` selects the `hval` sum (HStr | HInt | HArr | HMap | HNode), proven
+# axiom-free by the fable oracle and co-landed with the Rocq/Lean Phase2f_PyVal cert, so
+# each value is tagged by its real kind instead of erased to an int. MEASURED: the
+# codomain is selected from a DECLARED LOCAL or PARAM and NOT from a return annotation
+# (backlog #69), which is why the literal is bound to `_d` before being returned.
+# `PyVal = Any` at runtime, so nothing about the returned dict changes.
+PyVal = Any
 
 
 #@ class invariant self.line >= 0
@@ -58,21 +74,29 @@ class PyCSLError(Exception):
         """The bare human message (no stage/file/line header, no code)."""
         return super().__str__()
 
-    #@ \trusted reviewer: pycsl-self-annotate
-    # builds a dict (PyCSL cannot model dict construction here yet)
-    def as_dict(self) -> dict:
+    # (#49) gen #32 — CONVERTED. This was `#@ \trusted reviewer: pycsl-self-annotate` with the
+    # comment "builds a dict (PyCSL cannot model dict construction here yet)", and that comment
+    # is what went out of date: the certified heterogeneous `hval` model selected by
+    # `Dict[str, PyVal]` models exactly this dict, so the body proves instead of being assumed.
+    # The live twin needed the same change for a different reason — it was the self-annotation
+    # suite's only FAILURE — so one repair both retires a marker here and turns that oracle green.
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def as_dict(self) -> Dict[str, PyVal]:
         """Structured, machine-readable view of this diagnostic.
 
         Returns ``{code, stage, filename, line, message}``. The ``message`` is the
         bare human message (identical to what callers have always matched); the
         ``code`` is the new structural field (empty string if unassigned)."""
-        return {
+        _d: Dict[str, PyVal] = {
             "code": self.code,
             "stage": self.stage,
             "filename": self.filename,
             "line": self.line,
             "message": self.message(),
         }
+        return _d
 
 
 class PyCSLParseError(PyCSLError):

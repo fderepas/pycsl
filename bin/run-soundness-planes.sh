@@ -69,6 +69,20 @@ PLANES=(
     # question) and it is GREEN at 53/53 in 6 seconds. It asks what nothing else asks: has a def
     # been RENAMED, lost a parameter, or appeared in the mirror with no live counterpart at all.
     self-annotate-mirror-check.sh
+    # (#49) gen #32 — backlog #67, THE COMPLEMENT OF THE PLANE ABOVE. `#@ sibling_concrete`
+    # copies a method BODY into a destination mirror file and does NOT copy the field
+    # DECLARATIONS that body reads. Backlog #63 paid for it: the re-ported `_field_type_of`
+    # reads `_record_field_elem_locals`, the body's ORIGINAL home (`types.py`) declares it
+    # `Dict[str, str]`, the destination did not, so the untyped `getattr` default made it an
+    # opaque INT map and the file failed L3-tc. One declaration fixed it. Neither existing
+    # plane could see the drift: `check-mirror-field-parity` compares mirror-vs-LIVE and walks
+    # ClassDef bodies (live keeps most of these fields in `__init__`, so they are outside its
+    # 335 — lesson (j4)), and `check-sibling-concrete-fidelity` compares BODIES and was green
+    # on this defect until the re-port made the body USE the field. So the old check fired on
+    # the next RE-PORT rather than on the DRIFT; this one fires on the drift. Pure static
+    # analysis, ~1s. MISSING 5 (ratchet, may only shrink) / MISMATCH 2, allowlisted BY NAME
+    # with the reason rather than tolerated by a count.
+    check-sibling-concrete-field-decls.py
     check-mirror-field-parity.py
     check-mirror-loop-annotations.py
     check-mirror-signature-drift.py
@@ -342,10 +356,11 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
+# (#49) gen #32: 50 -> 51 with `check-sibling-concrete-field-decls.py` (backlog #67).
 # (#49) gen #31: 48 -> 49 with `check-sibling-concrete-fidelity.py`, 49 -> 50 with
 # `self-annotate-mirror-check.sh` (declared a gate in five documents, collected by no
 # battery until now — lesson (u6)).
-MIN_PLANES=50
+MIN_PLANES=51
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #

@@ -12357,3 +12357,45 @@ CLOSING the 5 MISSING is COST/SCALE and deliberately NOT done here: each declara
 emitted WhyML (that is precisely what #63's did) and so owes a whole-file re-proof of
 `Module6_WhyMLTranspiler.py`, `functions.py` and `statements.py` — three of the largest mirrors. The
 ratchet holds them at 5 and may only shrink; the model gets STRICTLY better as each is declared.
+
+## 03:40Z A CONVERSION — 450 -> **449** — AND THE SELF-ANNOTATION SUITE'S ONLY FAILURE IS FIXED BY
+## THE SAME REPAIR
+`errors.py::PyCSLError.as_dict` was `#@ \trusted reviewer: pycsl-self-annotate` with the comment
+"builds a dict (PyCSL cannot model dict construction here yet)". **That comment is what had gone out
+of date.** The certified heterogeneous `hval` model — `HStr | HInt | HArr hval_list | HMap hpairs |
+HNode`, proven axiom-free by the fable oracle and co-landed with the Rocq/Lean `Phase2f_PyVal` cert —
+models exactly this dict. So the marker is retired and the body PROVES.
+And the LIVE twin needed the same change for a completely different reason: `src/pycsl/errors.py` is
+member #1 of `bin/run-self-annotation-suite.sh` and was that oracle's ONLY failure, red since the
+diagnostics feature landed. **One repair retires a marker and turns the suite's first member green.**
+    markers                449  (was 450) · grep-substring 477 · offset **28** (was 27; my own new
+                           comment quotes the marker, and the plane reports it)
+    live errors.py         `[+] Verification SUCCESS` — was `L3-tc ✗`
+    mirror errors.py       `[+] Verification SUCCESS`
+    trusted-reasons TSV    synced, 449 rows, orphan 0; unclassified 285, ratchet TIGHTENED 286 -> 285
+NON-VACUITY — the emitted body, verbatim, and this is what a faithful conversion looks like:
+    let pycslerror__as_dict (self: pycslerror) : map string (option hval) = ...
+      map_update_some (... (const (None: option hval)) "code" (HStr self.pycslerror_code))
+        "stage" (HStr self.pycslerror_stage) "filename" (HStr self.pycslerror_filename)
+        "line" (**HInt** self.pycslerror_line) "message" (HStr (self_message_0 ()))
+NATIVE string keys (not hashed), each value TAGGED BY ITS TRUE KIND — `HInt` for `line` and `HStr`
+for the four strings — reading the REAL record fields, in a `let` with a body, and the
+`assigns \nothing` frame discharged by four `old` equalities. Not a facade.
+>>> MY EMISSION PREDICTION WAS BADLY WRONG AND THAT IS THE POINT OF MAKING IT. I predicted **2**
+>>> mirrors would move (`errors`, and `pycsl` which is the only caller of `as_dict`), reasoning from
+>>> the emitter's own log line "Imported class from 'errors': ... + 0 method stub(s)". The sweep says
+>>> **15 MOVED**. Reading the diff of a file that does NOT call `as_dict` (`frontend__ir_inline`)
+>>> gives the cause at once: it gains the entire ~62-line `hval` THEORY, because the module it
+>>> imports now uses that model. Twelve files gain the theory verbatim; `errors` gains theory +
+>>> converted body (116); `pycsl` 18; and `Module5_IREmitter` / `expressions` / `statements` only 4
+>>> lines each because they ALREADY carry the theory. **LESSON (k4): A VALUE MODEL IS NOT A PRIVATE
+>>> CHOICE OF THE FILE THAT ADOPTS IT — IT PROPAGATES THROUGH THE IMPORT GRAPH AS A PREAMBLE.** The
+>>> "0 method stubs" line is about the METHODS crossing the boundary and says nothing about the
+>>> THEORY crossing it. Before adopting a value model in a widely-imported module, count the
+>>> importers, because that is the re-proof bill.
+The diff is ADDITIVE and semantics-preserving in all fifteen — a certified axiom-free theory block,
+no existing function altered — which is the M1 condition (a). Condition (b) is the 15 whole-file
+re-proofs, now launched. PREDICTION: all 15 prove, the only real risk being a TIMEOUT on
+`expressions.py` / `statements.py` from 62 more symbols in an already-large file; and those three are
+exactly the ones whose diff is 4 lines, so the risk is lower than the file sizes suggest. Ordered
+SMALLEST FIRST so a systemic problem shows in minutes instead of hours.
