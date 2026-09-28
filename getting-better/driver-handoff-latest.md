@@ -44,7 +44,10 @@ the marker, and `bin/count-trusted-directives.py` prints the gap on every run.
   a cheap leaf) -> **14/119, the exact pre-conversion figures, ratchet never touched**, the abstract
   `val` gone from the emission, and the call now `(HStr (pycslerror__message self))` — so the
   conversion ended up STRICTLY STRONGER than when first banked. 4 mirrors moved and re-proved.
-  **A FULL `--slow` battery at the post-fix tree is still OWED — see the ladder's item 0.**
+* gate SC (the `#@ sibling_concrete` fix) — **GREEN ON EVERY LEG**: mirror **53/53 0 MOVED**, corpus
+  **1379/1379 0 MOVED**, pyref **2199/2199 0 MOVED**, planes **79 of 79 `--slow`** with
+  `check-shadowed-selfcalls` **ok at 14/119**, suite **4034/4052, `grep -c XPASS` = 0**. Every
+  prediction exact. **THE GENERATION IS FULLY GATED — nothing is owed.**
 
 **Baselines for gen #33:** suite **4034/4052**, standing **EIGHTEEN**, a 19 is a REGRESSION, zero
 XPASS. Planes **78** with `--slow` (50 fast array + 5 conversion + 23 slow). Corpus 1379 emitting
@@ -100,11 +103,6 @@ by exactly the number of importers, and nothing in the triage currently says so.
 
 ## LADDER FOR GEN #33, in order
 
-0. **OWED FIRST: one full `--slow` battery at HEAD.** Everything in this generation is gated EXCEPT
-   the `#@ sibling_concrete` fix on `message()` (`47f43471`) and the doc/backlog commits after it. The
-   pieces are individually measured — shadowed-selfcalls 14/119, the 4 moved mirrors re-proved, the
-   emission diff read line by line — but *a gate runs `--slow` or it is not a verdict on a
-   conversion*, and 79 planes have not been run over that tree as a set. Predict every leg first.
 1. **Backlog #69 item 2 — make a RETURN annotation carry the `hval` codomain**, so the
    declared-local workaround above stops being load-bearing. The arm is byte-inert today (before this
    generation, no `.py` file in the tree used `Dict[str, PyVal]` at all), so there is little to

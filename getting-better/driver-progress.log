@@ -12506,3 +12506,29 @@ PREDICTIONS FOR GATE SC (the owed `--slow` battery over the `#@ sibling_concrete
   planes --slow      **79 of 79 GREEN**, and specifically `check-shadowed-selfcalls` at **14 (ratchet
                      14) / 119 bypassing** — the number whose 15 opened this whole sub-increment.
   suite              **4034/4052 — 3136 PASS / 898 XFAIL / 18 FAIL, `grep -c XPASS` = 0**.
+
+## 16:21Z GATE SC IS GREEN ON EVERY LEG — THE GENERATION IS FULLY GATED
+Ran 13:39:48Z -> 16:21:54Z (2h42m). EVERY prediction exact, including the one number this
+sub-increment existed for.
+    mirror byte-diff   53 / 53 — 0 MOVED · 0 GONE · 0 APPEARED   (vs `mir_after5`: nothing moved
+                       since, so the doc commits really were doc commits — asserted, not assumed)
+    corpus byte-diff   1379 / 1379 — 0 MOVED · 0 GONE · 0 APPEARED
+    pyref  byte-diff   2199 / 2199 — 0 MOVED · 0 GONE · 0 APPEARED
+    planes --slow      **79 of 79 GREEN**, `check-shadowed-selfcalls` **ok** at 14 / 119
+    suite              **4034/4052 — 3136 PASS / 898 XFAIL / 18 FAIL, `grep -c XPASS` = 0**
+So the `#@ sibling_concrete` repair is GATED, and with it the whole `as_dict` conversion: the marker
+count stands at **449**, down one, with the emitted body tagging each value by its true kind and its
+`message()` call now CONCRETE rather than a receiver-less abstract op.
+
+STANDING NUMBERS, gen #32 final
+    markers                       **449**  ·  grep-substring 477  ·  offset 28  ·  unattached 0
+    planes                        **79/79 --slow** (51 fast array + 5 conversion + 23 slow)
+    suite                         4034/4052, standing EIGHTEEN, ZERO XPASS
+    sibling-concrete fidelity     25 SAME / 0 DIVERGING / 0 unresolved  (baseline now the EMPTY SET)
+    sibling-concrete field decls  MISSING 5 / MISMATCH 2, all justified by name   (NEW plane)
+    assigns-writes survival       TRAP 2989 / HOLE 0                              (NEW plane)
+    shadowed-selfcalls            14 / 119 bypassing  (ratchet 14, NEVER raised)
+    refusal witness coverage      207 demonstrated (floor 206 -> 207) / 5 undemonstrated
+    refusal advice audited        128 of 133 (floor 116 -> 128); advice-bearing 121 -> 133
+    trusted-reasons               449 rows, unclassified 285 (ratchet 286 -> 285)
+    stdlib-modules-verify         104 modules, 84 VERIFY — gen #31's standing RED is RETIRED
