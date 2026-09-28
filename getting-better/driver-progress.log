@@ -12608,3 +12608,34 @@ not get a third from me without a measurement.
 >>> the sweep is now committed as `getting-better/open-routes/harvest-stub-comment-verdicts-gen32.py`.
 >>> RE-RUN IT WHENEVER THE RATCHET STALLS: it converts prose somebody already paid for into a
 >>> classification the gate can enforce, at no prover cost.
+
+## 19:05Z THE SCREEN EXISTS, AND IT REFUTES MY BEST-ROI BATCH IN FOUR MINUTES
+`bin/probe-conversion-candidates.py` is exactly #72 step 2's instrument and it was already in `bin/`:
+it ports the live body un-trusted, emits, CLASSIFIES, and ALWAYS restores (a `finally`, so a crash or
+a Ctrl-C still restores). Run in the FOREGROUND on `Module2_Parser.py` — my ranked-best batch, 19
+shortlist markers behind a 6m59s re-proof — over all 24 of its candidates:
+    **1 CLEAN · 23 L3TC-FAIL · 0 actionable**
+and the single CLEAN is `_ContractParser._err`, which backlog #73 had ALREADY harvested as
+"gen #31 — RE-TRUSTED. `check-emitted-vacuity`: erased=['msg'] of ['msg'] — INPUT-BLIND". Tried,
+reverted, recorded. **So the file I ranked first has ZERO convertible markers.**
+>>> **CALIBRATION, AND IT IS THE POINT OF THE SITTING: MY PREFLIGHT SAID 17 CLEAR FOR THIS FILE AND
+>>> THE SCREEN SAYS 0 CONVERTIBLE.** The preflight is CALL-shaped; the dominant blocker here is the
+>>> TYPE seam, which I documented it cannot see — and now that limitation is MEASURED rather than
+>>> disclaimed. **The preflight must not be used to RANK candidates. The screen ranks candidates; the
+>>> preflight only cheaply excludes the ones a known method-wall already kills.**
+THE RANKED BLOCKER TABLE for the 23, which is what the screen's docstring says is the real output:
+    `emit_ir` vs `int` and friends (the int-erasure seam)      ~10
+    heterogeneous list literal, with the emitter's own full
+      diagnostic ("a Python list is heterogeneous but a WhyML
+      `array` is homogeneous ... Coercing would be UNSOUND")    1  (`_parse_assigns_target`)
+    HIGHER-ORDER — "type int, it cannot be applied"             2  (`_try`, `_parse_quantifier`)
+    tuple/seq typing `(string, seq string)` vs `(int, int)`     1  (`_parse_variant_def`)
+    unlisted exception `PyCSLParseError`                        1  (`parse_contract`)
+    `syntax error` — the emitter produced INVALID WhyML         2  (`_parse_contract`, `_parse_atom_name`)
+    unbound symbol (`'i'`, `'toks'`)                            2
+The two `syntax error` rows are worth a second look by someone: an emitter that produces
+syntactically invalid WhyML for a ported body is a different class of defect from a type mismatch.
+COST: ~10 s per candidate, no proof time. The WHOLE 449-marker population is ~75-120 minutes of
+screening, which is the affordable path to a definitive conversion queue — and it must run in the
+FOREGROUND, one file per call, because a port->emit->REVERT census that outlives its turn is the
+ownerless-writer failure. Tree verified clean after the run; markers still 449.
