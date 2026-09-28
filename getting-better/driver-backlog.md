@@ -203,6 +203,72 @@ capabilities, in increasing cost:
 Note (i) is a DECLARATION-keyed fence, so it is strictly weaker than (ii): a heterogeneous dict
 with no annotation (the shape `src/pycsl/errors.py::as_dict` actually has) is outside it.
 
+### #70 gen #32 — THE 24 CROSS-MIXIN `\trusted` STUBS: TWENTY-FOUR MARKERS FOR **FIVE** RE-PROOFS
+### (the largest measured cluster on the board, and the capability to convert them ALREADY EXISTS)
+
+2026-09-28T09:50Z. **TOP OF THE COUNT LADDER.** Found by the cheapest possible generator: after
+`as_dict` converted because its `\trusted` comment named a capability the campaign had since built,
+I grepped every marker's ADJACENT COMMENT for capability language ("cannot", "not supported", "no
+model", "yet"). Eleven hits; one CLUSTER.
+
+`bin/check-sibling-concrete-fidelity.py` prints "**24 `\trusted` cross-mixin stub(s) (by design)**"
+and NEVER NAMES THEM. They are mirror-only defs that are `\trusted`, i.e. TYPE SHIMS WITH FALSE
+BODIES — `return False`, `return ""` — whose stated purpose is only "so the reflecting mirror
+type-checks the call". Each has a REAL live implementation elsewhere, and `#@ sibling_concrete` is
+exactly the directive that relocates a sibling's real body concretely. **Twenty-five relocations
+already use it**, and gen #32 just built the plane that makes them safe
+(`bin/check-sibling-concrete-field-decls.py`, backlog #67: a relocation must bring the field
+declarations its body reads).
+
+**ALL 24 HAVE A LIVE DEF. THE RE-PROOF UNIT IS THE FILE, NOT THE STUB** — which is why this is worth
+so much: "prefer ONE battery over N sibling repairs" applies, and 24 markers cost FIVE re-proofs.
+
+    12  src/self-annotate/src/module6_whyml/statements.py            (1984 lines; measured 2h19m)
+     8  src/self-annotate/src/module6_whyml/stmt_control_flow.py     (1603 lines)
+     2  src/self-annotate/src/module6_whyml/expr_ghost_spec_ops.py   ( 123 lines)   <-- CHEAPEST
+     1  src/self-annotate/src/module6_whyml/expr_ghost_collections.py( 277 lines)   <-- CHEAPEST
+     1  src/self-annotate/src/module6_whyml/expressions.py           (1887 lines; measured 2h21m)
+
+LIVE BODY SIZE of each distinct name, which is what decides whether a relocation is a leaf or a
+closure problem (17 distinct names over the 24 stubs; `_coerce_to_int`, `_expr_to_whyml`,
+`_is_string_expr` each appear in TWO destinations):
+
+    LEAF (<= 60 lines) — 7 names
+        _deref 5 · _e 8 · _mutex_inv_application 9 · _expr_to_whyml_string_ctx 24
+        _seq_init_expr 31 · _maybe_emit_no_exception_assert 43 · _match_pattern_cond 48
+    MEDIUM (68-292) — 7 names
+        _add_abstract_op 68 · _coerce_to_int 94 · _resolve_dotted_signature 178
+        _track_collection_metadata 185 · _is_emit_ir_expr 208 · _stmts_to_whyml 249
+        _handle_return_stmt 292
+    DISPATCHER (403-1217) — 3 names
+        _to_bool 403 · _is_string_expr 567 · _expr_to_whyml 1217
+
+THE ORDER, and it is not negotiable because lessons (av)-(ax) are about exactly this:
+  1. **`expr_ghost_spec_ops.py` (2) and `expr_ghost_collections.py` (1) FIRST.** Both stubs are
+     `_e`/`_deref` — the two SMALLEST leaves on the board (8 and 5 lines) — in files of 123 and 277
+     lines, so the re-proofs are trivial. **THREE markers for two small re-proofs is the cheapest win
+     currently known.** Do this one first and the whole item is de-risked.
+  2. Then the LEAVES inside `statements.py` and `stmt_control_flow.py`, ALL AT ONCE per file, then ONE
+     re-proof of that file. Relocating them one at a time and re-proving each time would cost
+     2h19m per marker instead of per file.
+  3. The DISPATCHERS last, and expect them to REFUSE: relocating `_expr_to_whyml` (1217 lines) into
+     `statements.py` pulls its whole callee closure, which is the mutual-recursion wall lessons
+     (av)-(ax) describe ("mutual-recursion variants appear when a callee stops being `\trusted`").
+     A dispatcher that refuses is a CERTIFIED-BOUNDARY for that stub, not for the item.
+
+TWO HAZARDS, both already paid for elsewhere:
+  * **Pick the RIGHT sibling.** `_e` has live defs in BOTH `ir_schema.py` and `expressions.py`; the
+    mixin's own comment says the runtime composition partner is `ExpressionEmissionMixin`
+    (`expressions.py`). `check-sibling-concrete-fidelity` resolves against the WHOLE live tree, so a
+    wrong pick shows up as DIVERGING rather than passing silently — but pick deliberately.
+  * **The destination must declare the fields the relocated body reads** (#67). The plane is now in
+    the FAST set with MISSING ratcheted at 5, so a relocation that forgets one goes RED immediately
+    instead of surfacing as a Why3 type error hours later. That is exactly what #63 cost before the
+    plane existed.
+
+PAYOFF IF FULLY PAID: **449 -> 425**. Even the leaves-only subset is worth ~10. COST/SCALE, and a
+funded window is the budget that pays it.
+
 ### #63 gen #31 — THE `sibling_concrete` FIDELITY HOLE — **RESOLVED AND GATED by gen #32**
 **Status: CLOSED 2026-09-28 at gate 63** (2h50m): `statements.py` whole-file **18896 Valid,
 0 non-Valid**; sibling-concrete **25 SAME / 0 DIVERGING** with `DIVERGING_BASELINE` tightened
