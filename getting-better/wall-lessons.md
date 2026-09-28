@@ -8411,3 +8411,44 @@ Two concrete consequences banked with it:
   `until grep -q DONE || ! pgrep -f job; do sleep; done` — fires correctly on both outcomes and then
   prints the marker's presence, which is right. The failure was downstream of the watcher, in reading
   a `ps` snapshot instead of the file.
+
+## (n4) gen #32 — A CONVERSION'S OWN CALL SITE CAN BE SHADOWED, AND I WALKED INTO IT ONE INCREMENT AFTER WRITING (l4)
+
+Lesson (l4), written the same day, says: *a conversion that FORWARDS to an undeclared callee moves
+trust from a counted marker to an uncounted abstract `val`.* That is one end of the call. This is the
+other, and it cost a gate red to find:
+
+Converting `errors.py::as_dict` gave `self.message()` its FIRST live intra-class call site. The
+DEFAULT lowering of an intra-class `self.<m>()` call is a **receiver-less abstract
+`val self_message_0 () : string`** whose result is unconstrained. So `as_dict` was about to be banked
+as PROVED with the one entry of its returned map that comes from a method call reading an opaque
+nullary op — and `message()` is itself a CONVERTED, PROVED method whose body no caller could see.
+
+`bin/check-shadowed-selfcalls.py` caught it exactly: **"15 > allowed 14 — a conversion landed whose
+body no caller can see"**, naming `errors.mlw::self_message_0 shadows pycslirerror__message`,
+4 bypassing uses / 0 concrete.
+
+>>> **CONVERTING A METHOD CREATES CALL SITES THAT DID NOT EXIST WHILE IT WAS `\trusted`** — a
+>>> `\trusted` stub's body is never emitted, so the callees it mentions have no live call site. The
+>>> conversion is therefore not only a change to the converted method; it can SHADOW a *different*
+>>> already-converted method by giving it its first caller. Ask, before converting: *what does this
+>>> body CALL, and will those calls be concrete?*
+
+THE FIX IS THE CAUSE, NEVER THE RATCHET. `#@ sibling_concrete` on the callee is the sanctioned opt-in
+— Module2's own docstring says "an intra-class `self.<m>()` call to THIS method is lowered to a
+CONCRETE call (so the caller gets the real method's full contract)" and prescribes it for
+"cheap-to-maintain leaf writers", which a two-line `return super().__str__()` is. Afterwards:
+
+    shadowed-selfcalls   14 of 14 (ratchet 14), 119 bypassing   <- the EXACT pre-conversion figures
+    emitted call         "message" (HStr (pycslerror__message self))   was (self_message_0 ())
+    the abstract val     GONE from the emission
+
+So the conversion ended up STRICTLY STRONGER than when it was first banked, and the ratchet was never
+touched. Raising 14 to 15 would have bought the same green and hidden the defect permanently.
+
+**The honest moral is about me, not the emitter.** I had written (l4) down, in this file, one increment
+earlier, and I still walked into its mirror image — because (l4) is about the callee being undeclared
+and this is about the caller's lowering, and the family resemblance is only obvious afterwards.
+**Writing a lesson down is not the same as having internalised it. The plane is what actually
+stopped me**, which is the whole argument for running the battery rather than reasoning about whether
+it is needed.
