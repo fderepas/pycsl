@@ -285,6 +285,53 @@ NEXT CANDIDATE, to be pre-flighted the same way: the MEDIUM list's smallest, `_a
 `abstract_ops.py` is ALREADY a mirrored file that PASSES the self-annotation suite, so its callee
 closure is far more likely to be present in the mirror tree than `expressions.py`'s was.
 
+### #72 gen #32 — TRIAGE THE WHOLE MARKER POPULATION BY CALLEE CLOSURE, NOT BY SIZE (151 survivors)
+
+2026-09-28T16:45Z. Lesson (o4) refuted TWO candidates in twenty minutes — `_expr_to_whyml_string_ctx`
+(blocked by a three-word call to `whyml_string_literal`, which the mirror tree does not have) and the
+whole of `abstract_ops.py`'s four stubs (regex `findall`, `.setdefault`, `.join`, `.items`,
+`.insert`). Both had been picked by LINE COUNT and both are cheap-looking and unbuildable. So the
+ranking was wrong, and the fix is mechanical.
+
+`getting-better/open-routes/preflight-marker-callee-closure-gen32.py` walks every marker's LIVE body
+and matches its method calls against the constructs this campaign has MEASURED as blocked — the
+in-place mutators behind one refusal, `.setdefault`, `str.join`, dict `.items()`/`.values()`
+iteration, and `re`. Over all **449** markers, in seconds:
+
+    BLOCKED by a measured wall in the live body    210
+    CLEAR of every measured wall                   239
+      blockers: str.join 88 · in-place-mutator 83 · dict-items 78 · setdefault 37 ·
+                dict-values 36 · regex 23   (a body can carry several)
+
+Joined against `getting-better/trusted-reasons.tsv`, which already classifies 164 markers:
+
+    CLEAR *and* already classified as a cost/scale wall     88   (69 of them int-erasure-seam)
+    CLEAR *and* UNCLASSIFIED — the actual shortlist         **151**
+
+**READ 151 AS AN UPPER BOUND ON THE UNEXPLORED POPULATION, NOT AS A CONVERSION QUEUE.** Three honest
+limits, each of which the join or the list makes visible:
+  * **The filter is CALL-shaped and the biggest wall is TYPE-shaped.** 69 markers pass every
+    method-call test and are nonetheless classified `int-erasure-seam` (backlog #62/#64, 102
+    markers). Only the TSV join catches them; the instrument alone would have offered all 69 as cheap.
+  * **"Unclassified" means nobody wrote a reason down, which includes already-refuted-but-unrecorded.**
+    The top of the size-ranked survivor list proves it: `module6_whyml/expressions.py::_e` (3 lines)
+    is the FORWARDER lesson (l4) says must not be taken for the count, and
+    `audit_proof_reverify.py::_cache_root` (5 lines) was MEASURED by gen #31 as not landable — it
+    calls `root.mkdir(...)`, the lowering emits a nullary `val root_mkdir_0` with no `writes`, and the
+    model then CERTIFIES the declared `assigns \nothing` over a directory creation.
+  * A CLEAR verdict is NECESSARY, never sufficient: it says only "none of the constructs we have
+    measured as blocked appears in this body".
+
+THE WORK, in order:
+  1. Cross-reference the 151 against the recorded DO-NOT-CONVERT findings and write the reason into
+     the TSV for each one struck — that is how "unclassified" stops hiding refuted candidates, and it
+     TIGHTENS `MAX_UNCLASSIFIED` (285) for free.
+  2. Screen the residue with the seconds-per-candidate port -> `--fun` -> classify -> REVERT screen
+     (gen #31's `screen_port.sh` shape), **in the FOREGROUND** — a backgrounded screen is the
+     ownerless-writer failure.
+  3. Convert per destination FILE, not per marker, so one re-proof covers a batch (the #70 insight
+     that survives its own refutation).
+
 ### #71 gen #32 — THE ABSTRACT-`val` SURFACE IS UNMEASURED, AND ITS SIZE IS 3408
 
 2026-09-28T09:55Z. Fell out of #70's correction: converting a FORWARDER moves trust from a COUNTED
