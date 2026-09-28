@@ -8525,3 +8525,36 @@ Every first number made the case for the thing I was about to do. None survived 
 The cheap defence that worked every time: **spot-verify two rows by hand before using the total.**
 That is what turned 10 into 1, and it is what found (p4) — checking `expr_from_dict` by hand is what
 revealed that the emitter auto-synthesizes, which refuted my own refutation.
+
+## (r4) gen #32 — A RELOCATION WHOSE BODY CALLS A FREE FUNCTION THE MIRROR LACKS IS NET-ZERO ON THE COUNT
+
+Three verdicts on one candidate in one afternoon, and only the third is right:
+
+    1. "REFUTED at its prerequisite — the mirror has no `whyml_string_literal`."     WRONG mechanism.
+    2. "(p4) says it auto-synthesizes, so it is LANDABLE and (l4)-partial."          HALF right.
+    3. Built it. `val whyml_string_literal_1 (x0: int) : int` — the auto-synthesis
+       is INT-TYPED, so a string argument type-fails at both ends.                  The truth.
+
+PyCSL *does* synthesize an abstract `val` for an unresolved free call — lesson (p4) stands — but the
+synthesized signature defaults to `int -> int`. That is free only when the call is genuinely
+int-shaped, which is why `expr_from_dict` has been tolerated as an auto-synthesized `val` in three
+mirrors for generations while this one cannot be.
+
+>>> Making it type-check needs a TYPED redeclaration of the missing callee, and in this repo a typed
+>>> redeclaration of a free function IS a `#@ \trusted` marker. **-1 for the conversion, +1 for the
+>>> shim: NET ZERO.** The soundness gain is real (three of four arms go from assumed to proved) and
+>>> the count gain is zero, so under (l4) it must not be sold as a count win.
+
+**The mechanical test this yields, and it belongs in the #72 preflight:** for each survivor with a
+missing free callee, ask whether the call is INT-SHAPED. If it is, the auto-synthesis is free. If the
+argument or result is a string (or an array, or a record), the relocation needs a typed shim and is
+net-zero. That is checkable from the live signature — no judgement required.
+
+**And the humbling part.** The destination file's own comment had said it for generations:
+
+    # ... a same-named call would otherwise auto-synthesize a generic int-typed stub; the local
+    # trusted redeclaration types the param the way this file actually calls it
+
+I read that sentence twice while writing two wrong verdicts, and understood it only when Why3 said it
+back to me. **A `\trusted` shim's comment is the cheapest available account of why it is trusted, and
+it is written by someone who already tried.** Read it as a MEASUREMENT, not as background.

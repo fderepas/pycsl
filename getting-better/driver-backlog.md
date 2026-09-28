@@ -285,6 +285,43 @@ NEXT CANDIDATE, to be pre-flighted the same way: the MEDIUM list's smallest, `_a
 `abstract_ops.py` is ALREADY a mirrored file that PASSES the self-annotation suite, so its callee
 closure is far more likely to be present in the mirror tree than `expressions.py`'s was.
 
+### #70 STEP 1 — FINAL VERDICT (third and last iteration, 2026-09-28T17:55Z): **NET-ZERO ON THE COUNT.**
+### Built, spiked, REVERTED. The mechanism is now fully pinned, which the two earlier verdicts were not.
+
+I built it: field declared (`_ghost_string_vars: Set[str]`), `whyml_ident` imported,
+`#@ sibling_concrete` added so the file's four call sites would see it concretely, live body and live
+PARAMETER NAMES verbatim. The spike (`--no-proof`, L3-tc) **FAILS**, and the emitted line says why:
+
+    val whyml_string_literal_1 (x0: int) : int          <- the auto-synthesized stub
+    raise (Return_str (whyml_string_literal_1 (value_of ir)))
+    expr_ghost_spec_ops.mlw:346: This expression has type string, but is expected to have type int
+
+**THE AUTO-SYNTHESIS IS INT-TYPED.** Lesson (p4) is right that an unresolved free call synthesizes a
+`val` rather than blocking — and incomplete, because the synthesized signature defaults to `int -> int`.
+A string-typed callee therefore type-fails at both ends. The file's ORIGINAL comment said exactly this
+all along — *"a same-named call would otherwise auto-synthesize a generic int-typed stub; the local
+trusted redeclaration types the param the way this file actually calls it"* — which is why the
+`\trusted` shim existed in the first place. **I had read that sentence twice and not understood it
+until Why3 said it back to me.**
+
+SO THE HONEST ECONOMICS: making the relocation type-check needs a TYPED redeclaration of
+`whyml_string_literal` in the mirror, and a typed redeclaration is itself a `#@ \trusted` marker.
+**-1 for the conversion, +1 for the shim: NET ZERO on the count**, in exchange for three of four arms
+going from ASSUMED to PROVED. That is a real if modest soundness gain and it is NOT a count win, so
+under lesson (l4)'s rule it must not be sold as one.
+
+DISPOSITION: step 1 is **CLOSED as a count move** and left as an available soundness-only increment
+for anyone who wants those three arms. The capability that makes it a true -1 is unchanged and now
+clearly priced: port `whyml_string_literal` for real (a character loop with `ord()` and UTF-8 `\xHH`
+escaping — the int-erasure seam's neighbourhood). Tree REVERTED, markers back at 449, nothing banked.
+
+>>> **LESSON (r4): A RELOCATION WHOSE BODY CALLS A FREE FUNCTION THE MIRROR LACKS IS NET-ZERO ON THE
+>>> COUNT, BECAUSE TYPING THE MISSING CALLEE COSTS A MARKER.** The auto-synthesis is `int -> int`, so
+>>> it is free ONLY when the call is genuinely int-shaped (which is why `expr_from_dict` is tolerated
+>>> in three mirrors and this was not). **Add the missing-callee TYPE check to the #72 preflight**: a
+>>> survivor whose missing callee is string-typed is net-zero, not cheap — and that is a mechanical
+>>> test, not a judgement.
+
 ### #70 STEP 1 — **MY OWN REFUTATION WAS WRONG ABOUT THE MECHANISM.** Corrected 2026-09-28T17:35Z.
 
 Two hours after recording "step 1 is REFUTED at its prerequisite — `whyml_string_literal` is a
