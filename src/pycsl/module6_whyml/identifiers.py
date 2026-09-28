@@ -42,9 +42,16 @@ from typing import Dict, List, Set
 # that emission. So record it and REFUSE — fail-closed, a measurement and not an
 # argument.
 #
-# SCOPE is per-EMISSION by construction: `pycsl.py` runs one emission per process
-# (`bin/byte-diff-sweep.sh` and `bin/run-reference-tests.sh` both invoke it per file),
-# so this module-level witness never spans two programs.
+# SCOPE. `pycsl.py` runs one emission per process (`bin/byte-diff-sweep.sh` and
+# `bin/run-reference-tests.sh` both invoke it per file), so a CLI run's witness never spans
+# two programs. That is NOT true of every caller, and saying "per-emission by construction"
+# would be exactly the kind of argued premise this guard replaces: `bin/core-only-
+# conformance.py` and `bin/regen-ir-conformance-goldens.py` construct
+# `Module6_WhyMLTranspiler(...)` IN-PROCESS in a loop, so their witnesses DO accumulate
+# across files. MEASURED rather than argued: `core-only-conformance.py` runs 38 goldens in
+# one process and accumulates **ZERO** folds (they contain no foldable string), and it is
+# green with this guard. So the largest accumulation anywhere measured is the 91 below, from
+# a single mirror emission.
 #
 # POPULATION, MEASURED, because a guard whose population is empty has checked nothing
 # and looks exactly like a guard that passed: the LARGEST emission in this tree folds

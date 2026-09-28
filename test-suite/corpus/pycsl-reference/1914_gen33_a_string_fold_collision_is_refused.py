@@ -34,7 +34,6 @@ import struct  # noqa
 # pycsl-expected: FAIL
 
 
-#@ requires True
 #@ ensures \result == 1
 #@ assigns \nothing
 def go() -> int:

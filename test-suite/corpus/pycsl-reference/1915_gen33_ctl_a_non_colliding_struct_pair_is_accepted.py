@@ -9,16 +9,20 @@ would refuse 1914 too, and the plane would report a clean green over a verifier 
 stopped accepting `struct.pack` at all. `bin/check-stable-hash-fold-injectivity.py` runs
 both directions for the same reason.
 
-The postcondition here is the TRUE one: 8 != 6, so `go()` returns 0 in CPython, and
-nothing about the two distinct `struct_pack_i2` applications relates their lengths — so
-`\result == 0` is NOT provable either, and the honest contract is `ensures True`. What is
-asserted is only that the file is ACCEPTED (emits and type-checks).
+WHY THE POSTCONDITION IS A DISJUNCTION, which is the strongest PROVABLE claim here and
+is worth stating rather than hiding behind `ensures True`. CPython returns 0 (8 != 6), but
+the model cannot prove that: `struct_pack_i2` applied to two DIFFERENT folded constants
+gives two unrelated terms, so nothing relates `Array.length a` to `Array.length b` and
+NEITHER branch is decided. `\result == 0` is therefore true of the program and unprovable
+of the model. `\result == 0 || \result == 1` is provable — both branches return one of
+them — and it is a real claim about the function rather than a tautology, which is what
+`bin/check-claim-vacuity.py` exists to insist on. This file's job is ACCEPTANCE: that PyCSL
+still emits and type-checks a struct program whose formats do not collide.
 """
 import struct  # noqa
 
 
-#@ requires True
-#@ ensures True
+#@ ensures \result == 0 or \result == 1
 #@ assigns \nothing
 def go() -> int:
     a = struct.pack('<bb6x', 1, 2)

@@ -94,6 +94,18 @@ PLANES=(
     # the non-colliding control and asserts an ACCEPT. Both legs, or a guard that
     # refuses everything would pass. 0.8s.
     check-stable-hash-fold-injectivity.py
+    # (#49) gen #33 — THE FRAME PLANE'S POPULATION HOLE. `check-trusted-frame-honesty` is
+    # scoped IN CODE (:634/:637) to methods declaring exactly `#@ assigns \nothing`, so the
+    # 498 mirror methods with a NON-EMPTY `#@ assigns` are in NEITHER of its arms — and an
+    # under-declared non-empty clause is exactly as false as an under-declared empty one.
+    # This measures the complement: a live body's DIRECT `self.<f>` writes against its
+    # mirror's non-empty clause. TRAP 18 / HOLE 0, all nine methods `\trusted`. FAIL-CLOSED
+    # by gen #32's own discriminator (every omitted field is UNDECLARED in its class, hence
+    # absent from the record, hence unmentionable) — the mirror image of
+    # `check-assigns-writes-survival`'s declared-but-not-emitted TRAP 2989 / HOLE 0.
+    # HOLE 0 is a MEASUREMENT, so `--self-test` declares one measured-TRAP field in its
+    # class and requires HOLE to fire. Static, ~2s.
+    check-assigns-underdeclaration.py
     check-mirror-field-parity.py
     check-mirror-loop-annotations.py
     check-mirror-signature-drift.py
@@ -367,12 +379,15 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
+# (#49) gen #33: 52 -> 53 with `check-assigns-underdeclaration.py` (the frame plane's
+# population hole: 498 non-empty `#@ assigns` clauses were in neither of
+# check-trusted-frame-honesty's arms).
 # (#49) gen #33: 51 -> 52 with `check-stable-hash-fold-injectivity.py` (route #228).
 # (#49) gen #32: 50 -> 51 with `check-sibling-concrete-field-decls.py` (backlog #67).
 # (#49) gen #31: 48 -> 49 with `check-sibling-concrete-fidelity.py`, 49 -> 50 with
 # `self-annotate-mirror-check.sh` (declared a gate in five documents, collected by no
 # battery until now — lesson (u6)).
-MIN_PLANES=52
+MIN_PLANES=53
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
