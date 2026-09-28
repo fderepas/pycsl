@@ -203,6 +203,45 @@ capabilities, in increasing cost:
 Note (i) is a DECLARATION-keyed fence, so it is strictly weaker than (ii): a heterogeneous dict
 with no annotation (the shape `src/pycsl/errors.py::as_dict` actually has) is outside it.
 
+### #70 PRE-FLIGHT for step 1, done 2026-09-28T13:50Z — what the revised first conversion actually needs
+
+Lessons (n4), (l4) and backlog #67 now jointly define a pre-flight for ANY relocation, and running it
+on #70's revised step 1 — `_expr_to_whyml_string_ctx` into `expr_ghost_spec_ops.py` — turns up three
+requirements and one pleasant surprise. The live body calls `self._expr_to_whyml`,
+`self._expr_to_whyml_string_ctx` (ITSELF), the free `whyml_ident` / `whyml_string_literal`, and reads
+`self._ghost_string_vars`.
+
+  1. **FIELD (#67):** `_ghost_string_vars` is NOT declared in the destination. It is `Set[str]` in
+     `types.py` and `statements.py`, so declare it as `Set[str]`. The #67 plane would catch its
+     absence, which is the plane doing its job before the Why3 type error rather than after.
+  2. **IMPORTS — a SECOND class of thing a relocation does not copy.** `expr_ghost_spec_ops.py`
+     imports NOTHING but `typing`. The relocated body calls `whyml_ident` and
+     `whyml_string_literal`, which must be imported for the file to be valid Python at all. #67's
+     plane checks FIELDS only; this is the same defect one category over.
+     *Established by reading the destination's import block directly.* A free-name census I wrote to
+     measure the population across all relocations flagged 43 loads but is too noisy to quote: its
+     outliers dissolve on reading into tuple-unpacked locals and PEP-563 annotations (`Dict[str,
+     PyVal]` is a Load in the AST and never evaluated). **The import gap here is real; the 43 is not
+     a number anyone should carry forward.**
+  3. **RECURSION (n4-adjacent):** the body calls ITSELF on `ir["left"]`/`ir["right"]`. PyCSL does
+     support a recursive converted method — `types.py::_rhs_yields_map` carries
+     `variant { size val_ir }` — so this needs its own variant, and THAT is the make-or-break spike
+     for step 1: write the variant, `--type-only`, and see whether termination discharges.
+  4. **NO NEW SHADOW (n4):** relocating creates a call site for `self._expr_to_whyml` in that file.
+     `_expr_to_whyml` is not present there at all, so the call auto-synthesizes an abstract `val`
+     rather than shadowing a CONVERTED method — `check-shadowed-selfcalls` stays at 14. It IS the
+     (l4) migration in miniature, mitigated because THREE of the body's four arms (`StrConcat`,
+     `String`, `Var`) descend real structure and only the fallback reaches the abstract op. That is
+     a genuine strengthening, which is exactly why this stub and not `_e` is step 1.
+
+**THE PLEASANT SURPRISE, and it explains something from earlier today:** the MIRROR may write
+`Dict[str, PyVal]` with no runtime binding for `PyVal` at all — `functions.py` does it in three
+signatures — because a mirror file is never EXECUTED and `from __future__ import annotations` makes
+annotations lazy. The LIVE tree cannot: `src/pycsl/errors.py` runs, so it needed the explicit
+`PyVal = Any` alias. **The annotation that selects a value model is free in the mirror and costs a
+module-level binding in the live tree** — which is the whole reason the `as_dict` repair had a blast
+radius (that binding is in a file fourteen mirrors import) and the reason lesson (k4) exists.
+
 ### #71 gen #32 — THE ABSTRACT-`val` SURFACE IS UNMEASURED, AND ITS SIZE IS 3408
 
 2026-09-28T09:55Z. Fell out of #70's correction: converting a FORWARDER moves trust from a COUNTED
