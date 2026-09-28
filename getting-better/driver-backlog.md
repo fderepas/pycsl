@@ -34,6 +34,42 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #69 gen #32 — THE `hval` CODOMAIN FIRES FROM A LOCAL/PARAM ANNOTATION AND NOT FROM A RETURN ONE
+
+2026-09-28T03:00Z. Measured while chasing the self-annotation suite's ONLY failure.
+
+`src/pycsl/errors.py` is suite member #1, classified "Bucket A — tractable now", and it does not
+TYPE-CHECK: `PycslError.as_dict()` returns the heterogeneous
+`{code: str, stage: str, filename: str, line: int, message: str}`, the emitter infers ONE value type
+for the map (`map int (option int)`), and the three string fields are rejected. Red since the
+diagnostics feature `819eb6db` landed, unobserved because the oracle had no scheduled runner.
+
+**The faithful model for this already exists and is certified.** `Dict[str, PyVal]` selects the
+`hval` sum (`HStr | HInt | HArr hval_list | HMap hpairs | HNode`), axiom-free, co-landed with the
+Rocq/Lean `Phase2f_PyVal` cert. MEASURED, both shapes:
+
+    def build(...) -> Dict[str, PyVal]:
+        return {"code": code, "line": line}                 # L3-tc FAILS: string vs int
+    def build(...) -> Dict[str, PyVal]:
+        d: Dict[str, PyVal] = {"code": code, "line": line}  # VERIFIES, lowers to the hval model
+        return d
+
+So the `hval` codomain is selected from a **LOCAL or PARAM** annotation and **not** from a RETURN
+annotation — `_m5_get_dict_value_type` is consulted where a declared binding exists, and a dict
+literal in return position has no binding to carry the declaration.
+
+TWO ITEMS, and the first is cheap:
+  1. **Fix `errors.py` the faithful way** — `PyVal = Any` alias plus a declared local — so the
+     suite's first member VERIFIES with the certified heterogeneous model and NO new `\trusted`
+     marker (the MIRROR's `as_dict` is `#@ \trusted reviewer: pycsl-self-annotate` with the comment
+     "builds a dict (PyCSL cannot model dict construction here yet)", which is why the mirror passes
+     and the live file does not — that comment is now out of date). Blast radius to measure: the
+     module-level `PyVal` alias in a file EVERY mirror imports, and `check-mirror-signature-drift`
+     over the changed return annotation.
+  2. **Make the RETURN annotation carry the codomain too**, so the natural spelling works and the
+     declared-local workaround is not load-bearing. The arm is byte-inert today (no `.py` file in
+     the tree uses `Dict[str, PyVal]` at all), so there is nothing to regress. COST/SCALE.
+
 ### #68 gen #32 — AN IMPORTED CONTRACT'S FREE MODULE CONSTANT LOWERS TO AN OPAQUE `val constant`
 
 2026-09-28T03:10Z. Found by AUDITING the advice of `ir_resolve.py:3186`, which is the nicest thing
