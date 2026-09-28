@@ -1,3 +1,159 @@
+# START HERE — gen #32 FINAL STATE (2026-09-28, window #8)
+
+Deadline **1790873022** = Thu Oct 1 16:43:42 UTC 2026 (written by the supervisor, never recomputed).
+Do NOT push. Everything below is committed.
+
+## THE METRIC — quote BOTH numbers
+
+    markers 450 · grep-substring 477 · offset 27 · attached 450 · unattached 0
+
+**Unchanged across the whole generation, and that is the CORRECT shape.** This window paid the
+soundness ladder: a refusal, a re-port, two new planes and a widened detector all cost the trust
+surface nothing. Do not chase the metric and never re-baseline anything to move it. The offset is
+**27**, not the historical 25.
+
+## WHAT GEN #32 RESOLVED
+
+| item | verdict |
+|---|---|
+| the in-flight `run-soundness-planes.sh` patch (window #8's mandated FIRST ITEM) | **COMMITTED** `a1676339`, re-measured not inherited: 55/55 fast, both newly-registered planes green |
+| **route #227** (NEW, Sev-1) | **FOUND and CLOSED, FULLY GATED** `535a1bb7` |
+| **backlog #63** (the top of the ladder, a SOUNDNESS item) | **CLOSED and GATED** `a56dcd85` |
+| **backlog #66** (the advice detector's verb list) | **LANDED** `5eaec302`, all twelve new sites audited |
+| **backlog #67** | **PLANE BUILT** `44227973`, ratchet set, negative-tested |
+| `check-stdlib-modules-verify` standing RED (gen #31's handoff) | **RETIRED** — 104 modules, **84** VERIFY (was 83), neither failure mode firing |
+| `bin/run-self-annotation-suite.sh` — the unscheduled oracle | **RUNNING**, see below |
+
+**Gate verdicts, all with predictions written BEFORE the run and all exact:**
+
+* gate 227 — corpus byte-diff 1378/1379 **0 MOVED, 1 declared GONE**; pyref **2199/2199 0 MOVED**;
+  planes **77/77 `--slow`**; suite **4034/4052**.
+* gate 63 — corpus **1379/1379 0 MOVED**; pyref **2199/2199 0 MOVED**; mirror **53/53, 2 MOVED both
+  accounted for line by line**; `statements.py` whole-file **18896 Valid, 0 non-Valid**; planes
+  **78/78 `--slow`**; suite **4034/4052 — 3136 PASS / 898 XFAIL / 18 FAIL, ZERO XPASS MEASURED**.
+
+**Baselines for gen #33:** suite **4034/4052**, standing **EIGHTEEN**, a 19 is a REGRESSION, zero
+XPASS. Planes **78** with `--slow` (50 fast array + 5 conversion + 23 slow). Corpus 1379 emitting
+`.mlw` + 2199 python-reference.
+
+## ROUTE #227 — THE ONE SOUNDNESS ROUTE, AND ITS GENERATOR IS THE THING TO CARRY FORWARD
+
+    v = None
+    return v - v + 3      PROVED \result == 3 under `#@ no_exception \all`;  CPython: TypeError
+
+The carrier was the campaign's OWN repair. Routes #44/#184/#191 replaced a definite `0` with the
+opaque `val function pycsl_none : int`, which closed every VALUE-dependent falsehood and left every
+consequence INVARIANT under the value, because **the opaque kept the TYPE `int`**.
+
+>>> **WHEN A REPAIR ANSWERS A WRONG VALUE WITH AN OPAQUE, IT HAS MOVED THE FALSEHOOD FROM THE VALUE
+>>> TO THE TYPE.** Re-probe the repaired carrier with an expression whose result does NOT depend on
+>>> the value — `x - x`, `x * 0`, `x < x`, `x // x` — and with the `no_exception` claim, which is a
+>>> statement about the type alone. `v == 0` is the probe the repair was built to defeat; `v - v` is
+>>> the one nobody wrote. Route #44's OWN witness 1060 is this shape with `x + 5` — value-DEPENDENT —
+>>> and its docstring says "an equality-only fix would have been the same mistake one operator
+>>> later." It was arithmetic-aware and still stopped one ALGEBRAIC IDENTITY short.
+
+Repair: `_erased_truthy_locals` now also REFUSES (arithmetic + strict order on a definitely-`None`
+operand), which is what route #50's facts were already used for. Witnesses 1909-1913.
+**ONE ARM SURVIVES — backlog #65**, the `None` that reaches the operator through a CONTAINER read
+(`d[k] = None; v = d[k]; v - v`), where the None-ness is a VALUE fact no syntactic record can carry.
+
+## LADDER FOR GEN #33, in order
+
+1. **Backlog #69 item 1 — fix `src/pycsl/errors.py` and turn the self-annotation suite's ONLY
+   failure green.** Fully scoped and the capability is MEASURED: `as_dict()` returns a heterogeneous
+   dict the emitter types `map int (option int)`; the certified axiom-free `hval` model already
+   exists and is selected by `Dict[str, PyVal]` — **from a declared LOCAL or PARAM, not from a
+   RETURN annotation** (both shapes measured; the declared-local form VERIFIES). Needs a `PyVal =
+   Any` alias in a file EVERY mirror imports, so measure the blast radius: mirror emissions +
+   `check-mirror-signature-drift`. The MIRROR's `as_dict` is `\trusted` with the comment "PyCSL
+   cannot model dict construction here yet", which is now out of date.
+2. **Backlog #65** — route #227's container carrier. Two named reopening capabilities, cheapest
+   first: refuse on a local read from a container whose DECLARED codomain is `Optional[...]`
+   (needs its own census), or route #56's general repair (a distinguishable `None` in the value model).
+3. **Backlog #68** — an imported contract's free module constant lowers to an opaque `val constant`,
+   so route #143's advice is followable-but-unprovable. Fold against the DEFINING module's binding,
+   gated on the name being a module CONSTANT (folding a mutable global would be unsound).
+4. **Close #67's five MISSING declarations** — each is a latent int-erasure of #63's exact shape.
+   COST/SCALE: each declaration changes the emitted WhyML and owes a whole-file re-proof of
+   `Module6_WhyMLTranspiler.py`, `functions.py`, `statements.py`.
+5. **Backlog #64** — the int-erasure seam, one marker's WHOLE CHAIN at a time. Still the #1 wall.
+6. The five refusal sites still unaudited in `check-refusal-advice-audited` (4 in `pycsl.py`, 1 in
+   `Module5_IREmitter.py:5205`) — pre-existing debt, and now the only debt in that plane.
+
+## NEW PLANES AND RATCHETS THIS GENERATION — do not loosen any of them
+
+    bin/check-assigns-writes-survival.py        TRAP 2989 / HOLE 0   (SLOW set, shared emission)
+    bin/check-sibling-concrete-field-decls.py   MISSING 5 / MISMATCH 2 all justified BY NAME
+    check-refusal-witness-coverage              demonstrated floor 206 -> 207
+    check-refusal-advice-audited                audited floor 116 -> 128, advice-bearing 121 -> 133
+    check-sibling-concrete-fidelity             DIVERGING_BASELINE tightened to the EMPTY SET
+
+`check-assigns-writes-survival` came from reading the ONE line of a byte-diff I had predicted
+wrongly: `_emit_body_code` declares `#@ assigns` over **93** self-fields and emitted **29**. Module 6
+builds `writes` from the emitting class's RECORD, so a field the class never DECLARED is dropped
+without a word. TRAP 2989 / HOLE 0 — every dropped field is ALSO absent from the record, hence
+unmentionable, hence fail-closed. That is a MEASUREMENT and not a theorem, which is why HOLE 0 is
+now enforced; a HOLE is route #96's shape in a new mechanism.
+
+## LESSONS BANKED (all in `wall-lessons.md`; (c4) and (d4) are ALSO carved into the driver skill)
+
+  (b4b) the opaque moved the falsehood from the value to the TYPE — route #227's generator.
+  (c4)  `byte-diff-compare.py` does NOT recurse: `<out>/pyref` needs its OWN invocation. I swept
+        2199 files and compared none of them, and caught it only by diffing my summary line against
+        gate U's, which shows TWO comparisons. **A sweep's output-directory count is not its
+        comparison count.**
+  (d4)  never `tail -N` a gate leg you will be asked to quote — `run-reference-tests.sh` strips the
+        `(XPASS)` tag on its confirmed-FAIL re-run. What rescues you is the 0-MOVED byte-diff.
+  (e4)  when a re-ported body int-erases, ask whether the mirror simply never DECLARED the field.
+        #63 predicted a `\trusted` marker; it cost ONE declaration.
+  (f4)  **a control you checked by GREPPING A REPORT is a claim about the report's pagination.** I
+        declared a working instrument's positive control dead because I grepped a `drops[:25]` print.
+        Assert a control against the DATA STRUCTURE.
+  (g4)  the witness census is an AUDIT ACCELERATOR — a witnessed refusal already has an executable
+        trigger, so auditing its advice is "apply the message to a file that already fails".
+  (h4)  a witness that MENTIONS a refusal is not a witness that it FIRED (0415's race is a
+        diagnostic; the file dies on an unjustified `#@ \diverges`). DEMONSTRATED is an upper bound.
+  (i4)  **following a refusal's advice to the end is a COMPLETENESS PROBE FOR FREE** — that is how
+        backlog #68 was found. The refusal has witnesses; the state AFTER the repair has none.
+  (j4)  a parity plane's population is the SYNTAX it scans for, not the concept it is named after.
+        `check-mirror-field-parity` walks `ClassDef` bodies, and live keeps most fields in
+        `__init__` as AnnAssign-on-Attribute, so they are outside its 335 entirely.
+
+Also sharpened: **advice naming a MARKER is the hazard when the message implies the emitter VERIFIED
+something, and fine when it says the marker is an ACKNOWLEDGEMENT** (`import_classifier.py:141` is
+route #90's shape and is honest). And: **an over-broad detector manufactures audit debt** — widening
+the advice verbs as bare substrings claimed 173 sites where the AST census found 11, because "a list
+of" and "the return value" match a bare `list|return`.
+
+## THE LONG JOB — READ THIS BEFORE RELAUNCHING ANYTHING
+
+`bin/run-self-annotation-suite.sh` is RUNNING in a FROZEN git worktree
+`/home/fabrice/git/pycsl-g32wt` at HEAD `1b2f676e` (`.venv` symlinked), logging to
+`<scratchpad>/g32/sas.log`. It is run in a worktree precisely so my own edits could not perturb its
+verdict. **At last check: 22 of 40 done — 21 PASS, 1 FAIL** (`src/pycsl/errors.py`, the heterogeneous
+`as_dict`, which is ladder item 1). It had cleared `module6_whyml/expressions.py` AND
+`module6_whyml/statements.py`, the two largest mirrors. Remaining: `stmt_control_flow`, `preamble`,
+`core_ir_semantic` and thirteen `frontend/*` including `pure_ast.py` (a measured 2.5-hour proof).
+If it is still alive, LET IT FINISH and record the verdict — it is the authoritative "does the mirror
+still prove" oracle, four impl docs call it a gate, and until this window NO battery had ever run it.
+Two worktrees exist and should be removed when done: `pycsl-g32wt` (the suite) and `pycsl-g32bd`
+(the byte-diff baseline at `c85bdb05`).
+
+## HAZARDS PAID FOR IN THIS GENERATION
+
+  * `export PATH=$HOME/.opam/framac-coq8/bin:$PATH` BEFORE ANY PLANE.
+  * Do NOT reuse a log path for two runs of the same battery. I overwrote a finished fast-set log with
+    a second run and spent a poll cycle believing the first was hung.
+  * A gate script must invoke `byte-diff-compare.py` ONCE PER EMITTED TREE and keep every leg's FULL
+    log plus its `rc`. See (c4) and (d4).
+  * Writing a test file into `test-suite/corpus/pycsl-reference/` while a corpus sweep is running
+    corrupts the byte-diff. One advice audit had to be deferred for exactly this and then run.
+  * `.claude/skills/` is GITIGNORED; the tracked copy is `config/skills/`. A skill carve-out must be
+    applied to BOTH or it is invisible to the supervisor.
+
+---
+
 # Driver handoff — gen #31, 2026-09-25T23:50Z
 
 Deadline **2026-09-27T08:19Z** (epoch 1790497192, written, never recomputed). Do not push.
