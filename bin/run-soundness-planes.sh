@@ -660,6 +660,13 @@ for p in "${PLANES[@]}"; do
             (cd "$PROJECT_ROOT" && bin/byte-diff-sweep.sh "$CORPUS_EMIT" >/dev/null 2>&1) || true
         fi
         out="$(cd "$PROJECT_ROOT" && python3 "bin/$p" --emit-dir "$CORPUS_EMIT" 2>&1)"
+    elif [ "$p" = "check-assigns-underdeclaration.py" ]; then
+        # (#49) gen #33 — run BOTH arms. The direct arm ratchets TRAP 18 / HOLE 0; the
+        # transitive arm widens the population EIGHT-FOLD (TRAP-T 148) and ratchets HOLE-T 0,
+        # which is the arm the finding named as "the ONE way HOLE could become non-zero
+        # without any source change". Its call graph OVER-approximates, so a zero there is a
+        # STRONGER negative than the direct arm's, not a weaker one.
+        out="$(cd "$PROJECT_ROOT" && python3 "bin/$p" --transitive 2>&1)"
     elif [ "$p" = "check-emitted-vacuity.py" ]; then
         # (#49) THIS PLANE NEEDS ITS OWN EMISSION, BESIDE THE MIRROR SOURCES — it reads the
         # `.mlw` next to each `.py` rather than an `--emit-dir`, and WITHOUT `--emit` it

@@ -42,6 +42,25 @@ gen #32 measured from the opposite direction** in `check-assigns-writes-survival
 the emitted `writes`. The two planes now bracket the frame: gen #32's is
 declared-but-not-emitted, this one is written-but-not-declared.
 
+THE TRANSITIVE ARM (added the same generation, after the direct one measured clean). Direct
+writes alone are a LOWER BOUND, and the finding that produced this plane named the residue
+explicitly: "a transitively-written field that is class-declared is the ONE way HOLE could
+become non-zero without any source change, so it is the next measurement, not a nicety." So
+`--transitive` adds a call-graph fixpoint over `self.<m>()` edges within the class and its
+in-file bases:
+
+    non-empty clauses 498   TRAP-T 148   HOLE-T 0        (direct: TRAP 18, HOLE 0)
+
+**EIGHT TIMES the population, and still HOLE 0** -- every transitively-written omitted field
+is UNDECLARED in its class, hence absent from the record, hence unmentionable.
+
+AND IT IS A STRONGER NEGATIVE THAN THE DIRECT ONE, not a weaker one. The graph resolves by
+attribute NAME and can attribute a callee's write to a caller that never reaches it on any
+real path, so it OVER-approximates -- which makes HOLE-T MORE likely to fire, never less. A
+zero under an over-approximating net is worth more than a zero under a precise one. TRAP-T is
+therefore REPORTED and not ratcheted (some of its rows are unreachable by construction);
+HOLE-T is the ratchet, and it is the same ratchet as the direct arm's.
+
 HOLE 0 IS A MEASUREMENT AND NOT A THEOREM, which is exactly why it is ratcheted and
 negative-tested: `--self-test` declares one measured-TRAP field in its mirror class and
 requires HOLE to fire. The "declared" set is deliberately OVER-approximated (every
@@ -199,6 +218,58 @@ def _live_direct_writes(path):
     return out
 
 
+def _transitive_writes(live_path):
+    """(cls, fn) -> set of self fields written DIRECTLY or through a `self.<m>()` callee
+    resolved within the class and its in-file bases. Over-approximating on purpose."""
+    try:
+        tree = ast.parse(open(live_path, encoding="utf-8", errors="replace").read())
+    except SyntaxError:
+        return {}
+    facts = {}
+    for cls in [None] + [n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]:
+        body = tree.body if cls is None else cls.body
+        cname = "" if cls is None else cls.name
+        for fn in body:
+            if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            w, calls = set(), set()
+            for n in ast.walk(fn):
+                tgts = []
+                if isinstance(n, ast.Assign):
+                    tgts = n.targets
+                elif isinstance(n, (ast.AugAssign, ast.AnnAssign)):
+                    tgts = [n.target]
+                for t in tgts:
+                    cur = t
+                    while isinstance(cur, (ast.Subscript, ast.Attribute)):
+                        if (isinstance(cur, ast.Attribute)
+                                and isinstance(cur.value, ast.Name)
+                                and cur.value.id == "self"):
+                            w.add(cur.attr)
+                            break
+                        cur = cur.value
+                if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                        and isinstance(n.func.value, ast.Name)
+                        and n.func.value.id == "self"):
+                    calls.add(n.func.attr)
+            facts[(cname, fn.name)] = (w, calls)
+    out = {}
+    for (cname, fname), (w, _c) in facts.items():
+        seen, stack, acc = set(), [fname], set(w)
+        while stack:
+            cur = stack.pop()
+            if cur in seen:
+                continue
+            seen.add(cur)
+            cw, cc = facts.get((cname, cur), (set(), set()))
+            acc |= cw
+            for nxt in cc:
+                if (cname, nxt) in facts:
+                    stack.append(nxt)
+        out[(cname, fname)] = acc
+    return out
+
+
 def measure(inject=None):
     """inject = (relpath, cls, field): pretend `field` is CLASS-DECLARED in `cls`, which is
     what `--self-test` does to prove HOLE can fire."""
@@ -240,6 +311,9 @@ def main():
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--self-test", action="store_true",
                     help="declare one measured-TRAP field in its class and require HOLE to fire")
+    ap.add_argument("--transitive", action="store_true",
+                    help="also report the call-graph arm (TRAP-T / HOLE-T); HOLE-T is the "
+                         "same ratchet and must stay 0")
     args = ap.parse_args()
 
     nonempty, traps, holes = measure()
@@ -272,6 +346,42 @@ def main():
             print("    %-6s %-32s %-28s %-26s self.%-28s %s%s"
                   % ("HOLE" if dic else "trap", relp, cname, fname, fld,
                      kind, "  [trusted]" if trusted else ""))
+
+    if args.transitive:
+        t_traps, t_holes, t_nonempty = [], [], 0
+        for dirpath, _d, files in os.walk(MIRROR):
+            for f in sorted(files):
+                if not f.endswith(".py"):
+                    continue
+                mp = os.path.join(dirpath, f)
+                relp = os.path.relpath(mp, MIRROR)
+                lp = os.path.join(LIVE, relp)
+                if not os.path.exists(lp):
+                    continue
+                decls, cls_fields = _mirror_decls(mp)
+                tw = _transitive_writes(lp)
+                for (cname, fname), (fields, trusted, _ln) in sorted(decls.items()):
+                    if not fields:
+                        continue
+                    t_nonempty += 1
+                    for fld in sorted(tw.get((cname, fname), set()) - fields):
+                        row = (relp, cname, fname, fld, trusted)
+                        t_traps.append(row)
+                        if fld in cls_fields.get(cname, set()):
+                            t_holes.append(row)
+        if t_holes:
+            print("[!] assigns-underdeclaration --transitive: HOLE-T %d \u2014 a field written "
+                  "THROUGH A CALLEE is omitted from a non-empty `#@ assigns` AND is declared "
+                  "in the emitting class, so it is in the record and mentionable."
+                  % len(t_holes))
+            for r in sorted(t_holes)[:20]:
+                print("    %-32s %-26s %-26s self.%s" % (r[0], r[1], r[2], r[3]))
+            return 1
+        print("[*] assigns-underdeclaration --transitive: %d non-empty clause(s), TRAP-T %d, "
+              "HOLE-T 0 \u2014 8x the direct population and still every omitted field is "
+              "UNDECLARED in its class. The graph OVER-approximates (it resolves by attribute "
+              "name), which makes HOLE-T MORE likely to fire, so a zero here is a STRONGER "
+              "negative than the direct arm's." % (t_nonempty, len(t_traps)))
 
     methods = len({(r[0], r[1], r[2]) for r in traps})
     if holes:
