@@ -1,3 +1,154 @@
+# START HERE — gen #33 FINAL STATE (2026-09-29, window #8)
+
+Deadline **1790873022** = Thu Oct 1 16:43:42 UTC 2026 (written by the supervisor, never recomputed).
+Do NOT push. Everything below is committed and the tree is clean.
+
+## THE METRIC — quote BOTH numbers
+
+    markers 449 · grep-substring 477 · offset 28 · attached 449 · unattached 0
+
+**Unchanged for the whole generation, and that is the correct shape**, not a stall: gen #33 paid the
+soundness ladder. A route found and closed, three new planes, two ratchets tightened and a refuted
+hypothesis all cost the trust surface exactly nothing. Do not chase the metric.
+
+## THE STATE GEN #34 INHERITS
+
+Fully gated at battery #6 plus a plane-set re-run, **nothing owed**:
+
+    planes   82/82 `--slow`, rc=0        (MIN_PLANES 54)
+    corpus   1379 baseline / 1381 candidate, 0 MOVED / 0 GONE / 0 APPEARED, 2 new ignored
+    pyref    2199/2199, 0 MOVED          (TWO comparisons, one per emitted tree — lesson (c4))
+    suite    4037/4055, 18 CONFIRMED FAIL = the standing baseline, `grep -c XPASS` = 0 over the FULL log
+    corpus files 1916 · 46 commits this generation
+
+Ratchets, none loosened: `MAX_UNCLASSIFIED` 279 · shadowed-selfcalls 14/119 · assigns-writes TRAP
+2989 / **HOLE 0** · assigns-underdeclaration TRAP 18 / HOLE 0 and TRAP-T 148 / **HOLE-T 0** ·
+refusal-witness floor **208** / ceiling 5 · advice floor 128 · raises-honesty silent **61**.
+
+## THE ORACLE THAT LANDED — READ THE SCOPE LINE, IT IS THE POINT
+
+`bin/run-self-annotation-suite.sh` finished its FIRST COMPLETE GREEN RUN of the campaign. Verified
+from the **rc file**, with the tally COMPUTED not quoted (lesson (m4)): `sas2.log.rc` = **0** (run 1's
+= **124**), **38 `[PASS]` / 0 `[FAIL]`**, its own line `Self-annotation: 38/38 proved`.
+
+  * **COST 14h31m22s** (`09:44:10Z` → `00:15:32Z`). **Quote ~15 h at this concurrency.** The 18-24 h
+    and 6-12 h figures in circulation were extrapolations from a TRUNCATED run; this is the clock.
+    Corrected in place further down this file.
+  * **THE MEMBER COUNT IS 38, NOT 40.** "25 of 40" was run 1's truncated view, repeated in prose since.
+  * `pure_ast.py` PASSED — the member run 1 never reached. `errors.py` passed in BOTH copies.
+  * **SCOPE: it ran at commit `11ee64a7`, a GEN #32 commit**, in the frozen worktree
+    `/home/fabrice/git/pycsl-g32wt2`. **EVERY gen #33 increment is OUTSIDE this verdict.** A green
+    does not stand in for a tree it never saw. Re-running is a ~15 h item; do NOT put it in a battery.
+
+## WHAT GEN #33 RESOLVED
+
+| item | verdict |
+|---|---|
+| **route #228** — a false postcondition PROVED via a `stable_hash` collision | **BROKEN**, repaired, gated |
+| the frame plane's population hole — 498 methods outside `check-trusted-frame-honesty` | **FAIL-CLOSED**, TRAP 18 / HOLE 0, new plane |
+| the same, TRANSITIVELY | **FAIL-CLOSED** at 8x, TRAP-T 148 / HOLE-T 0, gated |
+| **ladder item 1 (#64)** — a mechanical cause of the int-erasure seam | **REPRODUCED from three lines, then its payoff REFUTED** |
+| `check-trusted-raises-honesty` ratchet one loose for generations | tightened 62 → 61, **not my improvement, only my noticing** |
+
+### Route #228, and the part worth carrying is NOT the collision
+
+`struct.pack('<bb6x',1,2)` (8 bytes) and `struct.pack('<xxxxxxxxhxLxxxxxxxx',1,2)` (23 bytes) both
+emit `(struct_pack_i2 1322019588 1 2)` — ONE TERM — so `len(a) == len(b)` proved `Valid, 156 steps`
+and `\result == 1` was PROVEN while CPython returns 0. The non-colliding control did NOT prove.
+
+**The collision was GEN #30's finding.** `bin/check-hashed-literal-purity.py` already had the same
+pair, the pure-`val function` discriminator, and the 22 baselined struct rows — and ended that
+baseline *"searching for one is recorded as the follow-up rather than done here."* **It sat inside a
+GREEN GATE for three generations.** Doing it takes seconds.
+
+>>> **LESSON (a5): A BASELINE THAT RECORDS ITS OWN FOLLOW-UP IS AN OPEN ROUTE WITH A GREEN GATE IN
+>>> FRONT OF IT.** An allowlist row is read once, when written; after that the gate prints OK. Grep
+>>> every gate's baseline prose for `follow-up`, `not done here`, `rather than done`, `the shape to
+>>> look for`, `TODO`. I ran that sweep: 4 candidates, 1 live — and it produced the frame finding.
+
+Repair: **not a wider hash** (that is #227's lesson in a new costume). The premise is decidable, so it
+is CHECKED — and after `check-mirror-type-only` refuted my placement, it lives at the one destination
+that can conclude a falsehood. See lesson (c5) below.
+
+### Ladder item 1 (#64): the seam HAS a cause, and the cause does NOT explain the markers
+
+    si = set(); si.add(1)      # int kappa    -> MONO arm
+    ss = set(); ss.add("a")    # string kappa -> POLY arm
+
+emitted `map int (option int)` and failed L3-tc *"type string, but is expected to have type int"* —
+gen #32's own `string vs int` row. **Each set ALONE type-checked**, so it is an INTERACTION no
+per-feature probe could find. Cause: the decl is chosen PER SITE while `_add_abstract_op` arbitrated
+the same-arity clash by **"keep longer"**, and the int-monomorphic spelling is longer in all three
+affected symbols (`snapshot` by TWO characters), winning in BOTH registration orders. `statements.py`
+says *"one decl serves every map write in the module"*; which one was never decided.
+
+**AND THE PAYOFF IS ZERO, MEASURED.** One instrument, two passes, the 37 markers whose recorded
+blocker is a string↔int mismatch: **BEFORE 37 L3TC-FAIL / AFTER 37 L3TC-FAIL, `diff` of both
+manifests SORTED — IDENTICAL, 0 MOVED, 0 LOWER.** Predicted "0 to 2, most likely 0" beforehand. So
+the tiebreak is a real mechanism and explains NONE of the 37: **the hypothesis is REFUTED, which
+narrows #64 by removing a candidate.** Gen #31's three seam repairs moved 11 of 115; this moves 0 of
+37. Artefacts: `seam-{before,after}-gen33.txt`, `seam-string-int-targets-gen33.tsv`, and the runner.
+
+What it DOES fix is real and is corpus **1916**, which now proves.
+
+## THE LESSONS THAT BIND GEN #34 (all carved into the skill, both copies synced)
+
+  * **(a5)** a baseline that records its own follow-up is an open route with a green gate in front of
+    it — and *search the PROPERTY the gate names, not the EXAMPLE its comment pictures* (gen #30's
+    recorded shape was too narrow; searching only it would have "confirmed" the baseline).
+  * **(b5)** **a probability in a justification is a check nobody wrote.** Grep the TCB for `w.h.p.`,
+    `unlikely`, `in practice`, `should not happen`. **Never answer one with more bits.** And check the
+    MODULUS: a `% 100000` after a hash is four orders of magnitude more collidable than the hash.
+  * **(c5)** **"LIVE-SIDE ONLY" IS NOT "MIRROR-INERT".** The mirror is emitted with
+    `--import-path src/pycsl`, so a mirror's call resolves to the **LIVE** definition and never reads
+    the mirror's `\trusted` copy. A `raise` in a shared leaf is inherited by every mirror that CALLS
+    it, through the EXCEPTION SET, not through fidelity. `grep -rln '<helper>' src/self-annotate/src/`
+    before calling any live-only edit free. **Verify BOTH ends** — a plane RED now is only yours if it
+    was GREEN then, and a worktree at the pre-change commit makes that a measurement.
+  * **(d5)** **PREDICT THE LEDGERS, NOT ONLY THE EMISSION.** Six plane REDs this generation, ALL
+    mine, NONE predicted, one predicted GREEN — while every emission prediction was exact across four
+    consecutive batteries. Each was a ledger indexing what I touched: corpus file → vacuity CEILINGS +
+    purity BASELINE + suite totals; refusal added/**edited**/**moved** → witness census (keyed on
+    MESSAGE TEXT) + advice audit; `raise` in a method with a `\trusted` mirror stub → the raises
+    ledger, **once per mirror file that stubs it**. **Re-measure a stale ledger row, never hand-edit
+    it.** When a ratchet objects, **ask first whether the ratchet is RIGHT** — twice it was, and the
+    fix was to change the design. And **check whether an improvement is YOURS before banking it.**
+
+## LADDER FOR GEN #34, in order
+
+0. **READ THE MARKER'S OWN COMMENT BEFORE CONVERTING IT** (gen #32's rule, still first). Backlog #73's
+   harvester turns prose already paid for into gate-enforceable classification at no prover cost —
+   re-run it whenever the ratchet stalls.
+1. **#64 remains item 1, with one rung now CLOSED.** The arbitration is NOT the cause of any recorded
+   marker — do not re-derive that, the manifests are committed. The screen's `int` vs real-type rows
+   still need a cause, and the instrument to test any candidate now exists and is cheap (~7 min a
+   pass over the 37 targets). **Use it before building anything.**
+2. **The three defect rows gen #32 filed AWAY from the seam and nobody has probed**: the emitter
+   emitting syntactically INVALID WhyML for a ported body (2), a name-rebinding REFUSAL whose
+   population nobody has counted (4), and "a name's runtime value is not the one the model reads" (2).
+3. **The 18 under-declared `#@ assigns` clauses** (TRAP 18, all `\trusted`, listed by name in the
+   plane's `TRAP_BASELINE`). Each is a one-line fix that changes the stub's emitted `writes` in every
+   importing mirror, so it owes the re-proof bill lesson (k4) prices. TRAP should come DOWN.
+4. Gen #32's queue, untouched by gen #33: **#69 item 2** (a RETURN annotation carrying the `hval`
+   codomain), **#65** (route #227's container carrier), **#68** (an imported contract's free module
+   constant), **#67's five MISSING declarations**, and the **5 unaudited refusal-advice sites**.
+5. **`pure_ast.py` (178 markers) is still unscreened** by the conversion screen, plus a few small
+   files. Gen #32 expected the same distribution; it is worth finishing and costs no prover time.
+
+## PROBED THIS WINDOW WITH NO FINDING — DO NOT RE-PROBE
+
+  * `stable_hash`'s NON-pure destinations (bare `val`, dict keys, list literals, set literals,
+    `getattr_<cls>_poly`) — all VACUOUS or faithful; the table is in the route file.
+  * `setattr_<T>_poly` declared "EFFECT-FREE" over a mutated field — FAIL-CLOSED: its only gated
+    method is NET-NEUTRAL (saves, sets, restores in a `finally`).
+  * the `% 100000` name folds — no live clash; the only same-name clashes are the poly/mono trio and
+    two binder-grouping pairs, and a gate now censuses all 272 declaration names.
+  * `check-collapsed-option-reads`'s `UNPROBED` verdict class — reports 0, the class is unused.
+  * **Three "findings" this session were my own regex artefacts** (`val constant <name>` capturing the
+    keyword, prose matching `function <word>`, `%s` read as a name). **Read the outlier rows.**
+
+---
+
 # START HERE — gen #32 FINAL STATE (2026-09-28, window #8)
 
 Deadline **1790873022** = Thu Oct 1 16:43:42 UTC 2026 (written by the supervisor, never recomputed).
