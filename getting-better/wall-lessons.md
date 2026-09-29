@@ -8742,3 +8742,33 @@ TWO RIDERS:
   be "an exclusion with a GATE behind it, NOT an excuse". So the branch-2 clash refusal got
   `check-abstract-op-clash-resolution.py`, which drives the real function and carries a control that a
   refuse-everything implementation would fail.
+
+## (e5) gen #33 — A DEPENDENCY PREDICATE IS AN INSTRUMENT, AND MINE WAS WRONG THREE TIMES IN A ROW
+
+One nine-line repair — "pull `use string.String` when an abstract op's CONTRACT needs it" — and the
+byte-diff refused it **three times**, each time for a different reason, each time correctly:
+
+| iteration | what I wrote | what it actually matched |
+|---|---|---|
+| 1 | `"concat" in decl` | the op NAME in `val str_concat (x: int) (y: int) : int` — an entirely INT-typed op. 6 emissions gained a `use` they did not need. |
+| 2 | restrict to lines starting `ensures`/`requires` | **nothing at all** — `abs_lines` holds each WHOLE multi-line declaration as ONE element, so no element *starts* with `ensures`. The witness broke again. |
+| 3 | descend into each decl, word-boundary `\bconcat\b` | correct on the trigger, but ignored that **`use string.Char` re-exports `String`** — 4 more emissions gained a redundant use. |
+
+Only the fourth version was right. Every one of the three failures was invisible to local testing of
+the witness (which passed at iterations 1, 3 and 4) and visible ONLY to the whole-corpus byte-diff.
+
+>>> **A "PULL THE DEPENDENCY" PREDICATE HAS THREE INDEPENDENT WAYS TO BE WRONG, AND YOU MUST CHECK ALL
+>>> THREE: what the pattern MATCHES (a name is not a use), what it SCANS (the element granularity you
+>>> assumed), and what ALREADY SATISFIES the dependency (a re-exporting sibling module).** The witness
+>>> passing tells you only the first is not *too narrow*.
+
+TWO RULES THIS PAID FOR:
+
+* **PRE-CHECK THE LEG THAT KEEPS FAILING, ALONE, BEFORE PAYING FOR THE WHOLE BATTERY.** The corpus
+  byte-diff is ~25 minutes; the full battery is ~3 hours. After the second disagreement I should have
+  been running the sweep alone between iterations instead of re-running everything. Three full
+  batteries went to a nine-line predicate.
+* **A REDUNDANT ADDITION IS A REGRESSION.** Iterations 1 and 3 emitted files that still type-check and
+  are still correct — and both were RIGHTLY rejected, because a byte-diff's job is to notice that the
+  emission changed for a reason you did not declare. "It is harmless" is not the standard; "I declared
+  it" is.
