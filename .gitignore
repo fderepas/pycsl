@@ -54,7 +54,3 @@ getting-better/.driver-*
 
 # (#49) the advisory lock bin/run-soundness-planes.sh holds while it runs (bin/lib_plane_lock.py)
 .soundness-planes.lock
-
-# prover byproducts of a corpus proof run (untracked by design; gen #34 un-tracked the
-# ~40 that a `git add -A` swept in)
-test-suite/corpus/pycsl-reference/*.proofs/rocq/.tmp*.aux
