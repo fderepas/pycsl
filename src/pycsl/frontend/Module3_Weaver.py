@@ -3178,9 +3178,33 @@ class Module3_Weaver:
             # method is `\trusted` and carries no body. `exec` keeps the location gate: its
             # constant form is spliced in as real source and its dynamic form is what 0638,
             # 0639, 0644 and 1397 exercise.
-            _nb_reach = (_nb_x.func.id == "eval"
-                         and ((not _nb_const)
-                              or any(_nb_ch in _nb_src.value for _nb_ch in "(.[")))
+            # (#49) ROUTE #229 — THE LOCATION GATE'S PREMISE IS FALSE FOR `exec`, AND
+            # `global` IS EXACTLY THE BINDING FORM THAT BREAKS IT.
+            # The gate above rests on "assignments made by a bare `exec`/`eval` go to the
+            # LOCALS mapping, which ... is a discarded snapshot inside a function". True of a
+            # plain assignment. A `global` DECLARATION inside the exec'd text redirects the
+            # assignment into the GLOBALS mapping — and at function scope `exec`'s globals
+            # mapping is still the REAL module globals. The snapshot is discarded; the
+            # assignment never went there. MEASURED:
+            #     N = 3
+            #     def rebind(): code = "global N\nN = 5"; exec(code)
+            #     def read() -> int: return N        under `#@ ensures \result == 3`
+            # PROVED "All contracts formally proven"; CPython returns 5 after `rebind()`.
+            # (`getting-better/open-routes/route229-*`.)
+            # AND IT CANNOT BE A SPELLING RULE — that is the mistake this block already made
+            # twice (the `:=` cut, then the token cut). The text is DYNAMIC, so the emitter
+            # cannot read it AT ALL, and any rule about its contents is unfounded by
+            # construction. So a NON-CONSTANT `exec` now reaches exactly as a non-constant
+            # `eval` already did: the location gate survives only for a CONSTANT `exec`, whose
+            # text IS spliced in as real source by `splice_constant_exec` and is therefore
+            # modelled.
+            # COST, paid deliberately and not hidden: 0638/0639/0644 and 1397 all call
+            # `exec(code)` with `code` a PARAMETER, so all four are now refused. 1397 was an
+            # expected-PASS positive control whose docstring ASSERTED the premise this route
+            # refutes; it is re-marked and corrected rather than left encoding a falsehood.
+            _nb_reach = ((not _nb_const)
+                         or (_nb_x.func.id == "eval"
+                             and any(_nb_ch in _nb_src.value for _nb_ch in "(.[")))
             if (_nb_reach or len(_nb_x.args) > 1 or _nb_x.keywords
                     or id(_nb_x) in _nb_modexec_ids):
                 _nb_bad.append(f"a dynamic `{_nb_x.func.id}` that can bind into the module "
