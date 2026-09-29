@@ -55,11 +55,22 @@ class TypeInferenceMixin:
     _ghost_dict_vars: Set[str] = None
     _ghost_string_vars: Set[str] = None
     _ghost_tuple_vars: Dict[str, int] = None
+    # (#49) gen #34, OPTION 3 — THE FIELD IS DECLARED BECAUSE IT IS WRITTEN. Each field
+    # below is written by a live method whose mirror `#@ assigns` now NAMES it. Without a
+    # class declaration the field is absent from the emitted RECORD, so Module 6 drops it
+    # from the `writes` clause silently (`check-assigns-writes-survival`) while the clause
+    # reads as a guarantee; with the name in the clause but no declaration the two frame
+    # planes are ANTI-CORRELATED (lesson (f5)). Types are taken from the LIVE initialiser,
+    # never guessed. Plan: getting-better/open-routes/option3-declare-the-written-fields-PLAN.md
+    _rebound_collections: Set[str] = None
+    _known_collection_sizes: Dict[str, int] = None
+    _known_collection_elements: Dict[str, Dict[int, str]] = None
+    _record_array_locals: Dict[str, str] = None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._known_collection_elements, self._known_collection_sizes, self._record_array_locals
+    #@ assigns self._known_collection_elements, self._known_collection_sizes, self._rebound_collections, self._record_array_locals
     def _track_collection_metadata(self, target: str, val_ir: int) -> None:
         pass
 

@@ -37,11 +37,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # `int` self-field so `_fresh_var`'s read/increment lowers to a real record-field
         # projection + write-back, not an abstract getattr/setattr pair.
         self._fresh_var_counter: int = 0
+        # (#49) gen #34, OPTION 3 — `_collect_class_fields` WRITES this list
+        # (`self._m5_dc_unknown.append(...)`, live Module5_IREmitter.py:3592/3606) and its
+        # mirror `#@ assigns` now says so. Declared HERE and not at class level because
+        # `_collect_class_fields` builds THIS class's record from the `self.<f>: T = ...`
+        # AnnAssigns of `__init__` ONLY — a class-level annotation on PyCSLToJSONEmitter is
+        # collected for a @dataclass and for nothing else, so it would be silently inert and
+        # the declared write would keep being dropped from the emitted `writes`
+        # (measured: survival TRAP 2989 -> 2990 with the class-level spelling).
+        # Field TYPE only; the stub body stays unverified, like the four above.
+        self._m5_dc_unknown: List[str] = []
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._final_registry, self._fresh_var_counter, self._m5_record_class_names, self._mutex_invariants_csl, self._shared_var_names, self._source, self._union_synth_cache, self.program_ir
+    #@ assigns self._final_registry, self._fresh_var_counter, self._globals_lookup_funcs, self._m5_record_class_names, self._mutex_invariants_csl, self._shared_var_names, self._source, self._union_synth_cache, self.program_ir
     def visit_Module(self, node: ast.Module) -> None:
         pass
 
@@ -2670,7 +2680,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._fresh_var_counter, self._union_synth_cache, self.program_ir
+    #@ assigns self._fresh_var_counter, self._m5_dc_unknown, self._union_synth_cache, self.program_ir
     def _collect_class_fields(self, node: ast.ClassDef) -> Tuple[List[int], int]:
         return ([], {})
 
@@ -2765,7 +2775,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._cur_func_name, self._cur_func_symtab, self._cur_func_vararg_elem, self._cur_func_vararg_str, self._cur_literal_ensures, self._cur_literal_requires, self._current_class, self._fresh_var_counter, self._protocols, self._source, self._union_synth_cache, self.program_ir
+    #@ assigns self._cur_func_name, self._cur_func_symtab, self._cur_func_vararg_elem, self._cur_func_vararg_str, self._cur_literal_ensures, self._cur_literal_requires, self._current_class, self._fresh_var_counter, self._m5_dc_unknown, self._protocols, self._source, self._union_synth_cache, self.program_ir
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         pass
 

@@ -88,45 +88,55 @@ TRUSTED = re.compile(r"^\s*#@\s*\\trusted\b")
 SELFF = re.compile(r"self\.([A-Za-z_][A-Za-z_0-9]*)")
 
 MIN_NONEMPTY = 400        # 498 at the first measurement; a walk that sees far fewer is broken
-MAX_TRAP = 18             # field-occurrences. LOWER it when a clause is corrected.
+MAX_TRAP = 5              # field-occurrences. LOWER it when a clause is corrected.
                           # (#49) gen #33 first measurement: 18 across 9 methods.
                           #
-                          # (#49) gen #33 — IT WENT TO 0 AND WAS DELIBERATELY REVERTED, and the
-                          # reason is lesson (f5), not timidity. Repairing all eighteen clauses is
-                          # BYTE-INERT (0 of 7 touched mirror emissions moved) and takes THIS ratchet
-                          # 18 -> 0 — but it takes `check-assigns-writes-survival`'s TRAP
-                          # **2989 -> 3000**, and that ratchet's own declaration says "may only
-                          # SHRINK". The two planes bracket the frame from OPPOSITE sides and are
-                          # ANTI-CORRELATED for a field that is written but not class-declared:
-                          # omit it from the clause and THIS count rises, name it and THAT one does.
-                          # ONLY DECLARING THE FIELD ON ITS CLASS drives both to zero, which is why
-                          # 2989 has never shrunk.
-                          # THE PLAN IS WRITTEN AND THE BILL IS MEASURED — 3 of 53 mirrors move, and
-                          # NOT `pure_ast`/`expressions`/`functions`, so ~3 h of proving rather than
-                          # the 7-25 h first guessed:
-                          #   getting-better/open-routes/option3-declare-the-written-fields-PLAN.md
-                          # Lower this to 0 as part of THAT change, with the class declarations, and
-                          # never on its own.
+                          # (#49) gen #34 — 18 -> 5, OPTION 3 LANDED FOR THE THIRTEEN FIELDS WHOSE
+                          # TYPE IS ESTABLISHED RATHER THAN GUESSED. Each clause repair is paired
+                          # with a CLASS DECLARATION wherever the declaration actually reaches the
+                          # emitted RECORD, which is what makes the `writes` clause honest instead
+                          # of merely making this ratchet fall:
+                          #   TypeInferenceMixin      4 fields (types.py, class level)
+                          #   StatementEmissionMixin  2 fields (statements.py, class level)
+                          #   PyCSLToJSONEmitter      1 field  (Module5 `__init__` -- a class-level
+                          #                                    annotation on THAT class is
+                          #                                    collected only for a @dataclass and
+                          #                                    is otherwise silently inert)
+                          # and the six `FunctionEmissionMixin` fields + the two `PyCSLWeaver`
+                          # fields get the CLAUSE only: their classes emit no record that carries
+                          # them, so a declaration there would be emission-inert AND would create
+                          # HOLE/HOLE-T risk for nothing. THE CLAUSE IS WHAT THIS PLANE MEASURES;
+                          # THE DECLARATION IS WHAT `check-assigns-writes-survival` NEEDS. They are
+                          # NOT the same repair and pairing them blindly is what made gen #33's
+                          # half-landed patch raise TRAP 2989 -> 3000.
+                          #
+                          # AND THE TRANSITIVE ARM HAD TO BE REPAIRED IN THE SAME BREATH: declaring
+                          # a field makes every OTHER clause that omits it a HOLE-T, whose ceiling
+                          # is 0. Measured before touching a line: 32 TRAP-T rows carry one of the
+                          # 13 fields and only 13 are direct, so 19 would have fired. The 19 are
+                          # now declared too (`_emit_function`, `_emit_subtyping_goals`,
+                          # `_render_refinement_goal`, `visit_ClassDef`), taking TRAP-T 148 -> 116.
+                          #
+                          # THE FIVE THAT REMAIN EACH NEED A JUDGEMENT, NOT A TYPE (see the plan):
+                          #   expressions.py `ir`                      a CONTAINER mutation of the
+                          #                                           whole IR mapping
+                          #   expressions.py `_r188_stub_names`        initialised from another map
+                          #   expressions.py `_r55_subsumed_name`      an Optional (route #227)
+                          #   preamble.py    `_formal_params`          `= list(params)`
+                          #   preamble.py    `_emitted_record_field_types`
+                          #                                           `Dict[str, Dict[str, str]]` --
+                          #                                           the plan said `Dict[str, str]`
+                          #                                           and the live shape is NESTED;
+                          #                                           a guessed container type is a
+                          #                                           fabricated witness value.
+                          # Plan: getting-better/open-routes/option3-declare-the-written-fields-PLAN.md
 TRAP_BASELINE = {
-    ("module6_whyml/functions.py", "FunctionEmissionMixin", "_reset_function_state"): [
-        "_erased_truthy_locals", "_fold_unsafe_elems", "_fold_unsafe_sizes",
-        "_loop_targets_read_outside", "_r51_bound_names", "_rebound_collections"],
-    ("module6_whyml/statements.py", "StatementEmissionMixin", "_emit_body_code"): [
-        "_literal_rebind_lens", "_literal_rebind_targets"],
     ("module6_whyml/preamble.py", "PreambleEmissionMixin", "_emit_type_decls"): [
         "_emitted_record_field_types", "_formal_params"],
     ("module6_whyml/expressions.py", "ExpressionEmissionMixin", "_handle_dotted_call"): [
         "_r188_stub_names", "ir"],
     ("module6_whyml/expressions.py", "ExpressionEmissionMixin", "_handle_binop"): [
         "_r55_subsumed_name"],
-    ("module6_whyml/types.py", "TypeInferenceMixin", "_track_collection_metadata"): [
-        "_rebound_collections"],
-    ("frontend/Module3_Weaver.py", "PyCSLWeaver", "visit_Module"): [
-        "_csl_bound_names", "_csl_star_import"],
-    ("frontend/Module5_IREmitter.py", "PyCSLToJSONEmitter", "visit_Module"): [
-        "_globals_lookup_funcs"],
-    ("frontend/Module5_IREmitter.py", "PyCSLToJSONEmitter", "_collect_class_fields"): [
-        "_m5_dc_unknown"],
 }
 
 

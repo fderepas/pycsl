@@ -257,7 +257,7 @@ class PyCSLWeaver(ast.NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._source
+    #@ assigns self._csl_bound_names, self._csl_star_import, self._source
     def visit_Module(self, node: ast.Module) -> Any:
         return None
 
