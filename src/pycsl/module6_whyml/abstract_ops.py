@@ -81,9 +81,90 @@ class AbstractOpsMixin:
                 arity_key = f"{name}_{new_params}"
                 self._abstract_ops[arity_key] = decl
             else:
-                # Same arity but different declaration — keep longer
-                if len(decl) > len(existing):
+                # (#49) gen #33 — PREFER THE MORE GENERAL DECLARATION, NOT THE LONGER STRING.
+                #
+                # This branch used to be "keep longer" and nothing else, and that one line is
+                # a MECHANICAL CAUSE OF THE INT-ERASURE SEAM (backlog #62/#64). Three core
+                # symbols are registered in BOTH a polymorphic and an int-monomorphic
+                # spelling — `map_update_some`, `map_update_none`, `snapshot` — the arm is
+                # chosen PER SITE, and `_decl_arity` (correct since relaunch #30) reads both
+                # spellings of each pair as the SAME arity, so every one of them lands here.
+                # The int-monomorphic spelling is LONGER in all three (`snapshot` by TWO
+                # characters, 35 vs 37), and it wins in BOTH registration orders because a
+                # stored decl is replaced only by a LONGER one. So whenever both spellings
+                # reach one emission the module collapses to `int`, and WHICH VALUE MODEL A
+                # SHARED SYMBOL GETS WAS DECIDED BY `len()`.
+                #
+                # `statements.py`'s own comment rests on the half of this that is true —
+                # "the name-dedup means ONE DECL SERVES EVERY MAP WRITE IN THE MODULE" —
+                # while WHICH one it serves was never decided.
+                #
+                # REPRODUCED from three lines (`getting-better/open-routes/
+                # finding-the-int-erasure-seam-is-decided-by-string-length.md`):
+                #
+                #     si = set(); si.add(1)      # int kappa    -> MONO arm
+                #     ss = set(); ss.add("a")    # string kappa -> POLY arm
+                #
+                #   emitted `val map_update_some (m: map int (option int)) …` and L3-tc failed
+                #   "This expression has type string, but is expected to have type int" —
+                #   which is the `string vs int` row of gen #32's blocker table. EACH SET
+                #   ALONE TYPE-CHECKS; only the combination breaks, so it is an INTERACTION
+                #   that no per-feature probe could find.
+                #
+                # WHY PREFERRING THE POLYMORPHIC DECL IS SOUND, not merely nicer: it carries
+                # the SAME contract, and instantiated at `int` it IS the monomorphic decl. So
+                # every existing monomorphic use type-checks identically and assumes exactly
+                # what it assumed before — strictly more general, never weaker. Only a module
+                # that registers BOTH changes, and such a module fails L3-tc today, so it can
+                # only improve.
+                #
+                # THE SECOND BRANCH IS THE ONE THAT KEEPS THIS HONEST. If neither decl
+                # subsumes the other and the heads differ in types or result, there is no
+                # principled winner, so REFUSE rather than let `len()` pick. The only clashes
+                # live in this tree (`str_eq_op`, `str_split_op`) differ ONLY in binder
+                # GROUPING — `(a b: string)` vs `(a: string) (b: string)` — which the
+                # canonical form below treats as equal, so they keep the old keep-longer
+                # behaviour and stay byte-identical.
+                #
+                # Scoped to the HEAD on purpose: a difference in the CONTRACT lines under an
+                # equivalent head means keep-longer picks the STRONGER `ensures` for what the
+                # emitter intends as the same function (`str_split_op` has an ensures-bearing
+                # spelling and a bare one). That is a deliberate choice, recorded here so the
+                # next reader need not guess, and it is NOT what this guard checks — a
+                # contract does not silently decide a TYPE.
+                _ex_head = existing.split("\n", 1)[0]
+                _nw_head = decl.split("\n", 1)[0]
+                _ex_poly = "'" in _ex_head
+                _nw_poly = "'" in _nw_head
+                if _nw_poly and not _ex_poly:
                     self._abstract_ops[name] = decl
+                elif _ex_poly and not _nw_poly:
+                    pass          # the polymorphic decl is already stored; it subsumes this one
+                else:
+                    _canon = []
+                    for _h in (_ex_head, _nw_head):
+                        _tys = []
+                        for _names, _ty in re.findall(r"\(([^():]*):([^()]*)\)", _h):
+                            _tys.extend([_ty.strip()] * len(_names.split()))
+                        _res = _h.rsplit(":", 1)[-1] if ":" in _h else ""
+                        _canon.append(re.sub(r"\s+", "", "|".join(_tys) + "->" + _res))
+                    if _canon[0] != _canon[1]:
+                        from errors import PyCSLSemanticError
+                        raise PyCSLSemanticError(
+                            "internal abstract-op clash (#49 gen #33): the symbol %r is "
+                            "registered with two declarations of the same arity, neither of "
+                            "which subsumes the other:\n    %s\n    %s\n"
+                            "The previous behaviour resolved this by keeping whichever "
+                            "string was LONGER, which lets string length decide a type. "
+                            "Refused rather than emitted. How to fix: make the two "
+                            "registration sites agree on one declaration -- a POLYMORPHIC "
+                            "one is preferred automatically and subsumes every monomorphic "
+                            "use -- or give them distinct symbol names so the model carries "
+                            "both."
+                            % (name, _ex_head, _nw_head))
+                    # Heads are equivalent (binder grouping only) — keep longer, as before.
+                    if len(decl) > len(existing):
+                        self._abstract_ops[name] = decl
 
     @staticmethod
     def _decl_arity(decl: str) -> int:
