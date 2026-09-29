@@ -463,7 +463,14 @@ class AbstractOpsMixin:
         _use_str = "  use string.String"
         # NOTE each element of `abs_lines` is a WHOLE declaration, contract lines included,
         # so the scan has to descend into it rather than treat the element as one line.
-        if _use_str not in out and any(
+        # AND `use string.Char` ALREADY SATISFIES THE DEPENDENCY: `string.Char` is a sibling
+        # module in the SAME trusted `string.mlw` and re-exports `String`, so a file carrying
+        # only `use string.Char` resolves `String.length` perfectly well. MEASURED from the
+        # BASELINE emission of corpus 1158: its uses were int.Int / int.EuclideanDivision /
+        # ref.Ref / string.Char, its contracts say `String.length`, and it type-checked.
+        # Pulling `string.String` in anyway is REDUNDANT and MOVES the emission, which is
+        # exactly what the byte-diff reported for 1158/1159/1160/1161.
+        if _use_str not in out and "  use string.Char" not in out and any(
                 _sl.strip().startswith(("ensures", "requires", "variant", "invariant"))
                 and re.search(r"\bconcat\b|\bString\.", _sl)
                 for _decl_l in abs_lines for _sl in _decl_l.splitlines()):
