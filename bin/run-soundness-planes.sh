@@ -106,6 +106,17 @@ PLANES=(
     # HOLE 0 is a MEASUREMENT, so `--self-test` declares one measured-TRAP field in its
     # class and requires HOLE to fire. Static, ~2s.
     check-assigns-underdeclaration.py
+    # (#49) gen #33 — `_add_abstract_op`'s SAME-ARITY TIEBREAK. It used to resolve a clash by
+    # KEEPING THE LONGER STRING, which is how the int-erasure seam got decided by `len()`:
+    # `snapshot`, `map_update_some` and `map_update_none` each have a POLYMORPHIC and an
+    # int-MONOMORPHIC spelling of EQUAL arity, and the monomorphic one is longer (`snapshot`
+    # by TWO characters) and wins in BOTH registration orders. Reproduced by corpus 1916.
+    # It now prefers the POLYMORPHIC decl and REFUSES a clash where neither subsumes the
+    # other. This plane drives the REAL `_add_abstract_op` and is the GATE BEHIND that
+    # refusal's NOT_SOURCE_REACHABLE exclusion in check-refusal-witness-coverage — both
+    # orders, both symbols, the refusal, and the binder-grouping-only CONTROL without which
+    # a refuse-everything tiebreak would pass. Pure Python, <1s.
+    check-abstract-op-clash-resolution.py
     check-mirror-field-parity.py
     check-mirror-loop-annotations.py
     check-mirror-signature-drift.py
@@ -379,6 +390,8 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
+# (#49) gen #33: 53 -> 54 with `check-abstract-op-clash-resolution.py` (the same-arity
+# tiebreak that decided the seam by string length).
 # (#49) gen #33: 52 -> 53 with `check-assigns-underdeclaration.py` (the frame plane's
 # population hole: 498 non-empty `#@ assigns` clauses were in neither of
 # check-trusted-frame-honesty's arms).
@@ -387,7 +400,7 @@ PLANES=(
 # (#49) gen #31: 48 -> 49 with `check-sibling-concrete-fidelity.py`, 49 -> 50 with
 # `self-annotate-mirror-check.sh` (declared a gate in five documents, collected by no
 # battery until now — lesson (u6)).
-MIN_PLANES=53
+MIN_PLANES=54
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
