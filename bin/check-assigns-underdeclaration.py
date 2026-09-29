@@ -90,10 +90,23 @@ SELFF = re.compile(r"self\.([A-Za-z_][A-Za-z_0-9]*)")
 MIN_NONEMPTY = 400        # 498 at the first measurement; a walk that sees far fewer is broken
 MAX_TRAP = 18             # field-occurrences. LOWER it when a clause is corrected.
                           # (#49) gen #33 first measurement: 18 across 9 methods.
-
-# The measured TRAP rows, kept BY NAME so a new one is visible rather than absorbed into a
-# count. Every entry is a `\trusted` stub, and every omitted field is undeclared in its
-# class (hence HOLE 0). `--self-test` picks its injection target from this table.
+                          #
+                          # (#49) gen #33 — IT WENT TO 0 AND WAS DELIBERATELY REVERTED, and the
+                          # reason is lesson (f5), not timidity. Repairing all eighteen clauses is
+                          # BYTE-INERT (0 of 7 touched mirror emissions moved) and takes THIS ratchet
+                          # 18 -> 0 — but it takes `check-assigns-writes-survival`'s TRAP
+                          # **2989 -> 3000**, and that ratchet's own declaration says "may only
+                          # SHRINK". The two planes bracket the frame from OPPOSITE sides and are
+                          # ANTI-CORRELATED for a field that is written but not class-declared:
+                          # omit it from the clause and THIS count rises, name it and THAT one does.
+                          # ONLY DECLARING THE FIELD ON ITS CLASS drives both to zero, which is why
+                          # 2989 has never shrunk.
+                          # THE PLAN IS WRITTEN AND THE BILL IS MEASURED — 3 of 53 mirrors move, and
+                          # NOT `pure_ast`/`expressions`/`functions`, so ~3 h of proving rather than
+                          # the 7-25 h first guessed:
+                          #   getting-better/open-routes/option3-declare-the-written-fields-PLAN.md
+                          # Lower this to 0 as part of THAT change, with the class declarations, and
+                          # never on its own.
 TRAP_BASELINE = {
     ("module6_whyml/functions.py", "FunctionEmissionMixin", "_reset_function_state"): [
         "_erased_truthy_locals", "_fold_unsafe_elems", "_fold_unsafe_sizes",
@@ -271,8 +284,16 @@ def _transitive_writes(live_path):
 
 
 def measure(inject=None):
-    """inject = (relpath, cls, field): pretend `field` is CLASS-DECLARED in `cls`, which is
-    what `--self-test` does to prove HOLE can fire."""
+    """inject = (relpath, cls, func, field): pretend `field` is BOTH absent from that
+    method's `#@ assigns` clause AND class-DECLARED, which is what `--self-test` does to
+    prove HOLE can fire.
+
+    (#49) gen #33 — THE INJECTION NEEDED BOTH HALVES ONCE TRAP REACHED 0. It used to force
+    only `declared_in_class = True` for a field that was ALREADY a measured TRAP. That
+    worked while 18 clauses were under-declared; the moment they were all repaired there
+    was no TRAP left to promote, so the self-test would have passed by testing NOTHING —
+    the exact shape of a guard whose population is empty. It now SUBTRACTS the field from
+    the clause as well, so it synthesises the whole condition instead of half of it.""" 
     nonempty = 0
     traps, holes = [], []
     for dirpath, _d, files in os.walk(MIRROR):
@@ -293,11 +314,14 @@ def measure(inject=None):
                 w = writes.get((cname, fname))
                 if not w:
                     continue
+                _fields = fields
+                if inject and (relp, cname, fname) == inject[:3]:
+                    _fields = fields - {inject[3]}       # pretend the clause omits it
                 for fld, kind in sorted(w.items()):
-                    if fld in fields:
+                    if fld in _fields:
                         continue
                     declared_in_class = fld in cls_fields.get(cname, set())
-                    if inject and (relp, cname, fld) == inject:
+                    if inject and (relp, cname, fname, fld) == inject:
                         declared_in_class = True
                     row = (relp, cname, fname, fld, kind, trusted, declared_in_class)
                     traps.append(row)
@@ -326,26 +350,44 @@ def main():
         return 2
 
     if args.self_test:
+        # Pick a method whose LIVE body writes a field its clause DOES name, then pretend
+        # the clause omits it and the class declares it. Both halves are required now that
+        # every real clause is honest (TRAP 0) — see `measure`'s docstring.
         target = None
-        for (relp, cname, fname), flds in sorted(TRAP_BASELINE.items()):
-            target = (relp, cname, flds[0])
-            break
-        _n, _t, h2 = measure(inject=target)
+        for dirpath, _d, files in os.walk(MIRROR):
+            for f in sorted(files):
+                if target or not f.endswith(".py"):
+                    continue
+                mp = os.path.join(dirpath, f)
+                relp = os.path.relpath(mp, MIRROR)
+                lp = os.path.join(LIVE, relp)
+                if not os.path.exists(lp):
+                    continue
+                decls, _cf = _mirror_decls(mp)
+                writes = _live_direct_writes(lp)
+                for (cname, fname), (fields, _t, _l) in sorted(decls.items()):
+                    if target or not fields:
+                        continue
+                    w = writes.get((cname, fname)) or {}
+                    both = sorted(set(w) & set(fields))
+                    if both:
+                        target = (relp, cname, fname, both[0])
+        if target is None:
+            print("[!] assigns-underdeclaration --self-test: REFUSING \u2014 found no method whose "
+                  "live body writes a field its own clause names, so the injection cannot be "
+                  "built and a PASS would mean nothing.")
+            return 2
+        _n, _t2, h2 = measure(inject=target)
         if not h2:
-            print("[!] assigns-underdeclaration --self-test: FAILED — declaring %s in %s "
-                  "(%s) did NOT make HOLE fire, so the HOLE arm is DEAD and \"HOLE 0\" is "
-                  "not evidence of anything." % (target[2], target[1], target[0]))
+            print("[!] assigns-underdeclaration --self-test: FAILED \u2014 pretending %s is absent "
+                  "from %s.%s's clause AND declared in %s did NOT make HOLE fire, so the HOLE "
+                  "arm is DEAD and \"HOLE 0\" is not evidence of anything."
+                  % (target[3], target[1], target[2], target[1]))
             return 1
-        print("[+] assigns-underdeclaration --self-test: OK — declaring %s in %s (%s) "
-              "makes HOLE fire on %d row(s); the HOLE arm has teeth."
-              % (target[2], target[1], target[0], len(h2)))
+        print("[+] assigns-underdeclaration --self-test: OK \u2014 pretending %s is absent from "
+              "%s.%s's clause AND class-declared makes HOLE fire on %d row(s); the HOLE arm "
+              "has teeth." % (target[3], target[1], target[2], len(h2)))
         return 0
-
-    if args.verbose or holes:
-        for relp, cname, fname, fld, kind, trusted, dic in sorted(traps):
-            print("    %-6s %-32s %-28s %-26s self.%-28s %s%s"
-                  % ("HOLE" if dic else "trap", relp, cname, fname, fld,
-                     kind, "  [trusted]" if trusted else ""))
 
     if args.transitive:
         t_traps, t_holes, t_nonempty = [], [], 0
