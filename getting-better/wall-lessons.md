@@ -8772,3 +8772,40 @@ TWO RULES THIS PAID FOR:
   are still correct — and both were RIGHTLY rejected, because a byte-diff's job is to notice that the
   emission changed for a reason you did not declare. "It is harmless" is not the standard; "I declared
   it" is.
+
+## (f5) gen #33 — TWO RATCHETS THAT BRACKET THE SAME INVARIANT FROM OPPOSITE SIDES ARE ANTI-CORRELATED, AND NEITHER CAN BE SATISFIED BY MOVING IT
+
+The frame is watched from two directions, and gen #33 built the second one itself:
+
+    check-assigns-writes-survival   (gen #32)  DECLARED-but-not-EMITTED   TRAP 2989, "may only SHRINK"
+    check-assigns-underdeclaration  (gen #33)  WRITTEN-but-not-DECLARED   TRAP 18
+
+For a field the live body writes and the emitting class does **not** declare, those two move in
+**opposite** directions and there is no clause you can write that satisfies both:
+
+* leave the field out of the `#@ assigns` → the clause lies by omission → **gen #33's TRAP +1**;
+* put the field in the clause → it is not in the class RECORD, so Module 6 drops it from the emitted
+  `writes` → **gen #32's TRAP +1**.
+
+Measured, not argued: repairing all eighteen of gen #33's under-declared clauses was BYTE-INERT (0 of
+7 touched mirror emissions moved) and drove its TRAP 18 → 0 — and drove gen #32's TRAP **2989 → 3000**,
+which that plane refuses because its declaration says "may only SHRINK".
+
+>>> **ONLY DECLARING THE FIELD ON ITS CLASS DRIVES BOTH TO ZERO.** Then it enters the record, the
+>>> `writes` actually names it, and neither plane counts it. **That is why `MAX_TRAP = 2989` HAS NEVER
+>>> SHRUNK in this campaign** — every attempt to be honest in the source pushed it up, and the only
+>>> move that lowers it is the expensive one nobody had priced.
+
+THREE RULES THIS PAID FOR:
+
+* **WHEN A REPAIR MAKES ONE RATCHET GREEN AND ANOTHER RED, DO NOT PICK A SIDE — LOOK FOR THE STATE
+  THAT SATISFIES BOTH.** The tension is information: it says the repair was half of something. Here
+  the clause edit and the class declaration are two halves of one change, and landing either alone is
+  what produced the conflict.
+* **A "may only SHRINK" DECLARATION IS PART OF THE GATE, NOT A SUGGESTION.** The contract's rule —
+  *never re-baseline a ratchet to make a gate green; if a gate goes red the repair is at fault* —
+  applies even when the cause reads well in a commit message, and especially then, because a good
+  cause is exactly what makes re-baselining feel earned.
+* **BEFORE PRICING A FRAME CHANGE, ASK WHICH OTHER PLANE WATCHES THE SAME INVARIANT.** Gen #33 built
+  the second bracket and still did not ask what the first would read until the battery said so. The
+  question costs one `grep` over the plane array for the same nouns (`assigns`, `writes`, `frame`).

@@ -408,6 +408,18 @@ START (standing), not as an interrupt. Rules:
   against the sweep alone**, never against the whole battery; (ii) iterations 1 and 3 produced files
   that still type-checked and were still correct, and the byte-diff was RIGHT to reject them —
   **"it is harmless" is not the standard, "I declared it" is.**
+- **CARVE-OUT (lesson (f5), gen #33) — WHEN A REPAIR MAKES ONE RATCHET GREEN AND ANOTHER RED, DO
+  NOT PICK A SIDE: FIND THE STATE THAT SATISFIES BOTH.** Two planes can bracket one invariant from
+  opposite ends and be ANTI-CORRELATED. Measured: `check-assigns-writes-survival` counts
+  DECLARED-but-not-EMITTED (TRAP 2989, "may only SHRINK") and `check-assigns-underdeclaration` counts
+  WRITTEN-but-not-DECLARED (TRAP 18). For a field written but not class-declared, omitting it from
+  the clause raises the second and naming it raises the first — repairing all 18 clauses was
+  byte-inert and took 18 -> 0 while taking 2989 -> **3000**. **Only declaring the field on its CLASS
+  drives both to zero**, which is why that ratchet has never shrunk. The tension is INFORMATION: it
+  says the repair was half of something. And a **"may only SHRINK" declaration is part of the gate**
+  — the no-re-baselining rule applies hardest when the cause reads well, because that is what makes
+  re-baselining feel earned. **Before pricing a frame change, grep the plane array for the other
+  planes watching the same nouns** (`assigns`, `writes`, `frame`).
 - **Escalate-not-thrash, time-aware.** A per-wall attempt budget still applies; additionally, do not START
   a full cycle whose fable-review + spike cannot plausibly finish before the deadline — defer it (record
   the wall-signal for the next run) and spend the tail on cheaper items.
