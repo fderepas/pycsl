@@ -122,7 +122,19 @@ LIVE = os.path.join(ROOT, "src", "pycsl")
 #       `exception` declarations and nothing else; whole-file re-proofs rc=0 with zero
 #       non-Valid goals counted INDEPENDENTLY of the SUCCESS banner
 #       (`getting-better/proofs49/cm5_*.{log,rc}`); markers unchanged at 459.
-MAX_SILENT = 62
+MAX_SILENT = 61
+# (#49) gen #33: 62 -> 61, and the attribution matters. This is NOT an improvement this
+# generation made — a worktree at 0375dec1 (before any gen #33 source change) measures the
+# SAME 14 declared / 61 silent, so the ratchet has simply been ONE LOOSE since some earlier
+# generation, and the plane has been printing "silent 61 < ratchet 62 — lower the constant"
+# unread. The window #7 addendum's "13 DECLARED / 62 SILENT" is stale on both numbers.
+# WHAT GEN #33 ACTUALLY DID was break it and put it back: adding a `raise` to
+# `_add_abstract_op` took silent 61 -> 65, because that method has a `\trusted` mirror stub
+# in THREE mirror files and each one then asserted "this call has ONE exit path" when it no
+# longer did. The raise was removed and the hazard moved to a gate
+# (`bin/check-abstract-op-clash-resolution.py` leg 5) rather than declared, because
+# `#@ raises` on those stubs would put a `raises` clause on the emitted abstract `val` and
+# cascade into every mirror caller — lesson (c5) by the declared route.
 
 
 # (#49) THE REFUSAL CLASS. Every `raise` this campaign ADDS to the emitter is a REFUSAL —

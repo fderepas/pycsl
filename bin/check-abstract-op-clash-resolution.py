@@ -25,18 +25,22 @@ The tiebreak now has three branches, and this plane is the negative test for eac
 
   1. exactly one decl is POLYMORPHIC -> keep IT. It carries the same contract and
      instantiated at `int` IS the monomorphic decl, so it is strictly more general.
-  2. neither subsumes the other and the heads differ in types or result -> REFUSE. There is
-     no principled winner, so `len()` must not pick one.
+  2. neither subsumes the other and the heads differ in types or result -> there is no
+     principled winner. A runtime REFUSAL was written and then REMOVED: `_add_abstract_op`
+     has a `\trusted` mirror stub in THREE mirror files, so one `raise` took
+     `check-trusted-raises-honesty` SILENT 62 -> 65, and declaring `#@ raises` instead would
+     cascade a `raises` clause into every mirror caller (lesson (c5) by the declared route).
+     It bought nothing a GATE cannot: the clash is between declarations THE EMITTER ITSELF
+     registers, so only an edit to `src/pycsl/` can create one. LEG 5 below is that gate.
   3. heads equivalent (binder grouping only) -> keep longer, unchanged, so the two clashes
      that actually occur in this tree (`str_eq_op`, `str_split_op`) stay byte-identical.
 
-WHY A PLANE AND NOT A CORPUS WITNESS. Branch 2's population is EMPTY: no two registration
-sites in the emitter currently produce a non-subsuming same-arity clash, so **no `.py` source
-can make it fire** and no corpus witness can ever demonstrate it. That is the
-NOT_SOURCE_REACHABLE shape, and `bin/check-refusal-witness-coverage.py` is explicit that such
-an exclusion is "an exclusion with a GATE behind it, NOT an excuse" -- so this is that gate.
-It drives the REAL `_add_abstract_op` (no reimplementation) and carries CONTROLS, so a
-tiebreak that refused everything, or one that refused nothing, both fail.
+WHY A STATIC CENSUS RATHER THAN A RUNTIME REFUSAL. The non-subsuming clash cannot be reached
+from any `.py` source -- it is a property of the emitter's OWN registration sites -- so the
+honest place to catch it is where it would be INTRODUCED: a census of `src/pycsl/`. That also
+keeps the raises ledger honest and owes no corpus witness. Legs 1-4 drive the REAL
+`_add_abstract_op` (no reimplementation) with controls, so a tiebreak that preferred nothing
+and one that preferred everything both fail; leg 5 is the census.
 
 Usage:  bin/check-abstract-op-clash-resolution.py [-v]
 Exit 0 = all five legs hold.
@@ -86,8 +90,6 @@ def main() -> int:
     verbose = "-v" in sys.argv
     fails = []
 
-    from errors import PyCSLSemanticError
-
     # LEG 0 — the pairs really do land in the same-arity branch. If `_decl_arity` ever
     # separates them, they take the `name_N` path instead and every leg below is vacuous.
     from module6_whyml.abstract_ops import AbstractOpsMixin as A
@@ -123,18 +125,18 @@ def main() -> int:
         elif verbose:
             print("[.] leg 1/2 (%s): polymorphic `map_update_some` kept" % order)
 
-    # LEG 3 — the REFUSAL fires on a non-subsuming same-arity clash. This is the leg that
-    # discharges the witness debt: branch 2 is unreachable from any `.py` source.
-    try:
-        _register(CLASH_A, CLASH_B)
-        fails.append("LEG 3: a non-subsuming same-arity clash (`%s` vs `%s`) was ACCEPTED. "
-                     "The route-#64 refusal is gone, and string length decides a type again."
-                     % (CLASH_A, CLASH_B))
-    except PyCSLSemanticError as e:
-        if "gen #33" not in str(e) and "neither of" not in str(e):
-            fails.append("LEG 3: refused, but not by the clash guard: %s" % str(e)[:200])
-        elif verbose:
-            print("[.] leg 3: non-subsuming same-arity clash REFUSED")
+    # LEG 3 — a non-subsuming same-arity clash must NOT be silently resolved by length in a
+    # way that loses information. With the refusal removed this is the documented
+    # keep-longer fallback; what guards the hazard is LEG 5, which asserts no such clash
+    # exists in the emitter at all. Here we only pin the BEHAVIOUR so it cannot drift
+    # unnoticed: the longer decl wins, deterministically, in both orders.
+    for first, second in ((CLASH_A, CLASH_B), (CLASH_B, CLASH_A)):
+        got = _register(first, second).get("widget_op", "")
+        if got != max(CLASH_A, CLASH_B, key=len):
+            fails.append("LEG 3: a non-subsuming same-arity clash resolved to %r, which is "
+                         "neither spelling's longer form — the fallback drifted." % got)
+    if verbose and not fails:
+        print("[.] leg 3: non-subsuming clash falls back to keep-longer, deterministically")
 
     # LEG 4 — THE CONTROL. A guard that refused every clash would pass leg 3. The cosmetic
     # pair differs only in binder grouping and MUST still be accepted, keeping the longer
@@ -146,10 +148,97 @@ def main() -> int:
                          "longer spelling %r — the byte-identical path changed." % (got, COSM_B))
         elif verbose:
             print("[.] leg 4: cosmetic pair accepted, longer spelling kept (byte-identical)")
-    except PyCSLSemanticError as e:
-        fails.append("LEG 4: the cosmetic pair (binder grouping only) was REFUSED — the "
-                     "guard is over-firing and every emission that registers `str_eq_op` "
-                     "twice would break: %s" % str(e)[:200])
+    except Exception as e:
+        fails.append("LEG 4: the cosmetic pair (binder grouping only) RAISED — the tiebreak "
+                     "is over-firing and every emission that registers `str_eq_op` twice "
+                     "would break: %r: %s" % (type(e).__name__, str(e)[:200]))
+
+    # LEG 5 — THE CENSUS, and it is the leg that guards the hazard. Every literal `val` /
+    # `function` declaration in `src/pycsl/`, grouped by the symbol name the dedup computes.
+    # A name carrying two same-arity declarations that differ in TYPES or RESULT, with
+    # NEITHER polymorphic, has no principled winner and would be resolved by string length.
+    # Today: none. The known clashes are `snapshot`/`map_update_some`/`map_update_none` (one
+    # side polymorphic, leg 1/2's business) and `str_eq_op`/`str_split_op` (binder grouping
+    # only, leg 4's business).
+    import ast
+    import collections
+    import re as _re
+    # THE FILTER IS THE INSTRUMENT. A loose version of this pattern manufactured SEVEN
+    # false clashes on its first run, all of one family: `val constant <name>` made it
+    # capture the KEYWORD `constant`; ordinary English prose ("function in the same block.")
+    # matched `function <word>`; and `%`-formatted decls yielded the "name" `%s`. Read the
+    # outlier rows. So: the keyword is consumed, the NAME may not itself be a Why3 keyword,
+    # and the line must actually look like a declaration -- a ` : ` type ascription, a
+    # parenthesised or empty binder list, and no placeholder anywhere.
+    DECL = _re.compile(r"^\s*(?:val\s+function|val\s+constant|val|function|predicate|constant)"
+                       r"\s+([A-Za-z_][A-Za-z_0-9']*)\s*(\(.*)?:\s*\S.*$")
+    KEYWORDS = {"val", "function", "constant", "predicate", "type", "in", "let", "if",
+                "then", "else", "with", "match", "use", "import", "clone", "axiom",
+                "lemma", "goal", "ensures", "requires", "writes", "reads", "raises"}
+    by_name = collections.defaultdict(set)
+    for dirpath, _d, files in os.walk(os.path.join(ROOT, "src", "pycsl")):
+        for fn in sorted(files):
+            if not fn.endswith(".py"):
+                continue
+            try:
+                tree = ast.parse(open(os.path.join(dirpath, fn), encoding="utf-8",
+                                      errors="replace").read())
+            except SyntaxError:
+                continue
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                    for line in node.value.splitlines():
+                        if "%" in line or "{" in line or "<" in line:
+                            continue          # a formatted/placeholder decl names nothing
+                        m = DECL.match(line)
+                        if m and m.group(1) not in KEYWORDS:
+                            by_name[m.group(1)].add(line.strip())
+    def _canon_head(h):
+        tys = []
+        for names, ty in _re.findall(r"\(([^():]*):([^()]*)\)", h):
+            tys.extend([ty.strip()] * len(names.split()))
+        res = h.rsplit(":", 1)[-1] if ":" in h else ""
+        return _re.sub(r"\s+", "", "|".join(tys) + "->" + res)
+    if len(by_name) < 40:
+        fails.append("LEG 5: only %d declaration name(s) censused in src/pycsl/, expected far "
+                     "more — the walk is broken, so \"no clash\" means nothing. REFUSAL, not a "
+                     "pass." % len(by_name))
+    else:
+        bad = []
+        for nm, decls in sorted(by_name.items()):
+            if len(decls) < 2:
+                continue
+            for i, a in enumerate(sorted(decls)):
+                for b in sorted(decls)[i + 1:]:
+                    if A._decl_arity(a) != A._decl_arity(b):
+                        continue                      # the name_N path
+                    if "'" in a or "'" in b:
+                        continue                      # one side polymorphic -> leg 1/2
+                    if _canon_head(a) == _canon_head(b):
+                        continue                      # binder grouping only -> leg 4
+                    bad.append((nm, a, b))
+        if bad:
+            for nm, a, b in bad:
+                fails.append("LEG 5: %s has two SAME-ARITY declarations that differ in types "
+                             "or result, with NEITHER polymorphic, so the tiebreak would "
+                             "resolve them by STRING LENGTH:\n        %s\n        %s"
+                             % (nm, a, b))
+        else:
+            # NEGATIVE TEST for the detector itself: a "no clash" verdict from a predicate
+            # that flags nothing looks exactly like a clean tree. Feed it the known-bad
+            # synthetic pair and require it to fire.
+            _a, _b = CLASH_A, CLASH_B
+            _would_flag = (A._decl_arity(_a) == A._decl_arity(_b)
+                           and "'" not in _a and "'" not in _b
+                           and _canon_head(_a) != _canon_head(_b))
+            if not _would_flag:
+                fails.append("LEG 5 SELF-TEST: the clash predicate does NOT flag the known-bad "
+                             "pair (%s | %s), so its \"no clash\" verdict means nothing."
+                             % (_a, _b))
+            elif verbose:
+                print("[.] leg 5: %d declaration name(s) censused in src/pycsl/, no "
+                      "non-subsuming same-arity clash; predicate self-test fires on the "
+                      "known-bad pair" % len(by_name))
 
     if fails:
         print("[-] abstract-op-clash-resolution: FAILED")
@@ -157,9 +246,10 @@ def main() -> int:
             print("    " + f)
         return 1
     print("[+] abstract-op-clash-resolution: OK — the polymorphic declaration wins in BOTH "
-          "orders for `snapshot` and `map_update_some`, a non-subsuming same-arity clash is "
-          "REFUSED, and the binder-grouping-only pair is still accepted with the longer "
-          "spelling (byte-identical).")
+          "orders for `snapshot` and `map_update_some`, the binder-grouping-only pair is "
+          "still accepted with the longer spelling (byte-identical), and NO name in "
+          "src/pycsl/ carries two same-arity declarations that differ in types or result "
+          "with neither polymorphic.")
     return 0
 
 

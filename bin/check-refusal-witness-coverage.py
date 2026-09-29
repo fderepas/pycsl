@@ -302,32 +302,6 @@ NOT_SOURCE_REACHABLE = {
 # lowered threshold could not tell them apart, and two sites have NO literal at all. The
 # ceiling of 10 is a measurement, not a shrug.
 NOT_SOURCE_REACHABLE_FRAGMENTS = {
-    # (#49) gen #33 — `_add_abstract_op`'s NON-SUBSUMING SAME-ARITY CLASH refusal
-    # (`module6_whyml/abstract_ops.py`). The tiebreak used to resolve a same-arity clash by
-    # KEEPING THE LONGER STRING, which is how the int-erasure seam got decided by `len()`
-    # (corpus 1916; the int-monomorphic `snapshot` spelling wins by TWO characters). It now
-    # prefers the POLYMORPHIC declaration when one subsumes the other, and REFUSES when
-    # neither does — because there is then no principled winner.
-    #
-    # NOT REACHABLE FROM A `.py` SOURCE, and the reason is STRUCTURAL rather than a search
-    # for spellings: the clash is between two declarations the EMITTER ITSELF registers, and
-    # a static census of every literal `val`/`function` declaration in `src/pycsl/` finds
-    # NO name carrying two same-arity declarations that differ in types or result and where
-    # neither is polymorphic. The only same-arity clashes that exist are `snapshot`,
-    # `map_update_some`, `map_update_none` (one side POLYMORPHIC — branch 1 handles them) and
-    # `str_eq_op`, `str_split_op` (binder GROUPING only — branch 3 keeps them
-    # byte-identical). So no Python program can select two non-subsuming spellings; only a
-    # future change to the emitter's own registration sites could, and that is the day this
-    # refusal is supposed to fire.
-    #
-    # THE GATE BEHIND THE EXCLUSION is `bin/check-abstract-op-clash-resolution.py`, which
-    # drives the REAL `_add_abstract_op` — no reimplementation — and asserts all of: the
-    # polymorphic decl survives in BOTH registration orders for both symbols (the old rule
-    # kept mono either way, so a one-order test would have passed a broken fix), the
-    # non-subsuming clash RAISES, and the binder-grouping-only pair is still ACCEPTED with
-    # the longer spelling. That last leg is the control: a guard that refused every clash
-    # would pass the refusal leg on its own.
-    "The previous behaviour resolved this by keeping whichever string was LONGER, whi",
     "pure_ast parser: type_comments not yet implemented",
     # (#49) gen #31 — `Module3_Weaver._desugar_for`'s `if not c.clauses`. Gen #30
     # DEMONSTRATED this one executably in bin/check-frontend-ir-backstop-refusals.py and

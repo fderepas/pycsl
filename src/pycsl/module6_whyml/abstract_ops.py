@@ -141,27 +141,26 @@ class AbstractOpsMixin:
                 elif _ex_poly and not _nw_poly:
                     pass          # the polymorphic decl is already stored; it subsumes this one
                 else:
-                    _canon = []
-                    for _h in (_ex_head, _nw_head):
-                        _tys = []
-                        for _names, _ty in re.findall(r"\(([^():]*):([^()]*)\)", _h):
-                            _tys.extend([_ty.strip()] * len(_names.split()))
-                        _res = _h.rsplit(":", 1)[-1] if ":" in _h else ""
-                        _canon.append(re.sub(r"\s+", "", "|".join(_tys) + "->" + _res))
-                    if _canon[0] != _canon[1]:
-                        from errors import PyCSLSemanticError
-                        raise PyCSLSemanticError(
-                            "internal abstract-op clash (#49 gen #33): the symbol %r is "
-                            "registered with two declarations of the same arity, neither of "
-                            "which subsumes the other:\n    %s\n    %s\n"
-                            "The previous behaviour resolved this by keeping whichever "
-                            "string was LONGER, which lets string length decide a type. "
-                            "Refused rather than emitted. How to fix: make the two "
-                            "registration sites agree on one declaration -- a POLYMORPHIC "
-                            "one is preferred automatically and subsumes every monomorphic "
-                            "use -- or give them distinct symbol names so the model carries "
-                            "both."
-                            % (name, _ex_head, _nw_head))
+                    # THE SECOND CASE, AND WHY IT IS A GATE AND NOT A RAISE HERE.
+                    # If neither decl subsumes the other and the heads differ in types or
+                    # result, there is no principled winner and `len()` must not pick one.
+                    # A runtime REFUSAL was written here first and then REMOVED, because the
+                    # ratchet was right: `_add_abstract_op` has a `\trusted` mirror stub in
+                    # THREE mirror files, so one `raise` here made
+                    # `check-trusted-raises-honesty` go SILENT 62 -> 65 — three stubs each
+                    # asserting "this call has ONE exit path" when it no longer did. Declaring
+                    # `#@ raises` on them instead would put a `raises` clause on the emitted
+                    # abstract `val` and cascade into every mirror caller, which is lesson
+                    # (c5) arriving by the declared route rather than the silent one.
+                    # AND THE REFUSAL BOUGHT NOTHING A GATE CANNOT: this clash is between two
+                    # declarations THE EMITTER ITSELF registers, so no Python program can
+                    # introduce one — only an edit to `src/pycsl/` can. That is exactly what a
+                    # gate sees. `bin/check-abstract-op-clash-resolution.py` censuses every
+                    # literal declaration in `src/pycsl/` and FAILS if any name carries two
+                    # same-arity declarations that differ in types or result with neither
+                    # polymorphic. Same hazard, caught where it is introduced, at no cost to
+                    # the raises ledger and owing no witness.
+                    pass
                     # Heads are equivalent (binder grouping only) — keep longer, as before.
                     if len(decl) > len(existing):
                         self._abstract_ops[name] = decl
