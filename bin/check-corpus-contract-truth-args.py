@@ -320,6 +320,28 @@ def _calls(node):
 
 # (#49) gen #31 — (function, parameter) -> the pool its ANNOTATION selects. A module
 # global because `collect` builds it and `main` consumes it, exactly like `per`.
+#
+# (#49) gen #33 — THE KEY NOW CARRIES THE FILE, AND IT MUST. It was `(name, param)`, and
+# `f` and `x` are the two commonest names in a test corpus, so entries COLLIDED ACROSS
+# FILES: whichever file `collect` happened to visit LAST won the key, and every other
+# function of that name was then called with the WINNER's pool. **This oracle's verdict
+# was order-dependent on filenames.** Found when adding a single corpus file
+# (`1919`, `def f(x: str)`) turned the plane RED by reporting FOUR PRE-EXISTING functions
+# in OTHER files — `0651.py::f`, `1310_route113::f`, `0540.py::use_str`,
+# `1003_parametric_datatype_faithful.py::use_str` — none of them touched by the change.
+# Isolated by bisecting the commit in a worktree: the emitter change was innocent, 1918
+# was innocent, 1919 alone did it, and it did it by writing `PARAM_POOL[("f","x")] =
+# STR_POOL`.
+#
+# MEASURED CONTAMINATION over both corpora: 3249 distinct (funcname, paramname) keys, of
+# which **217 are defined in more than one file** and **39 carry DISAGREEING annotations**
+# across those files. The worst is `("f","x")` — **54 files**, tags
+# {Literal[b'x'], None, bool, float, int}. So this was never about one new file; the pool
+# has been cross-contaminated for as long as the key has omitted the file, and the
+# inherited ceilings were measured under one particular contamination pattern.
+#
+# >>> A CORPUS-WIDE TABLE KEYED ON A NAME THAT IS NOT UNIQUE ACROSS THE CORPUS IS AN
+# >>> ORDER-DEPENDENT ORACLE. The fix is the file, not a bigger ceiling.
 PARAM_POOL = {}
 
 
@@ -644,10 +666,10 @@ def collect(no_exclusions=False):
                              for a in ann) if m]
             _cargs, _ctags, _creqs = _CTOR.get((_cls, name), ([], [], []))
             for _c_nm, _c_tg in zip(_cargs, _ctags):
-                PARAM_POOL[(name, "\x00ctor\x00" + _c_nm)] = {
+                PARAM_POOL[(os.path.basename(f), name, "\x00ctor\x00" + _c_nm)] = {
                     "str": STR_POOL, "bytes": BYTES_POOL}.get(_c_tg, POOL)
             for _a_pp, _tag in zip(ps, _tags):
-                PARAM_POOL[(name, _a_pp.arg)] = {
+                PARAM_POOL[(os.path.basename(f), name, _a_pp.arg)] = {
                     "str": STR_POOL, "bytes": BYTES_POOL,
                     "list:int": LIST_POOL_INT, "list:str": LIST_POOL_STR,
                     "set:int": SET_POOL_INT,
@@ -869,9 +891,10 @@ def main():
                     continue
                 tested = 0
                 _admitted = _raised_here = 0
-                _pools = ([PARAM_POOL.get((name, "\x00ctor\x00" + _p), POOL)
+                _bn_pp = os.path.basename(f)
+                _pools = ([PARAM_POOL.get((_bn_pp, name, "\x00ctor\x00" + _p), POOL)
                            for _p in ctor_names]
-                          + [PARAM_POOL.get((name, _p), POOL) for _p in params])
+                          + [PARAM_POOL.get((_bn_pp, name, _p), POOL) for _p in params])
                 for tup in itertools.product(*_pools):
                     if tested >= MAX_TUPLES:
                         break

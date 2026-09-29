@@ -453,9 +453,20 @@ class AbstractOpsMixin:
         # pycsl-reference and 0 of 2199 python-reference emissions carry `concat a b`
         # without `use string.String`, so no file that type-checks today changes. It can
         # only rescue a file that L3-tc rejects now.
+        # THE PREDICATE IS THE INSTRUMENT, and the first version of it was WRONG in a way
+        # the byte-diff caught: `"concat" in l` matched the op NAME in
+        # `val str_concat (x: int) (y: int) : int` — an entirely INT-typed op with nothing
+        # to do with `string.String` — and pulled the use into SIX corpus emissions that did
+        # not need it. So: only CONTRACT lines are consulted (a bare `val` line declares no
+        # dependency beyond its types), and the symbol is matched on a WORD BOUNDARY, which
+        # `str_concat` does not satisfy because `_` is a word character.
         _use_str = "  use string.String"
-        if _use_str not in out and any(("concat" in l) or ("String." in l)
-                                       for l in abs_lines):
+        # NOTE each element of `abs_lines` is a WHOLE declaration, contract lines included,
+        # so the scan has to descend into it rather than treat the element as one line.
+        if _use_str not in out and any(
+                _sl.strip().startswith(("ensures", "requires", "variant", "invariant"))
+                and re.search(r"\bconcat\b|\bString\.", _sl)
+                for _decl_l in abs_lines for _sl in _decl_l.splitlines()):
             _last_use_s = None
             for _i, _l in enumerate(out):
                 if _l.startswith("  use "):
