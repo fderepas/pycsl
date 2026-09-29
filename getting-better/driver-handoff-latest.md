@@ -16,10 +16,10 @@ hypothesis all cost the trust surface exactly nothing. Do not chase the metric.
 Fully gated at battery #6 plus a plane-set re-run, **nothing owed**:
 
     planes   82/82 `--slow`, rc=0        (MIN_PLANES 54)
-    corpus   1379 baseline / 1379 candidate, 1 MOVED + 2 GONE, both DECLARED BY NAME, 0 APPEARED
+    corpus   1379 baseline / 1381 candidate, 1 MOVED + 2 GONE, both DECLARED BY NAME, 0 APPEARED
     pyref    2199/2199, 0 MOVED          (TWO comparisons, one per emitted tree — lesson (c4))
-    suite    4038/4056, 18 CONFIRMED FAIL = the standing baseline, `grep -c XPASS` = 0 over the FULL log
-    corpus files 1917 · 57 commits this generation
+    suite    4040/4058, 18 CONFIRMED FAIL = the standing baseline, `grep -c XPASS` = 0 over the FULL log
+    corpus files 1919 · 78 commits this generation
 
 Ratchets, none loosened: `MAX_UNCLASSIFIED` 279 · shadowed-selfcalls 14/119 · assigns-writes TRAP
 2989 / **HOLE 0** · assigns-underdeclaration TRAP 18 / HOLE 0 and TRAP-T 148 / **HOLE-T 0** ·
@@ -50,6 +50,7 @@ from the **rc file**, with the tally COMPUTED not quoted (lesson (m4)): `sas2.lo
 | `(any int)` — a PROGRAM expression — emitted inside a loop `variant` | **FAIL-CLOSED**, localised to one line and one token; neither repair built |
 | `"a" + "b"` emitted an `ensures` naming an UNBOUND `concat` | **FIXED** — the string twin of route #44's array pull |
 | **an ORACLE keyed on a name that is not unique across the corpus** | **FOUND and FIXED** — `check-corpus-contract-truth-args` was order-dependent on filenames |
+| the 18 under-declared `#@ assigns` clauses | **MEASURED and SCOPED, deliberately NOT landed** — see ladder item 0; repairing them alone breaks a *different* ratchet |
 | the frame plane's population hole — 498 methods outside `check-trusted-frame-honesty` | **FAIL-CLOSED**, TRAP 18 / HOLE 0, new plane |
 | the same, TRANSITIVELY | **FAIL-CLOSED** at 8x, TRAP-T 148 / HOLE-T 0, gated |
 | **ladder item 1 (#64)** — a mechanical cause of the int-erasure seam | **REPRODUCED from three lines, then its payoff REFUTED** |
@@ -175,6 +176,14 @@ campaign rules: VERIFY BOTH ENDS and ISOLATE BEFORE ATTRIBUTING.**
     it, through the EXCEPTION SET, not through fidelity. `grep -rln '<helper>' src/self-annotate/src/`
     before calling any live-only edit free. **Verify BOTH ends** — a plane RED now is only yours if it
     was GREEN then, and a worktree at the pre-change commit makes that a measurement.
+  * **(f5)** **TWO RATCHETS THAT BRACKET ONE INVARIANT FROM OPPOSITE SIDES ARE ANTI-CORRELATED.**
+    `check-assigns-writes-survival` counts DECLARED-but-not-EMITTED; `check-assigns-underdeclaration`
+    counts WRITTEN-but-not-DECLARED. For a field written but not class-declared, omitting it from the
+    clause raises the second and naming it raises the first — measured, 18 → 0 while 2989 → **3000**.
+    **Only declaring the field on its CLASS drives both to zero, and that is why 2989 has never
+    shrunk.** When a repair makes one ratchet green and another red, **do not pick a side — the
+    tension says the repair was half of something.** And before pricing a frame change, grep the plane
+    array for the other planes watching the same nouns (`assigns`, `writes`, `frame`).
   * **(e5)** **A DEPENDENCY PREDICATE HAS THREE INDEPENDENT FAILURE MODES** — what it MATCHES (a
     name is not a use), what it SCANS (element granularity), and what ALREADY SATISFIES it (a
     re-exporting sibling module). A nine-line repair was refused by the byte-diff THREE times, each
@@ -193,6 +202,35 @@ campaign rules: VERIFY BOTH ENDS and ISOLATE BEFORE ATTRIBUTING.**
     fix was to change the design. And **check whether an improvement is YOURS before banking it.**
 
 ## LADDER FOR GEN #34, in order
+
+0. **OPTION 3 — DECLARE THE WRITTEN FIELDS ON THEIR CLASSES. THIS IS ITEM 1, IT IS SCOPED, AND THE
+   BILL IS MEASURED AND SMALL.** Plan:
+   `getting-better/open-routes/option3-declare-the-written-fields-PLAN.md`.
+   It is the ONLY state that drives BOTH frame ratchets to zero (lesson (f5)); its obstacle is
+   COST/SCALE, which by §A.3 is **not a floor**.
+   **THE BILL: 3 of 53 mirrors move** — `Module6_WhyMLTranspiler`, `module6_whyml__statements`,
+   `module6_whyml__types` — and **NOT `pure_ast`, NOT `expressions`, NOT `functions`.** So ~3 h of
+   proving (`statements.py` is the known 2 h 19 m), **not** the 7-25 h gen #33 first guessed. Gen #33's
+   own prediction of 20-40 movers was WRONG in the cheap direction; act on the measurement.
+   * **RULED OUT, do not revisit:** moving `MAX_TRAP` 2989 → 3000 "with its cause". That ratchet says
+     **may only SHRINK** in its own declaration, and the contract forbids re-baselining to make a gate
+     green. A good cause is what makes it feel earned, which is why the rule exists.
+   * **THE THREE FIELDS GEN #33 DELIBERATELY DID NOT TOUCH** — each needs a JUDGEMENT, not a type, and
+     all three are in `expressions.py` (the 2 h 21 m mirror), so land the 14 clear ones FIRST:
+     — **`ir`**: the TRAP row is a CONTAINER MUTATION and `ir` is the whole IR mapping. Declaring it
+       would put the entire IR into the record of the most widely imported mixin. **Decide first
+       whether `ir` is a record field at all**; if it is not, the honest fix is to the PLANE, not the
+       mirror.
+     — **`_r188_stub_names`**: initialised from another map, so its type must be established rather
+       than guessed — a guessed `Dict[str, str]` is a fabricated witness value, the exact shape the
+       "a completeness fix that supplies a WITNESS value" lesson warns about.
+     — **`_r55_subsumed_name`**: initialised `None`, so an `Optional`, and route #227 is the standing
+       reminder that that is where the `None`-vs-opaque-`int` falsehoods live.
+     — plus a fourth, `preamble.py::_formal_params` (`= list(params)`), which also wants a decision.
+   * The half-landed patch is `getting-better/interrupted/2026-09-29-gen33-option3-half-landed.patch`
+     (7 files, 23 insertions). **It has passed NO battery.** Re-measure from scratch; gen #33 reverted
+     it deliberately, because landing half of option 3 is what created the ratchet conflict.
+
 
 0. **READ THE MARKER'S OWN COMMENT BEFORE CONVERTING IT** (gen #32's rule, still first). Backlog #73's
    harvester turns prose already paid for into gate-enforceable classification at no prover cost —
