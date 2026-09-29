@@ -169,10 +169,14 @@ before it became the next generation's false premise.
 2. **Is the `\in_scope` havoc / frame-taint machinery DEAD CODE now?** Route #229 made dynamic `exec`
    unreachable from the corpus language, and 0638/0639 were its only demonstrations. This is the
    newest open question and it is cheap to start: find every emitter path gated on a dynamic exec.
-3. **Two of the three defect rows gen #32 filed away from the seam are still unprobed** — the emitter
-   emitting syntactically INVALID WhyML for a ported body (2 markers, `_parse_contract` /
-   `_parse_atom_name`; gen #32 rightly called it "not a modelling gap; it is a bug"), and a
-   name-rebinding REFUSAL whose population nobody has counted (4). **The third became route #229.**
+3. **Of the three defect rows gen #32 filed away from the seam, ONE is left.** The third became route
+   #229. The INVALID-WhyML one is now PROBED and localised to one line and one token — `(any int)`, a
+   Why3 PROGRAM expression, emitted inside a loop `variant`, where only TERMS are grammatical
+   (`finding-any-int-is-not-a-term.md`; population is **1**, not the 2 in circulation). FAIL-CLOSED,
+   so not a route, and **neither repair is built**: diagnose it (cheap, but a new refusal owes the
+   lesson-(d5) ledgers), or HOIST the bound into a local and use `!local` in the variant (faithful — a
+   `ref` read IS a term — but owes an M1 byte-diff for every loop whose bound is a call).
+   **STILL UNPROBED: the name-rebinding REFUSAL whose population nobody has counted (4 markers).**
 4. **The 18 under-declared `#@ assigns` clauses** (TRAP 18, all `\trusted`, listed by name in the
    plane's `TRAP_BASELINE`). Each is a one-line fix that changes the stub's emitted `writes` in every
    importing mirror, so it owes the re-proof bill lesson (k4) prices. TRAP should come DOWN.
