@@ -8765,7 +8765,7 @@ the witness (which passed at iterations 1, 3 and 4) and visible ONLY to the whol
 TWO RULES THIS PAID FOR:
 
 * **PRE-CHECK THE LEG THAT KEEPS FAILING, ALONE, BEFORE PAYING FOR THE WHOLE BATTERY.** The corpus
-  byte-diff is ~25 minutes; the full battery is ~3 hours. After the second disagreement I should have
+  byte-diff is **SIX MINUTES** (measured, not estimated); the full battery is ~3 HOURS. After the second disagreement I should have
   been running the sweep alone between iterations instead of re-running everything. Three full
   batteries went to a nine-line predicate.
 * **A REDUNDANT ADDITION IS A REGRESSION.** Iterations 1 and 3 emitted files that still type-check and

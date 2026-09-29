@@ -404,7 +404,7 @@ START (standing), not as an interrupt. Rules:
   whole multi-line decls, so nothing "starts with `ensures`"); and it ignored what ALREADY SATISFIED
   the dependency (`use string.Char` re-exports `String`). **A dependency predicate has those three
   independent failure modes and the witness passing checks only the first.** Two rules: (i) the
-  corpus byte-diff is ~25 min and a full battery ~3 h — **after the FIRST unexpected mover, iterate
+  corpus byte-diff is **6 MINUTES MEASURED** and a full battery ~3 h — **after the FIRST unexpected mover, iterate
   against the sweep alone**, never against the whole battery; (ii) iterations 1 and 3 produced files
   that still type-checked and were still correct, and the byte-diff was RIGHT to reject them —
   **"it is harmless" is not the standard, "I declared it" is.**
