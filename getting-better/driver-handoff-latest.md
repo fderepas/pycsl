@@ -16,10 +16,10 @@ hypothesis all cost the trust surface exactly nothing. Do not chase the metric.
 Fully gated at battery #6 plus a plane-set re-run, **nothing owed**:
 
     planes   82/82 `--slow`, rc=0        (MIN_PLANES 54)
-    corpus   1379 baseline / 1381 candidate, 0 MOVED / 0 GONE / 0 APPEARED, 2 new ignored
+    corpus   1379 baseline / 1379 candidate, 1 MOVED + 2 GONE, both DECLARED BY NAME, 0 APPEARED
     pyref    2199/2199, 0 MOVED          (TWO comparisons, one per emitted tree — lesson (c4))
-    suite    4037/4055, 18 CONFIRMED FAIL = the standing baseline, `grep -c XPASS` = 0 over the FULL log
-    corpus files 1916 · 46 commits this generation
+    suite    4038/4056, 18 CONFIRMED FAIL = the standing baseline, `grep -c XPASS` = 0 over the FULL log
+    corpus files 1917 · 57 commits this generation
 
 Ratchets, none loosened: `MAX_UNCLASSIFIED` 279 · shadowed-selfcalls 14/119 · assigns-writes TRAP
 2989 / **HOLE 0** · assigns-underdeclaration TRAP 18 / HOLE 0 and TRAP-T 148 / **HOLE-T 0** ·
@@ -45,6 +45,7 @@ from the **rc file**, with the tally COMPUTED not quoted (lesson (m4)): `sas2.lo
 | item | verdict |
 |---|---|
 | **route #228** — a false postcondition PROVED via a `stable_hash` collision | **BROKEN**, repaired, gated |
+| **route #229** — a `global` inside an exec'd text defeats the "discarded snapshot" | **BROKEN**, repaired, gated |
 | the frame plane's population hole — 498 methods outside `check-trusted-frame-honesty` | **FAIL-CLOSED**, TRAP 18 / HOLE 0, new plane |
 | the same, TRANSITIVELY | **FAIL-CLOSED** at 8x, TRAP-T 148 / HOLE-T 0, gated |
 | **ladder item 1 (#64)** — a mechanical cause of the int-erasure seam | **REPRODUCED from three lines, then its payoff REFUTED** |
@@ -91,6 +92,48 @@ narrows #64 by removing a candidate.** Gen #31's three seam repairs moved 11 of 
 
 What it DOES fix is real and is corpus **1916**, which now proves.
 
+### Route #229, and it came from the campaign's OWN #1 generator
+
+    N = 3
+    def rebind() -> int:
+        code = "global N\nN = 5"
+        exec(code)
+        return 0
+    #@ ensures \result == 3
+    def read() -> int:
+        return N          # PROVED. CPython returns 5 after rebind().
+
+*Read the "how to fix this" line of a refusal as an attack surface.* The silent-name refusal's advice
+ended **"keep a dynamic `exec`/`eval` out of module and class-body scope"** — naming a SCOPE BOUNDARY
+as safe — and the detector's comment justified it: *"assignments made by a bare `exec`/`eval` go to
+the LOCALS mapping, which … is a discarded snapshot inside a function."* True of a plain assignment.
+
+>>> **A SCOPE ARGUMENT ENUMERATES THE BINDING FORMS ITS AUTHOR PICTURED, AND `global` IS THE BINDING
+>>> FORM WHOSE WHOLE PURPOSE IS TO DEFEAT THE SCOPE IT RESTS ON.**
+
+That detector is one of the best-audited comments in the tree — six measured falsehoods, two
+abandoned spelling rules (the `:=` cut and the token cut, each recorded with the witness that walked
+past it), a census over five trees. **What survived was the one premise nobody re-read.** Three
+neighbouring shapes were already refused (module-scope exec, constant exec in a function, dynamic
+`eval` reaching `globals()`), which pinned the population to one shape and supplied the non-vacuity
+evidence.
+
+Fix: a NON-CONSTANT `exec` now reaches wherever it stands, as a non-constant `eval` already did. **Not
+a spelling rule** — the text is dynamic, so the emitter cannot read it and any rule about its contents
+is unfounded by construction.
+
+**OPEN FOLLOW-UP THIS CREATED, and it is a real question, not a tidy-up:** corpus 0638/0639 now fail
+by REFUSAL rather than by the mechanism they exist to exercise, so **the `\in_scope` havoc and
+frame-taint machinery are no longer reachable from the corpus language. IS THAT MACHINERY NOW DEAD
+CODE?** Each file says so in its own docstring. Nobody has answered it.
+
+**AND A PROCESS NOTE WORTH MORE THAN THE ROUTE:** I declared 3 GONE in the byte-diff and the
+comparator answered *"--expect-gone 0644 was declared but it still emits."* 0644 had ALREADY been
+refused before the repair (measured: no `0644.mlw` in the baseline emit dir). **A declaration is a
+PREDICTION, and an over-declaration is as wrong as an under-declaration** — `--expect-gone` /
+`--expect-moved` are a two-way contract, and they caught an overstatement of my own change's effect
+before it became the next generation's false premise.
+
 ## THE LESSONS THAT BIND GEN #34 (all carved into the skill, both copies synced)
 
   * **(a5)** a baseline that records its own follow-up is an open route with a green gate in front of
@@ -123,16 +166,20 @@ What it DOES fix is real and is corpus **1916**, which now proves.
    marker — do not re-derive that, the manifests are committed. The screen's `int` vs real-type rows
    still need a cause, and the instrument to test any candidate now exists and is cheap (~7 min a
    pass over the 37 targets). **Use it before building anything.**
-2. **The three defect rows gen #32 filed AWAY from the seam and nobody has probed**: the emitter
-   emitting syntactically INVALID WhyML for a ported body (2), a name-rebinding REFUSAL whose
-   population nobody has counted (4), and "a name's runtime value is not the one the model reads" (2).
-3. **The 18 under-declared `#@ assigns` clauses** (TRAP 18, all `\trusted`, listed by name in the
+2. **Is the `\in_scope` havoc / frame-taint machinery DEAD CODE now?** Route #229 made dynamic `exec`
+   unreachable from the corpus language, and 0638/0639 were its only demonstrations. This is the
+   newest open question and it is cheap to start: find every emitter path gated on a dynamic exec.
+3. **Two of the three defect rows gen #32 filed away from the seam are still unprobed** — the emitter
+   emitting syntactically INVALID WhyML for a ported body (2 markers, `_parse_contract` /
+   `_parse_atom_name`; gen #32 rightly called it "not a modelling gap; it is a bug"), and a
+   name-rebinding REFUSAL whose population nobody has counted (4). **The third became route #229.**
+4. **The 18 under-declared `#@ assigns` clauses** (TRAP 18, all `\trusted`, listed by name in the
    plane's `TRAP_BASELINE`). Each is a one-line fix that changes the stub's emitted `writes` in every
    importing mirror, so it owes the re-proof bill lesson (k4) prices. TRAP should come DOWN.
-4. Gen #32's queue, untouched by gen #33: **#69 item 2** (a RETURN annotation carrying the `hval`
+5. Gen #32's queue, untouched by gen #33: **#69 item 2** (a RETURN annotation carrying the `hval`
    codomain), **#65** (route #227's container carrier), **#68** (an imported contract's free module
    constant), **#67's five MISSING declarations**, and the **5 unaudited refusal-advice sites**.
-5. **`pure_ast.py` (178 markers) is still unscreened** by the conversion screen, plus a few small
+6. **`pure_ast.py` (178 markers) is still unscreened** by the conversion screen, plus a few small
    files. Gen #32 expected the same distribution; it is worth finishing and costs no prover time.
 
 ## PROBED THIS WINDOW WITH NO FINDING — DO NOT RE-PROBE
