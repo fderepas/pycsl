@@ -8686,3 +8686,40 @@ TWO RIDERS, both paid for:
   (`check-hashed-literal-purity`, "a pure `val function` applied to a hash-range constant"), so the
   narrowing costs nothing real. **Check what already covers the residue before widening a guard back
   out.**
+
+## (d5) gen #33 — A CHANGE'S BLAST RADIUS IS EVERY **LEDGER** THAT INDEXES WHAT YOU TOUCHED, NOT THE CODE THAT RUNS IT
+
+**Five plane REDs in one generation, all mine, and NOT ONE of them predicted** — including one I had
+explicitly predicted GREEN. Every single one was a *ledger*, never a behaviour:
+
+| what I changed | ledger that fired | how |
+|---|---|---|
+| added 2 corpus witnesses | `check-claim-vacuity` ×2 | a vacuous `ensures True` and two `requires True` pushed both CEILINGS up |
+| added a struct corpus witness | `check-hashed-literal-purity` | it applies a pure op to two constants absent from the BASELINE |
+| added a refusal | `check-refusal-witness-coverage` | a new raise site with no witness broke the unwitnessed CEILING |
+| **moved** a refusal | `check-refusal-witness-coverage` | the census keys on MESSAGE TEXT, so re-homing it staleified 1914's row |
+
+I was predicting what the change would do to the **emitted WhyML** — and getting that exactly right
+every time (both byte-diffs 0 MOVED and the suite total correct in three consecutive batteries). The
+misses were all one level up.
+
+>>> **BEFORE ANY GATE, ASK: WHICH LEDGERS INDEX THE THING I JUST TOUCHED?** The checklist, from the
+>>> five that bit:
+>>>   * added or removed a **corpus file**? → the vacuity CEILINGS (`ensures True`, `requires True`),
+>>>     the purity BASELINE if it emits a pure op on a folded literal, and the suite TOTALS.
+>>>   * added, **edited, or MOVED a refusal**? → the witness census (keyed on message TEXT, so an
+>>>     edit is as breaking as a move) and the advice audit. **Editing a refusal owes a census
+>>>     re-measure in the same increment.**
+>>>   * added or removed a `\trusted` marker? → `trusted-reasons.tsv` + the headline count.
+>>>   * changed an emitted DECLARATION? → the purity baseline and the assigns/writes brackets.
+
+TWO RIDERS:
+
+* **RE-MEASURE, NEVER HAND-EDIT A LEDGER ROW.** 1914's census row was fixed by deleting it and
+  re-running `--append-new`, which records the row BY RUNNING the witness. Typing the new message in
+  by hand would have produced a row that matched whatever I believed the message was.
+* **A NEW REFUSAL WHOSE POPULATION IS EMPTY STILL OWES ITS DEBT, and the honest currency is a GATE,
+  not an exemption.** `check-refusal-witness-coverage` says an unreachable-from-source exclusion must
+  be "an exclusion with a GATE behind it, NOT an excuse". So the branch-2 clash refusal got
+  `check-abstract-op-clash-resolution.py`, which drives the real function and carries a control that a
+  refuse-everything implementation would fail.

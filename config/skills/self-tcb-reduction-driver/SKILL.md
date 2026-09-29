@@ -375,6 +375,18 @@ START (standing), not as an interrupt. Rules:
   then, and a worktree at the pre-change commit makes that a measurement; (ii) **the fix for a
   mis-placed guard is to NARROW ITS HOME, not to weaken it** — and check what ALREADY covers the
   residue (here an existing plane did) before widening it back out.
+- **CARVE-OUT (lesson (d5), gen #33) — PREDICT THE **LEDGERS**, NOT ONLY THE EMISSION.** Five
+  plane REDs in one generation, all mine, none predicted, one predicted GREEN — and every one was a
+  LEDGER that indexes what was touched rather than the code that runs it, while the EMISSION
+  predictions (both byte-diffs 0 MOVED, the suite total) were exact three batteries running. Before
+  any gate, ask which ledgers index the change: a **corpus file** touches the vacuity CEILINGS
+  (`ensures True`, `requires True`), the hashed-literal-purity BASELINE and the suite TOTALS; a
+  refusal **added, EDITED or MOVED** touches the witness census (keyed on MESSAGE TEXT, so an edit
+  breaks it exactly as a move does) and the advice audit; a `\trusted` marker touches
+  `trusted-reasons.tsv` and the headline count; an emitted DECLARATION touches the purity baseline.
+  **Re-measure a stale ledger row, never hand-edit it** (delete + `--append-new`, which records by
+  RUNNING the witness). And **a new refusal whose population is empty still owes its debt** — the
+  honest currency is a GATE behind the exclusion, with a control, never an exemption.
 - **Escalate-not-thrash, time-aware.** A per-wall attempt budget still applies; additionally, do not START
   a full cycle whose fable-review + spike cannot plausibly finish before the deadline — defer it (record
   the wall-signal for the next run) and spend the tail on cheaper items.
