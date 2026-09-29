@@ -387,6 +387,16 @@ START (standing), not as an interrupt. Rules:
   **Re-measure a stale ledger row, never hand-edit it** (delete + `--append-new`, which records by
   RUNNING the witness). And **a new refusal whose population is empty still owes its debt** — the
   honest currency is a GATE behind the exclusion, with a control, never an exemption.
+  **(d5, extended by the SIXTH red)**: a **`raise`** added to a method with a `\trusted` mirror
+  stub touches the raises ledger ONCE PER MIRROR FILE that stubs it — one raise took SILENT
+  62 -> 65 because `_add_abstract_op` is stubbed in three mirrors. **When a ratchet objects, ask
+  first whether the RATCHET IS RIGHT.** Here it was: declaring `#@ raises` would have put a
+  `raises` clause on the emitted abstract `val` and cascaded into every mirror caller, which is
+  lesson (c5) by the declared route. **A runtime guard over a population only YOUR OWN SOURCE can
+  create belongs in a GATE, not in the emitter** — it costs no ledger and owes no witness. And
+  **check whether an improvement is YOURS before banking it**: a worktree at the pre-change commit
+  showed the "win" of silent 61 < ratchet 62 had been true for generations, with the plane's own
+  "lower the constant" line going unread.
 - **Escalate-not-thrash, time-aware.** A per-wall attempt budget still applies; additionally, do not START
   a full cycle whose fable-review + spike cannot plausibly finish before the deadline — defer it (record
   the wall-signal for the next run) and spend the tail on cheaper items.
