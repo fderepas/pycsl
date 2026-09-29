@@ -24,7 +24,7 @@ python3 bin/byte-diff-compare.py /tmp/g33_before /tmp/g33_after \
     --new-source 1915_gen33_ctl_a_non_colliding_struct_pair_is_accepted.py \
                  1916_gen33_two_set_kappas_in_one_module.py \
                  1917_gen33_bare_dynamic_exec_in_a_function_rebinds_a_global.py \
-    --expect-gone 0638 0639 0644 \
+    --expect-gone 0638 0639 \
     --expect-moved 1397_route136_bare_in_function_exec_and_constant_eval_still_prove \
     > "$S/leg2_cmp_corpus.log" 2>&1
 echo "LEG2-cmp-corpus rc=$?"

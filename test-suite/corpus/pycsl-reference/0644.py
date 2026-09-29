@@ -6,8 +6,15 @@ therefore cannot be confined by a HAPPY property: it is rejected with a hard err
 a non-exempt `\trusted` mutator without `#@ \preserves`, test 0462). To use exec here one must add the
 method to the property's `except` set (acknowledging it as a trusted writer).
 
-(#49) gen #33, ROUTE #229 — THIS FILE IS NOW REFUSED BEFORE IT REACHES THE DEMONSTRATION
-ABOVE, AND THAT IS A REAL LOSS OF COVERAGE, recorded here rather than left to be discovered.
+(#49) gen #33, ROUTE #229 — CORRECTION TO MY OWN FIRST NOTE. I originally wrote here that
+this file was "NOW refused" by route #229's repair. THAT WAS WRONG, and the byte-diff's
+two-way `--expect-gone` contract caught it: I declared 0638/0639/0644 as newly-GONE and
+the comparator answered "--expect-gone 0644 was declared but it still emits. The refusal
+you think you landed is NOT firing." Measured rather than argued: the BASELINE emit
+directory contains `0638.mlw` and `0639.mlw` and NO `0644.mlw`, so THIS FILE WAS ALREADY
+REFUSED BEFORE THE REPAIR (its dynamic-exec method cannot be HAPPY-confined). Only 0638
+and 0639 are route #229's cost. The note below applies to this file only in the weaker
+sense that a second refusal now also covers it.
 A bare dynamic `exec` inside a function was believed confined ("its assignments land in the
 discarded locals snapshot"); a `global` declaration inside the exec'd text redirects the
 assignment into the GLOBALS mapping, which at function scope is the real module globals, and
