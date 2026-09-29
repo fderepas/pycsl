@@ -46,6 +46,10 @@ from the **rc file**, with the tally COMPUTED not quoted (lesson (m4)): `sas2.lo
 |---|---|
 | **route #228** — a false postcondition PROVED via a `stable_hash` collision | **BROKEN**, repaired, gated |
 | **route #229** — a `global` inside an exec'd text defeats the "discarded snapshot" | **BROKEN**, repaired, gated |
+| the `\in_scope` havoc / frame-taint machinery after #229 | **measurably DEAD from the corpus** (`exec_havoc` 1 → 0 of 3578); removal SCOPED, not done |
+| `(any int)` — a PROGRAM expression — emitted inside a loop `variant` | **FAIL-CLOSED**, localised to one line and one token; neither repair built |
+| `"a" + "b"` emitted an `ensures` naming an UNBOUND `concat` | **FIXED** — the string twin of route #44's array pull |
+| **an ORACLE keyed on a name that is not unique across the corpus** | **FOUND and FIXED** — `check-corpus-contract-truth-args` was order-dependent on filenames |
 | the frame plane's population hole — 498 methods outside `check-trusted-frame-honesty` | **FAIL-CLOSED**, TRAP 18 / HOLE 0, new plane |
 | the same, TRANSITIVELY | **FAIL-CLOSED** at 8x, TRAP-T 148 / HOLE-T 0, gated |
 | **ladder item 1 (#64)** — a mechanical cause of the int-erasure seam | **REPRODUCED from three lines, then its payoff REFUTED** |
@@ -134,6 +138,29 @@ PREDICTION, and an over-declaration is as wrong as an under-declaration** — `-
 `--expect-moved` are a two-way contract, and they caught an overstatement of my own change's effect
 before it became the next generation's false premise.
 
+### The oracle that was order-dependent on filenames — the most surprising thing this generation
+
+`check-corpus-contract-truth-args`'s `PARAM_POOL` was keyed `(function name, parameter name)` with
+**no file**, in a module global built over the whole corpus. Whichever file `collect` visited LAST won
+the key, and every other function of that name was called with the winner's argument pool.
+
+It surfaced by adding ONE unrelated corpus file (`1919`, `def f(x: str)`), which turned the plane RED
+by reporting FOUR **pre-existing** functions in OTHER files. **Isolated by bisecting my own commit in
+a worktree** rather than guessing: the emitter change innocent, 1918 innocent, 1919 alone.
+
+    distinct (funcname, paramname) keys                     3249
+    defined in MORE THAN ONE corpus file                     217
+    with DISAGREEING annotations across files                 39
+    worst: ("f","x") -> 54 files {Literal[b'x'], None, bool, float, int}
+
+>>> **A CORPUS-WIDE TABLE KEYED ON A NAME THAT IS NOT UNIQUE ACROSS THE CORPUS IS AN ORDER-DEPENDENT
+>>> ORACLE.** It passes, with a stable-looking number, until somebody adds a colliding name.
+
+Fixed by putting the basename in the key. The ceiling did **not** move (14 before and after), so
+nothing was re-baselined, and evaluations ROSE 7702 → 7714 because functions handed the wrong pool now
+get their own. **What stopped me raising the ceiling and calling it "my file broke a ratchet" were two
+campaign rules: VERIFY BOTH ENDS and ISOLATE BEFORE ATTRIBUTING.**
+
 ## THE LESSONS THAT BIND GEN #34 (all carved into the skill, both copies synced)
 
   * **(a5)** a baseline that records its own follow-up is an open route with a green gate in front of
@@ -148,6 +175,14 @@ before it became the next generation's false premise.
     it, through the EXCEPTION SET, not through fidelity. `grep -rln '<helper>' src/self-annotate/src/`
     before calling any live-only edit free. **Verify BOTH ends** — a plane RED now is only yours if it
     was GREEN then, and a worktree at the pre-change commit makes that a measurement.
+  * **(e5)** **A DEPENDENCY PREDICATE HAS THREE INDEPENDENT FAILURE MODES** — what it MATCHES (a
+    name is not a use), what it SCANS (element granularity), and what ALREADY SATISFIES it (a
+    re-exporting sibling module). A nine-line repair was refused by the byte-diff THREE times, each
+    correctly, while the witness kept passing. **The corpus byte-diff is SIX MINUTES; a full battery
+    is three hours — after the FIRST unexpected mover, iterate against the sweep alone**
+    (`getting-better/open-routes/bytecheck-gen33.sh`). And **a REDUNDANT addition is a REGRESSION**:
+    two iterations emitted files that still type-checked and were still correct, and rejecting them
+    was right — *"it is harmless" is not the standard, "I declared it" is.*
   * **(d5)** **PREDICT THE LEDGERS, NOT ONLY THE EMISSION.** Six plane REDs this generation, ALL
     mine, NONE predicted, one predicted GREEN — while every emission prediction was exact across four
     consecutive batteries. Each was a ledger indexing what I touched: corpus file → vacuity CEILINGS +
