@@ -427,6 +427,41 @@ class AbstractOpsMixin:
                     _last_use = _i
             if _last_use is not None:
                 out.insert(_last_use + 1, _use_arr)
+        # (#49) gen #33 — THE STRING TWIN OF THE ARRAY PULL DIRECTLY ABOVE, and the root
+        # cause that comment states is exactly the same one: the preamble's `needs_*` flags
+        # are computed BEFORE any function body is emitted, so they cannot see an op a body
+        # registers later. It was found and fixed for `array` and left unfixed for `string`.
+        # An op's TYPE may need only `string` while its CONTRACT needs `concat` — and
+        # `str_concat_op` is declared `ensures { result = (concat a b) }`, with `concat`
+        # coming from `string.String`. `needs_string` is an IR-shaped disjunction (a ghost
+        # `string`, a `str` in a symbol table, a `str` return, a `seq string`) and NONE of
+        # them fires for a local bound to two string LITERALS, so:
+        #     def f() -> int:
+        #         s = "a" + "b"
+        #         return len(s)
+        #   emitted that contract into a preamble whose uses were only int.Int /
+        #   int.EuclideanDivision / ref.Ref -> "unbound function or predicate symbol
+        #   'concat'", and L3-tc REJECTED four lines of entirely ordinary Python.
+        # The control discriminates: `x + "b"` (a str PARAM and a literal) verifies and
+        # emits no `str_concat_op` at all. See
+        # `getting-better/open-routes/finding-a-contract-that-names-an-unbound-symbol.md`.
+        # >>> A DECLARATION'S CONTRACT IS PART OF ITS DEPENDENCIES. A dependency derived
+        # >>> from the op's SIGNATURE, or from a feature flag over the IR, cannot see a
+        # >>> symbol that only the `ensures` mentions.
+        # FAIL-CLOSED AND BYTE-INERT ON THE SAME FOOTING as the two pulls above, and
+        # MEASURED rather than argued: across both emitted trees, 0 of 1379
+        # pycsl-reference and 0 of 2199 python-reference emissions carry `concat a b`
+        # without `use string.String`, so no file that type-checks today changes. It can
+        # only rescue a file that L3-tc rejects now.
+        _use_str = "  use string.String"
+        if _use_str not in out and any(("concat" in l) or ("String." in l)
+                                       for l in abs_lines):
+            _last_use_s = None
+            for _i, _l in enumerate(out):
+                if _l.startswith("  use "):
+                    _last_use_s = _i
+            if _last_use_s is not None:
+                out.insert(_last_use_s + 1, _use_str)
 
     def _insert_array_init_use(self, out: List[str]) -> None:
         """tierA-listfield-impl.md: pull `array.Init` in ONLY when the gated
