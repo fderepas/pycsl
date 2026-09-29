@@ -257,8 +257,34 @@ own twelve-hour budget, to the second, having done **25 of 40 files: 24 PASS / 1
 the heaviest mirrors (`module6_whyml/expressions.py`, `module6_whyml/statements.py`,
 `stmt_control_flow.py`, `preamble.py`, `core_ir_semantic.py`). Its ONE failure was
 `src/pycsl/errors.py`, which this generation FIXED and re-measured alone (`Verification SUCCESS`).
-**So the oracle's honest cost is 18-24 h, not the 6-12 h the previous window estimated** —
+~~**So the oracle's honest cost is 18-24 h, not the 6-12 h the previous window estimated**~~ —
 `frontend/pure_ast.py` (a measured 2.5-hour proof) and twelve other `frontend/*` files were unstarted.
+
+> **(#49) gen #33, 2026-09-29 — RUN 2 FINISHED GREEN, SO BOTH ESTIMATES ABOVE ARE NOW SUPERSEDED BY
+> A MEASUREMENT. Verified from the rc file, not from a log tail (lesson (m4)): `sas2.log.rc` = **0**
+> (run 1's = **124**), tally computed by grep as **38 `[PASS]` / 0 `[FAIL]`**, and the suite's own
+> line `Self-annotation: 38/38 proved`.**
+>
+>   * **COST: 14h31m22s** wall-clock (`SAS2 START 2026-09-28T09:44:10Z` -> `SAS2 END
+>     2026-09-29T00:15:32Z`) against a 30 h budget. **Quote ~15 h at this concurrency — not 18-24 h,
+>     not 6-12 h.** Both earlier figures were extrapolations from a TRUNCATED run; this one is the
+>     clock.
+>   * **THE MEMBER COUNT IS 38, NOT 40.** Run 1's "25 of 40" was its own truncated view, and the 40
+>     has been carried forward in prose since. Another number that only a completed run could fix.
+>   * `frontend/pure_ast.py` **PASSED** — the member run 1 never reached at all, and the one this
+>     estimate was built around.
+>   * `errors.py` **PASSED in BOTH copies** (`src/pycsl/` and `src/self-annotate/src/`), which
+>     independently confirms gen #32's `as_dict` repair in the very oracle that had been red on it.
+>   * **SCOPE, and it must not be overstated: the run was at commit `11ee64a7`** (its own START line
+>     says so — stronger than "as of 09:44Z"), a **gen #32** commit in the frozen worktree
+>     `/home/fabrice/git/pycsl-g32wt2`. **Everything gen #33 landed is OUTSIDE this verdict** — route
+>     #228's refusal and its re-homing, `check-stable-hash-fold-injectivity`,
+>     `check-assigns-underdeclaration`, the ratchet edits and corpus 1914/1915. A green does not
+>     stand in for a tree it never saw. Re-running it is a ~15 h item for a future window; do NOT
+>     relaunch it inside a battery.
+>   * This is the **FIRST COMPLETE GREEN RUN of this suite in the campaign.** Four impl docs declared
+>     it a gate and no battery ever ran it; window #8 scheduled it, and it now has a verdict instead
+>     of an estimate.
 See wall-lesson (m4): I reported "still running" for four hours after it had died, from a `ps` habit,
 while my own wrapper had written the rc to disk for exactly this purpose.
 
