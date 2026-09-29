@@ -8698,6 +8698,7 @@ explicitly predicted GREEN. Every single one was a *ledger*, never a behaviour:
 | added a struct corpus witness | `check-hashed-literal-purity` | it applies a pure op to two constants absent from the BASELINE |
 | added a refusal | `check-refusal-witness-coverage` | a new raise site with no witness broke the unwitnessed CEILING |
 | **moved** a refusal | `check-refusal-witness-coverage` | the census keys on MESSAGE TEXT, so re-homing it staleified 1914's row |
+| added a `raise` to a method with a `\trusted` mirror stub | `check-trusted-raises-honesty` | SILENT 62 → **65**: ONE raise, but `_add_abstract_op` is stubbed in THREE mirror files and each now asserts "this call has one exit path" |
 
 I was predicting what the change would do to the **emitted WhyML** — and getting that exactly right
 every time (both byte-diffs 0 MOVED and the suite total correct in three consecutive batteries). The
@@ -8711,7 +8712,25 @@ misses were all one level up.
 >>>     edit is as breaking as a move) and the advice audit. **Editing a refusal owes a census
 >>>     re-measure in the same increment.**
 >>>   * added or removed a `\trusted` marker? → `trusted-reasons.tsv` + the headline count.
+>>>   * added a **`raise`** to a method with a `\trusted` mirror stub? → the raises ledger, and it
+>>>     counts **once per mirror file that stubs it**, not once per raise.
 >>>   * changed an emitted DECLARATION? → the purity baseline and the assigns/writes brackets.
+
+A THIRD RIDER, and it is the one that changed a design rather than a number:
+
+* **WHEN A RATCHET OBJECTS, THE FIRST QUESTION IS WHETHER THE RATCHET IS RIGHT — AND HERE IT WAS.**
+  The instinct was to declare `#@ raises` on the three stubs. That would have put a `raises` clause
+  on the emitted abstract `val` and cascaded into every mirror caller — lesson (c5) arriving by the
+  DECLARED route instead of the silent one. The actual fix was to notice that the refusal bought
+  **nothing a gate cannot**: the clash is between declarations the EMITTER ITSELF registers, so no
+  Python program can introduce one and only an edit to `src/pycsl/` can — which is exactly what a
+  gate sees. **A runtime guard over a population only YOUR OWN SOURCE can create belongs in a gate,
+  not in the emitter**; it costs the raises ledger nothing and owes no witness.
+* **AND CHECK WHETHER AN IMPROVEMENT IS YOURS BEFORE BANKING IT.** Putting the raise back left
+  SILENT at 61 against a ratchet of 62, which looked like a win. A worktree at the pre-change commit
+  measured the SAME 14/61: the ratchet had been one loose for generations and the plane's own
+  "lower the constant" line had gone unread. Tightened to 61 — as somebody else's improvement,
+  noticed, not as mine.
 
 TWO RIDERS:
 
