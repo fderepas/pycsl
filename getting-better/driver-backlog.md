@@ -34,6 +34,83 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### #74 gen #34 — THE BESPOKE LOWERINGS DISCARD THE DECLARED CONTRACT (**5 of 7 rows REPAIRED**)
+
+Module 6 has **25** `*_bespoke` emitters in `functions.py`. Every one wrote its contract as the two
+literal strings `requires { true }` / `ensures { true }` and **not one read `func`'s contract**, so a
+clause declared on a bespoke-lowered mirror method was silently discarded while the source went on
+reading as a guarantee. Gate: `bin/check-bespoke-contract-discard.py` (two ratchets — MAX_DECLARED 12
+for the population at risk, MAX_DISCARDED **7** for the measured defect, and the `--emit-dir` arm is
+the one with a verdict). Gen #34 landed `_bespoke_spec_lines(func, ret_ty)` and wired it into
+`_expr_bespoke_body` + `_emit_py_expr_compare_bespoke`, so the five
+`#@ ensures \result["type"] == "<Kind>"` IR-faithfulness postconditions now EMIT and **DISCHARGE**
+(145 000 solver steps each; the goal TOTAL is unchanged because each previously carried
+`ensures { true }`).
+
+**WHAT IS LEFT, and it is 2 rows:** `_emit_ghost_assign` and `_synthesize_overload_guard` each declare
+`#@ assigns self._fresh_var_counter` and their bespoke lowerings emit no `writes` clause. Emitting one
+on a CONCRETE `let` **CHECKS the frame against the body**, so unlike the `ensures` half this can FAIL —
+which is the point, and is why it is a separate item. Price it with `bin/mirror-emit-sweep.sh` (52 s)
+before writing the second line.
+
+### #75 gen #34 — THE SURVIVAL PLANE'S POPULATION IS GATED ON THE PROPERTY IT MEASURES
+
+`check-assigns-writes-survival` skips any emitted symbol with no `writes` clause (`if not w:
+continue`), so **a clause that is 100% dropped is INVISIBLE — its worst case.** Consequences, both
+measured by gen #34:
+  * its TRAP is **NOT MONOTONE** under an honest repair: declaring one field gave
+    `_track_collection_metadata` its first `writes` clause, admitted it to the population, and took
+    TRAP 2989 -> 2996 on the strength of its three OTHER still-dropped fields;
+  * inside the skipped set, **35 rows are HOLE-shaped, not TRAP** — a bodyless `val`, no frame at all,
+    and the named field IS a `mutable` field of the emitted record, so a caller could mention it and
+    prove it unchanged. Cleanest: `val concurrencychecker___check_function` against
+    `#@ assigns self.warnings` with `mutable warnings: array int` in the record, while the SIBLING
+    abstract op `val self__walk_stmt_3 … writes { self.warnings }` two lines above carries the honest
+    frame. **Fail-closed TODAY by zero call sites — a measurement, not a theorem, and the campaign's
+    own conversions are the thing most likely to create one (lesson (l4)/(n4)).**
+  * MECHANISM: the `writes` lowering is gated on the class being `@mutable_state`
+    (`functions.py:7719`) and the MUTABLE RECORD emission is **not**, so a non-`@mutable_state` class
+    with a mutable record drops every `#@ assigns` while keeping the field mentionable.
+**Widen the population behind its OWN ratchet — do NOT move `MAX_TRAP`** (widening it necessarily
+raises the number, and 2989 says "may only SHRINK"; they are different measurements).
+The candidate real repair is in the EMITTER: emit `writes` whenever the class's emitted RECORD carries
+the field, not only when the class is `@mutable_state` — which is exactly what
+`check-trusted-frame-honesty.py`'s own comment at :63 anticipates. That change can legitimately break
+caller proofs that relied on a false preservation; **that breakage is the finding, not a reason to
+narrow the repair.**
+
+### #76 gen #34 — THE REMAINING FRAME DEBT IS EIGHT NAMES, NOT 121 ROWS
+
+`check-assigns-underdeclaration` TRAP **5** / HOLE 0 and TRAP-T **116** / HOLE-T 0. The 116 collapse to
+eight distinct field names, **88 of them `_r188_stub_names` and `ir` propagated from
+`_handle_dotted_call` across 44 `ExpressionEmissionMixin` methods**. Per name:
+  * `_r188_stub_names` (expressions.py) and `_union_synth_cache` (Module5) are **TUPLE-KEYED dicts**
+    (`_k188 = (_base188, _decl166)`; `(scope, tuple(tags), bool, bool)`). The record-field model is
+    `map <string|int> (option nu)`, so a tuple key cannot be a record field at all. **That is a
+    KEY-MODEL expressiveness boundary on the DECLARATION, not a missing type** — and the clause cannot
+    be repaired alone without pushing the survival TRAP up (lesson (f5)). A different item from this
+    one.
+  * `ir` (expressions.py) is the whole IR mapping; declaring it puts the entire IR into the record of
+    the most widely imported mixin. **A judgement, and the honest answer may be a change to the PLANE.**
+  * RESOLVABLE, types read off the live source and NOT guessed: `_emitted_record_field_types:
+    Dict[str, Dict[str, str]]` (nested dicts DO model — `map string (option (map int (option string)))`
+    type-checks), `_formal_params: List[str]`, `_r55_subsumed_name: Optional[str]`, and pure_ast's
+    `_indent: int`. Cost: `expressions.py` (2 h 21 m) + `preamble.py` + `pure_ast.py` (2.5 h) and their
+    importers — price it with the 52-second sweep first.
+
+### #77 gen #34 — THE 629-OCCURRENCE SURVIVAL SHRINK SEAM, RANKED
+
+Of the 2989 dropped `#@ assigns` occurrences, **629** name a field whose LIVE initialiser carries an
+unambiguous simple annotation that agrees across every site. Biggest:
+`ExpressionEmissionMixin.frame_trigger_active` (88), `.abstract_ops` (49), `.dict_locals` (44),
+`StatementEmissionMixin.current_params` / `.frame_trigger_active` / `.func_return_type` (44 each),
+`.quant_record_binders` / `.quant_scalar_binders` (36), then a tail down to 1. Declaring each makes the
+emitted `writes` honest and drives `MAX_TRAP` DOWN, which it has never done in this campaign. Every
+declaration widens a record, so **price the batch with `bin/mirror-emit-sweep.sh` before writing it** —
+and remember the chain of three: each declaration makes every other clause mentioning that field
+accountable to HOLE / HOLE-T.
+
+
 ### #69 gen #32 — THE `hval` CODOMAIN FIRES FROM A LOCAL/PARAM ANNOTATION AND NOT FROM A RETURN ONE
 
 2026-09-28T03:00Z. Measured while chasing the self-annotation suite's ONLY failure.
