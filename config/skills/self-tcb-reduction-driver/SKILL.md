@@ -420,6 +420,51 @@ START (standing), not as an interrupt. Rules:
   — the no-re-baselining rule applies hardest when the cause reads well, because that is what makes
   re-baselining feel earned. **Before pricing a frame change, grep the plane array for the other
   planes watching the same nouns** (`assigns`, `writes`, `frame`).
+- **CARVE-OUT (lesson (f5) EXTENDED + (g5), gen #34) — THE FRAME BRACKET IS A CHAIN OF THREE, AND
+  THE CLAUSE AND THE DECLARATION ARE TWO DIFFERENT REPAIRS.** (f5) named two anti-correlated ratchets;
+  there is a THIRD side and it is the ratcheted one. `check-assigns-underdeclaration --transitive`
+  has ceiling **HOLE-T 0**, and **declaring a field switches ON the HOLE arm for every OTHER clause
+  that omits it** — 32 of 148 TRAP-T rows carried one of option 3's 13 fields and only 13 were the
+  direct rows the plan repaired, so **19 would have fired**. Measuring that BEFORE touching a line is
+  the only reason no plane went red. **Before declaring anything into a record, enumerate every other
+  clause that mentions — or transitively ought to mention — that field.**
+  Two riders, both measured and both load-bearing:
+  (i) **THE CLAUSE IS WHAT THE UNDERDECLARATION PLANE MEASURES AND WHAT EVERY CALLER CONSUMES; THE
+  DECLARATION IS WHAT THE SURVIVAL PLANE NEEDS, AND ONLY WHERE IT REACHES THE RECORD.** A class-level
+  annotation reaches the record for `TypeInferenceMixin`/`StatementEmissionMixin` and NOT for
+  `FunctionEmissionMixin` (no record fields at all), NOT for `PyCSLWeaver` (record from `__init__`),
+  and NOT at class level for `PyCSLToJSONEmitter` (its class-body AnnAssign path is gated
+  `if not fields and self._is_dataclass_decorated(node)`, so the annotation is collected for a
+  `@dataclass` and is otherwise SILENTLY INERT — declare it in the `\trusted` `__init__` stub
+  instead). Where it does not reach the record the declaration is inert AND makes the HOLE arms
+  accountable: liability for no honesty. Pairing them one-for-one is what made gen #33's patch raise
+  2989 -> 3000.
+  (ii) **A RATCHET WHOSE POPULATION IS GATED ON THE PROPERTY IT MEASURES CAN RISE ON AN HONEST
+  REPAIR.** `check-assigns-writes-survival` skips a symbol with no `writes` clause, so a clause that
+  is 100% dropped is INVISIBLE — its worst case. Fixing one field admits the method and the count
+  rises by the rest (measured 2989 -> 2996). Do NOT re-baseline: pay for the whole method and put the
+  widened population behind its OWN ratchet. And **the declared frame of a `\trusted` stub IS the
+  caller-side assumption, verbatim** — `assigns self.x` gives the abstract op `writes { self.x }` and
+  the caller's false postcondition is Unknown; `assigns \nothing` collapses it to a receiver-less
+  `val` and the same postcondition is **Valid**. So an under-declared clause is SOUNDNESS debt while
+  the survival TRAP is AUDIT debt; they are not one thing.
+- **CARVE-OUT (lesson (g5), gen #34) — A REPAIR'S PATTERN MUST BE NO BROADER THAN THE ACTION IT
+  REPAIRS, EXACTLY AS A VERIFICATION'S MUST BE NO NARROWER.** `git log --diff-filter=A <commit>` walks
+  the WHOLE HISTORY up to that commit, so un-tracking "the 39 files my `git add -A` swept in"
+  un-tracked **631**. Caught because the count did not match the number intended, and reverted in
+  full. Gen #33's delete-verification globbed one level too SHALLOW; this globbed ALL OF HISTORY —
+  same defect, opposite sign. **ASSERT THE POPULATION SIZE AGAINST THE NUMBER YOU EXPECTED BEFORE
+  ACTING ON IT.** The single-commit query is `git show --diff-filter=A --name-only <commit>`. And the
+  right answer was to do nothing: 790 such files were already tracked, so **a cleanup that contradicts
+  790 existing instances is a new POLICY, and a new policy does not belong in a commit about something
+  else.** Use targeted `git add <path>` in this tree, never `-A`.
+- **CARVE-OUT (gen #34) — `bin/mirror-emit-sweep.sh` IS 53 MIRROR FILES IN ~52 SECONDS.** It is the
+  CHEAPEST instrument in the campaign — an order cheaper than the 6-minute corpus byte-diff lesson (e5)
+  recommends — and it is the right way to iterate any record / frame / class-declaration change: it
+  tells you the exact mover set and therefore the exact re-proof bill. Gen #34 ran it eight times in
+  one hour to price a change gen #33 had estimated at 7-25 hours and measured at ~3. **Price a frame
+  or record change with this sweep BEFORE writing the second line of it.** (And per (d4): tee a gate
+  leg IN FULL — piping the plane run through `tail -40` cost the quotability of a 59/59 green.)
 - **Escalate-not-thrash, time-aware.** A per-wall attempt budget still applies; additionally, do not START
   a full cycle whose fable-review + spike cannot plausibly finish before the deadline — defer it (record
   the wall-signal for the next run) and spend the tail on cheaper items.
