@@ -100,7 +100,16 @@ BESPOKE_KEYS = [
 #                   and it may only SHRINK. Without `--emit-dir` the gate can only check the
 #                   population ceiling and says so.
 MAX_DECLARED = 12
-MAX_DISCARDED = 7
+#   (#49) gen #34 — 7 -> 2 IN THE SAME GENERATION THAT MEASURED THE 7. `_expr_bespoke_body`
+#   and `_emit_py_expr_compare_bespoke` now lower the DECLARED `requires`/`ensures` instead of
+#   hard-coding them, so the five `#@ ensures \result["type"] == "<Kind>"` IR-faithfulness
+#   postconditions EMIT and DISCHARGE (145 000 solver steps each; the goal TOTAL did not move
+#   because each previously carried `ensures { true }` — a count that does not move is not
+#   evidence that nothing changed). The RESIDUE IS TWO, both `#@ assigns self._fresh_var_counter`
+#   (`_emit_ghost_assign`, `_synthesize_overload_guard`), and they are deliberately separate:
+#   emitting a `writes` clause on a CONCRETE `let` CHECKS the frame against the body, so unlike
+#   the `ensures` half it can FAIL. Backlog #74.
+MAX_DISCARDED = 2
 # Floors. 23 methods reached at the first measurement; 25 bespoke emitters.
 MIN_REACHED = 18
 MIN_BESPOKE_EMITTERS = 20
