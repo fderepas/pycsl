@@ -61,8 +61,8 @@ longer occurs there it has been renamed and this gate is silently measuring a sm
 population, so the gate REFUSES (exit 2) rather than printing a smaller number.
 
 EXIT CODES
-  0  offenders <= MAX_DISCARDED
-  1  offenders above the ratchet
+  0  population <= MAX_DECLARED, and (with --emit-dir) discarded <= MAX_DISCARDED
+  1  either count above its ratchet
   2  refusal: a dispatch key went stale, or the bespoke emitters stopped hard-coding, or the
      reached population collapsed
 """
@@ -89,8 +89,18 @@ BESPOKE_KEYS = [
     "_is_overload_stub", "_act_guard", "_is_final_annotation",
 ]
 
-# RATCHET. (#49) gen #34 first measurement: 12 methods.
-MAX_DISCARDED = 12
+# TWO RATCHETS, because a SOURCE count and an EMISSION count are different measurements and
+# conflating them is how this gate would have lied in both directions.
+#   MAX_DECLARED  — bespoke-reached mirror methods carrying a non-trivial clause. A ceiling on
+#                   the POPULATION AT RISK. Measured 12.
+#   MAX_DISCARDED — of those, the ones whose clause is provably ABSENT from the emitted
+#                   declaration (`--emit-dir`). **Measured SEVEN, not twelve** — the five
+#                   `#@ assigns ir_stmts` stmt-handlers DO get a `writes` clause, so the
+#                   source-only count OVERSTATED the defect by five. This is the real ratchet
+#                   and it may only SHRINK. Without `--emit-dir` the gate can only check the
+#                   population ceiling and says so.
+MAX_DECLARED = 12
+MAX_DISCARDED = 7
 # Floors. 23 methods reached at the first measurement; 25 bespoke emitters.
 MIN_REACHED = 18
 MIN_BESPOKE_EMITTERS = 20
@@ -120,6 +130,80 @@ def _clauses_above(lines, i):
         else:
             break
     return out
+
+
+
+# ---------------------------------------------------------------------------------
+# THE EMISSION ARM. Counting a SOURCE clause is not the measurement — the measurement is
+# "declared and NOT EMITTED". A source-only count cannot tell a discarded clause from one a
+# repaired scaffold now emits, so it would read as RED forever after the fix and could never
+# ratchet down. Mapping, one line per clause kind, stated so it can be argued with:
+#
+#     #@ requires X   ->  a `requires { ... }` line that is not `{ true }`
+#     #@ ensures  X   ->  an `ensures  { ... }` line that is not `{ true }`
+#     #@ assigns  t   ->  a `writes { ... }` clause
+#     #@ raises E ..  ->  a `raises { ... }` clause
+#
+# A method with no emitted declaration at all is INDETERMINATE and is reported, never counted
+# as either satisfied or discarded — `bin/check-mirror-coverage.py` owns that population.
+
+CLAUSE_KIND = (
+    (re.compile(r"^#@\s*requires\s+"), "requires"),
+    (re.compile(r"^#@\s*ensures\s+"), "ensures"),
+    (re.compile(r"^#@\s*assigns\s+"), "assigns"),
+    (re.compile(r"^#@\s*raises\s+"), "raises"),
+)
+
+
+def _class_of(path, defname):
+    """The class a mirror `def` belongs to, by walking back to the nearest `class`."""
+    lines = open(path, encoding="utf-8").read().split("\n")
+    for i, l in enumerate(lines):
+        if re.match(r"\s*def %s\(" % re.escape(defname), l):
+            for k in range(i, -1, -1):
+                mc = re.match(r"class (\w+)", lines[k])
+                if mc:
+                    return mc.group(1)
+    return None
+
+
+def _emitted_decls(emit_dir):
+    """{symbol: contract-block text} over every .mlw in emit_dir."""
+    out = {}
+    for f in sorted(os.listdir(emit_dir)):
+        if not f.endswith(".mlw"):
+            continue
+        lines = open(os.path.join(emit_dir, f), encoding="utf-8").read().split("\n")
+        starts = [(i, mm.group(1)) for i, l in enumerate(lines)
+                  for mm in [re.match(r"\s*(?:let|val|with)\s+(?:rec\s+|ghost\s+|function\s+)*(\w+)\s*\(", l)]
+                  if mm]
+        for j, (i, nm) in enumerate(starts):
+            end = starts[j + 1][0] if j + 1 < len(starts) else len(lines)
+            blk = []
+            for l in lines[i + 1:end]:
+                if l.strip() == "=" or l.strip().startswith("= "):
+                    break
+                blk.append(l)
+            out.setdefault(nm, []).append("\n".join(blk))
+    return out
+
+
+def _sym(cls, defname):
+    return "%s___%s" % (cls.lower(), defname.lstrip("_"))
+
+
+def _kind_present(kind, blk):
+    if kind == "requires":
+        return any(re.match(r"\s*requires\s*\{", l) and l.strip() != "requires { true }"
+                   for l in blk.split("\n"))
+    if kind == "ensures":
+        return any(re.match(r"\s*ensures\s*\{", l) and "{ true }" not in l
+                   for l in blk.split("\n"))
+    if kind == "assigns":
+        return "writes {" in blk
+    if kind == "raises":
+        return "raises {" in blk
+    return True
 
 
 def measure(extra_clause=None):
@@ -178,6 +262,8 @@ def _emitter_facts():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--emit-dir",
+                    help="a mirror emission (bin/mirror-emit-sweep.sh). With it the gate\n                         measures DECLARED-AND-NOT-EMITTED per clause kind, which is the\n                         real question; without it only the source population is reported.")
     ap.add_argument("--self-test", action="store_true",
                     help="inject a real `#@ ensures` onto a currently-clean bespoke method "
                          "and require the count to RISE")
@@ -226,18 +312,56 @@ def main():
           "permission whose loss is stricter and is not counted)."
           % (n_bespoke, n_hard, len(reached), len(offenders), len(perms)))
 
-    if len(offenders) > MAX_DISCARDED:
-        print("[!] bespoke-contract-discard: %d > ratchet %d. A mirror method reached by a "
+    if args.emit_dir:
+        if not os.path.isdir(args.emit_dir):
+            print("[!] bespoke-contract-discard: --emit-dir %s is not a directory."
+                  % args.emit_dir, file=sys.stderr)
+            return 2
+        decls = _emitted_decls(args.emit_dir)
+        discarded, indet = [], []
+        for rel, nm, real in offenders:
+            cls = _class_of(os.path.join(MIRROR, rel), nm)
+            sym = _sym(cls, nm) if cls else None
+            blks = decls.get(sym) if sym else None
+            if not blks:
+                indet.append((rel, nm, sym))
+                continue
+            lost = []
+            for c in real:
+                kind = next((k for rx, k in CLAUSE_KIND if rx.match(c)), None)
+                if kind is None:
+                    continue
+                if not any(_kind_present(kind, b) for b in blks):
+                    lost.append(c)
+            if lost:
+                discarded.append((rel, nm, lost))
+        print("[*] bespoke-contract-discard --emit-dir: %d method(s) with a non-trivial "
+              "clause; %d have it DISCARDED from the emission, %d have no emitted "
+              "declaration at all (INDETERMINATE, not counted — check-mirror-coverage owns "
+              "that population)." % (len(offenders), len(discarded), len(indet)))
+        for rel, nm, lost in sorted(discarded):
+            print("      %-34s %-30s %s" % (rel, nm, "; ".join(c[:90] for c in lost)))
+        if len(discarded) > MAX_DISCARDED:
+            print("[!] bespoke-contract-discard: %d DISCARDED > ratchet %d."
+                  % (len(discarded), MAX_DISCARDED), file=sys.stderr)
+            return 1
+        print("[+] bespoke-contract-discard: OK — %d discarded (ratchet %d, may only shrink)."
+              % (len(discarded), MAX_DISCARDED))
+        return 0
+
+    if len(offenders) > MAX_DECLARED:
+        print("[!] bespoke-contract-discard: %d > population ceiling %d. A mirror method reached by a "
               "bespoke lowering gained a clause that the lowering THROWS AWAY, so the source "
               "reads as a guarantee and the emission claims nothing. Either teach that "
               "bespoke emitter to emit the declared contract, or do not declare it."
-              % (len(offenders), MAX_DISCARDED), file=sys.stderr)
+              % (len(offenders), MAX_DECLARED), file=sys.stderr)
         for rel, nm, real in sorted(offenders):
             print("      %-34s %-30s %s" % (rel, nm, "; ".join(c[:90] for c in real)),
                   file=sys.stderr)
         return 1
-    print("[+] bespoke-contract-discard: OK — %d discarded-clause method(s) (ratchet %d, may "
-          "only shrink)." % (len(offenders), MAX_DISCARDED))
+    print("[+] bespoke-contract-discard: OK — %d method(s) at risk (population ceiling %d). "
+          "NO VERDICT ON DISCARD without --emit-dir; the `--slow` battery supplies it."
+          % (len(offenders), MAX_DECLARED))
     return 0
 
 

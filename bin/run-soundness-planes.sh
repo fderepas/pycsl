@@ -559,7 +559,7 @@ CONVERSION_PLANES=(
 
 # Planes that take the shared mirror emission. Anything not listed runs bare, exactly as
 # before.
-EMIT_DIR_PLANES=" check-assigns-writes-survival.py check-computed-rhs-erasure.py check-yield-erasure.py check-shadowed-selfcalls.py check-trusted-frame-honesty.py check-avatar-frame-parity.py count-trusted-directives.py check-mirror-type-only.py check-cross-module-contract-parity.py "
+EMIT_DIR_PLANES=" check-bespoke-contract-discard.py check-assigns-writes-survival.py check-computed-rhs-erasure.py check-yield-erasure.py check-shadowed-selfcalls.py check-trusted-frame-honesty.py check-avatar-frame-parity.py count-trusted-directives.py check-mirror-type-only.py check-cross-module-contract-parity.py "
 # (yield-erasure and shadowed-selfcalls are in CONVERSION_PLANES above: always run, still shared.)
 SHARED_EMIT=""
 # (#49) A SECOND shared emission: the CORPUS, for `check-clause-survival.py`.
