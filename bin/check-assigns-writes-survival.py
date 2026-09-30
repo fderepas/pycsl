@@ -63,10 +63,34 @@ MAX_HOLE = 0
 #   MAX_TRAP may only SHRINK. It falls whenever a field named in an `#@ assigns` is actually
 #   declared on its class (backlog #63 took it 2991 -> 2989 by declaring ONE field).
 #   (#49) gen #32: first measurement, 2989.
-MAX_TRAP = 2989
+#   (#49) gen #34: **2989 -> 3070, AND THIS IS NOT A LOOSENING.** The old figure was measured
+#   through a BROKEN NAME KEY (see `source_assigns` below) that could never match 346 of 1066
+#   source entries, so the plane was counting over 457 declarations where the correct key finds
+#   **583**. 2989 was therefore never a measurement of the invariant this plane states; there is
+#   no comparable old number to shrink from. **The load-bearing fact is that `MAX_HOLE = 0`
+#   HOLDS UNDER THE CORRECTED, LARGER POPULATION** — measured, HOLE 0 both before and after —
+#   which makes the corrected zero a STRONGER negative than the one it replaces. The gate was
+#   GREEN at 2989 when this was fixed, so nothing was accommodated: a bigger honest number was
+#   chosen over a smaller wrong one. From here the rule stands unchanged — may only SHRINK.
+MAX_TRAP = 3070
 # A zero-input guard: the #44 rule, a gate that cannot tell "nothing is wrong" from "I looked at
-# nothing" is not a gate. 200 is below the measured 222 and the mirror only grows.
-MIN_FUNCS_WITH_WRITES = 200
+# nothing" is not a gate. (#49) gen #34: raised 200 -> 500. The old floor of 200 was set below the
+# then-measured 222 and could NOT notice the broken key, which cost 126 declarations — a floor
+# chosen under a defect inherits the defect. 500 is below the corrected 583.
+#
+# AND A SECOND GUARD ON THE KEY ITSELF, because a floor on the RESULT cannot catch a key that is
+# wrong for a whole NAME SHAPE. `MAX_UNRESOLVED_KEYS` bounds how many source (class, def) keys
+# match NO emitted symbol anywhere. Measured at the corrected key: see the printout. A rise means
+# either the key drifted again or methods stopped being emitted, and both deserve a look.
+MIN_FUNCS_WITH_WRITES = 500
+#   MAX_UNRESOLVED_KEYS — source `(class, def)` keys matching NO emitted symbol. (#49) gen #34
+#   first measurement under the CORRECTED key: **134**, and they are a known residue rather than
+#   a mystery: `__init__` (inlined into the emitted record's `by` witness, so no `<cls>____init__`
+#   spelling exists anywhere), nested closures FOLDED into their emitted parent, and typing-only
+#   Protocol / `*View` classes that never produce a declaration at all. A RISE means either the key
+#   drifted from the emitter's rule again or methods stopped being emitted, and BOTH narrow this
+#   plane's population silently, which is the failure this constant exists to make loud.
+MAX_UNRESOLVED_KEYS = 134
 
 
 def _bare(raw):
@@ -119,6 +143,31 @@ def source_assigns(mirror_root=MIRROR_ROOT):
     return out
 
 
+def unresolved_keys(emit_dir, src_assigns):
+    """(#49) gen #34 — THE GUARD ON THE KEY ITSELF, not on the result.
+
+    A floor on the number of declarations found cannot catch a key that is wrong for an entire
+    NAME SHAPE: the old key missed every `transpile`-like name and the floor of 200 sat happily
+    below the 222 it produced. So this counts the source `(class, def)` keys that match NO
+    emitted symbol ANYWHERE in the emission. A rise means either the key drifted again or
+    methods stopped being emitted, and both deserve a look rather than a silently smaller
+    number.
+    """
+    present = set()
+    for f in sorted(os.listdir(emit_dir)):
+        if not f.endswith(".mlw"):
+            continue
+        text = open(os.path.join(emit_dir, f), encoding="utf-8").read()
+        for m in re.finditer(r"^\s*(?:let|val|with)\s+(?:function\s+|rec\s+|partial\s+|ghost\s+)*(\w+)\s*\(",
+                             text, re.M):
+            present.add(m.group(1))
+    out = []
+    for (cls, fnname) in sorted(src_assigns):
+        if f"{cls.lower()}__{fnname}" not in present:
+            out.append((cls, fnname))
+    return out
+
+
 def measure(emit_dir, src_assigns, want_trap_rows=False):
     """-> (trap_count, hole_rows, n_funcs_with_writes[, trap_rows])."""
     trap = 0
@@ -127,7 +176,17 @@ def measure(emit_dir, src_assigns, want_trap_rows=False):
     n_writes = 0
     by_name = collections.defaultdict(list)
     for (cls, fnname), fields in src_assigns.items():
-        by_name[f"{cls.lower()}___{fnname.lstrip('_')}"].append((cls, fields))
+        # (#49) gen #34 — THE KEY WAS WRONG FOR EVERY NAME WITHOUT EXACTLY ONE LEADING `_`.
+        # It used to be `f"{cls.lower()}___{fnname.lstrip('_')}"`: three underscores plus a
+        # strip, which happens to be right for `_emit_body_code` and is WRONG for `transpile`,
+        # `__init__`, `extend`, `audit_rocq`, … The emitter's rule is ONE spelling, at
+        # `src/pycsl/frontend/Module5_IREmitter.py:6070`:
+        #     func_name = f"{self._current_class.lower()}__{node.name}"
+        # i.e. TWO underscores and the name AS WRITTEN. Measured cost of the old key: of 1066
+        # source entries, **346** produced a key that can never match an emitted symbol (320
+        # with no leading underscore, 26 dunders), and the plane saw **457** declarations
+        # where it should see **583**.
+        by_name[f"{cls.lower()}__{fnname}"].append((cls, fields))
     for f in sorted(os.listdir(emit_dir)):
         if not f.endswith(".mlw"):
             continue
@@ -230,6 +289,19 @@ def main():
         return self_test(args.emit_dir, src)
 
     trap, holes, n_writes = measure(args.emit_dir, src)
+
+    unres = unresolved_keys(args.emit_dir, src)
+    print("[*] assigns-writes-survival: %d source (class, def) key(s) match NO emitted symbol "
+          "(ceiling %d) — the guard on the KEY, added after the old key silently missed 346 of "
+          "1066." % (len(unres), MAX_UNRESOLVED_KEYS))
+    if len(unres) > MAX_UNRESOLVED_KEYS:
+        print("[!] assigns-writes-survival: %d unresolved key(s) > %d. Either the name key drifted "
+              "from the emitter's `f\"{cls.lower()}__{node.name}\"` rule, or these methods stopped "
+              "being emitted. Both narrow this plane's population silently."
+              % (len(unres), MAX_UNRESOLVED_KEYS), file=sys.stderr)
+        for cls, fn in unres[:25]:
+            print("      %s.%s" % (cls, fn), file=sys.stderr)
+        return 1
 
     if n_writes < MIN_FUNCS_WITH_WRITES:
         print("[!] assigns-writes-survival: only %d emitted function(s) carry a `writes` clause, "
