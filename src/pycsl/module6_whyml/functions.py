@@ -4435,43 +4435,6 @@ class FunctionEmissionMixin:
         ]
         return L
 
-    def _bespoke_spec_lines(self, func: Dict[str, Any], ret_ty: str) -> List[str]:
-        """(#49) gen #34 — THE DECLARED `requires`/`ensures` OF A BESPOKE-LOWERED METHOD.
-
-        Every `*_bespoke` lowering used to write its contract as the two literal strings
-        `requires { true }` / `ensures { true }`, so a clause declared in the mirror was
-        SILENTLY DISCARDED: measured, 23 mirror methods reach a bespoke dispatch key and 12
-        carried a non-trivial clause that never reached the emission — five of them the
-        `#@ ensures \\result["type"] == "<Kind>"` IR-FAITHFULNESS postconditions that the
-        Module5 mirror layer exists to establish. Fail-closed (an `ensures { true }` assumes
-        less), but a claim the artifact never proved. `bin/check-bespoke-contract-discard.py`
-        is the ratchet that counts the residue.
-
-        `_func_return_type` is forced to `ret_ty` for the lowering because THAT IS THE RETURN
-        TYPE THIS DECLARATION EMITS. The mirror annotates these handlers with the int-erased
-        `-> int`, and without the override `\\result["type"]` lowers through the opaque dict
-        model to `subscript_get result <hash>` — an unbound PROGRAM symbol inside a logical
-        term, which is exactly the failure backlog #60a documents at `_emit_contracts`.
-
-        Falls back to the historical `requires { true } ensures { true }` when the method
-        declares neither, so every bespoke method that carried no real clause is
-        BYTE-IDENTICAL.
-        """
-        _prev_spec = getattr(self, "_in_spec", False)
-        _prev_frt = getattr(self, "_func_return_type", None)
-        self._in_spec = True
-        self._func_return_type = ret_ty
-        try:
-            _c = func.get("contracts") or {}
-            out = [f"    requires {{ {self._expr_to_whyml(r, set())} }}"
-                   for r in (_c.get("requires") or [])]
-            out += [f"    ensures  {{ {self._expr_to_whyml(e, set())} }}"
-                    for e in (_c.get("ensures") or [])]
-        finally:
-            self._in_spec = _prev_spec
-            self._func_return_type = _prev_frt
-        return out or ["    requires { true }", "    ensures  { true }"]
-
     def _expr_bespoke_body(self, func: Dict[str, Any], param_ty: str,
                            body_expr: str) -> List[str]:
         """Shared scaffold for a RETURN-value `_py_expr_*` bespoke: a `let <name> (self)
@@ -4490,7 +4453,33 @@ class FunctionEmissionMixin:
         # `-> int`, and without the override `\result["type"]` lowers through the opaque
         # dict model to `subscript_get result <hash>`, an unbound program symbol in a logical
         # term (the failure mode backlog #60a documents at :2591).
-        _spec = self._bespoke_spec_lines(func, "emit_ir")
+        # (#49) gen #34 — EMIT THE DECLARED CONTRACT INSTEAD OF DISCARDING IT, and WRITTEN
+        # INLINE rather than factored into a helper. Lesson (a4): a new live `def` in a
+        # MIRRORED file has no mirror counterpart, so `check-mirror-coverage.py`'s ratchet
+        # moves (549 -> 550, measured — a live function with no mirror twin is not
+        # `\trusted`, it is ABSENT and the headline count cannot see it). The duplication
+        # across the two bespoke sites is the price of that ratchet and is deliberate.
+        # `_func_return_type` is forced to `emit_ir` BECAUSE THAT IS THE RETURN TYPE THIS
+        # DECLARATION EMITS: the mirror annotates these handlers with the int-erased
+        # `-> int`, and without the override `\result["type"]` lowers through the opaque
+        # dict model to `subscript_get result <hash>`, an unbound PROGRAM symbol inside a
+        # logical term — the failure backlog #60a documents at `_emit_contracts`.
+        # Gate: bin/check-bespoke-contract-discard.py (--emit-dir arm).
+        _prev_spec = getattr(self, "_in_spec", False)
+        _prev_frt = getattr(self, "_func_return_type", None)
+        self._in_spec = True
+        self._func_return_type = "emit_ir"
+        try:
+            _c = func.get("contracts") or {}
+            _spec = [f"    requires {{ {self._expr_to_whyml(r, set())} }}"
+                     for r in (_c.get("requires") or [])]
+            _spec += [f"    ensures  {{ {self._expr_to_whyml(e, set())} }}"
+                      for e in (_c.get("ensures") or [])]
+        finally:
+            self._in_spec = _prev_spec
+            self._func_return_type = _prev_frt
+        if not _spec:
+            _spec = ["    requires { true }", "    ensures  { true }"]
         return [
             f"  let {name} (self: {cls}) (expr: {param_ty}) : emit_ir",
         ] + _spec + [
@@ -5159,9 +5148,36 @@ class FunctionEmissionMixin:
         # shadowed-selfcall RATCHET, which is per-METHOD, cannot move even when every
         # other site is concrete). Unmarked -> the historical avatar, byte-identical.
         _opw = self._pyx_sibling_call(func, "_py_op_to_str", "(compare_op0_ast expr)")
+        # (#49) gen #34 — EMIT THE DECLARED CONTRACT INSTEAD OF DISCARDING IT, and WRITTEN
+        # INLINE rather than factored into a helper. Lesson (a4): a new live `def` in a
+        # MIRRORED file has no mirror counterpart, so `check-mirror-coverage.py`'s ratchet
+        # moves (549 -> 550, measured — a live function with no mirror twin is not
+        # `\trusted`, it is ABSENT and the headline count cannot see it). The duplication
+        # across the two bespoke sites is the price of that ratchet and is deliberate.
+        # `_func_return_type` is forced to `emit_ir` BECAUSE THAT IS THE RETURN TYPE THIS
+        # DECLARATION EMITS: the mirror annotates these handlers with the int-erased
+        # `-> int`, and without the override `\result["type"]` lowers through the opaque
+        # dict model to `subscript_get result <hash>`, an unbound PROGRAM symbol inside a
+        # logical term — the failure backlog #60a documents at `_emit_contracts`.
+        # Gate: bin/check-bespoke-contract-discard.py (--emit-dir arm).
+        _prev_spec = getattr(self, "_in_spec", False)
+        _prev_frt = getattr(self, "_func_return_type", None)
+        self._in_spec = True
+        self._func_return_type = "emit_ir"
+        try:
+            _c = func.get("contracts") or {}
+            _spec = [f"    requires {{ {self._expr_to_whyml(r, set())} }}"
+                     for r in (_c.get("requires") or [])]
+            _spec += [f"    ensures  {{ {self._expr_to_whyml(e, set())} }}"
+                      for e in (_c.get("ensures") or [])]
+        finally:
+            self._in_spec = _prev_spec
+            self._func_return_type = _prev_frt
+        if not _spec:
+            _spec = ["    requires { true }", "    ensures  { true }"]
         L = [
             f"  let {name} (self: {cls}) (expr: py_compare_node) : emit_ir",
-        ] + self._bespoke_spec_lines(func, "emit_ir") + [
+        ] + _spec + [
             "  =",
             f"    (IrBinOp {_opw}"
             " (self__py_expr_to_ir_1 (compare_left_ast expr))"
