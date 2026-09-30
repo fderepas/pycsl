@@ -76,3 +76,78 @@ contracts until the cause above is actually located.
    hypothesis in one pass.
 3. **Then** decide the repair. If the five clauses start being emitted they must PROVE; if they do not,
    that is a faithfulness failure worth more than the clause.
+
+---
+
+# CAUSE LOCALISED, AND IT IS A DEFECT **CLASS** OF 25 EMITTERS, NOT ONE METHOD
+
+`src/pycsl/module6_whyml/functions.py:4438-4451`, `_expr_bespoke_body`:
+
+    return [
+        f"  let {name} (self: {cls}) (expr: {param_ty}) : emit_ir",
+        "    requires { true }",
+        "    ensures  { true }",
+        "  =",
+        f"    {body_expr}",
+    ]
+
+It never reads `func`'s contract. **HARD-CODED.** And the mirror's own comment beside
+`_py_expr_compare` names the mechanism in advance — *"A bespoke Module6 lowering
+(`functions.py _emit_py_expr_compare_bespoke`, keyed on the method name under `_uses_stmt_ir`) emits
+it FAITHFULLY as the certified `IrBinOp` ctor"* — it says FAITHFULLY of the BODY and says nothing
+about the contract, and nobody asked.
+
+## TWO HYPOTHESES REFUTED BEFORE THE CAUSE WAS FOUND — BOTH WOULD HAVE PRODUCED A WRONG REPAIR
+
+1. **The int-erased return annotation** (the delegated probe's discriminator): refuted, because
+   `_py_expr_unaryop` and `_py_expr_binop` are ALSO `-> int` in the mirror and KEEP the clause.
+2. **`#@ \diverges`** (my own, from the n = 7 correlation): refuted by measurement in a disposable
+   worktree — adding `#@ \diverges` to `_py_expr_compare` and re-emitting left the block at
+   `requires { true } / ensures { true }`, and **dropped the `diverges` clause too.** That is what said
+   the WHOLE contract block is bypassed rather than one clause filtered.
+
+## THE CENSUS, WHICH IS THE PART THAT MATTERS
+
+Every one of the **25** `*_bespoke` emitters in `functions.py` hard-codes `requires { true }
+ensures { true }` (or delegates to `_expr_bespoke_body`, which does) and **not one of them reads the
+source contract.** Mirror methods reaching a bespoke dispatch key: **23**. Of those, **TWELVE carry a
+non-trivial clause that is silently discarded:**
+
+| mirror method (all `frontend/Module5_IREmitter.py`) | discarded clause |
+|---|---|
+| `_py_expr_compare` | `#@ ensures \result["type"] == "BinOp"` |
+| `_py_expr_dictcomp` | `#@ ensures \result["type"] == "DictComp"` |
+| `_py_expr_genexp` | `#@ ensures \result["type"] == "GenExp"` |
+| `_py_expr_listcomp` | `#@ ensures \result["type"] == "ListComp"` |
+| `_py_expr_setcomp` | `#@ ensures \result["type"] == "SetComp"` |
+| `_py_stmt_assign` | `#@ assigns ir_stmts` |
+| `_py_stmt_delete` | `#@ assigns ir_stmts` **and** `#@ raises PyCSLSemanticError when True` |
+| `_py_stmt_match` | `#@ assigns ir_stmts` |
+| `_py_stmt_try` | `#@ assigns ir_stmts` |
+| `_py_stmt_with` | `#@ assigns ir_stmts` |
+| `_emit_ghost_assign` | `#@ assigns self._fresh_var_counter` |
+| `_synthesize_overload_guard` | `#@ assigns self._fresh_var_counter` |
+
+>>> **A BESPOKE HAND-WRITTEN LOWERING THAT HARD-CODES ITS CONTRACT DISCARDS THE SOURCE'S, AND THE
+>>> MIRROR GOES ON READING AS IF IT WERE PROVED.** Every one of these twelve is WEAKER than declared,
+>>> so nothing false is derived and the class is FAIL-CLOSED — but twelve declared clauses in the
+>>> mirror's IR-construction layer are not obligations, and five of them are the IR-faithfulness
+>>> postconditions that are the entire point of that layer.
+
+**AND THERE IS A PLANE THAT ALREADY MADE EXACTLY THIS ARGUMENT ONE STEP AWAY.**
+`bin/check-emit-ir-arm-postconditions.py` exists because an emit_ir always-present arm was *"sound only
+while the methods that REACH them carry no real postcondition, and until now that was PROSE"*. The
+bespoke lowerings are the same argument with the same missing gate, and nothing checks them.
+
+## THE REPAIR, IN TWO PARTS — NEITHER BUILT
+
+1. **THE GATE (cheap, no prover):** assert that every mirror method reaching a bespoke dispatch key
+   carries no clause stronger than `True`, with the twelve above as a ratcheted baseline that may only
+   SHRINK. Negative-test it by adding a real `ensures` to a thirteenth. This makes the class
+   fail-closed BY CONSTRUCTION instead of by luck, and it can land before the real fix.
+2. **THE REAL FIX:** have the bespoke scaffolds emit the declared contract instead of `true`. Then the
+   five faithfulness postconditions become obligations — and **if they do not prove, that is a
+   faithfulness failure worth more than the clause.** `kind_of (IrBinOp …) = "BinOp"` should follow from
+   the emit_ir theory that already discharges 69 siblings. Price it with `bin/mirror-emit-sweep.sh`
+   (52 s) first; the scaffolds' own comments claim corpus-inertness ("each caller keys on a named
+   mirror method under `_uses_stmt_ir`") — **verify that, do not inherit it.**
