@@ -60,6 +60,27 @@ nothing" is not a gate). The dispatch keys below are literals from `functions.py
 longer occurs there it has been renamed and this gate is silently measuring a smaller
 population, so the gate REFUSES (exit 2) rather than printing a smaller number.
 
+KNOWN POPULATION GAP — THIS GATE IS NOT COMPLETE AND MUST NOT READ AS THOUGH IT WERE.
+(#49) gen #34, from a delegated census run the same day: `*_bespoke` in `functions.py` was NOT the
+whole hard-coded-contract population.
+  * `src/pycsl/module6_whyml/generic_fold.py` has ~48 `emit_*_group` templaters which emit the
+    MIRROR METHOD'S OWN symbol with a literal `requires { true } ensures { true }` and never read
+    `func["contracts"]`. 195 mirror-method symbols carry that one-line spelling in the emission. Of
+    the twelve whose source method has a non-trivial clause, exactly ONE is a genuine discard:
+    `generic_fold.py:7592` (`emit_dictfold_group`) drops
+    `#@ assigns self._tuple_var_slot_types` from `TypeInferenceMixin._collect_tuple_var_assigns`,
+    emitted receiver-less and frame-less at `Module6_WhyMLTranspiler.mlw:3391`.
+  * `functions.py:8041` (`_emit_term_pp_delegation`) hard-codes too. It fires today only on `pp`
+    methods that claim nothing, so it is LATENT: one non-trivial `#@ ensures` on a delegated `pp`
+    and it becomes the defect.
+Neither is in `BESPOKE_KEYS`, so neither is counted here. **The right generalisation is to stop
+keying on the EMITTER and measure from the EMISSION instead** — every emitted declaration whose
+contract block is exactly the hard-coded fingerprint while its SOURCE method declares something —
+which is key-independent and covers emitter paths nobody has written yet. That needs its own
+measurement and its own negative test (and must exclude IMPORT stubs, where backlog #60a drops
+`\result["key"]` clauses DELIBERATELY and soundly), so it is recorded as the follow-up rather than
+bolted on. Backlog #74.
+
 EXIT CODES
   0  population <= MAX_DECLARED, and (with --emit-dir) discarded <= MAX_DISCARDED
   1  either count above its ratchet
