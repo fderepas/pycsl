@@ -125,6 +125,18 @@ PLANES=(
     check-trusted-raises-honesty.py
     check-type-keyed-constant-answers.py
     check-emit-ir-arm-postconditions.py
+    # (#49) gen #34 — THE SIBLING OF THE PLANE ABOVE, AND IT WAS MISSING FOR THE SAME REASON.
+    # `check-emit-ir-arm-postconditions` exists because an emit_ir arm was "sound only while the
+    # methods that REACH them carry no real postcondition, and until now that was PROSE". Module 6's
+    # TWENTY-FIVE `*_bespoke` lowerings make the identical bargain and nothing checked it: every one
+    # writes its contract as the literal strings `requires { true }` / `ensures { true }`
+    # (functions.py:4445) and NOT ONE reads `func`'s contract. Measured: 23 mirror methods reach a
+    # bespoke dispatch key and TWELVE carry a non-trivial clause the lowering throws away — five of
+    # them the `#@ ensures \result["type"] == <Kind>` IR-FAITHFULNESS claims that layer exists for.
+    # Fail-closed (every discard is weaker than declared), so this is a CLAIM-REALITY ratchet, not a
+    # soundness one. Costs no prover. Three arms negative-tested: the count (inject a real `ensures`
+    # -> 12 -> 13), the dispatch-key staleness refusal, and the population floor.
+    check-bespoke-contract-discard.py
     check-singleton-constant-lowering.py
     # (#49) gen #30: the ARGUMENT-COERCION ratchet. Routes #192 and #193 were both
     # substitutions in `_coerce_dotted_args`, found by each other's repair, in one
@@ -390,6 +402,8 @@ PLANES=(
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
 # the zero-check refusal would still have passed. A floor one below the truth is a gate
 # that tolerates exactly the failure it exists to catch. Raise this with the array.
+# (#49) gen #34: 54 -> 55 with `check-bespoke-contract-discard.py` (the 25 bespoke
+# lowerings hard-code `requires { true } ensures { true }` and discard 12 declared clauses).
 # (#49) gen #33: 53 -> 54 with `check-abstract-op-clash-resolution.py` (the same-arity
 # tiebreak that decided the seam by string length).
 # (#49) gen #33: 52 -> 53 with `check-assigns-underdeclaration.py` (the frame plane's
@@ -400,7 +414,7 @@ PLANES=(
 # (#49) gen #31: 48 -> 49 with `check-sibling-concrete-fidelity.py`, 49 -> 50 with
 # `self-annotate-mirror-check.sh` (declared a gate in five documents, collected by no
 # battery until now — lesson (u6)).
-MIN_PLANES=54
+MIN_PLANES=55
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
