@@ -8809,3 +8809,104 @@ THREE RULES THIS PAID FOR:
 * **BEFORE PRICING A FRAME CHANGE, ASK WHICH OTHER PLANE WATCHES THE SAME INVARIANT.** Gen #33 built
   the second bracket and still did not ask what the first would read until the battery said so. The
   question costs one `grep` over the plane array for the same nouns (`assigns`, `writes`, `frame`).
+
+---
+
+## (g5) A REPAIR'S PATTERN MUST BE NO BROADER THAN THE ACTION IT REPAIRS — AND (f5) IS A CHAIN OF THREE, NOT A PAIR (gen #34, 2026-09-30)
+
+### THE FRAME BRACKET HAS A THIRD SIDE AND IT IS THE RATCHETED ONE
+
+(f5) said `check-assigns-writes-survival` (declared-but-not-EMITTED, TRAP 2989) and
+`check-assigns-underdeclaration` (written-but-not-DECLARED, TRAP 18) bracket one invariant from
+opposite ends, and that only a CLASS DECLARATION drives both to zero. True, and incomplete. The
+underdeclaration plane has a `--transitive` arm whose HOLE-T ceiling is **0**, and:
+
+>>> **DECLARING A FIELD SWITCHES ON THE HOLE ARM FOR EVERY OTHER CLAUSE THAT OMITS IT.**
+
+    declared-but-not-EMITTED   <-- class declaration -->   written-but-not-DECLARED (DIRECT)
+      (survival, TRAP 2989)                                  (underdeclaration, TRAP)
+                                                                     ^
+                                                                  clause
+                                                                     v
+                                              written-THROUGH-A-CALLEE (HOLE-T, ceiling 0)
+
+Measured BEFORE a line was touched, which is the only reason it did not turn a plane red: of the 148
+TRAP-T rows, **32** carry one of the 13 fields option 3 declares and only 13 are the direct rows the
+plan repairs — so **19 would have become HOLE-T**. A frame invariant bracketed from N sides needs the
+state that satisfies all N, and N was not 2. The generalisation is worth more than the instance:
+**before declaring anything into a record, enumerate every OTHER clause that mentions — or transitively
+ought to mention — that field, because the declaration is what makes those clauses accountable.**
+
+### AND THE CLAUSE AND THE DECLARATION ARE TWO DIFFERENT REPAIRS
+
+Gen #33's patch paired them one-for-one and that is precisely what produced the conflict. Measured per
+class: a class-level declaration reaches the emitted record for `TypeInferenceMixin` and
+`StatementEmissionMixin`, and **NOT** for `FunctionEmissionMixin` (which emits `type
+functionemissionmixin` with no fields at all), **NOT** for `PyCSLWeaver` (record built from
+`__init__`), and **NOT at class level** for `PyCSLToJSONEmitter` (whose class-body AnnAssign path is
+gated `if not fields and self._is_dataclass_decorated(node)` — so the annotation is collected for a
+`@dataclass` and for nothing else, and is otherwise SILENTLY INERT).
+
+>>> **THE CLAUSE IS WHAT THE UNDERDECLARATION PLANE MEASURES AND WHAT EVERY CALLER CONSUMES. THE
+>>> DECLARATION IS WHAT THE SURVIVAL PLANE NEEDS, AND ONLY WHERE IT REACHES THE RECORD. Where it does
+>>> not reach the record it is emission-inert AND it makes the HOLE arms accountable for that field —
+>>> liability for no honesty.**
+
+### THE PLANE'S OWN POPULATION IS GATED ON THE THING IT COUNTS, SO ITS TRAP IS NOT MONOTONE
+
+`check-assigns-writes-survival` skips any emitted symbol with no `writes` clause (`if not w:
+continue`). A clause that is **100% dropped** emits no `writes` and is therefore INVISIBLE — the worst
+case is the one it cannot see. Consequence: fixing ONE field of such a method gives it its first
+`writes` clause, ADMITS it to the population, and the count RISES by its remaining dropped fields.
+Measured: declaring `_rebound_collections` took TRAP 2989 → 2996, and six of the seven were
+`_track_collection_metadata`'s other three fields in two emitted files.
+
+>>> **A RATCHET WHOSE POPULATION IS GATED ON THE PROPERTY IT MEASURES CAN RISE ON AN HONEST REPAIR.**
+>>> Do not re-baseline it; pay for the whole method, and put the widened population behind its OWN
+>>> ratchet. The blind spot's size, measured: the widened population is **1515 symbols, 1060 with no
+>>> `writes` clause, TRAP 5427, HOLE 327** against the shipped 455 / 2989 / 0.
+
+### AND THE POSITIVE CONTROL THAT SAYS WHY ANY OF THIS MATTERS
+
+Two probes refuted the obvious exploit of those 327 rows, and NAMING THE FENCE answered a bigger
+question. Every call to a `\trusted` method — intra-class `self.m()` and cross-object `c.m()` alike —
+is lowered to an ABSTRACT OP, never to the emitted bodyless `val`, which nothing calls. And the
+abstract op's frame is built FROM THE CLAUSE:
+
+    #@ assigns self.x    ->  val c_bump_0 (self: c) : unit  writes { self.x }   caller's `\result == 0`  **Unknown**
+    #@ assigns \nothing  ->  val c_bump_0 () : unit                             the same `\result == 0`  **Valid, 104 steps**
+
+>>> **A `\trusted` STUB'S DECLARED FRAME IS EXACTLY THE CALLER-SIDE ASSUMPTION, VERBATIM.** So an
+>>> under-declared `#@ assigns` is a false assumption consumed by every caller — SOUNDNESS debt, not
+>>> audit debt — and the `--transitive` arm is the identical defect one call deeper. Conversely the
+>>> survival plane's TRAP is an AUDIT measure about declarations nothing consumes. **Two planes, two
+>>> different kinds of debt; treating them as one is what made the repair look like bookkeeping.**
+
+### (g5) THE PATTERN AND THE ACTION
+
+A `git add -A` swept 39 per-run `.tmp*.aux` prover byproducts into the increment. Un-tracking "just
+those" with `git log --diff-filter=A --name-only <commit> -- <paths>` un-tracked **631**, because
+`git log <commit>` walks the WHOLE HISTORY up to that commit rather than that commit. Caught within one
+command — the count did not match the ~40 intended — and fully reverted.
+
+>>> **LESSON (g5): A REPAIR'S PATTERN MUST BE NO BROADER THAN THE ACTION IT REPAIRS, EXACTLY AS A
+>>> VERIFICATION'S MUST BE NO NARROWER.** Gen #33's delete-verification globbed one level too shallow
+>>> and missed a tracked file; this globbed all of history and caught 592 files that were never mine.
+>>> Same defect, opposite sign, and ONE discriminator catches both: **assert the population size
+>>> against the number you expected BEFORE acting on it.** The single-commit query is
+>>> `git show --diff-filter=A --name-only <commit>`.
+
+And the right answer was to do nothing: 790 such files were ALREADY tracked, so 39 more is the repo's
+own convention, and the window's addendum says the `.aux` churn is dirt to IGNORE. **A cleanup that
+contradicts 790 existing instances is not a cleanup, it is a new policy** — and a new policy does not
+belong in a commit about something else.
+
+### PROCESS, TWICE IN ONE GENERATION
+
+* **Lesson (d4) again, and it cost the quotability of a green:** the fast plane run was piped through
+  `tail -40` into its log, so the first ~19 verdicts are unquotable from my own artefact even though
+  the run's summary says 59/59. **A gate leg you will later be asked to quote must be captured whole.**
+* **`bin/mirror-emit-sweep.sh` is 53 files in 52 SECONDS.** That makes it the cheapest instrument in
+  the campaign — cheaper than the 6-minute corpus byte-diff lesson (e5) recommends — and the right way
+  to iterate any record/frame/declaration change. Gen #34 used it eight times in one hour to price a
+  change gen #33 estimated at 7–25 hours.
