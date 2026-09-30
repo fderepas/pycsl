@@ -1,110 +1,134 @@
-# OPTION 3 — DECLARE THE WRITTEN FIELDS ON THEIR CLASSES (executable plan for gen #34)
+# OPTION 3 — DECLARE THE WRITTEN FIELDS ON THEIR CLASSES
 
-**This is ladder item 1 for gen #34.** It is the ONLY state that drives BOTH frame ratchets to zero
-(lesson (f5)), and its obstacle is COST/SCALE, which by §A.3 is explicitly **not a floor**.
+**STATUS: LANDED by gen #34 (commit `016a93d2`), gated in battery #1.** This file is now the RECORD
+of what the change actually is, because gen #33's plan (preserved in the history of this file) was
+wrong in three measurable ways and each one matters to whoever touches the frame planes next.
 
-## WHY IT IS THE ONLY ADMISSIBLE OPTION
+## WHAT LANDED
 
-Three were on the table:
+    check-assigns-underdeclaration     TRAP  18 -> 5    HOLE   0   (ceiling lowered 18 -> 5)
+    check-assigns-underdeclaration -t  TRAP-T 148 -> 116 HOLE-T 0
+    check-assigns-writes-survival      TRAP  2989 (unchanged, NOT raised)  HOLE 0
 
-1. **Keep the honest clauses, move `MAX_TRAP` 2989 → 3000 with its cause.** **RULED OUT.** The
-   contract says *never re-baseline a ratchet to make a gate green; if a gate goes red the repair is at
-   fault, REVERT* — and `MAX_TRAP = 2989` carries **"may only SHRINK"** in its own declaration. A good
-   cause is exactly what makes re-baselining feel earned, which is why the rule exists.
-2. **Revert, leave the eighteen clauses dishonest.** Admissible, and what gen #33 did to end clean —
-   but it is a COST/SCALE deferral, not a boundary, so it is not where this should stop.
-3. **Declare the fields on their classes too.** Then each field enters the emitted RECORD, the `writes`
-   clause actually names it, and NEITHER plane counts it. **Both TRAPs go to zero.**
+Thirty-two `#@ assigns` clause repairs (13 direct + 19 transitive) and **seven** class-level /
+`__init__` field declarations. Mirror movers: **four** — `Module6_WhyMLTranspiler`,
+`frontend__Module5_IREmitter`, `module6_whyml__statements`, `module6_whyml__types`. Corpus and
+python-reference emissions **byte-inert in all three directions** (1381/1381 and 2199/2199, 0 MOVED).
 
-## THE MEASURED BILL — AND IT IS FAR CHEAPER THAN GEN #33 PREDICTED
+## THE THREE THINGS THE ORIGINAL PLAN GOT WRONG
 
-Gen #33 predicted **20-40 of 53** mirrors moving, including the three slow ones, i.e. ~7 h of proving.
-**That prediction was WRONG, and wrong in the cheap direction.** Measured with
-`bin/mirror-emit-sweep.sh` against a worktree baseline, with the 14 unambiguous declarations applied:
+### 1. THE CLAUSE AND THE DECLARATION ARE TWO DIFFERENT REPAIRS
 
-    MOVERS: 3 of 53
-      Module6_WhyMLTranspiler.mlw
-      module6_whyml__statements.mlw
-      module6_whyml__types.mlw
+The plan paired them one-for-one, and that pairing is what made gen #33's patch raise
+`check-assigns-writes-survival` 2989 -> 3000.
 
-**`pure_ast`, `expressions` and `functions` DO NOT MOVE** — the three most expensive mirrors in the
-tree are untouched. Known proof cost (gen #32's measurements): `statements.py` **2 h 19 m**;
-`types.py` and `Module6_WhyMLTranspiler.py` are **UNMEASURED** but are far smaller files. So the
-realistic bill for the 14 clear fields is **~3 h of proving**, not 7-25 h.
+  * **The CLAUSE is what `check-assigns-underdeclaration` measures**, and — measured, see below — it
+    is also what every CALLER consumes as a frame assumption. Repairing it is a soundness repair.
+  * **The DECLARATION is what `check-assigns-writes-survival` needs**, and it is worth making ONLY
+    where it actually reaches the emitted RECORD. Where it does not, it is emission-inert AND it
+    switches ON the HOLE / HOLE-T arms for that field — pure liability for zero frame honesty.
 
-**RE-MEASURE THIS BEFORE BUILDING** — it was taken with 14 of 18 fields, and adding the three deferred
-ones (below) would very likely pull `expressions.mlw` (2 h 21 m) and its importers into the mover set.
+Measured, per class:
 
-## THE FIFTEEN FIELDS TO DECLARE (14 applied in the measurement, 1 already honest)
+| class | does a class-level declaration reach the record? |
+|---|---|
+| `TypeInferenceMixin` (types.py) | **YES** |
+| `StatementEmissionMixin` (statements.py) | **YES** |
+| `FunctionEmissionMixin` (functions.py) | **NO** — it emits `type functionemissionmixin` with no fields at all |
+| `PyCSLWeaver` (Module3_Weaver.py) | **NO** — its record is built from `__init__` |
+| `PyCSLToJSONEmitter` (Module5_IREmitter.py) | **NO at class level** — see 2 |
 
-Types are taken from the LIVE initialisers, not guessed:
+So the six `FunctionEmissionMixin` fields and the two `PyCSLWeaver` fields got **the clause and no
+declaration**. Gen #33's patch declared all fourteen.
 
-| mirror file | class | field | type |
-|---|---|---|---|
-| `frontend/Module3_Weaver.py` | `PyCSLWeaver` | `_csl_bound_names` | `Set[str]` |
-| `frontend/Module3_Weaver.py` | `PyCSLWeaver` | `_csl_star_import` | `bool` |
-| `frontend/Module5_IREmitter.py` | `PyCSLToJSONEmitter` | `_m5_dc_unknown` | `List[str]` |
-| `frontend/Module5_IREmitter.py` | `PyCSLToJSONEmitter` | `_globals_lookup_funcs` | `Set[str]` |
-| `module6_whyml/functions.py` | `FunctionEmissionMixin` | `_erased_truthy_locals` | `Dict[str, str]` |
-| `module6_whyml/functions.py` | `FunctionEmissionMixin` | `_fold_unsafe_elems` | `Set[str]` |
-| `module6_whyml/functions.py` | `FunctionEmissionMixin` | `_fold_unsafe_sizes` | `Set[str]` |
-| `module6_whyml/functions.py` | `FunctionEmissionMixin` | `_loop_targets_read_outside` | `Set[str]` |
-| `module6_whyml/functions.py` | `FunctionEmissionMixin` | `_r51_bound_names` | `Set[str]` |
-| `module6_whyml/functions.py` | `FunctionEmissionMixin` | `_rebound_collections` | `Set[str]` |
-| `module6_whyml/preamble.py` | `PreambleEmissionMixin` | `_emitted_record_field_types` | `Dict[str, str]` |
-| `module6_whyml/statements.py` | `StatementEmissionMixin` | `_literal_rebind_lens` | `Dict[str, int]` |
-| `module6_whyml/statements.py` | `StatementEmissionMixin` | `_literal_rebind_targets` | `Set[str]` |
-| `module6_whyml/types.py` | `TypeInferenceMixin` | `_rebound_collections` | `Set[str]` |
+### 2. A CLASS-LEVEL ANNOTATION ON `PyCSLToJSONEmitter` IS COLLECTED FOR A `@dataclass` AND FOR NOTHING ELSE
 
-`preamble.py::_formal_params` is in the clause repair but was **not** given a declaration in the
-measurement — `= list(params)` is a rebind of a parameter-derived list and wants a type decision, so
-treat it as a fourth deferred field rather than assuming `List[str]`.
+`Module5_IREmitter.py::_collect_class_fields` builds that class's record from the
+`self.<f>: T = ...` AnnAssigns of `__init__` only; the class-body path (`:3494`) is gated
+`if not fields and self._is_dataclass_decorated(node)`. The class-level spelling was therefore
+SILENTLY INERT and left survival at **2990** — one row, `_collect_class_fields` + `_m5_dc_unknown`.
+The declaration was moved into the `\trusted` `__init__` stub, which is the idiom that file's own
+comment already documents (*"scanned by Module5 `_collect_class_fields` (a static AST walk) for the
+field TYPE only"*), the `writes` clause gained the field, and TRAP came back to 2989.
 
-## THE THREE FIELDS DELIBERATELY NOT TOUCHED — EACH NEEDS A JUDGEMENT, NOT A TYPE
+### 3. `_emitted_record_field_types` IS `Dict[str, Dict[str, str]]`, NOT `Dict[str, str]`
 
-**Do not annotate these by pattern-matching the initialiser.** Each is a real decision:
+`preamble.py:9123` maps `type_name -> {label -> whyml type}`. The plan's type — and the half-landed
+patch's — was the inner map's. That makes it a **fifth** deferred field, not one of the clear
+fourteen: a guessed container type is the fabricated-witness shape the campaign already has a lesson
+about. (Nested dicts DO model: `_known_collection_elements: Dict[str, Dict[int, str]]` emits
+`map string (option (map int (option string)))` and `why3 --type-only` accepts it. So the objection
+is to GUESSING the type, not to the shape.)
 
-* **`expressions.py::ExpressionEmissionMixin.ir`** — the TRAP row is a CONTAINER MUTATION
-  (`self.ir[...] = …`), not a rebind, and `ir` is the whole IR mapping. Declaring `ir` as a record
-  field would put the entire IR into the emitted record of the most widely imported mixin in the tree.
-  **Decide first whether `ir` is a record field at all**; if it is not, the honest fix is to stop
-  counting a mutation through it as a frame write, which is a change to the PLANE, not to the mirror.
-* **`expressions.py::ExpressionEmissionMixin._r188_stub_names`** — initialised `= _map188`, i.e. from
-  another map whose own type has to be established first. A guessed `Dict[str, str]` would be a
-  fabricated witness value, which is precisely the shape lesson *"a completeness fix that supplies a
-  WITNESS value is a soundness route waiting to happen"* warns about.
-* **`expressions.py::ExpressionEmissionMixin._r55_subsumed_name`** — initialised `= None`, so it is an
-  `Optional[...]`, and route #227 is the standing reminder that an `Optional` in the value model is
-  where the `None`-vs-opaque-`int` falsehoods live. It needs the Optional treatment, not a bare type.
+## THE THING NOBODY HAD MEASURED: THE TWO RATCHETS ARE A CHAIN OF THREE
 
-All three are in `expressions.py`, which is also the 2 h 21 m mirror. **Landing the 14/15 clear ones
-FIRST and the three separately is the right split** — it keeps the cheap, measured part off the
-expensive mirror.
+Lesson (f5) said two planes bracket the frame from opposite sides. There is a THIRD side, and it is
+ratcheted:
 
-## THE GATE IT MUST PASS (M1 discipline — the byte-diff WILL be non-zero)
+    declared-but-not-EMITTED   <-- class declaration -->   written-but-not-DECLARED (DIRECT)
+      (survival, TRAP 2989)                                  (underdeclaration, TRAP)
+                                                                     ^
+                                                                  clause
+                                                                     v
+                                              written-THROUGH-A-CALLEE (HOLE-T, ceiling 0)
 
-    1. mirror byte-diff        the diff is EXACTLY the intended record additions and the `writes`
-                              clauses that follow from them -- inspected line by line, nothing
-                              incidental. Declare every mover by name.
-    2. whole-file proof        EVERY mover re-proves 0 non-Valid. Measured set is 3; RE-MEASURE, and
-                              run it DETACHED under setsid with an `rc` file (lesson (m4): the rc is
-                              the only thing that says it finished).
-    3. both frame planes       PREDICT BOTH, then read both:
-                                 check-assigns-underdeclaration      TRAP 0    / HOLE 0
-                                 check-assigns-writes-survival       TRAP < 2989 / HOLE 0
-                              The second is the POINT of the change. If it does not FALL, the change
-                              did not do what it was for.
-    4. HOLE stays 0            the fields become MENTIONABLE once they are in the record, so this is
-                              the leg that actually needs thought rather than confirmation.
-    5. corpus byte-diff        predicted 0 MOVED both corpora (these are mirror-only class decls), and
-                              the ledgers of lesson (d5) pre-checked, not discovered.
-    6. fidelity + field parity `check-self-annotate-sync.sh`, `self-annotate-mirror-check.sh` and
-                              `check-mirror-field-parity.py` were all GREEN with the 14 applied --
-                              adding a mirror class declaration is sanctioned (gen #32 did it for #63).
+Declaring a field makes every OTHER clause that omits it a **HOLE-T**, and `HOLE-T`'s ceiling is 0.
+Measured BEFORE touching a line: **32** of the 148 TRAP-T rows carry one of the 13 fields and only 13
+are direct, so **19 would have fired**. They are now declared too — `_emit_function`,
+`_emit_subtyping_goals`, `_render_refinement_goal` (the six fields `_reset_function_state` writes) and
+`visit_ClassDef` (`_m5_dc_unknown`).
 
-## THE HALF-LANDED PATCH
+>>> **A FRAME INVARIANT BRACKETED FROM N SIDES NEEDS THE STATE THAT SATISFIES ALL N, AND N WAS NOT 2.**
 
-`getting-better/interrupted/2026-09-29-gen33-option3-half-landed.patch` — the 18 honest clauses PLUS
-the 14 class declarations, 7 files, 23 insertions. **It has passed NO battery.** Treat it as a HINT and
-re-measure from scratch; gen #33 reverted it deliberately, because landing half of option 3 is what
-created the ratchet conflict in the first place.
+## THE POPULATION HOLE IN `check-assigns-writes-survival`, MEASURED
+
+One rise during the build was not a regression: declaring `_rebound_collections` gave
+`_track_collection_metadata` its FIRST `writes` clause, which ADMITTED it to the plane's population —
+and with it the three other fields its clause declares and the record still dropped (+6, two files).
+The plane does `w = re.search(r"writes\s*\{...\}", seg); if not w: continue`, so:
+
+>>> **A CLAUSE THAT IS 100% DROPPED EMITS NO `writes` AND IS INVISIBLE. THE WORST CASE IS THE ONE THE
+>>> PLANE CANNOT SEE — AND ITS TRAP IS THEREFORE NOT MONOTONE UNDER AN HONEST REPAIR.**
+
+Paid for honestly by declaring all four of that method's fields (types read off the live
+initialisers). The size of the blind spot, measured at HEAD by widening the population to every
+emitted symbol with a non-empty clause: **1515 symbols, 1060 of which emit NO `writes` clause,
+TRAP 5427, HOLE 327** — against the shipped plane's 455 symbols / TRAP 2989 / HOLE 0.
+
+**The 327 are FAIL-CLOSED, and that took two probes to establish** (`probes.tsv`, gen #34): a
+bodyless `val` with no `writes` is a DEAD DECLARATION — every call to a `\trusted` method, intra-class
+`self.m()` and cross-object `c.m()` alike, is lowered to an ABSTRACT OP and never to that `val`. So
+widening the population would report a large number about declarations nothing consumes. **Widening
+it anyway is still worth doing as an AUDIT measure, but it must not be confused with the soundness
+arm, and it cannot reuse `MAX_TRAP`.**
+
+## AND THE FINDING THAT CHANGES WHAT THIS ITEM WAS FOR
+
+The abstract op that replaces the call is built FROM THE CLAUSE:
+
+    #@ assigns self.x    ->  val c_bump_0 (self: c) : unit  writes { self.x }   caller's `\result == 0`  **Unknown**
+    #@ assigns \nothing  ->  val c_bump_0 () : unit                             the same `\result == 0`  **Valid, 104 steps**
+
+>>> **A `\trusted` STUB'S DECLARED FRAME IS EXACTLY THE CALLER-SIDE ASSUMPTION, VERBATIM.** An
+>>> under-declared clause is a false assumption consumed by every caller, so the eighteen clauses were
+>>> SOUNDNESS debt, not audit debt — and TRAP-T is the identical defect one call deeper.
+
+## WHAT IS LEFT, FOR THE NEXT GENERATION
+
+1. **TRAP-T 116 across 66 methods** — the same defect one call deeper. 55 trusted / 61 converted.
+   Mechanical, and measured survival-free for the 19 already done. **This is the top frame item.**
+2. **The five judgement fields**, each needing a decision and not a type: `expressions.py::ir` (a
+   container mutation of the whole IR mapping — decide first whether it is a record field at all),
+   `_r188_stub_names` (initialised from another map), `_r55_subsumed_name` (an `Optional`, route #227
+   territory), `preamble.py::_formal_params` (`= list(params)`), and
+   `preamble.py::_emitted_record_field_types` (the nested dict above).
+3. **The survival SHRINK seam is real and ranked**: 629 of the 2989 dropped occurrences are fields
+   whose LIVE initialiser carries an unambiguous simple annotation (`Set[str]`, `Dict[str,str]`,
+   `Dict[str,int]`, `List[str]`, `int`, `str`, `bool`) that agrees across every site. Biggest:
+   `ExpressionEmissionMixin.frame_trigger_active` (88), `.abstract_ops` (49), `.dict_locals` (44),
+   `StatementEmissionMixin.current_params` / `.frame_trigger_active` / `.func_return_type` (44 each).
+   Each declaration widens a record, so price it with `bin/mirror-emit-sweep.sh` FIRST — **it is 53
+   files in 52 SECONDS, which makes it the cheapest instrument in the campaign** and the right way to
+   iterate this whole family.
+4. **Widen the survival plane's population** as a SECOND, separately-ratcheted arm (do NOT move
+   `MAX_TRAP`), so a 100%-dropped clause stops being invisible.
