@@ -57,6 +57,13 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
     mirror call into an un-annotated live method assumes it writes nothing. HOLE-NOWRITES' 8 rows are
     the ones the mirror's OWN `#@ assigns` contradicts; the full population (all mirror call sites
     into frame-free live stubs) is UNCOUNTED — census it before anything else on this item.
+    **CENSUSED same day (`census79-frame-free-mutator-stubs-gen35.py`): 106 frame-free vals whose
+    live body mutates `self`; 4 with call sites, all MIRROR-OWN classes with the field absent from the
+    record; live-IMPORT stubs with a call site: **0**. FAIL-CLOSED by zero call sites — a measurement,
+    and the campaign's own conversions are what would create the first one. Side find:
+    `pure_ast._Unparser.write` declares `#@ assigns \nothing` over `self._source.extend(text)` — an
+    under-declaration the underdeclaration plane does not see (container mutation), unmentionable only
+    because `_unparser`'s record is EMPTY.**
 
 
 ### #74 gen #34 — THE BESPOKE LOWERINGS DISCARD THE DECLARED CONTRACT (**5 of 7 rows REPAIRED**)
