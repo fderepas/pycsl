@@ -465,6 +465,15 @@ START (standing), not as an interrupt. Rules:
   one hour to price a change gen #33 had estimated at 7-25 hours and measured at ~3. **Price a frame
   or record change with this sweep BEFORE writing the second line of it.** (And per (d4): tee a gate
   leg IN FULL — piping the plane run through `tail -40` cost the quotability of a 59/59 green.)
+- **CARVE-OUT (lesson (v6), gen #35) — AFTER EVERY FIELD-DECLARATION BATCH, `why3 --type-only` THE
+  MOVED FILES; THE TYPE-CHECKER IS THE FRAME CHAIN'S FOURTH SIDE.** Declaring a field makes it
+  mentionable, and every CONCRETE (converted) caller whose `#@ assigns` omits a field its callee's
+  DECLARED frame writes becomes "this expression produces an unlisted write effect". Measured: 23
+  verified ExpressionEmissionMixin methods, invisible to all three frame ratchets (the transitive
+  underdeclaration arm walks LIVE bodies, not declared callee frames). Iterate the clause repairs
+  against the ONE moved file's emit + type-check (~10 s a round), never against a battery. The
+  opposite edge is checked too: a `writes` the body never performs is "this write effect does not
+  happen" (#74) — so a declared frame on a concrete `let` must be exactly as honest as its body.
 - **Escalate-not-thrash, time-aware.** A per-wall attempt budget still applies; additionally, do not START
   a full cycle whose fable-review + spike cannot plausibly finish before the deadline — defer it (record
   the wall-signal for the next run) and spend the tail on cheaper items.
