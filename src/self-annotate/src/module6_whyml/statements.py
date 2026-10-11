@@ -146,6 +146,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     _func_return_type: str = ""
     _quant_record_binders: Dict[str, str] = None
     _quant_scalar_binders: Set[str] = None
+    # (#49) gen #35, backlog #77 batch 3 — live: `self._pyval_locals: Set[str] = ...`,
+    # `self._emit_ir_seq_locals: set = set()` whose every `.add` is a local NAME (str).
+    _pyval_locals: Set[str] = None
+    _emit_ir_seq_locals: Set[str] = None
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment

@@ -97,8 +97,16 @@ MAX_TRAP = 3070
 #   `_current_params`, `_func_return_type`, `_quant_record_binders`, `_quant_scalar_binders`
 #   declared on StatementEmissionMixin with ExpressionEmissionMixin's annotations. HOLE 0,
 #   underdeclaration HOLE-T 0.
-MAX_TRAP = 2251
-MAX_TRAP_NMS = 1529
+#   (#49) gen #35, backlog #77 batch 3: 2251 -> **1981**, 1529 -> **1525** — `_string_local_vars`,
+#   `_abstract_ops`, `_dict_locals` on ExpressionEmissionMixin, `_pyval_locals`,
+#   `_emit_ir_seq_locals` on StatementEmissionMixin. And WHY3 ITSELF became the fourth side of the
+#   frame chain: once `_abstract_ops`/`_dict_locals` were mentionable, 23 CONVERTED (verified)
+#   methods failed `--type-only` with "unlisted write effect" — each calls `_expr_to_whyml`,
+#   whose declared frame writes both, and each one's `#@ assigns` omitted them. Their clauses
+#   are repaired (true of the live transitive closure); no ratchet saw that population because
+#   the underdeclaration plane resolves the call graph by LIVE body and stopped short of it.
+MAX_TRAP = 1981
+MAX_TRAP_NMS = 1525
 #   (#49) gen #35, backlog #75 — THE ARM THAT LOOKS AT THE SKIPPED SET. A symbol with NO `writes`
 #   clause whose source `#@ assigns` names a field its class's record emits as MUTABLE is a
 #   HOLE in waiting: no frame at all, the field mentionable, so a caller proves it unchanged.
