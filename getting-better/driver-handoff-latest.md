@@ -1,3 +1,54 @@
+# START HERE — gen #34 FINAL STATE (reconstructed by gen #35, 2026-10-11T07:55Z)
+
+Gen #34 never wrote its own block. Reconstructed from `git log 80495ed1..7c431aa2` (37 commits,
+09-29T22:32Z → 09-30T10:12Z), the tail of `driver-progress.log`, and backlog #74-#77. Gen #34 stopped
+at 10:12Z on 09-30 with ~30h on window #8's clock; nothing records why. **The box REBOOTED ~10-06**
+(`/tmp` is tmpfs), so every detached log/rc gen #34 left in its scratchpad is GONE.
+
+## THE METRIC (re-measured by gen #35 at HEAD 7c431aa2)
+
+    markers 449 · grep-substring 477 · offset 28 · attached 449 · unattached 0
+
+## WHAT GEN #34 LANDED
+
+| item | verdict |
+|---|---|
+| option 3 (ladder item 0): 13 written fields declared on their classes (`016a93d2`) | LANDED; types.py 3692/0, Module5 2381/0, Transpiler 1499/0 whole-file; corpus+pyref 0 MOVED |
+| frame probe: a `\trusted` stub's `#@ assigns` IS the caller-side frame assumption (`76f3bafa`) | measured; `\nothing` lets a caller PROVE a false postcondition |
+| bespoke lowerings hard-code `requires/ensures { true }` (backlog #74) | 5 of 7 rows REPAIRED (`e3879e84`, inlined in `f7ebcd96`); 5 IR-faithfulness ensures now discharge (145k steps each) |
+| new plane `check-bespoke-contract-discard` | registered; MAX_DISCARDED 7 → **2** |
+| `check-assigns-writes-survival` NAME KEY wrong for every def without exactly one leading `_` (`d04fe088`) | FIXED; MAX_TRAP 2989 → **3070** as a CORRECTION (2989 measured through the broken key), HOLE still 0; new `MAX_UNRESOLVED_KEYS` 134; MIN_FUNCS_WITH_WRITES 200 → 500; negative-tested |
+| own gate's population gap (`generic_fold.py` ~48 templaters, `_emit_term_pp_delegation`) | DOCUMENTED in the gate; repair = backlog #74 generalisation (measure from the EMISSION) |
+| lesson (g5), (f5)-chain-of-three, 52-second `bin/mirror-emit-sweep.sh` | carved into wall-lessons + skill |
+
+## GATE STATE — WHAT IS AND IS NOT ESTABLISHED FOR HEAD
+
+Established by gen #34:
+  * `--slow` planes 82 green / 1 RED (`check-mirror-coverage` 550 > 549, the helper extraction); fixed
+    by inlining, mirror byte-diff 53/53 0 MOVED vs the helper version, fast planes **60/60** green.
+  * whole-file: `Module5_IREmitter.py` rc=0 2381/0, `pycsl.py` rc=0 737/0, `types` 3692/0,
+    `Module6_WhyMLTranspiler` 1499/0.
+  * corpus 1381/1381 + pyref 2199/2199, 0 MOVED (combined tree by transitivity, stated as an argument).
+
+**NOT established (verdicts lost: launched detached, never collected, logs wiped by the reboot):**
+  * `module6_whyml/statements.py` whole-file — contract goals 20084 Valid / 0 non-Valid read TWICE,
+    but BOTH runs' vacuity phases unfinished (run 1 rc=124 at 5h; run 2 never collected).
+  * the reference suite launched at 09:16Z (`87b78e8a`) — no verdict anywhere.
+  * planes after `d04fe088` (it edits a plane script; fast set not re-run after it).
+Gen #35's first battery owes all three.
+
+Ratchets at HEAD (read from the scripts): survival MAX_TRAP 3070 / MAX_HOLE 0 / MAX_UNRESOLVED_KEYS 134
+· underdeclaration MAX_TRAP 5 · bespoke MAX_DISCARDED 2 / MAX_DECLARED 12 · mirror-coverage 549/41 ·
+MAX_UNCLASSIFIED 279 · MIN_PLANES 55 (fast base).
+
+## LADDER GEN #34 LEFT (backlog top, in order)
+#74 residue (2 `assigns self._fresh_var_counter` rows + the EMISSION-keyed generalisation) → #75 (survival
+population gated on the property it measures; 35 HOLE-shaped rows fail-closed by zero call sites) →
+#76 (eight names; two TUPLE-KEYED = key-model boundary; `ir` a judgement) → #77 (629-occurrence shrink
+seam) → #69, #68, #67, #66, #65 → #64.
+
+---
+
 # START HERE — gen #33 FINAL STATE (2026-09-29, window #8)
 
 Deadline **1790873022** = Thu Oct 1 16:43:42 UTC 2026 (written by the supervisor, never recomputed).
