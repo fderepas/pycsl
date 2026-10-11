@@ -638,6 +638,17 @@ AUDITED = {
     ('src/pycsl/module6_whyml/statements.py',
      'PyCSLIRError("reassigning an array LOCAL from a non-literal right-hand side is not modelled: the local is represented as a fixed `Array.make'): (FOLLOWABLE,
         "'Assign to a FRESH name, or build the new contents with a literal or an explicit element-wise loop' - the fresh-name arm VERIFIES (`ys = g(); return ys[0]` with the postcondition adjusted to the true value). Trigger: witness 0986."),
+    # (#49) gen #35 -- the five unaudited sites, each followed and run (scratchpad adv/*).
+    ('src/pycsl/frontend/Module5_IREmitter.py', "PyCSLSemanticError(f'Callable arg/return type `{tag}` is not an admissible arrow domain (C5 sound scope limit, stricter than S1): only `int`"): (FOLLOWABLE,
+        "gen #35. 'pass the collection as a separate parameter beside a `Callable` over scalars': `apply(f: Callable[[int], int], xs: List[int])` returning `f(xs[0])` VERIFIES `\\\\result == f(xs[0])`; its false twin `== f(xs[0]) + 1` FAILS on apply's postcondition. The original `Callable[[List[int]], int]` is refused."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErrBI("`#@ assumes bounded_int(%s)` (line %d): Why3\'s `mach.int` library defines machine-integer modules for widths %s ONLY. This d'): (FOLLOWABLE,
+        "gen #35. 'use one of 16, 31, 32, 63, 64': `#@ assumes bounded_int(32)` over `x + 1` with `0 <= x < 100` VERIFIES; the false twin `\\\\result == x + 2` FAILS on f's postcondition; `bounded_int(8)` is refused."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr223("`Protocol` member \'%s.%s\' (line %d) has a DEFAULT IMPLEMENTATION, and a protocol member is emitted as a bodyless `val` DEFI'): (FOLLOWABLE,
+        "gen #35. 'give the member the `...` body ... and put the implementation in the conforming class, where it is CHECKED': P.get `...` + `#@ conforms_to P` class C whose get returns 99 VERIFIES; returning 1 against `ensures \\\\result == 99` FAILS. The default-body original is refused."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr216(f"{args.file} (line {_line216}): class `{_sub216}` overrides `{_base216}`\'s " + \', \'.join((\'`\' + _d + \'`\' for _d in _shared2'): (AMBIGUOUS,
+        "gen #35. Followed with `__post_init__` (the refusal fires only for `__new__`/`__post_init__` since gen #31): renaming it to `m` builds `sub__m_refines_base`, and a weakened Sub contract FAILS on it, so the obligation becomes checked. AMBIGUOUS, for two reasons the message does not state: (1) the rename changes WHAT CPYTHON RUNS -- a method called `m` is no longer invoked by the dataclass/construction machinery, so the verified program is not the user's; (2) its worked example still names `__len__`, which since gen #31 is EMITTED and no longer refused (measured: `__len__` overrides build `sub____len___refines_base`). Message left unedited deliberately: its text keys two ledgers (lesson (d5))."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr222("`@overload` stub \'%s\' (line %d) carries `#@ %s`, and an `@overload` stub only ever contributes its `#@ ensures` clauses — e'): (FOLLOWABLE,
+        "gen #35. 'move the clause to the IMPLEMENTATION `def`': `#@ requires x > 0` on the implementation is enforced at the call -- `f(3)` VERIFIES, `f(0)` FAILS on g's precondition goal. The stub-carried clause is refused."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -882,6 +893,12 @@ AUDITED_HASH = {
      '_PyCSLSemErr43("a COMPLEX literal (%r) has no model (ROUTE #43): `_py_expr_constant` lowers it to `int(value.real)`, so the imaginary part i'): '2b425e50069d',
     ("src/pycsl/pycsl.py",
      '_PyCSLSemanticError(f"{args.file} (function \'{_func.get(\'name\')}\', for-loop near line {v.get(\'loop_line\', \'?\')}): UB-7.1 — the loop body mut'): '14c833a221e3',
+    # (#49) gen #35
+    ('src/pycsl/frontend/Module5_IREmitter.py', "PyCSLSemanticError(f'Callable arg/return type `{tag}` is not an admissible arrow domain (C5 sound scope limit, stricter than S1): only `int`"): '680e6ecdb4fe',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErrBI("`#@ assumes bounded_int(%s)` (line %d): Why3\'s `mach.int` library defines machine-integer modules for widths %s ONLY. This d'): '068b26e3a2dc',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr223("`Protocol` member \'%s.%s\' (line %d) has a DEFAULT IMPLEMENTATION, and a protocol member is emitted as a bodyless `val` DEFI'): 'd36b3b954d02',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr216(f"{args.file} (line {_line216}): class `{_sub216}` overrides `{_base216}`\'s " + \', \'.join((\'`\' + _d + \'`\' for _d in _shared2'): '4798a21ad3b8',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr222("`@overload` stub \'%s\' (line %d) carries `#@ %s`, and an `@overload` stub only ever contributes its `#@ ensures` clauses — e'): '9552d6c77b66',
 }
 
 
@@ -1016,7 +1033,7 @@ def main():
     return rc
 
 
-MIN_AUDITED = 128   # (#49) gen #32: 116 -> 128. The detector was widened to the SENTENCE-INITIAL
+MIN_AUDITED = 133   # (#49) gen #35: 128 -> 133, the last five unaudited sites followed and run (4 FOLLOWABLE, 1 AMBIGUOUS: the dunder-rename advice changes what CPython runs and cites a dunder no longer refused). gen #32: 116 -> 128. The detector was widened to the SENTENCE-INITIAL
                     # imperatives it had never recognised (Bind/Write/Move/Rebuild/List/Rename/
                     # Run/Either/Assign), which surfaced TWELVE advice-bearing refusals it had
                     # been blind to — including one written the same day — and all twelve were
