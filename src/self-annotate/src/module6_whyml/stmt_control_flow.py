@@ -29,6 +29,23 @@ class BoolWrapIRView(TypedDict):
 @dataclass
 class ControlFlowStmtMixin:
     _has_early_ret: int = 0
+    # (#49) gen #35, backlog #77 batch 4 — fields this class's `#@ assigns` clauses name and
+    # it never declared; annotations COPIED from Expression/StatementEmissionMixin's
+    # declarations of the same live emitter fields. `_abstract_ops` / `_obj_state_written` are
+    # deliberately NOT declared here: several CONVERTED handlers reach their writers only
+    # through RECEIVER-LESS abstract ops, so the model body performs no such write and Why3
+    # rejects the honest `writes` ("this write effect does not happen") — measured. Declaring
+    # them needs those calls given receivers first (the `_materialize_if_seq` repair shape).
+    _frame_trigger_active: bool = False
+    _comp_content_counter: int = 0
+    _needs_array_init: bool = False
+    _todict_arg_wants_pymap: bool = False
+    _current_params: Set[str] = None
+    _current_self_type: str = ""
+    _string_local_vars: Set[str] = None
+    _dict_locals: Set[str] = None
+    _quant_record_binders: Dict[str, str] = None
+    _quant_scalar_binders: Set[str] = None
     _func_return_type: str = ""
     _current_tuple_arity: int = 0
     _havoc_counter: int = 0
@@ -197,7 +214,7 @@ class ControlFlowStmtMixin:
 
     #@ requires True
     #@ ensures True
-    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_while_stmt(self, stmt: WhileStmt, rest: List[Dict[str, Any]],
                             local_refs: Set[str], declared_refs: Set[str],
                             indent: str, in_loop: bool) -> str:
@@ -287,7 +304,7 @@ class ControlFlowStmtMixin:
     #@ ensures True
     # Frame completed: `self._classify_iterable(...)` (above) writes `_for_idx_init`, which
     # this body reads back as `idx_init`; the callee's effect propagates into this frame.
-    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._for_idx_init, self._for_target_is_pyval, self._frame_trigger_active, self._func_return_type, self._in_loop_spec, self._in_spec, self._keyword_locals, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._pyast_loop_variant_len, self._pyast_stmt_locals, self._pyval_locals, self._string_local_vars, self._todict_arg_wants_pymap, self._tparam_locals, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._for_idx_init, self._for_target_is_pyval, self._frame_trigger_active, self._func_return_type, self._in_loop_spec, self._in_spec, self._keyword_locals, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._pyast_loop_variant_len, self._pyast_stmt_locals, self._pyval_locals, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._tparam_locals, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_for_stmt(self, stmt: ForStmt, rest: List[Dict[str, Any]],
                           local_refs: Set[str], declared_refs: Set[str],
                           indent: str, in_loop: bool) -> str:
@@ -903,7 +920,7 @@ class ControlFlowStmtMixin:
     #@ ensures True
     # Inherited from `_stmts_to_whyml`, whose frame this audit corrected: the callee writes
     # `self._in_spec`, so this caller's `\nothing` was false too.
-    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_if_stmt(self, stmt: IfStmt, rest: List[Dict[str, Any]],
                         local_refs: Set[str], declared_refs: Set[str],
                         indent: str, in_loop: bool) -> str:
@@ -1025,7 +1042,7 @@ class ControlFlowStmtMixin:
     #@ ensures True
     # Inherited from `_stmts_to_whyml` (see its frame note) — the callee writes
     # `self._in_spec`, so this caller's `\nothing` was false too.
-    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_match_stmt(self, stmt: MatchStmt, rest: List[Dict[str, Any]],
                            local_refs: Set[str], declared_refs: Set[str],
                            indent: str, in_loop: bool) -> str:
@@ -1314,7 +1331,7 @@ class ControlFlowStmtMixin:
 
     #@ requires True
     #@ ensures True
-    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_return_stmt(
         self,
         stmt: ReturnStmt,

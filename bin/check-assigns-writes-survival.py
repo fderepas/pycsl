@@ -105,7 +105,9 @@ MAX_TRAP = 3070
 #   whose declared frame writes both, and each one's `#@ assigns` omitted them. Their clauses
 #   are repaired (true of the live transitive closure); no ratchet saw that population because
 #   the underdeclaration plane resolves the call graph by LIVE body and stopped short of it.
-MAX_TRAP = 1981
+#   (#49) gen #35, backlog #77 batch 4: 1981 -> **1899** — ten fields on ControlFlowStmtMixin;
+#   HOLE-D (the new declared-callee arm) predicted the five handler clauses to repair, exactly.
+MAX_TRAP = 1899
 MAX_TRAP_NMS = 1525
 #   (#49) gen #35, backlog #75 — THE ARM THAT LOOKS AT THE SKIPPED SET. A symbol with NO `writes`
 #   clause whose source `#@ assigns` names a field its class's record emits as MUTABLE is a
