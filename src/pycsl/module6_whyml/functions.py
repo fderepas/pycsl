@@ -4682,21 +4682,69 @@ class FunctionEmissionMixin:
         fold, each clause `IrBinOp "==>" guard (csl_to_ir_op (ens_expr_ast e))` (both operands
         referenced, no node-free stub), CONSed head-first into a `seq emit_ir` and materialized
         to the CANONICAL `array emit_ir` List-return. `self._csl_to_ir` -> the opaque
-        `csl_to_ir_op` sibling reader. Returns `array emit_ir`. `assigns \\nothing` (pure).
-        Corpus-inert."""
+        `csl_to_ir_op` sibling reader. Returns `array emit_ir`. The mirror declares
+        `assigns self._fresh_var_counter` (live `_csl_to_ir` reaches `_csl_in`), emitted as a
+        checked `writes` (gen #35). Corpus-inert."""
         name = whyml_ident(func["name"])
         cls = whyml_ident(func["self_type"].lower())
+        # (#49) gen #35 — backlog #74 residue: EMIT THE DECLARED FRAME instead of discarding
+        # it. The mirror declares `#@ assigns self._fresh_var_counter` and this bespoke `let`
+        # used to carry no `writes`, so the declaration never reached the emission. A
+        # `writes` on a CONCRETE `let` is CHECKED against the body (an over-approximation is
+        # accepted; an under-declaration is rejected), and DECLARES the frame to callers.
+        # Same label filter as the generic `@mutable_state` lowering: a field the emitted
+        # record does not carry would be an unbound symbol, so it is dropped (fail-closed,
+        # and byte-identical when nothing survives). WRITTEN INLINE, not as a helper —
+        # lesson (a4). Gate: bin/check-bespoke-contract-discard.py (--emit-dir arm).
+        _lbls74 = getattr(self, "_emitted_record_field_labels", {}).get(cls)
+        _wl74 = [self._field_label(cls, f)
+                 for f in getattr(self, "_module_method_writes", {}).get(func["name"], [])]
+        _wl74 = [l for l in _wl74 if _lbls74 is not None and l in _lbls74]
+        _frame74 = ([f"    writes {{ {', '.join('self.' + l for l in _wl74)} }}"]
+                    if _wl74 else [])
         return [
             f"  let {name} (self: {cls}) (node: py_functiondef_node) : array emit_ir",
             "    requires { true }",
             "    ensures  { true }",
+        ] + ([
+            # (#49) gen #35: in the DEFINING module the clause fold is emitted LOCALLY so it
+            # can apply the RECEIVER-TAKING `{cls}___csl_to_ir self` — the live
+            # `self._csl_to_ir(csl_ens.expr)` may raise, diverge and write
+            # `self._fresh_var_counter`, all three erased by the preamble's receiver-less
+            # `csl_to_ir_op` fold, which made the declared `writes` un-emittable (Why3:
+            # "this write effect does not happen in the expression", measured). Importers
+            # keep the historical preamble fold (their record and `_csl_to_ir` stub are
+            # int-erased — the #64 seam), byte-identical.
+            "    diverges",
+            "    raises { PyCSLIRError -> true }",
+            "    raises { PyCSLSemanticError -> true }",
+        ] + _frame74 + [
+            "  =",
+            "    let rec synth_local (guard: emit_ir) (ens: List.list ens_node) : Seq.seq emit_ir",
+            "      diverges",
+            "      raises { PyCSLIRError -> true }",
+            "      raises { PyCSLSemanticError -> true }",
+            "    =",
+            "      match ens with",
+            "      | Nil -> Seq.empty",
+            "      | Cons e rest ->",
+            f"        let q = {cls}___csl_to_ir self (ens_expr_ast e) in",
+            "        Seq.cons (IrBinOp \"==>\" guard q) (synth_local guard rest)",
+            "      end",
+            "    in",
+            "    match build_overload_guard_acc_prog None (func_args_ast node) with",
+            "    | None -> materialize_ir Seq.empty",
+            "    | Some guard ->",
+            "      materialize_ir (synth_local guard (func_csl_ensures_ast node))",
+            "    end",
+        ] if _lbls74 is not None else [
             "  =",
             "    match build_overload_guard_acc_prog None (func_args_ast node) with",
             "    | None -> materialize_ir Seq.empty",
             "    | Some guard ->",
             "      materialize_ir (synth_overload_clauses_prog guard (func_csl_ensures_ast node))",
             "    end",
-        ]
+        ])
 
     def _is_is_overload_stub(self, func: Dict[str, Any]) -> bool:
         """functiondef-node cluster recognizer (self-tcb-reduction M5, C-bucket): True iff
@@ -5099,16 +5147,51 @@ class FunctionEmissionMixin:
         ctor. isinstance_op = 0. `_csl_to_ir` stays \trusted. Corpus-inert."""
         name = whyml_ident(func["name"])
         cls = whyml_ident(func["self_type"].lower())
+        # (#49) gen #35 — backlog #74 residue: EMIT THE DECLARED FRAME instead of discarding
+        # it. The mirror declares `#@ assigns self._fresh_var_counter` and this bespoke `let`
+        # used to carry no `writes`, so the declaration never reached the emission. A
+        # `writes` on a CONCRETE `let` is CHECKED against the body (an over-approximation is
+        # accepted; an under-declaration is rejected), and DECLARES the frame to callers.
+        # Same label filter as the generic `@mutable_state` lowering: a field the emitted
+        # record does not carry would be an unbound symbol, so it is dropped (fail-closed,
+        # and byte-identical when nothing survives). WRITTEN INLINE, not as a helper —
+        # lesson (a4). Gate: bin/check-bespoke-contract-discard.py (--emit-dir arm).
+        _lbls74 = getattr(self, "_emitted_record_field_labels", {}).get(cls)
+        _wl74 = [self._field_label(cls, f)
+                 for f in getattr(self, "_module_method_writes", {}).get(func["name"], [])]
+        _wl74 = [l for l in _wl74 if _lbls74 is not None and l in _lbls74]
+        _frame74 = ([f"    writes {{ {', '.join('self.' + l for l in _wl74)} }}"]
+                    if _wl74 else [])
         L = [
             f"  let {name} (self: {cls}) (ga: py_ghost_node) : stmt_ir",
             "    requires { true }",
             "    ensures  { true }",
+        ]
+        # (#49) gen #35: where this file emits the class RECORD (the defining module),
+        # `self._csl_to_ir(...)` lowers to the RECEIVER-TAKING dispatcher
+        # `{cls}___csl_to_ir self`, not the receiver-less opaque `csl_to_ir`. The opaque
+        # reader erased three things the live call does: it may RAISE
+        # (`PyCSLIRError`/`PyCSLSemanticError`), it may DIVERGE, and it WRITES
+        # `self._fresh_var_counter` (via `_csl_in`). With the erasure the declared `writes`
+        # was REJECTED by Why3 ("this write effect does not happen in the expression",
+        # measured) — the frame could not be honest until the body was. In an IMPORTING
+        # module the record is `int` and the importer's `_csl_to_ir` stub is int-erased
+        # (the #64 seam, measured: `expected int` in ir_resolve/__init__), so the historical
+        # opaque form is kept there, byte-identical.
+        if _lbls74 is not None:
+            _c2i = f"{cls}___csl_to_ir self"
+            L += ["    diverges",
+                  "    raises { PyCSLIRError -> true }",
+                  "    raises { PyCSLSemanticError -> true }"] + _frame74
+        else:
+            _c2i = "csl_to_ir"
+        L += [
             "  =",
             "    if ghost_is_arrayset ga then",
-            "      SGhostArraySet (ghost_target_ast ga)"
-            " (csl_to_ir (ghost_index_ast ga)) (csl_to_ir (ghost_value_ast ga))",
+            f"      SGhostArraySet (ghost_target_ast ga)"
+            f" ({_c2i} (ghost_index_ast ga)) ({_c2i} (ghost_value_ast ga))",
             "    else",
-            "      SGhostAssign (ghost_target_ast ga) (csl_to_ir (ghost_value_ast ga))"
+            f"      SGhostAssign (ghost_target_ast ga) ({_c2i} (ghost_value_ast ga))"
             " (ghost_op_ast ga) (ghost_declared_type_ast ga)",
         ]
         return L
