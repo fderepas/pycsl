@@ -62,8 +62,10 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
     record; live-IMPORT stubs with a call site: **0**. FAIL-CLOSED by zero call sites — a measurement,
     and the campaign's own conversions are what would create the first one. Side find:
     `pure_ast._Unparser.write` declares `#@ assigns \nothing` over `self._source.extend(text)` — an
-    under-declaration the underdeclaration plane does not see (container mutation), unmentionable only
-    because `_unparser`'s record is EMPTY.**
+    under-declaration — ALREADY KNOWN: it is `check-trusted-frame-honesty`'s single TOTAL_RATCHET
+    member (route #13; CERTIFIED BOUNDARY, reopening = a lowering for an effectful higher-order
+    callback, because 19 `_Unparser` methods pass `write` as a lambda). Not new; recorded so nobody
+    re-derives it.**
 
 
 ### #74 gen #34 — THE BESPOKE LOWERINGS DISCARD THE DECLARED CONTRACT (**5 of 7 rows REPAIRED**)
