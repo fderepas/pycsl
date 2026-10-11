@@ -1164,3 +1164,12 @@ date	gen	generator	candidate	verdict	route	order	note
 2026-10-11	35	advice-audit	advice-overload-stub-clause	FAIL-CLOSED	-	-	clause on implementation enforced: f(3) VERIFIES, f(0) FAILS on g precondition
 2026-10-11	35	advice-audit	advice-dunder-override-rename	FAIL-CLOSED	-	-	AMBIGUOUS: rename __post_init__->m builds+checks sub__m_refines_base (weakened FAILS) but changes what CPython runs; example cites __len__ which is no longer refused
 2026-10-11	35	control-operation	batch3-declaration-made-a-preservation-postcondition-mentionable	LIVE	-	2	MY OWN #77 batch 3 (31300a36) declared _abstract_ops on ExpressionEmissionMixin; converted _materialize_if_seq (#@ assigns \nothing) reaches the live bridge only through a RECEIVER-LESS abstract op, so the newly emitted `ensures self._abstract_ops = old self._abstract_ops` was PROVED while the live bridge writes it. Caught by check-trusted-frame-honesty converted arm (SLOW plane, RED 1>0) before any battery; repaired same hour (07add542: sibling_concrete bridge + honest frame). Second-order: the carrier is a campaign repair. Rule: a declaration that makes a field mentionable can turn an erased write into a PROVED preservation -- run the frame-honesty slow plane after every declaration batch.
+2026-10-11	35	carrier-rerun	r230-dict-annotated-optional-subscript	LIVE	230	2	d: Dict[int, Optional[int]]; d[k]=None; v=d[k]; v-v+3 PROVED \\result==3 under no_exception \\all (CPython TypeError)
+2026-10-11	35	carrier-rerun	r230-dict-unannotated-subscript	LIVE	230	2	d={}; d[k]=None; v=d[k]; v-v+3 PROVED
+2026-10-11	35	carrier-rerun	r230-list-annotated-optional	LIVE	230	2	xs: List[Optional[int]]=[None]; v=xs[0]; v-v+3 PROVED
+2026-10-11	35	carrier-rerun	r230-list-literal-none	LIVE	230	2	xs=[None,None]; v=xs[0]; v-v+3 PROVED
+2026-10-11	35	carrier-rerun	r230-dict-get-stored-none	LIVE	230	2	d.get(k) after {k: None}; v-v+3 PROVED
+2026-10-11	35	carrier-rerun	r230-dict-get-missing-key	LIVE	230	2	d: Dict[int,int]={}; v=d.get(k); v-v+3 PROVED (no None ever written: .get's own None)
+2026-10-11	35	carrier-rerun	r230-append-none	LIVE	230	2	xs.append(None); v=xs[0]; v-v+3 PROVED
+2026-10-11	35	carrier-rerun	r230-direct-subscript-operands	LIVE	230	2	d[k]=None; return d[k]-d[k]+3 PROVED (no local)
+2026-10-11	35	carrier-rerun	r230-ctl-tuple-none	FAIL-CLOSED	-	-	t=(None,1); v=t[0]; v-v+3 REFUSED/FAILS (tuple slot fenced)
