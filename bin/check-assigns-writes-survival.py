@@ -87,8 +87,14 @@ MAX_TRAP = 3070
 #     TRAP-NMS (every other class):        measured 1549 at the split, FIRST MEASUREMENT
 #   Both may only SHRINK. The sum is NOT comparable to the old 3070 and must never be quoted as
 #   a rise.
-MAX_TRAP = 3058
-MAX_TRAP_NMS = 1549
+#   (#49) gen #35, backlog #77 batch 1: 3058 -> **2643** and 1549 -> **1529** — FIVE fields
+#   (`_frame_trigger_active`, `_comp_content_counter`, `_needs_array_init`, `_obj_state_written`,
+#   `_todict_arg_wants_pymap`, types read off the live initialisers) DECLARED on
+#   ExpressionEmissionMixin, so the `_handle_dotted_call` cluster's clauses EMIT them. The first
+#   time this ratchet has fallen by declaration at scale; HOLE stayed 0 and the underdeclaration
+#   plane's HOLE-T stayed 0 (the chain of three, measured before landing).
+MAX_TRAP = 2643
+MAX_TRAP_NMS = 1529
 #   (#49) gen #35, backlog #75 — THE ARM THAT LOOKS AT THE SKIPPED SET. A symbol with NO `writes`
 #   clause whose source `#@ assigns` names a field its class's record emits as MUTABLE is a
 #   HOLE in waiting: no frame at all, the field mentionable, so a caller proves it unchanged.

@@ -61,6 +61,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     _variant_types: Dict[str, Dict[str, PyVal]] = None
     _seq_value_types: Dict[str, str] = None
     _array_elem_types: Dict[str, str] = None
+    # (#49) gen #35, backlog #77 — fields the `_handle_dotted_call` cluster DECLARES in its
+    # `#@ assigns` (44 methods each) and the class never declared, so every occurrence was
+    # DROPPED from the emitted `writes` (check-assigns-writes-survival TRAP). Types read off the
+    # LIVE initialisers, never guessed: `_frame_trigger_active: bool = False`
+    # (Module6_WhyMLTranspiler.__init__), `_comp_content_counter` (`= n + 1`, an int counter),
+    # and three bool flags set only to True/False/a saved bool.
+    _frame_trigger_active: bool = False
+    _comp_content_counter: int = 0
+    _needs_array_init: bool = False
+    _obj_state_written: bool = False
+    _todict_arg_wants_pymap: bool = False
     _current_array1d_params: Set[str] = None
     # self-tcb-reduction T1.a: further state fields the ported expression handlers read.
     _in_spec: int = 0
