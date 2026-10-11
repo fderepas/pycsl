@@ -8911,7 +8911,7 @@ belong in a commit about something else.
   to iterate any record/frame/declaration change. Gen #34 used it eight times in one hour to price a
   change gen #33 estimated at 7–25 hours.
 
-### (h5) THE FRAME CHAIN HAS A FOURTH SIDE, AND IT IS WHY3 (gen #35, 2026-10-11)
+### (v6) THE FRAME CHAIN HAS A FOURTH SIDE, AND IT IS WHY3 (gen #35, 2026-10-11)
 
 Wall: backlog #77 batch 3 (declaring `_abstract_ops`/`_dict_locals` on ExpressionEmissionMixin).
 L-input that revealed it: `why3 prove --type-only` on the moved `expressions.mlw` —
