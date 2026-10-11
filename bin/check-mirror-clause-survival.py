@@ -138,9 +138,17 @@ def measure(emit_dir, src):
     located, unlocated, discards = 0, [], []
     cache = {}
     for rel, key, sym, decl in src:
-        mf = os.path.join(emit_dir, key + ".mlw")
         if key not in cache:
-            cache[key] = open(mf, encoding="utf-8").read() if os.path.exists(mf) else None
+            # TWO naming conventions are in circulation and both are load-bearing:
+            # `bin/mirror-emit-sweep.sh` joins path components with `__`, the shared emission
+            # of `bin/run-soundness-planes.sh` with ONE `_`. Accept either (measured: keying
+            # on `__` alone located 1 of 242 in the battery's emission — a refusal, rc=2).
+            cache[key] = None
+            for cand in (key, rel[:-3].replace(os.sep, "_")):
+                mf = os.path.join(emit_dir, cand + ".mlw")
+                if os.path.exists(mf):
+                    cache[key] = open(mf, encoding="utf-8").read()
+                    break
         text = cache[key]
         blk = decl_block(text, sym) if text is not None else None
         if blk is None:
@@ -179,6 +187,8 @@ def self_test(emit_dir, src):
             if not decl["ensures"]:
                 continue
             p = os.path.join(tmp, key + ".mlw")
+            if not os.path.exists(p):
+                p = os.path.join(tmp, rel[:-3].replace(os.sep, "_") + ".mlw")
             if not os.path.exists(p):
                 continue
             t = open(p, encoding="utf-8").read()

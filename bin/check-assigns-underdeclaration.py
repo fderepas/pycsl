@@ -88,7 +88,13 @@ TRUSTED = re.compile(r"^\s*#@\s*\\trusted\b")
 SELFF = re.compile(r"self\.([A-Za-z_][A-Za-z_0-9]*)")
 
 MIN_NONEMPTY = 400        # 498 at the first measurement; a walk that sees far fewer is broken
-MAX_TRAP = 5              # field-occurrences. LOWER it when a clause is corrected.
+MAX_TRAP = 3              # field-occurrences. LOWER it when a clause is corrected.
+                          # (#49) gen #35, backlog #76: 5 -> 3. `_emit_type_decls`'s clause now
+                          # names `_emitted_record_field_types` and `_formal_params` (both written
+                          # by the live body). CLAUSE ONLY, measured: declaring them on
+                          # PreambleEmissionMixin was EMISSION-INERT (that class-level annotation
+                          # does not reach a record — lesson (f5)(i)), so the declaration would
+                          # be liability with no honesty. Mirror emission byte-identical.
                           # (#49) gen #33 first measurement: 18 across 9 methods.
                           #
                           # (#49) gen #34 — 18 -> 5, OPTION 3 LANDED FOR THE THIRTEEN FIELDS WHOSE
@@ -131,8 +137,6 @@ MAX_TRAP = 5              # field-occurrences. LOWER it when a clause is correct
                           #                                           fabricated witness value.
                           # Plan: getting-better/open-routes/option3-declare-the-written-fields-PLAN.md
 TRAP_BASELINE = {
-    ("module6_whyml/preamble.py", "PreambleEmissionMixin", "_emit_type_decls"): [
-        "_emitted_record_field_types", "_formal_params"],
     ("module6_whyml/expressions.py", "ExpressionEmissionMixin", "_handle_dotted_call"): [
         "_r188_stub_names", "ir"],
     ("module6_whyml/expressions.py", "ExpressionEmissionMixin", "_handle_binop"): [
