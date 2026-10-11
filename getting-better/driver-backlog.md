@@ -34,6 +34,31 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
 
 ## Ladder (priority order — work top-down)
 
+### gen #35 STATUS LINE (2026-10-11) — read with #74/#75 below
+  * **#74 residue BUILT** (`8cce8a86`): both bespoke lets emit `writes { self._fresh_var_counter }`.
+    Emitting it alone was REJECTED by Why3 (`this write effect does not happen in the expression`)
+    because the bodies modelled `self._csl_to_ir` by the receiver-less opaque `csl_to_ir` — the frame
+    could only become honest once the body did (now `pycsltojsonemitter___csl_to_ir self`, with
+    `diverges` + `raises`). bespoke-discard 2 -> 0. Gate owed: Module5 whole-file proof.
+  * **#75 BUILT** (`7b1398a9`): the emitter half (bodyless `val` of ANY class carries its frame) and
+    the plane half (HOLE-NOWRITES arm 505 -> 8; TRAP split 3058 + TRAP-NMS 1549). Gate owed: 6
+    mirror re-proofs (queue q75).
+  * **#78 NEW — `--fun` ON THE Module5 MIRROR IS A SYNTAX ERROR AT HEAD** (tool defect, fail-closed).
+    `--fun X` trusts everything outside X's IR body-call closure, but Module 6 groups the bespoke
+    `_py_expr_*` family into ONE `let rec … with …` by a graph the IR slice cannot see; the bespoke
+    setcomp member keeps its body and its `with` after the opener became a `val` (line 2103).
+    Closing the slice over `sort_functions_by_scc` did NOT help (measured — the grouping is formed
+    later). Fix candidates: make the bespoke dispatch honour `trusted` under `--fun`, or make the SCC
+    keyword fix-up in `_emit_function` reset on a val. Cost: every per-method spike on Module5 must
+    use whole-file proofs (~3 h) until fixed.
+  * **#79 NEW — ROUTE #212 IN THE MIRROR LAYER.** Mirrors import the LIVE modules (lesson (c5)), whose
+    methods carry no `#@ assigns`, and an absent `assigns` on an imported method is read as
+    frame-FREE (probe 2026-10-11: zero-annotation importer proves a false `\result == 0`). So every
+    mirror call into an un-annotated live method assumes it writes nothing. HOLE-NOWRITES' 8 rows are
+    the ones the mirror's OWN `#@ assigns` contradicts; the full population (all mirror call sites
+    into frame-free live stubs) is UNCOUNTED — census it before anything else on this item.
+
+
 ### #74 gen #34 — THE BESPOKE LOWERINGS DISCARD THE DECLARED CONTRACT (**5 of 7 rows REPAIRED**)
 
 Module 6 has **25** `*_bespoke` emitters in `functions.py`. Every one wrote its contract as the two
