@@ -344,11 +344,82 @@ def measure(inject=None):
     return nonempty, traps, holes
 
 
+# (#49) gen #35 — THE DECLARED-CALLEE ARM (HOLE-D). Both arms above read the LIVE body; the
+# transitive one follows `self.<m>()` only within the class and its in-file bases. Neither
+# consults what Module 6 actually uses for a call's effect: the CALLEE's DECLARED
+# `#@ assigns`. Measured the day it was built: declaring `_abstract_ops`/`_dict_locals` on
+# ExpressionEmissionMixin made `why3 --type-only` reject 23 CONVERTED methods ("unlisted write
+# effect") whose clauses omitted fields their callee `_expr_to_whyml` declares writing, and one
+# more (`_materialize_if_seq`, `\nothing`, reaching `_materialize_bridge` receiver-less) PROVED a
+# false preservation postcondition. HOLE-D = 54 on that tree, 0 after the repair; HOLE and
+# HOLE-T were 0 throughout. So: for every mirror def carrying an `#@ assigns` (including
+# `\nothing`), every `self.<m>()` in its MIRROR body is resolved to the callee's declared frame
+# (same file + class first, else a unique frame across the mirror; ambiguous frames are skipped
+# and counted), and each callee field the caller's clause omits is HOLE-D when the caller's class
+# declares it (mentionable) and TRAP-D otherwise. HOLE-D is a ceiling of 0.
+MAX_HOLE_D = 0
+
+
+def declared_callee_rows(omit=None):
+    """-> (hole_d_rows, trap_d_count, ambiguous). `omit=(relp, cls, fn, field)` pretends that
+    def's clause lacks `field` (the self-test)."""
+    decl_all, cls_fields_all, calls = {}, {}, {}
+    by_name = {}
+    for dirpath, _d, files in os.walk(MIRROR):
+        for f in sorted(files):
+            if not f.endswith(".py"):
+                continue
+            mp = os.path.join(dirpath, f)
+            relp = os.path.relpath(mp, MIRROR)
+            decls, cf = _mirror_decls(mp)
+            for (c, fn), v in decls.items():
+                decl_all[(relp, c, fn)] = v
+                by_name.setdefault(fn, []).append((relp, c, fn))
+            for c, flds in cf.items():
+                cls_fields_all[(relp, c)] = flds
+            try:
+                tree = ast.parse(open(mp, encoding="utf-8", errors="replace").read())
+            except SyntaxError:
+                continue
+            for cls in [n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]:
+                for fn in cls.body:
+                    if isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        cs = set()
+                        for n in ast.walk(fn):
+                            if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+                                    and isinstance(n.func.value, ast.Name)
+                                    and n.func.value.id == "self"):
+                                cs.add(n.func.attr)
+                        calls[(relp, cls.name, fn.name)] = cs
+    holes, trap, amb = [], 0, 0
+    for key, (fields, trusted, _ln) in sorted(decl_all.items()):
+        relp, c, fn = key
+        if omit is not None and key == omit[:3]:
+            fields = fields - {omit[3]}
+        for callee in sorted(calls.get(key, ())):
+            cands = [k for k in by_name.get(callee, []) if k[0] == relp and k[1] == c] \
+                or by_name.get(callee, [])
+            if not cands:
+                continue
+            frames = {tuple(sorted(decl_all[k][0])) for k in cands}
+            if len(frames) > 1:
+                amb += 1
+                continue
+            for fld in sorted(set(decl_all[cands[0]][0]) - fields):
+                if fld in cls_fields_all.get((relp, c), set()):
+                    holes.append((relp, c, fn, callee, fld, trusted))
+                else:
+                    trap += 1
+    return holes, trap, amb
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--self-test", action="store_true",
                     help="declare one measured-TRAP field in its class and require HOLE to fire")
+    ap.add_argument("--self-test-declared", action="store_true",
+                    help="pretend one caller omits a field its callee declares, require HOLE-D")
     ap.add_argument("--transitive", action="store_true",
                     help="also report the call-graph arm (TRAP-T / HOLE-T); HOLE-T is the "
                          "same ratchet and must stay 0")
@@ -362,6 +433,35 @@ def main():
               "\"HOLE 0\" means nothing. THIS IS A REFUSAL, NOT A PASS."
               % (nonempty, MIN_NONEMPTY), file=sys.stderr)
         return 2
+
+    if args.self_test_declared:
+        holes0, _t, _a = declared_callee_rows()
+        target = None
+        # find a caller whose clause names a field that a callee ALSO declares, in a class
+        # that declares it: omitting it must fire HOLE-D.
+        for dirpath, _d, files in os.walk(MIRROR):
+            for f in sorted(files):
+                if target or not f.endswith(".py"):
+                    continue
+                mp = os.path.join(dirpath, f)
+                relp = os.path.relpath(mp, MIRROR)
+                decls, cf = _mirror_decls(mp)
+                for (c, fn), (fields, _t2, _l) in sorted(decls.items()):
+                    if target:
+                        break
+                    for fld in sorted(fields & cf.get(c, set())):
+                        h, _x, _y = declared_callee_rows(omit=(relp, c, fn, fld))
+                        if len(h) > len(holes0):
+                            target = (relp, c, fn, fld, len(h) - len(holes0))
+                            break
+        if target is None:
+            print("[!] assigns-underdeclaration --self-test-declared: REFUSING \u2014 no "
+                  "injection found, so a PASS would mean nothing.")
+            return 2
+        print("[+] assigns-underdeclaration --self-test-declared: OK \u2014 pretending %s.%s's "
+              "clause omits %s makes HOLE-D fire on %d row(s); the arm has teeth."
+              % (target[1], target[2], target[3], target[4]))
+        return 0
 
     if args.self_test:
         # Pick a method whose LIVE body writes a field its clause DOES name, then pretend
@@ -438,6 +538,19 @@ def main():
               "UNDECLARED in its class. The graph OVER-approximates (it resolves by attribute "
               "name), which makes HOLE-T MORE likely to fire, so a zero here is a STRONGER "
               "negative than the direct arm's." % (t_nonempty, len(t_traps)))
+
+    d_holes, d_trap, d_amb = declared_callee_rows()
+    print("[*] assigns-underdeclaration DECLARED-CALLEE arm: HOLE-D %d (ceiling %d), TRAP-D %d "
+          "(callee field absent from the caller's class), %d ambiguous callee frame(s) skipped."
+          % (len(d_holes), MAX_HOLE_D, d_trap, d_amb))
+    if len(d_holes) > MAX_HOLE_D:
+        print("[!] assigns-underdeclaration: HOLE-D %d \u2014 a caller's `#@ assigns` omits a "
+              "field its callee's DECLARED frame writes, and the caller's class declares it, so "
+              "it is mentionable: a concrete caller fails why3 type-check or, reaching the callee "
+              "receiver-less, PROVES the field unchanged." % len(d_holes))
+        for r in d_holes[:30]:
+            print("    %-32s %-26s %-30s -> %-24s self.%s" % r[:5])
+        return 1
 
     methods = len({(r[0], r[1], r[2]) for r in traps})
     if holes:
