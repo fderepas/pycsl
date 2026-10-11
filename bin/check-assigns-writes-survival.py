@@ -73,6 +73,35 @@ MAX_HOLE = 0
 #   GREEN at 2989 when this was fixed, so nothing was accommodated: a bigger honest number was
 #   chosen over a smaller wrong one. From here the rule stands unchanged — may only SHRINK.
 MAX_TRAP = 3070
+#   (#49) gen #35, backlog #75 — THE POPULATION WAS GATED ON THE PROPERTY IT MEASURES, AND IS NOW
+#   SPLIT RATHER THAN RE-BASELINED. Module 6 used to emit a method's `#@ assigns` as `writes` ONLY
+#   for a `@mutable_state` class, so every non-`@mutable_state` symbol had no `writes` and was
+#   SKIPPED here (`if not w: continue`) — a 100%-dropped clause was invisible, its worst case.
+#   Gen #35 made the emitter carry the frame on a bodyless `val` of ANY class whose record emits
+#   the field as mutable. That admits 41 functions and 1549 occurrences that were always dropped
+#   and never counted. Folding them into `MAX_TRAP` would have meant moving a "may only SHRINK"
+#   ratchet UP, so the population is SPLIT on the one fact that created it — whether the source
+#   class carries `@mutable_state` — and each arm has its own ratchet:
+#     TRAP     (`@mutable_state` classes): measured 3058 at the split (3070 = 3058 + 12; the 12
+#              non-`@mutable_state` occurrences the old population held move to the other arm)
+#     TRAP-NMS (every other class):        measured 1549 at the split, FIRST MEASUREMENT
+#   Both may only SHRINK. The sum is NOT comparable to the old 3070 and must never be quoted as
+#   a rise.
+MAX_TRAP = 3058
+MAX_TRAP_NMS = 1549
+#   (#49) gen #35, backlog #75 — THE ARM THAT LOOKS AT THE SKIPPED SET. A symbol with NO `writes`
+#   clause whose source `#@ assigns` names a field its class's record emits as MUTABLE is a
+#   HOLE in waiting: no frame at all, the field mentionable, so a caller proves it unchanged.
+#   Gen #34 counted 35 such rows by hand; restricted to bodyless `val`s the arm measures **505**
+#   at 7c431aa2 (the hand count saw one file). The gen #35 emitter repair takes it to **8**, and
+#   the 8 are a DIFFERENT mechanism, named so nobody re-derives it: all in
+#   `frontend____init__.mlw`, the importer stubs of `ConcurrencyChecker` (`check`,
+#   `_check_function`, `_walk_body`, `_walk_stmt`, `_warn_if_unprotected`). A mirror's import
+#   resolves to the LIVE module (lesson (c5)), whose methods carry NO `#@ assigns`, so the stub
+#   is a frame-free `val` — route #212's shape (probes.tsv 2026-10-11: an UN-ANNOTATED imported
+#   mutator lets an importer PROVE a false `\result == 0`). Fail-closed here TODAY only by ZERO
+#   call sites in that file — a measurement. Ceiling, may only SHRINK.
+MAX_HOLE_NOWRITES = 8
 # A zero-input guard: the #44 rule, a gate that cannot tell "nothing is wrong" from "I looked at
 # nothing" is not a gate. (#49) gen #34: raised 200 -> 500. The old floor of 200 was set below the
 # then-measured 222 and could NOT notice the broken key, which cost 126 declarations — a floor
@@ -168,9 +197,36 @@ def unresolved_keys(emit_dir, src_assigns):
     return out
 
 
+def mutable_state_classes(mirror_root=MIRROR_ROOT):
+    """(#49) gen #35 — the source classes decorated `@mutable_state` (the population key)."""
+    out = set()
+    for dirpath, dirnames, filenames in os.walk(mirror_root):
+        dirnames[:] = [d for d in dirnames if d != "__pycache__"]
+        for fn in sorted(filenames):
+            if not fn.endswith(".py"):
+                continue
+            lines = open(os.path.join(dirpath, fn), encoding="utf-8").read().splitlines()
+            for i, ln in enumerate(lines):
+                mc = re.match(r"^class\s+(\w+)", ln)
+                if mc and any(re.match(r"^@mutable_state\b", lines[k])
+                              for k in range(max(0, i - 4), i)):
+                    out.add(mc.group(1))
+    return out
+
+
+MEASURE_EXTRA = {}
+
+
 def measure(emit_dir, src_assigns, want_trap_rows=False):
-    """-> (trap_count, hole_rows, n_funcs_with_writes[, trap_rows])."""
+    """-> (trap_count, hole_rows, n_funcs_with_writes[, trap_rows]).
+
+    (#49) gen #35: also fills MEASURE_EXTRA with `trap_nms` (the non-`@mutable_state` arm, NOT
+    included in the returned `trap_count`) and `nowrites_holes`.
+    """
     trap = 0
+    trap_nms = 0
+    nowrites_holes = []
+    ms_classes = mutable_state_classes()
     trap_rows = []
     hole_rows = []
     n_writes = 0
@@ -206,6 +262,17 @@ def measure(emit_dir, src_assigns, want_trap_rows=False):
                 seg = seg[:stop.start()]
             w = re.search(r"writes\s*\{([^}]*)\}", seg)
             if not w:
+                # (#49) gen #35: the skipped set is no longer unexamined. A declared field
+                # that the record emits as MUTABLE, on a BODYLESS `val` with NO frame at all,
+                # is a caller-provable preservation the source never promised. A concrete
+                # `let` is excluded: Why3 INFERS its write effect from the body and callers
+                # see the inferred effect, so a missing clause there drops no frame.
+                if not re.match(r"\s*val\b", m.group(0)):
+                    continue
+                for cls, fields in by_name[name]:
+                    rec = recs.get(cls.lower(), set())
+                    for fld in sorted({x.lstrip("_") for x in fields} & rec):
+                        nowrites_holes.append((f, name, fld))
                 continue
             n_writes += 1
             emitted = {_bare(x.group(1)) for x in re.finditer(r"self\.(\w+)", w.group(1))}
@@ -214,10 +281,14 @@ def measure(emit_dir, src_assigns, want_trap_rows=False):
                 for fld in sorted({x.lstrip("_") for x in fields} - emitted):
                     if fld in rec:
                         hole_rows.append((f, name, fld))
+                    elif cls not in ms_classes:
+                        trap_nms += 1
                     else:
                         trap += 1
                         if want_trap_rows:
                             trap_rows.append((f, cls, name, fld))
+    MEASURE_EXTRA["trap_nms"] = trap_nms
+    MEASURE_EXTRA["nowrites_holes"] = nowrites_holes
     if want_trap_rows:
         return trap, hole_rows, n_writes, trap_rows
     return trap, hole_rows, n_writes
@@ -314,12 +385,28 @@ def main():
         for f, name, fld in holes:
             print("    HOLE  %s::%s  field=%s" % (f, name, fld))
 
+    trap_nms = MEASURE_EXTRA.get("trap_nms", 0)
+    nowrites = MEASURE_EXTRA.get("nowrites_holes", [])
     print("[*] assigns-writes-survival: %d emitted function(s) with a `writes` clause; "
-          "%d dropped `#@ assigns` field occurrence(s) — TRAP %d (also absent from the class "
-          "record, so unmentionable and fail-closed), HOLE %d (present in the record)."
-          % (n_writes, trap + len(holes), trap, len(holes)))
+          "%d dropped `#@ assigns` field occurrence(s) — TRAP %d (`@mutable_state` classes) + "
+          "TRAP-NMS %d (other classes; both absent from the class record, so unmentionable and "
+          "fail-closed), HOLE %d (present in the record); HOLE-NOWRITES %d (no frame at all, "
+          "field mutable in the record)."
+          % (n_writes, trap + trap_nms + len(holes), trap, trap_nms, len(holes), len(nowrites)))
 
     rc = 0
+    if len(nowrites) > MAX_HOLE_NOWRITES:
+        print("[!] assigns-writes-survival: HOLE-NOWRITES %d > %d — a symbol with NO `writes` "
+              "clause declares `#@ assigns self.<f>` and its class record emits `f` as mutable, "
+              "so a caller can mention the field and PROVE it unchanged across the call."
+              % (len(nowrites), MAX_HOLE_NOWRITES), file=sys.stderr)
+        for f, name, fld in nowrites[:40]:
+            print("      %s::%s  field=%s" % (f, name, fld), file=sys.stderr)
+        rc = 1
+    if trap_nms > MAX_TRAP_NMS:
+        print("[!] assigns-writes-survival: TRAP-NMS %d > %d. This ratchet may only SHRINK."
+              % (trap_nms, MAX_TRAP_NMS), file=sys.stderr)
+        rc = 1
     if len(holes) > MAX_HOLE:
         print("[!] assigns-writes-survival: %d HOLE(S) > %d — a field is in the class RECORD and "
               "ABSENT from the `writes` of a function DECLARED to write it, so a caller PROVES it "
@@ -336,8 +423,10 @@ def main():
               % (trap, MAX_TRAP), file=sys.stderr)
         rc = 1
     if rc == 0:
-        print("[+] assigns-writes-survival: OK — HOLE %d (ceiling %d), TRAP %d (ratchet %d, may "
-              "only shrink)." % (len(holes), MAX_HOLE, trap, MAX_TRAP))
+        print("[+] assigns-writes-survival: OK — HOLE %d (ceiling %d), HOLE-NOWRITES %d (ceiling "
+              "%d), TRAP %d (ratchet %d) + TRAP-NMS %d (ratchet %d), both may only shrink."
+              % (len(holes), MAX_HOLE, len(nowrites), MAX_HOLE_NOWRITES, trap, MAX_TRAP,
+                 trap_nms, MAX_TRAP_NMS))
     return rc
 
 

@@ -73,3 +73,18 @@ names when compiled alone.
 `1721` (expected FAIL) is the single-file half — the owner module whose `sink()` breaks its
 own declared invariant. The two-file halves live in the probe ledger with their exact
 commands, because the runner compiles one file at a time.
+
+## gen #35 (2026-10-11) — a THIRD demonstration needing ZERO annotations, and its mirror-layer reach
+
+`lib1.Counter.bump(self): self.x = self.x + 1` with NO `#@` line at all; the importer
+`c = Counter(); c.bump(); return c.x` PROVED `\result == 0` (CPython 1). Emitted:
+`val counter__bump (self: counter) : unit` (no `writes`) and a receiver-less `c_bump_0 ()` at the
+call. Controls: the same class in the SAME file FAILS (on `counter__bump`'s postcondition — an
+absent `assigns` is checked as an empty frame), the owner annotated `#@ assigns self.x` makes the
+importer FAIL honestly, and `--verify-imports` REFUSES (lib1 does not verify alone). So: #212's
+mechanism, but (b) no longer needs anyone to WRITE a lying `assigns \nothing` — the DEFAULT is one.
+**Mirror reach:** a mirror's import resolves to the LIVE module (lesson (c5)), and live methods
+carry no `#@ assigns`, so every mirror call into an un-annotated live method is assumed frame-free.
+`check-assigns-writes-survival`'s HOLE-NOWRITES arm names the 8 such stubs that the mirror layer's
+own `#@ assigns` contradicts (`frontend____init__.mlw`, ConcurrencyChecker), fail-closed only by
+zero call sites. Probe row: probes.tsv 2026-10-11 gen 35.

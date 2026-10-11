@@ -9115,6 +9115,14 @@ class PreambleEmissionMixin:
                 self._emitted_record_field_labels[type_name] = {
                     fs.split(":")[0].replace("mutable ", "").strip()
                     for fs in field_strs}
+                # (#49) gen #35, backlog #75: …and which of them are MUTABLE, because a
+                # `writes { self.f }` naming an immutable label is a Why3 error. Read-only
+                # bookkeeping, no emitted byte.
+                if not hasattr(self, "_emitted_record_mutable_labels"):
+                    self._emitted_record_mutable_labels = {}
+                self._emitted_record_mutable_labels[type_name] = {
+                    fs.split(":")[0].replace("mutable ", "").strip()
+                    for fs in field_strs if fs.startswith("mutable ")}
                 # (#34) …and their TYPES, so the FRAME-PRESERVATION ensures below can be
                 # restricted to SCALAR labels (an `array int` field needs an element-wise
                 # preservation the scalar equality cannot express).

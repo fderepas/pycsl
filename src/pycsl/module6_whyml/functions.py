@@ -7904,6 +7904,27 @@ class FunctionEmissionMixin:
                     self._add_abstract_op("val _pyobj_state : ref int")
                     _parts.append("_pyobj_state")
                 lines.append(f"    writes {{ {', '.join(_parts)} }}")
+        elif (is_method and emit_as_val and self._current_self_type
+              in getattr(self, "_emitted_record_mutable_labels", {})):
+            # (#49) gen #35, backlog #75 — THE DECLARED FRAME OF A BODYLESS `val` OF A
+            # NON-`@mutable_state` CLASS. The branch above is gated on `@mutable_state`, but
+            # the MUTABLE RECORD emission is not: a class without the decorator can still
+            # emit `mutable f` fields, and its `\trusted`/`\abstract` method's
+            # `#@ assigns self.f` was then DROPPED, so the val had NO frame and a caller
+            # could mention `self.f` and PROVE it unchanged across the call — an assumption
+            # STRONGER than the source's own declaration. On a bodyless val a `writes`
+            # costs no check (there is no body) and only restores the honest caller-side
+            # assumption. Filtered to labels the record emits AS MUTABLE (a `writes` on an
+            # immutable label is a Why3 error); an empty result emits nothing, so a class
+            # whose declared fields are all absent/immutable stays byte-identical. The
+            # CONCRETE `let` path is deliberately NOT widened here: there a `writes` is
+            # CHECKED and can fail, which is a separate measurement.
+            _mut75 = self._emitted_record_mutable_labels[self._current_self_type]
+            _wl75 = [self._field_label(self._current_self_type, f)
+                     for f in self._module_method_writes.get(func["name"], [])]
+            _wl75 = [l for l in dict.fromkeys(_wl75) if l in _mut75]
+            if _wl75:
+                lines.append(f"    writes {{ {', '.join('self.' + l for l in _wl75)} }}")
 
         # wrong-lowering-to-fix.md §WL-05b: a STANDALONE function whose dict/set params
         # are item-mutated in the body carries a `writes { d, s, … }` frame so Why3
