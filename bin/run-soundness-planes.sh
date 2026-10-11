@@ -137,6 +137,12 @@ PLANES=(
     # soundness one. Costs no prover. Three arms negative-tested: the count (inject a real `ensures`
     # -> 12 -> 13), the dispatch-key staleness refusal, and the population floor.
     check-bespoke-contract-discard.py
+    # (#49) gen #35 — backlog #74's GENERALISATION: the bespoke gate is keyed on the EMITTER and
+    # gen #34 measured the key incomplete (generic_fold's ~48 templaters, the pp delegation).
+    # This one is keyed on the EMISSION: every non-trivial `#@ requires`/`#@ ensures` of a mirror
+    # def must reach its declaration in the DEFINING module. 242 located, DISCARD 0, unlocated 0.
+    # Needs the shared mirror emission (self-emits when run bare). Self-test negative-tested.
+    check-mirror-clause-survival.py
     check-singleton-constant-lowering.py
     # (#49) gen #30: the ARGUMENT-COERCION ratchet. Routes #192 and #193 were both
     # substitutions in `_coerce_dotted_args`, found by each other's repair, in one
@@ -414,7 +420,9 @@ PLANES=(
 # (#49) gen #31: 48 -> 49 with `check-sibling-concrete-fidelity.py`, 49 -> 50 with
 # `self-annotate-mirror-check.sh` (declared a gate in five documents, collected by no
 # battery until now — lesson (u6)).
-MIN_PLANES=55
+# (#49) gen #35: 55 -> 56 with `check-mirror-clause-survival.py` (backlog #74 generalised:
+# requires/ensures survival keyed on the EMISSION, not on the emitter's dispatch keys).
+MIN_PLANES=56
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
@@ -559,7 +567,7 @@ CONVERSION_PLANES=(
 
 # Planes that take the shared mirror emission. Anything not listed runs bare, exactly as
 # before.
-EMIT_DIR_PLANES=" check-bespoke-contract-discard.py check-assigns-writes-survival.py check-computed-rhs-erasure.py check-yield-erasure.py check-shadowed-selfcalls.py check-trusted-frame-honesty.py check-avatar-frame-parity.py count-trusted-directives.py check-mirror-type-only.py check-cross-module-contract-parity.py "
+EMIT_DIR_PLANES=" check-bespoke-contract-discard.py check-mirror-clause-survival.py check-assigns-writes-survival.py check-computed-rhs-erasure.py check-yield-erasure.py check-shadowed-selfcalls.py check-trusted-frame-honesty.py check-avatar-frame-parity.py count-trusted-directives.py check-mirror-type-only.py check-cross-module-contract-parity.py "
 # (yield-erasure and shadowed-selfcalls are in CONVERSION_PLANES above: always run, still shared.)
 SHARED_EMIT=""
 # (#49) A SECOND shared emission: the CORPUS, for `check-clause-survival.py`.
