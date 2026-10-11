@@ -222,7 +222,7 @@ CONVERTED_RATCHET = 0         # 2 -> 4 at #31 by the SHARPER DETECTOR (the `_add
                               # exactly those, and Why3 accepts it. The `writes {  }` it
                               # replaces was the false claim.
 # (#43) 95 -> 94: `pure_ast._Unparser.write` left this population for the trusted one above.
-CONVERTED_TOTAL_RATCHET = 94  # 68 -> 133 at #31 by the SHARPER DETECTOR; 133 -> 99 at #32;
+CONVERTED_TOTAL_RATCHET = 93  # (#49) gen #35: 94 -> 93, `_materialize_if_seq` given a concrete bridge + honest frame. Earlier: 68 -> 133 at #31 by the SHARPER DETECTOR; 133 -> 99 at #32;
                               # 99 -> 98 at #33 (`_ifexpr_seq_arm`), 98 -> 96 by the
                               # cross-mixin protocol stubs' caller fixpoint
                               # (the three `statements.py` callers above); 96 -> 95 at #34

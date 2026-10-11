@@ -156,9 +156,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if whyml_str.startswith('"') and whyml_str.endswith('"'):
             return str(stable_hash(whyml_str))
         return whyml_str
+    # (#49) gen #35 — `_materialize_if_seq` calls `self._materialize_bridge()`, and with no
+    # concrete copy in THIS file that call lowered to a RECEIVER-LESS abstract op
+    # (`self__materialize_bridge_0 ()`, no effect), so the method's `writes { }` VERIFIED and
+    # its frame-preservation postcondition `self._abstract_ops = old self._abstract_ops` was
+    # PROVED while the live bridge writes `_abstract_ops` (via `_add_abstract_op`).
+    # `check-trusted-frame-honesty`'s converted arm went RED the moment `_abstract_ops` became
+    # a record field (backlog #77 batch 3). The relocated concrete copy gives the call its
+    # receiver and its real effect, and `_materialize_if_seq` now declares the honest frame.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
+    def _materialize_bridge(self) -> None:
+        """07-1705-rev4 P4: emit the faithful seq→array bridge val (fresh result, no
+        region link), used where a seq-modelled value crosses into `array int` code."""
+        self._add_abstract_op(
+            "val materialize (s: seq int) : array int\n"
+            "    ensures { Array.length result = Seq.length s }\n"
+            "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }")
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _materialize_if_seq(self, whyml_str: str, arg_ir: "ExprIR") -> str:
         """L2 (os-bodyvc-spec): if `arg_ir` is a seq-promoted local Var, bridge it seq→array with
         `materialize` so it can flow into an `array int` slot (e.g. `bytes(parts)`,
