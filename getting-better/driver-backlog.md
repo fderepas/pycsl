@@ -134,6 +134,15 @@ eight distinct field names, **88 of them `_r188_stub_names` and `ir` propagated 
 
 ### #77 gen #34 — THE 629-OCCURRENCE SURVIVAL SHRINK SEAM, RANKED
 
+**gen #35: BATCH 1 + 2 LANDED (`bf6b8ddd`, `c96f4725`) — survival TRAP 3058 -> 2251** (split arm, after
+#75). Batch 1: five fields on ExpressionEmissionMixin; batch 2: nine on StatementEmissionMixin (same
+annotations). Each priced with the 52-s sweep first: 2 movers per batch, HOLE 0, HOLE-T 0. NOT
+declared, deliberately: the `_uses_*_cache` fields (live `getattr(..., None)` -> `Optional[bool]`, the
+route-#227 None hazard) and `_last_hval_get_raw/_str` (type not established). Remaining top rows:
+those caches (~90 each), `string_local_vars` (88, `Set[str]` — expressible), `abstract_ops` (74),
+`late_content_ops`, `dict_locals`, `emit_ir_seq_locals`, `pyval_locals`. Re-proofs owed per batch:
+expressions.py, statements.py, Transpiler (queue q78).
+
 Of the 2989 dropped `#@ assigns` occurrences, **629** name a field whose LIVE initialiser carries an
 unambiguous simple annotation that agrees across every site. Biggest:
 `ExpressionEmissionMixin.frame_trigger_active` (88), `.abstract_ops` (49), `.dict_locals` (44),
