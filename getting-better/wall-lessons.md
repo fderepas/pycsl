@@ -8910,3 +8910,22 @@ belong in a commit about something else.
   the campaign — cheaper than the 6-minute corpus byte-diff lesson (e5) recommends — and the right way
   to iterate any record/frame/declaration change. Gen #34 used it eight times in one hour to price a
   change gen #33 estimated at 7–25 hours.
+
+### (h5) THE FRAME CHAIN HAS A FOURTH SIDE, AND IT IS WHY3 (gen #35, 2026-10-11)
+
+Wall: backlog #77 batch 3 (declaring `_abstract_ops`/`_dict_locals` on ExpressionEmissionMixin).
+L-input that revealed it: `why3 prove --type-only` on the moved `expressions.mlw` —
+"this expression produces an unlisted write effect" on 23 CONVERTED methods, one per run.
+Each calls `_expr_to_whyml`, whose DECLARED frame writes both fields, and each one's own
+`#@ assigns` omitted them: true under-declarations of VERIFIED methods' frames, fail-closed
+only while the fields were unmentionable. The three frame ratchets (survival, underdeclaration,
+underdeclaration --transitive) were all green before and after: the transitive arm resolves
+the call graph over LIVE bodies and does not consult a callee's DECLARED frame, which is
+exactly the edge Why3 checks.
+Rule (validity test PASSED — the type-checker distinguishes the case, it fired 23 times and
+then went CLEAN): **a declaration that makes a field mentionable turns every concrete caller
+whose frame omits it into a type error. Type-check the movers after EVERY declaration batch,
+and iterate the clause repairs against `why3 --type-only` of the ONE moved file (~10 s per
+round, `scratchpad tcone.sh` shape), not against the full battery.** Also: a `writes` on a
+concrete `let` that the body does NOT perform is ALSO a type error ("this write effect does
+not happen in the expression", #74) — so the type-checker brackets the frame from both sides.
