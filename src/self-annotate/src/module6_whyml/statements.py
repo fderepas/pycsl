@@ -133,6 +133,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # never guessed. Plan: getting-better/open-routes/option3-declare-the-written-fields-PLAN.md
     _literal_rebind_lens: Dict[str, int] = None
     _literal_rebind_targets: Set[str] = None
+    # (#49) gen #35, backlog #77 batch 2 — the fields this class's `#@ assigns` clauses name
+    # and the class never declared (so every occurrence was dropped from the emitted `writes`).
+    # Annotations COPIED from ExpressionEmissionMixin's declarations of the SAME emitter fields
+    # (batch 1 + the pre-existing ones), so the one live field is modelled one way in both files.
+    _frame_trigger_active: bool = False
+    _comp_content_counter: int = 0
+    _needs_array_init: bool = False
+    _obj_state_written: bool = False
+    _todict_arg_wants_pymap: bool = False
+    _current_params: Set[str] = None
+    _func_return_type: str = ""
+    _quant_record_binders: Dict[str, str] = None
+    _quant_scalar_binders: Set[str] = None
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment

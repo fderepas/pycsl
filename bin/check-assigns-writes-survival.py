@@ -93,7 +93,11 @@ MAX_TRAP = 3070
 #   ExpressionEmissionMixin, so the `_handle_dotted_call` cluster's clauses EMIT them. The first
 #   time this ratchet has fallen by declaration at scale; HOLE stayed 0 and the underdeclaration
 #   plane's HOLE-T stayed 0 (the chain of three, measured before landing).
-MAX_TRAP = 2643
+#   (#49) gen #35, backlog #77 batch 2: 2643 -> **2251** — the same five fields plus
+#   `_current_params`, `_func_return_type`, `_quant_record_binders`, `_quant_scalar_binders`
+#   declared on StatementEmissionMixin with ExpressionEmissionMixin's annotations. HOLE 0,
+#   underdeclaration HOLE-T 0.
+MAX_TRAP = 2251
 MAX_TRAP_NMS = 1529
 #   (#49) gen #35, backlog #75 — THE ARM THAT LOOKS AT THE SKIPPED SET. A symbol with NO `writes`
 #   clause whose source `#@ assigns` names a field its class's record emits as MUTABLE is a
