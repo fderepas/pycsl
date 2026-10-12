@@ -1648,7 +1648,27 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if isinstance(v, ast.Constant):
                 parts.append({"type": "String", "value": str(v.value)})
             elif isinstance(v, ast.FormattedValue):
-                parts.append(self._py_expr_to_ir(v.value))
+                # (#49) ROUTE #231 — `f"{v!c:spec}"` IS `format(conv(v), spec)`, NOT `f"{v}"`.
+                # This arm used to keep only `v.value` and DROP `.conversion` and
+                # `.format_spec`, so `f"{b:02x}" == f"{b}"` and `f"{s!r}" == f"{s}"` were
+                # IR-identical and PROVED (CPython: False, False). A part that carries a
+                # conversion or a spec is now a `FormattedValue` node holding both; Module 6
+                # lowers it to an OPAQUE string term keyed by (conversion, spec, operand type)
+                # that the solver cannot identify with the plain rendering. ADDITIVE: a part
+                # with neither (`conversion == -1`, `format_spec is None`) keeps the bare
+                # operand, so every plain f-string's IR is byte-identical. A nested spec
+                # (`f"{x:{w}}"`) is itself a JoinedStr and recurses through this method.
+                if v.conversion == -1 and v.format_spec is None:
+                    parts.append(self._py_expr_to_ir(v.value))
+                else:
+                    fv: Dict[str, Any] = {"type": "FormattedValue",
+                                          "value": self._py_expr_to_ir(v.value)}
+                    if v.conversion != -1:
+                        # the CPython code point (115 's', 114 'r', 97 'a'); Module 6 maps it
+                        fv["conversion"] = v.conversion
+                    if v.format_spec is not None:
+                        fv["format_spec"] = self._py_expr_fstring(v.format_spec)
+                    parts.append(fv)
             else:
                 parts.append(self._py_expr_to_ir(v))
         return {"type": "FString", "parts": parts}

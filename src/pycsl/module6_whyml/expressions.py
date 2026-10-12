@@ -4379,6 +4379,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         """True if an IR expression is string-typed: a literal, a string-producing op, or a
         `str`-typed variable. (strings-plan Stage 2 — used to route `+` to `concat`.)"""
         t = ir.get("type")
+        # (#49) ROUTE #231 — an f-string part carrying a conversion and/or a format spec
+        # (`{v!r}`, `{b:02x}`) is `format(conv(v), spec)`: always a `str`, whatever `v`
+        # is. `_expr_to_whyml` lowers it to an opaque `string`-returning
+        # `pycsl_format_*` term, so the classifier agrees with that lowering.
+        if t == "FormattedValue":
+            return True
         # (#32) `getattr(self, "<str field>", <default>)` IS `self.<field>`, and #32's
         # `_lower_getattr` relaxation makes it LOWER as the real field — so it must be
         # CLASSIFIED as one too. Without this the defensive read of a `str` field keeps the
@@ -17853,6 +17859,70 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if isinstance(expr, dict) and expr.get("py_ellipsis"):
             self._add_abstract_op("val function pycsl_ellipsis : int")
             return "pycsl_ellipsis"
+        # (#49) ROUTE #231 — THE FORMATTED f-STRING PART. `f"{v!c:spec}"` is by definition
+        # `format(conv(v), spec)`; Module 5 used to drop `!c` and `:spec`, so `f"{b:02x}"`
+        # lowered exactly like `f"{b}"` and `f"{s!r}"` like `f"{s}"`, and their equality
+        # PROVED (CPython: False). Module 5 now emits a `FormattedValue` part ONLY when a
+        # conversion or a spec is present (plain parts stay bare -> byte-inert), and it is
+        # lowered HERE to an OPAQUE `val function` returning `string`, with NO axiom:
+        #   * a LITERAL spec  -> `pycsl_format_<c>_<t>_h<hex(spec)> (x: <t>) : string`
+        #   * a NESTED spec   -> `pycsl_format_dyn_<c>_<t>_<st> (spec: <st>) (x: <t>) : string`
+        #     (`f"{x:{w}}"` — opaque in the spec term too, which is the spec f-string's own
+        #     lowering, so `w` stays in the term and two different `w` are not identified)
+        # where <c> is the conversion (`n` none, `s`/`r`/`a`) and <t>/<st> is `s` (string)
+        # or `i` (int). The key is INJECTIVE in (conversion, spec text, operand type): the
+        # spec text is hex-encoded, not hashed, so two distinct specs can never share a
+        # symbol, and no symbol is ever the identity — the solver can neither identify a
+        # formatted rendering with the plain one nor two differently-formatted ones.
+        # FAITHFUL-BUT-OPAQUE, not a refusal: a program that merely BUILDS such a string
+        # (a message, a key) still verifies; only claims about its VALUE become unprovable.
+        # The operand is passed RAW (no `_coerce_to_int`, whose array->0 placeholder would
+        # identify distinct operands): an operand that is neither string nor int fails the
+        # Why3 type check — fail-closed. Placed at the top, before typed normalization:
+        # `FormattedValue` has no typed class (it round-trips as `OpaqueExpr`).
+        _r231 = expr if isinstance(expr, dict) else None
+        if _r231 is None and getattr(expr, "kind", None) == "FormattedValue":
+            _r231 = expr.to_dict()
+        if isinstance(_r231, dict) and _r231.get("type") == "FormattedValue":
+            _r231_v = _r231.get("value")
+            _r231_w = self._expr_to_whyml(_r231_v, local_refs, invariant_ctx, subst)
+            _r231_t = "s" if (isinstance(_r231_v, dict)
+                              and self._is_string_expr(_r231_v)) else "i"
+            _r231_ty = "string" if _r231_t == "s" else "int"
+            _r231_cv = _r231.get("conversion")
+            _r231_c = {None: "n", 115: "s", 114: "r", 97: "a"}.get(_r231_cv)
+            if _r231_c is None:
+                raise ValueError(
+                    f"f-string conversion code {_r231_cv} is not supported (route #231)")
+            _r231_spec = _r231.get("format_spec")
+            # `f"{s!r}"` with NO spec on a str operand IS `repr(s)` (format(x, "") == str(x)
+            # for a str) — reuse the existing `repr(s)` lowering's `str_repr_op` (same
+            # declaration text, so the two coincide) in program context. It is a program
+            # `val`, so a spec/logic context keeps the opaque `val function` below.
+            if (_r231_c == "r" and _r231_spec is None and _r231_t == "s"
+                    and not self._in_spec):
+                self._add_abstract_op(
+                    "val str_repr_op (s: string) : string\n"
+                    "    ensures { String.length result >= 2 }")
+                return f"(str_repr_op {_r231_w})"
+            _r231_sparts = (_r231_spec.get("parts") or []
+                            if isinstance(_r231_spec, dict) else [])
+            if _r231_spec is None or all(
+                    isinstance(_sp, dict) and _sp.get("type") == "String"
+                    and isinstance(_sp.get("value"), str) for _sp in _r231_sparts):
+                _r231_text = "".join(_sp["value"] for _sp in _r231_sparts)
+                _r231_fn = (f"pycsl_format_{_r231_c}_{_r231_t}_h"
+                            f"{_r231_text.encode('utf-8').hex()}")
+                self._add_abstract_op(
+                    f"val function {_r231_fn} (x: {_r231_ty}) : string")
+                return f"({_r231_fn} {_r231_w})"
+            _r231_sw = self._expr_to_whyml(_r231_spec, local_refs, invariant_ctx, subst)
+            _r231_st = "s" if self._is_string_expr(_r231_spec) else "i"
+            _r231_fn = f"pycsl_format_dyn_{_r231_c}_{_r231_t}_{_r231_st}"
+            self._add_abstract_op(
+                f"val function {_r231_fn} (spec: "
+                f"{'string' if _r231_st == 's' else 'int'}) (x: {_r231_ty}) : string")
+            return f"({_r231_fn} {_r231_sw} {_r231_w})"
         # ROUTE #42 (relaunch #48) — THE BOOL-SINGLETON WHITELIST. `pycsl.py` narrowed
         # the distinct `is`/`is not` IR operator back to `==`/`!=` and left the ADDITIVE
         # `py_is` marker on the node; this is the ONE consumer that reads it.
