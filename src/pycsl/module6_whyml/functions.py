@@ -7489,6 +7489,102 @@ class FunctionEmissionMixin:
         is_method = func.get("kind") == "method"
 
         local_refs, ghost_vars = self._reset_function_state(func, body_stmts)
+        # (#49) ROUTE #230 — THE `None` THAT FLOWS THROUGH A CONTAINER. A stored or missing
+        # `None` lowers to the opaque INTEGER `pycsl_none`, so `v = d[k]; v - v + 3` PROVED
+        # `\result == 3` under `#@ no_exception \all` where CPython raises TypeError (seven
+        # container/`.get` shapes, open-routes/route230-*.md). Route #227 refuses a SYNTACTIC
+        # None; here the None-ness is a VALUE fact, so the fence is a VALUE obligation:
+        # `_handle_binop` asserts `operand <> pycsl_none` for every arithmetic/ordering operand
+        # that MAY be such a read — provable under an `is not None` guard (which lowers to
+        # `not (v = pycsl_none)`), fail-closed otherwise. This pre-scan decides "may be":
+        #   containers  a local into which a `None` literal is stored anywhere in the function
+        #               (subscript store, list/dict/set literal element, append/insert/
+        #               setdefault argument);
+        #   locals      a local bound from a read of such a container, or from `<dict>.get(k)`
+        #               with no default / a `None` default (whose own miss is a None).
+        # Written INLINE (wall-lesson (a4)); this method has no mirror twin.
+        _r230_cont = set(func.get("r230_optional_containers") or [])
+        _r230_loc = set()
+        _r230_stack = [body_stmts]
+        _r230_assigns = []
+        while _r230_stack:
+            _r230_n = _r230_stack.pop()
+            if isinstance(_r230_n, list):
+                _r230_stack.extend(_r230_n)
+                continue
+            if not isinstance(_r230_n, dict):
+                continue
+            _r230_stack.extend(_r230_n.values())
+            _r230_st, _r230_ty = _r230_n.get("stmt"), _r230_n.get("type")
+            if (_r230_st == "ArraySet" and isinstance(_r230_n.get("array"), dict)
+                    and _r230_n["array"].get("type") == "Var"
+                    and isinstance(_r230_n.get("value"), dict)
+                    and _r230_n["value"].get("type") == "None"):
+                _r230_cont.add(_r230_n["array"].get("name"))
+            if _r230_st == "Assign" and isinstance(_r230_n.get("target"), str):
+                _r230_v = _r230_n.get("value")
+                if isinstance(_r230_v, dict):
+                    _r230_assigns.append((_r230_n["target"], _r230_v))
+                    _r230_el = list(_r230_v.get("elts") or []) + list(_r230_v.get("values") or [])
+                    if (_r230_v.get("type") in ("ArrayLit", "ListLit", "DictLit", "SetLit")
+                            and any(isinstance(_e, dict) and _e.get("type") == "None"
+                                    for _e in _r230_el)):
+                        _r230_cont.add(_r230_n["target"])
+            if _r230_ty == "Call":
+                _r230_f = str(_r230_n.get("func", ""))
+                _r230_a = _r230_n.get("args") or []
+                if (_r230_f.count(".") == 1
+                        and _r230_f.split(".")[1] in ("append", "insert", "setdefault")
+                        and any(isinstance(_e, dict) and _e.get("type") == "None"
+                                for _e in _r230_a)):
+                    _r230_cont.add(_r230_f.split(".")[0])
+        # A `.get` receiver counts only when it is KNOWN to be a dict (a local bound to a
+        # dict literal/comprehension/`dict(...)`, a typed dict local/param, or a dict
+        # self-alias) — a user class's own `.get` method returns whatever it returns.
+        _r230_dicts = set(getattr(self, "_dict_locals", set()) or set()) | set(
+            (func.get("dict_key_types") or {}).keys()) | set(
+            (func.get("dict_value_types") or {}).keys()) | set(
+            getattr(self, "_getattr_self_dict_aliases", {}) or {}) | {
+            _n for _n, _ty in (func.get("symbol_table") or {}).items() if _ty == "dict"}
+        for _r230_t, _r230_v in _r230_assigns:
+            if (_r230_v.get("type") in ("DictLit", "DictComp")
+                    or (_r230_v.get("type") == "Call" and _r230_v.get("func") == "dict")):
+                _r230_dicts.add(_r230_t)
+        _r230_changed = True
+        while _r230_changed:
+            _r230_changed = False
+            for _r230_t, _r230_v in _r230_assigns:
+                if _r230_t in _r230_loc:
+                    continue
+                for _r230_k in range(16):
+                    if (_r230_v.get("type") == "UnaryOp" and isinstance(_r230_v.get("expr"), dict)
+                            and _r230_v.get("op") in ("-", "+", "~", "USub", "UAdd", "Invert")):
+                        _r230_v = _r230_v["expr"]
+                    elif (_r230_v.get("type") == "Call"
+                          and _r230_v.get("func") in ("int", "float", "abs", "round")
+                          and _r230_v.get("args") and isinstance(_r230_v["args"][0], dict)):
+                        _r230_v = _r230_v["args"][0]
+                    else:
+                        break
+                _r230_vt = _r230_v.get("type")
+                _r230_hit = (
+                    (_r230_vt == "Var" and _r230_v.get("name") in _r230_loc)
+                    or (_r230_vt == "Subscript" and isinstance(_r230_v.get("value"), dict)
+                        and _r230_v["value"].get("type") == "Var"
+                        and _r230_v["value"].get("name") in _r230_cont)
+                    or (_r230_vt == "Call"
+                        and str(_r230_v.get("func", "")).count(".") == 1
+                        and str(_r230_v.get("func", "")).endswith(".get")
+                        and str(_r230_v.get("func", "")).split(".")[0] in _r230_dicts
+                        and (len(_r230_v.get("args") or []) == 1
+                             or (len(_r230_v.get("args") or []) == 2
+                                 and isinstance(_r230_v["args"][1], dict)
+                                 and _r230_v["args"][1].get("type") == "None"))))
+                if _r230_hit:
+                    _r230_loc.add(_r230_t)
+                    _r230_changed = True
+        self._r230_maybe_none = {"containers": _r230_cont, "locals": _r230_loc,
+                                 "dicts": _r230_dicts}
         # self-tcb-reduction WRITER class (`_build_param_list`): record the name of the
         # function whose SIGNATURE is currently being built, so `_param_type_str` can type
         # the trusted `_param_type_str` stub's own `ref_params`/`array2d_params`/… params as

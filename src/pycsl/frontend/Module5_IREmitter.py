@@ -6413,9 +6413,40 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 _global_stored.add(_gw.id)
             _gw_stack.extend(ast.iter_child_nodes(_gw))
         _global_writes = [_nm for _nm in _global_decl if _nm in _global_stored]
+        # (#49) ROUTE #230 — CONTAINERS WHOSE DECLARED ELEMENT/VALUE TYPE ADMITS `None`.
+        # `d: Dict[int, Optional[int]]` (a param, or a local filled elsewhere) can hand back a
+        # `None` that this function never stored, and `param_annotations` keeps only `"dict"`,
+        # so Module 6's container-None fence could not see it: measured, `v = d[k]; return
+        # v - v + 3` under `#@ requires k in d` PROVED `\result == 3` (CPython TypeError when
+        # the caller stored None). Recorded by NAME for params and annotated locals whose
+        # annotation is a subscripted container with `Optional`/`None` anywhere inside it.
+        # Emitted ONLY when non-empty, so every other function's IR is byte-identical.
+        _r230_opt: set = set()
+        _r230_anns = [(a.arg, a.annotation) for a in (list(node.args.args)
+                       + list(node.args.kwonlyargs)) if a.annotation is not None]
+        _r230_stack: list = list(node.body)
+        while _r230_stack:
+            _r230_n = _r230_stack.pop()
+            if isinstance(_r230_n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef,
+                                    ast.Lambda)):
+                continue
+            if (isinstance(_r230_n, ast.AnnAssign) and isinstance(_r230_n.target, ast.Name)
+                    and _r230_n.annotation is not None):
+                _r230_anns.append((_r230_n.target.id, _r230_n.annotation))
+            _r230_stack.extend(ast.iter_child_nodes(_r230_n))
+        for _r230_nm, _r230_ann in _r230_anns:
+            if not isinstance(_r230_ann, ast.Subscript):
+                continue
+            for _r230_x in ast.walk(_r230_ann.slice):
+                if ((isinstance(_r230_x, ast.Name) and _r230_x.id == "Optional")
+                        or (isinstance(_r230_x, ast.Attribute) and _r230_x.attr == "Optional")
+                        or (isinstance(_r230_x, ast.Constant) and _r230_x.value is None)):
+                    _r230_opt.add(_r230_nm)
+                    break
         return {
             "name": func_name,
             **({"global_writes": sorted(_global_writes)} if _global_writes else {}),
+            **({"r230_optional_containers": sorted(_r230_opt)} if _r230_opt else {}),
             # (#34) emitted ONLY when non-empty, so the IR of every function without a
             # `nonlocal` is byte-identical and the frozen conformance goldens do not move.
             **({"nonlocal_writes": sorted(_nonlocal_writes)} if _nonlocal_writes else {}),

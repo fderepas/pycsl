@@ -1,6 +1,6 @@
 # OPEN ROUTE #230 — THE `None` THAT FLOWS THROUGH A CONTAINER (route #227's second carrier)
 
-**Status: OPEN (gen #35, 2026-10-11), Severity 1.** Was tracked only as backlog #65 since gen #32
+**Status: REPAIRED (gen #36, 2026-10-12; built gen #35), Severity 1.** Was: OPEN (gen #35, 2026-10-11). Was tracked only as backlog #65 since gen #32
 ("a carrier surviving a repair is a second route") and never entered this index; re-reproduced at
 HEAD and promoted. Generator: carrier-rerun. Order 2 (it survives route #227's repair).
 
@@ -29,3 +29,17 @@ obligation: every arithmetic/ordering operand that MAY be a container's None get
 otherwise. "May be None": a read of a container that is None-tainted (declared Optional codomain, a
 None stored into it anywhere in the function), any `.get(k)` without a non-None default, and a
 local bound from either.
+
+## Repair landed (gen #36, 2026-10-12)
+Built by gen #35 (uncommitted when its session died), gated and committed by gen #36:
+  * Module 5: `r230_optional_containers` — params/annotated locals whose container annotation admits
+    `None` (emitted only when non-empty, so every other IR is unchanged).
+  * Module 6 `functions.py::_emit_function_block` pre-scan: containers / may-be-None locals / known dicts.
+  * Module 6 `expressions.py::_handle_binop`: `assert { [@expl:PyCSL-R230 ...] not (v = pycsl_none) }`
+    on every arithmetic/ordering operand that may be such a read; `isinstance(v, T)` (T != object)
+    also yields `not (v = pycsl_none)` for those locals.
+Gates (gen #36): fast planes 61/61 rc=0; corpus byte-diff 2 MOVED (1113, 1652 — both expected-FAIL
+witnesses of this family, still FAIL), pyref 0/2199 MOVED, IR unchanged elsewhere; mirror 2 MOVED
+(expressions, functions — the fence firing in `_namedtuple_positional_access` and an isinstance
+narrowing), whole-file re-proofs queued. Witnesses 1920-1928 (FAIL on the PyCSL-R230 obligation at the
+repair, PROVED at 9aa13e5c); controls 1929-1931 verify at both.

@@ -5327,6 +5327,56 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(array_concat {_l} {_r})"
         left = self._expr_to_whyml(expr["left"], local_refs, invariant_ctx, subst)
         right = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
+        # (#49) ROUTE #230 — the VALUE-level None fence (see the pre-scan in
+        # `functions.py::_emit_function_block`). An operand that MAY be a container's `None`
+        # is bound and asserted distinct from the None value before the operation, so
+        # `v = d[k]; v - v + 3` no longer proves anything about a TypeError path, while
+        # `if v is not None: v - v` still verifies (the guard IS `not (v = pycsl_none)`).
+        # Written INLINE: this file is mirrored and `_handle_binop`'s twin is `\trusted`.
+        _r230 = getattr(self, "_r230_maybe_none", None)
+        if (_r230 and not self._in_spec
+                and raw_op in ("+", "-", "*", "/", "div", "//", "%", "**",
+                               "<<", ">>", "&", "|", "^", "<", "<=", ">", ">=")):
+            _r230_out = []
+            for _r230_side0, _r230_low in ((expr.get("left"), left), (expr.get("right"), right)):
+                # Look THROUGH a unary sign/inversion and an int/float/abs/round conversion:
+                # `-v`, `int(v)` of a None raise too, and their results inherit "may be None"
+                # (an unprovable obligation, which is the fail-closed direction).
+                _r230_side = _r230_side0
+                for _r230_k in range(16):
+                    if (isinstance(_r230_side, dict) and _r230_side.get("type") == "UnaryOp"
+                            and _r230_side.get("op") in ("-", "+", "~", "USub", "UAdd", "Invert")):
+                        _r230_side = _r230_side.get("expr")
+                    elif (isinstance(_r230_side, dict) and _r230_side.get("type") == "Call"
+                          and _r230_side.get("func") in ("int", "float", "abs", "round")
+                          and _r230_side.get("args")):
+                        _r230_side = _r230_side["args"][0]
+                    else:
+                        break
+                _r230_t = _r230_side.get("type") if isinstance(_r230_side, dict) else None
+                _r230_f = str(_r230_side.get("func", "")) if _r230_t == "Call" else ""
+                _r230_a = (_r230_side.get("args") or []) if _r230_t == "Call" else []
+                _r230_may = (
+                    (_r230_t == "Var" and _r230_side.get("name") in _r230["locals"])
+                    or (_r230_t == "Subscript" and isinstance(_r230_side.get("value"), dict)
+                        and _r230_side["value"].get("type") == "Var"
+                        and _r230_side["value"].get("name") in _r230["containers"])
+                    or (_r230_f.count(".") == 1 and _r230_f.endswith(".get")
+                        and _r230_f.split(".")[0] in _r230["dicts"]
+                        and (len(_r230_a) == 1
+                             or (len(_r230_a) == 2 and isinstance(_r230_a[1], dict)
+                                 and _r230_a[1].get("type") == "None"))))
+                if _r230_may:
+                    _r230_none = ("pycsl_none_str" if self._is_string_expr(_r230_side0)
+                                  else "pycsl_none")
+                    self._add_abstract_op("val function %s : %s" % (
+                        _r230_none, "string" if _r230_none.endswith("_str") else "int"))
+                    _r230_low = ("(let _r230_v = %s in begin assert { [@expl:PyCSL-R230 "
+                                 "arithmetic or ordering on a value that may be a None read "
+                                 "from a container] not (_r230_v = %s) }; _r230_v end)"
+                                 % (_r230_low, _r230_none))
+                _r230_out.append(_r230_low)
+            left, right = _r230_out
         # bool-as-int convention: PyCSL int-encodes bool (a `-> bool` function returns 0/1,
         # its contract reads `\result == 0 or 1`). So a Bool literal in `==`/`!=` is INT
         # equality (Python `True == 1`, `False == 0`) — emit it as 1/0 even in spec context,
@@ -11458,6 +11508,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             lhs = self._tag_of_value(args_ir[0])
             if lhs in self._TAG_LITERAL:
                 lhs = str(self._TAG_LITERAL[lhs])
+            # (#49) ROUTE #230 — `isinstance(v, T)` for any T but `object` is FALSE on `None`,
+            # so where `v` MAY be a container's None (the route-#230 record) the test also
+            # says `v` is not the None value. Without this, the fence's obligation was
+            # unprovable under the very guard Python relies on (`if not isinstance(v, int) or
+            # v < 0`, measured in the mirror's `_namedtuple_positional_access`). Sound in the
+            # only direction that matters: it can make the model's isinstance FALSE only
+            # where `v` equals the None value, and the solver can only ever establish that
+            # equality for a value that IS the None read.
+            _r230i = getattr(self, "_r230_maybe_none", None)
+            _a0i = args_ir[0] if args_ir else None
+            if (_r230i and t_tag != "tag_object" and isinstance(_a0i, dict)
+                    and _a0i.get("type") == "Var" and _a0i.get("name") in _r230i["locals"]):
+                _nn = "pycsl_none_str" if self._is_string_expr(_a0i) else "pycsl_none"
+                self._add_abstract_op("val function %s : %s" % (
+                    _nn, "string" if _nn.endswith("_str") else "int"))
+                _vw = self._expr_to_whyml(_a0i, local_refs or set(), False, None)
+                if _nn.endswith("_str"):
+                    # program-context string equality has no `=`; use the shared op.
+                    self._add_abstract_op(
+                        "val str_eq_op (a: string) (b: string) : bool\n"
+                        "    ensures { result <-> (a = b) }")
+                    return (f"(({lhs} = {self._TAG_LITERAL[t_tag]}) && "
+                            f"not (str_eq_op {_vw} {_nn}))")
+                return f"(({lhs} = {self._TAG_LITERAL[t_tag]}) && not ({_vw} = {_nn}))"
             return f"({lhs} = {self._TAG_LITERAL[t_tag]})"
         return f"(subtag {self._tag_of_value(args_ir[0])} {t_tag})"
 
