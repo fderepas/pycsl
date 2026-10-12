@@ -600,12 +600,18 @@ def _why3_typecheck(mlw_filename: str):
     Returns ``(ok: bool, diagnostic: str)``. A run is only honestly SUCCESS if this
     passes — emitting text that does not even type-check is the silent success the spec
     (refactor.md §1.5 / Phase D) forbids. A missing why3 is NOT a failure (we do not turn
-    an absent prover into a false typecheck-fail) — it is reported as skipped."""
+    an absent prover into a false typecheck-PASS) — (#49) gen #36: a missing why3 used to
+    return ok=True, and the caller then printed `L3-tc ✓` and "WhyML generated AND
+    type-checks" for WhyML nobody had checked (measured: an ill-typed emission reported
+    SUCCESS under `env -i`). An unchecked emission is not a checked one, so it FAILS CLOSED;
+    `--no-typecheck` is the honest opt-out."""
     try:
         r = subprocess.run(["why3", "prove", "--type-only", mlw_filename],
                            capture_output=True, text=True)
     except FileNotFoundError:
-        return True, "(why3 not found — typecheck skipped)"
+        return False, ("why3 not found on PATH — the type-check could NOT run, so this is "
+                       "NOT a pass (fail-closed). Put why3 on PATH, or pass --no-typecheck "
+                       "for an explicitly emit-only run.")
     if r.returncode == 0:
         return True, ""
     return False, (r.stderr.strip() or r.stdout.strip())
@@ -1200,9 +1206,9 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
         # run is SUCCESS only if the emitted WhyML at least TYPE-CHECKS (`why3 prove
         # --type-only`) — never merely "text emitted" (§1.5). `--no-typecheck` opts out
         # (fast emit-only, for byte-diff/dev sweeps and when why3 is absent). `--typecheck`
-        # is now a harmless no-op alias (the gate is already on). A missing why3 is treated
-        # as skip-not-fail by `_why3_typecheck` (ok=True), so the gate never turns an absent
-        # prover into a false failure.
+        # is now a harmless no-op alias (the gate is already on). A missing why3 now FAILS
+        # CLOSED in `_why3_typecheck` (gen #36): it used to be ok=True, which printed `L3-tc ✓`
+        # for an emission nobody checked.
         if not getattr(args, "no_typecheck", False):
             ok, diag = _why3_typecheck(mlw_filename)
             print(f"[level] L1 ✓  L2 ✓  L3-tc {'✓' if ok else '✗'}")
