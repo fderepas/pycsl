@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #36 (2026-10-12): #230 (None through a container, opened gen #35) REPAIRED 37e946d0 +
+##   witnesses 1920-1931; #231 (f-string format spec / `!r` discarded at IR emission — `f"{s!r}"`
+##   proved `== s`) OPENED 3ca32b8d and REPAIRED 985d570d, witnesses 1932-1940. Whole-file mirror
+##   re-proofs for the movers queued (g36-logs qB/qC/qD). Still open from earlier: see below.
+
 ## CURRENTLY OPEN after gen #33 (2026-09-28): **THREE — #226, #214, #221.**
 ##   #228 was found AND CLOSED AND GATED in gen #33. Its carrier is the campaign's own
 ##   gate: `bin/check-hashed-literal-purity.py` had ALREADY found the `stable_hash`
