@@ -29,3 +29,19 @@ unit of work is the marker's whole chain).
 
 Expected count payoff is SMALL (string-builder is the first blocker of only 16/435 stubs); the
 value of W-SB is (1) the Sev-1 repair, (2) an honest instrument, (3) one link in the #64 chains.
+
+## S2 RESULT (gen #36, 2026-10-12) — REFUTED by criterion (a); A(i) parked as a LOW-ROI COST/SCALE lever
+The mechanism WORKS (builder probe and `", ".join(xs)` over a `List[str]` param go L3-tc ✗ -> ✓,
+emitting `str_join_seq` / `str_join_arr`; patch kept at `getting-better/wsb/s2-ai.patch`, 79 lines:
+declared `List[str]` locals -> `seq_value_types = "string"` via `_detect_seq_promotion`; params via
+`param_list_flat_elem`). But on BOTH spike markers the first error stays on the `Seq.snoc` line,
+because the APPENDED ELEMENT is itself produced int-erased upstream:
+  * `whyml_ident`: `''.join(c for c in decomp ...)` (join over a GENERATOR) emits `(join_1 0)`, and
+    `unicodedata.normalize` is an opaque int; the live `sanitized = []` is unannotated anyway.
+  * `whyml_string_literal`: `_WHYML_STR_ESCAPES.get(ch)` (no default) is an int val (route C); with it
+    removed, the next error is `ch.encode` (route E).
+So A(i) pays only together with C (str->str dict-constant `.get`), E (`.encode`), a generator join,
+and `unicodedata` — a chain of 4-5 capabilities for <= 2 markers. Classified COST/SCALE (not a
+correctness boundary); ROI ranks it BELOW the in-place-mutator wall (#61a: first blocker of 77
+stubs by the W-SB census). Reopen when a chain probe of a higher-ROI lever needs it.
+W-SB net: route #231 (Sev-1) repaired, S0 instrument fix landed; count unchanged.
