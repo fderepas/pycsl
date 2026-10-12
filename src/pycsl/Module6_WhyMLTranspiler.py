@@ -1085,8 +1085,62 @@ class Module6_WhyMLTranspiler(
         self._pyval_list_walker_names = compute_pyval_list_walker_names(functions)
         self._emitted_logic_funcs = set()
         self._late_content_ops = []
+        # (#78) A multi-member SCC is one `let rec … with …` chain, keyworded by POSITION in
+        # `_emit_function`. A member emitted as a bodyless `val` (a `--fun`-trusted member
+        # outside the slice; the BESPOKE emitters keep their body whatever `trusted` says)
+        # breaks it two ways: a later concrete member still opens with `with` (Why3 SYNTAX
+        # ERROR, measured on Module5 `--fun`), and an earlier concrete member calls the `val`
+        # before it is declared (`unbound function or predicate symbol`, measured). Both are
+        # invalid WhyML whatever the program, so the SCC's blocks are buffered and, ONLY in
+        # that broken case, re-emitted vals-first with the concrete chain re-keyworded
+        # (`let rec` then `with`). Any SCC that is valid today is flushed unchanged
+        # (byte-inert). Sound: a `val` carries only its contract; order changes no meaning.
+        _scc_buf: List[tuple] = []
         for func in sorted_functions:
-            out += self._emit_function(func, scc_info)
+            _blk = self._emit_function(func, scc_info)
+            _, _spos, _ssize = scc_info.get(func["name"], (0, 0, 1))
+            if _ssize <= 1:
+                out += _blk
+                continue
+            _scc_buf.append(_blk)
+            if _spos < _ssize - 1:
+                continue
+            _vals = [b for b in _scc_buf if b and b[0].startswith("  val ")]
+            _broken = False
+            _seen_val = False
+            _conc_text = ""
+            for _b in _scc_buf:
+                if not _b:
+                    continue
+                if _b[0].startswith("  val "):
+                    _seen_val = True
+                    _vn = _b[0][len("  val "):].split(" ", 1)[0]
+                    if re.search(r"(?<![\w'])" + re.escape(_vn) + r"(?![\w'])", _conc_text):
+                        _broken = True
+                elif _b[0].startswith(("  with ", "  let rec ", "  let ")):
+                    if _seen_val and _b[0].startswith("  with "):
+                        _broken = True
+                    _conc_text += "\n".join(_b) + "\n"
+            if not _broken:
+                for _b in _scc_buf:
+                    out += _b
+            else:
+                for _b in _vals:
+                    out += _b
+                _open = False
+                for _b in _scc_buf:
+                    if not _b or _b[0].startswith("  val "):
+                        continue
+                    _b = list(_b)
+                    for _kw in ("  with ", "  let rec "):
+                        if _b[0].startswith(_kw):
+                            _b[0] = ("  with " if _open else "  let rec ") + _b[0][len(_kw):]
+                            break
+                    _open = _b[0].startswith(("  with ", "  let rec "))
+                    out += _b
+            _scc_buf = []
+        for _b in _scc_buf:
+            out += _b
 
         # (#49) ROUTE #224 — a DECLARED `#@ conforms_to` is checked whether or not the
         # flag is passed; the implicit inheritance overrides stay opt-in.
