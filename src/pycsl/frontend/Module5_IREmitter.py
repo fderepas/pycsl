@@ -5774,6 +5774,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     and (arg.annotation.value.endswith("Expr")
                          or arg.annotation.value.endswith("Stmt"))):
                 _eff_ann = ast.Name(id=arg.annotation.value)
+            # W-IPM prerequisite P1 (int-erasure seam): a QUOTED forward-reference param
+            # annotation that is a PLAIN IDENTIFIER naming a known record class
+            # (`other: "AuditReport"`) is the bare name `AuditReport` — exactly what
+            # `from __future__ import annotations` already makes the unquoted spelling.
+            # Before this it fell to `int` (`_record_param_classes` empty) and every
+            # `other.f` became an opaque `get_f other`. Nothing fancier than an identifier
+            # (no `"List[C]"`, no dotted names) is resolved.
+            elif (isinstance(arg.annotation, ast.Constant)
+                    and isinstance(arg.annotation.value, str)
+                    and arg.annotation.value.isidentifier()
+                    and arg.annotation.value in getattr(self, "_m5_record_class_names", set())):
+                _eff_ann = ast.Name(id=arg.annotation.value)
             if (isinstance(arg.annotation, ast.Subscript)
                     and isinstance(arg.annotation.value, ast.Name)
                     and arg.annotation.value.id == "Optional"):

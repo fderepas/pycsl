@@ -6653,6 +6653,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _sob = _sob.get("name")
             if _sfn in _sarf and _sob == "self":
                 return f"(Array.length {args[0]})"
+        # W-IPM prerequisite P2 (int-erasure seam): `len(p.<f>)` where `p` is a RECORD-typed
+        # param/local (not `self`) and `<f>` is one of ITS fields carried as an array (the
+        # same `_record_array_fields` / `_str_array_record_fields` sets the two `self`
+        # branches above use) is the ARRAY length too. It used to fall to the opaque
+        # `iter_length : int -> int`, applied to an `array` — an L3-tc type error. The
+        # receiver's class is checked to OWN the field (the two sets are keyed by field
+        # name only), so a same-named field of another record never routes here.
+        if (_raf or _sarf) and atype in ("FieldGet", "Attribute"):
+            _pfn = arg_ir.get("field") or arg_ir.get("attr")
+            _pob = arg_ir.get("object") or arg_ir.get("value")
+            _pon = _pob.get("name") if (isinstance(_pob, dict)
+                                        and _pob.get("type") == "Var") else None
+            _pcls = ((getattr(self, "_current_record_var_classes", {}) or {}).get(_pon)
+                     or (getattr(self, "_record_param_classes", {}) or {}).get(_pon)
+                     ) if _pon and _pon != "self" else None
+            if _pcls and _pfn in ((_raf or set()) | (_sarf or set())):
+                _prt = next((v for v in getattr(self, "_record_types", {}).values()
+                             if v.get("whyml_name") == _pcls), None)
+                if _prt is not None and _pfn in (_prt.get("fields") or []):
+                    return f"(Array.length {args[0]})"
         _a2d = getattr(self, "_array2d_params", set())
         if atype == "Var" and arg_ir.get("name") in _a2d:
             return f"({arg_ir['name']}.rows)"
