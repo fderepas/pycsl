@@ -150,6 +150,28 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # `self._emit_ir_seq_locals: set = set()` whose every `.add` is a local NAME (str).
     _pyval_locals: Set[str] = None
     _emit_ir_seq_locals: Set[str] = None
+    # (#49) gen #36, backlog #77 batch 5 — more fields this class's `#@ assigns` clauses name
+    # and never declared. Types from the LIVE source, never guessed: `_for_idx_init` (live
+    # `str = "0"`, copied from ControlFlowStmtMixin), `_known_collection_elements` and
+    # `_record_array_locals` (copied from TypeInferenceMixin / ExpressionEmissionMixin),
+    # `_pyast_stmt_locals` / `_tparam_locals` (live `Set[str]`), `_keyword_locals` (live
+    # `set()` whose only `.add` is the str target), `_record_seq_locals` (live `dict` whose
+    # every store is str name -> str class name), and five flags assigned only True/False.
+    # NOT declared: the None-initialised `_for_items_hval_map` / `_for_iter_materialize` /
+    # `_pyast_loop_variant_len` / `_str_slice_loop_len`, the `_uses_*_cache` fields, and
+    # `_late_content_ops` (a list of (op, decl, using) TUPLES — no record-field model).
+    _for_idx_init: str = "0"
+    _for_target_is_pyval: bool = False
+    _in_loop_spec: bool = False
+    _get_return_raw_option: bool = False
+    _pyval_get_as_string: bool = False
+    _pyval_get_raw_coll: bool = False
+    _keyword_locals: Set[str] = None
+    _pyast_stmt_locals: Set[str] = None
+    _tparam_locals: Set[str] = None
+    _record_array_locals: Dict[str, str] = None
+    _known_collection_elements: Dict[str, Dict[int, str]] = None
+    _record_seq_locals: Dict[str, str] = None
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment

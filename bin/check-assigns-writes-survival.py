@@ -107,8 +107,11 @@ MAX_TRAP = 3070
 #   the underdeclaration plane resolves the call graph by LIVE body and stopped short of it.
 #   (#49) gen #35, backlog #77 batch 4: 1981 -> **1899** — ten fields on ControlFlowStmtMixin;
 #   HOLE-D (the new declared-callee arm) predicted the five handler clauses to repair, exactly.
-MAX_TRAP = 1899
-MAX_TRAP_NMS = 1525
+#   (#49) gen #36, backlog #77 batch 5: 1899 -> **1537**, 1525 -> **1507** — twelve fields on
+#   StatementEmissionMixin (types from the live source / sibling mixins). HOLE 0, HOLE-T 0, HOLE-D 0;
+#   both movers (statements, the Transpiler aggregate) `why3 --type-only` clean, no clause repair needed.
+MAX_TRAP = 1537
+MAX_TRAP_NMS = 1507
 #   (#49) gen #35, backlog #75 — THE ARM THAT LOOKS AT THE SKIPPED SET. A symbol with NO `writes`
 #   clause whose source `#@ assigns` names a field its class's record emits as MUTABLE is a
 #   HOLE in waiting: no frame at all, the field mentionable, so a caller proves it unchanged.
