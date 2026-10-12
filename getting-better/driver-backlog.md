@@ -43,7 +43,7 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
   * **#75 BUILT** (`7b1398a9`): the emitter half (bodyless `val` of ANY class carries its frame) and
     the plane half (HOLE-NOWRITES arm 505 -> 8; TRAP split 3058 + TRAP-NMS 1549). Gate owed: 6
     mirror re-proofs (queue q75).
-  * **#78 NEW — `--fun` ON THE Module5 MIRROR IS A SYNTAX ERROR AT HEAD** (tool defect, fail-closed).
+  * **#78 — RESOLVED gen #36 (`c1d238ea`)**: was `--fun` ON THE Module5 MIRROR IS A SYNTAX ERROR (tool defect, fail-closed).
     `--fun X` trusts everything outside X's IR body-call closure, but Module 6 groups the bespoke
     `_py_expr_*` family into ONE `let rec … with …` by a graph the IR slice cannot see; the bespoke
     setcomp member keeps its body and its `with` after the opener became a `val` (line 2103).

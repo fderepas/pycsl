@@ -12,3 +12,6 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 ## Iterations
 2026-10-12T14:05Z | 0 | setup | heartbeat armed; backlog loaded; #230 WIP: fast planes 61/61 green; 9 witnesses FAIL on PyCSL-R230 at WIP and PROVE at HEAD; 3 controls verify both | - 
 2026-10-12T14:28Z | 1 | route #230 | REPAIRED: emitter 37e946d0 + 12 corpus witnesses (9 FAIL/3 PASS); fast planes 61/61 both; mirror re-proofs qA statements, qB expressions/functions/stmt_control_flow/Transpiler @37e946d0 running | see next
+2026-10-12T14:48Z | 2 | Phase 1 base-loop sub-agent | no_cheap_remaining (42 mirror files probed; 1 probe-CLEAN _find_construct_idx failed non-vacuity; blockers = #64 int-erasure seam ~60%, in-place mutators, nested-fn lift, with-as, hetero lists) | - 
+2026-10-12T14:48Z | 3 | backlog #78 (--fun on Module5 mirror = syntax error) | executor launched | pending
+2026-10-12T16:47Z | 3 | backlog #78 | BROKEN: c1d238ea (Module6_WhyMLTranspiler flat-emission loop buffers mixed val/concrete SCC; vals first, chain re-keyworded). Driver-verified: mirror 53/53 0 MOVED; --fun _py_expr_setcomp 830 Valid / 0 non-Valid (verifier timed out in post-phase at 1200s). Agent: corpus 0/1393, pyref 0/2199, fast 61/61 | c1d238ea
