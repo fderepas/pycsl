@@ -11,3 +11,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 
 ## Iterations
 2026-10-12T14:05Z | 0 | setup | heartbeat armed; backlog loaded; #230 WIP: fast planes 61/61 green; 9 witnesses FAIL on PyCSL-R230 at WIP and PROVE at HEAD; 3 controls verify both | - 
+2026-10-12T14:28Z | 1 | route #230 | REPAIRED: emitter 37e946d0 + 12 corpus witnesses (9 FAIL/3 PASS); fast planes 61/61 both; mirror re-proofs qA statements, qB expressions/functions/stmt_control_flow/Transpiler @37e946d0 running | see next
