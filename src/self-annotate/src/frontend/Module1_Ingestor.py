@@ -135,12 +135,29 @@ class _Harvester:
     def _normalize_leading(self, raw_lines: List[str]) -> List[str]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
+    #@ requires 0 <= i and n <= len(raw_lines)
     #@ ensures True
     #@ assigns \nothing
-    def _fold_clauses(self, raw_lines: List[str], i: int, n: int, blk_indent: int, label: str) -> tuple:
-        return ([], {})
+    #@ raises PyCSLParseError when True
+    def _fold_clauses(self, raw_lines: List[str], i: int, n: int, blk_indent: int,
+                      label: str) -> tuple:
+        """Collect the 4-space-indented body lines of the block whose header is at
+        `blk_indent`, starting at `raw_lines[i]`. Returns `(clauses, next_i)`. Strict:
+        each body line must be exactly `blk_indent + 4`."""
+        clauses: List[str] = []
+        #@ loop invariant 0 <= i
+        #@ loop variant n - i
+        while i < n and raw_lines[i].strip():
+            body_indent = _indent_width(raw_lines[i])
+            if body_indent <= blk_indent:
+                break                       # block ends (next top-level contract)
+            if body_indent != blk_indent + 4:
+                raise PyCSLParseError(
+                    f"`{label}`: body must be indented exactly 4 spaces under the "
+                    f"header (got {body_indent - blk_indent})", stage="Module1")
+            clauses.append(raw_lines[i].strip())
+            i += 1
+        return clauses, i
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
