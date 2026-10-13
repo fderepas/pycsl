@@ -69,7 +69,6 @@ exception_model.py	bases_closure	cost-scale:in-place-mutator	THE IN-PLACE COLLEC
 frontend/ConcurrencyChecker.py	ConcurrencyChecker.check	unclassified	-
 frontend/ConcurrencyChecker.py	ConcurrencyChecker._check_function	unclassified	-
 frontend/ConcurrencyChecker.py	ConcurrencyChecker._walk_stmt	unclassified	-
-frontend/ConcurrencyChecker.py	ConcurrencyChecker._warn_if_unprotected	unclassified	-
 frontend/ConcurrencyChecker.py	ConcurrencyChecker.summary	unclassified	-
 frontend/Module1_Ingestor.py	_match_block_hdr	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/Module1_Ingestor.py	Module1_Ingestor.process	unclassified	-

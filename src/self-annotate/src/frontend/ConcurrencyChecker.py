@@ -73,12 +73,23 @@ class ConcurrencyChecker:
     def _walk_stmt(self, node: ast.AST, held: int, func_name: str) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.warnings
     def _warn_if_unprotected(self, var: str, held: int, func_name: str, line: int, write: bool) -> None:
-        pass
+        if var not in self._shared_vars:
+            return
+        req_mutex = self._shared_vars[var]
+        if req_mutex is None:
+            return  # already warned at declaration level
+        if req_mutex not in held:
+            action = "write to" if write else "read of"
+            self.warnings.append(ConcurrencyWarning(
+                kind="unprotected_shared",
+                message=_ERR_UNPROTECTED_WRITE % (action, var, req_mutex),
+                function=func_name,
+                line=line,
+            ))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
