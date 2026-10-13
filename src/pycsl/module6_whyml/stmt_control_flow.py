@@ -29,6 +29,23 @@ class ControlFlowStmtMixin:
         _test_d = stmt.test.to_dict()
         test = self._expr_to_whyml(_test_d, local_refs)
         test = self._to_bool(test, _test_d)
+        # (#49) gen #36 — A MIXED `and`/`or` CONDITION WITH A STRING OPERAND. The value
+        # form of `a and s` selects an OPERAND (route #35), and an int `a` and a string
+        # `s` have no common Why3 type, so `while i < n and lines[i].strip():` never
+        # type-checked. In a CONDITION only truthiness is observed, and Python's
+        # `bool(a and b)` is exactly `bool(a) && bool(b)` (`or`: `||`), short-circuit
+        # included (Why3's `&&`/`||` are lazy). Gated on a direct string operand of a
+        # non-string `and`/`or`, so every shape that type-checks today is untouched.
+        _tl36 = _test_d.get("left")
+        _tr36 = _test_d.get("right")
+        if (_test_d.get("type") == "BinOp" and _test_d.get("op") in ("and", "or")
+                and isinstance(_tl36, dict) and isinstance(_tr36, dict)
+                and not self._is_string_expr(_test_d)
+                and (self._is_string_expr(_tl36) or self._is_string_expr(_tr36))):
+            _tj36 = " && " if _test_d.get("op") == "and" else " || "
+            test = ("(" + self._to_bool(self._expr_to_whyml(_tl36, local_refs), _tl36)
+                    + _tj36
+                    + self._to_bool(self._expr_to_whyml(_tr36, local_refs), _tr36) + ")")
         _body_d = [s.to_dict() for s in stmt.body]
         has_cont = IRScanner.has_continue(_body_d)
         has_direct_ret = IRScanner.has_direct_return(_body_d)

@@ -922,6 +922,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     "val str_length_op (s: string) : int\n"
                     "    ensures { result = (String.length s) }")
                 return f"(str_length_op ({whyml_str}) <> 0)"
+        # (#49) gen #36 — THE GENERAL STRING-TRUTHINESS RULE. The var, field and
+        # @mutable_state rules above each state Python's `bool(s) == (len(s) != 0)` for
+        # one shape; any other expression `_is_string_expr` classifies as a string
+        # (`raw_lines[i].strip()`, a `re.sub(..)` result) fell through to the int
+        # coercion `<s> <> 0`, a `string` vs `int` L3-tc rejection, so no passing program
+        # can contain it. Body context only (the program `val`), like the rules above.
+        if not self._in_spec and self._is_string_expr(ir_expr):
+            self._add_abstract_op(
+                "val str_length_op (s: string) : int\n"
+                "    ensures { result = (String.length s) }")
+            return f"(str_length_op ({whyml_str}) <> 0)"
         # Coerce int → bool
         return f"({whyml_str} <> 0)"
 
@@ -4762,6 +4773,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         return True
                 if (_v.get("type") == "Var"
                         and getattr(self, "_array_elem_types", {}).get(_v.get("name")) == "string"):
+                    return True
+                # (#49) gen #36: an element read `p[i]` of a FORMAL `List[str]` param. WL-04
+                # already EMITS such a param as `array string` (`_param_list_flat_elem`), so
+                # `p[i]` lowers to a real `string`; the classifier did not carry the param's
+                # declared element type, so `p[i].strip()` fell to an opaque int op over a
+                # string (L3-tc). Element reads only (`Subscript`, not a slice).
+                if (t == "Subscript" and _v.get("type") == "Var"
+                        and _v.get("name") in set(getattr(self, "_formal_params", []) or [])
+                        and (getattr(self, "_param_list_flat_elem", {}) or {}
+                             ).get(_v.get("name")) == "string"):
                     return True
                 # self-ir-schema.md IR3: `sv["name"]`/`sv["mutex"]` on a `sharedvar`-typed
                 # comprehension loop var → the record's string field (used only for
