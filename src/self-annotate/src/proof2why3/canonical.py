@@ -93,12 +93,22 @@ def _sort_arrow_hypotheses(t: Term) -> Term:
 def _flatten_foralls(t: Term) -> Term:
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _camel_to_snake(name: str) -> str:
-    return ""
+    """Convert camelCase / PascalCase identifier to snake_case.
+
+    Used for cross-prover name normalization: Lean's `wpGenCorrect`
+    canonicalizes to the same `wp_gen_correct` as Rocq's snake_case.
+    """
+    import re as _re
+    # Insert underscore before any uppercase letter that follows a
+    # lowercase or digit.
+    s = _re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", name)
+    # And before uppercase letter that's followed by lowercase.
+    s = _re.sub(r"([A-Z])([A-Z][a-z])", r"\1_\2", s)
+    return s.lower()
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

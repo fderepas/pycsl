@@ -152,12 +152,28 @@ class IRCrossCheckResult:
 def _load_axiom_registry() -> int:
     return {}
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _preprocess_whyml(body: str) -> str:
-    return ""
+    """Rewrite Why3 axiom-body surface syntax into the parser's grammar.
+
+    - Why3 separates a quantifier from its body with a dot
+      (`forall x : ty. body`, and chained `forall x:ty. forall y:ty2. …`);
+      the parser expects a comma. Convert every `: <type>.` to `: <type>,`
+      for any (possibly multi-word) type such as `array int`.
+    - Why3 writes conjunction as the two-character `/\\`; the lexer's
+      conjunction token is the three-character form used throughout the
+      IR (a raw-string artifact in `_OP_TOKENS`). Bridge the two so
+      registry conjunctions tokenize like the Rocq/Lean side.
+    """
+    import re as _re
+    # `... : <type>.` (end of a quantifier) → `... : <type>,`. The type is
+    # the run of identifiers/spaces between the colon and the dot.
+    out = _re.sub(r":\s*([A-Za-z_][\w ]*?)\.", r": \1,", body)
+    # Two-char `/\` → three-char `/\\` (the lexer's conjunction token).
+    out = out.replace("/\\", "/\\\\")
+    return out
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

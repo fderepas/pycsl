@@ -396,7 +396,6 @@ proof2why3/canonical.py	_dedup_arrow_chain	cost-scale:int-erasure-seam	THE INT-E
 proof2why3/canonical.py	_ac_normalize	cost-scale:nested-closure-lift	the nested-closure lift
 proof2why3/canonical.py	_sort_arrow_hypotheses	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/canonical.py	_flatten_foralls	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
-proof2why3/canonical.py	_camel_to_snake	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/canonical.py	_normalize_names	unclassified	-
 proof2why3/canonical.py	_normalize_type_string	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/canonical.py	_iff_app_to_binop	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
@@ -407,7 +406,6 @@ proof2why3/crosscheck.py	main	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM I
 proof2why3/crosscheck_ir.py	IRCrossCheckResult.pairwise	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/crosscheck_ir.py	IRCrossCheckResult.diagnostic	unclassified	-
 proof2why3/crosscheck_ir.py	_load_axiom_registry	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
-proof2why3/crosscheck_ir.py	_preprocess_whyml	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/crosscheck_ir.py	crosscheck_file_ir	unclassified	-
 proof2why3/crosscheck_ir.py	main	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/extract.py	extract_rocq_statements	unclassified	-
