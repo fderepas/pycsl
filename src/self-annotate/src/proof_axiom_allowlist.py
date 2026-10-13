@@ -60,7 +60,6 @@ def is_lean_axiom_allowed(name: str) -> bool:
     return name.strip() in LEAN_KERNEL_AXIOM_ALLOWLIST
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

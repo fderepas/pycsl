@@ -435,7 +435,6 @@ proof2why3/sertop.py	parse_sexp	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM
 proof2why3/sertop.py	run_sertop_batch	unclassified	-
 proof2why3/sertop.py	SertopSession.type_of_batch	unclassified	-
 proof2why3/sertop.py	extract_via_sertop	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
-proof_axiom_allowlist.py	parse_lean_axioms_line	unclassified	-
 proof_axiom_allowlist.py	parse_rocq_assumptions_block	unclassified	-
 pycsl.py	_make_temp_mlw_path	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_generate_rocq_obligations	unclassified	-

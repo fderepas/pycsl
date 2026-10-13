@@ -154,7 +154,10 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        lines, ZERO new abstract operations, green whole-file proof in 38 minutes. Its
 #        near-twin `pycsl.py::_parse_args` is 174 lines, also proves, and is REFUSED by check
 #        1 for TEN new abstract operations — the whole of `argparse` going uninterpreted.
-MAX_UNCLASSIFIED = 276   # (#49) gen #36, 2026-10-13 — 277 -> 276: W-IPM S-C4 converted the
+MAX_UNCLASSIFIED = 275   # (#49) gen #36, 2026-10-13 — 276 -> 275: the split-comprehension
+                         # `snapshot_str` return bridge converted the unclassified
+                         # `proof_axiom_allowlist.py::parse_lean_axioms_line` (marker removed).
+                         # (#49) gen #36, 2026-10-13 — 277 -> 276: W-IPM S-C4 converted the
                          # unclassified `frontend/ConcurrencyChecker.py::ConcurrencyChecker.
                          # summary` (record-array self-field loop; marker removed).
                          # (#49) gen #36, 2026-10-13 — 278 -> 277: W-IPM S-C3 converted the
