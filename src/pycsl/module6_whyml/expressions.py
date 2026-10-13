@@ -6652,6 +6652,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (atype == "Var" and arg_ir.get("name")
                 in getattr(self, "_refine_str_comp_locals", set())):
             return f"(Seq.length {args[0]})"
+        # (#49) gen #36: `len(\result)` in a contract of a function whose DECLARED return
+        # lowers to `array string` (a `-> List[str]`) is the ARRAY length of the result;
+        # it fell to the opaque `iter_length`, so no length claim about a string-list
+        # result could ever prove. Spec context, `array string` return only.
+        if (atype == "Result" and self._in_spec
+                and getattr(self, "_func_return_type", None) == "array string"):
+            return f"(Array.length {args[0]})"
         # nested-list-mutable.md: a matrix-routed (in-place inner-mutated int-leaf)
         # nested list `a` is a built-in `matrix int`. `len(a)` = `a.rows` (outer row
         # count); `len(a[i])` = `a.columns` (the rectangular per-row length). Emit the

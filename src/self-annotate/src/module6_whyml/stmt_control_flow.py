@@ -1502,6 +1502,22 @@ class ControlFlowStmtMixin:
                     seq_val = f"!{whyml_ident(val_ir['name'])}"
                 else:
                     seq_val = self._seq_init_expr(val_ir, local_refs)
+                    # (#49) gen #36: a split comprehension (`[p.strip() for p in
+                    # s.split(",")]`) lowers to the `array string` `str_split_op`, and the
+                    # generic bridge wraps it in `snapshot`, which outside @mutable_state is
+                    # monomorphic `array int -> seq int` -- an L3-tc rejection against the
+                    # `seq string` carrier. Use its STRING twin `snapshot_str` (length- and
+                    # element-preserving, fresh seq). Keyed on the exact text the bridge
+                    # itself produced, so every other return keeps its lowering.
+                    if (val_ir.get("type") == "ListComp"
+                            and not getattr(self, "_mutable_state_classes", None)
+                            and seq_val.startswith("(snapshot (str_split_op ")):
+                        self._add_abstract_op(
+                            "val snapshot_str (a: array string) : seq string\n"
+                            "    ensures { Seq.length result = Array.length a }\n"
+                            "    ensures { forall i:int. 0 <= i < Array.length a ->"
+                            " Seq.get result i = a[i] }")
+                        seq_val = "(snapshot_str " + seq_val[len("(snapshot "):]
                 return f"{indent}raise (Return_seq_str {seq_val})"
             if func_ret == "array emit_ir":
                 # THE STATEMENT-LIST CARRIER: an `array emit_ir` return travels as an
