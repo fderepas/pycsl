@@ -7466,6 +7466,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         while len(param_types) < n:
             param_types.append("int")
         param_types = param_types[:n]
+        # (#49) gen #36: a `self.<m>(...)` stub's slot for a callee formal declared
+        # `List[str]` is `array string` -- the type the callee's own `let` declares for it
+        # (`_param_list_elem_types`). `_build_method_param_types_map` gives that only in an
+        # @mutable_state file and `array int` elsewhere, so passing the caller's `array
+        # string` failed L3-tc. Read from the callee's IR (positional formals, `self`
+        # excluded); every such call was an L3-tc error, so no passing program changes.
+        if func_name.startswith("self.") and self._current_self_type and "array int" in param_types:
+            _k36 = f"{self._current_self_type}__{func_name[len('self.'):]}"
+            for _f36 in (self.ir.get("functions", []) or []):
+                if _f36.get("name") != _k36:
+                    continue
+                _fp36 = list(_f36.get("formal_params", []) or [])
+                _pl36 = _f36.get("param_list_elem_types", {}) or {}
+                _pa36 = _f36.get("param_annotations", {}) or {}
+                for _i36 in range(min(n, len(_fp36))):
+                    if (param_types[_i36] == "array int"
+                            and _pl36.get(_fp36[_i36]) == "string"
+                            and _pa36.get(_fp36[_i36]) == "list"):
+                        param_types[_i36] = "array string"
+                break
         # Per missing-bytes-struct-feature.md Phase 1: infer
         # array-int args from the emitted WhyML expression's shape
         # for non-self calls (where module_method_param_types
@@ -8132,6 +8152,42 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             _ph167 = {_pp167: f"pycslrsixseven{_ix167}x"
                                       for _ix167, _pp167 in enumerate(_pn167)}
                             _e167 = _cp167.deepcopy(_e167)
+                            # (#49) gen #36: `len(p)` of a callee formal declared a list
+                            # (`List[...]`) is that ARRAY's length; through the placeholder it
+                            # fell to the opaque `iter_length : int -> int` and the substituted
+                            # array actual failed L3-tc. Rewritten to the `\length(p)` node
+                            # (`ArrayLen`, `Array.length`), whose `var` the rename below maps.
+                            _pa36 = _f167.get("param_annotations", {}) or {}
+                            _w36: List[Any] = [_e167]
+                            while _w36:
+                                _x36 = _w36.pop()
+                                if isinstance(_x36, dict):
+                                    for _kk36 in list(_x36.keys()):
+                                        _vv36 = _x36[_kk36]
+                                        if (isinstance(_vv36, dict) and _vv36.get("type") == "Call"
+                                                and _vv36.get("func") == "len"
+                                                and len(_vv36.get("args") or []) == 1
+                                                and isinstance(_vv36["args"][0], dict)
+                                                and _vv36["args"][0].get("type") == "Var"
+                                                and _vv36["args"][0].get("name") in _pn167
+                                                and _pa36.get(_vv36["args"][0].get("name")) == "list"):
+                                            _x36[_kk36] = {"type": "ArrayLen",
+                                                           "var": _vv36["args"][0]["name"]}
+                                        else:
+                                            _w36.append(_vv36)
+                                elif isinstance(_x36, list):
+                                    for _ix36, _vv36 in enumerate(_x36):
+                                        if (isinstance(_vv36, dict) and _vv36.get("type") == "Call"
+                                                and _vv36.get("func") == "len"
+                                                and len(_vv36.get("args") or []) == 1
+                                                and isinstance(_vv36["args"][0], dict)
+                                                and _vv36["args"][0].get("type") == "Var"
+                                                and _vv36["args"][0].get("name") in _pn167
+                                                and _pa36.get(_vv36["args"][0].get("name")) == "list"):
+                                            _x36[_ix36] = {"type": "ArrayLen",
+                                                           "var": _vv36["args"][0]["name"]}
+                                        else:
+                                            _w36.append(_vv36)
                             _w167 = [_e167]
                             while _w167:
                                 _x167 = _w167.pop()
@@ -14827,6 +14883,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # \result[i] on a tuple return → let-destructure
         if value.get("type") == "Result" and hasattr(self, "_current_tuple_arity"):
             arity = self._current_tuple_arity
+            # (#49) gen #36: a propagated callee `\result[k]` rendered onto a dotted call's
+            # abstract `val` (`_handle_dotted_call` sets `_func_return_type` to the CALLEE's
+            # return type for exactly that window) destructures the CALLEE's tuple, not the
+            # caller's. Outside that window `_func_return_type` and `_current_tuple_arity`
+            # are set together (`_emit_function_block`), so this changes nothing there.
+            _frt36 = getattr(self, "_func_return_type", "")
+            if (not arity and isinstance(_frt36, str) and _frt36.startswith("(")
+                    and _frt36.endswith(")")):
+                _d36, _c36 = 0, 1
+                for _ch36 in _frt36[1:-1]:
+                    if _ch36 == "(":
+                        _d36 += 1
+                    elif _ch36 == ")":
+                        _d36 -= 1
+                    elif _ch36 == "," and _d36 == 0:
+                        _c36 += 1
+                arity = _c36 if _c36 > 1 else 0
             if arity and arity > 0:
                 try:
                     idx = int(index)

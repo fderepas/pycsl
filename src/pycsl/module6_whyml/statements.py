@@ -1788,6 +1788,24 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     if (_crt and _crt.startswith("(")
                             and _crt.count(",") + 1 == len(targets)):
                         tuple_ret = _crt
+                else:
+                    # (#49) gen #36: the val `_handle_dotted_call` JUST registered for this
+                    # call already carries the callee's DECLARED tuple return (`self._fold_
+                    # clauses(..)` -> `(array string, int)`); the homogeneous-int default
+                    # below DOWNGRADED it, so the caller's unpack and the callee's own
+                    # signature disagreed (and a second call site of the same method was
+                    # pushed to a route-#188 `_c<hash>` twin that kept the real type). Keep
+                    # a declared tuple of the unpack's arity when it has a non-int slot; an
+                    # all-int one is the default anyway. A wrong slot type is a Why3
+                    # rejection, never a silent value.
+                    _ex_head = self._abstract_ops.get(arity_fn, "").split("\n", 1)[0]
+                    import re as _re36
+                    _ex_m = _re36.search(r"\)\s*:\s*(\([^()]*\))\s*(?:writes\b|$)", _ex_head)
+                    if (_ex_m is not None
+                            and _ex_m.group(1).count(",") + 1 == len(targets)
+                            and any(_s.strip() != "int"
+                                    for _s in _ex_m.group(1)[1:-1].split(","))):
+                        tuple_ret = _ex_m.group(1)
                 # frame-audit fix (state-taking tuple callee): `_handle_dotted_call`
                 # registers the abstract `val` for a `self.<m>(...)` whose callee declares
                 # a non-empty self-field frame WITH a leading receiver binder
@@ -7073,6 +7091,31 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         #   - plain struct.pack assigns: HOISTED with
         #     `ref (Array.make 0 0)` (single-shot, used later)
         struct_array_targets = self._collect_struct_unpack_array_targets(body_stmts)
+        # (#49) gen #36: the same NOT-hoisted treatment for a tuple-unpack slot whose callee's
+        # declared tuple return types it `array string` (`clauses, i = self._fold_clauses(..)`
+        # with `(array string, int)`). The collector above recognises only `array int`, so
+        # such a target was pre-declared `ref 0` and the `:=` of the unpacked array failed
+        # L3-tc. Inline (the collector's mirror is a converted generic-fold body); every
+        # such unpack was an L3-tc error, so no passing program changes.
+        _s36_stack = list(body_stmts)
+        while _s36_stack:
+            _s36 = _s36_stack.pop()
+            if not isinstance(_s36, dict):
+                continue
+            if _s36.get("stmt") == "TupleUnpack":
+                _v36 = _s36.get("value", {})
+                if isinstance(_v36, dict) and _v36.get("type") == "Call":
+                    _rt36 = self._call_return_whyml_type(_v36.get("func", ""))
+                    if isinstance(_rt36, str) and _rt36.startswith("(") and "," in _rt36:
+                        for _t36, _sl36 in zip(_s36.get("targets", []),
+                                               self._split_tuple_type(_rt36)):
+                            if _sl36 == "array string":
+                                struct_array_targets = struct_array_targets | {_t36}
+            for _k36 in ("body", "orelse"):
+                _s36_stack.extend(_s36.get(_k36, []) or [])
+            if _s36.get("stmt") == "Try":
+                for _h36 in _s36.get("handlers", []) or []:
+                    _s36_stack.extend(_h36.get("body", []) or [])
         struct_pack_targets = self._collect_struct_pack_assign_targets(body_stmts)
 
         pre_decl_vars: Set[str] = {
