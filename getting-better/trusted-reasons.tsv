@@ -37,7 +37,6 @@ Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._sig_val_from_let._hdr_name	c
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._transpile_modular	unclassified	-
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._transpile_modular._emit_funcs	unclassified	-
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._shared_use_lines	unclassified	-
-audit_proof.py	AuditReport.extend	unclassified	-
 audit_proof.py	_extract_directives	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 audit_proof.py	_parse_rocq_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 audit_proof.py	_parse_lean_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR

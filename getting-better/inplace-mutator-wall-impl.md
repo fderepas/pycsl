@@ -32,3 +32,15 @@ length postcondition Valid; `hand_nv.mlw` twin Unknown). Three PREREQUISITES are
   P3. a list field assigned in `__init__` (corpus 0981) has no recorded element type, so the
       element-type check cannot distinguish `List[int]` from records erased to `array int`.
 P1/P2 are int-erasure-seam links (review §6); they are promoted to their own lever (W-IPM-P).
+
+## S-C RESULT (retry, after P1+P2) — BROKEN: `AuditReport.extend` CONVERTED (gen #36)
+Built by the retry executor before the 2026-10-12 session death; RE-VALIDATED FROM SCRATCH on
+2026-10-13 by the driver (pre-crash gate results discarded): inline arm in
+`statements.py::_handle_expr_stmt` (`self.f <- Array.append self.f <src>` for list self fields whose
+element type maps exactly to the emitted array element; everything else keeps the refusal) + record
+param actuals typed as the record in `expressions.py`. Witnesses 1945 PASS / 1946 FAIL (non-vacuity)
+/ 1947 PASS (caller) / 1948 FAIL (array-int record element refused) / 1949 FAIL (self-alias rejected
+by Why3 "illegal alias"); 0980/0981 unchanged (refused). Corpus 0 MOVED / 1410 (4 new), pyref 0 /
+2199; mirror 2 MOVED (audit_proof: 3 `Array.append`, whole-file 48 Valid / 0; pycsl: the imported
+val gains the three length ensures — whole-file re-proof queued); fidelity 898 verbatim; fast planes
+61/61. Count 477 -> 476. P3 (`__init__`-assigned field element types) remains for 0981.

@@ -2793,6 +2793,110 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         in_loop: bool,
     ) -> str:
         val = stmt.value.to_dict()
+        # W-IPM S-C (#49): `self.<f>.append(v)` / `self.<f>.extend(<recv>.<g>)` on a LIST
+        # self field held as a MUTABLE `array <T>` record field is a real field write-back
+        # `self.<f> <- Array.append self.<f> (Array.make 1 v)` / `... <recv>.<g>` — the new
+        # length is the sum, old elements are preserved, and the field store puts
+        # `self.<f>` in the function's effect, so Why3 checks it against the declared
+        # `writes` (from `#@ assigns`). Fires ONLY when the field's Python element type maps
+        # EXACTLY to the emitted Why3 element type `T` (int/str/bool/float, or a record
+        # emitted as `array <that record>`); a record element erased to `array int` (O7),
+        # an `__init__`-assigned field with no recorded element type (0981), a
+        # `@mutable_state` module, an `extend` source that is not a same-typed record field,
+        # or an `append` value whose type is not known to be `T` all fall through to the
+        # existing refusal unchanged — never `_coerce_to_int`.
+        if (val.get("type") == "Call"
+                and not getattr(self, "_mutable_state_classes", None)):
+            _sc_fn = str(val.get("func", "") or "")
+            _sc_parts = _sc_fn.split(".")
+            _sc_args = val.get("args") or []
+            _sc_kw = val.get("keywords") or val.get("kwargs") or []
+            _sc_ty = getattr(self, "_current_self_type", None)
+            if (len(_sc_parts) == 3 and _sc_parts[0] == "self"
+                    and _sc_parts[2] in ("append", "extend") and _sc_ty
+                    and len(_sc_args) == 1 and not _sc_kw):
+                _sc_f = _sc_parts[1]
+                _sc_rec = next((v for v in self._record_types.values()
+                                if v.get("whyml_name") == _sc_ty), None)
+                _sc_lbl = self._field_label(_sc_ty, _sc_f)
+                _sc_emt = (getattr(self, "_emitted_record_field_types", {})
+                           or {}).get(_sc_ty, {}).get(_sc_lbl)
+                _sc_mut = _sc_lbl in ((getattr(self, "_emitted_record_mutable_labels", {})
+                                       or {}).get(_sc_ty, set()))
+                _sc_scalar = {"int": "int", "str": "string", "string": "string",
+                              "bool": "bool", "float": "real", "real": "real"}
+                _sc_elem = None
+                if (_sc_rec is not None and _sc_mut
+                        and (_sc_rec.get("field_types") or {}).get(_sc_f) == "list"):
+                    _sc_vt = (_sc_rec.get("field_value_types") or {}).get(_sc_f)
+                    if _sc_vt in _sc_scalar:
+                        _sc_elem = _sc_scalar[_sc_vt]
+                    elif _sc_vt in self._record_types:
+                        _sc_elem = self._record_types[_sc_vt].get("whyml_name")
+                    if _sc_elem is None or _sc_emt != f"array {_sc_elem}":
+                        _sc_elem = None
+                _sc_a = _sc_args[0]
+                _sc_a = _sc_a.to_dict() if hasattr(_sc_a, "to_dict") else _sc_a
+                _sc_src = None
+                if _sc_elem is not None and isinstance(_sc_a, dict):
+                    if _sc_parts[2] == "extend":
+                        # source must be `<recv>.<g>` with `<recv>` self or a record-typed
+                        # param/local, whose OWN emitted field type is the same `array T`
+                        if _sc_a.get("type") == "FieldGet":
+                            _sc_on, _sc_g = _sc_a.get("object"), _sc_a.get("field")
+                        elif _sc_a.get("type") == "Attribute":
+                            _sc_o = _sc_a.get("value") or _sc_a.get("object") or {}
+                            _sc_on = (_sc_o.get("name") if isinstance(_sc_o, dict)
+                                      and _sc_o.get("type") == "Var" else None)
+                            _sc_g = _sc_a.get("attr")
+                        else:
+                            _sc_on, _sc_g = None, None
+                        _sc_ocls = None
+                        if _sc_on == "self":
+                            _sc_ocls = _sc_ty
+                        elif isinstance(_sc_on, str):
+                            _sc_ocls = (getattr(self, "_record_param_classes", {})
+                                        or {}).get(_sc_on)
+                            if _sc_ocls is None:
+                                _sc_rv = (getattr(self, "_current_record_var_classes", {})
+                                          or {}).get(_sc_on)
+                                if _sc_rv in self._record_types:
+                                    _sc_ocls = self._record_types[_sc_rv].get("whyml_name")
+                        if _sc_ocls and isinstance(_sc_g, str):
+                            _sc_ot = (getattr(self, "_emitted_record_field_types", {})
+                                      or {}).get(_sc_ocls, {}).get(
+                                          self._field_label(_sc_ocls, _sc_g))
+                            if _sc_ot == f"array {_sc_elem}":
+                                _sc_src = self._expr_to_whyml(_sc_args[0], local_refs)
+                    else:
+                        # append: the value's type must be KNOWN to be T — a literal of
+                        # that kind, or a local/param whose declared type maps to T
+                        _sc_vk = None
+                        if (_sc_a.get("type") == "Number"
+                                and type(_sc_a.get("value")) is int
+                                and not _sc_a.get("py_ellipsis")):
+                            _sc_vk = "int"
+                        elif (_sc_a.get("type") == "String"
+                                and isinstance(_sc_a.get("value"), str)):
+                            _sc_vk = "string"
+                        elif _sc_a.get("type") == "Var":
+                            _sc_vn = _sc_a.get("name")
+                            _sc_vk = _sc_scalar.get(
+                                (getattr(self, "_current_symbol_table", {}) or {}).get(_sc_vn))
+                            if _sc_vk is None:
+                                _sc_vk = (getattr(self, "_record_param_classes", {})
+                                          or {}).get(_sc_vn)
+                        if _sc_vk is not None and _sc_vk == _sc_elem:
+                            _sc_src = ("(Array.make 1 "
+                                       + self._expr_to_whyml(_sc_args[0], local_refs)
+                                       + ")")
+                if _sc_src is not None:
+                    code = (f"{indent}self.{_sc_lbl} <- "
+                            f"Array.append self.{_sc_lbl} {_sc_src}")
+                    if rest:
+                        code += ";\n" + self._stmts_to_whyml(
+                            rest, local_refs, declared_refs, indent, in_loop)
+                    return code
         # self-tcb-reduction (_err-divergence): a bare-statement `self.<m>(...)` call to a
         # `-> NoReturn` callee never returns. `_handle_dotted_call` lowers it to
         # `(let _ = <call> in absurd)` (type `'a`). As a STATEMENT it must NOT be wrapped in

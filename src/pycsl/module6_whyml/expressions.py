@@ -7469,6 +7469,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 ident = stripped
             if not ident.replace("_", "").isalnum():
                 continue
+            # W-IPM S-C (#49): a RECORD-typed parameter actual (`r.extend(o)` with
+            # `o: "Report"`, typed by P1) is that record, not the default `int` — which made
+            # every such call an L3-tc error (`report` where `int` is expected). Byte-inert by
+            # construction: a record passed to an int formal was already rejected at L3-tc.
+            _sc_rpc = getattr(self, "_record_param_classes", {}) or {}
+            if not stripped.startswith("!") and ident in _sc_rpc:
+                param_types[i] = _sc_rpc[ident]
+                continue
             st = getattr(self, "_current_symbol_table", {})
             if (ident in getattr(self, "_current_array1d_params", set())
                     or st.get(ident) in ("list", "tuple", "bytes", "bytearray")

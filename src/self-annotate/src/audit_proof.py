@@ -44,18 +44,20 @@ class AuditReport:
     def exit_code(self) -> int:
         return 1 if self.failures else 0
 
-    # (#43) RE-`\trusted` BY ROUTE #13. The three `self.<f>.extend(...)` calls lowered to
-    # nullary abstract ops (`val self_passes_extend_1 (x0: int) : int`) that do not take
-    # `self` and declare no `writes`, so ALL THREE mutations were ABSENT from the model
-    # while this method was emitted, verified and counted as converted. An honest
-    # `\trusted` assumption of the frame it really has, until a faithful list-mutator
-    # model for a self field exists.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # (#49) W-IPM S-C: CONVERTED. Each `self.<f>.extend(other.<f>)` now lowers to the
+    # faithful field write-back `self.<f> <- Array.append self.<f> other.<f>` (a fresh
+    # array of the summed length), so the three mutations are IN the model and the length
+    # postconditions below are proved against them (route #13's erasure is gone: the old
+    # nullary `val self_passes_extend_1 (x0: int) : int` op is no longer emitted).
     #@ requires True
-    #@ ensures True
+    #@ ensures \length(self.passes) == \old(\length(self.passes)) + \old(len(other.passes))
+    #@ ensures \length(self.failures) == \old(\length(self.failures)) + \old(len(other.failures))
+    #@ ensures \length(self.skips) == \old(\length(self.skips)) + \old(len(other.skips))
     #@ assigns self.failures, self.passes, self.skips
     def extend(self, other: "AuditReport") -> None:
-        pass
+        self.passes.extend(other.passes)
+        self.failures.extend(other.failures)
+        self.skips.extend(other.skips)
 
 
 # ---------------------------------------------------------------------------
