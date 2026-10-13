@@ -180,11 +180,12 @@ class _Harvester:
     def _emit_target(self, tgt: _Target) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._out
     def _emit_block_footer(self, last_stmt: _Target) -> None:
-        pass
+        if last_stmt.footer:
+            self._out.append(PyCSLContract("TrailingSimpleStatement", "<trailing>",
+                                           last_stmt.report_line, list(last_stmt.footer)))
 
 

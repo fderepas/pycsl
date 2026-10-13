@@ -6726,6 +6726,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                              if v.get("whyml_name") == _pcls), None)
                 if _prt is not None and _pfn in (_prt.get("fields") or []):
                     return f"(Array.length {args[0]})"
+        # (#49) gen #36: `len(<o>.<f>)` of a list field of a PINNED (`List[<record>]`-element)
+        # record is the length of its pure `seq <elem>` carrier (`_emit_type_decls`), not
+        # the opaque `iter_length : int -> int` (an L3-tc rejection against the seq). The
+        # receiver is resolved as in the array-field arm above. Empty pin set -> inert.
+        _lert36 = getattr(self, "_list_element_record_types", None)
+        if _lert36 and atype in ("FieldGet", "Attribute"):
+            _qf36 = arg_ir.get("field") or arg_ir.get("attr")
+            _qo36 = arg_ir.get("object") or arg_ir.get("value")
+            _qn36 = _qo36.get("name") if (isinstance(_qo36, dict)
+                                          and _qo36.get("type") == "Var") else None
+            _qc36 = ((getattr(self, "_current_record_var_classes", {}) or {}).get(_qn36)
+                     or (getattr(self, "_record_param_classes", {}) or {}).get(_qn36)
+                     ) if _qn36 and _qn36 != "self" else None
+            if _qc36:
+                for _qk36, _qv36 in getattr(self, "_record_types", {}).items():
+                    # the local map holds the Python class name for a local
+                    # (`e = Entry(..)`) and the WhyML name for a param: match either.
+                    if (_qc36 in (_qv36.get("whyml_name"), _qk36) and _qk36 in _lert36
+                            and (_qv36.get("field_types") or {}).get(_qf36) == "list"):
+                        return f"(Seq.length {args[0]})"
         _a2d = getattr(self, "_array2d_params", set())
         if atype == "Var" and arg_ir.get("name") in _a2d:
             return f"({arg_ir['name']}.rows)"
@@ -10642,6 +10662,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if args and args[0].lstrip("(").startswith(
                     ("array_rev ", "Array.", "array_slice ", "array_copy ")):
                 return args[0]
+            # (#49) gen #36: `list(<o>.<f>)` of a STRING-ELEMENT list record field (the
+            # `array string` fields `_emit_type_decls` records in `_str_array_record_fields`)
+            # is a FRESH array with the same contents -- `Array.copy`, the stdlib's own
+            # length- and element-preserving copy. It fell to the opaque `list_new : int ->
+            # int`, which mistypes the array (and a record ctor then dropped the actual).
+            # The receiver is resolved exactly as `_handle_len_call` resolves it. Empty set
+            # for every file with no such field -> byte-inert there.
+            _sarf36 = getattr(self, "_str_array_record_fields", None)
+            _a36 = (expr.get("args") or [None])[0] if args else None
+            if (_sarf36 and len(args) == 1 and isinstance(_a36, dict)
+                    and _a36.get("type") in ("FieldGet", "Attribute")):
+                _f36 = _a36.get("field") or _a36.get("attr")
+                _o36 = _a36.get("object") or _a36.get("value")
+                _on36 = (_o36.get("name") if isinstance(_o36, dict)
+                         and _o36.get("type") == "Var" else _o36)
+                _cls36 = None
+                if _on36 == "self":
+                    _cls36 = getattr(self, "_current_self_type", None)
+                elif isinstance(_on36, str):
+                    _cls36 = ((getattr(self, "_current_record_var_classes", {}) or {}).get(_on36)
+                              or (getattr(self, "_record_param_classes", {}) or {}).get(_on36))
+                if _cls36 and _f36 in _sarf36:
+                    _rt36 = next((v for v in getattr(self, "_record_types", {}).values()
+                                  if v.get("whyml_name") == _cls36), None)
+                    if (_rt36 is not None and _f36 in (_rt36.get("fields") or [])
+                            and (_rt36.get("field_value_types") or {}).get(_f36) == "string"):
+                        return f"(Array.copy {args[0]})"
             # `list(iterable)` semantics depend on the surrounding return
             # type. In a `List[T] -> array int` context, emit an abstract
             # array-returning val so the result type-checks at the
@@ -14093,6 +14140,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # (tierA-listfield-impl.md), which binds the caller's ACTUAL list instead
                 # of fabricating the empty `Array.make 0 0` (a DROPPED-child facade).
                 if field_types.get(fn, "int") in ("list", "array", "dict", "set", "frozenset"):
+                    # (#49) gen #36: a PINNED record's `List[str]` field (the pure `seq
+                    # string` carrier) bound, through the bare-param initialiser, to a
+                    # `list(<string-array field>)` actual (`Array.copy <arr>`, see
+                    # `_call_named_builtins`) is that array's contents as a seq --
+                    # `snapshot_str` (length- and element-preserving) -- not the `Seq.empty`
+                    # default, which DROPPED the caller's list. Any other actual keeps the
+                    # existing path; an ill-typed one would be a Why3 rejection.
+                    _v36 = ent.get("value")
+                    _n36 = (arg_nodes.get(_v36.get("name"))
+                            if isinstance(_v36, dict) and _v36.get("type") == "Var" else None)
+                    _r36 = (str(_n36.get("whyml", "")).strip()
+                            if isinstance(_n36, dict) and _n36.get("type") == "RawWhyml" else "")
+                    if (field_types.get(fn) == "list"
+                            and (rec_info.get("field_value_types") or {}).get(fn) == "string"
+                            and func_name in getattr(self, "_list_element_record_types", set())
+                            and _r36.startswith("(Array.copy ") and _r36.endswith(")")):
+                        self._add_abstract_op(
+                            "val snapshot_str (a: array string) : seq string\n"
+                            "    ensures { Seq.length result = Array.length a }\n"
+                            "    ensures { forall i:int. 0 <= i < Array.length a ->"
+                            " Seq.get result i = a[i] }")
+                        init_map[fn] = f"(snapshot_str {_r36})"
+                        continue
                     _lv = self._bind_listfield_from_seq(rec_info, fn, ent, arg_nodes,
                                                         func_name)
                     if _lv is not None:
