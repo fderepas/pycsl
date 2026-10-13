@@ -8988,7 +8988,14 @@ class PreambleEmissionMixin:
                                     self._str_array_record_fields.add(f["name"])
                         elif (f.get("value_type") in self._record_types
                                 and (getattr(self, "_mutable_state_classes", None)
-                                     or getattr(self, "_uses_ir_node_param", False))):
+                                     or getattr(self, "_uses_ir_node_param", False)
+                                     # (#49) W-IPM S-C3: WIDENED (as I-E was for
+                                     # `List[str]`) to every module whose element
+                                     # record is PINNED PURE — the only condition
+                                     # under which Why3 accepts it as an `array`
+                                     # element. Was the element-erased `array int`.
+                                     or f.get("value_type") in getattr(
+                                         self, "_list_element_record_types", set()))):
                             # parser-primitives-wall-impl-2.md Gate S: a
                             # `List[<record>]` field (value_type = the element record's
                             # class name, e.g. `_Tok`) is the faithful `array <record>`

@@ -2886,6 +2886,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             if _sc_vk is None:
                                 _sc_vk = (getattr(self, "_record_param_classes", {})
                                           or {}).get(_sc_vn)
+                        elif (_sc_a.get("type") == "Call"
+                                and isinstance(_sc_a.get("func"), str)
+                                and _sc_a.get("func") in self._record_types):
+                            # (#49) S-C3: a constructor call `C(...)` of the element
+                            # record itself is KNOWN to be `C`; its lowering is
+                            # Why3-typed against `array <c>` (a mis-lowered ctor
+                            # fails closed at type-check, never coerced).
+                            _sc_vk = self._record_types[_sc_a.get("func")].get(
+                                "whyml_name")
                         if _sc_vk is not None and _sc_vk == _sc_elem:
                             _sc_src = ("(Array.make 1 "
                                        + self._expr_to_whyml(_sc_args[0], local_refs)

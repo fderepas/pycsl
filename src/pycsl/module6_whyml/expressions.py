@@ -4721,8 +4721,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # self-tcb-reduction T1.a: a collected string LOCAL (`var = node.var` → name_of) counts
             # as string even before its symbol-table type is set, so `var in self._seq_locals`
             # hashes the key. Byte-safe: `_string_local_vars` is empty outside @mutable_state.
-            return (getattr(self, "_current_symbol_table", {}).get(_vn) == "str"
-                    or _vn in getattr(self, "_string_local_vars", set()))
+            if (getattr(self, "_current_symbol_table", {}).get(_vn) == "str"
+                    or _vn in getattr(self, "_string_local_vars", set())):
+                return True
+            # (#49) S-C3: an UNSHADOWED module-level string constant is lowered by
+            # `_expr_to_whyml` to its real Why3 string literal (0442 C5), so classify it
+            # as the string it lowers to (same precedence: a local/param/shared name wins).
+            return (_vn not in (getattr(self, "_current_symbol_table", {}) or {})
+                    and _vn not in (getattr(self, "_current_params", None) or ())
+                    and _vn not in (getattr(self, "_shared_var_names", None) or ())
+                    and isinstance((getattr(self, "_module_constants", {})
+                                    or {}).get(_vn), str))
         # Indexing/slicing a string yields a string (s[i] is a 1-char string, s[a:b] a
         # substring) — both reuse str_sub_op in their handlers, so the *result* of such a
         # node is string-typed exactly when its base is. Required so `s[a:b] == t` routes to
