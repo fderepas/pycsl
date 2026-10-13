@@ -1426,6 +1426,38 @@ class ControlFlowStmtMixin:
                     val = "(any int)"
                 else:
                     val = whyml_ident(val_ir["name"])
+            elif (val_ir.get("type") == "Tuple" and not use_raise
+                  and func_ret_peek.startswith("(") and "array " in func_ret_peek):
+                # (#49) gen #36: the TAIL return of a tuple carrying a seq-promoted list
+                # local (`return clauses, i`). The slot is declared `array int`/`array
+                # string`, the local is a `seq`, so the slot crosses the same seq->array
+                # boundary as `return clauses` alone and takes the same faithful bridge
+                # (`materialize`/`materialize_str`: a fresh array EQUAL to the seq; the
+                # local is dead after the return). The bridge is picked from the declared
+                # return type and only when it is unambiguous (one array element type);
+                # a wrong pick cannot hide -- Why3 rejects it. Every other element lowers
+                # exactly as in the generic tuple, so a tuple without such a local is
+                # unchanged; a raise-path return is untouched.
+                _elts = val_ir.get("elts", [])
+                _parts = []
+                _k = 0
+                #@ loop invariant 0 <= _k
+                #@ loop variant len(_elts) - _k
+                while _k < len(_elts):
+                    _p = self._expr_to_whyml(_elts[_k], local_refs)
+                    if (_elts[_k].get("type") == "Var"
+                            and _elts[_k].get("name") in getattr(self, "_seq_locals", set())):
+                        if ("array string" in func_ret_peek
+                                and "array int" not in func_ret_peek):
+                            self._materialize_str_bridge()
+                            _p = "(materialize_str " + _p + ")"
+                        elif ("array int" in func_ret_peek
+                              and "array string" not in func_ret_peek):
+                            self._materialize_bridge()
+                            _p = "(materialize " + _p + ")"
+                    _parts.append(_p)
+                    _k += 1
+                val = "(" + ", ".join(_parts) + ")"
             else:
                 val = self._expr_to_whyml(val_ir, local_refs)
         # typing-engagement ty1 / 25-1700-typing-spec-1 §0/§2.2 C2: if the

@@ -1034,6 +1034,63 @@ class Module6_WhyMLTranspiler(
             f["name"] for f in funcs_for_maps
             if self._func_returns_string_seq(f)
         }
+        # (#49) gen #36: a TUPLE slot bound to a Module5 SEQ-PROMOTED list local whose
+        # every element source is a string (`clauses.append(raw[i].strip()); return
+        # clauses, i`) is an `array string`, not the `array int` `_refine_tuple_return_type`
+        # gives every list slot; the tail return bridges it with `materialize_str`
+        # (`_handle_return_stmt`). The element type is the one `_mark_string_seq_locals`
+        # infers, computed from the func's OWN IR (symbol table + param annotations, formal
+        # params, flat param element types, Module5 seq facts) with every piece of
+        # per-function state it reads restored afterwards. This MAP entry is the single
+        # source: `_emit_function_block` adopts it for the function's own signature, so the
+        # call-site type and the declaration agree by construction. Placed here rather than
+        # in the refine/map builder for the reason of the siblings above (lesson (vv)):
+        # their mirrors are UN-TRUSTED and converted, `transpile`'s is `\trusted`. Only a
+        # slot whose Var is seq-promoted moves, and every such return failed L3-tc (`seq`
+        # vs the `array int` slot), so no passing program changes.
+        for _f in funcs_for_maps:
+            _rt = self._module_method_return_types.get(_f.get("name"))
+            _spv = set(_f.get("seq_promoted_vars", []) or [])
+            if not (_spv and isinstance(_rt, str) and _rt.startswith("(")
+                    and _rt.endswith(")") and "array int" in _rt):
+                continue
+            _elts = self._first_tuple_return_elts(_f.get("body", []) or [])
+            _slots = _rt[1:-1].split(", ")
+            if not _elts or len(_slots) != len(_elts):
+                continue
+            if not any(isinstance(_e, dict) and _e.get("type") == "Var"
+                       and _e.get("name") in _spv and _slots[_k] == "array int"
+                       for _k, _e in enumerate(_elts)):
+                continue
+            _sv_saved = (getattr(self, "_current_symbol_table", None),
+                         getattr(self, "_seq_locals", set()),
+                         getattr(self, "_seq_value_types", {}),
+                         getattr(self, "_formal_params", []),
+                         getattr(self, "_param_list_flat_elem", {}),
+                         getattr(self, "_string_local_vars", set()),
+                         getattr(self, "_array_elem_types", {}))
+            _st = dict(_f.get("symbol_table", {}) or {})
+            for _pk, _pty in (_f.get("param_annotations") or {}).items():
+                if _st.get(_pk) in (None, "Any"):
+                    _st[_pk] = _pty
+            self._current_symbol_table = _st
+            self._seq_locals = _spv
+            self._seq_value_types = dict(_f.get("seq_value_types", {}) or {})
+            self._formal_params = list(_f.get("formal_params", []) or [])
+            self._param_list_flat_elem = dict(_f.get("param_list_flat_elem", {}) or {})
+            self._string_local_vars = set()
+            self._array_elem_types = {}
+            self._mark_string_seq_locals(_f.get("body", []) or [])
+            _svt = self._seq_value_types
+            (self._current_symbol_table, self._seq_locals, self._seq_value_types,
+             self._formal_params, self._param_list_flat_elem, self._string_local_vars,
+             self._array_elem_types) = _sv_saved
+            for _k, _e in enumerate(_elts):
+                if (isinstance(_e, dict) and _e.get("type") == "Var"
+                        and _e.get("name") in _spv and _slots[_k] == "array int"
+                        and _svt.get(_e.get("name")) == "string"):
+                    _slots[_k] = "array string"
+            self._module_method_return_types[_f["name"]] = "(" + ", ".join(_slots) + ")"
         self._module_method_result_ensures = self._build_method_result_ensures_map(funcs_for_maps)
         self._module_method_param_result_ensures = self._build_method_param_result_ensures_map(funcs_for_maps)
         self._module_method_field_result_ensures = self._build_method_field_result_ensures_map(funcs_for_maps)

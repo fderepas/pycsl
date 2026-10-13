@@ -7622,6 +7622,19 @@ class FunctionEmissionMixin:
             or _pv_fn.endswith("___classify_literal_value"))
 
         return_type = self._compute_return_type(func, body_stmts)
+        # (#49) gen #36: adopt the call-site MAP's string-seq tuple-slot refinement
+        # (`transpile`: a slot bound to a seq-promoted all-string list local is `array
+        # string`). Only when the map entry is this exact type with some `array int` slots
+        # retyped `array string`, so the declaration and every call site agree.
+        _tss = getattr(self, "_module_method_return_types", {}).get(func.get("name"))
+        if (isinstance(_tss, str) and _tss != return_type and return_type.startswith("(")
+                and _tss.startswith("(")):
+            _tss_a = return_type[1:-1].split(", ")
+            _tss_b = _tss[1:-1].split(", ")
+            if (len(_tss_a) == len(_tss_b)
+                    and all(_x == _y or (_x == "array int" and _y == "array string")
+                            for _x, _y in zip(_tss_a, _tss_b))):
+                return_type = _tss
         # self-tcb-reduction FunctionEmissionMixin WRITER class (`_build_param_list`): its
         # `Tuple[Set[str], str]` return is the `(seq string, string)` pair — the
         # `seq string` ref-params (the set modelled as a sequence, matching the body's
