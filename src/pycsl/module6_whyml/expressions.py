@@ -15315,6 +15315,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _ob = _ob.get("name")
                 _fn = _bv.get("field") or _bv.get("attr")
                 _ecls = _raf.get(_fn) if _ob == "self" else None
+                if (_ecls is None and _ob == "self" and isinstance(_fn, str)
+                        and not getattr(self, "_mutable_state_classes", None)):
+                    # (#49) W-IPM S-C4: the same projection for a `List[<record>]` self
+                    # field EMITTED as `array <r>` by S-C3 (element pinned PURE) outside
+                    # @mutable_state — read off the emitted record's own field type, so
+                    # it fires exactly when `self.<f>[i]` is Why3-typed `<r>`.
+                    _sc4_ty = getattr(self, "_current_self_type", None)
+                    _sc4_emt = ((getattr(self, "_emitted_record_field_types", {}) or {})
+                                .get(_sc4_ty, {}).get(self._field_label(_sc4_ty, _fn))
+                                if _sc4_ty else None)
+                    _ecls = next((c for c, v in getattr(self, "_record_types", {}).items()
+                                  if c in getattr(self, "_list_element_record_types", set())
+                                  and _sc4_emt == "array " + str(v.get("whyml_name"))),
+                                 None)
                 if _ecls is not None:
                     _wn = getattr(self, "_record_types", {}).get(_ecls, {}).get(
                         "whyml_name")

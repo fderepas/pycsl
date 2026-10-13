@@ -1115,6 +1115,21 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                            else f"(IrOSome {self._expr_to_whyml(e, local_refs)})")
                     expr = f"(Seq.cons {_ew} {expr})"
                 return expr
+            # (#49) W-IPM S-C4: a STRING-element seq local (`_seq_value_types` = "string",
+            # e.g. `lines = ["header"]` later `Seq.snoc`-ed with strings and fed to
+            # `"\n".join`) keeps its literal elements as REAL strings — was the int hash
+            # (`Seq.cons 1795694705 Seq.empty`), a `seq int` that L3-tc rejects against the
+            # string appends. Admitted only when EVERY element is string-typed; any other
+            # element keeps the int chain below byte-identically.
+            _sc4_elts = val_ir.get("elts", []) or []
+            if (target and _sc4_elts
+                    and (getattr(self, "_seq_value_types", {}) or {}).get(target) == "string"
+                    and all(isinstance(e, dict) and self._is_string_expr(e)
+                            for e in _sc4_elts)):
+                expr = "Seq.empty"   # element type inferred from the string literals
+                for e in reversed(_sc4_elts):
+                    expr = f"(Seq.cons {self._expr_to_whyml(e, local_refs)} {expr})"
+                return expr
             expr = "Seq.empty"
             for e in reversed(val_ir.get("elts", [])):
                 es = self._coerce_to_int(self._expr_to_whyml(e, local_refs))

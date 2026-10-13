@@ -871,6 +871,47 @@ class ControlFlowStmtMixin:
                 self._string_local_vars = set(saved_str_locals) | (
                     {_en_elem} if _en_elem and _en_elem != "_" else set())
 
+        # (#49) W-IPM S-C4: `for x in self.<f>` where `<f>` is a `List[<record>]` self field
+        # EMITTED as the faithful `array <r>` (S-C3: the element record is pinned PURE) binds
+        # `x` to a REAL `<r>` per iteration — the loop reads `_rl[!idx]` off a snapshot
+        # `let _rl = self.<f>` with bound `Array.length _rl`, and `x.<g>` is the native
+        # projection `(!x).<label>` (via `_record_field_elem_locals`, registered for the
+        # body only). Was the opaque `iter_length : int -> int` (an L3-tc clash against
+        # `array <r>`). SOUNDNESS of the snapshot: Python iterates the LIVE list, so a body
+        # that could mutate `self.<f>` would diverge from the fixed bound — the arm is
+        # admitted only when the body never mentions `self` at all (no read, no write, no
+        # method call; any `self`-rooted string anywhere in the body IR declines). Gated on
+        # an element record in `_list_element_record_types`, a non-@mutable_state module and
+        # a single target -> every other loop keeps its emission byte-identically.
+        _rafl = None
+        if (self._value_semantic and not tuple_targets and str_ci is None
+                and enum_seq is None
+                and not getattr(self, "_mutable_state_classes", None)
+                and isinstance(iter_ir, dict)
+                and iter_ir.get("type") in ("FieldGet", "Attribute")):
+            _rf_o = iter_ir.get("object") or iter_ir.get("value")
+            if isinstance(_rf_o, dict):
+                _rf_o = _rf_o.get("name") if _rf_o.get("type") == "Var" else None
+            _rf_f = iter_ir.get("field") or iter_ir.get("attr")
+            _rf_ty = getattr(self, "_current_self_type", None)
+            if _rf_o == "self" and isinstance(_rf_f, str) and _rf_ty:
+                _rf_emt = ((getattr(self, "_emitted_record_field_types", {}) or {})
+                           .get(_rf_ty, {}).get(self._field_label(_rf_ty, _rf_f)))
+                _rf_cls = next((c for c, v in self._record_types.items()
+                                if c in getattr(self, "_list_element_record_types", set())
+                                and _rf_emt == "array " + str(v.get("whyml_name"))), None)
+                _rf_stack: List[Any] = list(_body_d)
+                while _rf_cls is not None and _rf_stack:
+                    _rf_n = _rf_stack.pop()
+                    if isinstance(_rf_n, dict):
+                        _rf_stack.extend(_rf_n.values())
+                    elif isinstance(_rf_n, (list, tuple)):
+                        _rf_stack.extend(_rf_n)
+                    elif isinstance(_rf_n, str) and (_rf_n == "self"
+                                                     or _rf_n.startswith("self.")):
+                        _rf_cls = None
+                _rafl = _rf_cls
+
         body_local = local_refs | {target} | extra_locals
         body_declared = declared_refs.copy() | {target} | extra_locals
         # value-model campaign incr10 (loop-over-irlist): when iterating a `<emit_ir>.elts`
@@ -1081,8 +1122,24 @@ class ControlFlowStmtMixin:
             if _st is not None:
                 _saved_symtype = _st.get(target, _MISSING)
                 _st[target] = "str"
+        # S-C4: register the loop target as a record-ELEMENT local for the body only, and
+        # restore the entry after it, so the method's NET effect on the map is nil (the same
+        # save/restore discipline as the `_current_symbol_table` entries above). The map is
+        # (re)published at every function start, so an absent map simply declines the arm.
+        _rafl_map = getattr(self, "_record_field_elem_locals", None)
+        if _rafl is not None and not isinstance(_rafl_map, dict):
+            _rafl = None
+        _rafl_saved = _MISSING
+        if _rafl is not None:
+            _rafl_saved = _rafl_map.get(target, _MISSING)
+            _rafl_map[target] = _rafl
         inner_body = self._stmts_to_whyml(
             _body_d, body_local, body_declared, inner_indent, True)
+        if _rafl is not None:
+            if _rafl_saved is _MISSING:
+                _rafl_map.pop(target, None)
+            else:
+                _rafl_map[target] = _rafl_saved
         if (_saved_symtype is not _MISSING or _is_classbody or _is_kwbody
                 or _is_tparambody or _is_splitbody or _is_pyval_keys or _is_strseqlit
                 or self._mktuple_elts_recv_ir(iter_ir) is not None
@@ -1165,6 +1222,20 @@ class ControlFlowStmtMixin:
             self._pyast_loop_variant_len = None
             _enw = self._expr_to_whyml(enum_seq[0], local_refs)
             len_expr, elem_expr, is_range = f"(Seq.length {_enw})", None, False
+        elif _rafl is not None:
+            # (#49) W-IPM S-C4 (see the recogniser above): snapshot the record array ONCE,
+            # so the bound and the element read reference the same value; the arithmetic
+            # `Array.length _rl - !idx` variant discharges termination. Bypasses
+            # `_classify_iterable`, so reset the per-loop state it would have cleared.
+            self._for_idx_init = "0"
+            self._for_target_is_pyval = False
+            self._for_items_hval_map = None
+            self._str_slice_loop_len = None
+            _rlv = f"_rl{idx}"
+            self._for_iter_materialize = (_rlv, self._expr_to_whyml(iter_ir, local_refs))
+            self._pyast_loop_variant_len = f"(Array.length {_rlv})"
+            len_expr, elem_expr, is_range = (f"(Array.length {_rlv})",
+                                             f"{_rlv}[!{idx}]", False)
         else:
             len_expr, elem_expr, is_range = self._classify_iterable(iter_ir, local_refs, idx)
 
