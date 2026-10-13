@@ -91,11 +91,16 @@ class ConcurrencyChecker:
                 line=line,
             ))
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def summary(self) -> str:
-        return ""
+        if not self.warnings:
+            return ""
+        lines = ["[*] ConcurrencyChecker warnings:"]
+        for w in self.warnings:
+            loc = f" [{w.function}:{w.line}]" if w.function else ""
+            lines.append(f"    [{w.kind}]{loc} {w.message}")
+        return "\n".join(lines)
 
 
