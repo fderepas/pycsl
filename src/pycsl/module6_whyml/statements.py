@@ -4361,6 +4361,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # new ops (not the whole `_is_string_expr`) to stay byte-clean.
             if self._is_str_value_method(v):
                 return True
+            # (#49) gen #36: `re.sub(...)`/`re.escape(...)` LOWER to the `string` ops
+            # `re_sub_op`/`re_escape_op` and `_is_string_expr` already CLASSIFIES them as
+            # strings; only this pre-decl classifier disagreed, so a RE-ASSIGNED receiving
+            # local (`s = re.sub(..); s = re.sub(.., s)`) was pre-declared `ref 0` and its
+            # `:=` mistyped. This is the classifier agreeing with the lowering.
+            if self._is_re_str_call(v):
+                return True
             # an emit_ir str-attribute read (`var = node.var` -> name_of) is a string local, so a
             # dependent slice (`field = var[len("self."):]`) types as string. @mutable_state.
             if (t in ("Attribute", "FieldGet") and _ms_str and self._is_string_expr(v)):
