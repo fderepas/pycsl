@@ -502,6 +502,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         coercion, so this is byte-inert wherever the shapes do not occur."""
         if not isinstance(ir_expr, dict):
             return False
+        # (#49) gen #36: a DIRECT `self.<f>` read of a `Dict`/`Set` record field of a
+        # PLAIN (non-@mutable_state) class. Its record label IS declared `map κ (option ν)`
+        # (`_emit_type_decls`), so `self.<f>` lowers to that map and `if not self.<f>:`
+        # took the int coercion `self.<f> <> 0` -- an L3-tc rejection, so no passing
+        # program contains it. Its truthiness is non-emptiness, exactly `map_nonempty`.
+        # @mutable_state classes keep their own (richer, hval/opaque) field models below.
+        if (ir_expr.get("type") in ("Attribute", "FieldGet")
+                and (getattr(self, "_current_self_type", None)
+                     not in getattr(self, "_mutable_state_classes", set()))):
+            _fo = ir_expr.get("object")
+            if isinstance(_fo, dict):
+                _fo = _fo.get("name") if _fo.get("type") == "Var" else None
+            _ff = ir_expr.get("field") or ir_expr.get("attr")
+            if (_fo == "self" and _ff in getattr(self, "_all_record_fields", set())
+                    and self._self_field_py_type(_ff) in ("dict", "set", "frozenset")):
+                return True
         if (getattr(self, "_current_self_type", None)
                 not in getattr(self, "_mutable_state_classes", set())):
             return False
