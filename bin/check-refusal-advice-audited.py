@@ -649,6 +649,11 @@ AUDITED = {
         "gen #35. Followed with `__post_init__` (the refusal fires only for `__new__`/`__post_init__` since gen #31): renaming it to `m` builds `sub__m_refines_base`, and a weakened Sub contract FAILS on it, so the obligation becomes checked. AMBIGUOUS, for two reasons the message does not state: (1) the rename changes WHAT CPYTHON RUNS -- a method called `m` is no longer invoked by the dataclass/construction machinery, so the verified program is not the user's; (2) its worked example still names `__len__`, which since gen #31 is EMITTED and no longer refused (measured: `__len__` overrides build `sub____len___refines_base`). Message left unedited deliberately: its text keys two ledgers (lesson (d5))."),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr222("`@overload` stub \'%s\' (line %d) carries `#@ %s`, and an `@overload` stub only ever contributes its `#@ ensures` clauses — e'): (FOLLOWABLE,
         "gen #35. 'move the clause to the IMPLEMENTATION `def`': `#@ requires x > 0` on the implementation is enforced at the call -- `f(3)` VERIFIES, `f(0)` FAILS on g's precondition goal. The stub-carried clause is refused."),
+    # (#49) gen #36 -- route #233's two capture refusals, each followed and run.
+    ('src/pycsl/frontend/Module5_IREmitter.py', 'PyCSLIRError(f"function \'{node.name}\': `match` capture {\', \'.join((repr(_t) for _t in _r233_top))} is not supported here: {_r233_why} (route'): (FOLLOWABLE,
+        "gen #36. 'Bind the subject to a local first and use `case _:`': the guarded witness 1991 rewritten as `y = x; match y: case _ if y > 10: return 1 / case _: return y` VERIFIES `\\\\result == 5` under `x == 5`; the call-subject witness 1992 rewritten as `y = g(); match y: case _: r = y` VERIFIES `\\\\result == 3`."),
+    ('src/pycsl/frontend/Module5_IREmitter.py', 'PyCSLIRError(f"function \'{node.name}\': a `match` capture bound inside a constructor pattern is used outside its arm: {_r233_bad} (route #233'): (FOLLOWABLE,
+        "gen #36. 'Copy the payload into a fresh local inside the arm': witness 1993 rewritten with `case Some(v): w1 = v` / `case Some(u): w2 = u` and `return w1 - w2` VERIFIES `\\\\result == -1` (CPython -1)."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -664,6 +669,9 @@ AUDITED = {
 # refuses a truncated census: a stale verdict about prose is indistinguishable from a
 # fresh one from the outside.
 AUDITED_HASH = {
+    # (#49) gen #36 -- route #233.
+    ("src/pycsl/frontend/Module5_IREmitter.py", 'PyCSLIRError(f"function \'{node.name}\': `match` capture {\', \'.join((repr(_t) for _t in _r233_top))} is not supported here: {_r233_why} (route'): 'c6bed8a8f60b',
+    ("src/pycsl/frontend/Module5_IREmitter.py", 'PyCSLIRError(f"function \'{node.name}\': a `match` capture bound inside a constructor pattern is used outside its arm: {_r233_bad} (route #233'): '64cea1189dcd',
     # (#49) gen #32 — the twelve widened-detector audits.
     "PyCSLSemanticError(f'{self.filename}{loc}: UB-7.3 — concurrent race detected: {w.message}. Run without --strict-concurrent-checks to downgra": 'd713c7b1ab76',
     "PyCSLParseError('line ' + str(_c.lineno) + ': this `#@` directive sits INSIDE the continuation lines of the statement that begins on line ' ": '47d2820085ab',

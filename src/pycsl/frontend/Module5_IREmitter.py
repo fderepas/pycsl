@@ -6543,7 +6543,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         or (isinstance(_r230_x, ast.Constant) and _r230_x.value is None)):
                     _r230_opt.add(_r230_nm)
                     break
-        return {
+        _r233_fir = {
             "name": func_name,
             **({"global_writes": sorted(_global_writes)} if _global_writes else {}),
             **({"r230_optional_containers": sorted(_r230_opt)} if _r230_opt else {}),
@@ -6697,6 +6697,183 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "touches_field": [{"name": s.name, "type": s.type_str}
                               for s in getattr(node, 'csl_touches_field', []) or []],
         }
+        # (#49) ROUTE #233 — A `match` CAPTURE NAME IS A REAL LOCAL. The `match` lowering
+        # never bound a capture: `case y:` / `case P as y:` produced an arm whose body read
+        # `y`, and that read fell through Module 6's last-branch opaque `val constant y`,
+        # SHARED by every read in the module — measured, `match x: case y: r = y` then
+        # `match x + 1: case y: s = y` PROVED `r - s == 0` (CPython -1). A capture whose path
+        # from the arm head runs only through `as`/or-patterns binds the SUBJECT itself, so
+        # it becomes an explicit `y = <subject>` at the head of the arm body — an ordinary
+        # assignment every Module 6 scanner already sees (a real local, read after the
+        # `match` too, as in Python). Fail-closed where that is not faithful: a GUARDED
+        # capture arm (Python binds BEFORE the guard and keeps the binding when the guard
+        # fails), a subject that is not side-effect free (it would be evaluated twice), and
+        # a capture of a `global` name. A capture nested in a constructor pattern is bound
+        # by Why3's native `match` INSIDE its arm only, so every other use of that name in
+        # the function (a read outside a binding arm, a contract, any assignment) is
+        # REFUSED — after the `match` Python reads the payload, the model read an opaque
+        # constant. Emitted IR changes ONLY for functions with such a capture.
+        _r233_pure = {"Var", "Number", "Bool", "String", "None", "BinOp", "UnaryOp",
+                      "Attribute", "FieldGet", "Subscript", "Tuple"}
+        _r233_ctor: set = set()
+        _r233_stack: list = [_r233_fir.get("body", [])]
+        while _r233_stack:
+            _r233_n = _r233_stack.pop()
+            if isinstance(_r233_n, list):
+                _r233_stack.extend(_r233_n)
+                continue
+            if not isinstance(_r233_n, dict):
+                continue
+            if _r233_n.get("stmt") == "Match":
+                # (#49) ROUTE #234 — A GUARDED ARM OF A NATIVE (constructor) `match` falls
+                # through, when its guard fails, to the FIRST WILDCARD arm's body (or to
+                # `()`), skipping every arm in between: measured, `case MSome(n) if n > 0:
+                # r = 1 / case MSome(n): r = 2` on `MSome(-5)` PROVED `r` unchanged
+                # (CPython 2). That fall-through is the Python one only when the guarded
+                # arm is the LAST arm or is followed DIRECTLY by an unguarded `case _:`;
+                # every other guarded arm (and a guarded wildcard, whose guard the
+                # fall-through ignores) is refused. The if-chain lowering (no constructor
+                # arm) threads guards faithfully and is untouched.
+                _r234_cs = _r233_n.get("cases", []) or []
+                _r234_native = False
+                for _r234_c in _r234_cs:
+                    _r234_ps: list = [(_r234_c.get("pattern") or {})]
+                    while _r234_ps:
+                        _r234_p = _r234_ps.pop()
+                        if isinstance(_r234_p, dict):
+                            if _r234_p.get("pattern") == "Constructor":
+                                _r234_native = True
+                            elif _r234_p.get("pattern") == "Or":
+                                _r234_ps.extend(_r234_p.get("alternatives", []) or [])
+                for _r234_i, _r234_c in enumerate(_r234_cs if _r234_native else []):
+                    if _r234_c.get("guard") is None:
+                        continue
+                    _r234_nx = (_r234_cs[_r234_i + 1]
+                                if _r234_i + 1 < len(_r234_cs) else None)
+                    if ((_r234_c.get("pattern") or {}).get("pattern") == "Wildcard"
+                            or (_r234_nx is not None
+                                and not ((_r234_nx.get("pattern") or {}).get("pattern")
+                                         == "Wildcard"
+                                         and _r234_nx.get("guard") is None))):
+                        raise PyCSLIRError(
+                            f"function '{node.name}': a guarded arm of a `match` over "
+                            "constructor patterns must be the last arm or be followed "
+                            "directly by an unguarded `case _:` (route #234: when the "
+                            "guard fails the native Why3 `match` falls through to the "
+                            "wildcard body, skipping the arms in between) -- refused "
+                            "fail-closed.", stage="ir-emit")
+                for _r233_c in _r233_n.get("cases", []) or []:
+                    _r233_top: List[str] = []
+                    _r233_ps: list = [(_r233_c.get("pattern") or {}, True)]
+                    while _r233_ps:
+                        _r233_p, _r233_at_top = _r233_ps.pop()
+                        if not isinstance(_r233_p, dict):
+                            continue
+                        _r233_k = _r233_p.get("pattern")
+                        if _r233_k == "Capture":
+                            _r233_nm = _r233_p.get("name") or "_"
+                            if _r233_nm != "_":
+                                if _r233_at_top:
+                                    if _r233_nm not in _r233_top:
+                                        _r233_top.append(_r233_nm)
+                                else:
+                                    _r233_ctor.add(_r233_nm)
+                            _r233_ps.append((_r233_p.get("inner"), _r233_at_top))
+                        elif _r233_k == "Or":
+                            for _r233_a in _r233_p.get("alternatives", []) or []:
+                                _r233_ps.append((_r233_a, _r233_at_top))
+                        else:
+                            for _r233_key in ("captures", "elts", "alternatives"):
+                                for _r233_a in _r233_p.get(_r233_key, []) or []:
+                                    _r233_ps.append((_r233_a, False))
+                            if isinstance(_r233_p.get("inner"), dict):
+                                _r233_ps.append((_r233_p.get("inner"), False))
+                    if _r233_top:
+                        _r233_why = ""
+                        if _r233_c.get("guard") is not None:
+                            _r233_why = ("the arm has a guard, and Python binds the capture "
+                                         "BEFORE evaluating it and keeps the binding when "
+                                         "the guard fails")
+                        elif any(_g in _global_decl for _g in _r233_top):
+                            _r233_why = "the capture rebinds a `global` name"
+                        else:
+                            _r233_sx: list = [_r233_n.get("subject")]
+                            while _r233_sx and not _r233_why:
+                                _r233_s = _r233_sx.pop()
+                                if isinstance(_r233_s, list):
+                                    _r233_sx.extend(_r233_s)
+                                elif isinstance(_r233_s, dict):
+                                    if _r233_s.get("type") not in _r233_pure:
+                                        _r233_why = ("the `match` subject is not a "
+                                                     "side-effect-free expression, so "
+                                                     "binding it again would evaluate it "
+                                                     "twice")
+                                    _r233_sx.extend(_r233_s.values())
+                        if _r233_why:
+                            raise PyCSLIRError(
+                                f"function '{node.name}': `match` capture "
+                                f"{', '.join(repr(_t) for _t in _r233_top)} is not "
+                                f"supported here: {_r233_why} (route #233: an unbound "
+                                "capture read as an opaque module constant) -- refused "
+                                "fail-closed. Bind the subject to a local first and "
+                                "use `case _:`.", stage="ir-emit")
+                        _r233_c["body"] = ([{"stmt": "Assign", "target": _t,
+                                             "value": json.loads(json.dumps(
+                                                 _r233_n.get("subject")))}
+                                            for _t in _r233_top]
+                                           + list(_r233_c.get("body", []) or []))
+            _r233_stack.extend(_r233_n.values())
+        if _r233_ctor:
+            _r233_bad = ""
+            _r233_w: list = [(_r233_fir.get("contracts", {}), frozenset()),
+                             (_r233_fir.get("body", []), frozenset())]
+            while _r233_w and not _r233_bad:
+                _r233_n, _r233_b = _r233_w.pop()
+                if isinstance(_r233_n, list):
+                    _r233_w.extend((_x, _r233_b) for _x in _r233_n)
+                    continue
+                if not isinstance(_r233_n, dict):
+                    continue
+                if _r233_n.get("type") == "Var" and _r233_n.get("name") in _r233_ctor \
+                        and _r233_n.get("name") not in _r233_b:
+                    _r233_bad = f"{_r233_n.get('name')!r} is read outside the arm that binds it"
+                    break
+                if "stmt" in _r233_n:
+                    for _r233_key in ("target", "targets", "tuple_targets"):
+                        _r233_t = _r233_n.get(_r233_key)
+                        _r233_ts = _r233_t if isinstance(_r233_t, list) else [_r233_t]
+                        for _r233_x in _r233_ts:
+                            if isinstance(_r233_x, str) and _r233_x in _r233_ctor:
+                                _r233_bad = f"{_r233_x!r} is also assigned"
+                if _r233_n.get("stmt") == "Match":
+                    _r233_w.append((_r233_n.get("subject"), _r233_b))
+                    for _r233_c in _r233_n.get("cases", []) or []:
+                        _r233_cb: set = set()
+                        _r233_ps2: list = [_r233_c.get("pattern") or {}]
+                        while _r233_ps2:
+                            _r233_p = _r233_ps2.pop()
+                            if not isinstance(_r233_p, dict):
+                                continue
+                            if _r233_p.get("pattern") == "Capture":
+                                _r233_cb.add(_r233_p.get("name") or "_")
+                            for _r233_key in ("captures", "elts", "alternatives"):
+                                _r233_ps2.extend(_r233_p.get(_r233_key, []) or [])
+                            if isinstance(_r233_p.get("inner"), dict):
+                                _r233_ps2.append(_r233_p.get("inner"))
+                        _r233_cb2 = _r233_b | frozenset(_r233_cb)
+                        _r233_w.append((_r233_c.get("guard"), _r233_cb2))
+                        _r233_w.append((_r233_c.get("body", []), _r233_cb2))
+                    continue
+                _r233_w.extend((_v, _r233_b) for _v in _r233_n.values())
+            if _r233_bad:
+                raise PyCSLIRError(
+                    f"function '{node.name}': a `match` capture bound inside a "
+                    f"constructor pattern is used outside its arm: {_r233_bad} (route "
+                    "#233: Why3's native `match` binds it only inside the arm, and any "
+                    "other use read an opaque module constant or a different variable) "
+                    "-- refused fail-closed. Copy the payload into a fresh local inside "
+                    "the arm.", stage="ir-emit")
+        return _r233_fir
 
     def _detect_array_dimensions(self, func_ir: Dict[str, Any]) -> None:
         """Detect 2D and 1D array params from contracts and body access patterns."""

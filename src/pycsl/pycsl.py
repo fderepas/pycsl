@@ -2704,6 +2704,45 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         f"measured: a two-branch receiver proved the other class's result. "
                         f"Give each class its own local.",
                         stage="whyml-emit", code="PYCSL-R189-AMBIGUOUS-RECEIVER-CLASS")
+    # (#49) ROUTE #233 — `except E as e` BINDS AN EXCEPTION OBJECT THE MODEL DOES NOT CARRY.
+    # The handler lowers to `with E ->` (no payload), so a read of `e` in its body fell
+    # through Module 6's last-branch opaque `val constant e`, ONE value shared by every
+    # handler in the module — measured: two handlers storing `a = e` / `b = e` for two
+    # different `ValueError`s PROVED `a == b` (CPython False: two distinct objects). Same
+    # mechanism as the unbound `match` capture this route repairs. Refused in a
+    # non-trusted function of the main file; census: 0 such reads in either corpus.
+    if _t175 is not None:
+        _tr233 = {str(_f.get("name", "")) for _f in (ir_data.get("functions", []) or [])
+                  if _f.get("trusted") or _f.get("abstract") or _f.get("trusted_parent")}
+        _ow233 = {}
+        for _k233 in _ast175.walk(_t175):
+            if isinstance(_k233, _ast175.ClassDef):
+                for _m233 in _k233.body:
+                    if isinstance(_m233, (_ast175.FunctionDef, _ast175.AsyncFunctionDef)):
+                        _ow233[id(_m233)] = _k233.name
+        for _fd233 in _ast175.walk(_t175):
+            if not isinstance(_fd233, (_ast175.FunctionDef, _ast175.AsyncFunctionDef)):
+                continue
+            if ((f"{_ow233[id(_fd233)].lower()}__{_fd233.name}" if id(_fd233) in _ow233
+                 else _fd233.name) in _tr233):
+                continue
+            for _h233 in _ast175.walk(_fd233):
+                if not (isinstance(_h233, _ast175.ExceptHandler) and _h233.name):
+                    continue
+                for _st233 in _h233.body:
+                    for _n233 in _ast175.walk(_st233):
+                        if (isinstance(_n233, _ast175.Name) and _n233.id == _h233.name
+                                and isinstance(_n233.ctx, _ast175.Load)):
+                            from errors import PyCSLSemanticError as _PyCSLSemErr233
+                            raise _PyCSLSemErr233(
+                                f"{_fd233.name!r} reads the exception object "
+                                f"{_h233.name!r} bound by `except ... as {_h233.name}` "
+                                f"(ROUTE #233). The handler is modelled without its "
+                                f"exception object, so every such read would be ONE "
+                                f"opaque constant shared by all handlers — measured: "
+                                f"two different exceptions compared equal. Do not read "
+                                f"the bound exception, or mark the function `\\trusted`.",
+                                stage="whyml-emit", code="PYCSL-R233-EXCEPT-AS-READ")
     if "R31_UNMODELLED_LIST_TRUTHINESS" in _mlw:
         # ROUTE #31 (relaunch #45) — the Python truthiness of a list local whose
         # LENGTH the model does not carry. `_to_bool` used to answer `true` for

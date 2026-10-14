@@ -2276,6 +2276,16 @@ class ControlFlowStmtMixin:
         if p == "Wildcard":
             return "_"
         if p == "Capture":
+            # (#49) ROUTE #233: an ARM-HEAD capture (`case k:`, `case Red() as k:`,
+            # `case (A() as k) | (B() as k):`) is bound by Module 5 as an explicit
+            # `k = <subject>` at the head of the arm body — a real local. Binding it here
+            # as well would SHADOW that ref with an immutable pattern variable (and an
+            # `as` used to DROP its inner pattern, an irrefutable arm). So at the arm head
+            # the capture contributes only its inner pattern; nested captures bind.
+            if top:
+                if isinstance(pat.get("inner"), dict):
+                    return self._render_match_pattern(pat["inner"], top)
+                return "_"
             nm = pat.get("name", "_")
             return "_" if nm == "_" else whyml_ident(nm)
         if p == "Value":
