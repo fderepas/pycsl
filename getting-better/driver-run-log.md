@@ -44,3 +44,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-10-14T00:36Z | 23 | route #233 (match capture -> opaque constant) | OPENED (driver-reproduced) | -
 2026-10-14T08:05Z | - | SESSION DEATH ~2026-10-14T01:30Z; resumed 08:05Z, deadline RESET to 2026-10-18T08:05Z. #233 executor died; its only WIP was a census logging hook in expressions.py (reverted, not landed). qM/qN/qO relaunched @1362a212 | -
 2026-10-14T08:06Z | 24 | route #233 repair | executor RELAUNCHED fresh (prior died) | -
+2026-10-14T09:24Z | 25 | route #233 (+#234 guarded ctor arm skipping neighbour) | REPAIRED 558304b1: captures bind subject as real local; unbindable/guarded/ctor-capture-outside-arm/except-as reads refused. 14 witnesses 1986-1999 (6 PROVED false at base). Corpus 0 MOVED, pyref 2 MOVED+1 GONE (expected-FAIL, still FAIL), mirror 2 MOVED (unused val type). Driver-verified 1986/1989/1996 FAIL, 1987 PASS. OWED ir_resolve -> qP | 558304b1
