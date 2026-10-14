@@ -8170,7 +8170,23 @@ class FunctionEmissionMixin:
                         _parts.append("_pyobj_state")
                     lines[_wi] = f"    writes {{ {', '.join(_parts)} }}"
             elif _named:
-                lines.insert(_objstate_eq_idx, "    writes { _pyobj_state }")
+                # (#49) gen #36 seam: this clause is the FIRST `writes` on a concrete `let`
+                # of a NON-`@mutable_state` class, and once a `let` carries one Why3 CHECKS
+                # every write against it — so a body that also stores a field the record
+                # DOES carry (`self._abstract_ops = {}` beside two `setattr_*` stores) was
+                # rejected: "this expression produces an unlisted write effect". The source
+                # declares that field in its `#@ assigns`; list it (the record's MUTABLE
+                # labels only, as backlog #75 does for the bodyless val) beside the coarse
+                # cell. Why3 still checks the body against the widened clause, and a
+                # declared field the body never writes only over-approximates the frame.
+                _mut36 = (getattr(self, "_emitted_record_mutable_labels", {}).get(
+                    self._current_self_type) if is_method else None) or set()
+                _wl36 = [self._field_label(self._current_self_type, f)
+                         for f in self._module_method_writes.get(func["name"], [])] \
+                    if _mut36 else []
+                _wl36 = [f"self.{l}" for l in dict.fromkeys(_wl36) if l in _mut36]
+                lines.insert(_objstate_eq_idx,
+                             f"    writes {{ {', '.join(_wl36 + ['_pyobj_state'])} }}")
             else:
                 lines.insert(_objstate_eq_idx, "    writes { }")
             if _named:
