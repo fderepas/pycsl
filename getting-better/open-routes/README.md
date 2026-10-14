@@ -1,5 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #36 (2026-10-13/14): #232 (keyword-only / positional-only params dropped -> one shared opaque
+##   constant) OPENED 3e758c0b, REPAIRED 1362a212 (witnesses 1974-1985); #233 (match capture read as an
+##   opaque constant) + #234 (guarded constructor arm skipping its neighbour) OPENED+REPAIRED 558304b1
+##   (witnesses 1986-1999).
 ## gen #36 (2026-10-12): #230 (None through a container, opened gen #35) REPAIRED 37e946d0 +
 ##   witnesses 1920-1931; #231 (f-string format spec / `!r` discarded at IR emission — `f"{s!r}"`
 ##   proved `== s`) OPENED 3ca32b8d and REPAIRED 985d570d, witnesses 1932-1940. Whole-file mirror
