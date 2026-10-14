@@ -110,6 +110,13 @@ class ConstructionSynthMixin:
         # store (#88) — because in both of those the straight-line literal is not the
         # field's value AT ALL, length included.
         self._init_unknown_cf: List[str] = []
+        # (#49) ROUTE #235 — the fields whose LAST top-level store is a non-captured
+        # expression OVER A PARAMETER (`list(xs)`, `[x for x in xs]`, `sorted(xs)`) or a
+        # non-literal (`make()`): their value is unknown, LENGTH INCLUDED. `visit_ClassDef`
+        # joins the COLLECTION-typed ones to `_init_unknown_cf` (the channel the Module 6
+        # collection arms consult); a literal collection call with no parameter
+        # (`list()`, `bytearray(4096)`, route #79's 0452) is NOT in it.
+        self._init_unknown_c235: List[str] = []
         # (#49) ROUTE #150 side-channel, reset per class: the constructor can change
         # `self` by some means other than a recognized store, so NO field's value at
         # construction time is known. Consumed by `visit_ClassDef`, which widens the two
@@ -569,6 +576,7 @@ class ConstructionSynthMixin:
             # computed fields silently took the literal `0` — the widest form of the
             # defect, and it is invisible to any census that starts from the capture rule.
             _last79: Dict[str, bool] = {}
+            _lastc235: Dict[str, bool] = {}
             for _s79 in child.body:
                 _t79 = _r79 = None
                 if isinstance(_s79, ast.Assign) and len(_s79.targets) == 1:
@@ -617,9 +625,23 @@ class ConstructionSynthMixin:
                 _last79[_t79.attr] = ((bool(_n79)
                                        and not ((_n79 & pset) and _n79 <= pset))
                                       or (not _n79 and not _lit79))
+                # A collection-builtin CALL is exempt only with NO argument (`list()`,
+                # `dict()` ARE empty) or a name-free `bytearray`/`bytes` size (route #79's
+                # 0452 length capture); `list(BASE)`, `set([1, 2])`, `dict(a=1)` are not empty.
+                _a235 = ((list(_r79.args) + [_k235.value for _k235 in _r79.keywords])
+                         if isinstance(_r79, ast.Call) else [])
+                _lastc235[_t79.attr] = (_last79[_t79.attr] and (
+                    bool(_n79 & pset) or not _lit79
+                    or any(isinstance(_m235, ast.Name)
+                           for _x235 in _a235 for _m235 in ast.walk(_x235))
+                    or (bool(_a235) and not (isinstance(_r79.func, ast.Name)
+                                             and _r79.func.id in ("bytearray", "bytes")))))
             for _f79, _bad79 in _last79.items():
                 if _bad79 and _f79 not in self._init_unknown:
                     self._init_unknown.append(_f79)
+            for _f235, _bad235 in _lastc235.items():
+                if _bad235 and _f235 not in self._init_unknown_c235:
+                    self._init_unknown_c235.append(_f235)
             if not pset:
                 break
             # (#49) ROUTE #88 — THIS LOOP USED TO **APPEND**, SO AN EARLIER

@@ -14001,6 +14001,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # PINNED record: the list field is the pure `seq <elem>` (preamble
                     # `_emit_type_decls`), so its type-correct empty default is `Seq.empty`,
                     # not an `Array.make`.
+                    # (#49) ROUTE #235 — `Seq.empty` IS A DEFINITE VALUE, and this arm used
+                    # to return it UNCONDITIONALLY, i.e. OUTSIDE the route #87/#89 fences the
+                    # array arm below consults: a conditional store (`_unk89`), a literal the
+                    # IR could not capture (`field_list_unknown`) and a NON-EMPTY captured
+                    # literal (`field_list_literals`) all read back as the empty seq. Each is
+                    # UNCONSTRAINED here (`any_seq`, polymorphic for the same reason as #86's
+                    # `any_map` / #87's `any_array`: the seq may be `seq string` or `seq
+                    # int`; spiked in Why3 — type-checks against both, and `Seq.length =
+                    # 0` stops being provable). Only a genuinely EMPTY initialiser keeps the
+                    # faithful `Seq.empty`.
+                    if (fn in _unk89
+                            or fn in set(rec_info.get("field_list_unknown") or [])
+                            or (rec_info.get("field_list_literals") or {}).get(fn)):
+                        self._add_abstract_op("val any_seq (_u: unit) : seq 'a")
+                        return "(any_seq ())"
                     return "Seq.empty"
                 # (#49) ROUTE #87 — `(Array.make <len> 0)` CAPTURES THE LENGTH AND
                 # ERASES EVERY ELEMENT TO A DEFINITE ZERO. MEASURED: `self.xs = [1, 2, 3]`
@@ -14267,6 +14282,37 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                                         func_name)
                     if _lv is not None:
                         init_map[fn] = _lv
+                        continue
+                    # (#49) ROUTE #235 — `_field_default` IS THE VALUE OF THE FIELD'S OWN
+                    # DECLARED DEFAULT, NOT OF AN INITIALISER OVER A BOUND PARAMETER. Falling
+                    # through to it here gave a collection field initialised from a SUPPLIED
+                    # actual (positional or keyword) the DEFINITE empty value — `Seq.empty`
+                    # for a PINNED record, `Array.make 0 0` / `const None` otherwise.
+                    # MEASURED: `Entry("block", 1, xs)` with `len(xs) == 3` PROVED
+                    # `len(e.items) == 0` (CPython 3); the dict twin PROVED `1 in e.d` False
+                    # (CPython True); the non-pinned list twins were refused only by Why3
+                    # type errors (luck). The same holds for a parameter bound from its
+                    # KNOWN default (`n: int = 3` -> `self.items = [0] * n`, `Item()`): the
+                    # initialiser is over a bound name, and `_field_default` knows nothing of
+                    # it. No faithful binder above captured the value, so the field is
+                    # UNCONSTRAINED (polymorphic `any_seq`/`any_array`/`any_map`, the
+                    # #86/#87 vals). A field whose initialiser mentions NO bound name (the
+                    # dataclass `items` Var of an OMITTED `default_factory=list` actual)
+                    # still takes `_field_default`'s faithful empty value; one whose default
+                    # the model cannot state (`_omit_unk149`) is unknown too. Inline, not a
+                    # helper: `check-mirror-coverage` counts nested defs.
+                    _sup235 = set(arg_nodes) | _omit_unk149
+                    if self._init_value_free_names(ent["value"]) & _sup235:
+                        if field_types.get(fn) in ("dict", "set", "frozenset"):
+                            self._add_abstract_op(
+                                "val any_map (_u: unit) : map 'k (option 'v)")
+                            init_map[fn] = "(any_map ())"
+                        elif func_name in getattr(self, "_list_element_record_types", set()):
+                            self._add_abstract_op("val any_seq (_u: unit) : seq 'a")
+                            init_map[fn] = "(any_seq ())"
+                        else:
+                            self._add_abstract_op("val any_array (_u: unit) : array 'a")
+                            init_map[fn] = "(any_array ())"
                     continue
                 # A field whose initialiser references a param OUTSIDE the bound
                 # prefix (a trailing omitted-with-default field) keeps its typed
