@@ -1296,7 +1296,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 stripped = val.strip()
                 map_prefixes = ("(map_update_some ", "(map_update_none ",
                                 "(const (None: option int)", "(Map.get ")
-                if not any(stripped.startswith(p) for p in map_prefixes):
+                # (#49) gen #36 seam: the EMPTY map `(const (None: option int))` (what `{}` /
+                # `dict()` lower to) stored into a map field whose value type is NOT int
+                # (`self._abstract_ops: Dict[str, str]` -> `map string (option string)`) was a
+                # Why3 type error (refused). The field's declared type already fixes the map's
+                # key/value types, so the store drops the int annotation and lets Why3 infer
+                # them from the field: `(const None)` is the SAME everywhere-None map, typed by
+                # its target. An int-valued field infers `option int` again (same value); any
+                # other RHS is untouched.
+                if stripped == "(const (None: option int))":
+                    val = "(const None)"
+                elif not any(stripped.startswith(p) for p in map_prefixes):
                     if not stripped.replace("_", "").replace("!", "").isalnum():
                         if not self._rhs_yields_map(stmt.value.to_dict()):
                             self._add_abstract_op(
