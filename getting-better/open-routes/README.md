@@ -1,5 +1,8 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #36 (2026-10-14): #235 (a record's collection field built from a supplied / bound / computed
+##   initialiser took the DEFINITE empty default — pinned `Seq.empty`, `Array.make 0 0`, `const None`;
+##   `len(e.items) == 0` proved for a 3-element actual) OPENED f403a3ec, REPAIRED (witnesses 2006-2018).
 ## gen #36 (2026-10-13/14): #232 (keyword-only / positional-only params dropped -> one shared opaque
 ##   constant) OPENED 3e758c0b, REPAIRED 1362a212 (witnesses 1974-1985); #233 (match capture read as an
 ##   opaque constant) + #234 (guarded constructor arm skipping its neighbour) OPENED+REPAIRED 558304b1

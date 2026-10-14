@@ -4235,6 +4235,43 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     _unk.append(_u145)
             # (#49) ROUTE #89 — the control-flow-only subset, for the COLLECTION arms.
             _unkcf = list(getattr(self, "_init_unknown_cf", []) or [])
+            # (#49) ROUTE #235 — a COLLECTION field whose last top-level `__init__` store
+            # is a non-captured expression over a parameter (`self.items = list(xs)`)
+            # took `_field_default`'s DEFINITE empty value (`Array.make 0 0` /
+            # `Seq.empty` / `const None`): `if c.items:` was decided False for a
+            # 3-element `xs`. Joined to the collection channel ONLY for collection-typed
+            # fields, so a scalar's IR (and every frozen golden) is unchanged; the scalar
+            # case is already fenced by `init_unknown_fields`.
+            # The same holds for an OMITTED `@dataclass` actual whose `default_factory` is
+            # NOT the bare `list`/`dict`/`set`/`frozenset` builtin (`lambda: [1, 2, 3]`):
+            # route #145 marks it unknown for the scalar arm only, and the collection arm
+            # answered the definite empty value. Scanned here, inline, from the class body
+            # (no new `self` attribute: the mirror's `assigns` clauses would not carry it).
+            _ft235 = {_fd235.get("name"): _fd235.get("type")
+                      for _fd235 in fields if isinstance(_fd235, dict)}
+            _c235 = list(getattr(self, "_init_unknown_c235", []) or [])
+            if (self._is_dataclass_decorated(node)
+                    and not any(isinstance(_i235, ast.FunctionDef)
+                                and _i235.name == "__init__" for _i235 in node.body)):
+                for _st235 in node.body:
+                    if not (isinstance(_st235, ast.AnnAssign)
+                            and isinstance(_st235.target, ast.Name)
+                            and isinstance(_st235.value, ast.Call)
+                            and ((isinstance(_st235.value.func, ast.Name)
+                                  and _st235.value.func.id == "field")
+                                 or (isinstance(_st235.value.func, ast.Attribute)
+                                     and _st235.value.func.attr == "field"))):
+                        continue
+                    _fac235 = next((_k235.value for _k235 in _st235.value.keywords
+                                    if _k235.arg == "default_factory"), None)
+                    if _fac235 is not None and not (
+                            isinstance(_fac235, ast.Name)
+                            and _fac235.id in ("list", "dict", "set", "frozenset")):
+                        _c235.append(_st235.target.id)
+            for _f235 in _c235:
+                if (_ft235.get(_f235) in ("list", "array", "dict", "set", "frozenset")
+                        and _f235 not in _unkcf):
+                    _unkcf.append(_f235)
             # (#49) ROUTE #150 — an opaque constructor effect: EVERY field is unknown, on
             # both channels (a helper can change a collection's length as easily as a
             # scalar's value).
