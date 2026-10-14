@@ -28,7 +28,7 @@ class _Target:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def __init__(self, node, node_type, node_name, start_line, report_line, indent):
+    def __init__(self, node, node_type: str, node_name: str, start_line, report_line, indent):
         self.node = node
         self.node_type = node_type
         self.node_name = node_name
@@ -173,12 +173,21 @@ class _Harvester:
     def _emit_suite(self, targets: List[_Target]) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._header_consumed, self._out
     def _emit_target(self, tgt: _Target) -> None:
-        pass
+        contracts: List[str] = []
+        # First header-consumer in source order prepends the module header once,
+        # and emits even if it had no own contracts.
+        if (tgt.node_type in _HEADER_CONSUMERS and not self._header_consumed
+                and self._module_header):
+            contracts.extend(self._normalize_leading(self._module_header))
+            self._header_consumed = True
+        contracts.extend(self._normalize_leading(tgt.leading))
+        if contracts and tgt.node_type is not None:
+            self._out.append(PyCSLContract(tgt.node_type, tgt.node_name,
+                                           tgt.report_line, contracts))
 
     #@ requires True
     #@ ensures True

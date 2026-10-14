@@ -78,7 +78,6 @@ frontend/Module1_Ingestor.py	_Harvester._assign	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._normalize_leading	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._fold_blocks	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._emit_suite	unclassified	-
-frontend/Module1_Ingestor.py	_Harvester._emit_target	unclassified	-
 frontend/Module2_Parser.py	_lex_contract	unclassified	-
 frontend/Module2_Parser.py	_ContractParser.__init__	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/Module2_Parser.py	_ContractParser._err	cost-scale:exception-payload-model	THE EXCEPTION PAYLOAD MODEL

@@ -154,7 +154,12 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        lines, ZERO new abstract operations, green whole-file proof in 38 minutes. Its
 #        near-twin `pycsl.py::_parse_args` is 174 lines, also proves, and is REFUSED by check
 #        1 for TEN new abstract operations — the whole of `argparse` going uninterpreted.
-MAX_UNCLASSIFIED = 273   # (#49) gen #36, 2026-10-13 — 274 -> 273: the pinned-record list-field
+MAX_UNCLASSIFIED = 272   # (#49) gen #36, 2026-10-14 — 273 -> 272: the seq-string `.extend`
+                         # accumulator + route #51's opaque `pycsl_none_str` outside
+                         # `@mutable_state` (and `_Target.__init__`'s `node_type: str,
+                         # node_name: str` annotations) converted the unclassified
+                         # `frontend/Module1_Ingestor.py::_Harvester._emit_target`.
+                         # (#49) gen #36, 2026-10-13 — 274 -> 273: the pinned-record list-field
                          # binding (`list(<str-array field>)` = `Array.copy`, bound through
                          # `snapshot_str`) converted the unclassified
                          # `frontend/Module1_Ingestor.py::_Harvester._emit_block_footer`.

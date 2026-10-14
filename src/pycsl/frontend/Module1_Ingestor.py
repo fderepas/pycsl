@@ -43,7 +43,7 @@ class _Target:
     __slots__ = ("node", "node_type", "node_name", "start_line", "report_line",
                  "indent", "child_suites", "leading", "footer")
 
-    def __init__(self, node, node_type, node_name, start_line, report_line, indent):
+    def __init__(self, node, node_type: str, node_name: str, start_line, report_line, indent):
         self.node = node
         self.node_type = node_type      # emitted type, or None for an un-annotated
                                         # compound (If/Try/Match/…)
