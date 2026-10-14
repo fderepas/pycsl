@@ -31,7 +31,6 @@ Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._maybe_emit_no_exception_asse
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler.transpile	unclassified	-
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._compute_shared_module_maps	unclassified	-
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._emit_prefunctions_infra	unclassified	-
-Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._reset_module_accumulators	unclassified	-
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._sig_val_from_let	unclassified	-
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._sig_val_from_let._hdr_name	cost-scale:nested-closure-lift	the nested-closure lift
 Module6_WhyMLTranspiler.py	Module6_WhyMLTranspiler._transpile_modular	unclassified	-

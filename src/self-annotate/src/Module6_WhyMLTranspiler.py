@@ -814,7 +814,6 @@ class Module6_WhyMLTranspiler(
         self._declared_types_modular = declared_types
         return out
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._abstract_ops, self._axiom_emitted_decls, self._class_inv_axioms_emitted
