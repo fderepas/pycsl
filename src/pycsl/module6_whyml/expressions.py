@@ -5753,6 +5753,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         getattr(self, "_current_emitting_func", "") or "") in (
                         "int", "str", "float", "bool", "bytes")):
                 return "false" if raw_op == "==" else "true"
+            # (#49) gen #36: a STRING operand OUTSIDE `@mutable_state` fell through to the
+            # int `pycsl_none` below -- `<string> = pycsl_none`, a Why3 type error (fail-
+            # closed, measured on the mirror's `Module1_Ingestor._emit_target`:
+            # `tgt.node_type is not None`). It gets route #51's OPAQUE string sentinel
+            # instead: the same device the `@mutable_state` arm above uses for an operand
+            # it cannot decide, so the test is UNDECIDED (no new fact, no new model). The
+            # decided arms (`None#empty` / bound-never-None) stay gated where their
+            # binding records are kept.
+            if (self._is_string_expr(_nn)
+                    and not (isinstance(_nn, dict) and _nn.get("type") == "None")):
+                self._add_abstract_op("val function pycsl_none_str : string")
+                self._add_abstract_op(
+                    "val str_eq_op (a b: string) : bool\n"
+                    "    ensures { result <-> (a = b) }")
+                _s36n = self._expr_to_whyml(_nn, local_refs, invariant_ctx, subst)
+                _c36n = f"(str_eq_op {_s36n} pycsl_none_str)"
+                return _c36n if raw_op == "==" else f"(not {_c36n})"
             self._add_abstract_op("val function pycsl_none : int")
             if isinstance(_nn, dict) and _nn.get("type") == "None":
                 _o44 = "pycsl_none"
