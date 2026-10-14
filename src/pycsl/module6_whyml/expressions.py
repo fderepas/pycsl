@@ -788,9 +788,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # self-ir-schema.md IR4: a seq-promoted list local (`seq_parts = []; .append`)
             # is truthy iff non-empty — `Seq.length x <> 0` (the seq counterpart of the
             # array-length truthiness). @mutable_state path (via _seq_locals membership).
-            if (name in getattr(self, "_seq_locals", set())
-                    and getattr(self, "_current_self_type", None)
-                    in getattr(self, "_mutable_state_classes", set())):
+            # (#49) gen #36: the @mutable_state gate is dropped. A seq local is a `ref (seq
+            # _)` in EVERY scope, so outside it the fall-through `Array.length !x` was an
+            # L3-tc rejection (measured: `acc = []; acc.append("a"); if acc:` in a plain
+            # function) -- the faithful length test is scope-independent.
+            if name in getattr(self, "_seq_locals", set()):
                 return f"(Seq.length {whyml_str} <> 0)"
             if name in self._array_locals:
                 # ROUTE #31 (relaunch #45). This was `return "true"`, with the comment
@@ -14229,6 +14231,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             "    ensures { forall i:int. 0 <= i < Array.length a ->"
                             " Seq.get result i = a[i] }")
                         init_map[fn] = f"(snapshot_str {_r36})"
+                        continue
+                    # (#49) gen #36: the same PINNED-record `List[str]` field (pure `seq
+                    # string`) bound to a `!<x>` deref of a `seq string` LOCAL
+                    # (`_seq_value_types[x] == "string"`) IS that seq -- bind it directly
+                    # instead of the `Seq.empty` default that DROPPED the caller's list.
+                    # (`_bind_listfield_from_seq` does this only under @mutable_state.)
+                    if (field_types.get(fn) == "list"
+                            and (rec_info.get("field_value_types") or {}).get(fn) == "string"
+                            and func_name in getattr(self, "_list_element_record_types", set())
+                            and _r36.startswith("!") and _r36[1:].isidentifier()
+                            and _r36[1:] in getattr(self, "_seq_locals", set())
+                            and (getattr(self, "_seq_value_types", {}) or {}).get(
+                                _r36[1:]) == "string"):
+                        init_map[fn] = _r36
                         continue
                     _lv = self._bind_listfield_from_seq(rec_info, fn, ent, arg_nodes,
                                                         func_name)

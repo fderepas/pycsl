@@ -3244,6 +3244,42 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     self._seq_snapshot_op()
                     code = (f"{indent}{_xsafe} := Seq.(++) !{_xsafe} "
                             f"(snapshot {_xarg})")
+            elif (func.endswith(".extend") and self._value_semantic
+                  and "." not in func.rsplit(".", 1)[0]
+                  and func.rsplit(".", 1)[0] in getattr(self, "_seq_locals", set())
+                  and (getattr(self, "_seq_value_types", {}) or {}).get(
+                      func.rsplit(".", 1)[0]) == "string"
+                  and len(val.get("args") or []) == 1
+                  and not val.get("keywords")):
+                # (#49) gen #36: `.extend` on a `seq string` LOCAL (the `_typed_local_vars`
+                # string-accumulator scan) by a `self.<m>(..)` whose declared return is
+                # `array string` / `seq string`: the concatenation `x := Seq.(++) !x <s>`,
+                # crossing array -> seq through `snapshot_str` (length- and element-
+                # preserving). Any other actual keeps the refusal below (never a no-op).
+                _sx36 = func.rsplit(".", 1)[0]
+                _sa36 = val["args"][0]
+                _sa36 = _sa36.to_dict() if hasattr(_sa36, "to_dict") else _sa36
+                _sr36 = ""
+                if (isinstance(_sa36, dict) and _sa36.get("type") == "Call"
+                        and str(_sa36.get("func", "")).startswith("self.")):
+                    try:
+                        _sr36, _, _, _ = self._resolve_dotted_signature(
+                            str(_sa36.get("func")))
+                    except Exception:
+                        _sr36 = ""
+                if _sr36 not in ("array string", "seq string"):
+                    code = f"{indent}{self._expr_to_whyml(val, local_refs)}"
+                else:
+                    _sw36 = self._expr_to_whyml(val["args"][0], local_refs)
+                    if _sr36 == "array string":
+                        self._add_abstract_op(
+                            "val snapshot_str (a: array string) : seq string\n"
+                            "    ensures { Seq.length result = Array.length a }\n"
+                            "    ensures { forall i:int. 0 <= i < Array.length a ->"
+                            " Seq.get result i = a[i] }")
+                        _sw36 = f"(snapshot_str {_sw36})"
+                    _ss36 = whyml_ident(_sx36)
+                    code = f"{indent}{_ss36} := Seq.(++) !{_ss36} {_sw36}"
             elif (func.endswith((".add", ".discard", ".remove"))
                   and self._value_semantic):
                 # Body-level set/dict method calls. Sets and dicts share
@@ -6101,6 +6137,66 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     # statement's children are dropped.
                     if _et == "emit_ir" and hasattr(self, "_emit_ir_seq_locals"):
                         self._emit_ir_seq_locals.add(_nm)
+        # (#49) gen #36: a STRING-list ACCUMULATOR grown ONLY by `.extend(self.<m>(..))`,
+        # where `<m>`'s declared return resolves to `array string`/`seq string` —
+        # `xs = []` then `xs.extend(self._normalize_leading(..))` — is a `seq string`
+        # local, the string sibling of the pure_ast `emit_ir` scan below. Without it the
+        # `.extend` reaches the in-place-mutator REFUSAL (the call would take neither the
+        # receiver nor a `writes` clause). Strict shape, else untouched: exactly ONE
+        # assignment (the empty `[]` literal), every `<x>.<method>(..)` call is such an
+        # `.extend`, and no other mention of `<x>` as a call/store target. The lowering is
+        # the `.extend` arm in `_handle_expr_stmt` (`x := Seq.(++) !x <seq>`).
+        _sxc36: Dict[str, int] = {}
+        _sxe36: Dict[str, bool] = {}
+        _sxf36: Dict[str, Any] = {}
+
+        # INLINE stack walk, not a nested `def` (lesson (a4): the mirror-coverage ratchet
+        # counts nested FunctionDefs). Visit order is irrelevant: the gate below needs
+        # exactly one assignment, and the `.extend` verdict is a conjunction.
+        _stk36: List[Any] = [body_stmts]
+        while _stk36:
+            _nd36 = _stk36.pop()
+            if isinstance(_nd36, dict):
+                _st = _nd36.get("stmt")
+                if _st in ("Assign", "AugAssign") and isinstance(_nd36.get("target"), str):
+                    _sxc36[_nd36["target"]] = _sxc36.get(_nd36["target"], 0) + 1
+                    _sxf36.setdefault(_nd36["target"], _nd36.get("value"))
+                elif _st in ("ArraySet", "SubscriptAssign") and isinstance(
+                        _nd36.get("target"), str):
+                    _sxc36[_nd36["target"]] = _sxc36.get(_nd36["target"], 0) + 2
+                if _nd36.get("type") == "Call" and isinstance(_nd36.get("func"), str):
+                    _fx = _nd36["func"]
+                    if "." in _fx and "." not in _fx.rsplit(".", 1)[0]:
+                        _rx, _mx = _fx.rsplit(".", 1)
+                        _ok = False
+                        _ax = _nd36.get("args") or []
+                        if (_mx == "extend" and len(_ax) == 1
+                                and not _nd36.get("keywords")):
+                            _a0x = _ax[0]
+                            _a0x = _a0x.to_dict() if hasattr(_a0x, "to_dict") else _a0x
+                            if (isinstance(_a0x, dict) and _a0x.get("type") == "Call"
+                                    and str(_a0x.get("func", "")).startswith("self.")):
+                                try:
+                                    _cr, _, _, _ = self._resolve_dotted_signature(
+                                        str(_a0x.get("func")))
+                                except Exception:
+                                    _cr = ""
+                                _ok = _cr in ("array string", "seq string")
+                        _sxe36[_rx] = _sxe36.get(_rx, True) and _ok
+                _stk36.extend(_nd36.values())
+            elif isinstance(_nd36, list):
+                _stk36.extend(_nd36)
+        for _sn36 in sorted(_sxe36):
+            _fv36 = _sxf36.get(_sn36)
+            if (_sxe36[_sn36] and _sxc36.get(_sn36) == 1
+                    and isinstance(_fv36, dict) and _fv36.get("type") == "ArrayLit"
+                    and not _fv36.get("elts")
+                    and _sn36 not in set(getattr(self, "_formal_params", []) or [])
+                    and (_sn36 not in self._seq_locals
+                         or self._seq_value_types.get(_sn36) == "string")):
+                self._seq_locals.add(_sn36)
+                self._seq_value_types[_sn36] = "string"
+                self._array_elem_types.pop(_sn36, None)
         # THE STATEMENT CLUSTER (relaunch #7): a list ACCUMULATOR grown by
         # `.extend(<call whose declared return is `array emit_ir`>)` — `body = []` then
         # `body.extend(self.statement())` in `block` / `parse_module` — is a `seq emit_ir`

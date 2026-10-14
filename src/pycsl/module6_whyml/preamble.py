@@ -2050,6 +2050,27 @@ class PreambleEmissionMixin:
             or any(f.get("return_annotation") == "float" for f in functions)
             or needs_truediv  # WL-02: `/.` real division
         )
+        # (#49) gen #36: a plain local's `<x>.extend(self.<m>(..))` may lower to the
+        # `seq string` accumulator (`x := Seq.(++) !x (snapshot_str ..)`, statements.py
+        # `_handle_expr_stmt`), which needs `seq.Seq`. Structural over-approximation on the
+        # IR (a spare `use` is harmless); no such call -> False -> byte-inert.
+        # Written INLINE as an explicit stack walk, not a nested `def`: lesson (a4) —
+        # `check-mirror-coverage` ratchets on every FunctionDef, nested ones included.
+        _ext36 = False
+        _stk36: List[Any] = list(all_bodies)
+        while _stk36 and not _ext36:
+            _n36 = _stk36.pop()
+            if isinstance(_n36, dict):
+                if _n36.get("type") == "Call" and isinstance(_n36.get("func"), str):
+                    _fx = _n36["func"]
+                    _ax = _n36.get("args") or []
+                    if (_fx.endswith(".extend") and _fx.count(".") == 1 and len(_ax) == 1
+                            and isinstance(_ax[0], dict) and _ax[0].get("type") == "Call"
+                            and str(_ax[0].get("func", "")).startswith("self.")):
+                        _ext36 = True
+                _stk36.extend(_n36.values())
+            elif isinstance(_n36, list):
+                _stk36.extend(_n36)
         # no-more-int-7 §B′: a `seq int`-valued dict (`Dict[_, List[int]]`) needs
         # `seq.Seq` for the immutable list-snapshot model.
         needs_seq = any(
@@ -2063,6 +2084,7 @@ class PreambleEmissionMixin:
           or bool(getattr(self, "_module_str_list_constants", None)) \
           or any(self._body_uses_str_literal_for(body) for body in all_bodies) \
           or self._uses_stmt_ir() \
+          or _ext36 \
           or any((_fd.get("type") in ("list", "tuple")
                   and _fd.get("value_type") == "string")
                  # (#49) gen #31 — THE SAME ONE-WITNESS SCOPE AS `needs_array` ABOVE, and
