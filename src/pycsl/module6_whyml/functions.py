@@ -316,6 +316,19 @@ class FunctionEmissionMixin:
     def _reset_function_state(self, func: Dict[str, Any],
                                body_stmts: List[Dict[str, Any]]) -> Tuple[Set[str], Set[str]]:
         """Reset all per-function instance variables. Returns (local_refs, ghost_vars)."""
+        # (#49) ROUTE #232 — A READ `**kwargs` PARAMETER IN AN EMITTED BODY. The parameter
+        # is not modelled (it is not in the signature), so the read would lower to an
+        # auto-declared opaque `val constant <name> : int` SHARED by every call: measured,
+        # `def f(**kw): return len(kw)` with `f(a=3) == f(a=4, b=5)` PROVED (CPython
+        # False). Module 5 marks the read (`kwarg_read`); a bodiless `\trusted`/abstract
+        # function never lowers it and is not refused.
+        if func.get("kwarg_read") and not (func.get("trusted") or func.get("abstract")):
+            from errors import PyCSLSemanticError
+            raise PyCSLSemanticError(
+                f"function '{func.get('name')}': the `**{func.get('kwarg_param')}` "
+                "parameter is read in the body, but keyword-variadic parameters are not "
+                "modelled (route #232: the read would be an opaque constant shared by "
+                "every call) -- refused fail-closed.")
         # (#49) ROUTE #171 — A HANDLER FOR AN IMPLICIT EXCEPTION OBSERVES AN OPERATION THE
         # MODEL SAYS CANNOT FAIL. Without `no_exception` the implicit raises of the modelled
         # operations are ambient: a placeholder array read, `int("1.5")`'s opaque

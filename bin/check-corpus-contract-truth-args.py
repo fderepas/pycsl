@@ -477,7 +477,16 @@ def collect(no_exclusions=False):
             # from the code the way a separate re-implementation would.
             def _skip(_why, _f=f, _n=name):
                 SKIPPED.setdefault(_why, []).append((os.path.basename(_f), _n))
-            ps = node.args.args
+            # (#49) ROUTE #232 — `args` HOLDS ONLY THE POSITIONAL-OR-KEYWORD PARAMETERS;
+            # a positional-only one sits in the sibling `posonlyargs` and is passed by
+            # position like the rest (reading `args` alone ran `f(a, /, b)` as `f(b)`).
+            # A KEYWORD-ONLY one cannot be passed positionally at all, and this oracle
+            # calls `fn(*tup)`, so such a function is skipped with its reason rather than
+            # charged with the TypeError the oracle itself would cause.
+            ps = list(node.args.posonlyargs) + list(node.args.args)
+            if node.args.kwonlyargs:
+                _skip('keyword-only parameters (the oracle calls positionally)')
+                continue
             _cls = _owner.get(name)
             if _cls is not None and ps and ps[0].arg == "self":
                 ps = ps[1:]

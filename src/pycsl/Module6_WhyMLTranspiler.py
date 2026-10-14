@@ -183,6 +183,9 @@ class Module6_WhyMLTranspiler(
         # 1111-spec R7: per-function formal-param order + positional defaults.
         self._module_method_formal_params: Dict[str, List[str]] = {}
         self._module_method_param_defaults: Dict[str, Dict[str, Any]] = {}
+        # (#49) ROUTE #232: callee-name -> (keyword-only formals, positional-only
+        # formals, has `**kwargs`), for the call-site binding rules.
+        self._module_method_param_kinds: Dict[str, Any] = {}
         # W8 (ii): callee-name -> its `*vals: str` vararg param name.
         self._module_method_vararg_str: Dict[str, str] = {}
         # ladder 1a: callee-name -> WhyML element type of its vararg sequence
@@ -995,6 +998,15 @@ class Module6_WhyMLTranspiler(
             f["name"]: list(f.get("formal_params", [])) for f in funcs_for_maps}
         self._module_method_param_defaults = {
             f["name"]: dict(f.get("param_defaults", {})) for f in funcs_for_maps}
+        # (#49) ROUTE #232: callee-name -> (keyword-only formals, positional-only formals,
+        # has-`**kwargs`), for the call-site binding rules. Only callees carrying one of
+        # the three IR fields get an entry -> empty for every other program.
+        self._module_method_param_kinds = {
+            f["name"]: (list(f.get("kwonly_params") or []),
+                        list(f.get("posonly_params") or []),
+                        bool(f.get("kwarg_param")))
+            for f in funcs_for_maps
+            if f.get("kwonly_params") or f.get("posonly_params") or f.get("kwarg_param")}
         # W8 capability (ii): callee-name -> the name of its `*vals: str` vararg param
         # (always the LAST entry of `formal_params`). Consulted at call sites so the
         # trailing positional arguments are PACKED into a `seq string` instead of
@@ -1418,6 +1430,15 @@ class Module6_WhyMLTranspiler(
             f["name"]: list(f.get("formal_params", [])) for f in funcs_for_maps}
         self._module_method_param_defaults = {
             f["name"]: dict(f.get("param_defaults", {})) for f in funcs_for_maps}
+        # (#49) ROUTE #232: callee-name -> (keyword-only formals, positional-only formals,
+        # has-`**kwargs`), for the call-site binding rules. Only callees carrying one of
+        # the three IR fields get an entry -> empty for every other program.
+        self._module_method_param_kinds = {
+            f["name"]: (list(f.get("kwonly_params") or []),
+                        list(f.get("posonly_params") or []),
+                        bool(f.get("kwarg_param")))
+            for f in funcs_for_maps
+            if f.get("kwonly_params") or f.get("posonly_params") or f.get("kwarg_param")}
         # W8 capability (ii): callee-name -> the name of its `*vals: str` vararg param
         # (always the LAST entry of `formal_params`). Consulted at call sites so the
         # trailing positional arguments are PACKED into a `seq string` instead of

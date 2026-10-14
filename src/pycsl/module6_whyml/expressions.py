@@ -9451,6 +9451,38 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                      or _cef_dc.endswith("___canonical_preservation_ensures"))):
             return args[0]
         if "." in func_name:
+            # (#49) ROUTE #232 — PARAMETER KINDS ON A DOTTED (METHOD) CALL. The receiver's
+            # class is resolved only further down, so match CONSERVATIVELY on the method
+            # name: if ANY method of that name declares keyword-only / positional-only
+            # formals, a call that would bind a positional actual to a keyword-only formal
+            # (or pass a positional-only one by keyword, or use a starred actual) is
+            # REFUSED — Python raises TypeError, and the abstract-call lowering would
+            # otherwise bind it positionally. No such method -> byte-identical.
+            _tl232 = "__" + func_name.rsplit(".", 1)[-1]
+            for _fn232, _pk232 in (getattr(self, "_module_method_param_kinds", {})
+                                   or {}).items():
+                if not str(_fn232).endswith(_tl232):
+                    continue
+                _kwo232, _poo232, _hkw232 = _pk232
+                _fp232 = list((getattr(self, "_module_method_formal_params", {})
+                               or {}).get(_fn232) or [])
+                _raw232 = list(expr.get("args") or [])
+                _kwn232 = [k.get("arg") for k in (expr.get("keywords") or [])
+                           if isinstance(k, dict) and isinstance(k.get("arg"), str)]
+                _bad232 = None
+                if any(isinstance(_a, dict) and _a.get("type") == "Starred"
+                       for _a in _raw232):
+                    _bad232 = "a starred positional actual"
+                elif (_kwo232 and not getattr(self, "_module_method_vararg_str", {}).get(_fn232)
+                      and len(_raw232) > len(_fp232) - len(_kwo232)):
+                    _bad232 = "a positional actual reaching a keyword-only parameter"
+                elif any(_k in _poo232 for _k in _kwn232):
+                    _bad232 = "a positional-only parameter passed by keyword"
+                if _bad232:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        f"call to '{func_name}' (method '{_fn232}'): {_bad232} -- Python "
+                        f"raises TypeError here (route #232: refused fail-closed).")
             # KEYWORD ACTUALS ON A DOTTED CALL (pyast ctor family, increment 13). Before
             # this, `_handle_dotted_call` received only the POSITIONAL args, so a keyword
             # actual was DROPPED ENTIRELY: `self.for_stmt(async_=False)` emitted
@@ -9903,6 +9935,41 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _kwvals = {kw["arg"]: kw.get("value")
                    for kw in (expr.get("keywords") or [])
                    if isinstance(kw, dict) and isinstance(kw.get("arg"), str)}
+        # (#49) ROUTE #232 — PARAMETER KINDS AT THE CALL SITE. A callee with keyword-only
+        # / positional-only / `**kwargs` parameters (Module 5's `kwonly_params` /
+        # `posonly_params` / `kwarg_param`) is bound by Python's rules, and every call
+        # Python would REJECT with a TypeError is refused here rather than bound some
+        # other way: a positional actual reaching a keyword-only formal, a keyword naming
+        # a positional-only formal or a formal a positional actual already bound, an
+        # unknown keyword without `**kwargs`, or a starred actual (unknown length). Only
+        # callees carrying one of the three kinds are checked -> every other call is
+        # byte-identical.
+        _pk232 = getattr(self, "_module_method_param_kinds", {}).get(func_name)
+        if _pk232 is not None:
+            _kwo232, _poo232, _hkw232 = _pk232
+            _raw232 = list(expr.get("args") or [])
+            _npos232 = len(formal_params) - len(_kwo232)
+            _bad232 = None
+            if any(isinstance(_a, dict) and _a.get("type") == "Starred" for _a in _raw232):
+                _bad232 = "a starred positional actual"
+            elif _kwo232 and not _va_name and len(_raw232) > _npos232:
+                _bad232 = (f"{len(_raw232)} positional actual(s) but only {_npos232} "
+                           f"positional parameter(s)")
+            else:
+                for _kn232 in _kwvals:
+                    if _kn232 in _poo232:
+                        _bad232 = f"positional-only parameter '{_kn232}' passed by keyword"
+                    elif _kn232 in formal_params[:len(_raw232)]:
+                        _bad232 = f"parameter '{_kn232}' bound both positionally and by keyword"
+                    elif _kn232 not in formal_params and not _hkw232:
+                        _bad232 = f"unknown keyword '{_kn232}'"
+                    if _bad232:
+                        break
+            if _bad232:
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"call to '{func_name}': {_bad232} -- Python raises TypeError here "
+                    f"(route #232: refused fail-closed).")
         if formal_params and _kwvals and len(args) < len(formal_params):
             _bound_kw = 0
             for nm in formal_params[len(args):]:

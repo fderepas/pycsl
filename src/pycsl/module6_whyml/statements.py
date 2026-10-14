@@ -1772,6 +1772,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             nargs = len(val_ir.get("args", []))
             safe_fn = whyml_ident(func_name)
             arity_fn = f"{safe_fn}_{nargs}"
+            # (#49) ROUTE #232: KEYWORD actuals bound BY NAME (a keyword-only parameter,
+            # or a defaulted one filled by R7) make the abstract call's arity exceed the
+            # POSITIONAL count, so `<fn>_<npos>` names no registered `val` and the unpack
+            # kept the callee's non-tuple return (a Why3 rejection). Read the arity the
+            # call ACTUALLY used off the lowered application. Keyword-free calls skip this.
+            if val_ir.get("keywords") and arity_fn not in self._abstract_ops:
+                import re as _re232
+                _m232 = _re232.match(r"\(*" + _re232.escape(safe_fn) + r"_(\d+)\b",
+                                     val_whyml.strip())
+                if _m232 is not None and f"{safe_fn}_{_m232.group(1)}" in self._abstract_ops:
+                    nargs = int(_m232.group(1))
+                    arity_fn = f"{safe_fn}_{nargs}"
             if arity_fn in self._abstract_ops:
                 tuple_ret = "(" + ", ".join(["int"] * len(targets)) + ")"
                 # item34.md CF4: use the callee's DECLARED signature (e.g.

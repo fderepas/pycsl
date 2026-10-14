@@ -5758,7 +5758,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # `List[int]`/`List[bool]` and nested list (byte-identical `array int`
         # / `array (seq τ)`).
         param_list_flat_elem: Dict[str, str] = {}
-        for arg in node.args.args:
+        # (#49) ROUTE #232 — ALL THREE NAMED PARAMETER KINDS ARE PARAMETERS. Python keeps
+        # positional-only (`a, /`) and keyword-only (`*, k`) parameters in the SIBLING
+        # fields `posonlyargs` / `kwonlyargs`; reading `args` alone DROPPED them from the
+        # scope, the signature and the call sites, and a body read of `k` fell through to
+        # an auto-declared opaque `val constant k : int` SHARED by every call — measured,
+        # `f(k=3) == f(k=4)` PROVED (CPython False). Python's own order: posonly, args,
+        # kwonly (route #82 already reads the same three fields for `__init__`).
+        for arg in (list(node.args.posonlyargs) + list(node.args.args)
+                    + list(node.args.kwonlyargs)):
             if arg.arg == 'self':
                 continue
             # self-tcb-reduction T1.a: an `Optional[Dict[K,V]]` param is modeled as the `Dict[K,V]`
@@ -6273,7 +6281,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # decide which pre_decl_vars should be shadowed via
         # `let X = ref X in` (formal params) vs `let X = ref 0 in`
         # (other locals).
-        formal_params = [a.arg for a in node.args.args if a.arg != 'self']
+        # (#49) ROUTE #232: positional-only + positional-or-keyword, in Python's order
+        # (the keyword-only ones are appended AFTER any vararg below).
+        formal_params = [a.arg for a in (list(node.args.posonlyargs) + list(node.args.args))
+                         if a.arg != 'self']
         # W8 capability (ii) — varargs-membership. A `*vals: str` parameter (a
         # STRING-annotated vararg) is a real, faithfully-modelled parameter: the tuple
         # of extra positional arguments, lowered by Module6 to an immutable
@@ -6287,16 +6298,73 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         _vararg_str: Optional[str] = getattr(self, "_cur_func_vararg_str", None)
         if _vararg_str:
             formal_params.append(_vararg_str)
+        # (#49) ROUTE #232 — KEYWORD-ONLY PARAMETERS ARE ORDINARY PARAMETERS, emitted
+        # after the positional ones; Module 6 binds them at a call site BY NAME only
+        # (`kwonly_params` below tells it which formals a positional actual may never
+        # reach). A keyword-only parameter behind a modelled vararg would need the vararg
+        # packing to stop before it — not built, so that combination is REFUSED.
+        _kwonly232 = [a.arg for a in node.args.kwonlyargs if a.arg != 'self']
+        _posonly232 = [a.arg for a in node.args.posonlyargs if a.arg != 'self']
+        if _kwonly232 and _vararg_str:
+            raise PyCSLIRError(
+                f"function '{node.name}': keyword-only parameter(s) "
+                f"{', '.join(repr(_k) for _k in _kwonly232)} after a `*{_vararg_str}` "
+                "vararg are not supported (route #232: the vararg packing would absorb "
+                "them) -- refused fail-closed", stage="ir-emit")
+        formal_params.extend(_kwonly232)
+        # (#49) ROUTE #232 — a `**kwargs` parameter is NOT modelled: it is dropped from
+        # the signature, so a body READ of it would fall to the opaque `val constant`
+        # every call shares (measured: `f(a=3) == f(a=4, b=5)` with `return len(kw)`
+        # PROVED; CPython False). Recorded here as `kwarg_read`; Module 6 refuses it when
+        # (and only when) it EMITS that body — an imported library function or a
+        # `\trusted` one is a bodiless `val` there, and its read is never lowered.
+        _kwarg232 = getattr(node.args, "kwarg", None)
+        _kwread232 = False
+        if _kwarg232 is not None:
+            _kwn232 = _kwarg232.arg
+            _stk232: List[Any] = list(node.body)
+            while _stk232 and not _kwread232:
+                _x232 = _stk232.pop()
+                if isinstance(_x232, ast.Name) and _x232.id == _kwn232:
+                    _kwread232 = True
+                # A `**kw` SPLAT forwarded into a call (`g(**kw)`) is not a value read:
+                # the call IR drops a splat keyword entirely (WL-07's documented
+                # residual), so no opaque constant is minted for it.
+                if (isinstance(_x232, ast.keyword) and _x232.arg is None
+                        and isinstance(_x232.value, ast.Name) and _x232.value.id == _kwn232):
+                    continue
+                _stk232.extend(ast.iter_child_nodes(_x232))
         # 1111-spec R7: positional default values (param name -> default IR), so a
         # cross-module call passing fewer args than the callee arity can fill the
         # missing trailing params from these defaults at the call site.
+        # (#49) ROUTE #232: `defaults` aligns with the TAIL of posonlyargs + args (one
+        # list in CPython's ASDL), not of `args` alone — `def f(a=1, /, b=2)` paired
+        # `b` with `1` when only `args` was read.
         param_defaults: Dict[str, Any] = {}
-        _pos_args = node.args.args
+        _pos_args = list(node.args.posonlyargs) + list(node.args.args)
         _defs = node.args.defaults
         if _defs:
             for _a, _d in zip(_pos_args[len(_pos_args) - len(_defs):], _defs):
                 if _a.arg != 'self':
                     param_defaults[_a.arg] = self._py_expr_to_ir(_d)
+        # (#49) ROUTE #232: a keyword-only default fills an OMITTED keyword at the call
+        # site through the SAME R7 machinery — which lowers the default expression in
+        # the CALLER's scope. Only a context-free LITERAL (a constant — `None` lowers to
+        # the same `pycsl_none`/faithful-zero the positional R7 fill uses — or a negated
+        # numeric one) is safe there; any other default (a NAME the caller could shadow,
+        # a call, ...) is left out, so a call omitting that keyword is REFUSED by the R7
+        # arity check (fail-closed).
+        for _a232, _d232 in zip(node.args.kwonlyargs, node.args.kw_defaults):
+            if _d232 is None or _a232.arg == 'self':
+                continue
+            _lit232 = (_d232.operand if (isinstance(_d232, ast.UnaryOp)
+                                         and isinstance(_d232.op, ast.USub))
+                       else _d232)
+            if (isinstance(_lit232, ast.Constant)
+                    and (_lit232 is _d232
+                         or (isinstance(_lit232.value, (int, float))
+                             and not isinstance(_lit232.value, bool)))):
+                param_defaults[_a232.arg] = self._py_expr_to_ir(_d232)
         # Front-end resolution of a Python-specific fact for the core's no-mutable-default
         # check (refactor.md AST-only #3): is any default arg mutable — a list/dict/set
         # literal, or a list()/dict()/set() call — over ALL defaults (positional + keyword
@@ -6508,6 +6576,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # (no `Set[str]` local) -> byte-inert.
             "set_value_types": dict(_svt),
             "formal_params": formal_params,
+            # (#49) ROUTE #232: which formals are keyword-only / positional-only, so a
+            # call site binds the former by NAME only and the latter by POSITION only.
+            # Emitted only when non-empty -> every other function's IR is byte-identical.
+            **({"kwonly_params": _kwonly232} if _kwonly232 else {}),
+            **({"posonly_params": _posonly232} if _posonly232 else {}),
+            **({"kwarg_param": _kwarg232.arg} if _kwarg232 is not None else {}),
+            **({"kwarg_read": True} if _kwread232 else {}),
             # W8 (ii): name of the `*vals: str` vararg parameter (`seq string`), or
             # absent. Omitted for every function without a str-annotated vararg.
             **({"vararg_str_param": _vararg_str} if _vararg_str else {}),

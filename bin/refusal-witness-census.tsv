@@ -899,3 +899,43 @@ median_high_call_fails.py	VERIFY-FAIL
 1911_gen32_arith_on_the_literal_none.py	REFUSAL	[whyml]: the operator `+` is applied to the literal `None`, and that is not modelled: `None` is not a number, so EVERY such operation raises `TypeError` in Python and the function has no value at all. The model gives a `None` read an opaque INTEGER, which keeps the operation well-typed, so every consequence that does not depend on the value still decides — measured, `v = None; return v - v + 3` PROVED `\result == 3` under `#@ no_exception \all` where Python raises `TypeError`. Bind the name to a definite value before the operation (a rebinding clears the `None` record), or bind `None` on only some path — a conditionally rebound name is treated as ambiguous and is not refused here.
 1914_gen33_a_string_fold_collision_is_refused.py	REFUSAL	struct format fold collision (route #228): the formats "<bb6x" and "<xxxxxxxxhxLxxxxxxxx" are DISTINCT but both fold to the internal constant 1322019588. `struct.pack`/`struct.unpack` lower to a PURE Why3 symbol whose only record of the format is that constant, so the two calls would be the SAME TERM and the proof could establish a false claim about them — measured: two formats whose packed lengths are 8 and 23 bytes proved to have EQUAL length. Refused rather than emitted. How to fix: respell one format equivalently — '6x' for 'xxxxxx', or a different spelling of the same byte-order prefix — which changes the constant without changing what the format means, and this same check re-verifies the result.
 1917_gen33_bare_dynamic_exec_in_a_function_rebinds_a_global.py	REFUSAL	a name's runtime value is not the one the model reads (a dynamic `exec` that can bind into the module namespace at line 45). An imported name bound twice keeps the FIRST import (measured: `from plainlib import inc` then `from starlib import inc` proved the plainlib contract); a builtin rebound by an assignment is still lowered as the builtin (`len = sum` then `len([5]) == 1` proved); a module or class constant is folded to its first literal although it is rebound or mutated (`N = 3; N += 2` proved `N == 3`); a def nested in a method replaces the method of the same name; a DYNAMIC `exec`, or an `eval` that binds through a walrus, rebinds names into the module namespace and no part of the model sees the new value (`exec("N" + " = 5")` proved `N == 3`); and an attribute written at module or class-body scope must have a receiver this file can describe — a lambda parameter, a comprehension target and an imported module are not (`(lambda m: setattr(m, "inc", other))(mod)` proved the original `inc`). Give each binding its own name, treat a folded constant as immutable, and keep a dynamic `exec`/`eval` out of module and class-body scope.
+1920_gen36_r230_dict_annotated_optional_subscript.py	VERIFY-FAIL	
+1921_gen36_r230_dict_unannotated_subscript.py	VERIFY-FAIL	
+1922_gen36_r230_list_annotated_optional.py	VERIFY-FAIL	
+1923_gen36_r230_list_literal_none.py	VERIFY-FAIL	
+1924_gen36_r230_dict_get_stored_none.py	VERIFY-FAIL	
+1925_gen36_r230_dict_get_missing_key.py	VERIFY-FAIL	
+1926_gen36_r230_append_none.py	VERIFY-FAIL	
+1927_gen36_r230_direct_subscript_operands.py	VERIFY-FAIL	
+1928_gen36_r230_optional_container_param.py	VERIFY-FAIL	
+1932_gen36_r231_hex_spec_not_plain.py	VERIFY-FAIL	
+1933_gen36_r231_repr_conversion_not_plain.py	VERIFY-FAIL	
+1934_gen36_r231_str_align_spec_not_identity.py	VERIFY-FAIL	
+1935_gen36_r231_nested_spec_not_plain.py	VERIFY-FAIL	
+1936_gen36_r231_two_specs_not_identified.py	VERIFY-FAIL	
+1940_gen36_r231_repr_return_not_identity.py	VERIFY-FAIL	
+1942_gen36_ipm_p1_quoted_record_param_false_claim.py	VERIFY-FAIL	
+1944_gen36_ipm_p2_len_of_record_param_field_false_claim.py	VERIFY-FAIL	
+1946_gen36_ipm_sc_list_self_field_extend_false_claim.py	VERIFY-FAIL	
+1948_gen36_ipm_sc_record_element_array_int_refused.py	REFUSAL	`self.out.extend(...)` MUTATES its receiver in place, and no certified lowering models it: the call becomes an abstract operation that takes NEITHER the receiver NOR a `writes` clause, so the mutation would be SILENTLY ABSENT from the model while the run still reported 'All contracts formally proven' — the method would satisfy `#@ assigns \nothing`, satisfy its emitted frame-preservation `ensures`, and re-establish the class invariant. Rewrite the mutation as an indexed store (`self.out[i] = v`), or mark the enclosing function `#@ \trusted`.
+1949_gen36_ipm_sc_extend_self_alias.py	VERIFY-FAIL	
+1951_gen36_ipm_sc3_record_list_field_append_false_claim.py	VERIFY-FAIL	
+1953_gen36_module_str_const_concat_length_false_claim.py	VERIFY-FAIL	
+1955_gen36_ipm_sc4_record_list_field_loop_false_claim.py	VERIFY-FAIL	
+1957_gen36_ipm_sc4_str_list_literal_seq_false_claim.py	VERIFY-FAIL	
+1959_gen36_reassigned_re_sub_string_local_false_claim.py	VERIFY-FAIL	
+1961_gen36_list_str_param_element_strip_false_claim.py	VERIFY-FAIL	
+1963_gen36_while_mixed_and_string_condition_false_claim.py	VERIFY-FAIL	
+1965_gen36_early_return_split_comprehension_str_list_false_claim.py	VERIFY-FAIL	
+1967_gen36_tuple_return_str_seq_slot_false_claim.py	VERIFY-FAIL	
+1969_gen36_self_dict_field_truthiness_false_claim.py	VERIFY-FAIL	
+1971_gen36_self_call_tuple_unpack_str_slot_false_claim.py	VERIFY-FAIL	
+1973_gen36_pinned_record_list_field_from_list_copy_false_claim.py	VERIFY-FAIL	
+1974_gen36_kwonly_param_dropped_false_claim.py	VERIFY-FAIL	
+1978_gen36_reordered_keyword_actuals_false_claim.py	VERIFY-FAIL	
+1979_gen36_kwonly_defaults_shared_constant_false_claim.py	VERIFY-FAIL	
+1980_gen36_posonly_default_shared_constant_false_claim.py	VERIFY-FAIL	
+1981_gen36_kwargs_read_refused.py	REFUSAL	function 'f': the `**kw` parameter is read in the body, but keyword-variadic parameters are not modelled (route #232: the read would be an opaque constant shared by every call) -- refused fail-closed.
+1982_gen36_kwonly_positional_actual_refused.py	REFUSAL	call to 'f': 1 positional actual(s) but only 0 positional parameter(s) -- Python raises TypeError here (route #232: refused fail-closed).
+1984_gen36_kwonly_after_vararg_refused.py	REFUSAL	[ir-emit]: function 'f': keyword-only parameter(s) 'k' after a `*vals` vararg are not supported (route #232: the vararg packing would absorb them) -- refused fail-closed
+1985_gen36_kwonly_method_positional_actual_refused.py	REFUSAL	call to 'c.m' (method 'c__m'): a positional actual reaching a keyword-only parameter -- Python raises TypeError here (route #232: refused fail-closed).

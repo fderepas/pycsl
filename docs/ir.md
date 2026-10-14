@@ -260,7 +260,9 @@ carry their own `line` (`Module5_IREmitter.py:1134`, `:1145`), used to reconstru
 |-------|------|---------|
 | `line`, `col` | `int` | §4.4 source span (always emitted by this front-end; `line` is effectively required). |
 | `formal_params` | `List[str]` | Formal parameter names only (excludes `self` and locals) — Module 6 uses this for parameter-mutation handling. |
-| `param_defaults` | `Dict[str,expr-IR]` | Positional default values, name → default expr (`Module5_IREmitter.py:1746`); lets a short call fill trailing params. |
+| `param_defaults` | `Dict[str,expr-IR]` | Positional default values, name → default expr (`Module5_IREmitter.py:1746`); lets a short call fill trailing params. Since route #232 also carries keyword-only defaults that are context-free literals (a constant or a negated number); any other keyword-only default is omitted, so a call leaving that keyword out is refused. |
+| `kwonly_params`, `posonly_params` | `List[str]` | Route #232: which entries of `formal_params` are keyword-only (bound at a call site by name only, appended after the positional ones) / positional-only. Emitted only when non-empty. |
+| `kwarg_param`, `kwarg_read` | `str`, `bool` | Route #232: the name of a `**kwargs` parameter (not modelled, not in `formal_params`), and whether the body reads it other than as a `**` splat; Module 6 refuses an emitted body with `kwarg_read`. Emitted only when present/true. |
 | `has_mutable_default` | `bool` | Any default arg is a list/dict/set literal or `list()/dict()/set()` call (`Module5_IREmitter.py:1760`); the core's `_check_mutable_defaults` raises on it. |
 | `acts` | `List[Dict]` | Pre-desugar `#@ act` metadata for `_check_acts`: `{"kind":"act","name","given_exprs":[...]}`, `{"kind":"complete","names":[...]}`, `{"kind":"disjoint","names":[...]}` (`Module5_IREmitter.py:1771`). |
 | `dict_value_types`, `dict_key_types` | `Dict[str,str]` | WhyML value/key types for string-valued dicts (`Module5_IREmitter.py:1792`). |
