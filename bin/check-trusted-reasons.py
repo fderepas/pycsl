@@ -154,7 +154,10 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        lines, ZERO new abstract operations, green whole-file proof in 38 minutes. Its
 #        near-twin `pycsl.py::_parse_args` is 174 lines, also proves, and is REFUSED by check
 #        1 for TEN new abstract operations — the whole of `argparse` going uninterpreted.
-MAX_UNCLASSIFIED = 269   # (#49) gen #36 ch7, 2026-10-15 — 270 -> 269: same mirror-only device,
+MAX_UNCLASSIFIED = 268   # (#49) gen #36 ch9, 2026-10-15 — 269 -> 268: the record early-return
+                         # seam (811f401f) + the mirror return annotation `-> NoExceptionDecl`
+                         # converted `_ContractParser._parse_no_exception`.
+                         # (#49) gen #36 ch7, 2026-10-15 — 270 -> 269: same mirror-only device,
                          # `-> Trusted` (+ the still-trusted sibling `_grab_reviewer_id`'s
                          # interface `-> str`) converted `_ContractParser._parse_trusted`.
                          # (#49) gen #36 ch7, 2026-10-14 — 271 -> 270: the mirror-only return

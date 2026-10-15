@@ -1100,12 +1100,27 @@ class _ContractParser:
         self.expect_name("when")
         return RaisesDecl(exc, self._parse_expr())
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # CONVERTED (gen #36 ch9). Verbatim live body. Blocked at base by the EARLY RETURN OF A
+    # RECORD (`raise (Return <noexceptiondecl>)` against `exception Return int`: L3-tc), now
+    # lowered by the 811f401f seam to an if-then-else expression (every return is in tail
+    # position). The live `def` is unannotated; the mirror's `-> NoExceptionDecl` is the
+    # record both paths return (the fidelity plane de-annotates).
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_no_exception(self):
-        pass
+    def _parse_no_exception(self) -> NoExceptionDecl:
+        self.expect_name("no_exception")
+        if self.at_bs("\\all"):
+            self.advance()
+            return NoExceptionDecl(exceptions=[], all_form=True)
+        names = [self.expect_name()]
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            names.append(self.expect_name())
+        return NoExceptionDecl(exceptions=names, all_form=False)
 
     # CONVERTED (gen #36 ch7). Verbatim live body. The live `def` is unannotated, so the
     # `\trusted` stub's `pass` body typed it `unit` and the verbatim port returned a
