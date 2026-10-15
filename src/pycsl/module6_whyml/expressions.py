@@ -14086,6 +14086,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # may be `array string` as easily as `array int`.
                     self._add_abstract_op("val any_array (_u: unit) : array 'a")
                     return "(any_array ())"
+                # A STRING-ELEMENT list field (`passes: List[str] =
+                # field(default_factory=list)`) is declared `array string` in EVERY module
+                # (preamble `_emit_type_decls`, relaunch #16 / I-E), but this default kept
+                # the int element `0`, so `AuditReport()` emitted `(Array.make 0 0)` against
+                # `array string` -- an L3-tc refusal of every 0-arg construction of such a
+                # record. The faithful empty value is `(Array.make 0 "")`: length 0, and the
+                # element witness is never readable. ONLY the EMPTY case: a nonzero captured
+                # length with string elements has no faithful element here (`[0]*n` is an
+                # int literal), so it keeps today's ill-typed text and stays refused,
+                # fail-closed. Byte-inert by construction: the replaced text was a type error.
+                if (str(rec_info["defaults"].get(fn, 0)) == "0"
+                        and (rec_info.get("field_value_types") or {}).get(fn) == "string"):
+                    return '(Array.make 0 "")'
                 return f"(Array.make {rec_info['defaults'].get(fn, 0)} 0)"
             if ft in ("dict", "set", "frozenset"):
                 # (#49) ROUTE #85 — THE EMPTY MAP IS A DEFINITE VALUE, NOT AN UNKNOWN ONE,
