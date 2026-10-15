@@ -7580,6 +7580,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if any(stripped.startswith(p) for p in ARRAY_INT_PREFIXES):
                 param_types[i] = "array int"
                 continue
+            # A RECORD-VALUED CALL ACTUAL — the call-shaped twin of W-IPM S-C's record-typed
+            # PARAMETER actual just below. `report.extend(audit_rocq(...))` passes the
+            # `auditreport` that `audit_rocq` returns, and `r.extend(R())` the record a
+            # constructor builds, but the abstract op default-typed the formal `int`, so the
+            # call was an L3-tc error (`auditreport` where `int` is expected). The formal
+            # takes the record type when the actual IR is a constructor call of a known
+            # record, or a call of a same-file function whose declared return annotation
+            # (`return_annotation`, the class name) IS a known record. Byte-inert by
+            # construction, exactly like S-C: a record passed to an `int` formal was
+            # already rejected at L3-tc, and a wrong pick is again a type error, never a
+            # proof. Typing only — the op stays abstract, with the receiver `writes` its
+            # `assigns` already gives it.
+            _rca = arg_irs[i] if (arg_irs is not None and i < len(arg_irs)) else None
+            if isinstance(_rca, dict) and _rca.get("type") == "Call":
+                _rcf = _rca.get("func")
+                _rcr = getattr(self, "_record_types", {}) or {}
+                if isinstance(_rcf, str) and _rcf in _rcr:
+                    param_types[i] = _rcr[_rcf]["whyml_name"]
+                    continue
+                if isinstance(_rcf, str):
+                    _rcd = next((_f for _f in (self.ir.get("functions") or [])
+                                 if _f.get("name") == _rcf), None)
+                    _rcn = _rcd.get("return_annotation") if isinstance(_rcd, dict) else None
+                    if isinstance(_rcn, str) and _rcn in _rcr:
+                        param_types[i] = _rcr[_rcn]["whyml_name"]
+                        continue
             # Bare identifier referring to a known array-int local
             # / param. Check the symbol table.
             if stripped.startswith("!"):
