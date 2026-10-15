@@ -68,7 +68,6 @@ frontend/Module1_Ingestor.py	_match_block_hdr	cost-scale:int-erasure-seam	THE IN
 frontend/Module1_Ingestor.py	Module1_Ingestor.process	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._make	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._build	unclassified	-
-frontend/Module1_Ingestor.py	_Harvester.run	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._assign	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._normalize_leading	unclassified	-
 frontend/Module1_Ingestor.py	_Harvester._fold_blocks	unclassified	-

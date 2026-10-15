@@ -1,0 +1,61 @@
+module SortWeak
+  (* the lowering actually built: in-place havoc, writes exactly {a}; Array length is
+     immutable in Why3 so the length law is free; NO content law (sound over-approx of
+     any permutation). No new theory, no axiom. *)
+  use int.Int
+  use array.Array
+  type h = { mutable flat: array int; mutable out: array int; mutable n: int }
+  val array_sort_inplace (a: array 'a) : unit writes { a }
+
+  let t1 (self: h) : unit
+    ensures { length self.flat = old (length self.flat) }
+    ensures { self.out = old self.out /\ self.n = old self.n }
+  = array_sort_inplace self.flat
+
+  let t2 (self: h) : int
+    requires { length self.flat = 2 }
+    ensures { 0 <= result < 2 }
+  = let ys = self.flat in array_sort_inplace self.flat; length ys - 1
+
+  let t3 (self: h) (b: array int) : unit
+    requires { length b = 1 }
+    ensures { b[0] = old b[0] }
+  = array_sort_inplace self.flat
+end
+
+module SortWeakFalse
+  use int.Int
+  use array.Array
+  use ref.Ref
+  type h = { mutable flat: array int; mutable out: array int; mutable n: int }
+  val array_sort_inplace (a: array 'a) : unit writes { a }
+
+  (* F1 non-vacuity: contents not preserved positionally *)
+  let f1 (self: h) : int
+    requires { length self.flat = 2 /\ self.flat[0] = 1 /\ self.flat[1] = 0 }
+    ensures { result = 1 }
+  = array_sort_inplace self.flat; self.flat[0]
+
+  (* F2 stale Why3-level alias: the alias sees the havoc *)
+  let f2 (self: h) : int
+    requires { length self.flat = 2 /\ self.flat[0] = 1 /\ self.flat[1] = 0 }
+    ensures { result = 1 }
+  = let ys = self.flat in array_sort_inplace self.flat; ys[0]
+
+  (* F2' a ref-held alias (the emitter's `let ys = ref self.flat`) also sees it *)
+  let f2r (self: h) : int
+    requires { length self.flat = 2 /\ self.flat[0] = 1 /\ self.flat[1] = 0 }
+    ensures { result = 1 }
+  = let ys = ref self.flat in array_sort_inplace self.flat; (!ys)[0]
+
+  (* F3 a COPY alias is stale -- this PROVES: the emitter must never pair the in-place
+     sort with an `Array.copy`-lowered alias of the receiver (guard) *)
+  let f3 (self: h) : int
+    requires { length self.flat = 2 /\ self.flat[0] = 1 /\ self.flat[1] = 0 }
+    ensures { result = 1 }
+  = let ys = Array.copy self.flat in array_sort_inplace self.flat; ys[0]
+
+  (* F4 frame lie: a caller-declared frame that omits the sorted field is rejected by the
+     Why3 effect checker (expected: type-level error, tested separately) *)
+end
+

@@ -114,12 +114,17 @@ class _Harvester:
     def _build(self, stmt_nodes) -> List[_Target]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._cur_class, self._dec_ranges, self._flat, self._header_consumed, self._module_contracts, self._module_header, self._out
     def run(self, tree) -> List[PyCSLContract]:
-        return []
+        top = self._build(tree.body)
+        self._flat.sort(key=lambda t: t.start_line)
+        self._assign()
+        if self._module_contracts:
+            self._out.append(PyCSLContract("Module", "<module>", 0, self._module_contracts))
+        self._emit_suite(top)
+        return self._out
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

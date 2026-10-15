@@ -1,0 +1,7 @@
+module SortWeakFrameLie
+  use int.Int
+  use array.Array
+  type h = { mutable flat: array int; mutable out: array int; mutable n: int }
+  val array_sort_inplace (a: array 'a) : unit writes { a }
+  let lie (self: h) : unit writes { self.n } = self.n <- 0; array_sort_inplace self.flat
+end

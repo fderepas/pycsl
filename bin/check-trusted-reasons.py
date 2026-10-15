@@ -154,7 +154,10 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        lines, ZERO new abstract operations, green whole-file proof in 38 minutes. Its
 #        near-twin `pycsl.py::_parse_args` is 174 lines, also proves, and is REFUSED by check
 #        1 for TEN new abstract operations — the whole of `argparse` going uninterpreted.
-MAX_UNCLASSIFIED = 267   # (#49) gen #36 ch13, 2026-10-15 — 268 -> 267: the typed empty
+MAX_UNCLASSIFIED = 266   # (#49) gen #36 ch16, 2026-10-15 — 267 -> 266: the in-place
+                         # `self.<f>.sort(...)` lowering (W-IPM S-A') converted the unclassified
+                         # `frontend/Module1_Ingestor.py::_Harvester.run`.
+                         # (#49) gen #36 ch13, 2026-10-15 — 268 -> 267: the typed empty
                          # `List[str]` default_factory (408e7c0f) + the record-valued call
                          # actual (7bdaf391) converted the unclassified `audit_proof.py::audit_both`.
                          # (#49) gen #36 ch9, 2026-10-15 — 269 -> 268: the record early-return
