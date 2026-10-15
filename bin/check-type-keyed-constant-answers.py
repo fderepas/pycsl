@@ -91,13 +91,16 @@ BASELINE = {
         "`_handle_critical_section_stmt`, `_handle_return_stmt`, `_handle_match_stmt`, "
         "`_try_union_is_none_match` -- and EVERY ONE of the seven carries `#@ ensures "
         "True`. So the scope claim holds today, by measurement, and would be broken by "
-        "giving any of those seven a real postcondition. THE FRAME HALF IS STILL "
-        "UNCHECKED and is the named follow-up: a self-field write on the branch the model "
-        "DELETES is invisible to the `assigns` proof, because the proof only sees the "
-        "paths the model kept.",
+        "giving any of those seven a real postcondition. THE FRAME HALF IS CHECKED "
+        "(gen #36, 2026-10-15, `getting-better/frame-half-g36/`): with both always-present "
+        "arms replaced by an OPAQUE `bool` (`opaque-always-present.patch`), the 4 mirror "
+        "files carrying them (22 sites) emit and `why3 --type-only` clean, and Why3's "
+        "effect typing is the frame check -- a negative control writing one field outside "
+        "the enclosing `writes` is rejected (`unlisted write effect`). So no self-field "
+        "write hides on a branch the model decides. Re-run that patch if a new site fires.",
     ("_to_bool", "_emit_ir_local_vars+_is_emit_ir_expr", "true"):
         "the truthiness twin of the emit_ir always-present arm above, on the same stated "
-        "scope and with the same named follow-up.",
+        "scope; its frame half is checked by the same measurement.",
     ("_to_bool", "_r55_subsumed_name", "true"):
         "ROUTE #55, CLOSED -- and this entry is what the old one SHOULD have said. The "
         "previous entry keyed on [_current_self_type+_current_symbol_table+"
