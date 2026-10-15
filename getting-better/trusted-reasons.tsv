@@ -401,7 +401,6 @@ proof2why3/crosscheck_ir.py	main	cost-scale:int-erasure-seam	THE INT-ERASURE SEA
 proof2why3/extract.py	extract_rocq_statements	unclassified	-
 proof2why3/extract.py	_split_rocq_check_output	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/extract.py	extract_lean_statements	cost-scale:nested-closure-lift	the nested-closure lift
-proof2why3/extract_lean_meta.py	lean_meta_available	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/extract_lean_meta.py	extract_lean_statements_meta	cost-scale:heterogeneous-list-model	A HETEROGENEOUS LIST LITERAL
 proof2why3/from_lean_json.py	_linearize_app	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 proof2why3/from_lean_json.py	_is_ofnat_lit	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
