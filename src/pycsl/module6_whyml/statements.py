@@ -2975,6 +2975,97 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         code += ";\n" + self._stmts_to_whyml(
                             rest, local_refs, declared_refs, indent, in_loop)
                     return code
+            # W-IPM S-A' (#49, gen #36 ch16): `self.<f>.sort()` / `.sort(key=<lambda>)` /
+            # `.sort(reverse=<bool>)` on a LIST self field emitted as `array <T>` is an
+            # IN-PLACE havoc of that array: `array_sort_inplace self.<f>` with
+            # `writes { a }` and no content law (any permutation is in the havoc; Why3
+            # arrays have an immutable length, so the length law is free). In place, not a
+            # rebind: every Why3-level alias of the array shares its region and SEES the
+            # write (spike ch16/spike/sort_weak.mlw f2/f2r unproved), and Why3 rejects a
+            # second record field aliasing it ("mismatches regions"), so the map carrier's
+            # cross-method stale alias cannot arise. The element type is irrelevant (no new
+            # value enters). REFUSED (falls through to the generic refusal) when:
+            #   * the function body names `self.<f>` ANYWHERE except as the sole argument
+            #     of `len(...)` — an emitter-made COPY alias (`Array.copy`, seq snapshot)
+            #     would be stale and prove a false claim (spike f3 PROVES);
+            #   * a key is anything but a call-free `lambda` (a key may run effects);
+            #   * any `no_exception` is declared (sort/key may raise TypeError etc.);
+            #   * the enclosing function's IR cannot be found (fail closed).
+            if (len(_sc_parts) == 3 and _sc_parts[0] == "self"
+                    and _sc_parts[2] == "sort" and _sc_ty and not _sc_args
+                    and not getattr(self, "_current_no_exception", None)
+                    and not getattr(self, "_current_no_exception_all", False)):
+                _so_f = _sc_parts[1]
+                _so_ok = True
+                for _so_k in (_sc_kw or []):
+                    _so_kn = _so_k.get("arg") if isinstance(_so_k, dict) else None
+                    _so_kv = _so_k.get("value") if isinstance(_so_k, dict) else None
+                    _so_kv = _so_kv.to_dict() if hasattr(_so_kv, "to_dict") else _so_kv
+                    if _so_kn == "reverse" and isinstance(_so_kv, dict) and \
+                            _so_kv.get("type") in ("Bool", "Boolean", "Constant", "Number") \
+                            and isinstance(_so_kv.get("value"), bool):
+                        continue
+                    if _so_kn == "key" and isinstance(_so_kv, dict) and \
+                            _so_kv.get("type") == "Lambda":
+                        _so_w: List[Any] = [_so_kv.get("body")]
+                        while _so_w and _so_ok:
+                            _so_x = _so_w.pop()
+                            if isinstance(_so_x, dict):
+                                if _so_x.get("type") in ("Call", "MethodCall", "Lambda",
+                                                         "NamedExpr", "Await", "Yield"):
+                                    _so_ok = False
+                                _so_w.extend(_so_x.values())
+                            elif isinstance(_so_x, list):
+                                _so_w.extend(_so_x)
+                        continue
+                    _so_ok = False
+                _so_rec = next((v for v in self._record_types.values()
+                                if v.get("whyml_name") == _sc_ty), None)
+                _so_lbl = self._field_label(_sc_ty, _so_f)
+                _so_emt = str((getattr(self, "_emitted_record_field_types", {})
+                               or {}).get(_sc_ty, {}).get(_so_lbl) or "")
+                if (_so_rec is None
+                        or (_so_rec.get("field_types") or {}).get(_so_f) != "list"
+                        or not _so_emt.startswith("array ")):
+                    _so_ok = False
+                _so_fn = getattr(self, "_current_sig_func_name", None)
+                _so_body = None
+                for _so_g in (self.ir.get("functions", []) or []):
+                    if _so_fn and _so_g.get("name") == _so_fn:
+                        _so_body = _so_g.get("body", [])
+                if _so_body is None:
+                    _so_ok = False
+                _so_w = [_so_body] if _so_ok else []
+                while _so_w and _so_ok:
+                    _so_x = _so_w.pop()
+                    if isinstance(_so_x, dict):
+                        if (_so_x.get("type") == "Call" and _so_x.get("func") == "len"
+                                and len(_so_x.get("args") or []) == 1):
+                            _so_a0 = (_so_x.get("args") or [None])[0]
+                            if (isinstance(_so_a0, dict)
+                                    and _so_a0.get("type") in ("FieldGet", "Attribute")):
+                                continue
+                        if _so_x.get("type") == "FieldGet" and \
+                                _so_x.get("object") == "self" and \
+                                _so_x.get("field") == _so_f:
+                            _so_ok = False
+                        if _so_x.get("type") == "Attribute" and \
+                                _so_x.get("attr") == _so_f and \
+                                isinstance(_so_x.get("value"), dict) and \
+                                _so_x["value"].get("name") == "self":
+                            _so_ok = False
+                        _so_w.extend(_so_x.values())
+                    elif isinstance(_so_x, list):
+                        _so_w.extend(_so_x)
+                if _so_ok:
+                    self._add_abstract_op(
+                        "val array_sort_inplace (a: array 'a) : unit\n"
+                        "    writes { a }")
+                    code = f"{indent}array_sort_inplace self.{_so_lbl}"
+                    if rest:
+                        code += ";\n" + self._stmts_to_whyml(
+                            rest, local_refs, declared_refs, indent, in_loop)
+                    return code
         # self-tcb-reduction (_err-divergence): a bare-statement `self.<m>(...)` call to a
         # `-> NoReturn` callee never returns. `_handle_dotted_call` lowers it to
         # `(let _ = <call> in absurd)` (type `'a`). As a STATEMENT it must NOT be wrapped in
