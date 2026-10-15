@@ -845,11 +845,17 @@ class ConstructionSynthMixin:
                     or (isinstance(fn, ast.Attribute) and fn.attr == "field")):
                 value = next((k.value for k in value.keywords
                               if k.arg == "default"), None)
-        if isinstance(value, ast.Constant) and isinstance(value.value, (int, float)):
+        # (#49) ROUTE #236 — a NON-INTEGRAL float is not an int this model can state:
+        # `int()` TRUNCATED `field(default=2.5, kw_only=True)` to 2 and `P(c).k == 2`
+        # PROVED (CPython 2.5) — route #148's rule, which the positional arm already obeys.
+        if (isinstance(value, ast.Constant) and isinstance(value.value, (int, float))
+                and not (isinstance(value.value, float) and not value.value.is_integer())):
             return int(value.value)
         if (isinstance(value, ast.UnaryOp) and isinstance(value.op, ast.USub)
                 and isinstance(value.operand, ast.Constant)
-                and isinstance(value.operand.value, (int, float))):
+                and isinstance(value.operand.value, (int, float))
+                and not (isinstance(value.operand.value, float)
+                         and not value.operand.value.is_integer())):
             return -int(value.operand.value)
         return None
 

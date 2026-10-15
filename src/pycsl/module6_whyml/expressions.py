@@ -14119,6 +14119,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if _sd70 is not None:
                     return '"%s"' % (
                         _sd70.replace("\\", "\\\\").replace('"', '\\"'))
+                # (#49) ROUTE #236 — a `str` field whose declared default is `None` is
+                # route #50's opaque `pycsl_none_str` (so `is None` reads True and every
+                # string comparison is undecided), not the ill-typed int fallback.
+                if fn in set(rec_info.get("field_none_defaults") or []):
+                    self._add_abstract_op("val function pycsl_none_str : string")
+                    return "pycsl_none_str"
             if ft == "option":
                 # An OMITTED option field's type-correct default is Why3's `None`, not the
                 # int `0` — same faithfulness point as the literal-`None` keyword above.
@@ -14351,7 +14357,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _unknown = set(rec_info.get("init_unknown_fields", []) or [])
         # ROUTE #149: only an int-modelled field takes `(any int)`; any other type keeps
         # today's value (a `(any int)` there would be ill-typed).
-        _unknown |= {f for f in _unk149 if field_types.get(f, "int") in ("int", "bool")}
+        # (#49) ROUTE #236: a synthesized `_union_*` field (`Optional[int]`, `Optional[str]`,
+        # `Union[...]`) is emitted with the `int` carrier too, and excluding it left an
+        # omitted `k: Optional[int] = None` parameter's field on the definite `0`
+        # (`P(c).k == 0` PROVED; CPython None).
+        _unknown |= {f for f in _unk149
+                     if field_types.get(f, "int") in ("int", "bool")
+                     or str(field_types.get(f, "int")).startswith("_union_")}
         _NONSCALAR = ("list", "array", "dict", "set", "frozenset", "option")
         field_inits = "; ".join(
             "%s = %s" % (

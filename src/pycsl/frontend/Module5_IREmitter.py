@@ -4249,6 +4249,65 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # (no new `self` attribute: the mirror's `assigns` clauses would not carry it).
             _ft235 = {_fd235.get("name"): _fd235.get("type")
                       for _fd235 in fields if isinstance(_fd235, dict)}
+            # (#49) ROUTE #236 — A `@dataclass` CLASS-BODY DEFAULT THE COLLECTOR `pass`ED
+            # READ AS THE DEFINITE `0`. `_collect_class_fields` sends a `None` / `str` /
+            # other non-numeric constant default to `pass` ("carried by its own channel")
+            # and no channel carried it, so an OMITTED actual took `_field_default`'s
+            # `defaults.get(fn, 0)`. MEASURED at `3501dd72`, each PROVING with CPython
+            # contradicting: `k: Optional[int] = None` -> `P(c).k == 0`; the same through
+            # `field(default=None)` and a keyword-only `field(default=None, kw_only=True)`;
+            # `b: Optional[bool] = None` -> `p.b == False`; `k: int = None`;
+            # `name: Optional[str] = "w"` -> `p.name == "w"` decided False; `k: int = "w"`
+            # and `Union[int, str] = "w"` -> `p.k == 0`; and a non-integral float on an
+            # int field, `k: int = 2.5` (or `field(default=2.5)`), TRUNCATED to 2 —
+            # route #148's shape on the class-body collector.
+            # Route #183's channel is reused: a `None` default joins `field_none_defaults`
+            # (Module 6 answers route #44's opaque `pycsl_none`, or route #50's
+            # `pycsl_none_str` for a `string` field); a `str` default on a `str` field is
+            # the FAITHFUL literal (finding-0700's `field_str_defaults`); a `str` default on
+            # any other field, and a non-integral float on a non-`float` field, is UNKNOWN
+            # (route #145's channel -> `(any int)`), never a wrong witness. Scanned inline
+            # from the class body (no new `self` attribute, no new `def`), for a dataclass
+            # that SYNTHESIZES its `__init__` — the only one whose class-body defaults are
+            # what an omitted actual takes.
+            if (self._is_dataclass_decorated(node)
+                    and not any(isinstance(_i236, ast.FunctionDef)
+                                and _i236.name == "__init__" for _i236 in node.body)):
+                for _st236 in node.body:
+                    if not (isinstance(_st236, ast.AnnAssign)
+                            and isinstance(_st236.target, ast.Name)
+                            and _st236.value is not None):
+                        continue
+                    _fn236 = _st236.target.id
+                    _rv236 = _st236.value
+                    if (isinstance(_rv236, ast.Call)
+                            and ((isinstance(_rv236.func, ast.Name)
+                                  and _rv236.func.id == "field")
+                                 or (isinstance(_rv236.func, ast.Attribute)
+                                     and _rv236.func.attr == "field"))):
+                        _rv236 = next((_k236.value for _k236 in _rv236.keywords
+                                       if _k236.arg == "default"), None)
+                    if (isinstance(_rv236, ast.UnaryOp)
+                            and isinstance(_rv236.op, (ast.USub, ast.UAdd))
+                            and isinstance(_rv236.operand, ast.Constant)
+                            and isinstance(_rv236.operand.value, float)):
+                        _rv236 = _rv236.operand   # only its integrality is consulted
+                    if not isinstance(_rv236, ast.Constant):
+                        continue
+                    if _rv236.value is None:
+                        if _fn236 not in _n183:
+                            _n183.append(_fn236)
+                    elif isinstance(_rv236.value, str):
+                        if _ft235.get(_fn236) in ("str", "string"):
+                            _s70lit.setdefault(_fn236, _rv236.value)
+                        elif _fn236 not in _unk:
+                            _unk.append(_fn236)
+                    elif (isinstance(_rv236.value, float)
+                            and not _rv236.value.is_integer()
+                            and _ft235.get(_fn236) not in ("float", "real")
+                            and _fn236 not in _unk):
+                        _unk.append(_fn236)
+                _n183.sort()
             _c235 = list(getattr(self, "_init_unknown_c235", []) or [])
             if (self._is_dataclass_decorated(node)
                     and not any(isinstance(_i235, ast.FunctionDef)

@@ -5,7 +5,8 @@
 ##   replaced a truthy non-map value with the empty map) OPENED (driver-reproduced).
 
 ## gen #36 (2026-10-15): #236 (a `@dataclass` class-body `= None` default emitted as the definite `0`;
-##   `P(c).k == 0` proved) OPENED (driver-reproduced).
+##   `P(c).k == 0` proved; also str-on-non-str and truncated-float class-body defaults, and an omitted
+##   `Optional` `__init__` param) OPENED 3501dd72, REPAIRED (witnesses 2110-2132).
 ## gen #36 (2026-10-14): #235 (a record's collection field built from a supplied / bound / computed
 ##   initialiser took the DEFINITE empty default — pinned `Seq.empty`, `Array.make 0 0`, `const None`;
 ##   `len(e.items) == 0` proved for a 3-element actual) OPENED f403a3ec, REPAIRED (witnesses 2006-2018).
