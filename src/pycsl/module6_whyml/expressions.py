@@ -9463,6 +9463,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _prs = self._expr_to_whyml(_prr, local_refs, invariant_ctx, subst)
                 self._add_abstract_op("val path_resolve_op (s: string) : string")
                 return f"(path_resolve_op {_prs})"
+            # #31 PATH MODEL: the zero-argument `pathlib` filesystem PREDICATES
+            # `<path>.is_file()` / `.is_dir()` / `.exists()` on a STRING-TYPED (Path)
+            # receiver -> the SAME impure predicate ops the `os.path` table declares
+            # (`_OS_PATH_PRED`: `val path_isfile_op (s: string) : int`, the emitter's bool
+            # model), BEFORE the generic dotted-call fallback, which applied an opaque
+            # `is_file_1 (x: int) : int` to the receiver -- an L3-tc error for any compound
+            # path (`(d / "f").is_file()`, `p.parent.is_dir()`). A Python `str` has none of
+            # these methods, so on a string-typed receiver they can only be the `Path` ones
+            # (the `.resolve()` argument above). A plain `val`: the filesystem changes under
+            # the program, so NO law is claimed -- not truth, not `is_file -> exists`, not
+            # agreement between two calls. Fail-closed on any argument (`follow_symlinks=`),
+            # any keyword, and any receiver not already string-typed.
+            if (_prt in ("is_file", "is_dir", "exists") and _prr is not None
+                    and self._is_string_expr(_prr)):
+                _pop = {"is_file": "path_isfile_op", "is_dir": "path_isdir_op",
+                        "exists": "path_exists_op"}[_prt]
+                _prs = self._expr_to_whyml(_prr, local_refs, invariant_ctx, subst)
+                self._add_abstract_op(f"val {_pop} (s: string) : int")
+                return f"({_pop} {_prs})"
 
         # #31: `re.sub` / `re.escape` -> a faithful `string` op, BEFORE the generic
         # dotted-call fallback that would mint an opaque int `re_sub_3`.
