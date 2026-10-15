@@ -506,7 +506,6 @@ def _default_lean_dir(py_file: Path) -> Path:
     return py_file.parent / f"{py_file.stem}.proofs" / "lean"
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
