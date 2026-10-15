@@ -1,6 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-15): #239 (`isinstance(<Any>, T)` lowered to `typeof_op <name-hash>` — rebinding the name
+##   kept the answer) OPENED (driver-written exploit).
+
 ## gen #36 (2026-10-15): #237 (`isinstance(<hval>, dict)` lowered to the constant `true`) and #238 (`<hval> or []`
 ##   replaced a truthy non-map value with the empty map) OPENED (driver-reproduced).
 
