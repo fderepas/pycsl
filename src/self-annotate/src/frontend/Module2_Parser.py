@@ -1044,18 +1044,29 @@ class _ContractParser:
             return FunctionVariant(e, ordering)
         return FunctionVariant(self._parse_expr())
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # CONVERTED (gen #36 ch7). Verbatim live body; no emitter change. Same shape as
+    # `_parse_assumes`: the live `def` is unannotated, so the stub typed it `unit`; the mirror's
+    # `-> Trusted` is the record every path returns. Its one blocker was the STILL-TRUSTED
+    # sibling below, whose `pass` body typed `reviewer = self._grab_reviewer_id()` as `()`
+    # against the string local; that stub's interface now says `-> str` (the live body returns
+    # `m.group(0)`), and it stays `\trusted`.
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_trusted(self):
-        pass
+    def _parse_trusted(self) -> Trusted:
+        self.expect_bs("\\trusted")
+        reviewer = ""
+        if self.at_name("reviewer"):
+            self.advance()
+            self.expect_op(":")
+            reviewer = self._grab_reviewer_id()
+        return Trusted(reviewer=reviewer)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _grab_reviewer_id(self):
+    def _grab_reviewer_id(self) -> str:
         pass
 
     #@ requires True
