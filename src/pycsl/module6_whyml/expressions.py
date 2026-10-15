@@ -1045,7 +1045,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         identifiers we can't disambiguate (passed through; callers must
         ensure their type). For everything else, returns the placeholder."""
         stripped = whyml_str.strip()
-        if stripped == "0":
+        # (#49) ROUTE #241: an erased generator now lowers to `(any int)`, not `0`; it is
+        # the same unknown iterable, so it takes the same unconstrained array.
+        if stripped == "0" or stripped == "(any int)":
             # (#49) ROUTE #193 — A PLACEHOLDER FOR AN UNKNOWN ARRAY MUST NOT HAVE A KNOWN
             # LENGTH. This returned `(Array.make 1 0)`, a DEFINITE length-1 array, and the
             # defence written above ("the abstract vals have no axioms about their input
@@ -10282,7 +10284,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not isinstance(target, str) or not target or target == "_comp_var":
             return None
         arr = self._expr_to_whyml(gen.get("iter") or {}, local_refs, invariant_ctx, subst)
-        if not arr or not arr.strip() or arr.strip() == "0":
+        if not arr or not arr.strip() or arr.strip() in ("0", "(any int)"):
+            # (#49) ROUTE #241: an erased generator iterable is `(any int)` now, not `0`.
             return None                      # iterable itself erased — nothing to fold over
         arr = arr.strip()
         # (#49) ROUTE #158 — THE FOLD QUANTIFIES OVER `Array.length a`, AND FOR AN EMPTY LIST
@@ -11796,6 +11799,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f'(str_eq_op (unaryop_op_of {_ow}) "-")'
         t_name = args_ir[1].get("name") if isinstance(args_ir[1], dict) else None
         t_tag = self._tag_of_type(t_name)
+        # (#49) ROUTE #240 — `bool` IS A SUBCLASS OF `int`, NOT THE OTHER WAY ROUND. Decision
+        # A collapses `bool` onto `tag_int` (the value model has no bool: `True` lowers to
+        # `1`), which is faithful for `isinstance(<bool>, int)` and for `isinstance(<str>,
+        # bool)` (false either way) but DECIDED `isinstance(<int>, bool)` TRUE: `def f(x:
+        # int)`, `if isinstance(x, bool): return 1`, `\result == 1` PROVED where CPython
+        # `f(5)` = 0 (corpus 2240); an `Any` subject made the bool test the SAME term as the
+        # int test (2241); a contract's `requires isinstance(x, bool)` was a closed TRUE
+        # formula (2248). The model cannot tell `True` from `1`, so a bool test on an int
+        # or undecided subject is UNDECIDED: it takes the unknown-class arm below (the
+        # receiver-carrying `py_isinstance_bool_<t>_op`, a program `val` with a fresh result
+        # per evaluation, never a function of the collapsed value — `True` and `1` are never
+        # forced to agree; the historical `isinstance_op 0 0` where the receiver type cannot
+        # be named). The tuple form `(int, bool)` already took that arm. A subject DECLARED
+        # `bool` is no exception: the model admits an INT actual for a `bool` parameter (both
+        # are `int`), so `f(b: bool)` called as `f(5)` would decide True where CPython says
+        # False (measured by `check-corpus-contract-truth-args` on the first spelling of
+        # this repair, which kept that case decided). `isinstance(<bool>, int)` stays TRUE
+        # (bool is a subclass of int) and a subject with a concrete non-int tag still
+        # decides `bool` false. Read from the symbol table directly (not `_tag_of_value`,
+        # which declares `typeof_op` as a side effect).
+        if t_tag and t_name == "bool":
+            _a0n240 = (_a0.get("name") if isinstance(_a0, dict) and _a0.get("type") == "Var"
+                       else None)
+            _st240 = (getattr(self, "_current_symbol_table", {}) or {}).get(_a0n240) \
+                if _a0n240 else None
+            if self._tag_of_type(_st240) in ("", "tag_int"):
+                t_tag = ""
         if not t_tag:
             # RECEIVER-CARRYING isinstance (relaunch #15): `(isinstance_op 0 0)` erases BOTH
             # arguments, so the test is independent of the value AND of the class — the
@@ -19351,7 +19381,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # (`int -> int`, L3-tc failure, caught by the mirror-wide sweep). The faithful
             # bounded fold is introduced at the any/all call site (R2b), which intercepts
             # BEFORE this fallback; everywhere else GenExp stays exactly as inert as it was.
-            return "0"
+            # (#49) ROUTE #241 — INERT WAS NOT HARMLESS: the scalar was the LITERAL `0`, a
+            # WRONG value rather than an unknown one, observable wherever anything compares
+            # it. `g(v for v in [1])` against `def g(x: Any)` with `ensures x == 0 ==>
+            # \result == 1` emitted `g 0` and PROVED `m() == 1` (CPython 0; corpus 2242), and
+            # the same `0` decided a container element (`[<genexp>][0] == 0`), a field store,
+            # a keyword actual, a direct comparison and an `Any` return (2243-2247). Route
+            # #239 had already made the LOCAL-binding form fresh; this is the same value one
+            # position over, so the fix is here, at the one place every position reads it:
+            # Why3's `(any int)`, fresh per evaluation and rejected in a logic context — the
+            # route-#115 `UnknownPyExpr` answer two arms up. An array slot keeps its
+            # unconstrained `(any (array int))` (`_array_coerce_arg` reads this spelling as
+            # it read `0`).
+            return "(any int)"
         if t == "Slice":    return "0"
         if t == "OldField":
             _of_rec = (self._current_self_type if expr['object'] == "self"

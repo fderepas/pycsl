@@ -136,14 +136,14 @@ BASELINE = {
         "control 1068 is the driver that holds it. Three different truthiness answers now "
         "live in one dict (refuse for a generator, `false` for `None`, `true` for NaN), "
         "and that is a semantic distinction, not an inconsistency.",
-    # (#49, gen #23) KEY NARROWED from '"UnknownPyExpr|GenExp"': route #115 split that arm
-    # and its UnknownPyExpr half now answers `(any int)`. The GenExp half is the SAME
-    # pre-existing arm with the same R2a-parity reason; nothing new is blessed here.
-    ("_expr_to_whyml", '"GenExp"', "0"):
-        "route #41, dict-shaped, GenExp half ONLY since route #115 (gen #23): the "
-        "UnknownPyExpr half of this arm answers `(any int)`. A generator expression in a "
-        "value position still lowers to 0 for R2a parity; its truthiness is refused at the "
-        "binding (PYCSL-WHYML-ERASED-TRUTHINESS).",
+    # (#49, gen #36) REMOVED, BECAUSE ITS ARM NO LONGER ANSWERS A CONSTANT:
+    #   ("_expr_to_whyml", '"GenExp"', "0") — blessed as "a generator expression in a value
+    #     position still lowers to 0 for R2a parity; its truthiness is refused at the
+    #     binding". ROUTE #241 measured that refusing the TRUTHINESS left the VALUE decided:
+    #     `g(v for v in [1])` against `def g(x: Any)` with `ensures x == 0 ==> \result == 1`
+    #     emitted `g 0` and PROVED (CPython 0), and so did a list element, a field store, a
+    #     keyword actual, a direct `== 0` and an `Any` return (corpus 2242-2247). The arm
+    #     now answers `(any int)`, the UnknownPyExpr half's answer since route #115.
     ("_emit_term_retval", '"Bool"', "true|false"):
         "a `#@ proof`-bridge term whose value IS the bool literal -- faithful.",
 }

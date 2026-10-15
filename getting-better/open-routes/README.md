@@ -2,7 +2,11 @@
 
 
 ## gen #36 (2026-10-15): #240 (`isinstance(<int>, bool)` decided TRUE) and #241 (a generator actual to an `Any`
-##   parameter emitted as the literal `0`) OPENED (driver-reproduced; residuals of the #239 repair).
+##   parameter emitted as the literal `0`) OPENED (driver-reproduced; residuals of the #239 repair), REPAIRED (a
+##   `bool` test on any int-modelled subject — int, Any, even a `bool`-declared param — takes the unknown-class
+##   receiver-carrying arm, `isinstance(<bool>, int)` stays TRUE; the GenExp value arm answers `(any int)` in every
+##   position; witnesses 2240-2249, controls 2250-2252). Residual recorded: a `let function` body freezes its
+##   fresh devices, so `h(True) == h(1)` / `r() == r()` still prove.
 
 ## gen #36 (2026-10-15): #239 (`isinstance(<Any>, T)` lowered to `typeof_op <name-hash>` — rebinding the name
 ##   kept the answer) OPENED (driver-written exploit), REPAIRED with its name-keyed siblings (`typeof_op` applied to

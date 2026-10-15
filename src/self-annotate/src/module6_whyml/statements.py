@@ -357,7 +357,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         identifiers we can't disambiguate (passed through; callers must
         ensure their type). For everything else, returns the placeholder."""
         stripped = whyml_str.strip()
-        if stripped == "0":
+        # (#49) ROUTE #241: an erased generator now lowers to `(any int)`, not `0`; it is
+        # the same unknown iterable, so it takes the same unconstrained array.
+        if stripped == "0" or stripped == "(any int)":
             # (#49) ROUTE #193 — A PLACEHOLDER FOR AN UNKNOWN ARRAY MUST NOT HAVE A KNOWN
             # LENGTH. This returned `(Array.make 1 0)`, a DEFINITE length-1 array, and the
             # defence written above ("the abstract vals have no axioms about their input
