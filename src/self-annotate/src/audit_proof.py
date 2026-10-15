@@ -553,7 +553,6 @@ def audit_both(py_file: Path,
     return report
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
