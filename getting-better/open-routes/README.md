@@ -1,6 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-15): #242 (a `let function` with a nondeterministic body is one value per argument:
+##   `h(True) == h(1)`, `r() == r()` for generators proved) OPENED (driver-reproduced).
+
 ## gen #36 (2026-10-15): #240 (`isinstance(<int>, bool)` decided TRUE) and #241 (a generator actual to an `Any`
 ##   parameter emitted as the literal `0`) OPENED (driver-reproduced; residuals of the #239 repair), REPAIRED (a
 ##   `bool` test on any int-modelled subject — int, Any, even a `bool`-declared param — takes the unknown-class
