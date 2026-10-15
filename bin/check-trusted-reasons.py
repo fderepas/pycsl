@@ -154,7 +154,10 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        lines, ZERO new abstract operations, green whole-file proof in 38 minutes. Its
 #        near-twin `pycsl.py::_parse_args` is 174 lines, also proves, and is REFUSED by check
 #        1 for TEN new abstract operations — the whole of `argparse` going uninterpreted.
-MAX_UNCLASSIFIED = 271   # (#49) gen #36, 2026-10-14 — 272 -> 271: the field-typed empty map
+MAX_UNCLASSIFIED = 270   # (#49) gen #36 ch7, 2026-10-14 — 271 -> 270: the mirror-only return
+                         # annotation `-> BoundedIntDecl` (no emitter change) converted the
+                         # unclassified `frontend/Module2_Parser.py::_ContractParser._parse_assumes`.
+                         # (#49) gen #36, 2026-10-14 — 272 -> 271: the field-typed empty map
                          # (`<- (const None)`) and the declared-field `writes` beside the
                          # coarse `_pyobj_state` cell converted the unclassified
                          # `Module6_WhyMLTranspiler.py::Module6_WhyMLTranspiler._reset_module_accumulators`.

@@ -1096,12 +1096,24 @@ class _ContractParser:
     def _parse_no_exception(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # CONVERTED (gen #36 ch7). Verbatim live body. The live `def` is unannotated, so the
+    # `\trusted` stub's `pass` body typed it `unit` and the verbatim port returned a
+    # `boundedintdecl` record against an `int` return (the census L3TC-FAIL). The mirror's
+    # `-> BoundedIntDecl` is the modelling layer (the fidelity plane de-annotates) and is
+    # exactly what the body returns; no emitter change.
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_assumes(self):
-        pass
+    def _parse_assumes(self) -> BoundedIntDecl:
+        self.expect_name("assumes")
+        self.expect_name("bounded_int")
+        self.expect_op("(")
+        size_tok = self.cur()
+        if size_tok.type != "NUMBER":
+            self._err("expected NUMBER in bounded_int(...)")
+        self.advance()
+        self.expect_op(")")
+        return BoundedIntDecl(int(size_tok.string))
 
     #@ requires True
     #@ ensures True

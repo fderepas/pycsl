@@ -86,7 +86,6 @@ frontend/Module2_Parser.py	_ContractParser._parse_contract	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_trusted	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._grab_reviewer_id	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_no_exception	unclassified	-
-frontend/Module2_Parser.py	_ContractParser._parse_assumes	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_assigns	cost-scale:family-b-list-boundary	THE VERDICTS THE STUBS' OWN COMMENTS ALREADY RECORD (22 harvested, 5 classified)
 frontend/Module2_Parser.py	_ContractParser._parse_assigns_target	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_act_block	unclassified	-
