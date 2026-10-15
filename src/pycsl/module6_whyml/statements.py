@@ -796,6 +796,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # Tuple/Set literals can't be stored in int refs; use 0 as placeholder
         if vt in ("Tuple", "SetLit"):
             val = "0"
+        # (#49) ROUTE #239 — AN ERASED BINDING IS A FRESH VALUE PER EXECUTION. Route #41 made
+        # a READ of such a local the per-NAME constant `pycsl_erased_<x>` and left this
+        # binding the literal `0`, so every value the name ever held was ONE TERM: `x = (1,
+        # 2); a = x; x = (3, 4); b = x; a == b` PROVED where CPython answers False (corpus
+        # 2207). The binding now stores an unconstrained `(any int)` and the read is the
+        # ordinary `!x` (the per-name read arm in `_expr_to_whyml` is gone): two reads of
+        # one binding agree, two bindings — including one statement in two loop iterations
+        # — are unrelated. `None` (route #44's shared `pycsl_none`) and NaN (route #45) are
+        # not erased this way and are untouched. Keyed on the RHS KIND and the erased `0`
+        # (not on the record), so an `AMBIG` name's tuple/set arm is covered too, and a
+        # binding that lowered to a REAL value is never touched.
+        if (vt in ("GenExp", "UnknownPyExpr", "SetLit", "Tuple", "MkTuple")
+                and str(val).strip() == "0"):
+            val = "(any int)"
         # OPTIONAL-NODE LOCAL (relaunch #11): `x = None` / `x = <node>` where `x` is an
         # `iropt_ir` local (see `_collect_iropt_ir_locals`). The `None` is the carrier's own
         # `IrONone` — NOT the `IrOther ""` sentinel an emit_ir local would use, which would

@@ -78,6 +78,12 @@ BASELINE_INERT = {
     "_dv_empty_default", "_getattr_self_field", "_iter_elem_class", "_handle_sum_call",
     "_tag_of_type", "_expr_to_whyml", "_stmts_disp_class", "_get_str", "ir_kind",
     "ir_get_str_present",
+    # (#49) route #239: `_tag_of_value` answers "" for an UNDECIDED subject (it used to
+    # answer the name-keyed `(typeof_op <hash(name)>)`). USE SITE CHECKED: its one caller,
+    # `_handle_isinstance`, tests `if not _tv239` and replaces the "" with `typeof_op`
+    # applied to the lowered subject before anything is emitted — the same convention
+    # `_tag_of_type` (above) has always had.
+    "_tag_of_value",
 }
 
 

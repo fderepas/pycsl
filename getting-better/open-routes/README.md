@@ -5,7 +5,9 @@
 ##   parameter emitted as the literal `0`) OPENED (driver-reproduced; residuals of the #239 repair).
 
 ## gen #36 (2026-10-15): #239 (`isinstance(<Any>, T)` lowered to `typeof_op <name-hash>` — rebinding the name
-##   kept the answer) OPENED (driver-written exploit).
+##   kept the answer) OPENED (driver-written exploit), REPAIRED with its name-keyed siblings (`typeof_op` applied to
+##   the VALUE in program and contract; `getattr` devices take the receiver; erased locals bind a fresh value and
+##   read `!x`; witnesses 2200-2208, controls 2210-2215).
 
 ## gen #36 (2026-10-15): #237 (`isinstance(<hval>, dict)` lowered to the constant `true`) and #238 (`<hval> or []`
 ##   replaced a truthy non-map value with the empty map) OPENED (driver-reproduced), REPAIRED (hval constructor

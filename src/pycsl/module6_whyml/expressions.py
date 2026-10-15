@@ -11263,8 +11263,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         tag = self._tag_of_type(getattr(self, "_current_symbol_table", {}).get(name)) if name else ""
         if tag:
             return tag
-        self._add_abstract_op("val function typeof_op (n: int) : int")
-        return f"(typeof_op {sum(ord(c) for c in name) if name else 0})"
+        # (#49) ROUTE #239 — THE TAG IS A FUNCTION OF THE VALUE, NEVER OF THE NAME. This
+        # returned `(typeof_op <sum of the NAME's code points>)`, and `typeof_op` is a pure
+        # `val function`, so every test on one NAME was ONE TERM: `isinstance(x, int); x = y;
+        # isinstance(x, int)` were forced equal and `\result == 1` PROVED where CPython
+        # answers 0 (corpus 2200; the loop-variable form 2204). A non-`Var` subject was
+        # `typeof_op 0` for ALL of them (2203). In a CONTRACT the term did not mention the
+        # argument at all, so a caller's own `requires isinstance(x, int)` discharged a
+        # callee's precondition about a DIFFERENT value (2201) and one postcondition held of
+        # every actual (2202). The symbol is now POLYMORPHIC and applied by
+        # `_handle_isinstance` to the LOWERED SUBJECT (it has the `local_refs` this method
+        # does not): two reads of one unchanged value agree, a rebinding / another argument /
+        # another iteration is a different term. Returns "" so the caller does the application.
+        self._add_abstract_op("val function typeof_op (x: 'a) : int")
+        return ""
 
     def _sibling_call_union_type(self, x_ir: Any) -> Optional[str]:
         """The `_union_*` WhyML type of a `self.<m>(...)` sibling call, when that call
@@ -11919,8 +11931,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # bool accepted in program `if`. In spec context the predicate form is
         # kept (it carries the sub-typing relation `a = b \/ b = 99`, exercising
         # the `object` base-type decision per corpus 0632).
+        # (#49) ROUTE #239: `_tag_of_value` answers "" for an undecided subject; the tag is
+        # then `typeof_op` APPLIED TO THE SUBJECT'S CURRENT VALUE (see its note).
+        _tv239 = self._tag_of_value(args_ir[0])
+        if not _tv239:
+            _tv239 = self._expr_to_whyml(
+                args_ir[0], local_refs, getattr(self, "_in_spec", False), None)
+            if not re.fullmatch(r"!?[A-Za-z_][A-Za-z0-9_'.]*", _tv239):
+                _tv239 = "(%s)" % _tv239
+            _tv239 = "(typeof_op %s)" % _tv239
         if not getattr(self, "_in_spec", False):
-            lhs = self._tag_of_value(args_ir[0])
+            lhs = _tv239
             if lhs in self._TAG_LITERAL:
                 lhs = str(self._TAG_LITERAL[lhs])
             # (#49) ROUTE #230 — `isinstance(v, T)` for any T but `object` is FALSE on `None`,
@@ -11948,7 +11969,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             f"not (str_eq_op {_vw} {_nn}))")
                 return f"(({lhs} = {self._TAG_LITERAL[t_tag]}) && not ({_vw} = {_nn}))"
             return f"({lhs} = {self._TAG_LITERAL[t_tag]})"
-        return f"(subtag {self._tag_of_value(args_ir[0])} {t_tag})"
+        return f"(subtag {_tv239} {t_tag})"
 
     @staticmethod
     def _get_default_is_empty_dict(expr: Dict[str, Any]) -> bool:
@@ -13079,13 +13100,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             #
             # `_pyobj_state` is declared here rather than assumed: it is otherwise emitted
             # only when a `setattr_` op is added, and a module may read without writing.
+            # (#49) ROUTE #239 — AND ON THE RECEIVER'S VALUE. The site hash is `repr(expr)`,
+            # i.e. the receiver's NAME, so `getattr(o, "a"); o = p; getattr(o, "a")` was ONE
+            # TERM (no write separates them) and `x - y == 0` PROVED where CPython answers
+            # -1 (corpus 2205; the state-keyed form below, 2206). The device now also takes
+            # the LOWERED receiver (`args[0]`, polymorphic): same object and state, same
+            # read; rebound name, different term.
             _r47 = "pycsl_getattr_missing_%d" % (stable_hash(repr(expr)) & 0xffffffff)
+            _rv239 = args[0] if args else "0"
+            if not re.fullmatch(r"!?[A-Za-z_][A-Za-z0-9_'.]*", _rv239):
+                _rv239 = "(%s)" % _rv239
             if not _ga_keyable:
-                self._add_abstract_op("val function %s : int" % _r47)
-                return _r47
+                self._add_abstract_op("val function %s (o: 'a) : int" % _r47)
+                return "(%s %s)" % (_r47, _rv239)
             self._add_abstract_op("val _pyobj_state : ref int")
-            self._add_abstract_op("val function %s (s: int) : int" % _r47)
-            return "(%s !_pyobj_state)" % _r47
+            self._add_abstract_op("val function %s (s: int) (o: 'a) : int" % _r47)
+            return "(%s !_pyobj_state %s)" % (_r47, _rv239)
         nt = default_ir.get("type") if isinstance(default_ir, dict) else ""
         if nt in ("DictLit", "ArrayLit", "SetLit", "Call"):
             _r47 = "pycsl_getattr_default_%d" % (
@@ -13122,13 +13152,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # separate claim that sharing makes about two UNKNOWN receivers. Its repair is
             # blocked on local-type inference for constructor-assigned locals (335 corpus
             # files would move), which is priced in its own record and is not this change.
+            # (#49) ROUTE #239: keyed on the receiver's VALUE too, as the arm above.
             _r197 = "pycsl_getattr_unknown_%d" % (stable_hash(repr(expr)) & 0xffffffff)
+            _rv239 = args[0] if args else "0"
+            if not re.fullmatch(r"!?[A-Za-z_][A-Za-z0-9_'.]*", _rv239):
+                _rv239 = "(%s)" % _rv239
             if not _ga_keyable:
-                self._add_abstract_op("val function %s : int" % _r197)
-                return _r197
+                self._add_abstract_op("val function %s (o: 'a) : int" % _r197)
+                return "(%s %s)" % (_r197, _rv239)
             self._add_abstract_op("val _pyobj_state : ref int")
-            self._add_abstract_op("val function %s (s: int) : int" % _r197)
-            return "(%s !_pyobj_state)" % _r197
+            self._add_abstract_op("val function %s (s: int) (o: 'a) : int" % _r197)
+            return "(%s !_pyobj_state %s)" % (_r197, _rv239)
         return self._expr_to_whyml(default_ir, local_refs, invariant_ctx, subst)
 
     def _subst_params(self, ir: Any, arg_nodes: Dict[str, Any]) -> Any:
@@ -18795,30 +18829,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return "pycsl_none_str"
             self._add_abstract_op("val function pycsl_none : int")
             return "pycsl_none"
-        # (#48) ROUTE #45: a NaN-bound local is EXCLUDED from route #41's per-name opaque.
-        # Its value is ALREADY opaque (`py_float_1`), and #45's repair is about the
-        # COMPARISON, not the value — renaming the opaque would move emissions for no gain.
-        if (isinstance(expr, dict) and expr.get("type") == "Var"
-                and expr.get("name") in getattr(self, "_erased_truthy_locals", {})
-                and getattr(self, "_erased_truthy_locals", {}).get(
-                    expr.get("name")) != "NaN"):
-            _e41 = whyml_ident(expr["name"])
-            # (#49) ROUTES #46/#50 — THE OPAQUE MUST CARRY THE LOCAL'S OWN WhyML TYPE, and
-            #   that type is the one the emitter ALREADY gave its `ref` (`ref ""` vs
-            #   `ref 0`), never the symbol table's Python tag: an unannotated str local is
-            #   tagged `Any`, which is indistinguishable from an int local. MEASURED — the
-            #   first spelling of route #46's pre-scan fed `pycsl_erased_receiver_name`
-            #   (an `int`) into `str_eq_op` and `str_concat_op` in the `types.py` and
-            #   `Module2_Parser` mirrors, which is the SAME type error the "sticky record"
-            #   variant hit and the reason a type gate is load-bearing here.
-            if (expr.get("name") in getattr(self, "_string_local_vars", set())
-                    and getattr(self, "_current_self_type", None)
-                    in getattr(self, "_mutable_state_classes", set())):
-                self._add_abstract_op(
-                    "val function pycsl_erased_str_%s : string" % _e41)
-                return "pycsl_erased_str_%s" % _e41
-            self._add_abstract_op("val function pycsl_erased_%s : int" % _e41)
-            return "pycsl_erased_%s" % _e41
+        # (#49) ROUTE #239 — THE PER-NAME READ ARM IS GONE. Route #41/#46/#50 answered a
+        # READ of an erased or None-ambiguous local with `pycsl_erased_<x>` (`_str_` for a
+        # string local), a constant keyed on the NAME, so every value the name ever held
+        # was one term: `x = (1, 2); a = x; x = (3, 4); b = x` proved `a == b` (corpus
+        # 2207), and an AMBIG name read the same constant after `x = 5` and after `x = 6`
+        # (corpus 2208). The erased binding now stores a fresh `(any int)` (statements.py,
+        # same route) and an AMBIG binding already stores its real value or the shared
+        # `pycsl_none`/`pycsl_none_str` sentinel, so the ORDINARY read `!x` is the faithful
+        # one: two reads of one binding agree, nothing else is forced equal. NaN keeps
+        # route #45's comparison refusal; a `None#empty` read keeps `pycsl_none` above.
         node = expr_from_dict(expr) if isinstance(expr, dict) else expr
         # TIER3-P1 fail-closed boundary (`triage-ranked-tcb-tier3.md` Phase-1 prereq):
         # the eleven upstream/out-of-registry tags (`ir_schema.IR_TAG_ALIASES`) are
