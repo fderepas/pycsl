@@ -400,6 +400,33 @@ class ControlFlowStmtMixin:
                 self._str_slice_loop_len = f"((Array.length {_fw}) - {_k})"
                 return (f"((Array.length {_fw}) - {_k})",
                         f"{_fw}[!{idx} + {_k}]", False)
+        # (#49) ch15 (`audit_proof.print_report`): `for x in <o>.<f>` where `<o>` is `self`
+        # or a RECORD-typed param/local and `<f>` is a field of ITS class EMITTED as
+        # `array string` (a `List[str]` field) iterates the REAL array: bound
+        # `Array.length <o>.<f>`, element `<o>.<f>[!idx]` (a real `string` per iteration).
+        # It fell to the opaque `iter_length`/`iter_get : int -> int`, applied to an
+        # `array string` -- an L3-tc type error. The class is resolved per receiver and the
+        # field's EMITTED WhyML type is checked (`_emitted_record_field_types`), so a
+        # same-named field of another record, a `seq string` (pinned) carrier, or a
+        # non-string list never routes here. The bound is a `let` (stable), and `0 <= !idx`
+        # plus the guard discharge the element read's bounds VC. No string-array record
+        # field -> nothing resolves -> corpus byte-inert.
+        if self._value_semantic and iter_ir.get("type") in ("FieldGet", "Attribute"):
+            _f15 = iter_ir.get("field") or iter_ir.get("attr")
+            _o15 = iter_ir.get("object") or iter_ir.get("value")
+            if isinstance(_o15, dict):
+                _o15 = _o15.get("name") if _o15.get("type") == "Var" else None
+            _c15 = (getattr(self, "_current_self_type", None) if _o15 == "self"
+                    else ((getattr(self, "_current_record_var_classes", {}) or {}).get(_o15)
+                          or (getattr(self, "_record_param_classes", {}) or {}).get(_o15))
+                    if isinstance(_o15, str) else None)
+            if isinstance(_c15, str) and _c15 in getattr(self, "_record_types", {}):
+                _c15 = self._record_types[_c15].get("whyml_name")
+            if (isinstance(_c15, str) and isinstance(_f15, str)
+                    and ((getattr(self, "_emitted_record_field_types", {}) or {})
+                         .get(_c15, {}).get(_f15)) == "array string"):
+                _fw15 = self._expr_to_whyml(iter_ir, local_refs)
+                return (f"(Array.length {_fw15})", f"{_fw15}[!{idx}]", False)
         # hval-retype (self-tcb-reduction Tier-5): `for info in <pyval-field>.values()`
         # (the `_field_type_for`/`_field_type_of` record-registry scan over
         # `self._record_types.values()`, retyped to `map string (option hval)`) iterates

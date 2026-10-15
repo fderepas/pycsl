@@ -4975,6 +4975,25 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 if n.get("stmt") == "For" and isinstance(n.get("target"), str) \
                         and _is_str_field_read(n.get("iter")):
                     out.add(n["target"])
+                # (#49) ch15: ...and the target of `for x in p.<f>` with `p` a RECORD param
+                # / local whose class EMITS `<f>` as `array string` (the `_classify_iterable`
+                # arm that iterates it as the real array) -- the element is a `string`.
+                _it15 = n.get("iter") if n.get("stmt") == "For" else None
+                if (isinstance(n.get("target"), str) and isinstance(_it15, dict)
+                        and _it15.get("type") in ("FieldGet", "Attribute")):
+                    _f15 = _it15.get("field") or _it15.get("attr")
+                    _o15 = _it15.get("object") or _it15.get("value")
+                    if isinstance(_o15, dict):
+                        _o15 = _o15.get("name") if _o15.get("type") == "Var" else None
+                    _c15 = (((getattr(self, "_current_record_var_classes", {}) or {}).get(_o15)
+                             or (getattr(self, "_record_param_classes", {}) or {}).get(_o15))
+                            if isinstance(_o15, str) and _o15 != "self" else None)
+                    if isinstance(_c15, str) and _c15 in getattr(self, "_record_types", {}):
+                        _c15 = self._record_types[_c15].get("whyml_name")
+                    if (isinstance(_c15, str) and isinstance(_f15, str)
+                            and ((getattr(self, "_emitted_record_field_types", {}) or {})
+                                 .get(_c15, {}).get(_f15)) == "array string"):
+                        out.add(n["target"])
                 for x in n.values():
                     scan(x)
             elif isinstance(n, list):
