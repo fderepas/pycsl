@@ -4653,6 +4653,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _ospc = self._os_path_call(ir)
             if _ospc is not None and _ospc[0] != "pred":
                 return True
+            # (#31) `<path>.resolve()` on a string-typed (Path) receiver is a path, i.e.
+            # a `string` -- the SAME test `_handle_call_expr` lowers to `path_resolve_op`.
+            if not ir.get("args") and not ir.get("keywords"):
+                _prr, _prt = self._str_method_recv_and_tail(ir)
+                if (_prt == "resolve" and _prr is not None
+                        and self._is_string_expr(_prr)):
+                    return True
             # §3.5: a literal-string-list `sep.join([…])` is string (nested concat).
             if self._is_literal_string_join(ir):
                 return True
@@ -9398,6 +9405,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _ospw = self._handle_os_path_call(expr, args)
         if _ospw is not None:
             return _ospw
+
+        # #31 PATH MODEL: `<path>.resolve()` -> the impure `path_resolve_op`, BEFORE the
+        # generic dotted-call fallback, which minted a receiver-less `val <p>_resolve_0 () :
+        # int` that DROPPED the receiver and int-erased a path. A `pathlib.Path` is a Why3
+        # `string` here and a Python `str` has NO `.resolve` method, so a zero-argument
+        # `.resolve()` on a STRING-TYPED receiver can only be `Path.resolve()` in a
+        # well-typed program -- the same fail-closed argument as the `_PATH_STR_ATTRS`
+        # attribute rule and the `/` path-join rule. IMPURE, like `os.path.realpath`
+        # (`_OS_PATH_IMPURE_STR`): the result reads the cwd and the filesystem (symlinks),
+        # so it is a plain `val`, not a `val function`, and NO content/length/prefix law is
+        # claimed (witnesses 2160-2162). Fail-closed on any argument (`strict=`), any
+        # keyword, and any receiver not already typed as a string (an opaque `Path(...)`
+        # construction, an untyped local). The SAME test is inlined in `_is_string_expr`.
+        if not expr.get("args") and not expr.get("keywords"):
+            _prr, _prt = self._str_method_recv_and_tail(expr)
+            if (_prt == "resolve" and _prr is not None
+                    and self._is_string_expr(_prr)):
+                _prs = self._expr_to_whyml(_prr, local_refs, invariant_ctx, subst)
+                self._add_abstract_op("val path_resolve_op (s: string) : string")
+                return f"(path_resolve_op {_prs})"
 
         # #31: `re.sub` / `re.escape` -> a faithful `string` op, BEFORE the generic
         # dotted-call fallback that would mint an opaque int `re_sub_3`.
