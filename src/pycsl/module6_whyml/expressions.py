@@ -6744,6 +6744,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `iter_length : int -> int`, applied to an `array` — an L3-tc type error. The
         # receiver's class is checked to OWN the field (the two sets are keyed by field
         # name only), so a same-named field of another record never routes here.
+        # `_record_array_fields` is a DICT (field name -> element type) and
+        # `_str_array_record_fields` a SET of field names: the union is over the field
+        # NAMES (`set(<dict>)` = its keys); a raw `dict | set` raised TypeError.
         if (_raf or _sarf) and atype in ("FieldGet", "Attribute"):
             _pfn = arg_ir.get("field") or arg_ir.get("attr")
             _pob = arg_ir.get("object") or arg_ir.get("value")
@@ -6752,7 +6755,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _pcls = ((getattr(self, "_current_record_var_classes", {}) or {}).get(_pon)
                      or (getattr(self, "_record_param_classes", {}) or {}).get(_pon)
                      ) if _pon and _pon != "self" else None
-            if _pcls and _pfn in ((_raf or set()) | (_sarf or set())):
+            if _pcls and _pfn in (set(_raf or ()) | set(_sarf or ())):
                 _prt = next((v for v in getattr(self, "_record_types", {}).values()
                              if v.get("whyml_name") == _pcls), None)
                 if _prt is not None and _pfn in (_prt.get("fields") or []):
