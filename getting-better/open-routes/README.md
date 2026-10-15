@@ -1,5 +1,8 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+
+## gen #36 (2026-10-15): #236 (a `@dataclass` class-body `= None` default emitted as the definite `0`;
+##   `P(c).k == 0` proved) OPENED (driver-reproduced).
 ## gen #36 (2026-10-14): #235 (a record's collection field built from a supplied / bound / computed
 ##   initialiser took the DEFINITE empty default — pinned `Seq.empty`, `Array.make 0 0`, `const None`;
 ##   `len(e.items) == 0` proved for a 3-element actual) OPENED f403a3ec, REPAIRED (witnesses 2006-2018).
