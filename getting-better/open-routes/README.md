@@ -1,6 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-15): #240 (`isinstance(<int>, bool)` decided TRUE) and #241 (a generator actual to an `Any`
+##   parameter emitted as the literal `0`) OPENED (driver-reproduced; residuals of the #239 repair).
+
 ## gen #36 (2026-10-15): #239 (`isinstance(<Any>, T)` lowered to `typeof_op <name-hash>` — rebinding the name
 ##   kept the answer) OPENED (driver-written exploit).
 
