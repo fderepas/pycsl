@@ -7149,6 +7149,66 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             IRScanner.has_early_return(body_stmts)
             or IRScanner.has_in_loop_return(body_stmts)
         )
+        # (#49) EARLY RETURN OF A RECORD. A record-returning function's early return lowered
+        # to `raise (Return <record>)` against `exception Return int` -- an L3-tc rejection,
+        # and no record carrier can exist (Why3 rejects a top-level exception whose payload
+        # has mutable fields, and records are emitted with mutable fields). When EVERY
+        # `return` is in TAIL position of the if-tree -- the last statement of its list, and
+        # each `if` holding one either has an `else` and both arms end in `return`, or has no
+        # `else`, its body ends in `return` and statements follow it -- the existing If
+        # lowering already builds the if-then-else EXPRESSION (`if c then <body> else
+        # <rest>`), so the function needs no exception at all: clear the flag and every
+        # return is a tail value. Semantics-preserving by construction (a return in tail
+        # position of an if-expression IS the function's result). Gated on a declared record
+        # return, where the raise path is ALWAYS a type error -> every other emission is
+        # byte-identical. Any return under a loop/try/match/with, or in any other position,
+        # keeps the (rejected) raise path: fail-closed.
+        _rr_names = set()
+        for _rr_info in self._record_types.values():
+            _rr_names.add(_rr_info.get("whyml_name"))
+        if self._has_early_ret and return_type in _rr_names:
+            _rr_ok = True
+            _rr_work = [body_stmts]
+            while _rr_work and _rr_ok:
+                _rr_list = _rr_work.pop()
+                _rr_k = 0
+                while _rr_k < len(_rr_list) and _rr_ok:
+                    _rr_s = _rr_list[_rr_k]
+                    _rr_last = _rr_k == len(_rr_list) - 1
+                    _rr_st = _rr_s.get("stmt")
+                    if _rr_st == "Return":
+                        _rr_ok = _rr_last
+                    elif _rr_st == "If":
+                        _rr_b = _rr_s.get("body", [])
+                        _rr_o = _rr_s.get("orelse", [])
+                        if _rr_o:
+                            _rr_both = (IRScanner.ends_with_return(_rr_b)
+                                        and IRScanner.ends_with_return(_rr_o))
+                            if _rr_both:
+                                _rr_work.append(_rr_b)
+                                _rr_work.append(_rr_o)
+                            else:
+                                _rr_work.append([{"stmt": "_rr_scan", "v": _rr_b}])
+                                _rr_work.append([{"stmt": "_rr_scan", "v": _rr_o}])
+                        elif IRScanner.ends_with_return(_rr_b) and not _rr_last:
+                            _rr_work.append(_rr_b)
+                        else:
+                            _rr_work.append([{"stmt": "_rr_scan", "v": _rr_b}])
+                    else:
+                        # Any other statement (incl. the `_rr_scan` marker for a subtree
+                        # that is NOT in tail position) must contain no `return` at all.
+                        _rr_stack = [_rr_s.get("v", _rr_s) if _rr_st == "_rr_scan" else _rr_s]
+                        while _rr_stack and _rr_ok:
+                            _rr_n = _rr_stack.pop()
+                            if isinstance(_rr_n, dict):
+                                if _rr_n.get("stmt") == "Return":
+                                    _rr_ok = False
+                                _rr_stack.extend(_rr_n.values())
+                            elif isinstance(_rr_n, list):
+                                _rr_stack.extend(_rr_n)
+                    _rr_k += 1
+            if _rr_ok:
+                self._has_early_ret = False
         # Locals carrying a non-int WhyML type (array/dict/set/lambda/record/
         # variant) are excluded from the integer `ref 0` pre-declaration below —
         # each is let-bound at its first assignment with its real type. One
