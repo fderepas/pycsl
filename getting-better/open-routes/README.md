@@ -5,7 +5,9 @@
 ##   kept the answer) OPENED (driver-written exploit).
 
 ## gen #36 (2026-10-15): #237 (`isinstance(<hval>, dict)` lowered to the constant `true`) and #238 (`<hval> or []`
-##   replaced a truthy non-map value with the empty map) OPENED (driver-reproduced).
+##   replaced a truthy non-map value with the empty map) OPENED (driver-reproduced), REPAIRED (hval constructor
+##   discriminant + per-constructor truthiness + faithful `.get` defaults + `hint_of`/`hval_len` fixes;
+##   witnesses 2140-2148, controls 2150-2157).
 
 ## gen #36 (2026-10-15): #236 (a `@dataclass` class-body `= None` default emitted as the definite `0`;
 ##   `P(c).k == 0` proved; also str-on-non-str and truncated-float class-body defaults, and an omitted

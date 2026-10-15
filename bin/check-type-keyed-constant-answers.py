@@ -156,9 +156,10 @@ BASELINE = {
         "every reflected IR node IS a Python dict -- so this is not a decision about a "
         "value, it is the model's own type discipline. The real discrimination is the "
         "conjoined `.get(\"type\") == K` read of the same node.",
-    ("_handle_isinstance", "_pyval_locals", "true"):
-        "the pyval twin of the emit_ir `isinstance(..., dict)` arm, on the same terms: an "
-        "`hval` subject IS a Python dict in the reflection model.",
+    # (route #237) REMOVED: ("_handle_isinstance", "_pyval_locals", "true") -- "an `hval`
+    # subject IS a Python dict" was FALSE (an hval is HStr|HInt|HArr|HMap|HNode); the arm
+    # PROVED `isinstance(d.get("k", {}), dict)` for `{"k": "s"}` (witness 2140). It is now
+    # the hval constructor discriminant, which answers no constant.
     ("_handle_in_globals_expr", "_module_binding_names", "true"):
         "`\\in_globals(n)` is deliberately THREE-VALUED and this is its decided-TRUE side: "
         "the name is a declared module binding, which is a fact about the module, not a "

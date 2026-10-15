@@ -6210,7 +6210,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if not self._is_string_expr(_other if isinstance(_other, dict) else {}):
                     _pvw = left if _lpv else right
                     _otw = right if _lpv else left
-                    eq = f"(hint_of {_pvw} = {_otw})"
+                    # ROUTE #238 (probe p23): `hint_of` projects EVERY non-int carrier to
+                    # 0, so `{"a": "s"}.get("a") == 0` PROVED True (CPython: False). Only
+                    # the `HInt` carrier can equal an int; a str / list / dict / IR node
+                    # never does. (HInt is the erased carrier -- None is `HInt pycsl_none`,
+                    # a tuple `HInt (any int)` -- so its compare stays undecided there.)
+                    eq = f"(match {_pvw} with HInt i_eq -> i_eq = {_otw} | _ -> false end)"
                     return eq if raw_op == "==" else f"(not {eq})"
                 # self-tcb-reduction `_compute_return_type` PATH(b): a pyval `.get` operand
                 # (`func.get("return_value_type")` / `func.get("name")`) compared to a STRING
@@ -6793,7 +6798,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # mistypes against hval). Gated on `_pyval_locals` -> corpus/mirror byte-inert.
         if (atype == "Var" and arg_ir.get("name")
                 and arg_ir.get("name") in getattr(self, "_pyval_locals", set())):
-            return f"(hval_len {whyml_ident(arg_ir['name'])})"
+            # ROUTE #238 (probe p24): `hval_len` counts only an `HArr`; every other carrier
+            # reads 0, so `len({"z": 1})` PROVED 0 (CPython: 1). The HArr arm keeps the
+            # certified fold; a dict / str / erased value has the UNINTERPRETED length
+            # `hval_len_other` (no postcondition -> no axiom; ledger stays 3).
+            self._add_abstract_op("val function hval_len_other (h: hval) : int")
+            _lv = whyml_ident(arg_ir['name'])
+            return (f"(match {_lv} with HArr _ -> (hval_len {_lv}) "
+                    f"| _ -> (hval_len_other {_lv}) end)")
         # §B′: len(d[k]) where d is a seq-valued dict (`Dict[_, List[int]]`) — the
         # read is a `seq int`, so its length is `Seq.length`.
         if atype == "Subscript":
@@ -11446,16 +11458,71 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # isinstance returns a BOOL discriminant everywhere (like `(is_var x)`); the
             # `not`/`&&`/`_to_bool` consumers expect a bool, so emit `true`, not the int `1`.
             return "true"
-        # self-tcb-reduction Tier-5 (union/match cluster): `isinstance(<pyval-local>, dict)`
-        # — a heterogeneous `hval` subject (`subj = stmt.get("subject", {})`) IS a Python
-        # dict in the reflection model, so the guard is always TRUE (the real discrimination
-        # is the conjoined `subj.get("type") == "Var"` read of the same value). Gated on a
-        # pyval-local arg0 + a bare `dict` builtin arg1 -> corpus/other-mirror inert.
-        if (isinstance(_a0, dict) and _a0.get("type") == "Var"
-                and _a0.get("name") in getattr(self, "_pyval_locals", set())
-                and isinstance(_a1, dict) and _a1.get("type") == "Var"
-                and _a1.get("name") == "dict"):
-            return "true"
+        # ROUTE #237 (was: self-tcb-reduction Tier-5 union/match cluster, 38a46208, which
+        # answered `isinstance(<pyval-local>, dict)` with the CONSTANT `true` -- "an hval IS
+        # a dict in the reflection model". FALSE: an hval is `HStr | HInt | HArr | HMap |
+        # HNode`, and any `x = d.get(..)` on a `Dict[str, PyVal]` is a pyval local, so
+        # `isinstance(x, dict)` PROVED `\result == 1` where CPython `f({"k": "s"})` = 0.)
+        # The test is now the hval CONSTRUCTOR DISCRIMINANT, per arm:
+        #   - HMap / HNode (an emit_ir node, a Python dict) / HStr / HArr are POSITIVELY
+        #     tagged: only a dict literal builds HMap, only a list literal HArr, only a
+        #     string-typed value HStr (`_pyval_wrap`), so `dict`/`str`/`list` DECIDE there.
+        #   - HInt is the ERASED carrier: int, but also bool (`HInt 1`), None (`HInt
+        #     pycsl_none`), a tuple (`HInt (any int)`), ... -- every test on it is OPAQUE
+        #     (`any bool`, a fresh value per evaluation: never a function of the hval, so
+        #     `True` and `1`, both `HInt 1`, are never forced to answer alike).
+        #   - `object` is true everywhere; a name outside the builtin table (a user class,
+        #     an ABC, a str/dict subclass) is opaque everywhere.
+        # The tuple form `isinstance(x, (dict, list))` is the per-arm disjunction. In a
+        # spec (no `any`) the opaque answer is the uninterpreted logic `hval_isinst_opaque`.
+        # No new axiom (a `val function` without postcondition) -> ledger stays 3.
+        if (isinstance(_a0, dict) and isinstance(_a1, dict)
+                and self._expr_is_pyval(_a0)):
+            _ctors = ("HStr", "HInt", "HArr", "HMap", "HNode")
+            _decided = {
+                "dict": {"HMap": "true", "HNode": "true", "HStr": "false", "HArr": "false"},
+                "str": {"HStr": "true", "HMap": "false", "HNode": "false", "HArr": "false"},
+                "list": {"HArr": "true", "HMap": "false", "HNode": "false", "HStr": "false"},
+            }
+            _scalar_names = ("int", "bool", "float", "complex", "tuple", "set",
+                             "frozenset", "bytes", "bytearray", "NoneType")
+            _tnodes = (_a1.get("elts") or [] if _a1.get("type") in ("Tuple", "ArrayLit")
+                       else [_a1])
+            _names = [(t.get("name") if isinstance(t, dict) and t.get("type") == "Var"
+                       else None) for t in _tnodes]
+            if _names:
+                _ans: Dict[str, str] = {}
+                for _c in _ctors:
+                    _acc = "false"
+                    for _n in _names:
+                        if _n == "object":
+                            _r = "true"
+                        elif _n in _decided:
+                            _r = _decided[_n].get(_c, "opaque")
+                        elif _n in _scalar_names:
+                            _r = "opaque" if _c == "HInt" else "false"
+                        else:
+                            _r = "opaque"
+                        if _r == "true" or _acc == "true":
+                            _acc = "true"
+                        elif _r == "opaque":
+                            _acc = "opaque"
+                    _ans[_c] = _acc
+                _in_spec_ctx = getattr(self, "_in_spec", False)
+                _sv = self._expr_to_whyml(_a0, local_refs, _in_spec_ctx, None)
+                _tag = "|".join(n or "?" for n in _names)
+                if _in_spec_ctx:
+                    self._add_abstract_op(
+                        "val function hval_isinst_opaque (h: hval) (t: string) : bool")
+                    _opq = f"(hval_isinst_opaque h_ii \"{_tag}\")"
+                else:
+                    _opq = "(any bool)"
+                _arms = " | ".join(
+                    f"{_c} _ -> {(_opq if _ans[_c] == 'opaque' else _ans[_c])}"
+                    for _c in _ctors)
+                if _in_spec_ctx and "opaque" in _ans.values():
+                    return f"(let h_ii = {_sv} in match h_ii with {_arms} end)"
+                return f"(match {_sv} with {_arms} end)"
         # self-tcb-reduction giants (generic class-body lowering): `isinstance(child,
         # ast.<K>)` where `child` is a `pyast_stmt`-typed class-body loop var lowers to
         # the ADT discriminant `(is_K_node child)`. Gated on `child in _pyast_stmt_locals`
@@ -12013,9 +12080,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not _empty_default:
             return None
         _lw = self._expr_to_whyml(left, local_refs or set(), invariant_ctx, subst)
-        _empty = "(HMap PNil)"  # R3: empty HMap carrier is the empty assoc list
-        return (f"(match {_lw} with HMap m_or -> {_lw} "
-                f"| _ -> {_empty} end)")
+        # ROUTE #238: Python `v or D` is `v` when v is TRUTHY, else D. The prior lowering
+        # `match v with HMap _ -> v | _ -> HMap PNil` discarded every truthy non-map (a
+        # non-empty list / string / non-zero int) and spelled `[]` as the empty MAP, so
+        # `len(d.get("args", []) or [])` PROVED 0 where CPython `g({"args": [1, 2]})` = 2.
+        # Now: Python truthiness PER CONSTRUCTOR selects (HArr/HMap non-empty, HInt
+        # non-zero, HNode present; HStr via `hval_truthy`, whose string test is the opaque
+        # `hpairs_key_eq` -- so the whole `hval_truthy` is logic-opaque and cannot be the
+        # selector for the decidable carriers, measured: `{"args": [1, 2]}` kept-list
+        # control timed out under it), and the default is the FAITHFUL empty carrier of
+        # its own literal (`{}` -> `HMap PNil`, `[]` -> `HArr HNil`). `let` binds v once.
+        _dflt = self._pyval_wrap(right, local_refs or set())
+        return (f"(let v_or = {_lw} in match v_or with "
+                f"| HArr HNil -> {_dflt} | HArr _ -> v_or "
+                f"| HMap PNil -> {_dflt} | HMap _ -> v_or "
+                f"| HInt i_or -> if i_or <> 0 then v_or else {_dflt} "
+                f"| HStr _ -> if hval_truthy v_or then v_or else {_dflt} "
+                f"| HNode _ -> v_or end)")
 
     def _recognize_attr_receiver_idiom(self, expr: Dict[str, Any],
                                        local_refs: Optional[Set[str]],
@@ -12242,10 +12323,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # feeds a `.get` chain) -> corpus byte-inert.
         if recv in getattr(self, "_pyval_locals", set()):
             _k = args[0]
-            _empty = "(HMap PNil)"  # R3: empty HMap carrier is the empty assoc list
             if len(args) == 2:
-                # `.get(k, {})` -> unwrap the option-hval to an hval. R3: the carrier
+                # `.get(k, D)` -> unwrap the option-hval to an hval. R3: the carrier
                 # is the assoc list `hpairs`, so the lookup is the `pairs_get` fold.
+                # ROUTE #238: the missing-key answer is D ITSELF, tagged by `_pyval_wrap`
+                # (`[]` -> `HArr HNil`, `5` -> `HInt 5`, `""` -> `HStr ""`) -- it used to
+                # be the empty MAP whatever D was.
+                _empty = self._pyval_wrap((expr.get("args") or [None, None])[1],
+                                          local_refs or set())
                 return (f"(match {recv} with HMap m_k7 -> "
                         f"(match pairs_get m_k7 {_k} with Some v_ -> v_ "
                         f"| None -> {_empty} end) | _ -> {_empty} end)")
@@ -12254,9 +12339,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # K6 self-field `.get`; Python `dict.get(k)` returns None on a missing key).
             # An `hval` value (not `option hval`) so the read composes uniformly — e.g.
             # `{"bound": info.get("bound")}` embeds it via `_pyval_wrap`.
+            # ROUTE #238: the absent key is Python `None` -- route #44's opaque
+            # `pycsl_none` under the erased `HInt` carrier (the SAME spelling `_pyval_wrap`
+            # gives a literal `None`), never the definite `HInt 0` (`== 0` proved True).
+            self._add_abstract_op("val function pycsl_none : int")
             _k7_leaf = (f"(match {recv} with HMap m_k7 -> "
                         f"(match pairs_get m_k7 {_k} with Some v_ -> v_ "
-                        f"| None -> (HInt 0) end) | _ -> (HInt 0) end)")
+                        f"| None -> (HInt pycsl_none) end) | _ -> (HInt pycsl_none) end)")
             # self-tcb-reduction _namedtuple_positional_access: the leaf read is a RAW
             # `hval`. A bool/if context (`for k, v in ...: if v.get("is_namedtuple"):`)
             # must test its Python-truthiness via `hval_truthy`, NOT the `str_eq_op … ""`
@@ -12433,6 +12522,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if (isinstance(_field_nu, str)
                     and _field_nu.startswith(("seq ", "map ", "array "))):
                 default = self._dv_missing_default(_field_nu)
+            elif _field_nu == "hval":
+                # ROUTE #238: a `Dict[str, PyVal]` self-field read answers the missing key
+                # with the explicit default TAGGED as an hval (`_pyval_wrap`), and the
+                # 1-arg form with Python `None` = the opaque `HInt pycsl_none` -- never the
+                # `HInt 0` sentinel `_dv_absent_opaque` keeps for hval (route #57 left
+                # non-scalar codomains unmeasured; this one is measured: `== 0` proved).
+                if len(args) >= 2:
+                    default = self._pyval_wrap((expr.get("args") or [None, None])[1],
+                                               local_refs or set())
+                else:
+                    self._add_abstract_op("val function pycsl_none : int")
+                    default = "(HInt pycsl_none)"
             else:
                 default = (args[1] if len(args) >= 2
                            else self._dv_absent_opaque(_field_nu))   # ROUTE #57
@@ -12472,8 +12573,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     "DictLit", "SetLit", "ListLit", "ArrayLit", "List")
                     and not _dfir.get("keys") and not _dfir.get("elts")
                     and not _dfir.get("values"))
-            if isinstance(nu, str) and (nu == "hval"
-                    or nu.startswith(("seq ", "map ", "array "))):
+            if nu == "hval":
+                # ROUTE #238: the explicit default of a `Dict[str, PyVal]` read IS the
+                # answer on a missing key, so it is tagged as the hval it is (`_pyval_wrap`:
+                # `{}` -> `HMap PNil`, `[]` -> `HArr HNil`, `""` -> `HStr ""`, `5` ->
+                # `HInt 5`) -- it was the `HInt 0` sentinel for `{}`/`[]` (so
+                # `isinstance(d.get("k", {}), dict)` would decide FALSE on a missing key)
+                # and the raw, ill-typed literal otherwise.
+                default = self._pyval_wrap(_dfir, local_refs or set())
+            elif isinstance(nu, str) and nu.startswith(("seq ", "map ", "array ")):
                 if _empty_lit:
                     default = self._dv_missing_default(nu)
             elif _empty_lit and (nu is None or nu == "int"):
@@ -12497,6 +12605,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # value not at all. FAIL-CLOSED: only an EMPTY collection literal, and only
                 # when nu carries no faithful shape to honour.
                 default = "0"
+        elif nu == "hval":
+            # ROUTE #238: 1-arg `.get` on a `Dict[str, PyVal]` answers Python `None` on a
+            # missing key -- route #44's opaque `pycsl_none` under the erased `HInt`
+            # carrier (the spelling `_pyval_wrap` gives a literal `None`), never the
+            # definite `HInt 0` (`d.get("k") == 0` PROVED True with "k" absent).
+            self._add_abstract_op("val function pycsl_none : int")
+            default = "(HInt pycsl_none)"
         else:
             default = self._dv_absent_opaque(nu)   # ROUTE #57
         # LEVER F2 (see the self-field-dict twin above): thread the raw `option ν` into
@@ -12521,7 +12636,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (nu == "hval" and self._emitting_refine_tuple_return_type()
                 and len(args) >= 2 and self._get_default_is_str_literal(expr)):
             return (f"(match Map.get {recv_whyml} {k} "
-                    f"with | Some v_ -> (hstr_of v_) | None -> {default} end)")
+                    f"with | Some v_ -> (hstr_of v_) | None -> {args[1]} end)")
         if nu == "hval" and getattr(self, "_pyval_get_as_string", False):
             return f"(hstr_of {_res})"
         return _res
