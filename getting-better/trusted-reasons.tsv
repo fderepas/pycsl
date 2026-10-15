@@ -42,7 +42,6 @@ audit_proof.py	_parse_lean_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECT
 audit_proof.py	_index_proofs_dir	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 audit_proof.py	_audit_one_prover	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 audit_proof.py	_index_proofs_dir_by_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
-audit_proof.py	audit_lean	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 audit_proof.py	audit_both	unclassified	-
 audit_proof.py	print_report	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 audit_proof_reverify.py	ReverifyReport.summary	unclassified	-

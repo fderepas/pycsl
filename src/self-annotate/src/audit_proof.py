@@ -521,7 +521,6 @@ def audit_rocq(py_file: Path, proofs_dir: Optional[Path] = None,
                               reverify=reverify, project_root=project_root)
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
