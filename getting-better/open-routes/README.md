@@ -1,6 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-16): #254 (one dict/set to a mutating AND a read slot of one call), #255 (erasure lost via walrus
+##   / unannotated return), #256 (two list fields holding one list; alias built in unverified code) OPENED (red team).
+
 ## gen #36 (2026-10-16): #250 and #253 RESOLVED as DECLARED MODEL ASSUMPTIONS (HASH-EQ-CONSISTENCY precedent):
 ##   FLOAT-FINITE (floats finite, non-NaN) and BUILTIN-EXACT (builtin-typed values are exact instances, no
 ##   dunder-overriding subclass), listed by `--soundness-report` (`model_assumptions`) when relied on, stated in
