@@ -11223,8 +11223,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     # ── 07-1839 P4: metatype tags + \subtag + isinstance ──────────────────────
     _METATYPE_TAGS = {"int": "tag_int", "bool": "tag_int", "str": "tag_str",
                       "float": "tag_float", "list": "tag_list", "List": "tag_list",
-                      "dict": "tag_dict", "Dict": "tag_dict", "set": "tag_dict",
-                      "frozenset": "tag_dict", "object": "tag_object"}
+                      "dict": "tag_dict", "Dict": "tag_dict", "set": "tag_set",
+                      "frozenset": "tag_frozenset", "object": "tag_object"}
+    # (#49) ROUTE #247: `set` and `frozenset` had `dict`'s tag, so a subject DECLARED
+    # `Dict[..]` decided `isinstance(d, set)` TRUE (corpus 2340) and a `set` subject decided
+    # `frozenset` TRUE (2342). Each now has its own tag; `tag_set`/`tag_frozenset` are
+    # never DECLARED (not in `_emit_metatype_tags`): `_handle_isinstance` inlines their
+    # literal in both contexts, so an emission that never tests them is unchanged. The builtin tags are pairwise
+    # exclusive because their instance layouts conflict (`class X(set, frozenset)`,
+    # `class X(dict, set)`, `class X(int, float)`, ... are all TypeErrors).
 
     # Literal int values for the on-demand `tag_*` logic functions (see
     # `_emit_metatype_tags`). In PROGRAM context Why3 rejects references to
@@ -11233,7 +11240,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     # these literals instead of naming the ghost `tag_*` functions.
     _TAG_LITERAL = {"tag_int": 0, "tag_str": 1, "tag_float": 2, "tag_list": 3,
                     "tag_dict": 4, "tag_record": 5, "tag_variant": 6,
-                    "tag_object": 99}
+                    "tag_set": 7, "tag_frozenset": 8, "tag_object": 99}
 
     def _emit_metatype_tags(self) -> None:
         """Emit the tag constants + the `subtag` relation (P0-validated). Decision A:
@@ -11563,9 +11570,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # subject). Kept: the classes whose builtin equality never crosses type
                 # (`dict`, `str`, `list`, `tuple`, `NoneType`; `object` is never opaque).
                 # The program side is untouched: `(any bool)` is fresh per evaluation.
-                if _in_spec_ctx and "opaque" in _ans.values() and any(
-                        n not in ("dict", "str", "list", "tuple", "NoneType", "object")
-                        for n in _names):
+                # (#49) ROUTE #248 -- THE "KEPT" CLASSES RELIED ON BUILTIN `==`. `PyVal` is
+                # `Any`, so an hval can hold ANY object, and a user `__eq__` (`class W: def
+                # __eq__(s, o): return True`) makes `W() == "s"` hold across types: `requires
+                # d["a"] == d["b"]` (or `requires d == e` on two `Dict[str, PyVal]`) PROVED
+                # `ensures isinstance(d["a"], str) == isinstance(d["b"], str)` (corpus 2354,
+                # 2355; CPython `{"a": "s", "b": W()}`). Every contract-side test whose answer
+                # is not the constant `true` (i.e. naming any class but `object`) is now
+                # REFUSED the same way. The program side stays as it is: no program `==`
+                # relates two hvals (it is ill-typed), and on a contract-equated pair the
+                # `HInt` arm is a fresh `(any bool)` per evaluation, so no pair of program
+                # tests is forced to agree.
+                if _in_spec_ctx and "opaque" in _ans.values():
                     _opq = ("(pycsl_refused_contract_type_test_on_erased_hval "
                             f"h_ii \"{_tag}\")")
                 elif _in_spec_ctx:
@@ -11844,7 +11860,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                        else None)
             _st240 = (getattr(self, "_current_symbol_table", {}) or {}).get(_a0n240) \
                 if _a0n240 else None
-            if self._tag_of_type(_st240) in ("", "tag_int"):
+            # (#49) ROUTE #247: also a subject declared `float` (PEP 484's numeric tower
+            # admits `True` for a `float` parameter), `object`, or a variant (an `Optional
+            # [bool]` is a `_union_*`) -- none of them excludes a bool actual.
+            if self._tag_of_type(_st240) in ("", "tag_int", "tag_float", "tag_object",
+                                             "tag_variant"):
                 t_tag = ""
         if not t_tag:
             # RECEIVER-CARRYING isinstance (relaunch #15): `(isinstance_op 0 0)` erases BOTH
@@ -11987,6 +12007,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # (#49) ROUTE #239: `_tag_of_value` answers "" for an undecided subject; the tag is
         # then `typeof_op` APPLIED TO THE SUBJECT'S CURRENT VALUE (see its note).
         _tv239 = self._tag_of_value(args_ir[0])
+        # (#49) ROUTE #247 -- A DECLARED TYPE DECIDES ONLY WHAT IT EXCLUDES. A tag read off the
+        # subject's DECLARED type decided the test by tag equality, which is right only when
+        # the tag names ONE class whose instances can be no other tested class. It is wrong
+        # (each PROVED a false claim, corpus 2340-2348):
+        #   - for a tag SHARED by several classes: every record class is `tag_record` and
+        #     every variant (incl. a synthesized `Optional[..]` union) `tag_variant`, so
+        #     `r: A` decided `isinstance(r, B)` TRUE and `x: Optional[str]` decided
+        #     `isinstance(x, str)` FALSE (`_union_*` vs `str`); and a user class can be
+        #     co-subclassed with a builtin (`class Z(A, str)`), so a record/variant tag never
+        #     excludes another class either. Decided only for the SAME declared class (TRUE).
+        #   - for a subject declared `object` (it names no class; `x: object` decided
+        #     `isinstance(x, int)` FALSE) or `float` (PEP 484's numeric tower admits an `int`
+        #     actual: `f(x: float)` decided `isinstance(x, int)` FALSE, CPython `f(1)`).
+        # Such a subject is UNDECIDED: it takes the arm below (contract-side REFUSED,
+        # program-side keyed on the parameter's identity or a fresh `(any bool)`).
+        if _tv239 and t_tag != "tag_object":
+            _a0n247 = (_a0.get("name") if isinstance(_a0, dict) and _a0.get("type") == "Var"
+                       else None)
+            _st247 = ((getattr(self, "_current_symbol_table", {}) or {}).get(_a0n247)
+                      if _a0n247 else None)
+            _user247 = ("tag_record", "tag_variant")
+            if (_tv239 in ("tag_object", "tag_float")
+                    or ((_tv239 in _user247 or t_tag in _user247)
+                        and not (_tv239 == t_tag and _st247 == t_name))):
+                self._add_abstract_op("val function typeof_op (x: 'a) : int")
+                _tv239 = ""
         _t246 = ""
         if not _tv239:
             _tv239 = self._expr_to_whyml(
@@ -12003,7 +12049,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # isinstance(y, int)` in a contract AND forced the two program tests to agree
             # (CPython `f(1, 1.0)` breaks both; corpus 2320-2325). For a class whose builtin
             # `==` can cross types — every tagged class but `str`/`list`/`dict`/`object`
-            # (`int`, `float`, `set`/`frozenset`, which share `dict`'s tag, a user record or
+            # (`int`, `float`, `set`/`frozenset` (dict's tag until #247), a user record or
             # variant class; `bool` and the tuple form already take the unknown-class arm):
             #   - in a CONTRACT the test is REFUSED at the WhyML type-check, the application of
             #     the UNBOUND symbol below (route #245's answer; no declaration, no meaning);
@@ -12017,9 +12063,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             #     no contract can name the key (refused above) and a program body is not
             #     visible to callers; a `let function` body IS (route #242), so a logic
             #     candidate takes `(any bool)` (which also demotes it to a plain `let`).
-            # `str`/`list`/`dict` keep #239's value application: their builtin `==` never
-            # holds across types (a subclass instance is still an instance).
-            if t_name not in ("str", "list", "List", "dict", "Dict", "object"):
+            # (`str`/`list`/`dict` kept #239's value application here until route #248.)
+            # (#49) ROUTE #248 -- `str`/`list`/`dict` ARE NO EXCEPTION. They kept the value
+            # application because their BUILTIN `==` never holds across types; but an `Any`
+            # value can be any object and a user `__eq__` (`class W: def __eq__(s, o):
+            # return True`) makes `W() == "s"` True: `requires x == y` PROVED `ensures
+            # isinstance(x, str) == isinstance(y, str)` (2350), `if x == y` forced two
+            # program tests to agree (2351, 2352), and a caller's `requires y == z` +
+            # `isinstance(y, list)` discharged a callee's `requires isinstance(z, list)`
+            # (2353). Every class but `object` now takes this arm.
+            if t_tag != "tag_object":
                 if getattr(self, "_in_spec", False):
                     _t246 = ("(pycsl_refused_contract_type_test_on_int_erased_value "
                              f"{_tv239[len('(typeof_op '):-1]} \"{t_name}\")")
@@ -12031,6 +12084,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         not in (getattr(self, "_emitted_logic_funcs", set()) or set())):
                     _k246 = "pycsl_param_tag:%s:%s" % (
                         getattr(self, "_current_emitting_func", "") or "", _a0["name"])
+                    # (#49) ROUTE #247: a record/variant tag is shared by many classes that
+                    # are not exclusive of one another nor of a builtin (`class Z(A, B)`,
+                    # `class Z(A, str)`), so its key also names the CLASS: two tests of one
+                    # class agree, two classes (or a class and a builtin) never share a term.
+                    if t_tag in ("tag_record", "tag_variant"):
+                        _k246 = "%s:%s" % (_k246, t_name)
                     _t246 = "((typeof_op %s) = %d)" % (
                         whyml_string_literal(_k246), self._TAG_LITERAL[t_tag])
                 else:
@@ -12067,7 +12126,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             f"not (str_eq_op {_vw} {_nn}))")
                 return f"({_test246} && not ({_vw} = {_nn}))"
             return _test246
-        return f"(subtag {_tv239} {t_tag})"
+        # (#49) ROUTE #247: `tag_set`/`tag_frozenset` are not among the `_emit_metatype_tags`
+        # functions (no new declaration): the contract form inlines their literal.
+        _tl247 = {k: str(self._TAG_LITERAL[k]) for k in ("tag_set", "tag_frozenset")}
+        return f"(subtag {_tl247.get(_tv239, _tv239)} {_tl247.get(t_tag, t_tag)})"
 
     @staticmethod
     def _get_default_is_empty_dict(expr: Dict[str, Any]) -> bool:

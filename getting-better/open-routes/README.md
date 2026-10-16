@@ -2,7 +2,11 @@
 
 
 ## gen #36 (2026-10-16): #247 (`set`/`frozenset` share `dict`'s isinstance tag) and #248 (builtin-`==` assumption
-##   on `Any` broken by a user `__eq__`) OPENED (residuals of the #246 repair, driver-verified).
+##   on `Any` broken by a user `__eq__`) OPENED (residuals of the #246 repair, driver-verified), REPAIRED 2026-10-16
+##   (#247: set/frozenset own tags 7/8, a declared type decides only when its tag names one class -- `object`/`float`
+##   subjects and record/variant tags are undecided unless the same class; #248: str/list/dict on an undecided `Any`
+##   subject join #246's arm, every contract-side hval test but `object` is refused; witnesses 2340-2348, 2350-2355,
+##   controls 2360-2364; 2310-2313/2331/2332 PASS -> FAIL, declared). Residual: `==` on `Any` is builtin (`y == x`).
 
 ## gen #36 (2026-10-16): #246 (`isinstance(<Any>, int)` is a function of the stored int: 1 and 1.0 agree)
 ##   OPENED (driver-reproduced; residual of the #245 repair), REPAIRED 2026-10-16 (for a class whose builtin `==`

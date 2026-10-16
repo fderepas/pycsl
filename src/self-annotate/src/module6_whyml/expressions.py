@@ -845,7 +845,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _call_named_builtins(self, expr: int, args: List[str], func_name: str, local_refs: int=None, invariant_ctx: bool=False, subst: int=None) -> Optional[str]:
         return None
 
-    _METATYPE_TAGS: Dict[str, str] = {'int': 'tag_int', 'bool': 'tag_int', 'str': 'tag_str', 'float': 'tag_float', 'list': 'tag_list', 'List': 'tag_list', 'dict': 'tag_dict', 'Dict': 'tag_dict', 'set': 'tag_dict', 'frozenset': 'tag_dict', 'object': 'tag_object'}
+    _METATYPE_TAGS: Dict[str, str] = {'int': 'tag_int', 'bool': 'tag_int', 'str': 'tag_str', 'float': 'tag_float', 'list': 'tag_list', 'List': 'tag_list', 'dict': 'tag_dict', 'Dict': 'tag_dict', 'set': 'tag_set', 'frozenset': 'tag_frozenset', 'object': 'tag_object'}
     #@ requires True
     #@ ensures True
     #@ assigns self._abstract_ops, self._obj_state_written
