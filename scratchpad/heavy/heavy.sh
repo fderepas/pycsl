@@ -18,6 +18,9 @@ if [ "$CLASS" = NORMAL ]; then
   if [[ "$ARGS" == *"why3 prove"* && "$ARGS" == *.mlw* && ( "$ARGS" == *self-annotate* || "$ARGS" == *mir* ) ]]; then CLASS=LOW; fi
 fi
 [ -n "$HEAVY_LOW" ] && CLASS=LOW
+# HEAVY_SHORT=1: a SHORT whole-file mirror proof (minutes) needed by a GATE may run as NORMAL;
+# never use it for the big mirror files (expressions/statements/stmt_control_flow/functions/Transpiler).
+[ -n "$HEAVY_SHORT" ] && CLASS=NORMAL
 case $CLASS in QUICK) SLOTS="3" ;; LOW) SLOTS="2" ;; *) SLOTS="1 2" ;; esac
 exec {g}>"$D/gate.lock"
 [ "$CLASS" = NORMAL ] && flock "$g"
