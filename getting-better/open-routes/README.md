@@ -1,6 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-16): #246 (`isinstance(<Any>, int)` is a function of the stored int: 1 and 1.0 agree)
+##   OPENED (driver-reproduced; residual of the #245 repair).
+
 ## gen #36 (2026-10-16): #245 (contract-side `isinstance(<hval>, bool)` cannot tell `True` from `1`) OPENED
 ##   (driver-reproduced; residual of the #242 repair), REPAIRED 2026-10-16 (a contract-side opaque `HInt` arm for a
 ##   class whose builtin values can be `==` to another type -- bool/int/float/set/bytes/user classes -- is refused at
