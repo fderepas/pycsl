@@ -7,6 +7,10 @@ mutated in a @mutable_state class with no contract naming it, and no contract-na
 collection passed to a call — and it must keep emitting. Without this control, a repair
 that simply refused every collection-param mutation would satisfy 1145 and silently take
 the mirror with it.
+
+ROUTE #244 (gen #36): the exemption no longer erases the mutation. The parameter is now a
+faithful local SHADOW (`let s = ref s in`; `s := map_update_some !s 1 0`), so this file's
+emission moved; it still PROVES. The caller-side hazard is refused at the call (corpus 2290).
 """
 # pycsl-expected: PASS
 # pycsl-flags: --memory-model hoare

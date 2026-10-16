@@ -27,7 +27,12 @@
 
 ## gen #36 (2026-10-16): #243 (a dict/set aliased through a second name/field is a COPY: `1 in self.g` stays
 ##   false after `self.d[1] = 5` with `self.g = self.d`, incl. cross-method) and #244 (`s.add` on a set
-##   parameter is a no-op under @mutable_state) OPENED (driver-reproduced).
+##   parameter is a no-op under @mutable_state) OPENED (driver-reproduced), REPAIRED (#244: the no-op arm is gone,
+##   the mutated set/dict parameter is a faithful local shadow; #243/#244: fail-closed unit-wide rule — a dict/set
+##   field store, an argument in an ESCAPING slot (stored into a field / dataclass init) and an argument in a MUTATING
+##   slot must be fresh or single-use, the first two only when the unit mutates a shared dict/set in place; route #59
+##   guard sees mutator calls and dict/set params; `__init__`/`__post_init__` scan; witnesses 2290-2309, controls
+##   2310-2314; corpus 0 GONE / 2 MOVED, mirror 0 GONE / 3 MOVED). Residual: an alias made in an IMPORTED method.
 
 ## gen #36 (2026-10-15): #242 (a `let function` with a nondeterministic body is one value per argument:
 ##   `h(True) == h(1)`, `r() == r()` for generators proved) OPENED (driver-reproduced), REPAIRED 2026-10-16 (a body

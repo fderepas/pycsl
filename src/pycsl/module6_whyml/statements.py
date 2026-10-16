@@ -1012,6 +1012,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 if (_vt == "Var"
                         and val_ir.get("name") in getattr(self, "_dict_locals", set())):
                     _alias_of = val_ir.get("name")
+                elif (_vt == "Var"
+                      and val_ir.get("name") in getattr(self, "_formal_params", [])
+                      and getattr(self, "_current_symbol_table", {}).get(
+                          val_ir.get("name")) in ("set", "dict", "frozenset")):
+                    # (#49) ROUTE #243: a dict/set PARAMETER is a second name too. Measured
+                    # at cdac19a6: `e = d; e[1] = 5; return 1 in d` (a by-value `d`) PROVED
+                    # `\result == False`; CPython answers True.
+                    _alias_of = val_ir.get("name")
                 elif _vt == "Call":
                     # THE GETTER-RETURN CARRIER. Reaching here with kind == "dict" means
                     # `_rhs_yields_map` recognised the call as yielding a dict/set, and a
@@ -1062,6 +1070,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         if isinstance(_n, list):
                             _stack.extend(_n)
                         elif isinstance(_n, dict):
+                            # (#49) ROUTE #243: an in-place MUTATOR CALL is a store too, and
+                            # so is an augmented assignment (`a |= {1}` mutates a set in
+                            # place). Measured at cdac19a6: `a = self.s; self.s.add(1);
+                            # return 1 in a` PROVED `\result == False`; CPython answers True.
+                            _mf = _n.get("func")
+                            if (isinstance(_mf, str) and "." in _mf
+                                    and _mf.rsplit(".", 1)[1] in (
+                                        "add", "discard", "remove", "pop", "popitem", "clear",
+                                        "update", "setdefault", "intersection_update",
+                                        "difference_update", "symmetric_difference_update")
+                                    and _mf.rsplit(".", 1)[0].rsplit(".", 1)[-1] in _names):
+                                _mutated = True
+                            if _n.get("stmt") == "AugAssign" and _n.get("target") in _names:
+                                _mutated = True
                             if _n.get("stmt") in _stores:
                                 _arr = _n.get("array")
                                 _base = None
@@ -3495,19 +3517,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                              ": map int (option int)\n")
                             + "    ensures { result = Map.set m k None }")
                         code = f"{indent}{_lhs} map_update_none {_cur} {arg}"
-                elif (getattr(self, "_current_symbol_table", {}).get(obj_name)
-                      in ("set", "dict", "frozenset")
-                      and getattr(self, "_current_self_type", None)
-                      in getattr(self, "_mutable_state_classes", set())):
-                    # typed-ir-for-b-ceiling.md §13: a set/dict-typed PARAM (not a
-                    # `_dict_locals` body-local, not a self-field) mutated via
-                    # `.add`/`.discard`/`.remove` — e.g. `declared_refs.add(target)` in a
-                    # reflecting emitter handler. The mutation is on a value param, so it
-                    # does NOT escape for an `assigns \nothing` / type-safety contract: a
-                    # sound no-op. (A Python set param IS mutated, but no contract here
-                    # reads it — the recursion's `declared_refs` is a trusted sibling arg.)
-                    # Gated on @mutable_state → byte-identical for the corpus.
-                    code = f"{indent}()"
+                # (#49) ROUTE #244: the `@mutable_state` "sound no-op" arm that stood here
+                # (typed-ir-for-b-ceiling.md §13 — `s.add(x)` on a set/dict PARAMETER lowered
+                # to `()`) is GONE. It proved false claims in the callee (a read after the
+                # mutation) and in the caller (the argument it passed). Such a parameter is
+                # now a faithful local shadow (`_reset_function_state` puts it in
+                # `_dict_locals`, so the arm above lowers it), and anything else reaching
+                # here is refused below or by the in-place-mutator refusal — never erased.
                 elif (obj_name in getattr(self, "_formal_params", [])
                       and obj_name not in getattr(self, "_dict_locals", set())
                       and getattr(self, "_current_symbol_table", {}).get(obj_name)

@@ -2196,6 +2196,52 @@ class FunctionEmissionMixin:
             # writes; also bypasses `_reject_param_collection_mutation`, which is gated
             # on `var not in _dict_locals`).
             self._dict_locals |= self._mutated_collection_params
+        # (#49) ROUTE #244 — THE "SOUND NO-OP" WAS NEVER SOUND. `_handle_expr_stmt` used to
+        # lower `s.add(x)` / `s.discard(x)` / `s.remove(x)` on a set/dict PARAMETER of a
+        # `@mutable_state` method to `()`. Measured at cdac19a6, each PROVED a claim CPython
+        # refutes: the callee reading its own parameter after the mutation
+        # (`if 1 in s: return False; s.add(1); return 1 in s` proved `\result == False`),
+        # and a caller reading the argument it passed (`s = set(); self.m(s); return 1 in s`
+        # proved `\result == False`, route #244's witness). A stale value is not an
+        # over-approximation: the model takes branches the program cannot.
+        # CALLEE HALF, repaired HERE by a FAITHFUL LOCAL SHADOW: such a parameter joins the
+        # local-collection discipline (`_dict_locals` + `local_refs`), so `_emit_body_code`
+        # binds `let s = ref s in` at entry and the mutator lowers to the same
+        # `s := map_update_some !s x 0` a local set gets — every read after it sees it. The
+        # CALLER half (the argument the caller still holds is the pre-call value) is refused
+        # by the route #243/#244 escape check at the end of this method. The contract-named
+        # guards above (#19/#62/#71) stay: a contract's `s` is the ENTRY value of the by-value
+        # parameter, not the shadow.
+        if whyml_ident(str(func.get("self_type") or "").lower()) in getattr(
+                self, "_mutable_state_classes", set()):
+            _r244_st = func.get("symbol_table") or {}
+            _r244_formals = {p for p in (func.get("formal_params", []) or [])
+                             if _r244_st.get(p) in ("set", "dict", "frozenset")
+                             and p not in self._dict_locals}
+            _r244_shadow: Set[str] = set()
+            _r244_w: List[Any] = [body_stmts or []]
+            while _r244_w and _r244_formals:
+                _r244_n = _r244_w.pop()
+                if isinstance(_r244_n, dict):
+                    _r244_f = _r244_n.get("func")
+                    if (isinstance(_r244_f, str) and "." in _r244_f
+                            and _r244_f.rsplit(".", 1)[1] in ("add", "discard", "remove")
+                            and _r244_f.rsplit(".", 1)[0] in _r244_formals):
+                        _r244_shadow.add(_r244_f.rsplit(".", 1)[0])
+                    _r244_w.extend(v for v in _r244_n.values() if isinstance(v, (dict, list)))
+                elif isinstance(_r244_n, list):
+                    _r244_w.extend(_r244_n)
+            if _r244_shadow:
+                self._dict_locals |= _r244_shadow
+                local_refs |= _r244_shadow
+                # A METHOD's set/dict parameter keeps its `map int` type (see
+                # `_param_type_str`: κ = string is only for a by-ref FUNCTION param), so the
+                # shadow must not inherit a usage-inferred κ = string — that would write the
+                # RAW string element into an int-keyed map. Rebuilt as a NEW dict: the
+                # current one is the IR's own `dict_key_types` object.
+                if any(p in self._dict_key_types for p in _r244_shadow):
+                    self._dict_key_types = {k: v for k, v in self._dict_key_types.items()
+                                            if k not in _r244_shadow}
         # stmt-list-append-mutation wall (C-bucket): a list param appended a `{"stmt":K}`
         # node (fixpoint incl. transitive forwarding) is a caller-visible mutable
         # `ref (seq stmt_ir)` param with a `writes {p}` frame — the SOUND in-place-append
@@ -2246,6 +2292,355 @@ class FunctionEmissionMixin:
         # `.add(x)` to `s := StrSet.add x !s`, and `in`/`not in` to a program-bool
         # `StrSet.mem` guard. Empty for every corpus function -> byte-inert.
         self._str_set_locals: Set[str] = self._str_set_locals_of(func)
+        # (#49) ROUTES #243 + #244 — A DICT/SET OBJECT REACHABLE THROUGH TWO NAMES.
+        # A dict/set value is a PURE Why3 map, so every second name for one Python object
+        # holds a COPY, and an in-place mutation through one name is invisible through the
+        # other. Route #59 guards a LOCAL alias inside one function; measured at cdac19a6,
+        # every carrier below PROVED a claim CPython refutes:
+        #   F (a field bound to a non-fresh value): `self.g = self.d` (same method or
+        #       another one), `a = self.d; self.g = a`, then `self.d[1] = 5` /
+        #       `self.s.add(1)` / `self.s.discard(1)` — `1 in self.g` keeps the old answer.
+        #   E (an object escaping through a call): `p = {}; self.link(p)` where `link`
+        #       stores `self.d = p`, or `C(x)` where the dataclass `__init__` stores `x`,
+        #       then a mutation through either name; and route #244: `self.m(s)` where `m`
+        #       mutates its set parameter (now a faithful LOCAL shadow, see above — the
+        #       caller still holds the pre-call value).
+        # THE RULE (fail-closed, no new carrier), over the WHOLE UNIT (imported and trusted
+        # bodies included — an alias made in an imported method is observable here):
+        #   a parameter slot ESCAPES when the callee stores it into a dict/set field or a
+        #   dataclass `__init__` does, and MUTATES when the callee mutates it in place (the
+        #   #244 shadow); both are closed under forwarding (a fixpoint).
+        #   (M) an argument in a MUTATING slot, and — when the unit can mutate a shared
+        #   dict/set at all (UNIT-MUT below) — (F) a value stored into a dict/set field and
+        #   (E) an argument in an ESCAPING slot, must be FRESH (a literal, a comprehension,
+        #   `set()`/`dict()`/`.copy()`...) or a SINGLE-USE name: not in a loop or
+        #   comprehension, not used again afterwards, never given another name before, (a
+        #   local) bound only to fresh values, (a parameter) not named by the contract.
+        #   UNIT-MUT: some function of the unit mutates a dict/set in place (a store, `del`,
+        #   a mutator call, an augmented `|=`...) through a field, a parameter, or a local
+        #   that is not PRIVATE (private = bound only to fresh values, never given another
+        #   name, never passed into an escaping slot). Without UNIT-MUT an alias and a copy
+        #   are indistinguishable, so nothing is refused — that is what keeps a read-only
+        #   field copy (`self.b = self.a`, corpus 1306) proving.
+        # Computed here because this is the one place holding the whole unit and the body,
+        # and it is `\trusted` in the mirror. No new helper and no new field.
+        if not (func.get("trusted") or func.get("abstract")):
+            _x_ir = getattr(self, "ir", None)
+            _x_ir = _x_ir if isinstance(_x_ir, dict) else {}
+            _X_COLL = ("set", "dict", "frozenset")
+            _X_FRESH_T = ("DictLit", "SetLit", "DictComp", "SetComp", "ListComp", "ArrayLit",
+                          "Number", "String", "Bool", "NoneLit", "Constant")
+            _X_FRESH_F = ("set", "dict", "frozenset", "defaultdict", "OrderedDict", "Counter",
+                          "collections.defaultdict", "collections.OrderedDict",
+                          "collections.Counter", "list", "sorted", "tuple")
+            _X_HARMLESS = ("len", "print", "isinstance", "str", "repr", "bool", "sorted",
+                           "list", "set", "dict", "frozenset", "tuple", "sum", "min", "max",
+                           "any", "all", "hash", "id", "type")
+            _X_MUTATORS = ("add", "discard", "remove", "pop", "popitem", "clear", "update",
+                           "setdefault", "intersection_update", "difference_update",
+                           "symmetric_difference_update")
+            _x_dsf: Set[str] = set()
+            _x_ms: Set[str] = set()
+            # callee short name -> slots: positional indices / keyword names; `mut` = the
+            # callee mutates the slot, `esc` = it escapes (every mutating slot escapes too).
+            _x_slots: Dict[str, Dict[str, Set[Any]]] = {}
+            for _x_td in (_x_ir.get("type_decls") or []):
+                if not isinstance(_x_td, dict):
+                    continue
+                if _x_td.get("mutable_state"):
+                    _x_ms.add(_x_td.get("name"))
+                _x_tdf = {_fd.get("name") for _fd in (_x_td.get("fields") or [])
+                          if isinstance(_fd, dict) and _fd.get("type") in _X_COLL}
+                _x_dsf |= _x_tdf
+                _x_ip = list(_x_td.get("init_params") or [])
+                for _x_ib in (_x_td.get("init_body") or []):
+                    _x_iv = _x_ib.get("value") if isinstance(_x_ib, dict) else None
+                    if (isinstance(_x_iv, dict) and _x_iv.get("type") == "Var"
+                            and _x_iv.get("name") in _x_ip and _x_ib.get("field") in _x_tdf):
+                        _x_sl = _x_slots.setdefault(_x_td.get("name"), {"mut": set(), "esc": set()})
+                        _x_sl["esc"] |= {_x_ip.index(_x_iv["name"]), _x_iv["name"]}
+            # Every function of the unit, the one being emitted taken from (func, body_stmts)
+            # (route #171 above may have rebuilt `func`). Each body is linearised in source
+            # order; an entry is (statement, in a loop?, the Var occurrences of its OWN
+            # expressions as (name, aliasing?), its own calls as (call, in a comprehension?)).
+            # An occurrence is ALIASING when it hands the whole object to something that can
+            # keep it: a stored / bound / returned value, a container element, or an
+            # argument of anything but a harmless builtin.
+            _x_units: List[Any] = []
+            _x_srcs: List[Any] = [(func, body_stmts, True)] + [
+                (_f, _f.get("body"), False) for _f in (_x_ir.get("functions") or [])
+                if isinstance(_f, dict) and isinstance(_f.get("name"), str)
+                and _f.get("name") != func.get("name")]
+            for (_x_fn, _x_body, _x_cur) in _x_srcs:
+                _x_nm = str(_x_fn.get("name"))
+                _x_sty = _x_fn.get("self_type")
+                _x_sns = [_x_nm]
+                if (_x_fn.get("kind") == "method" and isinstance(_x_sty, str)
+                        and _x_nm.startswith(_x_sty.lower() + "__")):
+                    _x_sns = [_x_nm[len(_x_sty) + 2:]]
+                    if _x_sns[0] == "__init__":
+                        _x_sns.append(_x_sty)
+                _x_ffp = list(_x_fn.get("formal_params") or [])
+                _x_fst = _x_fn.get("symbol_table") or {}
+                _x_lin: List[Any] = []
+                _x_work: List[Any] = [(s, False) for s in reversed(_x_body or [])]
+                while _x_work:
+                    _x_s, _x_loop = _x_work.pop()
+                    if not isinstance(_x_s, dict):
+                        continue
+                    _x_occ: List[Any] = []
+                    _x_own_calls: List[Any] = []
+                    _x_ew: List[Any] = []
+                    for _x_key, _x_val in _x_s.items():
+                        if _x_key in ("body", "orelse", "finalbody", "handlers"):
+                            continue
+                        _x_ew.append((_x_val, _x_key in ("value", "values", "elts", "elements"),
+                                      False))
+                    while _x_ew:
+                        _x_n, _x_ali, _x_inc = _x_ew.pop()
+                        if isinstance(_x_n, dict):
+                            if _x_n.get("type") == "Var" and isinstance(_x_n.get("name"), str):
+                                _x_occ.append((_x_n["name"], _x_ali))
+                                continue
+                            _x_inc2 = _x_inc or (_x_n.get("type") in (
+                                "ListComp", "SetComp", "DictComp", "GeneratorExp", "Lambda"))
+                            _x_f = _x_n.get("func")
+                            if isinstance(_x_f, str):
+                                _x_own_calls.append((_x_n, _x_inc2))
+                                # `x.add(1)` names its receiver only inside the `func` STRING.
+                                if "." in _x_f:
+                                    _x_occ.append((_x_f.split(".", 1)[0], False))
+                                _x_harm = _x_f in _X_HARMLESS
+                                for _x_key, _x_val in _x_n.items():
+                                    _x_ew.append((_x_val, (_x_key in ("args", "keywords"))
+                                                  and not _x_harm, _x_inc2))
+                                continue
+                            # A conditional / boolean / walrus value passes its operand on.
+                            _x_pass = _x_ali and _x_n.get("type") in (
+                                "IfExp", "BoolOp", "NamedExpr", "Starred")
+                            for _x_key, _x_val in _x_n.items():
+                                _x_ew.append((_x_val, _x_pass or _x_key in (
+                                    "value", "values", "elts", "elements", "keys"), _x_inc2))
+                        elif isinstance(_x_n, (list, tuple)):
+                            _x_ew.extend((_x_m, _x_ali, _x_inc) for _x_m in _x_n)
+                    _x_lin.append((_x_s, _x_loop, _x_occ, _x_own_calls))
+                    _x_kloop = _x_loop or _x_s.get("stmt") in ("For", "While")
+                    _x_kids: List[Any] = []
+                    for _x_key in ("body", "orelse", "finalbody", "handlers"):
+                        _x_val = _x_s.get(_x_key)
+                        if isinstance(_x_val, list):
+                            _x_kids.extend(_x_val)
+                    _x_work.extend((k, _x_kloop) for k in reversed(_x_kids))
+                # A local is single-name-safe only if EVERY binding of it is a fresh value.
+                _x_bind_ok: Dict[str, bool] = {}
+                for (_x_s, _x_loop, _x_occ, _x_cs) in _x_lin:
+                    _x_t = _x_s.get("target")
+                    if isinstance(_x_t, str):
+                        _x_v = _x_s.get("value")
+                        _x_fresh = (_x_s.get("stmt") in ("Assign", "AnnAssign")
+                                    and isinstance(_x_v, dict)
+                                    and (_x_v.get("type") in _X_FRESH_T
+                                         or (_x_v.get("type") == "Call"
+                                             and isinstance(_x_v.get("func"), str)
+                                             and (_x_v["func"] in _X_FRESH_F
+                                                  or _x_v["func"].endswith(".copy")))))
+                        _x_bind_ok[_x_t] = _x_bind_ok.get(_x_t, True) and _x_fresh
+                    for _x_key in ("targets", "elts"):
+                        for _x_tt in (_x_s.get(_x_key) or []):
+                            _x_tn = _x_tt.get("name") if isinstance(_x_tt, dict) else _x_tt
+                            if isinstance(_x_tn, str):
+                                _x_bind_ok[_x_tn] = False
+                # Seeds: a mutated set/dict parameter of a `@mutable_state` method (the #244
+                # shadow) MUTATES; a parameter stored into a dict/set field ESCAPES.
+                for (_x_s, _x_loop, _x_occ, _x_cs) in _x_lin:
+                    _x_hits: List[Any] = []
+                    for (_x_c, _x_inc) in _x_cs:
+                        _x_f = _x_c["func"]
+                        if ("." in _x_f and _x_f.rsplit(".", 1)[1] in ("add", "discard", "remove")
+                                and _x_f.rsplit(".", 1)[0] in _x_ffp
+                                and _x_fst.get(_x_f.rsplit(".", 1)[0]) in _X_COLL
+                                and _x_fn.get("kind") == "method" and _x_sty in _x_ms):
+                            _x_hits.append((_x_f.rsplit(".", 1)[0], "mut"))
+                    if _x_s.get("stmt") == "FieldAssign" and _x_s.get("field") in _x_dsf:
+                        _x_v = _x_s.get("value")
+                        if (isinstance(_x_v, dict) and _x_v.get("type") == "Var"
+                                and _x_v.get("name") in _x_ffp):
+                            _x_hits.append((_x_v["name"], "esc"))
+                    for (_x_p, _x_kind) in _x_hits:
+                        for _x_sn in _x_sns:
+                            _x_sl = _x_slots.setdefault(_x_sn, {"mut": set(), "esc": set()})
+                            _x_sl["esc"] |= {_x_ffp.index(_x_p), _x_p}
+                            if _x_kind == "mut":
+                                _x_sl["mut"] |= {_x_ffp.index(_x_p), _x_p}
+                _x_units.append((_x_fn, _x_cur, _x_sns, _x_ffp, _x_fst, _x_lin, _x_bind_ok))
+            # Forwarding fixpoint: a parameter passed on into a mutating / escaping slot
+            # mutates / escapes in the forwarding function too.
+            _x_changed = True
+            while _x_changed:
+                _x_changed = False
+                for (_x_fn, _x_cur, _x_sns, _x_ffp, _x_fst, _x_lin, _x_bind_ok) in _x_units:
+                    for (_x_s, _x_loop, _x_occ, _x_cs) in _x_lin:
+                        for (_x_c, _x_inc) in _x_cs:
+                            _x_sl = _x_slots.get(_x_c["func"].rsplit(".", 1)[-1])
+                            if not _x_sl:
+                                continue
+                            _x_args = [(_x_j, _x_a) for _x_j, _x_a in
+                                       enumerate(_x_c.get("args") or [])]
+                            _x_args += [(_x_kw.get("arg"), _x_kw.get("value"))
+                                        for _x_kw in (_x_c.get("keywords") or [])
+                                        if isinstance(_x_kw, dict)]
+                            for (_x_j, _x_a) in _x_args:
+                                if not (_x_j in _x_sl["esc"] and isinstance(_x_a, dict)
+                                        and _x_a.get("type") == "Var"
+                                        and _x_a.get("name") in _x_ffp):
+                                    continue
+                                for _x_kind in (("mut", "esc") if _x_j in _x_sl["mut"]
+                                                else ("esc",)):
+                                    for _x_sn in _x_sns:
+                                        _x_tsl = _x_slots.setdefault(
+                                            _x_sn, {"mut": set(), "esc": set()})
+                                        _x_new = {_x_ffp.index(_x_a["name"]), _x_a["name"]}
+                                        if not _x_new <= _x_tsl[_x_kind]:
+                                            _x_tsl[_x_kind] |= _x_new
+                                            _x_changed = True
+            # UNIT-MUT: an in-place dict/set mutation through a field, a parameter, or a
+            # non-private local, anywhere in the unit.
+            _x_unit_mut = None
+            for (_x_fn, _x_cur, _x_sns, _x_ffp, _x_fst, _x_lin, _x_bind_ok) in _x_units:
+                if _x_unit_mut is not None:
+                    break
+                _x_shared: Set[str] = set(_x_ffp)
+                for (_x_s, _x_loop, _x_occ, _x_cs) in _x_lin:
+                    _x_shared |= {_x_on for (_x_on, _x_oa) in _x_occ if _x_oa}
+                    for (_x_c, _x_inc) in _x_cs:
+                        _x_sl = _x_slots.get(_x_c["func"].rsplit(".", 1)[-1])
+                        if _x_sl:
+                            for _x_j, _x_a in enumerate(_x_c.get("args") or []):
+                                if (_x_j in _x_sl["esc"] and isinstance(_x_a, dict)
+                                        and _x_a.get("type") == "Var"):
+                                    _x_shared.add(_x_a.get("name"))
+                            for _x_kw in (_x_c.get("keywords") or []):
+                                if (isinstance(_x_kw, dict) and _x_kw.get("arg") in _x_sl["esc"]
+                                        and isinstance(_x_kw.get("value"), dict)
+                                        and _x_kw["value"].get("type") == "Var"):
+                                    _x_shared.add(_x_kw["value"].get("name"))
+                for (_x_s, _x_loop, _x_occ, _x_cs) in _x_lin:
+                    _x_recv: List[Any] = []
+                    _x_st = _x_s.get("stmt")
+                    if _x_st in ("ArraySet", "ArraySliceSet", "DelSubscript", "GhostArraySet"):
+                        _x_arr = _x_s.get("array")
+                        _x_recv.append(_x_arr.get("name") if isinstance(_x_arr, dict)
+                                       and _x_arr.get("type") == "Var" else None)
+                    elif _x_st == "FieldAugAssign":
+                        _x_recv.append(None)
+                    elif (_x_st == "AugAssign" and _x_s.get("op") in ("|", "&", "^", "-")
+                          and _x_fst.get(_x_s.get("target")) not in (
+                              "int", "float", "bool", "str")):
+                        _x_recv.append(_x_s.get("target"))
+                    for (_x_c, _x_inc) in _x_cs:
+                        _x_f = _x_c["func"]
+                        if "." in _x_f and _x_f.rsplit(".", 1)[1] in _X_MUTATORS:
+                            _x_r = _x_f.rsplit(".", 1)[0]
+                            _x_recv.append(None if "." in _x_r else _x_r)
+                    for _x_r in _x_recv:
+                        if (_x_r is None or _x_r in _x_shared
+                                or not _x_bind_ok.get(_x_r, False)):
+                            _x_unit_mut = "%s: %s" % (_x_fn.get("name"), _x_st)
+                            break
+                    if _x_unit_mut is not None:
+                        break
+            # The checks. (F) field stores are checked in EVERY unit function (an alias
+            # made in an imported method is observable here); (M)/(E) call slots only in
+            # the function being emitted (every caller is checked when it is emitted).
+            for (_x_fn, _x_cur, _x_sns, _x_ffp, _x_fst, _x_lin, _x_bind_ok) in _x_units:
+                # A `\trusted` (or imported, which the unit also marks trusted) body is the
+                # reviewer's; it feeds the slots and UNIT-MUT but is not itself refused.
+                if not _x_cur and (_x_unit_mut is None or _x_fn.get("trusted")
+                                   or _x_fn.get("abstract")):
+                    continue
+                _x_named: Set[str] = set()
+                _x_cst: List[Any] = [_x_fn.get("contracts", {}) or {}]
+                while _x_cst:
+                    _x_cn = _x_cst.pop()
+                    if isinstance(_x_cn, dict):
+                        if _x_cn.get("type") == "Var" and isinstance(_x_cn.get("name"), str):
+                            _x_named.add(_x_cn["name"])
+                        _x_cst.extend(v for v in _x_cn.values() if isinstance(v, (dict, list)))
+                    elif isinstance(_x_cn, list):
+                        _x_cst.extend(_x_cn)
+                for _x_i, (_x_s, _x_loop, _x_occ, _x_cs) in enumerate(_x_lin):
+                    # The candidates of this statement: (value, where it goes, in a loop?).
+                    _x_cands: List[Any] = []
+                    if (_x_unit_mut is not None and _x_s.get("stmt") == "FieldAssign"
+                            and _x_s.get("field") in _x_dsf):
+                        _x_cands.append((_x_s.get("value"), "the dict/set field `%s.%s`" % (
+                            _x_s.get("object"), _x_s.get("field")), _x_loop))
+                    for (_x_c, _x_inc) in (_x_cs if _x_cur else []):
+                        _x_sl = _x_slots.get(_x_c["func"].rsplit(".", 1)[-1])
+                        if not _x_sl:
+                            continue
+                        _x_on = _x_sl["mut"] if _x_unit_mut is None else _x_sl["esc"]
+                        for _x_j, _x_a in enumerate(_x_c.get("args") or []):
+                            if _x_j in _x_on:
+                                _x_cands.append((_x_a, "`%s(...)`" % _x_c["func"],
+                                                 _x_loop or _x_inc))
+                        for _x_kw in (_x_c.get("keywords") or []):
+                            if isinstance(_x_kw, dict) and _x_kw.get("arg") in _x_on:
+                                _x_cands.append((_x_kw.get("value"), "`%s(...)`" % _x_c["func"],
+                                                 _x_loop or _x_inc))
+                    for (_x_a, _x_dest, _x_inl) in _x_cands:
+                        if not isinstance(_x_a, dict):
+                            continue
+                        _x_at = _x_a.get("type")
+                        if _x_at in _X_FRESH_T or (
+                                _x_at == "Call" and isinstance(_x_a.get("func"), str)
+                                and (_x_a["func"] in _X_FRESH_F
+                                     or _x_a["func"].endswith(".copy"))):
+                            continue
+                        _x_why = None
+                        if _x_at != "Var":
+                            _x_why = ("the value is not a fresh dict/set, so it may already be "
+                                      "reachable through another name (a field, a local, or a "
+                                      "caller's argument)")
+                        else:
+                            _x_v = _x_a.get("name")
+                            if _x_inl:
+                                _x_why = "the statement is inside a loop or comprehension"
+                            elif sum(1 for (_x_on2, _x_oa) in _x_occ if _x_on2 == _x_v) > 1:
+                                _x_why = "`%s` is used again in the same statement" % _x_v
+                            elif any(_x_on2 == _x_v for (_x_s2, _x_l2, _x_o2, _x_c2)
+                                     in _x_lin[_x_i + 1:] for (_x_on2, _x_oa) in _x_o2):
+                                _x_why = "`%s` is used again afterwards" % _x_v
+                            elif any(_x_on2 == _x_v and _x_oa
+                                     for (_x_s2, _x_l2, _x_o2, _x_c2) in _x_lin[:_x_i]
+                                     for (_x_on2, _x_oa) in _x_o2):
+                                _x_why = ("`%s` was already given another name earlier "
+                                          "(stored, bound, returned or passed on)" % _x_v)
+                            elif _x_v in _x_ffp:
+                                if _x_v in _x_named:
+                                    _x_why = ("`%s` is a parameter this function's contract "
+                                              "names, and the contract reads its ENTRY value"
+                                              % _x_v)
+                            elif not _x_bind_ok.get(_x_v, False):
+                                _x_why = ("`%s` is bound to a value that is not a fresh "
+                                          "dict/set, so it may be a second name for another "
+                                          "object" % _x_v)
+                        if _x_why is not None:
+                            from errors import PyCSLSemanticError
+                            raise PyCSLSemanticError(
+                                f"function '{_x_fn.get('name')}': a dict/set value reaches "
+                                f"{_x_dest} while it can still be observed through another "
+                                f"name — {_x_why}. In Python both names are ONE object, so an "
+                                f"in-place mutation through either is visible through the "
+                                f"other; PyCSL models a dict/set as a pure map, so the second "
+                                f"name holds a COPY and the mutation would be invisible "
+                                f"(routes #243/#244). Refusing instead of answering "
+                                f"incorrectly. Pass a fresh value (a literal, "
+                                f"`set(x)`/`dict(x)`, `x.copy()`), or restructure so the "
+                                f"object has a single name.",
+                                stage="module6-whyml",
+                                code="PYCSL-WHYML-COLLECTION-ALIAS",
+                            )
         return local_refs, ghost_vars
 
     def _prescan_pyval_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:

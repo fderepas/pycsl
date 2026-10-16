@@ -1815,6 +1815,154 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # inside Module 6 instead of with a located ir-validate error at the boundary.
     validate_ir(_json.loads(json_ir), stage="ir-validate-boundary")
 
+    # (#49) ROUTE #243 — A CONSTRUCTOR THAT GIVES ONE DICT/SET TWO FIELD NAMES.
+    # A dict/set field is a PURE map, so two fields bound to ONE Python object are two
+    # independent copies in the model. Module 6 refuses that shape in every EMITTED body,
+    # but `__init__` / `__post_init__` / `__new__` never reach Module 6 as bodies: Module 5
+    # keeps only each `self.f = <param>` binding (`init_body`) and havocs the rest
+    # (`init_unknown_fields`), and `__post_init__` is dropped outright. Measured at
+    # cdac19a6, each PROVED `\result == False` where CPython answers True, for a method
+    # doing `if 1 in self.g: return False; self.d[1] = 5; return 1 in self.g`:
+    #     def __post_init__(self): self.g = self.d
+    #     def __init__(self): self.d = {}; self.g = self.d
+    #     def __init__(self, p): self.d = p; self.g = p
+    # So scan those three bodies here, on the source: a store to a dict/set field (typed
+    # by the IR's own record declarations) must be a FRESH value, or a parameter of that
+    # method that is named exactly once in it. CHOKE POINT: `_run_pipeline`'s mirror twin
+    # is `\trusted`.
+    _ir243 = _json.loads(json_ir)
+    _dsf243 = {}
+    for _td243 in (_ir243.get("type_decls") or []):
+        if isinstance(_td243, dict) and isinstance(_td243.get("name"), str):
+            _dsf243[_td243["name"]] = {
+                _fd.get("name") for _fd in (_td243.get("fields") or [])
+                if isinstance(_fd, dict) and _fd.get("type") in ("dict", "set", "frozenset")}
+    # GATED, like the Module 6 rule, on an in-place mutation that could EXPOSE the alias.
+    # Every in-place dict/set mutation in the parsed unit (a subscript store or `del`, an
+    # augmented `|=`/`&=`/`^=`/`-=`, a mutator call) is recorded by the ROOT of its
+    # receiver: the first attribute of a `<name>.<attr>...` chain goes into `_mf243` (a
+    # field), a bare name sets `_mn243` (a local or parameter). A store is refused only if
+    # its target field, or a field its value reads, is in `_mf243` — or its value reads a
+    # plain name and `_mn243` is set. Without such a mutation an alias and a copy are
+    # indistinguishable (the mirror's own `__init__` reads `self.ir.get(...)` into fields
+    # no code mutates).
+    _mf243 = set()
+    _mn243 = False
+    if any(_dsf243.values()):
+        from frontend import pure_ast as _ast243
+        for _n243 in _ast243.walk(unified_ast):
+            _rc243 = []
+            if isinstance(_n243, (_ast243.Assign, _ast243.AugAssign, _ast243.Delete)):
+                _tg243 = (list(_n243.targets) if not isinstance(_n243, _ast243.AugAssign)
+                          else [_n243.target])
+                for _t243 in _tg243:
+                    if isinstance(_t243, _ast243.Subscript):
+                        _rc243.append(_t243.value)
+                    elif (isinstance(_n243, _ast243.AugAssign)
+                          and type(_n243.op).__name__ in ("BitOr", "BitAnd", "BitXor", "Sub")):
+                        _rc243.append(_t243)
+            elif (isinstance(_n243, _ast243.Call) and isinstance(_n243.func, _ast243.Attribute)
+                  and _n243.func.attr in ("add", "discard", "remove", "pop", "popitem", "clear",
+                                          "update", "setdefault", "intersection_update",
+                                          "difference_update", "symmetric_difference_update")):
+                _rc243.append(_n243.func.value)
+            for _r243 in _rc243:
+                _root243 = None
+                while isinstance(_r243, (_ast243.Attribute, _ast243.Subscript)):
+                    if (isinstance(_r243, _ast243.Attribute)
+                            and isinstance(_r243.value, _ast243.Name)):
+                        _root243 = _r243.attr
+                    _r243 = _r243.value
+                if _root243 is not None:
+                    _mf243.add(_root243)
+                elif isinstance(_r243, _ast243.Name):
+                    _mn243 = True
+                else:
+                    _mn243 = True
+                    _mf243.add("*")
+    if _mf243 or _mn243:
+        _fresh243 = ("set", "dict", "frozenset", "defaultdict", "OrderedDict", "Counter")
+        for _c243 in _ast243.walk(unified_ast):
+            if not (isinstance(_c243, _ast243.ClassDef) and _dsf243.get(_c243.name)):
+                continue
+            _fl243 = _dsf243[_c243.name]
+            for _m243 in _c243.body:
+                if not (isinstance(_m243, (_ast243.FunctionDef, _ast243.AsyncFunctionDef))
+                        and _m243.name in ("__init__", "__post_init__", "__new__")):
+                    continue
+                _a243 = list(getattr(_m243.args, "posonlyargs", []) or []) + list(
+                    _m243.args.args or []) + list(getattr(_m243.args, "kwonlyargs", []) or [])
+                if not _a243:
+                    continue
+                _self243 = _a243[0].arg
+                _params243 = {_x.arg for _x in _a243[1:]}
+                _uses243 = {}
+                for _n243 in _ast243.walk(_m243):
+                    if isinstance(_n243, _ast243.Name):
+                        _uses243[_n243.id] = _uses243.get(_n243.id, 0) + 1
+                for _n243 in _ast243.walk(_m243):
+                    if isinstance(_n243, _ast243.Assign):
+                        _tg243, _v243 = list(_n243.targets), _n243.value
+                    elif isinstance(_n243, _ast243.AnnAssign) and _n243.value is not None:
+                        _tg243, _v243 = [_n243.target], _n243.value
+                    else:
+                        continue
+                    _hit243 = None
+                    _st243 = list(_tg243)
+                    while _st243:
+                        _t243 = _st243.pop()
+                        if isinstance(_t243, (_ast243.Tuple, _ast243.List)):
+                            _st243.extend(_t243.elts)
+                            if any(isinstance(_e, _ast243.Attribute) for _e in _t243.elts):
+                                _hit243 = _hit243 or "?"
+                        elif (isinstance(_t243, _ast243.Attribute)
+                              and isinstance(_t243.value, _ast243.Name)
+                              and _t243.value.id == _self243 and _t243.attr in _fl243):
+                            _hit243 = _t243.attr
+                    if _hit243 is None and not (
+                            isinstance(_v243, _ast243.Attribute)
+                            and isinstance(_v243.value, _ast243.Name)
+                            and _v243.value.id == _self243 and _v243.attr in _fl243):
+                        continue
+                    _ok243 = (
+                        isinstance(_v243, (_ast243.Dict, _ast243.Set, _ast243.DictComp,
+                                           _ast243.SetComp, _ast243.List, _ast243.ListComp,
+                                           _ast243.Constant))
+                        or (isinstance(_v243, _ast243.Call)
+                            and ((isinstance(_v243.func, _ast243.Name)
+                                  and _v243.func.id in _fresh243)
+                                 or (isinstance(_v243.func, _ast243.Attribute)
+                                     and _v243.func.attr == "copy")))
+                        or (isinstance(_v243, _ast243.Name) and _v243.id in _params243
+                            and _uses243.get(_v243.id, 0) == 1 and _hit243 not in (None, "?")))
+                    if not _ok243:
+                        # Which fields / plain names does the value READ?
+                        _rd243, _rn243 = set(), False
+                        for _x243 in _ast243.walk(_v243):
+                            if (isinstance(_x243, _ast243.Attribute)
+                                    and isinstance(_x243.value, _ast243.Name)):
+                                _rd243.add(_x243.attr)
+                            elif isinstance(_x243, _ast243.Name) and _x243.id != _self243:
+                                _rn243 = True
+                        _ok243 = not ("*" in _mf243
+                                      or (_hit243 == "?" and _mf243)
+                                      or ({_hit243} | _rd243) & _mf243
+                                      or (_rn243 and _mn243))
+                    if not _ok243:
+                        from errors import PyCSLSemanticError as _PyCSLSemErr243
+                        raise _PyCSLSemErr243(
+                            f"{args.file} (line {getattr(_n243, 'lineno', 0)}): "
+                            f"`{_c243.name}.{_m243.name}` binds a dict/set field to a value "
+                            f"that is not a fresh dict/set (or to a parameter it also uses "
+                            f"elsewhere), so ONE Python object would be reachable through two "
+                            f"names. PyCSL models a dict/set as a pure map, so each name holds a "
+                            f"COPY and an in-place mutation through one is invisible through the "
+                            f"other (route #243). Refusing instead of answering incorrectly. "
+                            f"Bind the field to a fresh value (a literal, `dict(x)`/`set(x)`, "
+                            f"`x.copy()`).",
+                            filename=args.file, line=getattr(_n243, "lineno", 0) or 0,
+                            stage="ir-semantic", code="PYCSL-SEM-COLLECTION-ALIAS")
+
     # [Module 6] WhyML Transpilation
     # C2c: lazy import — the core backend is only loaded when we actually transpile,
     # keeping the front-end import path free of the core.

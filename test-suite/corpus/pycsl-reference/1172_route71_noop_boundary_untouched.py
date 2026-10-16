@@ -5,6 +5,9 @@ body WITHOUT a `no_exception` context must still emit and prove — the collecti
 no-op is a documented boundary with its own reopening capability, and route #71 is not the
 place to change it. Without this control the fix would be indistinguishable from banning
 the exemption outright.
+
+ROUTE #244 (gen #36): the "no-op boundary" is gone. `t.remove(5)` now lowers to a real map update
+on a local shadow of the parameter (emission moved); the body still proves `ensures True`.
 """
 # pycsl-expected: PASS
 # pycsl-flags: --memory-model hoare
