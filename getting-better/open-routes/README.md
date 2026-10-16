@@ -1,6 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-16): #253 (a builtin-annotated value may be a subclass with overridden dunders: `x - x == 0`
+##   proves for `x: int`) OPENED (design-level residual of #252).
+
 ## gen #36 (2026-10-16): #252 (an `Any` value flowing into an `int` param/field/local is trusted as an int;
 ##   `no_exception` over `Any` arithmetic) OPENED (residuals of #251, driver-reproduced).
 
