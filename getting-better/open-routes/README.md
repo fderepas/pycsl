@@ -2,7 +2,11 @@
 
 
 ## gen #36 (2026-10-16): #246 (`isinstance(<Any>, int)` is a function of the stored int: 1 and 1.0 agree)
-##   OPENED (driver-reproduced; residual of the #245 repair).
+##   OPENED (driver-reproduced; residual of the #245 repair), REPAIRED 2026-10-16 (for a class whose builtin `==`
+##   crosses types -- int/float/set/frozenset/user classes -- a contract-side test on an undecided subject is refused
+##   at the WhyML type-check; a program-side test is keyed on an unrebound parameter's IDENTITY, else a fresh
+##   `(any bool)`; str/list/dict keep the value application; witnesses 2320-2326, controls 2330-2333; 2212 PASS ->
+##   FAIL, declared). Residuals: `isinstance(<dict>, set)` decided TRUE (shared tag); a user `__eq__` crosses `str`.
 
 ## gen #36 (2026-10-16): #245 (contract-side `isinstance(<hval>, bool)` cannot tell `True` from `1`) OPENED
 ##   (driver-reproduced; residual of the #242 repair), REPAIRED 2026-10-16 (a contract-side opaque `HInt` arm for a

@@ -11987,16 +11987,61 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # (#49) ROUTE #239: `_tag_of_value` answers "" for an undecided subject; the tag is
         # then `typeof_op` APPLIED TO THE SUBJECT'S CURRENT VALUE (see its note).
         _tv239 = self._tag_of_value(args_ir[0])
+        _t246 = ""
         if not _tv239:
             _tv239 = self._expr_to_whyml(
                 args_ir[0], local_refs, getattr(self, "_in_spec", False), None)
+            _sv246 = _tv239
             if not re.fullmatch(r"!?[A-Za-z_][A-Za-z0-9_'.]*", _tv239):
                 _tv239 = "(%s)" % _tv239
             _tv239 = "(typeof_op %s)" % _tv239
+            # (#49) ROUTE #246 — THE STORED VALUE DOES NOT KNOW ITS TYPE. An undecided
+            # subject is stored as an int, and Python values of DIFFERENT types that compare
+            # `==` (1 / 1.0 / True, {1} / frozenset({1}), a user class's own `__eq__`) are one
+            # stored value wherever the model lowers `==` to `=`; `typeof_op <stored>` then
+            # answered alike for them: `requires x == y` PROVED `isinstance(x, int) ==
+            # isinstance(y, int)` in a contract AND forced the two program tests to agree
+            # (CPython `f(1, 1.0)` breaks both; corpus 2320-2325). For a class whose builtin
+            # `==` can cross types — every tagged class but `str`/`list`/`dict`/`object`
+            # (`int`, `float`, `set`/`frozenset`, which share `dict`'s tag, a user record or
+            # variant class; `bool` and the tuple form already take the unknown-class arm):
+            #   - in a CONTRACT the test is REFUSED at the WhyML type-check, the application of
+            #     the UNBOUND symbol below (route #245's answer; no declaration, no meaning);
+            #   - in a PROGRAM body it is never a function of the stored value: a fresh
+            #     `(any bool)` per evaluation (route #240's answer) — EXCEPT on an UNREBOUND
+            #     PARAMETER (a bare, non-`ref` Why3 parameter of the function being emitted),
+            #     whose tag is keyed on the parameter's IDENTITY, a constant string naming
+            #     (function, parameter): one Python object for the whole invocation, so two
+            #     tests of it agree (control 2211), while another parameter, a rebinding
+            #     (`!x`) or another value never shares the term. Only inside a plain `let`:
+            #     no contract can name the key (refused above) and a program body is not
+            #     visible to callers; a `let function` body IS (route #242), so a logic
+            #     candidate takes `(any bool)` (which also demotes it to a plain `let`).
+            # `str`/`list`/`dict` keep #239's value application: their builtin `==` never
+            # holds across types (a subclass instance is still an instance).
+            if t_name not in ("str", "list", "List", "dict", "Dict", "object"):
+                if getattr(self, "_in_spec", False):
+                    _t246 = ("(pycsl_refused_contract_type_test_on_int_erased_value "
+                             f"{_tv239[len('(typeof_op '):-1]} \"{t_name}\")")
+                elif (isinstance(_a0, dict) and _a0.get("type") == "Var"
+                        and _a0.get("name") not in local_refs
+                        and _a0.get("name") in (getattr(self, "_formal_params", []) or [])
+                        and _sv246 == whyml_ident(_a0["name"])
+                        and getattr(self, "_current_emitting_func", None)
+                        not in (getattr(self, "_emitted_logic_funcs", set()) or set())):
+                    _k246 = "pycsl_param_tag:%s:%s" % (
+                        getattr(self, "_current_emitting_func", "") or "", _a0["name"])
+                    _t246 = "((typeof_op %s) = %d)" % (
+                        whyml_string_literal(_k246), self._TAG_LITERAL[t_tag])
+                else:
+                    _t246 = "(any bool)"
+        if _t246 and getattr(self, "_in_spec", False):
+            return _t246
         if not getattr(self, "_in_spec", False):
             lhs = _tv239
             if lhs in self._TAG_LITERAL:
                 lhs = str(self._TAG_LITERAL[lhs])
+            _test246 = _t246 or f"({lhs} = {self._TAG_LITERAL[t_tag]})"
             # (#49) ROUTE #230 — `isinstance(v, T)` for any T but `object` is FALSE on `None`,
             # so where `v` MAY be a container's None (the route-#230 record) the test also
             # says `v` is not the None value. Without this, the fence's obligation was
@@ -12018,10 +12063,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     self._add_abstract_op(
                         "val str_eq_op (a: string) (b: string) : bool\n"
                         "    ensures { result <-> (a = b) }")
-                    return (f"(({lhs} = {self._TAG_LITERAL[t_tag]}) && "
+                    return (f"({_test246} && "
                             f"not (str_eq_op {_vw} {_nn}))")
-                return f"(({lhs} = {self._TAG_LITERAL[t_tag]}) && not ({_vw} = {_nn}))"
-            return f"({lhs} = {self._TAG_LITERAL[t_tag]})"
+                return f"({_test246} && not ({_vw} = {_nn}))"
+            return _test246
         return f"(subtag {_tv239} {t_tag})"
 
     @staticmethod

@@ -1,8 +1,11 @@
-r"""Test 2212 — route #239 (expected PASS): CONTROL for 2202. Two calls `g(y)` with the SAME
-actual: `g`'s postcondition is now about `typeof_op y` in both, so the results agree and
-`\result == 1` PROVES (CPython: 1 for any `y`).
+r"""Test 2212 — route #239 (expected PASS until route #246; expected FAIL now): CONTROL for 2202.
+Two calls `g(y)` with the SAME actual: `g`'s postcondition was about `typeof_op y` in both, so the
+results agreed and `\result == 1` PROVED (CPython: 1 for any `y`). Route #246: that postcondition is
+a function of the STORED int, so the same proof with two `==` actuals of different types (`1`, `1.0`)
+also PROVED a false claim (corpus 2325). A contract-side `isinstance(<Any>, int)` is now REFUSED at
+the WhyML type-check (fail-closed); this true claim is the price of that refusal.
 """
-# pycsl-expected: PASS
+# pycsl-expected: FAIL
 from typing import Any
 
 
