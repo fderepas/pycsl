@@ -5451,6 +5451,120 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 left = "1" if expr["left"].get("value") else "0"
             if expr["right"].get("type") == "Bool":
                 right = "1" if expr["right"].get("value") else "0"
+        # (#49) ROUTE #249 — `==` ON AN ARBITRARY PYTHON OBJECT IS NOT AN EQUIVALENCE. An
+        #   `Any`/`object`/unannotated/TypeVar value (and an element of a `List[Any]`,
+        #   `Dict[str, Any]`, ..., a record field declared `Any`, the result of a function
+        #   returning `Any`, an instance of a non-record class defining `__eq__`/`__ne__`,
+        #   and every local bound from one: the pre-scan in
+        #   `_reset_function_state`) has an `int` term, and `==` lowered to Why3 `=`, so
+        #   the model gave symmetry, transitivity, reflexivity and substitutivity for free.
+        #   Python guarantees none of them for a user `__eq__`: measured, `requires x == y`
+        #   PROVED `ensures y == x` (CPython: `A.__eq__ -> True`, `B.__eq__ -> False`), and
+        #   likewise transitivity, `x == x`, `x == 5 and y == 5 => x == y`, a program
+        #   `if x == y: if y == x`, `x in [y]` read as `x = y`, and a `!=` read as `not ==`
+        #   (`__ne__` is its own method). With an erased operand (an `is`/`is not` test,
+        #   `py_is`, is identity and keeps `=`) the comparison is now an UNINTERPRETED
+        #   predicate with NO law: `pycsl_py_eq a b`, `pycsl_py_ne a b` and, for `in` with
+        #   an erased needle or a container whose ELEMENTS/KEYS are erased, `pycsl_py_in
+        #   a c`. One symbol serves the contract AND the program, so a program test and a
+        #   contract clause over the same operands agree (the evaluation of `__eq__` is
+        #   taken to be deterministic, as every contract evaluation already assumes); no
+        #   axiom, no definition. Builtin-typed operand pairs (`int`, `str`, ...) keep `=`.
+        #   Written INLINE (the walk duplicates the pre-scan's): `_handle_binop`'s mirror
+        #   twin is `\trusted`, and a new live def would move the mirror-coverage ratchet.
+        if raw_op in ("==", "!=", "in", "not in") and not expr.get("py_is"):
+            _r249_sc = getattr(self, "_r249_scope", None) or {}
+            _r249_er = _r249_sc.get("erased") or set()
+            _r249_ct = _r249_sc.get("cont") or {}
+            _r249_rts = getattr(self, "_record_types", {}) or {}
+            _r249_sym = getattr(self, "_current_symbol_table", {}) or {}
+            _r249_arf = _r249_sc.get("any_ret") or set()
+            _r249_side_hit = []
+            for _r249_si, _r249_side in enumerate((expr.get("left"), expr.get("right"))):
+                if (_r249_si == 1 and raw_op in ("in", "not in")
+                        and isinstance(_r249_side, dict) and _r249_side.get("type") == "Var"
+                        and _r249_side.get("name") in _r249_ct):
+                    # membership tests the ELEMENTS (a dict: the KEYS) of the container
+                    _r249_side_hit.append("k" in _r249_ct[_r249_side["name"]])
+                    continue
+                _r249_hit = False
+                _r249_es = [_r249_side]
+                while _r249_es and not _r249_hit:
+                    _r249_e = _r249_es.pop()
+                    if not isinstance(_r249_e, dict):
+                        continue
+                    _r249_et = _r249_e.get("type")
+                    if _r249_et == "Var":
+                        _r249_hit = (_r249_e.get("name") in _r249_er
+                                     or _r249_e.get("name") in _r249_ct)
+                    elif _r249_et == "Result":
+                        _r249_hit = bool(_r249_sc.get("ret_erased"))
+                    elif _r249_et in ("Attribute", "FieldGet"):
+                        _r249_b = (_r249_e.get("object") if isinstance(_r249_e.get("object"), dict)
+                                   else _r249_e.get("value"))
+                        if isinstance(_r249_b, dict) and _r249_b.get("type") == "Var":
+                            _r249_bt = _r249_sym.get(_r249_b.get("name"))
+                            if _r249_b.get("name") == "self":
+                                _r249_bt = getattr(self, "_current_self_type", None) or _r249_bt
+                            _r249_ri = (_r249_rts.get(_r249_bt) if isinstance(_r249_bt, str)
+                                        else None)
+                            if not isinstance(_r249_ri, dict) and isinstance(_r249_bt, str):
+                                for _r249_cn, _r249_ci in _r249_rts.items():
+                                    if (isinstance(_r249_ci, dict)
+                                            and _r249_cn.lower() == _r249_bt.lower()):
+                                        _r249_ri = _r249_ci
+                                        break
+                            if isinstance(_r249_ri, dict) and (
+                                    (_r249_ri.get("field_types") or {}).get(
+                                        _r249_e.get("attr") or _r249_e.get("field"))
+                                    in ("Any", "object")):
+                                _r249_hit = True
+                        _r249_es.append(_r249_b)
+                    elif _r249_et in ("Subscript", "MapGet"):
+                        _r249_b = (_r249_e.get("value") if isinstance(_r249_e.get("value"), dict)
+                                   else _r249_e.get("object") or _r249_e.get("map"))
+                        if (isinstance(_r249_b, dict) and _r249_b.get("type") == "Var"
+                                and "v" in _r249_ct.get(_r249_b.get("name"), "")):
+                            _r249_hit = True
+                        _r249_es.append(_r249_b)
+                    elif _r249_et == "BinOp" and _r249_e.get("op") in (
+                            "+", "-", "*", "/", "div", "//", "%", "**", "<<", ">>", "&",
+                            "|", "^", "or", "and"):
+                        _r249_es.append(_r249_e.get("left"))
+                        _r249_es.append(_r249_e.get("right"))
+                    elif _r249_et == "UnaryOp" and _r249_e.get("op") in ("-", "+", "~"):
+                        _r249_es.append(_r249_e.get("expr"))
+                    elif _r249_et in ("Old", "At"):
+                        _r249_es.append(_r249_e.get("expr"))
+                    elif _r249_et == "IfExpr":
+                        _r249_es.append(_r249_e.get("body"))
+                        _r249_es.append(_r249_e.get("orelse"))
+                    elif _r249_et in ("ArrayLit", "ListLit", "List", "Tuple", "MkTuple",
+                                      "SetLit", "Set", "MkList"):
+                        _r249_es.extend(_r249_e.get("elts") or [])
+                    elif _r249_et == "DictLit":
+                        _r249_es.extend(_r249_e.get("keys") or [])
+                        _r249_es.extend(_r249_e.get("values") or [])
+                    elif _r249_et == "Call" and isinstance(_r249_e.get("func"), str):
+                        _r249_f = _r249_e["func"]
+                        _r249_fb = _r249_f.split(".")[0] if "." in _r249_f else ""
+                        if _r249_fb and _r249_fb != "self" and (
+                                _r249_fb in _r249_er
+                                or (_r249_fb in _r249_ct
+                                    and _r249_f.rsplit(".", 1)[-1] in (
+                                        "get", "pop", "setdefault", "popitem", "copy"))):
+                            _r249_hit = True
+                        elif (_r249_f in _r249_arf
+                              or _r249_f in (_r249_sc.get("eq_classes") or set())
+                              or (_r249_f.startswith("self.") and _r249_f[5:] in _r249_arf)):
+                            _r249_hit = True
+                _r249_side_hit.append(_r249_hit)
+            if any(_r249_side_hit):
+                _r249_sym_name = {"==": "pycsl_py_eq", "!=": "pycsl_py_ne",
+                                  "in": "pycsl_py_in", "not in": "pycsl_py_in"}[raw_op]
+                self._add_abstract_op(f"val function {_r249_sym_name} (a: 'a) (b: 'b) : bool")
+                _r249_out = f"({_r249_sym_name} {left} {right})"
+                return f"(not {_r249_out})" if raw_op == "not in" else _r249_out
         # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): the Ellipsis
         # branch of `_py_expr_constant`, `expr.value is ...`. Module5 lowers the `...`
         # literal to `{"type":"Number","value":0}` and `ast.Is` to `==` (`_py_op_to_str`),
@@ -19873,6 +19987,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if handler:
             if handler in _TYPED_EXPR_HANDLERS:
                 tn = node if not isinstance(node, OpaqueExpr) else _expr_from_dict_inner(node.raw)
+                # (#49) ROUTE #249: the typed re-read DROPS route #42's `py_is` marker, and
+                # `_handle_binop` keeps Why3 `=` for an identity test (`is`/`is not`) while
+                # an erased `==` becomes an uninterpreted predicate, so an `is` BinOp is
+                # handed over as the opaque node itself (`_handle_binop` reads only
+                # `node.to_dict()`, which keeps the marker).
+                if (t == "BinOp" and isinstance(node, OpaqueExpr)
+                        and isinstance(node.raw, dict) and node.raw.get("py_is")):
+                    tn = node
                 return getattr(self, handler)(tn, local_refs, invariant_ctx, subst)
             return getattr(self, handler)(expr, local_refs, invariant_ctx, subst)
         return ""

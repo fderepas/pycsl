@@ -6639,10 +6639,73 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         or (isinstance(_r230_x, ast.Constant) and _r230_x.value is None)):
                     _r230_opt.add(_r230_nm)
                     break
+        # (#49) ROUTE #249 — CONTAINERS WHOSE ELEMENTS ARE `Any`. `List[Any]`, `Dict[str, Any]`,
+        # `Set[Any]`, `Tuple[Any, int]`, or a TypeVar element: `param_annotations` keeps only `"list"`/`"dict"`, so Module 6 could not
+        # tell `xs[0] == xs[1]` on a `List[Any]` from the same read on a `List[int]`, and
+        # lowered both to Why3 `=` (measured: `requires xs[0] == xs[1]` PROVED `ensures xs[1]
+        # == xs[0]`; CPython breaks it with an asymmetric user `__eq__`). Recorded by NAME ->
+        # which part is erased: "k" (a list/set/tuple ELEMENT, a dict KEY: what `in` tests)
+        # and/or "v" (what a subscript / `.get` reads). Emitted ONLY when non-empty, so every
+        # other function's IR is byte-identical. Same population as route #230's scan
+        # (params + annotated locals), plus positional-only params.
+        _r249_cont: Dict[str, str] = {}
+        _r249_tv = set((self.program_ir.get("typevar_registry") or {}).keys())
+        _r249_anns = list(_r230_anns) + [
+            (a.arg, a.annotation) for a in list(node.args.posonlyargs)
+            if a.annotation is not None]
+        for _r249_nm, _r249_ann in _r249_anns:
+            _r249_a = _r249_ann
+            for _r249_k in range(4):
+                if (isinstance(_r249_a, ast.Subscript)
+                        and ((isinstance(_r249_a.value, ast.Name)
+                              and _r249_a.value.id == "Optional")
+                             or (isinstance(_r249_a.value, ast.Attribute)
+                                 and _r249_a.value.attr == "Optional"))):
+                    _r249_a = _r249_a.slice
+                    if type(_r249_a).__name__ == "Index":
+                        _r249_a = _r249_a.value
+            _r249_base = (_r249_a.value if isinstance(_r249_a, ast.Subscript) else _r249_a)
+            _r249_bn = (_r249_base.id if isinstance(_r249_base, ast.Name)
+                        else _r249_base.attr if isinstance(_r249_base, ast.Attribute) else "")
+            _r249_map = _r249_bn in ("Dict", "dict", "Mapping", "MutableMapping",
+                                     "DefaultDict", "defaultdict", "OrderedDict")
+            if _r249_bn not in ("List", "list", "Set", "set", "FrozenSet", "frozenset",
+                                "Tuple", "tuple", "Sequence", "MutableSequence", "Iterable",
+                                "Collection", "Deque", "deque", "AbstractSet") and not _r249_map:
+                continue
+            if not isinstance(_r249_a, ast.Subscript):
+                # A BARE `list`/`dict`/`set` is NOT recorded: PyCSL reads it as an `int`-element
+                # container (translational reference §T.Ann.2, rows 3a/3b), the same declared-
+                # type trust as `x: int`. Measured: recording it moved 87 corpus files, >= 65
+                # PASS -> FAIL (`ensures \result == a[i]` needs reflexivity). Route doc residual.
+                continue
+            _r249_sl = _r249_a.slice
+            if type(_r249_sl).__name__ == "Index":
+                _r249_sl = _r249_sl.value
+            _r249_parts = ([("k", _r249_sl.elts[0]), ("v", _r249_sl.elts[1])]
+                           if (_r249_map and isinstance(_r249_sl, ast.Tuple)
+                               and len(_r249_sl.elts) == 2)
+                           else [("kv", _r249_sl)])
+            _r249_tag = ""
+            for _r249_p, _r249_e in _r249_parts:
+                for _r249_x in ast.walk(_r249_e):
+                    if ((isinstance(_r249_x, ast.Name)
+                         and (_r249_x.id in ("Any", "object") or _r249_x.id in _r249_tv))
+                            or (isinstance(_r249_x, ast.Attribute)
+                                and _r249_x.attr in ("Any",))
+                            or (isinstance(_r249_x, ast.Constant)
+                                and isinstance(_r249_x.value, str)
+                                and _r249_x.value in ("Any", "object"))):
+                        _r249_tag += _r249_p
+                        break
+            if _r249_tag:
+                _r249_cont[_r249_nm] = "".join(sorted(set(_r249_tag)))
         _r233_fir = {
             "name": func_name,
             **({"global_writes": sorted(_global_writes)} if _global_writes else {}),
             **({"r230_optional_containers": sorted(_r230_opt)} if _r230_opt else {}),
+            **({"r249_erased_containers": dict(sorted(_r249_cont.items()))}
+               if _r249_cont else {}),
             # (#34) emitted ONLY when non-empty, so the IR of every function without a
             # `nonlocal` is byte-identical and the frozen conformance goldens do not move.
             **({"nonlocal_writes": sorted(_nonlocal_writes)} if _nonlocal_writes else {}),

@@ -9,8 +9,13 @@ spelling itself.
 Without this control the two witnesses could not distinguish "the documented rules now
 apply to both spellings" from "the legacy spelling was outlawed", and the second would be
 a regression dressed as a repair.
+
+Route #249 (gen #36): expected PASS until route #249; expected FAIL now. `get`'s `\result == self.v`
+over an uninstantiated `T` is a FALSE claim (CPython `Box(float("nan")).get() == Box(...).v` is False:
+NaN is not reflexive); it proved only because `==` on a TypeVar value was Why3 `=`. The spelling is
+still LEGAL: the file still emits and type-checks (no refusal), it now fails at the proof.
 """
-# pycsl-expected: PASS
+# pycsl-expected: FAIL
 from typing import Generic, TypeVar
 
 T = TypeVar("T")

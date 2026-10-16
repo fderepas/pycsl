@@ -1701,6 +1701,179 @@ class FunctionEmissionMixin:
                 self._erased_truthy_locals[_amb_nm] = "AMBIG#nan"
             elif "NONE" in _amb_k:
                 self._erased_truthy_locals[_amb_nm] = "AMBIG"
+        # (#49) ROUTE #249 — WHICH NAMES MAY HOLD AN ARBITRARY (`Any`) PYTHON OBJECT. The model
+        #   gives such a value an `int` term and lowered its `==` to Why3 `=`, so symmetry,
+        #   transitivity, reflexivity and substitutivity came for free; Python guarantees
+        #   none of them for a user `__eq__` (`requires x == y` PROVED `ensures y == x`).
+        #   `_handle_binop` lowers `==`/`!=`/`in` with an erased operand to uninterpreted
+        #   predicates; this pre-scan says which NAMES are erased: a formal parameter declared
+        #   `Any`/`object`/unannotated/a TypeVar, and — a flow-insensitive fixpoint, the route
+        #   #46 shape above — every local (assignment, augmented assignment, `for` /
+        #   comprehension target, tuple target) bound from an erased expression. The
+        #   expression walk is an INLINE explicit stack and is duplicated in `_handle_binop`
+        #   (route #45's "two uses, two copies": a new live def moves the mirror-coverage
+        #   ratchet). An erased expression: an erased name; `\result` of a function returning
+        #   `Any`/`object`/a TypeVar; a read/attribute/method call/arithmetic on an erased
+        #   value; an element read of a route-#249 container (Module 5's
+        #   `r249_erased_containers`); a record field declared `Any`/`object`; a call of a
+        #   module function returning `Any`/`object`; a literal container holding any of these.
+        _r249_tv: Set[str] = set(((getattr(self, "ir", {}) or {}).get(
+            "typevar_registry") or {}).keys())
+        for _r249_tp in (func.get("type_params") or []):
+            if isinstance(_r249_tp, dict) and isinstance(_r249_tp.get("name"), str):
+                _r249_tv.add(_r249_tp["name"])
+        _r249_cont: Dict[str, str] = dict(func.get("r249_erased_containers") or {})
+        if (func.get("vararg_str_param") and func.get("vararg_elem_type") == "int"):
+            _r249_cont[func["vararg_str_param"]] = "kv"
+        _r249_ret_erased: bool = (func.get("return_annotation") in ("Any", "object")
+                                  or func.get("return_annotation") in _r249_tv)
+        _r249_any_ret_funcs: Set[str] = set()
+        for _r249_g in ((getattr(self, "ir", {}) or {}).get("functions") or []):
+            if (isinstance(_r249_g, dict) and isinstance(_r249_g.get("name"), str)
+                    and _r249_g.get("return_annotation") in ("Any", "object")):
+                _r249_any_ret_funcs.add(_r249_g["name"])
+                _r249_any_ret_funcs.add(_r249_g["name"].split(".")[-1])
+        # A class the model does NOT carry as a record (a `type <c> = int` alias) whose own
+        # `__eq__`/`__ne__` is defined: its instances' `==` is the user's method. (A record
+        # class with `__eq__` is route #76's: refused in a contract, ill-typed in a program.)
+        _r249_eq_classes: Set[str] = set()
+        _r249_rts0 = {str(_k).lower() for _k in (getattr(self, "_record_types", {}) or {})}
+        for _r249_g in ((getattr(self, "ir", {}) or {}).get("functions") or []):
+            if (isinstance(_r249_g, dict) and _r249_g.get("kind") == "method"
+                    and isinstance(_r249_g.get("self_type"), str)
+                    and str(_r249_g.get("name", "")).endswith(("____eq__", "____ne__"))
+                    and _r249_g["self_type"].lower() not in _r249_rts0
+                    and _r249_g["self_type"] not in (getattr(self, "_variant_types", {}) or {})):
+                _r249_eq_classes.add(_r249_g["self_type"])
+        _r249_erased: Set[str] = set()
+        _r249_pann = func.get("param_annotations") or {}
+        for _r249_p in (func.get("formal_params") or []):
+            if _r249_p == "self" or _r249_p in _r249_cont \
+                    or _r249_p == func.get("vararg_str_param"):
+                continue
+            _r249_a = _r249_pann.get(_r249_p)
+            if (_r249_a is None or _r249_a in ("Any", "object") or _r249_a in _r249_tv
+                    or _r249_a in _r249_eq_classes):
+                _r249_erased.add(_r249_p)
+        _r249_asgs: List[Any] = []
+        _r249_ws: List[Any] = [func.get("body") or []]
+        while _r249_ws:
+            _r249_n = _r249_ws.pop()
+            if isinstance(_r249_n, list):
+                _r249_ws.extend(_r249_n)
+                continue
+            if not isinstance(_r249_n, dict):
+                continue
+            if (_r249_n.get("stmt") in ("Assign", "AnnAssign", "AugAssign")
+                    and _r249_n.get("value") is not None):
+                for _r249_t in ([_r249_n.get("target")]
+                                + list(_r249_n.get("targets") or [])
+                                + list(_r249_n.get("tuple_targets") or [])):
+                    if isinstance(_r249_t, str):
+                        _r249_asgs.append((_r249_t, _r249_n.get("value"), False))
+            if isinstance(_r249_n.get("iter"), dict):
+                for _r249_t in ([_r249_n.get("target")]
+                                + list(_r249_n.get("tuple_targets") or [])):
+                    if isinstance(_r249_t, str):
+                        _r249_asgs.append((_r249_t, _r249_n.get("iter"), True))
+            for _r249_v in _r249_n.values():
+                if isinstance(_r249_v, (list, dict)):
+                    _r249_ws.append(_r249_v)
+        _r249_rts = getattr(self, "_record_types", {}) or {}
+        _r249_st = func.get("symbol_table") or {}
+        _r249_changed = True
+        while _r249_changed:
+            _r249_changed = False
+            for _r249_t, _r249_rhs, _r249_it in _r249_asgs:
+                if _r249_t in _r249_erased:
+                    continue
+                # An iterated container: its ELEMENTS are what the target binds.
+                if (_r249_it and isinstance(_r249_rhs, dict) and _r249_rhs.get("type") == "Var"
+                        and _r249_rhs.get("name") in _r249_cont):
+                    if "k" in _r249_cont[_r249_rhs["name"]]:
+                        _r249_erased.add(_r249_t)
+                        _r249_changed = True
+                    continue
+                _r249_hit = False
+                _r249_es: List[Any] = [_r249_rhs]
+                while _r249_es and not _r249_hit:
+                    _r249_e = _r249_es.pop()
+                    if not isinstance(_r249_e, dict):
+                        continue
+                    _r249_et = _r249_e.get("type")
+                    if _r249_et == "Var":
+                        _r249_hit = (_r249_e.get("name") in _r249_erased
+                                     or _r249_e.get("name") in _r249_cont)
+                    elif _r249_et == "Result":
+                        _r249_hit = _r249_ret_erased
+                    elif _r249_et in ("Attribute", "FieldGet"):
+                        _r249_b = (_r249_e.get("object") if isinstance(_r249_e.get("object"), dict)
+                                   else _r249_e.get("value"))
+                        if isinstance(_r249_b, dict) and _r249_b.get("type") == "Var":
+                            _r249_bt = _r249_st.get(_r249_b.get("name"))
+                            if _r249_b.get("name") == "self":
+                                _r249_bt = getattr(self, "_current_self_type", None) or _r249_bt
+                            _r249_ri = (_r249_rts.get(_r249_bt) if isinstance(_r249_bt, str)
+                                        else None)
+                            if not isinstance(_r249_ri, dict) and isinstance(_r249_bt, str):
+                                for _r249_cn, _r249_ci in _r249_rts.items():
+                                    if (isinstance(_r249_ci, dict)
+                                            and _r249_cn.lower() == _r249_bt.lower()):
+                                        _r249_ri = _r249_ci
+                                        break
+                            if isinstance(_r249_ri, dict) and (
+                                    (_r249_ri.get("field_types") or {}).get(
+                                        _r249_e.get("attr") or _r249_e.get("field"))
+                                    in ("Any", "object")):
+                                _r249_hit = True
+                        _r249_es.append(_r249_b)
+                    elif _r249_et in ("Subscript", "MapGet"):
+                        _r249_b = (_r249_e.get("value") if isinstance(_r249_e.get("value"), dict)
+                                   else _r249_e.get("object") or _r249_e.get("map"))
+                        if (isinstance(_r249_b, dict) and _r249_b.get("type") == "Var"
+                                and "v" in _r249_cont.get(_r249_b.get("name"), "")):
+                            _r249_hit = True
+                        _r249_es.append(_r249_b)
+                    elif _r249_et == "BinOp" and _r249_e.get("op") in (
+                            "+", "-", "*", "/", "div", "//", "%", "**", "<<", ">>", "&",
+                            "|", "^", "or", "and"):
+                        _r249_es.append(_r249_e.get("left"))
+                        _r249_es.append(_r249_e.get("right"))
+                    elif _r249_et == "UnaryOp" and _r249_e.get("op") in ("-", "+", "~"):
+                        _r249_es.append(_r249_e.get("expr"))
+                    elif _r249_et in ("Old", "At"):
+                        _r249_es.append(_r249_e.get("expr"))
+                    elif _r249_et == "IfExpr":
+                        _r249_es.append(_r249_e.get("body"))
+                        _r249_es.append(_r249_e.get("orelse"))
+                    elif _r249_et in ("ArrayLit", "ListLit", "List", "Tuple", "MkTuple",
+                                      "SetLit", "Set", "MkList"):
+                        _r249_es.extend(_r249_e.get("elts") or [])
+                    elif _r249_et == "DictLit":
+                        _r249_es.extend(_r249_e.get("keys") or [])
+                        _r249_es.extend(_r249_e.get("values") or [])
+                    elif _r249_et == "Call" and isinstance(_r249_e.get("func"), str):
+                        _r249_f = _r249_e["func"]
+                        _r249_fb = _r249_f.split(".")[0] if "." in _r249_f else ""
+                        if _r249_fb and _r249_fb != "self" and (
+                                _r249_fb in _r249_erased
+                                or (_r249_fb in _r249_cont
+                                    and _r249_f.rsplit(".", 1)[-1] in (
+                                        "get", "pop", "setdefault", "popitem", "copy"))):
+                            _r249_hit = True
+                        elif (_r249_f in _r249_any_ret_funcs
+                              or _r249_f in _r249_eq_classes
+                              or (_r249_f.startswith("self.")
+                                  and _r249_f[5:] in _r249_any_ret_funcs)):
+                            _r249_hit = True
+                if _r249_hit:
+                    _r249_erased.add(_r249_t)
+                    _r249_changed = True
+        # ONE per-function field (declared in the mirror stub's `#@ assigns`), read by
+        # `_handle_binop`.
+        self._r249_scope: Dict[str, Any] = {
+            "erased": _r249_erased, "cont": _r249_cont, "ret_erased": _r249_ret_erased,
+            "any_ret": _r249_any_ret_funcs, "eq_classes": _r249_eq_classes}
         # typed-ir-for-b-ceiling.md §26: `X = getattr(self, "<field>", {})` binds a
         # local aliasing a dict/set self-field (the emitter's `known_sizes =
         # getattr(self, "_known_collection_sizes", {})` / `st = getattr(self,

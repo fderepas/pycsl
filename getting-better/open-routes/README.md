@@ -2,7 +2,13 @@
 
 
 ## gen #36 (2026-10-16): #249 (`==` on `Any` is mathematical equality; an asymmetric user `__eq__` breaks
-##   `requires x == y ensures y == x`) OPENED (design-level residual of #247/#248, driver-verified).
+##   `requires x == y ensures y == x`) OPENED (design-level residual of #247/#248, driver-verified), REPAIRED
+##   2026-10-16 (option (b): with an erased operand -- `Any`/`object`/unannotated/TypeVar param, a non-record class
+##   defining `__eq__`, an `Any`-element container read, an `Any` field/return, a local bound from one -- `==`,
+##   `!=`, `in` lower to the uninterpreted `pycsl_py_eq`/`pycsl_py_ne`/`pycsl_py_in`, no law, one symbol for
+##   contract and body; `is` and builtin-typed pairs keep `=`; witnesses 2370-2393, controls 2395-2399; 1686/1851
+##   PASS -> FAIL, declared). Residuals: float NaN (`real` has none: `x == x`, `x <= x` prove), `Any` arithmetic is
+##   `int` arithmetic, bare `list`/`dict` read as `int` elements, dict keys are identity (`witnesses-r249/`).
 
 ## gen #36 (2026-10-16): #247 (`set`/`frozenset` share `dict`'s isinstance tag) and #248 (builtin-`==` assumption
 ##   on `Any` broken by a user `__eq__`) OPENED (residuals of the #246 repair, driver-verified), REPAIRED 2026-10-16
