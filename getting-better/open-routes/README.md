@@ -1,6 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-16): #247 (`set`/`frozenset` share `dict`'s isinstance tag) and #248 (builtin-`==` assumption
+##   on `Any` broken by a user `__eq__`) OPENED (residuals of the #246 repair, driver-verified).
+
 ## gen #36 (2026-10-16): #246 (`isinstance(<Any>, int)` is a function of the stored int: 1 and 1.0 agree)
 ##   OPENED (driver-reproduced; residual of the #245 repair), REPAIRED 2026-10-16 (for a class whose builtin `==`
 ##   crosses types -- int/float/set/frozenset/user classes -- a contract-side test on an undecided subject is refused
