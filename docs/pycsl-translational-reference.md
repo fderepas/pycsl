@@ -3898,6 +3898,8 @@ of the translation:
 | Abstract operations (`val iter_length`, etc.) | Transpiler-generated | **Medium** — uninterpreted |
 | Integer arithmetic is unbounded | Python semantics | Low (CPython uses bigints) |
 | Python's `//`/`%` are floored (rounds toward −∞; remainder sign = divisor) | Language semantics | Low — realized faithfully: `pycsl_div`/`pycsl_mod` correct Euclidean `div`/`mod` by a sign-of-divisor adjustment (WL-01 FIXED); positive-divisor case is byte-identical to Euclidean |
+| **FLOAT-FINITE** — every `float` value is finite and non-NaN | $\tau(\texttt{float}) = \texttt{real}$ (no NaN/±inf) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-float-finite`; counterexample corpus 2500-2502 |
+| **BUILTIN-EXACT** — a builtin-typed value is an exact instance (no dunder-overriding subclass) | $\tau$ of every builtin | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, no strict mode; counterexample corpus 2506 |
 
 ### §T.10.2  Preservation Lemmas
 
@@ -3996,6 +3998,52 @@ The translation $\mathcal{T}$ maps Python constructs into this verified
 core.  Constructs outside the core (exceptions, classes, arrays) are
 modeled using Why3's built-in theories, whose soundness is established
 by the Why3 project itself.
+
+### §T.10.5  Declared Model Assumptions (routes #250, #253)
+
+Two rows of the §T.10.1 trust base are properties of $\tau$ rather than of any emitted
+text: no `assume`, `axiom` or `val` carries them, so `bin/check-assumed-facts.py` (which
+classifies emitted assumed facts) cannot see them. They are DECLARED instead — the same
+treatment as the reviewed HASH-EQ-CONSISTENCY axiom (UB-7.2, `--strict-hash-eq-consistency`,
+corpus 0411/0412): named, listed by `pycsl --soundness-report` under "declared model
+assumptions" (JSON `model_assumptions`, each entry with `statement`, `counterexample`,
+`strict_mode` and `relied_on_by` = the function, operator and values that rely on it), and
+pinned in the corpus by a counterexample that PROVES under the default model (header
+`# pycsl-model-assumption: <NAME>`, `# pycsl-expected: PASS`).
+
+**FLOAT-FINITE** — every float value is finite and non-NaN. $\tau(\texttt{float}) =
+\texttt{real}$ and `real` has no NaN, so reflexivity of `==`/`<=` and trichotomy hold for
+every float value: `ensures x == x` (2500), `ensures x <= x` (2501), `requires x != y ensures
+x < y or y < x` (2502) PROVE for `x: float`, and CPython refutes each with `float("nan")`.
+Reported for every comparison/`min`/`max` touching a float.
+*Strict mode* `--strict-float-finite` (opt-in) lowers, in both paths,
+
+    a OP b  ⟶  (let _pf_a = a in let _pf_b = b in
+                 (_pf_a OP. _pf_b) && ok _pf_a && ok _pf_b)     (OP ∈ < <= > >=;
+                                                                  == as <=. both ways)
+    a != b  ⟶  not (a == b as above)
+    ok v    ≡  (v <. pycsl_float_nan || v >. pycsl_float_nan)
+    let constant pycsl_float_nan : real = 1.0 /. 3.0              (a definition, no axiom)
+
+`1/3` is not dyadic, so no finite binary64 value and no float literal is the sentinel, but a
+parameter or an uninterpreted `float_*_op` result may be. The non-NaN test avoids the logic
+`=` (unavailable on `real` in program code); the let-binding evaluates a body operand once.
+Under the flag 2503-2505 (the same three claims) FAIL and the controls 2507 (`\result == 1.5`,
+a guarded branch, order facts from a precondition, transitivity) PROVE. Cost: 0517 and 1124 —
+TRUE claims of the shape `\result == <float arithmetic>` — FAIL, alongside 0818/0847/1120,
+which are FALSE for a NaN input. Not covered: ±inf, signed zero, comparisons outside the
+binary-operator lowering (a future float `min`/`max` lowering; today `max` on floats is the
+int `MinMax.max` and fails closed with a type error), and there is no spec-level `math.isnan`.
+
+**BUILTIN-EXACT** — a value whose static type is a builtin (`int`, `float`, `str`, `bool`,
+`bytes`, `tuple`, `list`, `dict`, `set`, `frozenset`) is an exact instance of that type: its
+operators are the builtin's, not a subclass's overridden dunders. `def f(x: int): return x - x`
+PROVES `\result == 0` (2506); with `class I(int): def __sub__(s, o): return 7`, CPython's
+`f(I(5))` is 7, and Python and type checkers both accept the subclass instance. Reported for
+every operator node that reads a builtin-typed variable, field or `\result`. There is no
+strict mode: fail-closed would remove all builtin arithmetic. (Values that are NOT
+builtin-typed — `Any`, `object`, unannotated, TypeVar — are not under this assumption: their
+operators are already uninterpreted, routes #249/#251/#252.)
 
 ---
 

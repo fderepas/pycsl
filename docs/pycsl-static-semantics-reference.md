@@ -206,7 +206,10 @@ specification logic's type universe:
                                  corpus 0517) and it is NOT repairable by a sign clause, whose
                                  antecedent ranges over the `real` and cannot see NaN. Witnesses
                                  1117-1120. Mixed float/int arithmetic is out of scope;
-                                 transcendentals stay opaque ops over real *)
+                                 transcendentals stay opaque ops over real.
+                                 `real` has NO NaN and NO ±inf: that every float value is finite
+                                 and non-NaN is the DECLARED MODEL ASSUMPTION FLOAT-FINITE
+                                 (Appendix C.1), dropped by `--strict-float-finite` *)
 τ(list)           = list
 τ(List)           = list      (* typing.List alias *)
 τ(List[T])        = list      (* parametric list — element type opaque *)
@@ -2921,6 +2924,41 @@ import, transitively, with a cycle-safe seen-set — and refuses with
 the dependency standalone" is not always well-defined: measured over the corpus's own 30
 local dependencies, two fail for CONTEXT reasons while their importers pass, one of them
 because a contract names a constant that only resolves inside the importing compilation.
+
+### C.1 Declared model assumptions (routes #250, #253)
+
+Two facts every proof over builtin-typed values rests on are **assumed, not proved**, and no
+VC states them and no emitted `assume`/`axiom` carries them — they are properties of the type
+mapping $\tau$ itself. They are the same class as the reviewed HASH-EQ-CONSISTENCY assumption
+(`bin/check-assumed-facts.py`), but with no emitted text a plane could classify, so they are
+SURFACED instead: `pycsl --soundness-report` lists each one under "declared model assumptions"
+(JSON key `model_assumptions`) whenever the program relies on it, with the function, operator and
+values involved. The listing is conservative (over-, never under-reported).
+
+| Assumption | Statement | Reported when | Counterexample (corpus) | Strict mode |
+|---|---|---|---|---|
+| **FLOAT-FINITE** | every `float` value is finite and non-NaN | a comparison (`< <= > >= == !=`) or `min`/`max` whose operand mentions a float literal or a float-typed variable, field or `\result` | `x: float` with `ensures x == x` / `x <= x` / (`requires x != y`, `ensures x < y or y < x`) PROVE (2500-2502); CPython refutes all three for `x = float("nan")` | `--strict-float-finite` (2503-2505 FAIL; controls 2507 PASS) |
+| **BUILTIN-EXACT** | a value whose static type is a builtin (`int`/`float`/`str`/`bool`/`bytes`/`tuple`/`list`/`dict`/`set`/`frozenset`) is an EXACT instance of it — not a subclass overriding a dunder | any operator (an IR node with an `op`: arithmetic, comparison, unary, augmented assignment) reading a builtin-typed variable, field or `\result` | `def f(x: int): return x - x` PROVES `\result == 0` (2506); CPython returns 7 for `f(I(5))`, `class I(int): __sub__ -> 7` | none — dropping it would leave no builtin arithmetic at all |
+
+**What `--strict-float-finite` covers.** A NaN SENTINEL is modelled as the non-dyadic real
+`1/3` (`let constant pycsl_float_nan : real = 1.0 /. 3.0`, a definition — no axiom): every
+finite binary64 value is dyadic and every PyCSL float literal a finite decimal, so neither is
+the sentinel, while a parameter, field, element, call result or uninterpreted float-op result
+MAY be. Every float comparison and `==` becomes the real comparison CONJOINED with "neither
+operand is the sentinel" (`!=` its negation), in the spec path and the body path alike. Float-ness
+is read widely under the flag: a float literal/variable, `\result` of a `-> float` function, a
+`List[float]` element, a `float` field, a `-> float` call, `/`, and arithmetic over those.
+**Cost** (measured over the 36 pre-existing root corpus files that mention `float`): five PASS files FAIL under
+the flag — 0818 (`\result == a[i]`), 0847, 1120 (`\result == x + x`), which are FALSE in
+CPython for a NaN input, and 0517 (`requires x >= 0.0 ensures \result == x + x`) and 1124
+(`\result == a / b`), which are TRUE but lost because the uninterpreted float op might be the
+sentinel. Hence opt-in. **Not covered** (residuals of the strict mode): ±inf (`inf - inf` is
+NaN; `inf == inf` holds, so it only matters through arithmetic, which is uninterpreted
+anyway); signed zero (`0.0 == -0.0` then `math.copysign`); comparisons that do not go
+through the binary-operator lowering (a future float `min`/`max` lowering must be guarded too —
+`max(nan, 1.0)` is `nan`; today `max(x, y)` on floats lowers to the INT `MinMax.max` and fails
+closed with a type error in both modes); there is no spec-level `math.isnan`/`math.isfinite`, so the only non-NaN
+precondition a user can write is a comparison such as `x == x` or `x >= 0.0`.
 
 ---
 

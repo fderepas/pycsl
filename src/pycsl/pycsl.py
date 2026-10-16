@@ -326,6 +326,15 @@ def _parse_args() -> argparse.Namespace:
                              "Why3 goal that must be discharged (typically via "
                              "an external proof citation). Off by default — emits "
                              "as an axiom and trusts the user.")
+    g_strict.add_argument("--strict-float-finite", action="store_true",
+                        help="Drop the FLOAT-FINITE model assumption (route #250): "
+                             "model a NaN float value, so every float comparison "
+                             "and `==` also requires its operands to be non-NaN "
+                             "(`x == x` no longer proves for a float parameter). "
+                             "Off by default — floats are assumed finite and "
+                             "non-NaN, a declared assumption listed by "
+                             "--soundness-report. Costs TRUE claims of the shape "
+                             "`\\result == <float arithmetic>`.")
     g_strict.add_argument("--check-behavioral-subtyping", action="store_true",
                         help="Layer D: emit Liskov refinement goals for "
                              "overriding methods (pre_base ⇒ pre_sub, "
@@ -402,7 +411,125 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
             "trusted": bool(f.get("trusted")), "abstract": bool(f.get("abstract")),
             "preserves": bool(f.get("preserves")), "trusted_dependencies": deps,
         })
-    return {"file": filename, "summary": counts, "vcs": vcs}
+    # ROUTES #250/#253 — the DECLARED MODEL ASSUMPTIONS. Two facts every proof over builtin
+    # values rests on, that no VC states and no axiom carries (the same class as the reviewed
+    # HASH-EQ-CONSISTENCY axiom, but with no emitted text a plane could classify):
+    #   FLOAT-FINITE   a `float` value is finite and non-NaN (the model is Why3 `real`, so
+    #                  `x == x`, `x <= x` and trichotomy hold for every float); dropped by
+    #                  `--strict-float-finite`.
+    #   BUILTIN-EXACT  a value whose static type is a builtin is an EXACT instance of it — no
+    #                  subclass overriding a dunder (`class I(int): __sub__ -> 7` makes
+    #                  `x - x == 0` false); no strict mode.
+    # Reported iff the program RELIES on them, conservatively (over-, never under-reported):
+    # FLOAT-FINITE for every comparison/`==`/min/max whose operand subtree mentions a float
+    # (a float literal, or a float-typed variable, field or `\result`); BUILTIN-EXACT for
+    # every operator (any IR node with an `op`) whose operand subtree reads a builtin-typed
+    # variable, field or `\result`. Each entry names the function, the operator and the
+    # values it touches.
+    _ma_builtin = {"int", "float", "str", "bool", "bytes", "tuple", "list", "dict", "set",
+                   "frozenset"}
+    _ma_fields: Dict[str, str] = {}
+    for _ma_td in ir_data.get("type_decls", []) or []:
+        for _ma_fd in (_ma_td.get("fields") or []) if isinstance(_ma_td, dict) else []:
+            if isinstance(_ma_fd, dict) and isinstance(_ma_fd.get("type"), str):
+                _ma_b = _ma_fd["type"].split("[")[0].strip().lower()
+                if _ma_b in _ma_builtin and _ma_fields.get(_ma_fd.get("name")) != "float":
+                    _ma_fields[_ma_fd.get("name")] = _ma_b
+    _ma_cmp = {"<", "<=", ">", ">=", "==", "!="}
+    _ma_float_uses: List[str] = []
+    _ma_exact_uses: List[str] = []
+    for f in funcs:
+        _ma_types: Dict[str, str] = {}
+        for _ma_src in (f.get("symbol_table") or {}, f.get("param_annotations") or {}):
+            for _ma_n, _ma_t in _ma_src.items():
+                if isinstance(_ma_t, str):
+                    _ma_b = _ma_t.split("[")[0].strip().lower()
+                    if _ma_b in _ma_builtin:
+                        _ma_types[_ma_n] = _ma_b
+        _ma_ret = str(f.get("return_annotation") or "").split("[")[0].strip().lower()
+        _ma_stack: List[Any] = [f.get("body", []), f.get("contracts", {})]
+        while _ma_stack:
+            _ma_node = _ma_stack.pop()
+            if isinstance(_ma_node, list):
+                _ma_stack.extend(_ma_node)
+                continue
+            if not isinstance(_ma_node, dict):
+                continue
+            _ma_stack.extend(_ma_node.values())
+            _ma_op = _ma_node.get("op")
+            _ma_call = (_ma_node.get("type") == "Call"
+                        and _ma_node.get("func") in ("min", "max"))
+            if not (isinstance(_ma_op, str) or _ma_call):
+                continue
+            # the builtin-typed / float values read anywhere under this operator
+            _ma_seen: List[str] = []
+            _ma_fseen: List[str] = []
+            _ma_fl = False
+            if isinstance(_ma_node.get("target"), str) and _ma_node["target"] in _ma_types:
+                _ma_seen.append("%s: %s" % (_ma_node["target"], _ma_types[_ma_node["target"]]))
+            # (operand, under-a-nested-operator): a value read under a NESTED operator is
+            # that operator's operand (reported on its own visit), not this one's — except
+            # for float-ness, which flows through arithmetic into the comparison.
+            _ma_sub: List[Any] = [(v, False) for k, v in _ma_node.items() if k != "op"]
+            while _ma_sub:
+                _ma_x, _ma_in = _ma_sub.pop()
+                if isinstance(_ma_x, list):
+                    _ma_sub.extend((_ma_y, _ma_in) for _ma_y in _ma_x)
+                    continue
+                if not isinstance(_ma_x, dict):
+                    continue
+                _ma_nest = _ma_in or isinstance(_ma_x.get("op"), str)
+                _ma_sub.extend((_ma_y, _ma_nest) for _ma_y in _ma_x.values())
+                _ma_k = _ma_x.get("type")
+                _ma_t = None
+                if _ma_k == "Var":
+                    _ma_t = _ma_types.get(_ma_x.get("name"))
+                    _ma_lbl = str(_ma_x.get("name"))
+                elif _ma_k == "FieldGet":
+                    _ma_t = _ma_fields.get(_ma_x.get("field"))
+                    _ma_lbl = "%s.%s" % (_ma_x.get("object"), _ma_x.get("field"))
+                elif _ma_k == "Result":
+                    _ma_t = _ma_ret if _ma_ret in _ma_builtin else None
+                    _ma_lbl = "\\result"
+                elif _ma_k == "Number" and isinstance(_ma_x.get("value"), float):
+                    _ma_fl = True
+                if _ma_t:
+                    if _ma_t == "float":
+                        _ma_fl = True
+                        _ma_fseen.append(_ma_lbl)
+                    if not _ma_in:
+                        _ma_seen.append("%s: %s" % (_ma_lbl, _ma_t))
+            _ma_what = "min/max" if _ma_call else "`%s`" % _ma_op
+            _ma_vals = ", ".join(sorted(set(_ma_seen)))
+            if _ma_fl and (_ma_call or _ma_op in _ma_cmp):
+                _ma_float_uses.append("%s: %s on %s" % (
+                    f["name"], _ma_what,
+                    ", ".join(sorted(set(_ma_fseen))) or "a float literal"))
+            if _ma_seen and isinstance(_ma_op, str):
+                _ma_exact_uses.append("%s: %s on %s" % (f["name"], _ma_what, _ma_vals))
+    assumptions: List[Dict[str, Any]] = []
+    if _ma_float_uses:
+        assumptions.append({
+            "name": "FLOAT-FINITE",
+            "statement": "every float value is finite and non-NaN (float is modelled as "
+                         "the Why3 real: x == x, x <= x and trichotomy hold)",
+            "counterexample": "x = float('nan'): x == x is False (corpus 2500-2502)",
+            "strict_mode": "--strict-float-finite",
+            "relied_on_by": sorted(set(_ma_float_uses)),
+        })
+    if _ma_exact_uses:
+        assumptions.append({
+            "name": "BUILTIN-EXACT",
+            "statement": "a value whose static type is a builtin (int/float/str/bool/bytes/"
+                         "tuple/list/dict/set) is an exact instance of it, not a subclass "
+                         "overriding a dunder",
+            "counterexample": "class I(int): __sub__ -> 7; x - x == 7 for x = I(5) "
+                              "(corpus 2506)",
+            "strict_mode": None,
+            "relied_on_by": sorted(set(_ma_exact_uses)),
+        })
+    return {"file": filename, "summary": counts, "vcs": vcs,
+            "model_assumptions": assumptions}
 
 
 def _print_soundness_report(report: Dict[str, Any]) -> None:
@@ -427,6 +554,17 @@ def _print_soundness_report(report: Dict[str, Any]) -> None:
         print("  --- body proofs resting on trusted/abstract stubs ---")
         for v in dep:
             print(f"    {v['function']}  depends on: {', '.join(v['trusted_dependencies'])}")
+    ma = report.get("model_assumptions") or []
+    if ma:
+        print("  --- declared model assumptions (not proved; see the reference docs) ---")
+        for a in ma:
+            print(f"    {a['name']}: {a['statement']}")
+            print(f"      counterexample: {a['counterexample']}")
+            print(f"      strict mode: {a['strict_mode'] or 'none (always assumed)'}")
+            for u in a["relied_on_by"][:10]:
+                print(f"      relied on by {u}")
+            if len(a["relied_on_by"]) > 10:
+                print(f"      ... and {len(a['relied_on_by']) - 10} more (see JSON)")
 
 
 def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace) -> str:
@@ -1973,6 +2111,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         strict_hash_eq_consistency=getattr(args, "strict_hash_eq_consistency", False),
         check_behavioral_subtyping=getattr(args, "check_behavioral_subtyping", False),
     )
+    # ROUTE #250 — opt-in drop of the FLOAT-FINITE assumption (read by the float
+    # comparison lowering in `module6_whyml/expressions.py::_handle_binop`).
+    transpiler.strict_float_finite = bool(getattr(args, "strict_float_finite", False))
     _mlw = transpiler.transpile()
 
     # ROUTE #30 (relaunch #45) — REFUSE an UNINTERPRETED `match` pattern.

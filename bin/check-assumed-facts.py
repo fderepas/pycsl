@@ -51,6 +51,18 @@ re-established at release is `0256`'s job) — only that no fact outside the rev
 families has appeared. Nor does it see `val` declarations: a bodyless `val` with an
 `ensures` is also an assumption, and the planes that watch those are
 `count-trusted-directives.py` and `check-untrusted-emitted.py`.
+
+NOR DOES IT SEE MODEL-LEVEL ASSUMPTIONS, which have no emitted text at all: they are
+properties of the type mapping, not `assume`/`axiom` lines. Two are DECLARED (routes #250,
+#253; translational reference §T.10.5) and surfaced by `pycsl --soundness-report` under
+"declared model assumptions" instead of here:
+
+  FLOAT-FINITE    every `float` value is finite and non-NaN (`float` is Why3 `real`):
+                  `x == x` proves for `x: float`, corpus 2500-2502. `--strict-float-finite`
+                  drops it (2503-2505 FAIL); its NaN sentinel is a `let constant`
+                  DEFINITION, so it adds no fact to this plane's census.
+  BUILTIN-EXACT   a builtin-typed value is an exact instance, not a dunder-overriding
+                  subclass: `x - x == 0` proves for `x: int`, corpus 2506. No strict mode.
 """
 import argparse
 import os

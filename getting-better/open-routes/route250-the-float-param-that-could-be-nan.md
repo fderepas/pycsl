@@ -1,6 +1,7 @@
 # OPEN ROUTE #250 — A `float` PARAMETER CAN BE NaN; THE `real` MODEL PROVES `x == x`, `x <= x`, TRICHOTOMY
 
-**Status: OPEN (gen #36, 2026-10-16), Severity 1.** Residual of the #249 repair; driver-verified at the
+**Status: RESOLVED (declared assumption FLOAT-FINITE), gen #36, 2026-10-16** — was OPEN, Severity 1.
+See "Resolution" at the end. Residual of the #249 repair; driver-verified at the
 repaired tree (= HEAD c5c703ad): all three rc=0. Route #45 closed the `float("nan")` LITERAL case only.
 
 ## Witnesses (`witnesses-r249/`)
@@ -58,3 +59,38 @@ ops (needs an IEEE-faithful op model), or (c) as an interim, declared TCB entry.
 residuals for whoever builds (a)): comparisons that do not go through `_handle_binop` (e.g. a `max`/`min`
 lowering; Python's `max(nan, 1.0)` is `nan`) would bypass the guard, and signed zero (`0.0 == -0.0`, then
 `math.copysign`) is a separate `real`-model gap.
+
+## Resolution (gen #36, 2026-10-16) — RESOLVED as the declared model assumption FLOAT-FINITE
+
+Decided under the driver's authority: option (c) as the DEFAULT, option (a) as an OPT-IN strict mode,
+following the HASH-EQ-CONSISTENCY precedent (0411 axiom mode / 0412 `--strict-hash-eq-consistency`).
+
+**Covered.**
+- `pycsl --soundness-report` lists `FLOAT-FINITE` ("every float value is finite and non-NaN") under
+  "declared model assumptions" (JSON `model_assumptions`, with `statement`, `counterexample`,
+  `strict_mode`, `relied_on_by`) whenever a comparison/`==`/`min`/`max` touches a float (literal, or
+  float-typed variable, field, `\result`). Conservative: over-, never under-reported. Built inline in
+  `_build_soundness_report` / `_print_soundness_report` (`src/pycsl/pycsl.py`; mirror twins `\trusted`).
+- Docs: static-semantics reference Appendix C.1 (+ the `τ(float)` note), translational reference
+  §T.10.1 (trust-base rows) and new §T.10.5, README (UB-7.2 neighbourhood), and the
+  `bin/check-assumed-facts.py` docstring (model-level assumptions are outside that plane — no emitted text).
+- `--strict-float-finite` (opt-in, `expressions.py::_handle_binop`, inline, `\trusted` twin): the #251
+  executor's option (a). NaN sentinel `let constant pycsl_float_nan : real = 1.0 /. 3.0` (definition, no
+  axiom); each float `< <= > >= ==` becomes the real comparison conjoined with "neither operand is the
+  sentinel" (`!=` its negation), both paths, operands let-bound; float-ness read widely under the flag
+  (`\result` of a `real` function, `List[float]` element, `float` field, `-> float` call, `/`, `old`/`at`,
+  arithmetic) so `\result == a[i]` / `\result == a / b` do not bypass the guard.
+- Corpus: 2500-2502 (the three witnesses, `# pycsl-model-assumption: FLOAT-FINITE`, expected PASS — they
+  PROVE under the default model), 2503-2505 (same, `--strict-float-finite`, expected FAIL — they FAIL),
+  2507 (strict-mode controls: `\result == 1.5`, guarded branch, order facts from a precondition,
+  transitivity — PROVE).
+- Measured strict-mode cost over the 36 pre-existing root corpus files mentioning `float`: 5 PASS files
+  FAIL under the flag — 0818, 0847, 1120 (FALSE for a NaN input) and 0517, 1124 (TRUE; the uninterpreted
+  float-op result might be the sentinel). Every expected-FAIL file stays FAIL. Default emission byte-inert.
+
+**Not covered.** ±inf, even under the flag (the sentinel models NaN only; `real` has no infinity, and
+an inf parameter compares like a huge finite value, which is IEEE-faithful for comparisons — the gap is
+only through arithmetic, which is uninterpreted anyway); signed zero (`0.0 == -0.0`, `math.copysign`);
+no spec-level `math.isnan`/`math.isfinite`; a future float `min`/`max` lowering must be guarded (today
+`max` on floats lowers to the int `MinMax.max` and fails closed with a type error in both modes).
+No ledger change (3).

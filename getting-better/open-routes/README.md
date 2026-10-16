@@ -1,6 +1,14 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-16): #250 and #253 RESOLVED as DECLARED MODEL ASSUMPTIONS (HASH-EQ-CONSISTENCY precedent):
+##   FLOAT-FINITE (floats finite, non-NaN) and BUILTIN-EXACT (builtin-typed values are exact instances, no
+##   dunder-overriding subclass), listed by `--soundness-report` (`model_assumptions`) when relied on, stated in
+##   static-semantics App. C.1 / translational §T.10.5 / README. Opt-in `--strict-float-finite` (NaN sentinel
+##   `1/3`, definition, no axiom) drops FLOAT-FINITE: witnesses 2500-2502 PASS by default, 2503-2505 FAIL strict,
+##   controls 2507 PASS strict; strict cost 0517/1124 (true) + 0818/0847/1120 (false for NaN). BUILTIN-EXACT has
+##   no strict mode (2506 PASS). Default emission byte-inert (root/pyref/mirror 0 MOVED); ledger 3.
+
 ## gen #36 (2026-10-16): #253 (a builtin-annotated value may be a subclass with overridden dunders: `x - x == 0`
 ##   proves for `x: int`) OPENED (design-level residual of #252).
 

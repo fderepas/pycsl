@@ -6190,6 +6190,68 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `val` (the real ops are logic symbols); comparisons return bool and emit directly.
         _lf = self._is_float_expr(expr["left"])
         _rf = self._is_float_expr(expr["right"])
+        # ROUTE #250 `--strict-float-finite` (opt-in; the default emission never reaches
+        # this): `_is_float_expr` only knows float literals, float-typed Vars and their
+        # arithmetic, so `\result == a[i]` (0818), `\result == float_truediv_op a b` (1124),
+        # a float field or a float-returning call would BYPASS the NaN guard below. Under
+        # the flag a comparison whose operand is float by a WIDER, conservative reading is
+        # routed to the guarded float branch too: `\result` of a `real` function, an element
+        # of a `List[float]` (or of an `array real` result), a field some record declares
+        # `float`, a call to a function annotated `-> float`, `/` (true division is always a
+        # float), `old`/`at` of such, and arithmetic over such. A misreading can only produce
+        # an ill-typed guard, which FAILS (closed), never a proof.
+        if (getattr(self, "strict_float_finite", False) and not (_lf or _rf)
+                and raw_op in ("<", "<=", ">", ">=", "==", "!=")):
+            _sf_ft = {fn for rec in (getattr(self, "_record_types", {}) or {}).values()
+                      if isinstance(rec, dict)
+                      for fn, ft in (rec.get("field_types") or {}).items() if ft == "float"}
+            _sf_lt = {fn for rec in (getattr(self, "_record_types", {}) or {}).values()
+                      if isinstance(rec, dict)
+                      for fn, ft in (rec.get("field_types") or {}).items()
+                      if isinstance(ft, str)
+                      and ft.replace(" ", "").lower() == "list[float]"}
+            _sf_st = getattr(self, "_current_symbol_table", {}) or {}
+            _sf_ra = getattr(self, "_module_method_return_annotations", {}) or {}
+            _sf_cls = getattr(self, "_current_self_type", None)
+            _sf_frt = getattr(self, "_func_return_type", "")
+            for _sf_side in ("left", "right"):
+                _sf_stack = [expr.get(_sf_side)]
+                _sf_hit = False
+                while _sf_stack and not _sf_hit:
+                    _sf_n = _sf_stack.pop()
+                    if not isinstance(_sf_n, dict):
+                        continue
+                    _sf_k = _sf_n.get("type")
+                    _sf_v = _sf_n.get("value")
+                    if _sf_k == "Result":
+                        _sf_hit = _sf_frt == "real"
+                    elif _sf_k == "Var":
+                        _sf_hit = _sf_st.get(_sf_n.get("name", "")) == "float"
+                    elif _sf_k == "Number":
+                        _sf_hit = isinstance(_sf_v, float)
+                    elif _sf_k in ("FieldGet", "Attribute"):
+                        _sf_hit = (_sf_n.get("field") or _sf_n.get("attr")) in _sf_ft
+                    elif _sf_k == "Subscript" and isinstance(_sf_v, dict):
+                        _sf_vk = _sf_v.get("type")
+                        _sf_hit = ((_sf_vk == "Var" and str(_sf_st.get(_sf_v.get("name", ""), ""))
+                                    .replace(" ", "").lower() == "list[float]")
+                                   or (_sf_vk == "Result" and _sf_frt == "array real")
+                                   or (_sf_vk in ("FieldGet", "Attribute")
+                                       and (_sf_v.get("field") or _sf_v.get("attr")) in _sf_lt))
+                    elif _sf_k == "Call":
+                        _sf_fn = _sf_n.get("func", "") or ""
+                        _sf_key = (f"{_sf_cls}__{_sf_fn[len('self.'):]}"
+                                   if _sf_fn.startswith("self.") else _sf_fn)
+                        _sf_hit = str(_sf_ra.get(_sf_key, "")).strip() == "float"
+                    elif _sf_k in ("Old", "At"):
+                        _sf_stack.append(_sf_n.get("expr"))
+                    elif _sf_k == "BinOp" and _sf_n.get("op") in ("+", "-", "*", "/"):
+                        _sf_hit = _sf_n.get("op") == "/"
+                        _sf_stack.extend([_sf_n.get("left"), _sf_n.get("right")])
+                    elif _sf_k == "UnaryOp" and _sf_n.get("op") in ("-", "+"):
+                        _sf_stack.append(_sf_n.get("expr"))
+                if _sf_hit:
+                    _lf = True
         if _lf or _rf:
             _FARITH = {"+": ("+.", "add"), "-": ("-.", "sub"),
                        "*": ("*.", "mul"), "/": ("/.", "div")}
@@ -6214,6 +6276,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"(float_{nm}_op {left} {right})"
             # comparison/equality: either operand float (the other is `\result` or a real)
             _FCMP = {"<": "<.", "<=": "<=.", ">": ">.", ">=": ">=."}
+            # ROUTE #250 — `--strict-float-finite` DROPS the FLOAT-FINITE model assumption.
+            # By default a Python `float` is the Why3 `real`, which has no NaN, so `x == x`,
+            # `x <= x` and trichotomy PROVE for every float value (CPython refutes all three
+            # for `float("nan")`); that is the DECLARED assumption FLOAT-FINITE, reported by
+            # `--soundness-report`. Under the opt-in flag a NaN SENTINEL is modelled: the
+            # non-dyadic real `1/3` (a DEFINITION, no axiom) — every finite binary64 value is
+            # dyadic and every PyCSL float literal a finite decimal, so neither is the
+            # sentinel, while a parameter or an uninterpreted route-#53 op result MAY be. Every
+            # ordered comparison and `==` is then the real comparison CONJOINED with "neither
+            # operand is the sentinel" (IEEE: any comparison with NaN is False; `!=` is the
+            # negation, True). The non-NaN test is spelled `a <. n || a >. n` because the
+            # body path cannot use the logic `=` on reals; the operands are let-bound so a
+            # body operand is evaluated once. COST (measured, route #251 executor): an
+            # `ensures \result == <float arithmetic>` stops proving even when TRUE (0517,
+            # 1124) — the uninterpreted op result might be NaN — which is why it is opt-in.
+            if getattr(self, "strict_float_finite", False) and (
+                    raw_op in _FCMP or raw_op in ("==", "!=")):
+                self._add_abstract_op("let constant pycsl_float_nan : real = 1.0 /. 3.0")
+                _sf_ok = "(%s <. pycsl_float_nan || %s >. pycsl_float_nan)"
+                # `a = b` on reals is spelled `a <=. b && b <=. a` (body-safe; see above).
+                _sf_rel = ("(_pf_a %s _pf_b)" % _FCMP[raw_op] if raw_op in _FCMP
+                           else "(_pf_a <=. _pf_b) && (_pf_b <=. _pf_a)")
+                _sf_cmp = ("(let _pf_a = %s in let _pf_b = %s in (%s && %s && %s))"
+                           % (left, right, _sf_rel, _sf_ok % ("_pf_a", "_pf_a"),
+                              _sf_ok % ("_pf_b", "_pf_b")))
+                return _sf_cmp if raw_op != "!=" else f"(not {_sf_cmp})"
             if raw_op in _FCMP:
                 return f"({left} {_FCMP[raw_op]} {right})"
             if raw_op in ("==", "!="):
