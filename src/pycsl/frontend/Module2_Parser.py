@@ -1257,7 +1257,7 @@ class _ContractParser:
     def cur(self):
         return self.toks[self.i]
 
-    def peek(self, k=1):
+    def peek(self, k: int = 1):
         j = self.i + k
         return self.toks[j] if j < len(self.toks) else self.toks[-1]
 

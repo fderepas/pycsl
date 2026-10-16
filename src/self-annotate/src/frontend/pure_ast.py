@@ -244,7 +244,7 @@ class _Parser:
     #@ requires k >= 0
     #@ ensures True
     #@ assigns \nothing
-    def peek(self, k=0) -> _Tok:
+    def peek(self, k: int = 0) -> _Tok:
         j = self.i + k
         return self.toks[j] if j < len(self.toks) else self.toks[-1]
 
@@ -2795,7 +2795,7 @@ class _Parser:
     # member sits at depth 5. The full depth assignment is recorded on `_binop`.
     #@ \variant 64 * (\length(self.toks) - self.i) + 24
     #@ assigns self.i
-    def _binop(self, min_prec) -> "ExprIR":
+    def _binop(self, min_prec: int) -> "ExprIR":
         t = self.cur()
         left = self.factor()
         #@ ghost i90 = self.i

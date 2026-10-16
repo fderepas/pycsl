@@ -852,7 +852,7 @@ class _ContractParser:
     #@ requires k >= 0
     #@ ensures True
     #@ assigns \nothing
-    def peek(self, k=1) -> _Tok:
+    def peek(self, k: int = 1) -> _Tok:
         j = self.i + k
         return self.toks[j] if j < len(self.toks) else self.toks[-1]
 

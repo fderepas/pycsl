@@ -574,7 +574,7 @@ class _Parser:
         return "".join(out)
 
     # -- token helpers ------------------------------------------------------
-    def peek(self, k=0):
+    def peek(self, k: int = 0):
         j = self.i + k
         return self.toks[j] if j < len(self.toks) else self.toks[-1]
 
@@ -1664,7 +1664,7 @@ class _Parser:
     def expr(self):
         return self._binop(0)
 
-    def _binop(self, min_prec):
+    def _binop(self, min_prec: int):
         t = self.cur()
         left = self.factor()
         while self.cur().type == _tokenize.OP and self.cur().string in _BINOP:

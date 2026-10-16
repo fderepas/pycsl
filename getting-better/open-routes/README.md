@@ -2,7 +2,13 @@
 
 
 ## gen #36 (2026-10-16): #250 (`float` parameters may be NaN; the `real` model proves `x == x` etc.) and #251
-##   (arithmetic on `Any` is int arithmetic; a user `__sub__` breaks `x - x == 0`) OPENED (residuals of #249).
+##   (arithmetic on `Any` is int arithmetic; a user `__sub__` breaks `x - x == 0`) OPENED (residuals of #249). #251
+##   REPAIRED 2026-10-16 (route #249's design: with an erased operand `+ - * // %` lower to the uninterpreted
+##   `pycsl_py_add/_sub/_mul/_floordiv/_mod`, `< <= > >=` to `pycsl_py_lt/_le/_gt/_ge`, unary `- + ~` to
+##   `pycsl_py_neg/_pos/_invert`, no law; #249's walk moved to `_handle_binop`'s head and shared via a probe op;
+##   witnesses 2440-2458, controls 2460-2463; pyref 0059/0205 PASS -> FAIL, declared). Residuals: an `Any` passed to
+##   an `int` parameter/field, `no_exception` over an erased op, `str`-typed operands. #250 MEASURED + SPIKED, stays
+##   OPEN: NaN-as-`1/3` guard is sound but turns TRUE 0517/1124 FAIL; `ieee_float` needs exact literals.
 
 ## gen #36 (2026-10-16): #249 (`==` on `Any` is mathematical equality; an asymmetric user `__eq__` breaks
 ##   `requires x == y ensures y == x`) OPENED (design-level residual of #247/#248, driver-verified), REPAIRED
