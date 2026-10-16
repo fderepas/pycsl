@@ -5589,6 +5589,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         #   twin is `\trusted`, and a new live def would move the mirror-coverage ratchet.
         #   (Route #251 moved the walk to the head of this method; `_r249_side_hit` is its
         #   per-side answer.)
+        # (#49) ROUTE #252 — UNDER `no_exception` AN ERASED OPERATION IS AN EXCEPTION SITE.
+        #   The uninterpreted `pycsl_py_*` symbols below are total, but in CPython they run
+        #   the user's `__sub__`/`__lt__`/`__eq__`/`__contains__`..., which may raise anything
+        #   (or `TypeError` for unrelated operands: `1 < "a"`): measured, `#@ no_exception
+        #   \all` with `y = x - x` on `x: Any` PROVED (CPython: `__sub__` raises ValueError).
+        #   Nothing in the model can show such a call exception-free, so in a program body
+        #   under an active `no_exception` context the site carries an unprovable obligation
+        #   (route #186's `assert { false }` for a call that cannot be shown exception-free).
+        _r252_nx = ""
+        if (any(_r249_side_hit) and not getattr(self, "_in_spec", False)
+                and (getattr(self, "_current_no_exception", set())
+                     or getattr(self, "_current_no_exception_all", False))):
+            _r252_nx = ("begin assert { [@expl:PyCSL-R252 an operation on an erased (Any) "
+                        "operand runs a user method that may raise] false }; ")
         if (any(_r249_side_hit) and raw_op in _R251_OPS
                 and (raw_op in ("<", "<=", ">", ">=")
                      or not (self._is_string_expr(expr["left"])
@@ -5602,6 +5616,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _r251_sym = _R251_OPS[raw_op]
             if raw_op in ("<", "<=", ">", ">="):
                 self._add_abstract_op(f"val function {_r251_sym} (a: 'a) (b: 'b) : bool")
+                if _r252_nx:
+                    return f"({_r252_nx}({_r251_sym} {left} {right}) end)"
                 return f"({_r251_sym} {left} {right})"
             _r251_ty = ("real" if (self._is_float_expr(expr["left"])
                                    or self._is_float_expr(expr["right"]))
@@ -5618,6 +5634,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                              "(%s _r251_a _r251_b) in (%s _r251_a _r251_b : int))"
                              % (left, right, "pycsl_mod" if raw_op == "%" else "pycsl_div",
                                 _r251_sym))
+            if _r252_nx:
+                _r251_out = f"({_r252_nx}{_r251_out} end)"
             return self._wrap_with_no_exception_assert(("binop", raw_op), [left, right],
                                                        _r251_out)
         if any(_r249_side_hit) and raw_op in ("==", "!=", "in", "not in"):
@@ -5625,7 +5643,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                               "in": "pycsl_py_in", "not in": "pycsl_py_in"}[raw_op]
             self._add_abstract_op(f"val function {_r249_sym_name} (a: 'a) (b: 'b) : bool")
             _r249_out = f"({_r249_sym_name} {left} {right})"
-            return f"(not {_r249_out})" if raw_op == "not in" else _r249_out
+            if raw_op == "not in":
+                _r249_out = f"(not {_r249_out})"
+            if _r252_nx:
+                _r249_out = f"({_r252_nx}{_r249_out} end)"
+            return _r249_out
         # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): the Ellipsis
         # branch of `_py_expr_constant`, `expr.value is ...`. Module5 lowers the `...`
         # literal to `{"type":"Number","value":0}` and `ast.Is` to `==` (`_py_op_to_str`),
@@ -20080,6 +20102,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             _r251_un = {"-": "pycsl_py_neg", "+": "pycsl_py_pos",
                                         "~": "pycsl_py_invert"}[tn.op]
                             self._add_abstract_op(f"val function {_r251_un} (a: 'a) : 'a")
+                            # ROUTE #252: under `no_exception` the user's unary method may
+                            # raise (see `_handle_binop`'s `_r252_nx`).
+                            if (not getattr(self, "_in_spec", False)
+                                    and (getattr(self, "_current_no_exception", set())
+                                         or getattr(self, "_current_no_exception_all", False))):
+                                return ("(begin assert { [@expl:PyCSL-R252 an operation on an "
+                                        "erased (Any) operand runs a user method that may "
+                                        "raise] false }; (%s %s) end)" % (_r251_un, _r251_e))
                             return f"({_r251_un} {_r251_e})"
                 return getattr(self, handler)(tn, local_refs, invariant_ctx, subst)
             return getattr(self, handler)(expr, local_refs, invariant_ctx, subst)

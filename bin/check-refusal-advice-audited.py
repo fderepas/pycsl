@@ -654,6 +654,9 @@ AUDITED = {
         "gen #36. 'Bind the subject to a local first and use `case _:`': the guarded witness 1991 rewritten as `y = x; match y: case _ if y > 10: return 1 / case _: return y` VERIFIES `\\\\result == 5` under `x == 5`; the call-subject witness 1992 rewritten as `y = g(); match y: case _: r = y` VERIFIES `\\\\result == 3`."),
     ('src/pycsl/frontend/Module5_IREmitter.py', 'PyCSLIRError(f"function \'{node.name}\': a `match` capture bound inside a constructor pattern is used outside its arm: {_r233_bad} (route #233'): (FOLLOWABLE,
         "gen #36. 'Copy the payload into a fresh local inside the arm': witness 1993 rewritten with `case Some(v): w1 = v` / `case Some(u): w2 = u` and `return w1 - w2` VERIFIES `\\\\result == -1` (CPython -1)."),
+    # (#49) gen #36 -- route #252's erased-into-builtin-slot refusal, followed and run.
+    ('src/pycsl/module6_whyml/functions.py', 'PyCSLSemanticError("function \'%s\': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: %s. Py'): (FOLLOWABLE,
+        "gen #36. 'Annotate the source value with the builtin type, or declare the slot `Any`': both spellings measured. Control 2490 is witness 2470 with the source annotated (`n: int` passed to `g(a: int, b: int)`, plus literals and keywords): VERIFIES `\\\\result == 0`. Control 2491 declares the slot `Any` (`g(a: Any)`) and passes the `Any` value: VERIFIES. The witnesses are 2470-2478."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -669,6 +672,8 @@ AUDITED = {
 # refuses a truncated census: a stale verdict about prose is indistinguishable from a
 # fresh one from the outside.
 AUDITED_HASH = {
+    # (#49) gen #36 -- route #252.
+    ("src/pycsl/module6_whyml/functions.py", 'PyCSLSemanticError("function \'%s\': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: %s. Py'): 'd838edf22927',
     # (#49) gen #36 -- route #233.
     ("src/pycsl/frontend/Module5_IREmitter.py", 'PyCSLIRError(f"function \'{node.name}\': `match` capture {\', \'.join((repr(_t) for _t in _r233_top))} is not supported here: {_r233_why} (route'): 'c6bed8a8f60b',
     ("src/pycsl/frontend/Module5_IREmitter.py", 'PyCSLIRError(f"function \'{node.name}\': a `match` capture bound inside a constructor pattern is used outside its arm: {_r233_bad} (route #233'): '64cea1189dcd',

@@ -1781,6 +1781,122 @@ class FunctionEmissionMixin:
                     _r249_ws.append(_r249_v)
         _r249_rts = getattr(self, "_record_types", {}) or {}
         _r249_st = func.get("symbol_table") or {}
+        # (#49) ROUTE #252 — AN ERASED VALUE FLOWING INTO A SLOT THE MODEL READS AS A BUILTIN.
+        #   Routes #249/#251 took the laws off `==`/`in`/arithmetic/ordering on an erased
+        #   (`Any`/`object`/unannotated/TypeVar/`__eq__`-class) value, but only where the
+        #   operation SEES the erased operand. Passed to an `int`-annotated parameter, stored
+        #   in an `int` record field, or returned from an `-> int` function, the same value
+        #   became an `int` one hop away and every law came back: measured, `g(a: int, b: int)`
+        #   with `ensures \result == a - b` and `return g(x, x)` on `x: Any` PROVED
+        #   `\result == 0` (CPython: a user `__sub__` returns 7); likewise `Box(x, x)` with
+        #   `int` fields, `g(a=x, b=x)`, a method `k.g(x, x)`, `b.v = x`, `return x` from an
+        #   `-> int` function, and a contract `g(x, x) == 0`. Python never enforces the
+        #   annotation, and no program-side check narrows it soundly (`isinstance(x, int)` is
+        #   opaque since routes #246/#248, and holds for an `int` SUBCLASS that overrides
+        #   `__sub__`). So the FLOW is refused, fail-closed: a call actual into a callee
+        #   formal (module function, method of a known class, record constructor, class
+        #   `__init__`; positional or keyword), a record-field store, or a `return`, whose
+        #   declared type is `int`/`float`/`str`/`bool`/`bytes`, of an expression route
+        #   #249's walk calls erased. The walk is the fixpoint's OWN (no copy): each checked
+        #   expression is entered as a binding of a SENTINEL name no Python identifier can
+        #   spell (`#r252:<i>`), and is erased iff the sentinel ends up in the erased set.
+        #   A `\trusted`/abstract function emits no body and is not checked.
+        _r252_bi = ("int", "float", "str", "bool", "bytes")
+        _r252_sites: List[Any] = []
+        if not (func.get("trusted") or func.get("abstract")):
+            _r252_fns: Dict[str, Any] = {}
+            for _r252_g in ((getattr(self, "ir", {}) or {}).get("functions") or []):
+                if isinstance(_r252_g, dict) and isinstance(_r252_g.get("name"), str):
+                    _r252_fns.setdefault(_r252_g["name"], _r252_g)
+            _r252_ws: List[Any] = [(func.get("body") or [], "body"),
+                                   ([(func.get("contracts") or {}).get("requires"),
+                                     (func.get("contracts") or {}).get("ensures")], "contract")]
+            while _r252_ws:
+                _r252_n, _r252_ctx = _r252_ws.pop()
+                if isinstance(_r252_n, list):
+                    _r252_ws.extend((_r252_c, _r252_ctx) for _r252_c in _r252_n)
+                    continue
+                if not isinstance(_r252_n, dict):
+                    continue
+                _r252_ws.extend((_r252_c, _r252_ctx) for _r252_c in _r252_n.values()
+                                if isinstance(_r252_c, (list, dict)))
+                if (_r252_n.get("stmt") == "Return" and isinstance(_r252_n.get("value"), dict)
+                        and func.get("return_annotation") in _r252_bi):
+                    _r252_sites.append(("the `return` of a function declared `-> %s`"
+                                        % func["return_annotation"], _r252_n["value"]))
+                if (_r252_n.get("stmt") in ("FieldAssign", "FieldAugAssign")
+                        and isinstance(_r252_n.get("value"), dict)):
+                    # The base's class: `self`'s, a declared one, or (a record local's symbol
+                    # type is not its class) ANY record constructor the name is bound from.
+                    _r252_bts = [func.get("self_type") if _r252_n.get("object") == "self"
+                                 else _r249_st.get(_r252_n.get("object"))]
+                    _r252_bts.extend(
+                        _r252_r["func"] for _r252_t, _r252_r, _r252_it in _r249_asgs
+                        if (_r252_t == _r252_n.get("object") and not _r252_it
+                            and isinstance(_r252_r, dict) and _r252_r.get("type") == "Call"
+                            and isinstance(_r252_r.get("func"), str)))
+                    for _r252_bt in _r252_bts:
+                        _r252_ri = _r249_rts.get(_r252_bt) if isinstance(_r252_bt, str) else None
+                        _r252_ft = ((_r252_ri.get("field_types") or {}).get(_r252_n.get("field"))
+                                    if isinstance(_r252_ri, dict) else None)
+                        if _r252_ft in _r252_bi:
+                            _r252_sites.append(("the `%s` field `%s.%s`" % (
+                                _r252_ft, _r252_bt, _r252_n.get("field")), _r252_n["value"]))
+                            break
+                if not (_r252_n.get("type") == "Call" and isinstance(_r252_n.get("func"), str)):
+                    continue
+                # The callee's formals: [(name, declared type)] positional, {name: type} by keyword.
+                _r252_f = _r252_n["func"]
+                _r252_g = None
+                _r252_pos: List[Any] = []
+                _r252_kw: Dict[str, Any] = {}
+                if "." not in _r252_f:
+                    if _r252_f in _r252_fns and _r252_fns[_r252_f].get("kind") != "method":
+                        _r252_g = _r252_fns[_r252_f]
+                    elif isinstance(_r249_rts.get(_r252_f), dict):
+                        _r252_ri = _r249_rts[_r252_f]
+                        _r252_ft = _r252_ri.get("field_types") or {}
+                        for _r252_ib in (_r252_ri.get("init_body") or []):
+                            if (isinstance(_r252_ib, dict) and isinstance(_r252_ib.get("value"), dict)
+                                    and _r252_ib["value"].get("type") == "Var"):
+                                _r252_kw.setdefault(_r252_ib["value"].get("name"),
+                                                    _r252_ft.get(_r252_ib.get("field")))
+                        _r252_pos = [(_r252_p, _r252_kw.get(_r252_p))
+                                     for _r252_p in (_r252_ri.get("init_params") or [])]
+                    elif _r252_f.lower() + "____init__" in _r252_fns:
+                        _r252_g = _r252_fns[_r252_f.lower() + "____init__"]
+                else:
+                    _r252_b, _r252_m = _r252_f.rsplit(".", 1)
+                    _r252_bt = (func.get("self_type") if _r252_b == "self"
+                                else _r249_st.get(_r252_b))
+                    if isinstance(_r252_bt, str) and _r252_bt.lower() + "__" + _r252_m in _r252_fns:
+                        _r252_g = _r252_fns[_r252_bt.lower() + "__" + _r252_m]
+                if isinstance(_r252_g, dict):
+                    _r252_ps = list(_r252_g.get("formal_params") or [])
+                    if _r252_g.get("kind") == "method" and _r252_ps[:1] == ["self"]:
+                        _r252_ps = _r252_ps[1:]
+                    _r252_pa = _r252_g.get("param_annotations") or {}
+                    _r252_pos = [(_r252_p, _r252_pa.get(_r252_p)) for _r252_p in _r252_ps]
+                    _r252_kw = {_r252_p: _r252_pa.get(_r252_p) for _r252_p in _r252_ps}
+                for _r252_i, _r252_a in enumerate(_r252_n.get("args") or []):
+                    if _r252_i < len(_r252_pos) and _r252_pos[_r252_i][1] in _r252_bi:
+                        _r252_sites.append(("the `%s` parameter `%s` of `%s` (%s)" % (
+                            _r252_pos[_r252_i][1], _r252_pos[_r252_i][0], _r252_f, _r252_ctx),
+                            _r252_a))
+                for _r252_k in (_r252_n.get("keywords") or []):
+                    if (isinstance(_r252_k, dict) and _r252_kw.get(_r252_k.get("arg")) in _r252_bi):
+                        _r252_sites.append(("the `%s` parameter `%s` of `%s` (%s)" % (
+                            _r252_kw[_r252_k["arg"]], _r252_k["arg"], _r252_f, _r252_ctx),
+                            _r252_k.get("value")))
+        # A WHOLE route-#249 container (`d: Dict[str, Any]` passed or returned as a value) is
+        # not an erased SCALAR: it is the builtin container itself, whatever the slot's model
+        # type (the mirror returns a `Dict[str, Any]` local from a method it declares `-> int`).
+        _r252_sites = [_r252_s for _r252_s in _r252_sites
+                       if isinstance(_r252_s[1], dict)
+                       and not (_r252_s[1].get("type") == "Var"
+                               and _r252_s[1].get("name") in _r249_cont)]
+        for _r252_i, _r252_s in enumerate(_r252_sites):
+            _r249_asgs.append(("#r252:%d" % _r252_i, _r252_s[1], False))
         _r249_changed = True
         while _r249_changed:
             _r249_changed = False
@@ -1869,6 +1985,18 @@ class FunctionEmissionMixin:
                 if _r249_hit:
                     _r249_erased.add(_r249_t)
                     _r249_changed = True
+        _r252_hits = sorted({_r252_s[0] for _r252_i, _r252_s in enumerate(_r252_sites)
+                             if "#r252:%d" % _r252_i in _r249_erased})
+        _r249_erased -= {"#r252:%d" % _r252_i for _r252_i in range(len(_r252_sites))}
+        if _r252_hits:
+            from errors import PyCSLSemanticError
+            raise PyCSLSemanticError(
+                "function '%s': an erased (`Any`/`object`/unannotated/TypeVar) value flows "
+                "into a slot declared as a builtin type: %s. Python does not enforce the "
+                "annotation (a user `__sub__`/`__eq__`/... runs), but the model would treat "
+                "the value as that builtin and re-apply its laws (route #252) -- refused "
+                "fail-closed. Annotate the source value with the builtin type, or declare "
+                "the slot `Any`." % (func.get("name"), "; ".join(_r252_hits)))
         # ONE per-function field (declared in the mirror stub's `#@ assigns`), read by
         # `_handle_binop`.
         self._r249_scope: Dict[str, Any] = {

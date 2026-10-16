@@ -1208,7 +1208,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         ]
 
     # --- 2. Python AST Serialization (Restricted Subset) ---
-    def _py_op_to_str(self, op: ast.operator | ast.cmpop | ast.unaryop) -> str:
+    def _py_op_to_str(self, op: ast.AST) -> str:
         return self._PY_OP_MAP.get(type(op), "?")
 
     # Dispatch table: Python AST expression type → handler method name

@@ -2073,7 +2073,7 @@ class _Parser:
         js = _N("JoinedStr")(values=_merge_str_constants(values, drop_empty=True))
         return self._fin_pos(js, start, end)
 
-    def _fstring_replacement(self, is_raw=False):
+    def _fstring_replacement(self, is_raw: bool = False):
         lb = self.advance()  # '{'
         expr = self.testlist_for_fstring()
         is_debug = False
@@ -2119,7 +2119,7 @@ class _Parser:
             elts.append(self.namedexpr_test())
         return self._fin(_N("Tuple")(elts=elts, ctx=_N("Load")()), t)
 
-    def _fstring_format_spec(self, is_raw=False):
+    def _fstring_format_spec(self, is_raw: bool = False):
         t = self.cur()
         values = []
         while not self.at_op("}") and self.cur().type != _tokenize.FSTRING_END:

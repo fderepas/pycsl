@@ -5,7 +5,15 @@
 ##   proves for `x: int`) OPENED (design-level residual of #252).
 
 ## gen #36 (2026-10-16): #252 (an `Any` value flowing into an `int` param/field/local is trusted as an int;
-##   `no_exception` over `Any` arithmetic) OPENED (residuals of #251, driver-reproduced).
+##   `no_exception` over `Any` arithmetic) OPENED (residuals of #251, driver-reproduced). REPAIRED 2026-10-16:
+##   (a) an erased value flowing into a builtin-declared slot (`int`/`float`/`str`/`bool`/`bytes` callee formal --
+##   function, method, record constructor, class `__init__`, positional or keyword, body or contract -- record-field
+##   store, or `return` from a builtin-annotated function) is REFUSED in `_reset_function_state` (route #249's own
+##   fixpoint decides erasure via sentinel bindings; no new def); (b) under `no_exception` every erased `pycsl_py_*`
+##   operation (arithmetic, ordering, unary, `==`/`!=`/`in`) carries `assert { [@expl:PyCSL-R252 ...] false }`.
+##   Witnesses 2470-2482, controls 2490-2493; root 13 GONE (#249/#251 witnesses returning an erased value from
+##   `-> int`, FAIL -> refused), pyref 0092 GONE (FAIL -> refused), 0 MOVED; mirror 53/53 0 MOVED. Residual:
+##   an `int` SUBCLASS overriding `__sub__` passed to an `int` parameter (declared-type trust at the boundary).
 
 ## gen #36 (2026-10-16): #250 (`float` parameters may be NaN; the `real` model proves `x == x` etc.) and #251
 ##   (arithmetic on `Any` is int arithmetic; a user `__sub__` breaks `x - x == 0`) OPENED (residuals of #249). #251

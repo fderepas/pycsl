@@ -3830,7 +3830,7 @@ class _Parser:
     #@ ensures self.i > \old(self.i)
     #@ \variant 64 * (\length(self.toks) - self.i) + 1
     #@ assigns self.i
-    def _fstring_replacement(self, is_raw=False) -> "List[ExprIR]":
+    def _fstring_replacement(self, is_raw: bool = False) -> "List[ExprIR]":
         lb = self.advance()  # '{'
         expr = self.testlist_for_fstring()
         is_debug = False
@@ -3909,7 +3909,7 @@ class _Parser:
     #@ ensures self.i >= \old(self.i)
     #@ \variant 64 * (\length(self.toks) - self.i) + 3
     #@ assigns self.i
-    def _fstring_format_spec(self, is_raw=False) -> "ExprIR":
+    def _fstring_format_spec(self, is_raw: bool = False) -> "ExprIR":
         t = self.cur()
         values = []
         #@ ghost i95 = self.i
