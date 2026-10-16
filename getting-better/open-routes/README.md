@@ -1,6 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-16): #252 (an `Any` value flowing into an `int` param/field/local is trusted as an int;
+##   `no_exception` over `Any` arithmetic) OPENED (residuals of #251, driver-reproduced).
+
 ## gen #36 (2026-10-16): #250 (`float` parameters may be NaN; the `real` model proves `x == x` etc.) and #251
 ##   (arithmetic on `Any` is int arithmetic; a user `__sub__` breaks `x - x == 0`) OPENED (residuals of #249). #251
 ##   REPAIRED 2026-10-16 (route #249's design: with an erased operand `+ - * // %` lower to the uninterpreted
