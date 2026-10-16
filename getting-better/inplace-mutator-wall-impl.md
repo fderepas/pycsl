@@ -89,3 +89,45 @@ S-A' (list `sort` on a self field) — BROKEN. Spike `getting-better/ipm/ch16/so
 frame/length controls Valid (alt-ergo + z3); positional and Why3-alias false claims Unknown;
 a COPY alias proves (f3) -> the emitter arm refuses any function naming the field outside
 `len(...)`. Seam 1c99fe5a (witnesses 2260-2267); conversion `_Harvester.run` 459 -> 458.
+
+## S-D RESULT (gen #36, ch17, 2026-10-16) — dict/set re-spiked behind the route #243/#244 alias rule; `self.<f>.clear()` BUILT; `_Unparser.visit_Module` CONVERTED (458 -> 457); `_inject_functions` NOT convertible (input-blind)
+RE-CENSUS @29a5c07d (`ipm/ch17/census-ds.txt`, ch16 tooling unchanged): 96 trusted rows whose live body calls a
+dict/set-kind mutator; TCOK after neutralising ONLY their mutators = exactly the two ch16 named —
+`_Unparser.visit_Module` (clear @ pyobj-held self field) and `_inject_functions` (add @ set-comprehension local);
+49 NEXT (int-erasure seam, nested-closure lift, `with ... as`, ...), 40 OTHER0 (another blocker first; one,
+`TypeInferenceMixin._track_collection_metadata`, now hits the new #243 rule), 2 LOOP, 3 TCOK0 (nested `rec` defs).
+SPIKE (`ipm/ch17/spike_ds.mlw`, axiom-free: each new val — `map_clear`, `map_update_all` (right-biased merge),
+`opt_get` — has a realizer `function` + a proved `lemma`; no `axiom`): controls c1-c7 (clear, add/discard/remove,
+update, pop with its KeyError obligation `assert { m[k] <> None }`, pop-default, setdefault) Valid on alt-ergo AND z3;
+false claims f1 (clear is not a no-op), f3 (pop on an empty map), f4 (update not a no-op), f5 (frame) Unknown/Timeout;
+f2 — the stale COPY alias `let a = self.d in self.d <- map_clear ..; a[1]` — PROVES. So in-place == rebind exactly
+when no second name exists; the carrier never sees aliases, the ROUTE #243/#244 RULE must refuse them.
+EXCEPTIONS: `.remove`/`.pop` under `#@ no_exception` are ALREADY refused at HEAD on every receiver (local, self field,
+param; measured, `ipm/ch17/exceptions/` e1-e4) — not silently total. Without `no_exception`, the continuing run is the
+optimistic over-approximation the dict read already uses (sound for partial correctness).
+BUILT (seam acd61669, inline `_handle_expr_stmt`, mirror twin `\trusted`): `self.<f>.clear()` (no args) in a
+`@mutable_state` class lowers as the store `self.<f> = {}` through `_handle_fieldassign_stmt` — a dict/set RECORD field
+-> `self.<f> <- (const None)`; a field held in `_pyobj_state` -> the havoc `setattr_<cls> self <h> (any int)`. Witnesses
+2420-2430 (all refused at base): 2421/2423/2428 PASS; 2420/2422 FAIL (unproved); 2427/2429 FAIL (unlisted write);
+STALE-ALIAS 2424 (#59 guard), 2425 (#243 F), 2426 (#243 E) REFUSED; 2430 (non-@mutable_state) REFUSED. Eleven more
+clear-specific alias counter-programs (`ipm/ch17/stale-alias/`: tuple, walrus, if-expression, for-target, list/dict
+container, record copy, other-record field, two-step, clear-through-alias) prove NOTHING — refused (#59, #243 F) or
+L3-tc type errors. Return-escape (`a = c.get()` of a field) is a type error today (map return vs int local).
+NO SOUNDNESS HOLE FOUND in the alias rule by these counter-programs.
+BUILT THEN WITHDRAWN: `s.add(x)` on an OPAQUE set local (`(set_comp 0)`, positive binding evidence) as the havoc
+`s := opaque_set_add !s x` (probes `ipm/ch17/opaque-add/`: false claims FAIL, control PASS, loop-rebound refused).
+It served only `_inject_functions`, whose port is INPUT-BLIND: `ir_data` appears nowhere in the emitted body —
+the comprehension over `ir_data["functions"]` is `(set_comp 0)` and `ir_data["functions"].insert(0, f)` is
+`insert_2 0 !f`, a receiver-less op with no `writes` (the caller-visible mutation ERASED; lesson 14's vacuity gate
+would flag it). Not converted; the add arm was removed (narrowest-lowering rule).
+OBSERVATION (not a route; no false claim measured): a mutator on a SUBSCRIPT receiver (`d[0].add(1)`,
+`ir["functions"].insert(0, x)`) escapes route #13/#14's refusal (its dotless `func_name`) and is erased to a
+receiver-less op. Every claim probed through it FAILs because every read of the erased element is non-deterministic
+(`ipm/ch17/subscript-recv/` s4/s6/s7/s8, all CPython-false claims, all unproved at base). Sound-but-vacuous; a
+fail-closed refusal there is the cheap hardening if a typed element ever becomes readable.
+CONVERSION: `pure_ast._Unparser.visit_Module` — live body verbatim, frame unchanged (`assigns self._type_ignores`);
+mirror sweep 1 MOVED / 53 (frontend/pure_ast only: `val` -> `let` + `dict_comp` decl); L3-tc clean; WHOLE-FILE
+proof of the mirror rc=0, 3378 Valid / 0 non-Valid (9403 s incl. the vacuity post-pass); non-vacuity: the
+`assigns \nothing` twin is rejected ("depends on variable _pyobj_state, which is left out in the specification");
+fidelity sync (917 verbatim) + mirror-check rc=0; trusted-reasons rc=0 (MAX_UNCLASSIFIED 266 -> 265);
+soundness planes 61/61. Count 458 -> 457.

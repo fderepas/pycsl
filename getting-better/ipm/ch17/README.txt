@@ -8,3 +8,4 @@ opaque-add/*.py               the `add` on an opaque (set_comp) local, built the
                               g (loop-rebound) refused. Withdrawn: the only marker it served is input-blind.
 subscript-recv/*.py           mutators on a SUBSCRIPT receiver (`d[0].add`, `ir["functions"].insert`) are erased
                               to a receiver-less op (not refused); all claims measured FAIL (reads non-deterministic).
+exceptions/*.py               `.remove`/`.pop` under `#@ no_exception`: REFUSED at HEAD on local, self field, param (e1-e4).

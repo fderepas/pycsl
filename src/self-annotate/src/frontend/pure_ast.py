@@ -4474,21 +4474,25 @@ class _Unparser(NodeVisitor):
     def _write_docstring_and_traverse_body(self, node):
         pass
 
-    # (#43) RE-`\trusted` BY ROUTE #13. The trailing `self._type_ignores.clear()` lowered
+    # (#43) RE-`\trusted` BY ROUTE #13: the trailing `self._type_ignores.clear()` lowered
     # to `val self__type_ignores_clear_0 () : int` — no `self`, no `writes` — so the model
-    # left the dict POPULATED where the program empties it. The declared frame is honest
-    # and unchanged; what was wrong was the BODY the model stood for. CHEAP REOPENING:
-    # `self._type_ignores.clear()` here is provably alias-free (the dict is constructed
-    # four lines above and never escapes), so rewriting BOTH the live body and this mirror
-    # to `self._type_ignores = {}` — an assignment, which IS modelled — restores the
-    # conversion without any new capability. Not taken here because it edits the live
-    # parser to suit the model rather than the other way round.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # left the dict POPULATED where the program empties it.
+    # (#49) W-IPM S-D (gen #36 ch17) CONVERTED, live body verbatim: `self.<f>.clear()` in a
+    # `@mutable_state` class now lowers as the fresh-empty store `self.<f> = {}`; this
+    # field lives in the opaque object state, so it is the havoc write
+    # `setattr__unparser self <h> (any int)` of `_pyobj_state`, checked against the
+    # unchanged declared frame. Sound only because route #243/#244 refuse a second name
+    # for a mutated dict/set (in place == rebind exactly when no alias exists).
     #@ requires True
     #@ ensures True
     #@ assigns self._type_ignores
     def visit_Module(self, node):
-        pass
+        self._type_ignores = {
+            ignore.lineno: f"ignore{ignore.tag}"
+            for ignore in node.type_ignores
+        }
+        self._write_docstring_and_traverse_body(node)
+        self._type_ignores.clear()
 
     #@ requires True
     #@ ensures True
