@@ -5773,6 +5773,77 @@ class FunctionEmissionMixin:
             if lines[0].startswith(_head):
                 _kw = "  with " if _pos > 0 else "  let rec "
                 lines[0] = _kw + _n + " " + lines[0][len(_head):]
+        # (#49) ROUTE #242 -- A `let function` IS ONE VALUE PER ARGUMENT. Why3 reads a
+        # `let [rec] function` as a MATHEMATICAL function of its arguments, so a fresh
+        # `(any T)` or a call to an opaque program `val` inside its body is FROZEN per
+        # argument: measured, `let function r () = any int` proves `r () = r ()`, and
+        # `h(True) == h(1)` (both `h 1`) proved for an `isinstance(x, bool)` body while
+        # CPython answers 1 vs 0. A body that reads a NONDETERMINISTIC device is emitted as
+        # a plain `let [rec]`, so every call is a fresh evaluation constrained only by the
+        # DECLARED contract. The devices: `any`; a call to an abstract-op program `val` whose
+        # contract does not PIN its result (unknown external call, undecided isinstance/type
+        # test, filesystem probe, a user method's partial contract; a pinned model such as
+        # `str_length_op` is a function of its model arguments and is kept); a call to a bodyless user
+        # `val` (`\trusted`/`\abstract`) whose contract does not pin `result`; a call to a
+        # function this pass already found nondeterministic (SCC order: callees first). A
+        # contract reference to a demoted function fails L3-tc (`unbound function or
+        # predicate symbol`), the existing fail-closed answer for any non-logic function
+        # named in a spec. A multi-member SCC keeps its `with function` chain (not
+        # demotable member-by-member) but is recorded as nondeterministic for its callers.
+        # Deterministic bodies are untouched (byte-inert). The set is per emitted module:
+        # it is keyed on the identity of `_emitted_logic_funcs`, which every `transpile`
+        # / `_transpile_modular` pass re-creates.
+        _ndk = id(getattr(self, "_emitted_logic_funcs", None))
+        _ndp = getattr(self, "_r242_nondet", None)
+        if not _ndp or _ndp[0] != _ndk:
+            _ndp = (_ndk, set())
+            self._r242_nondet = _ndp
+        _nd = _ndp[1]
+        if lines:
+            _n = whyml_ident(func["name"])
+            _hd = lines[0]
+            if _hd.startswith(f"  val {_n} ") or _hd.startswith(f"  val {_n}("):
+                # A bodyless user `val` (`\trusted` / `\abstract`): its Python body is
+                # unseen, so it is deterministic only as far as its contract PINS the
+                # result (`ensures { result = .. }` / `result <-> ..`, or an array
+                # result's length and every cell).
+                _vtx = "\n".join(lines[1:])
+                if not (re.search(r"ensures\s*\{\s*\(*\s*result\s*(=|<->)", _vtx)
+                        or (re.search(r"ensures\s*\{\s*\(*\s*Array\.length\s+result\s*=", _vtx)
+                            and re.search(r"ensures\s*\{\s*forall[^}]*->\s*result\[[^\]]*\]\s*=",
+                                          _vtx))):
+                    _nd.add(_n)
+            else:
+                _txt = "\n".join(lines[1:])
+                _txt = re.sub(r"\(\*.*?\*\)", " ", _txt, flags=re.S)
+                _txt = re.sub(r'"(?:[^"\\]|\\.)*"', " ", _txt)
+                _tk = set(re.findall(r"[A-Za-z_][\w']*", _txt))
+                _pv = set()
+                for _d in (getattr(self, "_abstract_ops", {}) or {}).values():
+                    # A program `val` whose contract does NOT PIN its result (scalar
+                    # `ensures { result = .. }` / `result <-> ..`, or an array's length AND
+                    # every cell): an unknown external call, an undecided isinstance/type
+                    # test, a filesystem probe, a user method's partial contract. A pinned
+                    # model (`str_length_op`, `list_content_comp_*`) is a function of its
+                    # model arguments and is kept.
+                    _d = str(_d)
+                    _m = re.match(r"\s*val\s+([A-Za-z_][\w']*)", _d)
+                    if (_m and _m.group(1) not in ("function", "predicate", "constant", "ghost")
+                            and not (re.search(r"ensures\s*\{\s*\(*\s*result\s*(=|<->)", _d)
+                                     or (re.search(r"ensures\s*\{\s*\(*\s*Array\.length\s+result\s*=", _d)
+                                         and re.search(r"ensures\s*\{\s*forall[^}]*->\s*result\[[^\]]*\]\s*=",
+                                                       _d)))):
+                        _pv.add(_m.group(1))
+                if "any" in _tk or (_tk & _pv) or ((_tk & _nd) - {_n}):
+                    _nd.add(_n)
+                    for _lf, _lk in ((f"  let function {_n} ", "  let "),
+                                     (f"  let function {_n}(", "  let "),
+                                     (f"  let rec function {_n} ", "  let rec "),
+                                     (f"  let rec function {_n}(", "  let rec ")):
+                        if _hd.startswith(_lf) and _size == 1:
+                            lines[0] = _lk + _hd[len(_lf) - len(_n) - 1:]
+                            getattr(self, "_emitted_logic_funcs", set()).discard(_n)
+                            break
         return lines
 
     def _emit_function_block(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:

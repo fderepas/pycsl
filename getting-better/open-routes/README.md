@@ -9,7 +9,10 @@
 ##   parameter is a no-op under @mutable_state) OPENED (driver-reproduced).
 
 ## gen #36 (2026-10-15): #242 (a `let function` with a nondeterministic body is one value per argument:
-##   `h(True) == h(1)`, `r() == r()` for generators proved) OPENED (driver-reproduced).
+##   `h(True) == h(1)`, `r() == r()` for generators proved) OPENED (driver-reproduced), REPAIRED 2026-10-16 (a body
+##   reading `any`, an unpinned program `val`, an unpinned `\trusted` callee or a nondeterministic function emits as a
+##   plain `let`; witnesses 2270-2274, 2277, 2278, controls 2275-2276; 54 corpus + 11 mirror files moved header-only,
+##   all verdicts kept). Residual: contract-side `hval_isinst_opaque` cannot tell `True` from `1`.
 
 ## gen #36 (2026-10-15): #240 (`isinstance(<int>, bool)` decided TRUE) and #241 (a generator actual to an `Any`
 ##   parameter emitted as the literal `0`) OPENED (driver-reproduced; residuals of the #239 repair), REPAIRED (a
