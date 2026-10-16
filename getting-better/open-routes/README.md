@@ -1,6 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-16): #249 (`==` on `Any` is mathematical equality; an asymmetric user `__eq__` breaks
+##   `requires x == y ensures y == x`) OPENED (design-level residual of #247/#248, driver-verified).
+
 ## gen #36 (2026-10-16): #247 (`set`/`frozenset` share `dict`'s isinstance tag) and #248 (builtin-`==` assumption
 ##   on `Any` broken by a user `__eq__`) OPENED (residuals of the #246 repair, driver-verified), REPAIRED 2026-10-16
 ##   (#247: set/frozenset own tags 7/8, a declared type decides only when its tag names one class -- `object`/`float`
