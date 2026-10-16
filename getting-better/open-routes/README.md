@@ -1,6 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-16): #250 (`float` parameters may be NaN; the `real` model proves `x == x` etc.) and #251
+##   (arithmetic on `Any` is int arithmetic; a user `__sub__` breaks `x - x == 0`) OPENED (residuals of #249).
+
 ## gen #36 (2026-10-16): #249 (`==` on `Any` is mathematical equality; an asymmetric user `__eq__` breaks
 ##   `requires x == y ensures y == x`) OPENED (design-level residual of #247/#248, driver-verified), REPAIRED
 ##   2026-10-16 (option (b): with an erased operand -- `Any`/`object`/unannotated/TypeVar param, a non-record class
