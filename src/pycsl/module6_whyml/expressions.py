@@ -11548,7 +11548,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _in_spec_ctx = getattr(self, "_in_spec", False)
                 _sv = self._expr_to_whyml(_a0, local_refs, _in_spec_ctx, None)
                 _tag = "|".join(n or "?" for n in _names)
-                if _in_spec_ctx:
+                # ROUTE #245 -- IN A CONTRACT the opaque answer is a FUNCTION OF THE HVAL, so
+                # equal hvals answer alike; but the erased `HInt` carrier makes Python values of
+                # DIFFERENT types one hval (`True` and `1` are both `HInt 1`, `1.0` has no
+                # carrier of its own), and Python `==` holds across them. Measured: `requires
+                # d["a"] == d["b"]` PROVED `ensures isinstance(d["a"], bool) ==
+                # isinstance(d["b"], bool)` (CPython `{"a": True, "b": 1}`), and likewise `int`
+                # (1 vs 1.0), `float`, `set`/`frozenset` ({1} vs frozenset({1})), `bytes`
+                # (b"a" vs bytearray(b"a")) and a user class (`class S(str)`: S("x") vs "x").
+                # FAIL-CLOSED: an opaque arm for a class whose builtin values can be `==` to a
+                # value of another type is REFUSED at the WhyML type-check -- the application
+                # of the UNBOUND symbol below (no declaration, so no logic meaning; the same
+                # type-check-level answer route #240 gives a contract bool test on an int
+                # subject). Kept: the classes whose builtin equality never crosses type
+                # (`dict`, `str`, `list`, `tuple`, `NoneType`; `object` is never opaque).
+                # The program side is untouched: `(any bool)` is fresh per evaluation.
+                if _in_spec_ctx and "opaque" in _ans.values() and any(
+                        n not in ("dict", "str", "list", "tuple", "NoneType", "object")
+                        for n in _names):
+                    _opq = ("(pycsl_refused_contract_type_test_on_erased_hval "
+                            f"h_ii \"{_tag}\")")
+                elif _in_spec_ctx:
                     self._add_abstract_op(
                         "val function hval_isinst_opaque (h: hval) (t: string) : bool")
                     _opq = f"(hval_isinst_opaque h_ii \"{_tag}\")"

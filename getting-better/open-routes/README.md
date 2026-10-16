@@ -2,7 +2,11 @@
 
 
 ## gen #36 (2026-10-16): #245 (contract-side `isinstance(<hval>, bool)` cannot tell `True` from `1`) OPENED
-##   (driver-reproduced; residual of the #242 repair).
+##   (driver-reproduced; residual of the #242 repair), REPAIRED 2026-10-16 (a contract-side opaque `HInt` arm for a
+##   class whose builtin values can be `==` to another type -- bool/int/float/set/bytes/user classes -- is refused at
+##   the WhyML type-check; dict/str/list/tuple/NoneType keep it; witnesses 2300-2305, controls 2310-2314; corpus and
+##   mirror byte-inert). Residual: an int-erased `Any` subject's `typeof_op x` is a function of the int (1 vs 1.0,
+##   program side too).
 
 ## gen #36 (2026-10-16): #243 (a dict/set aliased through a second name/field is a COPY: `1 in self.g` stays
 ##   false after `self.d[1] = 5` with `self.g = self.d`, incl. cross-method) and #244 (`s.add` on a set
