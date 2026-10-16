@@ -129,7 +129,7 @@ class PyCSLWeaver(ast.NodeVisitor):
         return g
 
     #@ requires True
-    #@ ensures \result == node.value
+    #@ ensures \result == int(node.value)
     #@ assigns \nothing
     @staticmethod
     def _const_int(node: Any, var: str) -> int:
