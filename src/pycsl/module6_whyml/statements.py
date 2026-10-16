@@ -3088,6 +3088,40 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         code += ";\n" + self._stmts_to_whyml(
                             rest, local_refs, declared_refs, indent, in_loop)
                     return code
+        # W-IPM S-D (#49, gen #36 ch17): `self.<f>.clear()` in a `@mutable_state` class is
+        # lowered EXACTLY as the store of a fresh empty literal, `self.<f> = {}` (a dict/set
+        # RECORD field -> `self.<f> <- (const None)`, the everywhere-None map; a field held
+        # in the opaque object state, whose type is not recorded and whose value no read
+        # ever determines (`getattr_<cls>` is unconstrained) -> `setattr_<cls> self <h>
+        # (any int)`, a havoc write of `_pyobj_state`, sound whatever the field's type).
+        # In place and rebinding agree ONLY while no second name holds the
+        # object: a dict/set value is a pure map, so an alias would be a stale COPY (spike
+        # `getting-better/ipm/ch17/spike_ds.mlw` f2 PROVES). That is exactly what route
+        # #243/#244 now refuse unit-wide (PYCSL-WHYML-COLLECTION-ALIAS sees `clear` as an
+        # in-place mutation, route #59's guard sees it on a local alias), so the lowering
+        # relies on that rule and adds none of its own. The store goes through
+        # `_handle_fieldassign_stmt`, so the write is checked against the declared
+        # `#@ assigns` like any field store. `clear` never raises. REFUSED as before (falls
+        # through to the generic in-place-mutator refusal) for: any argument, a receiver
+        # that is not `self.<f>`, a class that is not `@mutable_state`, and a RECORD field
+        # whose declared type is not `dict`/`set`.
+        if (val.get("type") == "Call" and not (val.get("args") or [])
+                and not (val.get("keywords") or val.get("kwargs"))
+                and getattr(self, "_current_self_type", None)
+                in (getattr(self, "_mutable_state_classes", None) or set())):
+            _cl_p = str(val.get("func", "") or "").split(".")
+            if len(_cl_p) == 3 and _cl_p[0] == "self" and _cl_p[2] == "clear":
+                _cl_ft = (self._field_type_for("self", _cl_p[1])
+                          if _cl_p[1] in self._all_record_fields else "<pyobj>")
+                if _cl_ft in ("dict", "set", "<pyobj>"):
+                    return self._handle_fieldassign_stmt(
+                        stmt_from_dict({"stmt": "FieldAssign", "object": "self",
+                                        "field": _cl_p[1],
+                                        "value": ({"type": "DictLit", "keys": [],
+                                                   "values": []} if _cl_ft != "set" else
+                                                  {"type": "Call", "func": "set",
+                                                   "args": []})}),
+                        rest, local_refs, declared_refs, indent, in_loop)
         # self-tcb-reduction (_err-divergence): a bare-statement `self.<m>(...)` call to a
         # `-> NoReturn` callee never returns. `_handle_dotted_call` lowers it to
         # `(let _ = <call> in absurd)` (type `'a`). As a STATEMENT it must NOT be wrapped in

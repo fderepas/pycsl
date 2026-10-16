@@ -1,0 +1,108 @@
+# W-IPM S-D re-census @29a5c07d (ch17): trusted-reasons rows whose LIVE body calls a dict/set-kind
+# mutator (add/discard/remove/clear/update/setdefault/popitem) = 96 (of 125 MUT rows; prefilter + census.py from ch16,
+# run unchanged: port verbatim + live sig, emit --no-proof, neutralise each in-place-mutator refusal in turn).
+# status counts:
+#        2 LOOP
+#       49 NEXT
+#       40 OTHER0
+#        2 TCOK
+#        3 TCOK0
+# TCOK = type-checks once ONLY its mutators are neutralised (mutator was the first blocker): the two below.
+# TCOK0 = nested defs that type-check with no neutralisation (not on this track).
+
+LOOP | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._build_function_ir | formal_params.extend[stmt:exact];_stk232.pop[expr:exact];_stk232.extend[stmt:exact];_nl_stack.pop[expr:exact];_nl_stack.extend[stmt:exact];_nl_stack.extend[stmt:exact];_nl_st | 
+LOOP | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter.visit_ClassDef | self.program_ir.setdefault[stmt:exact];seen.add[stmt:exact];field_defaults.setdefault[stmt:exact];self.program_ir.setdefault[stmt:exact];self.program_ir.setdefault[expr:exact];se | 
+NEXT | Module6_WhyMLTranspiler.py | Module6_WhyMLTranspiler._maybe_emit_no_exception_assert | active.update[stmt:exact] | This expression has type int, but is expected to have type 'mu -> 'mu1 /tmp/claude-1000/-home-fabrice-git-pycsl/7bdb4936-b5
+NEXT | Module6_WhyMLTranspiler.py | Module6_WhyMLTranspiler._wrap_call_with_callee_raises_assert | active.update[stmt:exact] | unbound function or predicate symbol '_abstract_ops'
+NEXT | audit_proof.py | _audit_one_prover | by_file.setdefault[stmt:exact] | This expression has type int, but is expected to have type array.Array.array 'mu @rho
+NEXT | audit_proof.py | _index_proofs_dir_by_file | out.setdefault[stmt:exact] | This expression has type 'mu -> option.Option.option int, but is expected to have type int
+NEXT | audit_proof.py | _parse_lean_file | ns_stack.extend[stmt:exact];push_depths.pop[expr:exact];ns_stack.pop[stmt:exact] | This expression has type int, but is expected to have type string
+NEXT | audit_proof.py | _parse_rocq_file | frame_stack.pop[expr:exact];module_stack.pop[stmt:exact];module_stack.pop[stmt:exact] | This expression has type int, but is expected to have type string
+NEXT | audit_proof_reverify.py | _sha256_file | h.update[stmt:exact] | This expression has type int, but is expected to have type string
+NEXT | exception_model.py | bases_closure | frontier.pop[expr:exact];frontier.extend[stmt:exact] | This expression has type (), but is expected to have type int
+NEXT | frontend/ConcurrencyChecker.py | ConcurrencyChecker.check | self._thread_entries.add[stmt:exact] | This expression has type array.Array.array int @rho, but is expected to have type array.Array.array PyCSL_Program. concurrencywarning @rho1
+NEXT | frontend/Module3_Weaver.py | Module3_Weaver._consolidate_module_concurrency | seen_ind.add[stmt:exact];seen_dt.add[stmt:exact];seen_shared.add[stmt:exact] | This expression has type int, but is expected to have type array.A
+NEXT | frontend/Module3_Weaver.py | Module3_Weaver._expand_happy_properties | _r206_queue.pop[expr:exact];csites.sort[stmt:exact];psites.sort[stmt:exact];psites.sort[stmt:exact];rsites.sort[stmt:exact];sites.sort[stmt:exact] | [whyml-emit]: '_ex
+NEXT | frontend/Module3_Weaver.py | Module3_Weaver._parse_extracted_contracts | trailing_contracts_map.setdefault[stmt:exact] | This expression has type array.Array.array int @rho, but is expected to have type int
+NEXT | frontend/Module3_Weaver.py | PyCSLWeaver.visit_Module | self._csl_bound_names.add[stmt:exact];self._csl_bound_names.add[stmt:exact];self._csl_bound_names.add[stmt:exact];self._csl_bound_names.add[stmt:exact];self._csl_bound_names.add[st | 
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._build_function_symbol_table | dict_key_types.setdefault[stmt:exact] | nested function 'pycsltojsonemitter___is_str_key' is lifted to a sibling of its enclosing function, and the lift is not faithf
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._collect_class_fields | field_defaults.pop[stmt:exact];self._m5_dc_unknown.append[stmt:exact];self._m5_dc_unknown.append[stmt:exact] | This expression has type array.Array.array int @rho, but is ex
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._detect_seq_promotion | list_vars.discard[stmt:exact] | ?
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._emit_namedtuple_record | self.program_ir.setdefault[stmt:exact] | This expression has type PyCSL_Program.py_classdef_node, but is expected to have type int /tmp/claude-1000/-home-fabrice-git-pycsl
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._emit_protocol_interface | self.program_ir.setdefault[stmt:exact] | This expression has type PyCSL_Program.py_classdef_node, but is expected to have type int /tmp/claude-1000/-home-fabrice-git-pycs
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._emit_typeddict_record | self.program_ir.setdefault[stmt:exact] | This expression has type PyCSL_Program.py_classdef_node, but is expected to have type int /tmp/claude-1000/-home-fabrice-git-pycsl/
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._normalize_literal_annotation | self._cur_literal_ensures.append[stmt:exact];self._cur_literal_ensures.append[stmt:exact];self._cur_literal_requires.append[stmt:exact];self._cur_literal_requires. | 
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._normalize_union_annotation | self.program_ir.setdefault[stmt:exact];self.program_ir.setdefault[stmt:exact] | This expression has type int, but is expected to have type PyCSL_Program. emit_ir /tmp/
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._populate_protocol_conformance | self.program_ir.setdefault[stmt:exact] | This expression has type array.Array.array int @rho, but is expected to have type int /tmp/claude-1000/-home-fabrice-git-py
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._synthesize_namedtuple_functional | self.program_ir.setdefault[stmt:exact] | This expression has type string, but is expected to have type int /tmp/claude-1000/-home-fabrice-git-pycsl/7bdb4936-b536
+NEXT | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._synthesize_typeddict_functional | self.program_ir.setdefault[stmt:exact] | This expression has type string, but is expected to have type int /tmp/claude-1000/-home-fabrice-git-pycsl/7bdb4936-b536-
+NEXT | frontend/ir_inline.py | _Inliner._expand | _seen169.update[stmt:exact];body.pop[expr:exact];out.extend[stmt:exact];out.extend[stmt:exact] | This expression has type int, but is expected to have type PyCSL_Program. pyval
+NEXT | frontend/ir_inline.py | _inline_calls | _cb.update[stmt:exact] | This expression has type int -> option.Option.option int, but is expected to have type int
+NEXT | frontend/ir_resolve.py | _resolve_direct_imports | ir_data.setdefault[expr:exact];ir_data.setdefault[expr:exact];have.add[stmt:exact];ir_data.setdefault[expr:exact];ir_data.setdefault[expr:exact];have_g.add[stmt:exact];have_t.add[stmt:exact] | unbound function or predicate symbol 'level'
+NEXT | frontend/ir_resolve.py | _resolve_imported_base_classes | ir_data.setdefault[stmt:exact];existing_types.add[stmt:exact];needed.discard[stmt:exact];existing_funcs.add[stmt:exact] | This expression has type PyCSL_Program.StrSet.set, but is expected to have type int
+NEXT | frontend/ir_resolve.py | _resolve_imported_classes | ir_data.setdefault[stmt:exact];existing_types.add[stmt:exact];existing_funcs.add[stmt:exact];existing_funcs.add[stmt:exact];ir_data.setdefault[expr:exact] | unbound function or predicate symbol 'level'
+NEXT | frontend/ir_resolve.py | resolve_imports | _ev.setdefault[stmt:exact];_ev.setdefault[stmt:exact];_ev.setdefault[stmt:exact] | ?
+NEXT | frontend/monomorphize.py | _emit_specializations | by_generic.setdefault[stmt:exact] | This expression has type int, but is expected to have type string
+NEXT | frontend/monomorphize.py | _record_classification | ir_data.setdefault[expr:exact] | This expression has type seq.Seq.seq ('mu -> option.Option.option 'mu1), but is expected to have type int
+NEXT | module6_whyml/abstract_ops.py | AbstractOpsMixin._add_abstract_op | self._abstract_ops.setdefault[stmt:exact] | This expression has type int, but is expected to have type array.Array.array 'mu @rho
+NEXT | module6_whyml/abstract_ops.py | AbstractOpsMixin._insert_abstract_val_block | out.insert[stmt:exact];out.insert[stmt:exact];out.insert[stmt:exact] | This expression has type array.Array.array string @rho, but is expected to have type array.Array.ar
+NEXT | module6_whyml/expressions.py | ExpressionEmissionMixin._expr_to_whyml | self._abstract_ops.clear[stmt:exact];self._abstract_ops.update[stmt:exact];_symtab.pop[stmt:exact] | nested function 'expressionemissionmixin___scan_filter' is lifted to a sibl
+NEXT | module6_whyml/expressions.py | ExpressionEmissionMixin._handle_call_expr | self._abstract_ops.clear[stmt:exact];self._abstract_ops.update[stmt:exact] | [whyml-emit]: an IDENTITY test against a `bool` literal (`X is True` / `X is False`) is refused 
+NEXT | module6_whyml/expressions.py | ExpressionEmissionMixin._handle_isinstance | self._abstract_ops.clear[stmt:exact];self._abstract_ops.update[stmt:exact] | This expression has type int, but is expected to have type PyCSL_Program. _union__handle_isinst
+NEXT | module6_whyml/expressions.py | ExpressionEmissionMixin._handle_struct_call | _STRUCT_FMT_FOLDS.setdefault[expr:exact] | This expression has type int, but is expected to have type array.Array.array 'mu @rho /tmp/claude-1000/-home-fabrice-git-pycsl/7
+NEXT | module6_whyml/expressions.py | ExpressionEmissionMixin._handle_subscript | _w170.pop[expr:exact];_w170.extend[stmt:exact];_w170.extend[stmt:exact];_act159.update[stmt:exact] | This expression has type PyCSL_Program.emit_ir, but is expected to have 
+NEXT | module6_whyml/expressions.py | ExpressionEmissionMixin._pop_quant_binder | self._quant_record_binders.pop[stmt:exact] | /tmp/claude-1000/-home-fabrice-git-pycsl/7bdb4936-b536-4d12-86b7-7ad1b607106c/scratchpad/ch17/tree/src/pycsl/core_ir_semantic.py
+NEXT | module6_whyml/functions.py | FunctionEmissionMixin._emit_contracts | _s60.pop[expr:exact];_s60.extend[stmt:exact];_s60.extend[stmt:exact] | This expression has type int -> option.Option.option int, but is expected to have type int
+NEXT | module6_whyml/functions.py | FunctionEmissionMixin._emit_function | _nd.add[stmt:exact];_nd.add[stmt:exact] | This expression has type string -> option.Option.option int, but is expected to have type int
+NEXT | module6_whyml/functions.py | FunctionEmissionMixin._param_type_str | self._record_locals.add[stmt:exact] | This expression has type string, but is expected to have type int
+NEXT | module6_whyml/functions.py | FunctionEmissionMixin._reset_function_state | _w171.pop[expr:exact];_w171.extend[stmt:exact];_w171.extend[stmt:exact] | [whyml-emit]: an IDENTITY test against a `bool` literal (`X is True` / `X is False`) is r
+NEXT | module6_whyml/preamble.py | PreambleEmissionMixin._emit_type_decls | _work.pop[expr:exact];_emitted_variants.update[stmt:exact];self._pyval_seq_fields.add[stmt:exact];self._pyval_seq_append_targets.add[stmt:exact];self._str_array_record_fields.ad | 
+NEXT | module6_whyml/preamble.py | PreambleEmissionMixin._precompute_axiom_logic_funcs | self._axiom_logic_funcs.add[stmt:exact] | nested function 'preambleemissionmixin___walk' is lifted to a sibling of its enclosing function, and the lift is not faithfu
+NEXT | module6_whyml/statements.py | StatementEmissionMixin._handle_expr_stmt | _so_w.pop[expr:exact];_so_w.extend[stmt:exact];_so_w.extend[stmt:exact];_so_w.pop[expr:exact];_so_w.extend[stmt:exact];_so_w.extend[stmt:exact] | ?
+NEXT | module6_whyml/types.py | TypeInferenceMixin._collect_array_var_assigns | found.add[stmt:exact];found.add[stmt:exact];found.add[stmt:exact];found.add[stmt:exact];found.add[stmt:exact];found.add[stmt:exact];found.add[stmt:exact];found.add[stmt:exac | 
+NEXT | proof2why3/crosscheck.py | crosscheck_file | rocq_raw.setdefault[stmt:exact];lean_raw.setdefault[stmt:exact] | This expression has type int, but is expected to have type array.Array.array int @rho
+OTHER0 | audit_proof_reverify.py | verify_lean_file |  | function 'verify_lean_file' binds tf with a `with ... as` clause, and no certified lowering models it. `_py_stmt_with` reads only the `with` BODY: the context-m
+OTHER0 | frontend/Module3_Weaver.py | Module3_Weaver._check_protect_aliasing |  | This expression has type int -> option.Option.option int, but is expected to have type int
+OTHER0 | frontend/Module3_Weaver.py | Module3_Weaver._synthesize_selfcomp |  | nested function 'module3_weaver___call' is lifted to a sibling of its enclosing function, and the lift is not faithful here: it reads formal, hp, secset from an
+OTHER0 | frontend/Module3_Weaver.py | Module3_Weaver.process |  | ?
+OTHER0 | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter._detect_array_dimensions |  | nested function 'pycsltojsonemitter___collect_augextend' is lifted to a sibling of its enclosing function, and the lift is not faithful here: it reads strict_ar
+OTHER0 | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter.visit_FunctionDef |  | ?
+OTHER0 | frontend/Module5_IREmitter.py | PyCSLToJSONEmitter.visit_Module |  | ?
+OTHER0 | frontend/desugar.py | normalize_stores |  | a function, method or class NAME is rebound after its definition (`setattr`/`delattr` of a function name at line 156). Every call is resolved against the `def`,
+OTHER0 | frontend/ir_inline.py | _recursive_methods |  | nested function 'reaches_self' is lifted to a sibling of its enclosing function, and the lift is not faithful here: it reads edges from an enclosing function. A
+OTHER0 | frontend/ir_resolve.py | _process_dependency |  | function '_process_dependency' binds f with a `with ... as` clause, and no certified lowering models it. `_py_stmt_with` reads only the `with` BODY: the context
+OTHER0 | frontend/ir_resolve.py | apply_composition |  | nested function 'walk' is lifted to a sibling of its enclosing function, and the lift is not faithful here: it reads written from an enclosing function. A lifte
+OTHER0 | frontend/ir_resolve.py | apply_inheritance |  | nested function 'merge_one' is lifted to a sibling of its enclosing function, and the lift is not faithful here: it reads _in_bases, _in_binds, _in_mro, _in_ori
+OTHER0 | frontend/monomorphize.py | _collect_instantiations |  | syntax error
+OTHER0 | module6_whyml/abstract_ops.py | AbstractOpsMixin._advance_past_referenced_axiom_decls |  | This expression has type int, but is expected to have type array.Array.array 'mu @rho
+OTHER0 | module6_whyml/expressions.py | ExpressionEmissionMixin._call_record_constructor |  | nested function 'expressionemissionmixin___field_default' is lifted to a sibling of its enclosing function, and the lift is not faithful here: it reads field_ty
+OTHER0 | module6_whyml/expressions.py | ExpressionEmissionMixin._handle_dotted_call |  | ?
+OTHER0 | module6_whyml/expressions.py | ExpressionEmissionMixin._push_quant_binder |  | /tmp/claude-1000/-home-fabrice-git-pycsl/7bdb4936-b536-4d12-86b7-7ad1b607106c/scratchpad/ch17/tree/src/pycsl/core_ir_semantic.py:100: UserWarning: GT1: Union ar
+OTHER0 | module6_whyml/functions.py | FunctionEmissionMixin._emit_union_arm_vc |  | This expression has type int, but is expected to have type string
+OTHER0 | module6_whyml/preamble.py | PreambleEmissionMixin._emit_class_inv_axioms |  | This expression has type int, but is expected to have type string
+OTHER0 | module6_whyml/preamble.py | PreambleEmissionMixin._emit_opaque_class_aliases |  | ?
+OTHER0 | module6_whyml/preamble.py | PreambleEmissionMixin._emit_preamble_axioms |  | This expression has type int, but is expected to have type string
+OTHER0 | module6_whyml/preamble.py | PreambleEmissionMixin._emit_uncited_axiom_func_decls |  | This expression has type int, but is expected to have type array.Array.array 'mu @rho
+OTHER0 | module6_whyml/preamble.py | PreambleEmissionMixin._inductive_referenced_axiom_decls |  | This expression has type int, but is expected to have type array.Array.array 'mu @rho
+OTHER0 | module6_whyml/preamble.py | PreambleEmissionMixin._scan_preamble_needs |  | a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 10948; a write through a namespace dict at line 10953
+OTHER0 | module6_whyml/statements.py | StatementEmissionMixin._emit_body_code |  | ?
+OTHER0 | module6_whyml/statements.py | StatementEmissionMixin._emit_first_assign |  | This expression has type int, but is expected to have type string /tmp/claude-1000/-home-fabrice-git-pycsl/7bdb4936-b536-4d12-86b7-7ad1b607106c/scratchpad/ch17/
+OTHER0 | module6_whyml/statements.py | StatementEmissionMixin._handle_assign_stmt |  | ?
+OTHER0 | module6_whyml/statements.py | StatementEmissionMixin._handle_ghost_assign_stmt |  | ?
+OTHER0 | module6_whyml/statements.py | StatementEmissionMixin._handle_tuple_unpack_stmt |  | ?
+OTHER0 | module6_whyml/statements.py | StatementEmissionMixin._typed_local_vars |  | ?
+OTHER0 | module6_whyml/stmt_control_flow.py | ControlFlowStmtMixin._callee_raised_in |  | This expression has type array.Array.array int @rho, but is expected to have type int
+OTHER0 | module6_whyml/stmt_control_flow.py | ControlFlowStmtMixin._handle_for_stmt |  | nested function 'controlflowstmtmixin___bind_lines' is lifted to a sibling of its enclosing function, and the lift is not faithful here: it reads _is_pyval_
+OTHER0 | module6_whyml/types.py | TypeInferenceMixin._track_collection_metadata |  | [module6-whyml]: function 'typeinferencemixin___track_collection_metadata': a dict/set value reaches the dict/set field `self._rebound_collections` while it can
+OTHER0 | proof2why3/crosscheck_ir.py | crosscheck_file_ir |  | `except ` can be reached by an exception the model does not raise (AttributeError, TypeError, OverflowError, UnicodeError, ...), so the handler is dead in the p
+OTHER0 | proof2why3/extract.py | extract_lean_statements |  | nested function '_starts_new_check' is lifted to a sibling of its enclosing function, and the lift is not faithful here: it reads qn_set from an enclosing funct
+OTHER0 | pycsl.py | _residual_selectors_from_records |  | This expression has type int, but is expected to have type string -> option. Option.option PyCSL_Program.hval /tmp/claude-1000/-home-fabrice-git-pycsl/7bdb4936-
+OTHER0 | pycsl.py | _run_pipeline |  | ?
+OTHER0 | pycsl.py | _run_proofs |  | nested function '_gate_vacuity_then_succeed' is lifted to a sibling of its enclosing function, and the lift is not faithful here: it reads args, mlw_code, prove
+OTHER0 | pycsl.py | _run_vacuity_gate |  | function '_run_vacuity_gate' binds ex with a `with ... as` clause, and no certified lowering models it. `_py_stmt_with` reads only the `with` BODY: the context-
+OTHER0 | pycsl.py | _sha256_file |  | function '_sha256_file' binds f with a `with ... as` clause, and no certified lowering models it. `_py_stmt_with` reads only the `with` BODY: the context-manage
+TCOK | frontend/ir_resolve.py | _inject_functions | existing.add[stmt:exact] | first=MUT
+TCOK | frontend/pure_ast.py | _Unparser.visit_Module | self._type_ignores.clear[stmt:exact] | first=MUT
+TCOK0 | module6_whyml/statements.py | StatementEmissionMixin._collect_field_decode_str_locals.rec |  | first=None
+TCOK0 | module6_whyml/statements.py | StatementEmissionMixin._collect_string_elem_read_locals.rec |  | first=None
+TCOK0 | pycsl.py | _run_vacuity_gate._probe_one |  | first=None
