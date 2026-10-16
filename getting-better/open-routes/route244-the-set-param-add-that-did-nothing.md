@@ -27,8 +27,8 @@ express it (a by-reference carrier / caller-visible `writes`); never a silent no
 | `s.discard(1)` in the callee, caller reads | PROVED | REFUSED (M) | 2293 |
 | `s.remove(1)` in the callee, caller reads | PROVED | REFUSED (M) | 2294 |
 | module-level caller `c.m(s)` (same file; the cross-file spelling was measured too) | PROVED | REFUSED (M) | 2295 |
-| CONTROL callee `s.add(1); return 1 in s` (`\result == True`) | FAIL | PASS (faithful) | 2313 |
-| CONTROL caller passes a fresh single-use set | PASS | PASS | 2314 |
+| CONTROL callee `s.add(1); return 1 in s` (`\result == True`) | FAIL | PASS (faithful) | 2413 |
+| CONTROL caller passes a fresh single-use set | PASS | PASS | 2414 |
 | `d[k] = v`, `d.pop(k)`, `s.clear()` on a param; `xs.append` on a list param (all @mutable_state) | refused | refused (unchanged) | — |
 
 ## Repair landed (gen #36, 2026-10-16)

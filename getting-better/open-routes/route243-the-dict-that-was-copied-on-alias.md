@@ -36,19 +36,19 @@ Every false claim below PROVED (rc=0 "Verification SUCCESS") at cdac19a6.
 | cross-method `link(): self.g = self.d`, dict store | PROVED | REFUSED (F, in `link`) | 2297 |
 | cross-method set twin, `self.s.add(1)` | PROVED | REFUSED (F) | 2298 |
 | `a = self.s; self.s.add(1); return 1 in a` | PROVED | REFUSED (#59 guard + mutator calls) | 2299 |
-| `link(p): self.d = p`; caller keeps `p`, stores through `self.d`, reads `p` | PROVED | REFUSED (E, at the call) | 2300 |
-| `a = self.d; self.g = a` (alias through a local) | PROVED | REFUSED (F) | 2301 |
-| `__post_init__: self.g = self.d` (dropped by Module 5) | PROVED | REFUSED (ctor scan) | 2302 |
-| set `discard` through the other field | PROVED | REFUSED (F) | 2303 |
-| `link(p)` with `ensures self.d == p`; caller stores through `p`, reads `self.d` | PROVED | REFUSED (E/F) | 2304 |
-| `e = d` (a dict PARAMETER) then `e[1] = 5`, read `d` | PROVED | REFUSED (#59 guard, formals) | 2305 |
-| dataclass ctor `C(x)` (init_body stores `x`); `c.put()`; read `x` | PROVED | REFUSED (E, at `C(x)`) | 2306 |
-| `a = set(); self.s = a; self.s.add(1); return 1 in a` (route #59 carrier 6, set) | PROVED | REFUSED (F) | 2307 |
-| explicit `__init__(p): self.d = p; self.g = p` | PROVED | REFUSED (ctor scan) | 2308 |
-| explicit `__init__: self.d = {}; self.g = self.d` (Module 5 havocs `g`) | PROVED | REFUSED (ctor scan) | 2309 |
-| CONTROL dict field stored through, no alias anywhere | PASS | PASS | 2310 |
-| CONTROL set local mutated and read | PASS | PASS | 2311 |
-| CONTROL `self.g = dict(self.d)` (a fresh copy) in a mutating unit | PASS | PASS | 2312 |
+| `link(p): self.d = p`; caller keeps `p`, stores through `self.d`, reads `p` | PROVED | REFUSED (E, at the call) | 2400 |
+| `a = self.d; self.g = a` (alias through a local) | PROVED | REFUSED (F) | 2401 |
+| `__post_init__: self.g = self.d` (dropped by Module 5) | PROVED | REFUSED (ctor scan) | 2402 |
+| set `discard` through the other field | PROVED | REFUSED (F) | 2403 |
+| `link(p)` with `ensures self.d == p`; caller stores through `p`, reads `self.d` | PROVED | REFUSED (E/F) | 2404 |
+| `e = d` (a dict PARAMETER) then `e[1] = 5`, read `d` | PROVED | REFUSED (#59 guard, formals) | 2405 |
+| dataclass ctor `C(x)` (init_body stores `x`); `c.put()`; read `x` | PROVED | REFUSED (E, at `C(x)`) | 2406 |
+| `a = set(); self.s = a; self.s.add(1); return 1 in a` (route #59 carrier 6, set) | PROVED | REFUSED (F) | 2407 |
+| explicit `__init__(p): self.d = p; self.g = p` | PROVED | REFUSED (ctor scan) | 2408 |
+| explicit `__init__: self.d = {}; self.g = self.d` (Module 5 havocs `g`) | PROVED | REFUSED (ctor scan) | 2409 |
+| CONTROL dict field stored through, no alias anywhere | PASS | PASS | 2410 |
+| CONTROL set local mutated and read | PASS | PASS | 2411 |
+| CONTROL `self.g = dict(self.d)` (a fresh copy) in a mutating unit | PASS | PASS | 2412 |
 | CONTROL read-only field copy `self.b = self.a`, no in-place mutation in the unit | PASS | PASS (not refused) | 1306 |
 
 Measured but not proving at base (no repair needed; recorded so nobody re-probes them):

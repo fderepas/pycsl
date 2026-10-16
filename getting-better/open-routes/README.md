@@ -31,8 +31,8 @@
 ##   the mutated set/dict parameter is a faithful local shadow; #243/#244: fail-closed unit-wide rule — a dict/set
 ##   field store, an argument in an ESCAPING slot (stored into a field / dataclass init) and an argument in a MUTATING
 ##   slot must be fresh or single-use, the first two only when the unit mutates a shared dict/set in place; route #59
-##   guard sees mutator calls and dict/set params; `__init__`/`__post_init__` scan; witnesses 2290-2309, controls
-##   2310-2314; corpus 0 GONE / 2 MOVED, mirror 0 GONE / 3 MOVED). Residual: an alias made in an IMPORTED method.
+##   guard sees mutator calls and dict/set params; `__init__`/`__post_init__` scan; witnesses 2290-2299 + 2400-2409, controls
+##   2410-2414 (renumbered from 2300-2314 at landing: collided with #245); corpus 0 GONE / 2 MOVED, mirror 0 GONE / 3 MOVED). Residual: an alias made in an IMPORTED method.
 
 ## gen #36 (2026-10-15): #242 (a `let function` with a nondeterministic body is one value per argument:
 ##   `h(True) == h(1)`, `r() == r()` for generators proved) OPENED (driver-reproduced), REPAIRED 2026-10-16 (a body
