@@ -1,6 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-17): #269 (residual divergence leaks after #263: C().m() stub drops diverges, comprehension-hidden
+##   calls, diverges+no_exception RecursionError, Module5 bespoke dispatch stubs, cross-module cycles) OPENED.
+
 ## gen #36 (2026-10-17): #268 (cross-mixin `_stmts_to_whyml` stub under-declared its frame; 5 verified callers proved
 ##   false field-unchanged claims) OPENED + REPAIRED 487c4789 (found while fixing the slow survival plane).
 
