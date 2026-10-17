@@ -1391,7 +1391,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         field = stmt.field
         val = self._expr_to_whyml(stmt.value, local_refs)
         op = op_translate(stmt.op)
-        safe_field = whyml_ident(field)
+        # (#49) gen #36 ch20 — the label the RECORD DECLARES, exactly as
+        # `_handle_fieldassign_stmt` computes it. A field name shared by two records is
+        # declared qualified (`type a = { mutable a_n: int }`), so the bare
+        # `whyml_ident(field)` was an unbound symbol and every `self.n += 1` in such a class
+        # failed to type-check (fail-closed) while `self.n = self.n + 1` proved.
+        # `_field_label` returns the bare name when the field is unambiguous.
+        _rec_lower = (self._current_self_type if obj == "self"
+                      else (getattr(self, "_current_record_var_classes", {}).get(obj, "") or "").lower() or None)
+        safe_field = self._field_label(_rec_lower, field)
         if field in self._all_record_fields:
             code = f"{indent}{obj}.{safe_field} <- {obj}.{safe_field} {op} {val}"
         else:
