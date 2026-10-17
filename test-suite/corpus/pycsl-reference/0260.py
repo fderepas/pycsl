@@ -14,6 +14,7 @@ n = 0
 #@ thread_entry
 #@ \diverges
 def updater() -> int:
+    global m, n
     #@ critical lock_m
     with lock_m:
         #@ critical lock_n

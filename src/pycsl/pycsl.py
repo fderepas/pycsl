@@ -2177,6 +2177,589 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             filename=args.file, line=getattr(_n243, "lineno", 0) or 0,
                             stage="ir-semantic", code="PYCSL-SEM-COLLECTION-ALIAS")
 
+    # (#49) ROUTE #264 — A READ OF A LOCAL THAT IS NOT DEFINITELY ASSIGNED.
+    #
+    # Module 6 hoists every local as `let y = ref 0 in` and `del y` lowers to `()`, so a
+    # read of a local that no path has bound read the DECLARATION DEFAULT 0. Python raises
+    # `UnboundLocalError` there, and PyCSL claims normal termination by default, so the
+    # raising path PROVED postconditions. MEASURED at 283d1033, all five Verification
+    # SUCCESS, all five `UnboundLocalError` in CPython (witnesses-r264/):
+    #     if c: y = 1          / return y           (s04, `f(False)`)
+    #     n += 1               / n never bound      (s03)
+    #     x = 1; del x; return x                    (s06)
+    #     n = 0 at module level, `n += 1` with no `global`   (s01/s07 — a name bound
+    #         ANYWHERE in a function is local to ALL of it, so the module global is
+    #         never consulted)
+    # THE RULE is Python's own: the function's locals are its parameters and every name
+    # its own scope binds (assignment / augmented / annotated-with-value targets, `for`
+    # and `with ... as` targets, `except ... as`, a walrus — also from inside a
+    # comprehension, PEP 572 —, `import`, a nested `def`/`class`, a `match` capture, and
+    # `del`), minus `global`/`nonlocal` names. A MUST-ASSIGN dataflow over a control-flow
+    # graph of the body then refuses every read (and every `del`) of a local that is not
+    # bound on EVERY path reaching it. The graph is Python's: a loop body may run zero
+    # times (except `while True` and `for` over a constant non-empty `range`, whose first
+    # iteration is certain); `break`/`continue`/`return`/`raise` end their path; an
+    # exception edge from inside a `try` carries the state BEFORE the raising operation;
+    # `except E as e` UNBINDS `e` when the handler ends; a `finally` is analysed on the
+    # normal path and once more on the exceptional one; a `with` body may be left by an
+    # exception its `__exit__` SUPPRESSES; a `match` with no irrefutable unguarded arm may
+    # fall through; `and`/`or`/`if-else` operands and comprehension bodies are
+    # conditional, so a walrus there binds nothing definitely. A call statement to a
+    # same-file function (or `self.` method) EVERY definition of which ends in `raise` and
+    # has no `return` cannot fall through (the parsers' `self._err(...)` idiom).
+    # UNREACHABLE code is never refused (its state is TOP).
+    #
+    # SCOPE: functions whose body is LOWERED — a `\trusted`/`\abstract` function is
+    # skipped together with everything nested in it, since its body is never modelled.
+    # RESIDUE (stated, not hidden): a read inside a NESTED function/lambda of an enclosing
+    # local (a closure cell read at CALL time) and the deferred parts of a generator
+    # expression are not tracked; a `self.<m>` no-return call trusts that no subclass
+    # overrides `<m>` with a returning body.
+    #
+    # BLAST RADIUS, MEASURED before landing (CPython-`ast` prototype of THIS block): 47
+    # findings in pycsl-reference, all in 31 files — 25 PASS `--no-proof` concurrency
+    # drivers whose workers do `counter += 1` on a `#@ shared` module global WITHOUT
+    # `global` (every one an `UnboundLocalError` in CPython; their sources gain the
+    # missing `global` line, emission byte-identical), 5 expected-FAIL concurrency
+    # witnesses and 1993 (each refused EARLIER, for its own reason, since this check runs
+    # after Module 5 and the IR checks), 1026 (cleared by the constant-`range` rule). 1 in
+    # python-reference (0177, a constant `range(100)` loop — cleared by the same rule).
+    # 12 in the mirror, all in `\trusted` functions or behind a `self._err`/`self.error`
+    # call (cleared). 3 in `pycsl_lib/json/encoder.py`, already REFUSED.
+    #
+    # CHOKE POINT: `_run_pipeline`'s mirror twin is `#@ \trusted`, and the whole analysis
+    # is written INLINE (no nested `def`: `check-mirror-coverage`), iteratively.
+    from frontend import pure_ast as _A264
+    _r264_tree = unified_ast
+    _r264_bad = []
+    _R264_COMPS = (_A264.ListComp, _A264.SetComp, _A264.DictComp, _A264.GeneratorExp)
+    _R264_FNS = (_A264.FunctionDef, _A264.AsyncFunctionDef)
+    # same-file names whose every definition ends in `raise` and contains no `return`
+    _r264_defs = {}
+    _r264_range_ok = True
+    for _r264_n in _A264.walk(_r264_tree):
+        if isinstance(_r264_n, _R264_FNS):
+            _r264_ret = False
+            _r264_stk = list(_r264_n.body)
+            while _r264_stk:
+                _r264_m = _r264_stk.pop()
+                if isinstance(_r264_m, _A264.Return):
+                    _r264_ret = True
+                    break
+                if not isinstance(_r264_m, (_R264_FNS, _A264.ClassDef, _A264.Lambda)):
+                    _r264_stk.extend(_A264.iter_child_nodes(_r264_m))
+            _r264_defs.setdefault(_r264_n.name, []).append(
+                bool(_r264_n.body) and isinstance(_r264_n.body[-1], _A264.Raise)
+                and not _r264_ret)
+            if _r264_n.name == "range":
+                _r264_range_ok = False
+        elif (isinstance(_r264_n, _A264.Name) and _r264_n.id == "range"
+              and isinstance(_r264_n.ctx, (_A264.Store, _A264.Del))):
+            _r264_range_ok = False
+        elif isinstance(_r264_n, _A264.alias) and (_r264_n.asname or _r264_n.name) == "range":
+            _r264_range_ok = False
+    _r264_noret = {_r264_k for _r264_k, _r264_v in _r264_defs.items() if all(_r264_v)}
+    _r264_fns = []
+    _r264_stk = [_r264_tree]
+    while _r264_stk:
+        _r264_n = _r264_stk.pop()
+        if isinstance(_r264_n, _R264_FNS):
+            if (getattr(_r264_n, "csl_trusted", False)
+                    or getattr(_r264_n, "csl_abstract", False)):
+                continue
+            _r264_fns.append(_r264_n)
+        _r264_stk.extend(_A264.iter_child_nodes(_r264_n))
+    for _r264_fn in _r264_fns:
+        # ---- 1. the function's LOCALS: every name bound anywhere in its own scope ----
+        _r264_a = _r264_fn.args
+        _r264_params = [_r264_x.arg for _r264_x in (
+            list(getattr(_r264_a, "posonlyargs", None) or [])
+            + list(_r264_a.args or []) + list(_r264_a.kwonlyargs or []))]
+        if _r264_a.vararg is not None:
+            _r264_params.append(_r264_a.vararg.arg)
+        if _r264_a.kwarg is not None:
+            _r264_params.append(_r264_a.kwarg.arg)
+        _r264_bound = set()
+        _r264_glob = set()
+        _r264_stk = list(_r264_fn.body)
+        while _r264_stk:
+            _r264_n = _r264_stk.pop()
+            if isinstance(_r264_n, list):
+                _r264_stk.extend(_r264_n)
+                continue
+            if not isinstance(_r264_n, _A264.AST):
+                continue
+            if isinstance(_r264_n, (_A264.Global, _A264.Nonlocal)):
+                _r264_glob.update(_r264_n.names)
+                continue
+            if isinstance(_r264_n, (_R264_FNS, _A264.ClassDef)):
+                _r264_bound.add(_r264_n.name)
+                _r264_stk.extend(_r264_n.decorator_list or [])
+                if isinstance(_r264_n, _A264.ClassDef):
+                    _r264_stk.extend(_r264_n.bases or [])
+                    _r264_stk.extend(_r264_k.value for _r264_k in (_r264_n.keywords or []))
+                else:
+                    _r264_stk.extend(_r264_n.args.defaults or [])
+                    _r264_stk.extend(_r264_d for _r264_d in (_r264_n.args.kw_defaults or [])
+                                     if _r264_d is not None)
+                continue
+            if isinstance(_r264_n, _A264.Lambda):
+                _r264_stk.extend(_r264_n.args.defaults or [])
+                _r264_stk.extend(_r264_d for _r264_d in (_r264_n.args.kw_defaults or [])
+                                 if _r264_d is not None)
+                continue
+            if isinstance(_r264_n, _R264_COMPS):
+                # a comprehension's own targets are ITS locals; only a walrus inside it
+                # binds in the enclosing function (PEP 572).
+                for _r264_m in _A264.walk(_r264_n):
+                    if (isinstance(_r264_m, _A264.NamedExpr)
+                            and isinstance(_r264_m.target, _A264.Name)):
+                        _r264_bound.add(_r264_m.target.id)
+                continue
+            if (isinstance(_r264_n, _A264.Name)
+                    and isinstance(_r264_n.ctx, (_A264.Store, _A264.Del))):
+                _r264_bound.add(_r264_n.id)
+            elif (isinstance(_r264_n, _A264.NamedExpr)
+                  and isinstance(_r264_n.target, _A264.Name)):
+                _r264_bound.add(_r264_n.target.id)
+            elif isinstance(_r264_n, _A264.ExceptHandler) and _r264_n.name:
+                _r264_bound.add(_r264_n.name)
+            elif isinstance(_r264_n, _A264.alias) and _r264_n.name != "*":
+                _r264_bound.add(_r264_n.asname or _r264_n.name.split(".")[0])
+            elif (isinstance(_r264_n, (_A264.MatchAs, _A264.MatchStar))
+                  and getattr(_r264_n, "name", None)):
+                _r264_bound.add(_r264_n.name)
+            elif isinstance(_r264_n, _A264.MatchMapping) and getattr(_r264_n, "rest", None):
+                _r264_bound.add(_r264_n.rest)
+            _r264_stk.extend(_A264.iter_child_nodes(_r264_n))
+        _r264_locals = (_r264_bound | set(_r264_params)) - _r264_glob
+        if not (_r264_bound - _r264_glob):
+            continue
+        # ---- 2. a control-flow graph of the body, built with an explicit task stack ----
+        # node = [op, normal successors, exception successors]. An EXCEPTION edge carries
+        # the node's IN state (the operation may raise before it takes effect), a normal
+        # edge its OUT state. Node 0 is the entry.
+        _r264_nodes = [[None, [], []]]
+        _r264_cur = 0
+        _r264_exc = []
+        _r264_loops = []
+        _r264_tk = [("S", _r264_s) for _r264_s in reversed(_r264_fn.body)]
+        while _r264_tk:
+            _r264_t = _r264_tk.pop()
+            _r264_k = _r264_t[0]
+            _r264_seq = None
+            if _r264_k == "op":
+                _r264_nodes.append([_r264_t[1], [], [_r264_exc[-1]] if _r264_exc else []])
+                _r264_nodes[_r264_cur][1].append(len(_r264_nodes) - 1)
+                _r264_cur = len(_r264_nodes) - 1
+            elif _r264_k == "link":
+                _r264_nodes[_r264_cur][1].append(_r264_t[1])
+            elif _r264_k == "setcur":
+                _r264_cur = _r264_t[1]
+            elif _r264_k == "newfrom":
+                _r264_nodes.append([None, [], []])
+                _r264_nodes[_r264_t[1]][1].append(len(_r264_nodes) - 1)
+                _r264_cur = len(_r264_nodes) - 1
+            elif _r264_k == "fresh":
+                _r264_nodes.append([None, [], []])
+                _r264_cur = len(_r264_nodes) - 1
+            elif _r264_k == "xpush":
+                _r264_exc.append(_r264_t[1])
+            elif _r264_k == "xpop":
+                _r264_exc.pop()
+            elif _r264_k == "lpush":
+                _r264_loops.append((_r264_t[1], _r264_t[2]))
+            elif _r264_k == "lpop":
+                _r264_loops.pop()
+            elif _r264_k == "B":
+                if not _r264_t[2]:
+                    _r264_seq = [("op", ("def", _r264_t[1]))]
+            elif _r264_k in ("T", "D"):
+                _r264_e = _r264_t[1]
+                if isinstance(_r264_e, _A264.Name):
+                    _r264_seq = [("op", ("def", _r264_e.id) if _r264_k == "T"
+                                  else ("del", _r264_e.id, getattr(_r264_e, "lineno", 0)))]
+                elif isinstance(_r264_e, (_A264.Tuple, _A264.List)):
+                    _r264_seq = [(_r264_k, _r264_x) for _r264_x in _r264_e.elts]
+                elif isinstance(_r264_e, _A264.Starred):
+                    _r264_seq = [(_r264_k, _r264_e.value)]
+                elif isinstance(_r264_e, _A264.Attribute):
+                    _r264_seq = [("E", _r264_e.value, False, frozenset())]
+                elif isinstance(_r264_e, _A264.Subscript):
+                    _r264_seq = [("E", _r264_e.value, False, frozenset()),
+                                 ("E", _r264_e.slice, False, frozenset())]
+            elif _r264_k == "P":
+                _r264_e = _r264_t[1]
+                _r264_seq = []
+                if isinstance(_r264_e, _A264.MatchValue):
+                    _r264_seq = [("E", _r264_e.value, False, frozenset())]
+                elif isinstance(_r264_e, _A264.MatchSequence):
+                    _r264_seq = [("P", _r264_x) for _r264_x in _r264_e.patterns]
+                elif isinstance(_r264_e, _A264.MatchStar):
+                    _r264_seq = [("op", ("def", _r264_e.name))] if _r264_e.name else []
+                elif isinstance(_r264_e, _A264.MatchMapping):
+                    _r264_seq = ([("E", _r264_x, False, frozenset()) for _r264_x in _r264_e.keys]
+                                 + [("P", _r264_x) for _r264_x in _r264_e.patterns]
+                                 + ([("op", ("def", _r264_e.rest))] if _r264_e.rest else []))
+                elif isinstance(_r264_e, _A264.MatchClass):
+                    _r264_seq = ([("E", _r264_e.cls, False, frozenset())]
+                                 + [("P", _r264_x) for _r264_x in _r264_e.patterns]
+                                 + [("P", _r264_x) for _r264_x in _r264_e.kwd_patterns])
+                elif isinstance(_r264_e, _A264.MatchAs):
+                    _r264_seq = (([("P", _r264_e.pattern)] if _r264_e.pattern is not None else [])
+                                 + ([("op", ("def", _r264_e.name))] if _r264_e.name else []))
+                elif isinstance(_r264_e, _A264.MatchOr):
+                    _r264_seq = [("P", _r264_x) for _r264_x in _r264_e.patterns]
+            elif _r264_k == "E":
+                _r264_e, _r264_c, _r264_sh = _r264_t[1], _r264_t[2], _r264_t[3]
+                if isinstance(_r264_e, list):
+                    _r264_seq = [("E", _r264_x, _r264_c, _r264_sh) for _r264_x in _r264_e]
+                elif not isinstance(_r264_e, _A264.AST):
+                    pass
+                elif isinstance(_r264_e, _A264.Name):
+                    if (_r264_e.id in _r264_locals and _r264_e.id not in _r264_sh
+                            and not isinstance(_r264_e.ctx, (_A264.Store, _A264.Del))):
+                        _r264_seq = [("op", ("use", _r264_e.id, getattr(_r264_e, "lineno", 0)))]
+                elif isinstance(_r264_e, _A264.NamedExpr):
+                    _r264_seq = [("E", _r264_e.value, _r264_c, _r264_sh),
+                                 ("B", _r264_e.target.id, _r264_c)]
+                elif isinstance(_r264_e, _A264.BoolOp):
+                    _r264_seq = ([("E", _r264_e.values[0], _r264_c, _r264_sh)]
+                                 + [("E", _r264_x, True, _r264_sh)
+                                    for _r264_x in _r264_e.values[1:]])
+                elif isinstance(_r264_e, _A264.IfExp):
+                    _r264_seq = [("E", _r264_e.test, _r264_c, _r264_sh),
+                                 ("E", _r264_e.body, True, _r264_sh),
+                                 ("E", _r264_e.orelse, True, _r264_sh)]
+                elif isinstance(_r264_e, _A264.Lambda):
+                    _r264_seq = ([("E", _r264_x, _r264_c, _r264_sh)
+                                  for _r264_x in (_r264_e.args.defaults or [])]
+                                 + [("E", _r264_x, _r264_c, _r264_sh)
+                                    for _r264_x in (_r264_e.args.kw_defaults or [])
+                                    if _r264_x is not None])
+                elif isinstance(_r264_e, _R264_COMPS):
+                    _r264_sh2 = set(_r264_sh)
+                    for _r264_g in _r264_e.generators:
+                        for _r264_m in _A264.walk(_r264_g.target):
+                            if isinstance(_r264_m, _A264.Name):
+                                _r264_sh2.add(_r264_m.id)
+                    _r264_sh2 = frozenset(_r264_sh2)
+                    _r264_seq = [("E", _r264_e.generators[0].iter, _r264_c, _r264_sh)]
+                    for _r264_gi, _r264_g in enumerate(_r264_e.generators):
+                        if _r264_gi:
+                            _r264_seq.append(("E", _r264_g.iter, True, _r264_sh2))
+                        _r264_seq.extend(("E", _r264_x, True, _r264_sh2)
+                                         for _r264_x in _r264_g.ifs)
+                    for _r264_f in ("elt", "key", "value"):
+                        if getattr(_r264_e, _r264_f, None) is not None:
+                            _r264_seq.append(("E", getattr(_r264_e, _r264_f), True, _r264_sh2))
+                else:
+                    _r264_seq = [("E", _r264_x, _r264_c, _r264_sh)
+                                 for _r264_x in _A264.iter_child_nodes(_r264_e)]
+            elif _r264_k == "S":
+                _r264_s = _r264_t[1]
+                _r264_z = frozenset()
+                _r264_outer = _r264_exc[-1] if _r264_exc else None
+                if isinstance(_r264_s, _A264.Expr):
+                    _r264_seq = [("E", _r264_s.value, False, _r264_z)]
+                    _r264_v = _r264_s.value
+                    if (isinstance(_r264_v, _A264.Call) and (
+                            (isinstance(_r264_v.func, _A264.Name)
+                             and _r264_v.func.id in _r264_noret)
+                            or (isinstance(_r264_v.func, _A264.Attribute)
+                                and isinstance(_r264_v.func.value, _A264.Name)
+                                and _r264_v.func.value.id in ("self", "cls")
+                                and _r264_v.func.attr in _r264_noret))):
+                        _r264_seq += [("op", ("nop",)), ("fresh",)]
+                elif isinstance(_r264_s, _A264.Assign):
+                    _r264_seq = ([("E", _r264_s.value, False, _r264_z)]
+                                 + [("T", _r264_x) for _r264_x in _r264_s.targets])
+                elif isinstance(_r264_s, _A264.AugAssign):
+                    if isinstance(_r264_s.target, _A264.Name):
+                        _r264_seq = [("op", ("use", _r264_s.target.id,
+                                             getattr(_r264_s, "lineno", 0))),
+                                     ("E", _r264_s.value, False, _r264_z),
+                                     ("op", ("def", _r264_s.target.id))]
+                    else:
+                        _r264_seq = [("T", _r264_s.target), ("E", _r264_s.value, False, _r264_z)]
+                elif isinstance(_r264_s, _A264.AnnAssign):
+                    if _r264_s.value is not None:
+                        _r264_seq = [("E", _r264_s.value, False, _r264_z), ("T", _r264_s.target)]
+                elif isinstance(_r264_s, _A264.Delete):
+                    _r264_seq = [("D", _r264_x) for _r264_x in _r264_s.targets]
+                elif isinstance(_r264_s, _A264.Return):
+                    _r264_seq = [("E", _r264_s.value, False, _r264_z), ("op", ("nop",)),
+                                 ("fresh",)]
+                elif isinstance(_r264_s, _A264.Raise):
+                    _r264_seq = [("E", _r264_s.exc, False, _r264_z),
+                                 ("E", _r264_s.cause, False, _r264_z),
+                                 ("op", ("nop",)), ("fresh",)]
+                elif isinstance(_r264_s, _A264.Assert):
+                    _r264_seq = [("E", _r264_s.test, False, _r264_z),
+                                 ("E", _r264_s.msg, True, _r264_z), ("op", ("nop",))]
+                elif isinstance(_r264_s, (_A264.Break, _A264.Continue)):
+                    if _r264_loops:
+                        _r264_seq = [("op", ("nop",)),
+                                     ("link", _r264_loops[-1][
+                                         0 if isinstance(_r264_s, _A264.Break) else 1]),
+                                     ("fresh",)]
+                elif isinstance(_r264_s, (_A264.Import, _A264.ImportFrom)):
+                    _r264_seq = [("op", ("def", _r264_x.asname or _r264_x.name.split(".")[0]))
+                                 for _r264_x in _r264_s.names if _r264_x.name != "*"]
+                elif isinstance(_r264_s, (_R264_FNS, _A264.ClassDef)):
+                    _r264_seq = [("E", _r264_x, False, _r264_z)
+                                 for _r264_x in (_r264_s.decorator_list or [])]
+                    if isinstance(_r264_s, _A264.ClassDef):
+                        _r264_seq += [("E", _r264_x, False, _r264_z)
+                                      for _r264_x in (_r264_s.bases or [])]
+                        _r264_seq += [("E", _r264_x.value, False, _r264_z)
+                                      for _r264_x in (_r264_s.keywords or [])]
+                    else:
+                        _r264_seq += [("E", _r264_x, False, _r264_z)
+                                      for _r264_x in (_r264_s.args.defaults or [])]
+                        _r264_seq += [("E", _r264_x, False, _r264_z)
+                                      for _r264_x in (_r264_s.args.kw_defaults or [])
+                                      if _r264_x is not None]
+                    _r264_seq.append(("op", ("def", _r264_s.name)))
+                elif isinstance(_r264_s, _A264.If):
+                    _r264_nodes.extend([[None, [], []], [None, [], []]])
+                    _r264_C, _r264_J = len(_r264_nodes) - 2, len(_r264_nodes) - 1
+                    _r264_seq = ([("E", _r264_s.test, False, _r264_z), ("link", _r264_C),
+                                  ("newfrom", _r264_C)]
+                                 + [("S", _r264_x) for _r264_x in _r264_s.body]
+                                 + [("link", _r264_J), ("newfrom", _r264_C)]
+                                 + [("S", _r264_x) for _r264_x in _r264_s.orelse]
+                                 + [("link", _r264_J), ("setcur", _r264_J)])
+                elif isinstance(_r264_s, _A264.While):
+                    _r264_nodes.extend([[None, [], []], [None, [], []], [None, [], []]])
+                    _r264_H, _r264_C, _r264_X = (len(_r264_nodes) - 3, len(_r264_nodes) - 2,
+                                                 len(_r264_nodes) - 1)
+                    _r264_seq = ([("link", _r264_H), ("setcur", _r264_H),
+                                  ("E", _r264_s.test, False, _r264_z), ("link", _r264_C),
+                                  ("lpush", _r264_X, _r264_H), ("newfrom", _r264_C)]
+                                 + [("S", _r264_x) for _r264_x in _r264_s.body]
+                                 + [("link", _r264_H), ("lpop",)])
+                    if not (isinstance(_r264_s.test, _A264.Constant)
+                            and _r264_s.test.value is True):
+                        _r264_seq += ([("newfrom", _r264_C)]
+                                      + [("S", _r264_x) for _r264_x in _r264_s.orelse]
+                                      + [("link", _r264_X)])
+                    _r264_seq.append(("setcur", _r264_X))
+                elif isinstance(_r264_s, (_A264.For, _A264.AsyncFor)):
+                    # `for _ in range(<constant ints>)` over a NON-EMPTY range runs its
+                    # first iteration for certain: the loop is entered at the body, not
+                    # at the head that may exit.
+                    _r264_once = False
+                    _r264_it = _r264_s.iter
+                    if (_r264_range_ok and isinstance(_r264_s, _A264.For)
+                            and isinstance(_r264_it, _A264.Call)
+                            and isinstance(_r264_it.func, _A264.Name)
+                            and _r264_it.func.id == "range" and "range" not in _r264_locals
+                            and not _r264_it.keywords and 1 <= len(_r264_it.args) <= 3):
+                        _r264_iv = []
+                        for _r264_x in _r264_it.args:
+                            if (isinstance(_r264_x, _A264.UnaryOp)
+                                    and isinstance(_r264_x.op, _A264.USub)
+                                    and isinstance(_r264_x.operand, _A264.Constant)
+                                    and type(_r264_x.operand.value) is int):
+                                _r264_iv.append(-_r264_x.operand.value)
+                            elif (isinstance(_r264_x, _A264.Constant)
+                                  and type(_r264_x.value) is int):
+                                _r264_iv.append(_r264_x.value)
+                        if (len(_r264_iv) == len(_r264_it.args)
+                                and not (len(_r264_iv) == 3 and _r264_iv[2] == 0)):
+                            _r264_once = len(range(*_r264_iv)) > 0
+                    _r264_nodes.extend([[None, [], []], [None, [], []], [None, [], []]])
+                    _r264_H, _r264_X, _r264_B = (len(_r264_nodes) - 3, len(_r264_nodes) - 2,
+                                                 len(_r264_nodes) - 1)
+                    _r264_nodes[_r264_H][1].append(_r264_B)
+                    _r264_seq = ([("E", _r264_s.iter, False, _r264_z),
+                                  ("link", _r264_B if _r264_once else _r264_H),
+                                  ("lpush", _r264_X, _r264_H), ("setcur", _r264_B),
+                                  ("op", ("nop",)), ("T", _r264_s.target)]
+                                 + [("S", _r264_x) for _r264_x in _r264_s.body]
+                                 + [("link", _r264_H), ("lpop",), ("newfrom", _r264_H)]
+                                 + [("S", _r264_x) for _r264_x in _r264_s.orelse]
+                                 + [("link", _r264_X), ("setcur", _r264_X)])
+                elif isinstance(_r264_s, (_A264.With, _A264.AsyncWith)):
+                    # a context manager's `__exit__` may SUPPRESS the body's exception, so
+                    # control can reach the statement after the `with` from inside it.
+                    _r264_nodes.extend([[None, [], []], [None, [], []]])
+                    _r264_W, _r264_X = len(_r264_nodes) - 2, len(_r264_nodes) - 1
+                    _r264_nodes[_r264_W][1].append(_r264_X)
+                    if _r264_outer is not None:
+                        _r264_nodes[_r264_W][1].append(_r264_outer)
+                    _r264_seq = []
+                    for _r264_x in _r264_s.items:
+                        _r264_seq.append(("E", _r264_x.context_expr, False, _r264_z))
+                        if _r264_x.optional_vars is not None:
+                            _r264_seq.append(("T", _r264_x.optional_vars))
+                    _r264_seq += ([("xpush", _r264_W)]
+                                  + [("S", _r264_x) for _r264_x in _r264_s.body]
+                                  + [("xpop",), ("link", _r264_X), ("setcur", _r264_X)])
+                elif isinstance(_r264_s, _A264.Try) or type(_r264_s).__name__ == "TryStar":
+                    _r264_nodes.extend([[None, [], []], [None, [], []], [None, [], []]])
+                    _r264_H, _r264_F, _r264_N = (len(_r264_nodes) - 3, len(_r264_nodes) - 2,
+                                                 len(_r264_nodes) - 1)
+                    _r264_fin = bool(_r264_s.finalbody)
+                    if _r264_s.handlers:
+                        if _r264_fin:
+                            _r264_nodes[_r264_H][1].append(_r264_F)
+                        elif _r264_outer is not None:
+                            _r264_nodes[_r264_H][1].append(_r264_outer)
+                    _r264_seq = []
+                    if _r264_s.handlers or _r264_fin:
+                        _r264_seq.append(("xpush", _r264_H if _r264_s.handlers else _r264_F))
+                    _r264_seq += [("S", _r264_x) for _r264_x in _r264_s.body]
+                    if _r264_s.handlers or _r264_fin:
+                        _r264_seq.append(("xpop",))
+                    if _r264_fin:
+                        _r264_seq.append(("xpush", _r264_F))
+                    _r264_seq += [("S", _r264_x) for _r264_x in _r264_s.orelse]
+                    if _r264_fin:
+                        _r264_seq.append(("xpop",))
+                    _r264_seq.append(("link", _r264_N))
+                    for _r264_h in _r264_s.handlers:
+                        if _r264_fin:
+                            _r264_seq.append(("xpush", _r264_F))
+                        _r264_seq += [("newfrom", _r264_H), ("E", _r264_h.type, False, _r264_z)]
+                        if _r264_h.name:
+                            _r264_seq.append(("op", ("def", _r264_h.name)))
+                        _r264_seq += [("S", _r264_x) for _r264_x in _r264_h.body]
+                        if _r264_h.name:
+                            # `except E as e:` DELETES `e` when the handler ends.
+                            _r264_seq.append(("op", ("undef", _r264_h.name)))
+                        _r264_seq.append(("link", _r264_N))
+                        if _r264_fin:
+                            _r264_seq.append(("xpop",))
+                    if _r264_fin:
+                        _r264_seq += ([("setcur", _r264_F)]
+                                      + [("S", _r264_x) for _r264_x in _r264_s.finalbody]
+                                      + ([("link", _r264_outer)]
+                                         if _r264_outer is not None else [])
+                                      + [("setcur", _r264_N)]
+                                      + [("S", _r264_x) for _r264_x in _r264_s.finalbody])
+                    else:
+                        _r264_seq.append(("setcur", _r264_N))
+                elif type(_r264_s).__name__ == "Match":
+                    _r264_nodes.extend([[None, [], []], [None, [], []]])
+                    _r264_X, _r264_P = len(_r264_nodes) - 2, len(_r264_nodes) - 1
+                    _r264_seq = [("E", _r264_s.subject, False, _r264_z), ("link", _r264_P)]
+                    for _r264_cs in _r264_s.cases:
+                        _r264_nodes.append([None, [], []])
+                        _r264_P2 = len(_r264_nodes) - 1
+                        if not (_r264_cs.guard is None
+                                and isinstance(_r264_cs.pattern, _A264.MatchAs)
+                                and _r264_cs.pattern.pattern is None):
+                            _r264_nodes[_r264_P][1].append(_r264_P2)
+                        _r264_seq += ([("newfrom", _r264_P), ("P", _r264_cs.pattern),
+                                       ("E", _r264_cs.guard, False, _r264_z)]
+                                      + [("S", _r264_x) for _r264_x in _r264_cs.body]
+                                      + [("link", _r264_X)])
+                        _r264_P = _r264_P2
+                    _r264_nodes[_r264_P][1].append(_r264_X)
+                    _r264_seq.append(("setcur", _r264_X))
+                elif type(_r264_s).__name__ == "TypeAlias":
+                    _r264_seq = [("T", _r264_s.name)]
+            if _r264_seq:
+                _r264_tk.extend(reversed(_r264_seq))
+        # ---- 3. MUST-ASSIGN dataflow: IN = intersection over predecessors, TOP = None ----
+        _r264_in = [None] * len(_r264_nodes)
+        _r264_in[0] = frozenset(_r264_params)
+        _r264_wl = [0]
+        while _r264_wl:
+            _r264_k = _r264_wl.pop()
+            _r264_st = _r264_in[_r264_k]
+            _r264_op = _r264_nodes[_r264_k][0]
+            _r264_out = _r264_st
+            if _r264_op is not None and _r264_op[0] == "def":
+                _r264_out = _r264_st | {_r264_op[1]}
+            elif _r264_op is not None and _r264_op[0] in ("del", "undef"):
+                _r264_out = _r264_st - {_r264_op[1]}
+            for _r264_sx, _r264_val in ([(_r264_x, _r264_out) for _r264_x in _r264_nodes[_r264_k][1]]
+                                        + [(_r264_x, _r264_st) for _r264_x in _r264_nodes[_r264_k][2]]):
+                _r264_old = _r264_in[_r264_sx]
+                _r264_new = _r264_val if _r264_old is None else (_r264_old & _r264_val)
+                if _r264_new != _r264_old:
+                    _r264_in[_r264_sx] = _r264_new
+                    _r264_wl.append(_r264_sx)
+        for _r264_k, _r264_nd in enumerate(_r264_nodes):
+            if (_r264_nd[0] is not None and _r264_nd[0][0] in ("use", "del")
+                    and _r264_in[_r264_k] is not None and _r264_nd[0][1] in _r264_locals
+                    and _r264_nd[0][1] not in _r264_in[_r264_k]):
+                _r264_bad.append((_r264_fn.name, _r264_nd[0][2], _r264_nd[0][1],
+                                  _r264_nd[0][0]))
+    if _r264_bad:
+        _r264_bad.sort(key=lambda _r264_b: _r264_b[1])
+        _r264_fname, _r264_line, _r264_name, _r264_kind = _r264_bad[0]
+        from errors import PyCSLSemanticError as _PyCSLSemErr264
+        raise _PyCSLSemErr264(
+            f"{args.file} (line {_r264_line}): function `{_r264_fname}` "
+            f"{'reads' if _r264_kind == 'use' else 'deletes'} the local `{_r264_name}`, "
+            f"which is not definitely assigned on every path that reaches it. Python makes "
+            f"a name LOCAL to the whole function as soon as the function binds it anywhere "
+            f"(assignment, augmented assignment, `for`/`with`/`except` target, walrus, "
+            f"import, `del`), so this access raises `UnboundLocalError` on the path where "
+            f"no binding happened — and a module global of the same name is NOT consulted. "
+            f"PyCSL used to model the read as the declaration default 0 and prove contracts "
+            f"of a program that raises (route #264). Bind `{_r264_name}` on every path "
+            f"before this point (initialise it before the branch, loop or `try`). If the "
+            f"module-level variable is meant and the function only READS it, declare "
+            f"`global {_r264_name}`; a WRITE through `global` is refused separately in the "
+            f"sequential memory model.",
+            filename=args.file, line=_r264_line or 0,
+            stage="ir-semantic", code="PYCSL-SEM-UNBOUND-LOCAL")
+
+    # (#49) ROUTE #265 — `case True:` / `case False:` MATCH BY IDENTITY, NOT EQUALITY.
+    #
+    # PEP 634: the singleton literal patterns `True`, `False` and `None` compare with `is`.
+    # `Module5_IREmitter._match_pattern_to_ir` turned `MatchSingleton(True)` into a VALUE
+    # pattern on the int-encoded `bool`, so Module 6 emitted `if (n = 1)` and
+    # `x = 1; match x: case True: return 1` PROVED `\result == 1` where CPython returns 0
+    # (`1 is True` is False) — route #90's `is True` defect through the match path.
+    # MEASURED at 283d1033: witnesses-r265/m09 and m10, a guarded arm
+    # (`case False if n == 0`) and an or-pattern (`case 5 | True`) all PROVED a
+    # falsehood. `case None` is NOT affected — it lowers to the opaque `pycsl_none`
+    # (routes #40/#44/#50) and the same probes fail there.
+    # THE RULE IS ROUTE #42's WHITELIST, reused: a `True`/`False` pattern is admitted only
+    # where the matched value is a Python `bool` BY CONSTRUCTION — a bool literal, a
+    # comparison/membership result, or a `not` — and only as the subject itself (a
+    # top-level pattern or a top-level or-pattern alternative), never a sub-pattern of a
+    # sequence/class pattern. An ANNOTATION is not a fact (route #90), so a `bool`-typed
+    # name is refused. `case 1:` against a True subject is a VALUE pattern and stays
+    # equality, as PEP 634 says. CENSUS: ZERO `case True/False/None` in either corpus, the
+    # mirror, `src/pycsl_lib` and `src/pycsl`, so the refusal costs nothing that exists.
+    for _r265_n in _A264.walk(unified_ast):
+        if type(_r265_n).__name__ != "Match":
+            continue
+        _r265_subj = _r265_n.subject
+        _r265_ok = (
+            (isinstance(_r265_subj, _A264.Constant) and type(_r265_subj.value) is bool)
+            or isinstance(_r265_subj, _A264.Compare)
+            or (isinstance(_r265_subj, _A264.UnaryOp)
+                and isinstance(_r265_subj.op, _A264.Not)))
+        for _r265_cs in _r265_n.cases:
+            _r265_top = ([_r265_cs.pattern] if not isinstance(_r265_cs.pattern, _A264.MatchOr)
+                         else list(_r265_cs.pattern.patterns))
+            for _r265_m in _A264.walk(_r265_cs.pattern):
+                if (isinstance(_r265_m, _A264.MatchSingleton)
+                        and type(_r265_m.value) is bool
+                        and not (_r265_ok and any(_r265_m is _r265_p for _r265_p in _r265_top))):
+                    from errors import PyCSLSemanticError as _PyCSLSemErr265
+                    raise _PyCSLSemErr265(
+                        f"{args.file} (line {getattr(_r265_m, 'lineno', 0)}): "
+                        f"`case {_r265_m.value}:` is an IDENTITY test (PEP 634 matches the "
+                        f"singleton literals True/False/None with `is`), and it is refused "
+                        f"unless the matched value is a Python `bool` BY CONSTRUCTION (a "
+                        f"bool literal, a comparison or a `not`), as route #42 refuses "
+                        f"`X is True`. PyCSL int-encodes `bool`, so the model decided the "
+                        f"arm as VALUE equality: measured, `x = 1; match x: case True: "
+                        f"return 1` proved `\\result == 1` where Python returns 0, because "
+                        f"`1 is True` is False (route #265). Write `case 1:` / `case 0:` for "
+                        f"VALUE equality, or test the value with `if`.",
+                        filename=args.file, line=getattr(_r265_m, "lineno", 0) or 0,
+                        stage="ir-semantic", code="PYCSL-SEM-MATCH-BOOL-SINGLETON")
+
     # [Module 6] WhyML Transpilation
     # C2c: lazy import — the core backend is only loaded when we actually transpile,
     # keeping the front-end import path free of the core.

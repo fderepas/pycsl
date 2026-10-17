@@ -11,6 +11,7 @@ items = 0
 #@ thread_entry
 #@ \diverges
 def conditional_worker() -> int:
+    global items
     #@ critical lock_items
     with lock_items:
         if items < 100:

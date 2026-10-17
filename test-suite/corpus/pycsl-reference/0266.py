@@ -14,6 +14,7 @@ v = 0
 #@ thread_entry
 #@ \diverges
 def swap_both() -> int:
+    global u, v
     #@ acquires lock_u
     with lock_u:
         #@ acquires lock_v

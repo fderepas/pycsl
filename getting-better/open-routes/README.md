@@ -7,6 +7,12 @@
 ## gen #36 (2026-10-17): #263 (method-call recursion never termination-checked), #264 (never-assigned local reads 0),
 ##   #265 (match True/False by equality), #266 (HAPPY region bypass via helper), #267 (vacuity gate misses one-branch
 ##   inconsistency) OPENED (red team 3, driver-reproduced).
+##   #264/#265 REPAIRED 2026-10-17: a MUST-ASSIGN dataflow per lowered function (Python scoping: a name bound
+##   anywhere is local; `del`/`except as` unbind) refuses a read not definitely assigned on every path
+##   (`PYCSL-SEM-UNBOUND-LOCAL`); `case True/False` admitted only on a bool-BY-CONSTRUCTION subject (route #42's
+##   whitelist), else refused (`PYCSL-SEM-MATCH-BOOL-SINGLETON`). Inline in `_run_pipeline`. Witnesses 2790-2796,
+##   2799-2802 PROVED -> REFUSED, controls 2797/2798/2803 keep PASS; 24 concurrency drivers gain their missing
+##   `global` (byte-identical); root 0 MOVED/0 GONE, pyref 0, mirror 0.
 
 ## gen #36 (2026-10-17): #214 CLOSED (found by the slow `check-open-route-carriers` plane going red: its carrier no
 ##   longer proves). Driver bisect: closed by route #255 (323e857b; getattr over an erased receiver is erased, and #249's

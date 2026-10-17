@@ -663,6 +663,11 @@ AUDITED = {
     # (#49) gen #36 -- route #252's erased-into-builtin-slot refusal, followed and run.
     ('src/pycsl/module6_whyml/functions.py', 'PyCSLSemanticError("function \'%s\': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: %s. Py'): (FOLLOWABLE,
         "gen #36. 'Annotate the source value with the builtin type, or declare the slot `Any`': both spellings measured. Control 2490 is witness 2470 with the source annotated (`n: int` passed to `g(a: int, b: int)`, plus literals and keywords): VERIFIES `\\\\result == 0`. Control 2491 declares the slot `Any` (`g(a: Any)`) and passes the `Any` value: VERIFIES. The witnesses are 2470-2478."),
+    # (#49) gen #36 — routes #264/#265, audited the day they landed.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr264(f"{args.file} (line {_r264_line}): function `{_r264_fname}` {(\'reads\' if _r264_kind == \'use\' else \'deletes\')} the local `{_r'): (FOLLOWABLE,
+        "Route #264. 'Bind `y` on every path before this point (initialise it before the branch, loop or `try`)' - control 2797 (every branch binds) VERIFIES; 'declare `global n`' when the function only READS the module variable VERIFIES (`global n; return n * 0 + 1`, `\\result >= 1`), and the message says a WRITE through `global` is refused separately - measured: `global n; n = 6; n += 1` is refused by the global-write guard, so the advice does not promise it."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr265(f"{args.file} (line {getattr(_r265_m, \'lineno\', 0)}): `case {_r265_m.value}:` is an IDENTITY test (PEP 634 matches the singl'): (FOLLOWABLE,
+        "Route #265. 'Write `case 1:` / `case 0:` for VALUE equality' - control 2803 (`case 0:`/`case 1:` on `n: int`, `n == 0 ==> \\result == 7`) VERIFIES."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -920,6 +925,9 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr223("`Protocol` member \'%s.%s\' (line %d) has a DEFAULT IMPLEMENTATION, and a protocol member is emitted as a bodyless `val` DEFI'): 'd36b3b954d02',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr216(f"{args.file} (line {_line216}): class `{_sub216}` overrides `{_base216}`\'s " + \', \'.join((\'`\' + _d + \'`\' for _d in _shared2'): '4798a21ad3b8',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr222("`@overload` stub \'%s\' (line %d) carries `#@ %s`, and an `@overload` stub only ever contributes its `#@ ensures` clauses — e'): '9552d6c77b66',
+    # (#49) gen #36
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr264(f"{args.file} (line {_r264_line}): function `{_r264_fname}` {(\'reads\' if _r264_kind == \'use\' else \'deletes\')} the local `{_r'): '7163eacdc4ae',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr265(f"{args.file} (line {getattr(_r265_m, \'lineno\', 0)}): `case {_r265_m.value}:` is an IDENTITY test (PEP 634 matches the singl'): '1d20cc56b487',
 }
 
 

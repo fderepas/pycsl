@@ -17,6 +17,7 @@ z = 0
 #@ thread_entry
 #@ \diverges
 def worker() -> int:
+    global x, y, z
     #@ acquires lock_x
     with lock_x:
         #@ acquires lock_y

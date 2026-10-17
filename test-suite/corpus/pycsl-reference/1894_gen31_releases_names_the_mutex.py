@@ -19,6 +19,7 @@ balance = 100
 #@ thread_entry
 #@ \diverges
 def deposit() -> int:
+    global balance
     amount = 10
     #@ acquires lock_bal
     #@ releases lock_bal
