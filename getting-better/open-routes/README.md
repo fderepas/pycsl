@@ -10,7 +10,12 @@
 ##   clean, `ir_schema`/`sertop` re-proved, `module6_whyml/expressions` OWED.
 
 ## gen #36 (2026-10-17): #257 (bare `with <cm>:` drops __enter__/__exit__ for an imported CM or a @contextmanager
-##   method) OPENED (found by the ch18 census, driver-reproduced).
+##   method) OPENED (found by the ch18 census, driver-reproduced). REPAIRED 2026-10-17: outside `\trusted`, every
+##   BARE `with` item must be provably inert -- a name bound only by `threading.Lock()`/`RLock()`, or an in-file
+##   producer (per-class resolved `@contextmanager` with one top-level yield / `return <producer>()`) whose effects
+##   land only in locals or a FIELD-LESS record -- else REFUSED (`PYCSL-R257-CONTEXT-MANAGER-NOT-INERT`, in
+##   `_run_pipeline`); `async with` refused. Witnesses 2560-2566, pins 2567/2568, control 2570; root 0 MOVED/0 GONE,
+##   pyref 0/0, mirror 53/53 0 MOVED.
 
 ## gen #36 (2026-10-16): #254 (one dict/set to a mutating AND a read slot of one call), #255 (erasure lost via walrus
 ##   / unannotated return), #256 (two list fields holding one list; alias built in unverified code) OPENED (red team).

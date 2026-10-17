@@ -2486,6 +2486,428 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         % ", ".join(sorted(_cm38)),
                         stage="whyml-emit", code="PYCSL-R38-CONTEXT-MANAGER-DROPPED")
 
+    # (#49) ROUTE #257 — ROUTE #38/#39's WHITELIST ONLY RAN IN A FILE THAT DEFINES A
+    # CONTEXT-MANAGER CLASS, SO EVERY CM THE FILE DOES NOT DEFINE WALKED PAST IT.
+    #
+    #   `Module5_IREmitter._py_stmt_with` lowers a bare `with <cm>:` to its BODY ALONE:
+    #   the context expression is never evaluated and neither `__enter__` nor `__exit__`
+    #   (nor a generator CM's code before/after its `yield`) is modelled. #38/#39 refused
+    #   that only when `_cm38` was non-empty — i.e. only for a protocol class DEFINED IN
+    #   THE SAME FILE. MEASURED at 49f6a35d, default hoare model, no flags, each claim
+    #   FALSE of CPython and each "All contracts formally proven":
+    #     - `from cmlib import Counter; c = Counter(); with c: pass; return c.n`
+    #       (`__enter__` writes `self.n`)          `\result == 0` PROVED, Python 1;
+    #     - an IN-FILE `@contextmanager` METHOD writing `self.n`, `with b.bump():`;
+    #     - the same through an imported class / an imported `@contextmanager` function /
+    #       an in-file generator writing its ARGUMENT / a plain call returning the CM /
+    #       a multi-item `with c, d:` (witnesses 2560-2566).
+    #
+    #   THE REPAIR IS FAIL-CLOSED AND FILE-INDEPENDENT. Outside a `\trusted`/`\abstract`
+    #   function (whose body is never lowered — the same exemption #20's `with ... as`
+    #   refusal makes in `functions.py`), every BARE `with` item must be POSITIVELY shown
+    #   inert in the model, or the program is refused. `as` items are left to #20's
+    #   refusal (unchanged message); `async with` is refused outright. INERT means:
+    #
+    #     (L) a NAME bound ONLY by `<name> = threading.Lock()` / `threading.RLock()`
+    #         (with `import threading`): a lock's enter/exit is acquire/release, which
+    #         touches no modelled value — the concurrency layer's `#@ critical` /
+    #         `#@ acquires` model is attached to the SAME statement by the weaver.
+    #     (G) a CALL to an in-file PRODUCER P — a module-level `def P` named once and
+    #         never rebound, or `self.P` inside a method of class K that defines P once
+    #         and no in-file subclass of K overrides — where P is in the greatest set
+    #         INERT such that, for every member:
+    #           * it is `@contextmanager` (resolved through `from contextlib import
+    #             contextmanager [as X]` / `contextlib.contextmanager`) with EXACTLY ONE
+    #             `yield`, a top-level statement (it yields exactly once), or its body
+    #             is exactly `return <call>` to an INERT producer or `contextlib`'s
+    #             `nullcontext()` (the #39 W1 fixpoint, now required to be inert);
+    #           * its body has no `global`/`nonlocal`/`try`/`with`/`raise`/`del`/
+    #             `assert`/loop/comprehension/nested def/`await`/`yield from`/import;
+    #             it calls only `len`/`isinstance` among builtins; stores only to LOCAL names
+    #             or to `self.<attr>` of a K whose model record has NO FIELDS (the IR
+    #             `type_decls` entry, read below; absent = not empty); every call is
+    #             to an INERT producer, or to an in-file def whose frame is exactly
+    #             `assigns \nothing` with no `raises`, and is a module-level name or a
+    #             `self.` method resolved as above;
+    #           OR it is `\trusted` with every `assigns` target `\nothing` or
+    #             `self.<attr>`, as a method of such a FIELDLESS K called on `self`.
+    #         The call's ARGUMENTS must satisfy the same call/store rule (the header
+    #         is not evaluated in the model either).
+    #
+    #   WHAT (G) STILL TRUSTS, stated: a `\trusted` producer's REVIEWED frame is taken to
+    #   cover the protocol of the CM it returns (the mirror's `_Unparser.delimit_if`,
+    #   `assigns self._source` on a record with no fields). The REMAINING generator
+    #   erasure on a fieldless record is `check-yield-erasure`'s ratcheted status quo,
+    #   unobservable while the record is empty — the precondition #38 recorded.
+    #
+    #   CENSUS before the change (Modules 1-3 over corpus + mirror + `pycsl_lib`, 147
+    #   items): 49 bare lock NAMES in 32 `pycsl-reference` files, every one `lock_X =
+    #   threading.Lock()` with `import threading` -> (L); 41 mirror items
+    #   (`self.block/delimit/require_parens/delimit_if` in `pure_ast._Unparser`, record
+    #   `{ }`) -> (G); `1031`'s `blk()` (body `yield`) -> (G); 11 items inside
+    #   `\trusted` mirror functions -> exempt; everything else was already refused.
+    #   CHOKE POINT: `_run_pipeline`'s mirror twin is `\trusted` (routes #38/#39), and no
+    #   helper `def` is added (mirror-coverage ratchet).
+    if unified_ast is not None:
+        from frontend import pure_ast as _pa257
+        _ir257 = _json.loads(json_ir)
+        _empty257 = {
+            _td["name"] for _td in (_ir257.get("type_decls") or [])
+            if isinstance(_td, dict) and isinstance(_td.get("name"), str)
+            and isinstance(_td.get("fields"), list) and not _td.get("fields")}
+        # parent links, iteratively (no nested def)
+        _par257 = {}
+        _st257 = [unified_ast]
+        while _st257:
+            _n257 = _st257.pop()
+            for _c257 in _pa257.iter_child_nodes(_n257):
+                _par257[id(_c257)] = _n257
+                _st257.append(_c257)
+        _withs257 = [_n for _n in _pa257.walk(unified_ast)
+                     if _n.__class__.__name__ in ("With", "AsyncWith")]
+        _todo257 = []
+        for _w257 in _withs257:
+            # enclosing function chain; exempt under any \trusted / \abstract ancestor
+            _p257 = _par257.get(id(_w257))
+            _fn257 = None
+            _ex257 = False
+            while _p257 is not None:
+                if _p257.__class__.__name__ in ("FunctionDef", "AsyncFunctionDef"):
+                    if _fn257 is None:
+                        _fn257 = _p257
+                    if getattr(_p257, "csl_trusted", False) or getattr(_p257, "csl_abstract", False):
+                        _ex257 = True
+                _p257 = _par257.get(id(_p257))
+            if not _ex257:
+                _todo257.append((_w257, _fn257))
+        if _todo257:
+            _mod257 = getattr(unified_ast, "body", []) or []
+            # contextlib resolution
+            _cmdeco257, _nullc257, _ctxlib257, _thr257 = set(), set(), set(), set()
+            for _n257 in _pa257.walk(unified_ast):
+                _k257 = _n257.__class__.__name__
+                if _k257 == "ImportFrom" and getattr(_n257, "module", None) == "contextlib":
+                    for _a257 in _n257.names:
+                        if _a257.name == "contextmanager":
+                            _cmdeco257.add(_a257.asname or _a257.name)
+                        if _a257.name == "nullcontext":
+                            _nullc257.add(_a257.asname or _a257.name)
+                elif _k257 == "Import":
+                    for _a257 in _n257.names:
+                        if _a257.name == "contextlib":
+                            _ctxlib257.add(_a257.asname or _a257.name)
+                        if _a257.name == "threading" and not _a257.asname:
+                            _thr257.add("threading")
+            # every binding of every name (to tell "bound once, never rebound")
+            _binds257 = {}
+            for _n257 in _pa257.walk(unified_ast):
+                _k257 = _n257.__class__.__name__
+                _nm257 = None
+                if _k257 == "Name" and getattr(_n257, "ctx", None).__class__.__name__ in ("Store", "Del"):
+                    _nm257 = _n257.id
+                elif _k257 in ("FunctionDef", "AsyncFunctionDef", "ClassDef"):
+                    _nm257 = _n257.name
+                elif _k257 == "arg":
+                    _nm257 = _n257.arg
+                elif _k257 == "alias":
+                    _nm257 = (_n257.asname or _n257.name).split(".")[0]
+                elif _k257 in ("ExceptHandler", "MatchAs", "MatchStar"):
+                    _nm257 = getattr(_n257, "name", None)
+                elif _k257 == "MatchMapping":
+                    _nm257 = getattr(_n257, "rest", None)
+                elif _k257 in ("Global", "Nonlocal"):
+                    for _gn257 in _n257.names:
+                        _binds257.setdefault(_gn257, []).append(_n257)
+                if _nm257:
+                    _binds257.setdefault(_nm257, []).append(_n257)
+            # classes: methods, bases (for the override check)
+            _cls257, _cbases257 = {}, {}
+            for _n257 in _pa257.walk(unified_ast):
+                if _n257.__class__.__name__ == "ClassDef":
+                    _ms257 = {}
+                    for _b257 in _n257.body:
+                        if _b257.__class__.__name__ in ("FunctionDef", "AsyncFunctionDef"):
+                            _ms257.setdefault(_b257.name, []).append(_b257)
+                    _cls257[_n257.name] = _ms257
+                    _cbases257[_n257.name] = [getattr(_x, "id", None) or getattr(_x, "attr", None)
+                                              for _x in (_n257.bases or [])]
+            # an import-bound name counts only if the import is its ONLY binding
+            # (`contextmanager = my_deco`, `threading = shim` must not pass)
+            for _set257 in (_cmdeco257, _nullc257, _ctxlib257, _thr257):
+                for _nm257 in list(_set257):
+                    if not all(_b.__class__.__name__ == "alias"
+                               for _b in _binds257.get(_nm257, [])) \
+                            or len(_binds257.get(_nm257, [])) != 1:
+                        _set257.discard(_nm257)
+            _modfn257 = {}
+            for _b257 in _mod257:
+                if _b257.__class__.__name__ in ("FunctionDef", "AsyncFunctionDef"):
+                    _modfn257.setdefault(_b257.name, []).append(_b257)
+            # every def that can be RESOLVED: key (class-or-"", name) -> node
+            _defs257 = {}
+            for _nm257, _ns257 in _modfn257.items():
+                if len(_ns257) == 1 and len(_binds257.get(_nm257, [])) == 1:
+                    _defs257[("", _nm257)] = _ns257[0]
+            for _cn257, _ms257 in _cls257.items():
+                for _nm257, _ns257 in _ms257.items():
+                    _ovr257 = False
+                    for _sc257 in _cls257:
+                        _seen257, _q257 = set(), [_sc257]
+                        while _q257:
+                            _x257 = _q257.pop()
+                            if _x257 in _seen257:
+                                continue
+                            _seen257.add(_x257)
+                            _q257.extend(_b for _b in _cbases257.get(_x257, []) if _b)
+                        if _sc257 != _cn257 and _cn257 in _seen257 and _nm257 in _cls257[_sc257]:
+                            _ovr257 = True
+                    if len(_ns257) == 1 and not _ovr257:
+                        _defs257[(_cn257, _nm257)] = _ns257[0]
+            _owner257 = {id(_v): _k[0] for _k, _v in _defs257.items()}
+
+            # A call's callee key, from inside a def owned by class `own` ("" = module).
+            # Written as a loop-free expression at each use site would be unreadable, so
+            # it is computed per node into this dict once (no helper def).
+            _ckey257 = {}
+            for _n257 in _pa257.walk(unified_ast):
+                if _n257.__class__.__name__ != "Call":
+                    continue
+                _f257 = _n257.func
+                _k257 = None
+                if _f257.__class__.__name__ == "Name":
+                    _k257 = ("", _f257.id)
+                elif (_f257.__class__.__name__ == "Attribute"
+                      and _f257.value.__class__.__name__ == "Name"
+                      and _f257.value.id == "self"):
+                    # resolve against the class whose method lexically encloses the call
+                    _p257 = _par257.get(id(_n257))
+                    _meth257 = None
+                    while _p257 is not None:
+                        if _p257.__class__.__name__ in ("FunctionDef", "AsyncFunctionDef"):
+                            _meth257 = _p257
+                        if _p257.__class__.__name__ == "ClassDef":
+                            break
+                        _p257 = _par257.get(id(_p257))
+                    if (_p257 is not None and _meth257 is not None
+                            and _par257.get(id(_meth257)) is _p257
+                            and (_meth257.args.args or [None])[0] is not None
+                            and _meth257.args.args[0].arg == "self"):
+                        _k257 = (_p257.name, _f257.attr)
+                _ckey257[id(_n257)] = _k257
+
+            _isnull257, _pure257 = {}, {}
+            for _n257 in _pa257.walk(unified_ast):
+                if _n257.__class__.__name__ == "Call":
+                    _f257 = _n257.func
+                    # the two builtins whose model is pure (`len`, `isinstance` — the
+                    # mirror's `delimit_if` conditions), unshadowed
+                    _pure257[id(_n257)] = (_f257.__class__.__name__ == "Name"
+                                           and _f257.id in ("len", "isinstance")
+                                           and _f257.id not in _binds257)
+                    _isnull257[id(_n257)] = (
+                        (_f257.__class__.__name__ == "Name" and _f257.id in _nullc257)
+                        or (_f257.__class__.__name__ == "Attribute"
+                            and _f257.attr == "nullcontext"
+                            and _f257.value.__class__.__name__ == "Name"
+                            and _f257.value.id in _ctxlib257))
+
+            # frame-\nothing, raise-free in-file defs (callable from inert code)
+            _quiet257 = set()
+            for _k257, _d257 in _defs257.items():
+                _as257 = getattr(_d257, "csl_assigns", None) or []
+                if (_as257 and all(_t.__class__.__name__ == "Nothing"
+                                   for _a in _as257 for _t in (getattr(_a, "targets", None) or [None]))
+                        and not (getattr(_d257, "csl_raises", None) or [])
+                        and _d257.__class__.__name__ == "FunctionDef"):
+                    _quiet257.add(_k257)
+
+            _bad257 = ("Global", "Nonlocal", "Try", "TryStar", "With", "AsyncWith", "Raise",
+                       "Delete", "Assert", "FunctionDef", "AsyncFunctionDef", "ClassDef",
+                       "Lambda", "Await", "YieldFrom", "AsyncFor", "Import", "ImportFrom",
+                       "For", "While", "ListComp", "SetComp", "DictComp", "GeneratorExp")
+            # candidate producers and their local verdicts; then the greatest fixpoint
+            _inert257 = set()
+            _deps257 = {}
+            for _k257, _d257 in _defs257.items():
+                if _d257.__class__.__name__ != "FunctionDef":
+                    continue
+                _own257 = _k257[0]
+                if getattr(_d257, "csl_abstract", False):
+                    continue
+                if getattr(_d257, "csl_trusted", False):
+                    _as257 = getattr(_d257, "csl_assigns", None) or []
+                    _tg257 = [_t for _a in _as257 for _t in (getattr(_a, "targets", None) or [None])]
+                    if (_own257 and _own257 in _empty257 and _tg257
+                            and all(_t.__class__.__name__ == "Nothing"
+                                    or (_t.__class__.__name__ == "FieldAccess"
+                                        and getattr(_t, "object", None) == "self")
+                                    for _t in _tg257)):
+                        _inert257.add(_k257)
+                        _deps257[_k257] = set()
+                    continue
+                _isgen257 = False
+                for _dc257 in _d257.decorator_list or []:
+                    if ((_dc257.__class__.__name__ == "Name" and _dc257.id in _cmdeco257)
+                            or (_dc257.__class__.__name__ == "Attribute"
+                                and _dc257.attr == "contextmanager"
+                                and _dc257.value.__class__.__name__ == "Name"
+                                and _dc257.value.id in _ctxlib257)):
+                        _isgen257 = True
+                if len(_d257.decorator_list or []) != (1 if _isgen257 else 0):
+                    continue
+                _ok257 = True
+                _dep257 = set()
+                _rets257 = 0
+                for _n257 in _pa257.walk(_d257):
+                    if _n257 is _d257:
+                        continue
+                    _nk257 = _n257.__class__.__name__
+                    if _nk257 in _bad257:
+                        _ok257 = False
+                        break
+                    if _nk257 == "Return" and _n257.value is not None:
+                        _rets257 += 1
+                        if _isgen257 or _n257.value.__class__.__name__ != "Call":
+                            _ok257 = False
+                            break
+                    if _nk257 in ("Attribute", "Subscript", "Starred") and getattr(_n257, "ctx", None).__class__.__name__ in ("Store", "Del"):
+                        if not (_nk257 == "Attribute"
+                                and _n257.value.__class__.__name__ == "Name"
+                                and _n257.value.id == "self"
+                                and _own257 and _own257 in _empty257
+                                and _d257.args.args and _d257.args.args[0].arg == "self"):
+                            _ok257 = False
+                            break
+                    if _nk257 == "Call":
+                        _ck257 = _ckey257.get(id(_n257))
+                        if _isnull257.get(id(_n257)) or _pure257.get(id(_n257)):
+                            continue
+                        if _ck257 in _quiet257:
+                            continue
+                        if _ck257 is not None and _ck257 in _defs257:
+                            _dep257.add(_ck257)
+                            continue
+                        _ok257 = False
+                        break
+                if not _ok257:
+                    continue
+                if _isgen257:
+                    # EXACTLY ONE `yield`, as a TOP-LEVEL statement: the generator then
+                    # yields exactly once (no "generator didn't yield" / "didn't stop"
+                    # RuntimeError the model would not see)
+                    _ys257 = [_n for _n in _pa257.walk(_d257) if _n.__class__.__name__ == "Yield"]
+                    if not (len(_ys257) == 1 and any(
+                            _b.__class__.__name__ == "Expr" and _b.value is _ys257[0]
+                            for _b in _d257.body)):
+                        continue
+                else:
+                    # W1: the body (docstring aside) is EXACTLY `return <call>`, the call
+                    # to a producer or `nullcontext()` — no fall-through to an implicit
+                    # `None`, and no generator in disguise
+                    _bd257 = [_b for _b in _d257.body
+                              if not (_b.__class__.__name__ == "Expr"
+                                      and _b.value.__class__.__name__ == "Constant"
+                                      and isinstance(getattr(_b.value, "value", None), str))]
+                    _v257 = (_bd257[0].value if len(_bd257) == 1
+                             and _bd257[0].__class__.__name__ == "Return" else None)
+                    if not (_v257 is not None and _v257.__class__.__name__ == "Call"
+                            and (_isnull257.get(id(_v257))
+                                 or _ckey257.get(id(_v257)) in _defs257)):
+                        continue
+                _inert257.add(_k257)
+                _deps257[_k257] = _dep257
+            _grew257 = True
+            while _grew257:
+                _grew257 = False
+                for _k257 in list(_inert257):
+                    if not _deps257.get(_k257, set()) <= (_inert257 | _quiet257):
+                        _inert257.discard(_k257)
+                        _grew257 = True
+            # (W1 producers must RETURN producers, not merely call quiet defs)
+            _grew257 = True
+            while _grew257:
+                _grew257 = False
+                for _k257 in list(_inert257):
+                    _d257 = _defs257[_k257]
+                    if getattr(_d257, "csl_trusted", False):
+                        continue
+                    for _n257 in _pa257.walk(_d257):
+                        if (_n257.__class__.__name__ == "Return" and _n257.value is not None
+                                and not _isnull257.get(id(_n257.value))
+                                and _ckey257.get(id(_n257.value)) not in _inert257):
+                            _inert257.discard(_k257)
+                            _grew257 = True
+                            break
+
+            for _w257, _fn257 in _todo257:
+                for _it257 in _w257.items:
+                    _ce257 = _it257.context_expr
+                    if _w257.__class__.__name__ == "With" and _it257.optional_vars is not None:
+                        continue   # #20's `with ... as` refusal (functions.py) owns this
+                    _why257 = None
+                    if _w257.__class__.__name__ == "AsyncWith":
+                        _why257 = "an `async with` (no `__aenter__`/`__aexit__` model)"
+                    elif _ce257.__class__.__name__ == "Name":
+                        _bs257 = _binds257.get(_ce257.id, [])
+                        _lk257 = bool(_bs257) and bool(_thr257)
+                        for _b257 in _bs257:
+                            _a257 = _par257.get(id(_b257))
+                            _v257 = getattr(_a257, "value", None)
+                            if not (_b257.__class__.__name__ == "Name"
+                                    and _a257 is not None
+                                    and _a257.__class__.__name__ in ("Assign", "AnnAssign")
+                                    and (_a257.targets if _a257.__class__.__name__ == "Assign"
+                                         else [_a257.target]) == [_b257]
+                                    and _v257 is not None
+                                    and _v257.__class__.__name__ == "Call"
+                                    and not _v257.args and not _v257.keywords
+                                    and _v257.func.__class__.__name__ == "Attribute"
+                                    and _v257.func.attr in ("Lock", "RLock")
+                                    and _v257.func.value.__class__.__name__ == "Name"
+                                    and _v257.func.value.id == "threading"):
+                                _lk257 = False
+                        if not _lk257:
+                            _why257 = ("the name `%s`, which is not provably a `threading.Lock()`"
+                                       % _ce257.id)
+                    elif _ce257.__class__.__name__ == "Call" and _ckey257.get(id(_ce257)) in _inert257:
+                        for _n257 in _pa257.walk(_ce257):
+                            if _n257 is _ce257:
+                                continue
+                            _nk257 = _n257.__class__.__name__
+                            if _nk257 in _bad257 or _nk257 in ("NamedExpr", "Yield"):
+                                _why257 = "a context-manager call whose arguments are not effect-free"
+                                break
+                            if _nk257 == "Call" and not (_ckey257.get(id(_n257)) in _quiet257
+                                                         or _isnull257.get(id(_n257))
+                                                         or _pure257.get(id(_n257))):
+                                _why257 = "a context-manager call whose arguments are not effect-free"
+                                break
+                    else:
+                        _why257 = ("a context expression of kind `%s` that is not an in-file "
+                                   "context manager proven inert" % _ce257.__class__.__name__)
+                    if _why257 is None:
+                        continue
+                    from errors import PyCSLSemanticError as _PyCSLSemErr257
+                    raise _PyCSLSemErr257(
+                        "a `with` item (line %s, in %s) uses %s (ROUTE #257): a bare `with` is "
+                        "lowered to its BODY ALONE — the context expression is not evaluated "
+                        "and neither `__enter__`/`__exit__` nor a `@contextmanager` "
+                        "generator's code around its `yield` is modelled — so it is accepted "
+                        "only when the context manager is PROVABLY INERT in the model: a name "
+                        "bound only by `threading.Lock()`/`RLock()`, or an in-file "
+                        "`@contextmanager` producer whose effects all land in a record with no "
+                        "fields. Measured: an imported class whose `__enter__` writes "
+                        "`self.n`, and an in-file `@contextmanager` method doing the same, "
+                        "both proved `\\result == 0` where Python returns 1. Call the "
+                        "setup/teardown explicitly around the block as ORDINARY methods "
+                        "(an explicit `__enter__()` call does not carry its contract today), "
+                        "or guard the block with a module-level `threading.Lock()`."
+                        % (getattr(_w257, "lineno", "?"),
+                           ("'%s'" % _fn257.name) if _fn257 is not None else "module scope",
+                           _why257),
+                        stage="whyml-emit", code="PYCSL-R257-CONTEXT-MANAGER-NOT-INERT")
+
+
 
     # ROUTE #37 (relaunch #45) — REFUSE a `try ... else:` whose ELSE BLOCK JUMPS OUT.
     #

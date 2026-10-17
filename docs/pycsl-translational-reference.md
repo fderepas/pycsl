@@ -1698,6 +1698,40 @@ mirror's own 14 `with self.block()` sites outright.
 not read". The binding is the visible half; the protocol *calls* are the half that carries
 the state change.
 
+### §T.5.10c  Every bare `with` must be PROVABLY INERT, in every file (route #257)
+
+§T.5.10b's whitelist ran only in a file that DEFINES a context-manager class, so every
+context manager the file does not define walked past it: an IMPORTED class whose
+`__enter__` writes `self.n`, an in-file or imported `@contextmanager` function or method
+that writes a field, a plain call returning such an object, and a multi-item `with c, d:`
+each proved `\result == 0` where Python returns 1 or 2 (witnesses `2560`-`2566`).
+
+The rule is now file-independent and fail-closed (`PYCSL-R257-CONTEXT-MANAGER-NOT-INERT`).
+Outside a `\trusted`/`\abstract` function (whose body is never lowered), every BARE `with`
+item is refused unless it is
+
+* **(L)** a name bound *only* by `<name> = threading.Lock()` / `threading.RLock()` with
+  `import threading` — a lock's enter/exit touches no modelled value (all 49 corpus
+  critical sections have this shape); or
+* **(G)** a call to an in-file *producer*, resolved per class (`self.m` inside a method of
+  `K`, `m` defined once in `K` and overridden by no in-file subclass; or a module-level
+  `def` bound exactly once), where the producer is `@contextmanager` (resolved through
+  `contextlib`) with exactly one top-level `yield`, or is exactly `return <producer call>` /
+  `return nullcontext()`; its body has no `global`/`nonlocal`/`try`/`with`/`raise`/`del`/
+  `assert`/loop/comprehension/nested def, stores only to locals or to `self.<attr>` of a
+  `K` whose model record has **no fields**, and calls only producers, `len`/`isinstance`, or
+  in-file defs framed exactly `assigns \nothing` with no `raises`. A `\trusted` producer
+  qualifies only as a `self` method of a field-less `K` whose `assigns` names only `self`
+  fields (the mirror's `_Unparser.delimit_if`) — its reviewed frame is trusted to cover
+  the protocol of the manager it returns. The call's arguments obey the same call rule.
+
+`with … as` items stay with route #20's refusal; `async with` is refused outright (witness
+`2568`); an attribute context expression is refused (`2567`). The mirror's 41
+`with self.block()/delimit()/require_parens()/delimit_if()` sites are (G) on `_Unparser`,
+whose record is `{ }`; `1031`'s `blk()` (body `yield`) is (G); control `2570` pins the
+mirror shape. This also closes §T.5.10b's *known residue* for bare items: (G) resolves per class, not by a simple
+method name.
+
 **Scope.** A `@contextmanager` GENERATOR is not refused, and witness `1031` pins that: all
 52 `with` statements in the self-annotation mirror are generator CMs (`self.block()`,
 `self.delimit()`) or builtins (`open`, `tempfile`, `os`), none of which has the protocol

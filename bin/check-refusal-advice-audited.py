@@ -595,6 +595,12 @@ AUDITED = {
     ("src/pycsl/pycsl.py",
      "_PyCSLSemErr38('a `with` statement in a file that defines a context-manager class (%s) uses a context expression this build cannot positivel"): (FOLLOWABLE,
         'The repair is a bare `with <lock>:`, which IS modelled as a critical section; it VERIFIES under `--memory-model concurrent`. Same repair as the `with ... as` refusal, whose OTHER arm this audit had to withdraw.'),
+    # (#49) gen #36 — route #257. Followed: witness 2561's `@contextmanager` `bump` rewritten as
+    # an ORDINARY method `enter()` (`assigns self.n`, `ensures self.n == \old(self.n) + 1`) plus
+    # `leave()`, called explicitly around the block; `\result == 1` VERIFIES.
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr257("a `with` item (line %s, in %s) uses %s (ROUTE #257): a bare `with` is lowered to its BODY ALONE — the context expression is'): (FOLLOWABLE,
+        'Route #257. The repair is the setup/teardown as ORDINARY methods called around the block; the rewritten 2561 (`b.enter(); b.leave(); return b.n`, `ensures \\result == 1`) VERIFIES.'),
 
     # (#49) gen #32 — THE TWELVE SITES THE WIDENED DETECTOR SURFACED, each audited by
     # WRITING THE PROGRAM THE MESSAGE TELLS YOU TO WRITE and RUNNING IT. Eleven
@@ -902,6 +908,8 @@ AUDITED_HASH = {
      "_PyCSLSemErr29(f'the array spec atom `{_r29_names[_r29_hit]}` is not interpreted under the {memory_model!r} memory model (ROUTE #29): its Mo"): '8da2d97e88eb',
     ("src/pycsl/pycsl.py",
      "_PyCSLSemErr38('a `with` statement in a file that defines a context-manager class (%s) uses a context expression this build cannot positivel"): 'bcf10a03319b',
+    ("src/pycsl/pycsl.py",
+     '_PyCSLSemErr257("a `with` item (line %s, in %s) uses %s (ROUTE #257): a bare `with` is lowered to its BODY ALONE — the context expression is'): '473f8f97e2ed',
     ("src/pycsl/pycsl.py",
      '_PyCSLSemErr43("a COMPLEX literal (%r) has no model (ROUTE #43): `_py_expr_constant` lowers it to `int(value.real)`, so the imaginary part i'): '2b425e50069d',
     ("src/pycsl/pycsl.py",
