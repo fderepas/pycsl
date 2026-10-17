@@ -1,6 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-17): #259 (`**` always int; pow mod 0 no obligation), #260 (except LookupError misses KeyError),
+##   #261 (self-call under a broken class invariant), #262 (symbolic negative index in contracts) OPENED (red team 2).
+
 ## gen #36 (2026-10-17): #258 (`Optional[Any]`/`Any | None` lowered with only the None arm) OPENED (residual of
 ##   #254/#255, driver-reproduced). REPAIRED 2026-10-17: a Union with an arm `_union_arm_tag` cannot type (`Any`,
 ##   `object`, unknown/lowercase name, nested `Optional`, unmodelled generic) lowers WHOLE to the erased `Any` value
