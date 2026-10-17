@@ -109,12 +109,15 @@ BASELINE = {
         "body-verified model.",
     "os/UnixInodeFileSystem.py": "FAILS — 2990 lines, 717 annotations; the largest model "
         "in the layer.",
-    "dc/__init__.py": "FAILS.",
+    "dc/__init__.py": "FAILS at the first measurement; RE-MEASURED gen #36 as REFUSED by "
+        "route #252 (c64ccc2f): `dataclass` returns an erased value through `-> int`.",
     "syscfg/__init__.py": "FAILS.",
     "tm/__init__.py": "FAILS.",
     # ---- TIMEOUT: not a verdict, a budget. Recorded as its own class so nobody reads it
     # as "fails".
-    "os/__init__.py": "TIMEOUT at 900s (864 lines, 213 annotations).",
+    "os/__init__.py": "TIMEOUT at 900s (864 lines, 213 annotations) at the first measurement; "
+        "RE-MEASURED gen #36 as REFUSED by route #252 (c64ccc2f): `dirent_is_dir` passes erased "
+        "values into `DirEntry`'s `int` parameters `inode_num` / `name`.",
     "csys/__init__.py": "TIMEOUT.",
 }
 
