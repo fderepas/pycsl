@@ -178,3 +178,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-10-17T20:32Z | 75 | route #269 | OPENED 8b0bfbbd (R1/R3/R4 repros rc=0 at HEAD); repair executor launched (pycsl-r269, IDs 2880-2899) | 8b0bfbbd
 2026-10-17T20:32Z | 76 | --slow sweep at afd8dd56 (post #263-#267 stack) + red-team round 4 (boundaries of the new refusals) | launched | -
 2026-10-17T21:16Z | 76 | red-team round 4 (~85 probes) | 3 false proofs (2 roots) driver-reproduced -> OPENED #270/#271 c9d7f157; repair executor launching (r270, IDs 2900-2919) | c9d7f157
+2026-10-17T21:59Z | 76 | --slow sweep @afd8dd56 (post #263-#268 stack) | 84/84 GREEN | -
