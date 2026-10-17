@@ -1,6 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-17): #258 (`Optional[Any]`/`Any | None` lowered with only the None arm) OPENED (residual of
+##   #254/#255, driver-reproduced).
+
 ## gen #36 (2026-10-17): #257 (bare `with <cm>:` drops __enter__/__exit__ for an imported CM or a @contextmanager
 ##   method) OPENED (found by the ch18 census, driver-reproduced).
 
