@@ -12,6 +12,13 @@
 ##   `self.<m>()` stub takes `self` under a class invariant (route #165 extended). Witnesses 2730/2733/2735/2736
 ##   PROVED -> FAIL, controls 2731/2732/2734/2737 keep verdicts; root 1 MOVED (0453, proves), pyref 0; mirror 2
 ##   MOVED (Module2_Parser, pure_ast: NoReturn error self-calls), type-only clean, changed-line goals Valid, OWED.
+##   #259/#262 REPAIRED 2026-10-17: `**`/`x **= n`/`pow(b, e)` owe `exp >= 0` (`val function py_pow ... requires`),
+##   keyword `pow` owes `false`, no negative-exponent fold; 3-arg `pow` under no_exception refused unless the modulus
+##   is a nonzero literal (keywords folded in). Contract-side list/str/`\result`/field reads take Python's index
+##   (`if e < 0 then a[len + e] else a[e]`, literal `-k` -> `len - k` on every arm). Witnesses 2700-2706/2710-2716/2720
+##   PROVED -> FAIL, controls 2707-2709/2717-2719 keep, coverage 2721-2723 FAIL -> PASS; root 100 MOVED (all re-proved,
+##   verdicts kept; 0708/0711/0714 gain declared `0 <= off` domain preconditions) / 0 GONE, pyref 0; mirror 2 MOVED
+##   (Module2_Parser re-proved 868/0, pure_ast OWED); planes 61/61.
 
 ## gen #36 (2026-10-17): #258 (`Optional[Any]`/`Any | None` lowered with only the None arm) OPENED (residual of
 ##   #254/#255, driver-reproduced). REPAIRED 2026-10-17: a Union with an arm `_union_arm_tag` cannot type (`Any`,

@@ -1905,9 +1905,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         bitwise on int) and similar shape-confused cases land here."""
         left_ir = expr.get("left", {})
         right_ir = expr.get("right", {})
+        # (#49) ROUTE #259 — `int ** <negative int>` IS A FLOAT IN PYTHON (`2 ** -1 == 0.5`),
+        # so neither the fold (which produced the real literal `0.5` in an int slot) nor the
+        # int-valued `py_pow` may stand for it. A negative literal exponent is not folded.
         if (left_ir.get("type") == "Number" and right_ir.get("type") == "Number"
                 and isinstance(left_ir.get("value"), int)
-                and isinstance(right_ir.get("value"), int)):
+                and isinstance(right_ir.get("value"), int)
+                and not (op_char == "**" and right_ir["value"] < 0)):
             try:
                 return str(self._BITWISE_FOLD_OPS[op_char](left_ir["value"], right_ir["value"]))
             except (ValueError, OverflowError):
@@ -1919,6 +1923,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # declares both a program-callable and a logical symbol, so
         # the body can call them AND `#@ proof rocq` axioms can
         # constrain them (axioms can only reference logical symbols).
+        # (#49) ROUTE #259 — `py_pow` returns an INT, which is Python's `**` only for a
+        # NON-NEGATIVE exponent (a negative one yields a float: `2 ** n` with `n < 0` PROVED
+        # `x % 1 == 0`, CPython 0.5). Every program-side `**` therefore owes `y >= 0`, an
+        # obligation (never an assumption): a provably non-negative exponent discharges it,
+        # anything else is refused by unprovability. Contracts cannot spell `**` (the
+        # contract grammar has no power operator), so no logic-side use escapes it.
+        if op_char == "**":
+            self._add_abstract_op(
+                "val function py_pow (x: int) (y: int) : int\n"
+                "    requires { [@expl:int ** needs a non-negative exponent (route 259)] y >= 0 }")
+            return f"(py_pow {self._coerce_to_int(left)} {self._coerce_to_int(right)})"
         self._add_abstract_op(f"val function {op_fn} (x: int) (y: int) : int")
         return f"({op_fn} {self._coerce_to_int(left)} {self._coerce_to_int(right)})"
 
@@ -10243,8 +10258,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if not _f.lstrip("-").isdigit() and not _f.startswith("(str_hash_op "):
                     _f = f"(str_hash_op {coerced_args[1]})"
                 return f"(setattr_3 {coerced_args[0]} {_f} {coerced_args[2]})"
-            if n == 0:
+            if func_name == "pow" and _rcv is None and expr.get("keywords"):
+                # (#49) ROUTE #259 — this arm DROPS keywords, so `pow(2, exp=n)` became
+                # `pow_1 2`, an int with no exponent to guard. Fail closed: the call owes
+                # an obligation nothing can discharge.
+                self._add_abstract_op(
+                    f"val {arity_fn} "
+                    f"{' '.join(f'(x{i}: int)' for i in range(n)) if n else '()'} : int\n"
+                    "    requires { [@expl:pow with keyword arguments is not modelled "
+                    "(route 259)] false }")
+            elif n == 0:
                 self._add_abstract_op(f"val {arity_fn} () : int")
+            elif func_name == "pow" and n == 2 and _rcv is None:
+                # (#49) ROUTE #259 — builtin `pow(b, e)` IS `b ** e`: an int only for
+                # `e >= 0`, a float otherwise (`pow(2, -1) == 0.5`; `x % 1 == 0` PROVED).
+                # The int-valued opaque op owes the same exponent obligation as `py_pow`.
+                # (`pow(b, e, m)` is int-valued whenever it returns; its raises are guarded
+                # by the route #160 `no_exception` check.)
+                self._add_abstract_op(
+                    "val pow_2 (x0: int) (x1: int) : int\n"
+                    "    requires { [@expl:pow(b, e) needs a non-negative exponent (route 259)] x1 >= 0 }")
             else:
                 self._add_abstract_op(
                     f"val {arity_fn} {' '.join(f'(x{i}: int)' for i in range(n))} : int")
@@ -15592,6 +15625,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if _osi is not None:
                 return _osi
         index = self._expr_to_whyml(expr["index"], local_refs, invariant_ctx, subst)
+        # (#49) ROUTE #262 — IN A CONTRACT, A SEQUENCE INDEX IS PYTHON'S INDEX. A logic read
+        # `xs[e]` is the raw map cell `e`, and a NEGATIVE `e` names a cell no list store
+        # touches: `requires k == -1`, `xs[1] = 7`, `ensures xs[k] == \old(xs[k])` PROVED
+        # (CPython: xs[-1] goes 0 -> 7). Only a negative LITERAL was rewritten to
+        # `len - k`, and only on the plain-list arm. Classified once here and applied by
+        # every contract-side list/string/`\result`/field arm below: a non-negative int
+        # literal is kept, a negative literal `-k` reads `len - k`, anything else reads
+        # `if e < 0 then a[len + e] else a[e]` (Python's normalisation; the out-of-range value
+        # is IndexError in Python, unconstrained here either way). Body reads keep their
+        # lowering: a Why3 PROGRAM array read carries the `0 <= e` bounds precondition,
+        # so a negative body index already fails closed.
+        _ix262 = expr.get("index", {})
+        _neg262 = self._negative_literal_index(_ix262)
+        _sym262 = (bool(getattr(self, "_in_spec", False)) and _neg262 is None
+                   and not (isinstance(_ix262, dict) and _ix262.get("type") == "Number"
+                            and isinstance(_ix262.get("value"), int)
+                            and not isinstance(_ix262.get("value"), bool)
+                            and _ix262["value"] >= 0))
         # B-C5: `<emit_ir>.get("args")[0]` → `arg0_of` (the Call's first arg node).
         _ar0 = self._emit_ir_args_recv_ir(expr.get("value", {}))
         if _ar0 is not None and index == "0":
@@ -15780,6 +15831,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if self._is_string_expr(value):
             vstr = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
             if self._in_spec:
+                # (#49) ROUTE #262 — Why3's `substring s i 1` is `""` for `i < 0`, so a
+                # contract `s[-1] == ""` PROVED over a non-empty `s`. Python's index.
+                if _neg262 is not None:
+                    index = f"(String.length {vstr} - {_neg262})"
+                elif _sym262:
+                    return (f"(if {index} < 0 then String.substring {vstr} "
+                            f"(String.length {vstr} + {index}) 1 "
+                            f"else String.substring {vstr} {index} 1)")
                 return f"(String.substring {vstr} {index} 1)"
             self._add_abstract_op(
                 "val str_sub_op (s: string) (lo len: int) : string\n"
@@ -15920,6 +15979,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `array int` return (still matched by the `array ` prefix).
         if (self._in_spec and value.get("type") == "Result"
                 and getattr(self, "_func_return_type", "").startswith("array ")):
+            # (#49) ROUTE #262 — `\result[k]` is Python's index too (see `_sym262`).
+            if _neg262 is not None:
+                index = f"(Array.length {value_str} - {_neg262})"
+            elif _sym262:
+                return (f"(if {index} < 0 then {value_str}[Array.length {value_str} + {index}] "
+                        f"else {value_str}[{index}])")
             return f"({value_str}[{index}])"
         # L0′ (challenging-the-plan §4.1): `self.<array-field>[i]` in a contract/class-invariant is a
         # real `Array.get`, not the opaque (and, in a class invariant, unbound) `subscript_get` — so a
@@ -15928,6 +15993,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # during class-invariant emission (preamble L0′ part 1) for `_field_type_of` to resolve.
         if (self._in_spec and value.get("type") in ("Attribute", "FieldGet")
                 and self._field_type_of(value) in ("list", "tuple", "bytes", "bytearray")):
+            # (#49) ROUTE #262 — `self.<list field>[k]` is Python's index too.
+            if _neg262 is not None:
+                index = f"(Array.length {value_str} - {_neg262})"
+            elif _sym262:
+                return (f"(if {index} < 0 then {value_str}[Array.length {value_str} + {index}] "
+                        f"else {value_str}[{index}])")
             return f"({value_str}[{index}])"
         if self._value_semantic:
             # A1-residual nested-map: `d[ko][ki]` — the inner read `d[ko]`
@@ -16026,14 +16097,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # from-the-end read, i.e. `a[len(a) - k]`. Emitting the literal `-k`
                 # was BOTH unfaithful (it is not element `-k` of anything) and
                 # unprovable (a negative index can never discharge the array-bounds
-                # VC). Only a syntactically-negative INTEGER LITERAL is rewritten —
-                # a negative *value* in a variable is not statically recognisable and
-                # keeps the old lowering (a documented residual, and the honest one:
-                # a general run-time negative-index model needs a conditional read).
+                # VC). Here a syntactically-negative INTEGER LITERAL is rewritten; a
+                # negative *value* in a CONTRACT gets the conditional read below (route
+                # #262, DISCHARGED), and in a BODY the program read's own `0 <= e`
+                # bounds precondition already refuses it (fail-closed, incomplete).
                 _negk = self._negative_literal_index(expr.get("index", {}))
                 if _negk is not None:
                     index = f"({length_expr} - {_negk})"
                 inner = f"{arr_e}[{index}]"
+                if _sym262:
+                    # (#49) ROUTE #262 — a SYMBOLIC contract index (see `_sym262`). The
+                    # case split stays OUTSIDE the read so the raw term `a[e]` survives
+                    # in the formula: cited-axiom triggers (`[disk[blk * 512 + 32 * k]]`,
+                    # corpus 0711) and E-matching key on it, and a split inside the
+                    # brackets hid it (0708/0711/0714 went Unknown).
+                    inner = (f"(if {index} < 0 then {arr_e}[{length_expr} + {index}] "
+                             f"else {inner})")
                 # no_exception IndexError → assert in_bounds before the read.
                 return self._wrap_with_no_exception_assert(
                     ("subscript", "read"), [length_expr, index], inner)

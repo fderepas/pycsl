@@ -2689,7 +2689,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code = f"{indent}{safe_target} := (StrSet.union !{safe_target} {val})"
         elif raw_op in bitwise_ops:
             op_fn = bitwise_ops[raw_op]
-            self._add_abstract_op(f"val {op_fn} (x: int) (y: int) : int")
+            if raw_op == "**":
+                # (#49) ROUTE #259 — the SAME declaration as the `**` expression site, so
+                # `x **= n` owes the same `n >= 0` (a negative exponent yields a float) and
+                # the name-dedup can never keep an unguarded `py_pow`.
+                self._add_abstract_op(
+                    "val function py_pow (x: int) (y: int) : int\n"
+                    "    requires { [@expl:int ** needs a non-negative exponent (route 259)] y >= 0 }")
+            else:
+                self._add_abstract_op(f"val {op_fn} (x: int) (y: int) : int")
             code = f"{indent}{safe_target} := ({op_fn} !{safe_target} {val})"
         # 07-1705-rev4 P5: the effect-opaque `array_extend` arm (07-1321 S4) is REMOVED.
         # Every grown list var is now seq-promoted (P2) and handled by the faithful seq

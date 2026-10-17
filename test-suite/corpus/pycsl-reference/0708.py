@@ -23,6 +23,9 @@ lowering — so it matches the axiom's antecedent directly.
 from typing import List
 
 
+# (#49) route #262: the cited lemma reads a RAW byte reader; a contract read is Python-indexed, so the
+# two agree only for a non-negative offset — the codec's domain, now stated (it was implied by conflation).
+#@ requires 0 <= off
 #@ requires 0 <= len(name)
 #@ requires len(name) <= width
 #@ requires \forall i: int; (0 <= i and i < len(name)) ==> ord(name[i]) != 0

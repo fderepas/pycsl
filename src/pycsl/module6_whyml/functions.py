@@ -833,6 +833,25 @@ class FunctionEmissionMixin:
                         # so each is REFUSED unless its arguments make the raise
                         # syntactically impossible (the route #72 convention).
                         _r160_args = list(_r65_n.get("args") or [])
+                        # (#49) ROUTE #259 — `pow(x, 2, mod=0)` raises like `pow(x, 2, 0)`,
+                        # but the keyword was invisible here (and DROPPED by the lowering),
+                        # so it PROVED `no_exception \all`. Fold `pow`'s keywords into their
+                        # positions (`base`, `exp`, `mod`); an unplaceable one counts as an
+                        # unknown modulus (refused below).
+                        if _r65_key == ("call", "pow") and _r65_n.get("keywords"):
+                            _r160_kw = {}
+                            for _k160 in (_r65_n.get("keywords") or []):
+                                if isinstance(_k160, dict):
+                                    _r160_kw[_k160.get("arg")] = _k160.get("value")
+                            for _p160 in ("base", "exp", "mod"):
+                                if _p160 in _r160_kw:
+                                    while len(_r160_args) < ("base", "exp", "mod").index(_p160):
+                                        _r160_args.append(None)
+                                    _r160_args.insert(("base", "exp", "mod").index(_p160),
+                                                      _r160_kw.pop(_p160))
+                            if _r160_kw:
+                                while len(_r160_args) < 3:
+                                    _r160_args.append(None)
                         # the constant value of each argument, or None (inline: a helper
                         # `def` here would move the mirror-coverage ratchet)
                         _r160_nums = []
@@ -864,6 +883,16 @@ class FunctionEmissionMixin:
                                 _r160_msg = ("`pow(base, exp)` raises `ZeroDivisionError` "
                                              "(or `ValueError` with a modulus) for a "
                                              "negative exponent")
+                            # (#49) ROUTE #259 — the MODULUS raises too: `pow(x, 2, 0)` is
+                            # `ValueError: pow() 3rd argument cannot be 0`, and the check
+                            # above inspected only the exponent, so `pow(x, 2, m)` PROVED
+                            # `no_exception \all`. Same convention: refused unless the
+                            # modulus is a NONZERO literal.
+                            elif (len(_r160_args) == 3
+                                  and (_r65_all or "ValueError" in _r65_named)
+                                  and (_r160_nums[2] is None or _r160_nums[2] == 0)):
+                                _r160_msg = ("`pow(base, exp, mod)` raises `ValueError` "
+                                             "for a zero modulus")
                         elif (_r65_key in (("call", "max"), ("call", "min"))
                                 and len(_r160_args) == 1
                                 and not any(isinstance(_k, dict) and _k.get("arg") == "default"
