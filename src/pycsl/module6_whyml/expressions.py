@@ -8166,11 +8166,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # the call, so the guarantee stays exactly as conditional as the source. Only for a
         # `<local>.<m>(...)` receiver whose class declares invariants and when no other path
         # already passes it.
-        if field_spec is None and "." in func_name and not func_name.startswith("self."):
+        # (#49) ROUTE #261 — THE SAME DROP ON A SELF-CALL. `self.<m>()` was excluded here, so
+        # inside a method of an invariant-carrying class the call lowered to the
+        # receiver-less `val self_<m>_0 () : ...` carrying `<m>`'s ensures — proved ASSUMING
+        # the invariant — and Why3 never re-checked it at the call. MEASURED: `self.n = -1;
+        # r = self.peek(); self.n = 0` under `class invariant self.n >= 0` PROVED `\result
+        # >= 0` (CPython -1), while the `c.peek()` form above failed "type invariant". The
+        # receiver is `self`, of the enclosing class: passing it makes Why3 demand the
+        # invariant at the call exactly as for `<local>.<m>()`.
+        if field_spec is None and "." in func_name:
             _p165 = func_name.split(".")
             if len(_p165) == 2:
                 _cls165 = ((getattr(self, "_current_record_var_classes", {}) or {}).get(_p165[0])
                            or "")
+                if _p165[0] == "self":
+                    _cls165 = str(self._current_self_type or "")
                 if _cls165:
                     for _td165 in (self.ir.get("type_decls", []) or []):
                         if (str(_td165.get("name", "")).lower() == str(_cls165).lower()

@@ -54,23 +54,86 @@ KNOWN_EXCEPTIONS: frozenset = frozenset({
 # summarisation — it does not auto-inject any VC.
 
 EXCEPTION_BASES: Dict[str, Tuple[str, ...]] = {
-    # --- the OSError family (the os-module faithfulness fix) ---------
-    "OSError":            ("Exception",),
-    "FileNotFoundError":  ("OSError", "Exception"),
-    "FileExistsError":    ("OSError", "Exception"),
-    "PermissionError":    ("OSError", "Exception"),
-    "NotADirectoryError": ("OSError", "Exception"),
-    "IsADirectoryError":  ("OSError", "Exception"),
-    "InterruptedError":   ("OSError", "Exception"),
-    "BlockingIOError":    ("OSError", "Exception"),
-    "ChildProcessError":  ("OSError", "Exception"),
-    "ConnectionError":    ("OSError", "Exception"),
-    "ProcessLookupError": ("OSError", "Exception"),
-    "TimeoutError":       ("OSError", "Exception"),
+    # (#49) ROUTE #260 — THE WHOLE BUILTIN HIERARCHY, NOT ONLY THE OSError FAMILY. Why3
+    # matches `with` / `raises` arms by EXACT tag, so a builtin class missing here was a
+    # flat token: `try: raise KeyError(...) except LookupError: r = 7` lowered to
+    # `try raise KeyError with LookupError -> ...`, the raise escaped the handler into an
+    # added `raises { KeyError }`, and `\result == 0` PROVED (CPython 7). Every CPython
+    # builtin exception class now lists ALL its proper ancestors (CPython 3.14 `__mro__`
+    # minus `object`), so `except LookupError` / `ArithmeticError` / `ValueError` /
+    # `Exception` / `BaseException` expand to an arm for every raised subclass. Data only:
+    # `bases_closure` / `handler_catches` are unchanged.
+    "ArithmeticError": ("Exception", "BaseException"),
+    "AssertionError": ("Exception", "BaseException"),
+    "AttributeError": ("Exception", "BaseException"),
+    "BaseExceptionGroup": ("BaseException",),
+    "BlockingIOError": ("OSError", "Exception", "BaseException"),
+    "BrokenPipeError": ("ConnectionError", "OSError", "Exception", "BaseException"),
+    "BufferError": ("Exception", "BaseException"),
+    "BytesWarning": ("Warning", "Exception", "BaseException"),
+    "ChildProcessError": ("OSError", "Exception", "BaseException"),
+    "ConnectionAbortedError": ("ConnectionError", "OSError", "Exception", "BaseException"),
+    "ConnectionError": ("OSError", "Exception", "BaseException"),
+    "ConnectionRefusedError": ("ConnectionError", "OSError", "Exception", "BaseException"),
+    "ConnectionResetError": ("ConnectionError", "OSError", "Exception", "BaseException"),
+    "DeprecationWarning": ("Warning", "Exception", "BaseException"),
+    "EOFError": ("Exception", "BaseException"),
+    "EncodingWarning": ("Warning", "Exception", "BaseException"),
+    "Exception": ("BaseException",),
+    "ExceptionGroup": ("BaseExceptionGroup", "Exception", "BaseException"),
+    "FileExistsError": ("OSError", "Exception", "BaseException"),
+    "FileNotFoundError": ("OSError", "Exception", "BaseException"),
+    "FloatingPointError": ("ArithmeticError", "Exception", "BaseException"),
+    "FutureWarning": ("Warning", "Exception", "BaseException"),
+    "GeneratorExit": ("BaseException",),
+    "ImportError": ("Exception", "BaseException"),
+    "ImportWarning": ("Warning", "Exception", "BaseException"),
+    "IndentationError": ("SyntaxError", "Exception", "BaseException"),
+    "IndexError": ("LookupError", "Exception", "BaseException"),
+    "InterruptedError": ("OSError", "Exception", "BaseException"),
+    "IsADirectoryError": ("OSError", "Exception", "BaseException"),
+    "KeyError": ("LookupError", "Exception", "BaseException"),
+    "KeyboardInterrupt": ("BaseException",),
+    "LookupError": ("Exception", "BaseException"),
+    "MemoryError": ("Exception", "BaseException"),
+    "ModuleNotFoundError": ("ImportError", "Exception", "BaseException"),
+    "NameError": ("Exception", "BaseException"),
+    "NotADirectoryError": ("OSError", "Exception", "BaseException"),
+    "NotImplementedError": ("RuntimeError", "Exception", "BaseException"),
+    "OSError": ("Exception", "BaseException"),
+    "OverflowError": ("ArithmeticError", "Exception", "BaseException"),
+    "PendingDeprecationWarning": ("Warning", "Exception", "BaseException"),
+    "PermissionError": ("OSError", "Exception", "BaseException"),
+    "ProcessLookupError": ("OSError", "Exception", "BaseException"),
+    "PythonFinalizationError": ("RuntimeError", "Exception", "BaseException"),
+    "RecursionError": ("RuntimeError", "Exception", "BaseException"),
+    "ReferenceError": ("Exception", "BaseException"),
+    "ResourceWarning": ("Warning", "Exception", "BaseException"),
+    "RuntimeError": ("Exception", "BaseException"),
+    "RuntimeWarning": ("Warning", "Exception", "BaseException"),
+    "StopAsyncIteration": ("Exception", "BaseException"),
+    "StopIteration": ("Exception", "BaseException"),
+    "SyntaxError": ("Exception", "BaseException"),
+    "SyntaxWarning": ("Warning", "Exception", "BaseException"),
+    "SystemError": ("Exception", "BaseException"),
+    "SystemExit": ("BaseException",),
+    "TabError": ("IndentationError", "SyntaxError", "Exception", "BaseException"),
+    "TimeoutError": ("OSError", "Exception", "BaseException"),
+    "TypeError": ("Exception", "BaseException"),
+    "UnboundLocalError": ("NameError", "Exception", "BaseException"),
+    "UnicodeDecodeError": ("UnicodeError", "ValueError", "Exception", "BaseException"),
+    "UnicodeEncodeError": ("UnicodeError", "ValueError", "Exception", "BaseException"),
+    "UnicodeError": ("ValueError", "Exception", "BaseException"),
+    "UnicodeTranslateError": ("UnicodeError", "ValueError", "Exception", "BaseException"),
+    "UnicodeWarning": ("Warning", "Exception", "BaseException"),
+    "UserWarning": ("Warning", "Exception", "BaseException"),
+    "ValueError": ("Exception", "BaseException"),
+    "Warning": ("Exception", "BaseException"),
+    "ZeroDivisionError": ("ArithmeticError", "Exception", "BaseException"),
     # `os.error` is documented as an alias for OSError (os.rst l.51-53).
     # Treat it as a synonym so `except os.error` behaves like
     # `except OSError`.
-    "error":              ("OSError", "Exception"),
+    "error":              ("OSError", "Exception", "BaseException"),
 }
 
 

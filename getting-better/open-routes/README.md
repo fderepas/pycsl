@@ -3,6 +3,11 @@
 
 ## gen #36 (2026-10-17): #259 (`**` always int; pow mod 0 no obligation), #260 (except LookupError misses KeyError),
 ##   #261 (self-call under a broken class invariant), #262 (symbolic negative index in contracts) OPENED (red team 2).
+##   #260/#261 REPAIRED 2026-10-17: EXCEPTION_BASES carries the whole builtin hierarchy (handler arms per raised
+##   subclass) + the vacuity gate flags a function whose only exit is an undeclared added `raises` arm; a
+##   `self.<m>()` stub takes `self` under a class invariant (route #165 extended). Witnesses 2730/2733/2735/2736
+##   PROVED -> FAIL, controls 2731/2732/2734/2737 keep verdicts; root 1 MOVED (0453, proves), pyref 0; mirror 2
+##   MOVED (Module2_Parser, pure_ast: NoReturn error self-calls), type-only clean, changed-line goals Valid, OWED.
 
 ## gen #36 (2026-10-17): #258 (`Optional[Any]`/`Any | None` lowered with only the None arm) OPENED (residual of
 ##   #254/#255, driver-reproduced). REPAIRED 2026-10-17: a Union with an arm `_union_arm_tag` cannot type (`Any`,

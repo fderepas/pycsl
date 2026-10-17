@@ -1826,6 +1826,16 @@ refused outright.
 `raise` inside `__init__` vanished into the record literal a construction lowers to. Both are refused
 now, reading the SOURCE (the resolved IR has already merged inheritance away) of the main file AND of
 the modules it imports; plain-name aliases of an exception class are resolved.
+**Builtin subclasses (route #260):** `exception_model.EXCEPTION_BASES` lists every CPython builtin
+exception class with all its ancestors, so a handler `except LookupError` / `ArithmeticError` /
+`ValueError` / `Exception` / `BaseException` gets one Why3 `with` arm per raised subclass tag
+(`raise KeyError` under `except LookupError` used to escape the handler and prove the other path).
+And a function whose every normal exit is dead while its spec carries an ADDED, undeclared
+`raises { E }` arm is reported VACUOUS by the non-vacuity gate (declare the raise, or annotate
+`-> NoReturn`).
+**Self-calls and the class invariant (route #261):** a `self.<m>(...)` call in a class with a
+`#@ class invariant` passes `self` to the abstract operation, as `<local>.<m>(...)` does, so Why3
+checks the invariant at the call instead of assuming the callee's invariant-dependent result.
 
 **Inlined global-instance methods (routes #168, #169).** `_g.m()` is spliced into the caller. A
 discarded tail `return <e>` dropped `<e>` — its division check, its nested mutating call — so it is

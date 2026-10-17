@@ -4110,6 +4110,21 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
             if not merged:
                 # No normal-exit false-goal surfaced (e.g. a function with no normal
                 # return, only `raises`) — nothing to flag as vacuous.
+                # (#49) ROUTE #260 — UNLESS THE ONLY WAY OUT IS AN UNDECLARED EXCEPTION.
+                # Every normal exit was dropped as unreachable, and the spec carries an
+                # UNCONDITIONED `raises { E }` arm — one the emitter ADDED because E escapes
+                # while no `#@ raises` declares it. Then the normal-return postcondition is
+                # discharged by the model's raise alone: measured, `raise KeyError` under an
+                # `except LookupError` the model could not match PROVED `\result == 0`
+                # (CPython 7) with no goal for this probe to see. A function that really
+                # never returns says so (`-> NoReturn`, exempt above) or declares the raise.
+                _h260 = idx - 1
+                while (_h260 > 0 and not _LET_FN_RE.match(lines[_h260])
+                       and not _BODY_EQ_RE.match(lines[_h260])):
+                    _h260 -= 1
+                if any(_re.match(r"^\s+raises \{ [A-Za-z_0-9', ]+ \}\s*$", _l260)
+                       for _l260 in lines[_h260:idx]):
+                    return fname, True
                 return fname, False
             return fname, all(_record_is_valid(rec) for rec in merged)
         finally:
