@@ -1,6 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-17): #268 (cross-mixin `_stmts_to_whyml` stub under-declared its frame; 5 verified callers proved
+##   false field-unchanged claims) OPENED + REPAIRED 487c4789 (found while fixing the slow survival plane).
+
 ## gen #36 (2026-10-17): #263 (method-call recursion never termination-checked), #264 (never-assigned local reads 0),
 ##   #265 (match True/False by equality), #266 (HAPPY region bypass via helper), #267 (vacuity gate misses one-branch
 ##   inconsistency) OPENED (red team 3, driver-reproduced).
