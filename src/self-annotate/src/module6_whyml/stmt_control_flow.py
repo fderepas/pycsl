@@ -91,6 +91,18 @@ class ControlFlowStmtMixin:
     # carried `assigns \nothing` — a FALSE premise every caller inherited. Live:
     # Module6_WhyMLTranspiler.__init__ (`self._for_idx_init: str = "0"`).
     _for_idx_init: str = "0"
+    # (#49) gen #36 slow-plane repair — the three PER-LOOP fields `_handle_for_stmt` resets at
+    # entry and `_classify_iterable` / its arms set (live stmt_control_flow.py: `= None` at loop
+    # entry, then a `str` length expression / a `str` hval map name / a `(str, str)` (local,
+    # expr) pair). Route 889661c9 made `_handle_for_stmt`'s `#@ assigns` TRUE by naming them,
+    # and because they were undeclared the survival TRAP rose 1537 -> 1540 (lesson (f5): the
+    # clause and the declaration are two repairs). Declared with their LIVE Optional types;
+    # the emitter carries an `Optional[str]` / `Optional[Tuple]` field as an opaque `int`
+    # record slot. No mirror body reads or writes them (every accessor is a `\trusted` stub),
+    # so the slot's only role is to make the declared frame EMIT.
+    _for_items_hval_map: Optional[str] = None
+    _for_iter_materialize: Optional[Tuple[str, str]] = None
+    _str_slice_loop_len: Optional[str] = None
     "Control-flow statement handlers — `while` / `for` / `if` / `try` / `match`\n    / `return` — plus their private helpers (`_classify_iterable`,\n    `_first_assign_value_ir`, `_try_local_decl_kind`).\n\n    Extracted verbatim from `StatementEmissionMixin` (Part B move 3e, mirroring\n    the expressions.py split). `StatementEmissionMixin` inherits this mixin, so\n    the handlers resolve via MRO through the facade's `_STMT_HANDLERS` table and\n    recurse back into the core `self._stmts_to_whyml` / `self._expr_to_whyml`\n    (which stay in `StatementEmissionMixin`)."
     # (#33) CROSS-MIXIN PROTOCOL STUB — the `statements.py`/`expressions.py` precedent.
     # `_is_string_expr` is DEFINED in `module6_whyml/expressions.py` and merely INHERITED here, so this file's
@@ -206,15 +218,26 @@ class ControlFlowStmtMixin:
     # `statements.py`, a different file, which is why the same-file frame audit did not see
     # it) writes `self._in_spec` twice around its spec-context expression emission. A missing
     # frame is not "unspecified", it is the FALSE claim `\nothing`.
+    # (#49) gen #36 slow-plane repair — `assigns self._in_spec` ALONE WAS STILL FALSE, AND IT
+    # PROVED A FALSE FRAME. The live body (statements.py) recurses into every statement handler,
+    # so a nested `for` reaches `_classify_iterable` (`self._for_idx_init = start`) and the
+    # per-loop resets, and a nested critical section bumps `_havoc_counter`. With this stub
+    # claiming only `_in_spec`, the VERIFIED `_handle_while_stmt` proved
+    # `ensures { self._for_idx_init = old self._for_idx_init }` (--fun, Verification SUCCESS)
+    # while live CPython takes it '0' -> '3' on `while k < 1: for i in range(3, 5): ...`.
+    # The clause now names every field of StatementEmissionMixin._stmts_to_whyml's declared
+    # frame that THIS class's record carries (undeclared ones are unmentionable here, so
+    # omitting them cannot be used by a caller); the five verified callers' clauses are
+    # widened to match, which is true of their live transitive closure.
     #@ ensures True
-    #@ assigns self._in_spec
+    #@ assigns self._array_locals, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._frame_trigger_active, self._func_return_type, self._havoc_counter, self._in_spec, self._needs_array_init, self._quant_record_binders, self._quant_scalar_binders, self._str_slice_loop_len, self._string_local_vars, self._todict_arg_wants_pymap
     def _stmts_to_whyml(self, rest: List[Dict[str, Any]], local_refs: Set[str],
                         declared_refs: Set[str], indent: str, in_loop: bool) -> str:
         return ""
 
     #@ requires True
     #@ ensures True
-    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    #@ assigns self._array_locals, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._frame_trigger_active, self._func_return_type, self._havoc_counter, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._str_slice_loop_len, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_while_stmt(self, stmt: WhileStmt, rest: List[Dict[str, Any]],
                             local_refs: Set[str], declared_refs: Set[str],
                             indent: str, in_loop: bool) -> str:
@@ -321,7 +344,7 @@ class ControlFlowStmtMixin:
     #@ ensures True
     # Frame completed: `self._classify_iterable(...)` (above) writes `_for_idx_init`, which
     # this body reads back as `idx_init`; the callee's effect propagates into this frame.
-    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._for_target_is_pyval, self._frame_trigger_active, self._func_return_type, self._in_loop_spec, self._in_spec, self._keyword_locals, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._pyast_loop_variant_len, self._pyast_stmt_locals, self._pyval_locals, self._quant_record_binders, self._quant_scalar_binders, self._str_slice_loop_len, self._string_local_vars, self._todict_arg_wants_pymap, self._tparam_locals, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    #@ assigns self._array_locals, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._for_target_is_pyval, self._frame_trigger_active, self._func_return_type, self._havoc_counter, self._in_loop_spec, self._in_spec, self._keyword_locals, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._pyast_loop_variant_len, self._pyast_stmt_locals, self._pyval_locals, self._quant_record_binders, self._quant_scalar_binders, self._str_slice_loop_len, self._string_local_vars, self._todict_arg_wants_pymap, self._tparam_locals, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_for_stmt(self, stmt: ForStmt, rest: List[Dict[str, Any]],
                           local_refs: Set[str], declared_refs: Set[str],
                           indent: str, in_loop: bool) -> str:
@@ -512,7 +535,7 @@ class ControlFlowStmtMixin:
     #@ requires True
     #@ ensures True
     # Inherited from `_stmts_to_whyml` (see its frame note).
-    #@ assigns self._in_spec
+    #@ assigns self._array_locals, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._frame_trigger_active, self._func_return_type, self._havoc_counter, self._in_spec, self._needs_array_init, self._quant_record_binders, self._quant_scalar_binders, self._str_slice_loop_len, self._string_local_vars, self._todict_arg_wants_pymap
     def _handle_try_stmt(self, stmt: TryStmt, rest: List[Dict[str, Any]],
                           local_refs: Set[str], declared_refs: Set[str],
                           indent: str, in_loop: bool) -> str:
@@ -797,7 +820,7 @@ class ControlFlowStmtMixin:
     #@ ensures True
     # Inherited from `_stmts_to_whyml` (see its frame note) — the callee writes
     # `self._in_spec`, so this caller's `\nothing` was false too.
-    #@ assigns self._in_spec
+    #@ assigns self._array_locals, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._frame_trigger_active, self._func_return_type, self._havoc_counter, self._in_spec, self._needs_array_init, self._quant_record_binders, self._quant_scalar_binders, self._str_slice_loop_len, self._string_local_vars, self._todict_arg_wants_pymap
     def _try_union_is_none_match(self, stmt: "ExprIR", rest: List[Dict[str, Any]],
                                  local_refs: Set[str], declared_refs: Set[str],
                                  indent: str, in_loop: bool) -> Optional[str]:
@@ -937,7 +960,7 @@ class ControlFlowStmtMixin:
     #@ ensures True
     # Inherited from `_stmts_to_whyml`, whose frame this audit corrected: the callee writes
     # `self._in_spec`, so this caller's `\nothing` was false too.
-    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    #@ assigns self._array_locals, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._frame_trigger_active, self._func_return_type, self._havoc_counter, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._str_slice_loop_len, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_if_stmt(self, stmt: IfStmt, rest: List[Dict[str, Any]],
                         local_refs: Set[str], declared_refs: Set[str],
                         indent: str, in_loop: bool) -> str:
@@ -1059,7 +1082,7 @@ class ControlFlowStmtMixin:
     #@ ensures True
     # Inherited from `_stmts_to_whyml` (see its frame note) — the callee writes
     # `self._in_spec`, so this caller's `\nothing` was false too.
-    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    #@ assigns self._array_locals, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._frame_trigger_active, self._func_return_type, self._havoc_counter, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._str_slice_loop_len, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_match_stmt(self, stmt: MatchStmt, rest: List[Dict[str, Any]],
                            local_refs: Set[str], declared_refs: Set[str],
                            indent: str, in_loop: bool) -> str:

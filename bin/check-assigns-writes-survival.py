@@ -110,8 +110,22 @@ MAX_TRAP = 3070
 #   (#49) gen #36, backlog #77 batch 5: 1899 -> **1537**, 1525 -> **1507** — twelve fields on
 #   StatementEmissionMixin (types from the live source / sibling mixins). HOLE 0, HOLE-T 0, HOLE-D 0;
 #   both movers (statements, the Transpiler aggregate) `why3 --type-only` clean, no clause repair needed.
-MAX_TRAP = 1537
-MAX_TRAP_NMS = 1507
+#   (#49) gen #36 slow-plane repair: the --slow sweep found TRAP **1541 > 1537**. Bisected against
+#   12829e20 (where 1537 was measured), +4 rows: (a) 889661c9 made `_handle_for_stmt`'s `\trusted`
+#   clause TRUE by naming `_for_items_hval_map` / `_for_iter_materialize` / `_str_slice_loop_len`
+#   (the underdeclaration plane needed it) while the fields stayed undeclared: lesson (f5) exactly,
+#   +3; (b) b4dccfbe converted `_Unparser.visit_Module`, admitting a `let` with `writes { _pyobj_state }`
+#   to the population (rider (ii)); `_type_ignores` is held in the opaque object state of a non-dataclass
+#   class and a class-level annotation was MEASURED not to reach its record, +1. NOT re-baselined: the
+#   three fields are DECLARED on ControlFlowStmtMixin and StatementEmissionMixin (live Optional types),
+#   and doing so exposed a FALSE PROVED FRAME — the `_stmts_to_whyml` protocol stub in
+#   stmt_control_flow claimed `assigns self._in_spec` only, so the verified `_handle_while_stmt` proved
+#   `self._for_idx_init = old self._for_idx_init` while live takes it '0' -> '3'. The stub and its five
+#   verified callers (+ `_handle_for_stmt`) now carry the real frame's declared fields. 1541 -> **1445**,
+#   1507 -> **1501**; HOLE 0, HOLE-NOWRITES 8, underdeclaration HOLE/HOLE-T/HOLE-D 0, type-only clean,
+#   stmt_control_flow whole-file proof rc=0. The visit_Module row stays counted.
+MAX_TRAP = 1445
+MAX_TRAP_NMS = 1501
 #   (#49) gen #35, backlog #75 — THE ARM THAT LOOKS AT THE SKIPPED SET. A symbol with NO `writes`
 #   clause whose source `#@ assigns` names a field its class's record emits as MUTABLE is a
 #   HOLE in waiting: no frame at all, the field mentionable, so a caller proves it unchanged.

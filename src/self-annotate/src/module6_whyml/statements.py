@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Set, TypedDict
+from typing import Any, Dict, List, Optional, Set, Tuple, TypedDict
 
 from module6_whyml.identifiers import op_translate, whyml_ident, safe_mutex_name, safe_exc_name, stable_hash
 from module6_whyml.ir_scanner import IRScanner
@@ -172,6 +172,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     _record_array_locals: Dict[str, str] = None
     _known_collection_elements: Dict[str, Dict[int, str]] = None
     _record_seq_locals: Dict[str, str] = None
+    # (#49) gen #36 slow-plane repair — (same three as ControlFlowStmtMixin) the three PER-LOOP fields `_handle_for_stmt` resets at
+    # entry and `_classify_iterable` / its arms set (live stmt_control_flow.py: `= None` at loop
+    # entry, then a `str` length expression / a `str` hval map name / a `(str, str)` (local,
+    # expr) pair). Route 889661c9 made `_handle_for_stmt`'s `#@ assigns` TRUE by naming them,
+    # and because they were undeclared the survival TRAP rose 1537 -> 1540 (lesson (f5): the
+    # clause and the declaration are two repairs). Declared with their LIVE Optional types;
+    # the emitter carries an `Optional[str]` / `Optional[Tuple]` field as an opaque `int`
+    # record slot. No mirror body reads or writes them (every accessor is a `\trusted` stub),
+    # so the slot's only role is to make the declared frame EMIT.
+    _for_items_hval_map: Optional[str] = None
+    _for_iter_materialize: Optional[Tuple[str, str]] = None
+    _str_slice_loop_len: Optional[str] = None
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment
