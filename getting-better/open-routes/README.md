@@ -1,6 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-17): #257 (bare `with <cm>:` drops __enter__/__exit__ for an imported CM or a @contextmanager
+##   method) OPENED (found by the ch18 census, driver-reproduced).
+
 ## gen #36 (2026-10-16): #254 (one dict/set to a mutating AND a read slot of one call), #255 (erasure lost via walrus
 ##   / unannotated return), #256 (two list fields holding one list; alias built in unverified code) OPENED (red team).
 
