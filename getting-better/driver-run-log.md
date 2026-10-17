@@ -148,3 +148,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-10-17T03:00Z | 66 | red-team round 2 (strings, ints, exceptions, loops, classes, globals, comprehensions) | launched (read-only) | -
 2026-10-17T03:33Z | 66 | red-team round 2 (~30 probes) | 5 confirmed false proofs, driver-reproduced at HEAD -> OPENED #259-#262 27a02b18 | 27a02b18
 2026-10-17T03:34Z | 67 | routes #259/#262 (pycsl-r259, IDs 2700-2729) and #260/#261 (pycsl-r260, IDs 2730-2759) | repair executors launched @b35d9c5e | -
+2026-10-17T04:40Z | - | PROOF qAG pure_ast @00d6635b-era (post ch17/#251; unmoved by #252-#258) -> see counts; DISCHARGED at HEAD. worktree removed (p250). OWED: expressions (qAH running) | -
