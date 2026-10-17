@@ -53,8 +53,8 @@ families has appeared. Nor does it see `val` declarations: a bodyless `val` with
 `count-trusted-directives.py` and `check-untrusted-emitted.py`.
 
 NOR DOES IT SEE MODEL-LEVEL ASSUMPTIONS, which have no emitted text at all: they are
-properties of the type mapping, not `assume`/`axiom` lines. Two are DECLARED (routes #250,
-#253; translational reference §T.10.5) and surfaced by `pycsl --soundness-report` under
+properties of the type mapping, not `assume`/`axiom` lines. Three are DECLARED (routes #250,
+#253, #256; translational reference §T.10.5) and surfaced by `pycsl --soundness-report` under
 "declared model assumptions" instead of here:
 
   FLOAT-FINITE    every `float` value is finite and non-NaN (`float` is Why3 `real`):
@@ -63,6 +63,9 @@ properties of the type mapping, not `assume`/`axiom` lines. Two are DECLARED (ro
                   DEFINITION, so it adds no fact to this plane's census.
   BUILTIN-EXACT   a builtin-typed value is an exact instance, not a dunder-overriding
                   subclass: `x - x == 0` proves for `x: int`, corpus 2506. No strict mode.
+  FIELD-DISJOINT  two distinct mutable fields hold distinct objects (one Why3 region per
+                  field): a write through `self.xs` is invisible through `self.ys`, corpus
+                  2570. No strict mode.
 """
 import argparse
 import os

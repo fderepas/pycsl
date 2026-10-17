@@ -1769,7 +1769,11 @@ class Module3_Weaver:
         twin = ast.FunctionDef()
         twin.name = hp.target + "__selfcomp"
         twin.args = argsobj; twin.body = body; twin.decorator_list = []
-        twin.returns = None; twin.type_comment = None; twin.type_params = []
+        # (#49) ROUTE #255: the twin returns the literal `0`, so it is `-> int`; a MISSING
+        # return annotation now means an erased (`Any`) result, which would leak into the
+        # lowering of the target's `\result` contract read inside the twin.
+        _rt = ast.Name(); _rt.id = "int"; _rt.ctx = ast.Load()
+        twin.returns = _rt; twin.type_comment = None; twin.type_params = []
         PyCSLWeaver._init_function_csl_fields(twin)
         # The relational obligation: equal public inputs => equal public outputs.
         pred = self.parser_module.parse_contract("check (ra == rb)", line).expr

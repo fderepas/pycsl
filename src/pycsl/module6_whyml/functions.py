@@ -1725,7 +1725,9 @@ class FunctionEmissionMixin:
         _r249_cont: Dict[str, str] = dict(func.get("r249_erased_containers") or {})
         if (func.get("vararg_str_param") and func.get("vararg_elem_type") == "int"):
             _r249_cont[func["vararg_str_param"]] = "kv"
-        _r249_ret_erased: bool = (func.get("return_annotation") in ("Any", "object")
+        # (#49) ROUTE #255: a MISSING return annotation (`def h(z): return z`) is erased too —
+        # the model lowered it to an `int` result, so `v = h(x); return v - v` PROVED 0.
+        _r249_ret_erased: bool = (func.get("return_annotation") in ("Any", "object", None)
                                   or func.get("return_annotation") in _r249_tv)
         _r249_any_ret_funcs: Set[str] = set()
         for _r249_g in ((getattr(self, "ir", {}) or {}).get("functions") or []):
@@ -1733,6 +1735,107 @@ class FunctionEmissionMixin:
                     and _r249_g.get("return_annotation") in ("Any", "object")):
                 _r249_any_ret_funcs.add(_r249_g["name"])
                 _r249_any_ret_funcs.add(_r249_g["name"].split(".")[-1])
+        # (#49) ROUTE #255 — A CALL WHOSE RESULT IS AN ARBITRARY OBJECT. Route #249 erased
+        #   only a call of a module function declared `-> Any`/`object`, so the value of
+        #   every other call was an `int` with every law: measured, `v = h(x); return v - v`
+        #   PROVED `\result == 0` for `def h(z): return z` (no return annotation), for
+        #   `def h(z: T) -> T`, for `k.get()` on a `K` whose `get` is `-> Any`, and for a
+        #   builtin or local callable handed an erased argument (`abs(x)`, `max(x, x)`,
+        #   `getattr(x, "a")`, `(lambda z: z)(x)`); CPython returns 7 for each with a user
+        #   `__sub__`. Resolved here, once per call SPELLING of this function (body and
+        #   contract), into two sets the walk below and `_handle_binop`'s copy both read:
+        #   `any_ret` (the call's result is erased whatever its arguments: a unit function or
+        #   method whose return annotation is missing, `Any`, `object` or a TypeVar) and
+        #   `arg_prop` (a callee that is NOT a unit function — a builtin, an import, a local
+        #   or lambda — whose result is erased iff one of its arguments is; the builtins
+        #   whose result type CPython enforces (`len`, `str`, `int`, `isinstance`, ...)
+        #   are exempt). A method call on a receiver of a builtin type (`xs.index(x)`,
+        #   `d.get(k)`) is the container's, which `cont` above already covers.
+        _r255_fns: Dict[str, Any] = {}
+        _r255_short: Dict[str, List[Any]] = {}
+        for _r249_g in ((getattr(self, "ir", {}) or {}).get("functions") or []):
+            if not (isinstance(_r249_g, dict) and isinstance(_r249_g.get("name"), str)):
+                continue
+            _r255_fns.setdefault(_r249_g["name"], _r249_g)
+            _r255_sn = _r249_g["name"].split(".")[-1]
+            _r255_gst = _r249_g.get("self_type")
+            if (_r249_g.get("kind") == "method" and isinstance(_r255_gst, str)
+                    and _r255_sn.startswith(_r255_gst.lower() + "__")):
+                _r255_sn = _r255_sn[len(_r255_gst) + 2:]
+            _r255_short.setdefault(_r255_sn, []).append(_r249_g)
+        _r255_classes = {str(_k).lower() for _k in (getattr(self, "_record_types", {}) or {})}
+        _r255_classes |= {str(_k).lower() for _k in (getattr(self, "_variant_types", {}) or {})}
+        for _r249_g in _r255_fns.values():
+            if isinstance(_r249_g.get("self_type"), str):
+                _r255_classes.add(_r249_g["self_type"].lower())
+        _r255_enforced = ("len", "str", "repr", "int", "float", "bool", "hash", "id",
+                          "isinstance", "issubclass", "callable", "ord", "chr", "format",
+                          "ascii", "bin", "hex", "oct", "print", "hasattr", "range")
+        _r255_builtin_t = ("int", "float", "str", "bool", "bytes", "list", "dict", "set",
+                           "frozenset", "tuple", "bytearray", "List", "Dict", "Set", "Tuple")
+        _r255_passthru = ("abs", "max", "min", "sum", "getattr", "next", "iter", "sorted",
+                          "reversed", "list", "tuple", "set", "dict", "frozenset", "enumerate",
+                          "zip", "map", "filter", "round", "pow", "divmod", "vars", "type")
+        _r255_arg_prop: Set[str] = set()
+        _r255_seen: Set[str] = set()
+        _r255_ws: List[Any] = [func.get("body") or [], func.get("contracts") or {}]
+        while _r255_ws:
+            _r255_n = _r255_ws.pop()
+            if isinstance(_r255_n, list):
+                _r255_ws.extend(_r255_n)
+                continue
+            if not isinstance(_r255_n, dict):
+                continue
+            _r255_ws.extend(_r255_v for _r255_v in _r255_n.values()
+                            if isinstance(_r255_v, (list, dict)))
+            _r255_f = _r255_n.get("func")
+            if (_r255_n.get("type") != "Call" or not isinstance(_r255_f, str)
+                    or _r255_f in _r255_seen):
+                continue
+            _r255_seen.add(_r255_f)
+            _r255_cands: Optional[List[Any]] = None
+            if "." not in _r255_f:
+                if _r255_f in _r255_fns:
+                    _r255_cands = [_r255_fns[_r255_f]]
+                elif _r255_f.lower() in _r255_classes or _r255_f in _r255_enforced:
+                    _r255_cands = []
+                elif _r255_f not in _r255_passthru:
+                    # an unresolved plain name: a lambda local (bound below) or a
+                    # nested/foreign def — only the former propagates (checked after
+                    # the lambda scan), so record it and decide there
+                    _r255_cands = None
+            else:
+                _r255_b, _r255_m = _r255_f.rsplit(".", 1)
+                _r255_bt = (func.get("self_type") if _r255_b == "self"
+                            else (func.get("symbol_table") or {}).get(_r255_b))
+                if not isinstance(_r255_bt, str) and _r255_b.lower() in _r255_classes:
+                    _r255_bt = _r255_b  # `Class.method(...)`: a static/class method
+                if isinstance(_r255_bt, str) and (_r255_bt.lower() + "__" + _r255_m) in _r255_fns:
+                    _r255_cands = [_r255_fns[_r255_bt.lower() + "__" + _r255_m]]
+                elif isinstance(_r255_bt, str) and (
+                        _r255_bt.split("[")[0] in _r255_builtin_t
+                        or _r255_bt.startswith(("_union_", "callable:"))):
+                    _r255_cands = []
+                elif _r255_m in _r255_short:
+                    _r255_cands = list(_r255_short[_r255_m])
+            if _r255_cands is None:
+                # Only a callee KNOWN to hand back (part of) an argument or a dunder's
+                # arbitrary result: the builtins below, `copy`/`operator`/`functools`, a
+                # lambda, or a callable that is itself erased (checked in the walk). Any
+                # other unresolved callee keeps its prior lowering.
+                if (_r255_f in _r255_passthru
+                        or _r255_f.split(".")[0] in ("copy", "operator", "functools")
+                        or "." not in _r255_f):
+                    _r255_arg_prop.add(_r255_f)
+                continue
+            for _r249_g in _r255_cands:
+                _r255_ra = _r249_g.get("return_annotation")
+                _r255_gtv = {_tp.get("name") for _tp in (_r249_g.get("type_params") or [])
+                             if isinstance(_tp, dict)}
+                if (_r255_ra in ("Any", "object", None) or _r255_ra in _r249_tv
+                        or _r255_ra in _r255_gtv):
+                    if not str(_r249_g.get("name", "")).endswith("____init__"):
+                        _r249_any_ret_funcs.add(_r255_f)
         # A class the model does NOT carry as a record (a `type <c> = int` alias) whose own
         # `__eq__`/`__ne__` is defined: its instances' `==` is the user's method. (A record
         # class with `__eq__` is route #76's: refused in a contract, ill-typed in a program.)
@@ -1756,6 +1859,9 @@ class FunctionEmissionMixin:
                     or _r249_a in _r249_eq_classes):
                 _r249_erased.add(_r249_p)
         _r249_asgs: List[Any] = []
+        _r255_lams: List[Any] = []
+        _r255_vars: Set[str] = set()
+        _r255_calls: List[Any] = []
         _r249_ws: List[Any] = [func.get("body") or []]
         while _r249_ws:
             _r249_n = _r249_ws.pop()
@@ -1764,13 +1870,36 @@ class FunctionEmissionMixin:
                 continue
             if not isinstance(_r249_n, dict):
                 continue
-            if (_r249_n.get("stmt") in ("Assign", "AnnAssign", "AugAssign")
+            # (#49) ROUTE #255: EVERY binding form, not three statement kinds — `a, b = x, x`
+            # (`TupleUnpack`) and a walrus `(v := x)` (`NamedExpr`, an expression) were
+            # missed, so `v - v` PROVED 0; a lambda's parameters are unannotated (erased,
+            # like a function's); a `match` capture binds (part of) the subject.
+            if ((_r249_n.get("stmt") is not None or _r249_n.get("type") == "NamedExpr")
                     and _r249_n.get("value") is not None):
                 for _r249_t in ([_r249_n.get("target")]
                                 + list(_r249_n.get("targets") or [])
                                 + list(_r249_n.get("tuple_targets") or [])):
                     if isinstance(_r249_t, str):
                         _r249_asgs.append((_r249_t, _r249_n.get("value"), False))
+            if _r249_n.get("type") == "Lambda":
+                _r255_lams.append(_r249_n)
+            if _r249_n.get("type") == "Var" and isinstance(_r249_n.get("name"), str):
+                _r255_vars.add(_r249_n["name"])
+            if _r249_n.get("type") == "Call" and isinstance(_r249_n.get("func"), str):
+                _r255_calls.append(_r249_n)
+            if _r249_n.get("stmt") == "Match" and isinstance(_r249_n.get("subject"), dict):
+                _r255_ps: List[Any] = [_r249_c.get("pattern") for _r249_c in
+                                       (_r249_n.get("cases") or []) if isinstance(_r249_c, dict)]
+                while _r255_ps:
+                    _r255_p = _r255_ps.pop()
+                    if isinstance(_r255_p, list):
+                        _r255_ps.extend(_r255_p)
+                    elif isinstance(_r255_p, dict):
+                        if _r255_p.get("pattern") == "Capture" and isinstance(
+                                _r255_p.get("name"), str):
+                            _r249_asgs.append((_r255_p["name"], _r249_n["subject"], False))
+                        _r255_ps.extend(_r255_v for _r255_v in _r255_p.values()
+                                        if isinstance(_r255_v, (list, dict)))
             if isinstance(_r249_n.get("iter"), dict):
                 for _r249_t in ([_r249_n.get("target")]
                                 + list(_r249_n.get("tuple_targets") or [])):
@@ -1779,6 +1908,42 @@ class FunctionEmissionMixin:
             for _r249_v in _r249_n.values():
                 if isinstance(_r249_v, (list, dict)):
                     _r249_ws.append(_r249_v)
+        # A LAMBDA's parameters are unannotated: each is bound from the arguments of the
+        # calls of the one name the lambda is bound to (so `l = lambda z: z + 1; l(3)` keeps
+        # integer laws), and erased outright when the lambda is not bound to exactly one name,
+        # or that name is used as a value (it escapes to callers this scan cannot see). The
+        # call's RESULT is erased iff an argument or the lambda's body is (`arg_prop` + `lam`).
+        _r255_lam: Dict[str, Any] = {}
+        _r255_nbind: Dict[str, int] = {}
+        for _r249_t, _r249_rhs, _r249_it in _r249_asgs:
+            _r255_nbind[_r249_t] = _r255_nbind.get(_r249_t, 0) + 1
+        for _r249_t, _r249_rhs, _r249_it in _r249_asgs:
+            if (not _r249_it and isinstance(_r249_rhs, dict)
+                    and _r249_rhs.get("type") == "Lambda" and _r255_nbind[_r249_t] == 1
+                    and _r249_t not in _r255_vars):
+                _r255_lam[_r249_t] = _r249_rhs
+        _r255_arg_prop = {_r255_f for _r255_f in _r255_arg_prop
+                          if "." in _r255_f or _r255_f in _r255_passthru
+                          or _r255_f in _r255_lam}
+        for _r255_l in _r255_lams:
+            if not any(_r255_l is _r255_v for _r255_v in _r255_lam.values()):
+                _r249_erased |= {_r249_t for _r249_t in (_r255_l.get("params") or [])
+                                 if isinstance(_r249_t, str)}
+        for _r255_c in _r255_calls:
+            _r255_l = _r255_lam.get(_r255_c["func"])
+            if _r255_l is None:
+                continue
+            _r255_lp = [_p for _p in (_r255_l.get("params") or []) if isinstance(_p, str)]
+            _r255_ca = list(_r255_c.get("args") or [])
+            _r255_kw = {_k.get("arg"): _k.get("value") for _k in (_r255_c.get("keywords") or [])
+                        if isinstance(_k, dict)}
+            for _r255_i, _r255_p in enumerate(_r255_lp):
+                _r255_v = (_r255_ca[_r255_i] if _r255_i < len(_r255_ca)
+                           else _r255_kw.get(_r255_p))
+                if isinstance(_r255_v, dict):
+                    _r249_asgs.append((_r255_p, _r255_v, False))
+                else:
+                    _r249_erased.add(_r255_p)
         _r249_rts = getattr(self, "_record_types", {}) or {}
         _r249_st = func.get("symbol_table") or {}
         # (#49) ROUTE #252 — AN ERASED VALUE FLOWING INTO A SLOT THE MODEL READS AS A BUILTIN.
@@ -1891,10 +2056,16 @@ class FunctionEmissionMixin:
         # A WHOLE route-#249 container (`d: Dict[str, Any]` passed or returned as a value) is
         # not an erased SCALAR: it is the builtin container itself, whatever the slot's model
         # type (the mirror returns a `Dict[str, Any]` local from a method it declares `-> int`).
+        # (#49) ROUTE #255: likewise a container LITERAL (`return {"line": getattr(node,
+        # "lineno", 0), ...}` under the mirror's dict-as-`int` convention) — its erased
+        # ELEMENT is not what the slot receives, so no builtin law is re-applied to it.
         _r252_sites = [_r252_s for _r252_s in _r252_sites
                        if isinstance(_r252_s[1], dict)
                        and not (_r252_s[1].get("type") == "Var"
-                               and _r252_s[1].get("name") in _r249_cont)]
+                               and _r252_s[1].get("name") in _r249_cont)
+                       and _r252_s[1].get("type") not in (
+                           "DictLit", "ArrayLit", "ListLit", "List", "SetLit", "Set",
+                           "Tuple", "MkTuple", "MkList")]
         for _r252_i, _r252_s in enumerate(_r252_sites):
             _r249_asgs.append(("#r252:%d" % _r252_i, _r252_s[1], False))
         _r249_changed = True
@@ -1982,6 +2153,15 @@ class FunctionEmissionMixin:
                               or (_r249_f.startswith("self.")
                                   and _r249_f[5:] in _r249_any_ret_funcs)):
                             _r249_hit = True
+                        elif "." not in _r249_f and _r249_f in _r249_erased:
+                            _r249_hit = True  # calling an erased (`Any`) callable
+                        elif _r249_f in _r255_arg_prop:
+                            _r249_es.extend(_r249_e.get("args") or [])
+                            _r249_es.extend(_r249_k.get("value") for _r249_k in
+                                            (_r249_e.get("keywords") or [])
+                                            if isinstance(_r249_k, dict))
+                            if _r249_f in _r255_lam:
+                                _r249_es.append(_r255_lam[_r249_f].get("body"))
                 if _r249_hit:
                     _r249_erased.add(_r249_t)
                     _r249_changed = True
@@ -2001,7 +2181,9 @@ class FunctionEmissionMixin:
         # `_handle_binop`.
         self._r249_scope: Dict[str, Any] = {
             "erased": _r249_erased, "cont": _r249_cont, "ret_erased": _r249_ret_erased,
-            "any_ret": _r249_any_ret_funcs, "eq_classes": _r249_eq_classes}
+            "any_ret": _r249_any_ret_funcs, "eq_classes": _r249_eq_classes,
+            "arg_prop": _r255_arg_prop,
+            "lam": {_k: _v.get("body") for _k, _v in _r255_lam.items()}}
         # typed-ir-for-b-ceiling.md §26: `X = getattr(self, "<field>", {})` binds a
         # local aliasing a dict/set self-field (the emitter's `known_sizes =
         # getattr(self, "_known_collection_sizes", {})` / `st = getattr(self,
@@ -2889,17 +3071,114 @@ class FunctionEmissionMixin:
                             if isinstance(_x_kw, dict) and _x_kw.get("arg") in _x_on:
                                 _x_cands.append((_x_kw.get("value"), "`%s(...)`" % _x_c["func"],
                                                  _x_loop or _x_inc))
-                    for (_x_a, _x_dest, _x_inl) in _x_cands:
+                    # (#49) ROUTE #254 — ONE OBJECT IN A MUTATING SLOT AND ANOTHER SLOT OF THE
+                    #   SAME CALL. A callee that mutates a dict/set parameter takes it by
+                    #   reference (WL-05b's `ref (map ...)`, or the #244 shadow) and every
+                    #   other parameter by VALUE, so Why3's alias check (refs only) never sees
+                    #   `g(a, a)`: the callee's contract is proved for two DISTINCT objects.
+                    #   Measured at e6f26cde, `x.add(1); return 1 in y` under `requires not (1
+                    #   in y)` PROVED `\result == False` for `a = set(); return g(a, a)` (and
+                    #   the dict form, `b = a; g(a, b)`, and the call forwarded through a
+                    #   parameter); CPython returns True. THE RULE (fail-closed): the argument
+                    #   `v` in a mutating slot must not be named, aliasingly (the walk of the
+                    #   (M) rule: a stored/returned/passed-on occurrence, not `len(v)` or
+                    #   `v.copy()`), by any OTHER argument of the call; and when another
+                    #   argument names anything at all, `v` must be a name nothing else can
+                    #   hold: a parameter not rebound (its callers are checked by this same
+                    #   rule, the slot being forwarded), or a local bound only to fresh values,
+                    #   never given another name before, outside a loop — and the other names
+                    #   must not be locals bound to non-fresh values.
+                    for (_x_c, _x_inc) in (_x_cs if _x_cur else []):
+                        _x_cf = _x_c["func"]
+                        _x_mp: Set[Any] = set((_x_slots.get(_x_cf.rsplit(".", 1)[-1])
+                                               or {}).get("mut") or set())
+                        _x_wl = (getattr(self, "_func_mutated_collection_params", {}) or {}).get(
+                            _x_cf) or set()
+                        for (_x_fn2, _x_c2, _x_sn2, _x_ffp2, _x_f2, _x_l2, _x_b2) in _x_units:
+                            if _x_wl and _x_fn2.get("name") == _x_cf:
+                                _x_mp |= {_x_j for _x_j, _x_p in enumerate(_x_ffp2)
+                                          if _x_p in _x_wl} | set(_x_wl)
+                        if not _x_mp:
+                            continue
+                        _x_all = [(_x_j, _x_a) for _x_j, _x_a in enumerate(_x_c.get("args") or [])]
+                        _x_all += [(_x_kw.get("arg"), _x_kw.get("value"))
+                                   for _x_kw in (_x_c.get("keywords") or [])
+                                   if isinstance(_x_kw, dict)]
+                        for (_x_j, _x_a) in _x_all:
+                            if not (_x_j in _x_mp and isinstance(_x_a, dict)
+                                    and _x_a.get("type") == "Var"):
+                                continue
+                            _x_v = _x_a.get("name")
+                            _x_oth: Set[str] = set()
+                            _x_ew2: List[Any] = [(_x_a2, True) for (_x_j2, _x_a2) in _x_all
+                                                 if _x_j2 != _x_j]
+                            while _x_ew2:
+                                _x_n2, _x_al2 = _x_ew2.pop()
+                                if isinstance(_x_n2, (list, tuple)):
+                                    _x_ew2.extend((_x_m2, _x_al2) for _x_m2 in _x_n2)
+                                    continue
+                                if not isinstance(_x_n2, dict):
+                                    continue
+                                if _x_n2.get("type") == "Var" and isinstance(_x_n2.get("name"), str):
+                                    if _x_al2:
+                                        _x_oth.add(_x_n2["name"])
+                                    continue
+                                _x_f3 = _x_n2.get("func")
+                                if isinstance(_x_f3, str):
+                                    _x_ew2.extend((_x_m2, _x_al2 and _x_f3 not in _X_HARMLESS
+                                                   and not _x_f3.endswith(".copy"))
+                                                  for _x_k2, _x_m2 in _x_n2.items()
+                                                  if _x_k2 in ("args", "keywords"))
+                                    continue
+                                _x_ew2.extend((_x_m2, _x_al2 and (
+                                    _x_n2.get("type") in ("IfExp", "IfExpr", "BoolOp",
+                                                          "NamedExpr", "Starred")
+                                    or _x_k2 in ("value", "values", "elts", "elements", "keys",
+                                                 "body", "orelse")))
+                                    for _x_k2, _x_m2 in _x_n2.items())
+                            # a name typed as a scalar builtin cannot hold the dict/set
+                            _x_oth = {_x_w2 for _x_w2 in _x_oth if _x_w2 == _x_v
+                                      or _x_fst.get(_x_w2) not in (
+                                          "int", "float", "str", "bool", "bytes")}
+                            _x_pv = ((_x_v in _x_ffp and _x_v not in _x_bind_ok)
+                                     or (_x_v not in _x_ffp and _x_bind_ok.get(_x_v, False)
+                                         and not (_x_loop or _x_inc)
+                                         and not any(_x_on2 == _x_v and _x_oa
+                                                     for (_x_s2, _x_l2, _x_o2, _x_c2)
+                                                     in _x_lin[:_x_i]
+                                                     for (_x_on2, _x_oa) in _x_o2)))
+                            _x_w = None
+                            if _x_v in _x_oth:
+                                _x_w = ("`%s` is also passed in another argument of the same "
+                                        "call" % _x_v)
+                            elif _x_oth and not _x_pv:
+                                _x_w = ("`%s` may already have another name (it is bound to a "
+                                        "non-fresh value, was given another name before, or "
+                                        "the call is in a loop), and the same call also "
+                                        "passes `%s`" % (_x_v, sorted(_x_oth)[0]))
+                            elif _x_v in _x_ffp:
+                                for _x_w2 in sorted(_x_oth):
+                                    if (_x_w2 in _x_bind_ok and not _x_bind_ok[_x_w2]):
+                                        _x_w = ("`%s` is bound to a non-fresh value, so it "
+                                                "may be a second name for the parameter "
+                                                "`%s` in the same call" % (_x_w2, _x_v))
+                                        break
+                            if _x_w is not None:
+                                _x_cands.append((_x_a, "a mutating parameter of `%s(...)`"
+                                                 % _x_cf, _x_loop or _x_inc, _x_w))
+                    for (_x_a, _x_dest, _x_inl, *_x_pw) in _x_cands:
                         if not isinstance(_x_a, dict):
                             continue
                         _x_at = _x_a.get("type")
-                        if _x_at in _X_FRESH_T or (
+                        if not _x_pw and (_x_at in _X_FRESH_T or (
                                 _x_at == "Call" and isinstance(_x_a.get("func"), str)
                                 and (_x_a["func"] in _X_FRESH_F
-                                     or _x_a["func"].endswith(".copy"))):
+                                     or _x_a["func"].endswith(".copy")))):
                             continue
                         _x_why = None
-                        if _x_at != "Var":
+                        if _x_pw:
+                            _x_why = _x_pw[0]
+                        elif _x_at != "Var":
                             _x_why = ("the value is not a fresh dict/set, so it may already be "
                                       "reachable through another name (a field, a local, or a "
                                       "caller's argument)")

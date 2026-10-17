@@ -507,6 +507,70 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
                     ", ".join(sorted(set(_ma_fseen))) or "a float literal"))
             if _ma_seen and isinstance(_ma_op, str):
                 _ma_exact_uses.append("%s: %s on %s" % (f["name"], _ma_what, _ma_vals))
+    # ROUTE #256 — FIELD-DISJOINT. The model gives every mutable field (a list/dict/set or a
+    # record value) its own Why3 region, so two DISTINCT fields never alias: a write through
+    # `self.xs` leaves `self.ys` unchanged (the emitted frame says so). Python makes no such
+    # promise — `T(L, L)` puts one list in both — and a verified caller that builds the alias
+    # is refused (R167, routes #243/#244), so the residue is an alias built in UNVERIFIED code.
+    # That is the ownership discipline's rule R1 (docs/pycsl-ownership-discipline.md §2),
+    # surfaced here: reported for every function that mutates a mutable field in place
+    # (subscript store/delete, a mutator method call, an augmented assignment, a nested field
+    # store) while it also reads or mutates ANOTHER mutable field (another field name, or the
+    # same field of another object). Conservative: field types are matched by name only.
+    _fd_mut: Set[str] = set()
+    _fd_recs = {_td.get("name") for _td in (ir_data.get("type_decls") or [])
+                if isinstance(_td, dict) and _td.get("kind") == "record"}
+    for _fd_td in ir_data.get("type_decls", []) or []:
+        for _fd_fd in (_fd_td.get("fields") or []) if isinstance(_fd_td, dict) else []:
+            if isinstance(_fd_fd, dict) and isinstance(_fd_fd.get("type"), str) and (
+                    _fd_fd["type"].split("[")[0].strip().lower() in (
+                        "list", "dict", "set", "bytearray", "deque", "defaultdict")
+                    or _fd_fd["type"] in _fd_recs):
+                _fd_mut.add(_fd_fd.get("name"))
+    _fd_uses: List[str] = []
+    for f in (funcs if _fd_mut else []):
+        _fd_w: Set[str] = set()
+        _fd_r: Set[str] = set()
+        _fd_stack: List[Any] = [f.get("body", []), f.get("contracts", {})]
+        while _fd_stack:
+            _fd_n = _fd_stack.pop()
+            if isinstance(_fd_n, list):
+                _fd_stack.extend(_fd_n)
+                continue
+            if not isinstance(_fd_n, dict):
+                continue
+            _fd_stack.extend(_fd_n.values())
+            if (_fd_n.get("type") == "FieldGet" and _fd_n.get("field") in _fd_mut
+                    and isinstance(_fd_n.get("object"), str)):
+                _fd_r.add("%s.%s" % (_fd_n["object"], _fd_n["field"]))
+            _fd_tgt = None
+            if _fd_n.get("stmt") in ("ArraySet", "ArraySliceSet", "DelSubscript"):
+                _fd_tgt = _fd_n.get("array")
+            if (isinstance(_fd_tgt, dict) and _fd_tgt.get("type") == "FieldGet"
+                    and _fd_tgt.get("field") in _fd_mut):
+                _fd_w.add("%s.%s" % (_fd_tgt.get("object"), _fd_tgt.get("field")))
+            if (_fd_n.get("stmt") == "FieldAugAssign" and _fd_n.get("field") in _fd_mut):
+                _fd_w.add("%s.%s" % (_fd_n.get("object"), _fd_n.get("field")))
+            if (_fd_n.get("stmt") == "FieldAssign" and isinstance(_fd_n.get("object"), str)
+                    and "." in _fd_n["object"]
+                    and _fd_n["object"].rsplit(".", 1)[1] in _fd_mut):
+                _fd_w.add(_fd_n["object"])
+            _fd_fn = _fd_n.get("func") if _fd_n.get("type") == "Call" else None
+            if isinstance(_fd_fn, str) and _fd_fn.count(".") >= 2:
+                _fd_recv = _fd_fn.rsplit(".", 1)[0]
+                if _fd_recv.rsplit(".", 1)[1] in _fd_mut:
+                    _fd_r.add(_fd_recv)
+                    if _fd_fn.rsplit(".", 1)[1] in (
+                            "append", "extend", "insert", "pop", "remove", "clear", "sort",
+                            "reverse", "add", "discard", "update", "setdefault", "popitem",
+                            "intersection_update", "difference_update",
+                            "symmetric_difference_update", "appendleft", "popleft"):
+                        _fd_w.add(_fd_recv)
+        for _fd_x in sorted(_fd_w):
+            _fd_o = sorted((_fd_r | _fd_w) - {_fd_x})
+            if _fd_o:
+                _fd_uses.append("%s: mutates %s, also accesses %s" % (
+                    f["name"], _fd_x, ", ".join(_fd_o)))
     assumptions: List[Dict[str, Any]] = []
     if _ma_float_uses:
         assumptions.append({
@@ -527,6 +591,18 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
                               "(corpus 2506)",
             "strict_mode": None,
             "relied_on_by": sorted(set(_ma_exact_uses)),
+        })
+    if _fd_uses:
+        assumptions.append({
+            "name": "FIELD-DISJOINT",
+            "statement": "two distinct mutable fields (list/dict/set/record-valued; of one "
+                         "record, or the same field of two record values) hold distinct "
+                         "objects, so a mutation through one is invisible through the other "
+                         "(ownership discipline rule R1)",
+            "counterexample": "L = [0]; T(L, L): a write through self.xs is seen by "
+                              "self.ys (corpus 2570)",
+            "strict_mode": None,
+            "relied_on_by": sorted(set(_fd_uses)),
         })
     return {"file": filename, "summary": counts, "vcs": vcs,
             "model_assumptions": assumptions}

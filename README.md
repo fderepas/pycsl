@@ -263,14 +263,18 @@ By default the consistency relationship is emitted as a WhyML axiom
 `pycsl --strict-hash-eq-consistency` it becomes a goal that must be
 discharged externally via `#@ proof rocq <q>` / `#@ proof lean <q>`.
 
-**Declared model assumptions.** Like HASH-EQ-CONSISTENCY, two facts are
+**Declared model assumptions.** Like HASH-EQ-CONSISTENCY, three facts are
 assumed rather than proved and are listed by `pycsl --soundness-report`
 whenever a program relies on them: **FLOAT-FINITE** (every `float` is
 finite and non-NaN — `float` is the Why3 `real`, so `x == x` proves for
 `x: float`; drop it with `--strict-float-finite`, corpus 2500-2507) and
 **BUILTIN-EXACT** (a builtin-typed value is an exact instance, not a
 subclass overriding a dunder — `x - x == 0` proves for `x: int`; no
-strict mode, corpus 2506). See translational reference §T.10.5.
+strict mode, corpus 2506) and **FIELD-DISJOINT** (two distinct mutable
+fields hold distinct objects — a write through `self.xs` is invisible
+through `self.ys`; an alias built by verified code is refused, one built
+in unverified code is the ownership rule R1; no strict mode, corpus
+2570). See translational reference §T.10.5.
 
 A class defining only `__eq__` (no `__hash__`) is detected as
 *unhashable*; using it as a dict/set key would raise `TypeError` at

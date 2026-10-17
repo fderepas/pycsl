@@ -9,6 +9,11 @@
 
 ## gen #36 (2026-10-16): #254 (one dict/set to a mutating AND a read slot of one call), #255 (erasure lost via walrus
 ##   / unannotated return), #256 (two list fields holding one list; alias built in unverified code) OPENED (red team).
+##   2026-10-17: #254 REPAIRED (a mutating-slot argument may not reach another argument of the same call; WL-05b
+##   by-ref slots joined the #243/#244 rule; witnesses 2540-2546, control 2548), #255 REPAIRED (walrus / tuple-
+##   unpack / match / lambda bindings join the #249 fixpoint; missing/Any/TypeVar-return call results and
+##   arg-passing builtins are erased; witnesses 2550-2562, control 2566), #256 RESOLVED as the DECLARED MODEL
+##   ASSUMPTION FIELD-DISJOINT (ownership rule R1; corpus 2570). Residual: `Optional[Any]` drops its Any arm.
 
 ## gen #36 (2026-10-16): #250 and #253 RESOLVED as DECLARED MODEL ASSUMPTIONS (HASH-EQ-CONSISTENCY precedent):
 ##   FLOAT-FINITE (floats finite, non-NaN) and BUILTIN-EXACT (builtin-typed values are exact instances, no

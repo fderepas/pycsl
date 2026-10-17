@@ -3900,6 +3900,7 @@ of the translation:
 | Python's `//`/`%` are floored (rounds toward −∞; remainder sign = divisor) | Language semantics | Low — realized faithfully: `pycsl_div`/`pycsl_mod` correct Euclidean `div`/`mod` by a sign-of-divisor adjustment (WL-01 FIXED); positive-divisor case is byte-identical to Euclidean |
 | **FLOAT-FINITE** — every `float` value is finite and non-NaN | $\tau(\texttt{float}) = \texttt{real}$ (no NaN/±inf) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-float-finite`; counterexample corpus 2500-2502 |
 | **BUILTIN-EXACT** — a builtin-typed value is an exact instance (no dunder-overriding subclass) | $\tau$ of every builtin | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, no strict mode; counterexample corpus 2506 |
+| **FIELD-DISJOINT** — two distinct mutable fields hold distinct objects | one Why3 region per mutable field (frames such as `ensures { self.ys = old self.ys }`) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, no strict mode; counterexample corpus 2570 |
 
 ### §T.10.2  Preservation Lemmas
 
@@ -3999,9 +4000,9 @@ core.  Constructs outside the core (exceptions, classes, arrays) are
 modeled using Why3's built-in theories, whose soundness is established
 by the Why3 project itself.
 
-### §T.10.5  Declared Model Assumptions (routes #250, #253)
+### §T.10.5  Declared Model Assumptions (routes #250, #253, #256)
 
-Two rows of the §T.10.1 trust base are properties of $\tau$ rather than of any emitted
+Three rows of the §T.10.1 trust base are properties of $\tau$ rather than of any emitted
 text: no `assume`, `axiom` or `val` carries them, so `bin/check-assumed-facts.py` (which
 classifies emitted assumed facts) cannot see them. They are DECLARED instead — the same
 treatment as the reviewed HASH-EQ-CONSISTENCY axiom (UB-7.2, `--strict-hash-eq-consistency`,
@@ -4043,7 +4044,26 @@ PROVES `\result == 0` (2506); with `class I(int): def __sub__(s, o): return 7`, 
 every operator node that reads a builtin-typed variable, field or `\result`. There is no
 strict mode: fail-closed would remove all builtin arithmetic. (Values that are NOT
 builtin-typed — `Any`, `object`, unannotated, TypeVar — are not under this assumption: their
-operators are already uninterpreted, routes #249/#251/#252.)
+operators are already uninterpreted, routes #249/#251/#252. Route #255 widened that population to every
+binding form — a walrus target, a tuple-unpack target, a `match` capture, a lambda parameter bound
+from an erased call argument — and to call RESULTS: a unit function or method whose return annotation
+is missing, `Any`, `object` or a TypeVar, a `Class.method`/`obj.method` resolved to one, and a
+builtin handing back (part of) an erased argument (`abs`, `max`, `getattr`, `next`, `sorted`, ...).)
+
+**FIELD-DISJOINT** — two distinct mutable fields (a `list`/`dict`/`set` or a record value; of one
+record, or the same field of two record values) hold distinct objects. Each mutable field is its own
+Why3 region, so a write through `self.xs` leaves `self.ys` unchanged (the emitted frame says so);
+Python lets two fields hold ONE list. `T.poke` (`assigns self.xs`) with `self.xs[0] = 7; return
+self.ys[0]` under `requires self.ys[0] == 0` PROVES `\result == 0` (2570), and CPython returns 7 for
+`L = [0]; T(L, L).poke()`. A VERIFIED program cannot build the alias: storing a non-fresh dict/set
+into a field or an escaping slot is refused (R167, routes #243/#244), one object in a mutating slot and
+another slot of one call is refused (route #254), and Why3 itself rejects two list refs in one call.
+The residue is an alias built in UNVERIFIED code — the ownership discipline's rule R1
+(`docs/pycsl-ownership-discipline.md` §2). Reported for every function that mutates a mutable field
+in place and also reads or mutates another mutable field (matched by field name, conservatively). No
+strict mode: refusing such a method instead (route #256's option (b)) was measured at 15 root-corpus
+files (e.g. the `Bank.transfer` drivers 0723-0725) and 7 mirror files (41 methods, among them
+`_emit_body_code`), and PyCSL has no separation precondition in which to state the disjointness.
 
 ---
 

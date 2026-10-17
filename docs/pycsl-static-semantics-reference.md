@@ -2925,9 +2925,9 @@ the dependency standalone" is not always well-defined: measured over the corpus'
 local dependencies, two fail for CONTEXT reasons while their importers pass, one of them
 because a contract names a constant that only resolves inside the importing compilation.
 
-### C.1 Declared model assumptions (routes #250, #253)
+### C.1 Declared model assumptions (routes #250, #253, #256)
 
-Two facts every proof over builtin-typed values rests on are **assumed, not proved**, and no
+Three facts the proofs over builtin-typed values and mutable fields rest on are **assumed, not proved**, and no
 VC states them and no emitted `assume`/`axiom` carries them — they are properties of the type
 mapping $\tau$ itself. They are the same class as the reviewed HASH-EQ-CONSISTENCY assumption
 (`bin/check-assumed-facts.py`), but with no emitted text a plane could classify, so they are
@@ -2939,6 +2939,7 @@ values involved. The listing is conservative (over-, never under-reported).
 |---|---|---|---|---|
 | **FLOAT-FINITE** | every `float` value is finite and non-NaN | a comparison (`< <= > >= == !=`) or `min`/`max` whose operand mentions a float literal or a float-typed variable, field or `\result` | `x: float` with `ensures x == x` / `x <= x` / (`requires x != y`, `ensures x < y or y < x`) PROVE (2500-2502); CPython refutes all three for `x = float("nan")` | `--strict-float-finite` (2503-2505 FAIL; controls 2507 PASS) |
 | **BUILTIN-EXACT** | a value whose static type is a builtin (`int`/`float`/`str`/`bool`/`bytes`/`tuple`/`list`/`dict`/`set`/`frozenset`) is an EXACT instance of it — not a subclass overriding a dunder | any operator (an IR node with an `op`: arithmetic, comparison, unary, augmented assignment) reading a builtin-typed variable, field or `\result` | `def f(x: int): return x - x` PROVES `\result == 0` (2506); CPython returns 7 for `f(I(5))`, `class I(int): __sub__ -> 7` | none — dropping it would leave no builtin arithmetic at all |
+| **FIELD-DISJOINT** | two distinct mutable fields (`list`/`dict`/`set`/record-valued — of one record, or the same field of two record values) hold distinct objects, so a mutation through one is invisible through the other: the ownership discipline's rule R1 (`docs/pycsl-ownership-discipline.md` §2), stated for the residue no check sees | a function that mutates a mutable field in place (subscript store/`del`, a mutator method call, an augmented assignment, a nested field store) and also reads or mutates ANOTHER mutable field (field types matched by name) | `T.poke` (`assigns self.xs`) writes `self.xs[0] = 7` and returns `self.ys[0]` under `requires self.ys[0] == 0`; `ensures \result == 0` PROVES (2570); CPython returns 7 for `L = [0]; T(L, L).poke()`. A VERIFIED caller that builds the alias is refused (R167, routes #243/#244/#254); the residue is an alias built in unverified code | none — every list/dict/set field frame rests on it |
 
 **What `--strict-float-finite` covers.** A NaN SENTINEL is modelled as the non-dyadic real
 `1/3` (`let constant pycsl_float_nan : real = 1.0 /. 3.0`, a definition — no axiom): every

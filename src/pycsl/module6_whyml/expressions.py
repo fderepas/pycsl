@@ -5151,6 +5151,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                               or _r249_f in (_r249_sc.get("eq_classes") or set())
                               or (_r249_f.startswith("self.") and _r249_f[5:] in _r249_arf)):
                             _r249_hit = True
+                        elif "." not in _r249_f and _r249_f in _r249_er:
+                            _r249_hit = True  # calling an erased (`Any`) callable
+                        elif _r249_f in (_r249_sc.get("arg_prop") or set()):
+                            # ROUTE #255: a non-unit callee (builtin, import, lambda)
+                            # returns an erased value iff it is handed one.
+                            _r249_es.extend(_r249_e.get("args") or [])
+                            _r249_es.extend(_r249_k.get("value") for _r249_k in
+                                            (_r249_e.get("keywords") or [])
+                                            if isinstance(_r249_k, dict))
+                            if _r249_f in (_r249_sc.get("lam") or {}):
+                                _r249_es.append(_r249_sc["lam"][_r249_f])
                 _r249_side_hit.append(_r249_hit)
         if raw_op == "r251_erased?":
             return "1" if any(_r249_side_hit) else ""
