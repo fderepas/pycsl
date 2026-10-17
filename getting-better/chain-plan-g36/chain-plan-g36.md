@@ -358,6 +358,36 @@ Files: `plan/repro/alias_elem_store.py` (+ `.mlw`), `plan/mono_rewrite_call_site
 `classify.py` (families), `plan.py` (tables; `python3 plan.py chain.jsonl chain2.jsonl`),
 `chain.markers.json` (per-marker families/category), `plan.out`.
 
+## Re-measurement at HEAD — steps 2, 4, 8 (ch20, 2026-10-17, at `9b404897`)
+
+Each marker ported verbatim (live body; mirror signature, then live signature where they
+differ) and type-checked `--no-proof --keep-mlw`. **0 of 7 honest; no seam built.** The S
+families are mis-attributed: each chain's first S blocker hides an M/L value-model gap.
+
+```
+    step  marker                                  first blocker at HEAD -> verdict
+    2 FSTR _ContractParser._grab_reviewer_id      `self.source[pos:]` is getattr-erased (not a mirror field), `re.match` erased
+                                                  and `m.group(0)` lowers to `m_group_1 0`: the return value is INPUT-BLIND. SKIP
+    2 FSTR _ChainDesugarer.visit_Compare          facade: `ops`/`comparators` = `pycsl_getattr_default_*` constants, every AST
+                                                  ctor 0-ary (`ast_Compare_0 ()`), the result `ast_BoolOp_0 ()`. SKIP
+    2 FSTR _Unparser.get_type_comment             string f-string returned into an int-erased slot; `-> Optional[str]` makes the
+                                                  body TC but ripples into VERIFIED `visit_Assign` (`"" <> 0`); the int-hash
+                                                  route would add 2 UNKNOWN getattr sites to pure_ast (ratchet). SKIP
+    4 UNIT _Unparser.delimit_if                   `-> int` refused by route #252; live sig -> every `with self.require_parens(..)`
+                                                  caller REFUSED by route #257 (cm no longer proven inert) = mirror regression. SKIP
+    4 UNIT _decode_fstring_middle                 callee `_decode_escapes` is trusted+unannotated (`: unit`); its real return is
+                                                  `str` or `bytes` depending on `is_bytes` -> no honest return interface; the
+                                                  `-> str` return then refused by route #252. SKIP
+    8 STRM Module3_Weaver._check_protect_aliasing bare `set` params iterate as int; `p.split(".")` -> `p_split_1 <hash>` (receiver
+                                                  dropped, fresh program val: sound, input-blind); needs SET + LISTSTR first. SKIP
+    8 STRM _split_rocq_check_output               `stdout.splitlines()` -> 0-ary `stdout_splitlines_0 ()`, locals typed int,
+                                                  `lstrip()[2:]` -> `any int`; needs splitlines/lstrip/List[str] locals (M). SKIP
+```
+
+The receiver-dropping helpers are `val`s (not `val function`), so each call is a fresh
+unconstrained value: input-blind, NOT unsound. No independently-correct seam was found for
+steps 2/4/8, so none was landed. Logs/emits: session scratchpad `ch20/m-*.log`, `m-*.mlw`.
+
 ## Appendix — per-marker chains
 
 `cat | file::qual | status | families in order | PH (chain hit a placeholder conflict) / risk | last diagnostic`
