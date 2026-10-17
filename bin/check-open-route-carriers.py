@@ -32,7 +32,9 @@ THE CARRIERS (gen #30):
     receiver's static CLASS, which only Module 6 knows, so the faithful repair is the
     state-keyed device priced in the route doc.
 
-  route #214 — `getting-better/open-routes/route214-carrier-two-unknown-receivers.py`.
+  route #214 — CLOSED gen #36 (2026-10-17) by route #255 (323e857b); corpus witness 2760; its row
+    below is retired. Historical description, kept for the record:
+    `getting-better/open-routes/route214-carrier-two-unknown-receivers.py`.
     Two `getattr` reads on DIFFERENT unknown-class objects with DIFFERENT attribute names
     share route #47's DEFAULT-KEYED constant, so `d == e` is provable and
     `#@ ensures \result == 0` PROVES. CPython answers 1. Both repairs were measured and
@@ -138,10 +140,8 @@ CARRIERS = {
     # carrier files are retained as the route's historical evidence and are no longer
     # gated here: both now FAIL, and an entry asserting SUCCESS would make this plane red
     # for the right reason at the wrong time (the disposition routes #218 and #224 took).
-    "getting-better/open-routes/route214-carrier-two-unknown-receivers.py": (
-        "SUCCESS", "#214",
-        "two `getattr` reads on different unknown receivers share route #47's "
-        "default-keyed constant, so `\\result == 0` PROVES while CPython answers 1"),
+    # route #214 CLOSED (gen #36, 2026-10-17) by route #255 (323e857b): getattr over an erased
+    # receiver is erased and #249's `==` on erased values is uninterpreted; corpus witness 2760.
     # (#49) gen #31 — ROUTE #226. `__init__` sets `self.n = 0`, the invariant says
     # `self.n >= 5`, and a method returning `self.n` proves `\result >= 5`. The emitted
     # record is `invariant { n >= 5 } by { n = 10 }` — the inhabitation witness is

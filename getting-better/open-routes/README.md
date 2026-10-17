@@ -1,6 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-17): #214 CLOSED (found by the slow `check-open-route-carriers` plane going red: its carrier no
+##   longer proves). Driver bisect: closed by route #255 (323e857b; getattr over an erased receiver is erased, and #249's
+##   `==` on erased values is uninterpreted). Corpus witness 2760; carrier row retired.
+
 ## gen #36 (2026-10-17): #259 (`**` always int; pow mod 0 no obligation), #260 (except LookupError misses KeyError),
 ##   #261 (self-call under a broken class invariant), #262 (symbolic negative index in contracts) OPENED (red team 2).
 ##   #260/#261 REPAIRED 2026-10-17: EXCEPTION_BASES carries the whole builtin hierarchy (handler arms per raised
