@@ -1714,7 +1714,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         str_arrays: Set[str] = set()
         elem_reads: Set[str] = set()
 
-        #@ \trusted reviewer: pycsl-self-annotate
+        # (#49) gen #36 step 1 — marker RETIRED, not proved standalone: Module5 lifts this
+        # `rec` and preamble SUPPRESSES the lifted sibling (`_serl_walk_ids`); its semantics
+        # is verified INSIDE the enclosing function's group emit (generic_fold.py
+        # `recognize_string_elem_read_locals_pairs`: the two sequential `set_union` folds
+        # `f2 body (f1 body)` over the real pyval tree). The emitted .mlw is byte-identical
+        # with or without the marker, so the marker governed nothing. The contract lines
+        # below are inert (never emitted); `assigns \nothing` is about caller-visible state —
+        # the closure's writes land in the encloser's locals `str_arrays`/`elem_reads`.
         #@ requires True
         #@ ensures True
         #@ \diverges
@@ -1775,7 +1782,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         that never read a fixed-width null-padded byte field as a string)."""
         out: Set[str] = set()
 
-        #@ \trusted reviewer: pycsl-self-annotate
+        # (#49) gen #36 step 1 — marker RETIRED, not proved standalone: same shape as
+        # `_collect_string_elem_read_locals.rec` — the lifted `rec` is never emitted
+        # (`_fdsl_walk_ids`), its semantics is the enclosing function's verified group emit
+        # (generic_fold.py `recognize_field_decode_str_locals_pairs`, the `set_union`
+        # catamorphism; the idiom self-call is the opaque `__fdi`). Emission byte-identical
+        # with or without the marker. The closure's writes land in the encloser's local `out`.
         #@ requires True
         #@ ensures True
         #@ \diverges

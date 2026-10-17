@@ -154,7 +154,12 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        lines, ZERO new abstract operations, green whole-file proof in 38 minutes. Its
 #        near-twin `pycsl.py::_parse_args` is 174 lines, also proves, and is REFUSED by check
 #        1 for TEN new abstract operations — the whole of `argparse` going uninterpreted.
-MAX_UNCLASSIFIED = 265   # (#49) gen #36 ch17, 2026-10-16 — 266 -> 265: the `self.<f>.clear()`
+MAX_UNCLASSIFIED = 263   # (#49) gen #36 ch19, 2026-10-17 — 265 -> 263: the two unclassified
+                         # nested-closure markers `statements.py::_collect_string_elem_read_locals.rec`
+                         # and `::_collect_field_decode_str_locals.rec` RETIRED: both enclosers are
+                         # verified group emits that suppress the lifted `rec` (.mlw byte-identical
+                         # with/without the markers) — the marker governed nothing.
+                         # (#49) gen #36 ch17, 2026-10-16 — 266 -> 265: the `self.<f>.clear()`
                          # lowering (W-IPM S-D) converted the unclassified
                          # `frontend/pure_ast.py::_Unparser.visit_Module`.
                          # (#49) gen #36 ch16, 2026-10-15 — 267 -> 266: the in-place

@@ -356,8 +356,6 @@ module6_whyml/statements.py	StatementEmissionMixin._handle_augassign_stmt	unclas
 module6_whyml/statements.py	StatementEmissionMixin._handle_expr_stmt	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._stmts_to_whyml	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._emit_frame_condition	unclassified	-
-module6_whyml/statements.py	StatementEmissionMixin._collect_string_elem_read_locals.rec	unclassified	-
-module6_whyml/statements.py	StatementEmissionMixin._collect_field_decode_str_locals.rec	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._typed_local_vars	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	unclassified	-
 module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._is_string_expr	unclassified	-
