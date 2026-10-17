@@ -1,6 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-17): #263 (method-call recursion never termination-checked), #264 (never-assigned local reads 0),
+##   #265 (match True/False by equality), #266 (HAPPY region bypass via helper), #267 (vacuity gate misses one-branch
+##   inconsistency) OPENED (red team 3, driver-reproduced).
+
 ## gen #36 (2026-10-17): #214 CLOSED (found by the slow `check-open-route-carriers` plane going red: its carrier no
 ##   longer proves). Driver bisect: closed by route #255 (323e857b; getattr over an erased receiver is erased, and #249's
 ##   `==` on erased values is uninterpreted). Corpus witness 2760; carrier row retired.
